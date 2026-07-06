@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.160
+// @version      2.3.161
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.160';
+  const SCRIPT_VERSION = '2.3.161';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -169,7 +169,7 @@
     cloudBackupNotFound: '\u672a\u627e\u5230\u8fd9\u4e2a\u5bc6\u94a5\u7684\u4e91\u5907\u4efd',
     cloudBackupFailed: '\u4e91\u5907\u4efd\u5931\u8d25',
     cloudBackupHint: '\u586b\u5199\u540e\u4f1a\u4fdd\u5b58\u5728\u672c\u5730 PLM \u811a\u672c\u91cc\uff0c\u6bcf\u6b21\u65b0\u589e/\u66f4\u65b0\u7f16\u7801\u540e\u81ea\u52a8\u5907\u4efd\u4e00\u6b21\u3002',
-    excel: '\u751f\u6210',
+    excel: '\u5bfc\u51fa',
     excelPackQty: '\u88c5\u7bb1\u6570',
     excelPurchasePrice: '\u4ef7\u683c',
     excelGenerating: '\u6b63\u5728\u751f\u6210 Excel...',
@@ -760,7 +760,7 @@
     const outer = extractOuterPackage(drawer);
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
     const imageInfo = seenDesign ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
-    const tubeSpec = findTubeSizeSpec(packaging.printRawText);
+    const tubeSpec = findTubeSizeSpec([packaging.printRawText, text].filter(Boolean).join('\n'));
     const packageNums = packaging.packageNums || outer.packageNums;
     const hasInnerCard = hasInnerCardMark(packaging);
     const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums;
@@ -1019,6 +1019,7 @@
 
   function isTubePrintData(data, packageNums) {
     const text = String(data.printRawText || '') + String(data.printSizeLabel || '') + String(data.printSizeText || '');
+    if (data.tubeSegmentText || data.tubeTailSealLengthValue || data.tailSealLengthValue) return true;
     if (Boolean(data.isTubePrintMaterial) || isTubePrintRow(text)) return true;
     const printNums = parseDimension(data.printSizeText, 2);
     const labelLooksGenericPrint = /^\s*(?:\u5370\u5237|\u5370\u5237\u5c3a\u5bf8)?\s*$/.test(String(data.printSizeLabel || ''));
@@ -1027,11 +1028,9 @@
 
   function findTubeSizeSpec(text) {
     const source = String(text || '');
-    const diameterMatch = source.match(/\u7ba1\u5f84\s*(\d+(?:\.\d+)?)\s*mm/i);
-    const bodyMatch = source.match(/\u7ba1\u8eab\s*(\d+(?:\.\d+)?)\s*mm/i);
-    if (!diameterMatch || !bodyMatch) return null;
-    const diameter = Math.round(Number(diameterMatch[1]));
-    const body = Math.round(Number(bodyMatch[1]));
+    const diameter = extractTubeMeasure(source, '\u7ba1\u5f84');
+    const body = extractTubeMeasure(source, '\u7ba1\u8eab');
+    if (!diameter || !body) return null;
     const rule = TUBE_SIZE_RULES.find((item) => item.diameter === diameter && item.bodies.includes(body));
     if (!rule) return null;
     const tailSeal = (Number(rule.widths[1]) || 0) + (Number(rule.widths[2]) || 0);
@@ -1042,6 +1041,25 @@
       segmentText: rule.widths.map(formatCmSegment).join('-') + 'cm',
       tailSealText: trimNumber(tailSeal) + 'cm',
     };
+  }
+
+  function extractTubeMeasure(text, label) {
+    const source = String(text || '');
+    const escaped = escapeRegExp(label);
+    const labelIndex = source.search(new RegExp(escaped, 'i'));
+    const scope = labelIndex >= 0 ? source.slice(labelIndex, labelIndex + 120) : source;
+    const direct = scope.match(new RegExp(escaped + '[^\\d]{0,24}(\\d+(?:\\.\\d+)?)\\s*(mm|cm)?', 'i'));
+    if (direct) return normalizeTubeMeasureValue(direct[1], direct[2]);
+    const tableLike = scope.match(/(\d+(?:\.\d+)?)\s*(mm|cm)/i);
+    if (tableLike) return normalizeTubeMeasureValue(tableLike[1], tableLike[2]);
+    return 0;
+  }
+
+  function normalizeTubeMeasureValue(value, unit) {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return 0;
+    const normalized = String(unit || '').toLowerCase() === 'cm' ? num * 10 : num;
+    return Math.round(normalized);
   }
 
   function formatCmSegment(value) {
@@ -1665,7 +1683,7 @@
       rowHtml('printSizeText', state.data.printSizeLabel || L.printSize, formatPrintSizeDisplay(state.data) || L.noPrint),
       '</div>',
       '</section>',
-      '<section class="pfh-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + excelControlsHtml() + '</div>',
+      '<section class="pfh-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + excelTriggerHtml() + '</div>' + excelOptionsHtml(),
       '<div class="pfh-graphic-table pfh-info-grid">',
       rowHtml('packageLength', L.cartonLength, state.data.packageLength || L.noDimension),
       rowHtml('productLength', L.productLength, state.data.isTubePrint ? (state.data.productLength || L.tailSealLength) : (state.data.productLength || L.noDimension), { editable: state.data.isTubePrint }),
@@ -1806,9 +1824,13 @@
     return 'bag';
   }
 
-  function excelControlsHtml() {
+  function excelTriggerHtml() {
+    return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>\u5bfc\u51fa</span></button></div>';
+  }
+
+  function excelOptionsHtml() {
     if (!state.excelPanelOpen) {
-      return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>\u5bfc\u51fa</span></button></div>';
+      return '';
     }
     const status = state.excelStatus || (state.excelMissing.length ? L.excelIncomplete : L.excelReady);
     const statusClass = state.excelMissing.length || !state.excelExtra ? ' is-bad' : ' is-good';
@@ -7520,8 +7542,15 @@
         margin-left: auto;
       }
       #${PANEL_ID} .pfh-excel-controls.is-open {
-        flex: 1 1 auto;
-        justify-content: flex-end;
+        flex: 0 0 auto;
+        justify-content: flex-start;
+        width: 100%;
+        margin: 8px 0 12px;
+        padding: 8px;
+        border: 1px solid rgba(211,204,255,.42);
+        border-radius: 12px;
+        background: rgba(255,255,255,.58);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86);
       }
       #${PANEL_ID} .pfh-excel-controls input,
       #${PANEL_ID} .pfh-excel-controls select {
@@ -9232,8 +9261,8 @@
         background: #fffbeb !important;
       }
       #${PANEL_ID} .pfh-excel-controls.is-open {
-        flex: 0 1 auto;
-        max-width: 540px;
+        flex: 0 0 auto;
+        max-width: none;
       }
       #${PANEL_ID} .pfh-excel-controls.is-open input {
         width: 68px;
@@ -10497,15 +10526,15 @@
         min-height: 0 !important;
       }
       #${PANEL_ID} .pfh-graphic-title {
-        flex-wrap: wrap !important;
-        align-items: flex-start !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
         gap: 8px 10px !important;
       }
-      #${PANEL_ID} .pfh-graphic-title .pfh-excel-controls.is-open {
+      #${PANEL_ID} .pfh-section > .pfh-excel-controls.is-open {
         flex: 0 0 100% !important;
         width: 100% !important;
         justify-content: flex-start !important;
-        margin-top: 2px !important;
+        margin: 8px 0 12px !important;
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
