@@ -699,47 +699,39 @@ async function callZhipuInsightReporter(env, summary) {
   const apiKey = env.ZHIPU_API_KEY;
   if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
   const model = env.ZHIPU_MODEL || 'glm-4-flash';
-  const compactSummary = {
-    totals: summary.totals || [],
-    productTypes: (summary.productTypes || []).slice(0, 20),
-    recentPrices: (summary.recentPrices || []).slice(0, 20),
-    recentRecommendations: (summary.recentRecommendations || []).slice(0, 20),
-    recentIssues: (summary.recentIssues || []).slice(0, 20),
-    recentLogs: (summary.recentLogs || []).slice(0, 30),
-    logDiagnostics: summary.logDiagnostics || null,
-    ruleCandidates: (summary.ruleCandidates || []).slice(0, 20),
-    rulePackage: summary.rulePackage ? {
-      generatedAt: summary.rulePackage.generatedAt,
-      total: summary.rulePackage.total,
-      actionableCount: summary.rulePackage.actionableCount,
-      likelyPlmEmptyCount: summary.rulePackage.likelyPlmEmptyCount,
-      rules: (summary.rulePackage.rules || []).slice(0, 20),
-    } : null,
-  };
+  const compactSummary = buildCompactAiInsightSummary(summary);
   const prompt = [
     '你是 PLM 商品数据清洗和采购数据分析助手。',
-    '请根据下面 JSON，总结：1）商品类型规律；2）历史价格规律和可补全建议；3）字段缺失/清洗规则待修复项；4）适合复制到飞书表格的字段结构。',
-    '要求中文输出，结构清楚，尽量短，给出可执行规则，不要编造 JSON 里没有的数据。',
-    'Also analyze recentLogs/logDiagnostics. Classify likely causes as network, PLM empty value, script parsing gap, or workflow operation issue. Return concrete repair actions.',
+    '请根据下面精简 JSON 输出中文报告，最多 900 字。',
+    '必须包含：1）商品类型/价格规律；2）智能补全建议；3）清洗规则优先级；4）飞书表格记录建议。',
+    '根据 ruleRows/logDiagnostics 判断原因类别：PLM空值、脚本解析缺口、页面未读完、网络/流程问题。不要编造 JSON 外的数据。',
     JSON.stringify(compactSummary),
   ].join('\n');
 
-  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-    method: 'POST',
-    signal: AbortSignal.timeout(15000),
-    headers: {
-      authorization: 'Bearer ' + apiKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [
-        { role: 'system', content: '你只做 PLM 商品数据洞察、价格规律总结和数据清洗规则建议。' },
-        { role: 'user', content: prompt },
-      ],
-    }),
-  });
+  let response;
+  try {
+    response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method: 'POST',
+      signal: AbortSignal.timeout(Number(env.ZHIPU_INSIGHT_TIMEOUT_MS || 22000)),
+      headers: {
+        authorization: 'Bearer ' + apiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: '你只做 PLM 商品数据洞察、价格规律总结和数据清洗规则建议。输出简洁中文。' },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    });
+  } catch (error) {
+    if (error && (error.name === 'AbortError' || /aborted|timeout/i.test(String(error.message || '')))) {
+      throw new Error('AI 洞察请求超时，已使用规则版总结');
+    }
+    throw error;
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status);
@@ -747,6 +739,53 @@ async function callZhipuInsightReporter(env, summary) {
   return data && data.choices && data.choices[0] && data.choices[0].message
     ? String(data.choices[0].message.content || '').trim()
     : '';
+}
+
+function buildCompactAiInsightSummary(summary) {
+  const rules = ((summary && summary.rulePackage && summary.rulePackage.rules) || [])
+    .filter((item) => item.maintenanceStatus !== '\u5df2\u5904\u7406' && item.maintenanceStatus !== '\u5ffd\u7565')
+    .slice(0, 12)
+    .map((item) => ({
+      priority: item.priority || '',
+      field: item.missingField || '',
+      count: item.count || 0,
+      action: item.actionLabel || '',
+      status: item.maintenanceStatus || '',
+      likelyPlmEmpty: Boolean(item.likelyPlmEmpty),
+      targetTabs: item.targetTabs || [],
+      parsedButMissing: item.parsedButMissingCount || 0,
+      unread: item.unreadCount || 0,
+      retry: formatRuleRetryStatus(item),
+      examples: formatRuleExampleSkus(item),
+      suggestion: cleanText(item.suggestion, 180),
+    }));
+  return {
+    totals: summary.totals || [],
+    productTypes: (summary.productTypes || []).slice(0, 10),
+    prices: (summary.recentPrices || []).slice(0, 10).map((item) => ({
+      sku: item.sku || '',
+      type: item.product_type || '',
+      price: item.price || '',
+      packQty: item.pack_qty || '',
+      packageSize: item.package_size || '',
+      productSize: item.product_size || '',
+    })),
+    recommendations: (summary.recentRecommendations || []).slice(0, 8).map((item) => ({
+      sku: item.sku || '',
+      type: item.product_type || '',
+      price: item.recommended_price || '',
+      source: item.source || '',
+      reason: cleanText(item.reason, 160),
+    })),
+    issues: (summary.recentIssues || []).slice(0, 10),
+    logs: (summary.logDiagnostics && summary.logDiagnostics.topMessages || []).slice(0, 8),
+    rules,
+    ruleStats: summary.rulePackage ? {
+      total: summary.rulePackage.total,
+      actionable: summary.rulePackage.actionableCount,
+      likelyPlmEmpty: summary.rulePackage.likelyPlmEmptyCount,
+    } : null,
+  };
 }
 
 function buildAiReportCacheKey(summary) {
