@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.147
+// @version      2.3.148
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.147';
+  const SCRIPT_VERSION = '2.3.148';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5770,6 +5770,26 @@
     return Boolean(response && response.ok);
   }
 
+  function syncInsightEvent(eventType, payload) {
+    window.setTimeout(() => {
+      cloudRequest('/insights/record', {
+        method: 'POST',
+        body: {
+          ...(payload || {}),
+          eventType,
+          source: (payload && payload.source) || 'plm-helper',
+          version: SCRIPT_VERSION,
+        },
+      }).catch((error) => {
+        addLog('warn', '\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25', formatErrorMessage(error));
+      });
+    }, 0);
+  }
+
+  async function fetchInsightSummary() {
+    return cloudRequest('/insights/summary', { method: 'GET' });
+  }
+
   function cloudRequest(path, options) {
     const method = (options && options.method) || 'GET';
     const body = options && options.body ? JSON.stringify(options.body) : null;
@@ -6041,6 +6061,7 @@
     state.insights = insight;
     saveInsights();
     addLog('success', '\u5df2\u8bb0\u5f55\u4ef7\u683c/\u7c7b\u578b\u5386\u53f2', data.sku + ' ' + productType + ' ' + item.price);
+    syncInsightEvent('price', item);
     queueCloudBackup();
   }
 
@@ -6077,6 +6098,10 @@
       state.insights = insight;
       saveInsights();
       addLog('warn', '\u6570\u636e\u7f3a\u5931', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + (seen ? ' / \u5df2\u8bfb\uff1a' + seen : ''));
+      syncInsightEvent('issue', {
+        ...item,
+        missingFields: item.missing,
+      });
     }
   }
 

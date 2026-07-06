@@ -284,6 +284,88 @@ async function handlePackAiEstimate(request, env) {
   });
 }
 
+function cleanText(value, maxLength = 200) {
+  return String(value || '').trim().slice(0, maxLength);
+}
+
+function cleanList(value, maxItems = 20) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, maxItems);
+}
+
+async function handleInsightRecord(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const eventType = cleanText(body && body.eventType, 40);
+  if (!eventType || !/^(price|issue|type|summary)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
+
+  const missingFields = cleanList(body && body.missingFields);
+  const payload = JSON.stringify(body || {});
+  if (payload.length > 12000) return json({ error: 'payload too large' }, 413);
+
+  await env.DB.prepare(`
+    INSERT INTO insight_events (
+      event_type, sku, brand, name, product_type, price, pack_qty,
+      package_size, product_size, missing_fields, source, payload
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    eventType,
+    cleanText(body && body.sku, 80),
+    cleanText(body && body.brand, 120),
+    cleanText(body && body.name, 200),
+    cleanText(body && body.productType, 120),
+    cleanText(body && body.price, 40),
+    cleanText(body && body.packQty, 40),
+    cleanText(body && body.packageSize, 120),
+    cleanText(body && body.productSize, 120),
+    missingFields.join(','),
+    cleanText(body && body.source, 80),
+    payload
+  ).run();
+
+  return json({ ok: true, eventType });
+}
+
+async function handleInsightSummary(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const totals = await env.DB.prepare(`
+    SELECT event_type, COUNT(*) AS count
+    FROM insight_events
+    GROUP BY event_type
+  `).all();
+  const productTypes = await env.DB.prepare(`
+    SELECT product_type, COUNT(*) AS count, MAX(created_at) AS latest_at
+    FROM insight_events
+    WHERE product_type IS NOT NULL AND product_type != ''
+    GROUP BY product_type
+    ORDER BY count DESC, latest_at DESC
+    LIMIT 30
+  `).all();
+  const recentIssues = await env.DB.prepare(`
+    SELECT sku, brand, name, missing_fields, source, created_at
+    FROM insight_events
+    WHERE event_type = 'issue'
+    ORDER BY id DESC
+    LIMIT 30
+  `).all();
+  const recentPrices = await env.DB.prepare(`
+    SELECT sku, brand, name, product_type, price, pack_qty, package_size, product_size, created_at
+    FROM insight_events
+    WHERE event_type = 'price'
+    ORDER BY id DESC
+    LIMIT 30
+  `).all();
+
+  return json({
+    ok: true,
+    totals: totals.results || [],
+    productTypes: productTypes.results || [],
+    recentIssues: recentIssues.results || [],
+    recentPrices: recentPrices.results || [],
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
@@ -295,6 +377,8 @@ export default {
     if (url.pathname === '/pack/record' && request.method === 'POST') return handlePackRecord(request, env);
     if (url.pathname === '/pack/recommend' && request.method === 'GET') return handlePackRecommend(request, env);
     if (url.pathname === '/pack/ai-estimate' && request.method === 'POST') return handlePackAiEstimate(request, env);
+    if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
+    if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
 
     return json({ error: 'not found' }, 404);
   },
