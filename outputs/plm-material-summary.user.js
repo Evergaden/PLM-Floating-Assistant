@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.170
+// @version      2.3.171
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.170';
+  const SCRIPT_VERSION = '2.3.171';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1685,7 +1685,7 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderMaintainedCleaningRules() + '</div>';
   }
 
   function renderMaintainedCleaningRules() {
@@ -2318,6 +2318,10 @@
     }
     if (action === 'insights-cloud-summary') {
       refreshCloudInsightSummary();
+      return;
+    }
+    if (action === 'insights-readiness') {
+      checkCloudInsightReadiness();
       return;
     }
     if (action === 'insights-refresh-rules') {
@@ -5726,6 +5730,26 @@
     renderShell();
   }
 
+  async function checkCloudInsightReadiness() {
+    state.insightCloudStatus = '\u6b63\u5728\u4f53\u68c0\u4e91\u7aef\u6d1e\u5bdf\u94fe\u8def...';
+    renderShell();
+    try {
+      const response = await fetchInsightReadiness();
+      const checks = Array.isArray(response && response.checks) ? response.checks : [];
+      const passed = checks.filter((item) => item.ok).length;
+      const failed = checks.length - passed;
+      const blockers = (response && response.blockers || []).map((item) => item.label + '\uff1a' + item.detail).join(' / ');
+      state.insightCloudStatus = (response && response.ready ? '\u6d1e\u5bdf\u94fe\u8def\u5df2\u5c31\u7eea' : '\u6d1e\u5bdf\u94fe\u8def\u672a\u5c31\u7eea') +
+        '\uff1a' + passed + '/' + checks.length + '\u9879\u901a\u8fc7' + (failed ? '\uff0c\u7f3a\u53e3 ' + blockers : '');
+      addLog(response && response.ready ? 'success' : 'warn', '\u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0', state.insightCloudStatus);
+      showToast(state.insightCloudStatus);
+    } catch (error) {
+      state.insightCloudStatus = '\u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0\u5931\u8d25', formatErrorMessage(error));
+    }
+    renderShell();
+  }
+
   async function copyCloudInsightReport() {
     state.insightCloudStatus = '\u6b63\u5728\u751f\u6210\u4e91\u7aef\u603b\u7ed3...';
     renderShell();
@@ -6281,6 +6305,10 @@
 
   async function fetchInsightAiStatus() {
     return cloudRequest('/insights/ai-status', { method: 'GET' });
+  }
+
+  async function fetchInsightReadiness() {
+    return cloudRequest('/insights/readiness', { method: 'GET' });
   }
 
   async function fetchInsightRules() {

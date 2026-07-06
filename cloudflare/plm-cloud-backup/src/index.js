@@ -736,6 +736,41 @@ async function handleInsightAiStatus(request, env) {
   });
 }
 
+async function handleInsightReadiness(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const summary = await buildInsightSummary(env);
+  const totals = {};
+  (summary.totals || []).forEach((item) => {
+    totals[item.event_type] = Number(item.count || 0) || 0;
+  });
+  const feishuRequired = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
+  const feishuMissing = feishuRequired.filter((key) => !env[key]);
+  const checks = [
+    { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
+    { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
+    { key: 'typeSamples', ok: (summary.productTypes || []).length > 0, label: '商品类型样本', detail: String((summary.productTypes || []).length) },
+    { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
+    { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
+    { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: String(summary.rulePackage && summary.rulePackage.rules ? summary.rulePackage.rules.length : 0) },
+    { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'glm-4-flash') : 'ZHIPU_API_KEY missing' },
+    { key: 'feishu', ok: feishuMissing.length === 0, label: '飞书直写配置', detail: feishuMissing.length ? feishuMissing.join(',') : 'configured' },
+  ];
+  const blockers = checks.filter((item) => !item.ok).map((item) => ({
+    key: item.key,
+    label: item.label,
+    detail: item.detail,
+  }));
+  return json({
+    ok: true,
+    ready: blockers.length === 0,
+    checks,
+    blockers,
+    totals,
+    logDiagnostics: summary.logDiagnostics,
+    generatedAt: new Date().toISOString(),
+  });
+}
+
 function normalizePrice(value) {
   const number = Number(String(value || '').replace(/[^0-9.]/g, ''));
   return Number.isFinite(number) && number > 0 ? Number(number.toFixed(2)) : 0;
@@ -1485,6 +1520,7 @@ export default {
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
     if (url.pathname === '/insights/ai-report' && request.method === 'GET') return handleInsightAiReport(request, env);
     if (url.pathname === '/insights/ai-status' && request.method === 'GET') return handleInsightAiStatus(request, env);
+    if (url.pathname === '/insights/readiness' && request.method === 'GET') return handleInsightReadiness(request, env);
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
