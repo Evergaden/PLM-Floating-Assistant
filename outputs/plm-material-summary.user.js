@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.155
+// @version      2.3.156
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.155';
+  const SCRIPT_VERSION = '2.3.156';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -238,6 +238,7 @@
     insightsCopyAi: '\u590d\u5236 AI \u6574\u7406',
     insightsCopyRules: '\u590d\u5236\u6e05\u6d17\u89c4\u5219',
     insightsSyncFeishu: '\u540c\u6b65\u98de\u4e66',
+    insightsCheckFeishu: '\u68c0\u67e5\u98de\u4e66',
   };
   const TOOLTIP = {
     about: '\u5173\u4e8e',
@@ -1550,7 +1551,7 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + '</div>';
   }
 
   function renderLogSection() {
@@ -2155,6 +2156,10 @@
     }
     if (action === 'insights-cloud-summary') {
       refreshCloudInsightSummary();
+      return;
+    }
+    if (action === 'insights-check-feishu') {
+      checkCloudInsightFeishuStatus();
       return;
     }
     if (action === 'insights-sync-feishu') {
@@ -5550,6 +5555,26 @@
     renderShell();
   }
 
+  async function checkCloudInsightFeishuStatus() {
+    state.insightCloudStatus = '\u6b63\u5728\u68c0\u67e5\u98de\u4e66\u914d\u7f6e...';
+    renderShell();
+    try {
+      const response = await fetchInsightFeishuStatus();
+      if (response && response.configured) {
+        state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u5df2\u5b8c\u6574\uff0c\u5b57\u6bb5\uff1a' + (response.requiredFields || []).join(' / ');
+        addLog('success', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u901a\u8fc7');
+      } else {
+        state.insightCloudStatus = '\u98de\u4e66\u7f3a\u914d\u7f6e\uff1a' + ((response && response.missing || []).join(' / ') || '\u672a\u77e5');
+        addLog('warn', '\u98de\u4e66\u914d\u7f6e\u4e0d\u5b8c\u6574', state.insightCloudStatus);
+      }
+      showToast(state.insightCloudStatus);
+    } catch (error) {
+      state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25', formatErrorMessage(error));
+    }
+    renderShell();
+  }
+
   async function copyCloudInsightAiReport() {
     state.insightCloudStatus = '\u6b63\u5728\u8bf7\u6c42 AI \u6574\u7406\u6570\u636e...';
     renderShell();
@@ -5971,6 +5996,10 @@
 
   async function syncInsightFeishu() {
     return cloudRequest('/insights/feishu-sync', { method: 'POST', body: { version: SCRIPT_VERSION } });
+  }
+
+  async function fetchInsightFeishuStatus() {
+    return cloudRequest('/insights/feishu-status', { method: 'GET' });
   }
 
   async function fetchInsightFeishuTsv() {

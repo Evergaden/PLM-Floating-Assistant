@@ -821,6 +821,24 @@ async function handleInsightFeishuSync(request, env) {
   return json({ ok: true, inserted, skipped: allRecords.length - records.length });
 }
 
+function getFeishuRequiredFields() {
+  return ['记录类型', 'SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '缺失字段', '来源', '记录时间'];
+}
+
+async function handleInsightFeishuStatus(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const requiredEnv = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
+  const missing = requiredEnv.filter((key) => !env[key]);
+  return json({
+    ok: true,
+    configured: missing.length === 0,
+    missing,
+    requiredEnv,
+    requiredFields: getFeishuRequiredFields(),
+    note: '飞书多维表字段名需要和 requiredFields 完全一致；密钥只配置在 Worker 环境变量，不要写进油猴脚本。',
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
@@ -839,6 +857,7 @@ export default {
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
+    if (url.pathname === '/insights/feishu-status' && request.method === 'GET') return handleInsightFeishuStatus(request, env);
     if (url.pathname === '/insights/feishu-sync' && request.method === 'POST') return handleInsightFeishuSync(request, env);
 
     return json({ error: 'not found' }, 404);
