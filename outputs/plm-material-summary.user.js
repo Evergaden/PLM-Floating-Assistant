@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.163
+// @version      2.3.164
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.163';
+  const SCRIPT_VERSION = '2.3.164';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -270,6 +270,7 @@
     seenMaterial: false,
     seenProduct: false,
     seenDesign: false,
+    diagnosticRunning: false,
     nextTabTarget: L.materialTab,
     lastTabClickAt: 0,
     toastTimer: 0,
@@ -694,14 +695,72 @@
     state.scanTimer = window.setTimeout(scanOnce, SCAN_INTERVAL_MS);
   }
 
-  function finishRound() {
+  async function finishRound() {
     stopScan();
+    if (state.data && state.data.sku) {
+      state.data = await diagnoseMissingDataBeforeSave(state.data);
+    }
     if (state.data && state.data.sku) saveData(state.data.sku, state.data);
     const shouldRefreshThumb = state.refreshingThumbSku && state.data && state.data.sku === state.refreshingThumbSku;
     if (shouldRefreshThumb) state.refreshingThumbSku = '';
     state.scanTargetSku = '';
     renderShell(L.scanDone);
     hydrateCurrentProductThumb(shouldRefreshThumb ? { force: true, refreshImage: true } : { force: true });
+  }
+
+  async function diagnoseMissingDataBeforeSave(data) {
+    const missing = getMissingFieldsForData(data);
+    if (!missing.length || state.diagnosticRunning) return data;
+    const issueMeta = getDataQualityIssueMeta(data, missing);
+    if (issueMeta.kind === '\u53ef\u80fd PLM \u7a7a\u503c') return data;
+
+    const drawer = getProjectDrawerForSku(data.sku) || getProjectDrawer();
+    if (!drawer) {
+      addLog('warn', '\u6570\u636e\u7f3a\u5931\u8bca\u65ad\u8df3\u8fc7', data.sku + ' \u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49');
+      return data;
+    }
+
+    const tabs = getDiagnosticTabsForMissing(missing);
+    if (!tabs.length) return data;
+    state.diagnosticRunning = true;
+    addLog('info', '\u5f00\u59cb\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + ' / ' + issueMeta.kind);
+    let merged = data;
+    try {
+      for (const tabName of tabs) {
+        const tab = findTabButton(drawer, tabName);
+        if (tab && !isActiveTab(tab)) {
+          state.ignoreOutsideClickUntil = Date.now() + 1200;
+          tab.click();
+          await wait(tabName === '\u8bbe\u8ba1\u8d44\u6599' ? 900 : 650);
+        }
+        const live = extractData(drawer);
+        merged = mergeData(merged, live);
+      }
+      const afterMissing = getMissingFieldsForData(merged);
+      const fixed = missing.filter((field) => !afterMissing.includes(field));
+      if (fixed.length) {
+        addLog('success', '\u4e8c\u6b21\u8bfb\u53d6\u5df2\u8865\u5230\u6570\u636e', data.sku + ' \u8865\u5230\uff1a' + fixed.join('\u3001'));
+      } else {
+        addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u6570\u636e', data.sku + ' \u4ecd\u7f3a\uff1a' + afterMissing.join('\u3001'));
+      }
+      return merged;
+    } catch (error) {
+      addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
+      return data;
+    } finally {
+      state.diagnosticRunning = false;
+    }
+  }
+
+  function getDiagnosticTabsForMissing(missing) {
+    const tabs = [];
+    const needMaterial = missing.some((field) => ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'].includes(field));
+    const needProduct = missing.some((field) => ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'].includes(field));
+    const needDesign = missing.some((field) => ['SKU\u56fe'].includes(field));
+    if (needMaterial) tabs.push(L.materialTab);
+    if (needProduct) tabs.push(L.productTab);
+    if (needDesign) tabs.push('\u8bbe\u8ba1\u8d44\u6599');
+    return tabs;
   }
 
   function isRoundComplete(data) {
@@ -6368,14 +6427,7 @@
 
   function recordDataQuality(data, source) {
     if (!data || !data.sku) return;
-    const missing = [];
-    if (!data.brand) missing.push('\u54c1\u724c');
-    if (!data.name) missing.push('\u5546\u54c1\u540d\u79f0');
-    if (!data.packageSizeText && !(data.packageLength && data.packageWidth && data.packageHeight)) missing.push('\u5305\u88c5\u5c3a\u5bf8');
-    if (!data.printSizeText) missing.push('\u5370\u5237\u5c3a\u5bf8');
-    if (!data.productLength || !data.productWidth || !data.productHeight) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
-    if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
-    if (!data.grossWeight) missing.push('\u6bdb\u91cd');
+    const missing = getMissingFieldsForData(data);
     if (!missing.length) return;
     const seen = [
       data.seenMaterial ? '\u7269\u6599' : '',
@@ -6409,6 +6461,20 @@
     }
   }
 
+  function getMissingFieldsForData(data) {
+    const missing = [];
+    if (!data) return missing;
+    if (!data.brand) missing.push('\u54c1\u724c');
+    if (!data.name) missing.push('\u5546\u54c1\u540d\u79f0');
+    if (!data.packageSizeText && !(data.packageLength && data.packageWidth && data.packageHeight)) missing.push('\u5305\u88c5\u5c3a\u5bf8');
+    if (!data.printSizeText) missing.push('\u5370\u5237\u5c3a\u5bf8');
+    if (!data.productLength || !data.productWidth || !data.productHeight) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
+    if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
+    if (!data.grossWeight) missing.push('\u6bdb\u91cd');
+    if (data.seenDesign && !getProductThumbUrl(data)) missing.push('SKU\u56fe');
+    return missing;
+  }
+
   function getDataQualityIssueMeta(data, missing) {
     const readTabs = [
       data.seenMaterial ? '\u7269\u6599\u6e05\u5355' : '',
@@ -6418,13 +6484,16 @@
     const allCoreTabsRead = Boolean(data.seenMaterial && data.seenProduct);
     const materialFields = ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'];
     const productFields = ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'];
+    const designFields = ['SKU\u56fe'];
     const missingMaterial = missing.some((field) => materialFields.includes(field));
     const missingProduct = missing.some((field) => productFields.includes(field));
+    const missingDesign = missing.some((field) => designFields.includes(field));
+    const targetTabUnread = (missingMaterial && !data.seenMaterial) || (missingProduct && !data.seenProduct) || (missingDesign && !data.seenDesign);
     let kind = '\u53ef\u80fd PLM \u7a7a\u503c';
-    if ((missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || allCoreTabsRead) {
-      kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
-    } else if (!readTabs.length) {
+    if (targetTabUnread || !readTabs.length) {
       kind = '\u9875\u9762\u672a\u8bfb\u5b8c';
+    } else if ((missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || (missingDesign && data.seenDesign) || allCoreTabsRead) {
+      kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
     }
     return {
       kind,
