@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.182
+// @version      2.3.183
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.182';
+  const SCRIPT_VERSION = '2.3.183';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -239,6 +239,7 @@
     insightsCopyRules: '\u590d\u5236\u6e05\u6d17\u89c4\u5219',
     insightsSyncFeishu: '\u540c\u6b65\u98de\u4e66',
     insightsCheckFeishu: '\u68c0\u67e5\u98de\u4e66',
+    insightsCopyFeishuSetup: '\u590d\u5236\u98de\u4e66\u914d\u7f6e',
     insightsCheckAi: '\u68c0\u67e5 AI',
   };
   const TOOLTIP = {
@@ -1785,7 +1786,7 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-copy-feishu-setup">' + escapeHtml(L.insightsCopyFeishuSetup) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderMaintainedCleaningRules() + '</div>';
   }
 
   function renderInsightReadinessPanel() {
@@ -2454,6 +2455,10 @@
     }
     if (action === 'insights-check-feishu') {
       checkCloudInsightFeishuStatus();
+      return;
+    }
+    if (action === 'insights-copy-feishu-setup') {
+      copyCloudInsightFeishuSetup();
       return;
     }
     if (action === 'insights-sync-feishu') {
@@ -5971,6 +5976,24 @@
     } catch (error) {
       state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25\uff1a' + formatErrorMessage(error);
       addLog('warn', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25', formatErrorMessage(error));
+    }
+    renderShell();
+  }
+
+  async function copyCloudInsightFeishuSetup() {
+    state.insightCloudStatus = '\u6b63\u5728\u751f\u6210\u98de\u4e66\u5efa\u8868\u914d\u7f6e...';
+    renderShell();
+    try {
+      const response = await fetchInsightFeishuStatus();
+      const text = formatFeishuSetupStatus(response);
+      if (!text) throw new Error('empty feishu setup');
+      state.insightCloudStatus = '\u98de\u4e66\u5efa\u8868\u5b57\u6bb5\u548c Worker secrets \u547d\u4ee4\u5df2\u590d\u5236';
+      copyText(text);
+      addLog('success', '\u5df2\u590d\u5236\u98de\u4e66\u914d\u7f6e\u6307\u5357');
+      showToast(L.copied);
+    } catch (error) {
+      state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u751f\u6210\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u98de\u4e66\u914d\u7f6e\u751f\u6210\u5931\u8d25', formatErrorMessage(error));
     }
     renderShell();
   }

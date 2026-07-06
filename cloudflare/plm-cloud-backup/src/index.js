@@ -1825,7 +1825,7 @@ async function handleInsightFeishuSync(request, env) {
         authorization: 'Bearer ' + token,
         'content-type': 'application/json; charset=utf-8',
       },
-      body: JSON.stringify({ records: chunk }),
+      body: JSON.stringify({ records: chunk.map((record) => ({ fields: record.fields || {} })) }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.code !== 0) {
