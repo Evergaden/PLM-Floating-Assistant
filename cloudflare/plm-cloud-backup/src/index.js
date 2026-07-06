@@ -855,6 +855,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
     { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
     { key: 'typeSamples', ok: (summary.productTypes || []).length > 0, label: '商品类型样本', detail: String((summary.productTypes || []).length) },
+    { key: 'recommendationSamples', ok: (totals.recommendation || 0) > 0, label: '智能补全推荐样本', detail: String(totals.recommendation || 0) },
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: String(summary.rulePackage && summary.rulePackage.rules ? summary.rulePackage.rules.length : 0) },
