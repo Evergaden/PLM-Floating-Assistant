@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.157
+// @version      2.3.158
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.157';
+  const SCRIPT_VERSION = '2.3.158';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6218,6 +6218,8 @@
       name: String(item.name || '').slice(0, 200),
       missing: Array.isArray(item.missing) ? item.missing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
       seen: String(item.seen || '').slice(0, 120),
+      issueKind: String(item.issueKind || '').slice(0, 80),
+      readiness: String(item.readiness || '').slice(0, 160),
       source: String(item.source || '').slice(0, 80),
       recordedAt: String(item.recordedAt || '').slice(0, 80),
       recordedAtMs: Number(item.recordedAtMs || 0) || 0,
@@ -6324,12 +6326,15 @@
       data.seenProduct ? '\u4ea7\u54c1' : '',
       data.seenDesign ? '\u8bbe\u8ba1' : '',
     ].filter(Boolean).join('/');
+    const issueMeta = getDataQualityIssueMeta(data, missing);
     const item = {
       sku: data.sku,
       brand: data.brand || '',
       name: data.name || '',
       missing,
       seen,
+      issueKind: issueMeta.kind,
+      readiness: issueMeta.readiness,
       source: source || 'scan',
       recordedAt: new Date().toLocaleString(),
       recordedAtMs: Date.now(),
@@ -6340,12 +6345,35 @@
       insight.dataIssues = [item].concat(insight.dataIssues || []).slice(0, 1000);
       state.insights = insight;
       saveInsights();
-      addLog('warn', '\u6570\u636e\u7f3a\u5931', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + (seen ? ' / \u5df2\u8bfb\uff1a' + seen : ''));
+      addLog('warn', '\u6570\u636e\u7f3a\u5931', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + (seen ? ' / \u5df2\u8bfb\uff1a' + seen : '') + ' / ' + issueMeta.kind);
       syncInsightEvent('issue', {
         ...item,
         missingFields: item.missing,
       });
     }
+  }
+
+  function getDataQualityIssueMeta(data, missing) {
+    const readTabs = [
+      data.seenMaterial ? '\u7269\u6599\u6e05\u5355' : '',
+      data.seenProduct ? '\u4ea7\u54c1\u4fe1\u606f' : '',
+      data.seenDesign ? '\u8bbe\u8ba1\u8d44\u6599' : '',
+    ].filter(Boolean);
+    const allCoreTabsRead = Boolean(data.seenMaterial && data.seenProduct);
+    const materialFields = ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'];
+    const productFields = ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'];
+    const missingMaterial = missing.some((field) => materialFields.includes(field));
+    const missingProduct = missing.some((field) => productFields.includes(field));
+    let kind = '\u53ef\u80fd PLM \u7a7a\u503c';
+    if ((missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || allCoreTabsRead) {
+      kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
+    } else if (!readTabs.length) {
+      kind = '\u9875\u9762\u672a\u8bfb\u5b8c';
+    }
+    return {
+      kind,
+      readiness: readTabs.length ? '\u5df2\u8bfb\u9875\u7b7e\uff1a' + readTabs.join('/') : '\u672a\u8bfb\u5230\u6838\u5fc3\u9875\u7b7e',
+    };
   }
 
   function loadIndex() {
