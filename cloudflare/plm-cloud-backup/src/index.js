@@ -329,6 +329,11 @@ async function handleInsightRecord(request, env) {
 
 async function handleInsightSummary(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const summary = await buildInsightSummary(env);
+  return json({ ok: true, ...summary });
+}
+
+async function buildInsightSummary(env) {
   const totals = await env.DB.prepare(`
     SELECT event_type, COUNT(*) AS count
     FROM insight_events
@@ -357,12 +362,51 @@ async function handleInsightSummary(request, env) {
     LIMIT 30
   `).all();
 
-  return json({
-    ok: true,
+  return {
     totals: totals.results || [],
     productTypes: productTypes.results || [],
     recentIssues: recentIssues.results || [],
     recentPrices: recentPrices.results || [],
+  };
+}
+
+function tableLines(rows, columns) {
+  if (!rows || !rows.length) return ['暂无'];
+  return rows.map((row) => columns.map((column) => cleanText(row[column], 120) || '-').join('\t'));
+}
+
+async function handleInsightReport(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const summary = await buildInsightSummary(env);
+  const totalText = (summary.totals || []).map((item) => cleanText(item.event_type, 40) + ':' + item.count).join(' / ') || '暂无';
+  const lines = [
+    'PLM 数据洞察报告',
+    '生成时间：' + new Date().toISOString(),
+    '',
+    '一、事件总览',
+    totalText,
+    '',
+    '二、商品类型规律',
+    '商品类型\t记录数\t最近时间',
+    ...tableLines(summary.productTypes, ['product_type', 'count', 'latest_at']),
+    '',
+    '三、最近价格记录',
+    'SKU\t品牌\t商品名\t类型\t价格\t装箱数\t包装尺寸\t产品尺寸\t时间',
+    ...tableLines(summary.recentPrices, ['sku', 'brand', 'name', 'product_type', 'price', 'pack_qty', 'package_size', 'product_size', 'created_at']),
+    '',
+    '四、最近字段异常',
+    'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
+    ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
+    '',
+    '五、AI 处理建议',
+    '1. 按商品类型统计价格区间和常见装箱数，给新 SKU 做默认推荐。',
+    '2. 对高频缺失字段维护清洗规则；如果 PLM 页面不是空值但脚本未获取到，优先记录为规则待修复。',
+    '3. 飞书表格建议列：SKU、品牌、商品名、商品类型、价格、装箱数、包装尺寸、产品尺寸、缺失字段、记录时间。',
+  ];
+  return json({
+    ok: true,
+    report: lines.join('\n'),
+    summary,
   });
 }
 
@@ -379,6 +423,7 @@ export default {
     if (url.pathname === '/pack/ai-estimate' && request.method === 'POST') return handlePackAiEstimate(request, env);
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
+    if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
 
     return json({ error: 'not found' }, 404);
   },
