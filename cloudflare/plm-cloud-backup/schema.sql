@@ -52,3 +52,11 @@ CREATE TABLE IF NOT EXISTS feishu_synced_records (
   sku TEXT,
   synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS ai_report_cache (
+  cache_key TEXT PRIMARY KEY,
+  source TEXT,
+  report TEXT NOT NULL,
+  error TEXT,
+  created_at INTEGER NOT NULL
+);

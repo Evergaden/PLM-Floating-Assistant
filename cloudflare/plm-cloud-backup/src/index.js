@@ -500,6 +500,44 @@ async function callZhipuInsightReporter(env, summary) {
     : '';
 }
 
+function buildAiReportCacheKey(summary) {
+  const totals = (summary.totals || []).map((item) => item.event_type + ':' + item.count).join('|');
+  const latestPrice = summary.recentPrices && summary.recentPrices[0] ? summary.recentPrices[0].created_at || '' : '';
+  const latestIssue = summary.recentIssues && summary.recentIssues[0] ? summary.recentIssues[0].created_at || '' : '';
+  return ['insight', totals, latestPrice, latestIssue].join('|').slice(0, 500);
+}
+
+async function getCachedAiReport(env, cacheKey) {
+  const row = await env.DB.prepare(`
+    SELECT source, report, error, created_at
+    FROM ai_report_cache
+    WHERE cache_key = ?
+  `).bind(cacheKey).first();
+  if (!row) return null;
+  const ageMs = Date.now() - Number(row.created_at || 0);
+  const ttlMs = row.source === 'zhipu' ? 10 * 60 * 1000 : 2 * 60 * 1000;
+  if (ageMs > ttlMs) return null;
+  return {
+    source: row.source || 'cache',
+    report: row.report || '',
+    error: row.error || '',
+    cached: true,
+  };
+}
+
+async function setCachedAiReport(env, cacheKey, payload) {
+  if (!payload || !payload.report) return;
+  await env.DB.prepare(`
+    INSERT INTO ai_report_cache (cache_key, source, report, error, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(cache_key) DO UPDATE SET
+      source = excluded.source,
+      report = excluded.report,
+      error = excluded.error,
+      created_at = excluded.created_at
+  `).bind(cacheKey, payload.source || '', payload.report || '', payload.error || '', Date.now()).run();
+}
+
 async function handleInsightAiReport(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const summary = await buildInsightSummary(env);
@@ -508,10 +546,14 @@ async function handleInsightAiReport(request, env) {
 }
 
 async function buildInsightAiReportPayload(env, summary) {
+  const cacheKey = buildAiReportCacheKey(summary);
+  const cached = await getCachedAiReport(env, cacheKey);
+  if (cached) return cached;
+  let payload = null;
   try {
     const report = await callZhipuInsightReporter(env, summary);
     if (!report) throw new Error('empty ai report');
-    return { source: 'zhipu', report };
+    payload = { source: 'zhipu', report };
   } catch (error) {
     const totalText = (summary.totals || []).map((item) => cleanText(item.event_type, 40) + ':' + item.count).join(' / ') || '暂无';
     const report = [
@@ -528,8 +570,10 @@ async function buildInsightAiReportPayload(env, summary) {
       'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
       ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
     ].join('\n');
-    return { source: 'fallback', error: cleanText(error && error.message, 200), report };
+    payload = { source: 'fallback', error: cleanText(error && error.message, 200), report };
   }
+  await setCachedAiReport(env, cacheKey, payload).catch(() => {});
+  return payload;
 }
 
 async function handleInsightAiStatus(request, env) {
