@@ -850,8 +850,7 @@ async function handleInsightReadiness(request, env) {
     totals[item.event_type] = Number(item.count || 0) || 0;
   });
   const recommendationProbe = await probeRecommendationEngine(env, summary);
-  const feishuRequired = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
-  const feishuMissing = feishuRequired.filter((key) => !env[key]);
+  const feishuStatus = await getFeishuConfigStatus(env);
   const checks = [
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
     { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
@@ -861,7 +860,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: String(summary.rulePackage && summary.rulePackage.rules ? summary.rulePackage.rules.length : 0) },
     { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'glm-4-flash') : 'ZHIPU_API_KEY missing' },
-    { key: 'feishu', ok: feishuMissing.length === 0, label: '飞书直写配置', detail: feishuMissing.length ? feishuMissing.join(',') : 'configured' },
+    { key: 'feishu', ok: feishuStatus.configured, label: '飞书直写配置', detail: getFeishuStatusDetail(feishuStatus) },
   ];
   const blockers = checks.filter((item) => !item.ok).map((item) => ({
     key: item.key,
@@ -875,6 +874,7 @@ async function handleInsightReadiness(request, env) {
     blockers,
     totals,
     recommendationProbe,
+    feishuStatus,
     logDiagnostics: summary.logDiagnostics,
     generatedAt: new Date().toISOString(),
   });
@@ -1773,8 +1773,7 @@ function buildFeishuSetupGuide(requiredEnv, missing) {
   ].join('\n');
 }
 
-async function handleInsightFeishuStatus(request, env) {
-  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+async function getFeishuConfigStatus(env) {
   const requiredEnv = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
   const setupCommands = requiredEnv
     .map((key) => 'npx.cmd wrangler secret put ' + key)
@@ -1791,8 +1790,7 @@ async function handleInsightFeishuStatus(request, env) {
     }
   }
   const configured = missing.length === 0 && !checkError && (!tableSchema || tableSchema.ok);
-  return json({
-    ok: true,
+  return {
     configured,
     missing,
     requiredEnv,
@@ -1804,6 +1802,23 @@ async function handleInsightFeishuStatus(request, env) {
     setupCommands,
     setupGuide: buildFeishuSetupGuide(requiredEnv, missing),
     note: '飞书多维表字段名需要和 requiredFields 完全一致；密钥只配置在 Worker 环境变量，不要写进油猴脚本。',
+  };
+}
+
+function getFeishuStatusDetail(status) {
+  if (!status) return 'unknown';
+  if (status.missing && status.missing.length) return status.missing.join(',');
+  if (status.tableMissingFields && status.tableMissingFields.length) return 'missing fields: ' + status.tableMissingFields.join(',');
+  if (status.checkError) return status.checkError;
+  return status.configured ? 'configured' : 'not configured';
+}
+
+async function handleInsightFeishuStatus(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const status = await getFeishuConfigStatus(env);
+  return json({
+    ok: true,
+    ...status,
   });
 }
 
