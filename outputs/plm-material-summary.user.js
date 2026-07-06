@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.143
+// @version      2.3.144
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.143';
+  const SCRIPT_VERSION = '2.3.144';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3967,21 +3967,49 @@
   function getDetailModalDownloadButtons(modal) {
     return Array.from(modal.querySelectorAll('button, a, [role="button"], span'))
       .filter(isVisibleElement)
-      .filter((el) => compactText(el.innerText || el.textContent) === '\u4e0b\u8f7d');
+      .filter((el) => compactText(el.innerText || el.textContent) === '\u4e0b\u8f7d')
+      .map(getClickableElement)
+      .filter((el, index, arr) => el && arr.indexOf(el) === index);
   }
 
   async function downloadImagesFromDetailModal(modal) {
     const urls = getDetailModalImageUrls(modal);
     addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u67e5\u770b\u8be6\u60c5\u5f39\u7a97\u56fe\u7247 URL ' + urls.length + '\u4e2a');
+    const initialDownloads = getDetailModalDownloadButtons(modal);
+    addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u67e5\u770b\u8be6\u60c5\u5f39\u7a97\u4e0b\u8f7d\u6309\u94ae ' + initialDownloads.length + '\u4e2a');
+    if (initialDownloads.length) {
+      for (let index = 0; isVisibleElement(modal) && document.body.contains(modal); index += 1) {
+        const downloads = getDetailModalDownloadButtons(modal);
+        if (index >= downloads.length) break;
+        const target = downloads[index];
+        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae ' + (index + 1) + '/' + downloads.length);
+        clickElement(target);
+        const directModal = await waitUntil(() => {
+          const latest = getVisibleModal();
+          if (!latest || latest === modal) return null;
+          return /\u76f4\u63a5\u4f7f\u7528|\u63d0\u4ea4\u5e76\u4e0b\u8f7d/.test(getVisibleText(latest)) ? latest : null;
+        }, 8000, 200);
+        if (!directModal) throw new Error('\u672a\u6253\u5f00\u76f4\u63a5\u4f7f\u7528\u5f39\u7a97');
+        await chooseDirectUseAndSubmitDownloadInModal(directModal);
+        await wait(350);
+      }
+      addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae\u5904\u7406\u5b8c\u6210 ' + initialDownloads.length + '\u5f20');
+      showToast('\u56fe\u7247\u5df2\u6309\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae\u5904\u7406\uff1a' + initialDownloads.length + '\u5f20');
+      const close = findButtonLikeInScope(modal, '\u5173\u95ed');
+      if (close) clickElement(close);
+      await waitUntil(() => !isVisibleElement(modal) || !document.body.contains(modal), 5000, 200).catch(() => null);
+      return;
+    }
     if (urls.length) {
+      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u672a\u627e\u5230\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae\uff0c\u6539\u7528 URL \u515c\u5e95');
       for (let index = 0; index < urls.length; index += 1) {
         const filename = buildDetailImageFilename(urls[index], index);
-        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u76f4\u63a5\u4e0b\u8f7d ' + (index + 1) + '/' + urls.length, filename);
+        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d ' + (index + 1) + '/' + urls.length, filename);
         await downloadImageUrl(urls[index], filename);
         await wait(180);
       }
-      addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u76f4\u63a5\u4e0b\u8f7d\u5b8c\u6210 ' + urls.length + '\u5f20');
-      showToast('\u56fe\u7247\u5df2\u76f4\u63a5\u4e0b\u8f7d\uff1a' + urls.length + '\u5f20');
+      addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d\u5b8c\u6210 ' + urls.length + '\u5f20');
+      showToast('\u56fe\u7247\u5df2 URL \u515c\u5e95\u4e0b\u8f7d\uff1a' + urls.length + '\u5f20');
       const closeDirect = findButtonLikeInScope(modal, '\u5173\u95ed');
       if (closeDirect) clickElement(closeDirect);
       await waitUntil(() => !isVisibleElement(modal) || !document.body.contains(modal), 5000, 200).catch(() => null);
