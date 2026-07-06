@@ -653,30 +653,43 @@ function buildRuleCandidates(issueRows) {
       groups.set(field, current);
     });
   });
-  return Array.from(groups.values()).map((item) => ({
-    missingField: item.missingField,
-    count: item.count,
-    sources: Array.from(item.sources),
-    issueKinds: Array.from(item.issueKinds),
-    examples: item.examples,
-    latestAt: item.latestAt,
-    suggestion: item.issueKinds.has('页面已读但未解析')
-      ? '高优先级：页面已读但字段为空，优先补充“' + item.missingField + '”的选择器/解析规则。'
-      : '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。',
-  })).sort((a, b) => b.count - a.count || String(b.latestAt).localeCompare(String(a.latestAt)));
+  return Array.from(groups.values()).map((item) => {
+    const issueKinds = Array.from(item.issueKinds);
+    const highPriority = item.issueKinds.has('页面已读但未解析');
+    const mediumPriority = item.count >= 3 || item.issueKinds.has('页面未读完');
+    const priority = highPriority ? 'P1' : (mediumPriority ? 'P2' : 'P3');
+    const reason = highPriority
+      ? '页面已读到对应区域但字段为空，更可能是选择器或解析规则缺失'
+      : (item.issueKinds.has('页面未读完') ? '页面读取流程可能不完整，先检查 tab 切换/等待' : '可能是 PLM 本身为空或低频异常');
+    return {
+      missingField: item.missingField,
+      count: item.count,
+      priority,
+      reason,
+      sources: Array.from(item.sources),
+      issueKinds,
+      examples: item.examples,
+      latestAt: item.latestAt,
+      suggestion: highPriority
+        ? '高优先级：页面已读但字段为空，优先补充“' + item.missingField + '”的选择器/解析规则。'
+        : '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。',
+    };
+  }).sort((a, b) => a.priority.localeCompare(b.priority) || b.count - a.count || String(b.latestAt).localeCompare(String(a.latestAt)));
 }
 
 function formatRuleCandidates(candidates) {
   if (!candidates.length) return '暂无清洗规则候选。';
   const lines = [
     'PLM 数据清洗规则候选',
-    '字段\t次数\t异常类型\t来源\t样例SKU\t建议',
+    '优先级\t字段\t次数\t异常类型\t原因\t来源\t样例SKU\t建议',
   ];
   candidates.forEach((item) => {
     lines.push([
+      item.priority,
       item.missingField,
       item.count,
       item.issueKinds.join('/') || '-',
+      item.reason,
       item.sources.join('/') || '-',
       item.examples.map((example) => example.sku).filter(Boolean).join(',') || '-',
       item.suggestion,
