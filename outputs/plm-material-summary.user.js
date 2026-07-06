@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.156
+// @version      2.3.157
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.156';
+  const SCRIPT_VERSION = '2.3.157';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5240,16 +5240,35 @@
     const current = String(state.excelPurchasePrice || '').trim();
     if (current && current !== '6') return false;
     const productType = getProductTypeForInsight(data, extra);
-    const recommendation = await fetchInsightRecommendation(data, productType).catch((error) => {
+    const cloudRecommendation = await fetchInsightRecommendation(data, productType).catch((error) => {
       addLog('warn', '\u4ef7\u683c\u63a8\u8350\u83b7\u53d6\u5931\u8d25', formatErrorMessage(error));
       return null;
     });
+    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, productType);
     const price = recommendation && recommendation.recommendedPrice ? String(recommendation.recommendedPrice) : '';
     if (!price) return false;
     state.excelPurchasePrice = price;
     state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (recommendation.source ? ' / ' + recommendation.source : '');
     addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + productType + ' ' + price);
     return true;
+  }
+
+  function getLocalPriceRecommendation(data, productType) {
+    const history = state.insights && Array.isArray(state.insights.priceHistory) ? state.insights.priceHistory : [];
+    if (!history.length || !data) return null;
+    const sku = String(data.sku || '');
+    const name = String(data.name || '').trim();
+    const valid = history.map((item) => ({
+      ...item,
+      numericPrice: Number(String(item.price || '').replace(/[^0-9.]/g, '')),
+    })).filter((item) => item.numericPrice > 0);
+    const sameSku = valid.find((item) => sku && item.sku === sku);
+    if (sameSku) return { recommendedPrice: sameSku.numericPrice, source: 'local-same-sku' };
+    const sameType = valid.find((item) => productType && item.productType === productType);
+    if (sameType) return { recommendedPrice: sameType.numericPrice, source: 'local-same-type' };
+    const sameName = valid.find((item) => name && String(item.name || '').includes(name.slice(0, 8)));
+    if (sameName) return { recommendedPrice: sameName.numericPrice, source: 'local-name' };
+    return null;
   }
 
   function getReturnDateText(days) {
