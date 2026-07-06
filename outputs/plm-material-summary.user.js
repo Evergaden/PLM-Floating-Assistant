@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.140
+// @version      2.3.141
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.140';
+  const SCRIPT_VERSION = '2.3.141';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3741,18 +3741,18 @@
     const originalText = button.textContent;
     try {
       addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5f00\u59cb');
-      const targets = findDetailImageDownloadTargets(drawer);
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u4e0b\u8f7d\u5165\u53e3 ' + targets.length + '\u4e2a');
-      const urls = getDrawerDownloadableImageUrls(drawer);
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u56fe\u7247 URL ' + urls.length + '\u4e2a');
-      if (urls.length) {
-        await downloadDrawerImageUrls(urls, button);
+      const viewButtons = findGeneratedImageViewButtons(drawer, ['\u8be6\u60c5\u56fe']);
+      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3 ' + viewButtons.length + '\u4e2a');
+      if (viewButtons.length) {
+        await downloadGeneratedImageViews(viewButtons, button);
         return;
       }
+      const targets = findDetailImageDownloadTargets(drawer);
+      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u4e0b\u8f7d\u5165\u53e3 ' + targets.length + '\u4e2a');
       if (!targets.length) {
         button.textContent = '\u672a\u627e\u5230\u56fe\u7247\u4e0b\u8f7d';
-        addLog('error', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u672a\u627e\u5230\u56fe\u7247\u4e0b\u8f7d\u6309\u94ae\u6216\u56fe\u7247 URL', getVisibleText(drawer).slice(0, 160));
-        showToast('\u672a\u627e\u5230\u56fe\u7247\u4e0b\u8f7d\u6309\u94ae\u6216\u56fe\u7247 URL');
+        addLog('error', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u672a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3\u6216\u4e0b\u8f7d\u6309\u94ae', getVisibleText(drawer).slice(0, 180));
+        showToast('\u672a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3\u6216\u4e0b\u8f7d\u6309\u94ae');
         return;
       }
       for (let index = 0; index < targets.length; index += 1) {
@@ -3780,6 +3780,28 @@
         button.dataset.running = '';
       }, 1800);
     }
+  }
+
+  async function downloadGeneratedImageViews(viewButtons, button) {
+    for (let index = 0; index < viewButtons.length; index += 1) {
+      const target = viewButtons[index];
+      if (!document.body.contains(target)) continue;
+      button.textContent = '\u67e5\u770b\u8be6\u60c5\u56fe ' + (index + 1) + '/' + viewButtons.length;
+      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3 ' + (index + 1) + '/' + viewButtons.length);
+      clickElement(target);
+      const modal = await waitUntil(() => {
+        const latest = getVisibleModal();
+        if (!latest) return null;
+        const text = getVisibleText(latest);
+        return /\u67e5\u770b|\u4e0b\u8f7d|\u56fe\u7247/.test(text) && (getDetailModalImageUrls(latest).length || getDetailModalDownloadButtons(latest).length) ? latest : null;
+      }, 10000, 200);
+      if (!modal) throw new Error('\u672a\u6253\u5f00\u8be6\u60c5\u56fe\u67e5\u770b\u5f39\u7a97');
+      await downloadImagesFromDetailModal(modal);
+      await wait(350);
+    }
+    button.textContent = '\u4e0b\u8f7d\u5b8c\u6210';
+    addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u8be6\u60c5\u56fe\u67e5\u770b\u5f39\u7a97\u5904\u7406\u5b8c\u6210');
+    showToast('\u8be6\u60c5\u56fe\u4e0b\u8f7d\u5df2\u5904\u7406');
   }
 
   async function runHomeDetailImageDownload() {
@@ -3815,11 +3837,17 @@
   }
 
   function findDetailImageDownloadTargets(drawer) {
-    const primaryCards = Array.from(drawer.querySelectorAll('.filePreviewCard, .filePreviewMainBox, .ant-upload-wrapper.draggerUploader, .ant-upload-drag.draggerUploader, .ant-upload-list-item, .ant-upload-list-picture-card-container'))
+    const scopes = findImageFieldItems(drawer, ['\u8be6\u60c5\u56fe']);
+    if (!scopes.length) {
+      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5f53\u524d\u9875\u9762\u6ca1\u6709\u53ef\u8bc6\u522b\u7684\u8be6\u60c5\u56fe\u8868\u5355\u9879');
+      return [];
+    }
+    const roots = scopes.length ? scopes : [drawer];
+    const primaryCards = roots.flatMap((root) => Array.from(root.querySelectorAll('.filePreviewCard, .filePreviewMainBox, .ant-upload-wrapper.draggerUploader, .ant-upload-drag.draggerUploader, .ant-upload-list-item, .ant-upload-list-picture-card-container')))
       .filter(isVisibleElement)
       .filter((node) => !node.closest('#' + PANEL_ID))
       .filter(isLikelyImageAssetCard);
-    const fallbackCards = primaryCards.length ? [] : Array.from(drawer.querySelectorAll('.previewMasker, .ant-image, .ant-card, [class*="file"], [class*="preview"]'))
+    const fallbackCards = primaryCards.length ? [] : roots.flatMap((root) => Array.from(root.querySelectorAll('.previewMasker, .ant-image, .ant-card, [class*="file"], [class*="preview"]')))
       .filter(isVisibleElement)
       .filter((node) => !node.closest('#' + PANEL_ID))
       .filter((node) => !node.querySelector('.filePreviewCard, .ant-upload-list-item, .ant-upload-list-picture-card-container'))
@@ -3832,7 +3860,7 @@
       if (target && !targets.includes(target)) targets.push(target);
     });
     if (targets.length) return targets;
-    return Array.from(drawer.querySelectorAll('button, a, [role="button"], span, i'))
+    return roots.flatMap((root) => Array.from(root.querySelectorAll('button, a, [role="button"], span, i')))
       .filter(isVisibleElement)
       .filter((el) => !el.closest('#' + PANEL_ID))
       .filter((el) => isDownloadControl(el) && isNearImageAsset(el))
@@ -3840,32 +3868,27 @@
       .filter((el, index, arr) => el && arr.indexOf(el) === index);
   }
 
-  async function downloadDrawerImageUrls(urls, button) {
-    for (let index = 0; index < urls.length; index += 1) {
-      button.textContent = '\u76f4\u63a5\u4e0b\u8f7d ' + (index + 1) + '/' + urls.length;
-      const filename = buildDetailImageFilename(urls[index], index);
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u6309 URL \u76f4\u63a5\u4e0b\u8f7d ' + (index + 1) + '/' + urls.length, filename);
-      await downloadImageUrl(urls[index], filename);
-      await wait(180);
-    }
-    button.textContent = '\u4e0b\u8f7d\u5b8c\u6210';
-    addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u76f4\u63a5\u4e0b\u8f7d\u5b8c\u6210 ' + urls.length + '\u5f20');
-    showToast('\u56fe\u7247\u5df2\u76f4\u63a5\u4e0b\u8f7d\uff1a' + urls.length + '\u5f20');
+  function findGeneratedImageViewButtons(drawer, labels) {
+    return findImageFieldItems(drawer, labels)
+      .map((item) => {
+        const controls = Array.from(item.querySelectorAll('button, a, [role="button"], span'))
+          .filter(isVisibleElement)
+          .filter((el) => /\u70b9\u51fb\u67e5\u770b|\u67e5\u770b/.test(compactText(el.innerText || el.textContent || '')))
+          .map(getClickableElement)
+          .filter(Boolean);
+        return controls[0] || null;
+      })
+      .filter((el, index, arr) => el && arr.indexOf(el) === index);
   }
 
-  function getDrawerDownloadableImageUrls(drawer) {
-    const urls = Array.from(drawer.querySelectorAll('img'))
+  function findImageFieldItems(drawer, labels) {
+    const normalizedLabels = labels.map((label) => compactText(label));
+    return Array.from(drawer.querySelectorAll('.ant-form-item'))
       .filter(isVisibleElement)
-      .map((img) => stripOssResizeParams(img.currentSrc || img.src || ''))
-      .filter(isDownloadableDrawerImageUrl);
-    return Array.from(new Set(urls));
-  }
-
-  function isDownloadableDrawerImageUrl(src) {
-    const value = String(src || '');
-    if (!/^https?:\/\/oss-pro\.plm\.westmonth\.cn\/+/i.test(value)) return false;
-    if (/\/filePic\//i.test(value)) return false;
-    return /\.(?:png|jpe?g|webp|gif|bmp)(?:\?|$)/i.test(value);
+      .filter((item) => {
+        const labelText = compactText((item.querySelector('.ant-form-item-label') || item).innerText || item.textContent || '');
+        return normalizedLabels.some((label) => labelText === label || labelText.startsWith(label + 'AI') || labelText.startsWith(label + '\u70b9\u51fb') || labelText.startsWith(label + '\u5df2'));
+      });
   }
 
   function isLikelyImageAssetCard(node) {
