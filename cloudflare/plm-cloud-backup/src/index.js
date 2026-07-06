@@ -372,6 +372,11 @@ async function buildInsightSummary(env) {
   const rulePackage = buildRuleMaintenancePackage(ruleCandidates);
   await upsertCleaningRules(env, rulePackage).catch(() => {});
   const maintainedRules = await getMaintainedCleaningRules(env, 100).catch(() => []);
+  const maintainedById = new Map(maintainedRules.map((rule) => [rule.ruleId, rule]));
+  rulePackage.rules = rulePackage.rules.map((rule) => {
+    const maintained = maintainedById.get(rule.ruleId);
+    return maintained ? { ...rule, maintenanceStatus: maintained.maintenanceStatus, statusOverride: maintained.statusOverride, note: maintained.note } : rule;
+  });
   rulePackage.maintainedCount = maintainedRules.length;
   rulePackage.maintainedRules = maintainedRules;
 
@@ -950,7 +955,7 @@ function parseJsonArray(value) {
 async function getMaintainedCleaningRules(env, limit) {
   const rows = await env.DB.prepare(`
     SELECT rule_id, missing_field, priority, action_code, action_label, maintenance_status,
-      likely_plm_empty, count, sources, issue_kinds, examples, reason, suggestion,
+      status_override, likely_plm_empty, count, sources, issue_kinds, examples, reason, suggestion, note,
       first_seen_at, latest_at, updated_at
     FROM cleaning_rules
     ORDER BY
@@ -965,7 +970,9 @@ async function getMaintainedCleaningRules(env, limit) {
     priority: row.priority || '',
     actionCode: row.action_code || '',
     actionLabel: row.action_label || '',
-    maintenanceStatus: row.maintenance_status || '',
+    maintenanceStatus: row.status_override || row.maintenance_status || '',
+    computedMaintenanceStatus: row.maintenance_status || '',
+    statusOverride: row.status_override || '',
     likelyPlmEmpty: Boolean(row.likely_plm_empty),
     count: Number(row.count || 0),
     sources: parseJsonArray(row.sources),
@@ -973,6 +980,7 @@ async function getMaintainedCleaningRules(env, limit) {
     examples: parseJsonArray(row.examples),
     reason: row.reason || '',
     suggestion: row.suggestion || '',
+    note: row.note || '',
     firstSeenAt: row.first_seen_at || '',
     latestAt: row.latest_at || '',
     updatedAt: row.updated_at || '',
@@ -1013,6 +1021,11 @@ async function handleInsightRules(request, env) {
   const rulePackage = buildRuleMaintenancePackage(candidates);
   await upsertCleaningRules(env, rulePackage).catch(() => {});
   const maintainedRules = await getMaintainedCleaningRules(env, 100).catch(() => []);
+  const maintainedById = new Map(maintainedRules.map((rule) => [rule.ruleId, rule]));
+  rulePackage.rules = rulePackage.rules.map((rule) => {
+    const maintained = maintainedById.get(rule.ruleId);
+    return maintained ? { ...rule, maintenanceStatus: maintained.maintenanceStatus, statusOverride: maintained.statusOverride, note: maintained.note } : rule;
+  });
   rulePackage.maintainedCount = maintainedRules.length;
   rulePackage.maintainedRules = maintainedRules;
   return json({
@@ -1033,6 +1046,31 @@ async function handleMaintainedCleaningRules(request, env) {
     total: rules.length,
     rules,
   });
+}
+
+async function handleCleaningRuleStatusUpdate(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const ruleId = cleanText(body && body.ruleId, 120);
+  const status = cleanText(body && body.status, 40);
+  const note = cleanText(body && body.note, 500);
+  const allowedStatuses = new Set(['\u81ea\u52a8', '\u9700\u5904\u7406', '\u89c2\u5bdf', '\u5f85\u590d\u6838', '\u5df2\u5904\u7406', '\u5ffd\u7565']);
+  if (!ruleId) return json({ error: 'ruleId required' }, 400);
+  if (!allowedStatuses.has(status)) return json({ error: 'invalid status' }, 400);
+  const existing = await env.DB.prepare(`
+    SELECT rule_id
+    FROM cleaning_rules
+    WHERE rule_id = ?
+  `).bind(ruleId).first();
+  if (!existing) return json({ error: 'rule not found' }, 404);
+  await env.DB.prepare(`
+    UPDATE cleaning_rules
+    SET status_override = ?, note = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE rule_id = ?
+  `).bind(status === '\u81ea\u52a8' ? null : status, note, ruleId).run();
+  const rules = await getMaintainedCleaningRules(env, 300);
+  const rule = rules.find((item) => item.ruleId === ruleId) || null;
+  return json({ ok: true, rule });
 }
 
 async function getFeishuTenantToken(env) {
@@ -1123,6 +1161,7 @@ function buildFeishuRecords(summary, aiPayload) {
     });
   });
   ((summary.rulePackage && summary.rulePackage.rules) || [])
+    .filter((item) => item.maintenanceStatus !== '\u5df2\u5904\u7406' && item.maintenanceStatus !== '\u5ffd\u7565')
     .filter((item) => item.priority === 'P1' || item.priority === 'P2' || item.maintenanceStatus === '\u9700\u5904\u7406')
     .slice(0, 30)
     .forEach((item) => {
@@ -1267,6 +1306,7 @@ export default {
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
     if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
+    if (url.pathname === '/insights/rules/status' && request.method === 'POST') return handleCleaningRuleStatusUpdate(request, env);
     if (url.pathname === '/insights/feishu-status' && request.method === 'GET') return handleInsightFeishuStatus(request, env);
     if (url.pathname === '/insights/feishu-sync' && request.method === 'POST') return handleInsightFeishuSync(request, env);
 

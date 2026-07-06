@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS cleaning_rules (
   action_code TEXT,
   action_label TEXT,
   maintenance_status TEXT,
+  status_override TEXT,
   likely_plm_empty INTEGER NOT NULL DEFAULT 0,
   count INTEGER NOT NULL DEFAULT 0,
   sources TEXT,
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS cleaning_rules (
   examples TEXT,
   reason TEXT,
   suggestion TEXT,
+  note TEXT,
   first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   latest_at TEXT,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
