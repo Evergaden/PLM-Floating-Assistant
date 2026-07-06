@@ -361,12 +361,22 @@ async function buildInsightSummary(env) {
     ORDER BY id DESC
     LIMIT 30
   `).all();
+  const ruleRows = await env.DB.prepare(`
+    SELECT sku, brand, name, missing_fields, source, payload, created_at
+    FROM insight_events
+    WHERE event_type = 'issue'
+    ORDER BY id DESC
+    LIMIT 500
+  `).all();
+  const ruleCandidates = buildRuleCandidates(ruleRows.results || []);
 
   return {
     totals: totals.results || [],
     productTypes: productTypes.results || [],
     recentIssues: recentIssues.results || [],
     recentPrices: recentPrices.results || [],
+    ruleCandidates,
+    rulePackage: buildRuleMaintenancePackage(ruleCandidates),
   };
 }
 
@@ -467,6 +477,14 @@ async function callZhipuInsightReporter(env, summary) {
     productTypes: (summary.productTypes || []).slice(0, 20),
     recentPrices: (summary.recentPrices || []).slice(0, 20),
     recentIssues: (summary.recentIssues || []).slice(0, 20),
+    ruleCandidates: (summary.ruleCandidates || []).slice(0, 20),
+    rulePackage: summary.rulePackage ? {
+      generatedAt: summary.rulePackage.generatedAt,
+      total: summary.rulePackage.total,
+      actionableCount: summary.rulePackage.actionableCount,
+      likelyPlmEmptyCount: summary.rulePackage.likelyPlmEmptyCount,
+      rules: (summary.rulePackage.rules || []).slice(0, 20),
+    } : null,
   };
   const prompt = [
     '你是 PLM 商品数据清洗和采购数据分析助手。',
@@ -569,6 +587,10 @@ async function buildInsightAiReportPayload(env, summary) {
       '最近字段异常',
       'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
       ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
+      '',
+      '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
+      '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c',
+      ...tableLines((summary.rulePackage && summary.rulePackage.rules || []).slice(0, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty']),
     ].join('\n');
     payload = { source: 'fallback', error: cleanText(error && error.message, 200), report };
   }
@@ -807,6 +829,61 @@ function buildRuleCandidates(issueRows) {
   }).sort((a, b) => a.priority.localeCompare(b.priority) || b.count - a.count || String(b.latestAt).localeCompare(String(a.latestAt)));
 }
 
+function classifyRuleMaintenance(candidate) {
+  const issueKinds = candidate.issueKinds || [];
+  const pageParsedButEmpty = issueKinds.includes('\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790');
+  const pageNotReady = issueKinds.includes('\u9875\u9762\u672a\u8bfb\u5b8c');
+  const likelyPlmEmpty = issueKinds.includes('\u53ef\u80fd PLM \u7a7a\u503c') && !pageParsedButEmpty && !pageNotReady;
+  if (pageParsedButEmpty) {
+    return {
+      actionCode: 'parser-rule',
+      actionLabel: '\u8865\u5145\u89e3\u6790\u89c4\u5219',
+      maintenanceStatus: '\u9700\u5904\u7406',
+      likelyPlmEmpty: false,
+    };
+  }
+  if (pageNotReady) {
+    return {
+      actionCode: 'read-flow',
+      actionLabel: '\u68c0\u67e5\u9875\u7b7e\u5207\u6362\u548c\u7b49\u5f85',
+      maintenanceStatus: '\u9700\u5904\u7406',
+      likelyPlmEmpty: false,
+    };
+  }
+  return {
+    actionCode: likelyPlmEmpty ? 'plm-empty-watch' : 'review',
+    actionLabel: likelyPlmEmpty ? '\u53ef\u80fd PLM \u7a7a\u503c\uff0c\u5148\u89c2\u5bdf' : '\u4eba\u5de5\u590d\u6838',
+    maintenanceStatus: likelyPlmEmpty ? '\u89c2\u5bdf' : '\u5f85\u590d\u6838',
+    likelyPlmEmpty,
+  };
+}
+
+function buildRuleMaintenancePackage(candidates) {
+  const rules = (candidates || []).map((candidate, index) => {
+    const classified = classifyRuleMaintenance(candidate);
+    return {
+      ruleId: ['clean', candidate.priority || 'P3', candidate.missingField || 'field', index + 1].join('-'),
+      missingField: candidate.missingField || '',
+      priority: candidate.priority || 'P3',
+      count: candidate.count || 0,
+      latestAt: candidate.latestAt || '',
+      sources: candidate.sources || [],
+      issueKinds: candidate.issueKinds || [],
+      examples: candidate.examples || [],
+      reason: candidate.reason || '',
+      suggestion: candidate.suggestion || '',
+      ...classified,
+    };
+  });
+  return {
+    generatedAt: new Date().toISOString(),
+    total: rules.length,
+    actionableCount: rules.filter((item) => item.maintenanceStatus === '\u9700\u5904\u7406').length,
+    likelyPlmEmptyCount: rules.filter((item) => item.likelyPlmEmpty).length,
+    rules,
+  };
+}
+
 function formatRuleCandidates(candidates) {
   if (!candidates.length) return '暂无清洗规则候选。';
   const lines = [
@@ -838,9 +915,11 @@ async function handleInsightRules(request, env) {
     LIMIT 500
   `).all();
   const candidates = buildRuleCandidates(rows.results || []);
+  const rulePackage = buildRuleMaintenancePackage(candidates);
   return json({
     ok: true,
     candidates,
+    rulePackage,
     tsv: formatRuleCandidates(candidates),
   });
 }
@@ -932,6 +1011,32 @@ function buildFeishuRecords(summary, aiPayload) {
       },
     });
   });
+  ((summary.rulePackage && summary.rulePackage.rules) || [])
+    .filter((item) => item.priority === 'P1' || item.priority === 'P2' || item.maintenanceStatus === '\u9700\u5904\u7406')
+    .slice(0, 30)
+    .forEach((item) => {
+      const exampleSkus = (item.examples || []).map((example) => example.sku).filter(Boolean).join(',');
+      const syncKey = ['clean-rule', item.ruleId || '', item.count || '', item.latestAt || ''].join('|');
+      rows.push({
+        syncKey,
+        recordType: '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
+        sku: exampleSkus.slice(0, 80),
+        fields: {
+          '\u8bb0\u5f55\u7c7b\u578b': '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
+          'SKU': exampleSkus,
+          '\u54c1\u724c': '',
+          '\u5546\u54c1\u540d': item.reason || '',
+          '\u5546\u54c1\u7c7b\u578b': item.priority || '',
+          '\u4ef7\u683c': '',
+          '\u88c5\u7bb1\u6570': '',
+          '\u5305\u88c5\u5c3a\u5bf8': item.actionLabel || '',
+          '\u4ea7\u54c1\u5c3a\u5bf8': item.maintenanceStatus || '',
+          '\u7f3a\u5931\u5b57\u6bb5': [item.missingField || '', item.suggestion || ''].filter(Boolean).join(' / '),
+          '\u6765\u6e90': (item.sources || []).join('/') || item.actionCode || 'clean-rule',
+          '\u8bb0\u5f55\u65f6\u95f4': item.latestAt || (summary.rulePackage && summary.rulePackage.generatedAt) || '',
+        },
+      });
+    });
   (summary.recentIssues || []).forEach((item) => {
     const syncKey = ['issue', item.sku || '', item.missing_fields || '', item.source || '', item.created_at || ''].join('|');
     rows.push({

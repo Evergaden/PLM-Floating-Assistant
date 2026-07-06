@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.162
+// @version      2.3.163
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.162';
+  const SCRIPT_VERSION = '2.3.163';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5671,9 +5671,12 @@
       const response = await fetchInsightRules();
       const text = response && response.tsv ? response.tsv : '';
       if (!text) throw new Error('empty rules');
-      state.insightCloudStatus = '\u6e05\u6d17\u89c4\u5219\u5019\u9009\u5df2\u590d\u5236';
+      const pkg = response && response.rulePackage;
+      state.insightCloudStatus = pkg
+        ? '\u6e05\u6d17\u89c4\u5219\u5019\u9009\u5df2\u590d\u5236\uff1a\u5171 ' + (pkg.total || 0) + '\u6761\uff0c\u9700\u5904\u7406 ' + (pkg.actionableCount || 0) + '\u6761\uff0c\u7591\u4f3c PLM \u7a7a\u503c ' + (pkg.likelyPlmEmptyCount || 0) + '\u6761'
+        : '\u6e05\u6d17\u89c4\u5219\u5019\u9009\u5df2\u590d\u5236';
       copyText(text);
-      addLog('success', '\u5df2\u590d\u5236\u6e05\u6d17\u89c4\u5219\u5019\u9009', String((response.candidates || []).length) + '\u6761');
+      addLog('success', '\u5df2\u590d\u5236\u6e05\u6d17\u89c4\u5219\u5019\u9009', state.insightCloudStatus);
       showToast(L.copied);
     } catch (error) {
       state.insightCloudStatus = '\u6e05\u6d17\u89c4\u5219\u751f\u6210\u5931\u8d25\uff1a' + formatErrorMessage(error);
