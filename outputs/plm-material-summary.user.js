@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.177
+// @version      2.3.178
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.177';
+  const SCRIPT_VERSION = '2.3.178';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -823,7 +823,7 @@
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
     const imageInfo = seenDesign ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
     const tubeFields = extractTubeFields(drawer);
-    const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'));
+    const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'), tubeFields);
     const packageNums = packaging.packageNums || outer.packageNums;
     const hasInnerCard = hasInnerCardMark(packaging);
     const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums;
@@ -1089,10 +1089,10 @@
     return labelLooksGenericPrint && Array.isArray(printNums) && printNums.length === 2 && Array.isArray(packageNums) && packageNums.length >= 3;
   }
 
-  function findTubeSizeSpec(text) {
+  function findTubeSizeSpec(text, fields) {
     const source = String(text || '');
-    let diameter = extractTubeMeasure(source, '\u7ba1\u5f84');
-    let body = extractTubeMeasure(source, '\u7ba1\u8eab');
+    let diameter = fields && fields.diameter ? fields.diameter : extractTubeMeasure(source, '\u7ba1\u5f84');
+    let body = fields && fields.body ? fields.body : extractTubeMeasure(source, '\u7ba1\u8eab');
     let rule = diameter && body ? TUBE_SIZE_RULES.find((item) => item.diameter === diameter && item.bodies.includes(body)) : null;
     if (!rule) {
       const byPrintSize = findTubeSizeRuleByPrintDimension(source);
@@ -1116,8 +1116,8 @@
   function extractTubeFields(root) {
     if (!root) return { diameter: 0, body: 0, text: '' };
     const fullText = getVisibleText(root);
-    const diameter = extractTubeMeasure(fullText, '\u7ba1\u5f84') || normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u5f84', root));
-    const body = extractTubeMeasure(fullText, '\u7ba1\u8eab') || normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u8eab', root));
+    const diameter = normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u5f84', root)) || extractTubeMeasure(fullText, '\u7ba1\u5f84');
+    const body = normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u8eab', root)) || extractTubeMeasure(fullText, '\u7ba1\u8eab');
     const parts = [];
     if (diameter) parts.push('\u7ba1\u5f84 ' + diameter + 'mm');
     if (body) parts.push('\u7ba1\u8eab ' + body + 'mm');
@@ -1334,7 +1334,7 @@
   function getFormValueByLabel(fieldLabel, root) {
     const labels = Array.from(root.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]'))
       .filter(isVisibleElement)
-      .filter((el) => compactLabel(el.textContent) === fieldLabel);
+      .filter((el) => normalizeFieldLabel(el.textContent) === fieldLabel);
     for (const labelEl of labels) {
       const item = labelEl.closest('.ant-form-item') || labelEl.parentElement;
       if (!item || !isVisibleElement(item)) continue;
@@ -6837,6 +6837,10 @@
     return '';
   }
 
+  function normalizeFieldLabel(text) {
+    return compactLabel(text).replace(/[:\uff1a]\s*$/g, '').trim();
+  }
+
   function loadIndex() {
     try {
       if (typeof GM_getValue === 'function') return GM_getValue(STORAGE_INDEX_KEY, []);
@@ -10112,7 +10116,7 @@
         border-radius: 10px;
       }
       #${PANEL_ID} .pfh-section-title .pfh-excel-controls > button[data-action="excel-prepare"] {
-        min-width: 110px;
+        min-width: 82px;
         height: 34px;
         padding: 0 14px;
         display: inline-flex;
@@ -11030,6 +11034,12 @@
         max-width: none !important;
         margin: 8px 0 12px !important;
         box-sizing: border-box !important;
+      }
+      #${PANEL_ID} .pfh-excel-options-row .pfh-excel-status {
+        max-width: none !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
       }
       #${PANEL_ID} .pfh-section > .pfh-excel-form.is-open {
         flex: 0 0 100% !important;
