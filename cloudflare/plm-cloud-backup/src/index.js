@@ -297,7 +297,7 @@ async function handleInsightRecord(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   const eventType = cleanText(body && body.eventType, 40);
-  if (!eventType || !/^(price|issue|type|summary)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
+  if (!eventType || !/^(price|issue|type|summary|log)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
 
   const missingFields = cleanList(body && body.missingFields);
   const payload = JSON.stringify(body || {});
@@ -361,6 +361,13 @@ async function buildInsightSummary(env) {
     ORDER BY id DESC
     LIMIT 30
   `).all();
+  const recentLogRows = await env.DB.prepare(`
+    SELECT sku, brand, name, source, payload, created_at
+    FROM insight_events
+    WHERE event_type = 'log'
+    ORDER BY id DESC
+    LIMIT 50
+  `).all();
   const ruleRows = await env.DB.prepare(`
     SELECT sku, brand, name, missing_fields, source, payload, created_at
     FROM insight_events
@@ -385,9 +392,36 @@ async function buildInsightSummary(env) {
     productTypes: productTypes.results || [],
     recentIssues: recentIssues.results || [],
     recentPrices: recentPrices.results || [],
+    recentLogs: normalizeRecentLogs(recentLogRows.results || []),
     ruleCandidates,
     rulePackage,
   };
+}
+
+function parsePayloadJson(value) {
+  try {
+    return value ? JSON.parse(value) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function normalizeRecentLogs(rows) {
+  return (rows || []).map((row) => {
+    const payload = parsePayloadJson(row.payload);
+    return {
+      sku: cleanText(row.sku || payload.sku, 80),
+      brand: cleanText(row.brand || payload.brand, 120),
+      name: cleanText(row.name || payload.name, 200),
+      level: cleanText(payload.level, 20),
+      message: cleanText(payload.message, 500),
+      detail: cleanText(payload.detail, 500),
+      url: cleanText(payload.url, 300),
+      version: cleanText(payload.version, 40),
+      source: cleanText(row.source || payload.source || 'plm-helper-log', 80),
+      created_at: row.created_at || '',
+    };
+  }).filter((item) => item.level || item.message || item.detail);
 }
 
 function tableLines(rows, columns) {
@@ -434,6 +468,10 @@ async function handleInsightReport(request, env) {
     'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
     ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
     '',
+    'Runtime logs',
+    'Level\tSKU\tMessage\tDetail\tSource\tTime',
+    ...tableLines(summary.recentLogs, ['level', 'sku', 'message', 'detail', 'source', 'created_at']),
+    '',
     '五、AI 处理建议',
     '1. 按商品类型统计价格区间和常见装箱数，给新 SKU 做默认推荐。',
     '2. 对高频缺失字段维护清洗规则；如果 PLM 页面不是空值但脚本未获取到，优先记录为规则待修复。',
@@ -468,6 +506,12 @@ async function handleInsightFeishuTsv(request, env) {
       summary.recentIssues,
       ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']
     ),
+    tsvSection(
+      'Runtime logs',
+      ['Level', 'SKU', 'Message', 'Detail', 'Source', 'Time'],
+      summary.recentLogs,
+      ['level', 'sku', 'message', 'detail', 'source', 'created_at']
+    ),
   ];
   return json({
     ok: true,
@@ -487,6 +531,7 @@ async function callZhipuInsightReporter(env, summary) {
     productTypes: (summary.productTypes || []).slice(0, 20),
     recentPrices: (summary.recentPrices || []).slice(0, 20),
     recentIssues: (summary.recentIssues || []).slice(0, 20),
+    recentLogs: (summary.recentLogs || []).slice(0, 30),
     ruleCandidates: (summary.ruleCandidates || []).slice(0, 20),
     rulePackage: summary.rulePackage ? {
       generatedAt: summary.rulePackage.generatedAt,
@@ -532,7 +577,8 @@ function buildAiReportCacheKey(summary) {
   const totals = (summary.totals || []).map((item) => item.event_type + ':' + item.count).join('|');
   const latestPrice = summary.recentPrices && summary.recentPrices[0] ? summary.recentPrices[0].created_at || '' : '';
   const latestIssue = summary.recentIssues && summary.recentIssues[0] ? summary.recentIssues[0].created_at || '' : '';
-  return ['insight', totals, latestPrice, latestIssue].join('|').slice(0, 500);
+  const latestLog = summary.recentLogs && summary.recentLogs[0] ? summary.recentLogs[0].created_at || '' : '';
+  return ['insight', totals, latestPrice, latestIssue, latestLog].join('|').slice(0, 500);
 }
 
 async function getCachedAiReport(env, cacheKey) {
@@ -597,6 +643,10 @@ async function buildInsightAiReportPayload(env, summary) {
       '最近字段异常',
       'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
       ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
+      '',
+      'Runtime logs',
+      'Level\tSKU\tMessage\tDetail\tSource\tTime',
+      ...tableLines(summary.recentLogs, ['level', 'sku', 'message', 'detail', 'source', 'created_at']),
       '',
       '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
       '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c',
@@ -1247,6 +1297,28 @@ function buildFeishuRecords(summary, aiPayload) {
         '缺失字段': item.missing_fields || '',
         '来源': item.source || '',
         '记录时间': item.created_at || '',
+      },
+    });
+  });
+  (summary.recentLogs || []).forEach((item) => {
+    const syncKey = ['log', item.level || '', (item.message || '').slice(0, 120), item.created_at || ''].join('|');
+    rows.push({
+      syncKey,
+      recordType: '运行日志',
+      sku: item.sku || '',
+      fields: {
+        '\u8bb0\u5f55\u7c7b\u578b': '运行日志',
+        'SKU': item.sku || '',
+        '\u54c1\u724c': item.brand || '',
+        '\u5546\u54c1\u540d': item.name || (item.message || '').slice(0, 200),
+        '\u5546\u54c1\u7c7b\u578b': item.level || '',
+        '\u4ef7\u683c': '',
+        '\u88c5\u7bb1\u6570': '',
+        '\u5305\u88c5\u5c3a\u5bf8': item.version || '',
+        '\u4ea7\u54c1\u5c3a\u5bf8': item.url || '',
+        '\u7f3a\u5931\u5b57\u6bb5': [item.message || '', item.detail || ''].filter(Boolean).join(' | '),
+        '\u6765\u6e90': item.source || 'plm-helper-log',
+        '\u8bb0\u5f55\u65f6\u95f4': item.created_at || '',
       },
     });
   });

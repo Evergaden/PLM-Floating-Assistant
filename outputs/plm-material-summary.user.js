@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.167
+// @version      2.3.168
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.167';
+  const SCRIPT_VERSION = '2.3.168';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -314,6 +314,7 @@
     packAiEstimatingKeys: new Set(),
     packAiFailedAt: {},
     logs: loadLogs(),
+    logSyncDedup: {},
     insights: loadInsights(),
     insightCloudStatus: '',
     insightCloudReport: '',
@@ -6429,6 +6430,7 @@
     };
     state.logs = [item].concat(state.logs || []).slice(0, 300);
     saveLogs();
+    syncImportantLog(item, detail);
     const panel = document.getElementById(PANEL_ID);
     if (panel && panel.dataset.view === 'about') {
       const logPanel = panel.querySelector('.pfh-log-panel');
@@ -6456,6 +6458,29 @@
 
   function formatLogsForCopy() {
     return (state.logs || []).map((item) => '[' + (item.time || '') + '] ' + (item.level || 'info').toUpperCase() + ' ' + (item.message || '')).join('\n') || L.logEmpty;
+  }
+
+  function syncImportantLog(item, detail) {
+    const level = String(item && item.level || '').toLowerCase();
+    if (!/^(warn|error)$/.test(level)) return;
+    const message = String(item && item.message || '');
+    if (!message || /\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25|\u4e91\u5907\u4efd/.test(message)) return;
+    const now = Date.now();
+    const key = [level, message.slice(0, 180)].join('|');
+    state.logSyncDedup = state.logSyncDedup || {};
+    if (state.logSyncDedup[key] && now - state.logSyncDedup[key] < 5 * 60 * 1000) return;
+    state.logSyncDedup[key] = now;
+    const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null) || {};
+    syncInsightEvent('log', {
+      sku: data.sku || state.selectedSku || state.sku || '',
+      brand: data.brand || '',
+      name: data.name || '',
+      level,
+      message,
+      detail: String(detail || '').slice(0, 600),
+      url: location.href,
+      source: 'plm-helper-log',
+    });
   }
 
   function emptyInsights() {
