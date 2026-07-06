@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.175
+// @version      2.3.176
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.175';
+  const SCRIPT_VERSION = '2.3.176';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5455,6 +5455,22 @@
     state.excelPurchasePrice = price;
     state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (effectiveProductType ? ' / ' + effectiveProductType : '') + (recommendation.source ? ' / ' + recommendation.source : '') + (reason ? ' / ' + reason : '');
     addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + effectiveProductType + ' ' + price + (reason ? ' / ' + reason : ''));
+    syncInsightEvent('recommendation', {
+      sku: data && data.sku || '',
+      brand: data && data.brand || '',
+      name: data && data.name || '',
+      productType: effectiveProductType || productType || '',
+      price,
+      recommendedPrice: price,
+      source: recommendation.source || 'recommendation',
+      reason,
+      recommendationReason: reason,
+      productTypeSource: recommendation.productTypeSource || '',
+      productTypeScore: recommendation.productTypeScore || '',
+      typeSampleCount: recommendation.typeSampleCount || '',
+      recommendedProductType: recommendation.recommendedProductType || '',
+      effectiveProductType,
+    });
     return true;
   }
 

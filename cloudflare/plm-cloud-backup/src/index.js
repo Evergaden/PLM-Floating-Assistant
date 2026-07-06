@@ -297,7 +297,7 @@ async function handleInsightRecord(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   const eventType = cleanText(body && body.eventType, 40);
-  if (!eventType || !/^(price|issue|type|summary|log)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
+  if (!eventType || !/^(price|issue|type|summary|log|recommendation)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
 
   const missingFields = cleanList(body && body.missingFields);
   const payload = JSON.stringify(body || {});
@@ -361,6 +361,13 @@ async function buildInsightSummary(env) {
     ORDER BY id DESC
     LIMIT 30
   `).all();
+  const recentRecommendationRows = await env.DB.prepare(`
+    SELECT sku, brand, name, product_type, price, pack_qty, source, payload, created_at
+    FROM insight_events
+    WHERE event_type = 'recommendation'
+    ORDER BY id DESC
+    LIMIT 30
+  `).all();
   const recentLogRows = await env.DB.prepare(`
     SELECT sku, brand, name, source, payload, created_at
     FROM insight_events
@@ -388,11 +395,13 @@ async function buildInsightSummary(env) {
   rulePackage.maintainedRules = maintainedRules;
 
   const recentLogs = normalizeRecentLogs(recentLogRows.results || []);
+  const recentRecommendations = normalizeRecentRecommendations(recentRecommendationRows.results || []);
   const summary = {
     totals: totals.results || [],
     productTypes: productTypes.results || [],
     recentIssues: recentIssues.results || [],
     recentPrices: recentPrices.results || [],
+    recentRecommendations,
     recentLogs,
     logDiagnostics: buildLogDiagnostics(recentLogs),
     ruleCandidates,
@@ -425,6 +434,26 @@ function normalizeRecentLogs(rows) {
       created_at: row.created_at || '',
     };
   }).filter((item) => item.level || item.message || item.detail);
+}
+
+function normalizeRecentRecommendations(rows) {
+  return (rows || []).map((row) => {
+    const payload = parsePayloadJson(row.payload);
+    return {
+      sku: cleanText(row.sku || payload.sku, 80),
+      brand: cleanText(row.brand || payload.brand, 120),
+      name: cleanText(row.name || payload.name, 200),
+      product_type: cleanText(row.product_type || payload.productType || payload.effectiveProductType, 120),
+      recommended_price: cleanText(row.price || payload.recommendedPrice, 40),
+      recommended_pack_qty: cleanText(row.pack_qty || payload.recommendedPackQty, 40),
+      source: cleanText(row.source || payload.source || payload.recommendationSource || 'recommendation', 80),
+      reason: cleanText(payload.reason || payload.recommendationReason, 500),
+      product_type_source: cleanText(payload.productTypeSource, 80),
+      product_type_score: cleanText(payload.productTypeScore, 40),
+      sample_count: cleanText(payload.typeSampleCount, 40),
+      created_at: row.created_at || '',
+    };
+  }).filter((item) => item.sku || item.recommended_price || item.reason);
 }
 
 function buildLogDiagnostics(logs) {
@@ -561,6 +590,10 @@ async function handleInsightReport(request, env) {
     'SKU\t品牌\t商品名\t类型\t价格\t装箱数\t包装尺寸\t产品尺寸\t时间',
     ...tableLines(summary.recentPrices, ['sku', 'brand', 'name', 'product_type', 'price', 'pack_qty', 'package_size', 'product_size', 'created_at']),
     '',
+    '三-补全推荐记录',
+    'SKU\t品牌\t商品名\t类型\t推荐价格\t推荐装箱数\t来源\t原因\t类型来源\t样本数\t时间',
+    ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'reason', 'product_type_source', 'sample_count', 'created_at']),
+    '',
     '四、最近字段异常',
     'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
     ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
@@ -609,6 +642,12 @@ async function handleInsightFeishuTsv(request, env) {
       ['product_type', 'count', 'latest_at']
     ),
     tsvSection(
+      '补全推荐记录',
+      ['SKU', '品牌', '商品名', '商品类型', '推荐价格', '推荐装箱数', '来源', '原因', '类型来源', '样本数', '记录时间'],
+      summary.recentRecommendations,
+      ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'reason', 'product_type_source', 'sample_count', 'created_at']
+    ),
+    tsvSection(
       '字段异常',
       ['SKU', '品牌', '商品名', '缺失字段', '来源', '记录时间'],
       summary.recentIssues,
@@ -651,6 +690,7 @@ async function callZhipuInsightReporter(env, summary) {
     totals: summary.totals || [],
     productTypes: (summary.productTypes || []).slice(0, 20),
     recentPrices: (summary.recentPrices || []).slice(0, 20),
+    recentRecommendations: (summary.recentRecommendations || []).slice(0, 20),
     recentIssues: (summary.recentIssues || []).slice(0, 20),
     recentLogs: (summary.recentLogs || []).slice(0, 30),
     logDiagnostics: summary.logDiagnostics || null,
@@ -699,9 +739,10 @@ async function callZhipuInsightReporter(env, summary) {
 function buildAiReportCacheKey(summary) {
   const totals = (summary.totals || []).map((item) => item.event_type + ':' + item.count).join('|');
   const latestPrice = summary.recentPrices && summary.recentPrices[0] ? summary.recentPrices[0].created_at || '' : '';
+  const latestRecommendation = summary.recentRecommendations && summary.recentRecommendations[0] ? summary.recentRecommendations[0].created_at || '' : '';
   const latestIssue = summary.recentIssues && summary.recentIssues[0] ? summary.recentIssues[0].created_at || '' : '';
   const latestLog = summary.recentLogs && summary.recentLogs[0] ? summary.recentLogs[0].created_at || '' : '';
-  return ['insight', totals, latestPrice, latestIssue, latestLog].join('|').slice(0, 500);
+  return ['insight', totals, latestPrice, latestRecommendation, latestIssue, latestLog].join('|').slice(0, 500);
 }
 
 async function getCachedAiReport(env, cacheKey) {
@@ -762,6 +803,10 @@ async function buildInsightAiReportPayload(env, summary) {
       '商品类型统计',
       '商品类型\t记录数\t最近时间',
       ...tableLines(summary.productTypes, ['product_type', 'count', 'latest_at']),
+      '',
+      '补全推荐记录',
+      'SKU\t品牌\t商品名\t类型\t推荐价格\t推荐装箱数\t来源\t原因\t类型来源\t样本数\t时间',
+      ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'reason', 'product_type_source', 'sample_count', 'created_at']),
       '',
       '最近字段异常',
       'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
@@ -1446,6 +1491,28 @@ function buildFeishuRecords(summary, aiPayload) {
         '缺失字段': '记录数：' + (item.count || 0),
         '来源': 'cloud-insight',
         '记录时间': item.latest_at || '',
+      },
+    });
+  });
+  (summary.recentRecommendations || []).forEach((item) => {
+    const syncKey = ['recommendation', item.sku || '', item.recommended_price || '', item.source || '', item.created_at || ''].join('|');
+    rows.push({
+      syncKey,
+      recordType: '智能补全推荐',
+      sku: item.sku || '',
+      fields: {
+        '记录类型': '智能补全推荐',
+        'SKU': item.sku || '',
+        '品牌': item.brand || '',
+        '商品名': item.name || '',
+        '商品类型': item.product_type || '',
+        '价格': item.recommended_price || '',
+        '装箱数': item.recommended_pack_qty || '',
+        '包装尺寸': '',
+        '产品尺寸': '',
+        '缺失字段': [item.reason || '', item.product_type_source ? '类型来源：' + item.product_type_source : '', item.sample_count ? '样本数：' + item.sample_count : ''].filter(Boolean).join(' / '),
+        '来源': item.source || 'recommendation',
+        '记录时间': item.created_at || '',
       },
     });
   });
