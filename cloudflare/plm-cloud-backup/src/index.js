@@ -458,6 +458,86 @@ async function handleInsightFeishuTsv(request, env) {
   });
 }
 
+async function callZhipuInsightReporter(env, summary) {
+  const apiKey = env.ZHIPU_API_KEY;
+  if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
+  const model = env.ZHIPU_MODEL || 'glm-4-flash';
+  const compactSummary = {
+    totals: summary.totals || [],
+    productTypes: (summary.productTypes || []).slice(0, 20),
+    recentPrices: (summary.recentPrices || []).slice(0, 20),
+    recentIssues: (summary.recentIssues || []).slice(0, 20),
+  };
+  const prompt = [
+    '你是 PLM 商品数据清洗和采购数据分析助手。',
+    '请根据下面 JSON，总结：1）商品类型规律；2）历史价格规律和可补全建议；3）字段缺失/清洗规则待修复项；4）适合复制到飞书表格的字段结构。',
+    '要求中文输出，结构清楚，尽量短，给出可执行规则，不要编造 JSON 里没有的数据。',
+    JSON.stringify(compactSummary),
+  ].join('\n');
+
+  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(15000),
+    headers: {
+      authorization: 'Bearer ' + apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: '你只做 PLM 商品数据洞察、价格规律总结和数据清洗规则建议。' },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status);
+  }
+  return data && data.choices && data.choices[0] && data.choices[0].message
+    ? String(data.choices[0].message.content || '').trim()
+    : '';
+}
+
+async function handleInsightAiReport(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const summary = await buildInsightSummary(env);
+  try {
+    const report = await callZhipuInsightReporter(env, summary);
+    if (!report) throw new Error('empty ai report');
+    return json({
+      ok: true,
+      source: 'zhipu',
+      report,
+      summary,
+    });
+  } catch (error) {
+    const totalText = (summary.totals || []).map((item) => cleanText(item.event_type, 40) + ':' + item.count).join(' / ') || '暂无';
+    const report = [
+      'AI 洞察暂不可用，已使用规则版总结。',
+      '原因：' + cleanText(error && error.message, 200),
+      '',
+      '事件总览：' + totalText,
+      '',
+      '商品类型统计',
+      '商品类型\t记录数\t最近时间',
+      ...tableLines(summary.productTypes, ['product_type', 'count', 'latest_at']),
+      '',
+      '最近字段异常',
+      'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
+      ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
+    ].join('\n');
+    return json({
+      ok: true,
+      source: 'fallback',
+      error: cleanText(error && error.message, 200),
+      report,
+      summary,
+    });
+  }
+}
+
 function normalizePrice(value) {
   const number = Number(String(value || '').replace(/[^0-9.]/g, ''));
   return Number.isFinite(number) && number > 0 ? Number(number.toFixed(2)) : 0;
@@ -538,6 +618,7 @@ export default {
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
+    if (url.pathname === '/insights/ai-report' && request.method === 'GET') return handleInsightAiReport(request, env);
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
 
