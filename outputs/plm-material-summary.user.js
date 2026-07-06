@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.172
+// @version      2.3.173
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.172';
+  const SCRIPT_VERSION = '2.3.173';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -251,7 +251,7 @@
     panelPin: '\u5173\u95ed\u60ac\u6d6e\u7a97',
     collapse: '\u5173\u95ed',
     search: '\u641c\u7d22',
-    excel: '\u751f\u6210 Excel',
+    excel: '\u5bfc\u51fa',
   };
 
   const firstTutorial = !loadTutorialSeen();
@@ -822,7 +822,8 @@
     const outer = extractOuterPackage(drawer);
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
     const imageInfo = seenDesign ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
-    const tubeSpec = findTubeSizeSpec([packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'));
+    const tubeFields = extractTubeFields(drawer);
+    const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'));
     const packageNums = packaging.packageNums || outer.packageNums;
     const hasInnerCard = hasInnerCardMark(packaging);
     const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums;
@@ -1112,6 +1113,17 @@
     };
   }
 
+  function extractTubeFields(root) {
+    if (!root) return { diameter: 0, body: 0, text: '' };
+    const fullText = getVisibleText(root);
+    const diameter = extractTubeMeasure(fullText, '\u7ba1\u5f84') || normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u5f84', root));
+    const body = extractTubeMeasure(fullText, '\u7ba1\u8eab') || normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u8eab', root));
+    const parts = [];
+    if (diameter) parts.push('\u7ba1\u5f84 ' + diameter + 'mm');
+    if (body) parts.push('\u7ba1\u8eab ' + body + 'mm');
+    return { diameter, body, text: parts.join(' ') };
+  }
+
   function findTubeSizeRuleByPrintDimension(text) {
     const nums = extractTubePrintDimensionNums(text);
     if (!nums || nums.length < 2) return null;
@@ -1161,6 +1173,10 @@
   function extractTubeMeasure(text, label) {
     const source = String(text || '');
     const escaped = escapeRegExp(label);
+    const labelPair = source.match(/\u7ba1\u5f84\s+\u7ba1\u8eab\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/i);
+    if (labelPair) return normalizeTubeMeasureValue(label === '\u7ba1\u5f84' ? labelPair[1] : labelPair[2], '');
+    const inlinePair = source.match(/\u7ba1\u5f84[^\d]{0,12}(\d+(?:\.\d+)?)[^\u7ba1\d]{0,20}\u7ba1\u8eab[^\d]{0,12}(\d+(?:\.\d+)?)/i);
+    if (inlinePair) return normalizeTubeMeasureValue(label === '\u7ba1\u5f84' ? inlinePair[1] : inlinePair[2], '');
     const labelIndex = source.search(new RegExp(escaped, 'i'));
     const scope = labelIndex >= 0 ? source.slice(labelIndex, labelIndex + 120) : source;
     const direct = scope.match(new RegExp(escaped + '[^\\d]{0,24}(\\d+(?:\\.\\d+)?)\\s*(mm|cm)?', 'i'));
@@ -1168,6 +1184,11 @@
     const tableLike = scope.match(/(\d+(?:\.\d+)?)\s*(mm|cm)/i);
     if (tableLike) return normalizeTubeMeasureValue(tableLike[1], tableLike[2]);
     return 0;
+  }
+
+  function normalizeTubeMeasureText(text) {
+    const match = String(text || '').match(/(\d+(?:\.\d+)?)\s*(mm|cm)?/i);
+    return match ? normalizeTubeMeasureValue(match[1], match[2]) : 0;
   }
 
   function normalizeTubeMeasureValue(value, unit) {
@@ -1974,7 +1995,7 @@
     const status = state.excelStatus || (state.excelMissing.length ? L.excelIncomplete : L.excelReady);
     const statusClass = state.excelMissing.length || !state.excelExtra ? ' is-bad' : ' is-good';
     const priceValue = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
-    return '<div class="pfh-excel-controls is-open">' +
+    return '<div class="pfh-excel-form is-open">' +
       '<select class="pfh-export-type" title="' + escapeHtml(L.action) + '">' +
         '<option value="excel"' + (state.exportType === 'excel' ? ' selected' : '') + '>' + escapeHtml(L.exportTypeExcel) + '</option>' +
         '<option value="toy-label"' + (state.exportType === 'toy-label' ? ' selected' : '') + '>' + escapeHtml(L.exportTypeToyLabel) + '</option>' +
@@ -7868,8 +7889,13 @@
         min-width: 0;
         margin-left: auto;
       }
-      #${PANEL_ID} .pfh-excel-controls.is-open {
+      #${PANEL_ID} .pfh-excel-form.is-open {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
         flex: 0 0 auto;
+        flex-wrap: wrap;
         justify-content: flex-start;
         width: 100%;
         margin: 8px 0 12px;
@@ -7879,8 +7905,8 @@
         background: rgba(255,255,255,.58);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.86);
       }
-      #${PANEL_ID} .pfh-excel-controls input,
-      #${PANEL_ID} .pfh-excel-controls select {
+      #${PANEL_ID} .pfh-excel-form input,
+      #${PANEL_ID} .pfh-excel-form select {
         width: 62px;
         height: 28px;
         min-width: 0;
@@ -7892,12 +7918,21 @@
         font-size: 12px;
         outline: none;
       }
-      #${PANEL_ID} .pfh-excel-controls select {
+      #${PANEL_ID} .pfh-excel-form select {
         width: 96px;
         flex: 0 0 96px;
       }
-      #${PANEL_ID} .pfh-excel-controls input:focus,
-      #${PANEL_ID} .pfh-excel-controls select:focus {
+      #${PANEL_ID} .pfh-excel-form button {
+        min-height: 28px;
+        height: 28px;
+        border-radius: 10px;
+      }
+      #${PANEL_ID} .pfh-excel-form > button[data-action="excel-generate"] {
+        padding: 0 12px;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-excel-form input:focus,
+      #${PANEL_ID} .pfh-excel-form select:focus {
         border-color: #7c9cff;
         box-shadow: 0 0 0 2px rgba(124, 156, 255, 0.16);
       }
@@ -9587,21 +9622,21 @@
         border-color: #f59e0b !important;
         background: #fffbeb !important;
       }
-      #${PANEL_ID} .pfh-excel-controls.is-open {
+      #${PANEL_ID} .pfh-excel-form.is-open {
         flex: 0 0 auto;
         max-width: none;
       }
-      #${PANEL_ID} .pfh-excel-controls.is-open input {
+      #${PANEL_ID} .pfh-excel-form.is-open input {
         width: 68px;
         flex: 0 0 68px;
         border-radius: 10px;
         background: rgba(255,255,255,.74);
       }
-      #${PANEL_ID} .pfh-excel-controls.is-open select {
+      #${PANEL_ID} .pfh-excel-form.is-open select {
         border-radius: 10px;
         background: rgba(255,255,255,.74);
       }
-      #${PANEL_ID} .pfh-excel-controls.is-open > button[data-action="excel-prepare"] {
+      #${PANEL_ID} .pfh-excel-form.is-open > button[data-action="excel-prepare"] {
         min-width: 34px !important;
         width: 34px;
         height: 28px;
@@ -10923,7 +10958,7 @@
       #${PANEL_ID} .pfh-excel-options-row:empty {
         display: none !important;
       }
-      #${PANEL_ID} .pfh-excel-options-row > .pfh-excel-controls.is-open {
+      #${PANEL_ID} .pfh-excel-options-row > .pfh-excel-form.is-open {
         display: flex !important;
         flex-wrap: wrap !important;
         width: 100% !important;
@@ -10931,7 +10966,7 @@
         margin: 8px 0 12px !important;
         box-sizing: border-box !important;
       }
-      #${PANEL_ID} .pfh-section > .pfh-excel-controls.is-open {
+      #${PANEL_ID} .pfh-section > .pfh-excel-form.is-open {
         flex: 0 0 100% !important;
         width: 100% !important;
         justify-content: flex-start !important;
