@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.136
+// @version      2.3.137
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.136';
+  const SCRIPT_VERSION = '2.3.137';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -9635,6 +9635,8 @@
         grid-template-columns: minmax(0, 1fr) auto !important;
         grid-template-rows: auto 1fr !important;
         gap: 8px 8px !important;
+        justify-items: start !important;
+        text-align: left !important;
         min-height: 86px !important;
         padding: 18px 20px !important;
         border: 1px solid rgba(211, 204, 255, .34) !important;
@@ -9658,6 +9660,7 @@
       #${PANEL_ID} .pfh-info-grid .pfh-label {
         grid-column: 1 / -1 !important;
         display: block !important;
+        width: 100% !important;
         min-width: 0 !important;
         color: #8f98a8 !important;
         font-size: 13px !important;
@@ -9668,6 +9671,11 @@
       #${PANEL_ID} .pfh-info-grid .pfh-label .pfh-icon {
         display: none !important;
       }
+      #${PANEL_ID} .pfh-info-grid .pfh-label span {
+        display: block !important;
+        width: 100% !important;
+        text-align: left !important;
+      }
       #${PANEL_ID} .pfh-info-grid .pfh-value,
       #${PANEL_ID} .pfh-info-grid .pfh-row.is-carton-dim .pfh-value,
       #${PANEL_ID} .pfh-info-grid .pfh-row.is-product-dim .pfh-value {
@@ -9676,7 +9684,7 @@
         justify-self: start !important;
         min-width: 0 !important;
         color: #171a22 !important;
-        font-size: 18px !important;
+        font-size: 16px !important;
         font-weight: 400 !important;
         line-height: 1.25 !important;
         text-align: left !important;
