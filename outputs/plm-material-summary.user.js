@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.149
+// @version      2.3.150
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.149';
+  const SCRIPT_VERSION = '2.3.150';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -4354,6 +4354,7 @@
       state.excelMissing = getExcelMissingFields(excelData, extra);
       state.excelStatus = state.excelMissing.length ? L.excelIncomplete : L.excelReady;
       await fillRecommendedPackQty(excelData);
+      await fillRecommendedPurchasePrice(excelData, extra);
       if (state.excelMissing.length) showExcelMissingToast();
     } catch (error) {
       console.warn('PLM floating helper excel prepare failed:', error);
@@ -5210,6 +5211,22 @@
     return true;
   }
 
+  async function fillRecommendedPurchasePrice(data, extra) {
+    const current = String(state.excelPurchasePrice || '').trim();
+    if (current && current !== '6') return false;
+    const productType = getProductTypeForInsight(data, extra);
+    const recommendation = await fetchInsightRecommendation(data, productType).catch((error) => {
+      addLog('warn', '\u4ef7\u683c\u63a8\u8350\u83b7\u53d6\u5931\u8d25', formatErrorMessage(error));
+      return null;
+    });
+    const price = recommendation && recommendation.recommendedPrice ? String(recommendation.recommendedPrice) : '';
+    if (!price) return false;
+    state.excelPurchasePrice = price;
+    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (recommendation.source ? ' / ' + recommendation.source : '');
+    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + productType + ' ' + price);
+    return true;
+  }
+
   function getReturnDateText(days) {
     const date = new Date();
     date.setDate(date.getDate() + days);
@@ -5848,6 +5865,14 @@
 
   async function fetchInsightReport() {
     return cloudRequest('/insights/report', { method: 'GET' });
+  }
+
+  async function fetchInsightRecommendation(data, productType) {
+    const params = new URLSearchParams();
+    if (data && data.sku) params.set('sku', data.sku);
+    if (productType) params.set('productType', productType);
+    if (data && data.name) params.set('name', data.name);
+    return cloudRequest('/insights/recommend?' + params.toString(), { method: 'GET' });
   }
 
   function cloudRequest(path, options) {

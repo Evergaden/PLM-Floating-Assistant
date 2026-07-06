@@ -410,6 +410,72 @@ async function handleInsightReport(request, env) {
   });
 }
 
+function normalizePrice(value) {
+  const number = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(number) && number > 0 ? Number(number.toFixed(2)) : 0;
+}
+
+async function handleInsightRecommend(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const url = new URL(request.url);
+  const sku = cleanText(url.searchParams.get('sku'), 80);
+  const productType = cleanText(url.searchParams.get('productType'), 120);
+  const name = cleanText(url.searchParams.get('name'), 200);
+
+  let latestSkuPrice = null;
+  if (sku) {
+    latestSkuPrice = await env.DB.prepare(`
+      SELECT price, pack_qty, product_type, created_at
+      FROM insight_events
+      WHERE event_type = 'price' AND sku = ? AND price IS NOT NULL AND price != ''
+      ORDER BY id DESC
+      LIMIT 1
+    `).bind(sku).first();
+  }
+
+  let typeRows = { results: [] };
+  if (productType) {
+    typeRows = await env.DB.prepare(`
+      SELECT price, pack_qty, sku, name, created_at
+      FROM insight_events
+      WHERE event_type = 'price' AND product_type = ? AND price IS NOT NULL AND price != ''
+      ORDER BY id DESC
+      LIMIT 30
+    `).bind(productType).all();
+  }
+  if ((!typeRows.results || !typeRows.results.length) && name) {
+    const keyword = '%' + name.slice(0, 20) + '%';
+    typeRows = await env.DB.prepare(`
+      SELECT price, pack_qty, sku, name, product_type, created_at
+      FROM insight_events
+      WHERE event_type = 'price' AND name LIKE ? AND price IS NOT NULL AND price != ''
+      ORDER BY id DESC
+      LIMIT 30
+    `).bind(keyword).all();
+  }
+
+  const prices = (typeRows.results || []).map((row) => normalizePrice(row.price)).filter(Boolean);
+  const avgPrice = prices.length ? Number((prices.reduce((sum, value) => sum + value, 0) / prices.length).toFixed(2)) : 0;
+  const latestTypePrice = prices.length ? prices[0] : 0;
+  const skuPrice = latestSkuPrice ? normalizePrice(latestSkuPrice.price) : 0;
+  const recommendedPrice = skuPrice || latestTypePrice || avgPrice || 0;
+  const source = skuPrice ? 'same-sku' : (latestTypePrice ? 'same-type-latest' : (avgPrice ? 'same-type-average' : 'none'));
+
+  return json({
+    ok: true,
+    sku,
+    productType,
+    name,
+    recommendedPrice,
+    source,
+    latestSkuPrice,
+    typeSampleCount: prices.length,
+    avgTypePrice: avgPrice,
+    latestTypePrice,
+    typeSamples: (typeRows.results || []).slice(0, 10),
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
@@ -424,6 +490,7 @@ export default {
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
+    if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
 
     return json({ error: 'not found' }, 404);
   },
