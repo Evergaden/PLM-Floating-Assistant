@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.179
+// @version      2.3.180
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.179';
+  const SCRIPT_VERSION = '2.3.180';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5858,13 +5858,14 @@
     renderShell();
     try {
       const response = await syncInsightFeishu();
-      if (!response || response.ok === false) throw new Error(response && response.error ? response.error : 'feishu sync failed');
+      if (!response || response.ok === false) throw buildCloudError(response || { error: 'feishu sync failed' }, 200);
       state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5b8c\u6210\uff1a' + (response.inserted || 0) + '\u6761' + (response.skipped ? '\uff0c\u8df3\u8fc7\u5df2\u540c\u6b65 ' + response.skipped + '\u6761' : '');
       addLog('success', '\u98de\u4e66\u540c\u6b65\u5b8c\u6210', String(response.inserted || 0) + '\u6761' + (response.skipped ? ' / skipped ' + response.skipped : ''));
       showToast(state.insightCloudStatus);
     } catch (error) {
-      if (/FEISHU_.*not configured|not configured/i.test(formatErrorMessage(error))) {
-        await copyCloudInsightFeishuTable({ fallbackFromSync: true });
+      if (isRecoverableFeishuSyncError(error)) {
+        addLog('warn', '\u98de\u4e66\u76f4\u5199\u4e0d\u53ef\u7528\uff0c\u5df2\u56de\u9000\u590d\u5236\u8868\u683c', formatFeishuSyncErrorDetail(error));
+        await copyCloudInsightFeishuTable({ fallbackFromSync: true, reason: formatFeishuSyncErrorDetail(error) });
       } else {
         state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5931\u8d25\uff1a' + formatErrorMessage(error);
         addLog('warn', '\u98de\u4e66\u540c\u6b65\u5931\u8d25', formatErrorMessage(error));
@@ -6026,7 +6027,7 @@
       const tsv = response && response.tsv ? response.tsv : '';
       if (!tsv) throw new Error('empty tsv');
       state.insightCloudStatus = opts.fallbackFromSync
-        ? '\u98de\u4e66\u76f4\u5199\u672a\u914d\u7f6e\uff0c\u5df2\u6539\u4e3a\u590d\u5236\u8868\u683c\u6570\u636e\uff0c\u76f4\u63a5\u7c98\u8d34\u5230\u8868\u683c\u5373\u53ef'
+        ? '\u98de\u4e66\u76f4\u5199\u4e0d\u53ef\u7528\uff0c\u5df2\u6539\u4e3a\u590d\u5236\u8868\u683c\u6570\u636e\uff0c\u76f4\u63a5\u7c98\u8d34\u5230\u8868\u683c\u5373\u53ef' + (opts.reason ? '\uff1b\u539f\u56e0\uff1a' + opts.reason : '')
         : '\u98de\u4e66\u8868\u683c\u6570\u636e\u5df2\u590d\u5236\uff0c\u76f4\u63a5\u7c98\u8d34\u5230\u8868\u683c\u5373\u53ef\u5206\u5217';
       copyText(tsv);
       addLog('success', opts.fallbackFromSync ? '\u98de\u4e66\u540c\u6b65\u56de\u9000\u4e3a\u590d\u5236\u8868\u683c' : '\u5df2\u590d\u5236\u98de\u4e66\u8868\u683c\u6570\u636e');
@@ -6457,7 +6458,7 @@
           return;
         }
         if (response.status < 200 || response.status >= 300) {
-          reject(new Error(formatCloudError(data, response.status)));
+          reject(buildCloudError(data, response.status));
           return;
         }
         resolve(data);
@@ -6487,10 +6488,17 @@
         body,
       }).then(async (response) => {
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(formatCloudError(data, response.status));
+        if (!response.ok) throw buildCloudError(data, response.status);
         return data;
       }).then(resolve, reject);
     });
+  }
+
+  function buildCloudError(data, status) {
+    const error = new Error(formatCloudError(data, status));
+    error.cloudData = data || {};
+    error.status = status;
+    return error;
   }
 
   function formatCloudError(data, status) {
@@ -6503,6 +6511,25 @@
 
   function formatErrorMessage(error) {
     return error && error.message ? error.message : String(error || '\u672a\u77e5\u9519\u8bef');
+  }
+
+  function isRecoverableFeishuSyncError(error) {
+    const data = error && error.cloudData || {};
+    const message = formatErrorMessage(error);
+    return /FEISHU_.*not configured|not configured|feishu table missing required fields|missing required fields|missing fields|fields check failed/i.test(message) ||
+      Array.isArray(data.missingFields) ||
+      Array.isArray(data.tableMissingFields);
+  }
+
+  function formatFeishuSyncErrorDetail(error) {
+    const data = error && error.cloudData || {};
+    const fields = []
+      .concat(Array.isArray(data.missingFields) ? data.missingFields : [])
+      .concat(Array.isArray(data.tableMissingFields) ? data.tableMissingFields : []);
+    const uniqueFields = fields.filter((field, index) => field && fields.indexOf(field) === index);
+    const parts = [formatErrorMessage(error)];
+    if (uniqueFields.length) parts.push('\u7f3a\u5b57\u6bb5 ' + uniqueFields.join('/'));
+    return parts.filter(Boolean).join(' / ');
   }
 
   function formatCopyAll(data) {
