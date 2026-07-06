@@ -676,6 +676,115 @@ async function handleInsightRules(request, env) {
   });
 }
 
+async function getFeishuTenantToken(env) {
+  const appId = env.FEISHU_APP_ID;
+  const appSecret = env.FEISHU_APP_SECRET;
+  if (!appId || !appSecret) throw new Error('FEISHU_APP_ID/FEISHU_APP_SECRET not configured');
+  const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      app_id: appId,
+      app_secret: appSecret,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.code !== 0 || !data.tenant_access_token) {
+    throw new Error(data && data.msg ? data.msg : 'feishu tenant token failed');
+  }
+  return data.tenant_access_token;
+}
+
+function buildFeishuRecords(summary) {
+  const rows = [];
+  (summary.recentPrices || []).forEach((item) => {
+    rows.push({
+      fields: {
+        '记录类型': '价格历史',
+        'SKU': item.sku || '',
+        '品牌': item.brand || '',
+        '商品名': item.name || '',
+        '商品类型': item.product_type || '',
+        '价格': item.price || '',
+        '装箱数': item.pack_qty || '',
+        '包装尺寸': item.package_size || '',
+        '产品尺寸': item.product_size || '',
+        '缺失字段': '',
+        '来源': 'cloud-insight',
+        '记录时间': item.created_at || '',
+      },
+    });
+  });
+  (summary.productTypes || []).forEach((item) => {
+    rows.push({
+      fields: {
+        '记录类型': '商品类型统计',
+        'SKU': '',
+        '品牌': '',
+        '商品名': '',
+        '商品类型': item.product_type || '',
+        '价格': '',
+        '装箱数': '',
+        '包装尺寸': '',
+        '产品尺寸': '',
+        '缺失字段': '记录数：' + (item.count || 0),
+        '来源': 'cloud-insight',
+        '记录时间': item.latest_at || '',
+      },
+    });
+  });
+  (summary.recentIssues || []).forEach((item) => {
+    rows.push({
+      fields: {
+        '记录类型': '字段异常',
+        'SKU': item.sku || '',
+        '品牌': item.brand || '',
+        '商品名': item.name || '',
+        '商品类型': '',
+        '价格': '',
+        '装箱数': '',
+        '包装尺寸': '',
+        '产品尺寸': '',
+        '缺失字段': item.missing_fields || '',
+        '来源': item.source || '',
+        '记录时间': item.created_at || '',
+      },
+    });
+  });
+  return rows.slice(0, 500);
+}
+
+async function handleInsightFeishuSync(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const appToken = env.FEISHU_BITABLE_APP_TOKEN;
+  const tableId = env.FEISHU_BITABLE_TABLE_ID;
+  if (!appToken || !tableId) {
+    return json({ ok: false, error: 'FEISHU_BITABLE_APP_TOKEN/FEISHU_BITABLE_TABLE_ID not configured' }, 400);
+  }
+  const summary = await buildInsightSummary(env);
+  const records = buildFeishuRecords(summary);
+  if (!records.length) return json({ ok: true, inserted: 0, message: 'no records' });
+  const token = await getFeishuTenantToken(env);
+  let inserted = 0;
+  for (let i = 0; i < records.length; i += 500) {
+    const chunk = records.slice(i, i + 500);
+    const response = await fetch('https://open.feishu.cn/open-apis/bitable/v1/apps/' + encodeURIComponent(appToken) + '/tables/' + encodeURIComponent(tableId) + '/records/batch_create', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + token,
+        'content-type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify({ records: chunk }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.code !== 0) {
+      throw new Error(data && data.msg ? data.msg : 'feishu batch_create failed');
+    }
+    inserted += chunk.length;
+  }
+  return json({ ok: true, inserted });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
@@ -694,6 +803,7 @@ export default {
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
+    if (url.pathname === '/insights/feishu-sync' && request.method === 'POST') return handleInsightFeishuSync(request, env);
 
     return json({ error: 'not found' }, 404);
   },
