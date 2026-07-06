@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.168
+// @version      2.3.169
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.168';
+  const SCRIPT_VERSION = '2.3.169';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5771,8 +5771,10 @@
         state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u5df2\u5b8c\u6574\uff0c\u5b57\u6bb5\uff1a' + (response.requiredFields || []).join(' / ');
         addLog('success', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u901a\u8fc7');
       } else {
-        state.insightCloudStatus = '\u98de\u4e66\u7f3a\u914d\u7f6e\uff1a' + ((response && response.missing || []).join(' / ') || '\u672a\u77e5');
+        state.insightCloudStatus = formatFeishuSetupStatus(response);
+        copyText(state.insightCloudStatus);
         addLog('warn', '\u98de\u4e66\u914d\u7f6e\u4e0d\u5b8c\u6574', state.insightCloudStatus);
+        showToast('\u98de\u4e66\u914d\u7f6e\u547d\u4ee4\u5df2\u590d\u5236');
       }
       showToast(state.insightCloudStatus);
     } catch (error) {
@@ -5780,6 +5782,17 @@
       addLog('warn', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25', formatErrorMessage(error));
     }
     renderShell();
+  }
+
+  function formatFeishuSetupStatus(response) {
+    const missing = (response && response.missing || []).join(' / ') || '\u672a\u77e5';
+    const fields = (response && response.requiredFields || []).join(' / ');
+    const commands = (response && response.setupCommands || []).join('\n');
+    return [
+      '\u98de\u4e66\u7f3a\u914d\u7f6e\uff1a' + missing,
+      fields ? '\u9700\u8981\u5efa\u8868\u5b57\u6bb5\uff1a' + fields : '',
+      commands ? '\u914d\u7f6e\u547d\u4ee4\uff1a\n' + commands : '',
+    ].filter(Boolean).join('\n');
   }
 
   async function checkCloudInsightAiStatus() {

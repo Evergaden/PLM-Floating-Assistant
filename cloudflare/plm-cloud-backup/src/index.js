@@ -1388,6 +1388,9 @@ function getFeishuRequiredFields() {
 async function handleInsightFeishuStatus(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const requiredEnv = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
+  const setupCommands = requiredEnv
+    .map((key) => 'npx.cmd wrangler secret put ' + key)
+    .concat('npx.cmd wrangler deploy');
   const missing = requiredEnv.filter((key) => !env[key]);
   return json({
     ok: true,
@@ -1395,6 +1398,7 @@ async function handleInsightFeishuStatus(request, env) {
     missing,
     requiredEnv,
     requiredFields: getFeishuRequiredFields(),
+    setupCommands,
     note: '飞书多维表字段名需要和 requiredFields 完全一致；密钥只配置在 Worker 环境变量，不要写进油猴脚本。',
   });
 }
