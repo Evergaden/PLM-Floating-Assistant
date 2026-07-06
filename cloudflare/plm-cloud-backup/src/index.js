@@ -387,15 +387,18 @@ async function buildInsightSummary(env) {
   rulePackage.maintainedCount = maintainedRules.length;
   rulePackage.maintainedRules = maintainedRules;
 
-  return {
+  const recentLogs = normalizeRecentLogs(recentLogRows.results || []);
+  const summary = {
     totals: totals.results || [],
     productTypes: productTypes.results || [],
     recentIssues: recentIssues.results || [],
     recentPrices: recentPrices.results || [],
-    recentLogs: normalizeRecentLogs(recentLogRows.results || []),
+    recentLogs,
+    logDiagnostics: buildLogDiagnostics(recentLogs),
     ruleCandidates,
     rulePackage,
   };
+  return summary;
 }
 
 function parsePayloadJson(value) {
@@ -422,6 +425,53 @@ function normalizeRecentLogs(rows) {
       created_at: row.created_at || '',
     };
   }).filter((item) => item.level || item.message || item.detail);
+}
+
+function buildLogDiagnostics(logs) {
+  const items = Array.isArray(logs) ? logs : [];
+  const levels = {};
+  const messages = new Map();
+  items.forEach((item) => {
+    const level = cleanText(item.level || 'info', 20) || 'info';
+    const message = cleanText(item.message, 160) || cleanText(item.detail, 160) || 'unknown';
+    levels[level] = (levels[level] || 0) + 1;
+    const key = [level, message].join('|');
+    const current = messages.get(key) || {
+      level,
+      message,
+      count: 0,
+      latest_at: '',
+      examples: [],
+      sources: new Set(),
+    };
+    current.count += 1;
+    current.latest_at = item.created_at || current.latest_at;
+    if (item.source) current.sources.add(item.source);
+    if (current.examples.length < 3) {
+      current.examples.push({
+        sku: item.sku || '',
+        detail: item.detail || '',
+        at: item.created_at || '',
+      });
+    }
+    messages.set(key, current);
+  });
+  const topMessages = Array.from(messages.values())
+    .sort((a, b) => b.count - a.count || String(b.latest_at).localeCompare(String(a.latest_at)))
+    .slice(0, 12)
+    .map((item) => ({
+      level: item.level,
+      message: item.message,
+      count: item.count,
+      latest_at: item.latest_at,
+      sources: Array.from(item.sources),
+      examples: item.examples,
+    }));
+  return {
+    total: items.length,
+    levels,
+    topMessages,
+  };
 }
 
 function tableLines(rows, columns) {
@@ -472,6 +522,10 @@ async function handleInsightReport(request, env) {
     'Level\tSKU\tMessage\tDetail\tSource\tTime',
     ...tableLines(summary.recentLogs, ['level', 'sku', 'message', 'detail', 'source', 'created_at']),
     '',
+    'Runtime log diagnostics',
+    'Level\tMessage\tCount\tLatest\tSources',
+    ...tableLines((summary.logDiagnostics && summary.logDiagnostics.topMessages || []), ['level', 'message', 'count', 'latest_at', 'sources']),
+    '',
     '五、AI 处理建议',
     '1. 按商品类型统计价格区间和常见装箱数，给新 SKU 做默认推荐。',
     '2. 对高频缺失字段维护清洗规则；如果 PLM 页面不是空值但脚本未获取到，优先记录为规则待修复。',
@@ -512,6 +566,12 @@ async function handleInsightFeishuTsv(request, env) {
       summary.recentLogs,
       ['level', 'sku', 'message', 'detail', 'source', 'created_at']
     ),
+    tsvSection(
+      'Runtime log diagnostics',
+      ['Level', 'Message', 'Count', 'Latest', 'Sources'],
+      summary.logDiagnostics && summary.logDiagnostics.topMessages,
+      ['level', 'message', 'count', 'latest_at', 'sources']
+    ),
   ];
   return json({
     ok: true,
@@ -532,6 +592,7 @@ async function callZhipuInsightReporter(env, summary) {
     recentPrices: (summary.recentPrices || []).slice(0, 20),
     recentIssues: (summary.recentIssues || []).slice(0, 20),
     recentLogs: (summary.recentLogs || []).slice(0, 30),
+    logDiagnostics: summary.logDiagnostics || null,
     ruleCandidates: (summary.ruleCandidates || []).slice(0, 20),
     rulePackage: summary.rulePackage ? {
       generatedAt: summary.rulePackage.generatedAt,
@@ -545,6 +606,7 @@ async function callZhipuInsightReporter(env, summary) {
     '你是 PLM 商品数据清洗和采购数据分析助手。',
     '请根据下面 JSON，总结：1）商品类型规律；2）历史价格规律和可补全建议；3）字段缺失/清洗规则待修复项；4）适合复制到飞书表格的字段结构。',
     '要求中文输出，结构清楚，尽量短，给出可执行规则，不要编造 JSON 里没有的数据。',
+    'Also analyze recentLogs/logDiagnostics. Classify likely causes as network, PLM empty value, script parsing gap, or workflow operation issue. Return concrete repair actions.',
     JSON.stringify(compactSummary),
   ].join('\n');
 
@@ -647,6 +709,10 @@ async function buildInsightAiReportPayload(env, summary) {
       'Runtime logs',
       'Level\tSKU\tMessage\tDetail\tSource\tTime',
       ...tableLines(summary.recentLogs, ['level', 'sku', 'message', 'detail', 'source', 'created_at']),
+      '',
+      'Runtime log diagnostics',
+      'Level\tMessage\tCount\tLatest\tSources',
+      ...tableLines((summary.logDiagnostics && summary.logDiagnostics.topMessages || []), ['level', 'message', 'count', 'latest_at', 'sources']),
       '',
       '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
       '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c',
