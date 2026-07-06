@@ -503,15 +503,15 @@ async function callZhipuInsightReporter(env, summary) {
 async function handleInsightAiReport(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const summary = await buildInsightSummary(env);
+  const payload = await buildInsightAiReportPayload(env, summary);
+  return json({ ok: true, ...payload, summary });
+}
+
+async function buildInsightAiReportPayload(env, summary) {
   try {
     const report = await callZhipuInsightReporter(env, summary);
     if (!report) throw new Error('empty ai report');
-    return json({
-      ok: true,
-      source: 'zhipu',
-      report,
-      summary,
-    });
+    return { source: 'zhipu', report };
   } catch (error) {
     const totalText = (summary.totals || []).map((item) => cleanText(item.event_type, 40) + ':' + item.count).join(' / ') || '暂无';
     const report = [
@@ -528,13 +528,7 @@ async function handleInsightAiReport(request, env) {
       'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
       ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
     ].join('\n');
-    return json({
-      ok: true,
-      source: 'fallback',
-      error: cleanText(error && error.message, 200),
-      report,
-      summary,
-    });
+    return { source: 'fallback', error: cleanText(error && error.message, 200), report };
   }
 }
 
@@ -734,8 +728,30 @@ async function getFeishuTenantToken(env) {
   return data.tenant_access_token;
 }
 
-function buildFeishuRecords(summary) {
+function buildFeishuRecords(summary, aiPayload) {
   const rows = [];
+  if (aiPayload && aiPayload.report) {
+    const report = cleanText(aiPayload.report, 1000);
+    rows.push({
+      syncKey: ['ai-summary', aiPayload.source || '', report.slice(0, 80)].join('|'),
+      recordType: 'AI整理总结',
+      sku: '',
+      fields: {
+        '记录类型': 'AI整理总结',
+        'SKU': '',
+        '品牌': '',
+        '商品名': report.slice(0, 200),
+        '商品类型': '',
+        '价格': '',
+        '装箱数': '',
+        '包装尺寸': '',
+        '产品尺寸': '',
+        '缺失字段': report,
+        '来源': aiPayload.source || 'insight-summary',
+        '记录时间': new Date().toISOString(),
+      },
+    });
+  }
   (summary.recentPrices || []).forEach((item) => {
     const syncKey = ['price', item.sku || '', item.price || '', item.pack_qty || '', item.created_at || ''].join('|');
     rows.push({
@@ -835,7 +851,8 @@ async function handleInsightFeishuSync(request, env) {
     return json({ ok: false, error: 'FEISHU_BITABLE_APP_TOKEN/FEISHU_BITABLE_TABLE_ID not configured' }, 400);
   }
   const summary = await buildInsightSummary(env);
-  const allRecords = buildFeishuRecords(summary);
+  const aiPayload = await buildInsightAiReportPayload(env, summary);
+  const allRecords = buildFeishuRecords(summary, aiPayload);
   const records = await filterUnsyncedFeishuRecords(env, allRecords);
   if (!records.length) return json({ ok: true, inserted: 0, message: 'no records' });
   const token = await getFeishuTenantToken(env);
