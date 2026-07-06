@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.154
+// @version      2.3.155
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.154';
+  const SCRIPT_VERSION = '2.3.155';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5539,8 +5539,8 @@
     try {
       const response = await syncInsightFeishu();
       if (!response || response.ok === false) throw new Error(response && response.error ? response.error : 'feishu sync failed');
-      state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5b8c\u6210\uff1a' + (response.inserted || 0) + '\u6761';
-      addLog('success', '\u98de\u4e66\u540c\u6b65\u5b8c\u6210', String(response.inserted || 0) + '\u6761');
+      state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5b8c\u6210\uff1a' + (response.inserted || 0) + '\u6761' + (response.skipped ? '\uff0c\u8df3\u8fc7\u5df2\u540c\u6b65 ' + response.skipped + '\u6761' : '');
+      addLog('success', '\u98de\u4e66\u540c\u6b65\u5b8c\u6210', String(response.inserted || 0) + '\u6761' + (response.skipped ? ' / skipped ' + response.skipped : ''));
       showToast(state.insightCloudStatus);
     } catch (error) {
       state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5931\u8d25\uff1a' + formatErrorMessage(error);

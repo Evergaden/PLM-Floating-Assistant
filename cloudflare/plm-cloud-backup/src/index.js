@@ -698,7 +698,11 @@ async function getFeishuTenantToken(env) {
 function buildFeishuRecords(summary) {
   const rows = [];
   (summary.recentPrices || []).forEach((item) => {
+    const syncKey = ['price', item.sku || '', item.price || '', item.pack_qty || '', item.created_at || ''].join('|');
     rows.push({
+      syncKey,
+      recordType: '价格历史',
+      sku: item.sku || '',
       fields: {
         '记录类型': '价格历史',
         'SKU': item.sku || '',
@@ -716,7 +720,11 @@ function buildFeishuRecords(summary) {
     });
   });
   (summary.productTypes || []).forEach((item) => {
+    const syncKey = ['type', item.product_type || '', item.count || '', item.latest_at || ''].join('|');
     rows.push({
+      syncKey,
+      recordType: '商品类型统计',
+      sku: '',
       fields: {
         '记录类型': '商品类型统计',
         'SKU': '',
@@ -734,7 +742,11 @@ function buildFeishuRecords(summary) {
     });
   });
   (summary.recentIssues || []).forEach((item) => {
+    const syncKey = ['issue', item.sku || '', item.missing_fields || '', item.source || '', item.created_at || ''].join('|');
     rows.push({
+      syncKey,
+      recordType: '字段异常',
+      sku: item.sku || '',
       fields: {
         '记录类型': '字段异常',
         'SKU': item.sku || '',
@@ -754,6 +766,28 @@ function buildFeishuRecords(summary) {
   return rows.slice(0, 500);
 }
 
+async function filterUnsyncedFeishuRecords(env, records) {
+  const result = [];
+  for (const record of records) {
+    const row = await env.DB.prepare(`
+      SELECT sync_key
+      FROM feishu_synced_records
+      WHERE sync_key = ?
+    `).bind(record.syncKey).first();
+    if (!row) result.push(record);
+  }
+  return result;
+}
+
+async function markFeishuRecordsSynced(env, records) {
+  for (const record of records) {
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO feishu_synced_records (sync_key, record_type, sku)
+      VALUES (?, ?, ?)
+    `).bind(record.syncKey, record.recordType || '', record.sku || '').run();
+  }
+}
+
 async function handleInsightFeishuSync(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const appToken = env.FEISHU_BITABLE_APP_TOKEN;
@@ -762,7 +796,8 @@ async function handleInsightFeishuSync(request, env) {
     return json({ ok: false, error: 'FEISHU_BITABLE_APP_TOKEN/FEISHU_BITABLE_TABLE_ID not configured' }, 400);
   }
   const summary = await buildInsightSummary(env);
-  const records = buildFeishuRecords(summary);
+  const allRecords = buildFeishuRecords(summary);
+  const records = await filterUnsyncedFeishuRecords(env, allRecords);
   if (!records.length) return json({ ok: true, inserted: 0, message: 'no records' });
   const token = await getFeishuTenantToken(env);
   let inserted = 0;
@@ -781,8 +816,9 @@ async function handleInsightFeishuSync(request, env) {
       throw new Error(data && data.msg ? data.msg : 'feishu batch_create failed');
     }
     inserted += chunk.length;
+    await markFeishuRecordsSynced(env, chunk);
   }
-  return json({ ok: true, inserted });
+  return json({ ok: true, inserted, skipped: allRecords.length - records.length });
 }
 
 export default {

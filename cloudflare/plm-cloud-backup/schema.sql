@@ -45,3 +45,10 @@ ON insight_events(sku);
 
 CREATE INDEX IF NOT EXISTS idx_insight_events_product_type
 ON insight_events(product_type);
+
+CREATE TABLE IF NOT EXISTS feishu_synced_records (
+  sync_key TEXT PRIMARY KEY,
+  record_type TEXT,
+  sku TEXT,
+  synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
