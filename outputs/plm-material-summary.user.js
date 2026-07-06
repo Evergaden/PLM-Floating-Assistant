@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.180
+// @version      2.3.181
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.180';
+  const SCRIPT_VERSION = '2.3.181';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -721,11 +721,27 @@
     const drawer = getProjectDrawerForSku(data.sku) || getProjectDrawer();
     if (!drawer) {
       addLog('warn', '\u6570\u636e\u7f3a\u5931\u8bca\u65ad\u8df3\u8fc7', data.sku + ' \u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49');
-      return data;
+      return attachMissingDiagnostic(data, {
+        status: '\u672a\u6267\u884c',
+        reason: '\u672a\u627e\u5230\u5bf9\u5e94\u62bd\u5c49',
+        beforeMissing: missing,
+        afterMissing: missing,
+        fixed: [],
+        tabs: [],
+      });
     }
 
     const tabs = getDiagnosticTabsForMissing(missing);
-    if (!tabs.length) return data;
+    if (!tabs.length) {
+      return attachMissingDiagnostic(data, {
+        status: '\u672a\u6267\u884c',
+        reason: '\u672a\u627e\u5230\u9700\u4e8c\u6b21\u8bfb\u53d6\u7684\u9875\u7b7e',
+        beforeMissing: missing,
+        afterMissing: missing,
+        fixed: [],
+        tabs: [],
+      });
+    }
     state.diagnosticRunning = true;
     addLog('info', '\u5f00\u59cb\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + ' / ' + issueMeta.kind);
     let merged = data;
@@ -747,13 +763,42 @@
       } else {
         addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u6570\u636e', data.sku + ' \u4ecd\u7f3a\uff1a' + afterMissing.join('\u3001'));
       }
-      return merged;
+      return attachMissingDiagnostic(merged, {
+        status: fixed.length ? '\u90e8\u5206\u8865\u5230' : '\u4ecd\u7f3a',
+        reason: fixed.length ? '\u4e8c\u6b21\u8bfb\u53d6\u6210\u529f\u8865\u5230\u90e8\u5206\u5b57\u6bb5' : '\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\u5b57\u6bb5',
+        beforeMissing: missing,
+        afterMissing,
+        fixed,
+        tabs,
+      });
     } catch (error) {
       addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
-      return data;
+      return attachMissingDiagnostic(data, {
+        status: '\u5931\u8d25',
+        reason: formatErrorMessage(error),
+        beforeMissing: missing,
+        afterMissing: getMissingFieldsForData(data),
+        fixed: [],
+        tabs,
+      });
     } finally {
       state.diagnosticRunning = false;
     }
+  }
+
+  function attachMissingDiagnostic(data, diagnostic) {
+    return normalizeData({
+      ...(data || {}),
+      lastMissingDiagnostic: {
+        status: String(diagnostic && diagnostic.status || '').slice(0, 40),
+        reason: String(diagnostic && diagnostic.reason || '').slice(0, 160),
+        beforeMissing: Array.isArray(diagnostic && diagnostic.beforeMissing) ? diagnostic.beforeMissing.slice(0, 20) : [],
+        afterMissing: Array.isArray(diagnostic && diagnostic.afterMissing) ? diagnostic.afterMissing.slice(0, 20) : [],
+        fixed: Array.isArray(diagnostic && diagnostic.fixed) ? diagnostic.fixed.slice(0, 20) : [],
+        tabs: Array.isArray(diagnostic && diagnostic.tabs) ? diagnostic.tabs.slice(0, 8) : [],
+        at: new Date().toLocaleString(),
+      },
+    });
   }
 
   function getDiagnosticTabsForMissing(missing) {
@@ -6680,6 +6725,7 @@
       seen: String(item.seen || '').slice(0, 120),
       issueKind: String(item.issueKind || '').slice(0, 80),
       readiness: String(item.readiness || '').slice(0, 160),
+      diagnosticAttempt: sanitizeMissingDiagnostic(item.diagnosticAttempt),
       fieldDiagnostics: sanitizeFieldDiagnostics(item.fieldDiagnostics),
       source: String(item.source || '').slice(0, 80),
       recordedAt: String(item.recordedAt || '').slice(0, 80),
@@ -6800,6 +6846,7 @@
       seen,
       issueKind: issueMeta.kind,
       readiness: issueMeta.readiness,
+      diagnosticAttempt: issueMeta.diagnosticAttempt,
       fieldDiagnostics: issueMeta.fieldDiagnostics,
       source: source || 'scan',
       recordedAt: new Date().toLocaleString(),
@@ -6815,6 +6862,7 @@
       syncInsightEvent('issue', {
         ...item,
         missingFields: item.missing,
+        diagnosticAttempt: item.diagnosticAttempt,
         fieldDiagnostics: item.fieldDiagnostics,
       });
     }
@@ -6854,29 +6902,62 @@
     } else if ((missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || (missingDesign && data.seenDesign) || allCoreTabsRead) {
       kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
     }
-    const fieldDiagnostics = missing.map((field) => buildFieldDiagnostic(data, field));
+    const diagnosticAttempt = sanitizeMissingDiagnostic(data.lastMissingDiagnostic);
+    const fieldDiagnostics = missing.map((field) => buildFieldDiagnostic(data, field, diagnosticAttempt));
     return {
       kind,
-      readiness: readTabs.length ? '\u5df2\u8bfb\u9875\u7b7e\uff1a' + readTabs.join('/') : '\u672a\u8bfb\u5230\u6838\u5fc3\u9875\u7b7e',
+      readiness: (readTabs.length ? '\u5df2\u8bfb\u9875\u7b7e\uff1a' + readTabs.join('/') : '\u672a\u8bfb\u5230\u6838\u5fc3\u9875\u7b7e') + formatDiagnosticReadinessSuffix(diagnosticAttempt),
+      diagnosticAttempt,
       fieldDiagnostics,
     };
   }
 
-  function buildFieldDiagnostic(data, field) {
+  function buildFieldDiagnostic(data, field, diagnosticAttempt) {
     const targetTab = getMissingFieldTargetTab(field);
     const tabRead = targetTab === '\u7269\u6599\u6e05\u5355'
       ? Boolean(data.seenMaterial)
       : (targetTab === '\u4ea7\u54c1\u4fe1\u606f' ? Boolean(data.seenProduct) : (targetTab === '\u8bbe\u8ba1\u8d44\u6599' ? Boolean(data.seenDesign) : false));
     const issueKind = tabRead ? '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790' : '\u9875\u9762\u672a\u8bfb\u5b8c';
+    const retryText = formatFieldRetryAction(field, diagnosticAttempt);
     return {
       field,
       targetTab,
       tabRead,
       issueKind,
-      action: tabRead
+      action: (tabRead
         ? '\u8865\u5145\u201c' + field + '\u201d\u7684\u9009\u62e9\u5668\u6216\u89e3\u6790\u89c4\u5219'
-        : '\u5148\u68c0\u67e5\u201c' + targetTab + '\u201d\u9875\u7b7e\u662f\u5426\u6210\u529f\u6253\u5f00\u5e76\u52a0\u8f7d',
+        : '\u5148\u68c0\u67e5\u201c' + targetTab + '\u201d\u9875\u7b7e\u662f\u5426\u6210\u529f\u6253\u5f00\u5e76\u52a0\u8f7d') + retryText,
     };
+  }
+
+  function sanitizeMissingDiagnostic(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      status: String(source.status || '').slice(0, 40),
+      reason: String(source.reason || '').slice(0, 160),
+      beforeMissing: Array.isArray(source.beforeMissing) ? source.beforeMissing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
+      afterMissing: Array.isArray(source.afterMissing) ? source.afterMissing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
+      fixed: Array.isArray(source.fixed) ? source.fixed.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
+      tabs: Array.isArray(source.tabs) ? source.tabs.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 8) : [],
+      at: String(source.at || '').slice(0, 80),
+    };
+  }
+
+  function formatDiagnosticReadinessSuffix(diagnostic) {
+    if (!diagnostic || !diagnostic.status) return '';
+    const parts = ['\u4e8c\u6b21\u8bfb\u53d6\uff1a' + diagnostic.status];
+    if (diagnostic.tabs && diagnostic.tabs.length) parts.push('\u9875\u7b7e ' + diagnostic.tabs.join('/'));
+    if (diagnostic.reason) parts.push(diagnostic.reason);
+    return ' / ' + parts.join(' / ');
+  }
+
+  function formatFieldRetryAction(field, diagnostic) {
+    if (!diagnostic || !diagnostic.status) return '';
+    if (diagnostic.fixed && diagnostic.fixed.includes(field)) return '\uff1b\u4e8c\u6b21\u8bfb\u53d6\u5df2\u8865\u5230';
+    if (diagnostic.afterMissing && diagnostic.afterMissing.includes(field)) {
+      return '\uff1b\u4e8c\u6b21\u8bfb\u53d6\u540e\u4ecd\u7f3a\uff1a' + (diagnostic.reason || diagnostic.status);
+    }
+    return '\uff1b\u4e8c\u6b21\u8bfb\u53d6\uff1a' + diagnostic.status;
   }
 
   function getMissingFieldTargetTab(field) {
