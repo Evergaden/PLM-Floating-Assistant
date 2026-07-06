@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.164
+// @version      2.3.165
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.164';
+  const SCRIPT_VERSION = '2.3.165';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -317,6 +317,8 @@
     insights: loadInsights(),
     insightCloudStatus: '',
     insightCloudReport: '',
+    maintainedCleaningRules: [],
+    maintainedCleaningRulesLoaded: false,
   };
   state.expanded = firstTutorial;
 
@@ -1629,7 +1631,31 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderMaintainedCleaningRules() + '</div>';
+  }
+
+  function renderMaintainedCleaningRules() {
+    const rules = Array.isArray(state.maintainedCleaningRules) ? state.maintainedCleaningRules.slice(0, 8) : [];
+    if (!state.maintainedCleaningRulesLoaded) {
+      return '<div class="pfh-rule-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u6e05\u6d17\u89c4\u5219</strong><span>\u672a\u52a0\u8f7d</span></div><div class="pfh-empty">\u70b9\u51fb\u201c\u5237\u65b0\u89c4\u5219\u201d\u67e5\u770b\u53ef\u7ef4\u62a4\u7684\u89c4\u5219\u72b6\u6001</div></div>';
+    }
+    if (!rules.length) {
+      return '<div class="pfh-rule-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u6e05\u6d17\u89c4\u5219</strong><span>0</span></div><div class="pfh-empty">\u6682\u65e0\u89c4\u5219</div></div>';
+    }
+    const rows = rules.map((rule) => {
+      const status = rule.maintenanceStatus || rule.computedMaintenanceStatus || '\u5f85\u590d\u6838';
+      const detail = [rule.actionLabel, rule.reason].filter(Boolean).join(' / ');
+      return '<div class="pfh-rule-row">' +
+        '<div><b>' + escapeHtml(rule.priority || 'P3') + ' ' + escapeHtml(rule.missingField || rule.ruleId || '') + '</b><small>' + escapeHtml(detail || rule.ruleId || '') + '</small></div>' +
+        '<span>' + escapeHtml(status) + '</span>' +
+        '<div class="pfh-rule-actions">' +
+          '<button type="button" data-action="insights-rule-auto" data-rule-id="' + escapeHtml(rule.ruleId || '') + '">\u81ea\u52a8</button>' +
+          '<button type="button" data-action="insights-rule-done" data-rule-id="' + escapeHtml(rule.ruleId || '') + '">\u5df2\u5904\u7406</button>' +
+          '<button type="button" data-action="insights-rule-ignore" data-rule-id="' + escapeHtml(rule.ruleId || '') + '">\u5ffd\u7565</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    return '<div class="pfh-rule-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u6e05\u6d17\u89c4\u5219</strong><span>' + escapeHtml(String(state.maintainedCleaningRules.length)) + '</span></div><div class="pfh-rule-list">' + rows + '</div></div>';
   }
 
   function renderLogSection() {
@@ -2240,6 +2266,10 @@
       refreshCloudInsightSummary();
       return;
     }
+    if (action === 'insights-refresh-rules') {
+      refreshMaintainedCleaningRules();
+      return;
+    }
     if (action === 'insights-check-ai') {
       checkCloudInsightAiStatus();
       return;
@@ -2266,6 +2296,10 @@
     }
     if (action === 'insights-copy-feishu') {
       copyCloudInsightFeishuTable();
+      return;
+    }
+    if (/^insights-rule-/.test(action)) {
+      updateMaintainedCleaningRuleStatus(actionTarget.getAttribute('data-rule-id'), action);
       return;
     }
     if (action === 'clear-insights') {
@@ -5731,6 +5765,10 @@
       const text = response && response.tsv ? response.tsv : '';
       if (!text) throw new Error('empty rules');
       const pkg = response && response.rulePackage;
+      if (pkg && Array.isArray(pkg.maintainedRules)) {
+        state.maintainedCleaningRules = pkg.maintainedRules;
+        state.maintainedCleaningRulesLoaded = true;
+      }
       state.insightCloudStatus = pkg
         ? '\u6e05\u6d17\u89c4\u5219\u5019\u9009\u5df2\u590d\u5236\uff1a\u5171 ' + (pkg.total || 0) + '\u6761\uff0c\u9700\u5904\u7406 ' + (pkg.actionableCount || 0) + '\u6761\uff0c\u7591\u4f3c PLM \u7a7a\u503c ' + (pkg.likelyPlmEmptyCount || 0) + '\u6761'
         : '\u6e05\u6d17\u89c4\u5219\u5019\u9009\u5df2\u590d\u5236';
@@ -5742,6 +5780,44 @@
       addLog('warn', '\u6e05\u6d17\u89c4\u5219\u751f\u6210\u5931\u8d25', formatErrorMessage(error));
     }
     renderShell();
+  }
+
+  async function refreshMaintainedCleaningRules() {
+    state.insightCloudStatus = '\u6b63\u5728\u62c9\u53d6\u4e91\u7aef\u6e05\u6d17\u89c4\u5219...';
+    renderShell();
+    try {
+      const response = await fetchMaintainedCleaningRules();
+      state.maintainedCleaningRules = Array.isArray(response && response.rules) ? response.rules : [];
+      state.maintainedCleaningRulesLoaded = true;
+      state.insightCloudStatus = '\u4e91\u7aef\u6e05\u6d17\u89c4\u5219\uff1a' + state.maintainedCleaningRules.length + '\u6761';
+      addLog('success', '\u4e91\u7aef\u6e05\u6d17\u89c4\u5219\u5df2\u5237\u65b0', state.insightCloudStatus);
+    } catch (error) {
+      state.insightCloudStatus = '\u6e05\u6d17\u89c4\u5219\u5237\u65b0\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u6e05\u6d17\u89c4\u5219\u5237\u65b0\u5931\u8d25', formatErrorMessage(error));
+    }
+    renderShell();
+  }
+
+  async function updateMaintainedCleaningRuleStatus(ruleId, action) {
+    if (!ruleId) return;
+    const status = action === 'insights-rule-done'
+      ? '\u5df2\u5904\u7406'
+      : (action === 'insights-rule-ignore' ? '\u5ffd\u7565' : '\u81ea\u52a8');
+    state.insightCloudStatus = '\u6b63\u5728\u66f4\u65b0\u89c4\u5219\u72b6\u6001...';
+    renderShell();
+    try {
+      const response = await updateCleaningRuleStatus(ruleId, status);
+      if (!response || response.ok === false) throw new Error(response && response.error ? response.error : 'rule status failed');
+      await refreshMaintainedCleaningRules();
+      state.insightCloudStatus = '\u89c4\u5219\u72b6\u6001\u5df2\u66f4\u65b0\uff1a' + status;
+      addLog('success', '\u6e05\u6d17\u89c4\u5219\u72b6\u6001\u5df2\u66f4\u65b0', ruleId + ' -> ' + status);
+      showToast(state.insightCloudStatus);
+      renderShell();
+    } catch (error) {
+      state.insightCloudStatus = '\u89c4\u5219\u72b6\u6001\u66f4\u65b0\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u6e05\u6d17\u89c4\u5219\u72b6\u6001\u66f4\u65b0\u5931\u8d25', ruleId + ' ' + formatErrorMessage(error));
+      renderShell();
+    }
   }
 
   async function copyCloudInsightFeishuTable() {
@@ -6126,6 +6202,20 @@
 
   async function fetchInsightRules() {
     return cloudRequest('/insights/rules', { method: 'GET' });
+  }
+
+  async function fetchMaintainedCleaningRules() {
+    return cloudRequest('/insights/rules/maintained?limit=50', { method: 'GET' });
+  }
+
+  async function updateCleaningRuleStatus(ruleId, status) {
+    return cloudRequest('/insights/rules/status', {
+      method: 'POST',
+      body: {
+        ruleId: String(ruleId || ''),
+        status: String(status || ''),
+      },
+    });
   }
 
   async function syncInsightFeishu() {
@@ -10451,6 +10541,64 @@
       #${PANEL_ID} .pfh-log-row.is-success {
         border-color: rgba(74, 222, 128, .30);
         background: rgba(240, 253, 244, .82);
+      }
+      #${PANEL_ID} .pfh-rule-panel {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(211, 204, 255, .34);
+      }
+      #${PANEL_ID} .pfh-rule-list {
+        display: grid;
+        gap: 8px;
+        max-height: 260px;
+        overflow: auto;
+      }
+      #${PANEL_ID} .pfh-rule-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 10px;
+        padding: 10px;
+        border: 1px solid rgba(211, 204, 255, .32);
+        border-radius: 12px;
+        background: rgba(255,255,255,.62);
+      }
+      #${PANEL_ID} .pfh-rule-row b,
+      #${PANEL_ID} .pfh-rule-row small {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-rule-row b {
+        color: #171a22;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      #${PANEL_ID} .pfh-rule-row small {
+        margin-top: 3px;
+        color: #7a8498;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-rule-row > span {
+        align-self: start;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: rgba(109, 53, 232, .10);
+        color: #6d35e8;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-rule-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      #${PANEL_ID} .pfh-rule-actions button {
+        min-height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        font-size: 11px;
       }
       #${PANEL_ID} .pfh-info-grid {
         display: grid !important;
