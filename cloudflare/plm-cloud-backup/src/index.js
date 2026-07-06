@@ -495,6 +495,39 @@ function tsvSection(title, headers, rows, columns) {
   return lines.join('\n');
 }
 
+function formatRuleTargetTabs(rule) {
+  return (rule && rule.targetTabs || []).filter(Boolean).join('/');
+}
+
+function formatRuleActions(rule) {
+  const actions = (rule && rule.actions || []).filter(Boolean);
+  return actions.length ? actions.slice(0, 3).join('；') : (rule && rule.suggestion || '');
+}
+
+function formatRuleExampleSkus(rule) {
+  return (rule && rule.examples || []).map((example) => example.sku).filter(Boolean).join(',');
+}
+
+function formatRuleRows(summary, limit) {
+  return ((summary && summary.rulePackage && summary.rulePackage.rules) || [])
+    .filter((item) => item.maintenanceStatus !== '\u5df2\u5904\u7406' && item.maintenanceStatus !== '\u5ffd\u7565')
+    .slice(0, limit || 30)
+    .map((item) => ({
+      priority: item.priority || '',
+      missingField: item.missingField || '',
+      count: item.count || 0,
+      actionLabel: item.actionLabel || '',
+      maintenanceStatus: item.maintenanceStatus || '',
+      likelyPlmEmpty: item.likelyPlmEmpty ? '\u662f' : '\u5426',
+      targetTabs: formatRuleTargetTabs(item),
+      parsedButMissingCount: item.parsedButMissingCount || 0,
+      unreadCount: item.unreadCount || 0,
+      actions: formatRuleActions(item),
+      examples: formatRuleExampleSkus(item),
+      latestAt: item.latestAt || '',
+    }));
+}
+
 async function handleInsightReport(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const summary = await buildInsightSummary(env);
@@ -525,6 +558,10 @@ async function handleInsightReport(request, env) {
     'Runtime log diagnostics',
     'Level\tMessage\tCount\tLatest\tSources',
     ...tableLines((summary.logDiagnostics && summary.logDiagnostics.topMessages || []), ['level', 'message', 'count', 'latest_at', 'sources']),
+    '',
+    '清洗规则候选',
+    '优先级\t字段\t次数\t动作\t状态\t可能PLM空值\t目标页签\t已读未解析\t未读完\t建议动作\t样例SKU\t最近时间',
+    ...tableLines(formatRuleRows(summary, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'actions', 'examples', 'latestAt']),
     '',
     '五、AI 处理建议',
     '1. 按商品类型统计价格区间和常见装箱数，给新 SKU 做默认推荐。',
@@ -571,6 +608,12 @@ async function handleInsightFeishuTsv(request, env) {
       ['Level', 'Message', 'Count', 'Latest', 'Sources'],
       summary.logDiagnostics && summary.logDiagnostics.topMessages,
       ['level', 'message', 'count', 'latest_at', 'sources']
+    ),
+    tsvSection(
+      '清洗规则候选',
+      ['优先级', '字段', '次数', '动作', '状态', '可能PLM空值', '目标页签', '已读未解析', '未读完', '建议动作', '样例SKU', '最近时间'],
+      formatRuleRows(summary, 30),
+      ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'actions', 'examples', 'latestAt']
     ),
   ];
   return json({
@@ -715,8 +758,8 @@ async function buildInsightAiReportPayload(env, summary) {
       ...tableLines((summary.logDiagnostics && summary.logDiagnostics.topMessages || []), ['level', 'message', 'count', 'latest_at', 'sources']),
       '',
       '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
-      '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c',
-      ...tableLines((summary.rulePackage && summary.rulePackage.rules || []).slice(0, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty']),
+      '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c\t\u76ee\u6807\u9875\u7b7e\t\u5df2\u8bfb\u672a\u89e3\u6790\t\u672a\u8bfb\u5b8c\t\u5efa\u8bae\u52a8\u4f5c\t\u6837\u4f8bSKU',
+      ...tableLines(formatRuleRows(summary, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'actions', 'examples']),
     ].join('\n');
     payload = { source: 'fallback', error: cleanText(error && error.message, 200), report };
   }
@@ -1393,9 +1436,9 @@ function buildFeishuRecords(summary, aiPayload) {
     .filter((item) => item.priority === 'P1' || item.priority === 'P2' || item.maintenanceStatus === '\u9700\u5904\u7406')
     .slice(0, 30)
     .forEach((item) => {
-      const exampleSkus = (item.examples || []).map((example) => example.sku).filter(Boolean).join(',');
-      const targetTabs = (item.targetTabs || []).filter(Boolean).join('/');
-      const actions = (item.actions || []).filter(Boolean).slice(0, 3).join('；');
+      const exampleSkus = formatRuleExampleSkus(item);
+      const targetTabs = formatRuleTargetTabs(item);
+      const actions = formatRuleActions(item);
       const syncKey = ['clean-rule', item.ruleId || '', item.count || '', item.latestAt || ''].join('|');
       rows.push({
         syncKey,
