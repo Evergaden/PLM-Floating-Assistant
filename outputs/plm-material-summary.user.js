@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.171
+// @version      2.3.172
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.171';
+  const SCRIPT_VERSION = '2.3.172';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5741,13 +5741,38 @@
       const blockers = (response && response.blockers || []).map((item) => item.label + '\uff1a' + item.detail).join(' / ');
       state.insightCloudStatus = (response && response.ready ? '\u6d1e\u5bdf\u94fe\u8def\u5df2\u5c31\u7eea' : '\u6d1e\u5bdf\u94fe\u8def\u672a\u5c31\u7eea') +
         '\uff1a' + passed + '/' + checks.length + '\u9879\u901a\u8fc7' + (failed ? '\uff0c\u7f3a\u53e3 ' + blockers : '');
+      copyText(formatInsightReadinessReport(response));
       addLog(response && response.ready ? 'success' : 'warn', '\u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0', state.insightCloudStatus);
-      showToast(state.insightCloudStatus);
+      showToast(state.insightCloudStatus + '\uff0c\u62a5\u544a\u5df2\u590d\u5236');
     } catch (error) {
       state.insightCloudStatus = '\u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0\u5931\u8d25\uff1a' + formatErrorMessage(error);
       addLog('warn', '\u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0\u5931\u8d25', formatErrorMessage(error));
     }
     renderShell();
+  }
+
+  function formatInsightReadinessReport(response) {
+    const checks = Array.isArray(response && response.checks) ? response.checks : [];
+    const blockers = Array.isArray(response && response.blockers) ? response.blockers : [];
+    const totals = response && response.totals ? response.totals : {};
+    const lines = [
+      'PLM \u4e91\u7aef\u6d1e\u5bdf\u4f53\u68c0',
+      '\u751f\u6210\u65f6\u95f4\uff1a' + new Date().toLocaleString(),
+      '\u603b\u72b6\u6001\uff1a' + (response && response.ready ? '\u5df2\u5c31\u7eea' : '\u672a\u5c31\u7eea'),
+      '\u4e8b\u4ef6\u7edf\u8ba1\uff1a' + Object.keys(totals).map((key) => key + '=' + totals[key]).join(' / '),
+      '',
+      '\u68c0\u67e5\u9879',
+    ];
+    checks.forEach((item) => {
+      lines.push((item.ok ? '\u901a\u8fc7' : '\u672a\u901a\u8fc7') + '\t' + (item.label || item.key || '') + '\t' + (item.detail || ''));
+    });
+    lines.push('', '\u963b\u585e\u9879');
+    if (blockers.length) {
+      blockers.forEach((item) => lines.push((item.label || item.key || '') + '\t' + (item.detail || '')));
+    } else {
+      lines.push('\u65e0');
+    }
+    return lines.join('\n');
   }
 
   async function copyCloudInsightReport() {
