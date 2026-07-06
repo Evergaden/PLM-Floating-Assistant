@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.166
+// @version      2.3.167
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.166';
+  const SCRIPT_VERSION = '2.3.167';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -821,7 +821,7 @@
     const outer = extractOuterPackage(drawer);
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
     const imageInfo = seenDesign ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
-    const tubeSpec = findTubeSizeSpec([packaging.printRawText, text].filter(Boolean).join('\n'));
+    const tubeSpec = findTubeSizeSpec([packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'));
     const packageNums = packaging.packageNums || outer.packageNums;
     const hasInnerCard = hasInnerCardMark(packaging);
     const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums;
@@ -1089,10 +1089,17 @@
 
   function findTubeSizeSpec(text) {
     const source = String(text || '');
-    const diameter = extractTubeMeasure(source, '\u7ba1\u5f84');
-    const body = extractTubeMeasure(source, '\u7ba1\u8eab');
-    if (!diameter || !body) return null;
-    const rule = TUBE_SIZE_RULES.find((item) => item.diameter === diameter && item.bodies.includes(body));
+    let diameter = extractTubeMeasure(source, '\u7ba1\u5f84');
+    let body = extractTubeMeasure(source, '\u7ba1\u8eab');
+    let rule = diameter && body ? TUBE_SIZE_RULES.find((item) => item.diameter === diameter && item.bodies.includes(body)) : null;
+    if (!rule) {
+      const byPrintSize = findTubeSizeRuleByPrintDimension(source);
+      if (byPrintSize) {
+        rule = byPrintSize.rule;
+        diameter = diameter || byPrintSize.diameter;
+        body = body || byPrintSize.body;
+      }
+    }
     if (!rule) return null;
     const tailSeal = (Number(rule.widths[1]) || 0) + (Number(rule.widths[2]) || 0);
     return {
@@ -1102,6 +1109,52 @@
       segmentText: rule.widths.map(formatCmSegment).join('-') + 'cm',
       tailSealText: trimNumber(tailSeal) + 'cm',
     };
+  }
+
+  function findTubeSizeRuleByPrintDimension(text) {
+    const nums = extractTubePrintDimensionNums(text);
+    if (!nums || nums.length < 2) return null;
+    const width = Number(nums[0]);
+    const height = Number(nums[1]);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+    let best = null;
+    TUBE_SIZE_RULES.forEach((rule) => {
+      rule.bodies.forEach((body) => {
+        const expected = getTubeRulePrintSize(rule, body);
+        const directScore = Math.abs(expected.width - width) + Math.abs(expected.height - height);
+        const swappedScore = Math.abs(expected.width - height) + Math.abs(expected.height - width) + 0.05;
+        const score = Math.min(directScore, swappedScore);
+        if (score <= 0.16 && (!best || score < best.score)) {
+          best = { rule, diameter: rule.diameter, body, score };
+        }
+      });
+    });
+    return best;
+  }
+
+  function extractTubePrintDimensionNums(text) {
+    const source = String(text || '');
+    const labeled = source.match(/\u5370\u5237(?:\u5c3a\u5bf8)?[^\d]{0,20}(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
+    if (labeled) {
+      const unit = labeled[3].toLowerCase();
+      return [normalizeDimensionUnitNumber(labeled[1], unit), normalizeDimensionUnitNumber(labeled[2], unit)];
+    }
+    const dimension = source.match(/(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
+    if (!dimension) return null;
+    const unit = dimension[3].toLowerCase();
+    return [normalizeDimensionUnitNumber(dimension[1], unit), normalizeDimensionUnitNumber(dimension[2], unit)];
+  }
+
+  function getTubeRulePrintSize(rule, body) {
+    const width = rule.widths.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const height = Math.max(0, (Number(body) || 0) / 10 - 0.1);
+    return { width, height };
+  }
+
+  function normalizeDimensionUnitNumber(value, unit) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return String(unit || '').toLowerCase() === 'mm' ? num / 10 : num;
   }
 
   function extractTubeMeasure(text, label) {
@@ -1768,7 +1821,7 @@
       rowHtml('printSizeText', state.data.printSizeLabel || L.printSize, formatPrintSizeDisplay(state.data) || L.noPrint),
       '</div>',
       '</section>',
-      '<section class="pfh-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + excelTriggerHtml() + '</div>' + excelOptionsHtml(),
+      '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + excelTriggerHtml() + '</div><div class="pfh-excel-options-row">' + excelOptionsHtml() + '</div>',
       '<div class="pfh-graphic-table pfh-info-grid">',
       rowHtml('packageLength', L.cartonLength, state.data.packageLength || L.noDimension),
       rowHtml('productLength', L.productLength, state.data.isTubePrint ? (state.data.productLength || L.tailSealLength) : (state.data.productLength || L.noDimension), { editable: state.data.isTubePrint }),
@@ -10763,6 +10816,22 @@
         flex-wrap: nowrap !important;
         align-items: center !important;
         gap: 8px 10px !important;
+      }
+      #${PANEL_ID} .pfh-excel-options-row {
+        display: block !important;
+        width: 100% !important;
+        clear: both !important;
+      }
+      #${PANEL_ID} .pfh-excel-options-row:empty {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-excel-options-row > .pfh-excel-controls.is-open {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 8px 0 12px !important;
+        box-sizing: border-box !important;
       }
       #${PANEL_ID} .pfh-section > .pfh-excel-controls.is-open {
         flex: 0 0 100% !important;
