@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.150
+// @version      2.3.151
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.150';
+  const SCRIPT_VERSION = '2.3.151';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -234,6 +234,7 @@
     insightsEmpty: '\u6682\u65e0\u6570\u636e',
     insightsCloudSummary: '\u4e91\u7aef\u6458\u8981',
     insightsCopyReport: '\u590d\u5236\u603b\u7ed3',
+    insightsCopyFeishu: '\u590d\u5236\u98de\u4e66\u8868',
   };
   const TOOLTIP = {
     about: '\u5173\u4e8e',
@@ -1546,7 +1547,7 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + '</div>';
   }
 
   function renderLogSection() {
@@ -2155,6 +2156,10 @@
     }
     if (action === 'insights-copy-report') {
       copyCloudInsightReport();
+      return;
+    }
+    if (action === 'insights-copy-feishu') {
+      copyCloudInsightFeishuTable();
       return;
     }
     if (action === 'clear-insights') {
@@ -5513,6 +5518,24 @@
     renderShell();
   }
 
+  async function copyCloudInsightFeishuTable() {
+    state.insightCloudStatus = '\u6b63\u5728\u751f\u6210\u98de\u4e66\u8868\u683c\u6570\u636e...';
+    renderShell();
+    try {
+      const response = await fetchInsightFeishuTsv();
+      const tsv = response && response.tsv ? response.tsv : '';
+      if (!tsv) throw new Error('empty tsv');
+      state.insightCloudStatus = '\u98de\u4e66\u8868\u683c\u6570\u636e\u5df2\u590d\u5236\uff0c\u76f4\u63a5\u7c98\u8d34\u5230\u8868\u683c\u5373\u53ef\u5206\u5217';
+      copyText(tsv);
+      addLog('success', '\u5df2\u590d\u5236\u98de\u4e66\u8868\u683c\u6570\u636e');
+      showToast(L.copied);
+    } catch (error) {
+      state.insightCloudStatus = '\u98de\u4e66\u8868\u683c\u6570\u636e\u751f\u6210\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u98de\u4e66\u8868\u683c\u6570\u636e\u751f\u6210\u5931\u8d25', formatErrorMessage(error));
+    }
+    renderShell();
+  }
+
   function formatCloudInsightTotals(totals) {
     if (!Array.isArray(totals) || !totals.length) return '\u6682\u65e0\u4e8b\u4ef6';
     return totals.map((item) => {
@@ -5865,6 +5888,10 @@
 
   async function fetchInsightReport() {
     return cloudRequest('/insights/report', { method: 'GET' });
+  }
+
+  async function fetchInsightFeishuTsv() {
+    return cloudRequest('/insights/feishu-tsv', { method: 'GET' });
   }
 
   async function fetchInsightRecommendation(data, productType) {

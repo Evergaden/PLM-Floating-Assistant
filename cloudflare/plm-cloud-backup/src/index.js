@@ -375,6 +375,22 @@ function tableLines(rows, columns) {
   return rows.map((row) => columns.map((column) => cleanText(row[column], 120) || '-').join('\t'));
 }
 
+function tsvEscape(value) {
+  return String(value || '').replace(/[\t\r\n]+/g, ' ').trim();
+}
+
+function tsvSection(title, headers, rows, columns) {
+  const lines = [title, headers.join('\t')];
+  if (!rows || !rows.length) {
+    lines.push('暂无');
+  } else {
+    rows.forEach((row) => {
+      lines.push(columns.map((column) => tsvEscape(row[column])).join('\t'));
+    });
+  }
+  return lines.join('\n');
+}
+
 async function handleInsightReport(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const summary = await buildInsightSummary(env);
@@ -406,6 +422,38 @@ async function handleInsightReport(request, env) {
   return json({
     ok: true,
     report: lines.join('\n'),
+    summary,
+  });
+}
+
+async function handleInsightFeishuTsv(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const summary = await buildInsightSummary(env);
+  const sections = [
+    tsvSection(
+      '价格历史',
+      ['SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '记录时间'],
+      summary.recentPrices,
+      ['sku', 'brand', 'name', 'product_type', 'price', 'pack_qty', 'package_size', 'product_size', 'created_at']
+    ),
+    tsvSection(
+      '商品类型统计',
+      ['商品类型', '记录数', '最近时间'],
+      summary.productTypes,
+      ['product_type', 'count', 'latest_at']
+    ),
+    tsvSection(
+      '字段异常',
+      ['SKU', '品牌', '商品名', '缺失字段', '来源', '记录时间'],
+      summary.recentIssues,
+      ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']
+    ),
+  ];
+  return json({
+    ok: true,
+    format: 'tsv',
+    copiedAt: new Date().toISOString(),
+    tsv: sections.join('\n\n'),
     summary,
   });
 }
@@ -490,6 +538,7 @@ export default {
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
+    if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
 
     return json({ error: 'not found' }, 404);
