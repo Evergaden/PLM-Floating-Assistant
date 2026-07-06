@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.173
+// @version      2.3.174
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.173';
+  const SCRIPT_VERSION = '2.3.174';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6606,6 +6606,7 @@
       seen: String(item.seen || '').slice(0, 120),
       issueKind: String(item.issueKind || '').slice(0, 80),
       readiness: String(item.readiness || '').slice(0, 160),
+      fieldDiagnostics: sanitizeFieldDiagnostics(item.fieldDiagnostics),
       source: String(item.source || '').slice(0, 80),
       recordedAt: String(item.recordedAt || '').slice(0, 80),
       recordedAtMs: Number(item.recordedAtMs || 0) || 0,
@@ -6621,6 +6622,17 @@
       };
     });
     return clean;
+  }
+
+  function sanitizeFieldDiagnostics(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, 20).map((item) => ({
+      field: String(item && item.field || '').slice(0, 80),
+      targetTab: String(item && item.targetTab || '').slice(0, 80),
+      tabRead: Boolean(item && item.tabRead),
+      issueKind: String(item && item.issueKind || '').slice(0, 80),
+      action: String(item && item.action || '').slice(0, 120),
+    })).filter((item) => item.field);
   }
 
   function loadInsights() {
@@ -6714,6 +6726,7 @@
       seen,
       issueKind: issueMeta.kind,
       readiness: issueMeta.readiness,
+      fieldDiagnostics: issueMeta.fieldDiagnostics,
       source: source || 'scan',
       recordedAt: new Date().toLocaleString(),
       recordedAtMs: Date.now(),
@@ -6728,6 +6741,7 @@
       syncInsightEvent('issue', {
         ...item,
         missingFields: item.missing,
+        fieldDiagnostics: item.fieldDiagnostics,
       });
     }
   }
@@ -6766,10 +6780,36 @@
     } else if ((missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || (missingDesign && data.seenDesign) || allCoreTabsRead) {
       kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
     }
+    const fieldDiagnostics = missing.map((field) => buildFieldDiagnostic(data, field));
     return {
       kind,
       readiness: readTabs.length ? '\u5df2\u8bfb\u9875\u7b7e\uff1a' + readTabs.join('/') : '\u672a\u8bfb\u5230\u6838\u5fc3\u9875\u7b7e',
+      fieldDiagnostics,
     };
+  }
+
+  function buildFieldDiagnostic(data, field) {
+    const targetTab = getMissingFieldTargetTab(field);
+    const tabRead = targetTab === '\u7269\u6599\u6e05\u5355'
+      ? Boolean(data.seenMaterial)
+      : (targetTab === '\u4ea7\u54c1\u4fe1\u606f' ? Boolean(data.seenProduct) : (targetTab === '\u8bbe\u8ba1\u8d44\u6599' ? Boolean(data.seenDesign) : false));
+    const issueKind = tabRead ? '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790' : '\u9875\u9762\u672a\u8bfb\u5b8c';
+    return {
+      field,
+      targetTab,
+      tabRead,
+      issueKind,
+      action: tabRead
+        ? '\u8865\u5145\u201c' + field + '\u201d\u7684\u9009\u62e9\u5668\u6216\u89e3\u6790\u89c4\u5219'
+        : '\u5148\u68c0\u67e5\u201c' + targetTab + '\u201d\u9875\u7b7e\u662f\u5426\u6210\u529f\u6253\u5f00\u5e76\u52a0\u8f7d',
+    };
+  }
+
+  function getMissingFieldTargetTab(field) {
+    if (field === '\u5305\u88c5\u5c3a\u5bf8' || field === '\u5370\u5237\u5c3a\u5bf8' || field === '\u51c0\u542b\u91cf') return '\u7269\u6599\u6e05\u5355';
+    if (field === '\u4ea7\u54c1\u5c3a\u5bf8' || field === '\u6bdb\u91cd' || field === '\u54c1\u724c' || field === '\u5546\u54c1\u540d\u79f0') return '\u4ea7\u54c1\u4fe1\u606f';
+    if (field === 'SKU\u56fe') return '\u8bbe\u8ba1\u8d44\u6599';
+    return '';
   }
 
   function loadIndex() {

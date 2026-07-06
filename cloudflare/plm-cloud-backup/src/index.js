@@ -979,8 +979,12 @@ function buildRuleCandidates(issueRows) {
     } catch (error) {
       payload = {};
     }
-    const fields = String(row.missing_fields || '').split(',').map((item) => item.trim()).filter(Boolean);
-    fields.forEach((field) => {
+    const diagnostics = normalizeFieldDiagnostics(payload, row);
+    const fields = diagnostics.length
+      ? diagnostics
+      : String(row.missing_fields || '').split(',').map((item) => ({ field: item.trim(), issueKind: payload.issueKind || '', action: '', targetTab: '', tabRead: false })).filter((item) => item.field);
+    fields.forEach((diagnostic) => {
+      const field = diagnostic.field;
       const current = groups.get(field) || {
         missingField: field,
         count: 0,
@@ -988,18 +992,29 @@ function buildRuleCandidates(issueRows) {
         examples: [],
         latestAt: '',
         issueKinds: new Set(),
+        targetTabs: new Set(),
+        actions: new Set(),
+        parsedButMissingCount: 0,
+        unreadCount: 0,
       };
       current.count += 1;
       if (row.source) current.sources.add(row.source);
       if (payload.issueKind) current.issueKinds.add(payload.issueKind);
+      if (diagnostic.issueKind) current.issueKinds.add(diagnostic.issueKind);
+      if (diagnostic.targetTab) current.targetTabs.add(diagnostic.targetTab);
+      if (diagnostic.action) current.actions.add(diagnostic.action);
+      if (diagnostic.tabRead) current.parsedButMissingCount += 1;
+      else current.unreadCount += 1;
       if (current.examples.length < 5) {
         current.examples.push({
           sku: row.sku || '',
           brand: row.brand || '',
           name: row.name || '',
           source: row.source || '',
-          issueKind: payload.issueKind || '',
+          issueKind: diagnostic.issueKind || payload.issueKind || '',
           readiness: payload.readiness || '',
+          targetTab: diagnostic.targetTab || '',
+          action: diagnostic.action || '',
           createdAt: row.created_at || '',
         });
       }
@@ -1022,13 +1037,30 @@ function buildRuleCandidates(issueRows) {
       reason,
       sources: Array.from(item.sources),
       issueKinds,
+      targetTabs: Array.from(item.targetTabs || []),
+      actions: Array.from(item.actions || []),
+      parsedButMissingCount: item.parsedButMissingCount || 0,
+      unreadCount: item.unreadCount || 0,
       examples: item.examples,
       latestAt: item.latestAt,
-      suggestion: highPriority
+      suggestion: item.actions && item.actions.size
+        ? Array.from(item.actions).slice(0, 3).join('；')
+        : (highPriority
         ? '高优先级：页面已读但字段为空，优先补充“' + item.missingField + '”的选择器/解析规则。'
-        : '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。',
+        : '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。'),
     };
   }).sort((a, b) => a.priority.localeCompare(b.priority) || b.count - a.count || String(b.latestAt).localeCompare(String(a.latestAt)));
+}
+
+function normalizeFieldDiagnostics(payload, row) {
+  const items = Array.isArray(payload && payload.fieldDiagnostics) ? payload.fieldDiagnostics : [];
+  return items.map((item) => ({
+    field: cleanText(item && item.field, 80),
+    targetTab: cleanText(item && item.targetTab, 80),
+    tabRead: Boolean(item && item.tabRead),
+    issueKind: cleanText(item && item.issueKind, 80),
+    action: cleanText(item && item.action, 160),
+  })).filter((item) => item.field);
 }
 
 function classifyRuleMaintenance(candidate) {
@@ -1076,6 +1108,10 @@ function buildRuleMaintenancePackage(candidates) {
       latestAt: candidate.latestAt || '',
       sources: candidate.sources || [],
       issueKinds: candidate.issueKinds || [],
+      targetTabs: candidate.targetTabs || [],
+      actions: candidate.actions || [],
+      parsedButMissingCount: candidate.parsedButMissingCount || 0,
+      unreadCount: candidate.unreadCount || 0,
       examples: candidate.examples || [],
       reason: candidate.reason || '',
       suggestion: candidate.suggestion || '',
@@ -1358,6 +1394,8 @@ function buildFeishuRecords(summary, aiPayload) {
     .slice(0, 30)
     .forEach((item) => {
       const exampleSkus = (item.examples || []).map((example) => example.sku).filter(Boolean).join(',');
+      const targetTabs = (item.targetTabs || []).filter(Boolean).join('/');
+      const actions = (item.actions || []).filter(Boolean).slice(0, 3).join('；');
       const syncKey = ['clean-rule', item.ruleId || '', item.count || '', item.latestAt || ''].join('|');
       rows.push({
         syncKey,
@@ -1373,7 +1411,7 @@ function buildFeishuRecords(summary, aiPayload) {
           '\u88c5\u7bb1\u6570': '',
           '\u5305\u88c5\u5c3a\u5bf8': item.actionLabel || '',
           '\u4ea7\u54c1\u5c3a\u5bf8': item.maintenanceStatus || '',
-          '\u7f3a\u5931\u5b57\u6bb5': [item.missingField || '', item.suggestion || ''].filter(Boolean).join(' / '),
+          '\u7f3a\u5931\u5b57\u6bb5': [item.missingField || '', targetTabs ? '\u76ee\u6807\u9875\u7b7e\uff1a' + targetTabs : '', actions || item.suggestion || ''].filter(Boolean).join(' / '),
           '\u6765\u6e90': (item.sources || []).join('/') || item.actionCode || 'clean-rule',
           '\u8bb0\u5f55\u65f6\u95f4': item.latestAt || (summary.rulePackage && summary.rulePackage.generatedAt) || '',
         },
