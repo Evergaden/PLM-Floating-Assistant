@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.144
+// @version      2.3.145
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.144';
+  const SCRIPT_VERSION = '2.3.145';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3629,6 +3629,7 @@
     state.ignoreOutsideClickUntil = Date.now() + 2500;
     showToast(L.openingDetail);
     try {
+      if (!(await ensureNewProductProjectPage())) throw new Error('new product project page not ready');
       let rowId = data.projectRowId || data.projectId || '';
       if (rowId && await clickProjectDetailByRowId(rowId, sku)) {
         cacheProjectRowId(sku, rowId);
@@ -3678,7 +3679,45 @@
     if (cached) state.data = normalizeData(cached);
   }
 
+  async function ensureNewProductProjectPage() {
+    if (isNewProductProjectPageReady()) return true;
+    addLog('info', '\u6253\u5f00\u8be6\u60c5\uff1a\u5207\u6362\u5230\u9879\u76ee\u7ba1\u7406-\u65b0\u54c1\u5f00\u53d1');
+    const tabButton = findTopTabByText('\u65b0\u54c1\u5f00\u53d1');
+    if (tabButton) {
+      clickElement(tabButton);
+      const readyFromTab = await waitFor(() => isNewProductProjectPageReady(), 5000, 150);
+      if (readyFromTab) return true;
+    }
+    const menuItem = findMenuItemByPathOrText('/projectManagementChemicalNew', '\u65b0\u54c1\u5f00\u53d1');
+    if (menuItem) {
+      clickElement(menuItem);
+      const readyFromMenu = await waitFor(() => isNewProductProjectPageReady(), 8000, 150);
+      if (readyFromMenu) return true;
+    }
+    addLog('error', '\u6253\u5f00\u8be6\u60c5\uff1a\u672a\u627e\u5230\u65b0\u54c1\u5f00\u53d1\u9876\u90e8\u6807\u7b7e\u6216\u5de6\u4fa7\u83dc\u5355');
+    return isNewProductProjectPageReady();
+  }
+
+  function isNewProductProjectPageReady() {
+    return /\/projectManagementChemicalNew/.test(location.pathname) && Boolean(findInputByPlaceholder('\u641c\u7d22\u5546\u54c1\u7f16\u7801') && findButtonByText('\u67e5\u8be2'));
+  }
+
+  function findTopTabByText(text) {
+    const expected = compactText(text);
+    return Array.from(document.querySelectorAll('.ant-tabs-tab, .ant-tabs-tab-btn, [role="tab"]'))
+      .filter(isVisibleElement)
+      .find((el) => compactText(el.innerText || el.textContent) === expected) || null;
+  }
+
+  function findMenuItemByPathOrText(path, text) {
+    const expected = compactText(text);
+    return Array.from(document.querySelectorAll('[data-menu-id], .ant-menu-item, .ant-menu-submenu-title, li'))
+      .filter(isVisibleElement)
+      .find((el) => (el.getAttribute('data-menu-id') || '') === path || compactText(el.innerText || el.textContent) === expected) || null;
+  }
+
   async function queryProjectRowIdBySku(sku) {
+    if (!(await ensureNewProductProjectPage())) return '';
     const input = findInputByPlaceholder('\u641c\u7d22\u5546\u54c1\u7f16\u7801');
     const button = findButtonByText('\u67e5\u8be2');
     if (!input || !button) return '';
@@ -4131,6 +4170,7 @@
     const sku = data && data.sku;
     if (!sku) return false;
     if (getProjectDrawerForSku(sku)) return true;
+    if (!(await ensureNewProductProjectPage())) return false;
     let rowId = data.projectRowId || data.projectId || '';
     if (rowId && await clickProjectDetailByRowId(rowId, sku)) {
       return Boolean(await waitFor(() => getProjectDrawerForSku(sku), 5000, 150));
