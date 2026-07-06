@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.181
+// @version      2.3.182
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.181';
+  const SCRIPT_VERSION = '2.3.182';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -880,8 +880,8 @@
       packageSizeText: packaging.packageSizeText || '',
       packageSizeLabel: packaging.packageSizeLabel || '',
       packageCode: packaging.packageCode || '',
-      printSizeText: packaging.printSizeText || '',
-      printSizeLabel: packaging.printSizeLabel || '',
+      printSizeText: packaging.printSizeText || (tubeSpec ? tubeSpec.printSizeText : ''),
+      printSizeLabel: packaging.printSizeLabel || (tubeSpec ? '\u5370\u5237' : ''),
       printCode: packaging.printCode || '',
       tubeSegmentText: tubeSpec ? tubeSpec.segmentText : '',
       tubeTailSealLengthValue: tubeSpec ? tubeSpec.tailSealText : '',
@@ -1154,6 +1154,7 @@
       diameter,
       body,
       widths: rule.widths.slice(),
+      printSizeText: formatTubePrintSize(rule, body),
       segmentText: rule.widths.map(formatCmSegment).join('-') + 'cm',
       tailSealText: trimNumber(tailSeal) + 'cm',
     };
@@ -1162,8 +1163,8 @@
   function extractTubeFields(root) {
     if (!root) return { diameter: 0, body: 0, text: '' };
     const fullText = getVisibleText(root);
-    const diameter = normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u5f84', root)) || extractTubeMeasure(fullText, '\u7ba1\u5f84');
-    const body = normalizeTubeMeasureText(getFormValueByLabel('\u7ba1\u8eab', root)) || extractTubeMeasure(fullText, '\u7ba1\u8eab');
+    const diameter = normalizeTubeMeasureText(getFormValueByLooseLabel('\u7ba1\u5f84', root)) || extractTubeMeasure(fullText, '\u7ba1\u5f84');
+    const body = normalizeTubeMeasureText(getFormValueByLooseLabel('\u7ba1\u8eab', root)) || extractTubeMeasure(fullText, '\u7ba1\u8eab');
     const parts = [];
     if (diameter) parts.push('\u7ba1\u5f84 ' + diameter + 'mm');
     if (body) parts.push('\u7ba1\u8eab ' + body + 'mm');
@@ -1208,6 +1209,12 @@
     const width = rule.widths.reduce((sum, value) => sum + (Number(value) || 0), 0);
     const height = Math.max(0, (Number(body) || 0) / 10 - 0.1);
     return { width, height };
+  }
+
+  function formatTubePrintSize(rule, body) {
+    const size = getTubeRulePrintSize(rule, body);
+    if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return '';
+    return trimNumber(size.width) + 'x' + trimNumber(size.height) + 'cm';
   }
 
   function normalizeDimensionUnitNumber(value, unit) {
@@ -1390,6 +1397,32 @@
       if (cleaned) return cleaned;
     }
     return '';
+  }
+
+  function getFormValueByLooseLabel(fieldLabel, root) {
+    const expected = normalizeLooseFieldLabel(fieldLabel);
+    const labels = Array.from(root.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]'))
+      .filter(isVisibleElement)
+      .filter((el) => normalizeLooseFieldLabel(el.textContent) === expected);
+    for (const labelEl of labels) {
+      const item = labelEl.closest('.ant-form-item') || labelEl.closest('.ant-descriptions-item') || labelEl.parentElement;
+      if (!item || !isVisibleElement(item)) continue;
+      const text = compactText(item.innerText || item.textContent || '');
+      const value = text
+        .replace(new RegExp('^' + escapeRegExp(normalizeFieldLabel(labelEl.textContent)) + '\\*?\\s*'), '')
+        .replace(new RegExp('^' + escapeRegExp(fieldLabel) + '(?:\\s*[\\uff08(][^\\uff09)]*[\\uff09)])?\\*?\\s*'), '')
+        .trim();
+      const cleaned = cleanValue(value);
+      if (cleaned) return cleaned;
+    }
+    return getFormValueByLabel(fieldLabel, root);
+  }
+
+  function normalizeLooseFieldLabel(text) {
+    return normalizeFieldLabel(text)
+      .replace(/[\uff08(]\s*(?:mm|cm|\u6beb\u7c73|\u5398\u7c73)\s*[\uff09)]/ig, '')
+      .replace(/\s+/g, '')
+      .trim();
   }
 
   function normalizeWeight(raw) {
@@ -11202,13 +11235,25 @@
         height: auto !important;
         min-height: 0 !important;
       }
+      #${PANEL_ID} .pfh-graphic-section {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
       #${PANEL_ID} .pfh-graphic-title {
         flex-wrap: nowrap !important;
         align-items: center !important;
+        width: 100% !important;
         gap: 8px 10px !important;
+      }
+      #${PANEL_ID} .pfh-graphic-title h3 {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
       }
       #${PANEL_ID} .pfh-excel-options-row {
         display: block !important;
+        order: 2 !important;
+        flex: 0 0 auto !important;
         width: 100% !important;
         clear: both !important;
       }
@@ -11234,6 +11279,13 @@
         width: 100% !important;
         justify-content: flex-start !important;
         margin: 8px 0 12px !important;
+      }
+      #${PANEL_ID} .pfh-graphic-table {
+        order: 3 !important;
+      }
+      #${PANEL_ID} .pfh-row[data-key="printSizeText"] .pfh-value {
+        white-space: normal !important;
+        line-height: 1.35 !important;
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
