@@ -369,6 +369,11 @@ async function buildInsightSummary(env) {
     LIMIT 500
   `).all();
   const ruleCandidates = buildRuleCandidates(ruleRows.results || []);
+  const rulePackage = buildRuleMaintenancePackage(ruleCandidates);
+  await upsertCleaningRules(env, rulePackage).catch(() => {});
+  const maintainedRules = await getMaintainedCleaningRules(env, 100).catch(() => []);
+  rulePackage.maintainedCount = maintainedRules.length;
+  rulePackage.maintainedRules = maintainedRules;
 
   return {
     totals: totals.results || [],
@@ -376,7 +381,7 @@ async function buildInsightSummary(env) {
     recentIssues: recentIssues.results || [],
     recentPrices: recentPrices.results || [],
     ruleCandidates,
-    rulePackage: buildRuleMaintenancePackage(ruleCandidates),
+    rulePackage,
   };
 }
 
@@ -858,11 +863,16 @@ function classifyRuleMaintenance(candidate) {
   };
 }
 
+function buildStableRuleId(candidate) {
+  const field = cleanText(candidate && candidate.missingField, 80) || 'field';
+  return 'clean-' + field.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+}
+
 function buildRuleMaintenancePackage(candidates) {
   const rules = (candidates || []).map((candidate, index) => {
     const classified = classifyRuleMaintenance(candidate);
     return {
-      ruleId: ['clean', candidate.priority || 'P3', candidate.missingField || 'field', index + 1].join('-'),
+      ruleId: buildStableRuleId(candidate) || ['clean', candidate.priority || 'P3', index + 1].join('-'),
       missingField: candidate.missingField || '',
       priority: candidate.priority || 'P3',
       count: candidate.count || 0,
@@ -882,6 +892,91 @@ function buildRuleMaintenancePackage(candidates) {
     likelyPlmEmptyCount: rules.filter((item) => item.likelyPlmEmpty).length,
     rules,
   };
+}
+
+async function upsertCleaningRules(env, rulePackage) {
+  const rules = rulePackage && Array.isArray(rulePackage.rules) ? rulePackage.rules : [];
+  for (const rule of rules) {
+    await env.DB.prepare(`
+      INSERT INTO cleaning_rules (
+        rule_id, missing_field, priority, action_code, action_label, maintenance_status,
+        likely_plm_empty, count, sources, issue_kinds, examples, reason, suggestion,
+        latest_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(rule_id) DO UPDATE SET
+        missing_field = excluded.missing_field,
+        priority = excluded.priority,
+        action_code = excluded.action_code,
+        action_label = excluded.action_label,
+        maintenance_status = excluded.maintenance_status,
+        likely_plm_empty = excluded.likely_plm_empty,
+        count = excluded.count,
+        sources = excluded.sources,
+        issue_kinds = excluded.issue_kinds,
+        examples = excluded.examples,
+        reason = excluded.reason,
+        suggestion = excluded.suggestion,
+        latest_at = excluded.latest_at,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(
+      rule.ruleId || '',
+      rule.missingField || '',
+      rule.priority || '',
+      rule.actionCode || '',
+      rule.actionLabel || '',
+      rule.maintenanceStatus || '',
+      rule.likelyPlmEmpty ? 1 : 0,
+      Number(rule.count || 0),
+      JSON.stringify(rule.sources || []),
+      JSON.stringify(rule.issueKinds || []),
+      JSON.stringify(rule.examples || []),
+      rule.reason || '',
+      rule.suggestion || '',
+      rule.latestAt || '',
+    ).run();
+  }
+}
+
+function parseJsonArray(value) {
+  try {
+    const parsed = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+async function getMaintainedCleaningRules(env, limit) {
+  const rows = await env.DB.prepare(`
+    SELECT rule_id, missing_field, priority, action_code, action_label, maintenance_status,
+      likely_plm_empty, count, sources, issue_kinds, examples, reason, suggestion,
+      first_seen_at, latest_at, updated_at
+    FROM cleaning_rules
+    ORDER BY
+      CASE priority WHEN 'P1' THEN 1 WHEN 'P2' THEN 2 ELSE 3 END,
+      count DESC,
+      updated_at DESC
+    LIMIT ?
+  `).bind(Math.max(1, Math.min(Number(limit || 100), 300))).all();
+  return (rows.results || []).map((row) => ({
+    ruleId: row.rule_id || '',
+    missingField: row.missing_field || '',
+    priority: row.priority || '',
+    actionCode: row.action_code || '',
+    actionLabel: row.action_label || '',
+    maintenanceStatus: row.maintenance_status || '',
+    likelyPlmEmpty: Boolean(row.likely_plm_empty),
+    count: Number(row.count || 0),
+    sources: parseJsonArray(row.sources),
+    issueKinds: parseJsonArray(row.issue_kinds),
+    examples: parseJsonArray(row.examples),
+    reason: row.reason || '',
+    suggestion: row.suggestion || '',
+    firstSeenAt: row.first_seen_at || '',
+    latestAt: row.latest_at || '',
+    updatedAt: row.updated_at || '',
+  }));
 }
 
 function formatRuleCandidates(candidates) {
@@ -916,11 +1011,27 @@ async function handleInsightRules(request, env) {
   `).all();
   const candidates = buildRuleCandidates(rows.results || []);
   const rulePackage = buildRuleMaintenancePackage(candidates);
+  await upsertCleaningRules(env, rulePackage).catch(() => {});
+  const maintainedRules = await getMaintainedCleaningRules(env, 100).catch(() => []);
+  rulePackage.maintainedCount = maintainedRules.length;
+  rulePackage.maintainedRules = maintainedRules;
   return json({
     ok: true,
     candidates,
     rulePackage,
     tsv: formatRuleCandidates(candidates),
+  });
+}
+
+async function handleMaintainedCleaningRules(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const url = new URL(request.url);
+  const limit = Number(url.searchParams.get('limit') || 100);
+  const rules = await getMaintainedCleaningRules(env, limit);
+  return json({
+    ok: true,
+    total: rules.length,
+    rules,
   });
 }
 
@@ -1155,6 +1266,7 @@ export default {
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
+    if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
     if (url.pathname === '/insights/feishu-status' && request.method === 'GET') return handleInsightFeishuStatus(request, env);
     if (url.pathname === '/insights/feishu-sync' && request.method === 'POST') return handleInsightFeishuSync(request, env);
 

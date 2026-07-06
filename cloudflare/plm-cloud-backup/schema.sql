@@ -60,3 +60,25 @@ CREATE TABLE IF NOT EXISTS ai_report_cache (
   error TEXT,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS cleaning_rules (
+  rule_id TEXT PRIMARY KEY,
+  missing_field TEXT NOT NULL,
+  priority TEXT,
+  action_code TEXT,
+  action_label TEXT,
+  maintenance_status TEXT,
+  likely_plm_empty INTEGER NOT NULL DEFAULT 0,
+  count INTEGER NOT NULL DEFAULT 0,
+  sources TEXT,
+  issue_kinds TEXT,
+  examples TEXT,
+  reason TEXT,
+  suggestion TEXT,
+  first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  latest_at TEXT,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cleaning_rules_priority
+ON cleaning_rules(priority, updated_at);
