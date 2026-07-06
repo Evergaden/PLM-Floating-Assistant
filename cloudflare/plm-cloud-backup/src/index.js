@@ -1585,6 +1585,47 @@ function getFeishuRequiredFields() {
   return ['记录类型', 'SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '缺失字段', '来源', '记录时间'];
 }
 
+function getFeishuRequiredFieldSchema() {
+  return [
+    { name: '记录类型', type: '单行文本', note: 'AI整理总结/价格历史/商品类型统计/清洗规则候选/字段异常/运行日志' },
+    { name: 'SKU', type: '单行文本', note: '商品编码或样例 SKU' },
+    { name: '品牌', type: '单行文本', note: '品牌名' },
+    { name: '商品名', type: '多行文本', note: '商品名；AI 总结会放摘要' },
+    { name: '商品类型', type: '单行文本', note: '自动识别或历史推荐类型' },
+    { name: '价格', type: '单行文本', note: '历史采购价/推荐价' },
+    { name: '装箱数', type: '单行文本', note: '历史装箱数' },
+    { name: '包装尺寸', type: '单行文本', note: '纸盒/外包装尺寸' },
+    { name: '产品尺寸', type: '单行文本', note: '产品尺寸或日志 URL' },
+    { name: '缺失字段', type: '多行文本', note: '字段异常、清洗规则建议或日志详情' },
+    { name: '来源', type: '单行文本', note: 'cloud-insight/clean-rule/plm-helper-log 等' },
+    { name: '记录时间', type: '日期或单行文本', note: '事件发生时间' },
+  ];
+}
+
+function buildFeishuSetupGuide(requiredEnv, missing) {
+  const fieldLines = getFeishuRequiredFieldSchema().map((field) => [
+    field.name,
+    field.type,
+    field.note,
+  ].join('\t'));
+  const secretLines = requiredEnv.map((key) => 'npx.cmd wrangler secret put ' + key);
+  return [
+    'PLM 云洞察飞书多维表配置',
+    '',
+    '一、Worker secrets',
+    '缺失：' + (missing.length ? missing.join(' / ') : '无'),
+    ...secretLines,
+    'npx.cmd wrangler deploy',
+    '',
+    '二、多维表字段模板',
+    '字段名\t建议类型\t用途',
+    ...fieldLines,
+    '',
+    '三、说明',
+    '字段名需要和模板完全一致；密钥只配置在 Cloudflare Worker 环境变量，不要写进油猴脚本。',
+  ].join('\n');
+}
+
 async function handleInsightFeishuStatus(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const requiredEnv = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
@@ -1598,7 +1639,9 @@ async function handleInsightFeishuStatus(request, env) {
     missing,
     requiredEnv,
     requiredFields: getFeishuRequiredFields(),
+    requiredFieldSchema: getFeishuRequiredFieldSchema(),
     setupCommands,
+    setupGuide: buildFeishuSetupGuide(requiredEnv, missing),
     note: '飞书多维表字段名需要和 requiredFields 完全一致；密钥只配置在 Worker 环境变量，不要写进油猴脚本。',
   });
 }
