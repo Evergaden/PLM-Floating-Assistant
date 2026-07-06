@@ -547,6 +547,18 @@ function formatRuleActions(rule) {
   return actions.length ? actions.slice(0, 3).join('；') : (rule && rule.suggestion || '');
 }
 
+function formatRuleRetryStatus(rule) {
+  const statuses = (rule && rule.retryStatuses || []).filter(Boolean);
+  const tabs = (rule && rule.retryTabs || []).filter(Boolean);
+  const parts = [];
+  if (statuses.length) parts.push(statuses.join('/'));
+  if (tabs.length) parts.push('页签 ' + tabs.join('/'));
+  if (rule && (rule.retryStillMissingCount || rule.retryFixedCount)) {
+    parts.push('仍缺 ' + (rule.retryStillMissingCount || 0) + ' / 补到 ' + (rule.retryFixedCount || 0));
+  }
+  return parts.join('；');
+}
+
 function formatRuleExampleSkus(rule) {
   return (rule && rule.examples || []).map((example) => example.sku).filter(Boolean).join(',');
 }
@@ -565,6 +577,7 @@ function formatRuleRows(summary, limit) {
       targetTabs: formatRuleTargetTabs(item),
       parsedButMissingCount: item.parsedButMissingCount || 0,
       unreadCount: item.unreadCount || 0,
+      retryStatus: formatRuleRetryStatus(item),
       actions: formatRuleActions(item),
       examples: formatRuleExampleSkus(item),
       latestAt: item.latestAt || '',
@@ -607,8 +620,8 @@ async function handleInsightReport(request, env) {
     ...tableLines((summary.logDiagnostics && summary.logDiagnostics.topMessages || []), ['level', 'message', 'count', 'latest_at', 'sources']),
     '',
     '清洗规则候选',
-    '优先级\t字段\t次数\t动作\t状态\t可能PLM空值\t目标页签\t已读未解析\t未读完\t建议动作\t样例SKU\t最近时间',
-    ...tableLines(formatRuleRows(summary, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'actions', 'examples', 'latestAt']),
+    '优先级\t字段\t次数\t动作\t状态\t可能PLM空值\t目标页签\t已读未解析\t未读完\t二次读取\t建议动作\t样例SKU\t最近时间',
+    ...tableLines(formatRuleRows(summary, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'retryStatus', 'actions', 'examples', 'latestAt']),
     '',
     '五、AI 处理建议',
     '1. 按商品类型统计价格区间和常见装箱数，给新 SKU 做默认推荐。',
@@ -667,9 +680,9 @@ async function handleInsightFeishuTsv(request, env) {
     ),
     tsvSection(
       '清洗规则候选',
-      ['优先级', '字段', '次数', '动作', '状态', '可能PLM空值', '目标页签', '已读未解析', '未读完', '建议动作', '样例SKU', '最近时间'],
+      ['优先级', '字段', '次数', '动作', '状态', '可能PLM空值', '目标页签', '已读未解析', '未读完', '二次读取', '建议动作', '样例SKU', '最近时间'],
       formatRuleRows(summary, 30),
-      ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'actions', 'examples', 'latestAt']
+      ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'retryStatus', 'actions', 'examples', 'latestAt']
     ),
   ];
   return json({
@@ -821,8 +834,8 @@ async function buildInsightAiReportPayload(env, summary) {
       ...tableLines((summary.logDiagnostics && summary.logDiagnostics.topMessages || []), ['level', 'message', 'count', 'latest_at', 'sources']),
       '',
       '\u6e05\u6d17\u89c4\u5219\u5019\u9009',
-      '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c\t\u76ee\u6807\u9875\u7b7e\t\u5df2\u8bfb\u672a\u89e3\u6790\t\u672a\u8bfb\u5b8c\t\u5efa\u8bae\u52a8\u4f5c\t\u6837\u4f8bSKU',
-      ...tableLines(formatRuleRows(summary, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'actions', 'examples']),
+      '\u4f18\u5148\u7ea7\t\u5b57\u6bb5\t\u6b21\u6570\t\u52a8\u4f5c\t\u72b6\u6001\t\u53ef\u80fdPLM\u7a7a\u503c\t\u76ee\u6807\u9875\u7b7e\t\u5df2\u8bfb\u672a\u89e3\u6790\t\u672a\u8bfb\u5b8c\t\u4e8c\u6b21\u8bfb\u53d6\t\u5efa\u8bae\u52a8\u4f5c\t\u6837\u4f8bSKU',
+      ...tableLines(formatRuleRows(summary, 20), ['priority', 'missingField', 'count', 'actionLabel', 'maintenanceStatus', 'likelyPlmEmpty', 'targetTabs', 'parsedButMissingCount', 'unreadCount', 'retryStatus', 'actions', 'examples']),
     ].join('\n');
     payload = { source: 'fallback', error: cleanText(error && error.message, 200), report };
   }
@@ -1124,6 +1137,7 @@ function buildRuleCandidates(issueRows) {
     } catch (error) {
       payload = {};
     }
+    const diagnosticAttempt = normalizeDiagnosticAttempt(payload && payload.diagnosticAttempt);
     const diagnostics = normalizeFieldDiagnostics(payload, row);
     const fields = diagnostics.length
       ? diagnostics
@@ -1139,8 +1153,12 @@ function buildRuleCandidates(issueRows) {
         issueKinds: new Set(),
         targetTabs: new Set(),
         actions: new Set(),
+        retryStatuses: new Set(),
+        retryTabs: new Set(),
         parsedButMissingCount: 0,
         unreadCount: 0,
+        retryStillMissingCount: 0,
+        retryFixedCount: 0,
       };
       current.count += 1;
       if (row.source) current.sources.add(row.source);
@@ -1148,6 +1166,10 @@ function buildRuleCandidates(issueRows) {
       if (diagnostic.issueKind) current.issueKinds.add(diagnostic.issueKind);
       if (diagnostic.targetTab) current.targetTabs.add(diagnostic.targetTab);
       if (diagnostic.action) current.actions.add(diagnostic.action);
+      if (diagnosticAttempt.status) current.retryStatuses.add(diagnosticAttempt.status);
+      (diagnosticAttempt.tabs || []).forEach((tab) => current.retryTabs.add(tab));
+      if ((diagnosticAttempt.afterMissing || []).includes(field)) current.retryStillMissingCount += 1;
+      if ((diagnosticAttempt.fixed || []).includes(field)) current.retryFixedCount += 1;
       if (diagnostic.tabRead) current.parsedButMissingCount += 1;
       else current.unreadCount += 1;
       if (current.examples.length < 5) {
@@ -1160,6 +1182,7 @@ function buildRuleCandidates(issueRows) {
           readiness: payload.readiness || '',
           targetTab: diagnostic.targetTab || '',
           action: diagnostic.action || '',
+          diagnosticAttempt: summarizeDiagnosticAttempt(diagnosticAttempt),
           createdAt: row.created_at || '',
         });
       }
@@ -1175,26 +1198,67 @@ function buildRuleCandidates(issueRows) {
     const reason = highPriority
       ? '页面已读到对应区域但字段为空，更可能是选择器或解析规则缺失'
       : (item.issueKinds.has('页面未读完') ? '页面读取流程可能不完整，先检查 tab 切换/等待' : '可能是 PLM 本身为空或低频异常');
+    const retryReason = buildRetryReason(item);
+    const actionSuggestion = item.actions && item.actions.size
+      ? Array.from(item.actions).slice(0, 3).join('；')
+      : (highPriority
+      ? '高优先级：页面已读但字段为空，优先补充“' + item.missingField + '”的选择器/解析规则。'
+      : '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。');
     return {
       missingField: item.missingField,
       count: item.count,
       priority,
-      reason,
+      reason: [reason, retryReason].filter(Boolean).join('；'),
       sources: Array.from(item.sources),
       issueKinds,
       targetTabs: Array.from(item.targetTabs || []),
       actions: Array.from(item.actions || []),
+      retryStatuses: Array.from(item.retryStatuses || []),
+      retryTabs: Array.from(item.retryTabs || []),
       parsedButMissingCount: item.parsedButMissingCount || 0,
       unreadCount: item.unreadCount || 0,
+      retryStillMissingCount: item.retryStillMissingCount || 0,
+      retryFixedCount: item.retryFixedCount || 0,
       examples: item.examples,
       latestAt: item.latestAt,
-      suggestion: item.actions && item.actions.size
-        ? Array.from(item.actions).slice(0, 3).join('；')
-        : (highPriority
-        ? '高优先级：页面已读但字段为空，优先补充“' + item.missingField + '”的选择器/解析规则。'
-        : '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。'),
+      suggestion: [actionSuggestion, retryReason].filter(Boolean).join('；'),
     };
   }).sort((a, b) => a.priority.localeCompare(b.priority) || b.count - a.count || String(b.latestAt).localeCompare(String(a.latestAt)));
+}
+
+function normalizeDiagnosticAttempt(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    status: cleanText(source.status, 40),
+    reason: cleanText(source.reason, 160),
+    beforeMissing: cleanList(source.beforeMissing),
+    afterMissing: cleanList(source.afterMissing),
+    fixed: cleanList(source.fixed),
+    tabs: cleanList(source.tabs, 8),
+    at: cleanText(source.at, 80),
+  };
+}
+
+function summarizeDiagnosticAttempt(diagnostic) {
+  if (!diagnostic || !diagnostic.status) return '';
+  const parts = [diagnostic.status];
+  if (diagnostic.tabs && diagnostic.tabs.length) parts.push('页签 ' + diagnostic.tabs.join('/'));
+  if (diagnostic.fixed && diagnostic.fixed.length) parts.push('补到 ' + diagnostic.fixed.join('/'));
+  if (diagnostic.afterMissing && diagnostic.afterMissing.length) parts.push('仍缺 ' + diagnostic.afterMissing.join('/'));
+  if (diagnostic.reason) parts.push(diagnostic.reason);
+  return parts.join('；');
+}
+
+function buildRetryReason(item) {
+  const statuses = Array.from(item.retryStatuses || []);
+  if (!statuses.length) return '';
+  const parts = ['二次读取 ' + statuses.join('/')];
+  const retryTabs = Array.from(item.retryTabs || []);
+  if (retryTabs.length) parts.push('尝试页签 ' + retryTabs.join('/'));
+  if (item.retryStillMissingCount || item.retryFixedCount) {
+    parts.push('仍缺 ' + (item.retryStillMissingCount || 0) + ' 次，补到 ' + (item.retryFixedCount || 0) + ' 次');
+  }
+  return parts.join('，');
 }
 
 function normalizeFieldDiagnostics(payload, row) {
@@ -1255,8 +1319,12 @@ function buildRuleMaintenancePackage(candidates) {
       issueKinds: candidate.issueKinds || [],
       targetTabs: candidate.targetTabs || [],
       actions: candidate.actions || [],
+      retryStatuses: candidate.retryStatuses || [],
+      retryTabs: candidate.retryTabs || [],
       parsedButMissingCount: candidate.parsedButMissingCount || 0,
       unreadCount: candidate.unreadCount || 0,
+      retryStillMissingCount: candidate.retryStillMissingCount || 0,
+      retryFixedCount: candidate.retryFixedCount || 0,
       examples: candidate.examples || [],
       reason: candidate.reason || '',
       suggestion: candidate.suggestion || '',
@@ -1364,7 +1432,7 @@ function formatRuleCandidates(candidates) {
   if (!candidates.length) return '暂无清洗规则候选。';
   const lines = [
     'PLM 数据清洗规则候选',
-    '优先级\t字段\t次数\t异常类型\t原因\t来源\t样例SKU\t建议',
+    '优先级\t字段\t次数\t异常类型\t二次读取\t原因\t来源\t样例SKU\t建议',
   ];
   candidates.forEach((item) => {
     lines.push([
@@ -1372,6 +1440,7 @@ function formatRuleCandidates(candidates) {
       item.missingField,
       item.count,
       item.issueKinds.join('/') || '-',
+      formatRuleRetryStatus(item) || '-',
       item.reason,
       item.sources.join('/') || '-',
       item.examples.map((example) => example.sku).filter(Boolean).join(',') || '-',
@@ -1594,6 +1663,7 @@ function buildFeishuRecords(summary, aiPayload) {
       const exampleSkus = formatRuleExampleSkus(item);
       const targetTabs = formatRuleTargetTabs(item);
       const actions = formatRuleActions(item);
+      const retryStatus = formatRuleRetryStatus(item);
       const syncKey = ['clean-rule', item.ruleId || '', item.count || '', item.latestAt || ''].join('|');
       rows.push({
         syncKey,
@@ -1609,7 +1679,7 @@ function buildFeishuRecords(summary, aiPayload) {
           '\u88c5\u7bb1\u6570': '',
           '\u5305\u88c5\u5c3a\u5bf8': item.actionLabel || '',
           '\u4ea7\u54c1\u5c3a\u5bf8': item.maintenanceStatus || '',
-          '\u7f3a\u5931\u5b57\u6bb5': [item.missingField || '', targetTabs ? '\u76ee\u6807\u9875\u7b7e\uff1a' + targetTabs : '', actions || item.suggestion || ''].filter(Boolean).join(' / '),
+          '\u7f3a\u5931\u5b57\u6bb5': [item.missingField || '', targetTabs ? '\u76ee\u6807\u9875\u7b7e\uff1a' + targetTabs : '', retryStatus ? '\u4e8c\u6b21\u8bfb\u53d6\uff1a' + retryStatus : '', actions || item.suggestion || ''].filter(Boolean).join(' / '),
           '\u6765\u6e90': (item.sources || []).join('/') || item.actionCode || 'clean-rule',
           '\u8bb0\u5f55\u65f6\u95f4': item.latestAt || (summary.rulePackage && summary.rulePackage.generatedAt) || '',
         },
