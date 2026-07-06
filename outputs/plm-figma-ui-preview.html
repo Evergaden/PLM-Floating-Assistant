@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PLM悬浮助手 Figma UI 预览</title>
+  <style>
+    :root {
+      --scale: 0.52;
+      --frame-w: calc(1520px * var(--scale));
+      --frame-h: calc(1536px * var(--scale));
+      --border: #d6dfeb;
+      --line: #e0e7f0;
+      --text: #0b1120;
+      --muted: #647491;
+      --purple: #613df4;
+      --purple-soft: #f5f2ff;
+      --green: #109848;
+      --orange: #ffb944;
+      font-family: "Noto Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #e5e5e5;
+      color: var(--text);
+    }
+    .plm {
+      width: var(--frame-w);
+      height: var(--frame-h);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: calc(16px * var(--scale));
+      box-shadow: 0 calc(12px * var(--scale)) calc(36px * var(--scale)) rgba(16, 24, 40, .10);
+      overflow: hidden;
+      transform-origin: center;
+    }
+    .top {
+      height: calc(130px * var(--scale));
+      display: flex;
+      align-items: center;
+      gap: calc(34px * var(--scale));
+      padding: 0 calc(34px * var(--scale));
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: calc(12px * var(--scale));
+      width: calc(258px * var(--scale));
+      flex: 0 0 auto;
+    }
+    .logo {
+      width: calc(58px * var(--scale));
+      height: calc(58px * var(--scale));
+      border-radius: calc(12px * var(--scale));
+      background: #bdeefb;
+      display: grid;
+      place-items: center;
+    }
+    .cube {
+      width: calc(28px * var(--scale));
+      height: calc(28px * var(--scale));
+      border-radius: calc(7px * var(--scale));
+      background: linear-gradient(135deg, #5138d8, #8b7cff);
+      transform: rotate(45deg);
+      box-shadow: inset calc(-7px * var(--scale)) calc(7px * var(--scale)) 0 rgba(159, 243, 255, .45);
+    }
+    .title {
+      font-size: calc(30px * var(--scale));
+      font-weight: 800;
+    }
+    .search {
+      width: calc(620px * var(--scale));
+      height: calc(62px * var(--scale));
+      display: grid;
+      grid-template-columns: 1fr calc(121px * var(--scale));
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: calc(14px * var(--scale));
+      padding: 0 calc(22px * var(--scale));
+      color: #7a89a5;
+      font-size: calc(20px * var(--scale));
+    }
+    .search-icon {
+      width: calc(24px * var(--scale));
+      height: calc(24px * var(--scale));
+      border: calc(2px * var(--scale)) solid #8f9bb4;
+      border-radius: 50%;
+      position: relative;
+    }
+    .search-icon::after {
+      content: "";
+      position: absolute;
+      width: calc(8px * var(--scale));
+      height: calc(2px * var(--scale));
+      background: #8f9bb4;
+      right: calc(-6px * var(--scale));
+      bottom: calc(0px * var(--scale));
+      transform: rotate(45deg);
+      border-radius: 2px;
+    }
+    .search button {
+      border: 0;
+      color: #fff;
+      background: var(--purple);
+      font-size: calc(20px * var(--scale));
+      font-weight: 800;
+    }
+    .tools {
+      margin-left: auto;
+      display: flex;
+      gap: calc(44px * var(--scale));
+      align-items: flex-start;
+    }
+    .tool {
+      width: calc(84px * var(--scale));
+      display: grid;
+      justify-items: center;
+      gap: calc(4px * var(--scale));
+      font-size: calc(17px * var(--scale));
+      font-weight: 800;
+    }
+    .tool-btn {
+      width: calc(68px * var(--scale));
+      height: calc(52px * var(--scale));
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      background: #fff;
+      color: #566381;
+      font-size: calc(24px * var(--scale));
+    }
+    .body {
+      display: grid;
+      grid-template-columns: calc(412px * var(--scale)) 1fr;
+      gap: calc(60px * var(--scale));
+      padding: calc(23px * var(--scale)) calc(34px * var(--scale)) calc(35px * var(--scale));
+      height: calc(1406px * var(--scale));
+    }
+    .sku-panel,
+    .detail-panel {
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      background: #fff;
+      overflow: hidden;
+    }
+    .sku-panel {
+      padding: calc(23px * var(--scale)) calc(24px * var(--scale));
+    }
+    .sku-head {
+      display: flex;
+      align-items: center;
+      margin-bottom: calc(26px * var(--scale));
+    }
+    .sku-head strong {
+      font-size: calc(26px * var(--scale));
+      font-weight: 800;
+    }
+    .sku-head span {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: calc(20px * var(--scale));
+      font-weight: 700;
+    }
+    .sku-head button {
+      margin-left: calc(16px * var(--scale));
+      border: 0;
+      background: transparent;
+      color: #2e3f65;
+      font-size: calc(22px * var(--scale));
+    }
+    .sku-card {
+      height: calc(96px * var(--scale));
+      margin-bottom: calc(24px * var(--scale));
+      padding: calc(14px * var(--scale)) calc(20px * var(--scale));
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      position: relative;
+      overflow: hidden;
+      background: #fff;
+    }
+    .sku-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: calc(10px * var(--scale));
+      background: var(--orange);
+      opacity: 0;
+    }
+    .sku-card.is-warn::before { opacity: 1; }
+    .sku-card.is-active {
+      background: var(--purple-soft);
+      border-color: var(--purple);
+    }
+    .sku-card b {
+      display: block;
+      font-family: Inter, sans-serif;
+      font-size: calc(22px * var(--scale));
+      line-height: calc(28px * var(--scale));
+      margin-bottom: calc(3px * var(--scale));
+    }
+    .sku-card small {
+      color: var(--muted);
+      font-size: calc(19px * var(--scale));
+      font-weight: 600;
+    }
+    .pager {
+      display: flex;
+      align-items: center;
+      gap: calc(12px * var(--scale));
+      color: var(--muted);
+      margin-top: calc(14px * var(--scale));
+      font-size: calc(18px * var(--scale));
+    }
+    .pager .page {
+      margin-left: auto;
+      display: flex;
+      gap: calc(10px * var(--scale));
+      align-items: center;
+    }
+    .page button,
+    .page span {
+      width: calc(36px * var(--scale));
+      height: calc(36px * var(--scale));
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: calc(6px * var(--scale));
+      background: #fff;
+    }
+    .page span {
+      color: var(--purple);
+      border-color: var(--purple);
+      font-weight: 800;
+    }
+    .detail-panel {
+      padding: calc(24px * var(--scale));
+    }
+    .spec-title {
+      min-height: calc(70px * var(--scale));
+      display: flex;
+      align-items: center;
+      padding: 0 calc(24px * var(--scale));
+      border-radius: calc(8px * var(--scale));
+      background: #f3f0ff;
+      color: #1b3d8d;
+      font-size: calc(25px * var(--scale));
+      font-weight: 900;
+      margin-bottom: calc(24px * var(--scale));
+    }
+    .spec-rows {
+      border: 1px solid var(--line);
+      border-radius: calc(8px * var(--scale));
+      overflow: hidden;
+      margin-bottom: calc(30px * var(--scale));
+    }
+    .spec-row,
+    .info-row {
+      display: grid;
+      grid-template-columns: calc(310px * var(--scale)) 1fr calc(74px * var(--scale));
+      align-items: center;
+      min-height: calc(76px * var(--scale));
+      border-bottom: 1px solid var(--line);
+      padding: 0 calc(20px * var(--scale));
+      font-size: calc(21px * var(--scale));
+    }
+    .spec-row:last-child,
+    .info-row:last-child { border-bottom: 0; }
+    .label {
+      color: #566381;
+      display: flex;
+      align-items: center;
+      gap: calc(16px * var(--scale));
+      font-weight: 700;
+    }
+    .value {
+      color: var(--text);
+      font-size: calc(23px * var(--scale));
+      font-weight: 900;
+    }
+    .copy {
+      width: calc(50px * var(--scale));
+      height: calc(50px * var(--scale));
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      color: var(--purple);
+      font-size: calc(22px * var(--scale));
+      justify-self: end;
+      background: #fff;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      margin: calc(14px * var(--scale)) 0 calc(18px * var(--scale));
+    }
+    .section-head strong {
+      font-size: calc(26px * var(--scale));
+      font-weight: 900;
+    }
+    .excel {
+      margin-left: auto;
+      height: calc(48px * var(--scale));
+      padding: 0 calc(18px * var(--scale));
+      display: flex;
+      align-items: center;
+      gap: calc(8px * var(--scale));
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      font-size: calc(18px * var(--scale));
+      font-weight: 800;
+      background: #fff;
+    }
+    .info-head,
+    .info-row {
+      grid-template-columns: calc(310px * var(--scale)) 1fr calc(74px * var(--scale));
+    }
+    .info-head {
+      display: grid;
+      align-items: center;
+      min-height: calc(56px * var(--scale));
+      padding: 0 calc(20px * var(--scale));
+      background: #f5f9fe;
+      color: #566381;
+      font-size: calc(19px * var(--scale));
+      font-weight: 700;
+    }
+    .info-table {
+      border: 1px solid var(--line);
+      border-radius: calc(8px * var(--scale));
+      overflow: hidden;
+    }
+    .purple .label,
+    .purple .value { color: var(--purple); }
+    .green .label,
+    .green .value { color: var(--green); }
+    .source {
+      height: calc(82px * var(--scale));
+      display: flex;
+      align-items: center;
+      gap: calc(28px * var(--scale));
+      margin-top: calc(24px * var(--scale));
+      padding: 0 calc(22px * var(--scale));
+      border-radius: calc(8px * var(--scale));
+      background: #f5f9fe;
+      color: var(--muted);
+      font-size: calc(20px * var(--scale));
+      font-weight: 600;
+    }
+    .source i {
+      width: 1px;
+      height: calc(36px * var(--scale));
+      background: #9facc3;
+    }
+    .source button {
+      margin-left: auto;
+      width: calc(50px * var(--scale));
+      height: calc(48px * var(--scale));
+      border: 1px solid var(--border);
+      border-radius: calc(8px * var(--scale));
+      background: #fff;
+      color: #566381;
+    }
+  </style>
+</head>
+<body>
+  <main class="plm">
+    <header class="top">
+      <div class="brand"><div class="logo"><div class="cube"></div></div><div class="title">PLM悬浮助手</div></div>
+      <div class="search"><div class="search-box"><span class="search-icon"></span><span>搜索产品名称 / SKU / 物料编码</span></div><button>搜索</button></div>
+      <div class="tools">
+        <div class="tool"><div class="tool-btn">⚙</div><span>设置</span></div>
+        <div class="tool"><div class="tool-btn">📁</div><span>打开目录</span></div>
+        <div class="tool"><div class="tool-btn">⇪</div><span>提审上传</span></div>
+        <div class="tool"><div class="tool-btn">▯</div><span>收起</span></div>
+      </div>
+    </header>
+    <section class="body">
+      <aside class="sku-panel">
+        <div class="sku-head"><strong>SKU列表</strong><span>(10)</span><button>≡</button></div>
+        <div class="sku-card is-warn"><b>SKU00036483</b><small>爆款提拉霜</small></div>
+        <div class="sku-card is-warn"><b>SKU00037577</b><small>奢脂轻体营养胶囊（入口）</small></div>
+        <div class="sku-card is-active"><b>SKU00038255</b><small>烟酰胺亮肤身体乳</small></div>
+        <div class="sku-card"><b>SKU00036322</b><small>静鼻安芯复合片（入口）</small></div>
+        <div class="sku-card"><b>SKU00038065</b><small>保湿平衡喷雾</small></div>
+        <div class="sku-card"><b>SKU00037480</b><small>保湿紧致身体精油</small></div>
+        <div class="sku-card"><b>SKU00036823</b><small>虾青素胶囊面霜</small></div>
+        <div class="pager"><span>共 10 条</span><div class="page"><button>‹</button><span>1</span><button>›</button></div></div>
+      </aside>
+      <section class="detail-panel">
+        <div class="spec-title">AMZ 烟酰胺亮肤身体乳&nbsp;&nbsp; SKU00038255</div>
+        <div class="spec-rows">
+          <div class="spec-row"><div class="label">▧ 纸盒编码</div><div class="value">未识别</div><div class="copy">✂</div></div>
+          <div class="spec-row"><div class="label">◇ 标签/印刷编码</div><div class="value">MTL00051184</div><div class="copy">✂</div></div>
+          <div class="spec-row"><div class="label">▤ 纸盒/印刷袋尺寸</div><div class="value">未找到纸盒/印刷袋尺寸</div><div class="copy">✂</div></div>
+          <div class="spec-row"><div class="label">▱ 印刷</div><div class="value">未找到标签/印刷尺寸</div><div class="copy">✂</div></div>
+        </div>
+        <div class="section-head"><strong>图包信息</strong><button class="excel">⇩ 导出 Excel</button></div>
+        <div class="info-table">
+          <div class="info-head"><span>项目</span><span>尺寸</span><span>操作</span></div>
+          <div class="info-row purple"><div class="label">▧ 纸盒-长</div><div class="value">4.6cm / 1.81inch</div><div class="copy">✂</div></div>
+          <div class="info-row purple"><div class="label">▧ 纸盒-宽</div><div class="value">4.6cm / 1.81inch</div><div class="copy">✂</div></div>
+          <div class="info-row purple"><div class="label">▧ 纸盒-高</div><div class="value">15.4cm / 6.06inch</div><div class="copy">✂</div></div>
+          <div class="info-row green"><div class="label">▧ 产品-长</div><div class="value">4.4cm / 1.73inch</div><div class="copy">✂</div></div>
+          <div class="info-row green"><div class="label">▧ 产品-宽</div><div class="value">4.4cm / 1.73inch</div><div class="copy">✂</div></div>
+          <div class="info-row green"><div class="label">▧ 产品-高</div><div class="value">15.2cm / 5.98inch</div><div class="copy">✂</div></div>
+          <div class="info-row"><div class="label">▱ 净含量</div><div class="value">未识别</div><div class="copy">✂</div></div>
+          <div class="info-row"><div class="label">▱ 毛重</div><div class="value">130g</div><div class="copy">✂</div></div>
+        </div>
+        <div class="source"><span>来源： 产品信息外包装</span><i></i><span>更新： 2026/6/17 15:16:05</span><button>⟳</button></div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

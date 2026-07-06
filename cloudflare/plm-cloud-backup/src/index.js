@@ -1,0 +1,301 @@
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-headers': 'content-type,x-api-key',
+};
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...CORS_HEADERS,
+      'content-type': 'application/json; charset=utf-8',
+    },
+  });
+}
+
+function normalizeBoxKey(value) {
+  const normalizedParts = String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[\u00d7*]/g, 'x')
+    .replace(/\u5398\u7c73|\u516c\u5206/g, 'cm')
+    .split('x')
+    .map((part) => {
+      const cmPart = part.split('/')[0].replace(/cm/g, '');
+      const match = cmPart.match(/\d+(?:\.\d+)?/);
+      if (!match) return '';
+      const number = Number(match[0]);
+      return Number.isFinite(number) && number > 0 ? String(Number(number.toFixed(3))) : '';
+    })
+    .filter(Boolean);
+  return normalizedParts.length === 3 ? normalizedParts.join('x') : '';
+}
+
+function parseBoxDims(boxKey) {
+  const dims = normalizeBoxKey(boxKey)
+    .split('x')
+    .map((part) => Number(part))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return dims.length === 3 ? dims : null;
+}
+
+function calculateMaxPackCount(itemDims, cartonDims = [56, 36, 21]) {
+  if (!Array.isArray(itemDims) || itemDims.length !== 3) return 0;
+  const permutations = [
+    [itemDims[0], itemDims[1], itemDims[2]],
+    [itemDims[0], itemDims[2], itemDims[1]],
+    [itemDims[1], itemDims[0], itemDims[2]],
+    [itemDims[1], itemDims[2], itemDims[0]],
+    [itemDims[2], itemDims[0], itemDims[1]],
+    [itemDims[2], itemDims[1], itemDims[0]],
+  ];
+  return permutations.reduce((best, dims) => {
+    const count = Math.floor(cartonDims[0] / dims[0])
+      * Math.floor(cartonDims[1] / dims[1])
+      * Math.floor(cartonDims[2] / dims[2]);
+    return Math.max(best, count);
+  }, 0);
+}
+
+async function getPackRecommendation(env, boxKey) {
+  const row = await env.DB.prepare(`
+    SELECT pack_count, COUNT(*) AS votes, MAX(created_at) AS latest_at
+    FROM pack_records
+    WHERE box_key = ?
+    GROUP BY pack_count
+    ORDER BY votes DESC, latest_at DESC
+    LIMIT 1
+  `).bind(boxKey).first();
+
+  const candidates = await env.DB.prepare(`
+    SELECT pack_count, COUNT(*) AS votes, MAX(created_at) AS latest_at
+    FROM pack_records
+    WHERE box_key = ?
+    GROUP BY pack_count
+    ORDER BY votes DESC, latest_at DESC
+    LIMIT 5
+  `).bind(boxKey).all();
+
+  return {
+    row,
+    candidates: candidates.results || [],
+  };
+}
+
+async function recordPackCount(env, boxKey, packCount, source, sku) {
+  await env.DB.prepare(`
+    INSERT INTO pack_records (box_key, pack_count, source, sku)
+    VALUES (?, ?, ?, ?)
+  `).bind(boxKey, packCount, source, sku || '').run();
+}
+
+async function sha256Hex(value) {
+  const data = new TextEncoder().encode(String(value || ''));
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function requireApiKey(request, env) {
+  if (!env.API_KEY) return true;
+  return request.headers.get('x-api-key') === env.API_KEY;
+}
+
+async function parseJson(request) {
+  const contentType = request.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) return null;
+  return request.json().catch(() => null);
+}
+
+async function handleBackupSave(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const backupKey = String((body && body.backupKey) || '');
+  const payload = body && body.payload;
+  const version = String((body && body.version) || '').slice(0, 40);
+
+  if (backupKey.length < 4) return json({ error: 'backupKey too short' }, 400);
+  if (!payload || typeof payload !== 'object') return json({ error: 'payload required' }, 400);
+
+  const serialized = JSON.stringify(payload);
+  if (serialized.length > 900000) return json({ error: 'payload too large' }, 413);
+
+  const userId = await sha256Hex(backupKey);
+  await env.DB.prepare(`
+    INSERT INTO user_backups (user_id, payload, version, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id) DO UPDATE SET
+      payload = excluded.payload,
+      version = excluded.version,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(userId, serialized, version).run();
+
+  return json({ ok: true, userId, bytes: serialized.length });
+}
+
+async function handleBackupLoad(request, env) {
+  const url = new URL(request.url);
+  const backupKey = String(url.searchParams.get('backupKey') || '');
+  if (backupKey.length < 4) return json({ error: 'backupKey too short' }, 400);
+
+  const userId = await sha256Hex(backupKey);
+  const row = await env.DB.prepare(`
+    SELECT payload, version, updated_at
+    FROM user_backups
+    WHERE user_id = ?
+  `).bind(userId).first();
+
+  if (!row) return json({ found: false, userId });
+  return json({
+    found: true,
+    userId,
+    version: row.version,
+    updatedAt: row.updated_at,
+    payload: JSON.parse(row.payload),
+  });
+}
+
+async function handlePackRecord(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const boxKey = normalizeBoxKey(body && body.boxKey);
+  const packCount = Number(body && body.packCount);
+  const sku = String((body && body.sku) || '').slice(0, 80);
+  const source = String((body && body.source) || 'plm-helper').slice(0, 80);
+
+  if (!boxKey) return json({ error: 'boxKey required' }, 400);
+  if (!Number.isInteger(packCount) || packCount <= 0 || packCount > 999999) {
+    return json({ error: 'invalid packCount' }, 400);
+  }
+
+  await recordPackCount(env, boxKey, packCount, source, sku);
+
+  return json({ ok: true, boxKey, packCount });
+}
+
+async function handlePackRecommend(request, env) {
+  const url = new URL(request.url);
+  const boxKey = normalizeBoxKey(url.searchParams.get('boxKey'));
+  if (!boxKey) return json({ error: 'boxKey required' }, 400);
+
+  const { row, candidates } = await getPackRecommendation(env, boxKey);
+
+  return json({
+    boxKey,
+    found: Boolean(row),
+    packCount: row ? row.pack_count : null,
+    votes: row ? row.votes : 0,
+    candidates,
+  });
+}
+
+function parseAiPackCount(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return 0;
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const data = JSON.parse(jsonMatch[0]);
+      const value = Number(data.packCount || data.count || data.maxCount);
+      if (Number.isInteger(value) && value > 0) return value;
+    } catch (error) {
+      // Fall back to number extraction below.
+    }
+  }
+  const match = raw.match(/\d+/);
+  const value = match ? Number(match[0]) : 0;
+  return Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+async function callZhipuPackEstimator(env, boxKey) {
+  const apiKey = env.ZHIPU_API_KEY;
+  if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
+  const itemDims = parseBoxDims(boxKey);
+  if (!itemDims) throw new Error('invalid boxKey');
+  const localCount = calculateMaxPackCount(itemDims);
+  if (!localCount) throw new Error('invalid calculated pack count');
+  const model = env.ZHIPU_MODEL || 'glm-4-flash';
+  const prompt = [
+    '外箱内径 56x36x21cm，货物 ' + itemDims.join('x') + 'cm。',
+    '请遍历长宽高全部 6 种摆放方向，计算每个方向 floor(56/a)*floor(36/b)*floor(21/c)，直接给出一箱最多可装数量。',
+    '只输出 JSON：{"packCount":数字,"orientation":"a x b x c","reason":"简短说明"}，不要输出 Markdown。'
+  ].join('\n');
+
+  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(12000),
+    headers: {
+      authorization: 'Bearer ' + apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      messages: [
+        { role: 'system', content: '你是严谨的装箱数计算器，只做整数装箱数量计算。' },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status);
+  }
+  const text = data && data.choices && data.choices[0] && data.choices[0].message
+    ? data.choices[0].message.content
+    : '';
+  const aiCount = parseAiPackCount(text);
+  return {
+    packCount: aiCount || localCount,
+    aiCount,
+    localCount,
+    model,
+    raw: text,
+  };
+}
+
+async function handlePackAiEstimate(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const boxKey = normalizeBoxKey(body && body.boxKey);
+  const sku = String((body && body.sku) || '').slice(0, 80);
+  if (!boxKey) return json({ error: 'boxKey required' }, 400);
+
+  const { row } = await getPackRecommendation(env, boxKey);
+  if (row) {
+    return json({ ok: true, boxKey, found: true, packCount: row.pack_count, source: 'history' });
+  }
+
+  const itemDims = parseBoxDims(boxKey);
+  const packCount = calculateMaxPackCount(itemDims);
+  if (!Number.isInteger(packCount) || packCount <= 0 || packCount > 999999) {
+    return json({ ok: false, boxKey, error: 'invalid calculated packCount' }, 422);
+  }
+  await recordPackCount(env, boxKey, packCount, 'local-calc', sku);
+  return json({
+    ok: true,
+    boxKey,
+    found: false,
+    packCount,
+    source: 'local-calc',
+    localCount: packCount,
+  });
+}
+
+export default {
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') return json({ ok: true });
+
+    const url = new URL(request.url);
+    if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/backup/save' && request.method === 'POST') return handleBackupSave(request, env);
+    if (url.pathname === '/backup/load' && request.method === 'GET') return handleBackupLoad(request, env);
+    if (url.pathname === '/pack/record' && request.method === 'POST') return handlePackRecord(request, env);
+    if (url.pathname === '/pack/recommend' && request.method === 'GET') return handlePackRecommend(request, env);
+    if (url.pathname === '/pack/ai-estimate' && request.method === 'POST') return handlePackAiEstimate(request, env);
+
+    return json({ error: 'not found' }, 404);
+  },
+};

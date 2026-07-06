@@ -1,0 +1,10 @@
+name = "plm-cloud-backup"
+main = "src/index.js"
+compatibility_date = "2026-06-24"
+workers_dev = true
+preview_urls = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "plm-cloud-backup-db"
+database_id = "75a4e636-aa91-4e95-a617-e42bb2e23bc7"

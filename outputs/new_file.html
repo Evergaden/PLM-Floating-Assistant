@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>ToolCode Dashboard</title>
+
+<style>
+body{
+    margin:0;
+    font-family: Arial;
+    background:#f4f6fb;
+}
+
+.sidebar{
+    position:fixed;
+    width:220px;
+    height:100vh;
+    background:#fff;
+    padding:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.05);
+}
+
+.main{
+    margin-left:240px;
+    padding:20px;
+}
+
+.card{
+    background:#fff;
+    border-radius:14px;
+    padding:16px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.05);
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:15px;
+}
+
+.title{color:#666;font-size:13px}
+.value{font-size:22px;font-weight:bold;margin-top:8px}
+
+.row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:15px;
+    margin-top:20px;
+}
+
+.bar{
+    height:10px;
+    background:#eee;
+    border-radius:10px;
+    overflow:hidden;
+    margin:8px 0;
+}
+
+.fill1{height:100%;width:70%;background:#6366f1}
+.fill2{height:100%;width:40%;background:#22c55e}
+.fill3{height:100%;width:20%;background:#f59e0b}
+
+svg{width:100%;height:260px}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+    <h3>ToolCode</h3>
+    <p>仪表盘</p>
+    <p>API密钥</p>
+    <p>任务管理</p>
+</div>
+
+<div class="main">
+
+    <div class="grid">
+        <div class="card">
+            <div class="title">余额</div>
+            <div class="value">$3.73</div>
+        </div>
+
+        <div class="card">
+            <div class="title">今日请求</div>
+            <div class="value">47</div>
+        </div>
+
+        <div class="card">
+            <div class="title">Token</div>
+            <div class="value">4.7M</div>
+        </div>
+
+        <div class="card">
+            <div class="title">延迟</div>
+            <div class="value">14.7s</div>
+        </div>
+    </div>
+
+    <div class="row">
+
+        <div class="card">
+            <div class="title">模型占比</div>
+
+            <div class="bar"><div class="fill1"></div></div>
+            GPT-5.5
+
+            <div class="bar"><div class="fill2"></div></div>
+            GPT-5.4
+
+            <div class="bar"><div class="fill3"></div></div>
+            Mini
+        </div>
+
+        <div class="card">
+            <div class="title">Token趋势</div>
+
+            <svg viewBox="0 0 400 200">
+                <polyline
+                    fill="none"
+                    stroke="#6366f1"
+                    stroke-width="3"
+                    points="0,40 80,60 160,90 240,120 320,160 400,180"
+                />
+                <polyline
+                    fill="rgba(99,102,241,0.1)"
+                    stroke="none"
+                    points="0,200 0,40 80,60 160,90 240,120 320,160 400,180 400,200"
+                />
+            </svg>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
