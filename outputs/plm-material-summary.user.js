@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.176
+// @version      2.3.177
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.176';
+  const SCRIPT_VERSION = '2.3.177';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5877,6 +5877,8 @@
   function formatFeishuSetupStatus(response) {
     if (response && response.setupGuide) return response.setupGuide;
     const missing = (response && response.missing || []).join(' / ') || '\u672a\u77e5';
+    const tableMissing = (response && response.tableMissingFields || []).join(' / ');
+    const checkError = response && response.checkError ? String(response.checkError) : '';
     const fields = (response && response.requiredFields || []).join(' / ');
     const schema = Array.isArray(response && response.requiredFieldSchema)
       ? response.requiredFieldSchema.map((field) => [field.name || '', field.type || '', field.note || ''].join('\t')).join('\n')
@@ -5884,6 +5886,8 @@
     const commands = (response && response.setupCommands || []).join('\n');
     return [
       '\u98de\u4e66\u7f3a\u914d\u7f6e\uff1a' + missing,
+      tableMissing ? '\u98de\u4e66\u8868\u7f3a\u5b57\u6bb5\uff1a' + tableMissing : '',
+      checkError ? '\u98de\u4e66\u68c0\u67e5\u9519\u8bef\uff1a' + checkError : '',
       fields ? '\u9700\u8981\u5efa\u8868\u5b57\u6bb5\uff1a' + fields : '',
       schema ? '\u5b57\u6bb5\u6a21\u677f\uff1a\n\u5b57\u6bb5\u540d\t\u5efa\u8bae\u7c7b\u578b\t\u7528\u9014\n' + schema : '',
       commands ? '\u914d\u7f6e\u547d\u4ee4\uff1a\n' + commands : '',

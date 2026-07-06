@@ -1465,6 +1465,37 @@ async function getFeishuTenantToken(env) {
   return data.tenant_access_token;
 }
 
+async function getFeishuTableFields(env, token) {
+  const appToken = env.FEISHU_BITABLE_APP_TOKEN;
+  const tableId = env.FEISHU_BITABLE_TABLE_ID;
+  if (!appToken || !tableId) throw new Error('FEISHU_BITABLE_APP_TOKEN/FEISHU_BITABLE_TABLE_ID not configured');
+  const response = await fetch('https://open.feishu.cn/open-apis/bitable/v1/apps/' + encodeURIComponent(appToken) + '/tables/' + encodeURIComponent(tableId) + '/fields?page_size=100', {
+    headers: {
+      authorization: 'Bearer ' + token,
+      'content-type': 'application/json; charset=utf-8',
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.code !== 0) {
+    throw new Error(data && data.msg ? data.msg : 'feishu fields check failed');
+  }
+  const items = data && data.data && Array.isArray(data.data.items) ? data.data.items : [];
+  return items.map((item) => item.field_name || item.name || '').filter(Boolean);
+}
+
+async function checkFeishuTableSchema(env, token) {
+  const existingFields = await getFeishuTableFields(env, token);
+  const existingSet = new Set(existingFields);
+  const requiredFields = getFeishuRequiredFields();
+  const missingFields = requiredFields.filter((field) => !existingSet.has(field));
+  return {
+    ok: missingFields.length === 0,
+    existingFields,
+    requiredFields,
+    missingFields,
+  };
+}
+
 function buildFeishuRecords(summary, aiPayload) {
   const rows = [];
   if (aiPayload && aiPayload.report) {
@@ -1666,6 +1697,16 @@ async function handleInsightFeishuSync(request, env) {
   const records = await filterUnsyncedFeishuRecords(env, allRecords);
   if (!records.length) return json({ ok: true, inserted: 0, message: 'no records' });
   const token = await getFeishuTenantToken(env);
+  const schema = await checkFeishuTableSchema(env, token);
+  if (!schema.ok) {
+    return json({
+      ok: false,
+      error: 'feishu table missing required fields',
+      missingFields: schema.missingFields,
+      requiredFields: schema.requiredFields,
+      existingFields: schema.existingFields,
+    }, 400);
+  }
   let inserted = 0;
   for (let i = 0; i < records.length; i += 500) {
     const chunk = records.slice(i, i + 500);
@@ -1739,13 +1780,27 @@ async function handleInsightFeishuStatus(request, env) {
     .map((key) => 'npx.cmd wrangler secret put ' + key)
     .concat('npx.cmd wrangler deploy');
   const missing = requiredEnv.filter((key) => !env[key]);
+  let tableSchema = null;
+  let checkError = '';
+  if (!missing.length) {
+    try {
+      const token = await getFeishuTenantToken(env);
+      tableSchema = await checkFeishuTableSchema(env, token);
+    } catch (error) {
+      checkError = cleanText(error && error.message, 300);
+    }
+  }
+  const configured = missing.length === 0 && !checkError && (!tableSchema || tableSchema.ok);
   return json({
     ok: true,
-    configured: missing.length === 0,
+    configured,
     missing,
     requiredEnv,
     requiredFields: getFeishuRequiredFields(),
     requiredFieldSchema: getFeishuRequiredFieldSchema(),
+    tableSchema,
+    tableMissingFields: tableSchema && tableSchema.missingFields || [],
+    checkError,
     setupCommands,
     setupGuide: buildFeishuSetupGuide(requiredEnv, missing),
     note: '飞书多维表字段名需要和 requiredFields 完全一致；密钥只配置在 Worker 环境变量，不要写进油猴脚本。',
