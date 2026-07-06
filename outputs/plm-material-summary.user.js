@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.146
+// @version      2.3.147
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.146';
+  const SCRIPT_VERSION = '2.3.147';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -38,6 +38,7 @@
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const LOG_KEY = 'plm-floating-helper:logs';
+  const INSIGHTS_KEY = 'plm-floating-helper:insights';
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
@@ -227,6 +228,10 @@
     logCopy: '\u590d\u5236\u65e5\u5fd7',
     logClear: '\u6e05\u7a7a\u65e5\u5fd7',
     logEmpty: '\u6682\u65e0\u65e5\u5fd7',
+    insightsTitle: '\u6570\u636e\u6d1e\u5bdf',
+    insightsExport: '\u5bfc\u51fa\u6d1e\u5bdf',
+    insightsClear: '\u6e05\u7a7a\u6d1e\u5bdf',
+    insightsEmpty: '\u6682\u65e0\u6570\u636e',
   };
   const TOOLTIP = {
     about: '\u5173\u4e8e',
@@ -300,6 +305,7 @@
     packAiEstimatingKeys: new Set(),
     packAiFailedAt: {},
     logs: loadLogs(),
+    insights: loadInsights(),
   };
   state.expanded = firstTutorial;
 
@@ -1521,9 +1527,21 @@
       '<div class="pfh-about-note pfh-manual-note"><strong>' + escapeHtml(L.tutorialText) + '</strong><p>' + escapeHtml(getTutorialPlainText()) + '</p></div>',
       '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>',
       '<div class="pfh-about-actions"><button type="button" data-action="tutorial-open">' + escapeHtml(L.tutorialOpen) + '</button></div>',
+      renderInsightsSection(),
       renderLogSection(),
       '</section></div>',
     ].join('');
+  }
+
+  function renderInsightsSection() {
+    const insights = state.insights || emptyInsights();
+    const priceCount = Array.isArray(insights.priceHistory) ? insights.priceHistory.length : 0;
+    const issueCount = Array.isArray(insights.dataIssues) ? insights.dataIssues.length : 0;
+    const typeCount = insights.typeStats && typeof insights.typeStats === 'object' ? Object.keys(insights.typeStats).length : 0;
+    const summary = priceCount || issueCount || typeCount
+      ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
+      : L.insightsEmpty;
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div></div>';
   }
 
   function renderLogSection() {
@@ -2119,6 +2137,17 @@
       state.logs = [];
       saveLogs();
       showToast('\u65e5\u5fd7\u5df2\u6e05\u7a7a');
+      renderShell();
+      return;
+    }
+    if (action === 'export-insights') {
+      exportInsights();
+      return;
+    }
+    if (action === 'clear-insights') {
+      state.insights = emptyInsights();
+      saveInsights();
+      showToast('\u6d1e\u5bdf\u6570\u636e\u5df2\u6e05\u7a7a');
       renderShell();
       return;
     }
@@ -4318,6 +4347,8 @@
       state.excelExtra = null;
       state.excelMissing = ['\u8bbe\u8ba1\u8d44\u6599'];
       state.excelStatus = L.excelIncomplete;
+      addLog('error', '\u83b7\u53d6\u8868\u683c\u4fe1\u606f\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
+      recordDataQuality(data, 'excelPrepareFailed');
       showExcelMissingToast();
     }
     renderShell();
@@ -4437,6 +4468,12 @@
       renderShell();
       console.info('PLM floating helper Excel filename:', fileName);
       await saveExcelBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName, saveTarget);
+      recordCommerceInsight(excelData, extra, {
+        price: purchasePrice,
+        packQty,
+        source: 'excel',
+        fileName,
+      });
       state.excelStatus = L.excelDone;
       renderShell();
       showToast(L.excelDone);
@@ -5386,6 +5423,31 @@
     }, 0);
   }
 
+  function exportInsights() {
+    const payload = buildInsightsPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'plm-floating-helper-insights-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(link.href);
+      link.remove();
+    }, 0);
+    addLog('success', '\u5df2\u5bfc\u51fa\u6570\u636e\u6d1e\u5bdf', payload.exportedAt);
+  }
+
+  function buildInsightsPayload() {
+    return {
+      plugin: L.title,
+      version: SCRIPT_VERSION,
+      exportedAt: new Date().toLocaleString(),
+      insights: state.insights || emptyInsights(),
+      promptHint: '\u8bf7\u6574\u7406\u4ef7\u683c\u5386\u53f2\u3001\u5546\u54c1\u7c7b\u578b\u89c4\u5f8b\u548c\u5b57\u6bb5\u7f3a\u5931\u539f\u56e0\uff0c\u8f93\u51fa\u9002\u5408\u5bfc\u5165\u98de\u4e66\u8868\u683c\u7684\u7ed3\u6784\u5316\u8868\u683c\u3002',
+    };
+  }
+
   function buildCachePayload() {
     const items = {};
     state.index.forEach((item) => {
@@ -5403,6 +5465,7 @@
         queue: sanitizeUploadRecords(state.uploadQueue || loadUploadQueue()),
         history: sanitizeUploadRecords(state.uploadHistory || loadUploadHistory()),
       },
+      insights: state.insights || emptyInsights(),
     };
   }
 
@@ -5471,6 +5534,10 @@
         state.uploadHistory = sanitizeUploadRecords(payload.uploadRecords.history);
         saveUploadHistory();
       }
+    }
+    if (payload.insights && typeof payload.insights === 'object') {
+      state.insights = sanitizeInsights(payload.insights);
+      saveInsights();
     }
   }
 
@@ -5861,6 +5928,158 @@
     return (state.logs || []).map((item) => '[' + (item.time || '') + '] ' + (item.level || 'info').toUpperCase() + ' ' + (item.message || '')).join('\n') || L.logEmpty;
   }
 
+  function emptyInsights() {
+    return { priceHistory: [], dataIssues: [], typeStats: {} };
+  }
+
+  function sanitizeInsights(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const clean = emptyInsights();
+    clean.priceHistory = (Array.isArray(source.priceHistory) ? source.priceHistory : []).slice(0, 1000).map((item) => ({
+      sku: String(item.sku || '').slice(0, 80),
+      brand: String(item.brand || '').slice(0, 120),
+      name: String(item.name || '').slice(0, 200),
+      productType: String(item.productType || '').slice(0, 120),
+      price: String(item.price || '').slice(0, 40),
+      packQty: String(item.packQty || '').slice(0, 40),
+      packageSize: String(item.packageSize || '').slice(0, 120),
+      productSize: String(item.productSize || '').slice(0, 120),
+      source: String(item.source || '').slice(0, 80),
+      fileName: String(item.fileName || '').slice(0, 220),
+      recordedAt: String(item.recordedAt || '').slice(0, 80),
+      recordedAtMs: Number(item.recordedAtMs || 0) || 0,
+    })).filter((item) => item.sku);
+    clean.dataIssues = (Array.isArray(source.dataIssues) ? source.dataIssues : []).slice(0, 1000).map((item) => ({
+      sku: String(item.sku || '').slice(0, 80),
+      brand: String(item.brand || '').slice(0, 120),
+      name: String(item.name || '').slice(0, 200),
+      missing: Array.isArray(item.missing) ? item.missing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
+      seen: String(item.seen || '').slice(0, 120),
+      source: String(item.source || '').slice(0, 80),
+      recordedAt: String(item.recordedAt || '').slice(0, 80),
+      recordedAtMs: Number(item.recordedAtMs || 0) || 0,
+    })).filter((item) => item.sku && item.missing.length);
+    const stats = source.typeStats && typeof source.typeStats === 'object' ? source.typeStats : {};
+    Object.keys(stats).slice(0, 300).forEach((key) => {
+      const item = stats[key] || {};
+      clean.typeStats[String(key).slice(0, 120)] = {
+        count: Number(item.count || 0) || 0,
+        latestSku: String(item.latestSku || '').slice(0, 80),
+        latestPrice: String(item.latestPrice || '').slice(0, 40),
+        latestAt: String(item.latestAt || '').slice(0, 80),
+      };
+    });
+    return clean;
+  }
+
+  function loadInsights() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(INSIGHTS_KEY, null) : JSON.parse(localStorage.getItem(INSIGHTS_KEY) || 'null');
+      return sanitizeInsights(saved);
+    } catch (error) {
+      return emptyInsights();
+    }
+  }
+
+  function saveInsights() {
+    try {
+      state.insights = sanitizeInsights(state.insights);
+      if (typeof GM_setValue === 'function') GM_setValue(INSIGHTS_KEY, state.insights);
+      else localStorage.setItem(INSIGHTS_KEY, JSON.stringify(state.insights));
+    } catch (error) {
+      console.warn('PLM floating helper insights save failed:', error);
+    }
+  }
+
+  function getProductTypeForInsight(data, extra) {
+    const text = [
+      extra && extra.englishName,
+      extra && extra.chineseName,
+      data && data.name,
+      data && data.netContent,
+    ].filter(Boolean).join(' ');
+    if (/\u8f6f\u7cd6|gumm/i.test(text)) return '\u8f6f\u7cd6';
+    if (/\u80f6\u56ca|capsule/i.test(text)) return '\u80f6\u56ca';
+    if (/\u7cbe\u6cb9|oil/i.test(text)) return '\u7cbe\u6cb9';
+    if (/\u971c|cream/i.test(text)) return '\u971c\u7c7b';
+    if (/\u9999\u6c34|perfume/i.test(text)) return '\u9999\u6c34';
+    if (/\u73a9\u5177|toy|\u516c\u4ed4|\u634f\u634f/i.test(text)) return '\u73a9\u5177';
+    return '\u672a\u5206\u7c7b';
+  }
+
+  function compactSizeForInsight(parts, fallback) {
+    const text = Array.isArray(parts) ? parts.filter(Boolean).join('x') : '';
+    return text || String(fallback || '');
+  }
+
+  function recordCommerceInsight(data, extra, options) {
+    if (!data || !data.sku) return;
+    const insight = state.insights || emptyInsights();
+    const productType = getProductTypeForInsight(data, extra);
+    const item = {
+      sku: data.sku,
+      brand: data.brand || '',
+      name: data.name || (extra && extra.chineseName) || '',
+      productType,
+      price: String(options && options.price || ''),
+      packQty: String(options && options.packQty || ''),
+      packageSize: compactSizeForInsight([data.packageLength, data.packageWidth, data.packageHeight], data.packageSizeText),
+      productSize: compactSizeForInsight([data.productLength, data.productWidth, data.productHeight], data.productNums),
+      source: options && options.source || 'manual',
+      fileName: options && options.fileName || '',
+      recordedAt: new Date().toLocaleString(),
+      recordedAtMs: Date.now(),
+    };
+    insight.priceHistory = [item].concat(insight.priceHistory || []).slice(0, 1000);
+    const stat = insight.typeStats[productType] || { count: 0 };
+    insight.typeStats[productType] = {
+      count: Number(stat.count || 0) + 1,
+      latestSku: data.sku,
+      latestPrice: item.price,
+      latestAt: item.recordedAt,
+    };
+    state.insights = insight;
+    saveInsights();
+    addLog('success', '\u5df2\u8bb0\u5f55\u4ef7\u683c/\u7c7b\u578b\u5386\u53f2', data.sku + ' ' + productType + ' ' + item.price);
+    queueCloudBackup();
+  }
+
+  function recordDataQuality(data, source) {
+    if (!data || !data.sku) return;
+    const missing = [];
+    if (!data.brand) missing.push('\u54c1\u724c');
+    if (!data.name) missing.push('\u5546\u54c1\u540d\u79f0');
+    if (!data.packageSizeText && !(data.packageLength && data.packageWidth && data.packageHeight)) missing.push('\u5305\u88c5\u5c3a\u5bf8');
+    if (!data.printSizeText) missing.push('\u5370\u5237\u5c3a\u5bf8');
+    if (!data.productLength || !data.productWidth || !data.productHeight) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
+    if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
+    if (!data.grossWeight) missing.push('\u6bdb\u91cd');
+    if (!missing.length) return;
+    const seen = [
+      data.seenMaterial ? '\u7269\u6599' : '',
+      data.seenProduct ? '\u4ea7\u54c1' : '',
+      data.seenDesign ? '\u8bbe\u8ba1' : '',
+    ].filter(Boolean).join('/');
+    const item = {
+      sku: data.sku,
+      brand: data.brand || '',
+      name: data.name || '',
+      missing,
+      seen,
+      source: source || 'scan',
+      recordedAt: new Date().toLocaleString(),
+      recordedAtMs: Date.now(),
+    };
+    const insight = state.insights || emptyInsights();
+    const exists = (insight.dataIssues || []).some((old) => old.sku === item.sku && old.missing.join(',') === item.missing.join(',') && Date.now() - Number(old.recordedAtMs || 0) < 10 * 60 * 1000);
+    if (!exists) {
+      insight.dataIssues = [item].concat(insight.dataIssues || []).slice(0, 1000);
+      state.insights = insight;
+      saveInsights();
+      addLog('warn', '\u6570\u636e\u7f3a\u5931', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + (seen ? ' / \u5df2\u8bfb\uff1a' + seen : ''));
+    }
+  }
+
   function loadIndex() {
     try {
       if (typeof GM_getValue === 'function') return GM_getValue(STORAGE_INDEX_KEY, []);
@@ -6215,10 +6434,12 @@
       state.data = normalized;
       state.selectedSku = sku;
       upsertIndex(normalized);
+      recordDataQuality(normalized, 'saveData');
       queueCloudBackup();
       schedulePackAiEstimate(normalized);
     } catch (error) {
       console.warn('PLM floating helper save failed:', error);
+      addLog('error', '\u7f13\u5b58\u5546\u54c1\u5931\u8d25', (sku || '') + ' ' + formatErrorMessage(error));
     }
   }
 
