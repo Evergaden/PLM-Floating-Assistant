@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.178
+// @version      2.3.179
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.178';
+  const SCRIPT_VERSION = '2.3.179';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -318,6 +318,7 @@
     insights: loadInsights(),
     insightCloudStatus: '',
     insightCloudReport: '',
+    insightReadiness: null,
     maintainedCleaningRules: [],
     maintainedCleaningRulesLoaded: false,
   };
@@ -1706,7 +1707,27 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderMaintainedCleaningRules() + '</div>';
+  }
+
+  function renderInsightReadinessPanel() {
+    const data = state.insightReadiness;
+    if (!data) return '';
+    const checks = Array.isArray(data.checks) ? data.checks : [];
+    const passed = checks.filter((item) => item.ok).length;
+    const summary = (data.ready ? '\u5df2\u5c31\u7eea' : '\u672a\u5c31\u7eea') + ' / ' + passed + '/' + checks.length;
+    const rows = checks.length ? checks.map((item) => {
+      const ok = item.ok ? ' is-ok' : ' is-bad';
+      return '<div class="pfh-readiness-row' + ok + '">' +
+        '<span>' + escapeHtml(item.ok ? '\u901a\u8fc7' : '\u672a\u901a\u8fc7') + '</span>' +
+        '<b>' + escapeHtml(item.label || item.key || '') + '</b>' +
+        '<small>' + escapeHtml(item.detail || '') + '</small>' +
+      '</div>';
+    }).join('') : '<div class="pfh-empty">\u6682\u65e0\u4f53\u68c0\u7ed3\u679c</div>';
+    const blockers = Array.isArray(data.blockers) && data.blockers.length
+      ? '<p class="pfh-readiness-blockers">' + escapeHtml(data.blockers.map((item) => (item.label || item.key || '') + '\uff1a' + (item.detail || '')).join(' / ')) + '</p>'
+      : '';
+    return '<div class="pfh-readiness-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u94fe\u8def\u4f53\u68c0</strong><span>' + escapeHtml(summary) + '</span></div>' + rows + blockers + '</div>';
   }
 
   function renderMaintainedCleaningRules() {
@@ -5772,6 +5793,7 @@
     renderShell();
     try {
       const response = await fetchInsightReadiness();
+      state.insightReadiness = response || null;
       const checks = Array.isArray(response && response.checks) ? response.checks : [];
       const passed = checks.filter((item) => item.ok).length;
       const failed = checks.length - passed;
@@ -10810,6 +10832,64 @@
         margin-top: 12px;
         padding-top: 10px;
         border-top: 1px solid rgba(211, 204, 255, .34);
+      }
+      #${PANEL_ID} .pfh-readiness-panel {
+        margin-top: 10px;
+        display: grid;
+        gap: 7px;
+        padding: 9px;
+        border: 1px solid rgba(211, 204, 255, .34);
+        border-radius: 12px;
+        background: rgba(255,255,255,.58);
+      }
+      #${PANEL_ID} .pfh-readiness-row {
+        display: grid;
+        grid-template-columns: 54px minmax(82px, .8fr) minmax(0, 1.2fr);
+        gap: 7px;
+        align-items: center;
+        padding: 6px 7px;
+        border: 1px solid rgba(226, 232, 240, .84);
+        border-radius: 10px;
+        background: rgba(248,250,252,.74);
+      }
+      #${PANEL_ID} .pfh-readiness-row span {
+        color: #64748b;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-readiness-row b {
+        color: #1f2937;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      #${PANEL_ID} .pfh-readiness-row small {
+        min-width: 0;
+        color: #64748b;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      #${PANEL_ID} .pfh-readiness-row.is-ok {
+        border-color: rgba(74, 222, 128, .28);
+        background: rgba(240, 253, 244, .68);
+      }
+      #${PANEL_ID} .pfh-readiness-row.is-ok span {
+        color: #15803d;
+      }
+      #${PANEL_ID} .pfh-readiness-row.is-bad {
+        border-color: rgba(248, 113, 113, .30);
+        background: rgba(254, 242, 242, .72);
+      }
+      #${PANEL_ID} .pfh-readiness-row.is-bad span {
+        color: #b42318;
+      }
+      #${PANEL_ID} .pfh-readiness-blockers {
+        margin: 0;
+        padding: 7px 8px;
+        border-radius: 10px;
+        color: #9f1239;
+        background: rgba(255, 241, 242, .82);
+        font-size: 12px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
       }
       #${PANEL_ID} .pfh-rule-list {
         display: grid;
