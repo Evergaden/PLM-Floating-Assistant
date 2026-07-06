@@ -849,13 +849,14 @@ async function handleInsightReadiness(request, env) {
   (summary.totals || []).forEach((item) => {
     totals[item.event_type] = Number(item.count || 0) || 0;
   });
+  const recommendationProbe = await probeRecommendationEngine(env, summary);
   const feishuRequired = ['FEISHU_APP_ID', 'FEISHU_APP_SECRET', 'FEISHU_BITABLE_APP_TOKEN', 'FEISHU_BITABLE_TABLE_ID'];
   const feishuMissing = feishuRequired.filter((key) => !env[key]);
   const checks = [
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
     { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
     { key: 'typeSamples', ok: (summary.productTypes || []).length > 0, label: '商品类型样本', detail: String((summary.productTypes || []).length) },
-    { key: 'recommendationSamples', ok: (totals.recommendation || 0) > 0, label: '智能补全推荐样本', detail: String(totals.recommendation || 0) },
+    { key: 'recommendationEngine', ok: recommendationProbe.ok, label: '智能补全推荐引擎', detail: recommendationProbe.detail },
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: String(summary.rulePackage && summary.rulePackage.rules ? summary.rulePackage.rules.length : 0) },
@@ -873,9 +874,37 @@ async function handleInsightReadiness(request, env) {
     checks,
     blockers,
     totals,
+    recommendationProbe,
     logDiagnostics: summary.logDiagnostics,
     generatedAt: new Date().toISOString(),
   });
+}
+
+async function probeRecommendationEngine(env, summary) {
+  const latest = summary && summary.recentPrices && summary.recentPrices[0];
+  if (!latest) return { ok: false, detail: 'no price sample' };
+  try {
+    const result = await buildInsightRecommendation(env, {
+      sku: latest.sku || '',
+      productType: latest.product_type || '',
+      name: latest.name || '',
+    });
+    const price = result && result.recommendedPrice ? String(result.recommendedPrice) : '';
+    if (!price || price === '0') return { ok: false, detail: 'no recommendation from latest sample' };
+    return {
+      ok: true,
+      detail: [latest.sku || latest.name || 'latest price', price, result.source || ''].filter(Boolean).join(' / '),
+      result: {
+        sku: result.sku || '',
+        recommendedPrice: result.recommendedPrice || '',
+        source: result.source || '',
+        effectiveProductType: result.effectiveProductType || '',
+        reason: result.recommendationReason || '',
+      },
+    };
+  } catch (error) {
+    return { ok: false, detail: cleanText(error && error.message, 160) || 'recommendation probe failed' };
+  }
 }
 
 function normalizePrice(value) {
@@ -1002,9 +1031,18 @@ async function recommendProductType(env, params) {
 async function handleInsightRecommend(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
-  const sku = cleanText(url.searchParams.get('sku'), 80);
-  const productType = cleanText(url.searchParams.get('productType'), 120);
-  const name = cleanText(url.searchParams.get('name'), 200);
+  const payload = await buildInsightRecommendation(env, {
+    sku: cleanText(url.searchParams.get('sku'), 80),
+    productType: cleanText(url.searchParams.get('productType'), 120),
+    name: cleanText(url.searchParams.get('name'), 200),
+  });
+  return json(payload);
+}
+
+async function buildInsightRecommendation(env, params) {
+  const sku = params && params.sku || '';
+  const productType = params && params.productType || '';
+  const name = params && params.name || '';
   const typeSuggestion = await recommendProductType(env, { sku, productType, name });
   const effectiveProductType = productType && productType !== '未分类' ? productType : typeSuggestion.recommendedProductType;
 
@@ -1058,7 +1096,7 @@ async function handleInsightRecommend(request, env) {
     typeSampleCount: prices.length,
   };
 
-  return json({
+  return {
     ok: true,
     sku,
     productType,
@@ -1074,7 +1112,7 @@ async function handleInsightRecommend(request, env) {
     latestTypePrice,
     priceSamples,
     typeSamples: (typeRows.results || []).slice(0, 10),
-  });
+  };
 }
 
 function buildRuleCandidates(issueRows) {
