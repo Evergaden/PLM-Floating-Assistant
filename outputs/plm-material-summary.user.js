@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.134
+// @version      2.3.135
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.134';
+  const SCRIPT_VERSION = '2.3.135';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -9659,10 +9659,11 @@
         grid-column: 1 / -1 !important;
         display: block !important;
         min-width: 0 !important;
-        color: #8a94a6 !important;
+        color: #8f98a8 !important;
         font-size: 13px !important;
-        font-weight: 700 !important;
-        line-height: 1.25 !important;
+        font-weight: 500 !important;
+        line-height: 1.2 !important;
+        text-align: left !important;
       }
       #${PANEL_ID} .pfh-info-grid .pfh-label .pfh-icon {
         display: none !important;
@@ -9674,16 +9675,16 @@
         align-self: end !important;
         justify-self: start !important;
         min-width: 0 !important;
-        color: #151821 !important;
-        font-size: 17px !important;
-        font-weight: 800 !important;
+        color: #171a22 !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
         line-height: 1.25 !important;
         text-align: left !important;
         overflow-wrap: anywhere !important;
       }
       #${PANEL_ID} .pfh-info-grid .pfh-row.is-carton-dim .pfh-value,
       #${PANEL_ID} .pfh-info-grid .pfh-row.is-product-dim .pfh-value {
-        color: #238044 !important;
+        color: #171a22 !important;
       }
       #${PANEL_ID} .pfh-info-grid .pfh-row-actions {
         grid-column: 2 / 3 !important;
