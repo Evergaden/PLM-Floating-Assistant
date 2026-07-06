@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.161
+// @version      2.3.162
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.161';
+  const SCRIPT_VERSION = '2.3.162';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5271,12 +5271,17 @@
       addLog('warn', '\u4ef7\u683c\u63a8\u8350\u83b7\u53d6\u5931\u8d25', formatErrorMessage(error));
       return null;
     });
-    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, productType);
+    const recommendedType = cloudRecommendation && cloudRecommendation.recommendedProductType && cloudRecommendation.recommendedProductType !== productType ? cloudRecommendation.recommendedProductType : '';
+    const effectiveProductType = recommendedType || (cloudRecommendation && cloudRecommendation.effectiveProductType) || productType;
+    if (recommendedType) {
+      addLog('success', '\u5df2\u6839\u636e\u5386\u53f2\u5546\u54c1\u540d\u63a8\u65ad\u7c7b\u578b', (data && data.sku || '') + ' ' + productType + ' -> ' + recommendedType);
+    }
+    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, effectiveProductType);
     const price = recommendation && recommendation.recommendedPrice ? String(recommendation.recommendedPrice) : '';
     if (!price) return false;
     state.excelPurchasePrice = price;
-    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (recommendation.source ? ' / ' + recommendation.source : '');
-    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + productType + ' ' + price);
+    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (effectiveProductType ? ' / ' + effectiveProductType : '') + (recommendation.source ? ' / ' + recommendation.source : '');
+    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + effectiveProductType + ' ' + price);
     return true;
   }
 

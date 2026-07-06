@@ -593,12 +593,102 @@ function normalizePrice(value) {
   return Number.isFinite(number) && number > 0 ? Number(number.toFixed(2)) : 0;
 }
 
+function tokenizeForRecommendation(value) {
+  const text = cleanText(value, 240).toLowerCase();
+  const tokens = new Set();
+  const words = text.match(/[a-z0-9]+/g) || [];
+  words.forEach((word) => {
+    if (word.length >= 2) tokens.add(word);
+  });
+  const cjk = text.replace(/[^\u4e00-\u9fa5]/g, '');
+  for (let size = 2; size <= 4; size += 1) {
+    for (let index = 0; index + size <= cjk.length; index += 1) {
+      tokens.add(cjk.slice(index, index + size));
+    }
+  }
+  return Array.from(tokens).slice(0, 80);
+}
+
+function scoreNameSimilarity(name, row) {
+  const target = tokenizeForRecommendation(name);
+  if (!target.length) return 0;
+  const candidateText = [row.name, row.product_type].filter(Boolean).join(' ');
+  const candidateTokens = new Set(tokenizeForRecommendation(candidateText));
+  let score = 0;
+  target.forEach((token) => {
+    if (candidateTokens.has(token)) score += token.length >= 3 ? 2 : 1;
+  });
+  const targetText = cleanText(name, 240).toLowerCase();
+  const candidateName = cleanText(row.name, 240).toLowerCase();
+  if (targetText && candidateName && (candidateName.includes(targetText.slice(0, 12)) || targetText.includes(candidateName.slice(0, 12)))) {
+    score += 6;
+  }
+  return score;
+}
+
+async function recommendProductType(env, params) {
+  const sku = params.sku || '';
+  const productType = params.productType || '';
+  const name = params.name || '';
+  if (productType && productType !== '未分类') {
+    return {
+      recommendedProductType: productType,
+      productTypeSource: 'provided',
+      productTypeScore: 100,
+      productTypeSamples: [],
+    };
+  }
+  if (sku) {
+    const latestSkuType = await env.DB.prepare(`
+      SELECT product_type, sku, name, created_at
+      FROM insight_events
+      WHERE sku = ? AND product_type IS NOT NULL AND product_type != '' AND product_type != '未分类'
+      ORDER BY id DESC
+      LIMIT 1
+    `).bind(sku).first();
+    if (latestSkuType && latestSkuType.product_type) {
+      return {
+        recommendedProductType: latestSkuType.product_type,
+        productTypeSource: 'same-sku',
+        productTypeScore: 100,
+        productTypeSamples: [latestSkuType],
+      };
+    }
+  }
+  if (!name) {
+    return { recommendedProductType: '', productTypeSource: 'none', productTypeScore: 0, productTypeSamples: [] };
+  }
+  const rows = await env.DB.prepare(`
+    SELECT product_type, sku, name, created_at
+    FROM insight_events
+    WHERE product_type IS NOT NULL AND product_type != '' AND product_type != '未分类'
+      AND name IS NOT NULL AND name != ''
+    ORDER BY id DESC
+    LIMIT 300
+  `).all();
+  const scored = (rows.results || [])
+    .map((row) => ({ ...row, score: scoreNameSimilarity(name, row) }))
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  if (!scored.length || scored[0].score < 2) {
+    return { recommendedProductType: '', productTypeSource: 'none', productTypeScore: 0, productTypeSamples: scored.slice(0, 10) };
+  }
+  return {
+    recommendedProductType: scored[0].product_type || '',
+    productTypeSource: 'similar-name',
+    productTypeScore: scored[0].score,
+    productTypeSamples: scored.slice(0, 10),
+  };
+}
+
 async function handleInsightRecommend(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
   const sku = cleanText(url.searchParams.get('sku'), 80);
   const productType = cleanText(url.searchParams.get('productType'), 120);
   const name = cleanText(url.searchParams.get('name'), 200);
+  const typeSuggestion = await recommendProductType(env, { sku, productType, name });
+  const effectiveProductType = productType && productType !== '未分类' ? productType : typeSuggestion.recommendedProductType;
 
   let latestSkuPrice = null;
   if (sku) {
@@ -612,14 +702,14 @@ async function handleInsightRecommend(request, env) {
   }
 
   let typeRows = { results: [] };
-  if (productType) {
+  if (effectiveProductType) {
     typeRows = await env.DB.prepare(`
       SELECT price, pack_qty, sku, name, created_at
       FROM insight_events
       WHERE event_type = 'price' AND product_type = ? AND price IS NOT NULL AND price != ''
       ORDER BY id DESC
       LIMIT 30
-    `).bind(productType).all();
+    `).bind(effectiveProductType).all();
   }
   if ((!typeRows.results || !typeRows.results.length) && name) {
     const keyword = '%' + name.slice(0, 20) + '%';
@@ -643,9 +733,11 @@ async function handleInsightRecommend(request, env) {
     ok: true,
     sku,
     productType,
+    effectiveProductType,
     name,
     recommendedPrice,
     source,
+    ...typeSuggestion,
     latestSkuPrice,
     typeSampleCount: prices.length,
     avgTypePrice: avgPrice,
