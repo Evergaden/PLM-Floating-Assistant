@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.137
+// @version      2.3.138
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.137';
+  const SCRIPT_VERSION = '2.3.138';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -9637,20 +9637,19 @@
         gap: 8px 8px !important;
         justify-items: start !important;
         text-align: left !important;
-        min-height: 86px !important;
-        padding: 18px 20px !important;
+        min-height: 64px !important;
+        padding: 13px 18px !important;
         border: 1px solid rgba(211, 204, 255, .34) !important;
         border-radius: 14px !important;
         background: rgba(255,255,255,.62) !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
         cursor: pointer !important;
-        transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .22s ease, background .22s ease, box-shadow .22s ease !important;
+        transition: border-color .22s ease, background .22s ease, box-shadow .22s ease !important;
       }
       #${PANEL_ID} .pfh-info-grid .pfh-row:hover {
-        transform: translateY(-1px) !important;
         border-color: rgba(119, 207, 151, .52) !important;
         background: rgba(255,255,255,.78) !important;
-        box-shadow: 0 10px 22px rgba(78, 74, 142, .08), inset 0 1px 0 rgba(255,255,255,.92) !important;
+        box-shadow: 0 8px 18px rgba(78, 74, 142, .08), inset 0 1px 0 rgba(255,255,255,.92) !important;
       }
       #${PANEL_ID} .pfh-info-grid .pfh-row.is-copied {
         border-color: rgba(75, 222, 128, .72) !important;
