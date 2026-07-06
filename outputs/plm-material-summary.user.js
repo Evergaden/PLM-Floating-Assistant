@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.142
+// @version      2.3.143
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.142';
+  const SCRIPT_VERSION = '2.3.143';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6196,16 +6196,17 @@
           height: value.height,
         };
       }
-      return { width: 880, height: 780 };
+      return { width: 880, height: 820 };
     } catch (error) {
-      return { width: 880, height: 780 };
+      return { width: 880, height: 820 };
     }
   }
 
   function savePanelSize(size) {
+    const maxHeight = getPanelMaxHeight();
     const value = {
       width: clamp(size.width, 640, Math.min(1180, window.innerWidth - 24)),
-      height: clamp(size.height, 320, Math.floor(window.innerHeight * 0.96)),
+      height: clamp(size.height, 520, maxHeight),
     };
     state.panelSize = value;
     try {
@@ -6218,9 +6219,16 @@
 
   function applyPanelSize(panel) {
     if (!state.panelSize) return;
+    const height = clamp(state.panelSize.height, 520, getPanelMaxHeight());
     panel.style.width = clamp(state.panelSize.width, 520, Math.min(1180, window.innerWidth - 24)) + 'px';
+    panel.style.height = height + 'px';
+    panel.style.maxHeight = getPanelMaxHeight() + 'px';
     const main = panel.querySelector('.pfh-main');
-    if (main) main.style.height = clamp(state.panelSize.height, 320, Math.floor(window.innerHeight * 0.96)) + 'px';
+    if (main) main.style.height = 'auto';
+  }
+
+  function getPanelMaxHeight() {
+    return Math.max(520, Math.floor(window.innerHeight * 0.96));
   }
 
   function loadSplitWidth() {
@@ -6309,7 +6317,7 @@
       let bottom = startBottom;
       const minWidth = 520;
       const maxWidth = Math.min(1180, window.innerWidth - 24);
-      const maxHeight = Math.floor(window.innerHeight * 0.96);
+      const maxHeight = getPanelMaxHeight();
       if (direction.includes('w')) width = startWidth - dx;
       if (direction.includes('e')) {
         width = startWidth + dx;
@@ -6321,9 +6329,9 @@
         bottom = startBottom - dy;
       }
       width = clamp(width, minWidth, maxWidth);
-      height = clamp(height, 320, maxHeight);
+      height = clamp(height, 520, maxHeight);
       right = Math.max(0, Math.min(window.innerWidth - width - 8, right));
-      bottom = Math.max(0, Math.min(window.innerHeight - height - 80, bottom));
+      bottom = Math.max(0, Math.min(window.innerHeight - height - 8, bottom));
       state.panelSize = { width, height };
       panel.style.right = right + 'px';
       panel.style.bottom = bottom + 'px';
@@ -9821,6 +9829,17 @@
       #${PANEL_ID} .pfh-main:not(.is-home) .pfh-detail {
         position: relative !important;
         z-index: 1 !important;
+      }
+      #${PANEL_ID} {
+        min-height: 560px !important;
+      }
+      #${PANEL_ID} > .pfh-full {
+        min-height: 0 !important;
+      }
+      #${PANEL_ID} .pfh-main {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        min-height: 0 !important;
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
