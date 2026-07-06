@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.141
+// @version      2.3.142
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.141';
+  const SCRIPT_VERSION = '2.3.142';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3741,6 +3741,13 @@
     const originalText = button.textContent;
     try {
       addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5f00\u59cb');
+      const openDetailModal = getVisibleImageDetailModal();
+      if (openDetailModal) {
+        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u68c0\u6d4b\u5230\u5df2\u6253\u5f00\u7684\u67e5\u770b\u8be6\u60c5\u5f39\u7a97');
+        await downloadImagesFromDetailModal(openDetailModal);
+        button.textContent = '\u4e0b\u8f7d\u5b8c\u6210';
+        return;
+      }
       const viewButtons = findGeneratedImageViewButtons(drawer, ['\u8be6\u60c5\u56fe']);
       addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3 ' + viewButtons.length + '\u4e2a');
       if (viewButtons.length) {
@@ -3790,10 +3797,8 @@
       addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3 ' + (index + 1) + '/' + viewButtons.length);
       clickElement(target);
       const modal = await waitUntil(() => {
-        const latest = getVisibleModal();
-        if (!latest) return null;
-        const text = getVisibleText(latest);
-        return /\u67e5\u770b|\u4e0b\u8f7d|\u56fe\u7247/.test(text) && (getDetailModalImageUrls(latest).length || getDetailModalDownloadButtons(latest).length) ? latest : null;
+        const latest = getVisibleImageDetailModal();
+        return latest || null;
       }, 10000, 200);
       if (!modal) throw new Error('\u672a\u6253\u5f00\u8be6\u60c5\u56fe\u67e5\u770b\u5f39\u7a97');
       await downloadImagesFromDetailModal(modal);
@@ -3949,7 +3954,14 @@
 
   function isImageDetailDownloadModal(modal) {
     const text = compactText(modal.innerText || modal.textContent || '');
-    return /\u67e5\u770b\u8be6\u60c5/.test(text) && getDetailModalDownloadButtons(modal).length > 0 && !/\u76f4\u63a5\u4f7f\u7528/.test(text);
+    return /\u67e5\u770b\u8be6\u60c5/.test(text) && (getDetailModalImageUrls(modal).length > 0 || getDetailModalDownloadButtons(modal).length > 0) && !/\u76f4\u63a5\u4f7f\u7528/.test(text);
+  }
+
+  function getVisibleImageDetailModal() {
+    return Array.from(document.querySelectorAll('.ant-modal'))
+      .filter(isVisibleElement)
+      .reverse()
+      .find(isImageDetailDownloadModal) || null;
   }
 
   function getDetailModalDownloadButtons(modal) {
