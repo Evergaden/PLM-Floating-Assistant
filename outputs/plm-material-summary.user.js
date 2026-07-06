@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.165
+// @version      2.3.166
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.165';
+  const SCRIPT_VERSION = '2.3.166';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5372,10 +5372,19 @@
     const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, effectiveProductType);
     const price = recommendation && recommendation.recommendedPrice ? String(recommendation.recommendedPrice) : '';
     if (!price) return false;
+    const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, effectiveProductType);
     state.excelPurchasePrice = price;
-    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (effectiveProductType ? ' / ' + effectiveProductType : '') + (recommendation.source ? ' / ' + recommendation.source : '');
-    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + effectiveProductType + ' ' + price);
+    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (effectiveProductType ? ' / ' + effectiveProductType : '') + (recommendation.source ? ' / ' + recommendation.source : '') + (reason ? ' / ' + reason : '');
+    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + effectiveProductType + ' ' + price + (reason ? ' / ' + reason : ''));
     return true;
+  }
+
+  function buildLocalRecommendationReason(recommendation, productType) {
+    if (!recommendation || !recommendation.recommendedPrice) return '';
+    if (recommendation.source === 'local-same-sku') return '\u672c\u5730\u540c SKU \u5386\u53f2\u4ef7';
+    if (recommendation.source === 'local-same-type') return '\u672c\u5730\u540c\u7c7b\u578b\u5386\u53f2\u4ef7' + (productType ? '\uff1a' + productType : '');
+    if (recommendation.source === 'local-name') return '\u672c\u5730\u76f8\u4f3c\u5546\u54c1\u540d\u5386\u53f2\u4ef7';
+    return '';
   }
 
   function getLocalPriceRecommendation(data, productType) {

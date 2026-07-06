@@ -625,6 +625,34 @@ function normalizePrice(value) {
   return Number.isFinite(number) && number > 0 ? Number(number.toFixed(2)) : 0;
 }
 
+function summarizePriceSamples(rows) {
+  return (rows || []).slice(0, 5).map((row) => ({
+    sku: row.sku || '',
+    name: cleanText(row.name, 120),
+    productType: row.product_type || '',
+    price: normalizePrice(row.price),
+    packQty: row.pack_qty || '',
+    createdAt: row.created_at || '',
+  })).filter((row) => row.price > 0);
+}
+
+function buildRecommendationReason(payload) {
+  if (!payload || !payload.recommendedPrice) return '暂无可用历史价格样本';
+  if (payload.source === 'same-sku') {
+    return '使用同 SKU 最近一次历史价格 ' + payload.recommendedPrice;
+  }
+  if (payload.source === 'same-type-latest') {
+    return '使用商品类型“' + (payload.effectiveProductType || payload.productType || '未分类') + '”最近样本价格 ' + payload.recommendedPrice + '，样本数 ' + (payload.typeSampleCount || 0);
+  }
+  if (payload.source === 'same-type-average') {
+    return '使用商品类型“' + (payload.effectiveProductType || payload.productType || '未分类') + '”平均价格 ' + payload.recommendedPrice + '，样本数 ' + (payload.typeSampleCount || 0);
+  }
+  if (payload.source === 'name-latest') {
+    return '使用相似商品名最近样本价格 ' + payload.recommendedPrice + '，样本数 ' + (payload.typeSampleCount || 0);
+  }
+  return '使用历史样本价格 ' + payload.recommendedPrice;
+}
+
 function tokenizeForRecommendation(value) {
   const text = cleanText(value, 240).toLowerCase();
   const tokens = new Set();
@@ -734,14 +762,16 @@ async function handleInsightRecommend(request, env) {
   }
 
   let typeRows = { results: [] };
+  let priceMatchMode = 'none';
   if (effectiveProductType) {
     typeRows = await env.DB.prepare(`
-      SELECT price, pack_qty, sku, name, created_at
+      SELECT price, pack_qty, sku, name, product_type, created_at
       FROM insight_events
       WHERE event_type = 'price' AND product_type = ? AND price IS NOT NULL AND price != ''
       ORDER BY id DESC
       LIMIT 30
     `).bind(effectiveProductType).all();
+    if (typeRows.results && typeRows.results.length) priceMatchMode = 'type';
   }
   if ((!typeRows.results || !typeRows.results.length) && name) {
     const keyword = '%' + name.slice(0, 20) + '%';
@@ -752,6 +782,7 @@ async function handleInsightRecommend(request, env) {
       ORDER BY id DESC
       LIMIT 30
     `).bind(keyword).all();
+    if (typeRows.results && typeRows.results.length) priceMatchMode = 'name';
   }
 
   const prices = (typeRows.results || []).map((row) => normalizePrice(row.price)).filter(Boolean);
@@ -759,7 +790,15 @@ async function handleInsightRecommend(request, env) {
   const latestTypePrice = prices.length ? prices[0] : 0;
   const skuPrice = latestSkuPrice ? normalizePrice(latestSkuPrice.price) : 0;
   const recommendedPrice = skuPrice || latestTypePrice || avgPrice || 0;
-  const source = skuPrice ? 'same-sku' : (latestTypePrice ? 'same-type-latest' : (avgPrice ? 'same-type-average' : 'none'));
+  const source = skuPrice ? 'same-sku' : (latestTypePrice ? (priceMatchMode === 'name' ? 'name-latest' : 'same-type-latest') : (avgPrice ? 'same-type-average' : 'none'));
+  const priceSamples = summarizePriceSamples(typeRows.results || []);
+  const reasonPayload = {
+    recommendedPrice,
+    source,
+    effectiveProductType,
+    productType,
+    typeSampleCount: prices.length,
+  };
 
   return json({
     ok: true,
@@ -769,11 +808,13 @@ async function handleInsightRecommend(request, env) {
     name,
     recommendedPrice,
     source,
+    recommendationReason: buildRecommendationReason(reasonPayload),
     ...typeSuggestion,
     latestSkuPrice,
     typeSampleCount: prices.length,
     avgTypePrice: avgPrice,
     latestTypePrice,
+    priceSamples,
     typeSamples: (typeRows.results || []).slice(0, 10),
   });
 }
