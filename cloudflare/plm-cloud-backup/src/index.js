@@ -538,6 +538,18 @@ async function handleInsightAiReport(request, env) {
   }
 }
 
+async function handleInsightAiStatus(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const model = env.ZHIPU_MODEL || 'glm-4-flash';
+  return json({
+    ok: true,
+    configured: Boolean(env.ZHIPU_API_KEY),
+    model,
+    capabilities: ['洞察总结', '价格规律总结', '清洗规则建议'],
+    note: 'ZHIPU_API_KEY 只配置在 Worker 环境变量；未配置或超时时会自动使用规则版总结。',
+  });
+}
+
 function normalizePrice(value) {
   const number = Number(String(value || '').replace(/[^0-9.]/g, ''));
   return Number.isFinite(number) && number > 0 ? Number(number.toFixed(2)) : 0;
@@ -868,6 +880,7 @@ export default {
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
     if (url.pathname === '/insights/ai-report' && request.method === 'GET') return handleInsightAiReport(request, env);
+    if (url.pathname === '/insights/ai-status' && request.method === 'GET') return handleInsightAiStatus(request, env);
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
