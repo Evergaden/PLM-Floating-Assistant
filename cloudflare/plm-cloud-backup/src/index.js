@@ -495,6 +495,20 @@ function tsvSection(title, headers, rows, columns) {
   return lines.join('\n');
 }
 
+function recordsToUnifiedTsv(records) {
+  const headers = ['记录类型', 'SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '缺失字段', '来源', '记录时间'];
+  const lines = ['飞书统一表', headers.join('\t')];
+  if (!records || !records.length) {
+    lines.push('暂无');
+    return lines.join('\n');
+  }
+  records.forEach((record) => {
+    const fields = record && record.fields || {};
+    lines.push(headers.map((header) => tsvEscape(fields[header])).join('\t'));
+  });
+  return lines.join('\n');
+}
+
 function formatRuleTargetTabs(rule) {
   return (rule && rule.targetTabs || []).filter(Boolean).join('/');
 }
@@ -578,7 +592,10 @@ async function handleInsightReport(request, env) {
 async function handleInsightFeishuTsv(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const summary = await buildInsightSummary(env);
+  const aiPayload = await buildInsightAiReportPayload(env, summary);
+  const unifiedRecords = buildFeishuRecords(summary, aiPayload);
   const sections = [
+    recordsToUnifiedTsv(unifiedRecords),
     tsvSection(
       '价格历史',
       ['SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '记录时间'],
@@ -620,6 +637,7 @@ async function handleInsightFeishuTsv(request, env) {
     ok: true,
     format: 'tsv',
     copiedAt: new Date().toISOString(),
+    unifiedCount: unifiedRecords.length,
     tsv: sections.join('\n\n'),
     summary,
   });
