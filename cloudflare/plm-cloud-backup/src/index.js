@@ -604,6 +604,78 @@ async function handleInsightRecommend(request, env) {
   });
 }
 
+function buildRuleCandidates(issueRows) {
+  const groups = new Map();
+  (issueRows || []).forEach((row) => {
+    const fields = String(row.missing_fields || '').split(',').map((item) => item.trim()).filter(Boolean);
+    fields.forEach((field) => {
+      const current = groups.get(field) || {
+        missingField: field,
+        count: 0,
+        sources: new Set(),
+        examples: [],
+        latestAt: '',
+      };
+      current.count += 1;
+      if (row.source) current.sources.add(row.source);
+      if (current.examples.length < 5) {
+        current.examples.push({
+          sku: row.sku || '',
+          brand: row.brand || '',
+          name: row.name || '',
+          source: row.source || '',
+          createdAt: row.created_at || '',
+        });
+      }
+      if (!current.latestAt || String(row.created_at || '') > current.latestAt) current.latestAt = row.created_at || '';
+      groups.set(field, current);
+    });
+  });
+  return Array.from(groups.values()).map((item) => ({
+    missingField: item.missingField,
+    count: item.count,
+    sources: Array.from(item.sources),
+    examples: item.examples,
+    latestAt: item.latestAt,
+    suggestion: '优先检查“' + item.missingField + '”字段的页面标签、表格列名和兜底来源；如果 PLM 页面有值但脚本为空，应补充选择器/解析规则。',
+  })).sort((a, b) => b.count - a.count || String(b.latestAt).localeCompare(String(a.latestAt)));
+}
+
+function formatRuleCandidates(candidates) {
+  if (!candidates.length) return '暂无清洗规则候选。';
+  const lines = [
+    'PLM 数据清洗规则候选',
+    '字段\t次数\t来源\t样例SKU\t建议',
+  ];
+  candidates.forEach((item) => {
+    lines.push([
+      item.missingField,
+      item.count,
+      item.sources.join('/') || '-',
+      item.examples.map((example) => example.sku).filter(Boolean).join(',') || '-',
+      item.suggestion,
+    ].map(tsvEscape).join('\t'));
+  });
+  return lines.join('\n');
+}
+
+async function handleInsightRules(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const rows = await env.DB.prepare(`
+    SELECT sku, brand, name, missing_fields, source, created_at
+    FROM insight_events
+    WHERE event_type = 'issue'
+    ORDER BY id DESC
+    LIMIT 500
+  `).all();
+  const candidates = buildRuleCandidates(rows.results || []);
+  return json({
+    ok: true,
+    candidates,
+    tsv: formatRuleCandidates(candidates),
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
@@ -621,6 +693,7 @@ export default {
     if (url.pathname === '/insights/ai-report' && request.method === 'GET') return handleInsightAiReport(request, env);
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
+    if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
 
     return json({ error: 'not found' }, 404);
   },
