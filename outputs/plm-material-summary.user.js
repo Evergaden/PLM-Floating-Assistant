@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.196
+// @version      2.3.197
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.196';
+  const SCRIPT_VERSION = '2.3.197';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -863,16 +863,32 @@
     state.diagnosticRunning = true;
     addLog('info', '\u5f00\u59cb\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e', data.sku + ' \u7f3a\uff1a' + missing.join('\u3001') + ' / ' + issueMeta.kind);
     let merged = data;
+    const startedAt = Date.now();
+    const attempts = [];
     try {
       for (const tabName of tabs) {
         const tab = findTabButton(drawer, tabName);
         if (tab && !isActiveTab(tab)) {
           state.ignoreOutsideClickUntil = Date.now() + 1200;
           tab.click();
-          await wait(tabName === '\u8bbe\u8ba1\u8d44\u6599' ? 900 : 650);
         }
-        const live = extractData(drawer);
-        merged = mergeData(merged, live);
+        const beforeTabMissing = getMissingFieldsForData(merged);
+        let afterTabMissing = beforeTabMissing;
+        let tabAttempts = 0;
+        for (let index = 0; index < 3; index += 1) {
+          tabAttempts += 1;
+          await wait((tabName === '\u8bbe\u8ba1\u8d44\u6599' ? 520 : 380) + (index * 180));
+          const live = extractData(drawer);
+          merged = mergeData(merged, live);
+          afterTabMissing = getMissingFieldsForData(merged);
+          if (afterTabMissing.length < beforeTabMissing.length || !afterTabMissing.some((field) => beforeTabMissing.includes(field))) break;
+        }
+        attempts.push({
+          tab: tabName,
+          count: tabAttempts,
+          beforeMissing: beforeTabMissing,
+          afterMissing: afterTabMissing,
+        });
       }
       const afterMissing = getMissingFieldsForData(merged);
       const fixed = missing.filter((field) => !afterMissing.includes(field));
@@ -888,6 +904,8 @@
         afterMissing,
         fixed,
         tabs,
+        attempts,
+        elapsedMs: Date.now() - startedAt,
       });
     } catch (error) {
       addLog('warn', '\u4e8c\u6b21\u8bfb\u53d6\u7f3a\u5931\u6570\u636e\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
@@ -898,6 +916,8 @@
         afterMissing: getMissingFieldsForData(data),
         fixed: [],
         tabs,
+        attempts,
+        elapsedMs: Date.now() - startedAt,
       });
     } finally {
       state.diagnosticRunning = false;
@@ -914,9 +934,20 @@
         afterMissing: Array.isArray(diagnostic && diagnostic.afterMissing) ? diagnostic.afterMissing.slice(0, 20) : [],
         fixed: Array.isArray(diagnostic && diagnostic.fixed) ? diagnostic.fixed.slice(0, 20) : [],
         tabs: Array.isArray(diagnostic && diagnostic.tabs) ? diagnostic.tabs.slice(0, 8) : [],
+        attempts: sanitizeDiagnosticAttempts(diagnostic && diagnostic.attempts),
+        elapsedMs: Number(diagnostic && diagnostic.elapsedMs || 0) || 0,
         at: new Date().toLocaleString(),
       },
     });
+  }
+
+  function sanitizeDiagnosticAttempts(attempts) {
+    return Array.isArray(attempts) ? attempts.slice(0, 8).map((item) => ({
+      tab: String(item && item.tab || '').slice(0, 40),
+      count: Number(item && item.count || 0) || 0,
+      beforeMissing: Array.isArray(item && item.beforeMissing) ? item.beforeMissing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
+      afterMissing: Array.isArray(item && item.afterMissing) ? item.afterMissing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
+    })).filter((item) => item.tab) : [];
   }
 
   function getDiagnosticTabsForMissing(missing) {
@@ -7313,6 +7344,8 @@
       afterMissing: Array.isArray(source.afterMissing) ? source.afterMissing.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
       fixed: Array.isArray(source.fixed) ? source.fixed.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 20) : [],
       tabs: Array.isArray(source.tabs) ? source.tabs.map((text) => String(text || '').slice(0, 80)).filter(Boolean).slice(0, 8) : [],
+      attempts: sanitizeDiagnosticAttempts(source.attempts),
+      elapsedMs: Number(source.elapsedMs || 0) || 0,
       at: String(source.at || '').slice(0, 80),
     };
   }
@@ -7321,6 +7354,8 @@
     if (!diagnostic || !diagnostic.status) return '';
     const parts = ['\u4e8c\u6b21\u8bfb\u53d6\uff1a' + diagnostic.status];
     if (diagnostic.tabs && diagnostic.tabs.length) parts.push('\u9875\u7b7e ' + diagnostic.tabs.join('/'));
+    if (diagnostic.attempts && diagnostic.attempts.length) parts.push('\u5c1d\u8bd5 ' + diagnostic.attempts.map((item) => item.tab + 'x' + item.count).join('/'));
+    if (diagnostic.elapsedMs) parts.push(trimNumber(diagnostic.elapsedMs / 1000) + 's');
     if (diagnostic.reason) parts.push(diagnostic.reason);
     return ' / ' + parts.join(' / ');
   }
