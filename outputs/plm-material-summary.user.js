@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.7
+// @version      2.4.8
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.7';
+  const SCRIPT_VERSION = '2.4.8';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2112,7 +2112,7 @@
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
-    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" title="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('back') + '</button><strong>SKU\u5217\u8868</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
+    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875" data-tooltip="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('back') + '</button><strong>SKU\u5217\u8868</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       list.innerHTML = listHead + '<div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
@@ -12059,7 +12059,8 @@
         padding-top: 4px !important;
         box-sizing: border-box !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions button {
+      #${PANEL_ID} .pfh-header .pfh-actions button,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] {
         position: relative !important;
         display: inline-flex !important;
         align-items: center !important;
@@ -12077,17 +12078,20 @@
         transform: translateY(-1px) !important;
         overflow: visible !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions button:hover {
+      #${PANEL_ID} .pfh-header .pfh-actions button:hover,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover {
         color: #6d35e8 !important;
         border-color: rgba(124, 58, 237, .16) !important;
         background: rgba(124, 58, 237, .10) !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 18px rgba(124,58,237,.10) !important;
         transform: translateY(-1px) !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions button > span:not(.pfh-icon) {
+      #${PANEL_ID} .pfh-header .pfh-actions button > span:not(.pfh-icon),
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] > span:not(.pfh-icon) {
         display: none !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon {
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon {
         width: 22px !important;
         height: 22px !important;
         display: inline-flex !important;
@@ -12099,7 +12103,8 @@
         background: transparent !important;
         box-shadow: none !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon svg {
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon svg,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon svg {
         width: 20px !important;
         height: 20px !important;
         color: currentColor !important;
@@ -12110,10 +12115,12 @@
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-upload svg,
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-folder svg,
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-settings svg,
-      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-close svg {
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-close svg,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon-back svg {
         transform: none !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions button::after {
+      #${PANEL_ID} .pfh-header .pfh-actions button::after,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]::after {
         content: attr(data-tooltip);
         position: absolute;
         left: 50%;
@@ -12135,9 +12142,17 @@
         transition: opacity 140ms ease, transform 140ms ease;
         white-space: nowrap;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions button:hover::after {
+      #${PANEL_ID} .pfh-header .pfh-actions button:hover::after,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover::after {
         opacity: 1;
         transform: translate(-50%, 0);
+      }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]::after {
+        left: 0;
+        transform: translate(0, -4px);
+      }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover::after {
+        transform: translate(0, 0);
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
