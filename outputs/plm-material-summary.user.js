@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.194
+// @version      2.3.195
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.194';
+  const SCRIPT_VERSION = '2.3.195';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2170,10 +2170,23 @@
     const confidence = recommendation.priceConfidence || recommendation.recommendationConfidence || '';
     const stats = formatRecommendationPriceStats(recommendation.priceStats);
     const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, type);
+    const samples = formatRecommendationSamples(recommendation.priceSamples);
     return '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong>' +
       '<span>\u63a8\u8350\u4ef7\u683c <b>' + escapeHtml(String(recommendation.recommendedPrice)) + '</b>' + (type ? ' / ' + escapeHtml(type) : '') + (confidence ? ' / \u7f6e\u4fe1\u5ea6' + escapeHtml(confidence) : '') + '</span>' +
       (stats || reason ? '<small>' + escapeHtml([stats, reason].filter(Boolean).join(' / ')) + '</small>' : '') +
+      (samples ? '<em>\u6837\u672c\u4f9d\u636e\uff1a' + escapeHtml(samples) + '</em>' : '') +
       '</div>';
+  }
+
+  function formatRecommendationSamples(samples) {
+    if (!Array.isArray(samples) || !samples.length) return '';
+    return samples.slice(0, 3).map((item) => {
+      const sku = item && item.sku ? String(item.sku) : '';
+      const price = item && item.price ? String(item.price) : '';
+      const type = item && item.productType ? String(item.productType) : '';
+      const packQty = item && item.packQty ? '\u88c5' + String(item.packQty) : '';
+      return [sku, price ? '\uffe5' + price : '', type, packQty].filter(Boolean).join(' ');
+    }).filter(Boolean).join('；');
   }
 
   function scheduleInsightRecommendation(data) {
@@ -11669,6 +11682,17 @@
         font-size: 11px !important;
         font-weight: 400 !important;
         line-height: 1.35 !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend em {
+        display: block !important;
+        color: #8b93ad !important;
+        font-size: 11px !important;
+        font-style: normal !important;
+        font-weight: 400 !important;
+        line-height: 1.35 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
       }
       #${PANEL_ID} .pfh-smart-recommend.is-loading {
         opacity: .78 !important;
