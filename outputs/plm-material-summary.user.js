@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.197
+// @version      2.4.0
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.197';
+  const SCRIPT_VERSION = '2.4.0';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -11524,11 +11524,11 @@
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) auto !important;
         grid-template-rows: auto 1fr !important;
-        gap: 8px 8px !important;
+        gap: 5px 8px !important;
         justify-items: start !important;
         text-align: left !important;
-        min-height: 64px !important;
-        padding: 13px 18px !important;
+        min-height: 48px !important;
+        padding: 9px 14px !important;
         border: 1px solid rgba(211, 204, 255, .34) !important;
         border-radius: 14px !important;
         background: rgba(255,255,255,.62) !important;
@@ -11575,7 +11575,7 @@
         color: #171a22 !important;
         font-size: 13px !important;
         font-weight: 400 !important;
-        line-height: 1.25 !important;
+        line-height: 1.18 !important;
         text-align: left !important;
         overflow-wrap: anywhere !important;
       }
@@ -11784,13 +11784,13 @@
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
         display: grid !important;
-        grid-template-columns: minmax(106px, 128px) 82px 74px 34px minmax(56px, auto) minmax(0, 1fr) !important;
+        grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)) !important;
         align-items: center !important;
-        gap: 6px !important;
+        gap: 6px 7px !important;
         width: 100% !important;
         max-width: none !important;
-        margin: 8px 0 12px !important;
-        padding: 8px !important;
+        margin: 6px 0 10px !important;
+        padding: 8px 10px !important;
         box-sizing: border-box !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select,
@@ -11798,18 +11798,18 @@
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open button {
         width: 100% !important;
         min-width: 0 !important;
-        height: 30px !important;
-        min-height: 30px !important;
+        height: 28px !important;
+        min-height: 28px !important;
         box-sizing: border-box !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-prepare"] {
-        width: 34px !important;
-        min-width: 34px !important;
+        width: 100% !important;
+        min-width: 0 !important;
         padding: 0 !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-generate"] {
-        width: auto !important;
-        min-width: 58px !important;
+        width: 100% !important;
+        min-width: 0 !important;
         padding: 0 12px !important;
         border-radius: 10px !important;
       }
@@ -11820,6 +11820,7 @@
         overflow: visible !important;
         text-overflow: clip !important;
         line-height: 1.3 !important;
+        grid-column: 1 / -1 !important;
       }
       #${PANEL_ID} .pfh-graphic-section {
         display: grid !important;
@@ -11847,10 +11848,15 @@
           grid-template-columns: 1fr !important;
         }
         #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
-          grid-template-columns: 1fr 1fr !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
         #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open .pfh-excel-status {
           grid-column: 1 / -1 !important;
+        }
+      }
+      @media (max-width: 430px) {
+        #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
+          grid-template-columns: 1fr !important;
         }
       }
     `;
