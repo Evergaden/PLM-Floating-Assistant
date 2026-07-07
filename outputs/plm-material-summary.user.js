@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.12
+// @version      2.4.13
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.12';
+  const SCRIPT_VERSION = '2.4.13';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -4907,6 +4907,94 @@
     return clicked && Boolean(await waitFor(() => getProjectDrawerForSku(sku), 5000, 150));
   }
 
+  async function ensureProjectBomDrawerForData(data) {
+    const sku = data && data.sku;
+    if (!sku) return null;
+    const opened = getProjectBomDrawerForSku(sku);
+    if (opened) return opened;
+    const otherBom = getProjectBomDrawerForSku('');
+    if (otherBom && !getVisibleText(otherBom).includes(sku)) {
+      addLog('error', '\u73a9\u5177\u6807\u7b7e\uff1a\u5f53\u524d\u6253\u5f00\u7684\u7ed1BOM\u4e0d\u662f\u76ee\u6807 SKU', sku);
+      return null;
+    }
+    await closeProjectDetailDrawerForSku(sku);
+    if (!(await ensureNewProductProjectPage())) return null;
+    let rowId = data.projectRowId || data.projectId || '';
+    if (rowId && await clickProjectBomByRowId(rowId, sku)) {
+      return getProjectBomDrawerForSku(sku);
+    }
+    rowId = await queryProjectRowIdBySku(sku);
+    if (!rowId) return null;
+    const clicked = await clickProjectBomByRowId(rowId, sku);
+    if (clicked) cacheProjectRowId(sku, rowId);
+    return clicked ? getProjectBomDrawerForSku(sku) : null;
+  }
+
+  async function closeProjectDetailDrawerForSku(sku) {
+    const drawer = getProjectDrawerForSku(sku);
+    if (!drawer) return true;
+    const close = findDrawerCloseButton(drawer);
+    if (!close) return false;
+    clickElement(close);
+    await waitFor(() => !isVisibleElement(drawer) || !document.body.contains(drawer), 5000, 150);
+    return true;
+  }
+
+  async function clickProjectBomByRowId(rowId, sku) {
+    if (getProjectBomDrawerForSku(sku)) return true;
+    const button = findOperationButtonByRowId(rowId, '\u7ed1BOM');
+    if (!button) return false;
+    clickElement(button);
+    return Boolean(await waitFor(() => getProjectBomDrawerForSku(sku), 5000, 150));
+  }
+
+  function getProjectBomDrawerForSku(sku) {
+    return Array.from(document.querySelectorAll('.ant-drawer-open, .ant-drawer'))
+      .filter(isVisibleElement)
+      .find((drawer) => {
+        const text = getVisibleText(drawer);
+        return /\u7ed1\u5b9aBOM|\u7ed1BOM/.test(text) && (!sku || text.includes(sku));
+      }) || null;
+  }
+
+  function findBomLabelUploadItem(drawer) {
+    if (!drawer) return null;
+    const cards = Array.from(drawer.querySelectorAll('.cardBox, .typeCard'))
+      .filter(isVisibleElement)
+      .filter((card) => card.querySelector('input[type="file"]'));
+    const byTitle = cards.find((card) => compactText((card.querySelector('.cardTitle') || {}).innerText || '') === '\u6807\u7b7e');
+    if (byTitle) return byTitle;
+    const byMaterial = cards.find((card) => {
+      const text = getVisibleText(card);
+      return /\u6807\u7b7e/.test(text) && /\u5305\u6750\s*-\s*\u6807\u7b7e/.test(text);
+    });
+    if (byMaterial) return byMaterial;
+    return Array.from(drawer.querySelectorAll('.ant-collapse-item, .materialCardItemHeader'))
+      .filter(isVisibleElement)
+      .find((item) => item.querySelector('input[type="file"]') && /\u6807\u7b7e/.test(getVisibleText(item))) || null;
+  }
+
+  async function saveProjectBomDrawer(drawer) {
+    const button = findButtonLikeInScope(drawer, '\u6279\u91cf\u4fdd\u5b58');
+    if (!button) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u6309\u94ae');
+    clickElement(button);
+    await wait(600);
+    const saved = await waitFor(() => {
+      const text = getVisibleText(document.body);
+      if (/\u4fdd\u5b58\u6210\u529f|\u64cd\u4f5c\u6210\u529f|\u6210\u529f/.test(text)) return true;
+      return !/ant-btn-loading|loading/.test(String(button.className || ''));
+    }, 30000, 300);
+    if (!saved) throw new Error('\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u8d85\u65f6');
+  }
+
+  async function closeProjectBomDrawer(drawer) {
+    const close = findDrawerCloseButton(drawer);
+    if (!close) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u62bd\u5c49\u5173\u95ed\u6309\u94ae');
+    clickElement(close);
+    const closed = await waitFor(() => !isVisibleElement(drawer) || !document.body.contains(drawer), 8000, 150);
+    if (!closed) throw new Error('\u7ed1BOM\u62bd\u5c49\u672a\u6210\u529f\u5173\u95ed');
+  }
+
   function findProjectRowIdBySku(sku) {
     const row = Array.from(document.querySelectorAll('tr[rowid], .vxe-body--row[rowid]'))
       .filter(isVisibleElement)
@@ -4918,6 +5006,19 @@
     return Array.from(document.querySelectorAll('tr[rowid="' + cssEscape(rowId) + '"], .vxe-body--row[rowid="' + cssEscape(rowId) + '"]'))
       .filter(isVisibleElement)
       .find((row) => Array.from(row.querySelectorAll('button')).some((button) => compactText(button.innerText || button.textContent) === '\u8be6\u60c5')) || null;
+  }
+
+  function findOperationButtonByRowId(rowId, text) {
+    const expected = compactText(text);
+    const rows = Array.from(document.querySelectorAll('tr[rowid="' + cssEscape(rowId) + '"], .vxe-body--row[rowid="' + cssEscape(rowId) + '"]'))
+      .filter(isVisibleElement);
+    for (const row of rows) {
+      const button = Array.from(row.querySelectorAll('button'))
+        .filter(isVisibleElement)
+        .find((el) => compactText(el.innerText || el.textContent) === expected);
+      if (button) return button;
+    }
+    return null;
   }
 
   function cacheProjectRowId(sku, rowId) {
@@ -5182,11 +5283,13 @@
       const previewBlob = await canvasToBlob(previewCanvas, 'image/jpeg', 0.95);
       const printBlob = await canvasToBlob(printCanvas, 'image/jpeg', 0.95);
       const psdBlob = canvasToFlatPsdBlob(printCanvas, printCanvas.width / ((Number(size.width) || 4) * CM_TO_INCH));
-      downloadBlob(previewBlob, baseName + ' \u6807\u7b7e\u8bf4\u660e\u56fe.jpg');
+      const previewFilename = baseName + ' \u6807\u7b7e\u8bf4\u660e\u56fe.jpg';
+      downloadBlob(previewBlob, previewFilename);
       await wait(250);
       downloadBlob(printBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.jpg');
       await wait(250);
       downloadBlob(psdBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd');
+      await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename);
       state.excelStatus = L.labelDone;
       renderShell();
       addLog('success', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6210\u529f', labelData.sku);
@@ -5198,6 +5301,24 @@
       addLog('error', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u5931\u8d25', error && error.message ? error.message : '');
       showToast(L.labelFailed);
     }
+  }
+
+  async function uploadToyLabelPreviewToBom(data, blob, filename) {
+    const sku = data && data.sku;
+    if (!sku) throw new Error('\u672a\u627e\u5230 SKU\uff0c\u65e0\u6cd5\u4e0a\u4f20\u5230\u7ed1BOM');
+    addLog('info', '\u73a9\u5177\u6807\u7b7e\uff1a\u51c6\u5907\u4e0a\u4f20\u8bf4\u660e\u56fe\u5230\u7ed1BOM', sku);
+    const drawer = await ensureProjectBomDrawerForData(data);
+    if (!drawer) throw new Error('\u672a\u6253\u5f00\u5f53\u524d\u7f16\u7801\u7684\u7ed1BOM\u62bd\u5c49');
+    const uploadItem = findBomLabelUploadItem(drawer);
+    if (!uploadItem) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u4e2d\u6807\u7b7e\u884c\u7684\u4e0a\u4f20\u52a0\u53f7');
+    uploadItem.scrollIntoView({ block: 'center', inline: 'nearest' });
+    await wait(180);
+    await putFileIntoUploadItem(uploadItem, blob, filename);
+    await waitUploadItemDone(uploadItem, filename, 180000);
+    addLog('success', '\u73a9\u5177\u6807\u7b7e\uff1a\u8bf4\u660e\u56fe\u5df2\u4e0a\u4f20\u5230\u7ed1BOM\u6807\u7b7e', filename);
+    await saveProjectBomDrawer(drawer);
+    await closeProjectBomDrawer(drawer);
+    addLog('success', '\u73a9\u5177\u6807\u7b7e\uff1a\u7ed1BOM\u5df2\u6279\u91cf\u4fdd\u5b58\u5e76\u5173\u95ed', sku);
   }
 
   function getToyLabelSizeCm(data) {
