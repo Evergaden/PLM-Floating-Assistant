@@ -739,7 +739,7 @@ async function callZhipuInsightReporter(env, summary) {
     '你是 PLM 商品数据清洗和采购数据分析助手。',
     '请根据下面精简 JSON 输出中文报告，最多 900 字。',
     '必须包含：1）商品类型/价格规律；2）智能补全建议；3）清洗规则优先级；4）飞书表格记录建议。',
-    '根据 ruleRows/logDiagnostics 判断原因类别：PLM空值、脚本解析缺口、页面未读完、网络/流程问题。不要编造 JSON 外的数据。',
+    '根据 ruleRows/ruleMaintenance/logDiagnostics 判断原因类别：PLM空值、脚本解析缺口、页面未读完、网络/流程问题。优先说明“需处理/观察/待复核”的规则数量和Top规则，不要编造 JSON 外的数据。',
     JSON.stringify(compactSummary),
   ].join('\n');
 
@@ -777,6 +777,7 @@ async function callZhipuInsightReporter(env, summary) {
 }
 
 function buildCompactAiInsightSummary(summary) {
+  const ruleMaintenance = summarizeRuleMaintenance(summary && summary.rulePackage);
   const rules = ((summary && summary.rulePackage && summary.rulePackage.rules) || [])
     .filter((item) => item.maintenanceStatus !== '\u5df2\u5904\u7406' && item.maintenanceStatus !== '\u5ffd\u7565')
     .slice(0, 12)
@@ -822,6 +823,7 @@ function buildCompactAiInsightSummary(summary) {
       actionable: summary.rulePackage.actionableCount,
       likelyPlmEmpty: summary.rulePackage.likelyPlmEmptyCount,
     } : null,
+    ruleMaintenance,
   };
 }
 
@@ -831,7 +833,9 @@ function buildAiReportCacheKey(summary) {
   const latestRecommendation = summary.recentRecommendations && summary.recentRecommendations[0] ? summary.recentRecommendations[0].created_at || '' : '';
   const latestIssue = summary.recentIssues && summary.recentIssues[0] ? summary.recentIssues[0].created_at || '' : '';
   const latestLog = summary.recentLogs && summary.recentLogs[0] ? summary.recentLogs[0].created_at || '' : '';
-  return ['insight', totals, latestPrice, latestRecommendation, latestIssue, latestLog].join('|').slice(0, 500);
+  const ruleMaintenance = summarizeRuleMaintenance(summary.rulePackage);
+  const ruleState = ruleMaintenance && ruleMaintenance.byStatus ? Object.keys(ruleMaintenance.byStatus).sort().map((key) => key + ':' + ruleMaintenance.byStatus[key]).join('|') : '';
+  return ['insight', totals, latestPrice, latestRecommendation, latestIssue, latestLog, ruleState].join('|').slice(0, 500);
 }
 
 async function getCachedAiReport(env, cacheKey) {
