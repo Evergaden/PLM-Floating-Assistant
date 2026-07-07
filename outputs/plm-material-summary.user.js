@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.192
+// @version      2.3.193
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.192';
+  const SCRIPT_VERSION = '2.3.193';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1809,7 +1809,21 @@
     const blockers = Array.isArray(data.blockers) && data.blockers.length
       ? '<p class="pfh-readiness-blockers">' + escapeHtml(data.blockers.map((item) => (item.label || item.key || '') + '\uff1a' + (item.detail || '')).join(' / ')) + '</p>'
       : '';
-    return '<div class="pfh-readiness-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u94fe\u8def\u4f53\u68c0</strong><span>' + escapeHtml(summary) + '</span></div>' + rows + blockers + '</div>';
+    const ruleSummary = renderRuleMaintenanceSummary(data.ruleMaintenance);
+    return '<div class="pfh-readiness-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u94fe\u8def\u4f53\u68c0</strong><span>' + escapeHtml(summary) + '</span></div>' + rows + blockers + ruleSummary + '</div>';
+  }
+
+  function renderRuleMaintenanceSummary(ruleMaintenance) {
+    if (!ruleMaintenance || !ruleMaintenance.total) return '';
+    const topRules = Array.isArray(ruleMaintenance.topRules) ? ruleMaintenance.topRules : [];
+    const status = ruleMaintenance.byStatus && typeof ruleMaintenance.byStatus === 'object'
+      ? Object.keys(ruleMaintenance.byStatus).map((key) => key + ' ' + ruleMaintenance.byStatus[key]).join(' / ')
+      : '';
+    const rows = topRules.length ? topRules.map((rule) => {
+      const detail = [rule.priority, rule.status, rule.action, rule.examples ? '例：' + rule.examples : ''].filter(Boolean).join(' / ');
+      return '<div class="pfh-rule-mini"><b>' + escapeHtml(rule.field || rule.ruleId || '') + '</b><small>' + escapeHtml(detail) + '</small></div>';
+    }).join('') : '';
+    return '<div class="pfh-rule-maintenance-summary"><strong>\u89c4\u5219\u7ef4\u62a4\u6458\u8981</strong><span>' + escapeHtml(status || ('\u603b\u6570 ' + ruleMaintenance.total)) + '</span>' + rows + '</div>';
   }
 
   function renderMaintainedCleaningRules() {
@@ -11188,6 +11202,41 @@
         font-size: 12px;
         line-height: 1.45;
         overflow-wrap: anywhere;
+      }
+      #${PANEL_ID} .pfh-rule-maintenance-summary {
+        display: grid;
+        gap: 6px;
+        margin-top: 2px;
+        padding: 9px;
+        border: 1px solid rgba(211,204,255,.40);
+        border-radius: 12px;
+        background: rgba(255,255,255,.62);
+      }
+      #${PANEL_ID} .pfh-rule-maintenance-summary > strong {
+        color: #312e81;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-rule-maintenance-summary > span {
+        color: #667085;
+        font-size: 12px;
+      }
+      #${PANEL_ID} .pfh-rule-mini {
+        display: grid;
+        gap: 2px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        background: rgba(248,250,252,.82);
+      }
+      #${PANEL_ID} .pfh-rule-mini b {
+        color: #1f2937;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      #${PANEL_ID} .pfh-rule-mini small {
+        color: #667085;
+        font-size: 11px;
+        line-height: 1.35;
       }
       #${PANEL_ID} .pfh-rule-list {
         display: grid;

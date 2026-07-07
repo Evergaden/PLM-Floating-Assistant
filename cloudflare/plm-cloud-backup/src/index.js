@@ -943,6 +943,7 @@ async function handleInsightReadiness(request, env) {
   });
   const recommendationProbe = await probeRecommendationEngine(env, summary);
   const feishuStatus = await getFeishuConfigStatus(env);
+  const ruleMaintenance = summarizeRuleMaintenance(summary.rulePackage);
   const checks = [
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
     { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
@@ -950,7 +951,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'recommendationEngine', ok: recommendationProbe.ok, label: '智能补全推荐引擎', detail: recommendationProbe.detail },
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
-    { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: String(summary.rulePackage && summary.rulePackage.rules ? summary.rulePackage.rules.length : 0) },
+    { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: formatRuleMaintenanceSummary(ruleMaintenance) },
     { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'glm-4-flash') : 'ZHIPU_API_KEY missing' },
     { key: 'feishu', ok: feishuStatus.configured, label: '飞书直写配置', detail: getFeishuStatusDetail(feishuStatus) },
   ];
@@ -967,9 +968,56 @@ async function handleInsightReadiness(request, env) {
     totals,
     recommendationProbe,
     feishuStatus,
+    ruleMaintenance,
     logDiagnostics: summary.logDiagnostics,
     generatedAt: new Date().toISOString(),
   });
+}
+
+function summarizeRuleMaintenance(rulePackage) {
+  const rules = rulePackage && Array.isArray(rulePackage.rules) ? rulePackage.rules : [];
+  const byStatus = {};
+  const byAction = {};
+  const byPriority = {};
+  rules.forEach((rule) => {
+    const status = rule.maintenanceStatus || rule.computedMaintenanceStatus || '待复核';
+    const action = rule.actionLabel || rule.actionCode || '未分类';
+    const priority = rule.priority || 'P3';
+    byStatus[status] = (byStatus[status] || 0) + 1;
+    byAction[action] = (byAction[action] || 0) + 1;
+    byPriority[priority] = (byPriority[priority] || 0) + 1;
+  });
+  const topRules = rules
+    .filter((rule) => rule.maintenanceStatus !== '已处理' && rule.maintenanceStatus !== '忽略')
+    .slice(0, 5)
+    .map((rule) => ({
+      ruleId: rule.ruleId || '',
+      field: rule.missingField || '',
+      priority: rule.priority || '',
+      status: rule.maintenanceStatus || '',
+      action: rule.actionLabel || '',
+      count: rule.count || 0,
+      examples: formatRuleExampleSkus(rule),
+    }));
+  return {
+    total: rules.length,
+    actionable: rules.filter((rule) => rule.maintenanceStatus === '需处理').length,
+    likelyPlmEmpty: rules.filter((rule) => rule.likelyPlmEmpty).length,
+    byStatus,
+    byAction,
+    byPriority,
+    topRules,
+  };
+}
+
+function formatRuleMaintenanceSummary(summary) {
+  if (!summary || !summary.total) return '0';
+  const parts = ['总数 ' + summary.total];
+  if (summary.byStatus && Object.keys(summary.byStatus).length) {
+    parts.push(Object.keys(summary.byStatus).map((key) => key + ' ' + summary.byStatus[key]).join(' / '));
+  }
+  if (summary.likelyPlmEmpty) parts.push('可能PLM空值 ' + summary.likelyPlmEmpty);
+  return parts.join('；');
 }
 
 async function probeRecommendationEngine(env, summary) {
