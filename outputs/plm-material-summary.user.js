@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.1
+// @version      2.4.2
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.1';
+  const SCRIPT_VERSION = '2.4.2';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1318,7 +1318,7 @@
       widths: spec.widths.slice(),
       printSizeText: formatTubeSpecPrintSize(spec),
       segmentText: spec.widths.map(formatCmSegment).join('-') + 'cm',
-      tailSealText: trimNumber(tailSeal) + 'cm',
+      tailSealText: formatSingleDimension(tailSeal),
     };
   }
 
@@ -1558,8 +1558,13 @@
 
   function formatDimensionPart(nums, index) {
     if (!Array.isArray(nums) || !Number.isFinite(nums[index])) return '';
-    const cm = trimNumber(nums[index]);
-    const inch = trimNumber(nums[index] * CM_TO_INCH);
+    return formatSingleDimension(nums[index]);
+  }
+
+  function formatSingleDimension(value) {
+    if (!Number.isFinite(Number(value))) return '';
+    const cm = trimNumber(Number(value));
+    const inch = trimNumber(Number(value) * CM_TO_INCH);
     return cm + 'cm/' + inch + 'inch';
   }
 
@@ -12043,6 +12048,18 @@
       #${PANEL_ID} .pfh-settings-page .pfh-readiness-row {
         border-radius: 10px !important;
         background: rgba(248,250,252,.68) !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions {
+        align-self: stretch !important;
+        align-items: flex-end !important;
+        padding-top: 8px !important;
+        box-sizing: border-box !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions button {
+        transform: translateY(3px) !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions button:hover {
+        transform: translateY(1px) !important;
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
