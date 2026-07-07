@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.189
+// @version      2.3.190
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.189';
+  const SCRIPT_VERSION = '2.3.190';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6764,25 +6764,35 @@
 
   function syncImportantLog(item, detail) {
     const level = String(item && item.level || '').toLowerCase();
-    if (!/^(warn|error)$/.test(level)) return;
+    if (!/^(success|warn|error)$/.test(level)) return;
     const message = String(item && item.message || '');
-    if (!message || /\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25|\u4e91\u5907\u4efd/.test(message)) return;
+    if (!message || shouldSkipCloudLogSync(level, message)) return;
     const now = Date.now();
     const key = [level, message.slice(0, 180)].join('|');
     state.logSyncDedup = state.logSyncDedup || {};
     if (state.logSyncDedup[key] && now - state.logSyncDedup[key] < 5 * 60 * 1000) return;
     state.logSyncDedup[key] = now;
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null) || {};
+    const logSku = findSku([message, detail].filter(Boolean).join(' '));
     syncInsightEvent('log', {
-      sku: data.sku || state.selectedSku || state.sku || '',
-      brand: data.brand || '',
-      name: data.name || '',
+      sku: logSku || data.sku || state.selectedSku || state.sku || '',
+      brand: logSku && logSku !== data.sku ? '' : (data.brand || ''),
+      name: logSku && logSku !== data.sku ? '' : (data.name || ''),
       level,
       message,
       detail: String(detail || '').slice(0, 600),
       url: location.href,
       source: 'plm-helper-log',
     });
+  }
+
+  function shouldSkipCloudLogSync(level, message) {
+    const text = String(message || '');
+    if (/\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25|\u4e91\u5907\u4efd/.test(text)) return true;
+    if (level === 'success' && !/(\u63d0\u5ba1|\u4e0a\u4f20|\u751f\u6210|Excel|\u6807\u7b7e|\u590d\u5236|AI|\u98de\u4e66|\u6e05\u6d17|\u667a\u80fd|\u4ef7\u683c|\u7c7b\u578b|\u6570\u636e|\u56fe\u7247)/i.test(text)) return true;
+    if (/^\u56fe\u7247\u4e0b\u8f7d\u6210\u529f/.test(text)) return true;
+    if (/^\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d/.test(text)) return true;
+    return false;
   }
 
   function emptyInsights() {
