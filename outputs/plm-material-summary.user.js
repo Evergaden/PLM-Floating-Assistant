@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.183
+// @version      2.3.184
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.183';
+  const SCRIPT_VERSION = '2.3.184';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5556,9 +5556,11 @@
     const price = recommendation && recommendation.recommendedPrice ? String(recommendation.recommendedPrice) : '';
     if (!price) return false;
     const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, effectiveProductType);
+    const confidenceText = recommendation.priceConfidence || recommendation.recommendationConfidence || '';
+    const priceStatsText = formatRecommendationPriceStats(recommendation.priceStats);
     state.excelPurchasePrice = price;
-    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (effectiveProductType ? ' / ' + effectiveProductType : '') + (recommendation.source ? ' / ' + recommendation.source : '') + (reason ? ' / ' + reason : '');
-    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + effectiveProductType + ' ' + price + (reason ? ' / ' + reason : ''));
+    state.excelStatus = '\u63a8\u8350\u4ef7\u683c: ' + price + (effectiveProductType ? ' / ' + effectiveProductType : '') + (confidenceText ? ' / \u7f6e\u4fe1\u5ea6' + confidenceText : '') + (recommendation.source ? ' / ' + recommendation.source : '') + (reason ? ' / ' + reason : '');
+    addLog('success', '\u5df2\u667a\u80fd\u8865\u5168\u91c7\u8d2d\u4ef7\u683c', (data && data.sku || '') + ' ' + effectiveProductType + ' ' + price + (confidenceText ? ' / \u7f6e\u4fe1\u5ea6' + confidenceText : '') + (priceStatsText ? ' / ' + priceStatsText : '') + (reason ? ' / ' + reason : ''));
     syncInsightEvent('recommendation', {
       sku: data && data.sku || '',
       brand: data && data.brand || '',
@@ -5574,8 +5576,16 @@
       typeSampleCount: recommendation.typeSampleCount || '',
       recommendedProductType: recommendation.recommendedProductType || '',
       effectiveProductType,
+      priceConfidence: confidenceText,
+      recommendationConfidence: confidenceText,
+      priceStats: recommendation.priceStats || null,
     });
     return true;
+  }
+
+  function formatRecommendationPriceStats(stats) {
+    if (!stats || !stats.count) return '';
+    return '\u6837\u672c' + stats.count + ' / \u4e2d\u4f4d' + stats.median + ' / \u5747\u4ef7' + stats.avg + ' / \u533a\u95f4' + stats.min + '-' + stats.max;
   }
 
   function buildLocalRecommendationReason(recommendation, productType) {

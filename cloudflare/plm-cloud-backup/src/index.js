@@ -451,6 +451,8 @@ function normalizeRecentRecommendations(rows) {
       product_type_source: cleanText(payload.productTypeSource, 80),
       product_type_score: cleanText(payload.productTypeScore, 40),
       sample_count: cleanText(payload.typeSampleCount, 40),
+      confidence: cleanText(payload.priceConfidence || payload.recommendationConfidence, 40),
+      price_stats: cleanText(formatPriceStats(payload.priceStats), 160),
       created_at: row.created_at || '',
     };
   }).filter((item) => item.sku || item.recommended_price || item.reason);
@@ -604,8 +606,8 @@ async function handleInsightReport(request, env) {
     ...tableLines(summary.recentPrices, ['sku', 'brand', 'name', 'product_type', 'price', 'pack_qty', 'package_size', 'product_size', 'created_at']),
     '',
     '三-补全推荐记录',
-    'SKU\t品牌\t商品名\t类型\t推荐价格\t推荐装箱数\t来源\t原因\t类型来源\t样本数\t时间',
-    ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'reason', 'product_type_source', 'sample_count', 'created_at']),
+    'SKU\t品牌\t商品名\t类型\t推荐价格\t推荐装箱数\t来源\t置信度\t价格统计\t原因\t类型来源\t样本数\t时间',
+    ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'confidence', 'price_stats', 'reason', 'product_type_source', 'sample_count', 'created_at']),
     '',
     '四、最近字段异常',
     'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
@@ -656,9 +658,9 @@ async function handleInsightFeishuTsv(request, env) {
     ),
     tsvSection(
       '补全推荐记录',
-      ['SKU', '品牌', '商品名', '商品类型', '推荐价格', '推荐装箱数', '来源', '原因', '类型来源', '样本数', '记录时间'],
+      ['SKU', '品牌', '商品名', '商品类型', '推荐价格', '推荐装箱数', '来源', '置信度', '价格统计', '原因', '类型来源', '样本数', '记录时间'],
       summary.recentRecommendations,
-      ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'reason', 'product_type_source', 'sample_count', 'created_at']
+      ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'confidence', 'price_stats', 'reason', 'product_type_source', 'sample_count', 'created_at']
     ),
     tsvSection(
       '字段异常',
@@ -775,6 +777,8 @@ function buildCompactAiInsightSummary(summary) {
       type: item.product_type || '',
       price: item.recommended_price || '',
       source: item.source || '',
+      confidence: item.confidence || '',
+      priceStats: item.price_stats || '',
       reason: cleanText(item.reason, 160),
     })),
     issues: (summary.recentIssues || []).slice(0, 10),
@@ -857,8 +861,8 @@ async function buildInsightAiReportPayload(env, summary) {
       ...tableLines(summary.productTypes, ['product_type', 'count', 'latest_at']),
       '',
       '补全推荐记录',
-      'SKU\t品牌\t商品名\t类型\t推荐价格\t推荐装箱数\t来源\t原因\t类型来源\t样本数\t时间',
-      ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'reason', 'product_type_source', 'sample_count', 'created_at']),
+      'SKU\t品牌\t商品名\t类型\t推荐价格\t推荐装箱数\t来源\t置信度\t价格统计\t原因\t类型来源\t样本数\t时间',
+      ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'confidence', 'price_stats', 'reason', 'product_type_source', 'sample_count', 'created_at']),
       '',
       '最近字段异常',
       'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
@@ -975,6 +979,35 @@ function summarizePriceSamples(rows) {
   })).filter((row) => row.price > 0);
 }
 
+function buildPriceStats(rows) {
+  const values = (rows || []).map((row) => normalizePrice(row.price)).filter(Boolean).sort((a, b) => a - b);
+  if (!values.length) {
+    return { count: 0, min: 0, max: 0, avg: 0, median: 0, spreadRatio: 0 };
+  }
+  const mid = Math.floor(values.length / 2);
+  const median = values.length % 2 ? values[mid] : Number(((values[mid - 1] + values[mid]) / 2).toFixed(2));
+  const avg = Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2));
+  const min = values[0];
+  const max = values[values.length - 1];
+  const spreadRatio = avg ? Number(((max - min) / avg).toFixed(3)) : 0;
+  return { count: values.length, min, max, avg, median, spreadRatio };
+}
+
+function formatPriceStats(stats) {
+  if (!stats || !stats.count) return '';
+  return '样本' + stats.count + ' / 中位' + stats.median + ' / 均价' + stats.avg + ' / 区间' + stats.min + '-' + stats.max;
+}
+
+function buildRecommendationConfidence(source, stats, skuPrice) {
+  if (skuPrice) return 96;
+  if (!stats || !stats.count) return 0;
+  let score = source === 'same-type-median' || source === 'same-type-latest' ? 72 : 58;
+  score += Math.min(18, stats.count * 2);
+  if (stats.spreadRatio <= 0.15) score += 8;
+  else if (stats.spreadRatio >= 0.5) score -= 12;
+  return Math.max(20, Math.min(92, Math.round(score)));
+}
+
 function buildRecommendationReason(payload) {
   if (!payload || !payload.recommendedPrice) return '暂无可用历史价格样本';
   if (payload.source === 'same-sku') {
@@ -983,11 +1016,17 @@ function buildRecommendationReason(payload) {
   if (payload.source === 'same-type-latest') {
     return '使用商品类型“' + (payload.effectiveProductType || payload.productType || '未分类') + '”最近样本价格 ' + payload.recommendedPrice + '，样本数 ' + (payload.typeSampleCount || 0);
   }
+  if (payload.source === 'same-type-median') {
+    return '使用商品类型“' + (payload.effectiveProductType || payload.productType || '未分类') + '”历史中位价 ' + payload.recommendedPrice + '，' + formatPriceStats(payload.priceStats);
+  }
   if (payload.source === 'same-type-average') {
     return '使用商品类型“' + (payload.effectiveProductType || payload.productType || '未分类') + '”平均价格 ' + payload.recommendedPrice + '，样本数 ' + (payload.typeSampleCount || 0);
   }
   if (payload.source === 'name-latest') {
     return '使用相似商品名最近样本价格 ' + payload.recommendedPrice + '，样本数 ' + (payload.typeSampleCount || 0);
+  }
+  if (payload.source === 'name-median') {
+    return '使用相似商品名历史中位价 ' + payload.recommendedPrice + '，' + formatPriceStats(payload.priceStats);
   }
   return '使用历史样本价格 ' + payload.recommendedPrice;
 }
@@ -1134,11 +1173,16 @@ async function buildInsightRecommendation(env, params) {
   }
 
   const prices = (typeRows.results || []).map((row) => normalizePrice(row.price)).filter(Boolean);
+  const priceStats = buildPriceStats(typeRows.results || []);
   const avgPrice = prices.length ? Number((prices.reduce((sum, value) => sum + value, 0) / prices.length).toFixed(2)) : 0;
   const latestTypePrice = prices.length ? prices[0] : 0;
   const skuPrice = latestSkuPrice ? normalizePrice(latestSkuPrice.price) : 0;
-  const recommendedPrice = skuPrice || latestTypePrice || avgPrice || 0;
-  const source = skuPrice ? 'same-sku' : (latestTypePrice ? (priceMatchMode === 'name' ? 'name-latest' : 'same-type-latest') : (avgPrice ? 'same-type-average' : 'none'));
+  const medianTypePrice = priceStats.count >= 3 ? priceStats.median : 0;
+  const recommendedPrice = skuPrice || medianTypePrice || latestTypePrice || avgPrice || 0;
+  const source = skuPrice
+    ? 'same-sku'
+    : (medianTypePrice ? (priceMatchMode === 'name' ? 'name-median' : 'same-type-median') : (latestTypePrice ? (priceMatchMode === 'name' ? 'name-latest' : 'same-type-latest') : (avgPrice ? 'same-type-average' : 'none')));
+  const recommendationConfidence = buildRecommendationConfidence(source, priceStats, skuPrice);
   const priceSamples = summarizePriceSamples(typeRows.results || []);
   const reasonPayload = {
     recommendedPrice,
@@ -1146,6 +1190,7 @@ async function buildInsightRecommendation(env, params) {
     effectiveProductType,
     productType,
     typeSampleCount: prices.length,
+    priceStats,
   };
 
   return {
@@ -1157,11 +1202,15 @@ async function buildInsightRecommendation(env, params) {
     recommendedPrice,
     source,
     recommendationReason: buildRecommendationReason(reasonPayload),
+    recommendationConfidence,
+    priceConfidence: recommendationConfidence,
     ...typeSuggestion,
     latestSkuPrice,
     typeSampleCount: prices.length,
     avgTypePrice: avgPrice,
     latestTypePrice,
+    medianTypePrice,
+    priceStats,
     priceSamples,
     typeSamples: (typeRows.results || []).slice(0, 10),
   };
@@ -1688,7 +1737,7 @@ function buildFeishuRecords(summary, aiPayload) {
         '装箱数': item.recommended_pack_qty || '',
         '包装尺寸': '',
         '产品尺寸': '',
-        '缺失字段': [item.reason || '', item.product_type_source ? '类型来源：' + item.product_type_source : '', item.sample_count ? '样本数：' + item.sample_count : ''].filter(Boolean).join(' / '),
+        '缺失字段': [item.reason || '', item.confidence ? '置信度：' + item.confidence : '', item.price_stats || '', item.product_type_source ? '类型来源：' + item.product_type_source : '', item.sample_count ? '样本数：' + item.sample_count : ''].filter(Boolean).join(' / '),
         '来源': item.source || 'recommendation',
         '记录时间': item.created_at || '',
       },
