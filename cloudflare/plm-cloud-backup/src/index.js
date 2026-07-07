@@ -730,6 +730,120 @@ async function handleInsightFeishuTsv(request, env) {
   });
 }
 
+async function buildInsightTablePayload(env) {
+  const summary = await buildInsightSummary(env);
+  const aiPayload = await buildInsightAiReportPayload(env, summary);
+  const records = buildFeishuRecords(summary, aiPayload);
+  const fields = getFeishuRequiredFields();
+  return {
+    summary,
+    aiPayload,
+    records,
+    fields,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+async function handleInsightTable(request, env) {
+  if (!requireApiKeyFromHeaderOrQuery(request, env)) return htmlResponse(renderAccessDeniedPage(), 401);
+  const payload = await buildInsightTablePayload(env);
+  return htmlResponse(renderInsightTablePage(payload, request));
+}
+
+async function handleInsightTableCsv(request, env) {
+  if (!requireApiKeyFromHeaderOrQuery(request, env)) {
+    return new Response('unauthorized', { status: 401, headers: { ...CORS_HEADERS, 'content-type': 'text/plain; charset=utf-8' } });
+  }
+  const payload = await buildInsightTablePayload(env);
+  return new Response(recordsToCsv(payload.records, payload.fields), {
+    headers: {
+      ...CORS_HEADERS,
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': 'attachment; filename="plm-insights-' + new Date().toISOString().slice(0, 10) + '.csv"',
+    },
+  });
+}
+
+function requireApiKeyFromHeaderOrQuery(request, env) {
+  if (!env.API_KEY) return true;
+  const url = new URL(request.url);
+  return request.headers.get('x-api-key') === env.API_KEY || url.searchParams.get('key') === env.API_KEY;
+}
+
+function htmlResponse(html, status = 200) {
+  return new Response(html, {
+    status,
+    headers: {
+      ...CORS_HEADERS,
+      'content-type': 'text/html; charset=utf-8',
+    },
+  });
+}
+
+function htmlEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function csvEscape(value) {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+
+function recordsToCsv(records, fields) {
+  const rows = [fields.map(csvEscape).join(',')];
+  (records || []).forEach((record) => {
+    rows.push(fields.map((field) => csvEscape(record.fields && record.fields[field] !== undefined ? record.fields[field] : '')).join(','));
+  });
+  return '\ufeff' + rows.join('\n');
+}
+
+function renderAccessDeniedPage() {
+  return '<!doctype html><meta charset="utf-8"><title>Unauthorized</title><body style="font-family:system-ui;padding:32px"><h1>Unauthorized</h1><p>URL needs ?key=your-api-key.</p></body>';
+}
+
+function renderInsightTablePage(payload, request) {
+  const fields = payload.fields || [];
+  const records = payload.records || [];
+  const byType = summarizeFeishuRecords(records);
+  const typeBadges = Object.keys(byType).map((type) => '<span>' + htmlEscape(type) + ' ' + htmlEscape(byType[type]) + '</span>').join('');
+  const rows = records.map((record) => {
+    const type = record.recordType || '';
+    const cells = fields.map((field) => '<td>' + htmlEscape(record.fields && record.fields[field] !== undefined ? record.fields[field] : '') + '</td>').join('');
+    return '<tr data-type="' + htmlEscape(type) + '">' + cells + '</tr>';
+  }).join('');
+  const header = fields.map((field) => '<th>' + htmlEscape(field) + '</th>').join('');
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>PLM Insights Table</title>' +
+    '<style>' +
+    ':root{color-scheme:light;--bg:#f6f7fb;--card:rgba(255,255,255,.86);--line:#e4e8f3;--text:#172033;--muted:#7b8498;--accent:#6d5dfc}' +
+    '*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#f7f8ff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}' +
+    '.wrap{padding:24px;max-width:1480px;margin:0 auto}.head{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}' +
+    'h1{margin:0;font-size:22px;font-weight:650}.sub{margin-top:6px;color:var(--muted);font-size:13px}.actions{display:flex;gap:8px;align-items:center}' +
+    'input,select,a.btn{height:34px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;color:var(--text);font-size:13px;text-decoration:none}' +
+    'a.btn{display:inline-flex;align-items:center;background:var(--accent);border-color:var(--accent);color:#fff}.badges{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}' +
+    '.badges span{padding:5px 9px;border:1px solid rgba(109,93,252,.16);border-radius:999px;background:rgba(255,255,255,.62);color:#615b75;font-size:12px}' +
+    '.tablebox{height:calc(100vh - 150px);overflow:auto;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:0 18px 60px rgba(65,75,110,.10)}' +
+    'table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}th{position:sticky;top:0;z-index:2;background:rgba(250,251,255,.96);color:#5f687d;text-align:left;font-weight:600;border-bottom:1px solid var(--line)}' +
+    'th,td{padding:9px 10px;border-right:1px solid #edf0f7;border-bottom:1px solid #edf0f7;vertical-align:top;min-width:120px;max-width:360px}' +
+    'td{white-space:pre-wrap;line-height:1.35}tr:hover td{background:#fafaff}.empty{padding:32px;color:var(--muted)}' +
+    '</style></head><body><div class="wrap">' +
+    '<div class="head"><div><h1>PLM Insights Table</h1><div class="sub">Records ' + htmlEscape(records.length) + ' / Generated ' + htmlEscape(payload.generatedAt || '') + '</div></div>' +
+    '<div class="actions"><input id="q" placeholder="Search SKU / name / rule"><select id="type"><option value="">All types</option>' + Object.keys(byType).map((type) => '<option value="' + htmlEscape(type) + '">' + htmlEscape(type) + '</option>').join('') + '</select><a class="btn" href="/insights/table.csv' + htmlEscape(getCurrentKeyQuerySuffix(request)) + '">Download CSV</a></div></div>' +
+    '<div class="badges">' + typeBadges + '</div><div class="tablebox">' + (records.length ? '<table id="t"><thead><tr>' + header + '</tr></thead><tbody>' + rows + '</tbody></table>' : '<div class="empty">No records yet.</div>') + '</div></div>' +
+    '<script>const q=document.getElementById("q"),type=document.getElementById("type"),rows=[...document.querySelectorAll("tbody tr")];function f(){const s=(q.value||"").toLowerCase(),tp=type.value;rows.forEach(r=>{const okType=!tp||r.dataset.type===tp;const okText=!s||r.innerText.toLowerCase().includes(s);r.style.display=okType&&okText?"":"none"})}q&&q.addEventListener("input",f);type&&type.addEventListener("change",f);</script>' +
+    '</body></html>';
+}
+
+function getCurrentKeyQuerySuffix(request) {
+  const key = new URL(request.url).searchParams.get('key') || '';
+  return key ? '?key=' + encodeURIComponent(key) : '';
+}
+
 async function callZhipuInsightReporter(env, summary) {
   const apiKey = env.ZHIPU_API_KEY;
   if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
@@ -2225,6 +2339,8 @@ export default {
     if (url.pathname === '/insights/ai-status' && request.method === 'GET') return handleInsightAiStatus(request, env);
     if (url.pathname === '/insights/readiness' && request.method === 'GET') return handleInsightReadiness(request, env);
     if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
+    if (url.pathname === '/insights/table' && request.method === 'GET') return handleInsightTable(request, env);
+    if (url.pathname === '/insights/table.csv' && request.method === 'GET') return handleInsightTableCsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
     if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
