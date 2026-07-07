@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.184
+// @version      2.3.185
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.184';
+  const SCRIPT_VERSION = '2.3.185';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6958,14 +6958,16 @@
     const materialFields = ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'];
     const productFields = ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'];
     const designFields = ['SKU\u56fe'];
+    const projectFields = ['\u54c1\u724c', '\u5546\u54c1\u540d\u79f0'];
     const missingMaterial = missing.some((field) => materialFields.includes(field));
     const missingProduct = missing.some((field) => productFields.includes(field));
     const missingDesign = missing.some((field) => designFields.includes(field));
+    const missingProject = missing.some((field) => projectFields.includes(field));
     const targetTabUnread = (missingMaterial && !data.seenMaterial) || (missingProduct && !data.seenProduct) || (missingDesign && !data.seenDesign);
     let kind = '\u53ef\u80fd PLM \u7a7a\u503c';
     if (targetTabUnread || !readTabs.length) {
       kind = '\u9875\u9762\u672a\u8bfb\u5b8c';
-    } else if ((missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || (missingDesign && data.seenDesign) || allCoreTabsRead) {
+    } else if (missingProject || (missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || (missingDesign && data.seenDesign) || allCoreTabsRead) {
       kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
     }
     const diagnosticAttempt = sanitizeMissingDiagnostic(data.lastMissingDiagnostic);
@@ -6980,9 +6982,11 @@
 
   function buildFieldDiagnostic(data, field, diagnosticAttempt) {
     const targetTab = getMissingFieldTargetTab(field);
-    const tabRead = targetTab === '\u7269\u6599\u6e05\u5355'
+    const tabRead = targetTab === '\u9879\u76ee\u8be6\u60c5'
+      ? Boolean(data.sku)
+      : (targetTab === '\u7269\u6599\u6e05\u5355'
       ? Boolean(data.seenMaterial)
-      : (targetTab === '\u4ea7\u54c1\u4fe1\u606f' ? Boolean(data.seenProduct) : (targetTab === '\u8bbe\u8ba1\u8d44\u6599' ? Boolean(data.seenDesign) : false));
+      : (targetTab === '\u4ea7\u54c1\u4fe1\u606f' ? Boolean(data.seenProduct) : (targetTab === '\u8bbe\u8ba1\u8d44\u6599' ? Boolean(data.seenDesign) : false)));
     const issueKind = tabRead ? '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790' : '\u9875\u9762\u672a\u8bfb\u5b8c';
     const retryText = formatFieldRetryAction(field, diagnosticAttempt);
     return {
@@ -6992,7 +6996,7 @@
       issueKind,
       action: (tabRead
         ? '\u8865\u5145\u201c' + field + '\u201d\u7684\u9009\u62e9\u5668\u6216\u89e3\u6790\u89c4\u5219'
-        : '\u5148\u68c0\u67e5\u201c' + targetTab + '\u201d\u9875\u7b7e\u662f\u5426\u6210\u529f\u6253\u5f00\u5e76\u52a0\u8f7d') + retryText,
+        : '\u5148\u68c0\u67e5\u201c' + (targetTab || '\u5bf9\u5e94') + '\u201d\u533a\u57df\u662f\u5426\u6210\u529f\u6253\u5f00\u5e76\u52a0\u8f7d') + retryText,
     };
   }
 
@@ -7028,7 +7032,8 @@
 
   function getMissingFieldTargetTab(field) {
     if (field === '\u5305\u88c5\u5c3a\u5bf8' || field === '\u5370\u5237\u5c3a\u5bf8' || field === '\u51c0\u542b\u91cf') return '\u7269\u6599\u6e05\u5355';
-    if (field === '\u4ea7\u54c1\u5c3a\u5bf8' || field === '\u6bdb\u91cd' || field === '\u54c1\u724c' || field === '\u5546\u54c1\u540d\u79f0') return '\u4ea7\u54c1\u4fe1\u606f';
+    if (field === '\u54c1\u724c' || field === '\u5546\u54c1\u540d\u79f0') return '\u9879\u76ee\u8be6\u60c5';
+    if (field === '\u4ea7\u54c1\u5c3a\u5bf8' || field === '\u6bdb\u91cd') return '\u4ea7\u54c1\u4fe1\u606f';
     if (field === 'SKU\u56fe') return '\u8bbe\u8ba1\u8d44\u6599';
     return '';
   }

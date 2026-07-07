@@ -1362,8 +1362,9 @@ function normalizeFieldDiagnostics(payload, row) {
 
 function classifyRuleMaintenance(candidate) {
   const issueKinds = candidate.issueKinds || [];
+  const targetTabs = candidate.targetTabs || [];
   const pageParsedButEmpty = issueKinds.includes('\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790');
-  const pageNotReady = issueKinds.includes('\u9875\u9762\u672a\u8bfb\u5b8c');
+  const pageNotReady = issueKinds.includes('\u9875\u9762\u672a\u8bfb\u5b8c') && !targetTabs.includes('\u9879\u76ee\u8be6\u60c5');
   const likelyPlmEmpty = issueKinds.includes('\u53ef\u80fd PLM \u7a7a\u503c') && !pageParsedButEmpty && !pageNotReady;
   if (pageParsedButEmpty) {
     return {
