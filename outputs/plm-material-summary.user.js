@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.0
+// @version      2.4.1
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.0';
+  const SCRIPT_VERSION = '2.4.1';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1935,22 +1935,21 @@
 
   function renderAbout(panel) {
     const detail = panel.querySelector('.pfh-detail');
-    detail.innerHTML = [
-      '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section"><h3>' + escapeHtml(L.settingsTitle) + '</h3>',
-      rowHtml('aboutPluginName', L.pluginName, L.title, { noCopy: true }),
-      rowHtml('aboutVersion', L.version, 'v' + SCRIPT_VERSION, { noCopy: true }),
-      rowHtml('aboutCachedCount', L.cachedCount, String(state.index.length), { noCopy: true }),
+    const cloudBody = '<label class="pfh-cloud-key"><span>' + escapeHtml(L.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label>' +
+      '<div class="pfh-about-actions"><button type="button" data-action="cloud-backup-save">' + escapeHtml(L.cloudBackupSave) + '</button><button type="button" data-action="cloud-backup-restore">' + escapeHtml(L.cloudBackupRestore) + '</button><span class="pfh-cloud-status">' + escapeHtml(getCloudBackupStatusText()) + '</span></div>';
+    const preferenceBody = [
       '<div class="pfh-setting-row"><span>' + escapeHtml(L.excelKeywordSetting) + '</span><label><input type="radio" name="pfh-keyword-mode" value="brandName"' + (state.settings.excelKeywordMode === 'brandName' ? ' checked' : '') + '> ' + escapeHtml(L.excelKeywordBrandName) + '</label><label><input type="radio" name="pfh-keyword-mode" value="english"' + (state.settings.excelKeywordMode === 'english' ? ' checked' : '') + '> ' + escapeHtml(L.excelKeywordEnglish) + '</label></div>',
       '<div class="pfh-setting-row"><span>' + escapeHtml(L.excelDownloadSetting) + '</span><label><input type="radio" name="pfh-download-mode" value="picker"' + (state.settings.excelDownloadMode === 'picker' ? ' checked' : '') + '> ' + escapeHtml(L.excelDownloadPicker) + '</label><label><input type="radio" name="pfh-download-mode" value="direct"' + (state.settings.excelDownloadMode === 'direct' ? ' checked' : '') + '> ' + escapeHtml(L.excelDownloadDirect) + '</label></div>',
-      '<div class="pfh-cloud-backup"><h4>' + escapeHtml(L.cloudBackupTitle) + '</h4><label class="pfh-cloud-key"><span>' + escapeHtml(L.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label><p>' + escapeHtml(L.cloudBackupHint) + '</p><div class="pfh-about-actions"><button type="button" data-action="cloud-backup-save">' + escapeHtml(L.cloudBackupSave) + '</button><button type="button" data-action="cloud-backup-restore">' + escapeHtml(L.cloudBackupRestore) + '</button><span class="pfh-cloud-status">' + escapeHtml(getCloudBackupStatusText()) + '</span></div></div>',
-      '<div class="pfh-about-note pfh-warning-note">' + iconHtml('warning') + '<div><strong>' + escapeHtml(L.backgroundAutomationTitle) + '</strong><p>' + escapeHtml(L.backgroundAutomationText) + '</p></div></div>',
-      '<div class="pfh-easter-egg">' + escapeHtml(L.easterEgg) + '</div>',
-      '<div class="pfh-about-note"><strong>' + escapeHtml(L.storageNote) + '</strong><p>' + escapeHtml(L.storageNoteText) + '</p></div>',
-      '<div class="pfh-about-note pfh-manual-note"><strong>' + escapeHtml(L.tutorialText) + '</strong><p>' + escapeHtml(getTutorialPlainText()) + '</p></div>',
-      '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>',
-      '<div class="pfh-about-actions"><button type="button" data-action="tutorial-open">' + escapeHtml(L.tutorialOpen) + '</button></div>',
+    ].join('');
+    const cacheBody = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>';
+    detail.innerHTML = [
+      '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
+      '<div class="pfh-settings-hero"><div><h3>' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
+      '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + escapeHtml(L.cloudBackupTitle) + '</strong><span>\u4f18\u5148</span></div>' + cloudBody + '</div>',
       renderInsightsSection(),
       renderLogSection(),
+      '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u5bfc\u51fa\u504f\u597d</strong><span>Excel</span></div>' + preferenceBody + '</div>',
+      '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u672c\u5730\u7f13\u5b58</strong><span>\u5907\u4efd\u8fc1\u79fb</span></div>' + cacheBody + '</div>',
       '</section></div>',
     ].join('');
   }
@@ -1964,7 +1963,7 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-check-feishu">' + escapeHtml(L.insightsCheckFeishu) + '</button><button type="button" data-action="insights-copy-feishu-setup">' + escapeHtml(L.insightsCopyFeishuSetup) + '</button><button type="button" data-action="insights-sync-feishu">' + escapeHtml(L.insightsSyncFeishu) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="insights-copy-feishu">' + escapeHtml(L.insightsCopyFeishu) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderMaintainedCleaningRules() + '</div>';
   }
 
   function renderInsightReadinessPanel() {
@@ -11873,8 +11872,173 @@
         display: block !important;
         white-space: pre-line !important;
       }
+      #${PANEL_ID} .pfh-settings-page {
+        display: grid !important;
+        gap: 10px !important;
+        align-content: start !important;
+        padding: 14px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page > h3 {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-settings-hero {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        padding: 12px 14px !important;
+        border: 1px solid rgba(211, 204, 255, .34) !important;
+        border-radius: 14px !important;
+        background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(246,244,255,.70)) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
+      }
+      #${PANEL_ID} .pfh-settings-hero h3 {
+        margin: 0 !important;
+        color: #17153f !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+      }
+      #${PANEL_ID} .pfh-settings-hero p {
+        margin: 4px 0 0 !important;
+        color: #6b7897 !important;
+        font-size: 12px !important;
+        line-height: 1.35 !important;
+      }
+      #${PANEL_ID} .pfh-settings-hero span {
+        flex: 0 0 auto !important;
+        color: #7c6ecf !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-settings-card,
+      #${PANEL_ID} .pfh-settings-page > .pfh-log-panel {
+        margin: 0 !important;
+        padding: 12px !important;
+        border: 1px solid rgba(211, 204, 255, .32) !important;
+        border-radius: 14px !important;
+        background: rgba(255,255,255,.68) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+      }
+      #${PANEL_ID} .pfh-settings-card-head {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+        margin: 0 0 9px !important;
+      }
+      #${PANEL_ID} .pfh-settings-card-head strong,
+      #${PANEL_ID} .pfh-settings-page .pfh-log-head strong {
+        color: #17153f !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+      }
+      #${PANEL_ID} .pfh-settings-card-head span,
+      #${PANEL_ID} .pfh-settings-page .pfh-log-head span {
+        color: #7d86a8 !important;
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-about-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 7px !important;
+        margin: 8px 0 0 !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-about-actions button {
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(190, 199, 220, .82) !important;
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.76) !important;
+        color: #253047 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.90) !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-about-actions button:hover {
+        border-color: rgba(124, 58, 237, .28) !important;
+        box-shadow: 0 8px 18px rgba(124,58,237,.10), inset 0 1px 0 rgba(255,255,255,.92) !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-setting-row {
+        display: grid !important;
+        grid-template-columns: 86px minmax(0, max-content) minmax(0, max-content) !important;
+        gap: 7px !important;
+        align-items: center !important;
+        margin-top: 7px !important;
+        padding: 8px 9px !important;
+        border: 1px solid rgba(226, 232, 240, .82) !important;
+        border-radius: 12px !important;
+        background: rgba(255,255,255,.58) !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-setting-row > span {
+        min-width: 0 !important;
+        color: #6b7897 !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-setting-row label {
+        min-height: 26px !important;
+        padding: 0 9px !important;
+        border: 1px solid rgba(190, 199, 220, .78) !important;
+        border-radius: 9px !important;
+        background: rgba(255,255,255,.68) !important;
+        color: #4b5875 !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-setting-row label:has(input:checked) {
+        border-color: rgba(124, 58, 237, .28) !important;
+        background: rgba(244, 241, 255, .82) !important;
+        color: #5f35c8 !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-cloud-key {
+        grid-template-columns: 72px minmax(0, 1fr) !important;
+        gap: 8px !important;
+        color: #6b7897 !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-cloud-key input {
+        height: 30px !important;
+        border: 1px solid rgba(190, 199, 220, .86) !important;
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.80) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-cloud-backup p,
+      #${PANEL_ID} .pfh-settings-page .pfh-about-note,
+      #${PANEL_ID} .pfh-settings-page .pfh-easter-egg,
+      #${PANEL_ID} .pfh-settings-page .pfh-manual-note {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-cloud-status,
+      #${PANEL_ID} .pfh-settings-page .pfh-insight-status {
+        color: #6d35e8 !important;
+        font-size: 12px !important;
+        line-height: 1.35 !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-log-list {
+        max-height: 220px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-log-row {
+        grid-template-columns: 54px 48px minmax(0, 1fr) !important;
+        padding: 6px 7px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-readiness-panel,
+      #${PANEL_ID} .pfh-settings-page .pfh-rule-panel {
+        margin-top: 10px !important;
+      }
+      #${PANEL_ID} .pfh-settings-page .pfh-rule-row,
+      #${PANEL_ID} .pfh-settings-page .pfh-readiness-row {
+        border-radius: 10px !important;
+        background: rgba(248,250,252,.68) !important;
+      }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
+          grid-template-columns: 1fr !important;
+        }
+        #${PANEL_ID} .pfh-settings-page .pfh-setting-row {
           grid-template-columns: 1fr !important;
         }
         #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
