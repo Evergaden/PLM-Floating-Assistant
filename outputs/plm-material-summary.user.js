@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.195
+// @version      2.3.196
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.195';
+  const SCRIPT_VERSION = '2.3.196';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1981,9 +1981,11 @@
     const rows = rules.map((rule) => {
       const status = rule.maintenanceStatus || rule.computedMaintenanceStatus || '\u5f85\u590d\u6838';
       const detail = [rule.actionLabel, rule.reason].filter(Boolean).join(' / ');
+      const diagnostic = formatMaintainedRuleDiagnostic(rule);
       return '<div class="pfh-rule-row">' +
         '<div><b>' + escapeHtml(rule.priority || 'P3') + ' ' + escapeHtml(rule.missingField || rule.ruleId || '') + '</b><small>' + escapeHtml(detail || rule.ruleId || '') + '</small></div>' +
         '<span>' + escapeHtml(status) + '</span>' +
+        (diagnostic ? '<p>' + escapeHtml(diagnostic) + '</p>' : '') +
         '<div class="pfh-rule-actions">' +
           '<button type="button" data-action="insights-rule-auto" data-rule-id="' + escapeHtml(rule.ruleId || '') + '">\u81ea\u52a8</button>' +
           '<button type="button" data-action="insights-rule-done" data-rule-id="' + escapeHtml(rule.ruleId || '') + '">\u5df2\u5904\u7406</button>' +
@@ -1992,6 +1994,18 @@
       '</div>';
     }).join('');
     return '<div class="pfh-rule-panel"><div class="pfh-log-head"><strong>\u4e91\u7aef\u6e05\u6d17\u89c4\u5219</strong><span>' + escapeHtml(String(state.maintainedCleaningRules.length)) + '</span></div><div class="pfh-rule-list">' + rows + '</div></div>';
+  }
+
+  function formatMaintainedRuleDiagnostic(rule) {
+    if (!rule) return '';
+    const parts = [];
+    if (Number(rule.count || 0)) parts.push('\u6b21\u6570 ' + rule.count);
+    if (rule.likelyPlmEmpty) parts.push('PLM\u7a7a\u503c');
+    const kinds = Array.isArray(rule.issueKinds) ? rule.issueKinds.slice(0, 3).filter(Boolean).join('/') : '';
+    if (kinds) parts.push(kinds);
+    const examples = Array.isArray(rule.examples) ? rule.examples.slice(0, 2).filter(Boolean).join(' / ') : '';
+    if (examples) parts.push('\u4f8b\u5b50 ' + examples);
+    return parts.join(' | ');
   }
 
   function renderLogSection() {
@@ -11427,6 +11441,13 @@
         margin-top: 3px;
         color: #7a8498;
         font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-rule-row p {
+        grid-column: 1 / -1;
+        margin: -2px 0 0;
+        color: #8b93ad;
+        font-size: 11px;
+        line-height: 1.35;
       }
       #${PANEL_ID} .pfh-rule-row > span {
         align-self: start;
