@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.9
+// @version      2.4.10
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.9';
+  const SCRIPT_VERSION = '2.4.10';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1291,23 +1291,14 @@
   }
 
   function findTubeSizeSpec(text, fields) {
-    const source = String(text || '');
-    let diameter = fields && fields.diameter ? fields.diameter : extractTubeMeasure(source, '\u7ba1\u5f84');
-    let body = fields && fields.body ? fields.body : extractTubeMeasure(source, '\u7ba1\u8eab');
+    const diameter = fields && fields.diameter ? fields.diameter : 0;
+    const body = fields && fields.body ? fields.body : 0;
+    if (!diameter || !body) return null;
     let spec = diameter && body ? TUBE_SIZE_SPECS.find((item) => item.diameter === diameter && item.body === body) : null;
     let rule = null;
     if (!spec && diameter && body) {
       rule = TUBE_SIZE_RULES.find((item) => item.diameter === diameter && item.bodies.includes(body));
       if (rule) spec = buildTubeSpecFromRule(rule, body);
-    }
-    if (!spec) {
-      const byPrintSize = findTubeSizeRuleByPrintDimension(source);
-      if (byPrintSize) {
-        rule = byPrintSize.rule;
-        diameter = diameter || byPrintSize.diameter;
-        body = body || byPrintSize.body;
-        spec = TUBE_SIZE_SPECS.find((item) => item.diameter === diameter && item.body === body) || buildTubeSpecFromRule(rule, body);
-      }
     }
     if (!spec) return null;
     const tailSeal = (Number(spec.widths[1]) || 0) + (Number(spec.widths[2]) || 0);
