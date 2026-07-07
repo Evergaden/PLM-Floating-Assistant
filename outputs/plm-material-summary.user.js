@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.191
+// @version      2.3.192
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.191';
+  const SCRIPT_VERSION = '2.3.192';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6117,7 +6117,19 @@
     const skipped = Number(preview.skippedRecords || 0);
     const types = preview.unsyncedRecordTypes || preview.recordTypes || {};
     const typeText = Object.keys(types).map((key) => key + ' ' + types[key]).join(' / ');
-    return '\u5171 ' + total + '\u6761\uff0c\u5f85\u5199\u5165 ' + unsynced + '\u6761' + (skipped ? '\uff0c\u5df2\u8df3\u8fc7 ' + skipped + '\u6761' : '') + (typeText ? '\uff0c' + typeText : '');
+    const sampleText = formatFeishuPreviewSamples(preview.samplesByType);
+    return '\u5171 ' + total + '\u6761\uff0c\u5f85\u5199\u5165 ' + unsynced + '\u6761' + (skipped ? '\uff0c\u5df2\u8df3\u8fc7 ' + skipped + '\u6761' : '') + (typeText ? '\uff0c' + typeText : '') + (sampleText ? '\n' + sampleText : '');
+  }
+
+  function formatFeishuPreviewSamples(samplesByType) {
+    if (!samplesByType || typeof samplesByType !== 'object') return '';
+    return Object.keys(samplesByType).slice(0, 6).map((type) => {
+      const group = samplesByType[type] || {};
+      const samples = Array.isArray(group.samples) ? group.samples : [];
+      const sample = samples[0] || {};
+      const brief = [sample.sku || '', sample.summary || ''].filter(Boolean).join(' ');
+      return type + '\uff1a' + (group.count || samples.length || 0) + '\u6761' + (brief ? '\uff0c\u4f8b\uff1a' + brief : '');
+    }).join('\n');
   }
 
   async function checkCloudInsightAiStatus() {

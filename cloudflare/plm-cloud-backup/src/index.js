@@ -1913,6 +1913,37 @@ function summarizeFeishuRecords(records) {
   return byType;
 }
 
+function summarizeFeishuSamplesByType(records) {
+  const requiredFields = getFeishuRequiredFields();
+  const groups = {};
+  (records || []).forEach((record) => {
+    const type = record.recordType || (record.fields && record.fields['记录类型']) || 'unknown';
+    if (!groups[type]) groups[type] = { count: 0, samples: [] };
+    groups[type].count += 1;
+    if (groups[type].samples.length < 3) {
+      groups[type].samples.push({
+        sku: record.sku || '',
+        summary: buildFeishuSampleSummary(record),
+        fields: requiredFields.reduce((acc, field) => {
+          acc[field] = record.fields && record.fields[field] !== undefined ? record.fields[field] : '';
+          return acc;
+        }, {}),
+      });
+    }
+  });
+  return groups;
+}
+
+function buildFeishuSampleSummary(record) {
+  const fields = record && record.fields || {};
+  return [
+    fields['商品名'] || '',
+    fields['商品类型'] || '',
+    fields['价格'] || '',
+    fields['缺失字段'] || '',
+  ].filter(Boolean).join(' / ').slice(0, 220);
+}
+
 function previewFeishuRecords(allRecords, unsyncedRecords) {
   const requiredFields = getFeishuRequiredFields();
   const sampleRecords = (unsyncedRecords && unsyncedRecords.length ? unsyncedRecords : allRecords || []).slice(0, 5).map((record) => ({
@@ -1931,6 +1962,7 @@ function previewFeishuRecords(allRecords, unsyncedRecords) {
     skippedRecords: Math.max(0, (allRecords || []).length - (unsyncedRecords || []).length),
     recordTypes: summarizeFeishuRecords(allRecords || []),
     unsyncedRecordTypes: summarizeFeishuRecords(unsyncedRecords || []),
+    samplesByType: summarizeFeishuSamplesByType(unsyncedRecords && unsyncedRecords.length ? unsyncedRecords : allRecords || []),
     sampleRecords,
   };
 }
