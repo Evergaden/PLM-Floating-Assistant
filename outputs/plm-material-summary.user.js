@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.10
+// @version      2.4.11
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.10';
+  const SCRIPT_VERSION = '2.4.11';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1067,6 +1067,12 @@
     for (const key of Object.keys(next)) {
       if (isUsefulValue(next[key])) merged[key] = next[key];
     }
+    if (next.seenMaterial || next.seenProduct) {
+      ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'].forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(next, key)) merged[key] = next[key] || '';
+      });
+      if (Object.prototype.hasOwnProperty.call(next, 'isTubePrintMaterial')) merged.isTubePrintMaterial = Boolean(next.isTubePrintMaterial);
+    }
     if (next.seenDesign) {
       merged.skuImageUrl = next.skuImageUrl || '';
       merged.skuImageFallbackUrl = next.skuImageFallbackUrl || '';
@@ -1283,7 +1289,7 @@
 
   function isTubePrintData(data, packageNums) {
     const text = String(data.printRawText || '') + String(data.printSizeLabel || '') + String(data.printSizeText || '');
-    if (data.tubeSegmentText || data.tubeTailSealLengthValue || data.tailSealLengthValue) return true;
+    if (data.tubeDiameter && data.tubeBody) return true;
     if (Boolean(data.isTubePrintMaterial) || isTubePrintRow(text)) return true;
     const printNums = parseDimension(data.printSizeText, 2);
     const labelLooksGenericPrint = /^\s*(?:\u5370\u5237|\u5370\u5237\u5c3a\u5bf8)?\s*$/.test(String(data.printSizeLabel || ''));
@@ -1749,9 +1755,12 @@
       box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10v12H7z"></path><path d="M9 8V5h6v3"></path></svg>',
       tag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 11 4h7v7l-7 7-7-7Z"></path><circle cx="15.5" cy="7.5" r="1"></circle></svg>',
       list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h10v14H7z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg>',
+      historyRecord: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M653.9 248.3c-16.8 0-30.4-13.6-30.4-30.4V96.2c0-16.8 13.6-30.4 30.4-30.4 16.8 0 30.4 13.6 30.4 30.4v121.7c0.1 16.8-13.5 30.4-30.4 30.4zM370.1 248.3c-16.8 0-30.4-13.6-30.4-30.4V96.2c0-16.8 13.6-30.4 30.4-30.4 16.8 0 30.4 13.6 30.4 30.4v121.7c0 16.8-13.7 30.4-30.4 30.4zM856.9 370.1H167.1c-16.8 0-30.4-13.6-30.4-30.4 0-16.8 13.6-30.4 30.4-30.4h689.7c16.8 0 30.4 13.6 30.4 30.4 0.1 16.6-13.5 30.4-30.3 30.4zM653.9 755.5H370.1c-16.8 0-30.4-13.6-30.4-30.4 0-16.8 13.6-30.4 30.4-30.4H654c16.8 0 30.4 13.6 30.4 30.4 0 16.8-13.6 30.4-30.5 30.4zM653.9 572.9H370.1c-16.8 0-30.4-13.6-30.4-30.4s13.6-30.4 30.4-30.4H654c16.8 0 30.4 13.6 30.4 30.4s-13.6 30.4-30.5 30.4z"></path><path d="M836.5 958.3h-649c-39.2 0-71-31.9-71-71V197.6c0-39.2 31.9-71 71-71h649.1c39.2 0 71 31.9 71 71v689.7c-0.1 39.1-31.9 71-71.1 71z m-649-770.8c-5.6 0-10.1 4.5-10.1 10.1v689.7c0 5.6 4.5 10.1 10.1 10.1h649.1c5.6 0 10.1-4.5 10.1-10.1V197.6c0-5.6-4.5-10.1-10.1-10.1H187.5z"></path></svg>',
+      clearTrash: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M687.6 96.4H336.4v91.2h351.1V96.4zM636.7 398v405.5h-73.9V398h73.9z m-175.5 0v405.5h-73.9V398h73.9z m332.1-119.2H230.7l27.9 648.8h506.7l28-648.8zM696.8 5.1c40.4 0 73.3 35.6 73.9 79.8v102.7h147.8c20.2 0 36.6 17.8 37 39.9v41.2c0 5.5-4 10-9 10.1h-70.1L848 941.6c-1.8 42.9-33.7 76.6-72.6 77.3H249.8c-39 0-71.3-33.4-73.7-76l-0.1-1.3-28.5-662.7H77.7c-5 0-9.1-4.4-9.2-9.8v-40.9c0-22.2 16.2-40.2 36.3-40.5h148.4V86.2c0-44.3 32.5-80.4 72.7-81.1h370.9z"></path></svg>',
       print: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V4h10v4"></path><path d="M7 17H5V9h14v8h-2"></path><path d="M7 14h10v6H7z"></path></svg>',
       bag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h10l1 11H6L7 9Z"></path><path d="M9 9a3 3 0 0 1 6 0"></path></svg>',
       image: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M778.24 947.2H143.36c-53.248 0-96.256-43.008-96.256-96.256V275.456c0-53.248 43.008-96.256 96.256-96.256h634.88c53.248 0 96.256 43.008 96.256 96.256v575.488c0 53.248-43.008 96.256-96.256 96.256z m-634.88-706.56c-19.456 0-34.816 15.36-34.816 34.816v575.488c0 19.456 15.36 34.816 34.816 34.816h634.88c19.456 0 34.816-15.36 34.816-34.816V275.456c0-19.456-15.36-34.816-34.816-34.816H143.36z"></path><path d="M946.176 844.8c-17.408 0-30.72-13.312-30.72-30.72V244.736c0-58.368-48.128-106.496-106.496-106.496H180.224c-17.408 0-30.72-13.312-30.72-30.72s13.312-30.72 30.72-30.72H808.96c93.184 0 167.936 75.776 167.936 167.936v569.344c0 17.408-13.312 30.72-30.72 30.72z"></path><path d="M77.824 834.56c-11.264 0-21.504-6.144-26.624-16.384-8.192-15.36-2.048-33.792 12.288-41.984l512-276.48c12.288-7.168 27.648-4.096 36.864 6.144L739.328 645.12c11.264 12.288 10.24 31.744-2.048 43.008s-31.744 10.24-43.008-2.048L583.68 565.248 92.16 830.464c-4.096 3.072-9.216 4.096-14.336 4.096zM287.744 547.84c-53.248 0-97.28-44.032-97.28-97.28s44.032-97.28 97.28-97.28 97.28 44.032 97.28 97.28-44.032 97.28-97.28 97.28z m0-133.12c-19.456 0-35.84 16.384-35.84 35.84s16.384 35.84 35.84 35.84 35.84-16.384 35.84-35.84-16.384-35.84-35.84-35.84z"></path></svg>',
+      backArrow: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M224.32 505.6a31.936 31.936 0 0 1 10.88-19.84l222.08-222.08a32 32 0 0 1 45.12 45.12l-169.28 169.28H768a32 32 0 0 1 0 64H333.12l169.28 169.28a32 32 0 1 1-45.12 45.44l-224-224a31.968 31.968 0 0 1-8.96-27.2z"></path></svg>',
     };
     return '<span class="pfh-icon pfh-icon-' + escapeHtml(name) + '">' + (icons[name] || '') + '</span>';
   }
@@ -2093,8 +2102,8 @@
     if (!list) return;
     const historyLabel = state.uploadView === 'history' ? L.uploadQueueView : L.uploadHistory;
     list.innerHTML = '<div class="pfh-upload-side">' +
-      '<button type="button" class="pfh-upload-side-card" data-action="upload-history-toggle">' + iconHtml('list') + '<strong>' + escapeHtml(historyLabel) + '</strong><span>' + escapeHtml(state.uploadView === 'history' ? '\u8fd4\u56de\u5f85\u4e0a\u4f20\u961f\u5217' : '\u67e5\u770b\u5df2\u5b8c\u6210\u548c\u5f02\u5e38\u8bb0\u5f55') + '</span></button>' +
-      '<button type="button" class="pfh-upload-side-card" data-action="upload-clear-list">' + iconHtml('close') + '<strong>' + escapeHtml(L.uploadClearList) + '</strong><span>' + escapeHtml('\u6e05\u7406\u5f53\u524d\u5217\u8868\u9879') + '</span></button>' +
+      '<button type="button" class="pfh-upload-side-card" data-action="upload-history-toggle">' + iconHtml('historyRecord') + '<strong>' + escapeHtml(historyLabel) + '</strong><span>' + escapeHtml(state.uploadView === 'history' ? '\u8fd4\u56de\u5f85\u4e0a\u4f20\u961f\u5217' : '\u67e5\u770b\u5df2\u5b8c\u6210\u548c\u5f02\u5e38\u8bb0\u5f55') + '</span></button>' +
+      '<button type="button" class="pfh-upload-side-card" data-action="upload-clear-list">' + iconHtml('clearTrash') + '<strong>' + escapeHtml(L.uploadClearList) + '</strong><span>' + escapeHtml('\u6e05\u7406\u5f53\u524d\u5217\u8868\u9879') + '</span></button>' +
       '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u53f3\u4fa7\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u4e24\u4e2a\u6587\u4ef6\u90fd\u9f50\u5168\u540e\u624d\u4f1a\u5165\u961f\u4e0a\u4f20\uff1b\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\u3002</p></article>' +
       '</div>';
   }
@@ -2108,7 +2117,7 @@
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
-    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875" data-tooltip="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('back') + '</button><strong>SKU\u5217\u8868</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
+    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>SKU\u5217\u8868</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       list.innerHTML = listHead + '<div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
@@ -12112,7 +12121,7 @@
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-folder svg,
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-settings svg,
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-close svg,
-      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon-back svg {
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon-backArrow svg {
         transform: none !important;
       }
       #${PANEL_ID} .pfh-header .pfh-actions button::after,
@@ -12149,6 +12158,11 @@
       }
       #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover::after {
         transform: translate(0, 0);
+      }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]::after,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover::after {
+        display: none !important;
+        content: none !important;
       }
       #${PANEL_ID}.is-tooltip-suppressed .pfh-header .pfh-actions button::after,
       #${PANEL_ID}.is-collapsed .pfh-header .pfh-actions button::after {
