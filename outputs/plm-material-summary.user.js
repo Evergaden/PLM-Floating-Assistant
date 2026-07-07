@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.3
+// @version      2.4.4
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.3';
+  const SCRIPT_VERSION = '2.4.4';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5188,10 +5188,7 @@
   }
 
   function getToyLabelSizeCm(data) {
-    const nums = parseDimension((data && data.printSizeText) || '', 2) || parseDimension((data && data.printSizeLabel) || '', 2);
-    const width = nums && nums[0] ? Number(nums[0]) : 4;
-    const height = nums && nums[1] ? Number(nums[1]) : 3;
-    return { width: width || 4, height: height || 3 };
+    return { width: 4, height: 3 };
   }
 
   function getToyLabelImageSource(data, extra) {
@@ -5205,16 +5202,7 @@
   }
 
   async function getBarcodeForToyLabel(sku) {
-    const plm = await getPlmBarcodePreviewImage(sku).catch(() => null);
-    if (plm && plm.dataUrl) {
-      const size = await getImageSize(plm.dataUrl).catch(() => ({ width: 0, height: 0 }));
-      if (size.width >= 220 && size.height >= 60) {
-        return { dataUrl: plm.dataUrl, source: 'plm' };
-      }
-    }
-    addLog('info', '\u73a9\u5177\u6807\u7b7e\uff1a\u4f7f\u7528 SKU \u751f\u6210\u6761\u7801', sku);
-    showToast(L.labelNeedBarcode);
-    return { canvas: renderCode128Barcode(sku, 900, 210), source: 'generated' };
+    return { canvas: renderCode128Barcode(sku, 980, 260), source: 'generated-code128b' };
   }
 
   async function getPlmBarcodePreviewImage(sku) {
@@ -5253,7 +5241,7 @@
       drawImageContained(ctx, trimImageWhitespace(image), productBox.x, productBox.y, productBox.w, productBox.h);
     }
 
-    const barcodeBox = { x: width * 0.19, y: height * 0.61, w: width * 0.62, h: height * 0.19 };
+    const barcodeBox = { x: width * 0.13, y: height * 0.62, w: width * 0.74, h: height * 0.17 };
     const barcode = options.barcodeImage && options.barcodeImage.canvas
       ? options.barcodeImage.canvas
       : options.barcodeImage && options.barcodeImage.dataUrl
@@ -5266,8 +5254,8 @@
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '500 ' + Math.round(height * 0.06) + 'px Arial, sans-serif';
-    ctx.fillText(options.sku || '', width / 2, height * 0.85);
+    ctx.font = '400 ' + Math.round(height * 0.052) + 'px Arial, sans-serif';
+    ctx.fillText(options.sku || '', width / 2, height * 0.86);
     return canvas;
   }
 
