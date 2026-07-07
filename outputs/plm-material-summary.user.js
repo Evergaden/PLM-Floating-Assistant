@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.186
+// @version      2.3.187
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.186';
+  const SCRIPT_VERSION = '2.3.187';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5952,7 +5952,7 @@
     try {
       const response = await syncInsightFeishu();
       if (!response || response.ok === false) throw buildCloudError(response || { error: 'feishu sync failed' }, 200);
-      state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5b8c\u6210\uff1a' + (response.inserted || 0) + '\u6761' + (response.skipped ? '\uff0c\u8df3\u8fc7\u5df2\u540c\u6b65 ' + response.skipped + '\u6761' : '');
+      state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5b8c\u6210\uff1a' + (response.inserted || 0) + '\u6761' + (response.skipped ? '\uff0c\u8df3\u8fc7\u5df2\u540c\u6b65 ' + response.skipped + '\u6761' : '') + formatFeishuPreviewSuffix(response.preview);
       addLog('success', '\u98de\u4e66\u540c\u6b65\u5b8c\u6210', String(response.inserted || 0) + '\u6761' + (response.skipped ? ' / skipped ' + response.skipped : ''));
       showToast(state.insightCloudStatus);
     } catch (error) {
@@ -5974,10 +5974,13 @@
     try {
       const response = await fetchInsightFeishuStatus();
       if (response && response.configured) {
-        state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u5df2\u5b8c\u6574\uff0c\u5b57\u6bb5\uff1a' + (response.requiredFields || []).join(' / ');
+        const preview = await fetchInsightFeishuPreview().catch(() => null);
+        state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u5df2\u5b8c\u6574\uff0c\u5b57\u6bb5\uff1a' + (response.requiredFields || []).join(' / ') + formatFeishuPreviewSuffix(preview);
         addLog('success', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u901a\u8fc7');
       } else {
+        const preview = await fetchInsightFeishuPreview().catch(() => null);
         state.insightCloudStatus = formatFeishuSetupStatus(response);
+        if (preview) state.insightCloudStatus += '\n\n\u5f85\u5199\u5165\u9884\u89c8\uff1a' + formatFeishuPreviewText(preview);
         copyText(state.insightCloudStatus);
         addLog('warn', '\u98de\u4e66\u914d\u7f6e\u4e0d\u5b8c\u6574', state.insightCloudStatus);
         showToast('\u98de\u4e66\u914d\u7f6e\u547d\u4ee4\u5df2\u590d\u5236');
@@ -6026,6 +6029,21 @@
       schema ? '\u5b57\u6bb5\u6a21\u677f\uff1a\n\u5b57\u6bb5\u540d\t\u5efa\u8bae\u7c7b\u578b\t\u7528\u9014\n' + schema : '',
       commands ? '\u914d\u7f6e\u547d\u4ee4\uff1a\n' + commands : '',
     ].filter(Boolean).join('\n');
+  }
+
+  function formatFeishuPreviewSuffix(preview) {
+    const text = formatFeishuPreviewText(preview);
+    return text ? '\uff1b' + text : '';
+  }
+
+  function formatFeishuPreviewText(preview) {
+    if (!preview || typeof preview !== 'object') return '';
+    const total = Number(preview.totalRecords || 0);
+    const unsynced = Number(preview.unsyncedRecords || 0);
+    const skipped = Number(preview.skippedRecords || 0);
+    const types = preview.unsyncedRecordTypes || preview.recordTypes || {};
+    const typeText = Object.keys(types).map((key) => key + ' ' + types[key]).join(' / ');
+    return '\u5171 ' + total + '\u6761\uff0c\u5f85\u5199\u5165 ' + unsynced + '\u6761' + (skipped ? '\uff0c\u5df2\u8df3\u8fc7 ' + skipped + '\u6761' : '') + (typeText ? '\uff0c' + typeText : '');
   }
 
   async function checkCloudInsightAiStatus() {
@@ -6540,6 +6558,10 @@
 
   async function fetchInsightFeishuStatus() {
     return cloudRequest('/insights/feishu-status', { method: 'GET' });
+  }
+
+  async function fetchInsightFeishuPreview() {
+    return cloudRequest('/insights/feishu-preview', { method: 'GET' });
   }
 
   async function fetchInsightFeishuTsv() {

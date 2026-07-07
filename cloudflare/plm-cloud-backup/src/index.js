@@ -1861,6 +1861,51 @@ async function markFeishuRecordsSynced(env, records) {
   }
 }
 
+function summarizeFeishuRecords(records) {
+  const byType = {};
+  (records || []).forEach((record) => {
+    const type = record.recordType || (record.fields && record.fields['记录类型']) || 'unknown';
+    byType[type] = (byType[type] || 0) + 1;
+  });
+  return byType;
+}
+
+function previewFeishuRecords(allRecords, unsyncedRecords) {
+  const requiredFields = getFeishuRequiredFields();
+  const sampleRecords = (unsyncedRecords && unsyncedRecords.length ? unsyncedRecords : allRecords || []).slice(0, 5).map((record) => ({
+    syncKey: record.syncKey || '',
+    recordType: record.recordType || '',
+    sku: record.sku || '',
+    fields: requiredFields.reduce((acc, field) => {
+      acc[field] = record.fields && record.fields[field] !== undefined ? record.fields[field] : '';
+      return acc;
+    }, {}),
+  }));
+  return {
+    requiredFields,
+    totalRecords: (allRecords || []).length,
+    unsyncedRecords: (unsyncedRecords || []).length,
+    skippedRecords: Math.max(0, (allRecords || []).length - (unsyncedRecords || []).length),
+    recordTypes: summarizeFeishuRecords(allRecords || []),
+    unsyncedRecordTypes: summarizeFeishuRecords(unsyncedRecords || []),
+    sampleRecords,
+  };
+}
+
+async function buildFeishuPreviewPayload(env) {
+  const summary = await buildInsightSummary(env);
+  const aiPayload = await buildInsightAiReportPayload(env, summary);
+  const allRecords = buildFeishuRecords(summary, aiPayload);
+  const records = await filterUnsyncedFeishuRecords(env, allRecords);
+  return {
+    summary,
+    aiPayload,
+    allRecords,
+    records,
+    preview: previewFeishuRecords(allRecords, records),
+  };
+}
+
 async function handleInsightFeishuSync(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const appToken = env.FEISHU_BITABLE_APP_TOKEN;
@@ -1868,11 +1913,10 @@ async function handleInsightFeishuSync(request, env) {
   if (!appToken || !tableId) {
     return json({ ok: false, error: 'FEISHU_BITABLE_APP_TOKEN/FEISHU_BITABLE_TABLE_ID not configured' }, 400);
   }
-  const summary = await buildInsightSummary(env);
-  const aiPayload = await buildInsightAiReportPayload(env, summary);
-  const allRecords = buildFeishuRecords(summary, aiPayload);
-  const records = await filterUnsyncedFeishuRecords(env, allRecords);
-  if (!records.length) return json({ ok: true, inserted: 0, message: 'no records' });
+  const payload = await buildFeishuPreviewPayload(env);
+  const allRecords = payload.allRecords;
+  const records = payload.records;
+  if (!records.length) return json({ ok: true, inserted: 0, message: 'no records', preview: payload.preview });
   const token = await getFeishuTenantToken(env);
   const schema = await checkFeishuTableSchema(env, token);
   if (!schema.ok) {
@@ -1902,7 +1946,21 @@ async function handleInsightFeishuSync(request, env) {
     inserted += chunk.length;
     await markFeishuRecordsSynced(env, chunk);
   }
-  return json({ ok: true, inserted, skipped: allRecords.length - records.length });
+  return json({ ok: true, inserted, skipped: allRecords.length - records.length, preview: payload.preview });
+}
+
+async function handleInsightFeishuPreview(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const payload = await buildFeishuPreviewPayload(env);
+  const feishuStatus = await getFeishuConfigStatus(env);
+  return json({
+    ok: true,
+    ...payload.preview,
+    feishuConfigured: feishuStatus.configured,
+    feishuMissing: feishuStatus.missing || [],
+    tableMissingFields: feishuStatus.tableMissingFields || [],
+    checkError: feishuStatus.checkError || '',
+  });
 }
 
 function getFeishuRequiredFields() {
@@ -2024,6 +2082,7 @@ export default {
     if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
     if (url.pathname === '/insights/rules/status' && request.method === 'POST') return handleCleaningRuleStatusUpdate(request, env);
     if (url.pathname === '/insights/feishu-status' && request.method === 'GET') return handleInsightFeishuStatus(request, env);
+    if (url.pathname === '/insights/feishu-preview' && request.method === 'GET') return handleInsightFeishuPreview(request, env);
     if (url.pathname === '/insights/feishu-sync' && request.method === 'POST') return handleInsightFeishuSync(request, env);
 
     return json({ error: 'not found' }, 404);
