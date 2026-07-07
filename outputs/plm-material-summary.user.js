@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.2
+// @version      2.4.3
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.2';
+  const SCRIPT_VERSION = '2.4.3';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -7895,7 +7895,7 @@
 
   function applySplitWidth(panel) {
     const main = panel.querySelector('.pfh-main');
-    if (main) main.style.gridTemplateColumns = state.splitWidth + 'px 6px minmax(0, 1fr)';
+    if (main) main.style.setProperty('--pfh-list-width', state.splitWidth + 'px');
     const splitter = panel.querySelector('.pfh-splitter');
     if (splitter) splitter.classList.toggle('is-dragging', Boolean(state.splitDragging));
   }
@@ -7939,11 +7939,11 @@
       dragging = true;
       direction = resizer.dataset.resizeDir || 'se';
       state.ignoreOutsideClickUntil = Date.now() + 500;
-      const main = panel.querySelector('.pfh-main');
       startX = event.clientX;
       startY = event.clientY;
-      startWidth = panel.getBoundingClientRect().width;
-      startHeight = main ? main.getBoundingClientRect().height : state.panelSize.height;
+      const rect = panel.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
       startRight = Number.parseFloat(getComputedStyle(panel).right) || 0;
       startBottom = Number.parseFloat(getComputedStyle(panel).bottom) || 0;
       event.preventDefault();
