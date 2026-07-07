@@ -947,15 +947,19 @@ async function probeRecommendationEngine(env, summary) {
     });
     const price = result && result.recommendedPrice ? String(result.recommendedPrice) : '';
     if (!price || price === '0') return { ok: false, detail: 'no recommendation from latest sample' };
+    const confidence = result.recommendationConfidence || result.priceConfidence || '';
+    const statsText = formatPriceStats(result.priceStats);
     return {
       ok: true,
-      detail: [latest.sku || latest.name || 'latest price', price, result.source || ''].filter(Boolean).join(' / '),
+      detail: [latest.sku || latest.name || 'latest price', price, result.source || '', confidence ? '置信度' + confidence : '', statsText].filter(Boolean).join(' / '),
       result: {
         sku: result.sku || '',
         recommendedPrice: result.recommendedPrice || '',
         source: result.source || '',
         effectiveProductType: result.effectiveProductType || '',
         reason: result.recommendationReason || '',
+        confidence,
+        priceStats: result.priceStats || null,
       },
     };
   } catch (error) {
@@ -1672,6 +1676,8 @@ function buildFeishuRecords(summary, aiPayload) {
         '装箱数': '',
         '包装尺寸': '',
         '产品尺寸': '',
+        '置信度': '',
+        '价格统计': '',
         '缺失字段': report,
         '来源': aiPayload.source || 'insight-summary',
         '记录时间': new Date().toISOString(),
@@ -1694,6 +1700,8 @@ function buildFeishuRecords(summary, aiPayload) {
         '装箱数': item.pack_qty || '',
         '包装尺寸': item.package_size || '',
         '产品尺寸': item.product_size || '',
+        '置信度': '',
+        '价格统计': '',
         '缺失字段': '',
         '来源': 'cloud-insight',
         '记录时间': item.created_at || '',
@@ -1716,6 +1724,8 @@ function buildFeishuRecords(summary, aiPayload) {
         '装箱数': '',
         '包装尺寸': '',
         '产品尺寸': '',
+        '置信度': '',
+        '价格统计': '',
         '缺失字段': '记录数：' + (item.count || 0),
         '来源': 'cloud-insight',
         '记录时间': item.latest_at || '',
@@ -1738,6 +1748,8 @@ function buildFeishuRecords(summary, aiPayload) {
         '装箱数': item.recommended_pack_qty || '',
         '包装尺寸': '',
         '产品尺寸': '',
+        '置信度': item.confidence || '',
+        '价格统计': item.price_stats || '',
         '缺失字段': [item.reason || '', item.confidence ? '置信度：' + item.confidence : '', item.price_stats || '', item.product_type_source ? '类型来源：' + item.product_type_source : '', item.sample_count ? '样本数：' + item.sample_count : ''].filter(Boolean).join(' / '),
         '来源': item.source || 'recommendation',
         '记录时间': item.created_at || '',
@@ -1768,6 +1780,8 @@ function buildFeishuRecords(summary, aiPayload) {
           '\u88c5\u7bb1\u6570': '',
           '\u5305\u88c5\u5c3a\u5bf8': item.actionLabel || '',
           '\u4ea7\u54c1\u5c3a\u5bf8': item.maintenanceStatus || '',
+          '\u7f6e\u4fe1\u5ea6': '',
+          '\u4ef7\u683c\u7edf\u8ba1': '',
           '\u7f3a\u5931\u5b57\u6bb5': [item.missingField || '', targetTabs ? '\u76ee\u6807\u9875\u7b7e\uff1a' + targetTabs : '', retryStatus ? '\u4e8c\u6b21\u8bfb\u53d6\uff1a' + retryStatus : '', actions || item.suggestion || ''].filter(Boolean).join(' / '),
           '\u6765\u6e90': (item.sources || []).join('/') || item.actionCode || 'clean-rule',
           '\u8bb0\u5f55\u65f6\u95f4': item.latestAt || (summary.rulePackage && summary.rulePackage.generatedAt) || '',
@@ -1790,6 +1804,8 @@ function buildFeishuRecords(summary, aiPayload) {
         '装箱数': '',
         '包装尺寸': '',
         '产品尺寸': '',
+        '置信度': '',
+        '价格统计': '',
         '缺失字段': item.missing_fields || '',
         '来源': item.source || '',
         '记录时间': item.created_at || '',
@@ -1812,6 +1828,8 @@ function buildFeishuRecords(summary, aiPayload) {
         '\u88c5\u7bb1\u6570': '',
         '\u5305\u88c5\u5c3a\u5bf8': item.version || '',
         '\u4ea7\u54c1\u5c3a\u5bf8': item.url || '',
+        '\u7f6e\u4fe1\u5ea6': '',
+        '\u4ef7\u683c\u7edf\u8ba1': '',
         '\u7f3a\u5931\u5b57\u6bb5': [item.message || '', item.detail || ''].filter(Boolean).join(' | '),
         '\u6765\u6e90': item.source || 'plm-helper-log',
         '\u8bb0\u5f55\u65f6\u95f4': item.created_at || '',
@@ -1888,7 +1906,7 @@ async function handleInsightFeishuSync(request, env) {
 }
 
 function getFeishuRequiredFields() {
-  return ['记录类型', 'SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '缺失字段', '来源', '记录时间'];
+  return ['记录类型', 'SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '置信度', '价格统计', '缺失字段', '来源', '记录时间'];
 }
 
 function getFeishuRequiredFieldSchema() {
@@ -1902,6 +1920,8 @@ function getFeishuRequiredFieldSchema() {
     { name: '装箱数', type: '单行文本', note: '历史装箱数' },
     { name: '包装尺寸', type: '单行文本', note: '纸盒/外包装尺寸' },
     { name: '产品尺寸', type: '单行文本', note: '产品尺寸或日志 URL' },
+    { name: '置信度', type: '单行文本', note: '智能推荐可信度，0-100' },
+    { name: '价格统计', type: '多行文本', note: '样本数、中位价、均价、价格区间' },
     { name: '缺失字段', type: '多行文本', note: '字段异常、清洗规则建议或日志详情' },
     { name: '来源', type: '单行文本', note: 'cloud-insight/clean-rule/plm-helper-log 等' },
     { name: '记录时间', type: '日期或单行文本', note: '事件发生时间' },
