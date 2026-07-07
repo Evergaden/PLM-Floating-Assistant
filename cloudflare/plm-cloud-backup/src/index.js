@@ -1024,6 +1024,26 @@ function formatRuleMaintenanceSummary(summary) {
   return parts.join('；');
 }
 
+function formatProductTypeSummary(summary) {
+  const types = (summary && summary.productTypes || []).slice(0, 5);
+  if (!types.length) return '';
+  return types.map((item) => (item.product_type || '未分类') + ':' + (item.count || 0)).join(' / ');
+}
+
+function formatRecommendationSummary(summary) {
+  const recommendations = summary && summary.recentRecommendations || [];
+  const latest = recommendations[0];
+  const parts = [];
+  if (latest && latest.recommended_price) {
+    parts.push('最新推荐 ' + latest.recommended_price + (latest.product_type ? ' / ' + latest.product_type : ''));
+    if (latest.confidence) parts.push('置信度' + latest.confidence);
+    if (latest.price_stats) parts.push(latest.price_stats);
+  }
+  const priceCount = (summary && summary.recentPrices || []).length;
+  if (priceCount) parts.push('价格样本' + priceCount);
+  return parts.join('；');
+}
+
 async function probeRecommendationEngine(env, summary) {
   const latest = summary && summary.recentPrices && summary.recentPrices[0];
   if (!latest) return { ok: false, detail: 'no price sample' };
@@ -1750,6 +1770,7 @@ function buildFeishuRecords(summary, aiPayload) {
   const rows = [];
   if (aiPayload && aiPayload.report) {
     const report = cleanText(aiPayload.report, 1000);
+    const ruleMaintenance = summarizeRuleMaintenance(summary && summary.rulePackage);
     rows.push({
       syncKey: ['ai-summary', aiPayload.source || '', report.slice(0, 80)].join('|'),
       recordType: 'AI整理总结',
@@ -1759,15 +1780,15 @@ function buildFeishuRecords(summary, aiPayload) {
         'SKU': '',
         '品牌': '',
         '商品名': report.slice(0, 200),
-        '商品类型': '',
+        '商品类型': formatProductTypeSummary(summary),
         '价格': '',
         '装箱数': '',
         '包装尺寸': '',
-        '产品尺寸': '',
+        '产品尺寸': formatRuleMaintenanceSummary(ruleMaintenance),
         '置信度': '',
-        '价格统计': '',
+        '价格统计': formatRecommendationSummary(summary),
         '缺失字段': report,
-        '来源': aiPayload.source || 'insight-summary',
+        '来源': (aiPayload.source || 'insight-summary') + (summary && summary.logDiagnostics && summary.logDiagnostics.total ? ' / 日志' + summary.logDiagnostics.total : ''),
         '记录时间': new Date().toISOString(),
       },
     });
