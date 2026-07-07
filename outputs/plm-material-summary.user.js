@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.5
+// @version      2.4.6
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.5';
+  const SCRIPT_VERSION = '2.4.6';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1698,11 +1698,17 @@
     panel.querySelector('[data-action="search"]').title = TOOLTIP.search;
     panel.querySelector('[data-action="about"]').innerHTML = iconHtml('settings') + '<span>\u8bbe\u7f6e</span>';
     panel.querySelector('[data-action="about"]').title = TOOLTIP.about;
+    panel.querySelector('[data-action="about"]').setAttribute('aria-label', TOOLTIP.about);
+    panel.querySelector('[data-action="about"]').setAttribute('data-tooltip', TOOLTIP.about);
     panel.querySelector('[data-action="open-detail"]').innerHTML = iconHtml('folder') + '<span>\u6253\u5f00\u8be6\u60c5</span>';
     panel.querySelector('[data-action="open-detail"]').title = TOOLTIP.openDetail;
+    panel.querySelector('[data-action="open-detail"]').setAttribute('aria-label', TOOLTIP.openDetail);
+    panel.querySelector('[data-action="open-detail"]').setAttribute('data-tooltip', TOOLTIP.openDetail);
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.querySelector('[data-action="upload-toggle"]').innerHTML = iconHtml('upload') + '<span>\u63d0\u5ba1\u4e0a\u4f20</span>';
     panel.querySelector('[data-action="upload-toggle"]').title = L.uploadSection;
+    panel.querySelector('[data-action="upload-toggle"]').setAttribute('aria-label', L.uploadSection);
+    panel.querySelector('[data-action="upload-toggle"]').setAttribute('data-tooltip', L.uploadSection);
     panel.addEventListener('click', handlePanelClick);
     panel.addEventListener('keydown', handlePanelKeydown);
     panel.addEventListener('input', handlePanelInput);
@@ -1811,6 +1817,8 @@
     if (!button) return;
     button.innerHTML = iconHtml('close') + '<span>' + escapeHtml(L.close) + '</span>';
     button.title = TOOLTIP.collapse;
+    button.setAttribute('aria-label', TOOLTIP.collapse);
+    button.setAttribute('data-tooltip', TOOLTIP.collapse);
   }
 
   function updateSettingsNotice(panel) {
@@ -12046,15 +12054,90 @@
       }
       #${PANEL_ID} .pfh-header .pfh-actions {
         align-self: stretch !important;
-        align-items: flex-end !important;
-        padding-top: 8px !important;
+        align-items: center !important;
+        gap: 14px !important;
+        padding-top: 4px !important;
         box-sizing: border-box !important;
       }
       #${PANEL_ID} .pfh-header .pfh-actions button {
-        transform: translateY(3px) !important;
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        padding: 0 !important;
+        border: 1px solid transparent !important;
+        border-radius: 10px !important;
+        background: transparent !important;
+        color: #675f86 !important;
+        box-shadow: none !important;
+        transform: translateY(2px) !important;
+        overflow: visible !important;
       }
       #${PANEL_ID} .pfh-header .pfh-actions button:hover {
-        transform: translateY(1px) !important;
+        color: #6d35e8 !important;
+        border-color: rgba(124, 58, 237, .16) !important;
+        background: rgba(124, 58, 237, .10) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 18px rgba(124,58,237,.10) !important;
+        transform: translateY(2px) !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions button > span:not(.pfh-icon) {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon {
+        width: 22px !important;
+        height: 22px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: currentColor !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon svg {
+        width: 20px !important;
+        height: 20px !important;
+        color: currentColor !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+        stroke-width: 1.8 !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-upload svg,
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-folder svg,
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-settings svg,
+      #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon-close svg {
+        transform: none !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions button::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 50%;
+        top: calc(100% + 7px);
+        z-index: 120;
+        min-width: max-content;
+        max-width: 130px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        color: #fff;
+        background: #1f2937;
+        box-shadow: 0 10px 24px rgba(31,41,55,.18);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -4px);
+        transition: opacity 140ms ease, transform 140ms ease;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions button:hover::after {
+        opacity: 1;
+        transform: translate(-50%, 0);
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
