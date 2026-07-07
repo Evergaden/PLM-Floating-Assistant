@@ -1818,7 +1818,11 @@
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
     const main = panel.querySelector('.pfh-main');
-    if (main) main.classList.toggle('is-home', state.view === 'home');
+    const isFullView = state.view === 'home' || state.view === 'about';
+    if (main) {
+      main.classList.toggle('is-home', state.view === 'home');
+      main.classList.toggle('is-full', isFullView);
+    }
     const scrollSnapshot = capturePanelScroll(panel);
     updatePanelPinButton(panel);
     updateSettingsNotice(panel);
@@ -8307,14 +8311,18 @@
         height: 520px;
         min-height: 280px;
       }
-      #${PANEL_ID} .pfh-main.is-home {
+      #${PANEL_ID} .pfh-main.is-home,
+      #${PANEL_ID} .pfh-main.is-full {
         grid-template-columns: 0 0 minmax(0, 1fr);
       }
       #${PANEL_ID} .pfh-main.is-home .pfh-list,
-      #${PANEL_ID} .pfh-main.is-home .pfh-splitter {
+      #${PANEL_ID} .pfh-main.is-home .pfh-splitter,
+      #${PANEL_ID} .pfh-main.is-full .pfh-list,
+      #${PANEL_ID} .pfh-main.is-full .pfh-splitter {
         display: none;
       }
-      #${PANEL_ID} .pfh-main.is-home .pfh-detail {
+      #${PANEL_ID} .pfh-main.is-home .pfh-detail,
+      #${PANEL_ID} .pfh-main.is-full .pfh-detail {
         grid-column: 1 / -1;
       }
       #${PANEL_ID} .pfh-list {
@@ -11091,7 +11099,8 @@
       #${PANEL_ID} .pfh-detail {
         border-radius: 0 14px 14px 0 !important;
       }
-      #${PANEL_ID} .pfh-main.is-home .pfh-detail {
+      #${PANEL_ID} .pfh-main.is-home .pfh-detail,
+      #${PANEL_ID} .pfh-main.is-full .pfh-detail {
         border-radius: 14px !important;
       }
       #${PANEL_ID} .pfh-detail-scroll,
@@ -11121,7 +11130,8 @@
       }
       #${PANEL_ID} .pfh-list,
       #${PANEL_ID} .pfh-detail,
-      #${PANEL_ID} .pfh-main.is-home .pfh-detail {
+      #${PANEL_ID} .pfh-main.is-home .pfh-detail,
+      #${PANEL_ID} .pfh-main.is-full .pfh-detail {
         border-radius: 14px !important;
       }
       #${PANEL_ID} .pfh-detail-scroll {
@@ -11616,7 +11626,7 @@
         height: auto !important;
         padding: 18px 20px !important;
       }
-      #${PANEL_ID} .pfh-main:not(.is-home) .pfh-splitter {
+      #${PANEL_ID} .pfh-main:not(.is-full) .pfh-splitter {
         display: block !important;
         position: relative !important;
         z-index: 90 !important;
@@ -11627,7 +11637,7 @@
         pointer-events: auto !important;
         touch-action: none !important;
       }
-      #${PANEL_ID} .pfh-main:not(.is-home) .pfh-splitter::before {
+      #${PANEL_ID} .pfh-main:not(.is-full) .pfh-splitter::before {
         content: '' !important;
         position: absolute !important;
         top: 0 !important;
@@ -11637,8 +11647,8 @@
         cursor: col-resize !important;
         pointer-events: auto !important;
       }
-      #${PANEL_ID} .pfh-main:not(.is-home) .pfh-list,
-      #${PANEL_ID} .pfh-main:not(.is-home) .pfh-detail {
+      #${PANEL_ID} .pfh-main:not(.is-full) .pfh-list,
+      #${PANEL_ID} .pfh-main:not(.is-full) .pfh-detail {
         position: relative !important;
         z-index: 1 !important;
       }
