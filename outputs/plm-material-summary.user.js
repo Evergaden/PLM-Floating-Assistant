@@ -11507,11 +11507,11 @@
       #${PANEL_ID} .pfh-info-grid {
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 12px 14px !important;
+        gap: 10px 12px !important;
         align-items: stretch !important;
       }
       #${PANEL_ID} .pfh-file-section .pfh-info-grid {
-        margin-top: 14px !important;
+        margin-top: 10px !important;
       }
       #${PANEL_ID} .pfh-graphic-table.pfh-info-grid {
         padding: 0 !important;
@@ -11527,8 +11527,8 @@
         gap: 5px 8px !important;
         justify-items: start !important;
         text-align: left !important;
-        min-height: 48px !important;
-        padding: 9px 14px !important;
+        min-height: 44px !important;
+        padding: 8px 13px !important;
         border: 1px solid rgba(211, 204, 255, .34) !important;
         border-radius: 14px !important;
         background: rgba(255,255,255,.62) !important;
@@ -11793,6 +11793,19 @@
         padding: 8px 10px !important;
         box-sizing: border-box !important;
       }
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        color: #253047 !important;
+        border: 1px solid rgba(190, 199, 220, .88) !important;
+        border-radius: 10px !important;
+        background:
+          linear-gradient(45deg, transparent 50%, #6d7890 50%) calc(100% - 14px) 50% / 6px 6px no-repeat,
+          linear-gradient(135deg, #6d7890 50%, transparent 50%) calc(100% - 10px) 50% / 6px 6px no-repeat,
+          rgba(255,255,255,.82) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
+        padding-right: 24px !important;
+      }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select,
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input,
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open button {
@@ -11802,10 +11815,27 @@
         min-height: 28px !important;
         box-sizing: border-box !important;
       }
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input,
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open button {
+        border: 1px solid rgba(190, 199, 220, .88) !important;
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.82) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
+      }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-prepare"] {
         width: 100% !important;
         min-width: 0 !important;
         padding: 0 !important;
+      }
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-prepare"] .pfh-icon,
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-prepare"] svg {
+        width: 16px !important;
+        height: 16px !important;
+        margin: 0 auto !important;
+        color: #566381 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-generate"] {
         width: 100% !important;
