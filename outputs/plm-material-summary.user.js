@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.11
+// @version      2.4.12
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.11';
+  const SCRIPT_VERSION = '2.4.12';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -10947,6 +10947,32 @@
         border-radius: 10px;
         background: rgba(248,245,255,.86);
       }
+      #${PANEL_ID} .pfh-upload-side-card .pfh-icon svg {
+        width: 19px;
+        height: 19px;
+        color: currentColor;
+        fill: currentColor;
+        stroke: currentColor;
+        transition: color .18s ease, transform .18s ease;
+      }
+      #${PANEL_ID} .pfh-upload-side-card .pfh-icon svg * {
+        fill: currentColor;
+        stroke: currentColor;
+      }
+      #${PANEL_ID} .pfh-upload-side-card:hover {
+        color: #6d35e8;
+        border-color: rgba(124, 58, 237, .18);
+        background: rgba(255,255,255,.84);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92), 0 10px 22px rgba(124,58,237,.10);
+      }
+      #${PANEL_ID} .pfh-upload-side-card:hover .pfh-icon {
+        color: #6d35e8;
+        border-color: rgba(124, 58, 237, .20);
+        background: rgba(124, 58, 237, .10);
+      }
+      #${PANEL_ID} .pfh-upload-side-card:hover .pfh-icon svg {
+        transform: translateY(-1px);
+      }
       #${PANEL_ID} .pfh-upload-side-card strong,
       #${PANEL_ID} .pfh-upload-guide b {
         color: #17153f;
@@ -11255,6 +11281,17 @@
         width: 28px !important;
         height: 28px !important;
         border-radius: 9px !important;
+      }
+      #${PANEL_ID} .pfh-upload-side-card .pfh-icon svg {
+        width: 17px !important;
+        height: 17px !important;
+        color: currentColor !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+      }
+      #${PANEL_ID} .pfh-upload-side-card .pfh-icon svg * {
+        fill: currentColor !important;
+        stroke: currentColor !important;
       }
       #${PANEL_ID} .pfh-upload-side-card strong,
       #${PANEL_ID} .pfh-upload-side-card span,
@@ -12108,10 +12145,16 @@
         background: transparent !important;
         box-shadow: none !important;
       }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon-backArrow {
+        width: 20px !important;
+        height: 20px !important;
+        line-height: 0 !important;
+      }
       #${PANEL_ID} .pfh-header .pfh-actions .pfh-icon svg,
       #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon svg {
         width: 20px !important;
         height: 20px !important;
+        display: block !important;
         color: currentColor !important;
         fill: currentColor !important;
         stroke: currentColor !important;
