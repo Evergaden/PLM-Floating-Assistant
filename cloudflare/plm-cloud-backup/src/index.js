@@ -348,7 +348,7 @@ async function buildInsightSummary(env) {
     LIMIT 30
   `).all();
   const recentIssues = await env.DB.prepare(`
-    SELECT sku, brand, name, missing_fields, source, created_at
+    SELECT sku, brand, name, missing_fields, source, payload, created_at
     FROM insight_events
     WHERE event_type = 'issue'
     ORDER BY id DESC
@@ -396,10 +396,11 @@ async function buildInsightSummary(env) {
 
   const recentLogs = normalizeRecentLogs(recentLogRows.results || []);
   const recentRecommendations = normalizeRecentRecommendations(recentRecommendationRows.results || []);
+  const normalizedRecentIssues = normalizeRecentIssues(recentIssues.results || []);
   const summary = {
     totals: totals.results || [],
     productTypes: productTypes.results || [],
-    recentIssues: recentIssues.results || [],
+    recentIssues: normalizedRecentIssues,
     recentPrices: recentPrices.results || [],
     recentRecommendations,
     recentLogs,
@@ -418,6 +419,26 @@ function parsePayloadJson(value) {
   }
 }
 
+function normalizeRecentIssues(rows) {
+  return (rows || []).map((row) => {
+    const payload = parsePayloadJson(row.payload);
+    const diagnosticAttempt = normalizeDiagnosticAttempt(payload && payload.diagnosticAttempt);
+    const diagnostics = normalizeFieldDiagnostics(payload, row);
+    return {
+      sku: cleanText(row.sku || payload.sku, 80),
+      brand: cleanText(row.brand || payload.brand, 120),
+      name: cleanText(row.name || payload.name, 200),
+      missing_fields: cleanText(row.missing_fields || cleanList(payload.missingFields).join(','), 500),
+      source: cleanText(row.source || payload.source || 'plm-helper', 80),
+      issue_kind: cleanText(payload.issueKind, 80),
+      readiness: cleanText(payload.readiness, 300),
+      diagnostic_attempt: summarizeDiagnosticAttempt(diagnosticAttempt),
+      field_diagnostics: formatFieldDiagnostics(diagnostics),
+      created_at: row.created_at || '',
+    };
+  });
+}
+
 function normalizeRecentLogs(rows) {
   return (rows || []).map((row) => {
     const payload = parsePayloadJson(row.payload);
@@ -434,6 +455,18 @@ function normalizeRecentLogs(rows) {
       created_at: row.created_at || '',
     };
   }).filter((item) => item.level || item.message || item.detail);
+}
+
+function formatFieldDiagnostics(diagnostics) {
+  return (diagnostics || []).slice(0, 8).map((item) => {
+    const parts = [
+      item.field || '',
+      item.targetTab ? '目标页签:' + item.targetTab : '',
+      item.issueKind || '',
+      item.action || '',
+    ].filter(Boolean);
+    return parts.join(' / ');
+  }).filter(Boolean).join('；');
 }
 
 function normalizeRecentRecommendations(rows) {
@@ -610,8 +643,8 @@ async function handleInsightReport(request, env) {
     ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'confidence', 'price_stats', 'reason', 'product_type_source', 'sample_count', 'created_at']),
     '',
     '四、最近字段异常',
-    'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
-    ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
+    'SKU\t品牌\t商品名\t缺失字段\t诊断\t二次读取\t字段动作\t来源\t时间',
+    ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'issue_kind', 'diagnostic_attempt', 'field_diagnostics', 'source', 'created_at']),
     '',
     'Runtime logs',
     'Level\tSKU\tMessage\tDetail\tSource\tTime',
@@ -664,9 +697,9 @@ async function handleInsightFeishuTsv(request, env) {
     ),
     tsvSection(
       '字段异常',
-      ['SKU', '品牌', '商品名', '缺失字段', '来源', '记录时间'],
+      ['SKU', '品牌', '商品名', '缺失字段', '诊断', '二次读取', '字段动作', '来源', '记录时间'],
       summary.recentIssues,
-      ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']
+      ['sku', 'brand', 'name', 'missing_fields', 'issue_kind', 'diagnostic_attempt', 'field_diagnostics', 'source', 'created_at']
     ),
     tsvSection(
       'Runtime logs',
@@ -868,8 +901,8 @@ async function buildInsightAiReportPayload(env, summary, options) {
       ...tableLines(summary.recentRecommendations, ['sku', 'brand', 'name', 'product_type', 'recommended_price', 'recommended_pack_qty', 'source', 'confidence', 'price_stats', 'reason', 'product_type_source', 'sample_count', 'created_at']),
       '',
       '最近字段异常',
-      'SKU\t品牌\t商品名\t缺失字段\t来源\t时间',
-      ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'source', 'created_at']),
+      'SKU\t品牌\t商品名\t缺失字段\t诊断\t二次读取\t字段动作\t来源\t时间',
+      ...tableLines(summary.recentIssues, ['sku', 'brand', 'name', 'missing_fields', 'issue_kind', 'diagnostic_attempt', 'field_diagnostics', 'source', 'created_at']),
       '',
       'Runtime logs',
       'Level\tSKU\tMessage\tDetail\tSource\tTime',
@@ -1793,6 +1826,13 @@ function buildFeishuRecords(summary, aiPayload) {
     });
   (summary.recentIssues || []).forEach((item) => {
     const syncKey = ['issue', item.sku || '', item.missing_fields || '', item.source || '', item.created_at || ''].join('|');
+    const issueDetail = [
+      item.missing_fields || '',
+      item.issue_kind ? '诊断：' + item.issue_kind : '',
+      item.readiness || '',
+      item.diagnostic_attempt ? '二次读取：' + item.diagnostic_attempt : '',
+      item.field_diagnostics || '',
+    ].filter(Boolean).join(' / ');
     rows.push({
       syncKey,
       recordType: '字段异常',
@@ -1809,7 +1849,7 @@ function buildFeishuRecords(summary, aiPayload) {
         '产品尺寸': '',
         '置信度': '',
         '价格统计': '',
-        '缺失字段': item.missing_fields || '',
+        '缺失字段': issueDetail,
         '来源': item.source || '',
         '记录时间': item.created_at || '',
       },
