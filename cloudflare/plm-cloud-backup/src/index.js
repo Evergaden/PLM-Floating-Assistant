@@ -1060,7 +1060,6 @@ async function handleInsightReadiness(request, env) {
     totals[item.event_type] = Number(item.count || 0) || 0;
   });
   const recommendationProbe = await probeRecommendationEngine(env, summary);
-  const feishuStatus = await getFeishuConfigStatus(env);
   const ruleMaintenance = summarizeRuleMaintenance(summary.rulePackage);
   const checks = [
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
@@ -1071,7 +1070,6 @@ async function handleInsightReadiness(request, env) {
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: formatRuleMaintenanceSummary(ruleMaintenance) },
     { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'glm-4-flash') : 'ZHIPU_API_KEY missing' },
-    { key: 'feishu', ok: feishuStatus.configured, label: '飞书直写配置', detail: getFeishuStatusDetail(feishuStatus) },
   ];
   const blockers = checks.filter((item) => !item.ok).map((item) => ({
     key: item.key,
@@ -1085,7 +1083,6 @@ async function handleInsightReadiness(request, env) {
     blockers,
     totals,
     recommendationProbe,
-    feishuStatus,
     ruleMaintenance,
     logDiagnostics: summary.logDiagnostics,
     generatedAt: new Date().toISOString(),
