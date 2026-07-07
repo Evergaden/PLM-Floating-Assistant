@@ -821,6 +821,7 @@ async function getCachedAiReport(env, cacheKey) {
 
 async function setCachedAiReport(env, cacheKey, payload) {
   if (!payload || !payload.report) return;
+  if (payload.source !== 'zhipu') return;
   await env.DB.prepare(`
     INSERT INTO ai_report_cache (cache_key, source, report, error, created_at)
     VALUES (?, ?, ?, ?, ?)
@@ -834,14 +835,16 @@ async function setCachedAiReport(env, cacheKey, payload) {
 
 async function handleInsightAiReport(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const url = new URL(request.url);
   const summary = await buildInsightSummary(env);
-  const payload = await buildInsightAiReportPayload(env, summary);
+  const payload = await buildInsightAiReportPayload(env, summary, { refresh: url.searchParams.get('refresh') === '1' });
   return json({ ok: true, ...payload, summary });
 }
 
-async function buildInsightAiReportPayload(env, summary) {
+async function buildInsightAiReportPayload(env, summary, options) {
+  const opts = options || {};
   const cacheKey = buildAiReportCacheKey(summary);
-  const cached = await getCachedAiReport(env, cacheKey);
+  const cached = opts.refresh ? null : await getCachedAiReport(env, cacheKey);
   if (cached) return cached;
   let payload = null;
   try {

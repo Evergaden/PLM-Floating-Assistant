@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.187
+// @version      2.3.188
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.187';
+  const SCRIPT_VERSION = '2.3.188';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6067,7 +6067,7 @@
     state.insightCloudStatus = '\u6b63\u5728\u8bf7\u6c42 AI \u6574\u7406\u6570\u636e...';
     renderShell();
     try {
-      const response = await fetchInsightAiReport();
+      const response = await fetchInsightAiReport({ refresh: true });
       const report = response && response.report ? response.report : '';
       if (!report) throw new Error('empty ai report');
       state.insightCloudReport = report;
@@ -6522,8 +6522,9 @@
     return cloudRequest('/insights/report', { method: 'GET' });
   }
 
-  async function fetchInsightAiReport() {
-    return cloudRequest('/insights/ai-report', { method: 'GET' });
+  async function fetchInsightAiReport(options) {
+    const opts = options || {};
+    return cloudRequest('/insights/ai-report' + (opts.refresh ? '?refresh=1' : ''), { method: 'GET' });
   }
 
   async function fetchInsightAiStatus() {
