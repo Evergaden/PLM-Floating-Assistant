@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.6
+// @version      2.4.7
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.6';
+  const SCRIPT_VERSION = '2.4.7';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1697,16 +1697,16 @@
     panel.querySelector('[data-action="search"]').innerHTML = '<span class="pfh-btn-text">' + escapeHtml(L.search) + '</span>';
     panel.querySelector('[data-action="search"]').title = TOOLTIP.search;
     panel.querySelector('[data-action="about"]').innerHTML = iconHtml('settings') + '<span>\u8bbe\u7f6e</span>';
-    panel.querySelector('[data-action="about"]').title = TOOLTIP.about;
+    panel.querySelector('[data-action="about"]').removeAttribute('title');
     panel.querySelector('[data-action="about"]').setAttribute('aria-label', TOOLTIP.about);
     panel.querySelector('[data-action="about"]').setAttribute('data-tooltip', TOOLTIP.about);
     panel.querySelector('[data-action="open-detail"]').innerHTML = iconHtml('folder') + '<span>\u6253\u5f00\u8be6\u60c5</span>';
-    panel.querySelector('[data-action="open-detail"]').title = TOOLTIP.openDetail;
+    panel.querySelector('[data-action="open-detail"]').removeAttribute('title');
     panel.querySelector('[data-action="open-detail"]').setAttribute('aria-label', TOOLTIP.openDetail);
     panel.querySelector('[data-action="open-detail"]').setAttribute('data-tooltip', TOOLTIP.openDetail);
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.querySelector('[data-action="upload-toggle"]').innerHTML = iconHtml('upload') + '<span>\u63d0\u5ba1\u4e0a\u4f20</span>';
-    panel.querySelector('[data-action="upload-toggle"]').title = L.uploadSection;
+    panel.querySelector('[data-action="upload-toggle"]').removeAttribute('title');
     panel.querySelector('[data-action="upload-toggle"]').setAttribute('aria-label', L.uploadSection);
     panel.querySelector('[data-action="upload-toggle"]').setAttribute('data-tooltip', L.uploadSection);
     panel.addEventListener('click', handlePanelClick);
@@ -1816,7 +1816,7 @@
     const button = panel && panel.querySelector('[data-action="panel-close"]');
     if (!button) return;
     button.innerHTML = iconHtml('close') + '<span>' + escapeHtml(L.close) + '</span>';
-    button.title = TOOLTIP.collapse;
+    button.removeAttribute('title');
     button.setAttribute('aria-label', TOOLTIP.collapse);
     button.setAttribute('data-tooltip', TOOLTIP.collapse);
   }
@@ -12074,7 +12074,7 @@
         background: transparent !important;
         color: #675f86 !important;
         box-shadow: none !important;
-        transform: translateY(2px) !important;
+        transform: translateY(-1px) !important;
         overflow: visible !important;
       }
       #${PANEL_ID} .pfh-header .pfh-actions button:hover {
@@ -12082,7 +12082,7 @@
         border-color: rgba(124, 58, 237, .16) !important;
         background: rgba(124, 58, 237, .10) !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 18px rgba(124,58,237,.10) !important;
-        transform: translateY(2px) !important;
+        transform: translateY(-1px) !important;
       }
       #${PANEL_ID} .pfh-header .pfh-actions button > span:not(.pfh-icon) {
         display: none !important;
