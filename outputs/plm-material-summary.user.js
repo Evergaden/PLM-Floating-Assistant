@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.4
+// @version      2.4.5
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.4';
+  const SCRIPT_VERSION = '2.4.5';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -11786,7 +11786,7 @@
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
         display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)) !important;
+        grid-template-columns: minmax(82px, 1.05fr) minmax(62px, .8fr) minmax(62px, .8fr) 48px minmax(68px, .9fr) !important;
         align-items: center !important;
         gap: 6px 7px !important;
         width: 100% !important;
@@ -11844,6 +11844,10 @@
         min-width: 0 !important;
         padding: 0 12px !important;
         border-radius: 10px !important;
+      }
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input {
+        padding-left: 9px !important;
+        padding-right: 9px !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open .pfh-excel-status {
         min-width: 0 !important;
@@ -12036,6 +12040,9 @@
       #${PANEL_ID} .pfh-settings-page .pfh-readiness-row {
         border-radius: 10px !important;
         background: rgba(248,250,252,.68) !important;
+      }
+      #${PANEL_ID} .pfh-list-head span {
+        font-weight: 400 !important;
       }
       #${PANEL_ID} .pfh-header .pfh-actions {
         align-self: stretch !important;
