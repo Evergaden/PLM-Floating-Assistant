@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.3.190
+// @version      2.3.191
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.3.190';
+  const SCRIPT_VERSION = '2.3.191';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -289,6 +289,9 @@
     excelStatus: '',
     excelPackQty: '',
     excelPurchasePrice: '6',
+    insightRecommendationSku: '',
+    insightRecommendationLoading: false,
+    insightRecommendation: null,
     exportType: 'excel',
     openingProjectDetail: false,
     openingProjectDetailSku: '',
@@ -1928,6 +1931,7 @@
     }
     state.data = normalizeData(data);
     scheduleProductThumbHydration(state.data);
+    scheduleInsightRecommendation(state.data);
     const main = panel.querySelector('.pfh-main');
     if (main) main.classList.remove('is-home');
     detail.innerHTML = [
@@ -1953,7 +1957,7 @@
       rowHtml('productHeight', L.productHeight, state.data.productHeight || L.noDimension),
       rowHtml('netContent', L.netContent, state.data.netContent || L.unknown),
       rowHtml('grossWeight', L.grossWeight, state.data.grossWeight || L.unknown),
-      '</div></section>',
+      '</div>' + insightRecommendationHtml(state.data) + '</section>',
       statusText ? '<div class="pfh-status">' + escapeHtml(statusText) + '</div>' : '',
       '</div>',
       '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span><span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
@@ -1995,6 +1999,76 @@
   function formatPrintSizeDisplay(data) {
     if (!data) return '';
     return [data.printSizeText || '', data.tubeSegmentText || ''].filter(Boolean).join('\n');
+  }
+
+  function insightRecommendationHtml(data) {
+    if (!data || !data.sku) return '';
+    const recommendation = state.insightRecommendationSku === data.sku ? state.insightRecommendation : null;
+    if (state.insightRecommendationLoading && state.insightRecommendationSku === data.sku) {
+      return '<div class="pfh-smart-recommend is-loading"><strong>\u667a\u80fd\u8865\u5168</strong><span>\u6b63\u5728\u5339\u914d\u5386\u53f2\u4ef7\u683c\u548c\u5546\u54c1\u7c7b\u578b...</span></div>';
+    }
+    if (!recommendation || !recommendation.recommendedPrice) return '';
+    const type = recommendation.effectiveProductType || recommendation.recommendedProductType || recommendation.productType || '';
+    const confidence = recommendation.priceConfidence || recommendation.recommendationConfidence || '';
+    const stats = formatRecommendationPriceStats(recommendation.priceStats);
+    const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, type);
+    return '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong>' +
+      '<span>\u63a8\u8350\u4ef7\u683c <b>' + escapeHtml(String(recommendation.recommendedPrice)) + '</b>' + (type ? ' / ' + escapeHtml(type) : '') + (confidence ? ' / \u7f6e\u4fe1\u5ea6' + escapeHtml(confidence) : '') + '</span>' +
+      (stats || reason ? '<small>' + escapeHtml([stats, reason].filter(Boolean).join(' / ')) + '</small>' : '') +
+      '</div>';
+  }
+
+  function scheduleInsightRecommendation(data) {
+    const sku = data && data.sku;
+    if (!sku || state.insightRecommendationLoading || state.insightRecommendationSku === sku) return;
+    state.insightRecommendationSku = sku;
+    state.insightRecommendation = null;
+    state.insightRecommendationLoading = true;
+    window.setTimeout(() => loadInsightRecommendationForDetail(sku).catch((error) => {
+      addLog('warn', '\u667a\u80fd\u8865\u5168\u5efa\u8bae\u83b7\u53d6\u5931\u8d25', sku + ' ' + formatErrorMessage(error));
+    }).finally(() => {
+      if (state.insightRecommendationSku === sku) {
+        state.insightRecommendationLoading = false;
+        renderShell();
+      }
+    }), 120);
+  }
+
+  async function loadInsightRecommendationForDetail(sku) {
+    const data = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : null));
+    if (!data || !data.sku) return;
+    const productType = getProductTypeForInsight(data, null);
+    const cloudRecommendation = await fetchInsightRecommendation(data, productType).catch(() => null);
+    const recommendedType = cloudRecommendation && cloudRecommendation.recommendedProductType && cloudRecommendation.recommendedProductType !== productType ? cloudRecommendation.recommendedProductType : '';
+    const effectiveProductType = recommendedType || (cloudRecommendation && cloudRecommendation.effectiveProductType) || productType;
+    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, effectiveProductType);
+    if (!recommendation || !recommendation.recommendedPrice || state.insightRecommendationSku !== sku) return;
+    state.insightRecommendation = {
+      ...recommendation,
+      productType,
+      effectiveProductType,
+      recommendedProductType: recommendation.recommendedProductType || recommendedType || '',
+      recommendationReason: recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, effectiveProductType),
+    };
+    syncInsightEvent('recommendation', {
+      sku: data.sku || '',
+      brand: data.brand || '',
+      name: data.name || '',
+      productType: effectiveProductType || productType || '',
+      price: String(recommendation.recommendedPrice || ''),
+      recommendedPrice: String(recommendation.recommendedPrice || ''),
+      source: recommendation.source || 'detail-recommendation',
+      reason: state.insightRecommendation.recommendationReason || '',
+      recommendationReason: state.insightRecommendation.recommendationReason || '',
+      productTypeSource: recommendation.productTypeSource || '',
+      productTypeScore: recommendation.productTypeScore || '',
+      typeSampleCount: recommendation.typeSampleCount || '',
+      recommendedProductType: state.insightRecommendation.recommendedProductType || '',
+      effectiveProductType,
+      priceConfidence: recommendation.priceConfidence || recommendation.recommendationConfidence || '',
+      recommendationConfidence: recommendation.priceConfidence || recommendation.recommendationConfidence || '',
+      priceStats: recommendation.priceStats || null,
+    });
   }
 
   function getProductThumbUrl(data) {
@@ -11357,6 +11431,42 @@
       #${PANEL_ID} .pfh-row[data-key="printSizeText"] .pfh-value {
         white-space: normal !important;
         line-height: 1.35 !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend {
+        display: grid !important;
+        gap: 4px !important;
+        margin: 10px 0 2px !important;
+        padding: 10px 12px !important;
+        border: 1px solid rgba(167, 139, 250, .28) !important;
+        border-radius: 14px !important;
+        background: rgba(255,255,255,.72) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.88) !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend strong {
+        color: #6d35e8 !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 1.2 !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend span {
+        color: #171a22 !important;
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        line-height: 1.35 !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend span b {
+        color: #171a22 !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend small {
+        color: #7d86a8 !important;
+        font-size: 11px !important;
+        font-weight: 400 !important;
+        line-height: 1.35 !important;
+      }
+      #${PANEL_ID} .pfh-smart-recommend.is-loading {
+        opacity: .78 !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-section-title.pfh-graphic-title {
         display: flex !important;
