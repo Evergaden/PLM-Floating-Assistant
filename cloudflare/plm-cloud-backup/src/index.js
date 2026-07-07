@@ -527,7 +527,7 @@ function tsvSection(title, headers, rows, columns) {
 }
 
 function recordsToUnifiedTsv(records) {
-  const headers = ['记录类型', 'SKU', '品牌', '商品名', '商品类型', '价格', '装箱数', '包装尺寸', '产品尺寸', '缺失字段', '来源', '记录时间'];
+  const headers = getFeishuRequiredFields();
   const lines = ['飞书统一表', headers.join('\t')];
   if (!records || !records.length) {
     lines.push('暂无');
