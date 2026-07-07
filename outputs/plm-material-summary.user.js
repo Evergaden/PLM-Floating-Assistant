@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.8
+// @version      2.4.9
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.8';
+  const SCRIPT_VERSION = '2.4.9';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1760,6 +1760,7 @@
       list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h10v14H7z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg>',
       print: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V4h10v4"></path><path d="M7 17H5V9h14v8h-2"></path><path d="M7 14h10v6H7z"></path></svg>',
       bag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h10l1 11H6L7 9Z"></path><path d="M9 9a3 3 0 0 1 6 0"></path></svg>',
+      image: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M778.24 947.2H143.36c-53.248 0-96.256-43.008-96.256-96.256V275.456c0-53.248 43.008-96.256 96.256-96.256h634.88c53.248 0 96.256 43.008 96.256 96.256v575.488c0 53.248-43.008 96.256-96.256 96.256z m-634.88-706.56c-19.456 0-34.816 15.36-34.816 34.816v575.488c0 19.456 15.36 34.816 34.816 34.816h634.88c19.456 0 34.816-15.36 34.816-34.816V275.456c0-19.456-15.36-34.816-34.816-34.816H143.36z"></path><path d="M946.176 844.8c-17.408 0-30.72-13.312-30.72-30.72V244.736c0-58.368-48.128-106.496-106.496-106.496H180.224c-17.408 0-30.72-13.312-30.72-30.72s13.312-30.72 30.72-30.72H808.96c93.184 0 167.936 75.776 167.936 167.936v569.344c0 17.408-13.312 30.72-30.72 30.72z"></path><path d="M77.824 834.56c-11.264 0-21.504-6.144-26.624-16.384-8.192-15.36-2.048-33.792 12.288-41.984l512-276.48c12.288-7.168 27.648-4.096 36.864 6.144L739.328 645.12c11.264 12.288 10.24 31.744-2.048 43.008s-31.744 10.24-43.008-2.048L583.68 565.248 92.16 830.464c-4.096 3.072-9.216 4.096-14.336 4.096zM287.744 547.84c-53.248 0-97.28-44.032-97.28-97.28s44.032-97.28 97.28-97.28 97.28 44.032 97.28 97.28-44.032 97.28-97.28 97.28z m0-133.12c-19.456 0-35.84 16.384-35.84 35.84s16.384 35.84 35.84 35.84 35.84-16.384 35.84-35.84-16.384-35.84-35.84-35.84z"></path></svg>',
     };
     return '<span class="pfh-icon pfh-icon-' + escapeHtml(name) + '">' + (icons[name] || '') + '</span>';
   }
@@ -1772,6 +1773,10 @@
     const panel = ensurePanel();
     panel.style.display = 'block';
     panel.classList.remove('is-collapsed');
+    window.clearTimeout(state.tooltipSuppressTimer);
+    state.tooltipSuppressTimer = window.setTimeout(() => {
+      panel.classList.remove('is-tooltip-suppressed');
+    }, 260);
     ensureLauncher();
     renderShell();
   }
@@ -1802,7 +1807,7 @@
     state.expanded = false;
     const panel = ensurePanel();
     panel.style.display = 'none';
-    panel.classList.add('is-collapsed');
+    panel.classList.add('is-collapsed', 'is-tooltip-suppressed');
     ensureLauncher();
     renderShell(L.noDrawer);
   }
@@ -2208,7 +2213,7 @@
 
   function productThumbHtml(data) {
     const src = getProductThumbUrl(data);
-    if (!src) return '<span class="pfh-product-thumb is-empty">' + iconHtml('box') + '</span>';
+    if (!src) return '<span class="pfh-product-thumb is-empty">' + iconHtml('image') + '</span>';
     return '<button type="button" class="pfh-product-thumb" title="悬浮放大预览">' +
       '<span class="pfh-thumb-frame"><img src="' + escapeHtml(src) + '" alt=""></span>' +
       '<span class="pfh-thumb-preview"><img src="' + escapeHtml(src) + '" alt=""></span>' +
@@ -12153,6 +12158,191 @@
       }
       #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover::after {
         transform: translate(0, 0);
+      }
+      #${PANEL_ID}.is-tooltip-suppressed .pfh-header .pfh-actions button::after,
+      #${PANEL_ID}.is-collapsed .pfh-header .pfh-actions button::after {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-search > button:hover {
+        color: #fff !important;
+        border-color: transparent !important;
+        background: linear-gradient(135deg, #8b5cf6, #6d35e8) !important;
+        box-shadow: 0 12px 26px rgba(124, 58, 237, 0.26) !important;
+        filter: none !important;
+      }
+      #${PANEL_ID} .pfh-product-thumb.is-empty {
+        background: rgba(255,255,255,.72) !important;
+        border: 1px solid rgba(211, 204, 255, .34) !important;
+        border-radius: 14px !important;
+      }
+      #${PANEL_ID} .pfh-product-thumb.is-empty .pfh-icon {
+        width: 22px !important;
+        height: 22px !important;
+        color: #7c3aed !important;
+      }
+      #${PANEL_ID} .pfh-product-thumb.is-empty .pfh-icon svg {
+        width: 22px !important;
+        height: 22px !important;
+        fill: currentColor !important;
+      }
+      #${PANEL_ID} .pfh-upload-section.is-open {
+        display: grid !important;
+        grid-template-rows: auto minmax(0, 1fr) auto !important;
+        gap: 12px !important;
+        height: 100% !important;
+        padding: 14px !important;
+        border: 1px solid rgba(211, 204, 255, .32) !important;
+        border-radius: 16px !important;
+        background: rgba(255,255,255,.68) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+      }
+      #${PANEL_ID} .pfh-upload-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #${PANEL_ID} .pfh-upload-title h3 {
+        color: #17153f !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+      }
+      #${PANEL_ID} .pfh-upload-status {
+        margin-left: auto !important;
+        padding: 5px 9px !important;
+        border: 1px solid rgba(211, 204, 255, .32) !important;
+        border-radius: 999px !important;
+        background: rgba(244, 241, 255, .72) !important;
+        color: #6d35e8 !important;
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+      }
+      #${PANEL_ID} .pfh-upload-title > button[data-action="upload-toggle"] {
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(190, 199, 220, .82) !important;
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.76) !important;
+        color: #253047 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.90) !important;
+      }
+      #${PANEL_ID} .pfh-upload-body {
+        display: grid !important;
+        grid-template-rows: auto auto auto minmax(0, 1fr) !important;
+        gap: 9px !important;
+        min-height: 0 !important;
+      }
+      #${PANEL_ID} .pfh-upload-drop {
+        min-height: 58px !important;
+        display: grid !important;
+        place-items: center !important;
+        padding: 10px 12px !important;
+        border: 1px dashed rgba(124, 58, 237, .30) !important;
+        border-radius: 14px !important;
+        background: rgba(248,250,252,.66) !important;
+        color: #6b7897 !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-upload-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+      }
+      #${PANEL_ID} .pfh-upload-actions button,
+      #${PANEL_ID} .pfh-upload-bottom-actions button {
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 11px !important;
+        border: 1px solid rgba(190, 199, 220, .82) !important;
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.76) !important;
+        color: #253047 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.90) !important;
+        line-height: 26px !important;
+      }
+      #${PANEL_ID} .pfh-upload-actions button:hover,
+      #${PANEL_ID} .pfh-upload-bottom-actions button:hover {
+        border-color: rgba(124, 58, 237, .28) !important;
+        background: rgba(244, 241, 255, .82) !important;
+        color: #5f35c8 !important;
+      }
+      #${PANEL_ID} .pfh-upload-table-head {
+        min-height: 34px !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(226, 232, 240, .80) !important;
+        border-radius: 12px !important;
+        background: rgba(255,255,255,.58) !important;
+        color: #7d86a8 !important;
+        font-size: 11px !important;
+      }
+      #${PANEL_ID} .pfh-upload-list {
+        gap: 7px !important;
+        padding-right: 2px !important;
+      }
+      #${PANEL_ID} .pfh-upload-item {
+        min-height: 54px !important;
+        height: auto !important;
+        flex: 0 0 auto !important;
+        padding: 8px 10px !important;
+        border: 1px solid rgba(226, 232, 240, .84) !important;
+        border-radius: 12px !important;
+        background: rgba(255,255,255,.70) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+      }
+      #${PANEL_ID} .pfh-upload-item.is-current {
+        border-color: rgba(124, 58, 237, .30) !important;
+        background: rgba(244, 241, 255, .72) !important;
+      }
+      #${PANEL_ID} .pfh-upload-item b {
+        color: #17153f !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+      }
+      #${PANEL_ID} .pfh-upload-item small,
+      #${PANEL_ID} .pfh-upload-item em,
+      #${PANEL_ID} .pfh-upload-item span {
+        color: #6b7897 !important;
+        font-size: 11px !important;
+      }
+      #${PANEL_ID} .pfh-upload-item span.is-success,
+      #${PANEL_ID} .pfh-upload-item span.is-ready {
+        color: #15803d !important;
+      }
+      #${PANEL_ID} .pfh-upload-item span.is-missing {
+        color: #b91c1c !important;
+      }
+      #${PANEL_ID} .pfh-upload-bottom {
+        gap: 8px !important;
+      }
+      #${PANEL_ID} .pfh-upload-bottom-line {
+        padding-top: 2px !important;
+      }
+      #${PANEL_ID} .pfh-upload-pager {
+        color: #7d86a8 !important;
+        font-size: 11px !important;
+      }
+      #${PANEL_ID} .pfh-upload-pager button,
+      #${PANEL_ID} .pfh-upload-pager b,
+      #${PANEL_ID} .pfh-upload-pager .pfh-pager-ellipsis {
+        width: 24px !important;
+        height: 24px !important;
+        border-radius: 8px !important;
+        border-color: rgba(190, 199, 220, .76) !important;
+        background: rgba(255,255,255,.74) !important;
+      }
+      #${PANEL_ID} .pfh-upload-pager b {
+        color: #6d35e8 !important;
+        border-color: rgba(124, 58, 237, .28) !important;
+        background: rgba(244, 241, 255, .76) !important;
+      }
+      #${PANEL_ID} .pfh-upload-section .pfh-note {
+        margin: 0 !important;
+        padding: 8px 0 0 !important;
+        border-top: 1px solid rgba(211, 204, 255, .22) !important;
+        color: #7d86a8 !important;
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
