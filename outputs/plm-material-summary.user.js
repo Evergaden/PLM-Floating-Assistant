@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.40
+// @version      2.4.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.40';
+  const SCRIPT_VERSION = '2.4.41';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2360,7 +2360,7 @@
         '<button type="button" data-action="ledger-export">导出今日记录</button>' +
         '<button type="button" data-action="ledger-clear">清空今日</button>' +
       '</div>' +
-      '<div class="pfh-ledger-head"><span>产品</span><span>状态</span><span>流程</span><span>操作</span></div>' +
+      '<div class="pfh-ledger-head"><span>产品</span><span>状态</span><span>操作</span></div>' +
       '<div class="pfh-ledger-list">' + rows + '</div>' +
       '<div class="pfh-note"><span class="pfh-note-source">复制列：产品名 / 编码 / 主图 / 定稿日期 / SKU图 / 定稿日期</span><span class="pfh-note-toast" aria-live="polite"></span></div>' +
       '</section></div>';
@@ -2370,14 +2370,17 @@
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
     const thumb = record.skuImageUrl ? '<img src="' + escapeHtml(record.skuImageUrl) + '" alt="">' : iconHtml('image');
+    const status = record.status || '待定稿';
+    const stage = record.stage && record.stage !== status ? record.stage : '';
+    const note = record.note && record.note !== status && record.note !== stage ? record.note : '';
+    const meta = [record.finalizedAt ? ('定稿 ' + record.finalizedAt) : '', stage, note].filter(Boolean).join(' · ') || '打开详情自动记录';
     return '<article class="pfh-ledger-item" data-ledger-sku="' + escapeHtml(sku) + '">' +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<button type="button" class="pfh-ledger-main" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' +
         '<b>' + escapeHtml(title) + '</b><small>' + escapeHtml(sku) + '</small>' +
-        '<em>' + escapeHtml(record.finalizedAt ? ('定稿 ' + record.finalizedAt) : '待定稿') + '</em>' +
+        '<em>' + escapeHtml(meta) + '</em>' +
       '</button>' +
-      '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(record.status)) + '">' + escapeHtml(record.status || '待定稿') + '</span>' +
-      '<span class="pfh-ledger-stage">' + escapeHtml(record.stage || '待定稿') + '<small>' + escapeHtml(record.note || record.updatedAt || '') + '</small></span>' +
+      '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(status)) + '">' + escapeHtml(status) + '</span>' +
       '<div class="pfh-ledger-actions">' +
         '<button type="button" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '">定稿</button>' +
         '<button type="button" data-action="ledger-error" data-sku="' + escapeHtml(sku) + '">异常</button>' +
@@ -8762,9 +8765,9 @@
           height: value.height,
         };
       }
-      return { width: 860, height: Math.min(1040, getPanelMaxHeight()) };
+      return { width: 686, height: Math.min(906, getPanelMaxHeight()) };
     } catch (error) {
-      return { width: 860, height: Math.min(1040, getPanelMaxHeight()) };
+      return { width: 686, height: Math.min(906, getPanelMaxHeight()) };
     }
   }
 
@@ -13468,8 +13471,8 @@
         font-size: 12px !important;
       }
       #${PANEL_ID} .pfh-ledger-toolbar {
-        display: flex !important;
-        flex-wrap: wrap !important;
+        display: grid !important;
+        grid-template-columns: auto minmax(142px, 1fr) auto minmax(104px, .8fr) minmax(104px, .8fr) auto !important;
         gap: 8px !important;
         align-items: center !important;
         min-width: 0 !important;
@@ -13495,7 +13498,7 @@
       }
       #${PANEL_ID} .pfh-ledger-head {
         display: grid !important;
-        grid-template-columns: minmax(180px, 1.4fr) 72px minmax(120px, .8fr) minmax(210px, 1fr) !important;
+        grid-template-columns: minmax(180px, 1fr) 72px minmax(180px, auto) !important;
         gap: 8px !important;
         min-height: 32px !important;
         align-items: center !important;
@@ -13526,11 +13529,11 @@
       }
       #${PANEL_ID} .pfh-ledger-item {
         display: grid !important;
-        grid-template-columns: 42px minmax(160px, 1.4fr) 72px minmax(120px, .8fr) minmax(210px, 1fr) !important;
+        grid-template-columns: 42px minmax(160px, 1fr) 72px minmax(180px, auto) !important;
         gap: 8px !important;
         align-items: center !important;
-        min-height: 58px !important;
-        padding: 8px 10px !important;
+        min-height: 54px !important;
+        padding: 7px 10px !important;
         border: 1px solid rgba(226, 232, 240, .84) !important;
         border-radius: 12px !important;
         background: rgba(255,255,255,.70) !important;
@@ -13573,8 +13576,7 @@
         white-space: nowrap !important;
       }
       #${PANEL_ID} .pfh-ledger-main small,
-      #${PANEL_ID} .pfh-ledger-main em,
-      #${PANEL_ID} .pfh-ledger-stage small {
+      #${PANEL_ID} .pfh-ledger-main em {
         color: #6b7897 !important;
         font-size: 11px !important;
         font-style: normal !important;
@@ -13594,12 +13596,6 @@
       #${PANEL_ID} .pfh-ledger-status.is-error {
         background: rgba(254,226,226,.78) !important;
         color: #b91c1c !important;
-      }
-      #${PANEL_ID} .pfh-ledger-stage {
-        display: grid !important;
-        gap: 2px !important;
-        color: #253047 !important;
-        font-size: 12px !important;
       }
       #${PANEL_ID} .pfh-ledger-actions {
         display: flex !important;
@@ -13622,8 +13618,8 @@
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-toolbar {
         display: grid !important;
-        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-        gap: 7px !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 6px !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-toolbar button,
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-toolbar input {
@@ -13632,7 +13628,7 @@
         padding: 0 8px !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-date {
-        grid-column: span 2 !important;
+        grid-column: span 3 !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-head {
         display: none !important;
@@ -13641,10 +13637,10 @@
         grid-template-columns: 42px minmax(0, 1fr) auto !important;
         grid-template-areas:
           "thumb main status"
-          "thumb stage stage"
           "thumb actions actions" !important;
-        gap: 6px 8px !important;
+        gap: 5px 8px !important;
         min-height: 0 !important;
+        padding: 7px 10px !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
         grid-area: thumb !important;
@@ -13656,9 +13652,6 @@
         grid-area: status !important;
         justify-self: end !important;
         white-space: nowrap !important;
-      }
-      #${PANEL_ID}.is-narrow-panel .pfh-ledger-stage {
-        grid-area: stage !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions {
         grid-area: actions !important;
@@ -13689,7 +13682,6 @@
           grid-template-columns: 42px minmax(0, 1fr) !important;
         }
         #${PANEL_ID} .pfh-ledger-status,
-        #${PANEL_ID} .pfh-ledger-stage,
         #${PANEL_ID} .pfh-ledger-actions {
           grid-column: 2 / -1 !important;
         }
