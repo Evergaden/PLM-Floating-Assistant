@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.21
+// @version      2.4.22
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.21';
+  const SCRIPT_VERSION = '2.4.22';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1110,11 +1110,19 @@
     for (const key of Object.keys(next)) {
       if (isUsefulValue(next[key])) merged[key] = next[key];
     }
-    if (next.seenMaterial || next.seenProduct) {
-      ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'].forEach((key) => {
-        if (Object.prototype.hasOwnProperty.call(next, key)) merged[key] = next[key] || '';
-      });
-      if (Object.prototype.hasOwnProperty.call(next, 'isTubePrintMaterial')) merged.isTubePrintMaterial = Boolean(next.isTubePrintMaterial);
+    if (next.seenMaterial) {
+      const hasTubeSpec = Boolean(next.tubeSegmentText || next.tubeTailSealLengthValue || next.tailSealLengthValue || next.tubeDiameter || next.tubeBody || next.tubeSpecKey || next.isTubePrintMaterial);
+      if (hasTubeSpec) {
+        ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'].forEach((key) => {
+          if (Object.prototype.hasOwnProperty.call(next, key)) merged[key] = next[key] || '';
+        });
+        if (Object.prototype.hasOwnProperty.call(next, 'isTubePrintMaterial')) merged.isTubePrintMaterial = Boolean(next.isTubePrintMaterial);
+      } else {
+        ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'].forEach((key) => {
+          merged[key] = '';
+        });
+        merged.isTubePrintMaterial = false;
+      }
     }
     if (next.seenDesign) {
       merged.skuImageUrl = next.skuImageUrl || '';
