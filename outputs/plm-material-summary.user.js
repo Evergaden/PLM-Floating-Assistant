@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.33
+// @version      2.4.34
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -1891,12 +1891,8 @@
     button.innerHTML = iconHtml('close') + '<span>' + escapeHtml(L.close) + '</span>';
     button.removeAttribute('title');
     button.setAttribute('aria-label', TOOLTIP.collapse);
-    if (state.expanded && panel.style.display !== 'none' && !panel.classList.contains('is-collapsed')) {
-      button.setAttribute('data-tooltip', TOOLTIP.collapse);
-    } else {
-      button.removeAttribute('data-tooltip');
-      button.removeAttribute('data-tooltip-muted');
-    }
+    button.removeAttribute('data-tooltip');
+    button.removeAttribute('data-tooltip-muted');
   }
 
   function updateSettingsNotice(panel) {
@@ -12875,6 +12871,11 @@
       }
       #${PANEL_ID} .pfh-list-head button[data-action="home-back"]::after,
       #${PANEL_ID} .pfh-list-head button[data-action="home-back"]:hover::after {
+        display: none !important;
+        content: none !important;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions button[data-action="panel-close"]::after,
+      #${PANEL_ID} .pfh-header .pfh-actions button[data-action="panel-close"]:hover::after {
         display: none !important;
         content: none !important;
       }
