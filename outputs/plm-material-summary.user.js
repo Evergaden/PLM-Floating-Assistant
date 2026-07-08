@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.39
+// @version      2.4.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.39';
+  const SCRIPT_VERSION = '2.4.40';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -8762,9 +8762,9 @@
           height: value.height,
         };
       }
-      return { width: 880, height: 820 };
+      return { width: 860, height: Math.min(1040, getPanelMaxHeight()) };
     } catch (error) {
-      return { width: 880, height: 820 };
+      return { width: 860, height: Math.min(1040, getPanelMaxHeight()) };
     }
   }
 
@@ -8786,9 +8786,11 @@
   function applyPanelSize(panel) {
     if (!state.panelSize) return;
     const height = clamp(state.panelSize.height, 520, getPanelMaxHeight());
-    panel.style.width = clamp(state.panelSize.width, 520, Math.min(1180, window.innerWidth - 24)) + 'px';
+    const width = clamp(state.panelSize.width, 520, Math.min(1180, window.innerWidth - 24));
+    panel.style.width = width + 'px';
     panel.style.height = height + 'px';
     panel.style.maxHeight = getPanelMaxHeight() + 'px';
+    panel.classList.toggle('is-narrow-panel', width < 920);
     const main = panel.querySelector('.pfh-main');
     if (main) main.style.height = 'auto';
   }
@@ -8908,6 +8910,7 @@
       if (!dragging) return;
       dragging = false;
       savePanelSize(state.panelSize);
+      addLog('info', '窗口大小已保存', Math.round(state.panelSize.width) + ' x ' + Math.round(state.panelSize.height));
       savePosition({
         right: Number.parseFloat(getComputedStyle(panel).right) || 0,
         bottom: Number.parseFloat(getComputedStyle(panel).bottom) || 0,
@@ -13434,6 +13437,7 @@
         grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
         gap: 10px !important;
         height: 100% !important;
+        min-width: 0 !important;
         padding: 14px !important;
         border: 1px solid rgba(211, 204, 255, .32) !important;
         border-radius: 16px !important;
@@ -13445,6 +13449,7 @@
         align-items: flex-start !important;
         justify-content: space-between !important;
         gap: 12px !important;
+        min-width: 0 !important;
         padding: 12px 14px !important;
         border: 1px solid rgba(211, 204, 255, .34) !important;
         border-radius: 14px !important;
@@ -13467,6 +13472,7 @@
         flex-wrap: wrap !important;
         gap: 8px !important;
         align-items: center !important;
+        min-width: 0 !important;
       }
       #${PANEL_ID} .pfh-ledger-toolbar button,
       #${PANEL_ID} .pfh-ledger-toolbar input,
@@ -13504,6 +13510,7 @@
         display: grid !important;
         gap: 7px !important;
         min-height: 0 !important;
+        min-width: 0 !important;
         overflow: auto !important;
         padding-right: 2px !important;
       }
@@ -13598,6 +13605,69 @@
         display: flex !important;
         flex-wrap: wrap !important;
         gap: 6px !important;
+        min-width: 0 !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-page {
+        padding: 12px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-hero {
+        align-items: flex-start !important;
+        padding: 11px 12px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-hero h3 {
+        font-size: 15px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-hero p {
+        max-width: 460px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-toolbar {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 7px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-toolbar button,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-toolbar input {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 0 8px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-date {
+        grid-column: span 2 !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-head {
+        display: none !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item {
+        grid-template-columns: 42px minmax(0, 1fr) auto !important;
+        grid-template-areas:
+          "thumb main status"
+          "thumb stage stage"
+          "thumb actions actions" !important;
+        gap: 6px 8px !important;
+        min-height: 0 !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
+        grid-area: thumb !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-main {
+        grid-area: main !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-status {
+        grid-area: status !important;
+        justify-self: end !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-stage {
+        grid-area: stage !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions {
+        grid-area: actions !important;
+        justify-content: flex-start !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions button {
+        flex: 0 1 auto !important;
+        min-width: 54px !important;
+        padding: 0 8px !important;
       }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
