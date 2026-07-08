@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.36
+// @version      2.4.37
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -560,7 +560,8 @@
     if (lockedSku && sku && sku !== lockedSku) return;
     if (lockedSku && !sku && state.openingProjectDetail) return;
     if (state.userCollapsedPanel && state.manuallyCollapsedForSku && state.manuallyCollapsedForSku === (sku || state.sku)) return;
-    if (state.view === 'tutorial' || state.view === 'about' || state.view === 'upload') {
+    const shouldAdoptProgrammaticDetail = sku && state.openingProjectDetailSku && sku === state.openingProjectDetailSku;
+    if (!shouldAdoptProgrammaticDetail && (state.view === 'tutorial' || state.view === 'about' || state.view === 'upload')) {
       state.drawer = drawer;
       state.sku = sku || state.sku || '';
       if (sku) state.selectedSku = sku;
@@ -4544,6 +4545,12 @@
     state.openingProjectDetail = true;
     state.openingProjectDetailSku = sku;
     state.ignoreOutsideClickUntil = Date.now() + 2500;
+    state.view = 'detail';
+    state.selectedSku = sku;
+    state.data = data;
+    resetExcelState();
+    expandPanel();
+    renderShell(L.openingDetail);
     showToast(L.openingDetail);
     try {
       if (!(await ensureNewProductProjectPage())) throw new Error('new product project page not ready');
@@ -4591,9 +4598,15 @@
     state.drawer = drawer;
     state.sku = sku;
     state.selectedSku = sku;
-    if (state.data && state.data.sku === sku) return;
     const cached = loadData(sku);
     if (cached) state.data = normalizeData(cached);
+    else if (!state.data || state.data.sku !== sku) state.data = normalizeData({ sku });
+    state.view = 'detail';
+    resetExcelState();
+    resetRound(state.data && state.data.seenDesign && getProductThumbUrl(state.data) ? REFRESH_SCAN_ATTEMPTS : AUTO_SCAN_ATTEMPTS);
+    state.scanTargetSku = sku;
+    expandPanel();
+    startScan();
   }
 
   async function ensureNewProductProjectPage() {
