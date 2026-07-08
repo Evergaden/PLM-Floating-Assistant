@@ -84,3 +84,20 @@ CREATE TABLE IF NOT EXISTS cleaning_rules (
 
 CREATE INDEX IF NOT EXISTS idx_cleaning_rules_priority
 ON cleaning_rules(priority, updated_at);
+
+CREATE TABLE IF NOT EXISTS classification_rules (
+  rule_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  label TEXT NOT NULL,
+  keywords TEXT,
+  negative_keywords TEXT,
+  confidence REAL NOT NULL DEFAULT 0,
+  examples TEXT,
+  payload TEXT,
+  source TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_classification_rules_kind
+ON classification_rules(kind, updated_at);

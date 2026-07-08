@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.13
+// @version      2.4.14
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.13';
+  const SCRIPT_VERSION = '2.4.14';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -429,6 +429,7 @@
     cloudBackupRunning: false,
     cloudBackupQueued: false,
     cloudBackupStatus: '',
+    classificationRules: [],
     packAiEstimatingKeys: new Set(),
     packAiFailedAt: {},
     logs: loadLogs(),
@@ -1985,7 +1986,19 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">\u0041\u0049\u603b\u7ed3\u89c4\u5219</button><button type="button" data-action="insights-apply-classify">\u91cd\u65b0\u5e94\u7528\u89c4\u5219</button><button type="button" data-action="insights-view-classify">\u67e5\u770b\u89c4\u5219</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderClassificationRulesPanel() + renderMaintainedCleaningRules() + '</div>';
+  }
+
+  function renderClassificationRulesPanel() {
+    const rules = Array.isArray(state.classificationRules) ? state.classificationRules : [];
+    if (!rules.length) return '';
+    const categoryCount = rules.filter((rule) => rule.kind === 'category').length;
+    const packageCount = rules.filter((rule) => rule.kind === 'packageType').length;
+    const rows = rules.slice(0, 10).map((rule) => {
+      const keywords = Array.isArray(rule.keywords) ? rule.keywords.slice(0, 8).join(' / ') : '';
+      return '<div class="pfh-rule-mini"><b>' + escapeHtml((rule.kind === 'packageType' ? '\u5305\u6750 ' : '\u54c1\u7c7b ') + (rule.label || '')) + '</b><small>' + escapeHtml(keywords) + '</small></div>';
+    }).join('');
+    return '<div class="pfh-rule-maintenance-summary"><strong>\u5546\u54c1\u5206\u7c7b\u89c4\u5219</strong><span>\u54c1\u7c7b ' + categoryCount + ' / \u5305\u6750 ' + packageCount + '</span>' + rows + '</div>';
   }
 
   function renderInsightReadinessPanel() {
@@ -2754,6 +2767,18 @@
     }
     if (action === 'insights-readiness') {
       checkCloudInsightReadiness();
+      return;
+    }
+    if (action === 'insights-ai-classify') {
+      summarizeCloudClassificationRules();
+      return;
+    }
+    if (action === 'insights-apply-classify') {
+      applyCloudClassificationRulesToLocal();
+      return;
+    }
+    if (action === 'insights-view-classify') {
+      viewCloudClassificationRules();
       return;
     }
     if (action === 'insights-refresh-rules') {
@@ -4451,6 +4476,41 @@
     return await waitFor(() => findProjectRowIdBySku(sku), 5000, 150);
   }
 
+  async function queryDesignTaskRowIdBySku(sku) {
+    if (!(await ensureNewProductProjectPage())) return '';
+    if (!(await ensureDesignTaskTab())) return '';
+    return await queryProjectRowIdBySku(sku);
+  }
+
+  async function ensureDesignTaskTab() {
+    const active = getActiveProjectWorkflowTabText();
+    if (/^\u8bbe\u8ba1\u4efb\u52a1/.test(active)) return true;
+    const tab = findProjectWorkflowTabByText('\u8bbe\u8ba1\u4efb\u52a1');
+    if (!tab) {
+      addLog('error', '\u73a9\u5177\u6807\u7b7e\uff1a\u672a\u627e\u5230\u8bbe\u8ba1\u4efb\u52a1\u9875\u7b7e');
+      return false;
+    }
+    clickElement(tab);
+    return Boolean(await waitFor(() => /^\u8bbe\u8ba1\u4efb\u52a1/.test(getActiveProjectWorkflowTabText()), 5000, 120));
+  }
+
+  function getActiveProjectWorkflowTabText() {
+    const tab = Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab-active, .ant-tabs-tab-active'))
+      .filter(isVisibleElement)
+      .find((el) => /^(?:\u5168\u90e8|\u5f00\u53d1\u4efb\u52a1|\u8bbe\u8ba1\u4efb\u52a1|\u63a8\u5e7f\u4e0a\u67b6)/.test(compactText(el.innerText || el.textContent)));
+    return tab ? compactText(tab.innerText || tab.textContent) : '';
+  }
+
+  function findProjectWorkflowTabByText(text) {
+    const expected = compactText(text);
+    return Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab, .filterTabs .ant-tabs-tab-btn, .ant-tabs-tab, [role="tab"]'))
+      .filter(isVisibleElement)
+      .find((el) => {
+        const current = compactText(el.innerText || el.textContent);
+        return current === expected || current.startsWith(expected);
+      }) || null;
+  }
+
   async function clickProjectDetailByRowId(rowId, sku) {
     if (isProjectDrawerOpenForSku(sku)) return true;
     const row = findOperationRowByRowId(rowId);
@@ -4919,11 +4979,12 @@
     }
     await closeProjectDetailDrawerForSku(sku);
     if (!(await ensureNewProductProjectPage())) return null;
+    if (!(await ensureDesignTaskTab())) return null;
     let rowId = data.projectRowId || data.projectId || '';
     if (rowId && await clickProjectBomByRowId(rowId, sku)) {
       return getProjectBomDrawerForSku(sku);
     }
-    rowId = await queryProjectRowIdBySku(sku);
+    rowId = await queryDesignTaskRowIdBySku(sku);
     if (!rowId) return null;
     const clicked = await clickProjectBomByRowId(rowId, sku);
     if (clicked) cacheProjectRowId(sku, rowId);
@@ -6557,6 +6618,67 @@
     renderShell();
   }
 
+  async function summarizeCloudClassificationRules() {
+    state.insightCloudStatus = '\u6b63\u5728\u8ba9 AI \u603b\u7ed3\u54c1\u7c7b/\u5305\u6750\u89c4\u5219...';
+    renderShell();
+    try {
+      const response = await fetchClassificationSummarize();
+      const rules = Array.isArray(response && response.rules) ? response.rules : [];
+      state.classificationRules = rules;
+      const warning = response && response.warning ? '\uff0c\u515c\u5e95\uff1a' + response.warning : '';
+      state.insightCloudStatus = '\u5206\u7c7b\u89c4\u5219\u5df2\u751f\u6210\uff1a' + rules.length + '\u6761\uff0c\u6837\u672c ' + (response.sampleCount || 0) + '\u6761\uff0c\u6765\u6e90 ' + (response.source || '') + warning;
+      addLog(response && response.warning ? 'warn' : 'success', 'AI \u603b\u7ed3\u5206\u7c7b\u89c4\u5219', state.insightCloudStatus);
+      showToast(state.insightCloudStatus);
+    } catch (error) {
+      state.insightCloudStatus = 'AI \u603b\u7ed3\u5206\u7c7b\u89c4\u5219\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', 'AI \u603b\u7ed3\u5206\u7c7b\u89c4\u5219\u5931\u8d25', formatErrorMessage(error));
+      showToast(state.insightCloudStatus);
+    }
+    renderShell();
+  }
+
+  async function viewCloudClassificationRules() {
+    state.insightCloudStatus = '\u6b63\u5728\u62c9\u53d6\u5206\u7c7b\u89c4\u5219...';
+    renderShell();
+    try {
+      const response = await fetchClassificationRules();
+      const rules = Array.isArray(response && response.rules) ? response.rules : [];
+      state.classificationRules = rules;
+      const text = formatClassificationRulesForCopy(rules);
+      copyText(text || '\u6682\u65e0\u5206\u7c7b\u89c4\u5219');
+      state.insightCloudStatus = '\u5206\u7c7b\u89c4\u5219\u5df2\u590d\u5236\uff1a' + rules.length + '\u6761';
+      addLog('success', '\u5df2\u67e5\u770b\u5206\u7c7b\u89c4\u5219', state.insightCloudStatus);
+      showToast(L.copied);
+    } catch (error) {
+      state.insightCloudStatus = '\u67e5\u770b\u5206\u7c7b\u89c4\u5219\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u67e5\u770b\u5206\u7c7b\u89c4\u5219\u5931\u8d25', formatErrorMessage(error));
+      showToast(state.insightCloudStatus);
+    }
+    renderShell();
+  }
+
+  async function applyCloudClassificationRulesToLocal() {
+    state.insightCloudStatus = '\u6b63\u5728\u91cd\u65b0\u5e94\u7528\u5206\u7c7b\u89c4\u5219...';
+    renderShell();
+    try {
+      let rules = Array.isArray(state.classificationRules) && state.classificationRules.length ? state.classificationRules : [];
+      if (!rules.length) {
+        const response = await fetchClassificationRules();
+        rules = Array.isArray(response && response.rules) ? response.rules : [];
+        state.classificationRules = rules;
+      }
+      const result = applyClassificationRulesToLocalCache(rules);
+      state.insightCloudStatus = '\u5df2\u91cd\u65b0\u5e94\u7528\u89c4\u5219\uff1a\u66f4\u65b0 ' + result.updated + '/' + result.total + '\u4e2a\u7f16\u7801';
+      addLog('success', '\u5df2\u91cd\u65b0\u5e94\u7528\u5206\u7c7b\u89c4\u5219', state.insightCloudStatus);
+      showToast(state.insightCloudStatus);
+    } catch (error) {
+      state.insightCloudStatus = '\u91cd\u65b0\u5e94\u7528\u5206\u7c7b\u89c4\u5219\u5931\u8d25\uff1a' + formatErrorMessage(error);
+      addLog('warn', '\u91cd\u65b0\u5e94\u7528\u5206\u7c7b\u89c4\u5219\u5931\u8d25', formatErrorMessage(error));
+      showToast(state.insightCloudStatus);
+    }
+    renderShell();
+  }
+
   async function updateMaintainedCleaningRuleStatus(ruleId, action) {
     if (!ruleId) return;
     const status = action === 'insights-rule-done'
@@ -6971,6 +7093,14 @@
     return cloudRequest('/insights/rules', { method: 'GET' });
   }
 
+  async function fetchClassificationRules() {
+    return cloudRequest('/insights/classification-rules?limit=240', { method: 'GET' });
+  }
+
+  async function fetchClassificationSummarize() {
+    return cloudRequest('/insights/classification-summarize', { method: 'POST', body: { version: SCRIPT_VERSION } });
+  }
+
   async function fetchMaintainedCleaningRules() {
     return cloudRequest('/insights/rules/maintained?limit=50', { method: 'GET' });
   }
@@ -7306,6 +7436,7 @@
   }
 
   function getProductTypeForInsight(data, extra) {
+    if (data && data.aiProductType) return String(data.aiProductType);
     const text = [
       extra && extra.englishName,
       extra && extra.chineseName,
@@ -7318,7 +7449,133 @@
     if (/\u971c|cream/i.test(text)) return '\u971c\u7c7b';
     if (/\u9999\u6c34|perfume/i.test(text)) return '\u9999\u6c34';
     if (/\u73a9\u5177|toy|\u516c\u4ed4|\u634f\u634f/i.test(text)) return '\u73a9\u5177';
+    const ruleMatch = matchClassificationRules(data, state.classificationRules || [], 'category');
+    if (ruleMatch && ruleMatch.label) return ruleMatch.label;
     return '\u672a\u5206\u7c7b';
+  }
+
+  function getClassificationText(data) {
+    return [
+      data && data.sku,
+      data && data.brand,
+      data && data.name,
+      data && data.netContent,
+      data && data.packageSizeLabel,
+      data && data.packageSizeText,
+      data && data.printSizeLabel,
+      data && data.printSizeText,
+      data && data.logoText,
+      data && data.aiProductType,
+      data && data.aiCategory,
+      Array.isArray(data && data.aiPackageTypes) ? data.aiPackageTypes.join(' ') : '',
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function normalizeRuleKeywords(value) {
+    if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return normalizeRuleKeywords(parsed);
+      } catch (error) {
+        return value.split(/[,，/、\s]+/).map((item) => item.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  }
+
+  function matchClassificationRules(data, rules, kind) {
+    const text = getClassificationText(data);
+    if (!text) return null;
+    const scored = (Array.isArray(rules) ? rules : [])
+      .filter((rule) => !kind || rule.kind === kind)
+      .map((rule) => {
+        const keywords = normalizeRuleKeywords(rule.keywords);
+        const negative = normalizeRuleKeywords(rule.negativeKeywords);
+        if (!keywords.length || negative.some((kw) => kw && text.includes(kw.toLowerCase()))) return null;
+        const hits = keywords.filter((kw) => kw && text.includes(kw.toLowerCase()));
+        if (!hits.length) return null;
+        const confidence = Number(rule.confidence || 0.65) || 0.65;
+        return { rule, hits, score: hits.reduce((sum, kw) => sum + Math.min(String(kw).length, 8), 0) * confidence };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score);
+    return scored[0] ? { ...scored[0].rule, hits: scored[0].hits, score: scored[0].score } : null;
+  }
+
+  function matchPackageTypeRules(data, rules) {
+    const matches = (Array.isArray(rules) ? rules : [])
+      .filter((rule) => rule.kind === 'packageType')
+      .map((rule) => matchClassificationRules(data, [rule], 'packageType'))
+      .filter(Boolean)
+      .sort((a, b) => (Number(b.score || 0) - Number(a.score || 0)));
+    const seen = new Set();
+    return matches.filter((item) => {
+      const label = item.label || '';
+      if (!label || seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    }).slice(0, 6);
+  }
+
+  function applyClassificationRulesToLocalCache(rules) {
+    const usable = Array.isArray(rules) ? rules : [];
+    if (!usable.length) throw new Error('\u6682\u65e0\u53ef\u7528\u5206\u7c7b\u89c4\u5219');
+    let total = 0;
+    let updated = 0;
+    const now = new Date().toLocaleString();
+    (state.index || []).forEach((item) => {
+      const sku = item && item.sku;
+      if (!sku) return;
+      const data = normalizeData(loadData(sku) || item);
+      if (!data || !data.sku) return;
+      total += 1;
+      const category = matchClassificationRules(data, usable, 'category');
+      const packageTypes = matchPackageTypeRules(data, usable);
+      const next = { ...data };
+      let changed = false;
+      if (category && category.label && next.aiProductType !== category.label) {
+        next.aiProductType = category.label;
+        next.aiCategory = category.label;
+        next.aiCategoryRule = category.ruleId || '';
+        changed = true;
+      }
+      const packageLabels = packageTypes.map((rule) => rule.label).filter(Boolean);
+      if (packageLabels.length && JSON.stringify(next.aiPackageTypes || []) !== JSON.stringify(packageLabels)) {
+        next.aiPackageTypes = packageLabels;
+        next.aiPackageRuleIds = packageTypes.map((rule) => rule.ruleId || '').filter(Boolean);
+        changed = true;
+      }
+      if (changed) {
+        next.aiClassifiedAt = now;
+        saveDataDirect(sku, normalizeData(next));
+        upsertIndex(next);
+        updated += 1;
+      }
+    });
+    saveIndex();
+    if (state.selectedSku) {
+      const current = loadData(state.selectedSku);
+      if (current) state.data = normalizeData(current);
+    }
+    return { total, updated };
+  }
+
+  function formatClassificationRulesForCopy(rules) {
+    const lines = ['类型\t名称\t置信度\t关键词\t排除词\t样例\t来源\t更新时间'];
+    (Array.isArray(rules) ? rules : []).forEach((rule) => {
+      lines.push([
+        rule.kind === 'packageType' ? '包材' : '品类',
+        rule.label || '',
+        rule.confidence || '',
+        normalizeRuleKeywords(rule.keywords).join('/'),
+        normalizeRuleKeywords(rule.negativeKeywords).join('/'),
+        normalizeRuleKeywords(rule.examples).join('/'),
+        rule.source || '',
+        rule.updatedAt || '',
+      ].join('\t'));
+    });
+    return lines.join('\n');
   }
 
   function compactSizeForInsight(parts, fallback) {

@@ -216,7 +216,7 @@ async function callZhipuPackEstimator(env, boxKey) {
   if (!itemDims) throw new Error('invalid boxKey');
   const localCount = calculateMaxPackCount(itemDims);
   if (!localCount) throw new Error('invalid calculated pack count');
-  const model = env.ZHIPU_MODEL || 'glm-4-flash';
+  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
   const prompt = [
     '外箱内径 56x36x21cm，货物 ' + itemDims.join('x') + 'cm。',
     '请遍历长宽高全部 6 种摆放方向，计算每个方向 floor(56/a)*floor(36/b)*floor(21/c)，直接给出一箱最多可装数量。',
@@ -291,6 +291,275 @@ function cleanText(value, maxLength = 200) {
 function cleanList(value, maxItems = 20) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, maxItems);
+}
+
+async function ensureClassificationRulesTable(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS classification_rules (
+      rule_id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      label TEXT NOT NULL,
+      keywords TEXT,
+      negative_keywords TEXT,
+      confidence REAL NOT NULL DEFAULT 0,
+      examples TEXT,
+      payload TEXT,
+      source TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.DB.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_classification_rules_kind
+    ON classification_rules(kind, updated_at)
+  `).run();
+}
+
+function parsePayload(value) {
+  try {
+    return value ? JSON.parse(value) : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+async function collectClassificationSamples(env, limit = 600) {
+  const rows = await env.DB.prepare(`
+    SELECT sku, brand, name, product_type, package_size, product_size, source, payload, created_at
+    FROM insight_events
+    WHERE (sku IS NOT NULL AND sku != '') OR (name IS NOT NULL AND name != '')
+    ORDER BY id DESC
+    LIMIT ?
+  `).bind(Math.max(50, Math.min(Number(limit) || 600, 1200))).all();
+  return (rows.results || []).map((row) => {
+    const payload = parsePayload(row.payload);
+    return {
+      sku: cleanText(row.sku || payload.sku, 80),
+      brand: cleanText(row.brand || payload.brand, 120),
+      name: cleanText(row.name || payload.name, 200),
+      productType: cleanText(row.product_type || payload.productType || payload.effectiveProductType, 120),
+      packageSize: cleanText(row.package_size || payload.packageSize, 120),
+      productSize: cleanText(row.product_size || payload.productSize, 120),
+      source: cleanText(row.source || payload.source, 80),
+      fileName: cleanText(payload.fileName, 180),
+      missingFields: Array.isArray(payload.missingFields) ? payload.missingFields.slice(0, 8) : [],
+      createdAt: row.created_at || '',
+    };
+  }).filter((item) => item.sku || item.name);
+}
+
+function buildFallbackClassificationPackage(samples, reason) {
+  const keywordGroups = [
+    { label: '玩具', keywords: ['玩具', '公仔', '玩偶', '捏捏', '积木', '盲盒', '史莱姆', '解压', 'toy', 'doll'] },
+    { label: '美妆', keywords: ['精华', '面霜', '身体乳', '护肤', '烟酰胺', '香水', '口红', '睫毛', 'beauty', 'cream', 'serum'] },
+    { label: '食品', keywords: ['软糖', '巧克力', '饼干', '咖啡', '茶包', '食品', 'gummy', 'candy', 'food'], negativeKeywords: ['捏捏', '公仔', '玩具', '玩偶'] },
+    { label: '日用品', keywords: ['清洁', '收纳', '家居', '厨房', '浴室', '刷', '袋', 'daily', 'home'] },
+    { label: '宠物', keywords: ['宠物', '猫', '狗', 'pet', 'cat', 'dog'] },
+  ];
+  const packageGroups = [
+    { label: '标签', keywords: ['标签', '贴纸', '条码', 'barcode', 'label'] },
+    { label: '纸盒', keywords: ['纸盒', '彩盒', '外盒', '盒子', 'box'] },
+    { label: '说明书', keywords: ['说明书', '卡纸', '吊牌', 'manual', 'card'] },
+    { label: '袋子', keywords: ['袋', '自封袋', 'opp', 'bag'] },
+    { label: '瓶/罐', keywords: ['瓶', '罐', '泵头', 'jar', 'bottle'] },
+    { label: '软管', keywords: ['软管', '管径', '管身', 'tube'] },
+  ];
+  const examplesFor = (keywords) => samples
+    .filter((item) => keywords.some((kw) => [item.name, item.productType, item.fileName].join(' ').toLowerCase().includes(String(kw).toLowerCase())))
+    .slice(0, 5)
+    .map((item) => item.sku || item.name)
+    .filter(Boolean);
+  return {
+    source: reason ? 'fallback' : 'heuristic',
+    generatedAt: new Date().toISOString(),
+    sampleCount: samples.length,
+    warning: reason || '',
+    categories: keywordGroups.map((item) => ({ ...item, confidence: 0.72, examples: examplesFor(item.keywords) })),
+    packageTypes: packageGroups.map((item) => ({ ...item, confidence: 0.7, examples: examplesFor(item.keywords) })),
+  };
+}
+
+function parseClassificationPackage(text) {
+  const raw = String(text || '').trim();
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('AI did not return JSON');
+  const data = JSON.parse(match[0]);
+  return {
+    source: 'zhipu',
+    generatedAt: new Date().toISOString(),
+    sampleCount: Number(data.sampleCount || 0) || 0,
+    summary: cleanText(data.summary, 500),
+    categories: Array.isArray(data.categories) ? data.categories : [],
+    packageTypes: Array.isArray(data.packageTypes) ? data.packageTypes : [],
+  };
+}
+
+async function callZhipuClassificationSummarizer(env, samples) {
+  const apiKey = env.ZHIPU_API_KEY;
+  if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
+  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
+  const compactSamples = samples.slice(0, 420).map((item) => ({
+    sku: item.sku,
+    brand: item.brand,
+    name: item.name,
+    productType: item.productType,
+    packageSize: item.packageSize,
+    productSize: item.productSize,
+    fileName: item.fileName,
+  }));
+  const prompt = [
+    '你是 PLM 商品数据分类规则整理助手。请从多人上传的历史样本中总结可复用规则。',
+    '目标维度：1 商品大类：食品/玩具/日用品/美妆/宠物/其他；2 包材种类：标签/纸盒/说明书/袋子/瓶罐/软管/其他；可以补充更细标签。',
+    '请输出纯 JSON，不要 Markdown。格式：{"summary":"","sampleCount":数字,"categories":[{"label":"玩具","keywords":["捏捏乐"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU..."]}],"packageTypes":[同结构]}',
+    '关键词必须来自商品名、已有类型、文件名或包材语义，避免过宽；每类最多 18 个关键词，examples 最多 6 个。',
+    JSON.stringify(compactSamples),
+  ].join('\n');
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        signal: AbortSignal.timeout(Number(env.ZHIPU_CLASSIFY_TIMEOUT_MS || 28000)),
+        headers: {
+          authorization: 'Bearer ' + apiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.15,
+          messages: [
+            { role: 'system', content: '你只做 PLM 商品分类和包材规则总结，输出严格 JSON。' },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status;
+        throw new Error(message);
+      }
+      const text = data && data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+      const pkg = parseClassificationPackage(text);
+      pkg.model = model;
+      pkg.sampleCount = samples.length;
+      return pkg;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 900));
+    }
+  }
+  throw lastError || new Error('classification ai failed');
+}
+
+function normalizeRuleArray(items, kind) {
+  return (Array.isArray(items) ? items : []).map((item, index) => {
+    const label = cleanText(item.label || item.name || '', 80);
+    const keywords = cleanList(item.keywords || item.matchKeywords || [], 24);
+    if (!label || !keywords.length) return null;
+    return {
+      ruleId: [kind, label, keywords.slice(0, 4).join('-')].join(':').toLowerCase().replace(/[^\w\u4e00-\u9fa5:-]+/g, '-').slice(0, 180) || (kind + ':' + index),
+      kind,
+      label,
+      keywords,
+      negativeKeywords: cleanList(item.negativeKeywords || item.excludeKeywords || [], 16),
+      confidence: Math.max(0, Math.min(1, Number(item.confidence || 0.65) || 0.65)),
+      examples: cleanList(item.examples || [], 8),
+      payload: item,
+    };
+  }).filter(Boolean);
+}
+
+async function upsertClassificationRules(env, pkg) {
+  await ensureClassificationRulesTable(env);
+  const rules = [
+    ...normalizeRuleArray(pkg.categories, 'category'),
+    ...normalizeRuleArray(pkg.packageTypes, 'packageType'),
+  ];
+  for (const rule of rules) {
+    await env.DB.prepare(`
+      INSERT INTO classification_rules (
+        rule_id, kind, label, keywords, negative_keywords, confidence, examples, payload, source, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(rule_id) DO UPDATE SET
+        kind = excluded.kind,
+        label = excluded.label,
+        keywords = excluded.keywords,
+        negative_keywords = excluded.negative_keywords,
+        confidence = excluded.confidence,
+        examples = excluded.examples,
+        payload = excluded.payload,
+        source = excluded.source,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(
+      rule.ruleId,
+      rule.kind,
+      rule.label,
+      JSON.stringify(rule.keywords),
+      JSON.stringify(rule.negativeKeywords),
+      rule.confidence,
+      JSON.stringify(rule.examples),
+      JSON.stringify(rule.payload || {}),
+      pkg.source || ''
+    ).run();
+  }
+  return rules.length;
+}
+
+async function getClassificationRules(env, limit = 200) {
+  await ensureClassificationRulesTable(env);
+  const rows = await env.DB.prepare(`
+    SELECT rule_id, kind, label, keywords, negative_keywords, confidence, examples, payload, source, updated_at
+    FROM classification_rules
+    ORDER BY kind, confidence DESC, updated_at DESC
+    LIMIT ?
+  `).bind(Math.max(20, Math.min(Number(limit) || 200, 500))).all();
+  return (rows.results || []).map((row) => ({
+    ruleId: row.rule_id,
+    kind: row.kind,
+    label: row.label,
+    keywords: parsePayload(row.keywords),
+    negativeKeywords: parsePayload(row.negative_keywords),
+    confidence: Number(row.confidence || 0),
+    examples: parsePayload(row.examples),
+    payload: parsePayload(row.payload),
+    source: row.source || '',
+    updatedAt: row.updated_at || '',
+  }));
+}
+
+async function handleClassificationRules(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const url = new URL(request.url);
+  const rules = await getClassificationRules(env, Number(url.searchParams.get('limit') || 240));
+  return json({ ok: true, total: rules.length, rules, generatedAt: new Date().toISOString() });
+}
+
+async function handleClassificationSummarize(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const samples = await collectClassificationSamples(env, 800);
+  if (!samples.length) return json({ ok: false, error: 'no insight samples' }, 422);
+  let pkg;
+  let warning = '';
+  try {
+    pkg = await callZhipuClassificationSummarizer(env, samples);
+  } catch (error) {
+    warning = cleanText(error && error.message, 240);
+    pkg = buildFallbackClassificationPackage(samples, warning);
+  }
+  const saved = await upsertClassificationRules(env, pkg);
+  const rules = await getClassificationRules(env, 240);
+  return json({
+    ok: true,
+    source: pkg.source || '',
+    model: pkg.model || (env.ZHIPU_MODEL || 'GLM-4.7-Flash'),
+    warning,
+    sampleCount: samples.length,
+    saved,
+    summary: pkg.summary || '',
+    rules,
+    generatedAt: pkg.generatedAt || new Date().toISOString(),
+  });
 }
 
 async function handleInsightRecord(request, env) {
@@ -847,7 +1116,7 @@ function getCurrentKeyQuerySuffix(request) {
 async function callZhipuInsightReporter(env, summary) {
   const apiKey = env.ZHIPU_API_KEY;
   if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
-  const model = env.ZHIPU_MODEL || 'glm-4-flash';
+  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
   const compactSummary = buildCompactAiInsightSummary(summary);
   const prompt = [
     '你是 PLM 商品数据清洗和采购数据分析助手。',
@@ -1042,7 +1311,7 @@ async function buildInsightAiReportPayload(env, summary, options) {
 
 async function handleInsightAiStatus(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const model = env.ZHIPU_MODEL || 'glm-4-flash';
+  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
   return json({
     ok: true,
     configured: Boolean(env.ZHIPU_API_KEY),
@@ -1069,7 +1338,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: formatRuleMaintenanceSummary(ruleMaintenance) },
-    { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'glm-4-flash') : 'ZHIPU_API_KEY missing' },
+    { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'GLM-4.7-Flash') : 'ZHIPU_API_KEY missing' },
   ];
   const blockers = checks.filter((item) => !item.ok).map((item) => ({
     key: item.key,
@@ -2339,6 +2608,8 @@ export default {
     if (url.pathname === '/insights/table' && request.method === 'GET') return handleInsightTable(request, env);
     if (url.pathname === '/insights/table.csv' && request.method === 'GET') return handleInsightTableCsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
+    if (url.pathname === '/insights/classification-rules' && request.method === 'GET') return handleClassificationRules(request, env);
+    if (url.pathname === '/insights/classification-summarize' && request.method === 'POST') return handleClassificationSummarize(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
     if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
     if (url.pathname === '/insights/rules/status' && request.method === 'POST') return handleCleaningRuleStatusUpdate(request, env);
