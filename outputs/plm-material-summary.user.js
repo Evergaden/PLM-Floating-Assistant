@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.37
+// @version      2.4.38
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -7300,7 +7300,7 @@
   }
 
   async function fetchClassificationSummarize() {
-    return cloudRequest('/insights/classification-summarize', { method: 'POST', body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting() } });
+    return cloudRequest('/insights/classification-summarize', { method: 'POST', timeoutMs: 90000, body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting() } });
   }
 
   async function fetchMaintainedCleaningRules() {
@@ -7370,6 +7370,7 @@
     const method = (options && options.method) || 'GET';
     const body = options && options.body ? JSON.stringify(options.body) : null;
     const url = CLOUD_BACKUP_API_BASE + path;
+    const timeoutMs = Number(options && options.timeoutMs) || 30000;
     return new Promise((resolve, reject) => {
       const handleLoad = (response) => {
         const text = response.responseText || '';
@@ -7398,12 +7399,15 @@
           onload: handleLoad,
           onerror: reject,
           ontimeout: () => reject(new Error('timeout')),
-          timeout: 30000,
+          timeout: timeoutMs,
         });
         return;
       }
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
       fetch(url, {
         method,
+        signal: controller ? controller.signal : undefined,
         headers: {
           'content-type': 'application/json',
           'x-api-key': CLOUD_BACKUP_API_KEY,
@@ -7413,7 +7417,11 @@
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw buildCloudError(data, response.status);
         return data;
-      }).then(resolve, reject);
+      }).then(resolve, (error) => {
+        reject(error && error.name === 'AbortError' ? new Error('timeout') : error);
+      }).finally(() => {
+        if (timer) window.clearTimeout(timer);
+      });
     });
   }
 
