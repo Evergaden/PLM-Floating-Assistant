@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.34
+// @version      2.4.35
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -1824,7 +1824,7 @@
     state.ignoreOutsideClickUntil = Date.now() + 250;
     const panel = ensurePanel();
     panel.style.display = 'block';
-    panel.classList.remove('is-collapsed');
+    panel.classList.remove('is-collapsed', 'is-hover-resetting');
     window.clearTimeout(state.tooltipSuppressTimer);
     state.tooltipSuppressTimer = window.setTimeout(() => {
       panel.classList.remove('is-tooltip-suppressed');
@@ -1858,11 +1858,17 @@
     state.userCollapsedPanel = true;
     state.expanded = false;
     const panel = ensurePanel();
-    panel.classList.add('is-collapsed', 'is-tooltip-suppressed');
+    panel.classList.add('is-collapsed', 'is-tooltip-suppressed', 'is-hover-resetting');
     suppressPanelTooltips(panel);
     panel.style.display = 'none';
     ensureLauncher();
     renderShell(L.noDrawer);
+    resetPanelActionHover(panel);
+    window.clearTimeout(state.hoverResetTimer);
+    state.hoverResetTimer = window.setTimeout(() => {
+      const current = document.getElementById(PANEL_ID);
+      if (current) current.classList.remove('is-hover-resetting');
+    }, 350);
   }
 
   function suppressPanelTooltips(scope) {
@@ -1873,10 +1879,15 @@
     if (document.activeElement && root.contains && root.contains(document.activeElement) && document.activeElement.blur) {
       document.activeElement.blur();
     }
-    window.clearTimeout(state.tooltipRestoreTimer);
-    Array.from(root.querySelectorAll ? root.querySelectorAll('[data-action="panel-close"][data-tooltip]') : []).forEach((el) => {
-      el.removeAttribute('data-tooltip');
-      el.removeAttribute('data-tooltip-muted');
+    resetPanelActionHover(root);
+  }
+
+  function resetPanelActionHover(root) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('.pfh-header .pfh-actions button').forEach((button) => {
+      if (button.blur) button.blur();
+      const clone = button.cloneNode(true);
+      button.replaceWith(clone);
     });
   }
 
@@ -1891,8 +1902,7 @@
     button.innerHTML = iconHtml('close') + '<span>' + escapeHtml(L.close) + '</span>';
     button.removeAttribute('title');
     button.setAttribute('aria-label', TOOLTIP.collapse);
-    button.removeAttribute('data-tooltip');
-    button.removeAttribute('data-tooltip-muted');
+    button.setAttribute('data-tooltip', TOOLTIP.collapse);
   }
 
   function updateSettingsNotice(panel) {
@@ -12874,14 +12884,16 @@
         display: none !important;
         content: none !important;
       }
-      #${PANEL_ID} .pfh-header .pfh-actions button[data-action="panel-close"]::after,
-      #${PANEL_ID} .pfh-header .pfh-actions button[data-action="panel-close"]:hover::after {
-        display: none !important;
-        content: none !important;
-      }
       #${PANEL_ID}.is-tooltip-suppressed .pfh-header .pfh-actions button::after,
       #${PANEL_ID}.is-collapsed .pfh-header .pfh-actions button::after {
         display: none !important;
+      }
+      #${PANEL_ID}.is-hover-resetting .pfh-header .pfh-actions button,
+      #${PANEL_ID}.is-hover-resetting .pfh-header .pfh-actions button:hover {
+        color: #675f86 !important;
+        border-color: transparent !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
       #${PANEL_ID} .pfh-search > button:hover {
         color: #fff !important;
