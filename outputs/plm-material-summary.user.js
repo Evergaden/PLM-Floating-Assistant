@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.16
+// @version      2.4.17
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.16';
+  const SCRIPT_VERSION = '2.4.17';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2261,7 +2261,7 @@
       const tip = getCurrentLoadingTip();
       return '<div class="pfh-status pfh-loading-tip"><span>\u8bc6\u522b\u4e2d</span><strong>' + escapeHtml(tip) + '</strong></div>';
     }
-    return '<div class="pfh-status">' + escapeHtml(statusText) + '</div>';
+    return '';
   }
 
   function getCurrentLoadingTip() {
@@ -8915,12 +8915,12 @@
       }
       #${PANEL_ID} .pfh-detail.is-loading .pfh-status {
         position: absolute;
-        top: 14px;
+        top: 50%;
         left: 50%;
         z-index: 30;
         width: min(390px, calc(100% - 34px));
         margin: 0;
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
         text-align: center;
         color: #475569;
         font-weight: 700;
