@@ -539,7 +539,8 @@ function parseClassificationPackage(text, source) {
 }
 
 function buildCleanClassificationPrompt(samples) {
-  const compactSamples = samples.slice(0, 420).map((item) => ({
+  const sampleLimit = 220;
+  const compactSamples = samples.slice(0, sampleLimit).map((item) => ({
     sku: item.sku,
     brand: item.brand,
     name: item.name,
@@ -556,7 +557,7 @@ function buildCleanClassificationPrompt(samples) {
     'Use keywords only when they are supported by product name, existing product type, file name, or packaging meaning. Avoid overly broad keywords.',
     'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 18 keywords and 6 examples for each rule.',
     'Schema: {"summary":"","sampleCount":number,"categories":[{"label":"","keywords":[],"negativeKeywords":[],"confidence":0.9,"examples":[]}],"packageTypes":[{"label":"","keywords":[],"negativeKeywords":[],"confidence":0.9,"examples":[]}]}',
-    'Samples:',
+    'The full dataset has ' + samples.length + ' samples. The following are the newest representative ' + compactSamples.length + ' samples:',
     JSON.stringify(compactSamples),
   ].join('\n');
 }
@@ -570,8 +571,8 @@ async function callConfiguredAiClassificationSummarizer(env, samples, modelOverr
       const result = await callAiText(env, {
         model: modelOverride,
         temperature: 0.15,
-        maxTokens: 2400,
-        timeoutMs: Number(env.AI_CLASSIFY_TIMEOUT_MS || env.ZHIPU_CLASSIFY_TIMEOUT_MS || 12000),
+        maxTokens: Number(env.AI_CLASSIFY_MAX_TOKENS || 1600),
+        timeoutMs: Number(env.AI_CLASSIFY_TIMEOUT_MS || env.ZHIPU_CLASSIFY_TIMEOUT_MS || 28000),
         system: 'Summarize PLM product and packaging classification rules. Output strict JSON only.',
         prompt,
       });

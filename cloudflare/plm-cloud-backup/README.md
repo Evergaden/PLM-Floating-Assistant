@@ -47,6 +47,15 @@ Optional Zhipu model override:
 npx.cmd wrangler secret put ZHIPU_MODEL
 ```
 
+Optional AI rule-summary tuning:
+
+```powershell
+npx.cmd wrangler secret put AI_CLASSIFY_TIMEOUT_MS
+# value: 28000
+npx.cmd wrangler secret put AI_CLASSIFY_ATTEMPTS
+# value: 2
+```
+
 Set Feishu credentials only if you want direct Feishu Bitable sync:
 
 ```powershell
