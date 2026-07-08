@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.31
+// @version      2.4.32
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -1858,10 +1858,34 @@
     state.userCollapsedPanel = true;
     state.expanded = false;
     const panel = ensurePanel();
-    panel.style.display = 'none';
     panel.classList.add('is-collapsed', 'is-tooltip-suppressed');
+    suppressPanelTooltips(panel);
+    panel.style.display = 'none';
     ensureLauncher();
     renderShell(L.noDrawer);
+  }
+
+  function suppressPanelTooltips(scope) {
+    const panel = document.getElementById(PANEL_ID);
+    const root = panel && scope && panel.contains(scope) ? panel : (panel || scope);
+    if (!root) return;
+    if (root.classList) root.classList.add('is-tooltip-suppressed');
+    if (document.activeElement && root.contains && root.contains(document.activeElement) && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
+    Array.from(root.querySelectorAll ? root.querySelectorAll('[data-tooltip]') : []).forEach((el) => {
+      el.setAttribute('data-tooltip-muted', el.getAttribute('data-tooltip') || '');
+      el.removeAttribute('data-tooltip');
+    });
+    window.clearTimeout(state.tooltipRestoreTimer);
+    state.tooltipRestoreTimer = window.setTimeout(() => {
+      const current = document.getElementById(PANEL_ID);
+      if (!current) return;
+      current.querySelectorAll('[data-tooltip-muted]').forEach((el) => {
+        el.setAttribute('data-tooltip', el.getAttribute('data-tooltip-muted') || '');
+        el.removeAttribute('data-tooltip-muted');
+      });
+    }, 500);
   }
 
   function isPanelVisible() {
@@ -2645,6 +2669,7 @@
       return;
     }
     if (action === 'panel-close') {
+      suppressPanelTooltips(actionTarget);
       collapsePanel(true);
       return;
     }
