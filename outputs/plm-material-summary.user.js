@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.24
+// @version      2.4.25
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.24';
+  const SCRIPT_VERSION = '2.4.25';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5259,11 +5259,14 @@
       let excelData = data;
       let missing = getExcelMissingFields(excelData, extra);
       if (missing.length) {
-        if (!(await ensureProjectDrawerForData(data))) throw new Error('target project drawer not open');
-        extra = await collectExcelExtraData(data);
-        excelData = normalizeData(mergeData(data, extra.liveData || {}));
-        cacheExcelExtraData(excelData, extra);
-        missing = getExcelMissingFields(excelData, extra);
+        if (await ensureProjectDrawerForData(data)) {
+          extra = await collectExcelExtraData(data);
+          excelData = normalizeData(mergeData(data, extra.liveData || {}));
+          cacheExcelExtraData(excelData, extra);
+          missing = getExcelMissingFields(excelData, extra);
+        } else {
+          addLog('warn', '\u83b7\u53d6\u8868\u683c\u4fe1\u606f\u672a\u6253\u5f00\u62bd\u5c49', data.sku + ' \u5df2\u4f7f\u7528\u5f53\u524d\u7f13\u5b58');
+        }
       }
       state.excelExtra = { extra, excelData };
       state.excelMissing = missing;
@@ -5343,15 +5346,19 @@
       return;
     }
     syncExcelInputs();
+    if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
+      await prepareExcelInfo();
+      syncExcelInputs();
+      if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
+        state.excelPanelOpen = true;
+        state.excelStatus = '\ud83d\udd34 \u8bf7\u5148\u83b7\u53d6\u8868\u683c\u4fe1\u606f';
+        renderShell();
+        showToast('\ud83d\udd34 \u8bf7\u5148\u83b7\u53d6\u8868\u683c\u4fe1\u606f');
+        return;
+      }
+    }
     const packQty = normalizePackQty(state.excelPackQty);
     const purchasePrice = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
-    if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
-      state.excelPanelOpen = true;
-      state.excelStatus = '\ud83d\udd34 \u8bf7\u5148\u83b7\u53d6\u8868\u683c\u4fe1\u606f';
-      renderShell();
-      showToast('\ud83d\udd34 \u8bf7\u5148\u83b7\u53d6\u8868\u683c\u4fe1\u606f');
-      return;
-    }
     if (state.excelMissing.length) showExcelMissingToast();
     try {
       const extra = state.excelExtra.extra;
