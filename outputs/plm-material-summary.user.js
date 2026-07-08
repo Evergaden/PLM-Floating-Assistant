@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.15
+// @version      2.4.16
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.15';
+  const SCRIPT_VERSION = '2.4.16';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2189,6 +2189,7 @@
     const main = panel.querySelector('.pfh-main');
     if (main) main.classList.remove('is-home');
     detail.innerHTML = [
+      renderStatusHtml(statusText),
       '<div class="pfh-detail-scroll">',
       '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
         productThumbHtml(state.data) +
@@ -2212,7 +2213,6 @@
       rowHtml('netContent', L.netContent, state.data.netContent || L.unknown),
       rowHtml('grossWeight', L.grossWeight, state.data.grossWeight || L.unknown),
       '</div>' + insightRecommendationHtml(state.data) + '</section>',
-      renderStatusHtml(statusText),
       '</div>',
       '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span><span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
     ].join('');
@@ -8901,6 +8901,7 @@
         font-size: 11px;
       }
       #${PANEL_ID} .pfh-detail {
+        position: relative;
         overflow: auto;
         height: 100%;
         padding: 10px;
@@ -8913,16 +8914,22 @@
         opacity: 0.45;
       }
       #${PANEL_ID} .pfh-detail.is-loading .pfh-status {
-        margin: 16px auto;
-        max-width: 280px;
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        z-index: 30;
+        width: min(390px, calc(100% - 34px));
+        margin: 0;
+        transform: translateX(-50%);
         text-align: center;
         color: #475569;
         font-weight: 700;
+        pointer-events: none;
       }
       #${PANEL_ID} .pfh-loading-tip {
         display: grid;
-        gap: 7px;
-        padding: 12px 14px;
+        gap: 9px;
+        padding: 15px 18px 16px;
         color: #5b4a77;
         background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(247,243,255,.72));
         border: 1px solid rgba(137, 94, 255, 0.18);
@@ -8932,15 +8939,15 @@
       }
       #${PANEL_ID} .pfh-loading-tip span {
         color: #8b5cf6;
-        font-size: 11px;
+        font-size: 13px;
         font-weight: 650;
         letter-spacing: 0;
       }
       #${PANEL_ID} .pfh-loading-tip strong {
         color: #42315f;
-        font-size: 13px;
+        font-size: 16px;
         line-height: 1.55;
-        font-weight: 500;
+        font-weight: 600;
       }
       #${PANEL_ID} .pfh-section {
         padding: 6px 0 8px;
