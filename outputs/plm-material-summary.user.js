@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.30
+// @version      2.4.31
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -419,6 +419,7 @@
     insightRecommendationLoading: false,
     insightRecommendation: null,
     exportType: 'excel',
+    exportMenuOpen: false,
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
@@ -2520,11 +2521,17 @@
     const status = state.excelStatus || (state.excelMissing.length ? L.excelIncomplete : L.excelReady);
     const statusClass = state.excelMissing.length || !state.excelExtra ? ' is-bad' : ' is-good';
     const priceValue = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
+    const exportLabel = state.exportType === 'toy-label' ? L.exportTypeToyLabel : L.exportTypeExcel;
     return '<div class="pfh-excel-form is-open">' +
-      '<select class="pfh-export-type" title="' + escapeHtml(L.action) + '">' +
-        '<option value="excel"' + (state.exportType === 'excel' ? ' selected' : '') + '>' + escapeHtml(L.exportTypeExcel) + '</option>' +
-        '<option value="toy-label"' + (state.exportType === 'toy-label' ? ' selected' : '') + '>' + escapeHtml(L.exportTypeToyLabel) + '</option>' +
-      '</select>' +
+      '<div class="pfh-export-menu' + (state.exportMenuOpen ? ' is-open' : '') + '">' +
+        '<button type="button" class="pfh-export-menu-button" data-action="export-menu-toggle" aria-expanded="' + (state.exportMenuOpen ? 'true' : 'false') + '">' +
+          '<span>' + escapeHtml(exportLabel) + '</span><i></i>' +
+        '</button>' +
+        '<div class="pfh-export-menu-list">' +
+          '<button type="button" data-action="export-type" data-export-type="excel" class="' + (state.exportType === 'excel' ? 'is-active' : '') + '">' + escapeHtml(L.exportTypeExcel) + '</button>' +
+          '<button type="button" data-action="export-type" data-export-type="toy-label" class="' + (state.exportType === 'toy-label' ? 'is-active' : '') + '">' + escapeHtml(L.exportTypeToyLabel) + '</button>' +
+        '</div>' +
+      '</div>' +
       '<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '">' +
       '<button type="button" data-action="excel-prepare" title="' + escapeHtml(L.excelRefresh) + '">' + iconHtml('refresh') + '</button>' +
       '<button type="button" data-action="excel-generate">' + escapeHtml(L.excel) + '</button>' +
@@ -2628,6 +2635,11 @@
   function handlePanelClick(event) {
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (state.exportMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-export-menu'))) {
+      state.exportMenuOpen = false;
+      renderShell();
+      return;
+    }
     if (action === 'expand') {
       expandPanel();
       return;
@@ -2721,6 +2733,17 @@
     if (action === 'excel-generate') {
       if (state.exportType === 'toy-label') generateToyLabelFromCurrent();
       else generateExcelFromCurrent();
+      return;
+    }
+    if (action === 'export-menu-toggle') {
+      state.exportMenuOpen = !state.exportMenuOpen;
+      renderShell();
+      return;
+    }
+    if (action === 'export-type') {
+      state.exportType = actionTarget.getAttribute('data-export-type') === 'toy-label' ? 'toy-label' : 'excel';
+      state.exportMenuOpen = false;
+      renderShell();
       return;
     }
     if (action === 'upload-toggle') {
@@ -3040,11 +3063,6 @@
   }
 
   function handlePanelChange(event) {
-    if (event.target && event.target.classList && event.target.classList.contains('pfh-export-type')) {
-      state.exportType = event.target.value === 'toy-label' ? 'toy-label' : 'excel';
-      renderShell();
-      return;
-    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-upload-file')) {
       const files = Array.from(event.target.files || []);
       files.forEach((file) => storeQueuedUploadFile(file));
@@ -12399,24 +12417,95 @@
         padding: 8px 10px !important;
         box-sizing: border-box !important;
       }
-      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select {
-        appearance: none !important;
-        -webkit-appearance: none !important;
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open .pfh-export-menu {
+        position: relative !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 28px !important;
+        z-index: 8 !important;
+      }
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open .pfh-export-menu-button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 10px !important;
         color: #443075 !important;
         border: 1px solid rgba(167, 139, 250, .34) !important;
         border-radius: 12px !important;
-        background:
-          linear-gradient(45deg, transparent 50%, #7c3aed 50%) calc(100% - 15px) 50% / 6px 6px no-repeat,
-          linear-gradient(135deg, #7c3aed 50%, transparent 50%) calc(100% - 11px) 50% / 6px 6px no-repeat,
-          linear-gradient(180deg, rgba(255,255,255,.94), rgba(246,243,255,.86)) !important;
+        background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(246,243,255,.86)) !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 6px 16px rgba(124, 58, 237, .08) !important;
-        padding: 0 28px 0 10px !important;
         font-size: 12px !important;
         font-weight: 500 !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        cursor: pointer !important;
+      }
+      #${PANEL_ID} .pfh-export-menu-button span {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      #${PANEL_ID} .pfh-export-menu-button i {
+        flex: 0 0 auto !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin-left: 6px !important;
+        border-left: 4px solid transparent !important;
+        border-right: 4px solid transparent !important;
+        border-top: 5px solid #7c3aed !important;
+        transition: transform .18s ease !important;
+      }
+      #${PANEL_ID} .pfh-export-menu.is-open .pfh-export-menu-button i {
+        transform: rotate(180deg) !important;
+      }
+      #${PANEL_ID} .pfh-export-menu-list {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: calc(100% + 6px) !important;
+        display: none !important;
+        padding: 5px !important;
+        border: 1px solid rgba(167, 139, 250, .30) !important;
+        border-radius: 13px !important;
+        background: rgba(255,255,255,.96) !important;
+        box-shadow: 0 14px 30px rgba(64, 48, 112, .14), inset 0 1px 0 rgba(255,255,255,.95) !important;
+        backdrop-filter: blur(14px) !important;
+        overflow: hidden !important;
+      }
+      #${PANEL_ID} .pfh-export-menu.is-open .pfh-export-menu-list {
+        display: grid !important;
+        gap: 3px !important;
+      }
+      #${PANEL_ID} .pfh-export-menu-list button {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
+        height: 27px !important;
+        min-height: 27px !important;
+        padding: 0 10px !important;
+        border: 0 !important;
+        border-radius: 9px !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #4b556f !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        text-align: left !important;
+      }
+      #${PANEL_ID} .pfh-export-menu-list button:hover,
+      #${PANEL_ID} .pfh-export-menu-list button.is-active {
+        color: #6d35e8 !important;
+        background: linear-gradient(135deg, rgba(124, 58, 237, .12), rgba(167, 139, 250, .08)) !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select,
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input,
-      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open button {
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button {
         width: 100% !important;
         min-width: 0 !important;
         height: 28px !important;
@@ -12428,7 +12517,7 @@
         box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 0 0 3px rgba(124, 58, 237, .10) !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input,
-      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open button {
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button {
         border: 1px solid rgba(190, 199, 220, .88) !important;
         border-radius: 10px !important;
         background: rgba(255,255,255,.82) !important;
