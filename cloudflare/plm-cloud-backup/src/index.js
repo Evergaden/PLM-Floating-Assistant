@@ -543,7 +543,10 @@ function parseClassificationPackage(text, source) {
       lastError = error;
     }
   }
-  if (!data) throw new Error('AI did not return JSON: ' + cleanText(raw || (lastError && lastError.message), 160));
+  if (!data) {
+    const reason = lastError && lastError.message ? lastError.message + ' | ' : '';
+    throw new Error('AI did not return JSON: ' + reason + cleanText(raw, 180));
+  }
   return {
     source: source || 'ai',
     generatedAt: new Date().toISOString(),
@@ -555,7 +558,7 @@ function parseClassificationPackage(text, source) {
 }
 
 function buildCleanClassificationPrompt(samples) {
-  const sampleLimit = 160;
+  const sampleLimit = 80;
   const compactSamples = samples.slice(0, sampleLimit).map((item) => ({
     sku: item.sku,
     brand: item.brand,
@@ -568,10 +571,10 @@ function buildCleanClassificationPrompt(samples) {
   return [
     'You are helping summarize PLM product data rules from shared historical samples.',
     'Return one minified valid JSON object only. Do not use Markdown, code fences, comments, prose, or trailing commas.',
-    'Goal 1: summarize exactly 6 reusable product categories, such as food, toys, daily goods, beauty, pet, and other useful subcategories.',
-    'Goal 2: summarize exactly 6 reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
+    'Goal 1: summarize exactly 4 reusable product categories, such as food, toys, daily goods, beauty, pet, and other useful subcategories.',
+    'Goal 2: summarize exactly 4 reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
     'Use keywords only when they are supported by product name, existing product type, file name, or packaging meaning. Avoid overly broad keywords.',
-    'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 8 keywords and 3 examples for each rule.',
+    'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 5 keywords and 1 example for each rule.',
     'Required schema exactly: {"summary":"short Chinese summary","sampleCount":0,"categories":[{"label":"玩具","keywords":["捏捏乐"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}],"packageTypes":[{"label":"标签","keywords":["标签"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}]}',
     'The full dataset has ' + samples.length + ' samples. The following are the newest representative ' + compactSamples.length + ' samples:',
     JSON.stringify(compactSamples),
