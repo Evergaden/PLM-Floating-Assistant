@@ -75,6 +75,133 @@ function getZhipuModel(env) {
   return model;
 }
 
+function normalizeInsightAiModel(value, env) {
+  const raw = String(value || (env && (env.INSIGHT_AI_MODEL || env.AI_MODEL || env.ZHIPU_MODEL)) || 'glm-4.7-flash').trim();
+  if (/^gemini-3\.5-flash$/i.test(raw)) return 'gemini-3.5-flash';
+  if (/^glm-4\.7-flash$/i.test(raw)) return 'glm-4.7-flash';
+  if (/^glm-/i.test(raw) || /^gemini-/i.test(raw)) return raw;
+  return 'glm-4.7-flash';
+}
+
+function getAiProvider(env, modelOverride) {
+  const requestedModel = modelOverride ? normalizeInsightAiModel(modelOverride, env).toLowerCase() : '';
+  if (requestedModel.startsWith('gemini-')) return 'gemini';
+  if (requestedModel.startsWith('glm-')) return 'zhipu';
+  const configured = String((env && (env.AI_PROVIDER || env.AI_MODEL_PROVIDER)) || '').trim().toLowerCase();
+  if (configured === 'gemini' || configured === 'google') return 'gemini';
+  if (configured === 'zhipu' || configured === 'glm') return 'zhipu';
+  const model = String((env && (env.AI_MODEL || env.GEMINI_MODEL || env.ZHIPU_MODEL)) || '').trim().toLowerCase();
+  if (model.startsWith('gemini-')) return 'gemini';
+  return 'zhipu';
+}
+
+function getGeminiModel(env, modelOverride) {
+  const requestedModel = modelOverride ? normalizeInsightAiModel(modelOverride, env) : '';
+  const model = /^gemini-/i.test(requestedModel) ? requestedModel : String((env && (env.GEMINI_MODEL || env.AI_MODEL)) || 'gemini-3.5-flash').trim();
+  return model || 'gemini-3.5-flash';
+}
+
+function getAiModelConfig(env, modelOverride) {
+  const requestedModel = modelOverride ? normalizeInsightAiModel(modelOverride, env) : '';
+  const provider = getAiProvider(env, requestedModel);
+  if (provider === 'gemini') {
+    const apiKey = env && (env.GEMINI_API_KEY || env.GOOGLE_API_KEY);
+    return {
+      provider,
+      source: 'gemini',
+      model: getGeminiModel(env, requestedModel),
+      apiKey,
+      configured: Boolean(apiKey),
+    };
+  }
+  const model = /^glm-/i.test(requestedModel) ? requestedModel : String((env && (env.AI_MODEL || env.ZHIPU_MODEL)) || '').trim() || getZhipuModel(env);
+  const apiKey = env && env.ZHIPU_API_KEY;
+  return {
+    provider: 'zhipu',
+    source: 'zhipu',
+    model,
+    apiKey,
+    configured: Boolean(apiKey),
+  };
+}
+
+function getAiModel(env, modelOverride) {
+  return getAiModelConfig(env, modelOverride).model;
+}
+
+async function callAiText(env, options) {
+  const config = getAiModelConfig(env, options && options.model);
+  if (!config.configured) {
+    const keyName = config.provider === 'gemini' ? 'GEMINI_API_KEY' : 'ZHIPU_API_KEY';
+    throw new Error(keyName + ' not configured');
+  }
+  if (config.provider === 'gemini') return callGeminiText(config, options);
+  return callZhipuText(config, options);
+}
+
+async function callZhipuText(config, options) {
+  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(Number(options.timeoutMs || 12000)),
+    headers: {
+      authorization: 'Bearer ' + config.apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: config.model,
+      temperature: Number(options.temperature || 0),
+      max_tokens: options.maxTokens,
+      messages: [
+        { role: 'system', content: options.system || '' },
+        { role: 'user', content: options.prompt || '' },
+      ],
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status);
+  }
+  return {
+    provider: config.provider,
+    source: config.source,
+    model: config.model,
+    text: data && data.choices && data.choices[0] && data.choices[0].message
+      ? String(data.choices[0].message.content || '').trim()
+      : '',
+  };
+}
+
+async function callGeminiText(config, options) {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(config.model) + ':generateContent?key=' + encodeURIComponent(config.apiKey);
+  const generationConfig = {
+    temperature: Number(options.temperature || 0),
+  };
+  if (options.maxTokens) generationConfig.maxOutputTokens = Number(options.maxTokens);
+  const response = await fetch(url, {
+    method: 'POST',
+    signal: AbortSignal.timeout(Number(options.timeoutMs || 12000)),
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: options.system || '' }] },
+      contents: [{ role: 'user', parts: [{ text: options.prompt || '' }] }],
+      generationConfig,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data && data.error && data.error.message ? data.error.message : 'gemini HTTP ' + response.status);
+  }
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content
+    ? data.candidates[0].content.parts || []
+    : [];
+  return {
+    provider: config.provider,
+    source: config.source,
+    model: config.model,
+    text: parts.map((part) => part && part.text ? part.text : '').join('').trim(),
+  };
+}
+
 async function getPackRecommendation(env, boxKey) {
   const row = await env.DB.prepare(`
     SELECT pack_count, COUNT(*) AS votes, MAX(created_at) AS latest_at
@@ -396,13 +523,13 @@ function buildFallbackClassificationPackage(samples, reason) {
   };
 }
 
-function parseClassificationPackage(text) {
+function parseClassificationPackage(text, source) {
   const raw = String(text || '').trim();
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('AI did not return JSON');
   const data = JSON.parse(match[0]);
   return {
-    source: 'zhipu',
+    source: source || 'ai',
     generatedAt: new Date().toISOString(),
     sampleCount: Number(data.sampleCount || 0) || 0,
     summary: cleanText(data.summary, 500),
@@ -411,10 +538,7 @@ function parseClassificationPackage(text) {
   };
 }
 
-async function callZhipuClassificationSummarizer(env, samples) {
-  const apiKey = env.ZHIPU_API_KEY;
-  if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
-  const model = getZhipuModel(env);
+function buildCleanClassificationPrompt(samples) {
   const compactSamples = samples.slice(0, 420).map((item) => ({
     sku: item.sku,
     brand: item.brand,
@@ -424,42 +548,35 @@ async function callZhipuClassificationSummarizer(env, samples) {
     productSize: item.productSize,
     fileName: item.fileName,
   }));
-  const prompt = [
-    '你是 PLM 商品数据分类规则整理助手。请从多人上传的历史样本中总结可复用规则。',
-    '目标维度：1 商品大类：食品/玩具/日用品/美妆/宠物/其他；2 包材种类：标签/纸盒/说明书/袋子/瓶罐/软管/其他；可以补充更细标签。',
-    '请输出纯 JSON，不要 Markdown。格式：{"summary":"","sampleCount":数字,"categories":[{"label":"玩具","keywords":["捏捏乐"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU..."]}],"packageTypes":[同结构]}',
-    '关键词必须来自商品名、已有类型、文件名或包材语义，避免过宽；每类最多 18 个关键词，examples 最多 6 个。',
+  return [
+    'You are helping summarize PLM product data rules from shared historical samples.',
+    'Return strict JSON only. Do not use Markdown.',
+    'Goal 1: summarize reusable product categories, such as food, toys, daily goods, beauty, pet, and other useful subcategories.',
+    'Goal 2: summarize reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
+    'Use keywords only when they are supported by product name, existing product type, file name, or packaging meaning. Avoid overly broad keywords.',
+    'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 18 keywords and 6 examples for each rule.',
+    'Schema: {"summary":"","sampleCount":number,"categories":[{"label":"","keywords":[],"negativeKeywords":[],"confidence":0.9,"examples":[]}],"packageTypes":[{"label":"","keywords":[],"negativeKeywords":[],"confidence":0.9,"examples":[]}]}',
+    'Samples:',
     JSON.stringify(compactSamples),
   ].join('\n');
+}
+
+async function callConfiguredAiClassificationSummarizer(env, samples, modelOverride) {
+  const prompt = buildCleanClassificationPrompt(samples);
   let lastError = null;
-  const maxAttempts = Number(env.ZHIPU_CLASSIFY_ATTEMPTS || 2);
+  const maxAttempts = Number(env.AI_CLASSIFY_ATTEMPTS || env.ZHIPU_CLASSIFY_ATTEMPTS || 2);
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-        method: 'POST',
-        signal: AbortSignal.timeout(Number(env.ZHIPU_CLASSIFY_TIMEOUT_MS || 12000)),
-        headers: {
-          authorization: 'Bearer ' + apiKey,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          temperature: 0.15,
-          max_tokens: 2400,
-          messages: [
-            { role: 'system', content: '你只做 PLM 商品分类和包材规则总结，输出严格 JSON。' },
-            { role: 'user', content: prompt },
-          ],
-        }),
+      const result = await callAiText(env, {
+        model: modelOverride,
+        temperature: 0.15,
+        maxTokens: 2400,
+        timeoutMs: Number(env.AI_CLASSIFY_TIMEOUT_MS || env.ZHIPU_CLASSIFY_TIMEOUT_MS || 12000),
+        system: 'Summarize PLM product and packaging classification rules. Output strict JSON only.',
+        prompt,
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const message = data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status;
-        throw new Error(message);
-      }
-      const text = data && data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
-      const pkg = parseClassificationPackage(text);
-      pkg.model = model;
+      const pkg = parseClassificationPackage(result.text, result.source);
+      pkg.model = result.model;
       pkg.sampleCount = samples.length;
       return pkg;
     } catch (error) {
@@ -556,12 +673,14 @@ async function handleClassificationRules(request, env) {
 
 async function handleClassificationSummarize(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request).catch(() => ({}));
+  const requestedModel = normalizeInsightAiModel(body && body.aiModel, env);
   const samples = await collectClassificationSamples(env, 800);
   if (!samples.length) return json({ ok: false, error: 'no insight samples' }, 422);
   let pkg;
   let warning = '';
   try {
-    pkg = await callZhipuClassificationSummarizer(env, samples);
+    pkg = await callConfiguredAiClassificationSummarizer(env, samples, requestedModel);
   } catch (error) {
     warning = cleanText(error && error.message, 240);
     pkg = buildFallbackClassificationPackage(samples, warning);
@@ -571,7 +690,7 @@ async function handleClassificationSummarize(request, env) {
   return json({
     ok: true,
     source: pkg.source || '',
-    model: pkg.model || getZhipuModel(env),
+    model: pkg.model || getAiModel(env, requestedModel),
     warning,
     sampleCount: samples.length,
     saved,
@@ -1304,6 +1423,32 @@ async function callZhipuInsightReporter(env, summary) {
     : '';
 }
 
+async function callSelectedAiInsightReporter(env, summary, modelOverride) {
+  const compactSummary = buildCompactAiInsightSummary(summary);
+  const prompt = [
+    '浣犳槸 PLM 鍟嗗搧鏁版嵁娓呮礂鍜岄噰璐暟鎹垎鏋愬姪鎵嬨€?',
+    '璇锋牴鎹笅闈㈢簿绠€ JSON 杈撳嚭涓枃鎶ュ憡锛屾渶澶?900 瀛椼€?',
+    '蹇呴』鍖呭惈锛?锛夊晢鍝佺被鍨?浠锋牸瑙勫緥锛?锛夋櫤鑳借ˉ鍏ㄥ缓璁紱3锛夋竻娲楄鍒欎紭鍏堢骇锛?锛夐涔﹁〃鏍艰褰曞缓璁€?',
+    '鏍规嵁 ruleRows/ruleMaintenance/logDiagnostics 鍒ゆ柇鍘熷洜绫诲埆锛歅LM绌哄€笺€佽剼鏈В鏋愮己鍙ｃ€侀〉闈㈡湭璇诲畬銆佺綉缁?娴佺▼闂銆備紭鍏堣鏄庘€滈渶澶勭悊/瑙傚療/寰呭鏍糕€濈殑瑙勫垯鏁伴噺鍜孴op瑙勫垯锛屼笉瑕佺紪閫?JSON 澶栫殑鏁版嵁銆?',
+    JSON.stringify(compactSummary),
+  ].join('\n');
+
+  try {
+    return await callAiText(env, {
+      model: modelOverride,
+      temperature: 0.2,
+      timeoutMs: Number(env.AI_INSIGHT_TIMEOUT_MS || env.ZHIPU_INSIGHT_TIMEOUT_MS || 22000),
+      system: '浣犲彧鍋?PLM 鍟嗗搧鏁版嵁娲炲療銆佷环鏍艰寰嬫€荤粨鍜屾暟鎹竻娲楄鍒欏缓璁€傝緭鍑虹畝娲佷腑鏂囥€?',
+      prompt,
+    });
+  } catch (error) {
+    if (error && (error.name === 'AbortError' || /aborted|timeout/i.test(String(error.message || '')))) {
+      throw new Error('AI 娲炲療璇锋眰瓒呮椂锛屽凡浣跨敤瑙勫垯鐗堟€荤粨');
+    }
+    throw error;
+  }
+}
+
 function buildCompactAiInsightSummary(summary) {
   const ruleMaintenance = summarizeRuleMaintenance(summary && summary.rulePackage);
   const rules = ((summary && summary.rulePackage && summary.rulePackage.rules) || [])
@@ -1374,7 +1519,7 @@ async function getCachedAiReport(env, cacheKey) {
   `).bind(cacheKey).first();
   if (!row) return null;
   const ageMs = Date.now() - Number(row.created_at || 0);
-  const ttlMs = row.source === 'zhipu' ? 10 * 60 * 1000 : 2 * 60 * 1000;
+  const ttlMs = row.source === 'zhipu' || row.source === 'gemini' ? 10 * 60 * 1000 : 2 * 60 * 1000;
   if (ageMs > ttlMs) return null;
   return {
     source: row.source || 'cache',
@@ -1386,7 +1531,7 @@ async function getCachedAiReport(env, cacheKey) {
 
 async function setCachedAiReport(env, cacheKey, payload) {
   if (!payload || !payload.report) return;
-  if (payload.source !== 'zhipu') return;
+  if (payload.source !== 'zhipu' && payload.source !== 'gemini') return;
   await env.DB.prepare(`
     INSERT INTO ai_report_cache (cache_key, source, report, error, created_at)
     VALUES (?, ?, ?, ?, ?)
@@ -1402,20 +1547,22 @@ async function handleInsightAiReport(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
   const summary = await buildInsightSummary(env);
-  const payload = await buildInsightAiReportPayload(env, summary, { refresh: url.searchParams.get('refresh') === '1' });
+  const payload = await buildInsightAiReportPayload(env, summary, { refresh: url.searchParams.get('refresh') === '1', model: url.searchParams.get('model') });
   return json({ ok: true, ...payload, summary });
 }
 
 async function buildInsightAiReportPayload(env, summary, options) {
   const opts = options || {};
-  const cacheKey = buildAiReportCacheKey(summary);
+  const model = normalizeInsightAiModel(opts.model, env);
+  const cacheKey = buildAiReportCacheKey(summary) + '|model:' + model;
   const cached = opts.refresh ? null : await getCachedAiReport(env, cacheKey);
   if (cached) return cached;
   let payload = null;
   try {
-    const report = await callZhipuInsightReporter(env, summary);
+    const result = await callSelectedAiInsightReporter(env, summary, model);
+    const report = result.text;
     if (!report) throw new Error('empty ai report');
-    payload = { source: 'zhipu', report };
+    payload = { source: result.source, model: result.model, report };
   } catch (error) {
     const totalText = (summary.totals || []).map((item) => cleanText(item.event_type, 40) + ':' + item.count).join(' / ') || '暂无';
     const report = [
@@ -1456,18 +1603,23 @@ async function buildInsightAiReportPayload(env, summary, options) {
 
 async function handleInsightAiStatus(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const model = getZhipuModel(env);
+  const url = new URL(request.url);
+  const config = getAiModelConfig(env, url.searchParams.get('model'));
   return json({
     ok: true,
-    configured: Boolean(env.ZHIPU_API_KEY),
-    model,
+    configured: config.configured,
+    provider: config.provider,
+    model: config.model,
     capabilities: ['洞察总结', '价格规律总结', '清洗规则建议'],
-    note: 'ZHIPU_API_KEY 只配置在 Worker 环境变量；未配置或超时时会自动使用规则版总结。',
+    note: config.provider === 'gemini'
+      ? 'Gemini needs GEMINI_API_KEY or GOOGLE_API_KEY in Worker secrets. If it is missing, busy, or times out, the Worker falls back to rule-based summaries.'
+      : 'GLM needs ZHIPU_API_KEY in Worker secrets. If it is missing, busy, or times out, the Worker falls back to rule-based summaries.',
   });
 }
 
 async function handleInsightReadiness(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const url = new URL(request.url);
   const summary = await buildInsightSummary(env);
   const totals = {};
   (summary.totals || []).forEach((item) => {
@@ -1475,6 +1627,7 @@ async function handleInsightReadiness(request, env) {
   });
   const recommendationProbe = await probeRecommendationEngine(env, summary);
   const ruleMaintenance = summarizeRuleMaintenance(summary.rulePackage);
+  const aiConfig = getAiModelConfig(env, url.searchParams.get('model'));
   const checks = [
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
     { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
@@ -1483,7 +1636,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: formatRuleMaintenanceSummary(ruleMaintenance) },
-    { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? getZhipuModel(env) : 'ZHIPU_API_KEY missing' },
+    { key: 'ai', ok: aiConfig.configured, label: 'AI 配置', detail: aiConfig.configured ? [aiConfig.provider, aiConfig.model].join(':') : 'AI key missing' },
   ];
   const blockers = checks.filter((item) => !item.ok).map((item) => ({
     key: item.key,

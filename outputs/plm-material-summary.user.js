@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.35
+// @version      2.4.36
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -355,6 +355,7 @@
     insightsCheckFeishu: '\u68c0\u67e5\u98de\u4e66',
     insightsCopyFeishuSetup: '\u590d\u5236\u98de\u4e66\u914d\u7f6e',
     insightsCheckAi: '\u68c0\u67e5 AI',
+    insightsAiModel: 'AI \u6a21\u578b',
     loadingTipsManage: '\u7ef4\u62a4\u5c0f\u63d0\u793a',
   };
   const DEFAULT_LOADING_TIPS = [
@@ -2064,7 +2065,15 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="tips-manage">' + escapeHtml(L.loadingTipsManage) + '</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">\u0041\u0049\u603b\u7ed3\u89c4\u5219</button><button type="button" data-action="insights-apply-classify">\u91cd\u65b0\u5e94\u7528\u89c4\u5219</button><button type="button" data-action="insights-view-classify">\u67e5\u770b\u89c4\u5219</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderClassificationRulesPanel() + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div>' + renderInsightAiModelPicker() + '<div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="tips-manage">' + escapeHtml(L.loadingTipsManage) + '</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">\u0041\u0049\u603b\u7ed3\u89c4\u5219</button><button type="button" data-action="insights-apply-classify">\u91cd\u65b0\u5e94\u7528\u89c4\u5219</button><button type="button" data-action="insights-view-classify">\u67e5\u770b\u89c4\u5219</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderClassificationRulesPanel() + renderMaintainedCleaningRules() + '</div>';
+  }
+
+  function renderInsightAiModelPicker() {
+    const current = getInsightAiModelSetting();
+    return '<div class="pfh-setting-row pfh-ai-model-row"><span>' + escapeHtml(L.insightsAiModel) + '</span>' +
+      '<label><input type="radio" name="pfh-ai-model" value="glm-4.7-flash"' + (current === 'glm-4.7-flash' ? ' checked' : '') + '> GLM-4.7-Flash</label>' +
+      '<label><input type="radio" name="pfh-ai-model" value="gemini-3.5-flash"' + (current === 'gemini-3.5-flash' ? ' checked' : '') + '> Gemini-3.5-Flash</label>' +
+      '</div>';
   }
 
   function renderClassificationRulesPanel() {
@@ -2991,6 +3000,12 @@
     }
     if (event.target && event.target.name === 'pfh-download-mode') {
       state.settings.excelDownloadMode = event.target.value === 'direct' ? 'direct' : 'picker';
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
+    if (event.target && event.target.name === 'pfh-ai-model') {
+      state.settings.insightAiModel = event.target.value === 'gemini-3.5-flash' ? 'gemini-3.5-flash' : 'glm-4.7-flash';
       saveSettings(state.settings);
       renderShell();
       return;
@@ -6712,7 +6727,7 @@
     try {
       const response = await fetchInsightAiStatus();
       state.insightCloudStatus = response && response.configured
-        ? 'AI \u5df2\u914d\u7f6e\uff1a' + (response.model || '')
+        ? 'AI \u5df2\u914d\u7f6e\uff1a' + [response.provider || '', response.model || ''].filter(Boolean).join(' / ')
         : 'AI \u672a\u914d\u7f6e\uff0c\u5c06\u4f7f\u7528\u89c4\u5219\u7248\u603b\u7ed3';
       addLog(response && response.configured ? 'success' : 'warn', 'AI \u914d\u7f6e\u68c0\u67e5', state.insightCloudStatus);
       showToast(state.insightCloudStatus);
@@ -6998,6 +7013,10 @@
     return state.cloudBackupStatus || state.settings.cloudBackupStatus || L.cloudBackupReady;
   }
 
+  function getInsightAiModelSetting() {
+    return state.settings && state.settings.insightAiModel === 'gemini-3.5-flash' ? 'gemini-3.5-flash' : 'glm-4.7-flash';
+  }
+
   function setCloudBackupStatus(text) {
     state.cloudBackupStatus = text || '';
     state.settings.cloudBackupStatus = state.cloudBackupStatus;
@@ -7245,15 +7264,18 @@
 
   async function fetchInsightAiReport(options) {
     const opts = options || {};
-    return cloudRequest('/insights/ai-report' + (opts.refresh ? '?refresh=1' : ''), { method: 'GET' });
+    const params = new URLSearchParams();
+    params.set('model', getInsightAiModelSetting());
+    if (opts.refresh) params.set('refresh', '1');
+    return cloudRequest('/insights/ai-report?' + params.toString(), { method: 'GET' });
   }
 
   async function fetchInsightAiStatus() {
-    return cloudRequest('/insights/ai-status', { method: 'GET' });
+    return cloudRequest('/insights/ai-status?model=' + encodeURIComponent(getInsightAiModelSetting()), { method: 'GET' });
   }
 
   async function fetchInsightReadiness() {
-    return cloudRequest('/insights/readiness', { method: 'GET' });
+    return cloudRequest('/insights/readiness?model=' + encodeURIComponent(getInsightAiModelSetting()), { method: 'GET' });
   }
 
   async function fetchInsightRules() {
@@ -7265,7 +7287,7 @@
   }
 
   async function fetchClassificationSummarize() {
-    return cloudRequest('/insights/classification-summarize', { method: 'POST', body: { version: SCRIPT_VERSION } });
+    return cloudRequest('/insights/classification-summarize', { method: 'POST', body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting() } });
   }
 
   async function fetchMaintainedCleaningRules() {
@@ -7980,7 +8002,7 @@
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, insightAiModel: 'glm-4.7-flash' };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       return { ...defaults, ...(saved || {}) };

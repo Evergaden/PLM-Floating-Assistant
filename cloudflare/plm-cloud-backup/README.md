@@ -31,7 +31,17 @@ Set the Zhipu API key for AI insight summaries:
 npx.cmd wrangler secret put ZHIPU_API_KEY
 ```
 
-Optional model override:
+Optional AI provider/model override. Defaults stay on Zhipu/GLM; use these to switch insight reports and rule summarization to Gemini:
+
+```powershell
+npx.cmd wrangler secret put AI_PROVIDER
+# value: gemini
+npx.cmd wrangler secret put GEMINI_API_KEY
+npx.cmd wrangler secret put GEMINI_MODEL
+# value: gemini-3.5-flash
+```
+
+Optional Zhipu model override:
 
 ```powershell
 npx.cmd wrangler secret put ZHIPU_MODEL
@@ -106,7 +116,7 @@ Write endpoints require `x-api-key` when `API_KEY` is configured.
 - `/insights/record` stores price history, product type, and data-quality issues from the userscript.
 - `/insights/recommend` recommends purchase price from cloud history. The userscript also has local history fallback.
 - `/insights/rules` groups missing-field issues into data-cleaning rule candidates and marks high-priority cases where the page was read but parsing failed.
-- `/insights/ai-report` calls Zhipu for a concise Chinese insight report. If Zhipu is missing, busy, or times out, it returns a rule-based fallback report.
+- `/insights/ai-report` calls the configured AI model for a concise Chinese insight report. Configure `AI_PROVIDER=gemini` and `GEMINI_MODEL=gemini-3.5-flash` to avoid GLM rate limits. If AI is missing, busy, or times out, it returns a rule-based fallback report.
 - `/insights/feishu-tsv` returns TSV that can be pasted directly into Feishu Sheets/Bitable.
 - `/insights/feishu-sync` writes records directly to Feishu Bitable when Feishu secrets are configured. Synced records are deduplicated in D1.
 
