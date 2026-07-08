@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.17
+// @version      2.4.18
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.17';
+  const SCRIPT_VERSION = '2.4.18';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -631,6 +631,7 @@
       return;
     }
     stopScan();
+    lockLoadingTip(state.scanTargetSku || state.selectedSku || state.sku || findSku(getVisibleText(drawer)) || '');
     state.scanRunning = true;
     scanOnce();
   }
@@ -2177,7 +2178,7 @@
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
-    const loading = statusText === L.scanning;
+    const loading = statusText === L.scanning || statusText === L.checkingMaterial;
     detail.classList.toggle('is-loading', loading);
     if (!data) {
       detail.innerHTML = homeViewHtml(statusText, null);
@@ -2257,7 +2258,7 @@
 
   function renderStatusHtml(statusText) {
     if (!statusText) return '';
-    if (statusText === L.scanning) {
+    if (statusText === L.scanning || statusText === L.checkingMaterial) {
       const tip = getCurrentLoadingTip();
       return '<div class="pfh-status pfh-loading-tip"><span>\u8bc6\u522b\u4e2d</span><strong>' + escapeHtml(tip) + '</strong></div>';
     }
@@ -2267,11 +2268,15 @@
   function getCurrentLoadingTip() {
     const tips = normalizeLoadingTips(state.loadingTips);
     const seed = state.scanTargetSku || state.selectedSku || state.sku || String(Date.now());
-    if (state.loadingTipSeed !== seed || !state.loadingTipText || !tips.includes(state.loadingTipText)) {
-      state.loadingTipText = pickLoadingTip(tips, seed);
-      state.loadingTipSeed = seed;
-    }
+    if (!state.loadingTipText || !tips.includes(state.loadingTipText)) lockLoadingTip(seed);
     return state.loadingTipText || DEFAULT_LOADING_TIPS[0];
+  }
+
+  function lockLoadingTip(seed) {
+    const stableSeed = String(seed || state.scanTargetSku || state.selectedSku || state.sku || Date.now());
+    if (state.loadingTipSeed === stableSeed && state.loadingTipText) return;
+    state.loadingTipText = pickLoadingTip(state.loadingTips, stableSeed);
+    state.loadingTipSeed = stableSeed;
   }
 
   function pickLoadingTip(tips, seed) {
@@ -7206,7 +7211,6 @@
       const tips = normalizeLoadingTips(response && response.tips);
       state.loadingTips = tips;
       state.loadingTipsLoaded = true;
-      state.loadingTipText = '';
       if (showFeedback) showToast('\u5c0f\u63d0\u793a\u5df2\u5237\u65b0\uff1a' + tips.length + '\u6761');
     } catch (error) {
       state.loadingTips = DEFAULT_LOADING_TIPS.slice();
@@ -8915,7 +8919,7 @@
       }
       #${PANEL_ID} .pfh-detail.is-loading .pfh-status {
         position: absolute;
-        top: 50%;
+        top: 44%;
         left: 50%;
         z-index: 30;
         width: min(390px, calc(100% - 34px));
