@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.41
+// @version      2.4.42
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.41';
+  const SCRIPT_VERSION = '2.4.42';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1102,6 +1102,8 @@
       packageSource: packaging.packageSizeText || food.productNums || isTubePrint ? L.sourceMaterial : (outer.packageNums ? L.sourceOuter : ''),
       hasInnerCard,
       brand: getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer),
+      designType: getProjectLooseField(text, '\u8bbe\u8ba1\u7c7b\u578b'),
+      referenceUrl: extractReferenceUrl(text),
       netContent: normalizeNetContentValue(getBestNetContent(drawer) || food.netContent || packaging.netContent),
       grossWeight: normalizeWeight(getFormValueByLabel('\u6bdb\u91cd', drawer)),
       skuImageUrl: imageInfo.isSkuDesignImage ? (imageInfo.imageUrl || '') : '',
@@ -1252,10 +1254,23 @@
 
   function getProjectField(text, fieldName) {
     const escaped = escapeRegExp(fieldName);
-    const stop = /(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5f00\u53d1\u5206\u914d\u65f6\u95f4|\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4|\u521b\u5efa\u65f6\u95f4|\u6700\u540e\u4fee\u6539\u65f6\u95f4|\u9879\u76ee\u4fe1\u606f|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/;
+    const stop = /(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5f00\u53d1\u5206\u914d\u65f6\u95f4|\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4|\u521b\u5efa\u65f6\u95f4|\u6700\u540e\u4fee\u6539\u65f6\u95f4|\u9879\u76ee\u4fe1\u606f|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/;
     const match = String(text || '').match(new RegExp(escaped + '[:\uff1a]\\s*([\\s\\S]{0,80})'));
     if (!match) return '';
     return compactText(match[1]).split(stop)[0].trim();
+  }
+
+  function getProjectLooseField(text, fieldName) {
+    const escaped = escapeRegExp(fieldName);
+    const stop = /(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5176\u4ed6\u4fe1\u606f|\u5ba1\u6279\u72b6\u6001|\u9879\u76ee\u72b6\u6001|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/;
+    const match = String(text || '').match(new RegExp(escaped + '\\s*[:\uff1a]?\\s*([\\s\\S]{0,120})'));
+    if (!match) return '';
+    return compactText(match[1]).split(stop)[0].trim();
+  }
+
+  function extractReferenceUrl(text) {
+    const match = String(text || '').match(/\u5bf9\u6807\u94fe\u63a5\s*[:\uff1a]?\s*(https?:\/\/[^\s]+)/i);
+    return match ? match[1].trim() : '';
   }
 
   function getMaterialDisplayName(row, keywordPattern) {
@@ -2353,16 +2368,17 @@
     return '<div class="pfh-detail-scroll"><section class="pfh-ledger-page">' +
       '<div class="pfh-ledger-hero"><div><h3>今日工作台</h3><p>粗粒度记录定稿、图包、表格和上传进度，最后复制到月登记表。</p></div><span>' + escapeHtml(records.length + ' 条 / ' + formatLedgerDateLabel(state.ledgerDate)) + '</span></div>' +
       '<div class="pfh-ledger-toolbar">' +
-        '<button type="button" data-action="ledger-prev-day">前一天</button>' +
+        '<button type="button" data-action="ledger-prev-day">前日</button>' +
         '<input type="date" class="pfh-ledger-date" value="' + escapeHtml(state.ledgerDate || getTodayKey()) + '">' +
         '<button type="button" data-action="ledger-today">今天</button>' +
-        '<button type="button" data-action="ledger-copy">复制今日登记</button>' +
-        '<button type="button" data-action="ledger-export">导出今日记录</button>' +
-        '<button type="button" data-action="ledger-clear">清空今日</button>' +
+        '<button type="button" data-action="ledger-copy" title="复制今日登记">登记</button>' +
+        '<button type="button" data-action="ledger-copy-finalized" title="批量复制已定稿编码">定稿码</button>' +
+        '<button type="button" data-action="ledger-export" title="导出今日记录">导出</button>' +
+        '<button type="button" data-action="ledger-clear" title="清空今日">清空</button>' +
       '</div>' +
       '<div class="pfh-ledger-head"><span>产品</span><span>状态</span><span>操作</span></div>' +
       '<div class="pfh-ledger-list">' + rows + '</div>' +
-      '<div class="pfh-note"><span class="pfh-note-source">复制列：产品名 / 编码 / 主图 / 定稿日期 / SKU图 / 定稿日期</span><span class="pfh-note-toast" aria-live="polite"></span></div>' +
+      '<div class="pfh-note"><span class="pfh-note-source"></span><span class="pfh-note-toast" aria-live="polite"></span></div>' +
       '</section></div>';
   }
 
@@ -2374,6 +2390,10 @@
     const stage = record.stage && record.stage !== status ? record.stage : '';
     const note = record.note && record.note !== status && record.note !== stage ? record.note : '';
     const meta = [record.finalizedAt ? ('定稿 ' + record.finalizedAt) : '', stage, note].filter(Boolean).join(' · ') || '打开详情自动记录';
+    const designType = record.designType || '未分类';
+    const packageCode = record.packageCode || '';
+    const printCode = record.printCode || '';
+    const referenceDisabled = record.referenceUrl ? '' : ' disabled';
     return '<article class="pfh-ledger-item" data-ledger-sku="' + escapeHtml(sku) + '">' +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<button type="button" class="pfh-ledger-main" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' +
@@ -2381,7 +2401,14 @@
         '<em>' + escapeHtml(meta) + '</em>' +
       '</button>' +
       '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(status)) + '">' + escapeHtml(status) + '</span>' +
+      '<div class="pfh-ledger-tags">' +
+        '<span title="设计类型">' + escapeHtml(designType) + '</span>' +
+        '<button type="button" class="' + (record.boxFileDone ? 'is-done' : '') + '" data-action="ledger-toggle-box-file" data-sku="' + escapeHtml(sku) + '" title="' + escapeHtml(packageCode || '纸盒文件') + '">纸盒' + (packageCode ? ' ' + escapeHtml(packageCode) : '') + '</button>' +
+        '<button type="button" class="' + (record.labelFileDone ? 'is-done' : '') + '" data-action="ledger-toggle-label-file" data-sku="' + escapeHtml(sku) + '" title="' + escapeHtml(printCode || '标签印刷文件') + '">标签' + (printCode ? ' ' + escapeHtml(printCode) : '') + '</button>' +
+        '<button type="button" class="' + (record.imagePackDone ? 'is-done' : '') + '" data-action="ledger-toggle-image-pack" data-sku="' + escapeHtml(sku) + '">图包</button>' +
+      '</div>' +
       '<div class="pfh-ledger-actions">' +
+        '<button type="button" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '"' + referenceDisabled + '>参考</button>' +
         '<button type="button" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '">定稿</button>' +
         '<button type="button" data-action="ledger-error" data-sku="' + escapeHtml(sku) + '">异常</button>' +
         '<button type="button" data-action="ledger-done" data-sku="' + escapeHtml(sku) + '">完成</button>' +
@@ -2887,6 +2914,10 @@
       copyLedgerTsv(state.ledgerDate);
       return;
     }
+    if (action === 'ledger-copy-finalized') {
+      copyFinalizedLedgerSkus(state.ledgerDate);
+      return;
+    }
     if (action === 'ledger-export') {
       exportLedgerRecords(state.ledgerDate);
       return;
@@ -2897,6 +2928,14 @@
     }
     if (action === 'ledger-finalize' || action === 'ledger-error' || action === 'ledger-done' || action === 'ledger-remove') {
       updateLedgerFromAction(action, actionTarget.getAttribute('data-sku'));
+      return;
+    }
+    if (action === 'ledger-toggle-box-file' || action === 'ledger-toggle-label-file' || action === 'ledger-toggle-image-pack') {
+      toggleLedgerWorkFlag(action, actionTarget.getAttribute('data-sku'));
+      return;
+    }
+    if (action === 'ledger-open-reference') {
+      openLedgerReference(actionTarget.getAttribute('data-sku'));
       return;
     }
     if (action === 'ledger-open-sku') {
@@ -5660,7 +5699,7 @@
       downloadBlob(psdBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd');
       await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename);
       state.excelStatus = L.labelDone;
-      upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签' });
+      upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签', labelFileDone: true });
       renderShell();
       addLog('success', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6210\u529f', labelData.sku);
       showToast(L.labelDone);
@@ -7091,6 +7130,13 @@
       brand: cleanName(item.brand || '').slice(0, 120),
       name: cleanName(item.name || '').slice(0, 220),
       skuImageUrl: String(item.skuImageUrl || '').slice(0, 600),
+      designType: cleanName(item.designType || '').slice(0, 80),
+      referenceUrl: String(item.referenceUrl || '').slice(0, 800),
+      packageCode: String(item.packageCode || '').slice(0, 120),
+      printCode: String(item.printCode || '').slice(0, 180),
+      boxFileDone: Boolean(item.boxFileDone),
+      labelFileDone: Boolean(item.labelFileDone),
+      imagePackDone: Boolean(item.imagePackDone),
       status: normalizeLedgerStatus(item.status),
       stage: String(item.stage || '').slice(0, 80) || '待定稿',
       finalizedAt: String(item.finalizedAt || '').slice(0, 40),
@@ -7132,6 +7178,13 @@
       brand: cleanName(data.brand || (existing && existing.brand) || ''),
       name: cleanName(data.name || (existing && existing.name) || ''),
       skuImageUrl: imageUrl || (existing && existing.skuImageUrl) || '',
+      designType: cleanName(data.designType || (existing && existing.designType) || ''),
+      referenceUrl: String(data.referenceUrl || (existing && existing.referenceUrl) || ''),
+      packageCode: String(data.packageCode || (existing && existing.packageCode) || ''),
+      printCode: String(data.printCode || (existing && existing.printCode) || ''),
+      boxFileDone: opts.boxFileDone !== undefined ? Boolean(opts.boxFileDone) : Boolean(existing && existing.boxFileDone),
+      labelFileDone: opts.labelFileDone !== undefined ? Boolean(opts.labelFileDone) : Boolean(existing && existing.labelFileDone),
+      imagePackDone: opts.imagePackDone !== undefined ? Boolean(opts.imagePackDone) : Boolean(existing && existing.imagePackDone),
       status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
       stage: opts.stage || (existing && existing.stage) || '待定稿',
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
@@ -7166,6 +7219,16 @@
     }).join('\n');
     copyText(tsv);
     showToast('今日登记已复制：' + rows.length + '条');
+  }
+
+  function copyFinalizedLedgerSkus(dateKey) {
+    const rows = getLedgerRecordsForDate(dateKey).filter((item) => item.finalizedAt);
+    if (!rows.length) {
+      showToast('今天还没有已定稿编码');
+      return;
+    }
+    copyText(rows.map((item) => item.sku).filter(Boolean).join('\n'));
+    showToast('已复制定稿编码：' + rows.length + '个');
   }
 
   function exportLedgerRecords(dateKey) {
@@ -7209,6 +7272,30 @@
         : { status: '已完成', stage: '完成', note: '手动完成' };
     updateDailyLedgerForSku(sku, patch);
     renderShell();
+  }
+
+  function toggleLedgerWorkFlag(action, sku) {
+    if (!sku) return;
+    const key = normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+    const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
+    const flag = action === 'ledger-toggle-box-file'
+      ? 'boxFileDone'
+      : (action === 'ledger-toggle-label-file' ? 'labelFileDone' : 'imagePackDone');
+    const label = flag === 'boxFileDone' ? '纸盒文件' : (flag === 'labelFileDone' ? '标签印刷文件' : '图包');
+    const nextValue = !Boolean(existing && existing[flag]);
+    updateDailyLedgerForSku(sku, { [flag]: nextValue, note: label + (nextValue ? '已完成' : '未完成') }, key);
+    renderShell();
+  }
+
+  function openLedgerReference(sku) {
+    const key = normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+    const record = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
+    const url = record && record.referenceUrl;
+    if (!url) {
+      showToast('这个编码没有参考链接');
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   function openLedgerSku(sku) {
@@ -8452,7 +8539,7 @@
     cleanupUploadFiles(latestItem);
     saveUploadHistory();
     saveUploadQueue();
-    if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功' }, getTodayKey());
+    if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackDone: true }, getTodayKey());
     renderShell();
   }
 
@@ -13472,7 +13559,7 @@
       }
       #${PANEL_ID} .pfh-ledger-toolbar {
         display: grid !important;
-        grid-template-columns: auto minmax(142px, 1fr) auto minmax(104px, .8fr) minmax(104px, .8fr) auto !important;
+        grid-template-columns: auto minmax(142px, 1fr) repeat(5, auto) !important;
         gap: 8px !important;
         align-items: center !important;
         min-width: 0 !important;
@@ -13498,7 +13585,7 @@
       }
       #${PANEL_ID} .pfh-ledger-head {
         display: grid !important;
-        grid-template-columns: minmax(180px, 1fr) 72px minmax(180px, auto) !important;
+        grid-template-columns: minmax(180px, 1fr) 72px minmax(172px, auto) !important;
         gap: 8px !important;
         min-height: 32px !important;
         align-items: center !important;
@@ -13529,10 +13616,13 @@
       }
       #${PANEL_ID} .pfh-ledger-item {
         display: grid !important;
-        grid-template-columns: 42px minmax(160px, 1fr) 72px minmax(180px, auto) !important;
+        grid-template-columns: 42px minmax(160px, 1fr) 72px minmax(172px, auto) !important;
+        grid-template-areas:
+          "thumb main status actions"
+          "thumb tags tags actions" !important;
         gap: 8px !important;
         align-items: center !important;
-        min-height: 54px !important;
+        min-height: 62px !important;
         padding: 7px 10px !important;
         border: 1px solid rgba(226, 232, 240, .84) !important;
         border-radius: 12px !important;
@@ -13540,6 +13630,7 @@
         box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
       }
       #${PANEL_ID} .pfh-ledger-thumb {
+        grid-area: thumb !important;
         width: 38px !important;
         height: 38px !important;
         padding: 0 !important;
@@ -13559,6 +13650,7 @@
         color: #7c3aed !important;
       }
       #${PANEL_ID} .pfh-ledger-main {
+        grid-area: main !important;
         display: grid !important;
         gap: 2px !important;
         min-width: 0 !important;
@@ -13582,6 +13674,7 @@
         font-style: normal !important;
       }
       #${PANEL_ID} .pfh-ledger-status {
+        grid-area: status !important;
         justify-self: start !important;
         padding: 4px 8px !important;
         border-radius: 999px !important;
@@ -13598,10 +13691,44 @@
         color: #b91c1c !important;
       }
       #${PANEL_ID} .pfh-ledger-actions {
+        grid-area: actions !important;
         display: flex !important;
         flex-wrap: wrap !important;
         gap: 6px !important;
         min-width: 0 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags {
+        grid-area: tags !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+        min-width: 0 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags span,
+      #${PANEL_ID} .pfh-ledger-tags button {
+        max-width: 120px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 7px !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(211,204,255,.42) !important;
+        border-radius: 999px !important;
+        background: rgba(255,255,255,.70) !important;
+        color: #6b7897 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+        font-size: 10px !important;
+        line-height: 20px !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags button.is-done {
+        border-color: rgba(124,58,237,.30) !important;
+        background: rgba(244,241,255,.90) !important;
+        color: #6d35e8 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions button:disabled {
+        opacity: .45 !important;
+        cursor: not-allowed !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-page {
         padding: 12px !important;
@@ -13637,6 +13764,7 @@
         grid-template-columns: 42px minmax(0, 1fr) auto !important;
         grid-template-areas:
           "thumb main status"
+          "thumb tags tags"
           "thumb actions actions" !important;
         gap: 5px 8px !important;
         min-height: 0 !important;
@@ -13656,6 +13784,9 @@
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions {
         grid-area: actions !important;
         justify-content: flex-start !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-tags {
+        grid-area: tags !important;
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions button {
         flex: 0 1 auto !important;
