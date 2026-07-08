@@ -69,6 +69,12 @@ function calculateMaxPackCount(itemDims, cartonDims = [56, 36, 21]) {
   }, 0);
 }
 
+function getZhipuModel(env) {
+  const model = String((env && env.ZHIPU_MODEL) || 'glm-4.7-flash').trim();
+  if (/^glm-4\.7-flash$/i.test(model)) return 'glm-4.7-flash';
+  return model;
+}
+
 async function getPackRecommendation(env, boxKey) {
   const row = await env.DB.prepare(`
     SELECT pack_count, COUNT(*) AS votes, MAX(created_at) AS latest_at
@@ -227,7 +233,7 @@ async function callZhipuPackEstimator(env, boxKey) {
   if (!itemDims) throw new Error('invalid boxKey');
   const localCount = calculateMaxPackCount(itemDims);
   if (!localCount) throw new Error('invalid calculated pack count');
-  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
+  const model = getZhipuModel(env);
   const prompt = [
     '外箱内径 56x36x21cm，货物 ' + itemDims.join('x') + 'cm。',
     '请遍历长宽高全部 6 种摆放方向，计算每个方向 floor(56/a)*floor(36/b)*floor(21/c)，直接给出一箱最多可装数量。',
@@ -408,7 +414,7 @@ function parseClassificationPackage(text) {
 async function callZhipuClassificationSummarizer(env, samples) {
   const apiKey = env.ZHIPU_API_KEY;
   if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
-  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
+  const model = getZhipuModel(env);
   const compactSamples = samples.slice(0, 420).map((item) => ({
     sku: item.sku,
     brand: item.brand,
@@ -426,11 +432,12 @@ async function callZhipuClassificationSummarizer(env, samples) {
     JSON.stringify(compactSamples),
   ].join('\n');
   let lastError = null;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const maxAttempts = Number(env.ZHIPU_CLASSIFY_ATTEMPTS || 2);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
         method: 'POST',
-        signal: AbortSignal.timeout(Number(env.ZHIPU_CLASSIFY_TIMEOUT_MS || 28000)),
+        signal: AbortSignal.timeout(Number(env.ZHIPU_CLASSIFY_TIMEOUT_MS || 12000)),
         headers: {
           authorization: 'Bearer ' + apiKey,
           'content-type': 'application/json',
@@ -438,6 +445,7 @@ async function callZhipuClassificationSummarizer(env, samples) {
         body: JSON.stringify({
           model,
           temperature: 0.15,
+          max_tokens: 2400,
           messages: [
             { role: 'system', content: '你只做 PLM 商品分类和包材规则总结，输出严格 JSON。' },
             { role: 'user', content: prompt },
@@ -456,7 +464,7 @@ async function callZhipuClassificationSummarizer(env, samples) {
       return pkg;
     } catch (error) {
       lastError = error;
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 900));
+      if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, attempt * 700));
     }
   }
   throw lastError || new Error('classification ai failed');
@@ -563,7 +571,7 @@ async function handleClassificationSummarize(request, env) {
   return json({
     ok: true,
     source: pkg.source || '',
-    model: pkg.model || (env.ZHIPU_MODEL || 'GLM-4.7-Flash'),
+    model: pkg.model || getZhipuModel(env),
     warning,
     sampleCount: samples.length,
     saved,
@@ -1253,7 +1261,7 @@ function renderLoadingTipsManagePage(tips, request) {
 async function callZhipuInsightReporter(env, summary) {
   const apiKey = env.ZHIPU_API_KEY;
   if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
-  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
+  const model = getZhipuModel(env);
   const compactSummary = buildCompactAiInsightSummary(summary);
   const prompt = [
     '你是 PLM 商品数据清洗和采购数据分析助手。',
@@ -1448,7 +1456,7 @@ async function buildInsightAiReportPayload(env, summary, options) {
 
 async function handleInsightAiStatus(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const model = env.ZHIPU_MODEL || 'GLM-4.7-Flash';
+  const model = getZhipuModel(env);
   return json({
     ok: true,
     configured: Boolean(env.ZHIPU_API_KEY),
@@ -1475,7 +1483,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: formatRuleMaintenanceSummary(ruleMaintenance) },
-    { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? (env.ZHIPU_MODEL || 'GLM-4.7-Flash') : 'ZHIPU_API_KEY missing' },
+    { key: 'ai', ok: Boolean(env.ZHIPU_API_KEY), label: 'AI 配置', detail: env.ZHIPU_API_KEY ? getZhipuModel(env) : 'ZHIPU_API_KEY missing' },
   ];
   const blockers = checks.filter((item) => !item.ok).map((item) => ({
     key: item.key,
