@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.38
+// @version      2.4.39
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.27';
+  const SCRIPT_VERSION = '2.4.39';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -39,6 +39,7 @@
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const LOG_KEY = 'plm-floating-helper:logs';
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
+  const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
@@ -432,6 +433,8 @@
     uploadPage: 1,
     uploadHistoryPage: 1,
     uploadSelectedIds: [],
+    ledgerRecords: loadDailyLedger(),
+    ledgerDate: getTodayKey(),
     manuallyCollapsedForSku: '',
     userCollapsedPanel: false,
     launcherClickAt: 0,
@@ -598,6 +601,9 @@
       expandPanel();
       upsertIndex(state.data);
       stopScan();
+      if (!shouldSkipLedgerDrawer(drawer)) {
+        upsertDailyLedgerFromData(state.data, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录' });
+      }
       if (!state.data.seenDesign || !getProductThumbUrl(state.data)) {
         resetRound(REFRESH_SCAN_ATTEMPTS);
         state.scanTargetSku = sku;
@@ -857,7 +863,12 @@
 
   async function finishRound() {
     stopScan();
-    if (state.data && state.data.sku) saveData(state.data.sku, state.data);
+    if (state.data && state.data.sku) {
+      saveData(state.data.sku, state.data);
+      if (!shouldSkipLedgerDrawer(getProjectDrawerForSku(state.data.sku) || getProjectDrawer())) {
+        upsertDailyLedgerFromData(state.data, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录' });
+      }
+    }
     const shouldRefreshThumb = state.refreshingThumbSku && state.data && state.data.sku === state.refreshingThumbSku;
     if (shouldRefreshThumb) state.refreshingThumbSku = '';
     state.scanTargetSku = '';
@@ -1739,7 +1750,7 @@
     panel = document.createElement('div');
     panel.id = PANEL_ID;
     panel.dataset.version = SCRIPT_VERSION;
-    panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="about"></button><button type="button" data-action="open-detail"></button><button type="button" data-action="upload-toggle"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
+    panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="ledger-open"></button><button type="button" data-action="about"></button><button type="button" data-action="open-detail"></button><button type="button" data-action="upload-toggle"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
     document.documentElement.appendChild(panel);
     panel.querySelector('strong').textContent = L.title;
     panel.querySelector('.pfh-search-input').placeholder = L.searchPlaceholder;
@@ -1747,6 +1758,9 @@
     panel.querySelector('.pfh-search-clear').title = L.clearSearch;
     panel.querySelector('[data-action="search"]').innerHTML = '<span class="pfh-btn-text">' + escapeHtml(L.search) + '</span>';
     panel.querySelector('[data-action="search"]').title = TOOLTIP.search;
+    panel.querySelector('[data-action="ledger-open"]').innerHTML = iconHtml('list') + '<span>今日</span>';
+    panel.querySelector('[data-action="ledger-open"]').setAttribute('aria-label', '今日工作台');
+    panel.querySelector('[data-action="ledger-open"]').setAttribute('data-tooltip', '今日工作台');
     panel.querySelector('[data-action="about"]').innerHTML = iconHtml('settings') + '<span>\u8bbe\u7f6e</span>';
     panel.querySelector('[data-action="about"]').removeAttribute('title');
     panel.querySelector('[data-action="about"]').setAttribute('aria-label', TOOLTIP.about);
@@ -1917,7 +1931,7 @@
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about';
+    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -1933,10 +1947,15 @@
     }
     if (state.view === 'tutorial') renderTutorialList(panel);
     else if (state.view === 'upload') renderUploadSidebar(panel);
-    else renderSkuList(panel);
+    else if (state.view !== 'about' && state.view !== 'ledger') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
       updateSettingsNotice(panel);
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
+    if (state.view === 'ledger') {
+      renderLedger(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -2246,6 +2265,15 @@
     detail.innerHTML = homeViewHtml(statusText, first);
   }
 
+  function renderLedger(panel) {
+    const list = panel.querySelector('.pfh-list');
+    const detail = panel.querySelector('.pfh-detail');
+    const records = getLedgerRecordsForDate(state.ledgerDate);
+    if (list) list.innerHTML = '';
+    detail.classList.remove('is-loading');
+    detail.innerHTML = ledgerViewHtml(records);
+  }
+
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
@@ -2301,6 +2329,7 @@
     const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
+      ['ledger-open', 'list', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-excel-coming-soon', 'download', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-download-detail', 'list', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
@@ -2317,6 +2346,45 @@
         '<span>' + escapeHtml(card[4]) + '</span>' +
       '</button>').join('') + '</div>' +
       '</section></div>';
+  }
+
+  function ledgerViewHtml(records) {
+    const rows = records.length ? records.map(ledgerRowHtml).join('') : '<div class="pfh-ledger-empty">今天还没有台账记录。打开有效的 PLM 详情后会自动加入这里。</div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-ledger-page">' +
+      '<div class="pfh-ledger-hero"><div><h3>今日工作台</h3><p>粗粒度记录定稿、图包、表格和上传进度，最后复制到月登记表。</p></div><span>' + escapeHtml(records.length + ' 条 / ' + formatLedgerDateLabel(state.ledgerDate)) + '</span></div>' +
+      '<div class="pfh-ledger-toolbar">' +
+        '<button type="button" data-action="ledger-prev-day">前一天</button>' +
+        '<input type="date" class="pfh-ledger-date" value="' + escapeHtml(state.ledgerDate || getTodayKey()) + '">' +
+        '<button type="button" data-action="ledger-today">今天</button>' +
+        '<button type="button" data-action="ledger-copy">复制今日登记</button>' +
+        '<button type="button" data-action="ledger-export">导出今日记录</button>' +
+        '<button type="button" data-action="ledger-clear">清空今日</button>' +
+      '</div>' +
+      '<div class="pfh-ledger-head"><span>产品</span><span>状态</span><span>流程</span><span>操作</span></div>' +
+      '<div class="pfh-ledger-list">' + rows + '</div>' +
+      '<div class="pfh-note"><span class="pfh-note-source">复制列：产品名 / 编码 / 主图 / 定稿日期 / SKU图 / 定稿日期</span><span class="pfh-note-toast" aria-live="polite"></span></div>' +
+      '</section></div>';
+  }
+
+  function ledgerRowHtml(record) {
+    const sku = record.sku || '';
+    const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
+    const thumb = record.skuImageUrl ? '<img src="' + escapeHtml(record.skuImageUrl) + '" alt="">' : iconHtml('image');
+    return '<article class="pfh-ledger-item" data-ledger-sku="' + escapeHtml(sku) + '">' +
+      '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
+      '<button type="button" class="pfh-ledger-main" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' +
+        '<b>' + escapeHtml(title) + '</b><small>' + escapeHtml(sku) + '</small>' +
+        '<em>' + escapeHtml(record.finalizedAt ? ('定稿 ' + record.finalizedAt) : '待定稿') + '</em>' +
+      '</button>' +
+      '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(record.status)) + '">' + escapeHtml(record.status || '待定稿') + '</span>' +
+      '<span class="pfh-ledger-stage">' + escapeHtml(record.stage || '待定稿') + '<small>' + escapeHtml(record.note || record.updatedAt || '') + '</small></span>' +
+      '<div class="pfh-ledger-actions">' +
+        '<button type="button" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '">定稿</button>' +
+        '<button type="button" data-action="ledger-error" data-sku="' + escapeHtml(sku) + '">异常</button>' +
+        '<button type="button" data-action="ledger-done" data-sku="' + escapeHtml(sku) + '">完成</button>' +
+        '<button type="button" data-action="ledger-remove" data-sku="' + escapeHtml(sku) + '">移除</button>' +
+      '</div>' +
+    '</article>';
   }
 
   function productThumbHtml(data) {
@@ -2795,6 +2863,43 @@
       runHomeDetailImageDownload();
       return;
     }
+    if (action === 'ledger-open') {
+      state.view = 'ledger';
+      state.ledgerDate = state.ledgerDate || getTodayKey();
+      expandPanel();
+      renderShell();
+      return;
+    }
+    if (action === 'ledger-prev-day') {
+      state.ledgerDate = shiftDateKey(state.ledgerDate, -1);
+      renderShell();
+      return;
+    }
+    if (action === 'ledger-today') {
+      state.ledgerDate = getTodayKey();
+      renderShell();
+      return;
+    }
+    if (action === 'ledger-copy') {
+      copyLedgerTsv(state.ledgerDate);
+      return;
+    }
+    if (action === 'ledger-export') {
+      exportLedgerRecords(state.ledgerDate);
+      return;
+    }
+    if (action === 'ledger-clear') {
+      clearLedgerDate(state.ledgerDate);
+      return;
+    }
+    if (action === 'ledger-finalize' || action === 'ledger-error' || action === 'ledger-done' || action === 'ledger-remove') {
+      updateLedgerFromAction(action, actionTarget.getAttribute('data-sku'));
+      return;
+    }
+    if (action === 'ledger-open-sku') {
+      openLedgerSku(actionTarget.getAttribute('data-sku'));
+      return;
+    }
     if (action === 'home-excel-coming-soon') {
       showToast('\u656c\u8bf7\u671f\u5f85');
       return;
@@ -3111,6 +3216,10 @@
       const files = Array.from(event.target.files || []);
       files.forEach((file) => storeQueuedUploadFile(file));
       event.target.value = '';
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-date')) {
+      state.ledgerDate = normalizeLedgerDate(event.target.value) || getTodayKey();
+      renderShell();
     }
   }
 
@@ -5484,6 +5593,7 @@
         source: 'excel',
         fileName,
       });
+      upsertDailyLedgerFromData(excelData, { status: '制作中', stage: '表格/上传处理中', note: '已生成 Excel' });
       state.excelStatus = L.excelDone;
       renderShell();
       showToast(L.excelDone);
@@ -5547,6 +5657,7 @@
       downloadBlob(psdBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd');
       await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename);
       state.excelStatus = L.labelDone;
+      upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签' });
       renderShell();
       addLog('success', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6210\u529f', labelData.sku);
       showToast(L.labelDone);
@@ -6925,6 +7036,197 @@
     }).join(' / ');
   }
 
+  function getTodayKey() {
+    const d = new Date();
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  }
+
+  function normalizeLedgerDate(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (!match) return '';
+    return [match[1], match[2].padStart(2, '0'), match[3].padStart(2, '0')].join('-');
+  }
+
+  function shiftDateKey(value, delta) {
+    const key = normalizeLedgerDate(value) || getTodayKey();
+    const date = new Date(key + 'T00:00:00');
+    date.setDate(date.getDate() + Number(delta || 0));
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+
+  function formatLedgerDateLabel(value) {
+    const key = normalizeLedgerDate(value) || getTodayKey();
+    const parts = key.split('-');
+    return Number(parts[1]) + '月' + Number(parts[2]) + '日';
+  }
+
+  function loadDailyLedger() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(DAILY_LEDGER_KEY, null) : JSON.parse(localStorage.getItem(DAILY_LEDGER_KEY) || 'null');
+      return sanitizeLedgerRecords(saved);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveDailyLedger() {
+    try {
+      state.ledgerRecords = sanitizeLedgerRecords(state.ledgerRecords);
+      if (typeof GM_setValue === 'function') GM_setValue(DAILY_LEDGER_KEY, state.ledgerRecords);
+      else localStorage.setItem(DAILY_LEDGER_KEY, JSON.stringify(state.ledgerRecords));
+      queueCloudBackup();
+    } catch (error) {
+      console.warn('PLM floating helper daily ledger save failed:', error);
+    }
+  }
+
+  function sanitizeLedgerRecords(records) {
+    return (Array.isArray(records) ? records : []).slice(0, 1200).map((item) => ({
+      date: normalizeLedgerDate(item.date) || getTodayKey(),
+      sku: String(item.sku || '').slice(0, 80),
+      brand: cleanName(item.brand || '').slice(0, 120),
+      name: cleanName(item.name || '').slice(0, 220),
+      skuImageUrl: String(item.skuImageUrl || '').slice(0, 600),
+      status: normalizeLedgerStatus(item.status),
+      stage: String(item.stage || '').slice(0, 80) || '待定稿',
+      finalizedAt: String(item.finalizedAt || '').slice(0, 40),
+      note: String(item.note || '').slice(0, 240),
+      createdAt: String(item.createdAt || new Date().toLocaleString()).slice(0, 80),
+      updatedAt: String(item.updatedAt || new Date().toLocaleString()).slice(0, 80),
+      updatedAtMs: Number(item.updatedAtMs || 0) || Date.now(),
+    })).filter((item) => item.sku);
+  }
+
+  function normalizeLedgerStatus(value) {
+    const text = String(value || '').trim();
+    return /^(待定稿|已定稿|制作中|已完成|异常|跳过)$/.test(text) ? text : '待定稿';
+  }
+
+  function getLedgerRecordsForDate(dateKey) {
+    const key = normalizeLedgerDate(dateKey) || getTodayKey();
+    return (state.ledgerRecords || []).filter((item) => item.date === key).sort((a, b) => (b.updatedAtMs || 0) - (a.updatedAtMs || 0));
+  }
+
+  function shouldSkipLedgerDrawer(drawer) {
+    const text = drawer ? compactText(getVisibleText(drawer)).replace(/\s+/g, '') : '';
+    return /已完成|已作废|已拒绝/.test(text);
+  }
+
+  function upsertDailyLedgerFromData(data, options) {
+    if (!data || !data.sku) return null;
+    const opts = options || {};
+    const dateKey = normalizeLedgerDate(opts.date) || getTodayKey();
+    const nowText = new Date().toLocaleString();
+    const nowMs = Date.now();
+    const sku = data.sku;
+    const existing = (state.ledgerRecords || []).find((item) => item.date === dateKey && item.sku === sku);
+    const imageUrl = getProductThumbUrl(data) || data.skuImageUrl || data.skuImageFallbackUrl || '';
+    const next = {
+      ...(existing || {}),
+      date: dateKey,
+      sku,
+      brand: cleanName(data.brand || (existing && existing.brand) || ''),
+      name: cleanName(data.name || (existing && existing.name) || ''),
+      skuImageUrl: imageUrl || (existing && existing.skuImageUrl) || '',
+      status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
+      stage: opts.stage || (existing && existing.stage) || '待定稿',
+      note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
+      finalizedAt: opts.finalizedAt !== undefined ? String(opts.finalizedAt || '') : ((existing && existing.finalizedAt) || ''),
+      createdAt: (existing && existing.createdAt) || nowText,
+      updatedAt: nowText,
+      updatedAtMs: nowMs,
+    };
+    state.ledgerRecords = [next].concat((state.ledgerRecords || []).filter((item) => !(item.date === dateKey && item.sku === sku))).slice(0, 1200);
+    saveDailyLedger();
+    return next;
+  }
+
+  function updateDailyLedgerForSku(sku, patch, dateKey) {
+    const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+    const data = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    return upsertDailyLedgerFromData(data, { ...(patch || {}), date: key });
+  }
+
+  function copyLedgerTsv(dateKey) {
+    const rows = getLedgerRecordsForDate(dateKey);
+    if (!rows.length) {
+      showToast('今日没有可复制记录');
+      return;
+    }
+    const tsv = rows.map((item) => {
+      const productName = [item.brand, item.name].filter(Boolean).join(' ') || item.name || '';
+      const mainImageMark = item.skuImageUrl ? '主图' : '';
+      const skuImageMark = item.skuImageUrl ? 'SKU图' : '';
+      const date = item.finalizedAt || '';
+      return [productName, item.sku || '', mainImageMark, date, skuImageMark, date].map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ')).join('\t');
+    }).join('\n');
+    copyText(tsv);
+    showToast('今日登记已复制：' + rows.length + '条');
+  }
+
+  function exportLedgerRecords(dateKey) {
+    const records = getLedgerRecordsForDate(dateKey);
+    const payload = { plugin: L.title, version: SCRIPT_VERSION, exportedAt: new Date().toLocaleString(), date: normalizeLedgerDate(dateKey) || getTodayKey(), records };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'plm-daily-ledger-' + payload.date + '.json';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(link.href);
+      link.remove();
+    }, 0);
+    showToast('今日记录已导出');
+  }
+
+  function clearLedgerDate(dateKey) {
+    const key = normalizeLedgerDate(dateKey) || getTodayKey();
+    if (!window.confirm('确定清空 ' + formatLedgerDateLabel(key) + ' 的今日工作台记录吗？')) return;
+    state.ledgerRecords = (state.ledgerRecords || []).filter((item) => item.date !== key);
+    saveDailyLedger();
+    renderShell();
+  }
+
+  function updateLedgerFromAction(action, sku) {
+    if (!sku) return;
+    if (action === 'ledger-remove') {
+      const key = normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+      state.ledgerRecords = (state.ledgerRecords || []).filter((item) => !(item.date === key && item.sku === sku));
+      saveDailyLedger();
+      renderShell();
+      return;
+    }
+    const today = formatLedgerDateLabel(getTodayKey());
+    const patch = action === 'ledger-finalize'
+      ? { status: '已定稿', stage: '已定稿', finalizedAt: today, note: '手动定稿' }
+      : action === 'ledger-error'
+        ? { status: '异常', stage: '异常', note: '手动标记异常' }
+        : { status: '已完成', stage: '完成', note: '手动完成' };
+    updateDailyLedgerForSku(sku, patch);
+    renderShell();
+  }
+
+  function openLedgerSku(sku) {
+    if (!sku) return;
+    const data = normalizeData(loadData(sku) || { sku });
+    state.selectedSku = sku;
+    state.data = data;
+    state.view = 'detail';
+    expandPanel();
+    renderShell();
+  }
+
+  function getLedgerStatusClass(status) {
+    if (status === '已完成') return 'done';
+    if (status === '异常') return 'error';
+    if (status === '已定稿') return 'final';
+    if (status === '制作中') return 'doing';
+    if (status === '跳过') return 'skip';
+    return 'draft';
+  }
+
   function buildCachePayload() {
     const items = {};
     state.index.forEach((item) => {
@@ -6942,6 +7244,7 @@
         queue: sanitizeUploadRecords(state.uploadQueue || loadUploadQueue()),
         history: sanitizeUploadRecords(state.uploadHistory || loadUploadHistory()),
       },
+      dailyLedger: sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()),
       insights: state.insights || emptyInsights(),
     };
   }
@@ -7011,6 +7314,12 @@
         state.uploadHistory = sanitizeUploadRecords(payload.uploadRecords.history);
         saveUploadHistory();
       }
+    }
+    if (Array.isArray(payload.dailyLedger)) {
+      const imported = sanitizeLedgerRecords(payload.dailyLedger);
+      const importedKeys = new Set(imported.map((item) => item.date + '|' + item.sku));
+      state.ledgerRecords = imported.concat((state.ledgerRecords || loadDailyLedger()).filter((item) => !importedKeys.has(item.date + '|' + item.sku))).slice(0, 1200);
+      saveDailyLedger();
     }
     if (payload.insights && typeof payload.insights === 'object') {
       state.insights = sanitizeInsights(payload.insights);
@@ -8140,6 +8449,7 @@
     cleanupUploadFiles(latestItem);
     saveUploadHistory();
     saveUploadQueue();
+    if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功' }, getTodayKey());
     renderShell();
   }
 
@@ -13119,6 +13429,176 @@
         border-top: 1px solid rgba(211, 204, 255, .22) !important;
         color: #7d86a8 !important;
       }
+      #${PANEL_ID} .pfh-ledger-page {
+        display: grid !important;
+        grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+        gap: 10px !important;
+        height: 100% !important;
+        padding: 14px !important;
+        border: 1px solid rgba(211, 204, 255, .32) !important;
+        border-radius: 16px !important;
+        background: rgba(255,255,255,.68) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-hero {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        padding: 12px 14px !important;
+        border: 1px solid rgba(211, 204, 255, .34) !important;
+        border-radius: 14px !important;
+        background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(246,244,255,.72)) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-hero h3 {
+        margin: 0 !important;
+        color: #17153f !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-hero p,
+      #${PANEL_ID} .pfh-ledger-hero span {
+        margin: 4px 0 0 !important;
+        color: #6b7897 !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-toolbar {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+      }
+      #${PANEL_ID} .pfh-ledger-toolbar button,
+      #${PANEL_ID} .pfh-ledger-toolbar input,
+      #${PANEL_ID} .pfh-ledger-actions button {
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(190, 199, 220, .82) !important;
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.76) !important;
+        color: #253047 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.90) !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-toolbar button:hover,
+      #${PANEL_ID} .pfh-ledger-actions button:hover {
+        border-color: rgba(124, 58, 237, .28) !important;
+        background: rgba(244, 241, 255, .82) !important;
+        color: #5f35c8 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-head {
+        display: grid !important;
+        grid-template-columns: minmax(180px, 1.4fr) 72px minmax(120px, .8fr) minmax(210px, 1fr) !important;
+        gap: 8px !important;
+        min-height: 32px !important;
+        align-items: center !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(226, 232, 240, .80) !important;
+        border-radius: 12px !important;
+        background: rgba(255,255,255,.58) !important;
+        color: #7d86a8 !important;
+        font-size: 11px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-list {
+        display: grid !important;
+        gap: 7px !important;
+        min-height: 0 !important;
+        overflow: auto !important;
+        padding-right: 2px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-empty {
+        display: grid !important;
+        place-items: center !important;
+        min-height: 120px !important;
+        border: 1px dashed rgba(124, 58, 237, .28) !important;
+        border-radius: 14px !important;
+        color: #6b7897 !important;
+        background: rgba(248,250,252,.64) !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-item {
+        display: grid !important;
+        grid-template-columns: 42px minmax(160px, 1.4fr) 72px minmax(120px, .8fr) minmax(210px, 1fr) !important;
+        gap: 8px !important;
+        align-items: center !important;
+        min-height: 58px !important;
+        padding: 8px 10px !important;
+        border: 1px solid rgba(226, 232, 240, .84) !important;
+        border-radius: 12px !important;
+        background: rgba(255,255,255,.70) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb {
+        width: 38px !important;
+        height: 38px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(211,204,255,.36) !important;
+        border-radius: 10px !important;
+        background: #fff !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb .pfh-icon {
+        width: 20px !important;
+        height: 20px !important;
+        color: #7c3aed !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main {
+        display: grid !important;
+        gap: 2px !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        text-align: left !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main b {
+        color: #17153f !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main small,
+      #${PANEL_ID} .pfh-ledger-main em,
+      #${PANEL_ID} .pfh-ledger-stage small {
+        color: #6b7897 !important;
+        font-size: 11px !important;
+        font-style: normal !important;
+      }
+      #${PANEL_ID} .pfh-ledger-status {
+        justify-self: start !important;
+        padding: 4px 8px !important;
+        border-radius: 999px !important;
+        background: rgba(244,241,255,.82) !important;
+        color: #6d35e8 !important;
+        font-size: 11px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-status.is-done {
+        background: rgba(220,252,231,.78) !important;
+        color: #15803d !important;
+      }
+      #${PANEL_ID} .pfh-ledger-status.is-error {
+        background: rgba(254,226,226,.78) !important;
+        color: #b91c1c !important;
+      }
+      #${PANEL_ID} .pfh-ledger-stage {
+        display: grid !important;
+        gap: 2px !important;
+        color: #253047 !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+      }
       @media (max-width: 760px) {
         #${PANEL_ID} .pfh-info-grid {
           grid-template-columns: 1fr !important;
@@ -13131,6 +13611,17 @@
         }
         #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open .pfh-excel-status {
           grid-column: 1 / -1 !important;
+        }
+        #${PANEL_ID} .pfh-ledger-head {
+          display: none !important;
+        }
+        #${PANEL_ID} .pfh-ledger-item {
+          grid-template-columns: 42px minmax(0, 1fr) !important;
+        }
+        #${PANEL_ID} .pfh-ledger-status,
+        #${PANEL_ID} .pfh-ledger-stage,
+        #${PANEL_ID} .pfh-ledger-actions {
+          grid-column: 2 / -1 !important;
         }
       }
       @media (max-width: 430px) {
