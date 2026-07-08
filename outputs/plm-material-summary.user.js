@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.23
+// @version      2.4.24
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.23';
+  const SCRIPT_VERSION = '2.4.24';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2214,7 +2214,13 @@
     const loading = state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial;
     detail.classList.toggle('is-loading', loading);
     if (!data) {
-      detail.innerHTML = homeViewHtml(statusText, null);
+      if (loading) {
+        const main = panel.querySelector('.pfh-main');
+        if (main) main.classList.remove('is-home');
+        detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll"></div>';
+      } else {
+        detail.innerHTML = homeViewHtml(statusText, null);
+      }
       return;
     }
     state.data = normalizeData(data);
@@ -5240,6 +5246,9 @@
       showToast(L.excelNeedData);
       return;
     }
+    state.view = 'detail';
+    state.selectedSku = data.sku;
+    state.data = data;
     state.excelPanelOpen = true;
     state.excelExtra = null;
     state.excelMissing = [];
