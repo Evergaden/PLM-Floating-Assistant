@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.18
+// @version      2.4.19
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.18';
+  const SCRIPT_VERSION = '2.4.19';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -396,6 +396,7 @@
     seenMaterial: false,
     seenProduct: false,
     seenDesign: false,
+    scanTabCounts: {},
     diagnosticRunning: false,
     nextTabTarget: L.materialTab,
     lastTabClickAt: 0,
@@ -579,14 +580,15 @@
       expandPanel();
       upsertIndex(state.data);
       stopScan();
-      renderShell(L.checkingMaterial);
       if (!state.data.seenDesign || !getProductThumbUrl(state.data)) {
         resetRound(REFRESH_SCAN_ATTEMPTS);
         state.scanTargetSku = sku;
+        lockLoadingTip(sku);
+        renderShell(L.scanning);
         startScan();
         return;
       }
-      startMaterialWatch();
+      renderShell();
       return;
     }
 
@@ -620,6 +622,7 @@
     state.seenMaterial = false;
     state.seenProduct = false;
     state.seenDesign = false;
+    state.scanTabCounts = {};
     state.nextTabTarget = L.materialTab;
     state.lastTabClickAt = 0;
   }
@@ -815,6 +818,7 @@
     state.seenMaterial = state.seenMaterial || next.seenMaterial;
     state.seenProduct = state.seenProduct || next.seenProduct;
     state.seenDesign = state.seenDesign || next.seenDesign;
+    markCurrentScanTabRead(drawer, next);
 
     if (next.sku && next.sku !== state.sku) {
       state.sku = next.sku;
@@ -837,9 +841,6 @@
 
   async function finishRound() {
     stopScan();
-    if (state.data && state.data.sku) {
-      state.data = await diagnoseMissingDataBeforeSave(state.data);
-    }
     if (state.data && state.data.sku) saveData(state.data.sku, state.data);
     const shouldRefreshThumb = state.refreshingThumbSku && state.data && state.data.sku === state.refreshingThumbSku;
     if (shouldRefreshThumb) state.refreshingThumbSku = '';
@@ -980,27 +981,14 @@
   }
 
   function isRoundComplete(data) {
-    return Boolean(data && data.sku && data.name && state.seenMaterial && state.seenProduct);
+    return Boolean(data && data.sku && data.name && state.seenMaterial && state.seenProduct && state.seenDesign);
   }
 
   function clickUsefulTab(drawer) {
     const now = Date.now();
     if (now - state.lastTabClickAt < TAB_CLICK_COOLDOWN_MS) return;
 
-    let target = '';
-    if (!state.seenMaterial && state.nextTabTarget !== L.productTab) {
-      target = L.materialTab;
-      state.nextTabTarget = L.productTab;
-    } else if (!state.seenProduct) {
-      target = L.productTab;
-      state.nextTabTarget = '\u8bbe\u8ba1\u8d44\u6599';
-    } else if (!state.seenDesign) {
-      target = '\u8bbe\u8ba1\u8d44\u6599';
-      state.nextTabTarget = L.materialTab;
-    } else if (!state.seenMaterial) {
-      target = L.materialTab;
-      state.nextTabTarget = L.productTab;
-    }
+    const target = getNextScanTabTarget(drawer);
 
     if (!target) return;
     const tab = findTabButton(drawer, target);
@@ -1008,6 +996,30 @@
     state.lastTabClickAt = now;
     state.ignoreOutsideClickUntil = Date.now() + 1200;
     tab.click();
+  }
+
+  function markCurrentScanTabRead(drawer, data) {
+    const activeText = getActiveTabText(drawer);
+    const tabKey = activeText === L.materialTab
+      ? 'material'
+      : (activeText === L.productTab ? 'product' : (activeText === '\u8bbe\u8ba1\u8d44\u6599' ? 'design' : ''));
+    if (tabKey === 'material' && !(data && data.seenMaterial)) return;
+    if (tabKey === 'product' && !(data && data.seenProduct)) return;
+    if (tabKey === 'design' && !(data && data.seenDesign)) return;
+    if (!tabKey) return;
+    state.scanTabCounts[tabKey] = (state.scanTabCounts[tabKey] || 0) + 1;
+  }
+
+  function getNextScanTabTarget(drawer) {
+    const activeText = getActiveTabText(drawer);
+    const minReads = 2;
+    if (!state.seenMaterial) return activeText === L.materialTab && (state.scanTabCounts.material || 0) < minReads ? '' : L.materialTab;
+    if ((state.scanTabCounts.material || 0) < minReads && activeText === L.materialTab) return '';
+    if (!state.seenProduct) return activeText === L.productTab && (state.scanTabCounts.product || 0) < minReads ? '' : L.productTab;
+    if ((state.scanTabCounts.product || 0) < minReads && activeText === L.productTab) return '';
+    if (!state.seenDesign) return activeText === '\u8bbe\u8ba1\u8d44\u6599' && (state.scanTabCounts.design || 0) < minReads ? '' : '\u8bbe\u8ba1\u8d44\u6599';
+    if ((state.scanTabCounts.design || 0) < minReads && activeText === '\u8bbe\u8ba1\u8d44\u6599') return '';
+    return '';
   }
 
   function getProjectDrawer() {
