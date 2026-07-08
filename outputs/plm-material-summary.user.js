@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.27
+// @version      2.4.28
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -2525,7 +2525,6 @@
         '<option value="excel"' + (state.exportType === 'excel' ? ' selected' : '') + '>' + escapeHtml(L.exportTypeExcel) + '</option>' +
         '<option value="toy-label"' + (state.exportType === 'toy-label' ? ' selected' : '') + '>' + escapeHtml(L.exportTypeToyLabel) + '</option>' +
       '</select>' +
-      '<input type="number" min="0" step="1" class="pfh-excel-pack" placeholder="' + escapeHtml(L.excelPackQty) + '" value="' + escapeHtml(state.excelPackQty) + '">' +
       '<input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + escapeHtml(L.excelPurchasePrice) + '" value="' + escapeHtml(priceValue) + '">' +
       '<button type="button" data-action="excel-prepare" title="' + escapeHtml(L.excelRefresh) + '">' + iconHtml('refresh') + '</button>' +
       '<button type="button" data-action="excel-generate">' + escapeHtml(L.excel) + '</button>' +
@@ -3016,9 +3015,6 @@
     if (event.target && event.target.classList && event.target.classList.contains('pfh-search-input')) {
       event.target.value = normalizeSearchInput(event.target.value);
       updateSearchClear();
-    }
-    if (event.target && event.target.classList && event.target.classList.contains('pfh-excel-pack')) {
-      state.excelPackQty = event.target.value;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-excel-price')) {
       state.excelPurchasePrice = event.target.value;
@@ -12302,7 +12298,7 @@
       #${PANEL_ID} .pfh-smart-recommend {
         display: grid !important;
         gap: 4px !important;
-        margin: 10px 0 2px !important;
+        margin: 10px 0 12px !important;
         padding: 10px 12px !important;
         border: 1px solid rgba(167, 139, 250, .28) !important;
         border-radius: 14px !important;
@@ -12377,7 +12373,7 @@
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
         display: grid !important;
-        grid-template-columns: minmax(82px, 1.05fr) minmax(62px, .8fr) minmax(62px, .8fr) 48px minmax(68px, .9fr) !important;
+        grid-template-columns: minmax(96px, 1.15fr) minmax(54px, .62fr) 42px minmax(64px, .75fr) !important;
         align-items: center !important;
         gap: 6px 7px !important;
         width: 100% !important;
@@ -12389,15 +12385,17 @@
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select {
         appearance: none !important;
         -webkit-appearance: none !important;
-        color: #253047 !important;
-        border: 1px solid rgba(190, 199, 220, .88) !important;
-        border-radius: 10px !important;
+        color: #443075 !important;
+        border: 1px solid rgba(167, 139, 250, .34) !important;
+        border-radius: 12px !important;
         background:
-          linear-gradient(45deg, transparent 50%, #6d7890 50%) calc(100% - 14px) 50% / 6px 6px no-repeat,
-          linear-gradient(135deg, #6d7890 50%, transparent 50%) calc(100% - 10px) 50% / 6px 6px no-repeat,
-          rgba(255,255,255,.82) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.92) !important;
-        padding-right: 24px !important;
+          linear-gradient(45deg, transparent 50%, #7c3aed 50%) calc(100% - 15px) 50% / 6px 6px no-repeat,
+          linear-gradient(135deg, #7c3aed 50%, transparent 50%) calc(100% - 11px) 50% / 6px 6px no-repeat,
+          linear-gradient(180deg, rgba(255,255,255,.94), rgba(246,243,255,.86)) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 6px 16px rgba(124, 58, 237, .08) !important;
+        padding: 0 28px 0 10px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select,
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input,
@@ -12407,6 +12405,10 @@
         height: 28px !important;
         min-height: 28px !important;
         box-sizing: border-box !important;
+      }
+      #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open select:focus {
+        border-color: rgba(124, 58, 237, .58) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 0 0 3px rgba(124, 58, 237, .10) !important;
       }
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open input,
       #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open button {
