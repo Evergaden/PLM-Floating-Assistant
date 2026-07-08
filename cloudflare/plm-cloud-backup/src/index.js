@@ -555,7 +555,7 @@ function parseClassificationPackage(text, source) {
 }
 
 function buildCleanClassificationPrompt(samples) {
-  const sampleLimit = 220;
+  const sampleLimit = 160;
   const compactSamples = samples.slice(0, sampleLimit).map((item) => ({
     sku: item.sku,
     brand: item.brand,
@@ -567,11 +567,11 @@ function buildCleanClassificationPrompt(samples) {
   }));
   return [
     'You are helping summarize PLM product data rules from shared historical samples.',
-    'Return one valid JSON object only. Do not use Markdown, code fences, comments, prose, or trailing commas.',
-    'Goal 1: summarize reusable product categories, such as food, toys, daily goods, beauty, pet, and other useful subcategories.',
-    'Goal 2: summarize reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
+    'Return one minified valid JSON object only. Do not use Markdown, code fences, comments, prose, or trailing commas.',
+    'Goal 1: summarize exactly 6 reusable product categories, such as food, toys, daily goods, beauty, pet, and other useful subcategories.',
+    'Goal 2: summarize exactly 6 reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
     'Use keywords only when they are supported by product name, existing product type, file name, or packaging meaning. Avoid overly broad keywords.',
-    'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 18 keywords and 6 examples for each rule.',
+    'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 8 keywords and 3 examples for each rule.',
     'Required schema exactly: {"summary":"short Chinese summary","sampleCount":0,"categories":[{"label":"玩具","keywords":["捏捏乐"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}],"packageTypes":[{"label":"标签","keywords":["标签"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}]}',
     'The full dataset has ' + samples.length + ' samples. The following are the newest representative ' + compactSamples.length + ' samples:',
     JSON.stringify(compactSamples),
@@ -587,8 +587,8 @@ async function callConfiguredAiClassificationSummarizer(env, samples, modelOverr
       const result = await callAiText(env, {
         model: modelOverride,
         temperature: 0.15,
-        maxTokens: Number(env.AI_CLASSIFY_MAX_TOKENS || 1600),
-        timeoutMs: Number(env.AI_CLASSIFY_TIMEOUT_MS || env.ZHIPU_CLASSIFY_TIMEOUT_MS || 28000),
+        maxTokens: Number(env.AI_CLASSIFY_MAX_TOKENS || 3200),
+        timeoutMs: Number(env.AI_CLASSIFY_TIMEOUT_MS || env.ZHIPU_CLASSIFY_TIMEOUT_MS || 45000),
         responseMimeType: 'application/json',
         system: 'Output one valid JSON object only. No Markdown. No explanation.',
         prompt,
