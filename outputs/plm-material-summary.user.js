@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.29
+// @version      2.4.30
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -3955,8 +3955,9 @@
   async function putFileIntoUploadItem(item, file, filename) {
     const input = item.querySelector('input[type="file"]');
     if (!input) throw new Error('\u672a\u627e\u5230\u4e0a\u4f20\u63a7\u4ef6');
-    const uploadFile = file instanceof File ? file : new File([file], filename, { type: guessMime(filename) });
-    const namedFile = uploadFile.name === filename ? uploadFile : new File([uploadFile], filename, { type: uploadFile.type || guessMime(filename), lastModified: uploadFile.lastModified || Date.now() });
+    const mime = (file && file.type && /^image\//.test(file.type)) ? file.type : guessMime(filename);
+    const uploadFile = file instanceof File ? file : new File([file], filename, { type: mime });
+    const namedFile = uploadFile.name === filename && uploadFile.type ? uploadFile : new File([uploadFile], filename, { type: uploadFile.type || mime, lastModified: uploadFile.lastModified || Date.now() });
     const dt = new DataTransfer();
     dt.items.add(namedFile);
     input.files = dt.files;
@@ -4418,6 +4419,10 @@
     const lower = String(filename || '').toLowerCase();
     if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
     if (lower.endsWith('.zip')) return 'application/zip';
     if (lower.endsWith('.rar')) return 'application/vnd.rar';
     return 'application/octet-stream';
