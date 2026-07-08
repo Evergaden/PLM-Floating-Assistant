@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.28
+// @version      2.4.29
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -5121,6 +5121,18 @@
 
   function findBomLabelUploadItem(drawer) {
     if (!drawer) return null;
+    const isLabelUploadScope = (el) => {
+      if (!el || !el.querySelector('input[type="file"]')) return false;
+      const text = getVisibleText(el);
+      const compact = compactText(text);
+      return /\u6807\u7b7e/.test(text) && (/\u5305\u6750\s*-\s*\u6807\u7b7e/.test(text) || compact.startsWith('\u6807\u7b7e'));
+    };
+    const upload = Array.from(drawer.querySelectorAll('.ant-upload, .ant-upload-wrapper, input[type="file"]'))
+      .filter(isVisibleElement)
+      .map((el) => el.closest('.materialCardItemHeader, .ant-collapse-item, .typeCard, .cardBox') || el.parentElement)
+      .filter(Boolean)
+      .find(isLabelUploadScope);
+    if (upload) return upload;
     const cards = Array.from(drawer.querySelectorAll('.cardBox, .typeCard'))
       .filter(isVisibleElement)
       .filter((card) => card.querySelector('input[type="file"]'));
@@ -5133,7 +5145,7 @@
     if (byMaterial) return byMaterial;
     return Array.from(drawer.querySelectorAll('.ant-collapse-item, .materialCardItemHeader'))
       .filter(isVisibleElement)
-      .find((item) => item.querySelector('input[type="file"]') && /\u6807\u7b7e/.test(getVisibleText(item))) || null;
+      .find(isLabelUploadScope) || null;
   }
 
   async function saveProjectBomDrawer(drawer) {
@@ -5474,7 +5486,7 @@
     addLog('info', '\u73a9\u5177\u6807\u7b7e\uff1a\u51c6\u5907\u4e0a\u4f20\u8bf4\u660e\u56fe\u5230\u7ed1BOM', sku);
     const drawer = await ensureProjectBomDrawerForData(data);
     if (!drawer) throw new Error('\u672a\u6253\u5f00\u5f53\u524d\u7f16\u7801\u7684\u7ed1BOM\u62bd\u5c49');
-    const uploadItem = findBomLabelUploadItem(drawer);
+    const uploadItem = await waitUntil(() => findBomLabelUploadItem(drawer), 12000, 250);
     if (!uploadItem) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u4e2d\u6807\u7b7e\u884c\u7684\u4e0a\u4f20\u52a0\u53f7');
     uploadItem.scrollIntoView({ block: 'center', inline: 'nearest' });
     await wait(180);
