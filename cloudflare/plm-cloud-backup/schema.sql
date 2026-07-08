@@ -101,3 +101,17 @@ CREATE TABLE IF NOT EXISTS classification_rules (
 
 CREATE INDEX IF NOT EXISTS idx_classification_rules_kind
 ON classification_rules(kind, updated_at);
+
+CREATE TABLE IF NOT EXISTS loading_tips (
+  tip_id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  weight INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  source TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_loading_tips_enabled_order
+ON loading_tips(enabled, sort_order, updated_at);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.14
+// @version      2.4.15
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.14';
+  const SCRIPT_VERSION = '2.4.15';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -355,7 +355,18 @@
     insightsCheckFeishu: '\u68c0\u67e5\u98de\u4e66',
     insightsCopyFeishuSetup: '\u590d\u5236\u98de\u4e66\u914d\u7f6e',
     insightsCheckAi: '\u68c0\u67e5 AI',
+    loadingTipsManage: '\u7ef4\u62a4\u5c0f\u63d0\u793a',
   };
+  const DEFAULT_LOADING_TIPS = [
+    '\u591a\u4e2a\u7f16\u7801\u53ef\u4ee5\u4e00\u884c\u4e00\u4e2a\u7c98\u8fdb\u641c\u7d22\u6846\uff0c\u811a\u672c\u4f1a\u81ea\u52a8\u62c6\u5f00\u3002',
+    '\u53cc\u51fb\u7d2b\u8272 SKU \u80fd\u5feb\u901f\u590d\u5236\u7f16\u7801\uff0c\u6838\u5bf9\u6587\u4ef6\u540d\u65f6\u6700\u7701\u624b\u3002',
+    '\u53f3\u4e0b\u89d2\u5237\u65b0\u4f1a\u91cd\u65b0\u8bfb\u53d6\u8be6\u60c5\uff0c\u9002\u5408\u9875\u9762\u521a\u52a0\u8f7d\u5b8c\u7684\u4ea7\u54c1\u3002',
+    '\u76f8\u540c\u7eb8\u76d2\u5c3a\u5bf8\u586b\u8fc7\u88c5\u7bb1\u6570\uff0c\u4e0b\u6b21\u751f\u6210 Excel \u4f1a\u81ea\u52a8\u63a8\u8350\u3002',
+    '\u91c7\u8d2d\u4fe1\u606f\u4e3a\u7a7a\u65f6\uff0c\u961f\u5217\u4f1a\u5148\u4fdd\u5b58\u8349\u7a3f\u518d\u7ee7\u7eed\uff0c\u4e0d\u8981\u624b\u52a8\u6253\u65ad\u3002',
+    '\u8bbe\u7f6e\u91cc\u7684\u8fd0\u884c\u65e5\u5fd7\u80fd\u770b\u51fa\u5361\u5728\u54ea\u4e00\u6b65\uff0c\u6bd4\u53ea\u770b\u5f39\u7a97\u66f4\u51c6\u3002',
+    '\u73a9\u5177\u6807\u7b7e\u4f1a\u56fa\u5b9a\u751f\u6210 4x3cm \u5370\u5237\u56fe\uff0c\u4e0d\u8ddf\u968f\u666e\u901a\u5370\u5237\u5c3a\u5bf8\u8dd1\u3002',
+    '\u6709\u65e7\u5185\u5bb9\u7684\u63d0\u5ba1\u9879\u5148\u6807\u8bb0\u4e3a\u5df2\u6709\u5185\u5bb9\uff0c\u52fe\u9009\u91cd\u8bd5\u65f6\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\u3002',
+  ];
   const TOOLTIP = {
     about: '\u5173\u4e8e',
     openDetail: '\u6253\u5f00\u5f53\u524d\u7f16\u7801\u7684\u9879\u76ee\u8be6\u60c5',
@@ -440,6 +451,10 @@
     insightReadiness: null,
     maintainedCleaningRules: [],
     maintainedCleaningRulesLoaded: false,
+    loadingTips: DEFAULT_LOADING_TIPS.slice(),
+    loadingTipsLoaded: false,
+    loadingTipText: '',
+    loadingTipSeed: '',
   };
   state.expanded = firstTutorial;
 
@@ -452,6 +467,7 @@
   ensurePanel();
   ensureLauncher();
   renderShell(L.noDrawer);
+  refreshLoadingTips(false);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startUploadQueueSync();
@@ -1986,7 +2002,7 @@
       ? '\u4ef7\u683c ' + priceCount + '\u6761 / \u5f02\u5e38 ' + issueCount + '\u6761 / \u7c7b\u578b ' + typeCount + '\u7c7b'
       : L.insightsEmpty;
     const cloudStatus = state.insightCloudStatus ? '<p class="pfh-insight-status">' + escapeHtml(state.insightCloudStatus) + '</p>' : '';
-    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">\u0041\u0049\u603b\u7ed3\u89c4\u5219</button><button type="button" data-action="insights-apply-classify">\u91cd\u65b0\u5e94\u7528\u89c4\u5219</button><button type="button" data-action="insights-view-classify">\u67e5\u770b\u89c4\u5219</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderClassificationRulesPanel() + renderMaintainedCleaningRules() + '</div>';
+    return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + escapeHtml(L.insightsTitle) + '</strong><span>' + escapeHtml(summary) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="insights-readiness">\u4f53\u68c0</button><button type="button" data-action="tips-manage">' + escapeHtml(L.loadingTipsManage) + '</button><button type="button" data-action="insights-cloud-summary">' + escapeHtml(L.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">\u0041\u0049\u603b\u7ed3\u89c4\u5219</button><button type="button" data-action="insights-apply-classify">\u91cd\u65b0\u5e94\u7528\u89c4\u5219</button><button type="button" data-action="insights-view-classify">\u67e5\u770b\u89c4\u5219</button><button type="button" data-action="insights-refresh-rules">\u5237\u65b0\u89c4\u5219</button><button type="button" data-action="insights-check-ai">' + escapeHtml(L.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + escapeHtml(L.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-rules">' + escapeHtml(L.insightsCopyRules) + '</button><button type="button" data-action="insights-copy-report">' + escapeHtml(L.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + escapeHtml(L.insightsExport) + '</button><button type="button" data-action="clear-insights">' + escapeHtml(L.insightsClear) + '</button></div>' + cloudStatus + renderInsightReadinessPanel() + renderClassificationRulesPanel() + renderMaintainedCleaningRules() + '</div>';
   }
 
   function renderClassificationRulesPanel() {
@@ -2161,7 +2177,8 @@
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
-    detail.classList.toggle('is-loading', statusText === L.scanning);
+    const loading = statusText === L.scanning;
+    detail.classList.toggle('is-loading', loading);
     if (!data) {
       detail.innerHTML = homeViewHtml(statusText, null);
       return;
@@ -2195,7 +2212,7 @@
       rowHtml('netContent', L.netContent, state.data.netContent || L.unknown),
       rowHtml('grossWeight', L.grossWeight, state.data.grossWeight || L.unknown),
       '</div>' + insightRecommendationHtml(state.data) + '</section>',
-      statusText ? '<div class="pfh-status">' + escapeHtml(statusText) + '</div>' : '',
+      renderStatusHtml(statusText),
       '</div>',
       '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span><span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
     ].join('');
@@ -2236,6 +2253,42 @@
   function formatPrintSizeDisplay(data) {
     if (!data) return '';
     return [data.printSizeText || '', data.tubeSegmentText || ''].filter(Boolean).join('\n');
+  }
+
+  function renderStatusHtml(statusText) {
+    if (!statusText) return '';
+    if (statusText === L.scanning) {
+      const tip = getCurrentLoadingTip();
+      return '<div class="pfh-status pfh-loading-tip"><span>\u8bc6\u522b\u4e2d</span><strong>' + escapeHtml(tip) + '</strong></div>';
+    }
+    return '<div class="pfh-status">' + escapeHtml(statusText) + '</div>';
+  }
+
+  function getCurrentLoadingTip() {
+    const tips = normalizeLoadingTips(state.loadingTips);
+    const seed = state.scanTargetSku || state.selectedSku || state.sku || String(Date.now());
+    if (state.loadingTipSeed !== seed || !state.loadingTipText || !tips.includes(state.loadingTipText)) {
+      state.loadingTipText = pickLoadingTip(tips, seed);
+      state.loadingTipSeed = seed;
+    }
+    return state.loadingTipText || DEFAULT_LOADING_TIPS[0];
+  }
+
+  function pickLoadingTip(tips, seed) {
+    const list = normalizeLoadingTips(tips);
+    let hash = 0;
+    String(seed || '').split('').forEach((char) => {
+      hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+    });
+    return list[Math.abs(hash) % list.length] || DEFAULT_LOADING_TIPS[0];
+  }
+
+  function normalizeLoadingTips(tips) {
+    const list = (Array.isArray(tips) ? tips : [])
+      .map((item) => typeof item === 'string' ? item : (item && item.text))
+      .map((text) => String(text || '').trim())
+      .filter(Boolean);
+    return list.length ? Array.from(new Set(list)).slice(0, 80) : DEFAULT_LOADING_TIPS.slice();
   }
 
   function insightRecommendationHtml(data) {
@@ -2767,6 +2820,10 @@
     }
     if (action === 'insights-readiness') {
       checkCloudInsightReadiness();
+      return;
+    }
+    if (action === 'tips-manage') {
+      openLoadingTipsManager();
       return;
     }
     if (action === 'insights-ai-classify') {
@@ -7139,6 +7196,32 @@
     return cloudRequest('/insights/recommend?' + params.toString(), { method: 'GET' });
   }
 
+  async function fetchLoadingTips() {
+    return cloudRequest('/tips', { method: 'GET' });
+  }
+
+  async function refreshLoadingTips(showFeedback) {
+    try {
+      const response = await fetchLoadingTips();
+      const tips = normalizeLoadingTips(response && response.tips);
+      state.loadingTips = tips;
+      state.loadingTipsLoaded = true;
+      state.loadingTipText = '';
+      if (showFeedback) showToast('\u5c0f\u63d0\u793a\u5df2\u5237\u65b0\uff1a' + tips.length + '\u6761');
+    } catch (error) {
+      state.loadingTips = DEFAULT_LOADING_TIPS.slice();
+      state.loadingTipsLoaded = false;
+      addLog('warn', '\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25\uff0c\u5df2\u4f7f\u7528\u672c\u5730\u9ed8\u8ba4\u63d0\u793a', formatErrorMessage(error));
+      if (showFeedback) showToast('\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25\uff0c\u5df2\u4f7f\u7528\u9ed8\u8ba4\u63d0\u793a');
+    }
+  }
+
+  function openLoadingTipsManager() {
+    const url = CLOUD_BACKUP_API_BASE + '/tips/manage?key=' + encodeURIComponent(CLOUD_BACKUP_API_KEY);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    refreshLoadingTips(true);
+  }
+
   function cloudRequest(path, options) {
     const method = (options && options.method) || 'GET';
     const body = options && options.body ? JSON.stringify(options.body) : null;
@@ -8831,10 +8914,33 @@
       }
       #${PANEL_ID} .pfh-detail.is-loading .pfh-status {
         margin: 16px auto;
-        max-width: 220px;
+        max-width: 280px;
         text-align: center;
         color: #475569;
         font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-loading-tip {
+        display: grid;
+        gap: 7px;
+        padding: 12px 14px;
+        color: #5b4a77;
+        background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(247,243,255,.72));
+        border: 1px solid rgba(137, 94, 255, 0.18);
+        border-radius: 14px;
+        box-shadow: 0 14px 40px rgba(88, 72, 145, 0.12), inset 0 1px 0 rgba(255,255,255,.86);
+        text-align: left;
+      }
+      #${PANEL_ID} .pfh-loading-tip span {
+        color: #8b5cf6;
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: 0;
+      }
+      #${PANEL_ID} .pfh-loading-tip strong {
+        color: #42315f;
+        font-size: 13px;
+        line-height: 1.55;
+        font-weight: 500;
       }
       #${PANEL_ID} .pfh-section {
         padding: 6px 0 8px;

@@ -4,6 +4,17 @@ const CORS_HEADERS = {
   'access-control-allow-headers': 'content-type,x-api-key',
 };
 
+const DEFAULT_LOADING_TIPS = [
+  '多个编码可以一行一个粘进搜索框，脚本会自动拆开。',
+  '双击紫色 SKU 可以直接复制编码，核对文件名时最省手。',
+  '右下角刷新会重新读取详情，适合页面刚加载完的产品。',
+  '相同纸盒尺寸填过装箱数，下次生成 Excel 会自动推荐。',
+  '采购信息为空时，队列会先保存草稿再继续，不要手动打断。',
+  '设置页的运行日志能看出卡在哪一步，比只看弹窗更准。',
+  '玩具标签固定生成 4x3cm 印刷图，不跟随普通印刷尺寸跑。',
+  '有旧内容的提审项会先标记为已有内容，勾选重试时才清理重传。',
+];
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -1111,6 +1122,132 @@ function renderInsightTablePage(payload, request) {
 function getCurrentKeyQuerySuffix(request) {
   const key = new URL(request.url).searchParams.get('key') || '';
   return key ? '?key=' + encodeURIComponent(key) : '';
+}
+
+async function handleLoadingTips(request, env) {
+  if (!requireApiKeyFromHeaderOrQuery(request, env)) return json({ error: 'unauthorized' }, 401);
+  const tips = await listLoadingTips(env, false);
+  return json({ ok: true, tips: tips.length ? tips : DEFAULT_LOADING_TIPS.map((text, index) => ({
+    tipId: 'default-' + index,
+    text,
+    enabled: 1,
+    weight: 1,
+    sortOrder: index + 1,
+    source: 'default',
+  })) });
+}
+
+async function handleLoadingTipsManage(request, env) {
+  if (!requireApiKeyFromHeaderOrQuery(request, env)) return htmlResponse(renderAccessDeniedPage(), 401);
+  const tips = await listLoadingTips(env, true);
+  return htmlResponse(renderLoadingTipsManagePage(tips, request));
+}
+
+async function handleLoadingTipSave(request, env) {
+  if (!requireApiKeyFromHeaderOrQuery(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseBodyParams(request);
+  const text = String(body.text || '').trim().slice(0, 160);
+  if (!text) return json({ error: 'text required' }, 400);
+  const tipId = String(body.tipId || body.tip_id || '').trim() || 'tip_' + Date.now().toString(36) + '_' + crypto.randomUUID().slice(0, 8);
+  const enabled = body.enabled === undefined || body.enabled === 'on' || body.enabled === '1' || body.enabled === 1 ? 1 : 0;
+  const weight = clampInt(body.weight, 1, 20, 1);
+  const sortOrder = clampInt(body.sortOrder || body.sort_order, 0, 9999, 100);
+  const source = String(body.source || 'manual').trim().slice(0, 40);
+  await env.DB.prepare(`
+    INSERT INTO loading_tips (tip_id, text, enabled, weight, sort_order, source, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(tip_id) DO UPDATE SET
+      text = excluded.text,
+      enabled = excluded.enabled,
+      weight = excluded.weight,
+      sort_order = excluded.sort_order,
+      source = excluded.source,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(tipId, text, enabled, weight, sortOrder, source).run();
+  return redirectBackToTips(request);
+}
+
+async function handleLoadingTipDelete(request, env) {
+  if (!requireApiKeyFromHeaderOrQuery(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseBodyParams(request);
+  const tipId = String(body.tipId || body.tip_id || '').trim();
+  if (tipId) {
+    await env.DB.prepare('DELETE FROM loading_tips WHERE tip_id = ?').bind(tipId).run();
+  }
+  return redirectBackToTips(request);
+}
+
+async function listLoadingTips(env, includeDisabled) {
+  const sql = includeDisabled
+    ? 'SELECT tip_id, text, enabled, weight, sort_order, source, created_at, updated_at FROM loading_tips ORDER BY sort_order ASC, updated_at DESC LIMIT 120'
+    : 'SELECT tip_id, text, enabled, weight, sort_order, source, created_at, updated_at FROM loading_tips WHERE enabled = 1 ORDER BY sort_order ASC, updated_at DESC LIMIT 80';
+  const result = await env.DB.prepare(sql).all();
+  return (result.results || []).map((row) => ({
+    tipId: row.tip_id,
+    text: row.text,
+    enabled: Number(row.enabled || 0),
+    weight: Number(row.weight || 1),
+    sortOrder: Number(row.sort_order || 0),
+    source: row.source || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || '',
+  }));
+}
+
+async function parseBodyParams(request) {
+  const contentType = request.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) return await parseJson(request) || {};
+  if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
+    const form = await request.formData();
+    const data = {};
+    form.forEach((value, key) => { data[key] = value; });
+    return data;
+  }
+  return {};
+}
+
+function clampInt(value, min, max, fallback) {
+  const number = parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
+function redirectBackToTips(request) {
+  const suffix = getCurrentKeyQuerySuffix(request);
+  return new Response(null, {
+    status: 303,
+    headers: {
+      ...CORS_HEADERS,
+      location: '/tips/manage' + suffix,
+    },
+  });
+}
+
+function renderLoadingTipsManagePage(tips, request) {
+  const rows = (tips || []).map((tip) => '<tr>' +
+    '<td><form method="post" action="/tips/save' + htmlEscape(getCurrentKeyQuerySuffix(request)) + '"><input type="hidden" name="tipId" value="' + htmlEscape(tip.tipId) + '"><textarea name="text" maxlength="160">' + htmlEscape(tip.text) + '</textarea></td>' +
+    '<td><input class="num" name="sortOrder" value="' + htmlEscape(tip.sortOrder) + '"></td>' +
+    '<td><input class="num" name="weight" value="' + htmlEscape(tip.weight) + '"></td>' +
+    '<td><input type="hidden" name="enabled" value="0"><label class="check"><input type="checkbox" name="enabled" value="1"' + (tip.enabled ? ' checked' : '') + '>启用</label></td>' +
+    '<td><input name="source" value="' + htmlEscape(tip.source || 'manual') + '"></td>' +
+    '<td><button class="btn" type="submit">保存</button></form><form method="post" action="/tips/delete' + htmlEscape(getCurrentKeyQuerySuffix(request)) + '"><input type="hidden" name="tipId" value="' + htmlEscape(tip.tipId) + '"><button class="ghost" type="submit">删除</button></form></td>' +
+  '</tr>').join('');
+  const defaults = DEFAULT_LOADING_TIPS.map((text, index) => '<option value="' + htmlEscape(text) + '">' + htmlEscape(index + 1 + '. ' + text) + '</option>').join('');
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>PLM Loading Tips</title><style>' +
+    ':root{--bg:#f7f6ff;--card:rgba(255,255,255,.82);--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}' +
+    '*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#f1f7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}' +
+    '.wrap{max-width:1180px;margin:0 auto;padding:24px}.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:16px}' +
+    'h1{margin:0;font-size:22px;font-weight:650}.sub{margin-top:6px;color:var(--muted);font-size:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 70px rgba(76,60,132,.12);overflow:hidden}' +
+    '.add{padding:14px;display:grid;grid-template-columns:1fr 88px 88px 90px 120px auto;gap:10px;align-items:center;border-bottom:1px solid var(--line)}' +
+    'textarea,input,select{width:100%;min-height:34px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;color:var(--text);font-size:13px}textarea{resize:vertical;min-height:44px;line-height:1.4}.num{text-align:center}.check{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}.check input{width:auto;min-height:0}' +
+    'button,.btn{height:34px;border:0;border-radius:10px;padding:0 14px;background:var(--accent);color:#fff;font-size:13px;cursor:pointer}.ghost{margin-top:6px;background:#fff;color:#8b5cf6;border:1px solid var(--line)}' +
+    '.tablebox{overflow:auto;max-height:calc(100vh - 190px)}table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}th,td{padding:10px;border-bottom:1px solid #eeeaf9;vertical-align:top;text-align:left}th{position:sticky;top:0;background:rgba(250,249,255,.96);color:#695d80;font-weight:600}td:nth-child(1){min-width:420px}td:last-child{width:92px}.empty{padding:32px;color:var(--muted)}' +
+    '</style></head><body><div class="wrap"><div class="head"><div><h1>PLM 识别中小提示</h1><div class="sub">维护后脚本会在下次识别或刷新提示时读取。建议每条一两句话，短一点。</div></div><a class="btn" href="/tips' + htmlEscape(getCurrentKeyQuerySuffix(request)) + '">查看接口</a></div>' +
+    '<div class="card"><form class="add" method="post" action="/tips/save' + htmlEscape(getCurrentKeyQuerySuffix(request)) + '"><textarea name="text" maxlength="160" placeholder="例如：多个编码可以一行一个粘进搜索框，脚本会自动拆开。"></textarea><input class="num" name="sortOrder" value="100" title="排序"><input class="num" name="weight" value="1" title="权重"><input type="hidden" name="enabled" value="0"><label class="check"><input type="checkbox" name="enabled" value="1" checked>启用</label><input name="source" value="manual"><button type="submit">新增</button></form>' +
+    '<div class="tablebox">' + (tips.length ? '<table><thead><tr><th>提示内容</th><th>排序</th><th>权重</th><th>状态</th><th>来源</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table>' : '<div class="empty">还没有云端提示。脚本会先使用默认提示。</div>') + '</div></div>' +
+    '<div class="sub" style="margin-top:12px">默认提示参考：<select onchange="navigator.clipboard&&navigator.clipboard.writeText(this.value)"><option value="">选择一条复制</option>' + defaults + '</select></div>' +
+    '</div></body></html>';
 }
 
 async function callZhipuInsightReporter(env, summary) {
@@ -2593,6 +2730,10 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
+    if (url.pathname === '/tips/manage' && request.method === 'GET') return handleLoadingTipsManage(request, env);
+    if (url.pathname === '/tips/save' && request.method === 'POST') return handleLoadingTipSave(request, env);
+    if (url.pathname === '/tips/delete' && request.method === 'POST') return handleLoadingTipDelete(request, env);
     if (url.pathname === '/backup/save' && request.method === 'POST') return handleBackupSave(request, env);
     if (url.pathname === '/backup/load' && request.method === 'GET') return handleBackupLoad(request, env);
     if (url.pathname === '/pack/record' && request.method === 'POST') return handlePackRecord(request, env);
