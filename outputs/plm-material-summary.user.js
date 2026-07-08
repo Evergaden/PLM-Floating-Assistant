@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.32
+// @version      2.4.33
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -1873,19 +1873,11 @@
     if (document.activeElement && root.contains && root.contains(document.activeElement) && document.activeElement.blur) {
       document.activeElement.blur();
     }
-    Array.from(root.querySelectorAll ? root.querySelectorAll('[data-tooltip]') : []).forEach((el) => {
-      el.setAttribute('data-tooltip-muted', el.getAttribute('data-tooltip') || '');
-      el.removeAttribute('data-tooltip');
-    });
     window.clearTimeout(state.tooltipRestoreTimer);
-    state.tooltipRestoreTimer = window.setTimeout(() => {
-      const current = document.getElementById(PANEL_ID);
-      if (!current) return;
-      current.querySelectorAll('[data-tooltip-muted]').forEach((el) => {
-        el.setAttribute('data-tooltip', el.getAttribute('data-tooltip-muted') || '');
-        el.removeAttribute('data-tooltip-muted');
-      });
-    }, 500);
+    Array.from(root.querySelectorAll ? root.querySelectorAll('[data-action="panel-close"][data-tooltip]') : []).forEach((el) => {
+      el.removeAttribute('data-tooltip');
+      el.removeAttribute('data-tooltip-muted');
+    });
   }
 
   function isPanelVisible() {
@@ -1899,7 +1891,12 @@
     button.innerHTML = iconHtml('close') + '<span>' + escapeHtml(L.close) + '</span>';
     button.removeAttribute('title');
     button.setAttribute('aria-label', TOOLTIP.collapse);
-    button.setAttribute('data-tooltip', TOOLTIP.collapse);
+    if (state.expanded && panel.style.display !== 'none' && !panel.classList.contains('is-collapsed')) {
+      button.setAttribute('data-tooltip', TOOLTIP.collapse);
+    } else {
+      button.removeAttribute('data-tooltip');
+      button.removeAttribute('data-tooltip-muted');
+    }
   }
 
   function updateSettingsNotice(panel) {
