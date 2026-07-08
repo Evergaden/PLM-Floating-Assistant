@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.25
+// @version      2.4.26
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.25';
+  const SCRIPT_VERSION = '2.4.26';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5335,6 +5335,19 @@
     showToast(L.excelMissing + state.excelMissing.join('\u3001'));
   }
 
+  async function ensureExcelStateFromCache(data) {
+    const excelData = normalizeData(data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!excelData || !excelData.sku) return false;
+    const extra = buildCachedExcelExtra(excelData);
+    state.excelPanelOpen = true;
+    state.excelExtra = { extra, excelData };
+    state.excelMissing = getExcelMissingFields(excelData, extra);
+    state.excelStatus = state.excelMissing.length ? L.excelIncomplete : L.excelReady;
+    await fillRecommendedPackQty(excelData);
+    await fillRecommendedPurchasePrice(excelData, extra);
+    return true;
+  }
+
   async function generateExcelFromCurrent() {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
@@ -5347,7 +5360,7 @@
     }
     syncExcelInputs();
     if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
-      await prepareExcelInfo();
+      await ensureExcelStateFromCache(data);
       syncExcelInputs();
       if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
         state.excelPanelOpen = true;
