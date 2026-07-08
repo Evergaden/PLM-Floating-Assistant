@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.22
+// @version      2.4.23
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.22';
+  const SCRIPT_VERSION = '2.4.23';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5246,12 +5246,18 @@
     state.excelStatus = L.excelPreparing;
     renderShell();
     try {
-      if (!(await ensureProjectDrawerForData(data))) throw new Error('target project drawer not open');
-      const extra = await collectExcelExtraData(data.sku);
-      const excelData = normalizeData(mergeData(data, extra.liveData || {}));
-      cacheProductThumb(excelData, extra);
+      let extra = buildCachedExcelExtra(data);
+      let excelData = data;
+      let missing = getExcelMissingFields(excelData, extra);
+      if (missing.length) {
+        if (!(await ensureProjectDrawerForData(data))) throw new Error('target project drawer not open');
+        extra = await collectExcelExtraData(data);
+        excelData = normalizeData(mergeData(data, extra.liveData || {}));
+        cacheExcelExtraData(excelData, extra);
+        missing = getExcelMissingFields(excelData, extra);
+      }
       state.excelExtra = { extra, excelData };
-      state.excelMissing = getExcelMissingFields(excelData, extra);
+      state.excelMissing = missing;
       state.excelStatus = state.excelMissing.length ? L.excelIncomplete : L.excelReady;
       await fillRecommendedPackQty(excelData);
       await fillRecommendedPurchasePrice(excelData, extra);
@@ -5281,6 +5287,23 @@
     saveDataDirect(sku, thumbData);
     if ((state.data && state.data.sku === sku) || (!state.data && state.selectedSku === sku)) state.data = thumbData;
     upsertIndex(thumbData);
+  }
+
+  function cacheExcelExtraData(data, extra) {
+    if (!data || !data.sku || !extra) return;
+    const cached = normalizeData({
+      ...data,
+      excelEnglishName: extra.englishName || data.excelEnglishName || '',
+      excelChineseName: extra.chineseName || data.excelChineseName || '',
+      excelIngredients: extra.ingredients || data.excelIngredients || '',
+      excelBenchmarkLink: extra.benchmarkLink || data.excelBenchmarkLink || '',
+      skuImageUrl: extra.isSkuDesignImage ? (extra.skuImageUrl || extra.imageUrl || data.skuImageUrl || '') : (data.skuImageUrl || ''),
+      skuImageFallbackUrl: extra.isSkuDesignImage ? (extra.skuImageFallbackUrl || extra.imageFallbackUrl || extra.skuImageFallbackUrl || extra.imageUrl || data.skuImageFallbackUrl || '') : (data.skuImageFallbackUrl || ''),
+      skuImageSource: extra.isSkuDesignImage || data.skuImageSource === 'effectImage' ? 'effectImage' : (data.skuImageSource || ''),
+    });
+    saveDataDirect(data.sku, cached);
+    if ((state.data && state.data.sku === data.sku) || (!state.data && state.selectedSku === data.sku)) state.data = cached;
+    upsertIndex(cached);
   }
 
   function getExcelMissingFields(data, extra) {
@@ -5791,34 +5814,76 @@
     return { imageUrl: '', imageFallbackUrl: '' };
   }
 
-  async function collectExcelExtraData(sku) {
+  async function collectExcelExtraData(data) {
+    const sku = data && data.sku;
     const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
-    const extra = { englishName: '', chineseName: '', ingredients: '', benchmarkLink: '', imageUrl: '', imageFallbackUrl: '', liveData: null };
+    const extra = buildCachedExcelExtra(data);
     if (!drawer) return extra;
-    await switchDrawerTab(drawer, L.productTab);
-    await waitForDrawerText(drawer, '\u6bdb\u91cd', 1200);
-    extra.liveData = extractData(drawer);
-    await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
-    await waitForDesignData(drawer, 4500);
-    const designText = getVisibleText(drawer);
-    const previewImageInfo = await collectProductImageInfo(drawer, {
-      sku,
-      includeBenchmark: false,
-      allowPreview: true,
-      restoreTab: false,
-      designTimeout: 4500,
-    });
-    Object.assign(extra, {
-      englishName: extractLineAfter(designText, 'PRODUCT NAME') || '',
-      chineseName: extractLineAfter(designText, '\u5546\u54c1\u540d\u79f0') || '',
-      ingredients: extractNamedField(designText, '\u6210\u5206') || extractNamedField(designText, '\u6210\u4efd') || '',
-      ...previewImageInfo,
-    });
+    if (needsExcelMaterialRead(data)) {
+      await switchDrawerTab(drawer, L.materialTab);
+      await waitForDrawerText(drawer, '\u7269\u6599\u7f16\u7801', 1200);
+      extra.liveData = mergeData(extra.liveData, extractData(drawer));
+    }
+    if (needsExcelProductRead(data)) {
+      await switchDrawerTab(drawer, L.productTab);
+      await waitForDrawerText(drawer, '\u6bdb\u91cd', 1200);
+      extra.liveData = mergeData(extra.liveData, extractData(drawer));
+    }
+    if (needsExcelDesignRead(extra)) {
+      await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
+      await waitForDesignData(drawer, 4500);
+      const designText = getVisibleText(drawer);
+      const previewImageInfo = (extra.isSkuDesignImage && (extra.imageUrl || extra.imageFallbackUrl))
+        ? {}
+        : await collectProductImageInfo(drawer, {
+          sku,
+          includeBenchmark: false,
+          allowPreview: true,
+          restoreTab: false,
+          designTimeout: 4500,
+        });
+      Object.assign(extra, {
+        englishName: extra.englishName || extractLineAfter(designText, 'PRODUCT NAME') || '',
+        chineseName: extra.chineseName || extractLineAfter(designText, '\u5546\u54c1\u540d\u79f0') || '',
+        ingredients: extra.ingredients || extractNamedField(designText, '\u6210\u5206') || extractNamedField(designText, '\u6210\u4efd') || '',
+        ...previewImageInfo,
+      });
+    }
 
-    await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f');
-    await waitForDrawerText(drawer, '\u5bf9\u6807\u94fe\u63a5', 1200);
-    extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer));
+    if (!extra.benchmarkLink) {
+      await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f');
+      await waitForDrawerText(drawer, '\u5bf9\u6807\u94fe\u63a5', 1200);
+      extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer));
+    }
     return extra;
+  }
+
+  function buildCachedExcelExtra(data) {
+    const imageInfo = getCachedSkuImageInfo(data && data.sku);
+    return {
+      englishName: data && data.excelEnglishName || '',
+      chineseName: data && data.excelChineseName || '',
+      ingredients: data && data.excelIngredients || '',
+      benchmarkLink: data && data.excelBenchmarkLink || '',
+      imageUrl: imageInfo.imageUrl || '',
+      imageFallbackUrl: imageInfo.imageFallbackUrl || '',
+      skuImageUrl: imageInfo.skuImageUrl || '',
+      skuImageFallbackUrl: imageInfo.skuImageFallbackUrl || '',
+      isSkuDesignImage: Boolean(imageInfo.isSkuDesignImage),
+      liveData: null,
+    };
+  }
+
+  function needsExcelProductRead(data) {
+    return Boolean(data && (!data.productLength || !data.productWidth || !data.productHeight || !data.grossWeight));
+  }
+
+  function needsExcelMaterialRead(data) {
+    return Boolean(data && (!data.packageLength || !data.packageWidth || !data.packageHeight || !data.netContent));
+  }
+
+  function needsExcelDesignRead(extra) {
+    return Boolean(!extra || !extra.englishName || !extra.ingredients || !extra.isSkuDesignImage || (!extra.imageUrl && !extra.imageFallbackUrl));
   }
 
   function getCachedSkuImageInfo(sku) {
