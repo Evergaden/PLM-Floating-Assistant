@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.19
+// @version      2.4.20
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.19';
+  const SCRIPT_VERSION = '2.4.20';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -635,6 +635,7 @@
     }
     stopScan();
     lockLoadingTip(state.scanTargetSku || state.selectedSku || state.sku || findSku(getVisibleText(drawer)) || '');
+    if (!isLoadingTipVisible()) renderShell(L.scanning);
     state.scanRunning = true;
     scanOnce();
   }
@@ -828,7 +829,6 @@
 
     state.data = mergeData(state.data, next);
     state.selectedSku = state.data && state.data.sku ? state.data.sku : state.selectedSku;
-    renderShell(L.scanning);
 
     if (isRoundComplete(state.data) || state.scanAttempts >= state.maxAttempts) {
       finishRound();
@@ -2275,6 +2275,11 @@
       return '<div class="pfh-status pfh-loading-tip"><span>\u8bc6\u522b\u4e2d</span><strong>' + escapeHtml(tip) + '</strong></div>';
     }
     return '';
+  }
+
+  function isLoadingTipVisible() {
+    const panel = document.getElementById(PANEL_ID);
+    return Boolean(panel && panel.querySelector('.pfh-detail.is-loading .pfh-loading-tip'));
   }
 
   function getCurrentLoadingTip() {
