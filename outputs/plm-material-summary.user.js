@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.20
+// @version      2.4.21
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.20';
+  const SCRIPT_VERSION = '2.4.21';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -565,6 +565,21 @@
       return;
     }
     const changed = drawer !== state.drawer || (sku && sku !== state.sku);
+    if (state.scanRunning && drawer === state.drawer) {
+      if (sku && sku !== state.sku) {
+        state.sku = sku;
+        state.selectedSku = sku;
+        state.scanTargetSku = state.scanTargetSku || sku;
+        if (!state.data || !state.data.sku) {
+          state.data = normalizeData({
+            ...(state.data || {}),
+            sku,
+            name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
+          });
+        }
+      }
+      return;
+    }
     if (!changed && state.manuallyCollapsedForSku && state.manuallyCollapsedForSku === (sku || state.sku)) return;
     if (!changed) return;
     state.manuallyCollapsedForSku = '';
@@ -584,7 +599,6 @@
         resetRound(REFRESH_SCAN_ATTEMPTS);
         state.scanTargetSku = sku;
         lockLoadingTip(sku);
-        renderShell(L.scanning);
         startScan();
         return;
       }
@@ -600,7 +614,6 @@
     resetExcelState();
     resetRound(AUTO_SCAN_ATTEMPTS);
     expandPanel();
-    renderShell(L.scanning);
     startScan();
   }
 
@@ -635,8 +648,8 @@
     }
     stopScan();
     lockLoadingTip(state.scanTargetSku || state.selectedSku || state.sku || findSku(getVisibleText(drawer)) || '');
-    if (!isLoadingTipVisible()) renderShell(L.scanning);
     state.scanRunning = true;
+    if (!isLoadingTipVisible()) renderShell(L.scanning);
     scanOnce();
   }
 
@@ -2190,7 +2203,7 @@
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
-    const loading = statusText === L.scanning || statusText === L.checkingMaterial;
+    const loading = state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial;
     detail.classList.toggle('is-loading', loading);
     if (!data) {
       detail.innerHTML = homeViewHtml(statusText, null);
@@ -2269,8 +2282,7 @@
   }
 
   function renderStatusHtml(statusText) {
-    if (!statusText) return '';
-    if (statusText === L.scanning || statusText === L.checkingMaterial) {
+    if (state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial) {
       const tip = getCurrentLoadingTip();
       return '<div class="pfh-status pfh-loading-tip"><span>\u8bc6\u522b\u4e2d</span><strong>' + escapeHtml(tip) + '</strong></div>';
     }
