@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.46
+// @version      2.4.47
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.46';
+  const SCRIPT_VERSION = '2.4.47';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2404,7 +2404,9 @@
     const packageCode = record.packageCode || '';
     const printCode = record.printCode || '';
     const dateAttr = escapeHtml(record.date || workDate);
-    const referenceButton = record.referenceUrl ? '<button type="button" class="pfh-ledger-link" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="打开参考链接">' + iconHtml('link') + '</button>' : '';
+    const referenceButton = record.referenceUrl
+      ? '<button type="button" class="pfh-ledger-link" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="打开参考链接">' + iconHtml('link') + '</button>'
+      : '<button type="button" class="pfh-ledger-link is-disabled" disabled title="没有参考链接">' + iconHtml('link') + '</button>';
     const statusPill = '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(status)) + '">' + escapeHtml(status) + '</span>';
     const dateText = mode === 'finalized'
       ? ('定稿 ' + (record.finalizedAt || formatLedgerDateLabel(workDate)))
@@ -14472,6 +14474,60 @@
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
         width: 74px !important;
         height: 74px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-list {
+        align-content: start !important;
+        grid-auto-rows: max-content !important;
+      }
+      #${PANEL_ID} .pfh-ledger-day {
+        align-content: start !important;
+        grid-auto-rows: max-content !important;
+      }
+      #${PANEL_ID} .pfh-ledger-item,
+      #${PANEL_ID} .pfh-ledger-item.is-finalized,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item.is-finalized {
+        align-self: start !important;
+        align-items: center !important;
+        min-height: 112px !important;
+        height: auto !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
+        align-self: center !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main b {
+        font-weight: 600 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main small,
+      #${PANEL_ID} .pfh-ledger-status,
+      #${PANEL_ID} .pfh-ledger-tags span,
+      #${PANEL_ID} .pfh-ledger-actions button,
+      #${PANEL_ID} .pfh-ledger-file-actions button,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions button {
+        font-weight: 400 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags .is-date {
+        padding: 0 !important;
+        border-color: transparent !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #6b7897 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link {
+        border: 0 !important;
+        background: rgba(244,241,255,.76) !important;
+        box-shadow: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link .pfh-icon {
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link.is-disabled {
+        color: #b9b2d7 !important;
+        background: rgba(244,241,255,.50) !important;
+        cursor: not-allowed !important;
       }
     `;
     document.documentElement.appendChild(style);
