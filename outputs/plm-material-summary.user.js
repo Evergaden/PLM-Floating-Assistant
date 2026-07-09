@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.49
+// @version      2.4.50
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.49';
+  const SCRIPT_VERSION = '2.4.50';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2755,10 +2755,9 @@
     const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
     const uploadInfoCards = '<div class="pfh-upload-info-grid">' +
-      '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u4e0a\u65b9\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u4e24\u4e2a\u6587\u4ef6\u90fd\u9f50\u5168\u540e\u624d\u4f1a\u5165\u961f\u4e0a\u4f20\uff1b\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\u3002</p></article>' +
-      '<button type="button" class="pfh-upload-history-card" data-action="upload-history-toggle">' + iconHtml('historyRecord') + '<span><b>' + escapeHtml(modeButtonText) + '</b><small>' + escapeHtml(viewingHistory ? '\u56de\u5230\u5f85\u4e0a\u4f20\u961f\u5217' : '\u67e5\u770b\u5df2\u5b8c\u6210\u6216\u5f02\u5e38\u8bb0\u5f55') + '</small></span></button>' +
+      '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u4e0a\u65b9\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\uff0c\u5386\u53f2\u8bb0\u5f55\u53ef\u5728\u9876\u90e8\u6309\u94ae\u5207\u6362\u67e5\u770b\u3002</p></article>' +
       '</div>';
-    return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open">' +
+    return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (viewingHistory ? ' is-history-view' : '') + '">' +
       '<div class="pfh-section-title pfh-upload-title"><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
@@ -2771,7 +2770,7 @@
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
       '</div>' + uploadInfoCards +
       '</section></div>' +
-      '<div class="pfh-upload-bottom">' + '<div class="pfh-upload-bottom-line">' + pager + selectedActionHtml + '</div>' + '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml('\u53ea\u6709\u540c\u4e00 SKU \u7684 xlsx \u548c zip \u90fd\u9f50\u5168\u624d\u4f1a\u4e0a\u4f20\uff1b\u7f3a\u6587\u4ef6\u7684\u9879\u4f1a\u7ea2\u706f\u8df3\u8fc7\u3002') + '</span><span class="pfh-note-toast" aria-live="polite"></span></div></div>';
+      '<div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + pager + selectedActionHtml + '</div></div>';
   }
 
   function renderCompactPager(actionPrefix, currentPage, totalPages) {
@@ -14635,12 +14634,40 @@
         background: rgba(255,255,255,.72) !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.9) !important;
       }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-section.is-history-view .pfh-upload-body {
+        grid-template-rows: auto minmax(260px, 1fr) !important;
+        min-height: 360px !important;
+      }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-drop {
+        position: relative !important;
+        isolation: isolate !important;
+        overflow: hidden !important;
         min-height: 116px !important;
         border-width: 2px !important;
         border-color: rgba(168,85,247,.45) !important;
-        background: rgba(250,245,255,.58) !important;
+        background:
+          radial-gradient(circle at 50% -10%, rgba(168,85,247,.18), transparent 46%),
+          linear-gradient(180deg, rgba(255,255,255,.72), rgba(250,245,255,.60)) !important;
         font-size: 13px !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92), 0 12px 34px rgba(124,58,237,.08) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-drop::before {
+        content: "" !important;
+        position: absolute !important;
+        inset: 10px !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(168,85,247,.24) !important;
+        pointer-events: none !important;
+        animation: pfh-upload-drop-glow 2.8s ease-in-out infinite !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-drop::after {
+        content: "" !important;
+        position: absolute !important;
+        inset: 0 !important;
+        background: linear-gradient(115deg, transparent 0 34%, rgba(255,255,255,.28) 48%, transparent 64% 100%) !important;
+        transform: translateX(-120%) !important;
+        pointer-events: none !important;
+        animation: pfh-upload-drop-sweep 3.6s ease-in-out infinite !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-actions button[data-action="upload-start"] {
         border-color: transparent !important;
@@ -14651,13 +14678,16 @@
       #${PANEL_ID}[data-view="upload"] .pfh-upload-list {
         min-height: 142px !important;
       }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-section.is-history-view .pfh-upload-list {
+        min-height: 260px !important;
+        height: auto !important;
+      }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-info-grid {
         display: grid !important;
-        grid-template-columns: minmax(0, 1.15fr) minmax(220px, .85fr) !important;
+        grid-template-columns: minmax(0, 1fr) !important;
         gap: 14px !important;
       }
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-guide,
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card {
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-guide {
         min-width: 0 !important;
         padding: 16px !important;
         border: 1px solid rgba(226,232,240,.78) !important;
@@ -14676,41 +14706,19 @@
         line-height: 1.55 !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card {
-        display: grid !important;
-        grid-template-columns: 42px minmax(0, 1fr) !important;
-        gap: 12px !important;
-        align-items: center !important;
-        text-align: left !important;
-        color: #17153f !important;
-      }
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card .pfh-icon {
-        width: 42px !important;
-        height: 42px !important;
-        display: grid !important;
-        place-items: center !important;
-        border-radius: 13px !important;
-        background: rgba(244,241,255,.86) !important;
-        color: #7c3aed !important;
-      }
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card .pfh-icon svg,
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card .pfh-icon svg * {
-        width: 23px !important;
-        height: 23px !important;
-        fill: currentColor !important;
-        stroke: currentColor !important;
-      }
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card b {
-        display: block !important;
-        font-size: 14px !important;
-      }
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card small {
-        display: block !important;
-        margin-top: 4px !important;
-        color: #64748b !important;
-        font-size: 12px !important;
+        display: none !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-bottom {
         padding: 0 14px 14px !important;
+      }
+      @keyframes pfh-upload-drop-glow {
+        0%, 100% { opacity: .48; transform: scale(.985); }
+        50% { opacity: .95; transform: scale(1); }
+      }
+      @keyframes pfh-upload-drop-sweep {
+        0%, 58% { transform: translateX(-120%); opacity: 0; }
+        70% { opacity: .95; }
+        100% { transform: translateX(120%); opacity: 0; }
       }
       @media (max-width: 760px) {
         #${PANEL_ID}[data-view="upload"] .pfh-upload-info-grid {
