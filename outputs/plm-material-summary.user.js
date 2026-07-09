@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.47
+// @version      2.4.48
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.47';
+  const SCRIPT_VERSION = '2.4.48';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2045,7 +2045,7 @@
   }
 
   function capturePanelScroll(panel) {
-    const selectors = ['.pfh-sku-scroll', '.pfh-detail-scroll', '.pfh-upload-list'];
+    const selectors = ['.pfh-sku-scroll', '.pfh-detail-scroll', '.pfh-upload-list', '.pfh-ledger-list'];
     return selectors.reduce((snapshot, selector) => {
       const node = panel && panel.querySelector(selector);
       if (node) snapshot[selector] = { top: node.scrollTop, left: node.scrollLeft };
@@ -2424,7 +2424,7 @@
         ledgerFileButtonHtml('ledger-toggle-image-pack', sku, dateAttr, '图包', '', record.imagePackState, record.imagePackDone) +
       '</div>'
       : '<div class="pfh-ledger-actions">' +
-        '<button type="button" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">定稿</button>' +
+        '<button type="button" class="' + (record.finalizedAt ? 'is-active' : '') + '" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">定稿</button>' +
         '<button type="button" data-action="ledger-void" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">作废</button>' +
         '<button type="button" data-action="ledger-done" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">完成</button>' +
         '<button type="button" data-action="ledger-remove" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">移除</button>' +
@@ -7222,8 +7222,10 @@
       stage: String(item.stage || '').slice(0, 80) || '待定稿',
       finalizedAt: String(item.finalizedAt || '').slice(0, 40),
       finalizedDate: normalizeLedgerDate(item.finalizedDate) || '',
+      finalizedAtMs: Number(item.finalizedAtMs || 0) || 0,
       note: String(item.note || '').slice(0, 240),
       createdAt: String(item.createdAt || new Date().toLocaleString()).slice(0, 80),
+      createdAtMs: Number(item.createdAtMs || item.updatedAtMs || 0) || Date.now(),
       updatedAt: String(item.updatedAt || new Date().toLocaleString()).slice(0, 80),
       updatedAtMs: Number(item.updatedAtMs || 0) || Date.now(),
     })).filter((item) => item.sku);
@@ -7274,7 +7276,8 @@
         const dateA = mode === 'finalized' ? getLedgerFinalizedDate(a) : getLedgerDesignDate(a);
         const dateB = mode === 'finalized' ? getLedgerFinalizedDate(b) : getLedgerDesignDate(b);
         if (dateA !== dateB) return dateA < dateB ? 1 : -1;
-        return (b.updatedAtMs || 0) - (a.updatedAtMs || 0);
+        if (mode === 'finalized') return (b.finalizedAtMs || b.updatedAtMs || 0) - (a.finalizedAtMs || a.updatedAtMs || 0);
+        return (b.createdAtMs || b.updatedAtMs || 0) - (a.createdAtMs || a.updatedAtMs || 0);
       });
   }
 
@@ -7333,7 +7336,9 @@
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
       finalizedAt: opts.finalizedAt !== undefined ? String(opts.finalizedAt || '') : ((existing && existing.finalizedAt) || ''),
       finalizedDate: opts.finalizedDate !== undefined ? normalizeLedgerDate(opts.finalizedDate) : ((existing && existing.finalizedDate) || ''),
+      finalizedAtMs: opts.finalizedAtMs !== undefined ? (Number(opts.finalizedAtMs || 0) || 0) : (Number(existing && existing.finalizedAtMs) || 0),
       createdAt: (existing && existing.createdAt) || nowText,
+      createdAtMs: (existing && existing.createdAtMs) || nowMs,
       updatedAt: nowText,
       updatedAtMs: nowMs,
     };
@@ -7411,12 +7416,16 @@
     }
     const today = formatLedgerDateLabel(getTodayKey());
     const todayKey = getTodayKey();
+    const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+    const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
     const patch = action === 'ledger-finalize'
-      ? { status: '已定稿', stage: '已定稿', finalizedAt: today, finalizedDate: todayKey, note: '手动定稿' }
+      ? ((existing && existing.finalizedAt)
+        ? { status: '待定稿', stage: '待定稿', finalizedAt: '', finalizedDate: '', finalizedAtMs: 0, note: '取消定稿' }
+        : { status: '已定稿', stage: '已定稿', finalizedAt: today, finalizedDate: todayKey, finalizedAtMs: Date.now(), note: '手动定稿' })
       : action === 'ledger-void'
         ? { status: '作废', stage: '作废', note: '手动作废' }
         : { status: '已完成', stage: '完成', note: '手动完成' };
-    updateDailyLedgerForSku(sku, patch, dateKey);
+    updateDailyLedgerForSku(sku, patch, key);
     renderShell();
   }
 
@@ -14274,7 +14283,7 @@
         font-size: 13px !important;
         font-weight: 650 !important;
       }
-      #${PANEL_ID} .pfh-ledger-actions button:first-child {
+      #${PANEL_ID} .pfh-ledger-actions button.is-active {
         border-color: transparent !important;
         background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
         color: #fff !important;
