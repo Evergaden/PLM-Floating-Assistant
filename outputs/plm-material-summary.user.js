@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.45
+// @version      2.4.46
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.45';
+  const SCRIPT_VERSION = '2.4.46';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1104,6 +1104,7 @@
       hasInnerCard,
       brand: getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer),
       designType: getProjectLooseField(text, '\u8bbe\u8ba1\u7c7b\u578b'),
+      artPriority: getProjectLooseField(text, '\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7') || extractArtPriority(text),
       referenceUrl: extractReferenceUrl(text),
       designAssignedAt: getProjectLooseField(text, '\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4'),
       developmentAssignedAt: getProjectLooseField(text, '\u5f00\u53d1\u5206\u914d\u65f6\u95f4'),
@@ -1274,6 +1275,12 @@
   function extractReferenceUrl(text) {
     const match = String(text || '').match(/\u5bf9\u6807\u94fe\u63a5\s*[:\uff1a]?\s*(https?:\/\/[^\s]+)/i);
     return match ? match[1].trim() : '';
+  }
+
+  function extractArtPriority(text) {
+    const source = compactText(text || '');
+    const match = source.match(/\bP[0-9]\s*[-\uff0d]\s*[\u4e00-\u9fa5A-Za-z0-9]{1,8}/);
+    return match ? match[0].replace(/\s+/g, '') : '';
   }
 
   function getMaterialDisplayName(row, keywordPattern) {
@@ -2388,10 +2395,12 @@
   function ledgerRowHtml(record, mode) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
-    const thumb = record.skuImageUrl ? '<img src="' + escapeHtml(record.skuImageUrl) + '" alt="">' : iconHtml('image');
+    const thumb = record.skuImageUrl ? '<img src="' + escapeHtml(record.skuImageUrl) + '" alt="">' : '<span class="pfh-ledger-thumb-empty">' + iconHtml('image') + '</span>';
     const status = record.status || '待定稿';
     const workDate = mode === 'finalized' ? getLedgerFinalizedDate(record) : getLedgerDesignDate(record);
     const designType = record.designType || '未分类';
+    const artPriority = record.artPriority || '';
+    const priorityClass = /^P0/i.test(artPriority) ? ' is-p0' : (/^P1/i.test(artPriority) ? ' is-p1' : '');
     const packageCode = record.packageCode || '';
     const printCode = record.printCode || '';
     const dateAttr = escapeHtml(record.date || workDate);
@@ -2402,6 +2411,7 @@
       : ('分配 ' + formatLedgerDateLabel(workDate));
     const tagHtml = '<div class="pfh-ledger-tags">' +
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
+      (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
       '<span class="is-date">' + escapeHtml(dateText) + '</span>' +
       (mode === 'design' && record.imagePackDone ? '<span class="is-pack">图包已完成</span>' : '') +
       '</div>';
@@ -7194,6 +7204,7 @@
       name: cleanName(item.name || '').slice(0, 220),
       skuImageUrl: String(item.skuImageUrl || '').slice(0, 600),
       designType: cleanName(item.designType || '').slice(0, 80),
+      artPriority: cleanName(item.artPriority || '').slice(0, 80),
       referenceUrl: String(item.referenceUrl || '').slice(0, 800),
       designAssignedAt: String(item.designAssignedAt || '').slice(0, 80),
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
@@ -7303,6 +7314,7 @@
       name: cleanName(data.name || (existing && existing.name) || ''),
       skuImageUrl: imageUrl || (existing && existing.skuImageUrl) || '',
       designType: cleanName(data.designType || (existing && existing.designType) || ''),
+      artPriority: cleanName(data.artPriority || (existing && existing.artPriority) || ''),
       referenceUrl: String(data.referenceUrl || (existing && existing.referenceUrl) || ''),
       designAssignedAt: String(data.designAssignedAt || (existing && existing.designAssignedAt) || ''),
       developmentAssignedAt: String(data.developmentAssignedAt || (existing && existing.developmentAssignedAt) || ''),
@@ -14319,6 +14331,147 @@
       }
       #${PANEL_ID}.is-narrow-panel .pfh-ledger-file-actions {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-item,
+      #${PANEL_ID} .pfh-ledger-item.is-finalized,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item.is-finalized {
+        grid-template-columns: 84px minmax(0, 1fr) !important;
+        gap: 14px !important;
+        min-height: 118px !important;
+        padding: 12px 14px !important;
+        border-radius: 15px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
+        width: 84px !important;
+        height: 84px !important;
+        border-radius: 15px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb-empty {
+        display: grid !important;
+        place-items: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        color: #8b5cf6 !important;
+        background: #fff !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb-empty .pfh-icon {
+        width: 30px !important;
+        height: 30px !important;
+        color: currentColor !important;
+        opacity: .72 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb-empty svg,
+      #${PANEL_ID} .pfh-ledger-thumb-empty svg path {
+        fill: currentColor !important;
+        stroke: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-main {
+        grid-template-rows: auto auto auto !important;
+        gap: 7px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-title-row {
+        grid-template-columns: minmax(0, 1fr) 32px auto !important;
+        gap: 7px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main b {
+        font-size: 14px !important;
+        line-height: 1.22 !important;
+        -webkit-line-clamp: 2 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main small {
+        height: 20px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+        line-height: 18px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link {
+        width: 32px !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        border-radius: 12px !important;
+        color: #6d35e8 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link .pfh-icon,
+      #${PANEL_ID} .pfh-ledger-link .pfh-icon svg {
+        width: 17px !important;
+        height: 17px !important;
+        color: currentColor !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link svg path {
+        fill: currentColor !important;
+        stroke: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-status,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-status {
+        padding: 6px 10px !important;
+        border-radius: 12px !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags {
+        gap: 7px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags span {
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 0 9px !important;
+        border-radius: 8px !important;
+        font-size: 11px !important;
+        line-height: 22px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags .is-priority {
+        color: #6d35e8 !important;
+        border-color: rgba(167,139,250,.30) !important;
+        background: rgba(244,241,255,.82) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags .is-priority.is-p0 {
+        color: #b42318 !important;
+        border-color: rgba(248,113,113,.30) !important;
+        background: rgba(254,202,202,.78) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags .is-priority.is-p1 {
+        color: #92400e !important;
+        border-color: rgba(251,191,36,.34) !important;
+        background: rgba(254,240,138,.72) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions {
+        gap: 8px !important;
+        margin-top: 5px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions button,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions button {
+        height: 30px !important;
+        min-height: 30px !important;
+        min-width: 54px !important;
+        padding: 0 11px !important;
+        border-radius: 10px !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions {
+        grid-template-columns: repeat(3, minmax(70px, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 8px !important;
+        max-width: 360px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 0 12px !important;
+        border-radius: 11px !important;
+        font-size: 13px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item.is-finalized {
+        grid-template-columns: 74px minmax(0, 1fr) !important;
+        gap: 12px !important;
+        padding: 11px 12px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
+        width: 74px !important;
+        height: 74px !important;
       }
     `;
     document.documentElement.appendChild(style);
