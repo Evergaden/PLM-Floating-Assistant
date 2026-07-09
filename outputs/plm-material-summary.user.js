@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.43
+// @version      2.4.44
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.43';
+  const SCRIPT_VERSION = '2.4.44';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1820,8 +1820,9 @@
 
   function iconHtml(name) {
     const icons = {
-      home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"></path><path d="M6.5 10.5V19h11v-8.5"></path><path d="M10 19v-5h4v5"></path></svg>',
-      link: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>',
+      home: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M621.6 868.6c-15.2 0-27.5-12.3-27.5-27.5V713.2c0-45.3-36.9-82.2-82.2-82.2s-82.2 36.9-82.2 82.2v127.9c0 15.2-12.3 27.5-27.5 27.5s-27.5-12.3-27.5-27.5V713.2c0-75.6 61.5-137.1 137.1-137.1s137.1 61.5 137.1 137.1v127.9c0.2 15.2-12.1 27.5-27.3 27.5zM767.8 338.4c-15.2 0-27.5-12.3-27.5-27.5v-91.4c0-15.2 12.3-27.5 27.5-27.5s27.5 12.3 27.5 27.5v91.4c0 15.2-12.3 27.5-27.5 27.5z"></path><path d="M767.8 886.8H256c-35.2 0-64-28.7-64-64V347.1c0-15.2 12.3-27.5 27.5-27.5s27.5 12.3 27.5 27.5v475.8c0 5 4.1 9.2 9.2 9.2h511.9c5 0 9.2-4.1 9.2-9.2V358.6c0-15.2 12.3-27.5 27.5-27.5s27.5 12.3 27.5 27.5v464.3c-0.5 35.2-29.1 63.9-64.5 63.9z"></path><path d="M895.8 429.8c-5 0-10-1.3-14.4-4.1L497.5 188c-12.9-7.9-16.9-24.9-8.9-37.8 7.9-12.9 24.9-16.9 37.8-8.9l384 237.6c12.9 7.9 16.9 24.9 8.9 37.8-5.4 8.5-14.3 13.1-23.5 13.1z"></path><path d="M128.1 429.8c-9.2 0-18.1-4.6-23.4-13-7.9-12.9-4-29.8 8.9-37.8l384-237.6c12.9-7.9 29.8-4 37.8 8.9 7.9 12.9 4 29.8-8.9 37.8L142.4 425.7c-4.5 2.7-9.5 4.1-14.3 4.1z"></path></svg>',
+      link: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M722.664727 628.736a34.955636 34.955636 0 0 1-24.692363-59.601455l154.949818-154.926545c68.049455-68.049455 68.049455-178.781091 0-246.853818-68.072727-68.049455-178.850909-68.049455-246.877091 0l-154.926546 154.926545a34.909091 34.909091 0 1 1-49.338181-49.361454L556.683636 117.992727c95.278545-95.232 250.321455-95.278545 345.6 0 95.278545 95.278545 95.278545 250.321455 0 345.576728l-154.926545 154.949818a34.792727 34.792727 0 0 1-24.669091 10.216727zM290.816 973.707636a243.665455 243.665455 0 0 1-172.823273-71.447272c-95.278545-95.301818-95.278545-250.321455 0-345.6l138.472728-138.449455a34.909091 34.909091 0 1 1 49.384727 49.361455l-138.472727 138.449454c-68.072727 68.049455-68.072727 178.804364 0 246.877091 68.072727 68.049455 178.827636 68.002909 246.853818 0l138.472727-138.496a34.909091 34.909091 0 1 1 49.338182 49.361455l-138.426182 138.472727a243.595636 243.595636 0 0 1-172.8 71.447273z m137.076364-346.414545a34.955636 34.955636 0 0 1-24.692364-59.601455l164.538182-164.538181a34.909091 34.909091 0 1 1 49.361454 49.361454l-164.538181 164.561455a34.792727 34.792727 0 0 1-24.669091 10.24z"></path></svg>',
+      taskPlan: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M449.408 896H192a64 64 0 0 1-64-64V192a64 64 0 0 1 64-64h576a64 64 0 0 1 64 64v219.008c23.04 10.112 44.096 23.424 64 38.464V192a128 128 0 0 0-128-128H192a128 128 0 0 0-128 128v640a128 128 0 0 0 128 128h321.728a322.432 322.432 0 0 1-64.32-64z"></path><path d="M704 448a256 256 0 1 0 0 512 256 256 0 0 0 0-512z m0 447.872a191.872 191.872 0 1 1 0-383.808 191.872 191.872 0 0 1 0 383.808z"></path><path d="M800 672h-64V640a32 32 0 0 0-64 0v64a32 32 0 0 0 32 32h96a32 32 0 0 0 0-64zM438.848 265.216a31.808 31.808 0 0 0-44.992 0L287.232 371.84l-42.688-42.688a30.72 30.72 0 1 0-43.456 43.456l59.584 59.584c1.344 2.304 2.432 4.672 4.416 6.656 6.656 6.592 15.36 9.408 23.936 9.088a30.848 30.848 0 0 0 21.824-9.024c0.704-0.704 1.024-1.6 1.6-2.432l126.4-126.336a31.744 31.744 0 0 0 0-44.928zM544 320a32 32 0 0 0 0 64h192a32 32 0 0 0 0-64h-192zM393.856 489.216L287.232 595.84l-42.688-42.688a30.72 30.72 0 1 0-43.456 43.456l59.584 59.584c1.344 2.304 2.432 4.672 4.416 6.656 6.656 6.592 15.36 9.408 23.936 9.088a30.848 30.848 0 0 0 21.824-9.024c0.704-0.704 1.024-1.6 1.6-2.432l126.4-126.336a31.872 31.872 0 0 0-44.992-44.928z"></path></svg>',
       settings: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512.7 664.3c-82.9 0-150.4-67.4-150.4-150.4 0-82.9 67.4-150.4 150.4-150.4 82.9 0 150.4 67.4 150.4 150.4-0.1 83-67.5 150.4-150.4 150.4z m0-244.7c-52 0-94.4 42.3-94.4 94.4 0 52 42.3 94.4 94.4 94.4S607 566 607 514c0-52-42.3-94.4-94.3-94.4z"></path><path d="M631.2 940.5c-15.2 0-30.1-6-41.2-17.3l-63.5-64.8c-4.1-4.2-9.5-6.5-15.4-6.5-5.8 0-11.3 2.3-15.3 6.4l-63.5 64.4c-17.4 17.6-44 22.2-66.2 11.4l-94.5-45.7c-22.2-10.8-35.2-34.5-32.2-59l11-90.1c0.7-5.8-0.9-11.5-4.5-16-3.6-4.6-8.8-7.4-14.6-8l-89.9-9.5c-24.6-2.6-44.8-20.5-50.2-44.6L67.7 558.8c-5.5-24.1 5-49 26-62l77.3-47.6c5-3.1 8.4-7.9 9.7-13.5 1.3-5.7 0.3-11.5-2.8-16.4L129.2 343c-13.3-20.8-11.9-47.8 3.5-67.1l65.5-82c15.4-19.3 41.4-26.7 64.7-18.3l85.4 30.7c5.5 2 11.4 1.7 16.6-0.9 5.2-2.5 9.2-7 11.1-12.5l29.2-85.6c8-23.4 29.9-39.1 54.6-39.1h105c24.7 0 46.7 15.7 54.6 39.1l29.6 86.8c1.9 5.5 5.8 9.9 11 12.5s11.1 2.8 16.6 0.9l86.1-30.6c23.3-8.3 49.2-0.8 64.6 18.5l65.2 82.3c15.3 19.4 16.7 46.3 3.3 67.1l-49.1 76.3c-3.2 4.9-4.2 10.7-2.9 16.4 1.3 5.7 4.7 10.5 9.7 13.6l76.8 47.7c21 13 31.4 38 25.8 62l-23.6 102.3a57.67 57.67 0 0 1-50.4 44.4l-90.3 9.2c-5.8 0.6-11 3.4-14.6 8-3.6 4.5-5.3 10.2-4.6 16l10.7 89.8c2.9 24.5-10.1 48.2-32.4 58.9l-94.7 45.4c-8.1 3.9-16.6 5.7-25 5.7zM511 795.9h0.1c21 0 40.6 8.3 55.3 23.3l63.5 64.8c0.5 0.5 1.3 0.7 2 0.4l94.7-45.4c0.7-0.3 1.1-1 1-1.8l-10.7-89.8c-2.5-20.8 3.4-41.3 16.5-57.6s31.8-26.5 52.7-28.7l90.3-9.2c0.7-0.1 1.3-0.6 1.5-1.3l23.6-102.3c0.2-0.7-0.1-1.5-0.8-1.9l-76.8-47.7c-17.8-11.1-30.2-28.4-34.8-48.8-4.6-20.4-0.9-41.4 10.5-59l49.1-76.3c0.4-0.6 0.4-1.4-0.1-2l-65.2-82.3c-0.5-0.6-1.2-0.8-1.9-0.6l-86.1 30.6c-19.7 7-40.9 5.9-59.7-3.2-18.8-9.1-32.9-25-39.7-44.8l-29.6-86.8c-0.2-0.7-0.9-1.2-1.6-1.2h-105c-0.7 0-1.4 0.5-1.6 1.2L429 211c-6.8 19.8-20.9 35.8-39.8 44.9-18.9 9.1-40.1 10.2-59.9 3.1l-85.4-30.7c-0.7-0.2-1.5 0-1.9 0.5l-65.5 82c-0.5 0.6-0.5 1.4-0.1 2l48.7 76.2c11.3 17.7 14.9 38.6 10.2 59.1-4.7 20.4-17.1 37.7-34.9 48.7l-77.3 47.6c-0.6 0.4-0.9 1.1-0.8 1.9l23.3 102.4c0.2 0.7 0.8 1.3 1.5 1.3l89.9 9.5c20.8 2.2 39.5 12.4 52.6 28.8 13 16.4 18.8 36.9 16.3 57.7l-11 90.1c-0.1 0.7 0.3 1.4 1 1.8l94.5 45.7c0.7 0.3 1.5 0.2 2-0.3l63.5-64.4c14.6-14.8 34.2-23 55.1-23z"></path></svg>',
       folder: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M752 80H272c-70.4 0-128 57.6-128 128v608c0 70.4 57.6 128 128 128h353.6c33.6 0 65.6-12.8 91.2-36.8l126.4-126.4c24-24 36.8-56 36.8-91.2V208c0-70.4-57.6-128-128-128zM208 816V208c0-35.2 28.8-64 64-64h480c35.2 0 64 28.8 64 64v464h-96c-70.4 0-128 57.6-128 128v80H272c-35.2 0-64-28.8-64-64z m462.4 44.8c-4.8 4.8-9.6 8-14.4 11.2V800c0-35.2 28.8-64 64-64h75.2l-124.8 124.8z"></path><path d="M368 352h288c17.6 0 32-14.4 32-32s-14.4-32-32-32H368c-17.6 0-32 14.4-32 32s14.4 32 32 32zM496 608h-128c-17.6 0-32 14.4-32 32s14.4 32 32 32h128c17.6 0 32-14.4 32-32s-14.4-32-32-32zM368 512h288c17.6 0 32-14.4 32-32s-14.4-32-32-32H368c-17.6 0-32 14.4-32 32s14.4 32 32 32z"></path></svg>',
       upload: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M802 664v146c0 7.7-6.3 14-14 14H236c-7.7 0-14-6.3-14-14V664c0-5.5-4.5-10-10-10h-50c-5.5 0-10 4.5-10 10v170c0 33.1 26.9 60 60 60h600c33.1 0 60-26.9 60-60V664c0-5.5-4.5-10-10-10h-50c-5.5 0-10 4.5-10 10z"></path><path d="M547 697V247.5l173.6 173.6c13.7 13.7 35.8 13.7 49.5 0 13.7-13.7 13.7-35.8 0-49.5L536.8 138.3c-0.4-0.4-0.8-0.8-1.3-1.2-0.2-0.2-0.4-0.4-0.6-0.5-0.2-0.2-0.4-0.4-0.7-0.6-0.3-0.2-0.5-0.4-0.8-0.6-0.2-0.1-0.4-0.3-0.5-0.4l-0.9-0.6c-0.2-0.1-0.3-0.2-0.5-0.3-0.3-0.2-0.6-0.4-1-0.6-0.2-0.1-0.3-0.2-0.5-0.3-0.3-0.2-0.6-0.4-1-0.5-0.2-0.1-0.4-0.2-0.5-0.3-0.3-0.2-0.6-0.3-0.9-0.5l-0.6-0.3c-0.3-0.1-0.6-0.3-0.8-0.4-0.2-0.1-0.5-0.2-0.7-0.3-0.3-0.1-0.5-0.2-0.8-0.3l-0.9-0.3c-0.2-0.1-0.4-0.2-0.7-0.2-0.3-0.1-0.6-0.2-1-0.3-0.2-0.1-0.4-0.1-0.6-0.2-0.4-0.1-0.7-0.2-1.1-0.3-0.2 0-0.4-0.1-0.6-0.1-0.4-0.1-0.7-0.2-1.1-0.2-0.2 0-0.4-0.1-0.6-0.1-0.4-0.1-0.7-0.1-1.1-0.2-0.2 0-0.4-0.1-0.7-0.1-0.3 0-0.7-0.1-1-0.1-0.3 0-0.6 0-0.9-0.1-0.3 0-0.5 0-0.8-0.1-1.2-0.1-2.3-0.1-3.5 0-0.3 0-0.5 0-0.8 0.1-0.3 0-0.6 0-0.9 0.1-0.3 0-0.7 0.1-1 0.1-0.2 0-0.4 0.1-0.7 0.1-0.4 0.1-0.7 0.1-1.1 0.2-0.2 0-0.4 0.1-0.6 0.1-0.4 0.1-0.7 0.2-1.1 0.2-0.2 0-0.4 0.1-0.6 0.1-0.4 0.1-0.7 0.2-1.1 0.3-0.2 0.1-0.4 0.1-0.6 0.2-0.3 0.1-0.6 0.2-1 0.3-0.2 0.1-0.5 0.1-0.7 0.2l-0.9 0.3c-0.3 0.1-0.5 0.2-0.8 0.3-0.2 0.1-0.5 0.2-0.7 0.3-0.3 0.1-0.6 0.3-0.8 0.4l-0.6 0.3c-0.3 0.2-0.6 0.3-0.9 0.5-0.2 0.1-0.4 0.2-0.5 0.3-0.3 0.2-0.6 0.4-1 0.6-0.2 0.1-0.3 0.2-0.5 0.3-0.3 0.2-0.6 0.4-1 0.6-0.2 0.1-0.3 0.2-0.5 0.3-0.3 0.2-0.6 0.4-0.9 0.7-0.2 0.1-0.3 0.3-0.5 0.4-0.3 0.2-0.5 0.4-0.8 0.6-0.2 0.2-0.4 0.4-0.7 0.6-0.2 0.2-0.4 0.4-0.6 0.5l-1.2 1.2-233.1 233.1c-13.7 13.7-13.7 35.8 0 49.5 13.7 13.7 35.8 13.7 49.5 0L477 247.5V697c0 19.3 15.7 35 35 35s35-15.7 35-35z"></path></svg>',
@@ -2312,7 +2313,7 @@
       '<div class="pfh-detail-scroll">',
       '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
         productThumbHtml(state.data) +
-        '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml(state.data.sku || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml([state.data.brand, state.data.name].filter(Boolean).join(' ') || formatTitleMeta(state.data) || L.noDrawer) + '</strong><button type="button" class="pfh-title-open-detail" data-action="open-detail">' + iconHtml('folder') + '<span>打开详情</span></button></div>' +
+        '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml(state.data.sku || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml([state.data.brand, state.data.name].filter(Boolean).join(' ') || formatTitleMeta(state.data) || L.noDrawer) + '</strong><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button></div>' +
       '</div></div>',
       '<div class="pfh-info-grid">',
       rowHtml('packageCode', L.packageCode, state.data.packageCode),
@@ -2342,7 +2343,7 @@
     const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
-      ['ledger-open', 'list', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
+      ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-excel-coming-soon', 'download', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-download-detail', 'list', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
@@ -2389,24 +2390,27 @@
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
     const thumb = record.skuImageUrl ? '<img src="' + escapeHtml(record.skuImageUrl) + '" alt="">' : iconHtml('image');
     const status = record.status || '待定稿';
-    const stage = record.stage && record.stage !== status ? record.stage : '';
-    const note = record.note && record.note !== status && record.note !== stage ? record.note : '';
     const workDate = mode === 'finalized' ? getLedgerFinalizedDate(record) : getLedgerDesignDate(record);
-    const meta = [mode === 'finalized' ? ('定稿 ' + (record.finalizedAt || formatLedgerDateLabel(workDate))) : ('分配 ' + formatLedgerDateLabel(workDate)), stage, note].filter(Boolean).join(' · ');
     const designType = record.designType || '未分类';
     const packageCode = record.packageCode || '';
     const printCode = record.printCode || '';
     const dateAttr = escapeHtml(record.date || workDate);
     const referenceButton = record.referenceUrl ? '<button type="button" class="pfh-ledger-link" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="打开参考链接">' + iconHtml('link') + '</button>' : '';
-    const tags = mode === 'finalized'
-      ? '<div class="pfh-ledger-tags">' +
-        '<button type="button" class="' + (record.boxFileDone ? 'is-done' : '') + '" data-action="ledger-toggle-box-file" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(packageCode || '纸盒文件') + '">纸盒' + (packageCode ? ' ' + escapeHtml(packageCode) : '') + '</button>' +
-        '<button type="button" class="' + (record.labelFileDone ? 'is-done' : '') + '" data-action="ledger-toggle-label-file" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(printCode || '标签印刷文件') + '">标签' + (printCode ? ' ' + escapeHtml(printCode) : '') + '</button>' +
-        '<button type="button" class="' + (record.imagePackDone ? 'is-done' : '') + '" data-action="ledger-toggle-image-pack" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">图包</button>' +
-      '</div>'
-      : '<div class="pfh-ledger-tags"><span title="设计类型">' + escapeHtml(designType) + '</span></div>';
+    const statusPill = '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(status)) + '">' + escapeHtml(status) + '</span>';
+    const dateText = mode === 'finalized'
+      ? ('定稿 ' + (record.finalizedAt || formatLedgerDateLabel(workDate)))
+      : ('分配 ' + formatLedgerDateLabel(workDate));
+    const tagHtml = '<div class="pfh-ledger-tags">' +
+      '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
+      '<span class="is-date">' + escapeHtml(dateText) + '</span>' +
+      (mode === 'design' && record.imagePackDone ? '<span class="is-pack">图包已完成</span>' : '') +
+      '</div>';
     const actions = mode === 'finalized'
-      ? ''
+      ? '<div class="pfh-ledger-file-actions">' +
+        ledgerFileButtonHtml('ledger-toggle-box-file', sku, dateAttr, '纸盒', packageCode, record.boxFileState, record.boxFileDone) +
+        ledgerFileButtonHtml('ledger-toggle-label-file', sku, dateAttr, '标签', printCode, record.labelFileState, record.labelFileDone) +
+        ledgerFileButtonHtml('ledger-toggle-image-pack', sku, dateAttr, '图包', '', record.imagePackState, record.imagePackDone) +
+      '</div>'
       : '<div class="pfh-ledger-actions">' +
         '<button type="button" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">定稿</button>' +
         '<button type="button" data-action="ledger-void" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">作废</button>' +
@@ -2416,13 +2420,17 @@
     return '<article class="pfh-ledger-item is-' + escapeHtml(mode) + '" data-ledger-sku="' + escapeHtml(sku) + '">' +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
-        '<button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><b>' + escapeHtml(title) + '</b><small>' + escapeHtml(sku) + '</small><em>' + escapeHtml(meta) + '</em></button>' +
-        referenceButton +
+        '<div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><b>' + escapeHtml(title) + '</b><small>' + escapeHtml(sku) + '</small></button>' + referenceButton + statusPill + '</div>' +
+        tagHtml +
+        actions +
       '</div>' +
-      '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(status)) + '">' + escapeHtml(status) + '</span>' +
-      tags +
-      actions +
     '</article>';
+  }
+
+  function ledgerFileButtonHtml(action, sku, dateAttr, label, code, stateValue, doneFallback) {
+    const value = normalizeLedgerFileState(stateValue, doneFallback);
+    const title = label + '\uff1a' + ledgerFileStateLabel(value) + (code ? ' \u00b7 ' + code : '');
+    return '<button type="button" class="is-' + escapeHtml(value) + '" data-action="' + action + '" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(title) + '">' + escapeHtml(label) + (code ? '<small>' + escapeHtml(code) + '</small>' : '') + '</button>';
   }
 
   function productThumbHtml(data) {
@@ -5720,7 +5728,7 @@
       downloadBlob(psdBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd');
       await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename);
       state.excelStatus = L.labelDone;
-      upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签', labelFileDone: true });
+      upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签', labelFileState: 'done', labelFileDone: true });
       renderShell();
       addLog('success', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6210\u529f', labelData.sku);
       showToast(L.labelDone);
@@ -7191,9 +7199,12 @@
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
       packageCode: String(item.packageCode || '').slice(0, 120),
       printCode: String(item.printCode || '').slice(0, 180),
-      boxFileDone: Boolean(item.boxFileDone),
-      labelFileDone: Boolean(item.labelFileDone),
-      imagePackDone: Boolean(item.imagePackDone),
+      boxFileState: normalizeLedgerFileState(item.boxFileState, item.boxFileDone),
+      labelFileState: normalizeLedgerFileState(item.labelFileState, item.labelFileDone),
+      imagePackState: normalizeLedgerFileState(item.imagePackState, item.imagePackDone),
+      boxFileDone: normalizeLedgerFileState(item.boxFileState, item.boxFileDone) === 'done',
+      labelFileDone: normalizeLedgerFileState(item.labelFileState, item.labelFileDone) === 'done',
+      imagePackDone: normalizeLedgerFileState(item.imagePackState, item.imagePackDone) === 'done',
       status: normalizeLedgerStatus(item.status),
       stage: String(item.stage || '').slice(0, 80) || '待定稿',
       finalizedAt: String(item.finalizedAt || '').slice(0, 40),
@@ -7203,6 +7214,28 @@
       updatedAt: String(item.updatedAt || new Date().toLocaleString()).slice(0, 80),
       updatedAtMs: Number(item.updatedAtMs || 0) || Date.now(),
     })).filter((item) => item.sku);
+  }
+
+  function normalizeLedgerFileState(value, doneFallback) {
+    const text = String(value || '').trim();
+    if (/^(pending|done|skip)$/.test(text)) return text;
+    if (/^(?:\u5b8c\u6210|\u5df2\u5b8c\u6210|done)$/i.test(text)) return 'done';
+    if (/^(?:\u4e0d\u9700\u8981|\u65e0\u9700|\u8df3\u8fc7|skip)$/i.test(text)) return 'skip';
+    return doneFallback ? 'done' : 'pending';
+  }
+
+  function nextLedgerFileState(value, doneFallback) {
+    const current = normalizeLedgerFileState(value, doneFallback);
+    if (current === 'pending') return 'done';
+    if (current === 'done') return 'skip';
+    return 'pending';
+  }
+
+  function ledgerFileStateLabel(value) {
+    const stateValue = normalizeLedgerFileState(value);
+    if (stateValue === 'done') return '\u5df2\u5b8c\u6210';
+    if (stateValue === 'skip') return '\u4e0d\u9700\u8981\u5236\u4f5c\u6587\u4ef6';
+    return '\u672a\u5b8c\u6210';
   }
 
   function normalizeLedgerStatus(value) {
@@ -7275,9 +7308,12 @@
       developmentAssignedAt: String(data.developmentAssignedAt || (existing && existing.developmentAssignedAt) || ''),
       packageCode: String(data.packageCode || (existing && existing.packageCode) || ''),
       printCode: String(data.printCode || (existing && existing.printCode) || ''),
-      boxFileDone: opts.boxFileDone !== undefined ? Boolean(opts.boxFileDone) : Boolean(existing && existing.boxFileDone),
-      labelFileDone: opts.labelFileDone !== undefined ? Boolean(opts.labelFileDone) : Boolean(existing && existing.labelFileDone),
-      imagePackDone: opts.imagePackDone !== undefined ? Boolean(opts.imagePackDone) : Boolean(existing && existing.imagePackDone),
+      boxFileState: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)),
+      labelFileState: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)),
+      imagePackState: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)),
+      boxFileDone: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)) === 'done',
+      labelFileDone: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)) === 'done',
+      imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
       status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
       stage: opts.stage || (existing && existing.stage) || '待定稿',
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
@@ -7374,12 +7410,15 @@
     if (!sku) return;
     const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
     const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
-    const flag = action === 'ledger-toggle-box-file'
+    const field = action === 'ledger-toggle-box-file'
+      ? 'boxFileState'
+      : (action === 'ledger-toggle-label-file' ? 'labelFileState' : 'imagePackState');
+    const doneField = action === 'ledger-toggle-box-file'
       ? 'boxFileDone'
       : (action === 'ledger-toggle-label-file' ? 'labelFileDone' : 'imagePackDone');
-    const label = flag === 'boxFileDone' ? '纸盒文件' : (flag === 'labelFileDone' ? '标签印刷文件' : '图包');
-    const nextValue = !Boolean(existing && existing[flag]);
-    updateDailyLedgerForSku(sku, { [flag]: nextValue, note: label + (nextValue ? '已完成' : '未完成') }, key);
+    const label = field === 'boxFileState' ? '\u7eb8\u76d2\u6587\u4ef6' : (field === 'labelFileState' ? '\u6807\u7b7e\u5370\u5237\u6587\u4ef6' : '\u56fe\u5305');
+    const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
+    updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue) }, key);
     renderShell();
   }
 
@@ -8636,7 +8675,7 @@
     cleanupUploadFiles(latestItem);
     saveUploadHistory();
     saveUploadQueue();
-    if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackDone: true }, getTodayKey());
+    if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
     renderShell();
   }
 
@@ -14011,6 +14050,267 @@
         #${PANEL_ID} .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open {
           grid-template-columns: 1fr !important;
         }
+      }
+      #${PANEL_ID} .pfh-title-meta {
+        grid-template-columns: 92px minmax(0, 1fr) !important;
+        min-height: 122px !important;
+      }
+      #${PANEL_ID} .pfh-product-thumb,
+      #${PANEL_ID} .pfh-thumb-frame,
+      #${PANEL_ID} .pfh-thumb-preview {
+        width: 76px !important;
+        height: 76px !important;
+      }
+      #${PANEL_ID} .pfh-product-thumb:hover .pfh-thumb-preview {
+        width: 284px !important;
+        height: 284px !important;
+      }
+      #${PANEL_ID} .pfh-title-open-detail {
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 14px !important;
+        border: 1px solid rgba(124,58,237,.30) !important;
+        border-radius: 999px !important;
+        background: rgba(244,241,255,.82) !important;
+        color: #6d35e8 !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 28px !important;
+      }
+      #${PANEL_ID} .pfh-title-open-detail .pfh-icon {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] {
+        display: grid !important;
+        place-items: center !important;
+        line-height: 0 !important;
+        transform: none !important;
+      }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon,
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon-backArrow {
+        display: grid !important;
+        place-items: center !important;
+        width: 18px !important;
+        height: 18px !important;
+        margin: 0 !important;
+      }
+      #${PANEL_ID} .pfh-list-head button[data-action="home-back"] .pfh-icon svg {
+        width: 18px !important;
+        height: 18px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-item,
+      #${PANEL_ID} .pfh-ledger-item.is-finalized,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item.is-finalized {
+        display: grid !important;
+        grid-template-columns: 112px minmax(0, 1fr) !important;
+        grid-template-areas: "thumb main" !important;
+        gap: 18px !important;
+        align-items: stretch !important;
+        min-height: 156px !important;
+        padding: 16px !important;
+        border-radius: 18px !important;
+        background: rgba(255,255,255,.80) !important;
+        border-color: rgba(226,232,240,.92) !important;
+        box-shadow: 0 14px 34px rgba(31,41,55,.055), inset 0 1px 0 rgba(255,255,255,.90) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-thumb,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
+        grid-area: thumb !important;
+        align-self: start !important;
+        width: 112px !important;
+        height: 112px !important;
+        border-radius: 17px !important;
+        background: #fff !important;
+        border-color: rgba(211,204,255,.42) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-main {
+        grid-area: main !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: auto auto minmax(0, 1fr) !important;
+        gap: 10px !important;
+        align-content: start !important;
+        min-width: 0 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-title-row {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto !important;
+        align-items: start !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-title {
+        display: grid !important;
+        justify-items: start !important;
+        gap: 7px !important;
+        min-width: 0 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main b {
+        color: #17153f !important;
+        font-size: 16px !important;
+        line-height: 1.25 !important;
+        font-weight: 650 !important;
+        white-space: normal !important;
+        overflow: hidden !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+      }
+      #${PANEL_ID} .pfh-ledger-main small {
+        display: inline-flex !important;
+        width: max-content !important;
+        max-width: 100% !important;
+        height: 22px !important;
+        align-items: center !important;
+        padding: 0 9px !important;
+        border: 1px solid rgba(124,58,237,.38) !important;
+        border-radius: 999px !important;
+        color: #6d35e8 !important;
+        background: rgba(255,255,255,.70) !important;
+        font-size: 12px !important;
+        font-style: normal !important;
+        line-height: 20px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link {
+        width: 38px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        border-radius: 15px !important;
+        border: 0 !important;
+        background: rgba(244,241,255,.92) !important;
+        color: #6d35e8 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.86) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-link .pfh-icon,
+      #${PANEL_ID} .pfh-ledger-link .pfh-icon svg {
+        width: 19px !important;
+        height: 19px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-status,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-status {
+        grid-area: auto !important;
+        justify-self: end !important;
+        align-self: start !important;
+        padding: 7px 12px !important;
+        border-radius: 14px !important;
+        background: rgba(244,241,255,.92) !important;
+        color: #6d35e8 !important;
+        font-size: 13px !important;
+        font-weight: 650 !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-tags {
+        grid-area: auto !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        min-height: 0 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags span {
+        width: auto !important;
+        max-width: 170px !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 0 10px !important;
+        border-radius: 9px !important;
+        border-color: rgba(211,204,255,.54) !important;
+        background: rgba(255,255,255,.76) !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        line-height: 26px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags .is-design-type {
+        color: #c45a16 !important;
+        border-color: rgba(251,146,60,.30) !important;
+        background: rgba(255,247,237,.84) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-tags .is-pack {
+        color: #2563eb !important;
+        border-color: rgba(96,165,250,.34) !important;
+        background: rgba(239,246,255,.88) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions {
+        grid-area: auto !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-self: end !important;
+        gap: 10px !important;
+        margin-top: 8px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions button,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-actions button {
+        height: 36px !important;
+        min-height: 36px !important;
+        min-width: 64px !important;
+        padding: 0 16px !important;
+        border-radius: 13px !important;
+        font-size: 13px !important;
+        font-weight: 650 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-actions button:first-child {
+        border-color: transparent !important;
+        background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+        color: #fff !important;
+        box-shadow: 0 10px 22px rgba(124,58,237,.20) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(76px, 118px)) !important;
+        gap: 10px !important;
+        align-self: end !important;
+        margin-top: 18px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button {
+        position: relative !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        padding: 0 16px !important;
+        border: 1px solid rgba(124,58,237,.58) !important;
+        border-radius: 14px !important;
+        background: rgba(255,255,255,.82) !important;
+        color: #6d35e8 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.90) !important;
+        font-size: 15px !important;
+        font-weight: 650 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button small {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button.is-done {
+        border-color: transparent !important;
+        background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+        color: #fff !important;
+        box-shadow: 0 10px 22px rgba(124,58,237,.20) !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button.is-skip {
+        background: rgba(255,255,255,.86) !important;
+        color: #6d35e8 !important;
+        text-decoration: line-through !important;
+        text-decoration-thickness: 1px !important;
+        text-underline-offset: -4px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button.is-pending {
+        border-color: rgba(95,111,143,.70) !important;
+        color: #6d35e8 !important;
+        background: rgba(255,255,255,.76) !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item,
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item.is-finalized {
+        grid-template-columns: 96px minmax(0, 1fr) !important;
+        gap: 14px !important;
+        padding: 14px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-thumb {
+        width: 96px !important;
+        height: 96px !important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-file-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
       }
     `;
     document.documentElement.appendChild(style);
