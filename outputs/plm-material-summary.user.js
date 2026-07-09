@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.48
+// @version      2.4.49
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.48';
+  const SCRIPT_VERSION = '2.4.49';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1952,7 +1952,7 @@
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger';
+    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -1967,7 +1967,10 @@
       return;
     }
     if (state.view === 'tutorial') renderTutorialList(panel);
-    else if (state.view === 'upload') renderUploadSidebar(panel);
+    else if (state.view === 'upload') {
+      const list = panel.querySelector('.pfh-list');
+      if (list) list.innerHTML = '';
+    }
     else if (state.view !== 'about' && state.view !== 'ledger') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
@@ -2409,8 +2412,8 @@
       : '<button type="button" class="pfh-ledger-link is-disabled" disabled title="没有参考链接">' + iconHtml('link') + '</button>';
     const statusPill = '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(status)) + '">' + escapeHtml(status) + '</span>';
     const dateText = mode === 'finalized'
-      ? ('定稿 ' + (record.finalizedAt || formatLedgerDateLabel(workDate)))
-      : ('分配 ' + formatLedgerDateLabel(workDate));
+      ? ('定稿 ' + (record.finalizedAt ? formatLedgerMinuteLabel(record.finalizedAt, workDate) : formatLedgerDateLabel(workDate)))
+      : ('分配 ' + formatLedgerMinuteLabel(record.designAssignedAt || workDate, workDate));
     const tagHtml = '<div class="pfh-ledger-tags">' +
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
       (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
@@ -2750,16 +2753,23 @@
     const pagerAction = viewingHistory ? 'upload-history-page' : 'upload-page';
     const pager = '<div class="pfh-upload-pager"><span>\u5171 ' + allItems.length + ' \u6761</span><div><button type="button" data-action="' + pagerAction + '-prev"' + (state[pageKey] <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager(pagerAction, state[pageKey], totalPages) + '<button type="button" data-action="' + pagerAction + '-next"' + (state[pageKey] >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
+    const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
+    const uploadInfoCards = '<div class="pfh-upload-info-grid">' +
+      '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u4e0a\u65b9\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u4e24\u4e2a\u6587\u4ef6\u90fd\u9f50\u5168\u540e\u624d\u4f1a\u5165\u961f\u4e0a\u4f20\uff1b\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\u3002</p></article>' +
+      '<button type="button" class="pfh-upload-history-card" data-action="upload-history-toggle">' + iconHtml('historyRecord') + '<span><b>' + escapeHtml(modeButtonText) + '</b><small>' + escapeHtml(viewingHistory ? '\u56de\u5230\u5f85\u4e0a\u4f20\u961f\u5217' : '\u67e5\u770b\u5df2\u5b8c\u6210\u6216\u5f02\u5e38\u8bb0\u5f55') + '</small></span></button>' +
+      '</div>';
     return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open">' +
       '<div class="pfh-section-title pfh-upload-title"><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
+      '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
+      '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button>' +
       '<button type="button" data-action="upload-toggle">' + escapeHtml('\u6536\u8d77') + '</button></div>' +
       '<div class="pfh-upload-body">' +
         (viewingHistory ? '' : '<div class="pfh-upload-drop" data-upload-drop="any">' + escapeHtml(L.uploadDropHint) + '</div>' +
         '<input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar">' +
         '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>') +
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
-      '</div>' +
+      '</div>' + uploadInfoCards +
       '</section></div>' +
       '<div class="pfh-upload-bottom">' + '<div class="pfh-upload-bottom-line">' + pager + selectedActionHtml + '</div>' + '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml('\u53ea\u6709\u540c\u4e00 SKU \u7684 xlsx \u548c zip \u90fd\u9f50\u5168\u624d\u4f1a\u4e0a\u4f20\uff1b\u7f3a\u6587\u4ef6\u7684\u9879\u4f1a\u7ea2\u706f\u8df3\u8fc7\u3002') + '</span><span class="pfh-note-toast" aria-live="polite"></span></div></div>';
   }
@@ -2987,7 +2997,9 @@
       return;
     }
     if (action === 'home-back') {
-      state.view = 'home';
+      const returnView = state.detailReturnView || '';
+      state.view = returnView || 'home';
+      state.detailReturnView = '';
       state.uploadExpanded = false;
       renderShell();
       return;
@@ -7141,7 +7153,38 @@
   function formatLedgerDateLabel(value) {
     const key = normalizeLedgerDate(value) || getTodayKey();
     const parts = key.split('-');
-    return Number(parts[1]) + '月' + Number(parts[2]) + '日';
+    return Number(parts[1]) + '\u6708' + Number(parts[2]) + '\u65e5';
+  }
+
+  function formatLedgerMinuteLabel(value, fallbackDate) {
+    const ms = parseLedgerDateTimeMs(value);
+    if (ms) {
+      const date = new Date(ms);
+      return (date.getMonth() + 1) + '\u6708' + date.getDate() + '\u65e5 ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+    }
+    return formatLedgerDateLabel(fallbackDate || value);
+  }
+
+  function getNowLedgerMinuteLabel() {
+    return formatLedgerMinuteLabel(Date.now());
+  }
+
+  function parseLedgerDateTimeMs(value) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+    const text = String(value || '').trim();
+    if (!text || text === '--') return 0;
+    const full = text.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:\s+(\d{1,2})[:\uff1a](\d{1,2}))?/);
+    if (full) {
+      const date = new Date(Number(full[1]), Number(full[2]) - 1, Number(full[3]), Number(full[4] || 0), Number(full[5] || 0), 0, 0);
+      return date.getTime();
+    }
+    const cn = text.match(/(\d{1,2})\s*\u6708\s*(\d{1,2})\s*\u65e5(?:\s+(\d{1,2})[:\uff1a](\d{1,2}))?/);
+    if (cn) {
+      const date = new Date(new Date().getFullYear(), Number(cn[1]) - 1, Number(cn[2]), Number(cn[3] || 0), Number(cn[4] || 0), 0, 0);
+      return date.getTime();
+    }
+    const parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   function parseLedgerDateFromText(value) {
@@ -7149,7 +7192,7 @@
     if (!text || text === '--') return '';
     const full = text.match(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
     if (full) return [full[1], full[2].padStart(2, '0'), full[3].padStart(2, '0')].join('-');
-    const cn = text.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+    const cn = text.match(/(\d{1,2})\s*\u6708\s*(\d{1,2})\s*\u65e5/);
     if (cn) return [String(new Date().getFullYear()), cn[1].padStart(2, '0'), cn[2].padStart(2, '0')].join('-');
     return normalizeLedgerDate(text);
   }
@@ -7222,7 +7265,7 @@
       stage: String(item.stage || '').slice(0, 80) || '待定稿',
       finalizedAt: String(item.finalizedAt || '').slice(0, 40),
       finalizedDate: normalizeLedgerDate(item.finalizedDate) || '',
-      finalizedAtMs: Number(item.finalizedAtMs || 0) || 0,
+      finalizedAtMs: Number(item.finalizedAtMs || 0) || parseLedgerDateTimeMs(item.finalizedAt) || 0,
       note: String(item.note || '').slice(0, 240),
       createdAt: String(item.createdAt || new Date().toLocaleString()).slice(0, 80),
       createdAtMs: Number(item.createdAtMs || item.updatedAtMs || 0) || Date.now(),
@@ -7276,7 +7319,7 @@
         const dateA = mode === 'finalized' ? getLedgerFinalizedDate(a) : getLedgerDesignDate(a);
         const dateB = mode === 'finalized' ? getLedgerFinalizedDate(b) : getLedgerDesignDate(b);
         if (dateA !== dateB) return dateA < dateB ? 1 : -1;
-        if (mode === 'finalized') return (b.finalizedAtMs || b.updatedAtMs || 0) - (a.finalizedAtMs || a.updatedAtMs || 0);
+        if (mode === 'finalized') return (b.finalizedAtMs || b.createdAtMs || 0) - (a.finalizedAtMs || a.createdAtMs || 0);
         return (b.createdAtMs || b.updatedAtMs || 0) - (a.createdAtMs || a.updatedAtMs || 0);
       });
   }
@@ -7414,7 +7457,7 @@
       renderShell();
       return;
     }
-    const today = formatLedgerDateLabel(getTodayKey());
+    const today = getNowLedgerMinuteLabel();
     const todayKey = getTodayKey();
     const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
     const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
@@ -7461,6 +7504,7 @@
     const data = normalizeData(loadData(sku) || { sku });
     state.selectedSku = sku;
     state.data = data;
+    state.detailReturnView = state.view || 'ledger';
     state.view = 'detail';
     expandPanel();
     renderShell();
@@ -14537,6 +14581,147 @@
         color: #b9b2d7 !important;
         background: rgba(244,241,255,.50) !important;
         cursor: not-allowed !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-main {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-list,
+      #${PANEL_ID}[data-view="upload"] .pfh-splitter {
+        display: none !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-detail {
+        min-width: 0 !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-scroll {
+        padding: 14px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-section.is-open {
+        gap: 14px !important;
+        min-height: 100% !important;
+        padding: 18px !important;
+        border-radius: 18px !important;
+        background: rgba(255,255,255,.76) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding-bottom: 6px !important;
+        border-bottom: 1px solid rgba(226,232,240,.68) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title h3 {
+        font-size: 18px !important;
+        margin-right: 4px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-status {
+        margin-left: 0 !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > button {
+        height: 30px !important;
+        min-height: 30px !important;
+        padding: 0 12px !important;
+        border-radius: 10px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > button:first-of-type {
+        margin-left: auto !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-body {
+        display: grid !important;
+        grid-template-rows: auto auto auto minmax(150px, 1fr) !important;
+        gap: 12px !important;
+        padding: 14px !important;
+        border: 1px solid rgba(226,232,240,.76) !important;
+        border-radius: 16px !important;
+        background: rgba(255,255,255,.72) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.9) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-drop {
+        min-height: 116px !important;
+        border-width: 2px !important;
+        border-color: rgba(168,85,247,.45) !important;
+        background: rgba(250,245,255,.58) !important;
+        font-size: 13px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-actions button[data-action="upload-start"] {
+        border-color: transparent !important;
+        background: linear-gradient(135deg, #7c3aed, #8b5cf6) !important;
+        color: #fff !important;
+        box-shadow: 0 10px 20px rgba(124,58,237,.20) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-list {
+        min-height: 142px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-info-grid {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.15fr) minmax(220px, .85fr) !important;
+        gap: 14px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-guide,
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card {
+        min-width: 0 !important;
+        padding: 16px !important;
+        border: 1px solid rgba(226,232,240,.78) !important;
+        border-radius: 16px !important;
+        background: rgba(255,255,255,.72) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.9) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-guide b {
+        color: #17153f !important;
+        font-size: 14px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-guide p {
+        margin: 8px 0 0 !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        line-height: 1.55 !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card {
+        display: grid !important;
+        grid-template-columns: 42px minmax(0, 1fr) !important;
+        gap: 12px !important;
+        align-items: center !important;
+        text-align: left !important;
+        color: #17153f !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card .pfh-icon {
+        width: 42px !important;
+        height: 42px !important;
+        display: grid !important;
+        place-items: center !important;
+        border-radius: 13px !important;
+        background: rgba(244,241,255,.86) !important;
+        color: #7c3aed !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card .pfh-icon svg,
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card .pfh-icon svg * {
+        width: 23px !important;
+        height: 23px !important;
+        fill: currentColor !important;
+        stroke: currentColor !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card b {
+        display: block !important;
+        font-size: 14px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card small {
+        display: block !important;
+        margin-top: 4px !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-bottom {
+        padding: 0 14px 14px !important;
+      }
+      @media (max-width: 760px) {
+        #${PANEL_ID}[data-view="upload"] .pfh-upload-info-grid {
+          grid-template-columns: 1fr !important;
+        }
+        #${PANEL_ID}[data-view="upload"] .pfh-upload-title {
+          flex-wrap: wrap !important;
+        }
+        #${PANEL_ID}[data-view="upload"] .pfh-upload-title > button:first-of-type {
+          margin-left: 0 !important;
+        }
       }
     `;
     document.documentElement.appendChild(style);
