@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.51
+// @version      2.4.52
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
 // @match        https://auth.westmonth.com/*
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
+// @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @grant        GM_setClipboard
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -25,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.51';
+  const SCRIPT_VERSION = '2.4.52';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -422,6 +423,10 @@
     insightRecommendation: null,
     exportType: 'excel',
     exportMenuOpen: false,
+    copywritingMode: false,
+    copywritingLoading: false,
+    copywritingError: '',
+    copywritingStatus: '',
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
@@ -561,6 +566,11 @@
 
     const text = getVisibleText(drawer);
     const sku = findSku(text);
+    if (sku && state.selectedSku && sku !== state.selectedSku) {
+      state.copywritingMode = false;
+      state.copywritingError = '';
+      state.copywritingStatus = '';
+    }
     if (lockedSku && sku && sku !== lockedSku) return;
     if (lockedSku && !sku && state.openingProjectDetail) return;
     if (state.userCollapsedPanel && state.manuallyCollapsedForSku && state.manuallyCollapsedForSku === (sku || state.sku)) return;
@@ -712,6 +722,7 @@
       brand: cached.brand || '',
       projectRowId: cached.projectRowId || '',
       projectId: cached.projectId || '',
+      copywriting: cached.copywriting || null,
       tailSealLengthValue: cached.tailSealLengthValue || '',
       skuImageUrl: cached.skuImageSource === 'effectImage' ? (cached.skuImageUrl || '') : '',
       skuImageFallbackUrl: cached.skuImageSource === 'effectImage' ? (cached.skuImageFallbackUrl || '') : '',
@@ -1168,8 +1179,10 @@
     }
     const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : (Array.isArray(safe.productNums) ? safe.productNums : null);
     const isTubePrint = isTubePrintData(safe, packageNums);
+    const copywriting = normalizeCopywritingRecord(safe.copywriting);
     return {
       ...safe,
+      copywriting,
       hasInnerCard,
       isTubePrint,
       isTubePrintMaterial: Boolean(safe.isTubePrintMaterial),
@@ -2303,7 +2316,7 @@
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
-    const loading = state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial;
+    const loading = state.scanRunning || state.copywritingLoading || statusText === L.scanning || statusText === L.checkingMaterial;
     detail.classList.toggle('is-loading', loading);
     if (!data) {
       if (loading) {
@@ -2316,17 +2329,25 @@
       return;
     }
     state.data = normalizeData(data);
-    scheduleProductThumbHydration(state.data);
-    scheduleInsightRecommendation(state.data);
+    if (!state.copywritingMode) {
+      scheduleProductThumbHydration(state.data);
+      scheduleInsightRecommendation(state.data);
+    }
     const main = panel.querySelector('.pfh-main');
     if (main) main.classList.remove('is-home');
+    if (state.copywritingMode) {
+      detail.innerHTML = [
+        '<div class="pfh-detail-scroll pfh-copywriting-scroll">',
+        productHeroSectionHtml(state.data, true),
+        copywritingViewHtml(state.data),
+        '</div>',
+      ].join('');
+      return;
+    }
     detail.innerHTML = [
       renderStatusHtml(statusText),
       '<div class="pfh-detail-scroll">',
-      '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
-        productThumbHtml(state.data) +
-        '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml(state.data.sku || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml([state.data.brand, state.data.name].filter(Boolean).join(' ') || formatTitleMeta(state.data) || L.noDrawer) + '</strong><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button></div>' +
-      '</div></div>',
+      productHeroSectionHtml(state.data, false),
       '<div class="pfh-info-grid">',
       rowHtml('packageCode', L.packageCode, state.data.packageCode),
       rowHtml('printCode', L.printCode, state.data.printCode),
@@ -2348,6 +2369,53 @@
       '</div>',
       '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span><span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
     ].join('');
+  }
+
+  function productHeroSectionHtml(data, copywritingMode) {
+    const title = [data && data.brand, data && data.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
+    const actions = copywritingMode
+      ? '<div class="pfh-copywriting-hero-actions">' +
+          '<button type="button" data-action="copywriting-back">返回数据</button>' +
+          '<button type="button" data-action="copywriting-copy">复制全文</button>' +
+          '<button type="button" class="is-icon" data-action="copywriting-refresh" title="重新获取文案">' + iconHtml('refresh') + '</button>' +
+          ((data && data.copywriting && data.copywriting.updatePending) ? '<button type="button" data-action="copywriting-ack">已查看更新</button>' : '') +
+        '</div>'
+      : '<button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>';
+    return '<section class="pfh-section pfh-file-section' + (copywritingMode ? ' pfh-copywriting-hero-section' : '') + '"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
+      productThumbHtml(data) +
+      '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml((data && data.sku) || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml(title) + '</strong>' + actions + '</div>' +
+      '</div></div>' + (copywritingMode ? '</section>' : '');
+  }
+
+  function copywritingViewHtml(data) {
+    const record = normalizeCopywritingRecord(data && data.copywriting);
+    if (state.copywritingLoading) {
+      return '<section class="pfh-copywriting-page is-loading"><div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位设计资料里的 Word 附件...') + '</p></div></section>';
+    }
+    const errorHtml = state.copywritingError
+      ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + escapeHtml(state.copywritingError) + '</span></div>'
+      : '';
+    if (!record || !record.fullText) {
+      return '<section class="pfh-copywriting-page">' + errorHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取设计资料里的产品文案 Word。</p></div></section>';
+    }
+    const changed = new Set(record.changedSectionKeys || []);
+    const updateHtml = record.updatePending
+      ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span></div>'
+      : '';
+    const missingHtml = record.missingSections && record.missingSections.length
+      ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + escapeHtml(record.missingSections.join('、')) + '</span></div>'
+      : '';
+    const sectionsHtml = record.sections.map((section) => '<div class="pfh-copywriting-block' + (changed.has(section.key) ? ' is-changed' : '') + '" data-copywriting-key="' + escapeHtml(section.key) + '"><pre>' + escapeHtml(section.text) + '</pre></div>').join('');
+    return '<section class="pfh-copywriting-page">' + errorHtml + updateHtml + missingHtml + '<div class="pfh-copywriting-content">' + sectionsHtml + '</div></section>';
+  }
+
+  function formatCopywritingUpdateSummary(record) {
+    const changedCount = (record.changedSectionKeys || []).length;
+    const removed = record.removedSections || [];
+    const parts = [];
+    if (changedCount) parts.push(changedCount + ' 段有变化');
+    if (removed.length) parts.push('删除：' + removed.join('、'));
+    return parts.join('；') || '检测到新的产品文案文件';
   }
 
   function homeViewHtml(statusText) {
@@ -2680,7 +2748,7 @@
   }
 
   function excelTriggerHtml() {
-    return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>' + escapeHtml(L.excel) + '</span></button></div>';
+    return '<div class="pfh-excel-controls"><button type="button" data-action="copywriting-open"><span>文案</span></button><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>' + escapeHtml(L.excel) + '</span></button></div>';
   }
 
   function excelOptionsHtml() {
@@ -2706,6 +2774,442 @@
       '<button type="button" data-action="excel-generate">' + escapeHtml(L.excel) + '</button>' +
       '<span class="pfh-excel-status' + statusClass + '">' + escapeHtml(status) + '</span>' +
       '</div>';
+  }
+
+  async function openCopywritingFromCurrent(force) {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!data || !data.sku) {
+      showToast('请先选择一个产品');
+      return;
+    }
+    const sku = data.sku;
+    state.copywritingMode = true;
+    state.copywritingLoading = true;
+    state.copywritingError = '';
+    state.copywritingStatus = '正在打开设计资料...';
+    stopScan();
+    stopMaterialWatch();
+    expandPanel();
+    renderShell();
+    addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
+    try {
+      let drawer = getProjectDrawerForSku(sku);
+      if (!drawer) {
+        await openSelectedProjectDetail();
+        drawer = await waitFor(() => getProjectDrawerForSku(sku), 6000, 150);
+      }
+      if (!drawer) throw new Error('未打开当前编码的项目详情');
+      stopScan();
+      state.copywritingStatus = '正在定位设计资料里的产品文案...';
+      renderShell();
+      await switchDrawerTab(drawer, '设计资料');
+      const designReady = await waitFor(() => {
+        const tab = findTabButton(drawer, '设计资料');
+        return tab && isActiveTab(tab);
+      }, 5000, 120);
+      if (!designReady) throw new Error('无法切换到设计资料');
+      const item = await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
+      if (!item) throw new Error('设计资料中未找到“产品文案”字段');
+      const file = findProductCopywritingFile(item, sku);
+      if (!file) throw new Error('产品文案字段中未找到当前编码的 Word 文件');
+      const workingData = normalizeData(loadData(sku) || state.data || data);
+      const cached = normalizeCopywritingRecord(workingData.copywriting);
+      const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
+      if (cached && cached.fileTimestamp && fileTimestamp && fileTimestamp < cached.fileTimestamp) {
+        state.copywritingError = '页面中的 Word 版本早于缓存，已保留较新的文案';
+        addLog('warn', '产品文案：检测到旧附件', file.fileName + ' < ' + cached.fileName);
+        return;
+      }
+      state.copywritingStatus = '正在下载并解析 ' + file.fileName;
+      renderShell();
+      const url = await resolveCopywritingDocumentUrl(file.card);
+      if (!url) throw new Error('未捕获到 Word 的真实下载地址');
+      const arrayBuffer = await downloadCopywritingDocument(url);
+      const fileHash = await hashCopywritingBuffer(arrayBuffer);
+      const tableRows = await parseCopywritingDocxRows(arrayBuffer);
+      const built = buildMainstreamCopywriting(tableRows, workingData);
+      if (!built.sections.length) throw new Error('Word 中未识别到主流版文案字段');
+      const next = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, cached);
+      saveData(sku, { ...workingData, copywriting: next });
+      state.copywritingStatus = '';
+      state.copywritingError = '';
+      const updated = Boolean(cached && cached.fullText && next.updatePending && (
+        next.fileHash !== cached.fileHash
+        || next.fileName !== cached.fileName
+        || next.fullText !== cached.fullText
+      ));
+      addLog('info', updated ? '产品文案：检测到更新' : '产品文案：读取成功', file.fileName + ' ' + built.sections.length + '段');
+      showToast(updated ? '文案已更新，差异已高亮' : '文案读取成功');
+    } catch (error) {
+      state.copywritingError = formatErrorMessage(error) || '产品文案读取失败';
+      addLog('error', '产品文案读取失败', sku + ' ' + state.copywritingError);
+      showToast('产品文案读取失败');
+    } finally {
+      state.copywritingLoading = false;
+      renderShell();
+    }
+  }
+
+  function acknowledgeCopywritingUpdate() {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    const record = normalizeCopywritingRecord(data && data.copywriting);
+    if (!data || !data.sku || !record) return;
+    const next = {
+      ...record,
+      updatePending: false,
+      changedSectionKeys: [],
+      removedSections: [],
+      previousSections: [],
+    };
+    saveData(data.sku, { ...data, copywriting: next });
+    showToast('已标记为查看');
+    renderShell();
+  }
+
+  function findProductCopywritingItem(drawer) {
+    if (!drawer) return null;
+    return Array.from(drawer.querySelectorAll('.ant-form-item'))
+      .filter(isVisibleElement)
+      .find((item) => {
+        const label = item.querySelector('.ant-form-item-label');
+        return compactText(label && (label.innerText || label.textContent)).replace(/[：:]$/, '') === '产品文案';
+      }) || null;
+  }
+
+  function findProductCopywritingFile(item, sku) {
+    const cards = Array.from(item.querySelectorAll('.filePreviewMainBox, .filePreviewCard, .removeOtherContent'))
+      .filter(isVisibleElement)
+      .map((card) => ({ card, fileName: extractCopywritingFileName(card) }))
+      .filter((entry) => /\.docx$/i.test(entry.fileName));
+    const unique = cards.filter((entry, index) => cards.findIndex((candidate) => candidate.fileName === entry.fileName) === index);
+    if (!unique.length) return null;
+    const skuMatches = unique.filter((entry) => !sku || new RegExp(escapeRegExp(sku), 'i').test(entry.fileName));
+    const pool = skuMatches.length ? skuMatches : (unique.length === 1 ? unique : []);
+    if (!pool.length) return null;
+    return pool.sort((a, b) => extractCopywritingFileTimestamp(b.fileName).localeCompare(extractCopywritingFileTimestamp(a.fileName)))[0];
+  }
+
+  function extractCopywritingFileName(card) {
+    if (!card) return '';
+    const titleSpans = Array.from(card.querySelectorAll('.title span, [class*="title"] span'))
+      .map((el) => compactText(el.innerText || el.textContent))
+      .filter((text) => /\.docx$/i.test(text));
+    if (titleSpans.length) return titleSpans[titleSpans.length - 1];
+    return ((compactText(card.innerText || card.textContent).match(/[^\n\\/:*?"<>|]+\.docx\b/i) || [])[0] || '').trim();
+  }
+
+  function extractCopywritingFileTimestamp(fileName) {
+    return ((String(fileName || '').match(/_(\d{14,17})(?=\.docx$)/i) || [])[1] || '');
+  }
+
+  async function resolveCopywritingDocumentUrl(card) {
+    const direct = findCopywritingUrlInCard(card);
+    if (direct) return direct;
+    return captureCopywritingDownloadUrl(card);
+  }
+
+  function findCopywritingUrlInCard(card) {
+    if (!card) return '';
+    const attrs = ['href', 'src', 'data-url', 'data-src', 'data-file-url', 'data-download-url', 'download-url'];
+    const nodes = [card].concat(Array.from(card.querySelectorAll('*')));
+    for (const node of nodes) {
+      for (const name of attrs) {
+        const value = node.getAttribute && node.getAttribute(name);
+        const url = normalizeCopywritingUrl(value);
+        if (url && isUsableCopywritingUrl(url)) return url;
+      }
+    }
+    const html = String(card.outerHTML || '').replace(/&amp;/g, '&');
+    const urls = html.match(/https?:\/\/[^"'<>\s]+/g) || [];
+    return urls.map(normalizeCopywritingUrl).find(isUsableCopywritingUrl) || '';
+  }
+
+  function normalizeCopywritingUrl(value) {
+    const text = String(value || '').trim().replace(/&amp;/g, '&');
+    if (!text || /^(?:data:|javascript:)/i.test(text) || /filePic\/word\.png/i.test(text)) return '';
+    if (/^(?:https?:|blob:)/i.test(text)) return text;
+    if (/^\//.test(text)) return location.origin + text;
+    return '';
+  }
+
+  function isUsableCopywritingUrl(url) {
+    const text = String(url || '');
+    return /^blob:/i.test(text) || (/^https?:/i.test(text) && /(?:\.docx(?:\?|$)|download|attachment)/i.test(text));
+  }
+
+  async function captureCopywritingDownloadUrl(card) {
+    if (!card) return '';
+    const control = Array.from(card.querySelectorAll('.anticon-vertical-align-bottom, [aria-label="vertical-align-bottom"], [class*="download" i]'))
+      .find(isVisibleElement);
+    const clickable = control && (control.closest('.delBtn, button, a, [role="button"]') || control);
+    if (!clickable) return '';
+    let captured = '';
+    const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const restores = [];
+    const capture = (value) => {
+      const url = normalizeCopywritingUrl(value);
+      if (url && !captured) captured = url;
+      return Boolean(url);
+    };
+    try {
+      const anchorProto = root.HTMLAnchorElement && root.HTMLAnchorElement.prototype;
+      if (anchorProto && anchorProto.click) {
+        const originalAnchorClick = anchorProto.click;
+        anchorProto.click = function () {
+          const url = this.href || this.getAttribute('href') || '';
+          if (capture(url)) return;
+          return originalAnchorClick.apply(this, arguments);
+        };
+        restores.push(() => { anchorProto.click = originalAnchorClick; });
+      }
+      if (typeof root.open === 'function') {
+        const originalOpen = root.open;
+        root.open = function (url) {
+          if (capture(url)) return null;
+          return originalOpen.apply(this, arguments);
+        };
+        restores.push(() => { root.open = originalOpen; });
+      }
+      if (root.URL && typeof root.URL.createObjectURL === 'function') {
+        const originalCreate = root.URL.createObjectURL;
+        root.URL.createObjectURL = function () {
+          const url = originalCreate.apply(this, arguments);
+          capture(url);
+          return url;
+        };
+        restores.push(() => { root.URL.createObjectURL = originalCreate; });
+      }
+      if (root.URL && typeof root.URL.revokeObjectURL === 'function') {
+        const originalRevoke = root.URL.revokeObjectURL;
+        root.URL.revokeObjectURL = function (url) {
+          if (captured && String(url || '') === captured) return;
+          return originalRevoke.apply(this, arguments);
+        };
+        restores.push(() => { root.URL.revokeObjectURL = originalRevoke; });
+      }
+    } catch (error) {
+      addLog('warn', '产品文案：下载地址监听受限', formatErrorMessage(error));
+    }
+    const before = new Set((performance.getEntriesByType && performance.getEntriesByType('resource') || []).map((entry) => entry.name));
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => Array.from(mutation.addedNodes || []).forEach((node) => {
+        if (!node || node.nodeType !== 1) return;
+        capture(node.href || (node.getAttribute && (node.getAttribute('href') || node.getAttribute('src'))) || '');
+        if (!captured && node.querySelectorAll) {
+          Array.from(node.querySelectorAll('a[href], [src]')).some((el) => capture(el.href || el.src || ''));
+        }
+      }));
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    try {
+      clickElement(clickable);
+      const observed = await waitUntil(() => {
+        if (captured) return captured;
+        const resources = (performance.getEntriesByType && performance.getEntriesByType('resource') || [])
+          .map((entry) => entry.name)
+          .filter((name) => !before.has(name));
+        return resources.map(normalizeCopywritingUrl).find((url) => /(?:\.docx(?:\?|$)|download|attachment|file\/)/i.test(url)) || '';
+      }, 5000, 100);
+      if (!captured && observed) captured = observed;
+    } finally {
+      observer.disconnect();
+      restores.reverse().forEach((restore) => {
+        try { restore(); } catch (error) { /* no-op */ }
+      });
+    }
+    return captured;
+  }
+
+  function downloadCopywritingDocument(url) {
+    if (/^blob:/i.test(url)) {
+      return fetch(url).then((response) => {
+        if (!response.ok) throw new Error('Word 下载失败：' + response.status);
+        return response.arrayBuffer();
+      }).finally(() => {
+        try { URL.revokeObjectURL(url); } catch (error) { /* no-op */ }
+      });
+    }
+    return new Promise((resolve, reject) => {
+      if (typeof GM_xmlhttpRequest !== 'function') {
+        fetch(url).then((response) => {
+          if (!response.ok) throw new Error('Word 下载失败：' + response.status);
+          return response.arrayBuffer();
+        }).then(resolve, reject);
+        return;
+      }
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url,
+        responseType: 'arraybuffer',
+        timeout: 20000,
+        onload: (response) => {
+          if (response.status < 200 || response.status >= 300) {
+            reject(new Error('Word 下载失败：HTTP ' + response.status));
+            return;
+          }
+          if (response.response instanceof ArrayBuffer) resolve(response.response);
+          else if (response.response && response.response.arrayBuffer) response.response.arrayBuffer().then(resolve, reject);
+          else reject(new Error('Word 下载内容为空'));
+        },
+        onerror: () => reject(new Error('Word 下载请求失败')),
+        ontimeout: () => reject(new Error('Word 下载超时')),
+      });
+    });
+  }
+
+  async function parseCopywritingDocxRows(arrayBuffer) {
+    const Zip = (typeof JSZip !== 'undefined' && JSZip) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.JSZip);
+    if (!Zip) throw new Error('Word 解析组件未加载，请刷新页面后重试');
+    const zip = await Zip.loadAsync(arrayBuffer);
+    const documentFile = zip.file('word/document.xml');
+    if (!documentFile) throw new Error('Word 文件结构不完整');
+    const xmlText = await documentFile.async('string');
+    const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
+    if (xml.querySelector('parsererror')) throw new Error('Word XML 解析失败');
+    const rows = [];
+    Array.from(xml.getElementsByTagNameNS('*', 'tr')).forEach((row) => {
+      const cells = Array.from(row.children || []).filter((node) => node.localName === 'tc').map(copywritingCellLines);
+      if (cells.length >= 2) rows.push(cells);
+    });
+    return rows;
+  }
+
+  function copywritingCellLines(cell) {
+    return Array.from(cell.getElementsByTagNameNS('*', 'p'))
+      .map((paragraph) => Array.from(paragraph.getElementsByTagNameNS('*', 't')).map((node) => node.textContent || '').join(''))
+      .map(cleanCopywritingLine)
+      .filter(Boolean);
+  }
+
+  function cleanCopywritingLine(value) {
+    return String(value || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/[ \t]+/g, ' ').trim();
+  }
+
+  function buildMainstreamCopywriting(rows, data) {
+    const rowMap = {};
+    (rows || []).forEach((cells) => {
+      const label = cleanCopywritingLine((cells[0] || []).join('')).replace(/\s+/g, '');
+      if (label && !rowMap[label]) rowMap[label] = cells[1] || [];
+    });
+    const find = (pattern) => {
+      const key = Object.keys(rowMap).find((label) => pattern.test(label));
+      return key ? rowMap[key].slice() : [];
+    };
+    const sections = [];
+    const missingSections = [];
+    const add = (key, label, text) => {
+      const value = String(text || '').trim();
+      if (value) sections.push({ key, label, text: value.slice(0, 12000) });
+      else missingSections.push(label);
+    };
+    const productLines = stripCopywritingHeading(find(/^产品名称$/), /^PRODUCT\s+NAME\s*[:：]?$/i);
+    add('productName', '产品名称', joinCopywritingSection('PRODUCT NAME:', productLines));
+    const functionsHeading = find(/^24国语言功效标题/).join('').replace(/：\s*$/, ':').trim();
+    add('functionsHeading', '24国语言功效标题', functionsHeading);
+    const functionLines = find(/^24国语言功效内容/).map((line) => line.replace(/;\s*$/, '').trim()).filter(Boolean);
+    add('functions', '24国语言功效内容', functionLines.join(';  '));
+    add('ingredients', '成分表', joinCopywritingSection('INGREDIENTS:', stripCopywritingHeading(find(/^成分表$/), /^INGREDIENTS?\s*[:：]?$/i)));
+    add('directions', '建议使用方法', joinCopywritingSection('DIRECTIONS OF SAFE USE:', stripCopywritingHeading(find(/^B[.．、]?建议使用方法$/i), /^DIRECTIONS\s+OF\s+SAFE\s+USE\s*[:：]?$/i)));
+    add('warning', '警告语', joinCopywritingSection('WARNING:', stripCopywritingHeading(find(/^警告语$/), /^WARNING\s*[:：]?$/i)));
+    const emailLines = find(/^美国不良事故联系人邮箱$/);
+    const emailText = emailLines.join(' ').replace(/^e-?mail\s*[:：]\s*/i, '').trim();
+    add('email', '联系邮箱', emailText ? 'e-mail:\n' + emailText : '');
+    const net = formatCopywritingNetContent(data && data.netContent);
+    if (net.warning && net.text) missingSections.push(net.warning);
+    add('netContent', '净含量', net.text);
+    const originLines = find(/^原产国$/).map((line) => line.replace(/：/g, ':'));
+    add('origin', '原产国', originLines.join('\n'));
+    const shelfLines = find(/^保质期$/).map((line) => line.replace(/：/g, ':'));
+    add('shelfLife', '保质期', shelfLines.join('\n'));
+    return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections };
+  }
+
+  function stripCopywritingHeading(lines, headingPattern) {
+    const result = (lines || []).map(cleanCopywritingLine).filter(Boolean);
+    if (result.length && headingPattern.test(result[0])) result.shift();
+    return result;
+  }
+
+  function joinCopywritingSection(heading, lines) {
+    const body = (lines || []).map(cleanCopywritingLine).filter(Boolean);
+    return body.length ? [heading].concat(body).join('\n') : '';
+  }
+
+  function formatCopywritingNetContent(value) {
+    const text = cleanCopywritingLine(value);
+    if (!text || text === '--' || text === L.unknown) return { text: '', warning: '净含量' };
+    const match = text.match(/(\d+(?:\.\d+)?)\s*(g|ml)\b/i);
+    if (!match) return { text, warning: '净含量单位无法换算' };
+    const amount = Number(match[1]);
+    const unit = match[2].toUpperCase();
+    if (!Number.isFinite(amount)) return { text, warning: '净含量单位无法换算' };
+    const imperial = unit === 'G' ? amount / 28.349523125 : amount / 29.5735295625;
+    return { text: trimNumber(amount) + unit + '/ ' + imperial.toFixed(2) + (unit === 'G' ? ' OZ' : ' FL OZ'), warning: '' };
+  }
+
+  async function hashCopywritingBuffer(arrayBuffer) {
+    try {
+      const digest = await crypto.subtle.digest('SHA-256', arrayBuffer.slice(0));
+      return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    } catch (error) {
+      const bytes = new Uint8Array(arrayBuffer);
+      let hash = 2166136261;
+      for (let index = 0; index < bytes.length; index += 1) hash = Math.imul(hash ^ bytes[index], 16777619);
+      return (hash >>> 0).toString(16);
+    }
+  }
+
+  function buildCopywritingRecord(fileName, fileTimestamp, fileHash, built, cached) {
+    const now = new Date().toLocaleString();
+    const old = normalizeCopywritingRecord(cached);
+    const changedFile = Boolean(old && old.fullText && (
+      old.fileHash !== fileHash
+      || old.fileName !== fileName
+      || old.fullText !== built.fullText
+    ));
+    const oldMap = new Map((old && old.sections || []).map((section) => [section.key, section]));
+    const nextMap = new Map((built.sections || []).map((section) => [section.key, section]));
+    const changedSectionKeys = changedFile
+      ? built.sections.filter((section) => !oldMap.has(section.key) || oldMap.get(section.key).text !== section.text).map((section) => section.key)
+      : (old && old.updatePending ? old.changedSectionKeys.slice() : []);
+    const removedSections = changedFile
+      ? (old.sections || []).filter((section) => !nextMap.has(section.key)).map((section) => section.label || section.key)
+      : (old && old.updatePending ? old.removedSections.slice() : []);
+    return normalizeCopywritingRecord({
+      fileName,
+      fileTimestamp,
+      fileHash,
+      fetchedAt: now,
+      sections: built.sections,
+      fullText: built.fullText,
+      missingSections: built.missingSections,
+      updatePending: changedFile || Boolean(old && old.updatePending),
+      changedSectionKeys,
+      removedSections,
+      previousSections: changedFile ? old.sections : (old && old.updatePending ? old.previousSections : []),
+    });
+  }
+
+  function normalizeCopywritingRecord(record) {
+    if (!record || typeof record !== 'object') return null;
+    const normalizeSections = (items) => (Array.isArray(items) ? items : []).slice(0, 16).map((section) => ({
+      key: String(section && section.key || '').slice(0, 60),
+      label: String(section && section.label || '').slice(0, 100),
+      text: String(section && section.text || '').slice(0, 12000),
+    })).filter((section) => section.key && section.text);
+    return {
+      fileName: String(record.fileName || '').slice(0, 300),
+      fileTimestamp: String(record.fileTimestamp || '').slice(0, 20),
+      fileHash: String(record.fileHash || '').slice(0, 128),
+      fetchedAt: String(record.fetchedAt || '').slice(0, 80),
+      sections: normalizeSections(record.sections),
+      fullText: String(record.fullText || '').slice(0, 50000),
+      missingSections: (Array.isArray(record.missingSections) ? record.missingSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
+      updatePending: Boolean(record.updatePending),
+      changedSectionKeys: (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16),
+      removedSections: (Array.isArray(record.removedSections) ? record.removedSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
+      previousSections: normalizeSections(record.previousSections),
+    };
   }
 
   function uploadPanelHtml() {
@@ -2830,6 +3334,7 @@
     }
     if (action === 'search') {
       state.view = 'detail';
+      state.copywritingMode = false;
       state.skuPage = 1;
       runSearch();
       return;
@@ -2896,6 +3401,7 @@
     }
     if (action === 'home-main') {
       state.view = 'home';
+      state.copywritingMode = false;
       state.uploadExpanded = false;
       expandPanel();
       renderShell();
@@ -2903,6 +3409,34 @@
     }
     if (action === 'open-detail') {
       openSelectedProjectDetail();
+      return;
+    }
+    if (action === 'copywriting-open') {
+      openCopywritingFromCurrent(false);
+      return;
+    }
+    if (action === 'copywriting-back') {
+      state.copywritingMode = false;
+      state.copywritingError = '';
+      state.copywritingStatus = '';
+      renderShell();
+      return;
+    }
+    if (action === 'copywriting-copy') {
+      const record = normalizeCopywritingRecord(state.data && state.data.copywriting);
+      if (!record || !record.fullText) showToast('没有可复制的文案');
+      else {
+        copyText(record.fullText);
+        showToast('文案已复制');
+      }
+      return;
+    }
+    if (action === 'copywriting-refresh') {
+      openCopywritingFromCurrent(true);
+      return;
+    }
+    if (action === 'copywriting-ack') {
+      acknowledgeCopywritingUpdate();
       return;
     }
     if (action === 'open-first-detail') {
@@ -3244,6 +3778,7 @@
       state.data = data ? normalizeData(data) : null;
       state.searchQuery = '';
       state.view = 'detail';
+      state.copywritingMode = false;
       resetExcelState();
       const input = ensurePanel().querySelector('.pfh-search-input');
       if (input) input.value = '';
@@ -4798,6 +5333,7 @@
     state.selectedSku = first;
     state.data = data;
     state.view = 'detail';
+    state.copywritingMode = false;
     expandPanel();
     renderShell();
   }
@@ -4805,6 +5341,7 @@
   function adoptOpenedProjectDrawer(sku) {
     const drawer = getProjectDrawerForSku(sku);
     if (!drawer) return;
+    const switchingSku = Boolean(state.selectedSku && state.selectedSku !== sku);
     state.drawer = drawer;
     state.sku = sku;
     state.selectedSku = sku;
@@ -4812,6 +5349,7 @@
     if (cached) state.data = normalizeData(cached);
     else if (!state.data || state.data.sku !== sku) state.data = normalizeData({ sku });
     state.view = 'detail';
+    if (switchingSku) state.copywritingMode = false;
     resetExcelState();
     resetRound(state.data && state.data.seenDesign && getProductThumbUrl(state.data) ? REFRESH_SCAN_ATTEMPTS : AUTO_SCAN_ATTEMPTS);
     state.scanTargetSku = sku;
@@ -7549,6 +8087,7 @@
     state.data = data;
     state.detailReturnView = state.view || 'ledger';
     state.view = 'detail';
+    state.copywritingMode = false;
     expandPanel();
     renderShell();
   }
@@ -14825,8 +15364,206 @@
         justify-self: end !important;
         white-space: nowrap !important;
       }
+      #${PANEL_ID} .pfh-excel-controls {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+      }
+      #${PANEL_ID} .pfh-excel-controls button[data-action="copywriting-open"] {
+        border-color: rgba(124,58,237,.28) !important;
+        background: rgba(244,241,255,.72) !important;
+        color: #6d35e8 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-scroll {
+        display: grid !important;
+        grid-template-rows: auto minmax(0, 1fr) !important;
+        gap: 12px !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        padding-bottom: 12px !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-hero-section {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-hero-actions {
+        display: flex !important;
+        align-items: center !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        margin-top: 5px !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-hero-actions button {
+        height: 27px !important;
+        min-height: 27px !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(211,204,255,.58) !important;
+        border-radius: 9px !important;
+        background: rgba(255,255,255,.74) !important;
+        color: #675f86 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.88) !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-hero-actions button:hover {
+        border-color: rgba(124,58,237,.34) !important;
+        background: rgba(244,241,255,.88) !important;
+        color: #6d35e8 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-hero-actions button.is-icon {
+        display: inline-grid !important;
+        place-items: center !important;
+        width: 28px !important;
+        min-width: 28px !important;
+        padding: 0 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-hero-actions button.is-icon .pfh-icon,
+      #${PANEL_ID} .pfh-copywriting-hero-actions button.is-icon svg {
+        width: 14px !important;
+        height: 14px !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-page {
+        display: grid !important;
+        align-content: start !important;
+        gap: 9px !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        overflow: hidden !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-content {
+        min-width: 0 !important;
+        min-height: 0 !important;
+        height: 100% !important;
+        overflow: auto !important;
+        padding: 18px 20px !important;
+        border: 1px solid rgba(211,204,255,.38) !important;
+        border-radius: 15px !important;
+        background: rgba(255,255,255,.76) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.94), 0 10px 28px rgba(76,64,140,.06) !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(139,126,181,.24) transparent !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-content::-webkit-scrollbar {
+        width: 5px !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-content::-webkit-scrollbar-thumb {
+        border-radius: 999px !important;
+        background: rgba(139,126,181,.24) !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-block {
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 8px !important;
+        transition: background .18s ease, box-shadow .18s ease !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-block + .pfh-copywriting-block {
+        margin-top: 10px !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-block.is-changed {
+        margin-left: -9px !important;
+        margin-right: -9px !important;
+        padding: 7px 9px !important;
+        background: rgba(254,240,138,.42) !important;
+        box-shadow: inset 3px 0 0 #eab308 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-block pre {
+        max-width: 100% !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        color: #24213f !important;
+        background: transparent !important;
+        font-family: Arial, "Microsoft YaHei", sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        line-height: 1.65 !important;
+        letter-spacing: 0 !important;
+        white-space: pre-wrap !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-alert {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+        padding: 8px 10px !important;
+        border: 1px solid rgba(211,204,255,.44) !important;
+        border-radius: 10px !important;
+        background: rgba(248,250,252,.78) !important;
+        color: #64748b !important;
+        font-size: 11px !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-alert strong {
+        flex: 0 0 auto !important;
+        color: #30285e !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-alert span {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-alert.is-update {
+        border-color: rgba(234,179,8,.30) !important;
+        background: rgba(254,249,195,.56) !important;
+        color: #854d0e !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-alert.is-error {
+        border-color: rgba(248,113,113,.26) !important;
+        background: rgba(254,242,242,.72) !important;
+        color: #b42318 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-alert.is-warning {
+        border-color: rgba(251,191,36,.26) !important;
+        background: rgba(255,251,235,.72) !important;
+        color: #92400e !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-empty {
+        display: grid !important;
+        place-items: center !important;
+        align-content: center !important;
+        gap: 8px !important;
+        min-height: 220px !important;
+        height: 100% !important;
+        padding: 24px !important;
+        border: 1px dashed rgba(124,58,237,.24) !important;
+        border-radius: 15px !important;
+        background: rgba(255,255,255,.62) !important;
+        color: #7d86a8 !important;
+        text-align: center !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-empty strong {
+        color: #30285e !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-empty p {
+        max-width: 360px !important;
+        margin: 0 !important;
+        font-size: 12px !important;
+        line-height: 1.55 !important;
+      }
+      #${PANEL_ID} .pfh-copywriting-spinner {
+        width: 24px !important;
+        height: 24px !important;
+        border: 2px solid rgba(124,58,237,.18) !important;
+        border-top-color: #7c3aed !important;
+        border-radius: 50% !important;
+        animation: pfh-copywriting-spin .8s linear infinite !important;
+      }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-bottom {
         padding: 0 14px 14px !important;
+      }
+      @keyframes pfh-copywriting-spin {
+        to { transform: rotate(360deg); }
       }
       @keyframes pfh-upload-drop-glow {
         0%, 100% { opacity: .48; transform: scale(.985); }
