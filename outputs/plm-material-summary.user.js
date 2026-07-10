@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.50
+// @version      2.4.51
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -25,7 +25,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.50';
+  const SCRIPT_VERSION = '2.4.51';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1840,6 +1840,8 @@
       warning: '<svg viewBox="0 0 1026 1024" aria-hidden="true"><path d="M1004.657 801.716 602.263 91.599c-49.213-86.817-129.646-86.817-178.866 0L21.004 801.716c-49.207 86.906-8.949 157.798 89.388 157.798h804.877c98.337 0 138.556-70.892 89.388-157.798zM544.635 832.216h-63.649v-63.649h63.649v63.649zM544.635 641.27h-63.649V259.377h63.649V641.27z"></path></svg>',
       copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="6.5" r="2.5"></circle><path d="M8.5 8.2 19 20"></path><path d="M15.5 8.2 5 20"></path><path d="M10 13h4"></path></svg>',
       back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6"></path><path d="M10 12h9"></path></svg>',
+      batch: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M464.896 1024c-3.488 0-6.944-0.384-10.368-1.12l-285.184-63.008A143.264 143.264 0 0 1 32 816.864V207.104a143.296 143.296 0 0 1 137.344-143.008L454.528 1.12c3.424-0.736 6.88-1.12 10.368-1.12A143.264 143.264 0 0 1 608 143.104v737.76A143.296 143.296 0 0 1 464.896 1024z m4.352-927.808L185.472 158.88A49.216 49.216 0 0 1 175.104 160C149.152 160 128 181.152 128 207.104v609.76C128 842.88 149.152 864 175.104 864c3.488 0 6.944 0.384 10.368 1.12l283.776 62.688A47.2 47.2 0 0 0 512 880.864V143.104c0-24.512-18.816-44.704-42.752-46.912zM752 941.344a48 48 0 0 1-48-48V130.656a48 48 0 1 1 96 0v762.656a48 48 0 0 1-48 48.032zM944 848A48 48 0 0 1 896 800V224a48 48 0 1 1 96 0v576a48 48 0 0 1-48 48z"></path><path d="M381.344 357.344H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 560H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 762.656H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96z"></path></svg>',
+      detailDownload: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M760.889 879.125H263.11c-55.623 0-100.885-45.255-100.885-100.885V377.849c0-55.623 42.062-100.885 93.774-100.885h64v59.54h-64c-18.553 0-34.226 18.93-34.226 41.338V778.24c0 22.791 18.546 41.337 41.337 41.337H760.89c22.791 0 41.337-18.546 41.337-41.337V377.849c0-22.407-15.673-41.337-34.226-41.337h-64v-59.541h64c51.705 0 93.774 45.255 93.774 100.885v400.398c0 55.616-45.262 100.871-100.885 100.871z"></path><path d="M680.974 458.517c-10.617-11.577-28.615-12.352-40.185-1.728l-100.345 92.06V137.317c0-15.709-12.736-28.445-28.444-28.445s-28.444 12.736-28.444 28.445v410.097l-95.296-90.31c-11.4-10.81-29.412-10.319-40.207 1.08-10.809 11.406-10.318 29.405 1.081 40.206L492.437 634.19c5.51 5.07 12.71 7.8 19.55 7.8 6.7 0 13.35-2.37 18.58-7.3l148.011-135.8c11.577-10.625 12.36-28.623 1.735-40.2z"></path></svg>',
       download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 10 4 4 4-4"></path><path d="M5 20h14"></path></svg>',
       box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10v12H7z"></path><path d="M9 8V5h6v3"></path></svg>',
       tag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 11 4h7v7l-7 7-7-7Z"></path><circle cx="15.5" cy="7.5" r="1"></circle></svg>',
@@ -2354,9 +2356,9 @@
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
-      ['home-excel-coming-soon', 'download', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
+      ['home-excel-coming-soon', 'batch', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
-      ['home-download-detail', 'list', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
+      ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
     ];
     return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
       '<div class="pfh-home-orbit"><i class="wave"></i><i class="wave"></i><i class="wave"></i><span></span></div>' +
@@ -2418,6 +2420,7 @@
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
       (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
       '<span class="is-date">' + escapeHtml(dateText) + '</span>' +
+      (mode === 'finalized' ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">改时间</button>' : '') +
       (mode === 'design' && record.imagePackDone ? '<span class="is-pack">图包已完成</span>' : '') +
       '</div>';
     const actions = mode === 'finalized'
@@ -2445,7 +2448,7 @@
   function ledgerFileButtonHtml(action, sku, dateAttr, label, code, stateValue, doneFallback) {
     const value = normalizeLedgerFileState(stateValue, doneFallback);
     const title = label + '\uff1a' + ledgerFileStateLabel(value) + (code ? ' \u00b7 ' + code : '');
-    return '<button type="button" class="is-' + escapeHtml(value) + '" data-action="' + action + '" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(title) + '">' + escapeHtml(label) + (code ? '<small>' + escapeHtml(code) + '</small>' : '') + '</button>';
+    return '<button type="button" class="is-' + escapeHtml(value) + '" data-action="' + action + '" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(title) + '"><span>' + escapeHtml(label) + '</span>' + (value === 'skip' ? '<em>无需</em>' : '') + (code ? '<small>' + escapeHtml(code) + '</small>' : '') + '</button>';
   }
 
   function productThumbHtml(data) {
@@ -2977,6 +2980,10 @@
     }
     if (action === 'ledger-finalize' || action === 'ledger-void' || action === 'ledger-done' || action === 'ledger-remove') {
       updateLedgerFromAction(action, actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
+      return;
+    }
+    if (action === 'ledger-edit-finalized-time') {
+      editLedgerFinalizedTime(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
       return;
     }
     if (action === 'ledger-toggle-box-file' || action === 'ledger-toggle-label-file' || action === 'ledger-toggle-image-pack') {
@@ -7469,6 +7476,43 @@
         : { status: '已完成', stage: '完成', note: '手动完成' };
     updateDailyLedgerForSku(sku, patch, key);
     renderShell();
+  }
+
+  function editLedgerFinalizedTime(sku, dateKey) {
+    if (!sku) return;
+    const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+    const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
+    if (!existing || !existing.finalizedAt) {
+      showToast('请先定稿后再修改时间');
+      return;
+    }
+    const initial = formatLedgerInputDateTime(existing.finalizedAtMs || existing.finalizedAt);
+    const value = window.prompt('修改定稿时间（YYYY-MM-DD HH:mm）', initial);
+    if (value === null) return;
+    const timeMs = parseLedgerDateTimeMs(value);
+    if (!timeMs) {
+      showToast('时间格式不正确，请使用 2026-07-10 14:30');
+      return;
+    }
+    const date = new Date(timeMs);
+    const finalizedDate = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    updateDailyLedgerForSku(sku, {
+      status: '已定稿',
+      stage: '已定稿',
+      finalizedAt: formatLedgerMinuteLabel(timeMs),
+      finalizedDate,
+      finalizedAtMs: timeMs,
+      note: '已修改定稿时间',
+    }, key);
+    showToast('定稿时间已更新');
+    renderShell();
+  }
+
+  function formatLedgerInputDateTime(value) {
+    const timeMs = parseLedgerDateTimeMs(value);
+    const date = new Date(timeMs || Date.now());
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-') +
+      ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
   }
 
   function toggleLedgerWorkFlag(action, sku, dateKey) {
@@ -14707,6 +14751,79 @@
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-history-card {
         display: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-toolbar {
+        grid-template-columns: 136px 54px 58px 66px 54px !important;
+        gap: 6px !important;
+        justify-content: start !important;
+      }
+      #${PANEL_ID} .pfh-ledger-toolbar input,
+      #${PANEL_ID} .pfh-ledger-toolbar button {
+        min-width: 0 !important;
+        padding: 0 8px !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-ledger-edit-time {
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 7px !important;
+        border: 0 !important;
+        border-radius: 7px !important;
+        background: rgba(244,241,255,.72) !important;
+        color: #6d35e8 !important;
+        font-size: 10px !important;
+        font-weight: 400 !important;
+        line-height: 22px !important;
+      }
+      #${PANEL_ID} .pfh-ledger-edit-time:hover {
+        background: rgba(232,225,255,.92) !important;
+        color: #5424c7 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button.is-skip {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        border: 1px dashed rgba(100,116,139,.72) !important;
+        background: repeating-linear-gradient(-45deg, rgba(241,245,249,.96) 0 6px, rgba(226,232,240,.64) 6px 12px) !important;
+        color: #475569 !important;
+        text-decoration: none !important;
+        box-shadow: none !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button.is-skip::before {
+        content: '\\2715' !important;
+        display: inline-grid !important;
+        place-items: center !important;
+        width: 14px !important;
+        height: 14px !important;
+        border: 1px solid rgba(100,116,139,.72) !important;
+        border-radius: 50% !important;
+        color: #64748b !important;
+        font-size: 9px !important;
+        line-height: 1 !important;
+      }
+      #${PANEL_ID} .pfh-ledger-file-actions button.is-skip em {
+        display: inline !important;
+        color: #64748b !important;
+        font-size: 10px !important;
+        font-style: normal !important;
+        line-height: 1 !important;
+      }
+      #${PANEL_ID} .pfh-list-head {
+        display: grid !important;
+        grid-template-columns: 36px minmax(0, 1fr) auto !important;
+        align-items: center !important;
+        column-gap: 10px !important;
+        min-height: 36px !important;
+      }
+      #${PANEL_ID} .pfh-list-head strong,
+      #${PANEL_ID} .pfh-list-head span {
+        align-self: center !important;
+        margin: 0 !important;
+      }
+      #${PANEL_ID} .pfh-list-head span {
+        justify-self: end !important;
+        white-space: nowrap !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-bottom {
         padding: 0 14px 14px !important;
