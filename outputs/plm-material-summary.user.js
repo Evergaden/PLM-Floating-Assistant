@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.52
+// @version      2.4.53
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.52';
+  const SCRIPT_VERSION = '2.4.53';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2377,7 +2377,7 @@
       ? '<div class="pfh-copywriting-hero-actions">' +
           '<button type="button" data-action="copywriting-back">返回数据</button>' +
           '<button type="button" data-action="copywriting-copy">复制全文</button>' +
-          '<button type="button" class="is-icon" data-action="copywriting-refresh" title="重新获取文案">' + iconHtml('refresh') + '</button>' +
+          '<button type="button" data-action="copywriting-refresh">重新获取</button>' +
           ((data && data.copywriting && data.copywriting.updatePending) ? '<button type="button" data-action="copywriting-ack">已查看更新</button>' : '') +
         '</div>'
       : '<button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>';
@@ -2822,9 +2822,21 @@
       }
       state.copywritingStatus = '正在下载并解析 ' + file.fileName;
       renderShell();
-      const url = await resolveCopywritingDocumentUrl(file.card);
-      if (!url) throw new Error('未捕获到 Word 的真实下载地址');
-      const arrayBuffer = await downloadCopywritingDocument(url);
+      let source = await resolveCopywritingDocumentSource(file.card, file.fileName);
+      if (!source || (!source.url && !source.arrayBuffer)) throw new Error('未读取到 Word 文件内容');
+      addLog('info', '产品文案：已取得文件内容', source.arrayBuffer ? '内存 Word 数据' : String(source.url || '').replace(/\?.*$/, '?...'));
+      let arrayBuffer;
+      try {
+        arrayBuffer = source.arrayBuffer || await downloadCopywritingDocument(source.url);
+        if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('读取到的内容不是有效 Word 文件');
+      } catch (error) {
+        if (source.kind === 'captured') throw error;
+        addLog('warn', '产品文案：组件地址不可直接读取，改用下载监听', formatErrorMessage(error));
+        source = { ...(await captureCopywritingDownloadSource(file.card, file.fileName)), kind: 'captured' };
+        if (!source.url && !source.arrayBuffer) throw error;
+        arrayBuffer = source.arrayBuffer || await downloadCopywritingDocument(source.url);
+        if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('下载监听取得的内容不是有效 Word 文件');
+      }
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
       const tableRows = await parseCopywritingDocxRows(arrayBuffer);
       const built = buildMainstreamCopywriting(tableRows, workingData);
@@ -2872,7 +2884,7 @@
       .filter(isVisibleElement)
       .find((item) => {
         const label = item.querySelector('.ant-form-item-label');
-        return compactText(label && (label.innerText || label.textContent)).replace(/[：:]$/, '') === '产品文案';
+        return compactText(label && (label.innerText || label.textContent)).replace(/[：:*]/g, '') === '产品文案';
       }) || null;
   }
 
@@ -2902,10 +2914,12 @@
     return ((String(fileName || '').match(/_(\d{14,17})(?=\.docx$)/i) || [])[1] || '');
   }
 
-  async function resolveCopywritingDocumentUrl(card) {
+  async function resolveCopywritingDocumentSource(card, fileName) {
     const direct = findCopywritingUrlInCard(card);
-    if (direct) return direct;
-    return captureCopywritingDownloadUrl(card);
+    if (direct) return { url: direct, arrayBuffer: null, kind: 'direct' };
+    const componentUrl = findCopywritingUrlInVueState(card, fileName);
+    if (componentUrl) return { url: componentUrl, arrayBuffer: null, kind: 'component' };
+    return { ...(await captureCopywritingDownloadSource(card, fileName)), kind: 'captured' };
   }
 
   function findCopywritingUrlInCard(card) {
@@ -2925,9 +2939,10 @@
   }
 
   function normalizeCopywritingUrl(value) {
-    const text = String(value || '').trim().replace(/&amp;/g, '&');
+    const text = String(value || '').trim().replace(/&amp;/g, '&').replace(/\\\//g, '/');
     if (!text || /^(?:data:|javascript:)/i.test(text) || /filePic\/word\.png/i.test(text)) return '';
     if (/^(?:https?:|blob:)/i.test(text)) return text;
+    if (/^\/\//.test(text)) return location.protocol + text;
     if (/^\//.test(text)) return location.origin + text;
     return '';
   }
@@ -2937,19 +2952,114 @@
     return /^blob:/i.test(text) || (/^https?:/i.test(text) && /(?:\.docx(?:\?|$)|download|attachment)/i.test(text));
   }
 
-  async function captureCopywritingDownloadUrl(card) {
+  function scoreCopywritingUrl(url, fileName) {
+    const text = String(url || '').toLowerCase();
+    if (!text || /filepic\/word\.png|data:image/i.test(text)) return -100;
+    let score = /^(?:https?:|blob:)/i.test(text) ? 1 : 0;
+    if (/^blob:/i.test(text)) score += 100;
+    if (/\.docx(?:\?|$)/i.test(text)) score += 90;
+    if (/download|attachment/i.test(text)) score += 45;
+    if (/file(?:\/|=|\?|_)/i.test(text)) score += 18;
+    if (/oss|object|storage/i.test(text)) score += 10;
+    const normalizedName = String(fileName || '').toLowerCase();
+    if (normalizedName && (text.includes(normalizedName) || text.includes(encodeURIComponent(normalizedName).toLowerCase()))) score += 80;
+    return score;
+  }
+
+  function findCopywritingUrlInVueState(card, fileName) {
     if (!card) return '';
+    const roots = [];
+    let element = card;
+    for (let level = 0; element && level < 6; level += 1, element = element.parentElement) {
+      try {
+        Object.getOwnPropertyNames(element).filter((key) => /^__vue/i.test(key)).forEach((key) => roots.push(element[key]));
+      } catch (error) { /* no-op */ }
+    }
+    const queue = [];
+    roots.forEach((instance) => {
+      if (!instance || typeof instance !== 'object') return;
+      ['props', 'setupState', 'data', 'ctx', 'attrs'].forEach((key) => {
+        try { if (instance[key]) queue.push({ value: instance[key], depth: 0, key }); } catch (error) { /* no-op */ }
+      });
+      try { if (instance.vnode && instance.vnode.props) queue.push({ value: instance.vnode.props, depth: 0, key: 'vnode.props' }); } catch (error) { /* no-op */ }
+    });
+    const seen = new Set();
+    const candidates = [];
+    let inspected = 0;
+    const addCandidate = (value, key, sameFileObject) => {
+      const raw = String(value || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/');
+      const values = [raw].concat(raw.match(/https?:\/\/[^"'<>\s]+/gi) || []);
+      values.forEach((candidate) => {
+        const url = normalizeCopywritingUrl(candidate);
+        if (!url) return;
+        const baseScore = scoreCopywritingUrl(url, fileName);
+        const score = baseScore + (/url|path|download|file/i.test(String(key || '')) ? 20 : 0) + (sameFileObject ? 40 : 0);
+        if (baseScore > 20 || sameFileObject) candidates.push({ url, score });
+      });
+    };
+    while (queue.length && inspected < 700) {
+      const entry = queue.shift();
+      const value = entry.value;
+      inspected += 1;
+      if (typeof value === 'string') {
+        addCandidate(value, entry.key, false);
+        continue;
+      }
+      if (!value || typeof value !== 'object' || entry.depth >= 5 || seen.has(value)) continue;
+      if (value.nodeType || value === window || value === document) continue;
+      seen.add(value);
+      let keys = [];
+      try { keys = Object.keys(value).slice(0, 80); } catch (error) { continue; }
+      const normalizedName = String(fileName || '').toLowerCase();
+      const sameFileObject = Boolean(normalizedName && keys.some((key) => {
+        try { return typeof value[key] === 'string' && String(value[key]).toLowerCase().includes(normalizedName); } catch (error) { return false; }
+      }));
+      keys.forEach((key) => {
+        if (/^(?:parent|root|appContext|subTree|component|el|proxy|provides)$/i.test(key)) return;
+        let child;
+        try { child = value[key]; } catch (error) { return; }
+        if (typeof child === 'string') addCandidate(child, key, sameFileObject);
+        else if (child && typeof child === 'object') queue.push({ value: child, depth: entry.depth + 1, key });
+      });
+    }
+    return candidates.sort((a, b) => b.score - a.score)[0]?.url || '';
+  }
+
+  async function captureCopywritingDownloadSource(card, fileName) {
+    if (!card) return { url: '', arrayBuffer: null };
     const control = Array.from(card.querySelectorAll('.anticon-vertical-align-bottom, [aria-label="vertical-align-bottom"], [class*="download" i]'))
       .find(isVisibleElement);
     const clickable = control && (control.closest('.delBtn, button, a, [role="button"]') || control);
-    if (!clickable) return '';
+    if (!clickable) return { url: '', arrayBuffer: null };
     let captured = '';
+    let capturedScore = -100;
+    let capturedAt = 0;
+    let capturedReady = false;
+    let capturedBuffer = null;
     const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const restores = [];
-    const capture = (value) => {
+    const capture = (value, bonus, ready) => {
       const url = normalizeCopywritingUrl(value);
-      if (url && !captured) captured = url;
+      const score = scoreCopywritingUrl(url, fileName) + Number(bonus || 0);
+      if (!url || (score < 25 && !ready)) return false;
+      if (url && score > capturedScore) {
+        captured = url;
+        capturedScore = score;
+        capturedAt = Date.now();
+        capturedReady = Boolean(ready);
+      }
       return Boolean(url);
+    };
+    const captureBuffer = (value) => {
+      if (!value) return;
+      const convert = Object.prototype.toString.call(value) === '[object ArrayBuffer]'
+        ? Promise.resolve(value)
+        : (typeof value.arrayBuffer === 'function' ? value.arrayBuffer() : Promise.resolve(null));
+      convert.then((buffer) => {
+        if (!buffer || !buffer.byteLength) return;
+        const bytes = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength));
+        if (bytes[0] === 0x50 && bytes[1] === 0x4b) capturedBuffer = buffer;
+      }).catch(() => {});
     };
     try {
       const anchorProto = root.HTMLAnchorElement && root.HTMLAnchorElement.prototype;
@@ -2957,7 +3067,7 @@
         const originalAnchorClick = anchorProto.click;
         anchorProto.click = function () {
           const url = this.href || this.getAttribute('href') || '';
-          if (capture(url)) return;
+          if (capture(url, 70, true)) return;
           return originalAnchorClick.apply(this, arguments);
         };
         restores.push(() => { anchorProto.click = originalAnchorClick; });
@@ -2965,7 +3075,7 @@
       if (typeof root.open === 'function') {
         const originalOpen = root.open;
         root.open = function (url) {
-          if (capture(url)) return null;
+          if (capture(url, 70, true)) return null;
           return originalOpen.apply(this, arguments);
         };
         restores.push(() => { root.open = originalOpen; });
@@ -2974,7 +3084,8 @@
         const originalCreate = root.URL.createObjectURL;
         root.URL.createObjectURL = function () {
           const url = originalCreate.apply(this, arguments);
-          capture(url);
+          captureBuffer(arguments[0]);
+          capture(url, 100, true);
           return url;
         };
         restores.push(() => { root.URL.createObjectURL = originalCreate; });
@@ -2987,6 +3098,53 @@
         };
         restores.push(() => { root.URL.revokeObjectURL = originalRevoke; });
       }
+      if (typeof root.fetch === 'function') {
+        const originalFetch = root.fetch;
+        root.fetch = function (input) {
+          const requestUrl = typeof input === 'string' ? input : (input && input.url) || '';
+          capture(requestUrl, 15, false);
+          const result = originalFetch.apply(this, arguments);
+          result.then((response) => {
+            const disposition = response.headers && response.headers.get ? (response.headers.get('content-disposition') || '') : '';
+            const contentType = response.headers && response.headers.get ? (response.headers.get('content-type') || '') : '';
+            capture(response.url || requestUrl, 25, false);
+            if (/docx|officedocument|octet-stream|attachment/i.test(disposition + ' ' + contentType + ' ' + requestUrl)) {
+              try { captureBuffer(response.clone()); } catch (error) { /* no-op */ }
+            }
+          }).catch(() => {});
+          return result;
+        };
+        restores.push(() => { root.fetch = originalFetch; });
+      }
+      const xhrProto = root.XMLHttpRequest && root.XMLHttpRequest.prototype;
+      if (xhrProto && xhrProto.open && xhrProto.send) {
+        const originalXhrOpen = xhrProto.open;
+        const originalXhrSend = xhrProto.send;
+        xhrProto.open = function (method, url) {
+          this.__pfhCopywritingUrl = String(url || '');
+          capture(url, 15, false);
+          return originalXhrOpen.apply(this, arguments);
+        };
+        xhrProto.send = function () {
+          const xhr = this;
+          const requestUrl = xhr.__pfhCopywritingUrl || '';
+          xhr.addEventListener('load', () => {
+            let disposition = '';
+            let contentType = '';
+            try {
+              disposition = xhr.getResponseHeader('content-disposition') || '';
+              contentType = xhr.getResponseHeader('content-type') || '';
+            } catch (error) { /* no-op */ }
+            capture(xhr.responseURL || requestUrl, 25, false);
+            if (/docx|officedocument|octet-stream|attachment/i.test(disposition + ' ' + contentType + ' ' + requestUrl)) captureBuffer(xhr.response);
+          }, { once: true });
+          return originalXhrSend.apply(this, arguments);
+        };
+        restores.push(() => {
+          xhrProto.open = originalXhrOpen;
+          xhrProto.send = originalXhrSend;
+        });
+      }
     } catch (error) {
       addLog('warn', '产品文案：下载地址监听受限', formatErrorMessage(error));
     }
@@ -2994,9 +3152,9 @@
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => Array.from(mutation.addedNodes || []).forEach((node) => {
         if (!node || node.nodeType !== 1) return;
-        capture(node.href || (node.getAttribute && (node.getAttribute('href') || node.getAttribute('src'))) || '');
+        capture(node.href || (node.getAttribute && (node.getAttribute('href') || node.getAttribute('src'))) || '', 45, true);
         if (!captured && node.querySelectorAll) {
-          Array.from(node.querySelectorAll('a[href], [src]')).some((el) => capture(el.href || el.src || ''));
+          Array.from(node.querySelectorAll('a[href], [src]')).some((el) => capture(el.href || el.src || '', 45, true));
         }
       }));
     });
@@ -3004,20 +3162,23 @@
     try {
       clickElement(clickable);
       const observed = await waitUntil(() => {
-        if (captured) return captured;
+        if (capturedBuffer) return 'buffer';
+        if (captured && capturedReady) return 'url';
         const resources = (performance.getEntriesByType && performance.getEntriesByType('resource') || [])
           .map((entry) => entry.name)
           .filter((name) => !before.has(name));
-        return resources.map(normalizeCopywritingUrl).find((url) => /(?:\.docx(?:\?|$)|download|attachment|file\/)/i.test(url)) || '';
-      }, 5000, 100);
-      if (!captured && observed) captured = observed;
+        resources.forEach((url) => capture(url, 20, false));
+        if (captured && capturedAt && Date.now() - capturedAt > 6500) return 'url';
+        return '';
+      }, 9000, 100);
+      if (!observed && captured) capturedReady = true;
     } finally {
       observer.disconnect();
       restores.reverse().forEach((restore) => {
         try { restore(); } catch (error) { /* no-op */ }
       });
     }
-    return captured;
+    return { url: captured, arrayBuffer: capturedBuffer };
   }
 
   function downloadCopywritingDocument(url) {
@@ -3055,6 +3216,12 @@
         ontimeout: () => reject(new Error('Word 下载超时')),
       });
     });
+  }
+
+  function isCopywritingDocxBuffer(arrayBuffer) {
+    if (!arrayBuffer || arrayBuffer.byteLength < 4) return false;
+    const bytes = new Uint8Array(arrayBuffer, 0, 4);
+    return bytes[0] === 0x50 && bytes[1] === 0x4b;
   }
 
   async function parseCopywritingDocxRows(arrayBuffer) {
