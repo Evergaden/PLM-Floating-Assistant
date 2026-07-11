@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.60';
+  const SCRIPT_VERSION = '2.4.61';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2327,7 +2327,10 @@
       list.innerHTML = listHead + '<div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
       return;
     }
-    list.innerHTML = listHead + '<div class="pfh-sku-scroll">' + (searchTokens.length ? '<div class="pfh-list-note">' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</div>' : '') + items.map((item) => {
+    const searchToolbar = searchTokens.length
+      ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
+      : '';
+    list.innerHTML = listHead + '<div class="pfh-sku-scroll">' + searchToolbar + items.map((item) => {
       const active = item.sku === state.selectedSku ? ' is-active' : '';
       const pinned = item.pinned ? ' is-pinned' : '';
       const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
@@ -3697,6 +3700,10 @@
       showToast(L.copied);
       return;
     }
+    if (action === 'pin-search-results') {
+      pinCurrentSearchResults();
+      return;
+    }
     if (action === 'about') {
       if (!state.settings.backgroundNoticeSeen) {
         state.settings.backgroundNoticeSeen = true;
@@ -4101,17 +4108,11 @@
     if (skuButton) {
       const sku = skuButton.getAttribute('data-sku');
       const data = loadData(sku);
-      const shouldPromote = Boolean(state.searchQuery.trim());
       state.selectedSku = sku;
       state.data = data ? normalizeData(data) : null;
-      state.searchQuery = '';
       state.view = 'detail';
       state.copywritingMode = false;
       resetExcelState();
-      const input = ensurePanel().querySelector('.pfh-search-input');
-      if (input) input.value = '';
-      updateSearchClear();
-      if (shouldPromote) promoteIndexItem(sku);
       expandPanel();
       renderShell();
       return;
@@ -5663,6 +5664,22 @@
     state.view = 'detail';
     state.copywritingMode = false;
     expandPanel();
+    renderShell();
+  }
+
+  function pinCurrentSearchResults() {
+    const matches = getSearchMatches(state.searchQuery);
+    if (!matches.length) return;
+    matches.forEach((match, index) => {
+      const item = state.index.find((entry) => entry.sku === match.sku);
+      if (!item) return;
+      item.pinned = true;
+      // Reserve the very top slots for this batch while retaining result order.
+      item.pinOrder = index + 1;
+    });
+    saveIndex();
+    state.skuPage = 1;
+    showToast('已置顶 ' + matches.length + ' 个编码');
     renderShell();
   }
 
@@ -15774,6 +15791,38 @@
       }
       #${PANEL_ID} .pfh-list-head span {
         justify-self: end !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-search-result-toolbar {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        margin: 0 0 8px !important;
+        min-height: 28px !important;
+      }
+      #${PANEL_ID} .pfh-search-result-toolbar button {
+        height: 26px !important;
+        padding: 0 9px !important;
+        border: 1px solid rgba(124, 58, 237, .24) !important;
+        border-radius: 9px !important;
+        background: rgba(244, 241, 255, .78) !important;
+        color: #6d35e8 !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 24px !important;
+        white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-search-result-toolbar button:hover {
+        border-color: rgba(124, 58, 237, .42) !important;
+        background: rgba(124, 58, 237, .12) !important;
+      }
+      #${PANEL_ID} .pfh-search-result-toolbar span {
+        margin-left: auto !important;
+        color: #6b7897 !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        text-align: right !important;
         white-space: nowrap !important;
       }
       #${PANEL_ID} .pfh-excel-controls {
