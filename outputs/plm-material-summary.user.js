@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.83
+// @version      2.4.84
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.83';
+  const SCRIPT_VERSION = '2.4.84';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -8809,10 +8809,11 @@
 
   function findCurrentPlmUserName() {
     const candidates = Array.from(document.querySelectorAll(
-      '[data-user-name], [data-username], .user-name, .userName, .username, .nick-name, .nickName, .nickname, .ant-layout-header .ant-dropdown-trigger, header .ant-dropdown-trigger, [class*="user-info"], [class*="userInfo"], [class*="account-name"], [class*="accountName"], [class*="profile-name"], [class*="profileName"]'
+      '.btnBoxMainText.ant-dropdown-trigger, [data-user-name], [data-username], .user-name, .userName, .username, .nick-name, .nickName, .nickname, .ant-layout-header .ant-dropdown-trigger, header .ant-dropdown-trigger, [class*="user-info"], [class*="userInfo"], [class*="account-name"], [class*="accountName"], [class*="profile-name"], [class*="profileName"]'
     )).filter(isVisibleElement);
     for (const element of candidates) {
-      const value = String(element.getAttribute('data-user-name') || element.getAttribute('data-username') || element.innerText || element.textContent || '').trim().replace(/\s+/g, ' ');
+      const ownText = Array.from(element.childNodes || []).filter((node) => node.nodeType === 3).map((node) => node.textContent || '').join(' ').trim();
+      const value = String(element.getAttribute('data-user-name') || element.getAttribute('data-username') || ownText || element.innerText || element.textContent || '').trim().replace(/\s+/g, ' ');
       if (/^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z ._-]{1,30}$/.test(value) && !/^(PLM|\u7528\u6237|\u8d26\u53f7|\u6211\u7684)$/.test(value) && !/\u9000\u51fa|\u767b\u5f55|\u8bbe\u7f6e|\u5e2e\u52a9/.test(value)) return value;
     }
     return '';
@@ -9175,7 +9176,11 @@
         try {
           data = text ? JSON.parse(text) : {};
         } catch (error) {
-          reject(error);
+          if (response.status >= 200 && response.status < 300 && path === '/backup/save') {
+            resolve({ ok: true, responseFormat: 'html' });
+            return;
+          }
+          reject(new Error('云端返回了非 JSON 响应（HTTP ' + response.status + '）'));
           return;
         }
         if (response.status < 200 || response.status >= 300) {
@@ -9184,7 +9189,7 @@
         }
         resolve(data);
       };
-      if (typeof GM_xmlhttpRequest === 'function') {
+      if (typeof GM_xmlhttpRequest === 'function' && !/\.workers\.dev\//.test(url)) {
         GM_xmlhttpRequest({
           method,
           url,
@@ -9211,7 +9216,14 @@
         },
         body,
       }).then(async (response) => {
-        const data = await response.json().catch(() => ({}));
+        const text = await response.text();
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (error) {
+          if (response.ok && path === '/backup/save') return { ok: true, responseFormat: 'html' };
+          throw new Error('云端返回了非 JSON 响应（HTTP ' + response.status + '）');
+        }
         if (!response.ok) throw buildCloudError(data, response.status);
         return data;
       }).then(resolve, (error) => {
