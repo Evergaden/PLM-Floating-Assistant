@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.65';
+  const SCRIPT_VERSION = '2.4.66';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2148,6 +2148,7 @@
         '<li><b>1</b><p>\u6253\u5f00\u4efb\u610f\u4ea7\u54c1\u8be6\u60c5\u9875\uff0c\u6b63\u5f0f\u542f\u52a8\u7a0b\u5e8f\u3002</p></li>' +
         '<li><b>2</b><p>\u62d6\u52a8\u7a97\u53e3\u8c03\u6574\u5230\u5408\u9002\u4f4d\u7f6e\uff0c\u8ba9\u5b83\u4fdd\u6301\u8212\u670d\u7684\u5de5\u4f5c\u59ff\u52bf\u3002</p></li>' +
         '<li><b>3</b><div><p>\u5728\u6d4f\u89c8\u5668\u5c5e\u6027\u300c\u76ee\u6807\u300d\u680f\u672b\u5c3e\u6dfb\u52a0\u53c2\u6570\uff1a</p><code>--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding</code><p>\u907f\u514d\u6d4f\u89c8\u5668\u9000\u5230\u540e\u53f0\u540e\u6682\u505c\u4efb\u52a1\uff0c\u8ba9\u81ea\u52a8\u4e0a\u4f20\u5b89\u9759\u5730\u7ee7\u7eed\u5de5\u4f5c\u3002</p></div></li>' +
+        '<li><b>4</b><p>\u5728\u8bbe\u7f6e\u91cc\u7ed9\u81ea\u5df1\u7559\u4e00\u4e32\u6570\u5b57\u5bc6\u94a5\uff0c\u5e76\u8bb0\u4f4f\u5b83\u3002\u7cfb\u7edf\u53ef\u4ee5\u5e2e\u4f60\u4fdd\u5b58\u6570\u636e\uff0c\u4f46\u8bb0\u6027\u8fd9\u4ef6\u4e8b\u8fd8\u5f97\u4ea4\u7ed9\u4f60\u3002</p></li>' +
       '</ol>' +
       '<button type="button" data-action="first-run-tutorial-done">\u5f00\u59cb\u4f7f\u7528</button>' +
     '</section>';
