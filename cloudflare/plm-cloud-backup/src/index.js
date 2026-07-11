@@ -493,8 +493,26 @@ async function collectClassificationSamples(env, limit = 600) {
   }).filter((item) => item.sku || item.name);
 }
 
+function normalizeProvidedClassificationSamples(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 300).map((item) => ({
+    sku: cleanText(item && item.sku, 80),
+    brand: cleanText(item && item.brand, 120),
+    name: cleanText(item && item.name, 200),
+    productType: cleanText(item && item.productType, 120),
+    packageSize: cleanText(item && item.packageSize, 120),
+    productSize: cleanText(item && item.productSize, 120),
+    source: cleanText(item && item.source, 80),
+    fileName: cleanText(item && item.fileName, 180),
+    missingFields: [],
+    createdAt: '',
+  })).filter((item) => item.name || item.sku);
+}
+
 function buildFallbackClassificationPackage(samples, reason) {
   const keywordGroups = [
+    { label: '面霜', keywords: ['胶囊面霜', '面霜', 'face cream'], negativeKeywords: [] },
+    { label: '胶囊', keywords: ['烟酰胺胶囊', '胶囊', 'capsule'], negativeKeywords: ['胶囊面霜'] },
     { label: '玩具', keywords: ['玩具', '公仔', '玩偶', '捏捏', '积木', '盲盒', '史莱姆', '解压', 'toy', 'doll'] },
     { label: '美妆', keywords: ['精华', '面霜', '身体乳', '护肤', '烟酰胺', '香水', '口红', '睫毛', 'beauty', 'cream', 'serum'] },
     { label: '食品', keywords: ['软糖', '巧克力', '饼干', '咖啡', '茶包', '食品', 'gummy', 'candy', 'food'], negativeKeywords: ['捏捏', '公仔', '玩具', '玩偶'] },
@@ -558,25 +576,21 @@ function parseClassificationPackage(text, source) {
 }
 
 function buildCleanClassificationPrompt(samples) {
-  const sampleLimit = 80;
+  const sampleLimit = 300;
   const compactSamples = samples.slice(0, sampleLimit).map((item) => ({
     sku: item.sku,
     brand: item.brand,
     name: item.name,
-    productType: item.productType,
-    packageSize: item.packageSize,
-    productSize: item.productSize,
-    fileName: item.fileName,
   }));
   return [
-    'You are helping summarize PLM product data rules from shared historical samples.',
+    'You are helping classify PLM products from currently unclassified product names.',
     'Return one minified valid JSON object only. Do not use Markdown, code fences, comments, prose, or trailing commas.',
-    'Goal 1: summarize exactly 4 reusable product categories, such as food, toys, daily goods, beauty, pet, and other useful subcategories.',
-    'Goal 2: summarize exactly 4 reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
-    'Use keywords only when they are supported by product name, existing product type, file name, or packaging meaning. Avoid overly broad keywords.',
-    'Each rule should contain label, keywords, negativeKeywords, confidence, and examples. Keep at most 5 keywords and 1 example for each rule.',
+    'Goal 1: summarize reusable product-type rules from product names.',
+    'Goal 2: summarize reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
+    'Product-use/category words have higher priority than ingredient or package-form words. A complete phrase has higher priority than an isolated keyword.',
+    'Examples: "烟酰胺胶囊" should be 胶囊; "烟酰胺胶囊面霜" should be 面霜; "胶囊面霜" should be 面霜. For combined phrases, include the complete phrase as a keyword and use negativeKeywords to prevent the shorter rule from winning.',
     'Required schema exactly: {"summary":"short Chinese summary","sampleCount":0,"categories":[{"label":"玩具","keywords":["捏捏乐"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}],"packageTypes":[{"label":"标签","keywords":["标签"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}]}',
-    'The full dataset has ' + samples.length + ' samples. The following are the newest representative ' + compactSamples.length + ' samples:',
+    'The full dataset has ' + samples.length + ' unclassified samples. The following are the first ' + compactSamples.length + ' samples:',
     JSON.stringify(compactSamples),
   ].join('\n');
 }
@@ -696,7 +710,8 @@ async function handleClassificationSummarize(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request).catch(() => ({}));
   const requestedModel = normalizeInsightAiModel(body && body.aiModel, env);
-  const samples = await collectClassificationSamples(env, 800);
+  const providedSamples = normalizeProvidedClassificationSamples(body && body.samples);
+  const samples = providedSamples.length ? providedSamples : await collectClassificationSamples(env, 800);
   if (!samples.length) return json({ ok: false, error: 'no insight samples' }, 422);
   let pkg;
   let warning = '';
@@ -714,6 +729,7 @@ async function handleClassificationSummarize(request, env) {
     model: pkg.model || getAiModel(env, requestedModel),
     warning,
     sampleCount: samples.length,
+    sampleSource: providedSamples.length ? 'local-unclassified' : 'cloud-history',
     saved,
     summary: pkg.summary || '',
     rules,

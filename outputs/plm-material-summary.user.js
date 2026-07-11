@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.88
+// @version      2.4.89
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.88';
+  const SCRIPT_VERSION = '2.4.89';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -8216,14 +8216,21 @@
   }
 
   async function summarizeCloudClassificationRules() {
-    state.insightCloudStatus = '\u6b63\u5728\u8ba9 AI \u603b\u7ed3\u54c1\u7c7b/\u5305\u6750\u89c4\u5219...';
+    const samples = collectUnclassifiedClassificationSamples(300);
+    if (!samples.length) {
+      state.insightCloudStatus = '\u6682\u65e0\u672a\u5206\u7c7b\u4ea7\u54c1';
+      renderShell();
+      showToast(state.insightCloudStatus);
+      return;
+    }
+    state.insightCloudStatus = '\u6b63\u5728\u8ba9 AI \u603b\u7ed3\u524d ' + samples.length + ' \u6761\u672a\u5206\u7c7b\u4ea7\u54c1...';
     renderShell();
     try {
-      const response = await fetchClassificationSummarize();
+      const response = await fetchClassificationSummarize(samples);
       const rules = Array.isArray(response && response.rules) ? response.rules : [];
       state.classificationRules = rules;
       const warning = response && response.warning ? '\uff0c\u515c\u5e95\uff1a' + response.warning : '';
-      state.insightCloudStatus = '\u5206\u7c7b\u89c4\u5219\u5df2\u751f\u6210\uff1a' + rules.length + '\u6761\uff0c\u6837\u672c ' + (response.sampleCount || 0) + '\u6761\uff0c\u6765\u6e90 ' + (response.source || '') + warning;
+      state.insightCloudStatus = '\u5206\u7c7b\u89c4\u5219\u5df2\u751f\u6210\uff1a' + rules.length + '\u6761\uff0c\u672a\u5206\u7c7b\u6837\u672c ' + (response.sampleCount || 0) + '\u6761\uff0c\u6765\u6e90 ' + (response.sampleSource || response.source || '') + warning;
       addLog(response && response.warning ? 'warn' : 'success', 'AI \u603b\u7ed3\u5206\u7c7b\u89c4\u5219', state.insightCloudStatus);
       showToast(state.insightCloudStatus);
     } catch (error) {
@@ -8232,6 +8239,24 @@
       showToast(state.insightCloudStatus);
     }
     renderShell();
+  }
+
+  function collectUnclassifiedClassificationSamples(limit) {
+    const result = [];
+    (state.index || []).some((item) => {
+      if (result.length >= (Number(limit) || 300)) return true;
+      const sku = item && item.sku ? String(item.sku) : '';
+      if (!sku) return false;
+      const data = normalizeData(loadData(sku) || item);
+      if (!data || !data.sku) return false;
+      const explicitType = String(data.aiProductType || data.aiCategory || '').trim();
+      if (explicitType && !/^\u672a\u5206\u7c7b$/i.test(explicitType)) return false;
+      const name = String(data.name || item.name || '').trim();
+      if (!name) return false;
+      result.push({ sku: data.sku, brand: data.brand || '', name, productType: '' });
+      return false;
+    });
+    return result;
   }
 
   async function viewCloudClassificationRules() {
@@ -9160,8 +9185,8 @@
     return cloudRequest('/insights/classification-rules?limit=240', { method: 'GET' });
   }
 
-  async function fetchClassificationSummarize() {
-    return cloudRequest('/insights/classification-summarize', { method: 'POST', timeoutMs: 90000, body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting() } });
+  async function fetchClassificationSummarize(samples) {
+    return cloudRequest('/insights/classification-summarize', { method: 'POST', timeoutMs: 90000, body: { version: SCRIPT_VERSION, aiModel: getInsightAiModelSetting(), samples: Array.isArray(samples) ? samples.slice(0, 300) : [] } });
   }
 
   async function fetchMaintainedCleaningRules() {
@@ -9543,21 +9568,23 @@
   }
 
   function getProductTypeForInsight(data, extra) {
-    if (data && data.aiProductType) return String(data.aiProductType);
+    if (data && data.aiProductType && !/^\u672a\u5206\u7c7b$/i.test(String(data.aiProductType))) return String(data.aiProductType);
     const text = [
       extra && extra.englishName,
       extra && extra.chineseName,
       data && data.name,
       data && data.netContent,
     ].filter(Boolean).join(' ');
+    const ruleMatch = matchClassificationRules(data, state.classificationRules || [], 'category');
+    if (ruleMatch && ruleMatch.label) return ruleMatch.label;
+    if (/(?:\u80f6\u56ca|capsule)\s*(?:\u9762\u971c|cream)|(?:\u9762\u971c|cream)\s*(?:\u80f6\u56ca|capsule)/i.test(text)) return '\u9762\u971c';
     if (/\u8f6f\u7cd6|gumm/i.test(text)) return '\u8f6f\u7cd6';
-    if (/\u80f6\u56ca|capsule/i.test(text)) return '\u80f6\u56ca';
     if (/\u7cbe\u6cb9|oil/i.test(text)) return '\u7cbe\u6cb9';
+    if (/\u9762\u971c|face\s*cream/i.test(text)) return '\u9762\u971c';
+    if (/\u80f6\u56ca|capsule/i.test(text)) return '\u80f6\u56ca';
     if (/\u971c|cream/i.test(text)) return '\u971c\u7c7b';
     if (/\u9999\u6c34|perfume/i.test(text)) return '\u9999\u6c34';
     if (/\u73a9\u5177|toy|\u516c\u4ed4|\u634f\u634f/i.test(text)) return '\u73a9\u5177';
-    const ruleMatch = matchClassificationRules(data, state.classificationRules || [], 'category');
-    if (ruleMatch && ruleMatch.label) return ruleMatch.label;
     return '\u672a\u5206\u7c7b';
   }
 
@@ -9603,7 +9630,10 @@
         const hits = keywords.filter((kw) => kw && text.includes(kw.toLowerCase()));
         if (!hits.length) return null;
         const confidence = Number(rule.confidence || 0.65) || 0.65;
-        return { rule, hits, score: hits.reduce((sum, kw) => sum + Math.min(String(kw).length, 8), 0) * confidence };
+        return { rule, hits, score: hits.reduce((sum, kw) => {
+          const length = Math.min(String(kw).length, 24);
+          return sum + length * length;
+        }, 0) * confidence };
       })
       .filter(Boolean)
       .sort((a, b) => b.score - a.score);
@@ -9636,6 +9666,8 @@
       if (!sku) return;
       const data = normalizeData(loadData(sku) || item);
       if (!data || !data.sku) return;
+      const explicitType = String(data.aiProductType || data.aiCategory || '').trim();
+      if (explicitType && !/^\u672a\u5206\u7c7b$/i.test(explicitType)) return;
       total += 1;
       const category = matchClassificationRules(data, usable, 'category');
       const packageTypes = matchPackageTypeRules(data, usable);
