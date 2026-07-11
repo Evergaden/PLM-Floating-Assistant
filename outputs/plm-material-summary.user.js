@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.61';
+  const SCRIPT_VERSION = '2.4.62';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2151,7 +2151,7 @@
 
   function renderDeveloperTools() {
     return '<div class="pfh-developer-backdrop" data-action="developer-tools-close">' +
-      '<section class="pfh-developer-dialog" role="dialog" aria-modal="true" aria-label="开发者工具" onclick="event.stopPropagation()">' +
+      '<section class="pfh-developer-dialog" role="dialog" aria-modal="true" aria-label="开发者工具">' +
         '<div><strong>开发者工具</strong><span>当前布局</span></div>' +
         '<p>复制窗口、唤起按钮、尺寸和左右分隔栏数据，用于设定新用户首次打开时的默认布局。</p>' +
         '<button type="button" data-action="developer-layout-copy">复制当前布局</button>' +
@@ -3648,6 +3648,7 @@
       return;
     }
     if (action === 'developer-tools-close') {
+      if (actionTarget.classList.contains('pfh-developer-backdrop') && event.target !== actionTarget) return;
       state.developerToolsOpen = false;
       renderShell();
       return;
