@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.75
+// @version      2.4.76
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.75';
+  const SCRIPT_VERSION = '2.4.76';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -447,6 +447,8 @@
     uploadRunning: loadUploadWorkerRunning(),
     uploadProcessing: false,
     uploadView: 'queue',
+    uploadMode: 'standard',
+    toyLabelSkuInput: '',
     uploadPage: 1,
     uploadHistoryPage: 1,
     uploadSelectedIds: [],
@@ -3628,10 +3630,11 @@
     const selectedIds = new Set((state.uploadSelectedIds || []).filter((id) => visibleIdSet.has(id)));
     const rows = pageItems.length ? pageItems.map((item) => {
       const active = currentSku && item.sku === currentSku ? ' is-current' : '';
-      const ready = Boolean(item.xlsxKey && item.zipKey);
-      const status = viewingHistory ? (item.status || L.uploadSuccess) : (ready ? (item.status || '\u5f85\u4e0a\u4f20') : '\u7f3a\u6587\u4ef6');
+      const isToyLabel = item.kind === 'toy-label';
+      const ready = isToyLabel || Boolean(item.xlsxKey && item.zipKey);
+      const status = viewingHistory ? (item.status || L.uploadSuccess) : (ready ? (item.status || (isToyLabel ? '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e' : '\u5f85\u4e0a\u4f20')) : '\u7f3a\u6587\u4ef6');
       const statusClass = /\u6210\u529f/.test(status) ? 'is-success' : (!ready || /\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(status) ? 'is-missing' : 'is-ready');
-      const files = [
+      const files = isToyLabel ? '\u73a9\u5177\u6807\u7b7e\uff1a\u751f\u6210 / \u4e0a\u4f20 BOM / \u4e0b\u8f7d PSD \u4e0e\u56fe\u7247' : [
         item.xlsxName ? 'XLSX \u5df2\u6709 ' + item.xlsxName : 'XLSX \u7f3a\u5c11',
         item.zipName ? 'ZIP \u5df2\u6709 ' + item.zipName : 'ZIP \u7f3a\u5c11',
       ].join(' | ');
@@ -3652,6 +3655,7 @@
     const pager = '<div class="pfh-upload-pager"><span>\u5171 ' + allItems.length + ' \u6761</span><div><button type="button" data-action="' + pagerAction + '-prev"' + (state[pageKey] <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager(pagerAction, state[pageKey], totalPages) + '<button type="button" data-action="' + pagerAction + '-next"' + (state[pageKey] >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
+    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs"><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u63d0\u5ba1\u4e0a\u4f20</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button></div>' : '';
     const uploadInfoCards = '<div class="pfh-upload-info-grid">' +
       '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u4e0a\u65b9\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\uff0c\u5386\u53f2\u8bb0\u5f55\u53ef\u5728\u9876\u90e8\u6309\u94ae\u5207\u6362\u67e5\u770b\u3002</p></article>' +
       '</div>';
@@ -3662,9 +3666,11 @@
       '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button>' +
       '<button type="button" data-action="upload-toggle">' + escapeHtml('\u6536\u8d77') + '</button></div>' +
       '<div class="pfh-upload-body">' +
-        (viewingHistory ? '' : '<div class="pfh-upload-drop" data-upload-drop="any">' + escapeHtml(L.uploadDropHint) + '</div>' +
+        (viewingHistory ? '' : uploadModeTabs + (state.uploadMode === 'toy-label'
+          ? '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>'
+          : '<div class="pfh-upload-drop" data-upload-drop="any">' + escapeHtml(L.uploadDropHint) + '</div>' +
         '<input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar">' +
-        '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>') +
+        '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>')) +
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
       '</div>' + uploadInfoCards +
       '</section></div>' +
@@ -3988,6 +3994,15 @@
       clearCurrentUploadList();
       return;
     }
+    if (action === 'upload-mode') {
+      state.uploadMode = actionTarget.getAttribute('data-upload-mode') === 'toy-label' ? 'toy-label' : 'standard';
+      renderShell();
+      return;
+    }
+    if (action === 'toy-label-queue-add') {
+      addToyLabelQueueItems(state.toyLabelSkuInput);
+      return;
+    }
     if (action === 'upload-page-prev') {
       state.uploadPage = Math.max(1, (state.uploadPage || 1) - 1);
       renderShell();
@@ -4259,6 +4274,9 @@
       state.settings.cloudBackupKey = event.target.value.trim();
       saveSettings(state.settings);
     }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-toy-label-sku-input')) {
+      state.toyLabelSkuInput = event.target.value;
+    }
   }
 
   function handlePanelPaste(event) {
@@ -4402,6 +4420,41 @@
     };
     state.uploadQueue.unshift(item);
     return item;
+  }
+
+  function addToyLabelQueueItems(input) {
+    const skus = Array.from(new Set((String(input || '').match(/\bSKU\d+\b/ig) || []).map((sku) => sku.toUpperCase())));
+    if (!skus.length) {
+      showToast('请粘贴至少一个 SKU 编码');
+      return;
+    }
+    const queued = new Set((state.uploadQueue || []).filter((item) => item.kind === 'toy-label' && !/\u6210\u529f/.test(item.status || '')).map((item) => item.sku));
+    const now = new Date().toLocaleString();
+    const items = skus.filter((sku) => !queued.has(sku)).map((sku, index) => {
+      const cached = loadData(sku);
+      return {
+        id: 'toy-label-' + sku + '-' + Date.now() + '-' + index,
+        kind: 'toy-label',
+        sku,
+        name: buildUploadDisplayName(cached, '', sku),
+        xlsxKey: 'toy-label',
+        zipKey: 'toy-label',
+        status: '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e',
+        step: cached ? '\u7b49\u5f85\u5904\u7406' : '\u7f3a\u5c11\u672c\u5730\u7f13\u5b58',
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
+    if (!items.length) {
+      showToast('这些 SKU 已在玩具标签任务栏中');
+      return;
+    }
+    state.uploadQueue = items.concat(state.uploadQueue || []);
+    state.toyLabelSkuInput = '';
+    state.uploadPage = 1;
+    saveUploadQueue();
+    renderShell();
+    showToast(items.length + ' 个玩具标签任务已加入');
   }
 
   function cloneUploadFile(file) {
@@ -4703,6 +4756,14 @@
     const now = new Date().toLocaleString();
     return (queue || []).map((entry) => {
       if (!stale.some((item) => item.id === entry.id)) return entry;
+      if (entry.kind === 'toy-label') {
+        return {
+          ...entry,
+          status: '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e',
+          step: '\u7b49\u5f85\u5904\u7406',
+          updatedAt: now,
+        };
+      }
       const ready = Boolean(entry.xlsxKey && entry.zipKey);
       return {
         ...entry,
@@ -4767,7 +4828,37 @@
     }
   }
 
+  async function runToyLabelQueueItem(item) {
+    const data = normalizeData(loadData(item && item.sku) || {});
+    if (!data.sku) {
+      markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u672c\u5730\u7f13\u5b58\uff0c\u8bf7\u5148\u6253\u5f00\u8be5 SKU \u8be6\u60c5\u91c7\u96c6\u6570\u636e');
+      return;
+    }
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6253\u5f00\u9879\u76ee\u8be6\u60c5');
+    state.selectedSku = data.sku;
+    state.sku = data.sku;
+    state.data = data;
+    state.view = 'detail';
+    resetExcelState();
+    if (!(await ensureProjectDrawerForData(data))) {
+      markUploadQueueBlocked(item, L.uploadFailed, '\u672a\u6253\u5f00\u5bf9\u5e94\u9879\u76ee\u8be6\u60c5');
+      return;
+    }
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u751f\u6210\u6807\u7b7e / \u4e0a\u4f20 BOM');
+    const completed = await generateToyLabelFromCurrent();
+    if (!completed) {
+      markUploadQueueBlocked(item, L.uploadFailed, '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6216 BOM \u4e0a\u4f20\u5931\u8d25');
+      return;
+    }
+    archiveUploadItem(item);
+    addLog('success', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\u5b8c\u6210', data.sku);
+  }
+
   async function runUploadQueueItem(item) {
+    if (item && item.kind === 'toy-label') {
+      await runToyLabelQueueItem(item);
+      return;
+    }
     addLog('info', '\u63d0\u5ba1\u4e0a\u4f20\u5f00\u59cb', item && item.sku ? item.sku : '');
     const xlsx = await getUploadFile(item.xlsxKey);
     const zip = await getUploadFile(item.zipKey);
@@ -6743,12 +6834,14 @@
       renderShell();
       addLog('success', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6210\u529f', labelData.sku);
       showToast(L.labelDone);
+      return true;
     } catch (error) {
       console.warn('PLM floating helper label failed:', error);
       state.excelStatus = L.labelFailed;
       renderShell();
       addLog('error', '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u5931\u8d25', error && error.message ? error.message : '');
       showToast(L.labelFailed);
+      return false;
     }
   }
 
@@ -16298,6 +16391,30 @@
         align-self: center !important;
         flex-wrap: nowrap !important;
         padding-top: 0 !important;
+      }
+      #${PANEL_ID} .pfh-upload-mode-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      #${PANEL_ID} .pfh-upload-mode-tabs button.is-active {
+        color: #fff;
+        border-color: #7c3aed;
+        background: #7c3aed;
+      }
+      #${PANEL_ID} .pfh-toy-label-sku-input {
+        display: block;
+        width: 100%;
+        min-height: 112px;
+        box-sizing: border-box;
+        padding: 10px;
+        resize: vertical;
+        color: #1f2937;
+        border: 1px solid #d9d4f8;
+        border-radius: 10px;
+        background: rgba(255,255,255,.84);
+        font: inherit;
+        line-height: 1.55;
       }
       @keyframes pfh-copywriting-spin {
         to { transform: rotate(360deg); }
