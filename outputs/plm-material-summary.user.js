@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.57';
+  const SCRIPT_VERSION = '2.4.58';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -9841,8 +9841,10 @@
   function applySavedPosition(panel) {
     const pos = loadPosition();
     if (!pos) {
-      panel.style.right = '18px';
-      panel.style.bottom = '78px';
+      // A predictable first-run position; subsequent manual moves are persisted.
+      panel.style.right = '24px';
+      const initialHeight = Math.min(state.panelSize?.height || 906, getPanelMaxHeight());
+      panel.style.bottom = Math.max(8, window.innerHeight - initialHeight - 24) + 'px';
       return;
     }
     if (Number.isFinite(pos.right)) panel.style.right = pos.right + 'px';
@@ -9861,8 +9863,8 @@
     }
     const buttonWidth = 86;
     const buttonHeight = 34;
-    launcher.style.left = Math.min(window.innerWidth - buttonWidth - 18, Math.max(18, Math.round(window.innerWidth * 0.36))) + 'px';
-    launcher.style.top = Math.max(12, window.innerHeight - buttonHeight - 20) + 'px';
+    launcher.style.left = Math.max(8, window.innerWidth - buttonWidth - 24) + 'px';
+    launcher.style.top = Math.max(8, window.innerHeight - buttonHeight - 24) + 'px';
   }
 
   function loadLauncherPosition() {
