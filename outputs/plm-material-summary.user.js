@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.57
+// @version      2.4.70
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.69';
+  const SCRIPT_VERSION = '2.4.70';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -402,6 +402,10 @@
     seenProduct: false,
     seenDesign: false,
     scanTabCounts: {},
+    observedDrawer: null,
+    observedSku: '',
+    observedTab: '',
+    manualCollectTimer: 0,
     diagnosticRunning: false,
     nextTabTarget: L.materialTab,
     lastTabClickAt: 0,
@@ -502,6 +506,7 @@
       clearTimeout(timer);
       timer = setTimeout(() => {
         handleDrawerState();
+        observeManualTabRead();
         injectDetailImageDownloadButtons();
         positionLauncher(document.getElementById(LAUNCHER_ID));
       }, 120);
@@ -614,6 +619,11 @@
       state.drawer = drawer;
       state.sku = sku || '';
       state.data = normalizeData(cached);
+      const projectStatus = extractProjectStatus(text);
+      if (projectStatus && projectStatus !== state.data.projectStatus) {
+        state.data = normalizeData({ ...state.data, projectStatus });
+        saveData(sku, state.data);
+      }
       state.selectedSku = sku;
       state.view = 'detail';
       resetExcelState();
@@ -623,34 +633,30 @@
       if (!shouldSkipLedgerDrawer(drawer)) {
         upsertDailyLedgerFromData(state.data, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录', requireCurrentMonth: true });
       }
-      if (!state.data.seenDesign || !getProductThumbUrl(state.data)) {
-        resetRound(REFRESH_SCAN_ATTEMPTS);
-        state.scanTargetSku = sku;
-        lockLoadingTip(sku);
-        startScan();
-        return;
-      }
       renderShell();
       return;
     }
 
     state.drawer = drawer;
     state.sku = sku || '';
-    state.data = sku ? normalizeData({ sku, name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || '') }) : null;
+    state.data = sku ? normalizeData({ sku, name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''), projectStatus: extractProjectStatus(text) }) : null;
     state.selectedSku = sku || '';
     state.view = 'detail';
     resetExcelState();
-    resetRound(AUTO_SCAN_ATTEMPTS);
     expandPanel();
-    startScan();
+    renderShell();
   }
 
   function scheduleDrawerClosedCollapse() {
     const hadDrawer = Boolean(state.drawer || state.sku);
     stopScan();
     stopMaterialWatch();
+    stopManualTabRead();
     state.drawer = null;
     state.sku = '';
+    state.observedDrawer = null;
+    state.observedSku = '';
+    state.observedTab = '';
     if (hadDrawer) collapsePanel(true);
   }
 
@@ -670,6 +676,7 @@
   }
 
   function startScan() {
+    if (!state.settings.collectionEnabled) return;
     const drawer = getProjectDrawer();
     if (!drawer) {
       showToast('\u8bf7\u5148\u6253\u5f00\u9879\u76ee\u8be6\u60c5');
@@ -692,6 +699,10 @@
   }
 
   async function refreshSelectedData() {
+    if (!state.settings.collectionEnabled) {
+      showToast('数据采集已关闭');
+      return;
+    }
     const targetSku = (state.data && state.data.sku) || state.selectedSku || '';
     if (!targetSku) {
       showToast(L.excelNeedData);
@@ -773,6 +784,41 @@
       state.scanTimer = 0;
     }
     state.scanRunning = false;
+  }
+
+  function stopManualTabRead() {
+    if (state.manualCollectTimer) {
+      window.clearTimeout(state.manualCollectTimer);
+      state.manualCollectTimer = 0;
+    }
+  }
+
+  function observeManualTabRead() {
+    const drawer = getProjectDrawer();
+    if (!drawer || state.scanRunning || !state.settings.collectionEnabled) return;
+    const sku = findSku(getVisibleText(drawer));
+    const tab = getActiveTabText(drawer);
+    if (!sku || !tab) return;
+    if (drawer !== state.observedDrawer || sku !== state.observedSku) {
+      state.observedDrawer = drawer;
+      state.observedSku = sku;
+      state.observedTab = tab;
+      return;
+    }
+    if (tab === state.observedTab) return;
+    state.observedTab = tab;
+    stopManualTabRead();
+    state.manualCollectTimer = window.setTimeout(() => readCurrentManualTab(drawer, sku, tab), 420);
+  }
+
+  function readCurrentManualTab(drawer, sku, tab) {
+    state.manualCollectTimer = 0;
+    if (!state.settings.collectionEnabled || state.scanRunning || drawer !== getProjectDrawerForSku(sku) || getActiveTabText(drawer) !== tab) return;
+    const next = extractData(drawer);
+    if (!next.sku || next.sku !== sku) return;
+    const merged = mergeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }), next);
+    saveData(sku, merged);
+    if (state.selectedSku === sku) renderShell();
   }
 
   function startMaterialWatch() {
@@ -1049,7 +1095,11 @@
   }
 
   function isRoundComplete(data) {
-    return Boolean(data && data.sku && data.name && state.seenMaterial && state.seenProduct && state.seenDesign);
+    return Boolean(data && data.sku && data.name && state.seenMaterial && state.seenProduct && (!requiresSkuImage(data) || state.seenDesign));
+  }
+
+  function requiresSkuImage(data) {
+    return Boolean(data && data.projectStatus === '\u5df2\u5b8c\u6210');
   }
 
   function clickUsefulTab(drawer) {
@@ -1085,6 +1135,7 @@
     if ((state.scanTabCounts.material || 0) < minReads && activeText === L.materialTab) return '';
     if (!state.seenProduct) return activeText === L.productTab && (state.scanTabCounts.product || 0) < minReads ? '' : L.productTab;
     if ((state.scanTabCounts.product || 0) < minReads && activeText === L.productTab) return '';
+    if (!requiresSkuImage(state.scanData)) return '';
     if (!state.seenDesign) return activeText === '\u8bbe\u8ba1\u8d44\u6599' && (state.scanTabCounts.design || 0) < minReads ? '' : '\u8bbe\u8ba1\u8d44\u6599';
     if ((state.scanTabCounts.design || 0) < minReads && activeText === '\u8bbe\u8ba1\u8d44\u6599') return '';
     return '';
@@ -1111,10 +1162,11 @@
     const seenMaterial = activeTabText === L.materialTab || /\u7269\u6599\u7f16\u7801.*\u7269\u6599\u540d\u79f0.*\u89c4\u683c\u578b\u53f7/.test(text);
     const seenProduct = activeTabText === L.productTab || /\u89c4\u683c\u4fe1\u606f[\s\S]{0,300}\u6bdb\u91cd/.test(text);
     const seenDesign = activeTabText === '\u8bbe\u8ba1\u8d44\u6599' || /\u6548\u679c\u56fe\u4fe1\u606f|\bSKU[\s(_-]*\d+.*\.(jpg|jpeg|png|webp)\b/i.test(text);
+    const projectStatus = extractProjectStatus(text);
     const packaging = seenMaterial ? extractPackaging(drawer) : emptyPackaging();
     const outer = extractOuterPackage(drawer);
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
-    const imageInfo = seenDesign ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
+    const imageInfo = seenDesign && projectStatus === '\u5df2\u5b8c\u6210' ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
     const tubeFields = extractTubeFields(drawer);
     const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'), tubeFields);
     const isTubePrint = Boolean(tubeSpec);
@@ -1145,6 +1197,7 @@
       brand: getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer),
       designType: getProjectLooseField(text, '\u8bbe\u8ba1\u7c7b\u578b'),
       artPriority: getProjectLooseField(text, '\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7') || extractArtPriority(text),
+      projectStatus,
       referenceUrl: extractReferenceUrl(text),
       designAssignedAt: getProjectLooseField(text, '\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4'),
       developmentAssignedAt: getProjectLooseField(text, '\u5f00\u53d1\u5206\u914d\u65f6\u95f4'),
@@ -1312,6 +1365,14 @@
     const match = String(text || '').match(new RegExp(escaped + '\\s*[:\uff1a]?\\s*([\\s\\S]{0,120})'));
     if (!match) return '';
     return compactText(match[1]).split(stop)[0].trim();
+  }
+
+  function extractProjectStatus(text) {
+    const source = compactText(text || '');
+    const statuses = ['\u5f85\u5ba1\u6838', '\u8fdb\u884c\u4e2d', '\u5df2\u62d2\u7edd', '\u5df2\u4f5c\u5e9f', '\u5df2\u5b8c\u6210'];
+    const labeled = source.match(/\u9879\u76ee\u72b6\u6001\s*[:\uff1a]?\s*(\u5f85\u5ba1\u6838|\u8fdb\u884c\u4e2d|\u5df2\u62d2\u7edd|\u5df2\u4f5c\u5e9f|\u5df2\u5b8c\u6210)/);
+    if (labeled) return labeled[1];
+    return statuses.find((status) => source.includes(status)) || '';
   }
 
   function extractReferenceUrl(text) {
@@ -1827,6 +1888,7 @@
     panel.dataset.version = SCRIPT_VERSION;
     panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="about"></button><button type="button" data-action="home-main"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
     document.documentElement.appendChild(panel);
+    panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-switch" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6"><i></i></button>');
     panel.querySelector('strong').textContent = L.title;
     panel.querySelector('.pfh-search-input').placeholder = L.searchPlaceholder;
     panel.querySelector('.pfh-search-clear').textContent = '\u00d7';
@@ -2001,6 +2063,15 @@
     button.classList.toggle('has-notice', !state.settings.backgroundNoticeSeen);
   }
 
+  function updateCollectionSwitch(panel) {
+    const button = panel && panel.querySelector('[data-action="toggle-collection"]');
+    if (!button) return;
+    const enabled = Boolean(state.settings.collectionEnabled);
+    button.classList.toggle('is-on', enabled);
+    button.setAttribute('aria-checked', String(enabled));
+    button.title = enabled ? '\u6570\u636e\u91c7\u96c6\u5df2\u5f00\u542f' : '\u6570\u636e\u91c7\u96c6\u5df2\u5173\u95ed';
+  }
+
   function renderShell(statusText) {
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
@@ -2013,6 +2084,7 @@
     const scrollSnapshot = capturePanelScroll(panel);
     updatePanelPinButton(panel);
     updateSettingsNotice(panel);
+    updateCollectionSwitch(panel);
     renderUploadProgressOverlay(panel);
     renderFirstRunTutorialModal(panel);
     if (state.view === 'home') {
@@ -2364,8 +2436,10 @@
       return;
     }
     state.data = normalizeData(data);
-    if (!state.copywritingMode) {
+    if (!state.copywritingMode && requiresSkuImage(state.data)) {
       scheduleProductThumbHydration(state.data);
+      scheduleInsightRecommendation(state.data);
+    } else if (!state.copywritingMode) {
       scheduleInsightRecommendation(state.data);
     }
     const main = panel.querySelector('.pfh-main');
@@ -2703,7 +2777,7 @@
   function scheduleProductThumbHydration(data, options) {
     const opts = options || {};
     const sku = data && data.sku;
-    if (!sku || (!opts.refreshImage && getProductThumbUrl(data)) || state.thumbHydratingSku === sku || (!opts.force && state.thumbHydratedSkus.has(sku))) return;
+    if (!state.settings.collectionEnabled || !sku || !requiresSkuImage(data) || (!opts.refreshImage && getProductThumbUrl(data)) || state.thumbHydratingSku === sku || (!opts.force && state.thumbHydratedSkus.has(sku))) return;
     if (state.scanRunning && !opts.force) return;
     const failedAt = state.thumbHydrateFailedAt && state.thumbHydrateFailedAt[sku] || 0;
     if (!opts.force && failedAt && Date.now() - failedAt < 45000) return;
@@ -2722,6 +2796,7 @@
   }
 
   async function hydrateProductThumb(sku) {
+    if (!state.settings.collectionEnabled) return;
     const drawer = getProjectDrawerForSku(sku);
     if (!drawer) {
       state.thumbHydrateFailedAt[sku] = Date.now();
@@ -3645,6 +3720,22 @@
       copyText(layout);
       addLog('info', '已复制当前布局', layout.replace(/\n/g, ' | '));
       showToast('当前布局已复制');
+      return;
+    }
+    if (action === 'toggle-collection') {
+      state.settings.collectionEnabled = !state.settings.collectionEnabled;
+      saveSettings(state.settings);
+      if (!state.settings.collectionEnabled) {
+        stopScan();
+        stopMaterialWatch();
+        stopManualTabRead();
+      } else {
+        state.observedDrawer = getProjectDrawer();
+        state.observedSku = state.observedDrawer ? findSku(getVisibleText(state.observedDrawer)) : '';
+        state.observedTab = state.observedDrawer ? getActiveTabText(state.observedDrawer) : '';
+      }
+      showToast(state.settings.collectionEnabled ? '\u6570\u636e\u91c7\u96c6\u5df2\u5f00\u542f' : '\u6570\u636e\u91c7\u96c6\u5df2\u5173\u95ed');
+      renderShell();
       return;
     }
     if (action === 'refresh') {
@@ -5683,10 +5774,8 @@
     state.view = 'detail';
     if (switchingSku) state.copywritingMode = false;
     resetExcelState();
-    resetRound(state.data && state.data.seenDesign && getProductThumbUrl(state.data) ? REFRESH_SCAN_ATTEMPTS : AUTO_SCAN_ATTEMPTS);
-    state.scanTargetSku = sku;
     expandPanel();
-    startScan();
+    renderShell();
   }
 
   async function ensureNewProductProjectPage() {
@@ -9539,7 +9628,7 @@
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, insightAiModel: 'glm-4.7-flash' };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash' };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       return { ...defaults, ...(saved || {}) };
@@ -16104,6 +16193,36 @@
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-bottom {
         padding: 0 14px 14px !important;
+      }
+      #${PANEL_ID} .pfh-collection-switch {
+        position: relative;
+        width: 34px;
+        min-width: 34px;
+        height: 20px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: #b8c1cf;
+        cursor: pointer;
+        transition: background .18s ease;
+      }
+      #${PANEL_ID} .pfh-collection-switch i {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15,23,42,.25);
+        transition: transform .18s ease;
+      }
+      #${PANEL_ID} .pfh-collection-switch.is-on {
+        background: #7c3aed;
+      }
+      #${PANEL_ID} .pfh-collection-switch.is-on i {
+        transform: translateX(14px);
       }
       @keyframes pfh-copywriting-spin {
         to { transform: rotate(360deg); }
