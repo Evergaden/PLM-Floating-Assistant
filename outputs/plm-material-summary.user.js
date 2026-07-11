@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.81
+// @version      2.4.82
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.81';
+  const SCRIPT_VERSION = '2.4.82';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -16427,8 +16427,8 @@
       #${PANEL_ID} .pfh-upload-mode-tabs {
         position: relative;
         display: grid;
-        grid-template-columns: repeat(2, minmax(96px, 1fr));
-        width: min(100%, 224px);
+        grid-template-columns: repeat(2, minmax(82px, 1fr));
+        width: min(100%, 190px);
         margin-bottom: 8px;
         padding: 3px;
         overflow-x: auto;
@@ -16443,8 +16443,8 @@
       #${PANEL_ID} .pfh-upload-mode-tabs button {
         position: relative;
         z-index: 1;
-        min-height: 27px;
-        padding: 0 8px;
+        min-height: 24px;
+        padding: 0 6px;
         color: #69728f;
         border: 0;
         background: transparent;
@@ -16488,12 +16488,17 @@
         min-height: 0 !important;
         height: auto !important;
         grid-template-rows: auto auto auto !important;
+        align-content: start !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-scroll {
         scrollbar-gutter: stable;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-title {
+        height: 38px !important;
         min-height: 38px !important;
+        max-height: 38px !important;
+        flex: 0 0 38px !important;
+        align-self: start !important;
         padding: 0 0 4px !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-title h3 {
