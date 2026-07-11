@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.86
+// @version      2.4.87
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.86';
+  const SCRIPT_VERSION = '2.4.87';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -442,6 +442,7 @@
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
+    uploadReturnView: '',
     uploadQueue: loadUploadQueue(),
     uploadHistory: loadUploadHistory(),
     uploadRunning: loadUploadWorkerRunning(),
@@ -3847,6 +3848,7 @@
       state.view = 'home';
       state.copywritingMode = false;
       state.uploadExpanded = false;
+      state.uploadReturnView = '';
       expandPanel();
       renderShell();
       return;
@@ -3908,8 +3910,15 @@
       return;
     }
     if (action === 'upload-toggle') {
-      state.view = state.view === 'upload' ? 'detail' : 'upload';
-      state.uploadExpanded = true;
+      if (state.view === 'upload') {
+        state.view = state.uploadReturnView || 'home';
+        state.uploadReturnView = '';
+        state.uploadExpanded = false;
+      } else {
+        state.uploadReturnView = state.view === 'detail' ? 'detail' : 'home';
+        state.view = 'upload';
+        state.uploadExpanded = true;
+      }
       expandPanel();
       renderShell();
       return;
@@ -3992,6 +4001,7 @@
       state.view = returnView || 'home';
       state.detailReturnView = '';
       state.uploadExpanded = false;
+      state.uploadReturnView = '';
       renderShell();
       return;
     }
@@ -16014,11 +16024,11 @@
         display: grid !important;
         grid-template-rows: auto auto auto minmax(150px, 1fr) !important;
         gap: 12px !important;
-        padding: 14px !important;
-        border: 1px solid rgba(226,232,240,.76) !important;
-        border-radius: 16px !important;
-        background: rgba(255,255,255,.72) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.9) !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-section.is-history-view .pfh-upload-body {
         grid-template-rows: auto minmax(260px, 1fr) !important;
@@ -16520,6 +16530,11 @@
         height: auto !important;
         grid-template-rows: auto auto auto !important;
         align-content: start !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-scroll {
         scrollbar-gutter: stable;
@@ -16536,16 +16551,17 @@
         line-height: 30px !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-guide-button {
-        width: 28px !important;
-        min-width: 28px !important;
-        height: 28px !important;
-        min-height: 28px !important;
+        width: 20px !important;
+        min-width: 20px !important;
+        height: 20px !important;
+        min-height: 20px !important;
         margin-left: auto !important;
-        padding: 6px !important;
+        padding: 0 !important;
         color: #786bb6;
-        border-color: rgba(185, 174, 246, .62) !important;
-        border-radius: 50% !important;
-        background: rgba(255,255,255,.72) !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-guide-button svg {
         display: block;
