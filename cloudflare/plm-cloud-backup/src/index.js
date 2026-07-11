@@ -715,12 +715,16 @@ async function handleClassificationSummarize(request, env) {
   const samples = providedSamples.length ? providedSamples : await collectClassificationSamples(env, 800);
   if (!samples.length) return json({ ok: false, error: 'no insight samples' }, 422);
   let pkg;
-  let warning = '';
   try {
     pkg = await callConfiguredAiClassificationSummarizer(env, samples, requestedModel);
   } catch (error) {
-    warning = 'AI 返回内容不完整，已使用本地关键词规则兜底';
-    pkg = buildFallbackClassificationPackage(samples, warning);
+    const detail = cleanText(error && error.message, 240);
+    return json({
+      ok: false,
+      error: 'AI classification failed' + (detail ? ': ' + detail : ''),
+      sampleCount: samples.length,
+      sampleSource: providedSamples.length ? 'local-unclassified' : 'cloud-history',
+    }, 502);
   }
   const saved = await upsertClassificationRules(env, pkg);
   const rules = await getClassificationRules(env, 240);
@@ -728,7 +732,7 @@ async function handleClassificationSummarize(request, env) {
     ok: true,
     source: pkg.source || '',
     model: pkg.model || getAiModel(env, requestedModel),
-    warning,
+    warning: '',
     sampleCount: samples.length,
     sampleSource: providedSamples.length ? 'local-unclassified' : 'cloud-history',
     saved,
