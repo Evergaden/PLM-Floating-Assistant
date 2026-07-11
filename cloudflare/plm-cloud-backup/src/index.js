@@ -270,13 +270,14 @@ async function handleBackupSave(request, env) {
 
   const userId = await sha256Hex(backupKey);
   await env.DB.prepare(`
-    INSERT INTO user_backups (user_id, payload, version, updated_at)
-    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO user_backups (user_id, payload, version, user_name, updated_at)
+    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(user_id) DO UPDATE SET
       payload = excluded.payload,
       version = excluded.version,
+      user_name = excluded.user_name,
       updated_at = CURRENT_TIMESTAMP
-  `).bind(userId, serialized, version).run();
+  `).bind(userId, serialized, version, userName).run();
   await env.DB.prepare(`
     INSERT INTO backup_owners (user_id, user_name, updated_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -295,9 +296,8 @@ async function handleBackupLoad(request, env) {
 
   const userId = await sha256Hex(backupKey);
   const row = await env.DB.prepare(`
-    SELECT user_backups.payload, user_backups.version, user_backups.updated_at, backup_owners.user_name
+    SELECT user_backups.payload, user_backups.version, user_backups.updated_at, user_backups.user_name
     FROM user_backups
-    LEFT JOIN backup_owners ON backup_owners.user_id = user_backups.user_id
     WHERE user_backups.user_id = ?
   `).bind(userId).first();
 

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS user_backups (
   user_id TEXT PRIMARY KEY,
   payload TEXT NOT NULL,
   version TEXT,
+  user_name TEXT,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
