@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.77
+// @version      2.4.78
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.77';
+  const SCRIPT_VERSION = '2.4.78';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -449,6 +449,7 @@
     uploadView: 'queue',
     uploadMode: 'standard',
     toyLabelSkuInput: '',
+    toyLabelBatchFiles: [],
     uploadPage: 1,
     uploadHistoryPage: 1,
     uploadSelectedIds: [],
@@ -4679,6 +4680,7 @@
     saveUploadWorkerRunning(false);
     moveCompletedUploadsToHistory();
     state.uploadQueue = loadUploadQueue();
+    await downloadToyLabelBatchArchive();
     renderShell();
     showToast(L.uploadQueuePaused);
   }
@@ -4845,7 +4847,7 @@
       return;
     }
     updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u751f\u6210\u6807\u7b7e / \u4e0a\u4f20 BOM');
-    const completed = await generateToyLabelFromCurrent();
+    const completed = await generateToyLabelFromCurrent({ collectFiles: state.toyLabelBatchFiles });
     if (!completed) {
       markUploadQueueBlocked(item, L.uploadFailed, '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6216 BOM \u4e0a\u4f20\u5931\u8d25');
       return;
@@ -6778,7 +6780,8 @@
     }
   }
 
-  async function generateToyLabelFromCurrent() {
+  async function generateToyLabelFromCurrent(options) {
+    const opts = options || {};
     let data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
       showToast(L.excelNeedData);
@@ -6823,11 +6826,21 @@
       const printBlob = await canvasToBlob(printCanvas, 'image/jpeg', 0.95);
       const psdBlob = canvasToFlatPsdBlob(printCanvas, printCanvas.width / ((Number(size.width) || 4) * CM_TO_INCH));
       const previewFilename = baseName + ' \u6807\u7b7e\u8bf4\u660e\u56fe.jpg';
-      downloadBlob(previewBlob, previewFilename);
-      await wait(250);
-      downloadBlob(printBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.jpg');
-      await wait(250);
-      downloadBlob(psdBlob, baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd');
+      const printFilename = baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.jpg';
+      const psdFilename = baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd';
+      if (Array.isArray(opts.collectFiles)) {
+        opts.collectFiles.push(
+          { sku: labelData.sku, filename: previewFilename, blob: previewBlob },
+          { sku: labelData.sku, filename: printFilename, blob: printBlob },
+          { sku: labelData.sku, filename: psdFilename, blob: psdBlob }
+        );
+      } else {
+        downloadBlob(previewBlob, previewFilename);
+        await wait(250);
+        downloadBlob(printBlob, printFilename);
+        await wait(250);
+        downloadBlob(psdBlob, psdFilename);
+      }
       await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename);
       state.excelStatus = L.labelDone;
       upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签', labelFileState: 'done', labelFileDone: true });
@@ -7754,6 +7767,25 @@
       URL.revokeObjectURL(link.href);
       link.remove();
     }, 0);
+  }
+
+  async function downloadToyLabelBatchArchive() {
+    const files = Array.isArray(state.toyLabelBatchFiles) ? state.toyLabelBatchFiles.splice(0) : [];
+    if (!files.length) return;
+    if (typeof JSZip === 'undefined') {
+      files.forEach((file) => downloadBlob(file.blob, file.filename));
+      showToast('未加载压缩组件，已逐个下载玩具标签文件');
+      return;
+    }
+    const zip = new JSZip();
+    files.forEach((file) => {
+      if (!file || !file.blob || !file.filename) return;
+      const folder = cleanFileNamePart(file.sku || '玩具标签') || '玩具标签';
+      zip.file(folder + '/' + sanitizeDownloadFileName(file.filename), file.blob);
+    });
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    downloadBlob(blob, '玩具标签批量包_' + new Date().toISOString().slice(0, 10) + '.zip');
+    addLog('success', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\u6587\u4ef6\u5df2\u6253\u5305', files.length + '\u4e2a\u6587\u4ef6');
   }
 
   function wait(ms) {
