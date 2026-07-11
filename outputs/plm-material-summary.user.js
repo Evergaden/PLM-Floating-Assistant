@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.58';
+  const SCRIPT_VERSION = '2.4.59';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -409,6 +409,9 @@
     ignoreOutsideClickUntil: 0,
     splitWidth: loadSplitWidth(),
     panelSize: loadPanelSize(),
+    developerSettingsTapCount: 0,
+    developerSettingsTapAt: 0,
+    developerToolsOpen: false,
     searchQuery: '',
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
@@ -2110,14 +2113,26 @@
     const cacheBody = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>';
     detail.innerHTML = [
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
-      '<div class="pfh-settings-hero"><div><h3>' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
+      '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
       '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + escapeHtml(L.cloudBackupTitle) + '</strong><span>\u4f18\u5148</span></div>' + cloudBody + '</div>',
       renderInsightsSection(),
       renderLogSection(),
       '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u5bfc\u51fa\u504f\u597d</strong><span>Excel</span></div>' + preferenceBody + '</div>',
       '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u672c\u5730\u7f13\u5b58</strong><span>\u5907\u4efd\u8fc1\u79fb</span></div>' + cacheBody + '</div>',
+      state.developerToolsOpen ? renderDeveloperTools() : '',
       '</section></div>',
     ].join('');
+  }
+
+  function renderDeveloperTools() {
+    return '<div class="pfh-developer-backdrop" data-action="developer-tools-close">' +
+      '<section class="pfh-developer-dialog" role="dialog" aria-modal="true" aria-label="开发者工具" onclick="event.stopPropagation()">' +
+        '<div><strong>开发者工具</strong><span>当前布局</span></div>' +
+        '<p>复制窗口、唤起按钮、尺寸和左右分隔栏数据，用于设定新用户首次打开时的默认布局。</p>' +
+        '<button type="button" data-action="developer-layout-copy">复制当前布局</button>' +
+        '<button type="button" data-action="developer-tools-close">关闭</button>' +
+      '</section>' +
+    '</div>';
   }
 
   function renderInsightsSection() {
@@ -3589,6 +3604,30 @@
     if (action === 'panel-close') {
       suppressPanelTooltips(actionTarget);
       collapsePanel(true);
+      return;
+    }
+    if (action === 'developer-settings-tap') {
+      const now = Date.now();
+      if (now - state.developerSettingsTapAt > 1800) state.developerSettingsTapCount = 0;
+      state.developerSettingsTapAt = now;
+      state.developerSettingsTapCount += 1;
+      if (state.developerSettingsTapCount >= 5) {
+        state.developerSettingsTapCount = 0;
+        state.developerToolsOpen = true;
+        renderShell();
+      }
+      return;
+    }
+    if (action === 'developer-tools-close') {
+      state.developerToolsOpen = false;
+      renderShell();
+      return;
+    }
+    if (action === 'developer-layout-copy') {
+      const layout = getCurrentLayoutSnapshot();
+      copyText(layout);
+      addLog('info', '已复制当前布局', layout.replace(/\n/g, ' | '));
+      showToast('当前布局已复制');
       return;
     }
     if (action === 'refresh') {
@@ -9851,6 +9890,27 @@
     if (Number.isFinite(pos.bottom)) panel.style.bottom = pos.bottom + 'px';
   }
 
+  function getCurrentLayoutSnapshot() {
+    const panel = ensurePanel();
+    const panelRect = panel.getBoundingClientRect();
+    const panelStyle = getComputedStyle(panel);
+    const launcher = document.getElementById(LAUNCHER_ID);
+    const launcherRect = launcher && launcher.getBoundingClientRect();
+    const right = Number.parseFloat(panelStyle.right);
+    const bottom = Number.parseFloat(panelStyle.bottom);
+    const panelRight = Number.isFinite(right) ? right : Math.max(0, window.innerWidth - panelRect.right);
+    const panelBottom = Number.isFinite(bottom) ? bottom : Math.max(0, window.innerHeight - panelRect.bottom);
+    const launcherLeft = launcherRect ? Math.round(launcherRect.left) : (loadLauncherPosition()?.left ?? 0);
+    const launcherTop = launcherRect ? Math.round(launcherRect.top) : (loadLauncherPosition()?.top ?? 0);
+    return [
+      'PLM 悬浮助手默认布局',
+      '窗口位置：right ' + Math.round(panelRight) + 'px / bottom ' + Math.round(panelBottom) + 'px',
+      '窗口尺寸：' + Math.round(panelRect.width) + ' x ' + Math.round(panelRect.height),
+      '唤起按钮：left ' + launcherLeft + 'px / top ' + launcherTop + 'px',
+      '左右分隔栏：' + Math.round(state.splitWidth) + 'px',
+    ].join('\n');
+  }
+
   function positionLauncher(launcher) {
     if (!launcher) return;
     launcher.classList.add('is-floating');
@@ -14136,6 +14196,7 @@
         font-size: 16px !important;
         font-weight: 600 !important;
         line-height: 1.25 !important;
+        cursor: default;
       }
       #${PANEL_ID} .pfh-settings-hero p {
         margin: 4px 0 0 !important;
@@ -14149,6 +14210,63 @@
         font-size: 12px !important;
         line-height: 1.4 !important;
         white-space: nowrap !important;
+      }
+      #${PANEL_ID} .pfh-developer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(24, 20, 61, .22);
+        backdrop-filter: blur(4px);
+      }
+      #${PANEL_ID} .pfh-developer-dialog {
+        width: min(360px, calc(100vw - 40px));
+        padding: 18px;
+        border: 1px solid rgba(207, 196, 255, .76);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, .96);
+        box-shadow: 0 20px 50px rgba(53, 35, 119, .24);
+      }
+      #${PANEL_ID} .pfh-developer-dialog > div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      #${PANEL_ID} .pfh-developer-dialog strong {
+        color: #1c1b4b;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      #${PANEL_ID} .pfh-developer-dialog span {
+        color: #806fd2;
+        font-size: 12px;
+      }
+      #${PANEL_ID} .pfh-developer-dialog p {
+        margin: 10px 0 14px;
+        color: #687492;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      #${PANEL_ID} .pfh-developer-dialog button {
+        min-height: 32px;
+        padding: 0 13px;
+        border: 1px solid rgba(132, 106, 242, .32);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .86);
+        color: #5d3ee8;
+        font-size: 12px;
+      }
+      #${PANEL_ID} .pfh-developer-dialog button + button {
+        margin-left: 8px;
+      }
+      #${PANEL_ID} .pfh-developer-dialog button:first-of-type {
+        border-color: transparent;
+        background: #7545ee;
+        color: #fff;
+        box-shadow: 0 8px 16px rgba(117, 69, 238, .22);
       }
       #${PANEL_ID} .pfh-settings-card,
       #${PANEL_ID} .pfh-settings-page > .pfh-log-panel {
