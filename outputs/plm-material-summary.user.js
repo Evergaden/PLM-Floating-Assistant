@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.80
+// @version      2.4.81
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.80';
+  const SCRIPT_VERSION = '2.4.81';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -16488,6 +16488,16 @@
         min-height: 0 !important;
         height: auto !important;
         grid-template-rows: auto auto auto !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-scroll {
+        scrollbar-gutter: stable;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title {
+        min-height: 38px !important;
+        padding: 0 0 4px !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title h3 {
+        line-height: 30px !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-body {
         grid-template-rows: auto auto auto auto !important;
