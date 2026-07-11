@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.59';
+  const SCRIPT_VERSION = '2.4.60';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -396,6 +396,7 @@
     maxAttempts: AUTO_SCAN_ATTEMPTS,
     scanRunning: false,
     scanTargetSku: '',
+    scanData: null,
     seenMaterial: false,
     seenProduct: false,
     seenDesign: false,
@@ -588,15 +589,16 @@
     if (state.scanRunning && drawer === state.drawer) {
       if (sku && sku !== state.sku) {
         state.sku = sku;
-        state.selectedSku = sku;
-        state.scanTargetSku = state.scanTargetSku || sku;
-        if (!state.data || !state.data.sku) {
-          state.data = normalizeData({
-            ...(state.data || {}),
-            sku,
-            name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
-          });
-        }
+        state.scanTargetSku = sku;
+        state.scanData = normalizeData(loadData(sku) || {
+          sku,
+          name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
+        });
+        state.scanAttempts = 0;
+        state.seenMaterial = false;
+        state.seenProduct = false;
+        state.seenDesign = false;
+        state.scanTabCounts = {};
       }
       return;
     }
@@ -655,6 +657,7 @@
     state.maxAttempts = maxAttempts;
     state.scanRunning = false;
     state.scanTargetSku = '';
+    state.scanData = null;
     state.seenMaterial = false;
     state.seenProduct = false;
     state.seenDesign = false;
@@ -670,7 +673,16 @@
       return;
     }
     stopScan();
-    lockLoadingTip(state.scanTargetSku || state.selectedSku || state.sku || findSku(getVisibleText(drawer)) || '');
+    const drawerSku = findSku(getVisibleText(drawer));
+    const targetSku = state.scanTargetSku || drawerSku || state.sku || '';
+    if (targetSku) {
+      state.scanTargetSku = targetSku;
+      if (!state.scanData || state.scanData.sku !== targetSku) {
+        const activeData = state.data && state.data.sku === targetSku ? state.data : null;
+        state.scanData = normalizeData(activeData || loadData(targetSku) || { sku: targetSku });
+      }
+    }
+    lockLoadingTip(targetSku || state.selectedSku || '');
     state.scanRunning = true;
     if (!isLoadingTipVisible()) renderShell(L.scanning);
     scanOnce();
@@ -775,7 +787,11 @@
 
   function checkMaterialOnce() {
     const drawer = getProjectDrawer();
-    if (!drawer || !state.data || !state.data.sku) {
+    const targetSku = state.scanTargetSku || state.sku || (state.data && state.data.sku) || '';
+    const trackedData = state.scanData && state.scanData.sku === targetSku
+      ? state.scanData
+      : normalizeData(loadData(targetSku) || {});
+    if (!drawer || !targetSku || !trackedData.sku) {
       stopMaterialWatch();
       return;
     }
@@ -793,27 +809,28 @@
       }
     } else {
       const packaging = extractPackaging(drawer);
-      if (hasPackagingChanged(state.data, packaging)) {
-        const packageNums = packaging.packageNums || state.data.packageNums || null;
-        const hasInnerCard = hasInnerCardMark(packaging) || hasInnerCardMark(state.data);
+      if (hasPackagingChanged(trackedData, packaging)) {
+        const packageNums = packaging.packageNums || trackedData.packageNums || null;
+        const hasInnerCard = hasInnerCardMark(packaging) || hasInnerCardMark(trackedData);
         const productNums = productNumsFromPackage(packageNums, hasInnerCard);
-        state.data = normalizeData({
-          ...state.data,
-          packageSizeText: packaging.packageSizeText || state.data.packageSizeText,
-          packageSizeLabel: packaging.packageSizeLabel || state.data.packageSizeLabel,
-          packageCode: packaging.packageCode || state.data.packageCode,
-          printSizeText: packaging.printSizeText || state.data.printSizeText,
-          printSizeLabel: packaging.printSizeLabel || state.data.printSizeLabel,
-          printCode: packaging.printCode || state.data.printCode,
+        const updatedData = normalizeData({
+          ...trackedData,
+          packageSizeText: packaging.packageSizeText || trackedData.packageSizeText,
+          packageSizeLabel: packaging.packageSizeLabel || trackedData.packageSizeLabel,
+          packageCode: packaging.packageCode || trackedData.packageCode,
+          printSizeText: packaging.printSizeText || trackedData.printSizeText,
+          printSizeLabel: packaging.printSizeLabel || trackedData.printSizeLabel,
+          printCode: packaging.printCode || trackedData.printCode,
           packageNums,
           productNums,
-          packageSource: packaging.packageSizeText ? L.sourceMaterial : state.data.packageSource,
+          packageSource: packaging.packageSizeText ? L.sourceMaterial : trackedData.packageSource,
           hasInnerCard,
-          netContent: packaging.netContent || state.data.netContent,
+          netContent: packaging.netContent || trackedData.netContent,
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
         });
-        saveData(state.data.sku, state.data);
+        if (state.scanData && state.scanData.sku === targetSku) state.scanData = updatedData;
+        saveData(targetSku, updatedData);
         renderShell('\u7269\u6599\u6e05\u5355\u5c3a\u5bf8\u5df2\u66f4\u65b0');
         stopMaterialWatch();
         return;
@@ -849,8 +866,11 @@
     const next = extractData(drawer);
     if (state.scanTargetSku && next.sku && next.sku !== state.scanTargetSku) {
       stopScan();
-      renderShell('\u5f53\u524d\u8be6\u60c5\u7f16\u7801\u4e0d\u5bf9\uff0c\u6b63\u5728\u91cd\u65b0\u6253\u5f00...');
-      refreshSelectedData();
+      state.sku = next.sku;
+      state.scanTargetSku = next.sku;
+      state.scanData = normalizeData(loadData(next.sku) || next);
+      renderShell('\u62bd\u5c49\u7f16\u7801\u5df2\u5207\u6362\uff0c\u6b63\u5728\u8bfb\u53d6\u5bf9\u5e94\u4ea7\u54c1...');
+      startScan();
       return;
     }
     state.seenMaterial = state.seenMaterial || next.seenMaterial;
@@ -858,16 +878,15 @@
     state.seenDesign = state.seenDesign || next.seenDesign;
     markCurrentScanTabRead(drawer, next);
 
-    if (next.sku && next.sku !== state.sku) {
-      state.sku = next.sku;
-      state.selectedSku = next.sku;
-      state.data = loadData(next.sku);
-    }
+    const targetSku = next.sku || state.scanTargetSku || state.sku || '';
+    if (targetSku) state.sku = targetSku;
+    const previous = state.scanData && state.scanData.sku === targetSku
+      ? state.scanData
+      : (loadData(targetSku) || { sku: targetSku });
+    state.scanData = mergeData(previous, next);
+    if (state.selectedSku === targetSku) state.data = state.scanData;
 
-    state.data = mergeData(state.data, next);
-    state.selectedSku = state.data && state.data.sku ? state.data.sku : state.selectedSku;
-
-    if (isRoundComplete(state.data) || state.scanAttempts >= state.maxAttempts) {
+    if (isRoundComplete(state.scanData) || state.scanAttempts >= state.maxAttempts) {
       finishRound();
       return;
     }
@@ -878,17 +897,21 @@
 
   async function finishRound() {
     stopScan();
-    if (state.data && state.data.sku) {
-      saveData(state.data.sku, state.data);
-      if (!shouldSkipLedgerDrawer(getProjectDrawerForSku(state.data.sku) || getProjectDrawer())) {
-        upsertDailyLedgerFromData(state.data, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录', requireCurrentMonth: true });
+    const completedData = state.scanData;
+    if (completedData && completedData.sku) {
+      saveData(completedData.sku, completedData);
+      if (!shouldSkipLedgerDrawer(getProjectDrawerForSku(completedData.sku) || getProjectDrawer())) {
+        upsertDailyLedgerFromData(completedData, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录', requireCurrentMonth: true });
       }
     }
-    const shouldRefreshThumb = state.refreshingThumbSku && state.data && state.data.sku === state.refreshingThumbSku;
+    const shouldRefreshThumb = state.refreshingThumbSku && completedData && completedData.sku === state.refreshingThumbSku;
     if (shouldRefreshThumb) state.refreshingThumbSku = '';
     state.scanTargetSku = '';
+    state.scanData = null;
     renderShell(L.scanDone);
-    hydrateCurrentProductThumb(shouldRefreshThumb ? { force: true, refreshImage: true } : { force: true });
+    if (completedData && completedData.sku) {
+      scheduleProductThumbHydration(completedData, shouldRefreshThumb ? { force: true, refreshImage: true } : { force: true });
+    }
   }
 
   async function diagnoseMissingDataBeforeSave(data) {
@@ -1552,8 +1575,8 @@
   function extractNetContentFromMaterial(row) {
     const tabletMatch = String(row || '').match(/(\d+(?:\.\d+)?)\s*\u7247\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
     if (tabletMatch) return trimNumber(Number(tabletMatch[1])) + 'TABLETS';
-    const pcsMatch = String(row || '').match(/(\d+(?:\.\d+)?)\s*PCS\s*(?:\/\s*\u76d2)?/i);
-    if (pcsMatch) return trimNumber(Number(pcsMatch[1])) + 'PCS';
+    const pcsMatch = String(row || '').match(/(\d+(?:\.\d+)?)\s*PCS?\s*(?:\/\s*(?:\u4ef6|\u76d2|\u74f6|\u888b))?/i);
+    if (pcsMatch) return trimNumber(Number(pcsMatch[1])) + 'PC';
     const pairMatch = String(row || '').match(/(\d+(?:\.\d+)?)\s*\u5957\s*\/\s*\u76d2/i);
     if (pairMatch) {
       const count = Number(pairMatch[1]);
@@ -1628,7 +1651,9 @@
   function normalizeNetContentValue(value) {
     const text = compactText(value);
     if (!text) return '';
-    if (/^\d+(?:\.\d+)?\s*(CAPSULES|GUMMIES|TABLETS|PAIR|PAIRS|PCS)$/i.test(text)) return text.replace(/\s+/g, '').toUpperCase();
+    const pcMatch = text.match(/(\d+(?:\.\d+)?)\s*PCS?\s*(?:\/\s*(?:\u4ef6|\u76d2|\u74f6|\u888b))?/i);
+    if (pcMatch) return trimNumber(Number(pcMatch[1])) + 'PC';
+    if (/^\d+(?:\.\d+)?\s*(CAPSULES|GUMMIES|TABLETS|PAIR|PAIRS|PC)$/i.test(text)) return text.replace(/\s+/g, '').toUpperCase();
     const tabletMatch = text.match(/(\d+(?:\.\d+)?)\s*\u7247\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
     if (tabletMatch) return trimNumber(Number(tabletMatch[1])) + 'TABLETS';
     const weightMatch = text.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l|\u514b|\u5343\u514b|\u6beb\u5347|\u5347)\s*(?:\/\s*[\u4e00-\u9fa5A-Za-z]+)?/i);
@@ -3416,6 +3441,7 @@
   function formatCopywritingNetContent(value) {
     const text = cleanCopywritingLine(value);
     if (!text || text === '--' || text === L.unknown) return { text: '', warning: '净含量' };
+    if (/^\d+(?:\.\d+)?PC$/i.test(text)) return { text: text.toUpperCase(), warning: '' };
     const match = text.match(/(\d+(?:\.\d+)?)\s*(g|ml)\b/i);
     if (!match) return { text, warning: '净含量单位无法换算' };
     const amount = Number(match[1]);
@@ -9841,8 +9867,11 @@
     const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || new Date().toLocaleString(), updatedAtMs: data.updatedAtMs || Date.now() });
     try {
       saveDataDirect(sku, normalized);
-      state.data = normalized;
-      state.selectedSku = sku;
+      const viewingSku = state.selectedSku || (state.data && state.data.sku) || '';
+      if (!viewingSku || viewingSku === sku) {
+        state.data = normalized;
+        state.selectedSku = sku;
+      }
       upsertIndex(normalized);
       recordDataQuality(normalized, 'saveData');
       queueCloudBackup();
