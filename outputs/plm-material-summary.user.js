@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.66';
+  const SCRIPT_VERSION = '2.4.67';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -415,6 +415,7 @@
     developerSettingsTapAt: 0,
     developerToolsOpen: false,
     tutorialModalOpen: firstTutorial,
+    settingsReturnView: '',
     searchQuery: '',
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
@@ -3694,7 +3695,13 @@
         state.settings.backgroundNoticeSeen = true;
         saveSettings(state.settings);
       }
-      state.view = state.view === 'about' ? 'detail' : 'about';
+      if (state.view === 'about') {
+        state.view = state.settingsReturnView || (state.data ? 'detail' : 'home');
+        state.settingsReturnView = '';
+      } else {
+        state.settingsReturnView = state.view || (state.data ? 'detail' : 'home');
+        state.view = 'about';
+      }
       expandPanel();
       renderShell();
       return;
