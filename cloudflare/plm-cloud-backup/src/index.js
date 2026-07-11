@@ -575,7 +575,7 @@ function parseClassificationPackage(text, source) {
   };
 }
 
-function buildCleanClassificationPrompt(samples) {
+function buildCleanClassificationPrompt(samples, compact = false) {
   const sampleLimit = 300;
   const compactSamples = samples.slice(0, sampleLimit).map((item) => ({
     sku: item.sku,
@@ -589,6 +589,7 @@ function buildCleanClassificationPrompt(samples) {
     'Goal 2: summarize reusable packaging/material types, such as label, paper box, manual/card, bag, bottle/jar, soft tube, and other useful subtypes.',
     'Product-use/category words have higher priority than ingredient or package-form words. A complete phrase has higher priority than an isolated keyword.',
     'Examples: "烟酰胺胶囊" should be 胶囊; "烟酰胺胶囊面霜" should be 面霜; "胶囊面霜" should be 面霜. For combined phrases, include the complete phrase as a keyword and use negativeKeywords to prevent the shorter rule from winning.',
+    compact ? 'Keep the response extremely compact: no more than 12 categories, 8 packageTypes, 3 keywords and 2 examples per rule, and a summary under 60 Chinese characters.' : 'Keep the response compact: no more than 16 categories, 10 packageTypes, 4 keywords and 3 examples per rule.',
     'Required schema exactly: {"summary":"short Chinese summary","sampleCount":0,"categories":[{"label":"玩具","keywords":["捏捏乐"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}],"packageTypes":[{"label":"标签","keywords":["标签"],"negativeKeywords":[],"confidence":0.9,"examples":["SKU00000000"]}]}',
     'The full dataset has ' + samples.length + ' unclassified samples. The following are the first ' + compactSamples.length + ' samples:',
     JSON.stringify(compactSamples),
@@ -596,15 +597,15 @@ function buildCleanClassificationPrompt(samples) {
 }
 
 async function callConfiguredAiClassificationSummarizer(env, samples, modelOverride) {
-  const prompt = buildCleanClassificationPrompt(samples);
   let lastError = null;
   const maxAttempts = Number(env.AI_CLASSIFY_ATTEMPTS || env.ZHIPU_CLASSIFY_ATTEMPTS || 2);
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
+      const prompt = buildCleanClassificationPrompt(samples, attempt > 1);
       const result = await callAiText(env, {
         model: modelOverride,
         temperature: 0.15,
-        maxTokens: Number(env.AI_CLASSIFY_MAX_TOKENS || 3200),
+        maxTokens: Number(env.AI_CLASSIFY_MAX_TOKENS || 5000),
         timeoutMs: Number(env.AI_CLASSIFY_TIMEOUT_MS || env.ZHIPU_CLASSIFY_TIMEOUT_MS || 45000),
         responseMimeType: 'application/json',
         system: 'Output one valid JSON object only. No Markdown. No explanation.',
@@ -718,7 +719,7 @@ async function handleClassificationSummarize(request, env) {
   try {
     pkg = await callConfiguredAiClassificationSummarizer(env, samples, requestedModel);
   } catch (error) {
-    warning = cleanText(error && error.message, 240);
+    warning = 'AI 返回内容不完整，已使用本地关键词规则兜底';
     pkg = buildFallbackClassificationPackage(samples, warning);
   }
   const saved = await upsertClassificationRules(env, pkg);
