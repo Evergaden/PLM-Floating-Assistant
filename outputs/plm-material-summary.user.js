@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.71
+// @version      2.4.72
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.71';
+  const SCRIPT_VERSION = '2.4.72';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1909,7 +1909,7 @@
     panel.dataset.version = SCRIPT_VERSION;
     panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="about"></button><button type="button" data-action="home-main"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
     document.documentElement.appendChild(panel);
-    panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-switch" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6"><i></i></button>');
+    panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6">P</button>');
     panel.querySelector('strong').textContent = L.title;
     panel.querySelector('.pfh-search-input').placeholder = L.searchPlaceholder;
     panel.querySelector('.pfh-search-clear').textContent = '\u00d7';
@@ -2085,7 +2085,7 @@
   }
 
   function updateCollectionSwitch(panel) {
-    const button = panel && panel.querySelector('[data-action="toggle-collection"]');
+    const button = panel && panel.querySelector('.pfh-collection-mark');
     if (!button) return;
     const enabled = Boolean(state.settings.collectionEnabled);
     button.classList.toggle('is-on', enabled);
@@ -16240,35 +16240,40 @@
       #${PANEL_ID}[data-view="upload"] .pfh-upload-bottom {
         padding: 0 14px 14px !important;
       }
-      #${PANEL_ID} .pfh-collection-switch {
-        position: relative;
+      #${PANEL_ID} .pfh-heading strong {
+        min-width: 0 !important;
+        padding-left: 0 !important;
+      }
+      #${PANEL_ID} .pfh-heading strong::before,
+      #${PANEL_ID} .pfh-heading strong::after {
+        display: none;
+      }
+      #${PANEL_ID} .pfh-collection-mark {
+        display: grid;
+        place-items: center;
         width: 34px;
         min-width: 34px;
-        height: 20px;
+        height: 34px;
         margin: 0;
         padding: 0;
         border: 0;
-        border-radius: 999px;
-        background: #b8c1cf;
+        border-radius: 10px;
+        color: #fff;
+        background: linear-gradient(145deg, #8b5cf6, #6d35e8);
+        box-shadow: 0 12px 24px rgba(124, 58, 237, .26);
         cursor: pointer;
-        transition: background .18s ease;
+        font-size: 17px;
+        font-weight: 800;
+        line-height: 1;
+        transition: transform .14s ease, background .18s ease, box-shadow .18s ease, filter .18s ease;
       }
-      #${PANEL_ID} .pfh-collection-switch i {
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #fff;
-        box-shadow: 0 1px 3px rgba(15,23,42,.25);
-        transition: transform .18s ease;
+      #${PANEL_ID} .pfh-collection-mark:not(.is-on) {
+        background: #aeb7c5;
+        box-shadow: none;
+        filter: saturate(.25);
       }
-      #${PANEL_ID} .pfh-collection-switch.is-on {
-        background: #7c3aed;
-      }
-      #${PANEL_ID} .pfh-collection-switch.is-on i {
-        transform: translateX(14px);
+      #${PANEL_ID} .pfh-collection-mark:active {
+        transform: scale(.91);
       }
       @keyframes pfh-copywriting-spin {
         to { transform: rotate(360deg); }
