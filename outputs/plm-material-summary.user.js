@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.53
+// @version      2.4.54
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.53';
+  const SCRIPT_VERSION = '2.4.54';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2916,10 +2916,21 @@
 
   async function resolveCopywritingDocumentSource(card, fileName) {
     const direct = findCopywritingUrlInCard(card);
-    if (direct) return { url: direct, arrayBuffer: null, kind: 'direct' };
+    if (direct) {
+      addLog('info', '产品文案：命中卡片地址', fileName + ' | ' + redactCopywritingUrl(direct));
+      return { url: direct, arrayBuffer: null, kind: 'direct' };
+    }
     const componentUrl = findCopywritingUrlInVueState(card, fileName);
-    if (componentUrl) return { url: componentUrl, arrayBuffer: null, kind: 'component' };
+    if (componentUrl) {
+      addLog('info', '产品文案：命中组件地址', fileName + ' | ' + redactCopywritingUrl(componentUrl));
+      return { url: componentUrl, arrayBuffer: null, kind: 'component' };
+    }
+    addLog('info', '产品文案：未发现静态地址，开始监听下载动作', fileName);
     return { ...(await captureCopywritingDownloadSource(card, fileName)), kind: 'captured' };
+  }
+
+  function redactCopywritingUrl(value) {
+    return String(value || '').replace(/\?.*$/, '?...').slice(0, 500);
   }
 
   function findCopywritingUrlInCard(card) {
@@ -3026,11 +3037,17 @@
   }
 
   async function captureCopywritingDownloadSource(card, fileName) {
-    if (!card) return { url: '', arrayBuffer: null };
-    const control = Array.from(card.querySelectorAll('.anticon-vertical-align-bottom, [aria-label="vertical-align-bottom"], [class*="download" i]'))
-      .find(isVisibleElement);
+    if (!card) {
+      addLog('error', '产品文案：下载监听失败', '附件卡片不存在');
+      return { url: '', arrayBuffer: null };
+    }
+    // PLM only reveals this control on hover, but HTMLElement.click() works while it is hidden.
+    const control = card.querySelector('.delBtn .anticon-vertical-align-bottom, .delBtn [aria-label="vertical-align-bottom"], .anticon-vertical-align-bottom, [aria-label="vertical-align-bottom"], [class*="download" i]');
     const clickable = control && (control.closest('.delBtn, button, a, [role="button"]') || control);
-    if (!clickable) return { url: '', arrayBuffer: null };
+    if (!clickable) {
+      addLog('error', '产品文案：下载监听失败', fileName + ' | 未找到下载图标，卡片类名：' + String(card.className || ''));
+      return { url: '', arrayBuffer: null };
+    }
     let captured = '';
     let capturedScore = -100;
     let capturedAt = 0;
@@ -3038,6 +3055,7 @@
     let capturedBuffer = null;
     const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const restores = [];
+    const trace = [];
     const capture = (value, bonus, ready) => {
       const url = normalizeCopywritingUrl(value);
       const score = scoreCopywritingUrl(url, fileName) + Number(bonus || 0);
@@ -3047,6 +3065,7 @@
         capturedScore = score;
         capturedAt = Date.now();
         capturedReady = Boolean(ready);
+        trace.push('地址:' + redactCopywritingUrl(url));
       }
       return Boolean(url);
     };
@@ -3058,7 +3077,10 @@
       convert.then((buffer) => {
         if (!buffer || !buffer.byteLength) return;
         const bytes = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength));
-        if (bytes[0] === 0x50 && bytes[1] === 0x4b) capturedBuffer = buffer;
+        if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+          capturedBuffer = buffer;
+          trace.push('内存Word:' + buffer.byteLength + 'B');
+        } else trace.push('非Word响应:' + buffer.byteLength + 'B');
       }).catch(() => {});
     };
     try {
@@ -3161,6 +3183,7 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
     try {
       clickElement(clickable);
+      trace.push('已点击:' + String(clickable.className || clickable.getAttribute('aria-label') || clickable.tagName));
       const observed = await waitUntil(() => {
         if (capturedBuffer) return 'buffer';
         if (captured && capturedReady) return 'url';
@@ -3178,6 +3201,9 @@
         try { restore(); } catch (error) { /* no-op */ }
       });
     }
+    if (capturedBuffer) addLog('info', '产品文案：下载监听成功', fileName + ' | 内存 Word ' + capturedBuffer.byteLength + 'B');
+    else if (captured) addLog('info', '产品文案：下载监听捕获地址', fileName + ' | ' + redactCopywritingUrl(captured));
+    else addLog('error', '产品文案：下载监听未取得文件', fileName + ' | ' + (trace.join('；') || '点击后未发现下载地址、Blob 或 Word 响应'));
     return { url: captured, arrayBuffer: capturedBuffer };
   }
 
