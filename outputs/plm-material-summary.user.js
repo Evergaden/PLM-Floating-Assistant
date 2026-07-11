@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.70
+// @version      2.4.71
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.70';
+  const SCRIPT_VERSION = '2.4.71';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -644,6 +644,12 @@
     state.view = 'detail';
     resetExcelState();
     expandPanel();
+    if (state.settings.collectionEnabled) {
+      resetRound(AUTO_SCAN_ATTEMPTS);
+      state.scanTargetSku = sku || '';
+      startScan();
+      return;
+    }
     renderShell();
   }
 
@@ -817,6 +823,8 @@
     const next = extractData(drawer);
     if (!next.sku || next.sku !== sku) return;
     const merged = mergeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }), next);
+    const previous = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    if (!hasMeaningfulDataChange(previous, merged)) return;
     saveData(sku, merged);
     if (state.selectedSku === sku) renderShell();
   }
@@ -1246,6 +1254,19 @@
     merged.seenProduct = previous.seenProduct || next.seenProduct;
     merged.seenDesign = previous.seenDesign || next.seenDesign;
     return normalizeData(merged);
+  }
+
+  function hasMeaningfulDataChange(previous, next) {
+    const ignored = new Set(['updatedAt', 'updatedAtMs', 'lastMissingDiagnostic']);
+    const before = {};
+    const after = {};
+    Object.keys(previous || {}).forEach((key) => {
+      if (!ignored.has(key)) before[key] = previous[key];
+    });
+    Object.keys(next || {}).forEach((key) => {
+      if (!ignored.has(key)) after[key] = next[key];
+    });
+    return JSON.stringify(before) !== JSON.stringify(after);
   }
 
   function normalizeData(data) {
@@ -8533,6 +8554,7 @@
       plugin: L.title,
       version: SCRIPT_VERSION,
       exportedAt: new Date().toLocaleString(),
+      backupOwnerName: getCloudBackupOwnerName(),
       includesImageLinks: true,
       index: state.index,
       items,
@@ -8627,6 +8649,29 @@
     return String(state.settings.cloudBackupKey || '').trim();
   }
 
+  function getCloudBackupOwnerName() {
+    const backupKey = getCloudBackupKey();
+    if (!backupKey) return '';
+    const savedName = String(state.settings.cloudBackupOwnerName || '').trim();
+    if (state.settings.cloudBackupOwnerKey === backupKey && savedName) return savedName;
+    const name = findCurrentPlmUserName();
+    state.settings.cloudBackupOwnerKey = backupKey;
+    state.settings.cloudBackupOwnerName = name;
+    saveSettings(state.settings);
+    return name;
+  }
+
+  function findCurrentPlmUserName() {
+    const candidates = Array.from(document.querySelectorAll(
+      '[data-user-name], [data-username], .user-name, .userName, .username, .nick-name, .nickName, .nickname, .ant-layout-header .ant-dropdown-trigger, header .ant-dropdown-trigger, [class*="user-info"], [class*="userInfo"], [class*="account-name"], [class*="accountName"], [class*="profile-name"], [class*="profileName"]'
+    )).filter(isVisibleElement);
+    for (const element of candidates) {
+      const value = String(element.getAttribute('data-user-name') || element.getAttribute('data-username') || element.innerText || element.textContent || '').trim().replace(/\s+/g, ' ');
+      if (/^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z ._-]{1,30}$/.test(value) && !/^(PLM|\u7528\u6237|\u8d26\u53f7|\u6211\u7684)$/.test(value) && !/\u9000\u51fa|\u767b\u5f55|\u8bbe\u7f6e|\u5e2e\u52a9/.test(value)) return value;
+    }
+    return '';
+  }
+
   function getCloudBackupStatusText() {
     return state.cloudBackupStatus || state.settings.cloudBackupStatus || L.cloudBackupReady;
   }
@@ -8693,6 +8738,7 @@
         method: 'POST',
         body: {
           backupKey,
+          userName: getCloudBackupOwnerName(),
           version: SCRIPT_VERSION,
           payload,
         },

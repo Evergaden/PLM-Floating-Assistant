@@ -260,6 +260,7 @@ async function handleBackupSave(request, env) {
   const backupKey = String((body && body.backupKey) || '');
   const payload = body && body.payload;
   const version = String((body && body.version) || '').slice(0, 40);
+  const userName = String((body && body.userName) || '').trim().slice(0, 80);
 
   if (backupKey.length < 4) return json({ error: 'backupKey too short' }, 400);
   if (!payload || typeof payload !== 'object') return json({ error: 'payload required' }, 400);
@@ -276,8 +277,15 @@ async function handleBackupSave(request, env) {
       version = excluded.version,
       updated_at = CURRENT_TIMESTAMP
   `).bind(userId, serialized, version).run();
+  await env.DB.prepare(`
+    INSERT INTO backup_owners (user_id, user_name, updated_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id) DO UPDATE SET
+      user_name = excluded.user_name,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(userId, userName).run();
 
-  return json({ ok: true, userId, bytes: serialized.length });
+  return json({ ok: true, userId, userName, bytes: serialized.length });
 }
 
 async function handleBackupLoad(request, env) {
@@ -287,9 +295,10 @@ async function handleBackupLoad(request, env) {
 
   const userId = await sha256Hex(backupKey);
   const row = await env.DB.prepare(`
-    SELECT payload, version, updated_at
+    SELECT user_backups.payload, user_backups.version, user_backups.updated_at, backup_owners.user_name
     FROM user_backups
-    WHERE user_id = ?
+    LEFT JOIN backup_owners ON backup_owners.user_id = user_backups.user_id
+    WHERE user_backups.user_id = ?
   `).bind(userId).first();
 
   if (!row) return json({ found: false, userId });
@@ -298,6 +307,7 @@ async function handleBackupLoad(request, env) {
     userId,
     version: row.version,
     updatedAt: row.updated_at,
+    userName: row.user_name || '',
     payload: JSON.parse(row.payload),
   });
 }
