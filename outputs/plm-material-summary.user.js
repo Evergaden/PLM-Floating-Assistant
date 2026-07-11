@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.63';
+  const SCRIPT_VERSION = '2.4.64';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3880,6 +3880,13 @@
       return;
     }
     if (action === 'home-back') {
+      if (state.searchQuery.trim()) {
+        state.searchQuery = '';
+        state.skuPage = 1;
+        const input = ensurePanel().querySelector('.pfh-search-input');
+        if (input) input.value = '';
+        updateSearchClear();
+      }
       const returnView = state.detailReturnView || '';
       state.view = returnView || 'home';
       state.detailReturnView = '';
