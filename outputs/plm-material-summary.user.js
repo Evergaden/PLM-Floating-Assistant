@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.56
+// @version      2.4.57
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.56';
+  const SCRIPT_VERSION = '2.4.57';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -235,8 +235,8 @@
     materialTab: '\u7269\u6599\u6e05\u5355',
     productTab: '\u4ea7\u54c1\u4fe1\u606f',
     unknown: '\u672a\u8bc6\u522b',
-    noPackage: '\u672a\u627e\u5230\u7eb8\u76d2/\u5370\u5237\u888b\u5c3a\u5bf8',
-    noPrint: '\u672a\u627e\u5230\u6807\u7b7e/\u5370\u5237\u5c3a\u5bf8',
+    noPackage: '\u672a\u8bc6\u522b',
+    noPrint: '\u672a\u8bc6\u522b',
     noDimension: '\u65e0\u53ef\u7528\u4e09\u7ef4\u5c3a\u5bf8',
     sourceMaterial: '\u6765\u6e90\uff1a\u7269\u6599\u6e05\u5355',
     sourceOuter: '\u6765\u6e90\uff1a\u4ea7\u54c1\u4fe1\u606f\u5916\u5305\u88c5',
@@ -1507,8 +1507,12 @@
     const escaped = escapeRegExp(label);
     const labelPair = source.match(/\u7ba1\u5f84\s+\u7ba1\u8eab\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/i);
     if (labelPair) return normalizeTubeMeasureValue(label === '\u7ba1\u5f84' ? labelPair[1] : labelPair[2], '');
-    const inlinePair = source.match(/\u7ba1\u5f84[^\d]{0,12}(\d+(?:\.\d+)?)[^\u7ba1\d]{0,20}\u7ba1\u8eab[^\d]{0,12}(\d+(?:\.\d+)?)/i);
-    if (inlinePair) return normalizeTubeMeasureValue(label === '\u7ba1\u5f84' ? inlinePair[1] : inlinePair[2], '');
+    const inlinePair = source.match(/\u7ba1\u5f84[^\d]{0,12}(\d+(?:\.\d+)?)\s*(mm|cm)?[^\u7ba1\d]{0,20}\u7ba1\u8eab[^\d]{0,12}(\d+(?:\.\d+)?)\s*(mm|cm)?/i);
+    if (inlinePair) {
+      return label === '\u7ba1\u5f84'
+        ? normalizeTubeMeasureValue(inlinePair[1], inlinePair[2])
+        : normalizeTubeMeasureValue(inlinePair[3], inlinePair[4]);
+    }
     const labelIndex = source.search(new RegExp(escaped, 'i'));
     const scope = labelIndex >= 0 ? source.slice(labelIndex, labelIndex + 120) : source;
     const direct = scope.match(new RegExp(escaped + '[^\\d]{0,24}(\\d+(?:\\.\\d+)?)\\s*(mm|cm)?', 'i'));
@@ -1853,6 +1857,7 @@
       warning: '<svg viewBox="0 0 1026 1024" aria-hidden="true"><path d="M1004.657 801.716 602.263 91.599c-49.213-86.817-129.646-86.817-178.866 0L21.004 801.716c-49.207 86.906-8.949 157.798 89.388 157.798h804.877c98.337 0 138.556-70.892 89.388-157.798zM544.635 832.216h-63.649v-63.649h63.649v63.649zM544.635 641.27h-63.649V259.377h63.649V641.27z"></path></svg>',
       copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="6.5" r="2.5"></circle><path d="M8.5 8.2 19 20"></path><path d="M15.5 8.2 5 20"></path><path d="M10 13h4"></path></svg>',
       back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6"></path><path d="M10 12h9"></path></svg>',
+      batchExcel: '<svg viewBox="0 0 179 191.5" aria-hidden="true"><path d="m80.29,191.5c-.37,0-.75-.04-1.13-.12l-56.04-12.38-.38-.02C10,178.45.01,168.04,0,155.29V36.2C.01,23.45,10.01,13.04,22.75,12.52l.37-.02L79.19.12c.36-.08.74-.12,1.11-.12,13.05.01,23.68,10.65,23.7,23.7v144.09c-.01,13.05-10.65,23.69-23.7,23.7ZM24.81,22.63c-.36.08-.73.12-1.11.12-7.41,0-13.45,6.03-13.45,13.45v119.09c0,7.42,6.03,13.46,13.45,13.46.37,0,.75.04,1.13.12l56.05,12.38.67-.06c6.95-.66,12.19-6.42,12.2-13.4V23.7c0-7-5.25-12.75-12.21-13.4l-.66-.06-56.07,12.39Zm111.57,152.73c-2.83,0-5.12-2.3-5.12-5.12V21.27c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v148.96c0,1.37-.53,2.66-1.5,3.63-.97.97-2.25,1.5-3.62,1.5h0Zm37.5-18.23c-2.83,0-5.12-2.3-5.12-5.12V39.5c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v112.5c0,2.83-2.3,5.12-5.12,5.12Zm-133.86-16.67c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.12h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.13h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,1.37-.53,2.66-1.5,3.62s-2.25,1.5-3.62,1.5h-23.96Z"></path></svg>',
       batch: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M464.896 1024c-3.488 0-6.944-0.384-10.368-1.12l-285.184-63.008A143.264 143.264 0 0 1 32 816.864V207.104a143.296 143.296 0 0 1 137.344-143.008L454.528 1.12c3.424-0.736 6.88-1.12 10.368-1.12A143.264 143.264 0 0 1 608 143.104v737.76A143.296 143.296 0 0 1 464.896 1024z m4.352-927.808L185.472 158.88A49.216 49.216 0 0 1 175.104 160C149.152 160 128 181.152 128 207.104v609.76C128 842.88 149.152 864 175.104 864c3.488 0 6.944 0.384 10.368 1.12l283.776 62.688A47.2 47.2 0 0 0 512 880.864V143.104c0-24.512-18.816-44.704-42.752-46.912zM752 941.344a48 48 0 0 1-48-48V130.656a48 48 0 1 1 96 0v762.656a48 48 0 0 1-48 48.032zM944 848A48 48 0 0 1 896 800V224a48 48 0 1 1 96 0v576a48 48 0 0 1-48 48z"></path><path d="M381.344 357.344H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 560H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 762.656H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96z"></path></svg>',
       detailDownload: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M760.889 879.125H263.11c-55.623 0-100.885-45.255-100.885-100.885V377.849c0-55.623 42.062-100.885 93.774-100.885h64v59.54h-64c-18.553 0-34.226 18.93-34.226 41.338V778.24c0 22.791 18.546 41.337 41.337 41.337H760.89c22.791 0 41.337-18.546 41.337-41.337V377.849c0-22.407-15.673-41.337-34.226-41.337h-64v-59.541h64c51.705 0 93.774 45.255 93.774 100.885v400.398c0 55.616-45.262 100.871-100.885 100.871z"></path><path d="M680.974 458.517c-10.617-11.577-28.615-12.352-40.185-1.728l-100.345 92.06V137.317c0-15.709-12.736-28.445-28.444-28.445s-28.444 12.736-28.444 28.445v410.097l-95.296-90.31c-11.4-10.81-29.412-10.319-40.207 1.08-10.809 11.406-10.318 29.405 1.081 40.206L492.437 634.19c5.51 5.07 12.71 7.8 19.55 7.8 6.7 0 13.35-2.37 18.58-7.3l148.011-135.8c11.577-10.625 12.36-28.623 1.735-40.2z"></path></svg>',
       download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 10 4 4 4-4"></path><path d="M5 20h14"></path></svg>',
@@ -2424,7 +2429,7 @@
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
-      ['home-excel-coming-soon', 'batch', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
+      ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
     ];
