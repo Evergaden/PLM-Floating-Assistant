@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.89
+// @version      2.4.90
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.89';
+  const SCRIPT_VERSION = '2.4.90';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1252,10 +1252,10 @@
         merged.isTubePrintMaterial = false;
       }
     }
-    if (next.seenDesign) {
-      merged.skuImageUrl = next.skuImageUrl || '';
-      merged.skuImageFallbackUrl = next.skuImageFallbackUrl || '';
-      merged.skuImageSource = next.skuImageSource || '';
+    if (next.seenDesign && (next.skuImageUrl || next.skuImageFallbackUrl)) {
+      merged.skuImageUrl = next.skuImageUrl || merged.skuImageUrl || '';
+      merged.skuImageFallbackUrl = next.skuImageFallbackUrl || merged.skuImageFallbackUrl || '';
+      merged.skuImageSource = next.skuImageSource || merged.skuImageSource || 'effectImage';
     }
     merged.seenMaterial = previous.seenMaterial || next.seenMaterial;
     merged.seenProduct = previous.seenProduct || next.seenProduct;
@@ -2230,7 +2230,7 @@
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
       '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
       '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + escapeHtml(L.cloudBackupTitle) + '</strong><span>\u4f18\u5148</span></div>' + cloudBody + '</div>',
-      renderInsightsSection(),
+      state.developerToolsOpen ? renderInsightsSection() : '',
       renderLogSection(),
       '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u5bfc\u51fa\u504f\u597d</strong><span>Excel</span></div>' + preferenceBody + '</div>',
       '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u672c\u5730\u7f13\u5b58</strong><span>\u5907\u4efd\u8fc1\u79fb</span></div>' + cacheBody + '</div>',
@@ -10244,6 +10244,8 @@
 
   function saveData(sku, data) {
     if (!sku || !data) return;
+    const previous = loadData(sku);
+    const previousNormalized = previous ? normalizeData(previous) : null;
     const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || new Date().toLocaleString(), updatedAtMs: data.updatedAtMs || Date.now() });
     try {
       saveDataDirect(sku, normalized);
@@ -10255,7 +10257,9 @@
       upsertIndex(normalized);
       recordDataQuality(normalized, 'saveData');
       queueCloudBackup();
-      schedulePackAiEstimate(normalized);
+      const previousPackKey = previousNormalized ? buildPackBoxKey(previousNormalized) : '';
+      const nextPackKey = buildPackBoxKey(normalized);
+      if (nextPackKey && nextPackKey !== previousPackKey) schedulePackAiEstimate(normalized);
     } catch (error) {
       console.warn('PLM floating helper save failed:', error);
       addLog('error', '\u7f13\u5b58\u5546\u54c1\u5931\u8d25', (sku || '') + ' ' + formatErrorMessage(error));
