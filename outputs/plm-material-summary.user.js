@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.55
+// @version      2.4.56
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.55';
+  const SCRIPT_VERSION = '2.4.56';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2846,7 +2846,8 @@
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
       state.copywritingStatus = '正在解析 Word 表格...';
       renderShell();
-      const tableRows = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 12000, 'Word 表格解析');
+      addLog('info', '产品文案：开始解析 Word', file.fileName + ' | ' + arrayBuffer.byteLength + 'B');
+      const tableRows = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, 'Word 表格解析');
       const built = buildMainstreamCopywriting(tableRows, workingData);
       if (!built.sections.length) throw new Error('Word 中未识别到主流版文案字段');
       const next = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, cached);
@@ -3264,12 +3265,20 @@
   }
 
   async function parseCopywritingDocxRows(arrayBuffer) {
-    const Zip = (typeof JSZip !== 'undefined' && JSZip) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.JSZip);
-    if (!Zip) throw new Error('Word 解析组件未加载，请刷新页面后重试');
-    const zip = await Zip.loadAsync(arrayBuffer);
-    const documentFile = zip.file('word/document.xml');
-    if (!documentFile) throw new Error('Word 文件结构不完整');
-    const xmlText = await documentFile.async('string');
+    let xmlText = '';
+    try {
+      xmlText = await readDocxDocumentXmlNative(arrayBuffer);
+      addLog('info', '产品文案：Word 原生解压成功', xmlText.length + ' 字符');
+    } catch (nativeError) {
+      addLog('warn', '产品文案：原生解压不可用，尝试 JSZip', formatErrorMessage(nativeError));
+      const Zip = (typeof JSZip !== 'undefined' && JSZip) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.JSZip);
+      if (!Zip) throw new Error('Word 解析组件未加载，且原生解压失败：' + formatErrorMessage(nativeError));
+      const zip = await Zip.loadAsync(arrayBuffer, { checkCRC32: false, createFolders: false });
+      const documentFile = zip.file('word/document.xml');
+      if (!documentFile) throw new Error('Word 文件结构不完整');
+      xmlText = await documentFile.async('string');
+      addLog('info', '产品文案：JSZip 解压成功', xmlText.length + ' 字符');
+    }
     const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
     if (xml.querySelector('parsererror')) throw new Error('Word XML 解析失败');
     const rows = [];
@@ -3278,6 +3287,49 @@
       if (cells.length >= 2) rows.push(cells);
     });
     return rows;
+  }
+
+  async function readDocxDocumentXmlNative(arrayBuffer) {
+    if (typeof DecompressionStream !== 'function') throw new Error('浏览器不支持原生 ZIP 解压');
+    const bytes = new Uint8Array(arrayBuffer);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const readU16 = (offset) => view.getUint16(offset, true);
+    const readU32 = (offset) => view.getUint32(offset, true);
+    let eocd = -1;
+    const start = Math.max(0, bytes.length - 65557);
+    for (let offset = bytes.length - 22; offset >= start; offset -= 1) {
+      if (readU32(offset) === 0x06054b50) {
+        eocd = offset;
+        break;
+      }
+    }
+    if (eocd < 0) throw new Error('未找到 Word ZIP 目录');
+    const entryCount = readU16(eocd + 10);
+    let offset = readU32(eocd + 16);
+    const decoder = new TextDecoder('utf-8');
+    for (let index = 0; index < entryCount; index += 1) {
+      if (offset + 46 > bytes.length || readU32(offset) !== 0x02014b50) throw new Error('Word ZIP 目录损坏');
+      const compression = readU16(offset + 10);
+      const compressedSize = readU32(offset + 20);
+      const nameLength = readU16(offset + 28);
+      const extraLength = readU16(offset + 30);
+      const commentLength = readU16(offset + 32);
+      const localOffset = readU32(offset + 42);
+      const name = decoder.decode(bytes.subarray(offset + 46, offset + 46 + nameLength));
+      offset += 46 + nameLength + extraLength + commentLength;
+      if (name !== 'word/document.xml') continue;
+      if (localOffset + 30 > bytes.length || readU32(localOffset) !== 0x04034b50) throw new Error('Word 正文位置无效');
+      const localNameLength = readU16(localOffset + 26);
+      const localExtraLength = readU16(localOffset + 28);
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = bytes.slice(dataStart, dataStart + compressedSize);
+      if (compression === 0) return decoder.decode(compressed);
+      if (compression !== 8) throw new Error('Word 使用了不支持的压缩方式：' + compression);
+      const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      const inflated = await new Response(stream).arrayBuffer();
+      return decoder.decode(new Uint8Array(inflated));
+    }
+    throw new Error('Word 中没有正文 XML');
   }
 
   function copywritingCellLines(cell) {
