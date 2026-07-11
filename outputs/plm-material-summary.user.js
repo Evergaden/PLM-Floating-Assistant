@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.79
+// @version      2.4.80
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.79';
+  const SCRIPT_VERSION = '2.4.80';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -16427,13 +16427,13 @@
       #${PANEL_ID} .pfh-upload-mode-tabs {
         position: relative;
         display: grid;
-        grid-template-columns: repeat(2, minmax(132px, 1fr));
-        width: min(100%, 330px);
-        margin-bottom: 10px;
-        padding: 4px;
+        grid-template-columns: repeat(2, minmax(96px, 1fr));
+        width: min(100%, 224px);
+        margin-bottom: 8px;
+        padding: 3px;
         overflow-x: auto;
         border: 1px solid rgba(211, 204, 255, .56);
-        border-radius: 14px;
+        border-radius: 11px;
         background: rgba(244, 241, 255, .58);
         scrollbar-width: none;
       }
@@ -16443,8 +16443,8 @@
       #${PANEL_ID} .pfh-upload-mode-tabs button {
         position: relative;
         z-index: 1;
-        min-height: 32px;
-        padding: 0 14px;
+        min-height: 27px;
+        padding: 0 8px;
         color: #69728f;
         border: 0;
         background: transparent;
@@ -16456,11 +16456,11 @@
       }
       #${PANEL_ID} .pfh-upload-mode-indicator {
         position: absolute;
-        top: 4px;
-        bottom: 4px;
-        left: 4px;
-        width: calc(50% - 4px);
-        border-radius: 10px;
+        top: 3px;
+        bottom: 3px;
+        left: 3px;
+        width: calc(50% - 3px);
+        border-radius: 8px;
         background: linear-gradient(135deg, #8b5cf6, #6d35e8);
         box-shadow: 0 8px 18px rgba(109, 53, 232, .28);
         transform: translateX(0) scale(.96);
