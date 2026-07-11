@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.67';
+  const SCRIPT_VERSION = '2.4.68';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -1517,12 +1517,12 @@
   function formatTubePrintSize(rule, body) {
     const size = getTubeRulePrintSize(rule, body);
     if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return '';
-    return trimNumber(size.width) + 'x' + trimNumber(size.height) + 'cm';
+    return trimNumber(size.height) + 'x' + trimNumber(size.width) + 'cm';
   }
 
   function formatTubeSpecPrintSize(spec) {
     if (!spec || !Number.isFinite(Number(spec.width)) || !Number.isFinite(Number(spec.height))) return '';
-    return trimNumber(Number(spec.width)) + 'x' + trimNumber(Number(spec.height)) + 'cm';
+    return trimNumber(Number(spec.height)) + 'x' + trimNumber(Number(spec.width)) + 'cm';
   }
 
   function normalizeDimensionUnitNumber(value, unit) {
@@ -1564,7 +1564,9 @@
   }
 
   function formatCmSegment(value) {
-    const text = trimNumber(value);
+    const number = Number(value);
+    if (!Number.isFinite(number)) return '';
+    const text = String(number);
     return text.includes('.') ? text : text + '.0';
   }
 
