@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.64';
+  const SCRIPT_VERSION = '2.4.65';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -253,12 +253,6 @@
     cachedCount: '\u5df2\u5b58\u50a8\u7f16\u7801\u6570\u91cf',
     storageNote: '\u5b58\u50a8\u4f4d\u7f6e\u8bf4\u660e',
     storageNoteText: '\u6570\u636e\u5b58\u5728 Tampermonkey/Violentmonkey \u7684\u811a\u672c\u672c\u5730\u5b58\u50a8\u4e2d\uff0c\u6e05\u7406\u6269\u5c55\u6570\u636e\u6216\u5378\u8f7d\u811a\u672c\u53ef\u80fd\u4f1a\u4e22\u5931\u3002',
-    tutorialTitle: '\u4f7f\u7528\u6559\u7a0b',
-    tutorialOpen: '\u91cd\u65b0\u6253\u5f00\u6559\u7a0b',
-    tutorialText: '\u6587\u5b57\u7248\u8bf4\u660e',
-    tutorialStart: '\u5f00\u59cb\u4f7f\u7528',
-    tutorialBackSettings: '\u8fd4\u56de\u8bbe\u7f6e',
-    tutorialIntro: '\u7b2c\u4e00\u6b21\u4f7f\u7528\u65f6\u5efa\u8bae\u6309\u4e0b\u9762\u6d41\u7a0b\u8d70\u4e00\u904d\uff0c\u4ee5\u540e\u5fd8\u4e86\u4e5f\u53ef\u4ee5\u5728\u8bbe\u7f6e\u91cc\u91cd\u65b0\u6253\u5f00\u3002',
     excelKeywordSetting: '\u8868\u683c\u5173\u952e\u8bcd',
     excelKeywordBrandName: '\u54c1\u724c \u4ea7\u54c1\u540d',
     excelKeywordEnglish: '\u82f1\u6587\u540d',
@@ -420,6 +414,7 @@
     developerSettingsTapCount: 0,
     developerSettingsTapAt: 0,
     developerToolsOpen: false,
+    tutorialModalOpen: firstTutorial,
     searchQuery: '',
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
@@ -586,7 +581,7 @@
     if (lockedSku && !sku && state.openingProjectDetail) return;
     if (state.userCollapsedPanel && state.manuallyCollapsedForSku && state.manuallyCollapsedForSku === (sku || state.sku)) return;
     const shouldAdoptProgrammaticDetail = sku && state.openingProjectDetailSku && sku === state.openingProjectDetailSku;
-    if (!shouldAdoptProgrammaticDetail && (state.view === 'tutorial' || state.view === 'about' || state.view === 'upload')) {
+    if (!shouldAdoptProgrammaticDetail && (state.view === 'about' || state.view === 'upload')) {
       state.drawer = drawer;
       state.sku = sku || state.sku || '';
       if (sku) state.selectedSku = sku;
@@ -2016,13 +2011,13 @@
     updatePanelPinButton(panel);
     updateSettingsNotice(panel);
     renderUploadProgressOverlay(panel);
+    renderFirstRunTutorialModal(panel);
     if (state.view === 'home') {
       renderHome(panel, statusText);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
-    if (state.view === 'tutorial') renderTutorialList(panel);
-    else if (state.view === 'upload') {
+    if (state.view === 'upload') {
       const list = panel.querySelector('.pfh-list');
       if (list) list.innerHTML = '';
     }
@@ -2035,11 +2030,6 @@
     }
     if (state.view === 'ledger') {
       renderLedger(panel);
-      restorePanelScroll(panel, scrollSnapshot);
-      return;
-    }
-    if (state.view === 'tutorial') {
-      renderTutorial(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -2124,16 +2114,6 @@
     });
   }
 
-  function renderTutorialList(panel) {
-    const list = panel.querySelector('.pfh-list');
-    list.innerHTML = '<div class="pfh-list-head"><strong>' + escapeHtml(L.tutorialTitle) + '</strong></div>' +
-      '<div class="pfh-sku-scroll pfh-tutorial-nav">' +
-      ['\u6253\u5f00\u8be6\u60c5', '\u81ea\u52a8\u8bc6\u522b', '\u590d\u5236/\u5237\u65b0', '\u751f\u6210 Excel', '\u63d0\u5ba1\u4e0a\u4f20', '\u540e\u53f0\u81ea\u52a8\u5316', '\u7f13\u5b58\u5907\u4efd'].map((text, index) =>
-        '<div class="pfh-tutorial-nav-item"><b>' + (index + 1) + '</b><span>' + escapeHtml(text) + '</span></div>'
-      ).join('') +
-      '</div><div class="pfh-list-pager"><span>\u5171 7 \u6b65</span><div><button type="button" disabled>\u2039</button><b>1</b><button type="button" disabled>\u203a</button></div></div>';
-  }
-
   function renderAbout(panel) {
     const detail = panel.querySelector('.pfh-detail');
     const cloudBody = '<label class="pfh-cloud-key"><span>' + escapeHtml(L.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="' + escapeHtml(L.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label>' +
@@ -2154,6 +2134,24 @@
       state.developerToolsOpen ? renderDeveloperTools() : '',
       '</section></div>',
     ].join('');
+  }
+
+  function renderFirstRunTutorialModal(panel) {
+    const existing = panel.querySelector('.pfh-first-run-backdrop');
+    if (existing) existing.remove();
+    if (!state.tutorialModalOpen) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'pfh-first-run-backdrop';
+    overlay.innerHTML = '<section class="pfh-first-run-dialog" role="dialog" aria-modal="true" aria-label="\u4f7f\u7528\u5f15\u5bfc">' +
+      '<div class="pfh-first-run-head"><strong>\u6b22\u8fce\u4f7f\u7528 PLM \u60ac\u6d6e\u52a9\u624b</strong><span>\u9996\u6b21\u5f15\u5bfc</span></div>' +
+      '<ol>' +
+        '<li><b>1</b><p>\u6253\u5f00\u4efb\u610f\u4ea7\u54c1\u8be6\u60c5\u9875\uff0c\u6b63\u5f0f\u542f\u52a8\u7a0b\u5e8f\u3002</p></li>' +
+        '<li><b>2</b><p>\u62d6\u52a8\u7a97\u53e3\u8c03\u6574\u5230\u5408\u9002\u4f4d\u7f6e\uff0c\u8ba9\u5b83\u4fdd\u6301\u8212\u670d\u7684\u5de5\u4f5c\u59ff\u52bf\u3002</p></li>' +
+        '<li><b>3</b><div><p>\u5728\u6d4f\u89c8\u5668\u5c5e\u6027\u300c\u76ee\u6807\u300d\u680f\u672b\u5c3e\u6dfb\u52a0\u53c2\u6570\uff1a</p><code>--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding</code><p>\u907f\u514d\u6d4f\u89c8\u5668\u9000\u5230\u540e\u53f0\u540e\u6682\u505c\u4efb\u52a1\uff0c\u8ba9\u81ea\u52a8\u4e0a\u4f20\u5b89\u9759\u5730\u7ee7\u7eed\u5de5\u4f5c\u3002</p></div></li>' +
+      '</ol>' +
+      '<button type="button" data-action="first-run-tutorial-done">\u5f00\u59cb\u4f7f\u7528</button>' +
+    '</section>';
+    panel.appendChild(overlay);
   }
 
   function renderDeveloperTools() {
@@ -2278,28 +2276,6 @@
       return '<div class="pfh-log-row is-' + escapeHtml(level) + '"><span>' + escapeHtml(item.time || '') + '</span><b>' + escapeHtml(level.toUpperCase()) + '</b><p>' + escapeHtml(item.message || '') + '</p></div>';
     }).join('') : '<div class="pfh-empty">' + escapeHtml(L.logEmpty) + '</div>';
     return '<div class="pfh-log-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.logTitle) + '</strong><span>' + escapeHtml(String((state.logs || []).length)) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="copy-logs">' + escapeHtml(L.logCopy) + '</button><button type="button" data-action="clear-logs">' + escapeHtml(L.logClear) + '</button></div><div class="pfh-log-list">' + rows + '</div></div>';
-  }
-
-  function renderTutorial(panel) {
-    const detail = panel.querySelector('.pfh-detail');
-    detail.classList.remove('is-loading');
-    const steps = [
-      ['1', '\u6253\u5f00\u4ea7\u54c1\u8be6\u60c5', '\u5728 PLM \u9879\u76ee\u6216\u5546\u54c1\u5217\u8868\u91cc\u70b9\u51fb\u201c\u8be6\u60c5\u201d\u3002\u60ac\u6d6e\u52a9\u624b\u4f1a\u81ea\u52a8\u5c55\u5f00\uff0c\u5148\u663e\u793a SKU\uff0c\u6709\u7f13\u5b58\u5c31\u76f4\u63a5\u8bfb\u7f13\u5b58\u3002'],
-      ['2', '\u7b49\u5f85\u81ea\u52a8\u8bc6\u522b', '\u9996\u6b21\u6ca1\u7f13\u5b58\u65f6\uff0c\u811a\u672c\u4f1a\u81ea\u52a8\u8bfb\u7269\u6599\u6e05\u5355\u548c\u4ea7\u54c1\u4fe1\u606f\uff1a\u7eb8\u76d2/\u5370\u5237\u888b\u5c3a\u5bf8\u3001\u6807\u7b7e/\u5370\u5237\u5c3a\u5bf8\u3001\u51c0\u542b\u91cf\u3001\u6bdb\u91cd\u90fd\u4f1a\u6536\u96c6\u5230\u56fe\u5305\u4fe1\u606f\u91cc\u3002'],
-      ['3', '\u590d\u5236\u548c\u5237\u65b0', '\u6bcf\u4e00\u884c\u53f3\u4fa7\u7684\u526a\u5200\u6309\u94ae\u53ef\u4ee5\u590d\u5236\u5bf9\u5e94\u6570\u636e\u3002\u5982\u679c\u9875\u9762\u8fd8\u6ca1\u52a0\u8f7d\u5b8c\u6216\u8bc6\u522b\u4e0d\u51c6\uff0c\u70b9\u53f3\u4e0b\u89d2\u5237\u65b0\u6309\u94ae\u91cd\u65b0\u8bc6\u522b\u4e00\u6b21\u3002'],
-      ['4', '\u751f\u6210 Excel', '\u5728\u201c\u56fe\u5305\u4fe1\u606f\u201d\u6807\u9898\u53f3\u4fa7\u70b9\u201c\u5bfc\u51fa Excel\u201d\uff0c\u5148\u586b\u88c5\u7bb1\u6570\u548c\u91c7\u8d2d\u4ef7\u683c\uff0c\u70b9\u91cd\u65b0\u83b7\u53d6\u786e\u8ba4\u7eff\u706f\u540e\u518d\u70b9\u751f\u6210\u3002\u7ea2\u706f\u4e5f\u53ef\u751f\u6210\uff0c\u7f3a\u5931\u7684\u683c\u5b50\u4f1a\u7559\u7a7a\u3002'],
-      ['5', '\u63d0\u5ba1\u4e0a\u4f20', '\u70b9\u9876\u90e8\u201c\u63d0\u5ba1\u4e0a\u4f20\u201d\uff0c\u628a xlsx \u548c zip \u62d6\u8fdb\u6765\u3002\u6587\u4ef6\u540d\u91cc\u7684 SKU \u4f1a\u81ea\u52a8\u5165\u961f\uff0c\u540c\u4e00 SKU \u7684 xlsx \u548c zip \u90fd\u9f50\u624d\u4f1a\u4e0a\u4f20\u3002\u5b8c\u6210\u7684\u4f1a\u8fdb\u5386\u53f2\u8bb0\u5f55\uff0c\u7f3a\u6587\u4ef6\u6216\u4e0d\u80fd\u7f16\u8f91\u4f1a\u7ea2\u706f\u8df3\u8fc7\u3002'],
-      ['6', L.backgroundAutomationTitle, L.backgroundAutomationText],
-      ['7', '\u65e5\u5e38\u5c0f\u6280\u5de7', '\u5de6\u4fa7 SKU \u5217\u8868\u53ef\u641c\u7d22\u4ea7\u54c1\u540d\u3001SKU\u3001\u7eb8\u76d2/\u6807\u7b7e\u7f16\u7801\u3002\u9009\u4e2d SKU \u540e\u53ef\u7f6e\u9876\uff0c\u5e38\u7528\u4ea7\u54c1\u4f1a\u6392\u5728\u524d\u9762\u3002\u8bbe\u7f6e\u91cc\u53ef\u5bfc\u51fa/\u5bfc\u5165\u7f13\u5b58\uff0c\u5206\u4eab\u524d\u53ef\u5148\u5907\u4efd\u3002'],
-    ];
-    detail.innerHTML = [
-      '<div class="pfh-detail-scroll"><section class="pfh-section pfh-tutorial-section">',
-      '<div class="pfh-tutorial-hero"><h3>' + escapeHtml(L.tutorialTitle) + '</h3><p>' + escapeHtml(L.tutorialIntro) + '</p></div>',
-      '<div class="pfh-tutorial-steps">' + steps.map((step) => '<article><b>' + escapeHtml(step[0]) + '</b><div><strong>' + escapeHtml(step[1]) + '</strong><p>' + escapeHtml(step[2]) + '</p></div></article>').join('') + '</div>',
-      '<div class="pfh-about-note pfh-manual-note"><strong>' + escapeHtml(L.tutorialText) + '</strong><p>' + escapeHtml(getTutorialPlainText()) + '</p></div>',
-      '<div class="pfh-about-actions pfh-tutorial-actions"><button type="button" data-action="tutorial-done">' + escapeHtml(L.tutorialStart) + '</button><button type="button" data-action="tutorial-back-settings">' + escapeHtml(L.tutorialBackSettings) + '</button></div>',
-      '</section></div>',
-    ].join('');
   }
 
   function renderUpload(panel) {
@@ -2479,7 +2455,7 @@
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
-      ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。'],
+      ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
     ];
@@ -2488,7 +2464,7 @@
       '<h2>PLM 工作台</h2>' +
       '<p>' + escapeHtml(status) + '</p>' +
       '<div class="pfh-home-stats"><span>CACHED</span><b>' + escapeHtml(String(count)) + '</b><em>本地产品档案</em></div>' +
-      '<div class="pfh-home-grid">' + cards.map((card) => '<button type="button" class="pfh-home-card" data-action="' + card[0] + '">' +
+      '<div class="pfh-home-grid">' + cards.map((card) => '<button type="button" class="pfh-home-card' + (card[5] ? ' is-disabled' : '') + '" data-action="' + card[0] + '"' + (card[5] ? ' disabled aria-disabled="true"' : '') + '>' +
         iconHtml(card[1]) +
         '<small>' + escapeHtml(card[2]) + '</small>' +
         '<strong>' + escapeHtml(card[3]) + '</strong>' +
@@ -3722,23 +3698,9 @@
       renderShell();
       return;
     }
-    if (action === 'tutorial-open') {
-      state.view = 'tutorial';
-      expandPanel();
-      renderShell();
-      return;
-    }
-    if (action === 'tutorial-done') {
+    if (action === 'first-run-tutorial-done') {
       saveTutorialSeen(true);
-      state.view = state.data ? 'detail' : 'about';
-      expandPanel();
-      renderShell();
-      return;
-    }
-    if (action === 'tutorial-back-settings') {
-      saveTutorialSeen(true);
-      state.view = 'about';
-      expandPanel();
+      state.tutorialModalOpen = false;
       renderShell();
       return;
     }
@@ -9602,18 +9564,6 @@
     }
   }
 
-  function getTutorialPlainText() {
-    return [
-      '1. \u6253\u5f00 PLM \u9879\u76ee\u8be6\u60c5\uff0c\u52a9\u624b\u4f1a\u81ea\u52a8\u5c55\u5f00\u5e76\u8bc6\u522b\u5f53\u524d SKU\u3002',
-      '2. \u9996\u6b21\u6ca1\u7f13\u5b58\u65f6\u7b49\u5b83\u8dd1\u5b8c\u4e00\u8f6e\uff1b\u8bc6\u522b\u9519\u4e86\u5c31\u70b9\u53f3\u4e0b\u89d2\u5237\u65b0\u3002',
-      '3. \u6bcf\u884c\u526a\u5200\u6309\u94ae\u53ef\u590d\u5236\u5355\u9879\u6570\u636e\uff0c\u5de6\u4fa7\u53ef\u641c\u7d22\u4ea7\u54c1\u540d\u3001SKU\u3001\u7269\u6599\u7f16\u7801\u3002',
-      '4. \u5bfc\u51fa Excel \u524d\u586b\u88c5\u7bb1\u6570\u548c\u4ef7\u683c\uff0c\u70b9\u91cd\u65b0\u83b7\u53d6\u770b\u7ea2\u7eff\u706f\uff0c\u518d\u70b9\u751f\u6210\u3002',
-      '5. \u63d0\u5ba1\u4e0a\u4f20\u9875\u628a xlsx/zip \u62d6\u5165\uff0c\u6587\u4ef6\u540d\u91cc\u7684 SKU \u4f1a\u81ea\u52a8\u5165\u961f\uff0c\u6587\u4ef6\u9f50\u5168\u624d\u4f1a\u6267\u884c\u3002',
-      '6. ' + L.backgroundAutomationText,
-      '7. \u8bbe\u7f6e\u91cc\u53ef\u91cd\u65b0\u6253\u5f00\u672c\u6559\u7a0b\uff0c\u4e5f\u53ef\u5bfc\u51fa/\u5bfc\u5165\u7f13\u5b58\u7ed9\u5907\u4efd\u6216\u6362\u7535\u8111\u7528\u3002',
-    ].join('\n');
-  }
-
   function loadUploadQueue() {
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(UPLOAD_QUEUE_KEY, null) : JSON.parse(localStorage.getItem(UPLOAD_QUEUE_KEY) || 'null');
@@ -12713,6 +12663,19 @@
         border-color: rgba(124, 58, 237, .42);
         box-shadow: 0 16px 36px rgba(124, 58, 237, .17), inset 0 1px 0 rgba(255,255,255,.94);
       }
+      #${PANEL_ID} .pfh-home-card.is-disabled,
+      #${PANEL_ID} .pfh-home-card:disabled {
+        cursor: not-allowed;
+        opacity: .48;
+        filter: grayscale(.38);
+        box-shadow: none;
+      }
+      #${PANEL_ID} .pfh-home-card.is-disabled:hover,
+      #${PANEL_ID} .pfh-home-card:disabled:hover {
+        transform: none;
+        border-color: rgba(197, 186, 255, .34);
+        box-shadow: none;
+      }
       #${PANEL_ID} .pfh-home-card .pfh-icon {
         width: 42px;
         height: 42px;
@@ -14284,6 +14247,97 @@
         padding: 20px;
         background: rgba(24, 20, 61, .22);
         backdrop-filter: blur(4px);
+      }
+      #${PANEL_ID} .pfh-first-run-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483646;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(24, 20, 61, .28);
+        backdrop-filter: blur(5px);
+      }
+      #${PANEL_ID} .pfh-first-run-dialog {
+        width: min(500px, calc(100vw - 36px));
+        max-height: min(760px, calc(100vh - 36px));
+        overflow: auto;
+        padding: 20px;
+        border: 1px solid rgba(207, 196, 255, .78);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, .97);
+        box-shadow: 0 24px 60px rgba(47, 31, 111, .28);
+      }
+      #${PANEL_ID} .pfh-first-run-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      #${PANEL_ID} .pfh-first-run-head strong {
+        color: #1c1b4b;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      #${PANEL_ID} .pfh-first-run-head span {
+        color: #806fd2;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-first-run-dialog ol {
+        display: grid;
+        gap: 12px;
+        margin: 0 0 18px;
+        padding: 0;
+        list-style: none;
+      }
+      #${PANEL_ID} .pfh-first-run-dialog li {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+      }
+      #${PANEL_ID} .pfh-first-run-dialog li > b {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(124, 58, 237, .12);
+        color: #6d35e8;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      #${PANEL_ID} .pfh-first-run-dialog p {
+        margin: 1px 0;
+        color: #566381;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      #${PANEL_ID} .pfh-first-run-dialog code {
+        display: block;
+        margin: 8px 0;
+        padding: 9px 10px;
+        overflow-wrap: anywhere;
+        border: 1px solid rgba(197, 186, 255, .42);
+        border-radius: 9px;
+        background: rgba(246, 244, 255, .72);
+        color: #4f3aa8;
+        font-size: 11px;
+        line-height: 1.5;
+        white-space: normal;
+      }
+      #${PANEL_ID} .pfh-first-run-dialog > button {
+        min-width: 104px;
+        height: 34px;
+        padding: 0 15px;
+        border: 0;
+        border-radius: 10px;
+        background: #7545ee;
+        color: #fff;
+        font-size: 13px;
+        box-shadow: 0 8px 16px rgba(117, 69, 238, .22);
       }
       #${PANEL_ID} .pfh-developer-dialog {
         width: min(360px, calc(100vw - 40px));
