@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.74
+// @version      2.4.75
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -18,6 +18,7 @@
 // @connect      ai-obj.westmonth.com
 // @connect      plm.westmonth.com
 // @connect      velvet.qzz.io
+// @connect      plm-cloud-backup.wt196731.workers.dev
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -26,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.74';
+  const SCRIPT_VERSION = '2.4.75';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -9048,7 +9049,7 @@
           },
           data: body,
           onload: handleLoad,
-          onerror: reject,
+          onerror: () => reject(new Error('云端请求被浏览器拦截或网络不可用')),
           ontimeout: () => reject(new Error('timeout')),
           timeout: timeoutMs,
         });
