@@ -26,13 +26,20 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.62';
+  const SCRIPT_VERSION = '2.4.63';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
   const LAUNCHER_POSITION_KEY = 'plm-floating-helper:launcher-position';
   const SPLIT_KEY = 'plm-floating-helper:split-width';
   const SIZE_KEY = 'plm-floating-helper:size';
+  const INITIAL_LAYOUT = Object.freeze({
+    panelLeftRatio: 67 / 1920,
+    panelTopRatio: 129 / 1080,
+    launcherLeftRatio: 674 / 1920,
+    launcherTopRatio: 940 / 1080,
+    splitWidth: 237,
+  });
   const SETTINGS_KEY = 'plm-floating-helper:settings';
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
@@ -9927,10 +9934,13 @@
   function applySavedPosition(panel) {
     const pos = loadPosition();
     if (!pos) {
-      // A predictable first-run position; subsequent manual moves are persisted.
-      panel.style.right = '24px';
-      const initialHeight = Math.min(state.panelSize?.height || 906, getPanelMaxHeight());
-      panel.style.bottom = Math.max(8, window.innerHeight - initialHeight - 24) + 'px';
+      // Scale Violet's preferred full-screen layout, while clamping it into any smaller viewport.
+      const initialWidth = clamp(state.panelSize?.width || 686, 520, Math.min(1180, window.innerWidth - 24));
+      const initialHeight = clamp(state.panelSize?.height || 906, 520, getPanelMaxHeight());
+      const left = clamp(Math.round(window.innerWidth * INITIAL_LAYOUT.panelLeftRatio), 8, Math.max(8, window.innerWidth - initialWidth - 8));
+      const top = clamp(Math.round(window.innerHeight * INITIAL_LAYOUT.panelTopRatio), 8, Math.max(8, window.innerHeight - initialHeight - 8));
+      panel.style.right = Math.max(8, window.innerWidth - initialWidth - left) + 'px';
+      panel.style.bottom = Math.max(8, window.innerHeight - initialHeight - top) + 'px';
       return;
     }
     if (Number.isFinite(pos.right)) panel.style.right = pos.right + 'px';
@@ -9970,8 +9980,8 @@
     }
     const buttonWidth = 86;
     const buttonHeight = 34;
-    launcher.style.left = Math.max(8, window.innerWidth - buttonWidth - 24) + 'px';
-    launcher.style.top = Math.max(8, window.innerHeight - buttonHeight - 24) + 'px';
+    launcher.style.left = clamp(Math.round(window.innerWidth * INITIAL_LAYOUT.launcherLeftRatio), 8, Math.max(8, window.innerWidth - buttonWidth - 8)) + 'px';
+    launcher.style.top = clamp(Math.round(window.innerHeight * INITIAL_LAYOUT.launcherTopRatio), 8, Math.max(8, window.innerHeight - buttonHeight - 8)) + 'px';
   }
 
   function loadLauncherPosition() {
@@ -10048,10 +10058,10 @@
 
   function loadSplitWidth() {
     try {
-      const value = typeof GM_getValue === 'function' ? GM_getValue(SPLIT_KEY, 150) : Number(localStorage.getItem(SPLIT_KEY) || 150);
-      return clamp(Number(value) || 150, 110, 260);
+      const value = typeof GM_getValue === 'function' ? GM_getValue(SPLIT_KEY, INITIAL_LAYOUT.splitWidth) : Number(localStorage.getItem(SPLIT_KEY) || INITIAL_LAYOUT.splitWidth);
+      return clamp(Number(value) || INITIAL_LAYOUT.splitWidth, 110, 260);
     } catch (error) {
-      return 150;
+      return INITIAL_LAYOUT.splitWidth;
     }
   }
 
