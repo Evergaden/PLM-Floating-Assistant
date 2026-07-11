@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.54
+// @version      2.4.55
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.54';
+  const SCRIPT_VERSION = '2.4.55';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2820,25 +2820,33 @@
         addLog('warn', '产品文案：检测到旧附件', file.fileName + ' < ' + cached.fileName);
         return;
       }
-      state.copywritingStatus = '正在下载并解析 ' + file.fileName;
+      state.copywritingStatus = '正在触发 Word 下载 ' + file.fileName;
       renderShell();
-      let source = await resolveCopywritingDocumentSource(file.card, file.fileName);
+      let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, 'Word 下载监听');
       if (!source || (!source.url && !source.arrayBuffer)) throw new Error('未读取到 Word 文件内容');
       addLog('info', '产品文案：已取得文件内容', source.arrayBuffer ? '内存 Word 数据' : String(source.url || '').replace(/\?.*$/, '?...'));
       let arrayBuffer;
       try {
-        arrayBuffer = source.arrayBuffer || await downloadCopywritingDocument(source.url);
+        state.copywritingStatus = source.arrayBuffer ? '正在校验 Word 文件...' : '正在读取 Word 文件...';
+        renderShell();
+        arrayBuffer = source.arrayBuffer || await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, 'Word 文件读取');
         if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('读取到的内容不是有效 Word 文件');
       } catch (error) {
         if (source.kind === 'captured') throw error;
         addLog('warn', '产品文案：组件地址不可直接读取，改用下载监听', formatErrorMessage(error));
-        source = { ...(await captureCopywritingDownloadSource(file.card, file.fileName)), kind: 'captured' };
+        state.copywritingStatus = '正在重新监听 Word 下载...';
+        renderShell();
+        source = { ...(await withCopywritingTimeout(captureCopywritingDownloadSource(file.card, file.fileName), 12000, '备用下载监听')), kind: 'captured' };
         if (!source.url && !source.arrayBuffer) throw error;
-        arrayBuffer = source.arrayBuffer || await downloadCopywritingDocument(source.url);
+        state.copywritingStatus = source.arrayBuffer ? '正在校验 Word 文件...' : '正在读取 Word 文件...';
+        renderShell();
+        arrayBuffer = source.arrayBuffer || await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, '备用 Word 文件读取');
         if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('下载监听取得的内容不是有效 Word 文件');
       }
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
-      const tableRows = await parseCopywritingDocxRows(arrayBuffer);
+      state.copywritingStatus = '正在解析 Word 表格...';
+      renderShell();
+      const tableRows = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 12000, 'Word 表格解析');
       const built = buildMainstreamCopywriting(tableRows, workingData);
       if (!built.sections.length) throw new Error('Word 中未识别到主流版文案字段');
       const next = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, cached);
@@ -2920,13 +2928,18 @@
       addLog('info', '产品文案：命中卡片地址', fileName + ' | ' + redactCopywritingUrl(direct));
       return { url: direct, arrayBuffer: null, kind: 'direct' };
     }
-    const componentUrl = findCopywritingUrlInVueState(card, fileName);
-    if (componentUrl) {
-      addLog('info', '产品文案：命中组件地址', fileName + ' | ' + redactCopywritingUrl(componentUrl));
-      return { url: componentUrl, arrayBuffer: null, kind: 'component' };
-    }
-    addLog('info', '产品文案：未发现静态地址，开始监听下载动作', fileName);
+    addLog('info', '产品文案：未发现静态地址，直接监听下载动作', fileName);
     return { ...(await captureCopywritingDownloadSource(card, fileName)), kind: 'captured' };
+  }
+
+  function withCopywritingTimeout(promise, timeout, stage) {
+    let timer = null;
+    const limit = new Promise((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error((stage || '产品文案处理') + '超时')), Math.max(1000, Number(timeout) || 12000));
+    });
+    return Promise.race([Promise.resolve(promise), limit]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
   }
 
   function redactCopywritingUrl(value) {
