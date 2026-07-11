@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.73
+// @version      2.4.74
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -26,7 +26,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.73';
+  const SCRIPT_VERSION = '2.4.74';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -51,7 +51,7 @@
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
-  const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
+  const CLOUD_BACKUP_API_BASE = 'https://plm-cloud-backup.wt196731.workers.dev';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
   const PRODUCT_REPLACE_UPLOAD_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe', '\u89c6\u9891', '\u52a8\u56fe', '\u63a8\u54c1\u8d44\u6599', '\u56fe\u5305\u7d20\u6750'];
   const PRODUCT_BATCH_IMAGE_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe'];
@@ -16274,6 +16274,29 @@
       }
       #${PANEL_ID} .pfh-collection-mark:active {
         transform: scale(.91);
+      }
+      #${PANEL_ID} .pfh-header {
+        display: grid !important;
+        grid-template-columns: 34px auto minmax(180px, 1fr) auto !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+      }
+      #${PANEL_ID} .pfh-collection-mark {
+        grid-column: 1;
+      }
+      #${PANEL_ID} .pfh-heading strong {
+        grid-column: 2;
+        align-self: center;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-search {
+        grid-column: 3;
+      }
+      #${PANEL_ID} .pfh-header .pfh-actions {
+        grid-column: 4;
+        align-self: center !important;
+        flex-wrap: nowrap !important;
+        padding-top: 0 !important;
       }
       @keyframes pfh-copywriting-spin {
         to { transform: rotate(360deg); }
