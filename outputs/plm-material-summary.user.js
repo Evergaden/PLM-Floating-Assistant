@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.78
+// @version      2.4.79
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.78';
+  const SCRIPT_VERSION = '2.4.79';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3656,7 +3656,7 @@
     const pager = '<div class="pfh-upload-pager"><span>\u5171 ' + allItems.length + ' \u6761</span><div><button type="button" data-action="' + pagerAction + '-prev"' + (state[pageKey] <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager(pagerAction, state[pageKey], totalPages) + '<button type="button" data-action="' + pagerAction + '-next"' + (state[pageKey] >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
-    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs"><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u63d0\u5ba1\u4e0a\u4f20</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button></div>' : '';
+    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + '"><i class="pfh-upload-mode-indicator"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button></div>' : '';
     const uploadInfoCards = '<div class="pfh-upload-info-grid">' +
       '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u4e0a\u65b9\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\uff0c\u5386\u53f2\u8bb0\u5f55\u53ef\u5728\u9876\u90e8\u6309\u94ae\u5207\u6362\u67e5\u770b\u3002</p></article>' +
       '</div>';
@@ -16425,14 +16425,50 @@
         padding-top: 0 !important;
       }
       #${PANEL_ID} .pfh-upload-mode-tabs {
-        display: flex;
-        gap: 8px;
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(132px, 1fr));
+        width: min(100%, 330px);
         margin-bottom: 10px;
+        padding: 4px;
+        overflow-x: auto;
+        border: 1px solid rgba(211, 204, 255, .56);
+        border-radius: 14px;
+        background: rgba(244, 241, 255, .58);
+        scrollbar-width: none;
+      }
+      #${PANEL_ID} .pfh-upload-mode-tabs::-webkit-scrollbar {
+        display: none;
+      }
+      #${PANEL_ID} .pfh-upload-mode-tabs button {
+        position: relative;
+        z-index: 1;
+        min-height: 32px;
+        padding: 0 14px;
+        color: #69728f;
+        border: 0;
+        background: transparent;
+        font-weight: 700;
+        transition: color 220ms ease;
       }
       #${PANEL_ID} .pfh-upload-mode-tabs button.is-active {
         color: #fff;
-        border-color: #7c3aed;
-        background: #7c3aed;
+      }
+      #${PANEL_ID} .pfh-upload-mode-indicator {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: 4px;
+        width: calc(50% - 4px);
+        border-radius: 10px;
+        background: linear-gradient(135deg, #8b5cf6, #6d35e8);
+        box-shadow: 0 8px 18px rgba(109, 53, 232, .28);
+        transform: translateX(0) scale(.96);
+        transition: transform 520ms cubic-bezier(.16, 1.42, .34, 1), box-shadow 320ms ease;
+      }
+      #${PANEL_ID} .pfh-upload-mode-tabs.is-toy-label .pfh-upload-mode-indicator {
+        transform: translateX(100%) scale(.96);
+        box-shadow: 0 10px 22px rgba(109, 53, 232, .34);
       }
       #${PANEL_ID} .pfh-toy-label-sku-input {
         display: block;
@@ -16447,6 +16483,18 @@
         background: rgba(255,255,255,.84);
         font: inherit;
         line-height: 1.55;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-section.is-open {
+        min-height: 0 !important;
+        height: auto !important;
+        grid-template-rows: auto auto auto !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-body {
+        grid-template-rows: auto auto auto auto !important;
+        min-height: 0 !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-list {
+        min-height: 0 !important;
       }
       @keyframes pfh-copywriting-spin {
         to { transform: rotate(360deg); }
