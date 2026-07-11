@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.4.90
+// @version      2.4.91
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.4.90';
+  const SCRIPT_VERSION = '2.4.91';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2556,6 +2556,7 @@
     const lines = String(section.text).split(/\r?\n/);
     if (!lines.length) return '';
     const first = lines.shift() || '';
+    if (/^(?:DISTRIBUTED BY|ADDRESS|EU REP|UK REP|US REP)$/i.test(first.trim())) return lines.map((line) => line.trim()).filter(Boolean).join('\n');
     const inlineHeading = first.match(/^\s*[A-Z][A-Z0-9 /().-]*\s*:\s*(.*)$/);
     if (inlineHeading && inlineHeading[1]) lines.unshift(inlineHeading[1]);
     return lines.map((line) => line.trim()).filter(Boolean).join('\n');
@@ -3519,9 +3520,17 @@
     add('functionsHeading', '24国语言功效标题', functionsHeading);
     const functionLines = find(/^24国语言功效内容/).map((line) => line.replace(/;\s*$/, '').trim()).filter(Boolean);
     add('functions', '24国语言功效内容', functionLines.join(';  '));
-    add('ingredients', '成分表', joinCopywritingSection('INGREDIENTS:', stripCopywritingHeading(find(/^成分表$/), /^INGREDIENTS?\s*[:：]?$/i)));
-    add('directions', '建议使用方法', joinCopywritingSection('DIRECTIONS OF SAFE USE:', stripCopywritingHeading(find(/^B[.．、]?建议使用方法$/i), /^DIRECTIONS\s+OF\s+SAFE\s+USE\s*[:：]?$/i)));
-    add('warning', '警告语', joinCopywritingSection('WARNING:', stripCopywritingHeading(find(/^警告语$/), /^WARNING\s*[:：]?$/i)));
+    const ingredientLines = find(/^(?:成分表|成分活性非活性成分)/);
+    const activeIngredients = extractLabeledCopywritingValue(ingredientLines, /ACTIVE\s+INGREDIENTS?\s*[:：]?/i, /INACTIVE\s+INGREDIENTS?\s*[:：]?/i);
+    const inactiveIngredients = extractLabeledCopywritingValue(ingredientLines, /INACTIVE\s+INGREDIENTS?\s*[:：]?/i);
+    if (activeIngredients || inactiveIngredients) {
+      add('activeIngredients', 'ACTIVE INGREDIENTS', joinCopywritingSection('ACTIVE INGREDIENTS:', [activeIngredients]));
+      add('inactiveIngredients', 'INACTIVE INGREDIENTS', joinCopywritingSection('INACTIVE INGREDIENTS:', [inactiveIngredients]));
+    } else {
+      add('ingredients', '成分表', joinCopywritingSection('INGREDIENTS:', stripCopywritingHeading(ingredientLines, /^INGREDIENTS?\s*[:：]?$/i)));
+    }
+    add('directions', '建议使用方法', joinCopywritingSection('DIRECTIONS:', stripCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?建议使用方法|^使用方法/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i)));
+    add('warning', '警告语', joinCopywritingSection('WARNINGS:', stripCopywritingHeading(find(/^警告语$/), /^WARNINGS?\s*[:：]?$/i)));
     const emailLines = find(/^美国不良事故联系人邮箱$/);
     const emailText = emailLines.join(' ').replace(/^e-?mail\s*[:：]\s*/i, '').trim();
     add('email', '联系邮箱', emailText ? 'e-mail:\n' + emailText : '');
@@ -3532,8 +3541,7 @@
     add('origin', '原产国', originLines.join('\n'));
     const shelfLines = find(/^保质期$/).map((line) => line.replace(/：/g, ':'));
     add('shelfLife', '保质期', shelfLines.join('\n'));
-    const complianceText = formatBrandCompliance(data);
-    if (complianceText) add('compliance', 'EU/UK/US REP', complianceText);
+    formatBrandComplianceSections(data).forEach((section) => add(section.key, section.label, section.text));
     return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections };
   }
 
@@ -3547,23 +3555,45 @@
     return String(value || '').replace(/\u00a0/g, ' ').replace(/\r/g, '').split('\n').map((line) => line.trim()).filter(Boolean).join('\n').trim();
   }
 
-  function formatBrandCompliance(data) {
+  function formatBrandComplianceSections(data) {
     const info = findBrandCompliance(data);
-    if (!info || !cleanComplianceValue(info.distributed_by)) return '';
-    const parts = [
-      'DISTRIBUTED BY: ' + cleanComplianceValue(info.distributed_by),
-      'ADDRESS: ' + cleanComplianceValue(info.address),
+    if (!info || !cleanComplianceValue(info.distributed_by)) return [];
+    const sections = [
+      { key: 'distributedBy', label: 'DISTRIBUTED BY', text: 'DISTRIBUTED BY: ' + cleanComplianceValue(info.distributed_by) },
+      { key: 'address', label: 'ADDRESS', text: 'ADDRESS: ' + cleanComplianceValue(info.address) },
     ];
-    [['EU REP', info.eu_rep], ['UK REP', info.uk_rep], ['US REP', info.us_rep]].forEach(([label, rep]) => {
+    [['EU REP', 'euRep', info.eu_rep], ['UK REP', 'ukRep', info.uk_rep], ['US REP', 'usRep', info.us_rep]].forEach(([label, key, rep]) => {
       if (!rep || !cleanComplianceValue(rep.company)) return;
-      parts.push(label, cleanComplianceValue(rep.company), cleanComplianceValue(rep.address), cleanComplianceValue(rep.contact), cleanComplianceValue(rep.phone), cleanComplianceValue(rep.postal_code));
+      const lines = [cleanComplianceValue(rep.company), cleanComplianceValue(rep.address), cleanComplianceValue(rep.contact), cleanComplianceValue(rep.phone), cleanComplianceValue(rep.postal_code)].filter(Boolean);
+      if (lines.length) sections.push({ key, label, text: label + '\n' + lines.join('\n') });
     });
-    return parts.filter(Boolean).join('\n');
+    return sections;
+  }
+
+  function extractLabeledCopywritingValue(lines, headingPattern, nextHeadingPattern) {
+    const text = (lines || []).map(cleanCopywritingLine).filter(Boolean).join('\n');
+    const start = text.search(headingPattern);
+    if (start < 0) return '';
+    let value = text.slice(start).replace(headingPattern, '').replace(/^\s*[:：]\s*/, '');
+    if (nextHeadingPattern) {
+      const next = value.search(nextHeadingPattern);
+      if (next >= 0) value = value.slice(0, next);
+    }
+    return cleanCopywritingLine(value).trim();
   }
 
   function stripCopywritingHeading(lines, headingPattern) {
     const result = (lines || []).map(cleanCopywritingLine).filter(Boolean);
-    if (result.length && headingPattern.test(result[0])) result.shift();
+    if (result.length) {
+      const first = result[0];
+      const colonIndex = first.search(/[:：]/);
+      const prefix = colonIndex >= 0 ? first.slice(0, colonIndex + 1) : first;
+      if (headingPattern.test(first) || (colonIndex >= 0 && headingPattern.test(prefix))) {
+        const body = colonIndex >= 0 ? first.slice(colonIndex + 1).trim() : '';
+        if (body) result[0] = body;
+        else result.shift();
+      }
+    }
     return result;
   }
 
