@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.18
+// @version      2.5.19
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.18';
+  const SCRIPT_VERSION = '2.5.19';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2755,7 +2755,7 @@
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
-      ['home-size-image', 'image', '包装辅助', '生成尺寸图', '选择 SKU 和透明 PNG，自动裁出纸盒有效区并生成 JPG。'],
+      ['home-size-image', 'image', '包装辅助', '生成尺寸图', '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。'],
       ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
     ];
     return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
@@ -2775,30 +2775,45 @@
   function sizeImageViewHtml() {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
-      return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u8fd9\u91cc\u4f1a\u8bfb\u53d6\u7eb8\u76d2\u957f\u3001\u5bbd\u3001\u9ad8\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
+      return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u53ef\u5206\u522b\u751f\u6210\u7eb8\u76d2\u548c\u6807\u7b7e\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
     }
-    const spec = getSizeImageSpec(data);
-    const session = state.sizeImageSessions[data.sku] || {};
+    const cartonSpec = getSizeImageSpec(data);
+    const labelSpec = getLabelSizeImageSpec(data);
+    const session = ensureSizeImageSession(data.sku);
     const busy = state.sizeImageBusySku === data.sku;
-    const dimensionText = spec ? formatSizeImageNumber(spec.length) + ' \u00d7 ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm' : '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
+    const cartonDimension = cartonSpec ? formatSizeImageNumber(cartonSpec.length) + ' \u00d7 ' + formatSizeImageNumber(cartonSpec.width) + ' \u00d7 ' + formatSizeImageNumber(cartonSpec.height) + ' cm' : '';
+    const labelDimension = labelSpec ? formatSizeImageNumber(labelSpec.width) + ' \u00d7 ' + formatSizeImageNumber(labelSpec.height) + ' cm' : '';
+    const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : '', labelDimension ? '\u6807\u7b7e ' + labelDimension : ''].filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
+    const previewType = session.previewType === 'label' ? 'label' : 'carton';
+    const previewUrl = previewType === 'label' ? session.labelResultDataUrl : session.cartonResultDataUrl;
+    const previewLabel = previewType === 'label' ? '\u6807\u7b7e' : '\u7eb8\u76d2';
     const status = session.error
       ? '<div class="pfh-size-image-status is-error">' + escapeHtml(session.error) + '</div>'
-      : (session.resultDataUrl ? '<div class="pfh-size-image-status is-ready">\u5df2\u751f\u6210 3000 \u00d7 3000 JPG\uff0c\u8bf7\u786e\u8ba4\u540e\u4e0b\u8f7d\u3002</div>' : '');
-    const preview = session.resultDataUrl
-      ? '<div class="pfh-size-image-preview"><img src="' + session.resultDataUrl + '" alt="' + escapeHtml(data.sku + ' \u7eb8\u76d2\u5c3a\u5bf8\u56fe') + '"></div>'
-      : '<div class="pfh-size-image-placeholder">' + iconHtml('image') + '<strong>\u5c3a\u5bf8\u56fe\u9884\u89c8</strong><span>\u4e0a\u4f20\u5408\u683c\u7684\u900f\u660e PNG \u540e\u5728\u8fd9\u91cc\u751f\u6210</span></div>';
-    const disabled = spec && !busy ? '' : ' disabled';
+      : (previewUrl ? '<div class="pfh-size-image-status is-ready">\u5df2\u8bc6\u522b\u4e3a' + previewLabel + '\uff0c\u5e76\u751f\u6210 3000 \u00d7 3000 JPG\u3002</div>' : '');
+    const preview = previewUrl
+      ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + previewLabel + '\u9884\u89c8</span><img src="' + previewUrl + '" alt="' + escapeHtml(data.sku + ' ' + previewLabel + '\u5c3a\u5bf8\u56fe') + '"></div>'
+      : '<div class="pfh-size-image-placeholder">' + iconHtml('image') + '<strong>\u7eb8\u76d2 / \u6807\u7b7e\u5c3a\u5bf8\u56fe</strong><span>\u62d6\u5165\u56fe\u7247\u540e\u4f1a\u81ea\u52a8\u8bc6\u522b\u7c7b\u578b\u5e76\u751f\u6210</span></div>';
+    const disabled = (cartonSpec || labelSpec) && !busy ? '' : ' disabled';
+    const remarks = getSizeImageRemarks(data);
+    const remarkHint = [remarks.carton ? '\u7eb8\u76d2\uff1a' + remarks.carton : '', remarks.label ? '\u6807\u7b7e\uff1a' + remarks.label : ''].filter(Boolean).join(' / ') || '\u672a\u8bc6\u522b\u5230\u5907\u6ce8';
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
-      '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u7eb8\u76d2\u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div><span>' + escapeHtml(dimensionText) + '</span></header>' +
-      (!spec ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
+      '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div><span>' + escapeHtml(dimensionText) + '</span></header>' +
+      (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace"><div class="pfh-size-image-controls">' +
-        '<div class="pfh-size-image-spec"><span>\u7eb8\u76d2\u7ed3\u6784</span><b>' + escapeHtml(dimensionText) + '</b><small>\u4e3b\u4f53\uff1a\u5bbd\u3001\u957f\u3001\u5bbd\u3001\u957f / \u7b2c\u4e8c\u9762\u9876\u76d6 / \u7b2c\u56db\u9762\u5e95\u76d6</small></div>' +
-        '<button type="button" class="pfh-size-image-drop" data-action="size-image-pick"' + disabled + '>' + iconHtml('upload') + '<strong>' + (busy ? '\u6b63\u5728\u5206\u6790...' : '\u9009\u62e9\u900f\u660e PNG') + '</strong><span>\u4e5f\u53ef\u628a PNG \u62d6\u5230\u8fd9\u91cc</span></button>' +
-        (session.fileName ? '<p class="pfh-size-image-file">\u5df2\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
-        '<div class="pfh-size-image-actions"><button type="button" data-action="size-image-pick"' + disabled + '>\u91cd\u65b0\u9009\u62e9</button><button type="button" class="is-primary" data-action="size-image-download"' + (session.resultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d JPG</button></div>' +
-        '<input type="file" class="pfh-size-image-file-input" accept="image/png,.png">' + status +
+        '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
+        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-remark-input"' + (session.includeRemark === false ? '' : ' checked') + '><span>\u6807\u9898\u6dfb\u52a0\u5907\u6ce8</span><small>' + escapeHtml(remarkHint) + '</small></label>' +
+        '<button type="button" class="pfh-size-image-drop" data-action="size-image-pick"' + disabled + '>' + iconHtml('upload') + '<strong>' + (busy ? '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...' : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>\u7eb8\u76d2\uff1a\u900f\u660e PNG\uff1b\u6807\u7b7e\uff1aPNG / JPG\u3002\u518d\u6b21\u9009\u62e9\u4f1a\u66ff\u6362\u5bf9\u5e94\u7c7b\u578b\u3002</span></button>' +
+        (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
+        '<div class="pfh-size-image-actions"><button type="button" data-action="size-image-download-carton"' + (session.cartonResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u7eb8\u76d2 JPG</button><button type="button" class="is-primary" data-action="size-image-download-label"' + (session.labelResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u6807\u7b7e JPG</button></div>' +
+        '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg">' + status +
       '</div>' + preview + '</div>' +
     '</section></div>';
+  }
+
+  function ensureSizeImageSession(sku) {
+    if (!state.sizeImageSessions[sku]) state.sizeImageSessions[sku] = { includeRemark: true };
+    if (typeof state.sizeImageSessions[sku].includeRemark !== 'boolean') state.sizeImageSessions[sku].includeRemark = true;
+    return state.sizeImageSessions[sku];
   }
 
   function getSizeImageSpec(data) {
@@ -2809,40 +2824,103 @@
   }
 
   function getSizeImageSpecError(data) {
-    if (!data || !/\u7eb8\u76d2/.test(String(data.packageSizeLabel || ''))) return '\u5f53\u524d SKU \u7684\u5305\u6750\u4e0d\u662f\u6807\u51c6\u7eb8\u76d2\uff0c\u6682\u4e0d\u652f\u6301\u751f\u6210\u3002';
-    if (Array.isArray(data.packageNums) && data.packageNums.length > 3) return '\u5f53\u524d\u7eb8\u76d2\u542b\u591a\u9875\u5c3a\u5bf8\uff0c\u7b2c\u4e00\u7248\u6682\u4e0d\u652f\u6301\u3002';
-    return '\u672a\u627e\u5230\u5b8c\u6574\u7684\u7eb8\u76d2\u957f\u3001\u5bbd\u3001\u9ad8\uff0c\u8bf7\u5148\u5237\u65b0 PLM \u7f13\u5b58\u3002';
+    if (Array.isArray(data && data.packageNums) && data.packageNums.length > 3) return '\u5f53\u524d\u7eb8\u76d2\u542b\u591a\u9875\u5c3a\u5bf8\uff0c\u6682\u4e0d\u652f\u6301\u3002';
+    return '\u672a\u627e\u5230\u53ef\u7528\u7684\u7eb8\u76d2\u6216\u6807\u7b7e\u5c3a\u5bf8\uff0c\u8bf7\u5148\u5237\u65b0 PLM \u7f13\u5b58\u3002';
+  }
+
+  function getLabelSizeImageSpec(data) {
+    if (!data || data.isTubePrint || !/\u6807\u7b7e/.test(String(data.printSizeLabel || ''))) return null;
+    const nums = parseDimension(data.printSizeText, 2);
+    if (!nums || nums.length < 2) return null;
+    const width = Number(nums[0]);
+    const height = Number(nums[1]);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+    return { width, height };
+  }
+
+  function getSizeImageRemarks(data) {
+    const collect = (label, extra) => {
+      const values = [];
+      const source = String(label || '');
+      let match;
+      const pattern = /[\uff08(]([^\uff09)]+)[\uff09)]/g;
+      while ((match = pattern.exec(source))) {
+        const value = cleanCopywritingLine(match[1]);
+        if (value && !/\d+(?:\.\d+)?\s*[xX\u00d7*]/.test(value)) values.push(value);
+      }
+      ['\u5185\u5361', '\u900f\u660e', '\u52a0\u7c98'].forEach((keyword) => {
+        if (!source.includes(keyword) || values.some((value) => value.includes(keyword))) return;
+        const sourceIndex = source.indexOf(keyword);
+        const insertAt = values.findIndex((value) => source.indexOf(value) > sourceIndex);
+        if (insertAt >= 0) values.splice(insertAt, 0, keyword);
+        else values.push(keyword);
+      });
+      (extra || []).forEach((value) => { if (value) values.push(value); });
+      return Array.from(new Set(values)).join(' ');
+    };
+    return {
+      carton: collect(data && data.packageSizeLabel, [data && data.hasInnerCard ? '\u5185\u5361' : '']),
+      label: collect(data && data.printSizeLabel, []),
+    };
   }
 
   function formatSizeImageNumber(value) {
     return trimNumber(Number(value));
   }
 
-  async function processSizeImageFile(file) {
+  async function processSizeImageFile(file, preferredType, silent) {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
-    const spec = getSizeImageSpec(data);
-    if (!data || !data.sku || !spec) {
+    const cartonSpec = getSizeImageSpec(data);
+    const labelSpec = getLabelSizeImageSpec(data);
+    if (!data || !data.sku || !(cartonSpec || labelSpec)) {
       showToast(data ? getSizeImageSpecError(data) : '\u8bf7\u5148\u9009\u62e9 SKU');
       return;
     }
-    if (!file || !/\.png$/i.test(file.name || '') || (file.type && file.type !== 'image/png')) {
-      state.sizeImageSessions[data.sku] = { fileName: file && file.name || '', error: '\u53ea\u652f\u6301\u4ece Photoshop \u5bfc\u51fa\u7684\u900f\u660e PNG\u3002' };
+    if (!file || !/\.(?:png|jpe?g)$/i.test(file.name || '') || (file.type && !/^image\/(?:png|jpeg)$/.test(file.type))) {
+      const invalidSession = ensureSizeImageSession(data.sku);
+      invalidSession.fileName = file && file.name || '';
+      invalidSession.error = '\u8bf7\u9009\u62e9 PNG \u6216 JPG \u56fe\u7247\uff1b\u7eb8\u76d2\u5fc5\u987b\u4f7f\u7528\u900f\u660e PNG\u3002';
       renderShell();
       return;
     }
     const sku = data.sku;
+    const session = ensureSizeImageSession(sku);
     state.sizeImageBusySku = sku;
-    state.sizeImageSessions[sku] = { fileName: file.name, error: '' };
-    renderShell();
+    session.fileName = file.name;
+    session.error = '';
+    if (!silent) renderShell();
     const sourceUrl = URL.createObjectURL(file);
     try {
       const image = await loadSizeImageSource(sourceUrl);
-      const geometry = analyzeSizeImageGeometry(image, spec);
-      const resultDataUrl = generateSizeImageJpeg(image, geometry, spec);
-      state.sizeImageSessions[sku] = { fileName: file.name, resultDataUrl, error: '' };
-      showToast('\u5c3a\u5bf8\u56fe\u5df2\u751f\u6210');
+      let detectedType = preferredType === 'carton' || preferredType === 'label' ? preferredType : '';
+      let geometry = null;
+      let cartonError = null;
+      if ((!detectedType || detectedType === 'carton') && cartonSpec && /\.png$/i.test(file.name || '')) {
+        try {
+          geometry = analyzeSizeImageGeometry(image, cartonSpec);
+          detectedType = 'carton';
+        } catch (error) {
+          cartonError = error;
+          if (preferredType === 'carton') throw error;
+        }
+      }
+      if (!detectedType || detectedType === 'label') {
+        if (!labelSpec) throw cartonError || new Error('\u5f53\u524d SKU \u6ca1\u6709\u53ef\u7528\u7684\u6807\u7b7e\u5c3a\u5bf8\u3002');
+        geometry = analyzeLabelSizeImageGeometry(image, labelSpec);
+        detectedType = 'label';
+      }
+      if (detectedType === 'carton') {
+        session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark);
+        session.cartonFile = file;
+      } else {
+        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark);
+        session.labelFile = file;
+      }
+      session.previewType = detectedType;
+      session.error = '';
+      if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : '\u6807\u7b7e') + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
     } catch (error) {
-      state.sizeImageSessions[sku] = { fileName: file.name, error: formatSizeImageError(error) };
+      session.error = formatSizeImageError(error);
     } finally {
       URL.revokeObjectURL(sourceUrl);
       if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
@@ -2854,7 +2932,7 @@
     return new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error('\u65e0\u6cd5\u8bfb\u53d6 PNG\uff0c\u6587\u4ef6\u53ef\u80fd\u5df2\u635f\u574f\u3002'));
+      image.onerror = () => reject(new Error('\u65e0\u6cd5\u8bfb\u53d6\u56fe\u7247\uff0c\u6587\u4ef6\u53ef\u80fd\u5df2\u635f\u574f\u3002'));
       image.src = url;
     });
   }
@@ -2961,7 +3039,61 @@
     };
   }
 
-  function generateSizeImageJpeg(image, geometry, spec) {
+  function analyzeLabelSizeImageGeometry(image, spec) {
+    const maxSide = 1600;
+    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0, width, height);
+    const pixels = context.getImageData(0, 0, width, height).data;
+    let left = width;
+    let top = height;
+    let right = -1;
+    let bottom = -1;
+    let transparent = 0;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const alpha = pixels[(y * width + x) * 4 + 3];
+        if (alpha <= 12) transparent += 1;
+        if (alpha > 12) {
+          left = Math.min(left, x);
+          top = Math.min(top, y);
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
+      }
+    }
+    const useAlphaBounds = transparent > width * height * 0.02 && right >= left && bottom >= top;
+    if (!useAlphaBounds) {
+      left = 0;
+      top = 0;
+      right = width - 1;
+      bottom = height - 1;
+    }
+    const cropWidth = right - left + 1;
+    const cropHeight = bottom - top + 1;
+    const sourceRatio = cropWidth / cropHeight;
+    const expectedRatio = spec.width / spec.height;
+    const directDelta = Math.abs(sourceRatio - expectedRatio) / expectedRatio;
+    const rotatedDelta = Math.abs((1 / sourceRatio) - expectedRatio) / expectedRatio;
+    const rotated = rotatedDelta < directDelta;
+    if (Math.min(directDelta, rotatedDelta) > 0.065) {
+      throw new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u6807\u7b7e\u5c3a\u5bf8 ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm \u4e0d\u5339\u914d\u3002');
+    }
+    return {
+      cropX: left * image.naturalWidth / width,
+      cropY: top * image.naturalHeight / height,
+      cropWidth: cropWidth * image.naturalWidth / width,
+      cropHeight: cropHeight * image.naturalHeight / height,
+      rotated,
+    };
+  }
+
+  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark) {
     const canvas = document.createElement('canvas');
     canvas.width = 3000;
     canvas.height = 3000;
@@ -2971,7 +3103,7 @@
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
     context.font = '700 78px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText('\u7eb8\u76d2', 505, 150);
+    context.fillText(getSizeImageTitle('carton', data, includeRemark), 505, 150);
     context.font = '72px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
     context.fillStyle = '#ee1410';
@@ -2998,6 +3130,10 @@
     const imageY = bodyTop - geometry.bodyTop / geometry.pixelsPerCmY * drawScale;
     context.drawImage(image, imageX, imageY, image.naturalWidth / geometry.pixelsPerCmX * drawScale, image.naturalHeight / geometry.pixelsPerCmY * drawScale);
     context.restore();
+    traceCartonSizeImageOutline(context, artX, artY, drawScale, spec);
+    context.strokeStyle = '#000000';
+    context.lineWidth = 1;
+    context.stroke();
 
     context.strokeStyle = '#ee1410';
     context.fillStyle = '#ee1410';
@@ -3027,6 +3163,96 @@
     return canvas.toDataURL('image/jpeg', 0.96);
   }
 
+  function traceCartonSizeImageOutline(context, artX, artY, scale, spec) {
+    const width = spec.width;
+    const length = spec.length;
+    const bodyTop = artY + width * scale;
+    const bodyBottom = bodyTop + spec.height * scale;
+    const flapBottom = bodyBottom + width * scale;
+    context.beginPath();
+    context.moveTo(artX, bodyTop);
+    context.lineTo(artX + width * scale, bodyTop);
+    context.lineTo(artX + width * scale, artY);
+    context.lineTo(artX + (width + length) * scale, artY);
+    context.lineTo(artX + (width + length) * scale, bodyTop);
+    context.lineTo(artX + 2 * (width + length) * scale, bodyTop);
+    context.lineTo(artX + 2 * (width + length) * scale, flapBottom);
+    context.lineTo(artX + (2 * width + length) * scale, flapBottom);
+    context.lineTo(artX + (2 * width + length) * scale, bodyBottom);
+    context.lineTo(artX, bodyBottom);
+    context.closePath();
+  }
+
+  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 3000;
+    canvas.height = 3000;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.textBaseline = 'top';
+    context.fillStyle = '#000000';
+    context.font = '700 78px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText(getSizeImageTitle('label', data, includeRemark), 505, 150);
+    context.font = '72px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
+
+    const drawScale = Math.min(1600 / spec.width, 1320 / spec.height);
+    const artWidth = spec.width * drawScale;
+    const artHeight = spec.height * drawScale;
+    const artX = Math.max(540, Math.round((3000 - artWidth) / 2 - 100));
+    const artY = 720;
+    context.save();
+    context.beginPath();
+    context.rect(artX, artY, artWidth, artHeight);
+    context.clip();
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    if (geometry.rotated) {
+      context.translate(artX + artWidth / 2, artY + artHeight / 2);
+      context.rotate(-Math.PI / 2);
+      context.drawImage(image, geometry.cropX, geometry.cropY, geometry.cropWidth, geometry.cropHeight, -artHeight / 2, -artWidth / 2, artHeight, artWidth);
+    } else {
+      context.drawImage(image, geometry.cropX, geometry.cropY, geometry.cropWidth, geometry.cropHeight, artX, artY, artWidth, artHeight);
+    }
+    context.restore();
+    context.strokeStyle = '#000000';
+    context.lineWidth = 1;
+    context.strokeRect(artX + 0.5, artY + 0.5, artWidth - 1, artHeight - 1);
+
+    context.strokeStyle = '#ee1410';
+    context.fillStyle = '#ee1410';
+    context.lineWidth = 4;
+    const tick = 28;
+    const heightX = artX - 48;
+    drawSizeImageLine(context, heightX, artY, heightX, artY + artHeight);
+    drawSizeImageLine(context, heightX - tick, artY, heightX + tick, artY);
+    drawSizeImageLine(context, heightX - tick, artY + artHeight, heightX + tick, artY + artHeight);
+    context.save();
+    context.translate(heightX - 112, artY + artHeight / 2);
+    context.rotate(-Math.PI / 2);
+    context.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.textAlign = 'center';
+    context.fillText(formatSizeImageNumber(spec.height) + 'cm', 0, 0);
+    context.restore();
+    const bottomY = artY + artHeight + 48;
+    drawSizeImageLine(context, artX, bottomY, artX + artWidth, bottomY);
+    drawSizeImageLine(context, artX, bottomY - tick, artX, bottomY + tick);
+    drawSizeImageLine(context, artX + artWidth, bottomY - tick, artX + artWidth, bottomY + tick);
+    context.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.textAlign = 'center';
+    context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth / 2, bottomY + 34);
+    return canvas.toDataURL('image/jpeg', 0.96);
+  }
+
+  function getSizeImageTitle(type, data, includeRemark) {
+    const base = type === 'label' ? '\u6807\u7b7e' : '\u7eb8\u76d2';
+    if (!includeRemark) return base;
+    const remarks = getSizeImageRemarks(data);
+    const remark = type === 'label' ? remarks.label : remarks.carton;
+    return remark ? base + '\uff08' + remark + '\uff09' : base;
+  }
+
   function drawSizeImageLine(context, x1, y1, x2, y2) {
     context.beginPath();
     context.moveTo(Math.round(x1), Math.round(y1));
@@ -3036,22 +3262,32 @@
 
   function formatSizeImageError(error) {
     const message = String(error && error.message || error || '').trim();
-    return message || '\u5c3a\u5bf8\u56fe\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u5bfc\u51fa\u900f\u660e PNG\u3002';
+    return message || '\u65e0\u6cd5\u8bc6\u522b\u7eb8\u76d2\u6216\u6807\u7b7e\uff0c\u8bf7\u68c0\u67e5\u56fe\u7247\u4e0e PLM \u5c3a\u5bf8\u662f\u5426\u5339\u914d\u3002';
   }
 
-  function downloadCurrentSizeImage() {
+  function downloadCurrentSizeImage(type) {
     const sku = state.selectedSku || (state.data && state.data.sku) || '';
     const session = sku && state.sizeImageSessions[sku];
-    if (!session || !session.resultDataUrl) {
-      showToast('\u8bf7\u5148\u751f\u6210\u5c3a\u5bf8\u56fe');
+    const isLabel = type === 'label';
+    const resultDataUrl = session && (isLabel ? session.labelResultDataUrl : session.cartonResultDataUrl);
+    if (!resultDataUrl) {
+      showToast('\u8bf7\u5148\u751f\u6210' + (isLabel ? '\u6807\u7b7e' : '\u7eb8\u76d2') + '\u5c3a\u5bf8\u56fe');
       return;
     }
     const anchor = document.createElement('a');
-    anchor.href = session.resultDataUrl;
-    anchor.download = sku + '-\u7eb8\u76d2\u5c3a\u5bf8\u56fe.jpg';
+    anchor.href = resultDataUrl;
+    anchor.download = sku + '-' + (isLabel ? '\u6807\u7b7e' : '\u7eb8\u76d2') + '\u5c3a\u5bf8\u56fe.jpg';
     document.documentElement.appendChild(anchor);
     anchor.click();
     anchor.remove();
+  }
+
+  async function regenerateCurrentSizeImages() {
+    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const session = sku && ensureSizeImageSession(sku);
+    if (!session) return;
+    if (session.cartonFile) await processSizeImageFile(session.cartonFile, 'carton', true);
+    if (session.labelFile) await processSizeImageFile(session.labelFile, 'label', true);
   }
 
   function ledgerViewHtml(records) {
@@ -4572,8 +4808,8 @@
       if (input && !input.disabled) input.click();
       return;
     }
-    if (action === 'size-image-download') {
-      downloadCurrentSizeImage();
+    if (action === 'size-image-download-carton' || action === 'size-image-download-label') {
+      downloadCurrentSizeImage(action === 'size-image-download-label' ? 'label' : 'carton');
       return;
     }
     if (action === 'excel-prepare') {
@@ -5070,6 +5306,13 @@
   }
 
   function handlePanelChange(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-input')) {
+      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      if (!sku) return;
+      ensureSizeImageSession(sku).includeRemark = Boolean(event.target.checked);
+      regenerateCurrentSizeImages();
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-file-input')) {
       const file = event.target.files && event.target.files[0];
       event.target.value = '';
@@ -18819,6 +19062,38 @@
         color: #33236c;
         font-size: 15px;
       }
+      #${PANEL_ID} .pfh-size-image-remark {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 16px minmax(0, 1fr);
+        gap: 2px 7px;
+        align-items: center;
+        padding: 8px 10px;
+        color: #4e4379;
+        border: 1px solid rgba(167,139,250,.22);
+        border-radius: 11px;
+        background: rgba(250,248,255,.72);
+        cursor: pointer;
+      }
+      #${PANEL_ID} .pfh-size-image-remark input {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: #7c3aed;
+      }
+      #${PANEL_ID} .pfh-size-image-remark span {
+        font-size: 11px;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-size-image-remark small {
+        grid-column: 2;
+        min-width: 0;
+        color: #8a91ae;
+        font-size: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       #${PANEL_ID} .pfh-size-image-drop {
         min-height: 132px;
         display: grid;
@@ -18918,6 +19193,19 @@
         overflow: hidden;
         padding: 8px;
         box-sizing: border-box;
+        position: relative;
+      }
+      #${PANEL_ID} .pfh-size-image-preview-type {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 1;
+        padding: 3px 7px;
+        color: #6d35e8;
+        border: 1px solid rgba(124,58,237,.16);
+        border-radius: 999px;
+        background: rgba(255,255,255,.86);
+        font-size: 10px;
       }
       #${PANEL_ID} .pfh-size-image-preview img {
         display: block;
