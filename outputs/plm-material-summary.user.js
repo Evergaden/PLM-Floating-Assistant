@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.13
+// @version      2.5.14
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.13';
+  const SCRIPT_VERSION = '2.5.14';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -8462,6 +8462,77 @@
     }, 0);
   }
 
+  async function createStoredZipBlob(files, onProgress) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+    const now = new Date();
+    const dosTime = ((now.getHours() & 31) << 11) | ((now.getMinutes() & 63) << 5) | ((Math.floor(now.getSeconds() / 2)) & 31);
+    const dosDate = (((Math.max(1980, now.getFullYear()) - 1980) & 127) << 9) | (((now.getMonth() + 1) & 15) << 5) | (now.getDate() & 31);
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const nameBytes = encoder.encode(String(file.path || file.filename || ('file-' + index)));
+      const data = new Uint8Array(await file.blob.arrayBuffer());
+      if (data.byteLength > 0xffffffff || offset > 0xffffffff) throw new Error('ZIP file is too large');
+      const crc = crc32Bytes(data);
+      const local = new Uint8Array(30);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 0x0800, true);
+      lv.setUint16(8, 0, true);
+      lv.setUint16(10, dosTime, true);
+      lv.setUint16(12, dosDate, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, data.byteLength, true);
+      lv.setUint32(22, data.byteLength, true);
+      lv.setUint16(26, nameBytes.byteLength, true);
+      const central = new Uint8Array(46);
+      const cv = new DataView(central.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, dosTime, true);
+      cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, data.byteLength, true);
+      cv.setUint32(24, data.byteLength, true);
+      cv.setUint16(28, nameBytes.byteLength, true);
+      cv.setUint32(42, offset, true);
+      localParts.push(local, nameBytes, data);
+      centralParts.push(central, nameBytes);
+      offset += local.byteLength + nameBytes.byteLength + data.byteLength;
+      if (typeof onProgress === 'function') onProgress(index + 1, files.length);
+      await wait(0);
+    }
+    const centralOffset = offset;
+    const centralSize = centralParts.reduce((sum, part) => sum + part.byteLength, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true);
+    ev.setUint16(10, files.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, centralOffset, true);
+    return new Blob(localParts.concat(centralParts, end), { type: 'application/zip' });
+  }
+
+  function crc32Bytes(bytes) {
+    if (!crc32Bytes.table) {
+      crc32Bytes.table = Array.from({ length: 256 }, (_, value) => {
+        let entry = value;
+        for (let bit = 0; bit < 8; bit += 1) entry = (entry >>> 1) ^ (0xedb88320 & -(entry & 1));
+        return entry >>> 0;
+      });
+    }
+    let crc = 0xffffffff;
+    for (let index = 0; index < bytes.length; index += 1) crc = (crc >>> 8) ^ crc32Bytes.table[(crc ^ bytes[index]) & 0xff];
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
   async function downloadToyLabelBatchArchive(options) {
     const opts = options || {};
     const memoryFiles = Array.isArray(state.toyLabelBatchFiles) ? state.toyLabelBatchFiles.splice(0) : [];
@@ -8486,6 +8557,23 @@
       addLog('warn', '批量玩具标签：没有可打包的 PSD 和图片', '');
       return false;
     }
+    const nativeZipFiles = files.map((file) => ({
+      ...file,
+      path: (cleanFileNamePart(file.sku || '\u73a9\u5177\u6807\u7b7e') || '\u73a9\u5177\u6807\u7b7e') + '/' + sanitizeDownloadFileName(file.filename),
+    }));
+    addLog('info', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\uff1a\u6b63\u5728\u5199\u5165 ZIP', nativeZipFiles.length + '\u4e2a\u6587\u4ef6');
+    const nativeBlob = await createStoredZipBlob(nativeZipFiles, (done, total) => {
+      state.excelStatus = '\u6b63\u5728\u6253\u5305 ZIP ' + done + '/' + total;
+    });
+    downloadBlob(nativeBlob, '\u73a9\u5177\u6807\u7b7e\u6279\u91cf\u5305_' + new Date().toISOString().slice(0, 10) + '.zip');
+    if (opts.keepStagedFiles) {
+      manifest.downloaded = true;
+      saveToyLabelExportManifest(manifest);
+    } else await clearToyLabelExportManifest(manifest);
+    addLog('success', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e PSD \u548c\u56fe\u7247\u5df2\u6253\u5305', nativeZipFiles.length + '\u4e2a\u6587\u4ef6');
+    showToast('\u73a9\u5177\u6807\u7b7e PSD \u548c\u56fe\u7247 ZIP \u5df2\u4e0b\u8f7d');
+    return true;
+
     const Zip = (typeof JSZip !== 'undefined' && JSZip) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.JSZip);
     if (!Zip) {
       files.forEach((file) => downloadBlob(file.blob, file.filename));
