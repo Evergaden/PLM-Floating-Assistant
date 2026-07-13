@@ -1410,6 +1410,29 @@ function htmlEscape(value) {
     .replace(/'/g, '&#39;');
 }
 
+function formatBeijingDateTime(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+  const normalized = hasTimezone ? text : text.replace(' ', 'T') + 'Z';
+  const date = new Date(normalized);
+  if (!Number.isFinite(date.getTime())) return text;
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date).reduce((result, item) => {
+    result[item.type] = item.value;
+    return result;
+  }, {});
+  return parts.year + '-' + parts.month + '-' + parts.day + ' ' + parts.hour + ':' + parts.minute + ':' + parts.second;
+}
+
 function csvEscape(value) {
   const text = String(value ?? '');
   return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
@@ -1745,7 +1768,7 @@ async function handleAdminPage(request, env) {
 }
 
 function renderAdminDashboardPage(users, dashboard, campaigns, holidays, saved) {
-  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(user.last_seen_at || '尚未上报') + '</td><td>' + htmlEscape(user.last_backup_at || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
+  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
   const tipEditorRows = campaigns.map((tip, index) => {
     const prefix = 'tip_' + index + '_';
     const option = (value, label) => '<option value="' + value + '"' + (tip.access_mode === value ? ' selected' : '') + '>' + label + '</option>';
