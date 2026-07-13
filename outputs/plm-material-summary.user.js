@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.16
+// @version      2.5.17
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.16';
+  const SCRIPT_VERSION = '2.5.17';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -4074,33 +4074,35 @@
       if (value) sections.push({ key, label, text: value.slice(0, 12000) });
       else missingSections.push(label);
     };
-    const productLines = stripCopywritingHeading(find(/^产品名称$/), /^PRODUCT\s+NAME\s*[:：]?$/i);
-    add('productName', '产品名称', joinCopywritingSection('PRODUCT NAME:', productLines));
-    const functionsHeading = find(/^24国语言功效标题/).join('').replace(/：\s*$/, ':').trim();
+    const productSection = preserveCopywritingHeading(find(/^产品名称$/), /^PRODUCT\s+NAME\s*[:：]?$/i, 'PRODUCT NAME:');
+    add('productName', '产品名称', joinCopywritingSection(productSection.heading, productSection.lines));
+    const functionsHeading = find(/^24国语言功效标题/).join('').trim();
     add('functionsHeading', '24国语言功效标题', functionsHeading);
     const functionLines = find(/^24国语言功效内容/).map((line) => line.replace(/;\s*$/, '').trim()).filter(Boolean);
     add('functions', '24国语言功效内容', functionLines.join(';  '));
     const ingredientLines = find(/^(?:成分表|成分活性非活性成分)/);
-    const activeIngredients = extractLabeledCopywritingValue(ingredientLines, /ACTIVE\s+INGREDIENTS?\s*[:：]?/i, /INACTIVE\s+INGREDIENTS?\s*[:：]?/i);
-    const inactiveIngredients = extractLabeledCopywritingValue(ingredientLines, /INACTIVE\s+INGREDIENTS?\s*[:：]?/i);
-    if (activeIngredients || inactiveIngredients) {
-      add('activeIngredients', 'ACTIVE INGREDIENTS', joinCopywritingSection('ACTIVE INGREDIENTS:', [activeIngredients]));
-      add('inactiveIngredients', 'INACTIVE INGREDIENTS', joinCopywritingSection('INACTIVE INGREDIENTS:', [inactiveIngredients]));
+    const activeIngredients = extractLabeledCopywritingSection(ingredientLines, /\bACTIVE\s+INGREDIENTS?\s*[:：]?/i, /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i, 'ACTIVE INGREDIENTS:');
+    const inactiveIngredients = extractLabeledCopywritingSection(ingredientLines, /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i, null, 'INACTIVE INGREDIENTS:');
+    if (activeIngredients.lines.length || inactiveIngredients.lines.length) {
+      add('activeIngredients', 'ACTIVE INGREDIENTS', joinCopywritingSection(activeIngredients.heading, activeIngredients.lines));
+      add('inactiveIngredients', 'INACTIVE INGREDIENTS', joinCopywritingSection(inactiveIngredients.heading, inactiveIngredients.lines));
     } else {
-      add('ingredients', '成分表', joinCopywritingSection('INGREDIENTS:', stripCopywritingHeading(ingredientLines, /^INGREDIENTS?\s*[:：]?$/i)));
+      const ingredientSection = preserveCopywritingHeading(ingredientLines, /^INGREDIENTS?\s*[:：]?$/i, 'INGREDIENTS:');
+      add('ingredients', '成分表', joinCopywritingSection(ingredientSection.heading, ingredientSection.lines));
     }
     const directionSection = preserveCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?建议使用方法|^使用方法/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i, 'DIRECTIONS:');
     add('directions', '建议使用方法', joinCopywritingSection(directionSection.heading, directionSection.lines));
-    add('warning', '警告语', joinCopywritingSection('WARNINGS:', stripCopywritingHeading(find(/^警告语$/), /^WARNINGS?\s*[:：]?$/i)));
+    const warningSection = preserveCopywritingHeading(find(/^警告语$/), /^WARNINGS?\s*[:：]?$/i, 'WARNINGS:');
+    add('warning', '警告语', joinCopywritingSection(warningSection.heading, warningSection.lines));
     const emailLines = find(/^美国不良事故联系人邮箱$/);
-    const emailText = emailLines.join(' ').replace(/^e-?mail\s*[:：]\s*/i, '').trim();
-    add('email', '联系邮箱', emailText ? 'e-mail:\n' + emailText : '');
+    const emailSection = preserveCopywritingHeading(emailLines, /^E-?MAIL\s*[:：]?$/i, 'e-mail:');
+    add('email', '联系邮箱', joinCopywritingSection(emailSection.heading, emailSection.lines));
     const net = formatCopywritingNetContent(data && data.netContent);
     if (net.warning && net.text) missingSections.push(net.warning);
     add('netContent', '净含量', net.text);
-    const originLines = find(/^原产国$/).map((line) => line.replace(/：/g, ':'));
+    const originLines = find(/^原产国$/);
     add('origin', '原产国', originLines.join('\n'));
-    const shelfLines = find(/^保质期$/).map((line) => line.replace(/：/g, ':'));
+    const shelfLines = find(/^保质期$/);
     add('shelfLife', '保质期', shelfLines.join('\n'));
     formatBrandComplianceSections(data).forEach((section) => add(section.key, section.label, section.text));
     return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections };
@@ -4131,31 +4133,18 @@
     return sections;
   }
 
-  function extractLabeledCopywritingValue(lines, headingPattern, nextHeadingPattern) {
+  function extractLabeledCopywritingSection(lines, headingPattern, nextHeadingPattern, fallbackHeading) {
     const text = (lines || []).map(cleanCopywritingLine).filter(Boolean).join('\n');
-    const start = text.search(headingPattern);
-    if (start < 0) return '';
-    let value = text.slice(start).replace(headingPattern, '').replace(/^\s*[:：]\s*/, '');
+    const match = text.match(headingPattern);
+    if (!match) return { heading: fallbackHeading, lines: [] };
+    const start = Number(match.index) || 0;
+    const heading = String(match[0] || '').trim() || fallbackHeading;
+    let value = text.slice(start + match[0].length).replace(/^\s*[:：]\s*/, '');
     if (nextHeadingPattern) {
       const next = value.search(nextHeadingPattern);
       if (next >= 0) value = value.slice(0, next);
     }
-    return cleanCopywritingLine(value).trim();
-  }
-
-  function stripCopywritingHeading(lines, headingPattern) {
-    const result = (lines || []).map(cleanCopywritingLine).filter(Boolean);
-    if (result.length) {
-      const first = result[0];
-      const colonIndex = first.search(/[:：]/);
-      const prefix = colonIndex >= 0 ? first.slice(0, colonIndex + 1) : first;
-      if (headingPattern.test(first) || (colonIndex >= 0 && headingPattern.test(prefix))) {
-        const body = colonIndex >= 0 ? first.slice(colonIndex + 1).trim() : '';
-        if (body) result[0] = body;
-        else result.shift();
-      }
-    }
-    return result;
+    return { heading, lines: value.split(/\r?\n/).map(cleanCopywritingLine).filter(Boolean) };
   }
 
   function preserveCopywritingHeading(lines, headingPattern, fallbackHeading) {
@@ -4164,7 +4153,9 @@
     const first = result[0];
     const colonIndex = first.search(/[:：]/);
     const prefix = colonIndex >= 0 ? first.slice(0, colonIndex + 1).trim() : first.trim();
-    if (!headingPattern.test(first) && !(colonIndex >= 0 && headingPattern.test(prefix))) {
+    const hasExpectedHeading = headingPattern.test(first) || (colonIndex >= 0 && headingPattern.test(prefix));
+    const hasSourceHeading = colonIndex >= 0 && /^[A-Z][A-Z0-9 /().&-]*[:：]$/.test(prefix);
+    if (!hasExpectedHeading && !hasSourceHeading) {
       return { heading: fallbackHeading, lines: result };
     }
     const body = colonIndex >= 0 ? first.slice(colonIndex + 1).trim() : '';
