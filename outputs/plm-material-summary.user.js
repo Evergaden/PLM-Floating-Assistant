@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.21
+// @version      2.5.22
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.21';
+  const SCRIPT_VERSION = '2.5.22';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -422,6 +422,7 @@
     panelSize: loadPanelSize(),
     developerSettingsTapCount: 0,
     developerSettingsTapAt: 0,
+    developerInsightsUnlocked: false,
     developerToolsOpen: false,
     tutorialModalOpen: firstTutorial,
     settingsReturnView: '',
@@ -630,8 +631,20 @@
     };
     const imageAt = (cells, name) => {
       const index = indexOf(name);
-      const image = index >= 0 && cells[index] ? cells[index].querySelector('img') : null;
-      return image ? (image.currentSrc || image.src || image.getAttribute('src') || '') : '';
+      const cell = index >= 0 ? cells[index] : null;
+      if (!cell) return '';
+      const image = cell.querySelector('img');
+      const candidates = image ? [
+        image.getAttribute('data-src'),
+        image.getAttribute('data-original'),
+        image.getAttribute('data-url'),
+        image.currentSrc,
+        image.src,
+        image.getAttribute('src'),
+      ] : [];
+      const link = cell.querySelector('a[href]');
+      if (link) candidates.push(link.href || link.getAttribute('href'));
+      return candidates.map((value) => String(value || '').trim()).find((value) => value && !/^data:image\//i.test(value)) || '';
     };
     return Array.from(body.querySelectorAll('tbody tr')).map((row) => {
       const cells = Array.from(row.children);
@@ -2400,7 +2413,7 @@
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
       '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
       '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + escapeHtml(L.cloudBackupTitle) + '</strong><span>\u4f18\u5148</span></div>' + cloudBody + '</div>',
-      state.developerToolsOpen ? renderInsightsSection() : '',
+      state.developerInsightsUnlocked ? renderInsightsSection() : '',
       renderLogSection(),
       '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u5bfc\u51fa\u504f\u597d</strong><span>Excel</span></div>' + preferenceBody + '</div>',
       '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>\u672c\u5730\u7f13\u5b58</strong><span>\u5907\u4efd\u8fc1\u79fb</span></div>' + cacheBody + '</div>',
@@ -3449,7 +3462,7 @@
   }
 
   function productThumbHtml(data) {
-    const src = getProductThumbUrl(data);
+    const src = getProductThumbUrl(data) || (data && (data.benchmarkImageUrl || data.benchmarkImageFallbackUrl)) || '';
     if (!src) return '<span class="pfh-product-thumb is-empty">' + iconHtml('image') + '</span>';
     return '<button type="button" class="pfh-product-thumb" title="悬浮放大预览">' +
       '<span class="pfh-thumb-frame"><img src="' + escapeHtml(src) + '" alt=""></span>' +
@@ -4633,8 +4646,10 @@
       state.developerSettingsTapCount += 1;
       if (state.developerSettingsTapCount >= 5) {
         state.developerSettingsTapCount = 0;
-        state.developerToolsOpen = true;
+        state.developerInsightsUnlocked = true;
+        state.developerToolsOpen = false;
         renderShell();
+        showToast('\u6570\u636e\u6d1e\u5bdf\u5df2\u663e\u793a');
       }
       return;
     }
