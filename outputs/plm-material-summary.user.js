@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.22
+// @version      2.5.23
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.22';
+  const SCRIPT_VERSION = '2.5.23';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3470,6 +3470,36 @@
       '</button>';
   }
 
+  function updateProductThumbInPlace(data) {
+    if (!data || !data.sku || state.view !== 'detail' || !state.data || state.data.sku !== data.sku) return false;
+    const panel = ensurePanel();
+    const current = panel.querySelector('.pfh-product-hero .pfh-product-thumb');
+    if (!current) return false;
+    const src = getProductThumbUrl(data) || data.benchmarkImageUrl || data.benchmarkImageFallbackUrl || '';
+    if (!src) return false;
+    if (current.matches('button')) {
+      current.querySelectorAll('img').forEach((image) => {
+        if (image.getAttribute('src') !== src) image.setAttribute('src', src);
+      });
+    } else {
+      current.outerHTML = productThumbHtml(data);
+    }
+    return true;
+  }
+
+  function updateInsightRecommendationInPlace(sku) {
+    if (!sku || state.view !== 'detail' || !state.data || state.data.sku !== sku) return false;
+    const panel = ensurePanel();
+    const section = panel.querySelector('.pfh-graphic-section');
+    if (!section) return false;
+    const current = section.querySelector('.pfh-smart-recommend');
+    const html = insightRecommendationHtml(state.data);
+    if (current && html) current.outerHTML = html;
+    else if (current) current.remove();
+    else if (html) section.insertAdjacentHTML('beforeend', html);
+    return true;
+  }
+
   function formatPrintSizeDisplay(data) {
     if (!data) return '';
     return [data.printSizeText || '', data.tubeSegmentText || ''].filter(Boolean).join('\n');
@@ -3560,7 +3590,7 @@
     }).finally(() => {
       if (state.insightRecommendationSku === sku) {
         state.insightRecommendationLoading = false;
-        renderShell();
+        if (!updateInsightRecommendationInPlace(sku)) renderShell();
       }
     }), 120);
   }
@@ -3686,7 +3716,7 @@
     }
     if (state.thumbHydrateFailedAt) delete state.thumbHydrateFailedAt[sku];
     state.thumbHydratedSkus.add(sku);
-    if (state.data && state.data.sku === sku && state.view !== 'ledger') renderShell();
+    if (state.data && state.data.sku === sku && state.view !== 'ledger' && !updateProductThumbInPlace(state.data)) renderShell();
   }
 
   function findProjectBenchmarkImageInfo(drawer) {
