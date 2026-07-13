@@ -260,14 +260,29 @@ async function handleBackupSave(request, env) {
   const backupKey = String((body && body.backupKey) || '');
   const payload = body && body.payload;
   const version = String((body && body.version) || '').slice(0, 40);
+  const backupOwnerName = normalizeBackupOwnerName(payload && payload.backupOwnerName);
 
   if (backupKey.length < 4) return json({ error: 'backupKey too short' }, 400);
   if (!payload || typeof payload !== 'object') return json({ error: 'payload required' }, 400);
+  if (!backupOwnerName) return json({ error: 'backup owner name required' }, 400);
 
   const serialized = JSON.stringify(payload);
   if (serialized.length > 900000) return json({ error: 'payload too large' }, 413);
 
   const userId = await sha256Hex(backupKey);
+  const existing = await env.DB.prepare(`
+    SELECT payload
+    FROM user_backups
+    WHERE user_id = ?
+  `).bind(userId).first();
+  const existingOwnerName = getBackupOwnerNameFromPayload(existing && existing.payload);
+  if (existingOwnerName && existingOwnerName !== backupOwnerName) {
+    return json({
+      error: 'backup owner mismatch',
+      ownerName: existingOwnerName,
+      currentOwnerName: backupOwnerName,
+    }, 409);
+  }
   await env.DB.prepare(`
     INSERT INTO user_backups (user_id, payload, version, updated_at)
     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -491,6 +506,20 @@ async function collectClassificationSamples(env, limit = 600) {
       createdAt: row.created_at || '',
     };
   }).filter((item) => item.sku || item.name);
+}
+
+function normalizeBackupOwnerName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 64);
+}
+
+function getBackupOwnerNameFromPayload(serialized) {
+  if (!serialized) return '';
+  try {
+    const payload = typeof serialized === 'string' ? JSON.parse(serialized) : serialized;
+    return normalizeBackupOwnerName(payload && payload.backupOwnerName);
+  } catch (error) {
+    return '';
+  }
 }
 
 function normalizeProvidedClassificationSamples(value) {
