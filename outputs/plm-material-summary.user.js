@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.19
+// @version      2.5.20
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.19';
+  const SCRIPT_VERSION = '2.5.20';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2784,28 +2784,30 @@
     const cartonDimension = cartonSpec ? formatSizeImageNumber(cartonSpec.length) + ' \u00d7 ' + formatSizeImageNumber(cartonSpec.width) + ' \u00d7 ' + formatSizeImageNumber(cartonSpec.height) + ' cm' : '';
     const labelDimension = labelSpec ? formatSizeImageNumber(labelSpec.width) + ' \u00d7 ' + formatSizeImageNumber(labelSpec.height) + ' cm' : '';
     const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : '', labelDimension ? '\u6807\u7b7e ' + labelDimension : ''].filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
-    const previewType = session.previewType === 'label' ? 'label' : 'carton';
-    const previewUrl = previewType === 'label' ? session.labelResultDataUrl : session.cartonResultDataUrl;
-    const previewLabel = previewType === 'label' ? '\u6807\u7b7e' : '\u7eb8\u76d2';
+    const resultCount = Number(Boolean(session.cartonResultDataUrl)) + Number(Boolean(session.labelResultDataUrl));
     const status = session.error
       ? '<div class="pfh-size-image-status is-error">' + escapeHtml(session.error) + '</div>'
-      : (previewUrl ? '<div class="pfh-size-image-status is-ready">\u5df2\u8bc6\u522b\u4e3a' + previewLabel + '\uff0c\u5e76\u751f\u6210 3000 \u00d7 3000 JPG\u3002</div>' : '');
-    const preview = previewUrl
-      ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + previewLabel + '\u9884\u89c8</span><img src="' + previewUrl + '" alt="' + escapeHtml(data.sku + ' ' + previewLabel + '\u5c3a\u5bf8\u56fe') + '"></div>'
-      : '<div class="pfh-size-image-placeholder">' + iconHtml('image') + '<strong>\u7eb8\u76d2 / \u6807\u7b7e\u5c3a\u5bf8\u56fe</strong><span>\u62d6\u5165\u56fe\u7247\u540e\u4f1a\u81ea\u52a8\u8bc6\u522b\u7c7b\u578b\u5e76\u751f\u6210</span></div>';
+      : (resultCount ? '<div class="pfh-size-image-status is-ready">\u5df2\u751f\u6210 ' + resultCount + ' \u4e2a 3000 \u00d7 3000 JPG\u3002</div>' : '');
+    const previewCard = (type, url) => {
+      const label = type === 'label' ? '\u6807\u7b7e' : '\u7eb8\u76d2';
+      return url
+        ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + label + '\u9884\u89c8</span><img src="' + url + '" alt="' + escapeHtml(data.sku + ' ' + label + '\u5c3a\u5bf8\u56fe') + '"></div>'
+        : '<div class="pfh-size-image-placeholder is-compact">' + iconHtml(type === 'label' ? 'tag' : 'box') + '<strong>\u6682\u65e0' + label + '\u9884\u89c8</strong><span>\u53ef\u540c\u65f6\u62d6\u5165\u4e24\u5f20\u56fe\u7247</span></div>';
+    };
+    const preview = '<div class="pfh-size-image-preview-grid">' + previewCard('carton', session.cartonResultDataUrl) + previewCard('label', session.labelResultDataUrl) + '</div>';
     const disabled = (cartonSpec || labelSpec) && !busy ? '' : ' disabled';
     const remarks = getSizeImageRemarks(data);
-    const remarkHint = [remarks.carton ? '\u7eb8\u76d2\uff1a' + remarks.carton : '', remarks.label ? '\u6807\u7b7e\uff1a' + remarks.label : ''].filter(Boolean).join(' / ') || '\u672a\u8bc6\u522b\u5230\u5907\u6ce8';
+    const remarkHint = [remarks.carton ? '\u7eb8\u76d2\uff08' + remarks.carton + '\uff09' : '', remarks.label ? '\u6807\u7b7e\uff08' + remarks.label + '\uff09' : ''].filter(Boolean).join(' / ') || '\u672a\u8bc6\u522b\u5230\u5907\u6ce8';
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
       '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div><span>' + escapeHtml(dimensionText) + '</span></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-remark-input"' + (session.includeRemark === false ? '' : ' checked') + '><span>\u6807\u9898\u6dfb\u52a0\u5907\u6ce8</span><small>' + escapeHtml(remarkHint) + '</small></label>' +
-        '<button type="button" class="pfh-size-image-drop" data-action="size-image-pick"' + disabled + '>' + iconHtml('upload') + '<strong>' + (busy ? '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...' : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>\u7eb8\u76d2\uff1a\u900f\u660e PNG\uff1b\u6807\u7b7e\uff1aPNG / JPG\u3002\u518d\u6b21\u9009\u62e9\u4f1a\u66ff\u6362\u5bf9\u5e94\u7c7b\u578b\u3002</span></button>' +
+        '<button type="button" class="pfh-size-image-drop" data-action="size-image-pick"' + disabled + '>' + iconHtml('upload') + '<strong>' + (busy ? '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...' : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>\u53ef\u4e00\u6b21\u9009\u62e9\u7eb8\u76d2\u548c\u6807\u7b7e\u4e24\u5f20\u56fe\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
-        '<div class="pfh-size-image-actions"><button type="button" data-action="size-image-download-carton"' + (session.cartonResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u7eb8\u76d2 JPG</button><button type="button" class="is-primary" data-action="size-image-download-label"' + (session.labelResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u6807\u7b7e JPG</button></div>' +
-        '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg">' + status +
+        '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-download-carton"' + (session.cartonResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u7eb8\u76d2 JPG</button><button type="button" class="is-primary" data-action="size-image-download-label"' + (session.labelResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u6807\u7b7e JPG</button></div>' +
+        '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
     '</section></div>';
   }
@@ -2916,7 +2918,6 @@
         session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark);
         session.labelFile = file;
       }
-      session.previewType = detectedType;
       session.error = '';
       if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : '\u6807\u7b7e') + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
     } catch (error) {
@@ -2935,6 +2936,19 @@
       image.onerror = () => reject(new Error('\u65e0\u6cd5\u8bfb\u53d6\u56fe\u7247\uff0c\u6587\u4ef6\u53ef\u80fd\u5df2\u635f\u574f\u3002'));
       image.src = url;
     });
+  }
+
+  async function processSizeImageFiles(files) {
+    const items = Array.from(files || []).filter(Boolean);
+    if (!items.length) return;
+    for (const file of items) await processSizeImageFile(file, '', true);
+    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const session = sku && ensureSizeImageSession(sku);
+    if (session && !session.error) {
+      const names = [session.cartonResultDataUrl ? '\u7eb8\u76d2' : '', session.labelResultDataUrl ? '\u6807\u7b7e' : ''].filter(Boolean).join('\u548c');
+      if (names) showToast('\u5df2\u751f\u6210' + names + '\u5c3a\u5bf8\u56fe');
+    }
+    if (state.view === 'sizeImage') renderShell();
   }
 
   function analyzeSizeImageGeometry(image, spec) {
@@ -5314,9 +5328,9 @@
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-file-input')) {
-      const file = event.target.files && event.target.files[0];
+      const files = Array.from(event.target.files || []);
       event.target.value = '';
-      if (file) processSizeImageFile(file);
+      if (files.length) processSizeImageFiles(files);
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-upload-file')) {
@@ -5345,8 +5359,8 @@
   function handlePanelDrop(event) {
     if (event.target && event.target.closest && event.target.closest('.pfh-size-image-page')) {
       event.preventDefault();
-      const file = Array.from(event.dataTransfer && event.dataTransfer.files || [])[0];
-      if (file) processSizeImageFile(file);
+      const files = Array.from(event.dataTransfer && event.dataTransfer.files || []);
+      if (files.length) processSizeImageFiles(files);
       return;
     }
     if (!(event.target && event.target.closest && event.target.closest('.pfh-upload-section'))) return;
@@ -19184,6 +19198,13 @@
         border: 1px solid rgba(64,170,135,.22);
         background: rgba(235,252,246,.8);
       }
+      #${PANEL_ID} .pfh-size-image-preview-grid {
+        min-width: 0;
+        min-height: 310px;
+        display: grid;
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
       #${PANEL_ID} .pfh-size-image-preview,
       #${PANEL_ID} .pfh-size-image-placeholder {
         min-width: 0;
@@ -19194,6 +19215,11 @@
         padding: 8px;
         box-sizing: border-box;
         position: relative;
+      }
+      #${PANEL_ID} .pfh-size-image-preview-grid > .pfh-size-image-preview,
+      #${PANEL_ID} .pfh-size-image-preview-grid > .pfh-size-image-placeholder {
+        min-height: 0;
+        height: 100%;
       }
       #${PANEL_ID} .pfh-size-image-preview-type {
         position: absolute;
@@ -19233,6 +19259,20 @@
       }
       #${PANEL_ID} .pfh-size-image-placeholder span:not(.pfh-icon) {
         font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder.is-compact {
+        gap: 4px;
+        padding: 8px;
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder.is-compact .pfh-icon {
+        width: 28px;
+        height: 28px;
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder.is-compact strong {
+        font-size: 12px;
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder.is-compact span:not(.pfh-icon) {
+        font-size: 10px;
       }
       #${PANEL_ID} .pfh-size-image-empty {
         min-height: 320px;
