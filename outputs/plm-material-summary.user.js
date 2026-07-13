@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.36
+// @version      2.5.37
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.36';
+  const SCRIPT_VERSION = '2.5.37';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2166,7 +2166,7 @@
       batchExcel: '<svg viewBox="0 0 179 191.5" aria-hidden="true"><path d="m80.29,191.5c-.37,0-.75-.04-1.13-.12l-56.04-12.38-.38-.02C10,178.45.01,168.04,0,155.29V36.2C.01,23.45,10.01,13.04,22.75,12.52l.37-.02L79.19.12c.36-.08.74-.12,1.11-.12,13.05.01,23.68,10.65,23.7,23.7v144.09c-.01,13.05-10.65,23.69-23.7,23.7ZM24.81,22.63c-.36.08-.73.12-1.11.12-7.41,0-13.45,6.03-13.45,13.45v119.09c0,7.42,6.03,13.46,13.45,13.46.37,0,.75.04,1.13.12l56.05,12.38.67-.06c6.95-.66,12.19-6.42,12.2-13.4V23.7c0-7-5.25-12.75-12.21-13.4l-.66-.06-56.07,12.39Zm111.57,152.73c-2.83,0-5.12-2.3-5.12-5.12V21.27c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v148.96c0,1.37-.53,2.66-1.5,3.63-.97.97-2.25,1.5-3.62,1.5h0Zm37.5-18.23c-2.83,0-5.12-2.3-5.12-5.12V39.5c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v112.5c0,2.83-2.3,5.12-5.12,5.12Zm-133.86-16.67c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.12h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.13h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,1.37-.53,2.66-1.5,3.62s-2.25,1.5-3.62,1.5h-23.96Z"></path></svg>',
       batch: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M464.896 1024c-3.488 0-6.944-0.384-10.368-1.12l-285.184-63.008A143.264 143.264 0 0 1 32 816.864V207.104a143.296 143.296 0 0 1 137.344-143.008L454.528 1.12c3.424-0.736 6.88-1.12 10.368-1.12A143.264 143.264 0 0 1 608 143.104v737.76A143.296 143.296 0 0 1 464.896 1024z m4.352-927.808L185.472 158.88A49.216 49.216 0 0 1 175.104 160C149.152 160 128 181.152 128 207.104v609.76C128 842.88 149.152 864 175.104 864c3.488 0 6.944 0.384 10.368 1.12l283.776 62.688A47.2 47.2 0 0 0 512 880.864V143.104c0-24.512-18.816-44.704-42.752-46.912zM752 941.344a48 48 0 0 1-48-48V130.656a48 48 0 1 1 96 0v762.656a48 48 0 0 1-48 48.032zM944 848A48 48 0 0 1 896 800V224a48 48 0 1 1 96 0v576a48 48 0 0 1-48 48z"></path><path d="M381.344 357.344H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 560H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 762.656H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96z"></path></svg>',
       calculator: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M760.9856 100.8128H265.728A161.4848 161.4848 0 0 0 104.3968 262.144v493.0048A161.4848 161.4848 0 0 0 265.728 916.48h495.2576a161.4848 161.4848 0 0 0 161.3312-161.3312V262.144a161.4848 161.4848 0 0 0-161.3312-161.3312z m99.8912 654.336A99.9936 99.9936 0 0 1 760.9856 855.04H265.728a99.9936 99.9936 0 0 1-99.8912-99.8912V262.144A99.9936 99.9936 0 0 1 265.728 162.2528h495.2576a99.9936 99.9936 0 0 1 99.8912 99.8912z"></path><path d="M457.1136 330.1888H392.8576V265.9328a30.72 30.72 0 0 0-61.44 0v64.256H267.1616a30.72 30.72 0 1 0 0 61.44h64.256v64.3072a30.72 30.72 0 0 0 61.44 0V391.6288h64.256a30.72 30.72 0 0 0 0-61.44zM757.76 325.0688h-176.5888a30.72 30.72 0 0 0 0 61.44H757.76a30.72 30.72 0 1 0 0-61.44zM757.76 564.6848h-176.5888a30.72 30.72 0 0 0 0 61.44H757.76a30.72 30.72 0 0 0 0-61.44zM757.76 680.96h-176.5888a30.72 30.72 0 0 0 0 61.44H757.76a30.72 30.72 0 0 0 0-61.44zM451.0208 576.5632a30.72 30.72 0 0 0-43.4688 0l-45.4144 45.4656-45.4144-45.4656a30.72 30.72 0 1 0-43.4688 43.4688l45.4656 45.568-45.4656 45.4656a30.72 30.72 0 1 0 43.4688 43.4176l45.4144-45.4144 45.4144 45.4144a30.72 30.72 0 0 0 43.4688-43.4176L405.6064 665.6l45.4144-45.4144a30.72 30.72 0 0 0 0-43.6224z"></path></svg>',
-      tools: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M884.363636 535.272727c51.2 0 93.090909 41.890909 93.090909 93.090909v256c0 51.2-41.890909 93.090909-93.090909 93.090909H628.363636c-51.2 0-93.090909-41.890909-93.090909-93.090909V628.363636c0-51.2 41.890909-93.090909 93.090909-93.090909h256z m23.272728 349.090909V628.363636c0-12.613818-10.658909-23.272727-23.272728-23.272727H628.363636c-12.613818 0-23.272727 10.658909-23.272727 23.272727v256c0 12.613818 10.658909 23.272727 23.272727 23.272728h256c12.613818 0 23.272727-10.658909 23.272728-23.272728zM884.363636 46.545455c51.2 0 93.090909 41.890909 93.090909 93.090909v256c0 51.2-41.890909 93.090909-93.090909 93.090909H628.363636c-51.2 0-93.090909-41.890909-93.090909V139.636364c0-51.2 41.890909-93.090909 93.090909-93.090909h256z m23.272728 349.090909V139.636364c0-12.613818-10.658909-23.272727-23.272728-23.272728H628.363636c-12.613818 0-23.272727 10.658909-23.272727 23.272728v256c0 12.613818 10.658909 23.272727 23.272727 23.272727h256c12.613818 0 23.272727-10.658909 23.272728-23.272727zM139.636364 46.545455h256c51.2 0 93.090909 41.890909 93.090909 93.090909v256c0 51.2-41.890909 93.090909-93.090909 93.090909H139.636364c-51.2 0-93.090909-41.890909-93.090909-93.090909V139.636364c0-51.2 41.890909-93.090909 93.090909-93.090909z m279.272727 349.090909V139.636364c0-12.613818-10.658909-23.272727-23.272727-23.272728H139.636364c-12.613818 0-23.272727 10.658909-23.272728 23.272728v256c0 12.613818 10.658909 23.272727 23.272728 23.272727h256c12.613818 0 23.272727-10.658909 23.272727-23.272727z m-23.272727 139.636363c51.2 0 93.090909 41.890909 93.090909 93.090909v256c0 51.2-41.890909 93.090909-93.090909 93.090909H139.636364c-51.2 0-93.090909-41.890909-93.090909-93.090909V628.363636c0-51.2 41.890909-93.090909 93.090909-93.090909h256z m23.272727 349.090909V628.363636c0-12.613818-10.658909-23.272727-23.272727-23.272727H139.636364c-12.613818 0-23.272727 10.658909-23.272728 23.272727v256c0 12.613818 10.658909 23.272727 23.272728 23.272728h256c12.613818 0 23.272727-10.658909 23.272727-23.272728z"></path></svg>',
+      tools: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><rect x="82" y="82" width="350" height="350" rx="58"></rect><rect x="592" y="82" width="350" height="350" rx="58"></rect><rect x="82" y="592" width="350" height="350" rx="58"></rect><rect x="592" y="592" width="350" height="350" rx="58"></rect></svg>',
       download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 10 4 4 4-4"></path><path d="M5 20h14"></path></svg>',
       box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10v12H7z"></path><path d="M9 8V5h6v3"></path></svg>',
       tag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 11 4h7v7l-7 7-7-7Z"></path><circle cx="15.5" cy="7.5" r="1"></circle></svg>',
@@ -4772,7 +4772,7 @@
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
     const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + '"><i class="pfh-upload-mode-indicator"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button></div>' : '';
     return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (viewingHistory ? ' is-history-view' : '') + '">' +
-      '<div class="pfh-section-title pfh-upload-title"><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
+      '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="\u4f7f\u7528\u8bf4\u660e" aria-label="\u4f7f\u7528\u8bf4\u660e">' + uploadGuideIconHtml() + '</button>' +
       '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
@@ -15138,6 +15138,15 @@
         fill: currentColor !important;
         stroke: none !important;
       }
+      #${PANEL_ID} .pfh-home-card .pfh-icon-tools svg {
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 64px !important;
+      }
+      #${PANEL_ID} .pfh-home-card .pfh-icon-tools svg rect {
+        fill: none !important;
+        stroke: currentColor !important;
+      }
       #${PANEL_ID} .pfh-home-orbit {
         isolation: isolate;
         overflow: hidden;
@@ -19674,6 +19683,38 @@
         #${PANEL_ID} .pfh-size-image-placeholder {
           min-height: 300px;
         }
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > .pfh-upload-back {
+        width: 30px !important;
+        min-width: 30px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: grid !important;
+        place-items: center !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #6d35e8 !important;
+        box-shadow: none !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > .pfh-upload-back:hover {
+        color: #5422c9 !important;
+        transform: translateX(-2px);
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > .pfh-upload-back .pfh-icon,
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > .pfh-upload-back .pfh-icon-backArrow {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        border: 0 !important;
+        background: transparent !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > .pfh-upload-back svg {
+        width: 22px !important;
+        height: 22px !important;
+        fill: currentColor !important;
       }
     `;
     document.documentElement.appendChild(style);
