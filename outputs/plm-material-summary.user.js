@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.29
+// @version      2.5.30
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.29';
+  const SCRIPT_VERSION = '2.5.30';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -10398,6 +10398,44 @@
     };
   }
 
+  async function encodeCloudBackupPayload(payload) {
+    const serialized = JSON.stringify(payload);
+    if (serialized.length < 400000 || typeof CompressionStream !== 'function') return payload;
+    const stream = new Blob([serialized], { type: 'application/json' })
+      .stream()
+      .pipeThrough(new CompressionStream('gzip'));
+    const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+    return {
+      plugin: payload.plugin || L.title,
+      version: payload.version || SCRIPT_VERSION,
+      exportedAt: payload.exportedAt || new Date().toLocaleString(),
+      backupOwnerName: payload.backupOwnerName || '',
+      compression: 'gzip-base64',
+      uncompressedLength: serialized.length,
+      data: bytesToBase64(compressed),
+    };
+  }
+
+  async function decodeCloudBackupPayload(payload) {
+    if (!payload || payload.compression !== 'gzip-base64' || !payload.data) return payload;
+    if (typeof DecompressionStream !== 'function') throw new Error('\u5f53\u524d\u6d4f\u89c8\u5668\u65e0\u6cd5\u89e3\u538b\u4e91\u5907\u4efd\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
+    const compressed = base64ToArrayBuffer(payload.data);
+    const stream = new Blob([compressed])
+      .stream()
+      .pipeThrough(new DecompressionStream('gzip'));
+    const serialized = await new Response(stream).text();
+    return JSON.parse(serialized);
+  }
+
+  function bytesToBase64(bytes) {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+    }
+    return btoa(binary);
+  }
+
   function sanitizeUploadRecords(records) {
     return (Array.isArray(records) ? records : []).slice(0, 300).map((item) => ({
       ...item,
@@ -10572,12 +10610,13 @@
     try {
       const payload = buildCachePayload();
       if (!payload.backupOwnerName) throw new Error(L.cloudBackupOwnerMissing);
+      const cloudPayload = await encodeCloudBackupPayload(payload);
       const response = await cloudRequest('/backup/save', {
         method: 'POST',
         body: {
           backupKey,
           version: SCRIPT_VERSION,
-          payload,
+          payload: cloudPayload,
         },
       });
       if (!response || !response.ok) throw new Error(response && response.error ? response.error : 'save failed');
@@ -10603,6 +10642,9 @@
       const ownerName = String(cloudData.ownerName || '').trim() || '\u5176\u4ed6\u7528\u6237';
       const currentName = String(cloudData.currentOwnerName || getCloudBackupOwnerName() || '').trim();
       return '\u8be5\u5907\u4efd\u5bc6\u94a5\u5df2\u7ed1\u5b9a\u300c' + ownerName + '\u300d' + (currentName ? '\uff0c\u5f53\u524d PLM \u7528\u6237\u4e3a\u300c' + currentName + '\u300d' : '') + '\uff0c\u5df2\u963b\u6b62\u8986\u76d6';
+    }
+    if (cloudData.error === 'payload too large' || (error && error.message === 'payload too large')) {
+      return '\u4e91\u5907\u4efd\u538b\u7f29\u540e\u4ecd\u8d85\u8fc7\u4e0a\u9650';
     }
     return error && error.message ? error.message : '\u672a\u77e5\u9519\u8bef';
   }
@@ -10632,7 +10674,7 @@
         showToast(L.cloudBackupNotFound);
         return;
       }
-      importCachePayload(response.payload);
+      importCachePayload(await decodeCloudBackupPayload(response.payload));
       saveSettings(state.settings);
       setCloudBackupStatus(L.cloudBackupRestored + '\uff1a' + state.index.length + '\u4e2a\u7f16\u7801');
       addLog('success', '\u4e91\u5907\u4efd\u6062\u590d\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');
