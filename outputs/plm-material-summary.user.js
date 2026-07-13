@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.15
+// @version      2.5.16
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.15';
+  const SCRIPT_VERSION = '2.5.16';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2727,13 +2727,15 @@
 
   function copywritingSectionCopyValue(section) {
     if (!section || !section.text) return '';
-    const lines = String(section.text).split(/\r?\n/);
+    const lines = String(section.text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     if (!lines.length) return '';
-    const first = lines.shift() || '';
-    if (/^(?:DISTRIBUTED BY|ADDRESS|EU REP|UK REP|US REP)$/i.test(first.trim())) return lines.map((line) => line.trim()).filter(Boolean).join('\n');
-    const inlineHeading = first.match(/^\s*[A-Z][A-Z0-9 /().-]*\s*:\s*(.*)$/);
-    if (inlineHeading && inlineHeading[1]) lines.unshift(inlineHeading[1]);
-    return lines.map((line) => line.trim()).filter(Boolean).join('\n');
+    const first = lines[0] || '';
+    if (/^(?:DISTRIBUTED BY|ADDRESS|EU REP|UK REP|US REP)$/i.test(first)) return lines.slice(1).join('\n');
+    const inlineHeading = first.match(/^\s*[A-Z][A-Z0-9 /().-]*\s*[:\uff1a]\s*(.*)$/);
+    if (!inlineHeading) return lines.join('\n');
+    const body = lines.slice(1);
+    if (inlineHeading[1]) body.unshift(inlineHeading[1].trim());
+    return body.filter(Boolean).join('\n');
   }
 
   function formatCopywritingUpdateSummary(record) {
@@ -4087,7 +4089,8 @@
     } else {
       add('ingredients', '成分表', joinCopywritingSection('INGREDIENTS:', stripCopywritingHeading(ingredientLines, /^INGREDIENTS?\s*[:：]?$/i)));
     }
-    add('directions', '建议使用方法', joinCopywritingSection('DIRECTIONS:', stripCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?建议使用方法|^使用方法/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i)));
+    const directionSection = preserveCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?建议使用方法|^使用方法/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i, 'DIRECTIONS:');
+    add('directions', '建议使用方法', joinCopywritingSection(directionSection.heading, directionSection.lines));
     add('warning', '警告语', joinCopywritingSection('WARNINGS:', stripCopywritingHeading(find(/^警告语$/), /^WARNINGS?\s*[:：]?$/i)));
     const emailLines = find(/^美国不良事故联系人邮箱$/);
     const emailText = emailLines.join(' ').replace(/^e-?mail\s*[:：]\s*/i, '').trim();
@@ -4153,6 +4156,21 @@
       }
     }
     return result;
+  }
+
+  function preserveCopywritingHeading(lines, headingPattern, fallbackHeading) {
+    const result = (lines || []).map(cleanCopywritingLine).filter(Boolean);
+    if (!result.length) return { heading: fallbackHeading, lines: [] };
+    const first = result[0];
+    const colonIndex = first.search(/[:：]/);
+    const prefix = colonIndex >= 0 ? first.slice(0, colonIndex + 1).trim() : first.trim();
+    if (!headingPattern.test(first) && !(colonIndex >= 0 && headingPattern.test(prefix))) {
+      return { heading: fallbackHeading, lines: result };
+    }
+    const body = colonIndex >= 0 ? first.slice(colonIndex + 1).trim() : '';
+    result.shift();
+    if (body) result.unshift(body);
+    return { heading: prefix || fallbackHeading, lines: result };
   }
 
   function joinCopywritingSection(heading, lines) {
