@@ -1575,7 +1575,10 @@ async function handleLoadingTipsManageSave(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
   const body = await parseBodyParams(request);
   const count = clampInt(body.tipCount, 0, 300, 0);
-  const statements = [env.DB.prepare('DELETE FROM loading_tip_campaigns')];
+  const statements = [
+    env.DB.prepare('DELETE FROM loading_tip_campaigns'),
+    env.DB.prepare('DELETE FROM loading_tips'),
+  ];
   let sortOrder = 0;
   for (let index = 0; index < count; index += 1) {
     if (body['tip_' + index + '_delete'] === '1') continue;
