@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.20
+// @version      2.5.21
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.20';
+  const SCRIPT_VERSION = '2.5.21';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3331,7 +3331,7 @@
   function ledgerRowHtml(record, mode) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
-    const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : record.skuImageUrl;
+    const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : (record.skuImageUrl || record.benchmarkImageUrl);
     const thumb = thumbUrl ? '<img src="' + escapeHtml(thumbUrl) + '" alt="">' : '<span class="pfh-ledger-thumb-empty">' + iconHtml('image') + '</span>';
     const status = record.status || '待定稿';
     const imageGenerated = Boolean(record.imageGeneratedAt);
@@ -8075,7 +8075,9 @@
       const psdBlob = canvasToFlatPsdBlob(printCanvas, printCanvas.width / ((Number(size.width) || 4) * CM_TO_INCH));
       const previewFilename = baseName + ' \u6807\u7b7e\u8bf4\u660e\u56fe.jpg';
       const printFilename = baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.jpg';
-      const psdFilename = baseName + ' \u6807\u7b7e\u5370\u5237' + sizeName + '.psd';
+      const materialCode = cleanFileNamePart(labelData.printCode || '');
+      const productName = cleanFileNamePart([labelData.brand, labelData.name].filter(Boolean).join('')) || labelData.sku;
+      const psdFilename = '\u6807\u7b7e \uff08' + sizeName + '\uff09' + [materialCode, productName].filter(Boolean).join(' ') + '.psd';
       if (Array.isArray(opts.collectFiles)) {
         const generatedFiles = [
           { sku: labelData.sku, filename: previewFilename, blob: previewBlob },
@@ -10141,7 +10143,13 @@
     else if (action === 'ledger-time-day-before') date.setDate(date.getDate() - 2);
     date.setHours(9, 0, 0, 0);
     editor.timeMs = date.getTime();
-    renderShell();
+    const panel = ensurePanel();
+    const dateInput = panel.querySelector('.pfh-ledger-time-date');
+    const hourInput = panel.querySelector('.pfh-ledger-time-hour');
+    const minuteInput = panel.querySelector('.pfh-ledger-time-minute');
+    if (dateInput) dateInput.value = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    if (hourInput) hourInput.value = String(date.getHours()).padStart(2, '0');
+    if (minuteInput) minuteInput.value = String(date.getMinutes()).padStart(2, '0');
   }
 
   function formatLedgerInputDateTime(value) {
@@ -10163,8 +10171,8 @@
       : (action === 'ledger-toggle-label-file' ? 'labelFileDone' : 'imagePackDone');
     const label = field === 'boxFileState' ? '\u7eb8\u76d2\u6587\u4ef6' : (field === 'labelFileState' ? '\u6807\u7b7e\u5370\u5237\u6587\u4ef6' : '\u56fe\u5305');
     const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
-    updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue) }, key);
-    renderShell();
+    const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue) }, key);
+    refreshLedgerCard(updatedRecord);
   }
 
   function openLedgerReference(sku, dateKey) {
