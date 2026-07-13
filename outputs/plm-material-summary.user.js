@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.27
+// @version      2.5.28
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.27';
+  const SCRIPT_VERSION = '2.5.28';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2824,7 +2824,7 @@
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6807\u7b7e\u6dfb\u52a0\u201c\u6279\u6b21\u53f7\u201d</span><small>\u5728\u6807\u7b7e\u89c4\u683c\u4e0b\u65b9\u663e\u793a\u7ea2\u8272\uff08\u6279\u6b21\u53f7\uff09</small></label>' +
         '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
-        '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('folder') + '\u4fdd\u5b58 JPG \u5230\u6587\u4ef6\u5939</button></div>' +
+        '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
         '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
     '</section></div>';
@@ -3370,21 +3370,22 @@
       showToast('\u8bf7\u5148\u751f\u6210\u7eb8\u76d2\u6216\u6807\u7b7e\u5c3a\u5bf8\u56fe');
       return;
     }
-    const hostWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-    const picker = hostWindow && hostWindow.showDirectoryPicker;
-    if (typeof picker !== 'function') {
-      showToast('\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u9009\u62e9\u6587\u4ef6\u5939\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
+    const picker = getSaveFilePicker();
+    if (!picker) {
+      showToast('\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u53e6\u5b58\u4e3a\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
       return;
     }
     try {
-      const directory = await picker.call(hostWindow, { mode: 'readwrite' });
       for (const file of files) {
-        const handle = await directory.getFileHandle(file.name, { create: true });
+        const handle = await picker({
+          suggestedName: file.name,
+          types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+        });
         const writable = await handle.createWritable();
         await writable.write(await (await fetch(file.dataUrl)).blob());
         await writable.close();
       }
-      showToast('\u5df2\u4fdd\u5b58 ' + files.length + ' \u4e2a JPG \u5230\u9009\u5b9a\u6587\u4ef6\u5939');
+      showToast('\u5df2\u4fdd\u5b58 ' + files.length + ' \u4e2a\u5c3a\u5bf8\u56fe JPG');
     } catch (error) {
       if (error && error.name === 'AbortError') return;
       console.warn('PLM floating helper size image folder save failed:', error);
