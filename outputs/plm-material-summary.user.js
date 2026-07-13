@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.12
+// @version      2.5.13
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.12';
+  const SCRIPT_VERSION = '2.5.13';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -8508,7 +8508,11 @@
       addLog('warn', '批量玩具标签：文件内容不完整', '');
       return false;
     }
-    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    addLog('info', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\uff1a\u6b63\u5728\u7ec4\u88c5 ZIP', validCount + '\u4e2a\u6587\u4ef6');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true }, (metadata) => {
+      const percent = Math.floor(Number(metadata && metadata.percent) || 0);
+      if (percent > 0 && percent % 25 === 0) state.excelStatus = '\u6b63\u5728\u6253\u5305 ZIP ' + percent + '%';
+    });
     downloadBlob(blob, '玩具标签批量包_' + new Date().toISOString().slice(0, 10) + '.zip');
     if (opts.keepStagedFiles) {
       manifest.downloaded = true;
