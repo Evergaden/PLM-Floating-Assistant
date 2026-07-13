@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.32
+// @version      2.5.33
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.32';
+  const SCRIPT_VERSION = '2.5.33';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -49,6 +49,7 @@
   const TOY_LABEL_EXPORT_MANIFEST_KEY = 'plm-floating-helper:toy-label-export-manifest';
   const LOG_KEY = 'plm-floating-helper:logs';
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
+  const USER_INSTANCE_KEY = 'plm-floating-helper:user-instance';
   const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
@@ -356,12 +357,8 @@
     insightsEmpty: '\u6682\u65e0\u6570\u636e',
     insightsCloudSummary: '\u4e91\u7aef\u6458\u8981',
     insightsCopyReport: '\u590d\u5236\u603b\u7ed3',
-    insightsCopyFeishu: '\u590d\u5236\u98de\u4e66\u8868',
     insightsCopyAi: '\u590d\u5236 AI \u6574\u7406',
     insightsCopyRules: '\u590d\u5236\u6e05\u6d17\u89c4\u5219',
-    insightsSyncFeishu: '\u540c\u6b65\u98de\u4e66',
-    insightsCheckFeishu: '\u68c0\u67e5\u98de\u4e66',
-    insightsCopyFeishuSetup: '\u590d\u5236\u98de\u4e66\u914d\u7f6e',
     insightsCheckAi: '\u68c0\u67e5 AI',
     insightsAiModel: 'AI \u6a21\u578b',
     loadingTipsManage: '\u7ef4\u62a4\u5c0f\u63d0\u793a',
@@ -505,6 +502,8 @@
     loadingTipsLoaded: false,
     loadingTipText: '',
     loadingTipSeed: '',
+    loadingTipId: '',
+    userHeartbeatTimer: 0,
   };
   state.expanded = firstTutorial;
 
@@ -520,6 +519,7 @@
   renderShell(L.noDrawer);
   refreshLoadingTips(false);
   scheduleSizeImageAccessRefresh(300);
+  scheduleUserHeartbeat(800);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startUploadQueueSync();
@@ -2770,7 +2770,7 @@
     const count = state.index.length;
     const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
     const sizeImageLocked = !state.sizeImageAccessEnabled;
-    const sizeImageLockText = state.sizeImageAccessLoading ? '正在核对使用权限。' : '当前使用人未开通此功能。';
+    const sizeImageLockText = state.sizeImageAccessLoading ? '正在准备功能。' : '该功能暂未开放，敬请期待。';
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
@@ -2968,9 +2968,11 @@
         session.labelFile = file;
       }
       session.error = '';
+      recordSizeImageUsage(true);
       if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : '\u6807\u7b7e') + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
     } catch (error) {
       session.error = formatSizeImageError(error);
+      recordSizeImageUsage(false);
     } finally {
       URL.revokeObjectURL(sourceUrl);
       if (!silent) {
@@ -3623,25 +3625,40 @@
   function lockLoadingTip(seed) {
     const stableSeed = String(seed || state.scanTargetSku || state.selectedSku || state.sku || Date.now());
     if (state.loadingTipSeed === stableSeed && state.loadingTipText) return;
-    state.loadingTipText = pickLoadingTip(state.loadingTips, stableSeed);
+    const picked = pickLoadingTipItem(state.loadingTips, stableSeed);
+    state.loadingTipText = picked.text;
+    state.loadingTipId = picked.tipId || '';
     state.loadingTipSeed = stableSeed;
+    recordLoadingTipImpression(picked);
   }
 
-  function pickLoadingTip(tips, seed) {
-    const list = normalizeLoadingTips(tips);
+  function pickLoadingTipItem(tips, seed) {
+    const items = normalizeLoadingTipItems(tips);
     let hash = 0;
     String(seed || '').split('').forEach((char) => {
       hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
     });
-    return list[Math.abs(hash) % list.length] || DEFAULT_LOADING_TIPS[0];
+    const total = items.reduce((sum, item) => sum + item.weight, 0) || 1;
+    let target = Math.abs(hash) % total;
+    for (const item of items) {
+      target -= item.weight;
+      if (target < 0) return item;
+    }
+    return items[0] || { text: DEFAULT_LOADING_TIPS[0], tipId: '', weight: 1 };
   }
 
   function normalizeLoadingTips(tips) {
-    const list = (Array.isArray(tips) ? tips : [])
-      .map((item) => typeof item === 'string' ? item : (item && item.text))
-      .map((text) => String(text || '').trim())
-      .filter(Boolean);
-    return list.length ? Array.from(new Set(list)).slice(0, 80) : DEFAULT_LOADING_TIPS.slice();
+    return normalizeLoadingTipItems(tips).map((item) => item.text);
+  }
+
+  function normalizeLoadingTipItems(tips) {
+    const seen = new Set();
+    const list = (Array.isArray(tips) ? tips : []).map((item) => ({
+      text: String(typeof item === 'string' ? item : (item && item.text) || '').trim(),
+      tipId: String(item && typeof item === 'object' ? item.tipId || '' : ''),
+      weight: Math.max(1, Math.min(20, Number(item && typeof item === 'object' ? item.weight : 1) || 1)),
+    })).filter((item) => item.text && !seen.has(item.text) && seen.add(item.text));
+    return list.length ? list.slice(0, 80) : DEFAULT_LOADING_TIPS.map((text) => ({ text, tipId: '', weight: 1 }));
   }
 
   function insightRecommendationHtml(data) {
@@ -4949,7 +4966,7 @@
     }
     if (action === 'home-size-image') {
       if (!state.sizeImageAccessEnabled) {
-        showToast(state.sizeImageAccessLoading ? '正在核对生成尺寸图权限' : '当前使用人未开通生成尺寸图');
+        showToast(state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待');
         scheduleSizeImageAccessRefresh(0);
         return;
       }
@@ -5303,18 +5320,6 @@
       checkCloudInsightAiStatus();
       return;
     }
-    if (action === 'insights-check-feishu') {
-      checkCloudInsightFeishuStatus();
-      return;
-    }
-    if (action === 'insights-copy-feishu-setup') {
-      copyCloudInsightFeishuSetup();
-      return;
-    }
-    if (action === 'insights-sync-feishu') {
-      syncCloudInsightToFeishu();
-      return;
-    }
     if (action === 'insights-copy-report') {
       copyCloudInsightReport();
       return;
@@ -5325,10 +5330,6 @@
     }
     if (action === 'insights-copy-rules') {
       copyCloudInsightRules();
-      return;
-    }
-    if (action === 'insights-copy-feishu') {
-      copyCloudInsightFeishuTable();
       return;
     }
     if (/^insights-rule-/.test(action)) {
@@ -10883,22 +10884,6 @@
     });
   }
 
-  async function syncInsightFeishu() {
-    return cloudRequest('/insights/feishu-sync', { method: 'POST', body: { version: SCRIPT_VERSION } });
-  }
-
-  async function fetchInsightFeishuStatus() {
-    return cloudRequest('/insights/feishu-status', { method: 'GET' });
-  }
-
-  async function fetchInsightFeishuPreview() {
-    return cloudRequest('/insights/feishu-preview', { method: 'GET' });
-  }
-
-  async function fetchInsightFeishuTsv() {
-    return cloudRequest('/insights/feishu-tsv', { method: 'GET' });
-  }
-
   async function fetchInsightRecommendation(data, productType) {
     const params = new URLSearchParams();
     if (data && data.sku) params.set('sku', data.sku);
@@ -10908,13 +10893,22 @@
   }
 
   async function fetchLoadingTips() {
-    return cloudRequest('/tips', { method: 'GET' });
+    const now = new Date();
+    const params = new URLSearchParams({
+      name: findCurrentPlmUserName(),
+      instanceId: getClientInstanceId(),
+      version: SCRIPT_VERSION,
+      date: formatLocalDate(now),
+      time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+      weekday: String(now.getDay()),
+    });
+    return cloudRequest('/tips?' + params.toString(), { method: 'GET' });
   }
 
   async function refreshLoadingTips(showFeedback) {
     try {
       const response = await fetchLoadingTips();
-      const tips = normalizeLoadingTips(response && response.tips);
+      const tips = normalizeLoadingTipItems(response && response.tips);
       state.loadingTips = tips;
       state.loadingTipsLoaded = true;
       if (showFeedback) showToast('\u5c0f\u63d0\u793a\u5df2\u5237\u65b0\uff1a' + tips.length + '\u6761');
@@ -10924,6 +10918,71 @@
       addLog('warn', '\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25\uff0c\u5df2\u4f7f\u7528\u672c\u5730\u9ed8\u8ba4\u63d0\u793a', formatErrorMessage(error));
       if (showFeedback) showToast('\u5c0f\u63d0\u793a\u62c9\u53d6\u5931\u8d25\uff0c\u5df2\u4f7f\u7528\u9ed8\u8ba4\u63d0\u793a');
     }
+  }
+
+  function getClientInstanceId() {
+    try {
+      let value = typeof GM_getValue === 'function' ? GM_getValue(USER_INSTANCE_KEY, '') : localStorage.getItem(USER_INSTANCE_KEY);
+      if (!value) {
+        value = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'browser-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+        if (typeof GM_setValue === 'function') GM_setValue(USER_INSTANCE_KEY, value);
+        else localStorage.setItem(USER_INSTANCE_KEY, value);
+      }
+      return String(value).slice(0, 80);
+    } catch (_) {
+      return 'browser-session';
+    }
+  }
+
+  function formatLocalDate(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+
+  function recordLoadingTipImpression(item) {
+    if (!item || !item.tipId) return;
+    cloudRequest('/tips/impression', {
+      method: 'POST',
+      body: { tipId: item.tipId, name: findCurrentPlmUserName(), instanceId: getClientInstanceId(), shownDay: formatLocalDate(new Date()) },
+    }).catch(() => {});
+  }
+
+  function scheduleUserHeartbeat(delay) {
+    if (state.userHeartbeatTimer) window.clearTimeout(state.userHeartbeatTimer);
+    state.userHeartbeatTimer = window.setTimeout(() => {
+      state.userHeartbeatTimer = 0;
+      sendUserHeartbeat();
+    }, Math.max(0, Number(delay) || 0));
+  }
+
+  async function sendUserHeartbeat() {
+    const name = findCurrentPlmUserName();
+    if (!name) {
+      scheduleUserHeartbeat(3000);
+      return;
+    }
+    try {
+      const response = await cloudRequest('/users/heartbeat', {
+        method: 'POST',
+        body: { name, instanceId: getClientInstanceId(), version: SCRIPT_VERSION, skuCount: state.index.length },
+      });
+      if (response && typeof response.sizeImageEnabled === 'boolean') {
+        state.sizeImageAccessName = name;
+        state.sizeImageAccessEnabled = response.sizeImageEnabled;
+        state.sizeImageAccessLoading = false;
+        if (state.view === 'home') renderShell();
+      }
+      refreshLoadingTips(false);
+    } catch (error) {
+      addLog('warn', '使用状态同步失败', formatErrorMessage(error));
+    } finally {
+      scheduleUserHeartbeat(30 * 60 * 1000);
+    }
+  }
+
+  function recordSizeImageUsage(success) {
+    const name = findCurrentPlmUserName();
+    if (!name) return;
+    cloudRequest('/usage/size-image', { method: 'POST', body: { name, success: Boolean(success) } }).catch(() => {});
   }
 
   function openLoadingTipsManager() {

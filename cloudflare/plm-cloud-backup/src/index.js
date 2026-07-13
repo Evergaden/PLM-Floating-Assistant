@@ -291,6 +291,14 @@ async function handleBackupSave(request, env) {
       version = excluded.version,
       updated_at = CURRENT_TIMESTAMP
   `).bind(userId, serialized, version).run();
+  await env.DB.prepare(`
+    INSERT INTO plm_users (user_name, script_version, last_backup_at, last_seen_at)
+    VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_name) DO UPDATE SET
+      script_version=excluded.script_version,
+      last_backup_at=CURRENT_TIMESTAMP,
+      last_seen_at=CURRENT_TIMESTAMP
+  `).bind(backupOwnerName, version).run();
 
   return json({ ok: true, userId, bytes: serialized.length });
 }
@@ -556,10 +564,25 @@ function renderAdminLogin(error) {
 
 async function handleAdminLogin(request, env) {
   if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET) return htmlResponse(renderAdminLogin(true), 503);
+  const clientKey = await sha256Hex(request.headers.get('cf-connecting-ip') || 'unknown');
+  const attempt = await env.DB.prepare('SELECT failures, locked_until FROM admin_login_attempts WHERE client_key = ?').bind(clientKey).first();
+  if (attempt && Number(attempt.locked_until || 0) > Date.now()) {
+    return htmlResponse(renderAdminLogin(true), 429);
+  }
   const body = await parseBodyParams(request);
-  if (String(body.password || '') !== String(env.ADMIN_PASSWORD)) return htmlResponse(renderAdminLogin(true), 401);
+  if (String(body.password || '') !== String(env.ADMIN_PASSWORD)) {
+    const failures = Number(attempt && attempt.failures || 0) + 1;
+    const lockedUntil = failures >= 5 ? Date.now() + 15 * 60 * 1000 : 0;
+    await env.DB.prepare('INSERT INTO admin_login_attempts (client_key, failures, locked_until, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(client_key) DO UPDATE SET failures=excluded.failures, locked_until=excluded.locked_until, updated_at=CURRENT_TIMESTAMP').bind(clientKey, failures >= 5 ? 0 : failures, lockedUntil).run();
+    return htmlResponse(renderAdminLogin(true), 401);
+  }
+  await env.DB.prepare('DELETE FROM admin_login_attempts WHERE client_key = ?').bind(clientKey).run();
   const token = await createAdminSession(env);
   return new Response(null, { status: 303, headers: { location: '/admin', 'set-cookie': 'plm_admin=' + encodeURIComponent(token) + '; Path=/; Max-Age=43200; HttpOnly; Secure; SameSite=Strict' } });
+}
+
+function handleAdminLogout() {
+  return new Response(null, { status: 303, headers: { location: '/admin/login', 'set-cookie': 'plm_admin=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict' } });
 }
 
 async function listFeatureAccess(env) {
@@ -582,8 +605,42 @@ async function handleFeatureAccessSave(request, env) {
   if (name) {
     const enabled = body.enabled === '1' || body.enabled === 'on' ? 1 : 0;
     await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET size_image_enabled = excluded.size_image_enabled, updated_at = CURRENT_TIMESTAMP').bind(name, enabled).run();
+    await env.DB.prepare('INSERT INTO feature_access_logs (user_name, feature_key, enabled) VALUES (?, ?, ?)').bind(name, 'size-image', enabled).run();
   }
   return adminRedirect('/admin');
+}
+
+async function handleUserHeartbeat(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request) || {};
+  const name = normalizeAccessUserName(body.name);
+  if (!name) return json({ ok: false, error: 'name required' }, 400);
+  const instanceId = String(body.instanceId || '').slice(0, 80);
+  const version = String(body.version || '').slice(0, 30);
+  const skuCount = clampInt(body.skuCount, 0, 1000000, 0);
+  await env.DB.prepare(`
+    INSERT INTO plm_users (user_name, instance_id, script_version, sku_count, heartbeat_count, last_seen_at)
+    VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_name) DO UPDATE SET
+      instance_id=excluded.instance_id,
+      script_version=excluded.script_version,
+      sku_count=excluded.sku_count,
+      heartbeat_count=plm_users.heartbeat_count+1,
+      last_seen_at=CURRENT_TIMESTAMP
+  `).bind(name, instanceId, version, skuCount).run();
+  const row = await env.DB.prepare('SELECT size_image_enabled FROM feature_access WHERE user_name=?').bind(name).first();
+  return json({ ok: true, sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)) });
+}
+
+async function handleSizeImageUsage(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request) || {};
+  const name = normalizeAccessUserName(body.name);
+  if (!name) return json({ ok: false }, 400);
+  const success = body.success !== false;
+  const column = success ? 'size_image_success' : 'size_image_failure';
+  await env.DB.prepare('UPDATE plm_users SET ' + column + '=' + column + '+1, last_seen_at=CURRENT_TIMESTAMP WHERE user_name=?').bind(name).run();
+  return json({ ok: true });
 }
 
 async function handleFeatureAccessDelete(request, env) {
@@ -1225,7 +1282,7 @@ async function handleInsightReport(request, env) {
     '五、AI 处理建议',
     '1. 按商品类型统计价格区间和常见装箱数，给新 SKU 做默认推荐。',
     '2. 对高频缺失字段维护清洗规则；如果 PLM 页面不是空值但脚本未获取到，优先记录为规则待修复。',
-    '3. 飞书表格建议列：SKU、品牌、商品名、商品类型、价格、装箱数、包装尺寸、产品尺寸、缺失字段、记录时间。',
+    '3. 数据记录建议列：SKU、品牌、商品名、商品类型、价格、装箱数、包装尺寸、产品尺寸、缺失字段、记录时间。',
   ];
   return json({
     ok: true,
@@ -1410,8 +1467,25 @@ function getCurrentKeyQuerySuffix(request) {
 
 async function handleLoadingTips(request, env) {
   if (!requireApiKeyFromHeaderOrQuery(request, env)) return json({ error: 'unauthorized' }, 401);
-  const tips = await listLoadingTips(env, false);
-  return json({ ok: true, tips: tips.length ? tips : DEFAULT_LOADING_TIPS.map((text, index) => ({
+  const url = new URL(request.url);
+  const name = normalizeAccessUserName(url.searchParams.get('name'));
+  const instanceId = String(url.searchParams.get('instanceId') || '').slice(0, 80);
+  const version = String(url.searchParams.get('version') || '').slice(0, 30);
+  const nowDate = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('date') || '') ? url.searchParams.get('date') : new Date().toISOString().slice(0, 10);
+  const nowTime = /^\d{2}:\d{2}$/.test(url.searchParams.get('time') || '') ? url.searchParams.get('time') : '12:00';
+  const weekday = clampInt(url.searchParams.get('weekday'), 0, 6, 0);
+  const access = await env.DB.prepare('SELECT size_image_enabled FROM feature_access WHERE user_name=?').bind(name).first();
+  const holiday = await env.DB.prepare('SELECT holiday_id FROM holiday_calendar WHERE enabled=1 AND reminder_date=? LIMIT 1').bind(nowDate).first();
+  const result = await env.DB.prepare('SELECT * FROM loading_tip_campaigns WHERE enabled=1 ORDER BY sort_order ASC, updated_at DESC LIMIT 120').all();
+  const eligible = [];
+  for (const row of result.results || []) {
+    if (!tipCampaignMatches(row, { name, version, nowDate, nowTime, weekday, holidayEve: Boolean(holiday), sizeImageEnabled: Boolean(access && Number(access.size_image_enabled)) })) continue;
+    const stats = await env.DB.prepare('SELECT COUNT(*) AS count, MAX(shown_at) AS latest FROM loading_tip_impressions WHERE tip_id=? AND (user_name=? OR instance_id=?) AND shown_day=?').bind(row.tip_id, name, instanceId, nowDate).first();
+    if (Number(stats && stats.count || 0) >= Number(row.daily_limit || 3)) continue;
+    if (stats && stats.latest && Date.now() - Date.parse(stats.latest + 'Z') < Number(row.cooldown_minutes || 0) * 60000) continue;
+    eligible.push(mapTipCampaign(row));
+  }
+  return json({ ok: true, tips: eligible.length ? eligible : DEFAULT_LOADING_TIPS.map((text, index) => ({
     tipId: 'default-' + index,
     text,
     enabled: 1,
@@ -1419,6 +1493,92 @@ async function handleLoadingTips(request, env) {
     sortOrder: index + 1,
     source: 'default',
   })) });
+}
+
+function splitRuleNames(value) {
+  return String(value || '').split(/[,，;；\n]+/).map((item) => normalizeAccessUserName(item)).filter(Boolean);
+}
+
+function tipCampaignMatches(row, context) {
+  const include = splitRuleNames(row.include_names);
+  const exclude = splitRuleNames(row.exclude_names);
+  if (include.length && !include.includes(context.name)) return false;
+  if (exclude.includes(context.name)) return false;
+  if (row.start_date && context.nowDate < row.start_date) return false;
+  if (row.end_date && context.nowDate > row.end_date) return false;
+  if (row.start_time && context.nowTime < row.start_time) return false;
+  if (row.end_time && context.nowTime > row.end_time) return false;
+  const weekdays = String(row.weekdays || '').split(',').filter(Boolean).map(Number);
+  if (weekdays.length && !weekdays.includes(context.weekday)) return false;
+  if (Number(row.holiday_eve || 0) && !context.holidayEve) return false;
+  if (row.access_mode === 'enabled' && !context.sizeImageEnabled) return false;
+  if (row.access_mode === 'disabled' && context.sizeImageEnabled) return false;
+  if (row.version_rule && !context.version.includes(String(row.version_rule))) return false;
+  return true;
+}
+
+function mapTipCampaign(row) {
+  return {
+    tipId: row.tip_id,
+    text: row.text,
+    enabled: Number(row.enabled || 0),
+    weight: Number(row.weight || 1),
+    sortOrder: Number(row.sort_order || 0),
+  };
+}
+
+async function handleLoadingTipImpression(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request) || {};
+  const tipId = String(body.tipId || '').slice(0, 80);
+  if (!tipId || tipId.startsWith('default-')) return json({ ok: true });
+  const name = normalizeAccessUserName(body.name);
+  const instanceId = String(body.instanceId || '').slice(0, 80);
+  const shownDay = /^\d{4}-\d{2}-\d{2}$/.test(body.shownDay || '') ? body.shownDay : new Date().toISOString().slice(0, 10);
+  await env.DB.prepare('INSERT INTO loading_tip_impressions (tip_id,user_name,instance_id,shown_day) VALUES (?,?,?,?)').bind(tipId, name, instanceId, shownDay).run();
+  return json({ ok: true });
+}
+
+async function handleLoadingTipsBulkSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  const body = await parseBodyParams(request);
+  const lines = Array.from(new Set(String(body.texts || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean))).slice(0, 200);
+  const values = {
+    weight: clampInt(body.weight, 1, 20, 1),
+    includeNames: String(body.includeNames || '').slice(0, 1000),
+    excludeNames: String(body.excludeNames || '').slice(0, 1000),
+    startDate: String(body.startDate || '').slice(0, 10), endDate: String(body.endDate || '').slice(0, 10),
+    startTime: String(body.startTime || '').slice(0, 5), endTime: String(body.endTime || '').slice(0, 5),
+    weekdays: String(body.weekdays || '').replace(/[^0-6,]/g, '').slice(0, 30),
+    holidayEve: body.holidayEve === '1' || body.holidayEve === 'on' ? 1 : 0,
+    accessMode: ['enabled', 'disabled'].includes(body.accessMode) ? body.accessMode : '',
+    versionRule: String(body.versionRule || '').slice(0, 30),
+    dailyLimit: clampInt(body.dailyLimit, 1, 20, 3), cooldown: clampInt(body.cooldownMinutes, 0, 10080, 60),
+  };
+  const statements = [env.DB.prepare('DELETE FROM loading_tip_campaigns')];
+  for (let index = 0; index < lines.length; index += 1) {
+    const tipId = 'tip_' + (await sha256Hex(lines[index] + JSON.stringify(values))).slice(0, 20);
+    statements.push(env.DB.prepare('INSERT INTO loading_tip_campaigns (tip_id,text,enabled,weight,include_names,exclude_names,start_date,end_date,start_time,end_time,weekdays,holiday_eve,access_mode,version_rule,daily_limit,cooldown_minutes,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(tipId, lines[index], 1, values.weight, values.includeNames, values.excludeNames, values.startDate, values.endDate, values.startTime, values.endTime, values.weekdays, values.holidayEve, values.accessMode, values.versionRule, values.dailyLimit, values.cooldown, index));
+  }
+  await env.DB.batch(statements);
+  return adminRedirect('/admin#tips');
+}
+
+async function handleHolidayBulkSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  const body = await parseBodyParams(request);
+  const lines = String(body.holidays || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 100);
+  const statements = [env.DB.prepare('DELETE FROM holiday_calendar')];
+  for (const line of lines) {
+    const parts = line.split(/[|｜]/).map((item) => item.trim());
+    if (parts.length < 2 || !/^\d{4}-\d{2}-\d{2}$/.test(parts[1])) continue;
+    const reminder = new Date(parts[1] + 'T00:00:00Z');
+    reminder.setUTCDate(reminder.getUTCDate() - 1);
+    const holidayId = 'holiday_' + (await sha256Hex(parts[0] + parts[1])).slice(0, 18);
+    statements.push(env.DB.prepare('INSERT INTO holiday_calendar (holiday_id,holiday_name,start_date,reminder_date,enabled) VALUES (?,?,?,?,1)').bind(holidayId, parts[0].slice(0, 40), parts[1], reminder.toISOString().slice(0, 10)));
+  }
+  await env.DB.batch(statements);
+  return adminRedirect('/admin#holidays');
 }
 
 async function handleLoadingTipsManage(request, env) {
@@ -1506,8 +1666,40 @@ function redirectBackToTips(request) {
 
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
-  const [accessRows, tips] = await Promise.all([listFeatureAccess(env), listLoadingTips(env, true)]);
-  return htmlResponse(renderAdminPage(accessRows, tips));
+  const [users, dashboard, campaigns, holidays] = await Promise.all([
+    env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
+    env.DB.prepare(`SELECT
+      COUNT(*) AS users,
+      SUM(CASE WHEN last_seen_at>=datetime('now','-1 day') THEN 1 ELSE 0 END) AS active_today,
+      SUM(CASE WHEN last_seen_at>=datetime('now','-7 day') THEN 1 ELSE 0 END) AS active_week,
+      SUM(sku_count) AS sku_total,
+      SUM(size_image_success) AS size_success,
+      SUM(size_image_failure) AS size_failure,
+      SUM(CASE WHEN last_backup_at IS NOT NULL THEN 1 ELSE 0 END) AS backup_users
+      FROM plm_users`).first(),
+    env.DB.prepare('SELECT * FROM loading_tip_campaigns ORDER BY sort_order ASC LIMIT 200').all(),
+    env.DB.prepare('SELECT * FROM holiday_calendar ORDER BY start_date ASC LIMIT 100').all(),
+  ]);
+  return htmlResponse(renderAdminDashboardPage(users.results || [], dashboard || {}, campaigns.results || [], holidays.results || []));
+}
+
+function renderAdminDashboardPage(users, dashboard, campaigns, holidays) {
+  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(user.last_seen_at || '尚未上报') + '</td><td>' + htmlEscape(user.last_backup_at || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
+  const tipTexts = campaigns.map((tip) => tip.text).join('\n');
+  const firstTip = campaigns[0] || {};
+  const holidayTexts = holidays.map((item) => item.holiday_name + '|' + item.start_date).join('\n');
+  const metrics = [
+    ['使用人', dashboard.users || 0], ['今日活跃', dashboard.active_today || 0], ['近7日活跃', dashboard.active_week || 0],
+    ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],
+    ['尺寸图成功', dashboard.size_success || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
+  ].map((item) => '<div class="metric"><span>' + htmlEscape(item[0]) + '</span><b>' + htmlEscape(item[1]) + '</b></div>').join('');
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>' +
+    ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;flex-wrap:wrap;gap:12px}.checks label{font-size:13px}.checks input{width:auto}.weekdays{grid-column:1/-1}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
+    '<header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">用户、权限、云端数据与轮播小提示</div></div><a class="btn ghost" href="/admin/logout">退出登录</a></header>' +
+    '<section class="metrics">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
+    '<section class="card"><div class="cardhead"><h2>使用人与尺寸图权限</h2><div class="sub">其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="enabled" value="1"><button>添加并开通</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="6">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
+    '<section class="card" id="tips"><div class="cardhead"><h2>轮播小提示</h2><div class="sub">每行一条，以下组合条件应用于本次保存的全部提示</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="每行输入一条提示">' + htmlEscape(tipTexts) + '</textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="' + htmlEscape(firstTip.weight || 1) + '"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="' + htmlEscape(firstTip.daily_limit || 3) + '"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="' + htmlEscape(firstTip.cooldown_minutes || 60) + '"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled"' + (firstTip.access_mode === 'enabled' ? ' selected' : '') + '>已开通</option><option value="disabled"' + (firstTip.access_mode === 'disabled' ? ' selected' : '') + '>未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames" value="' + htmlEscape(firstTip.include_names || '') + '"></label><label><span>排除姓名</span><input name="excludeNames" value="' + htmlEscape(firstTip.exclude_names || '') + '"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate" value="' + htmlEscape(firstTip.start_date || '') + '"></label><label><span>结束日期</span><input type="date" name="endDate" value="' + htmlEscape(firstTip.end_date || '') + '"></label><label><span>开始时间</span><input type="time" name="startTime" value="' + htmlEscape(firstTip.start_time || '') + '"></label><label><span>结束时间</span><input type="time" name="endTime" value="' + htmlEscape(firstTip.end_time || '') + '"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule" value="' + htmlEscape(firstTip.version_rule || '') + '"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" value="' + htmlEscape(firstTip.weekdays || '') + '" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1"' + (Number(firstTip.holiday_eve) ? ' checked' : '') + '>仅法定节假日前一天</label></div><div class="actions"><button type="submit">一键保存全部</button></div></form></section>' +
+    '<section class="card" id="holidays"><div class="cardhead"><h2>法定节假日</h2><div class="sub">每行格式：节日名称|放假开始日期，提醒日期自动取前一天</div></div><form class="form" method="post" action="/admin/holidays/bulk-save"><textarea name="holidays" placeholder="国庆节|2026-10-01">' + htmlEscape(holidayTexts) + '</textarea><div class="actions"><button type="submit">保存节假日</button></div></form></section></div></main></body></html>';
 }
 
 function renderAdminPage(accessRows, tips) {
@@ -1557,7 +1749,7 @@ async function callZhipuInsightReporter(env, summary) {
   const prompt = [
     '你是 PLM 商品数据清洗和采购数据分析助手。',
     '请根据下面精简 JSON 输出中文报告，最多 900 字。',
-    '必须包含：1）商品类型/价格规律；2）智能补全建议；3）清洗规则优先级；4）飞书表格记录建议。',
+    '必须包含：1）商品类型/价格规律；2）智能补全建议；3）清洗规则优先级；4）数据记录建议。',
     '根据 ruleRows/ruleMaintenance/logDiagnostics 判断原因类别：PLM空值、脚本解析缺口、页面未读完、网络/流程问题。优先说明“需处理/观察/待复核”的规则数量和Top规则，不要编造 JSON 外的数据。',
     JSON.stringify(compactSummary),
   ].join('\n');
@@ -3065,11 +3257,17 @@ export default {
     if (url.pathname === '/health') return json({ ok: true });
     if (url.pathname === '/admin/login' && request.method === 'GET') return htmlResponse(renderAdminLogin(false));
     if (url.pathname === '/admin/login' && request.method === 'POST') return handleAdminLogin(request, env);
+    if (url.pathname === '/admin/logout' && request.method === 'GET') return handleAdminLogout();
     if (url.pathname === '/admin' && request.method === 'GET') return handleAdminPage(request, env);
     if (url.pathname === '/admin/access/save' && request.method === 'POST') return handleFeatureAccessSave(request, env);
     if (url.pathname === '/admin/access/delete' && request.method === 'POST') return handleFeatureAccessDelete(request, env);
+    if (url.pathname === '/admin/tips/bulk-save' && request.method === 'POST') return handleLoadingTipsBulkSave(request, env);
+    if (url.pathname === '/admin/holidays/bulk-save' && request.method === 'POST') return handleHolidayBulkSave(request, env);
     if (url.pathname === '/features/size-image' && request.method === 'GET') return handleSizeImageAccess(request, env);
+    if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
+    if (url.pathname === '/usage/size-image' && request.method === 'POST') return handleSizeImageUsage(request, env);
     if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
+    if (url.pathname === '/tips/impression' && request.method === 'POST') return handleLoadingTipImpression(request, env);
     if (url.pathname === '/tips/manage' && request.method === 'GET') return handleLoadingTipsManage(request, env);
     if (url.pathname === '/tips/save' && request.method === 'POST') return handleLoadingTipSave(request, env);
     if (url.pathname === '/tips/delete' && request.method === 'POST') return handleLoadingTipDelete(request, env);
@@ -3084,18 +3282,12 @@ export default {
     if (url.pathname === '/insights/ai-report' && request.method === 'GET') return handleInsightAiReport(request, env);
     if (url.pathname === '/insights/ai-status' && request.method === 'GET') return handleInsightAiStatus(request, env);
     if (url.pathname === '/insights/readiness' && request.method === 'GET') return handleInsightReadiness(request, env);
-    if (url.pathname === '/insights/feishu-tsv' && request.method === 'GET') return handleInsightFeishuTsv(request, env);
-    if (url.pathname === '/insights/table' && request.method === 'GET') return handleInsightTable(request, env);
-    if (url.pathname === '/insights/table.csv' && request.method === 'GET') return handleInsightTableCsv(request, env);
     if (url.pathname === '/insights/recommend' && request.method === 'GET') return handleInsightRecommend(request, env);
     if (url.pathname === '/insights/classification-rules' && request.method === 'GET') return handleClassificationRules(request, env);
     if (url.pathname === '/insights/classification-summarize' && request.method === 'POST') return handleClassificationSummarize(request, env);
     if (url.pathname === '/insights/rules' && request.method === 'GET') return handleInsightRules(request, env);
     if (url.pathname === '/insights/rules/maintained' && request.method === 'GET') return handleMaintainedCleaningRules(request, env);
     if (url.pathname === '/insights/rules/status' && request.method === 'POST') return handleCleaningRuleStatusUpdate(request, env);
-    if (url.pathname === '/insights/feishu-status' && request.method === 'GET') return handleInsightFeishuStatus(request, env);
-    if (url.pathname === '/insights/feishu-preview' && request.method === 'GET') return handleInsightFeishuPreview(request, env);
-    if (url.pathname === '/insights/feishu-sync' && request.method === 'POST') return handleInsightFeishuSync(request, env);
 
     return json({ error: 'not found' }, 404);
   },
