@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.24
+// @version      2.5.25
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.24';
+  const SCRIPT_VERSION = '2.5.25';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2814,12 +2814,13 @@
     const remarks = getSizeImageRemarks(data);
     const remarkHint = [remarks.carton ? '\u7eb8\u76d2\uff08' + remarks.carton + '\uff09' : '', remarks.label ? '\u6807\u7b7e\uff08' + remarks.label + '\uff09' : ''].filter(Boolean).join(' / ') || '\u672a\u8bc6\u522b\u5230\u5907\u6ce8';
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
-      '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div><span>' + escapeHtml(dimensionText) + '</span></header>' +
+      '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-remark-input"' + (session.includeRemark === false ? '' : ' checked') + '><span>\u6807\u9898\u6dfb\u52a0\u5907\u6ce8</span><small>' + escapeHtml(remarkHint) + '</small></label>' +
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6dfb\u52a0\u201c\u5706\u5f27\u201d\u5907\u6ce8</span><small>\u751f\u6210\u6807\u9898\u4e2d\u4f7f\u7528\uff08\u5706\u5f27\uff09\u6807\u8bc6</small></label>' +
+        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6807\u7b7e\u6dfb\u52a0\u201c\u6279\u6b21\u53f7\u201d</span><small>\u5728\u6807\u7b7e\u89c4\u683c\u4e0b\u65b9\u663e\u793a\u7ea2\u8272\uff08\u6279\u6b21\u53f7\uff09</small></label>' +
         '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u53ef\u4e00\u6b21\u9009\u62e9\u7eb8\u76d2\u548c\u6807\u7b7e\u4e24\u5f20\u56fe\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
         '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-download-carton"' + (session.cartonResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u7eb8\u76d2 JPG</button><button type="button" class="is-primary" data-action="size-image-download-label"' + (session.labelResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u6807\u7b7e JPG</button></div>' +
@@ -2829,9 +2830,10 @@
   }
 
   function ensureSizeImageSession(sku) {
-    if (!state.sizeImageSessions[sku]) state.sizeImageSessions[sku] = { includeRemark: true, includeRoundArc: true };
+    if (!state.sizeImageSessions[sku]) state.sizeImageSessions[sku] = { includeRemark: true, includeRoundArc: true, includeBatchNumber: true };
     if (typeof state.sizeImageSessions[sku].includeRemark !== 'boolean') state.sizeImageSessions[sku].includeRemark = true;
     if (typeof state.sizeImageSessions[sku].includeRoundArc !== 'boolean') state.sizeImageSessions[sku].includeRoundArc = true;
+    if (typeof state.sizeImageSessions[sku].includeBatchNumber !== 'boolean') state.sizeImageSessions[sku].includeBatchNumber = true;
     return state.sizeImageSessions[sku];
   }
 
@@ -2950,7 +2952,7 @@
         session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark, session.includeRoundArc);
         session.cartonFile = file;
       } else {
-        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark, session.includeRoundArc);
+        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark, session.includeRoundArc, session.includeBatchNumber);
         session.labelFile = file;
       }
       session.error = '';
@@ -3245,7 +3247,7 @@
     context.closePath();
   }
 
-  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc) {
+  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, includeBatchNumber) {
     const canvas = document.createElement('canvas');
     canvas.width = 3000;
     canvas.height = 3000;
@@ -3258,6 +3260,11 @@
     context.fillText(getSizeImageTitle('label', data, includeRemark, includeRoundArc), 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
+    if (includeBatchNumber) {
+      context.fillStyle = '#ee1410';
+      context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
+      context.fillText('\uff08\u6279\u6b21\u53f7\uff09', 505, 370);
+    }
 
     const drawScale = Math.min(1600 / spec.width, 1320 / spec.height);
     const artWidth = spec.width * drawScale;
@@ -5413,6 +5420,13 @@
       const sku = state.selectedSku || (state.data && state.data.sku) || '';
       if (!sku) return;
       ensureSizeImageSession(sku).includeRoundArc = Boolean(event.target.checked);
+      regenerateCurrentSizeImages();
+      return;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-batch-number-input')) {
+      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      if (!sku) return;
+      ensureSizeImageSession(sku).includeBatchNumber = Boolean(event.target.checked);
       regenerateCurrentSizeImages();
       return;
     }
@@ -19114,20 +19128,6 @@
         color: #737b9f;
         font-size: 11px;
       }
-      #${PANEL_ID} .pfh-size-image-hero > span {
-        flex: 0 0 auto;
-        max-width: 46%;
-        padding: 7px 11px;
-        color: #6d35e8;
-        border: 1px solid rgba(151,124,236,.25);
-        border-radius: 999px;
-        background: rgba(255,255,255,.72);
-        font-size: 12px;
-        font-weight: 700;
-        box-sizing: border-box;
-        white-space: normal;
-        text-align: center;
-      }
       #${PANEL_ID} .pfh-size-image-workspace {
         width: 100%;
         min-height: 0;
@@ -19457,10 +19457,6 @@
         }
         #${PANEL_ID} .pfh-size-image-hero h3 {
           font-size: 15px;
-        }
-        #${PANEL_ID} .pfh-size-image-hero > span {
-          padding: 6px 8px;
-          font-size: 11px;
         }
         #${PANEL_ID} .pfh-size-image-controls {
           gap: 8px;
