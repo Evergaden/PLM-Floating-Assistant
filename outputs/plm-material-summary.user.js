@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.28
+// @version      2.5.29
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.28';
+  const SCRIPT_VERSION = '2.5.29';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3179,7 +3179,7 @@
     const physicalHeight = spec.height + 2 * spec.width;
     const drawScale = Math.min(1600 / physicalWidth, 2020 / physicalHeight);
     const artWidth = physicalWidth * drawScale;
-    const artX = Math.max(540, Math.round((3000 - artWidth) / 2 - 100));
+    const artX = Math.round((3000 - artWidth) / 2);
     const artY = 650;
     const bodyTop = artY + spec.width * drawScale;
     const bodyBottom = bodyTop + spec.height * drawScale;
@@ -3270,7 +3270,7 @@
     const drawScale = Math.min(1600 / spec.width, 1320 / spec.height);
     const artWidth = spec.width * drawScale;
     const artHeight = spec.height * drawScale;
-    const artX = Math.max(540, Math.round((3000 - artWidth) / 2 - 100));
+    const artX = Math.round((3000 - artWidth) / 2);
     const artY = 720;
     const cornerRadius = includeRoundArc ? Math.min(18, Math.max(6, drawScale * 0.08)) : 0;
     context.save();
