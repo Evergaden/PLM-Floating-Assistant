@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.30
+// @version      2.5.31
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.30';
+  const SCRIPT_VERSION = '2.5.31';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2813,15 +2813,19 @@
     const preview = '<div class="pfh-size-image-preview-grid">' + previewCard('carton', session.cartonResultDataUrl) + previewCard('label', session.labelResultDataUrl) + '</div>';
     const disabled = (cartonSpec || labelSpec) && !busy ? '' : ' disabled';
     const remarks = getSizeImageRemarks(data);
-    const remarkHint = [remarks.carton ? '\u7eb8\u76d2\uff08' + remarks.carton + '\uff09' : '', remarks.label ? '\u6807\u7b7e\uff08' + remarks.label + '\uff09' : ''].filter(Boolean).join(' / ') || '\u672a\u8bc6\u522b\u5230\u5907\u6ce8';
+    if (typeof session.cartonRemarkText !== 'string') session.cartonRemarkText = remarks.carton || '';
+    if (typeof session.labelRemarkText !== 'string') session.labelRemarkText = remarks.label || '';
+    const remarkInputs = [
+      cartonSpec ? '<label><span>\u7eb8\u76d2</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="carton" value="' + escapeHtml(session.cartonRemarkText) + '" placeholder="\u7eb8\u76d2\u6807\u9898\u5907\u6ce8"></label>' : '',
+      labelSpec ? '<label><span>\u6807\u7b7e</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="label" value="' + escapeHtml(session.labelRemarkText) + '" placeholder="\u6807\u7b7e\u6807\u9898\u5907\u6ce8"></label>' : '',
+    ].filter(Boolean).join('');
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
       '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
-        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-remark-input"' + (session.includeRemark === false ? '' : ' checked') + '><span>\u6807\u9898\u6dfb\u52a0\u5907\u6ce8</span><small>' + escapeHtml(remarkHint) + '</small></label>' +
-        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u6dfb\u52a0\u201c\u5706\u5f27\u201d</span><small>\u4ec5\u6807\u7b7e\u6807\u9898\u548c\u8f6e\u5ed3\u4f7f\u7528\uff08\u5706\u5f27\uff09\u6807\u8bc6</small></label>' +
-        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6807\u7b7e\u6dfb\u52a0\u201c\u6279\u6b21\u53f7\u201d</span><small>\u5728\u6807\u7b7e\u89c4\u683c\u4e0b\u65b9\u663e\u793a\u7ea2\u8272\uff08\u6279\u6b21\u53f7\uff09</small></label>' +
+        '<div class="pfh-size-image-remark-editor"><span>\u6807\u9898\u5907\u6ce8</span><div>' + remarkInputs + '</div></div>' +
+        '<div class="pfh-size-image-options"><label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u5706\u5f27</span></label><label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6279\u6b21\u53f7</span></label></div>' +
         '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
         '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
@@ -2950,10 +2954,10 @@
       }
       await setSizeImageProcessingStep(session, '\u8bc6\u522b\u5b8c\u6210\uff0c\u6b63\u5728\u7ed8\u5236 3000 \u00d7 3000 JPG...');
       if (detectedType === 'carton') {
-        session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark, session.includeRoundArc);
+        session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark, session.includeRoundArc, session.cartonRemarkText);
         session.cartonFile = file;
       } else {
-        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark, session.includeRoundArc, session.includeBatchNumber);
+        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark, session.includeRoundArc, session.includeBatchNumber, session.labelRemarkText);
         session.labelFile = file;
       }
       session.error = '';
@@ -3158,7 +3162,7 @@
     };
   }
 
-  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc) {
+  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, customRemark) {
     const canvas = document.createElement('canvas');
     canvas.width = 3000;
     canvas.height = 3000;
@@ -3168,7 +3172,7 @@
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
     context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText(getSizeImageTitle('carton', data, includeRemark, includeRoundArc), 505, 140);
+    context.fillText(getSizeImageTitle('carton', data, includeRemark, includeRoundArc, customRemark), 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
     context.fillStyle = '#ee1410';
@@ -3248,7 +3252,7 @@
     context.closePath();
   }
 
-  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, includeBatchNumber) {
+  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, includeBatchNumber, customRemark) {
     const canvas = document.createElement('canvas');
     canvas.width = 3000;
     canvas.height = 3000;
@@ -3258,7 +3262,7 @@
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
     context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText(getSizeImageTitle('label', data, includeRemark, includeRoundArc), 505, 140);
+    context.fillText(getSizeImageTitle('label', data, includeRemark, includeRoundArc, customRemark), 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
     if (includeBatchNumber) {
@@ -3271,7 +3275,7 @@
     const artWidth = spec.width * drawScale;
     const artHeight = spec.height * drawScale;
     const artX = Math.round((3000 - artWidth) / 2);
-    const artY = 720;
+    const artY = clamp(Math.round((3000 - artHeight) / 2), 860, 1040);
     const cornerRadius = includeRoundArc ? Math.min(18, Math.max(6, drawScale * 0.08)) : 0;
     context.save();
     context.beginPath();
@@ -3323,11 +3327,11 @@
     return canvas.toDataURL('image/jpeg', 0.96);
   }
 
-  function getSizeImageTitle(type, data, includeRemark, includeRoundArc) {
+  function getSizeImageTitle(type, data, includeRemark, includeRoundArc, customRemark) {
     const base = type === 'label' ? '\u6807\u7b7e' : '\u7eb8\u76d2';
-    if (!includeRemark) return base;
+    if (!includeRemark && typeof customRemark !== 'string') return base;
     const remarks = getSizeImageRemarks(data);
-    const sourceRemark = type === 'label' ? remarks.label : remarks.carton;
+    const sourceRemark = typeof customRemark === 'string' ? customRemark.trim() : (type === 'label' ? remarks.label : remarks.carton);
     const roundArcRemark = type === 'label' && includeRoundArc && !String(sourceRemark || '').includes('\u5706\u5f27') ? '\u5706\u5f27' : '';
     const remark = [sourceRemark, roundArcRemark].filter(Boolean).join(' ');
     return remark ? base + '\uff08' + remark + '\uff09' : base;
@@ -5412,6 +5416,11 @@
   }
 
   function handlePanelInput(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
+      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      const type = event.target.getAttribute('data-size-image-type');
+      if (sku && (type === 'carton' || type === 'label')) ensureSizeImageSession(sku)[type + 'RemarkText'] = event.target.value;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-search-input')) {
       event.target.value = normalizeSearchInput(event.target.value);
       updateSearchClear();
@@ -5473,6 +5482,10 @@
   }
 
   function handlePanelChange(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
+      regenerateCurrentSizeImages();
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-input')) {
       const sku = state.selectedSku || (state.data && state.data.sku) || '';
       if (!sku) return;
@@ -19310,6 +19323,70 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-size-image-remark-editor,
+      #${PANEL_ID} .pfh-size-image-options {
+        min-width: 0;
+        padding: 8px 10px;
+        color: #4e4379;
+        border: 1px solid rgba(167,139,250,.22);
+        border-radius: 11px;
+        background: rgba(250,248,255,.72);
+        box-sizing: border-box;
+      }
+      #${PANEL_ID} .pfh-size-image-remark-editor > span {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-size-image-remark-editor > div {
+        display: grid;
+        gap: 5px;
+      }
+      #${PANEL_ID} .pfh-size-image-remark-editor label {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+      }
+      #${PANEL_ID} .pfh-size-image-remark-editor input {
+        width: 100%;
+        min-width: 0;
+        height: 28px;
+        padding: 4px 8px;
+        color: #352766;
+        border: 1px solid rgba(167,139,250,.28);
+        border-radius: 8px;
+        background: rgba(255,255,255,.9);
+        box-sizing: border-box;
+        outline: none;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-size-image-remark-editor input:focus {
+        border-color: rgba(124,58,237,.58);
+        box-shadow: 0 0 0 3px rgba(124,58,237,.08);
+      }
+      #${PANEL_ID} .pfh-size-image-options {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      #${PANEL_ID} .pfh-size-image-options label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #${PANEL_ID} .pfh-size-image-options input {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: #7c3aed;
       }
       #${PANEL_ID} .pfh-size-image-drop {
         min-height: 132px;
