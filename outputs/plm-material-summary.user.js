@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.11
+// @version      2.5.12
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.11';
+  const SCRIPT_VERSION = '2.5.12';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -5119,7 +5119,9 @@
     saveUploadWorkerRunning(false);
     moveCompletedUploadsToHistory();
     state.uploadQueue = loadUploadQueue();
-    await downloadToyLabelBatchArchive();
+    const toyLabelManifest = loadToyLabelExportManifest();
+    if (toyLabelManifest.downloaded) await clearToyLabelExportManifest(toyLabelManifest);
+    else await downloadToyLabelBatchArchive();
     renderShell();
     showToast(L.uploadQueuePaused);
   }
@@ -5284,9 +5286,39 @@
     saveUploadQueue();
     queueCloudBackup();
     const missing = skus.filter((sku) => !rowMap[sku]);
+    await prepareAndDownloadToyLabelBatch(items.filter((item) => rowMap[item.sku]), signature);
     addLog(missing.length ? 'warn' : 'success', '玩具标签：设计任务批量数据已读取', rows.length + '/' + skus.length + (missing.length ? '，未找到 ' + missing.join(' ') : ''));
     renderShell();
     return rows.length > 0;
+  }
+
+  async function prepareAndDownloadToyLabelBatch(items, signature) {
+    let manifest = loadToyLabelExportManifest();
+    for (const item of items || []) {
+      const sku = String(item && item.sku || '').toUpperCase();
+      if (!sku || manifest.files.filter((entry) => entry.sku === sku).length >= 3) continue;
+      const data = normalizeData(loadData(sku) || {});
+      if (!data.sku) continue;
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u751f\u6210\u6807\u7b7e\u6253\u5305\u6587\u4ef6');
+      state.selectedSku = data.sku;
+      state.sku = data.sku;
+      state.data = data;
+      state.view = 'detail';
+      resetExcelState();
+      const generated = await generateToyLabelFromCurrent({
+        collectFiles: state.toyLabelBatchFiles,
+        batchSignature: signature,
+        skipExcelPrepare: true,
+        skipBomUpload: true,
+        batchRowOnly: true,
+      });
+      if (!generated) markUploadQueueBlocked(item, L.uploadFailed, '\u73a9\u5177\u6807\u7b7e\u6587\u4ef6\u751f\u6210\u5931\u8d25');
+      else updateUploadItem(item, '\u5f85\u4e0a\u4f20', '\u5df2\u6253\u5305\uff0c\u7b49\u5f85\u4e0a\u4f20 BOM');
+      manifest = loadToyLabelExportManifest();
+    }
+    if (!manifest.files.length || manifest.downloaded) return;
+    addLog('info', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\uff1a\u56fe\u7247\u5df2\u83b7\u53d6\uff0c\u5148\u4e0b\u8f7d ZIP', manifest.files.length + '\u4e2a\u6587\u4ef6');
+    await downloadToyLabelBatchArchive({ keepStagedFiles: true });
   }
 
   function collectToyLabelBatchRows(requestedSkus) {
@@ -5419,14 +5451,33 @@
     state.data = data;
     state.view = 'detail';
     resetExcelState();
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u751f\u6210\u6807\u7b7e / \u4e0a\u4f20 BOM');
-    const completed = await generateToyLabelFromCurrent({ collectFiles: state.toyLabelBatchFiles, batchSignature: state.toyLabelBatchPreparedSignature, skipExcelPrepare: true, batchRowOnly: true });
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u5df2\u6253\u5305\u7684\u6807\u7b7e\u5230 BOM');
+    const stagedPreview = await getStagedToyLabelPreview(data.sku);
+    let completed = false;
+    if (stagedPreview) {
+      try {
+        await uploadToyLabelPreviewToBom(data, stagedPreview.blob, stagedPreview.filename, { batchRowOnly: true });
+        completed = true;
+      } catch (error) {
+        console.warn('PLM floating helper staged toy label upload failed:', error);
+      }
+    } else {
+      completed = await generateToyLabelFromCurrent({ collectFiles: state.toyLabelBatchFiles, batchSignature: state.toyLabelBatchPreparedSignature, skipExcelPrepare: true, batchRowOnly: true });
+    }
     if (!completed) {
       markUploadQueueBlocked(item, L.uploadFailed, '\u73a9\u5177\u6807\u7b7e\u751f\u6210\u6216 BOM \u4e0a\u4f20\u5931\u8d25');
       return;
     }
     archiveUploadItem(item);
     addLog('success', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\u5b8c\u6210', data.sku);
+  }
+
+  async function getStagedToyLabelPreview(sku) {
+    const manifest = loadToyLabelExportManifest();
+    const entry = manifest.files.find((file) => file.sku === String(sku || '').toUpperCase() && /\.jpg$/i.test(file.filename) && !/\u5370\u5237/.test(file.filename));
+    if (!entry) return null;
+    const blob = await getUploadFile(entry.key).catch(() => null);
+    return blob ? { filename: entry.filename, blob } : null;
   }
 
   async function runUploadQueueItem(item) {
@@ -7430,7 +7481,7 @@
         await wait(250);
         downloadBlob(psdBlob, psdFilename);
       }
-      await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename, opts);
+      if (!opts.skipBomUpload) await uploadToyLabelPreviewToBom(labelData, previewBlob, previewFilename, opts);
       state.excelStatus = L.labelDone;
       upsertDailyLedgerFromData(labelData, { status: '制作中', stage: '图包/标签/纸盒处理中', note: '已生成玩具标签', labelFileState: 'done', labelFileDone: true });
       renderShell();
@@ -8411,7 +8462,8 @@
     }, 0);
   }
 
-  async function downloadToyLabelBatchArchive() {
+  async function downloadToyLabelBatchArchive(options) {
+    const opts = options || {};
     const memoryFiles = Array.isArray(state.toyLabelBatchFiles) ? state.toyLabelBatchFiles.splice(0) : [];
     const manifest = loadToyLabelExportManifest();
     const persistedFiles = [];
@@ -8437,7 +8489,10 @@
     const Zip = (typeof JSZip !== 'undefined' && JSZip) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.JSZip);
     if (!Zip) {
       files.forEach((file) => downloadBlob(file.blob, file.filename));
-      await clearToyLabelExportManifest(manifest);
+      if (opts.keepStagedFiles) {
+        manifest.downloaded = true;
+        saveToyLabelExportManifest(manifest);
+      } else await clearToyLabelExportManifest(manifest);
       showToast('未加载压缩组件，已逐个下载玩具标签文件');
       return false;
     }
@@ -8455,7 +8510,10 @@
     }
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
     downloadBlob(blob, '玩具标签批量包_' + new Date().toISOString().slice(0, 10) + '.zip');
-    await clearToyLabelExportManifest(manifest);
+    if (opts.keepStagedFiles) {
+      manifest.downloaded = true;
+      saveToyLabelExportManifest(manifest);
+    } else await clearToyLabelExportManifest(manifest);
     addLog('success', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e PSD \u548c\u56fe\u7247\u5df2\u6253\u5305', validCount + '\u4e2a\u6587\u4ef6');
     showToast('\u73a9\u5177\u6807\u7b7e PSD \u548c\u56fe\u7247 ZIP \u5df2\u4e0b\u8f7d');
     return true;
@@ -10797,10 +10855,10 @@
         ? GM_getValue(TOY_LABEL_EXPORT_MANIFEST_KEY, null)
         : JSON.parse(localStorage.getItem(TOY_LABEL_EXPORT_MANIFEST_KEY) || 'null');
       return saved && typeof saved === 'object'
-        ? { signature: String(saved.signature || ''), files: Array.isArray(saved.files) ? saved.files : [] }
-        : { signature: '', files: [] };
+        ? { signature: String(saved.signature || ''), files: Array.isArray(saved.files) ? saved.files : [], downloaded: Boolean(saved.downloaded) }
+        : { signature: '', files: [], downloaded: false };
     } catch (error) {
-      return { signature: '', files: [] };
+      return { signature: '', files: [], downloaded: false };
     }
   }
 
@@ -10808,6 +10866,7 @@
     const value = {
       signature: String(manifest && manifest.signature || ''),
       files: Array.isArray(manifest && manifest.files) ? manifest.files : [],
+      downloaded: Boolean(manifest && manifest.downloaded),
     };
     if (typeof GM_setValue === 'function') GM_setValue(TOY_LABEL_EXPORT_MANIFEST_KEY, value);
     else localStorage.setItem(TOY_LABEL_EXPORT_MANIFEST_KEY, JSON.stringify(value));
@@ -10818,7 +10877,7 @@
     await Promise.all((current.files || []).map((entry) => deleteUploadFile(entry.key).catch((error) => {
       console.warn('PLM floating helper toy label staged file cleanup failed:', error);
     })));
-    saveToyLabelExportManifest({ signature: '', files: [] });
+    saveToyLabelExportManifest({ signature: '', files: [], downloaded: false });
   }
 
   async function ensureToyLabelExportRun(signature) {
@@ -10828,7 +10887,7 @@
     const requestedSkus = requestedSignature.split('|').filter(Boolean);
     if (current.signature === requestedSignature || (current.files.length && requestedSkus.length && requestedSkus.every((sku) => previousSkus.has(sku)))) return current;
     await clearToyLabelExportManifest(current);
-    const next = { signature: requestedSignature, files: [] };
+    const next = { signature: requestedSignature, files: [], downloaded: false };
     saveToyLabelExportManifest(next);
     state.toyLabelBatchFiles = [];
     return next;
@@ -10842,6 +10901,7 @@
       await putUploadFile(key, file.blob);
       manifest.files.push({ key, sku: String(file.sku || ''), filename: String(file.filename) });
     }
+    manifest.downloaded = false;
     saveToyLabelExportManifest(manifest);
   }
 
