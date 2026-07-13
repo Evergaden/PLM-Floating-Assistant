@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.25
+// @version      2.5.26
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.25';
+  const SCRIPT_VERSION = '2.5.26';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -3263,7 +3263,7 @@
     if (includeBatchNumber) {
       context.fillStyle = '#ee1410';
       context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
-      context.fillText('\uff08\u6279\u6b21\u53f7\uff09', 505, 370);
+      context.fillText('\uff08\u6279\u6b21\u53f7\uff09', 469, 370);
     }
 
     const drawScale = Math.min(1600 / spec.width, 1320 / spec.height);
@@ -3271,9 +3271,11 @@
     const artHeight = spec.height * drawScale;
     const artX = Math.max(540, Math.round((3000 - artWidth) / 2 - 100));
     const artY = 720;
+    const cornerRadius = includeRoundArc ? Math.min(56, Math.min(artWidth, artHeight) * 0.045) : 0;
     context.save();
     context.beginPath();
-    context.rect(artX, artY, artWidth, artHeight);
+    if (cornerRadius) traceSizeImageRoundedRect(context, artX, artY, artWidth, artHeight, cornerRadius);
+    else context.rect(artX, artY, artWidth, artHeight);
     context.clip();
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
@@ -3287,7 +3289,13 @@
     context.restore();
     context.strokeStyle = '#000000';
     context.lineWidth = 1;
-    context.strokeRect(artX + 0.5, artY + 0.5, artWidth - 1, artHeight - 1);
+    if (cornerRadius) {
+      context.beginPath();
+      traceSizeImageRoundedRect(context, artX + 0.5, artY + 0.5, artWidth - 1, artHeight - 1, Math.max(0, cornerRadius - 0.5));
+      context.stroke();
+    } else {
+      context.strokeRect(artX + 0.5, artY + 0.5, artWidth - 1, artHeight - 1);
+    }
 
     context.strokeStyle = '#ee1410';
     context.fillStyle = '#ee1410';
@@ -3322,6 +3330,20 @@
     const roundArcRemark = includeRoundArc && !String(sourceRemark || '').includes('\u5706\u5f27') ? '\u5706\u5f27' : '';
     const remark = [sourceRemark, roundArcRemark].filter(Boolean).join(' ');
     return remark ? base + '\uff08' + remark + '\uff09' : base;
+  }
+
+  function traceSizeImageRoundedRect(context, x, y, width, height, radius) {
+    const r = Math.max(0, Math.min(Number(radius) || 0, width / 2, height / 2));
+    context.moveTo(x + r, y);
+    context.lineTo(x + width - r, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + r);
+    context.lineTo(x + width, y + height - r);
+    context.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    context.lineTo(x + r, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - r);
+    context.lineTo(x, y + r);
+    context.quadraticCurveTo(x, y, x + r, y);
+    context.closePath();
   }
 
   function drawSizeImageLine(context, x1, y1, x2, y2) {
