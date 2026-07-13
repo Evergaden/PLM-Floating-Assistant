@@ -508,6 +508,92 @@ async function collectClassificationSamples(env, limit = 600) {
   }).filter((item) => item.sku || item.name);
 }
 
+function normalizeAccessUserName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+}
+
+function base64Url(bytes) {
+  let binary = '';
+  new Uint8Array(bytes).forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function signAdminSession(payload, env) {
+  const secret = String(env.ADMIN_SESSION_SECRET || '');
+  if (!secret) return '';
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+  return base64Url(signature);
+}
+
+async function createAdminSession(env) {
+  const payload = String(Date.now() + 12 * 60 * 60 * 1000);
+  return payload + '.' + await signAdminSession(payload, env);
+}
+
+async function isAdminSession(request, env) {
+  const cookie = request.headers.get('cookie') || '';
+  const match = cookie.match(/(?:^|;\s*)plm_admin=([^;]+)/);
+  if (!match || !env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET) return false;
+  const token = decodeURIComponent(match[1]);
+  const splitAt = token.indexOf('.');
+  if (splitAt < 1) return false;
+  const payload = token.slice(0, splitAt);
+  const signature = token.slice(splitAt + 1);
+  if (!/^\d+$/.test(payload) || Number(payload) < Date.now()) return false;
+  return signature === await signAdminSession(payload, env);
+}
+
+function adminRedirect(location) {
+  return new Response(null, { status: 303, headers: { location } });
+}
+
+function renderAdminLogin(error) {
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 后台登录</title><style>' +
+    ':root{color-scheme:light;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#f8f6ff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#251d3b}.card{width:min(390px,calc(100vw - 32px));padding:28px;border:1px solid #e7e1fb;border-radius:22px;background:rgba(255,255,255,.9);box-shadow:0 24px 80px rgba(76,60,132,.14)}h1{margin:0 0 8px;font-size:23px}.sub{color:#827692;font-size:13px;margin-bottom:20px}input,button{width:100%;height:42px;border-radius:11px;font-size:14px}input{border:1px solid #ded7f1;padding:0 12px;margin-bottom:12px}button{border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}.error{color:#dc2626;font-size:13px;margin-bottom:10px}</style></head><body><form class="card" method="post" action="/admin/login"><h1>PLM 管理后台</h1><div class="sub">请输入管理员密码</div>' +
+    (error ? '<div class="error">密码不正确</div>' : '') + '<input type="password" name="password" autocomplete="current-password" autofocus required><button type="submit">登录</button></form></body></html>';
+}
+
+async function handleAdminLogin(request, env) {
+  if (!env.ADMIN_PASSWORD || !env.ADMIN_SESSION_SECRET) return htmlResponse(renderAdminLogin(true), 503);
+  const body = await parseBodyParams(request);
+  if (String(body.password || '') !== String(env.ADMIN_PASSWORD)) return htmlResponse(renderAdminLogin(true), 401);
+  const token = await createAdminSession(env);
+  return new Response(null, { status: 303, headers: { location: '/admin', 'set-cookie': 'plm_admin=' + encodeURIComponent(token) + '; Path=/; Max-Age=43200; HttpOnly; Secure; SameSite=Strict' } });
+}
+
+async function listFeatureAccess(env) {
+  const result = await env.DB.prepare('SELECT user_name, size_image_enabled, updated_at FROM feature_access ORDER BY updated_at DESC, user_name ASC LIMIT 300').all();
+  return result.results || [];
+}
+
+async function handleSizeImageAccess(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const name = normalizeAccessUserName(new URL(request.url).searchParams.get('name'));
+  if (!name) return json({ ok: true, name: '', enabled: false });
+  const row = await env.DB.prepare('SELECT size_image_enabled FROM feature_access WHERE user_name = ?').bind(name).first();
+  return json({ ok: true, name, enabled: Boolean(row && Number(row.size_image_enabled)) });
+}
+
+async function handleFeatureAccessSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  const body = await parseBodyParams(request);
+  const name = normalizeAccessUserName(body.userName);
+  if (name) {
+    const enabled = body.enabled === '1' || body.enabled === 'on' ? 1 : 0;
+    await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET size_image_enabled = excluded.size_image_enabled, updated_at = CURRENT_TIMESTAMP').bind(name, enabled).run();
+  }
+  return adminRedirect('/admin');
+}
+
+async function handleFeatureAccessDelete(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  const body = await parseBodyParams(request);
+  const name = normalizeAccessUserName(body.userName);
+  if (name) await env.DB.prepare('DELETE FROM feature_access WHERE user_name = ?').bind(name).run();
+  return adminRedirect('/admin');
+}
+
 function normalizeBackupOwnerName(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 64);
 }
@@ -1336,13 +1422,11 @@ async function handleLoadingTips(request, env) {
 }
 
 async function handleLoadingTipsManage(request, env) {
-  if (!requireApiKeyFromHeaderOrQuery(request, env)) return htmlResponse(renderAccessDeniedPage(), 401);
-  const tips = await listLoadingTips(env, true);
-  return htmlResponse(renderLoadingTipsManagePage(tips, request));
+  return adminRedirect('/admin');
 }
 
 async function handleLoadingTipSave(request, env) {
-  if (!requireApiKeyFromHeaderOrQuery(request, env)) return json({ error: 'unauthorized' }, 401);
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
   const body = await parseBodyParams(request);
   const text = String(body.text || '').trim().slice(0, 160);
   if (!text) return json({ error: 'text required' }, 400);
@@ -1366,7 +1450,7 @@ async function handleLoadingTipSave(request, env) {
 }
 
 async function handleLoadingTipDelete(request, env) {
-  if (!requireApiKeyFromHeaderOrQuery(request, env)) return json({ error: 'unauthorized' }, 401);
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
   const body = await parseBodyParams(request);
   const tipId = String(body.tipId || body.tip_id || '').trim();
   if (tipId) {
@@ -1411,14 +1495,31 @@ function clampInt(value, min, max, fallback) {
 }
 
 function redirectBackToTips(request) {
-  const suffix = getCurrentKeyQuerySuffix(request);
   return new Response(null, {
     status: 303,
     headers: {
       ...CORS_HEADERS,
-      location: '/tips/manage' + suffix,
+      location: '/admin',
     },
   });
+}
+
+async function handleAdminPage(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  const [accessRows, tips] = await Promise.all([listFeatureAccess(env), listLoadingTips(env, true)]);
+  return htmlResponse(renderAdminPage(accessRows, tips));
+}
+
+function renderAdminPage(accessRows, tips) {
+  const accessHtml = (accessRows || []).map((row) => '<tr><td><strong>' + htmlEscape(row.user_name) + '</strong></td><td><form class="inline" method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(row.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(row.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td class="muted">' + htmlEscape(row.updated_at || '') + '</td><td><form method="post" action="/admin/access/delete"><input type="hidden" name="userName" value="' + htmlEscape(row.user_name) + '"><button class="ghost" type="submit">删除</button></form></td></tr>').join('');
+  const tipsHtml = (tips || []).map((tip, index) => {
+    const formId = 'tip-' + index;
+    return '<tr><td><form id="' + formId + '" method="post" action="/tips/save"><input type="hidden" name="tipId" value="' + htmlEscape(tip.tipId) + '"></form><textarea form="' + formId + '" name="text" maxlength="160">' + htmlEscape(tip.text) + '</textarea></td><td><input form="' + formId + '" class="num" name="sortOrder" value="' + htmlEscape(tip.sortOrder) + '"></td><td><input form="' + formId + '" class="num" name="weight" value="' + htmlEscape(tip.weight) + '"></td><td><input form="' + formId + '" type="hidden" name="enabled" value="0"><label class="check"><input form="' + formId + '" type="checkbox" name="enabled" value="1"' + (tip.enabled ? ' checked' : '') + '>启用</label></td><td><button form="' + formId + '" type="submit">保存</button><form method="post" action="/tips/delete"><input type="hidden" name="tipId" value="' + htmlEscape(tip.tipId) + '"><button class="ghost" type="submit">删除</button></form></td></tr>';
+  }).join('');
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>' +
+    ':root{--bg:#f7f6ff;--card:rgba(255,255,255,.88);--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#f1f7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1180px;margin:0 auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{font-size:24px;margin:0}.sub,.muted{color:var(--muted);font-size:12px}.grid{display:grid;gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 70px rgba(76,60,132,.10);overflow:hidden}.cardhead{padding:17px 18px 12px}.cardhead h2{font-size:17px;margin:0 0 4px}.add{padding:0 18px 16px;display:flex;gap:9px;align-items:center}.add input[type=text]{flex:1}input,textarea{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 10px;color:var(--text);font-size:13px;min-height:36px}textarea{width:100%;min-width:360px;resize:vertical}button{height:34px;border:0;border-radius:10px;padding:0 14px;background:var(--accent);color:#fff;cursor:pointer}.ghost{background:#fff;color:#7c3aed;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;vertical-align:middle}th{color:#695d80;font-weight:600;background:rgba(250,249,255,.7)}.inline{display:inline}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.check{white-space:nowrap}.check input{min-height:0}.num{width:72px}.tipadd{display:grid;grid-template-columns:1fr 75px 75px 80px auto}.tablebox{overflow:auto;max-height:430px}@media(max-width:720px){.wrap{padding:12px}.tipadd{display:flex;flex-wrap:wrap}textarea{min-width:260px}th,td{padding:9px}.muted{display:none}}</style></head><body><main class="wrap"><div class="head"><div><h1>PLM 管理后台</h1><div class="sub">功能权限与识别小提示</div></div></div><div class="grid">' +
+    '<section class="card"><div class="cardhead"><h2>生成尺寸图权限</h2><div class="sub">按 PLM 页面显示的姓名精确匹配</div></div><form class="add" method="post" action="/admin/access/save"><input type="text" name="userName" placeholder="使用人姓名" maxlength="40" required><input type="hidden" name="enabled" value="1"><button type="submit">添加并启用</button></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>允许使用</th><th>更新时间</th><th></th></tr></thead><tbody>' + (accessHtml || '<tr><td colspan="4" class="muted">尚未添加使用人</td></tr>') + '</tbody></table></div></section>' +
+    '<section class="card"><div class="cardhead"><h2>维护小提示</h2></div><form class="add tipadd" method="post" action="/tips/save"><textarea name="text" maxlength="160" placeholder="输入一条小提示" required></textarea><input class="num" name="sortOrder" value="100" title="排序"><input class="num" name="weight" value="1" title="权重"><input type="hidden" name="enabled" value="0"><label class="check"><input type="checkbox" name="enabled" value="1" checked>启用</label><button type="submit">新增</button></form><div class="tablebox"><table><thead><tr><th>提示内容</th><th>排序</th><th>权重</th><th>状态</th><th>操作</th></tr></thead><tbody>' + (tipsHtml || '<tr><td colspan="5" class="muted">暂无云端提示</td></tr>') + '</tbody></table></div></section></div></main></body></html>';
 }
 
 function renderLoadingTipsManagePage(tips, request) {
@@ -2962,6 +3063,12 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/admin/login' && request.method === 'GET') return htmlResponse(renderAdminLogin(false));
+    if (url.pathname === '/admin/login' && request.method === 'POST') return handleAdminLogin(request, env);
+    if (url.pathname === '/admin' && request.method === 'GET') return handleAdminPage(request, env);
+    if (url.pathname === '/admin/access/save' && request.method === 'POST') return handleFeatureAccessSave(request, env);
+    if (url.pathname === '/admin/access/delete' && request.method === 'POST') return handleFeatureAccessDelete(request, env);
+    if (url.pathname === '/features/size-image' && request.method === 'GET') return handleSizeImageAccess(request, env);
     if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
     if (url.pathname === '/tips/manage' && request.method === 'GET') return handleLoadingTipsManage(request, env);
     if (url.pathname === '/tips/save' && request.method === 'POST') return handleLoadingTipSave(request, env);

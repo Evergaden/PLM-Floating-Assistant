@@ -115,3 +115,12 @@ CREATE TABLE IF NOT EXISTS loading_tips (
 
 CREATE INDEX IF NOT EXISTS idx_loading_tips_enabled_order
 ON loading_tips(enabled, sort_order, updated_at);
+
+CREATE TABLE IF NOT EXISTS feature_access (
+  user_name TEXT PRIMARY KEY,
+  size_image_enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_feature_access_size_image
+ON feature_access(size_image_enabled, updated_at);

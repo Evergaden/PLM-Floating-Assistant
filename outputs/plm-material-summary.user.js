@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.31
+// @version      2.5.32
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.31';
+  const SCRIPT_VERSION = '2.5.32';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -483,6 +483,10 @@
     skuPage: 1,
     sizeImageSessions: {},
     sizeImageBusySku: '',
+    sizeImageAccessName: '',
+    sizeImageAccessEnabled: false,
+    sizeImageAccessLoading: true,
+    sizeImageAccessTimer: 0,
     cloudBackupRunning: false,
     cloudBackupQueued: false,
     cloudBackupStatus: '',
@@ -515,6 +519,7 @@
   ensureLauncher();
   renderShell(L.noDrawer);
   refreshLoadingTips(false);
+  scheduleSizeImageAccessRefresh(300);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startUploadQueueSync();
@@ -2764,12 +2769,14 @@
   function homeViewHtml(statusText) {
     const count = state.index.length;
     const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
+    const sizeImageLocked = !state.sizeImageAccessEnabled;
+    const sizeImageLockText = state.sizeImageAccessLoading ? '正在核对使用权限。' : '当前使用人未开通此功能。';
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
-      ['home-size-image', 'image', '包装辅助', '生成尺寸图', '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。'],
+      ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
       ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
     ];
     return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
@@ -4941,6 +4948,11 @@
       return;
     }
     if (action === 'home-size-image') {
+      if (!state.sizeImageAccessEnabled) {
+        showToast(state.sizeImageAccessLoading ? '正在核对生成尺寸图权限' : '当前使用人未开通生成尺寸图');
+        scheduleSizeImageAccessRefresh(0);
+        return;
+      }
       state.view = 'sizeImage';
       state.copywritingMode = false;
       state.skuPage = 1;
@@ -10915,9 +10927,41 @@
   }
 
   function openLoadingTipsManager() {
-    const url = CLOUD_BACKUP_API_BASE + '/tips/manage?key=' + encodeURIComponent(CLOUD_BACKUP_API_KEY);
+    const url = CLOUD_BACKUP_API_BASE + '/admin';
     window.open(url, '_blank', 'noopener,noreferrer');
     refreshLoadingTips(true);
+  }
+
+  function scheduleSizeImageAccessRefresh(delay) {
+    if (state.sizeImageAccessTimer) window.clearTimeout(state.sizeImageAccessTimer);
+    state.sizeImageAccessTimer = window.setTimeout(() => {
+      state.sizeImageAccessTimer = 0;
+      refreshSizeImageAccess();
+    }, Math.max(0, Number(delay) || 0));
+  }
+
+  async function refreshSizeImageAccess() {
+    const name = findCurrentPlmUserName();
+    if (!name) {
+      state.sizeImageAccessEnabled = false;
+      state.sizeImageAccessLoading = true;
+      scheduleSizeImageAccessRefresh(1500);
+      return;
+    }
+    state.sizeImageAccessName = name;
+    state.sizeImageAccessLoading = true;
+    if (state.view === 'home') renderShell();
+    try {
+      const response = await cloudRequest('/features/size-image?name=' + encodeURIComponent(name), { method: 'GET' });
+      if (state.sizeImageAccessName !== name) return;
+      state.sizeImageAccessEnabled = Boolean(response && response.enabled);
+    } catch (error) {
+      state.sizeImageAccessEnabled = false;
+      addLog('warn', '生成尺寸图权限检查失败', formatErrorMessage(error));
+    } finally {
+      state.sizeImageAccessLoading = false;
+      if (state.view === 'home') renderShell();
+    }
   }
 
   function cloudRequest(path, options) {
