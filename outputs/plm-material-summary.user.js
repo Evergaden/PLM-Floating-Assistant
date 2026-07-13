@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.33
+// @version      2.5.34
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.33';
+  const SCRIPT_VERSION = '2.5.34';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -59,7 +59,6 @@
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const PRODUCT_REPLACE_UPLOAD_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe', '\u89c6\u9891', '\u52a8\u56fe', '\u63a8\u54c1\u8d44\u6599', '\u56fe\u5305\u7d20\u6750'];
   const PRODUCT_BATCH_IMAGE_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe'];
-  const DETAIL_IMAGE_DOWNLOAD_CLASS = 'pfh-detail-image-download';
   const BRAND_COMPLIANCE_DATA = [{"brand":"WEST MONTH","distributed_by":"Shantou West Month Supply Chain Management","address":"Room 1001, West Tower, Huarun Building, No.\n95 Changping Road, Longhu District, Shantou\nCity \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MONARCH CHEMICALS LIMITED","address":"Building 990, Cornforth Drive, Kent Science\nPark, Sittingbourne, ME9 8PX, United Kingdom","contact":"MONARCH CHEMICALS LIMITED","phone":"+44 1795 583333","postal_code":"ME9 8PX"},"us_rep":{"company":"UA INTERNATIONAL INC.","address":"5030 Boardwalk Dr, Suite 818 Colorado Springs, CO 80919, United States","contact":"Jessica Zhong","phone":"001-719-6787182","postal_code":"80919"}},{"brand":"VIARELINE","distributed_by":"HONGKONG VIARELINE COSMETICS CO.,\nLIMITED","address":"SHOP 185 G/F, HANG WAI IND.CENTRE, NO.6\nKIN TAI ST., TUEN MUN HK","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"VIARELINE SKINCARE LLC","address":"30 N Gould St #23619, Sheridan, WY 82801","contact":"Zhang Nana","phone":"+1 7025455912","postal_code":"82801"}},{"brand":"WOODSLEEP","distributed_by":"Shantou Woodsleep Biotechnology Co., Ltd.","address":"Room 102, 1st Floor, Building 8-2, (Shenzhen\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22 Qiaoyun Road,\nLonghu District, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"Postaldepot","address":"2636 Judah St, San Francisco, California, 94122-1432, United States ","contact":"Postaldepot","phone":"+1 415-759-5076","postal_code":"94122-1432"}},{"brand":"EAST MOON","distributed_by":"Shantou East Moon Biotechnology Co., Ltd.","address":"Room 111, 1st Floor, Building 8-2, (Shenzhen\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22 Qiaoyun Road,\nLonghu District, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"Postaldepot","address":"2636 Judah St, San Francisco, California, 94122-1432, United States ","contact":"Postaldepot","phone":"+1 415-759-5076","postal_code":"94122-1432"}},{"brand":"HOYGI","distributed_by":"Shantou Hoygi Biological Co., Ltd.","address":"Room 105, 1st Floor, Building 8-2, (Shenzhen\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22 Qiaoyun Road,\nLonghu District, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"Postaldepot","address":"2636 Judah St, San Francisco, California, 94122-1432, United States ","contact":"Postaldepot","phone":"+1 415-759-5076","postal_code":"94122-1432"}},{"brand":"OCEAURA","distributed_by":"Guangzhou AOHELA Biotechnology Co., Ltd.","address":"Room 0585, Area C, 2nd Floor, No. 8 Shengtang\nStreet, Cencun, Tianhe District, Guangzhou\nCity \uff0c510000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside,\nLiverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"HOEGOA","distributed_by":"Guangzhou Hoegoa Biotechnology Co., Ltd.","address":"Room 0586, Area C, 2nd Floor, No. 8 Shengtang\nStreet, Cencun, Tianhe District, Guangzhou City","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside,\nLiverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"OUHOE","distributed_by":"Shantou Ouhoe Technology Co., Ltd.","address":"Room 106, 1st Floor, Building 8-2, (Shenzhen-\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22, Qiaoyun\nRoad, Longhu District, Shantou City, 515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"FM BUSINESS SERVICES LIMITED","address":"Leigh House, Brook Lane, Alderley Edge,\nCheshire, SK9 7QJ, United Kingdom","contact":"FMKJ","phone":"+44 7962502494","postal_code":"SK9 7QJ"},"us_rep":{"company":"UColor LLC","address":"75 E 3rd St Ste 7, Sheridan, Wyoming, 82801, United States","contact":"FMKJ","phone":"+1 6182806558","postal_code":"82801"}},{"brand":"EELHOE","distributed_by":"Shantou Eelhoe Daily Chemical Technology Co.,\nLtd.","address":"One of Room 402, H8 Industrial Building,\nLonghu Industrial Zone, Lianjiang Road, Longhu\nDistrict, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"SHISEIDO UK LIMITED","address":"6th Floor, 1 Kingsway, Westminster LONDON\nUnited Kingdom","contact":"SHISEIDO UK LIMITED","phone":"+44 2038100613","postal_code":"WC2B 6AN"},"us_rep":{"company":"Blooming Cosmetics, Inc","address":"928 S Western Ave Ste 111 Los Angeles California United States","contact":"Blooming Cosmetics, Inc","phone":"+1 213368-2975","postal_code":"90006"}},{"brand":"EELHOPE","distributed_by":null,"address":null,"eu_rep":null,"uk_rep":null,"us_rep":null},{"brand":"EOHOE","distributed_by":null,"address":null,"eu_rep":null,"uk_rep":null,"us_rep":null},{"brand":"JAYSUING","distributed_by":"Shantou Jaysuing Management Consulting Co., Ltd.","address":"Room 120, Huiyi Business Building, No. 2 Keji Middle Road, High-tech Zone Shantou\uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"FKA BRANDS LIMITED","address":"Somerhill Business Park Five Oak Green Road TONBRIDGE, Kent ,TN11 OGP United Kingdom","contact":"Anna Smith","phone":"+44 7940509131","postal_code":"TN11 OGP"},"us_rep":{"company":"SUNFLOWER\u00a0STYLE\u00a0CO.","address":"3950\u00a0E\u00a0Costilla\u00a0Ave\u00a0Centennial,\u00a0CO,\u00a080122-2020\u00a0USA","contact":"Hannah\u00a0Grace","phone":"1-307-221-6488","postal_code":"80122"}},{"brand":"Zyvarn","distributed_by":"HK Ouhao Biotechnology Limited","address":"ROOM A1, 11/F WINNER BUILDING, 36 MAN\nYUE STREET, HUNG HOM, KOWLOON,HONG\nKONG \uff0c999077","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002    "},"uk_rep":{"company":"BAO YAN LTD","address":"Suite 9840 Moat House Business Centre, 54 Bloomfield Avenue, Belfast, Northern Ireland, BT5 5AD","contact":"BAO YAN LTD","phone":"+44 2890256709","postal_code":"BT5 5AD"},"us_rep":{"company":"ASHERIF LLC","address":"2211 E ORANGEWOOD AVE UNIT 210 ANAHEIM,CA92806","contact":"ASHERIF LLC","phone":"+1-619-8997342","postal_code":"92806"}},{"brand":"zephoco","distributed_by":"HK Timu Cross border Supply Chain Limited","address":"Unit 89, 3/F., Yau Lee Centre, No.45 Hoi Yuen\nRoad, Kwun Tong, Hong Kong \uff0c999077","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"WESLEY BAIRD LTD","address":"Suite 9844 Moat House Business\nCentre, 54 Bloomfield Avenue, Belfast,\nNorthern Ireland, BT5 5AD","contact":"WESLEY BAIRD LTD","phone":"+44 2891246809","postal_code":"BT5 5AD"},"us_rep":{"company":"DILRUBA LLC","address":"1406 W EVANS ST SAN BERNARDINO, CA92411","contact":"DILRUBA LLC","phone":"+1-619-8797632","postal_code":"92411"}},{"brand":"Moxirea","distributed_by":"HongKong KHS supply chain Limited","address":"ROOM 5042, 5/F, YAU LEE CENTRE, NO. 45, HOI\nYUEN ROAD, KWUN TONG, KOWLOON,\nHONGKONG","eu_rep":{"company":"PROCONSEIL FR","address":"8 bis rue Abel 75012 Paris, France","contact":"Sophie Dupont","phone":"+33 0780843245","postal_code":"75012"},"uk_rep":{"company":"BRITCORP SOLUTIONS LTD","address":"167-169 GREAT PORTLAND STREET,\nLondon, England","contact":"MarieDubois","phone":"+44 7395178678","postal_code":"W1W 5PF"},"us_rep":{"company":"PrimePath Consulting LLC","address":"30 N Gould St # 29084, Sheridan, WY 82801 United States","contact":"Michael Johnson","phone":"+1 3072008351","postal_code":"82801"}},{"brand":"lumavire","distributed_by":"Hong Kong Lumavire Trading Co., Limited","address":"Unit D18, 3/F Wong King Industrial Building\nNo.2-4 Tai Yau Street San Po Kong Hong Kong","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside,\nLiverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"Nymixa","distributed_by":"HK Yiouhao Biotechnology Limited","address":"RM A133 OF UNIT 1, 15/F, BLK A WAH SANG\nBLDG NO.14-18 WONG CHUK YEUNG ST,\nFOTAN NT","eu_rep":{"company":"Ubuy SAS","address":"15 AVENUE GEORGE SAND","contact":"Ubuy","phone":"+ 33 147342165","postal_code":"93210"},"uk_rep":{"company":"GAO DING LTD.","address":"Chase Business Centre, 39-41 Chase\nSide, London, United Kingdom, N14 5BP","contact":"ZUJI YU","phone":"+44 2070482982","postal_code":"N14 5BP"},"us_rep":{"company":"UNICO AMERICA CO., LTD.","address":"4781 Shadowglen Dr Colorado Springs CO 80918 ","contact":"Ayssa Gao","phone":"+1 630 8636724","postal_code":"80918"}},{"brand":"GleamXi","distributed_by":"HK GleamXi Supply Chain Co., Limited","address":"ROOM 602,6/F, KAI YUE COMMERCIAL\nBUILDING, NO.2C, ARGYLE STREET, MONGKOK\nKOWLOON, HONG KONG","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"CCL PROJECTS LTD","address":"72e New Court Way, Ormskirk, Lancashire, United Kingdom, L39 2YT","contact":"PROJECTS","phone":"+44 7712583429","postal_code":"L39 2YT"},"us_rep":{"company":"ALLOY MOVE INC","address":"3 E EVERGREEN RD #312 NEW CITY 10956 NEW YORK United States","contact":"ALLOY MOVE INC","phone":"+1 8452937218","postal_code":"10956"}},{"brand":"Zamzarah","distributed_by":"Hong Kong Zhouye Trading Co., Limited","address":"RM 102, 1/F, THE CLOUD, 111 TUNG CHAU\nSTREET, TAI KOK TSUI , HONG KONG","eu_rep":{"company":"Yutop International GmbH","address":"Hauptstr. 17, 55765 Birkenfeld,\nRheinland-Pfalz, Germany","contact":"Yutop International GmbH","phone":"+49 15258298417","postal_code":"55765"},"uk_rep":{"company":"COSMETICS LIMITED","address":"71-75 Shelton Street, COVENT GARDEN,\nLONDON WC2H 9JQ, United Kingdom","contact":"COSMETICS LIMITED","phone":"+44 2076327557","postal_code":"WC2H 9JQ"},"us_rep":{"company":"Veckridge Chemical Company, Inc.","address":"60 Central Ave, Kearny, New Jersey 07032-4603, United States","contact":"Veckridge Chemical Company, Inc.","phone":"+1 9733441818 ","postal_code":"07032-4603"}},{"brand":"\u5ba2\u6237\u5b9a\u5236\nOEM/ODM","distributed_by":"Hong Kong Alite Technology Limited","address":"RM C20, BLK C, 3/F, EAST SUN INDUSTRIAL\nCENTRE, 16 SHING YIP STREET, KWUN TONG,\nHONG KONG","eu_rep":{"company":"MOEHS CATALANA SL","address":"CALLE ROMA (INDUSTRIAL COVA\nSOLERA) 8, 08191 RUBI, Barcelona, Spain","contact":"MOEHS CATALANA SL","phone":"+34 935 86 05 20","postal_code":"08191"},"uk_rep":{"company":"MLE SKINCARE LIMITED","address":"20 Seymour Mews, LONDON W1H 6BQ,\nUnited Kingdom","contact":"MLE SKINCARE LIMITED","phone":"+44 7500 664227","postal_code":"W1H 6BQ"},"us_rep":{"company":"WACKER CHEMICAL CORPORATION","address":"13910 Oaks Ave, Chino, California 91710-7010, United States","contact":"WACKER CHEMICAL CORPORATION","phone":"+1 9095908822","postal_code":"91710-7010"}},{"brand":"AMZ","distributed_by":"HONG KONG CYRAVIS TECHNOLOGY LIMITED","address":"FLAT 2304, 23/F HO KING, COMM CENTRE, 2-16\nFA YUEN STREET,MONG KOK,HONG KONG","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"PEARL CHEMICALS LIMITED","address":"Unit 29A Whitebridge Estate,\nWhitebridge Lane, STONE ST15 8LQ, United\nKingdom","contact":"PEARL CHEMICALS LIMITED","phone":"+44 1785 819747","postal_code":"ST15 8LQ"},"us_rep":{"company":"Mitsui Chemicals America, Inc.","address":"1 N Lexington Ave FL 8, White Plains, New York 10601-1770, United States","contact":"Mitsui Chemicals America, Inc.","phone":"+1\u00a09142530777","postal_code":"10601-1770"}},{"brand":"LANISKA","distributed_by":"GOOGEER LTD\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","address":"FLAT 46 EAGLE WORKS EAST 58 QUAKER STREET LONDON ENGLAND E1 6SX\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"REBECCA TRADE LTD","address":"5 Brayford Square, London, England, E1 0SG,United Kingdom","contact":"Kathryn Rebecca","phone":"+44 1923937025","postal_code":"E1 0SG"},"us_rep":{"company":"Cro&ssant LLC","address":"30 N Gould St Ste R, Sheridan, WY 82801, United States","contact":"CROSS","phone":"+1 6187379250","postal_code":"82801"}},{"brand":"\uc218\ucd08\ub2f4 SUCHODAM \n\ud55c\ucd08\ube5b HANCHOBIT","distributed_by":"HANCHOYEANBIOTEC Co.,Ltd.\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","address":"Rm 606-A416 1072 Hyohaeng-ro Hwaseong, Gyeonggi, 18405 Republic Of Korea\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside, Liverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"HOUKEA","distributed_by":"Guangzhou Houkea Biotechnology Co., Ltd.","address":"Room 0601, Area C, 2nd Floor, No. 8 Shengtang Street, Cencun, Tianhe District, Guangzhou City,510000","eu_rep":{"company":"JK CONSEILS","address":"54 Rue Saint-Fargeau 75020 Paris, France","contact":"JK","phone":"+33 773190609","postal_code":"75020"},"uk_rep":{"company":"REP FITNESS UK LTD","address":"Windsor House, Bayshill Road, Gloucestershire/Cheltenham GL50 3AT, UNITED KINGDOM","contact":"REP","phone":"+44 7962502494","postal_code":"GL50 3AT"},"us_rep":{"company":"Guger Technologies Inc","address":"20935 E 49th Ave, Denver, CO 80249,United States","contact":"Zheng Xiyue","phone":"+1 7025455912","postal_code":"80249"}},{"brand":"ORALHOE","distributed_by":"Shantou Oralhoe Biotechnology Co., Ltd.","address":"Room 101, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"NOVA ID LIMITED","address":"167-169 Great Portland Street, London, England, W1W 5PF","contact":"NOVA","phone":"+44 2075638912","postal_code":"W1W 5PF"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL,MT 59901 ","contact":"Boris","phone":"+1 818 579 7288","postal_code":"59901"}},{"brand":"WIYUN","distributed_by":"Shantou Wiyun Biotechnology Co., Ltd.","address":"Room 107, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"NOVA ID LIMITED","address":"167-169 Great Portland Street, London, England, W1W 5PF","contact":"NOVA","phone":"+44 2075638912","postal_code":"W1W 5PF"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL,MT 59901 ","contact":"Boris","phone":"+1 818 579 7288","postal_code":"59901"}},{"brand":"ROXELIS","distributed_by":"Shantou Roxelis Biotechnology Co., Ltd.","address":"Room 103, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"FM BUSINESS SERVICES LIMITED","address":"Leigh House, Brook Lane, Alderley Edge, Cheshire, SK9 7QJ, United Kingdom","contact":"FMKJ","phone":"+44 7962502494","postal_code":"SK9 7QJ"},"us_rep":{"company":"UColor LLC","address":"75 E 3rd St Ste 7, Sheridan, Wyoming, 82801, United States","contact":"FMKJ","phone":"+1 6182806558","postal_code":"82801"}},{"brand":"WIIEEY","distributed_by":"Shantou Wiieey Biotechnology Co., Ltd.","address":"Room 108, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"NOVA ID LIMITED","address":"167-169 Great Portland Street, London, England, W1W 5PF","contact":"NOVA","phone":"+44 2075638912","postal_code":"W1W 5PF"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL,MT 59901 ","contact":"Boris","phone":"+1 818 579 7288","postal_code":"59901"}},{"brand":"SOUTH MOON","distributed_by":"Shantou South Moon Biotechnology Co., Ltd.","address":"Room 114, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"REP FITNESS UK LTD","address":"Windsor House, Bayshill Road, Gloucestershire/Cheltenham GL50 3AT, UNITED KINGDOM","contact":"REP","phone":"+44 7962502494","postal_code":"GL50 3AT"},"us_rep":{"company":"Orion Nexus LLC","address":"1314 Laurenwood way Hghlnds Ranch,CO 80129 United States","contact":"GLENN IV THOMAS","phone":"+1 (213) 882-5090","postal_code":"80129"}},{"brand":"XIMONTH","distributed_by":"Shantou Ximonth Biotechnology Co., Ltd.","address":"Room 112, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"CCL PROJECTS LTD","address":"72e New Court Way, Ormskirk, Lancashire, United Kingdom, L39 2YT","contact":"PROJECTS","phone":"+44 7712583429","postal_code":"L39 2YT"},"us_rep":{"company":"ALLOY MOVE INC","address":"3 E EVERGREEN RD #312 NEW CITY 10956 NEW YORK United States ","contact":"ALLOY MOVE INC","phone":"1-845-293-7218","postal_code":"10956"}},{"brand":"Nebluva","distributed_by":"HK Nebluva Brand Management Limited","address":"ROOM 5031, 5/F, YAU LEE CENTRE, NO. 45,HOI YUEN ROAD, KWUN TONG, KOWLOON\uff0cHONGKONG\uff0c999077","eu_rep":{"company":"HUMISS TRADING S.L","address":"Calle Luis Bu\u00f1uel 12-3A, Madrid, 28018, Spain","contact":"Sarah Zhang","phone":"+34602474012","postal_code":"28018"},"uk_rep":{"company":"OYE GLOBAL CONSULTING LTD","address":"OFFICE 10998 182-184 HIGH STREET NORTH EAST HAM LONDON UNITED KINGDOM E6 2JA","contact":"Chris Brown","phone":"+44 7378480426","postal_code":"E6 2JA"},"us_rep":{"company":"OYE Global consulting Inc","address":"169 Madison Ave STE 11911 New York 10016 US","contact":"Nancy","phone":"+1 3134133043","postal_code":"10016"}},{"brand":"Feimuko","distributed_by":"HK Feimuko Management Limited","address":"WORKSHOP 60, 3/F, BLOCK A, EAST SUN INDUSTRIAL CENTRE, NO. 16 SHING YIP STREET, KWUN TONG, HONG KONG","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"SELLERCROSS LTD","address":"Unit 82a James Carter Road, Mildenhall, Bury St. Edmunds, Suffolk, IP28 7DE, United Kingdom","contact":"SellerCross","phone":"+44 7537135166","postal_code":"IP28 7DE"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL, MT 59901","contact":"Boris","phone":"+1 8185797288","postal_code":"59901"}},{"brand":"Cen Moon","distributed_by":"Shantou Cen Moon Biotechnology Co., Ltd.","address":"7th, 1st Floor, No.24 Pujiang Road, Longhu District, Shantou City\uff0c515000","eu_rep":{"company":"GET RICH","address":"8 bis rue Abel 75012 Paris, France","contact":"Taylor Chan","phone":"+33 745452622","postal_code":"75012"},"uk_rep":{"company":"GET RICH LTD","address":"71-75 Shelton Street, Covent Garden, London WC2H 9JQ, UNITED KINGDOM","contact":"Chris Xu","phone":"+44 7759072428","postal_code":"WC2H 9JQ"},"us_rep":{"company":"US Operations LLC","address":"30 N Gould St Ste N, Sheridan, WY 82801, United States","contact":"Edison Luo","phone":"+1 323-754-6128","postal_code":"82801"}},{"brand":"CleJoy","distributed_by":"Shantou Yuedong Cross Border E-commerce Co., Ltd.","address":"06, Room 401, Building 2, No.16, Science and Technology West Road, Gaoxin Zone, Shantou","eu_rep":{"company":"TechnoVision Solutions SARL","address":"60 rue Francois ler 75008 Paris, France","contact":"Pierre Dubois","phone":"+33 0781786046","postal_code":"75008"},"uk_rep":{"company":"OK Midtands Limited","address":"Unit 11 StirchleyTrading Estate, Hazelwell Road, Birmingham, England, \nB30 2PF","contact":"Xiaobing","phone":"+44 7577472388","postal_code":"B30 2PF"},"us_rep":{"company":"Vast Maritime Inc","address":"10276 Kentwood Dr Colorado Springs, CO 80918 United States","contact":"Chris Topher","phone":"+1 719-200-3570","postal_code":"80918"}},{"brand":"VORVITA","distributed_by":"HK Vorvita Technology Co., Limited","address":"Unit 29, 13/F, Fook Cheong Building, No.63 Hoi Yuen Road, Kwum Tong, Kowloon","eu_rep":{"company":"VAT SPEED SL","address":"ES-Calle Antonio Salvador N99.1, Madrid, Spain","contact":"VAT SPEED SL","phone":"+34 916321624","postal_code":"28026"},"uk_rep":{"company":"PRIVYSEAL LIMITED","address":"Unit A 82 James Carter Road, Mildenhall, Bury St. Edmunds, England, IP28 7DE","contact":"PRIVYSEAL LIMITED","phone":"020 3807 1946","postal_code":"IP28 7DE"},"us_rep":{"company":"Raymond James & Associates, Inc.","address":"880 Carillon Parkway, Saint Petersburg, FL 33716, United States ","contact":"Jamal","phone":"+1 7275671000","postal_code":"33716"}}];
   const CM_TO_INCH = 1 / 2.54;
   const NORMAL_DELTA_CM = 0.2;
@@ -484,6 +483,8 @@
     sizeImageAccessEnabled: false,
     sizeImageAccessLoading: true,
     sizeImageAccessTimer: 0,
+    cmConverterInput: '',
+    codeFormatterInput: '',
     cloudBackupRunning: false,
     cloudBackupQueued: false,
     cloudBackupStatus: '',
@@ -525,7 +526,6 @@
   startUploadQueueSync();
   handleDrawerState();
   scheduleProjectListPrefetch();
-  injectDetailImageDownloadButtons();
   if (isUploadWorkerPage()) {
     window.setTimeout(() => processUploadQueue(), 1200);
   }
@@ -537,7 +537,6 @@
       timer = setTimeout(() => {
         handleDrawerState();
         observeManualTabRead();
-        injectDetailImageDownloadButtons();
         scheduleProjectListPrefetch();
         positionLauncher(document.getElementById(LAUNCHER_ID));
       }, 120);
@@ -2166,7 +2165,8 @@
       back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6"></path><path d="M10 12h9"></path></svg>',
       batchExcel: '<svg viewBox="0 0 179 191.5" aria-hidden="true"><path d="m80.29,191.5c-.37,0-.75-.04-1.13-.12l-56.04-12.38-.38-.02C10,178.45.01,168.04,0,155.29V36.2C.01,23.45,10.01,13.04,22.75,12.52l.37-.02L79.19.12c.36-.08.74-.12,1.11-.12,13.05.01,23.68,10.65,23.7,23.7v144.09c-.01,13.05-10.65,23.69-23.7,23.7ZM24.81,22.63c-.36.08-.73.12-1.11.12-7.41,0-13.45,6.03-13.45,13.45v119.09c0,7.42,6.03,13.46,13.45,13.46.37,0,.75.04,1.13.12l56.05,12.38.67-.06c6.95-.66,12.19-6.42,12.2-13.4V23.7c0-7-5.25-12.75-12.21-13.4l-.66-.06-56.07,12.39Zm111.57,152.73c-2.83,0-5.12-2.3-5.12-5.12V21.27c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v148.96c0,1.37-.53,2.66-1.5,3.63-.97.97-2.25,1.5-3.62,1.5h0Zm37.5-18.23c-2.83,0-5.12-2.3-5.12-5.12V39.5c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v112.5c0,2.83-2.3,5.12-5.12,5.12Zm-133.86-16.67c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.12h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.13h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,1.37-.53,2.66-1.5,3.62s-2.25,1.5-3.62,1.5h-23.96Z"></path></svg>',
       batch: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M464.896 1024c-3.488 0-6.944-0.384-10.368-1.12l-285.184-63.008A143.264 143.264 0 0 1 32 816.864V207.104a143.296 143.296 0 0 1 137.344-143.008L454.528 1.12c3.424-0.736 6.88-1.12 10.368-1.12A143.264 143.264 0 0 1 608 143.104v737.76A143.296 143.296 0 0 1 464.896 1024z m4.352-927.808L185.472 158.88A49.216 49.216 0 0 1 175.104 160C149.152 160 128 181.152 128 207.104v609.76C128 842.88 149.152 864 175.104 864c3.488 0 6.944 0.384 10.368 1.12l283.776 62.688A47.2 47.2 0 0 0 512 880.864V143.104c0-24.512-18.816-44.704-42.752-46.912zM752 941.344a48 48 0 0 1-48-48V130.656a48 48 0 1 1 96 0v762.656a48 48 0 0 1-48 48.032zM944 848A48 48 0 0 1 896 800V224a48 48 0 1 1 96 0v576a48 48 0 0 1-48 48z"></path><path d="M381.344 357.344H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 560H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 762.656H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96z"></path></svg>',
-      detailDownload: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M760.889 879.125H263.11c-55.623 0-100.885-45.255-100.885-100.885V377.849c0-55.623 42.062-100.885 93.774-100.885h64v59.54h-64c-18.553 0-34.226 18.93-34.226 41.338V778.24c0 22.791 18.546 41.337 41.337 41.337H760.89c22.791 0 41.337-18.546 41.337-41.337V377.849c0-22.407-15.673-41.337-34.226-41.337h-64v-59.541h64c51.705 0 93.774 45.255 93.774 100.885v400.398c0 55.616-45.262 100.871-100.885 100.871z"></path><path d="M680.974 458.517c-10.617-11.577-28.615-12.352-40.185-1.728l-100.345 92.06V137.317c0-15.709-12.736-28.445-28.444-28.445s-28.444 12.736-28.444 28.445v410.097l-95.296-90.31c-11.4-10.81-29.412-10.319-40.207 1.08-10.809 11.406-10.318 29.405 1.081 40.206L492.437 634.19c5.51 5.07 12.71 7.8 19.55 7.8 6.7 0 13.35-2.37 18.58-7.3l148.011-135.8c11.577-10.625 12.36-28.623 1.735-40.2z"></path></svg>',
+      calculator: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M8 7h8v3H8zM8 14h1M12 14h1M16 14h1M8 18h1M12 18h1M16 18h1"></path></svg>',
+      tools: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5 5L4 17l3 3 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-3-3z"></path><path d="m14 4 6 6"></path></svg>',
       download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 10 4 4 4-4"></path><path d="M5 20h14"></path></svg>',
       box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10v12H7z"></path><path d="M9 8V5h6v3"></path></svg>',
       tag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 11 4h7v7l-7 7-7-7Z"></path><circle cx="15.5" cy="7.5" r="1"></circle></svg>',
@@ -2288,7 +2288,7 @@
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload';
+    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'unitConverter' || state.view === 'tools';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -2308,7 +2308,7 @@
       const list = panel.querySelector('.pfh-list');
       if (list) list.innerHTML = '';
     }
-    else if (state.view !== 'about' && state.view !== 'ledger') renderSkuList(panel);
+    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
       updateSettingsNotice(panel);
@@ -2322,6 +2322,16 @@
     }
     if (state.view === 'upload') {
       renderUpload(panel);
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
+    if (state.view === 'unitConverter') {
+      renderStandaloneTool(panel, unitConverterViewHtml());
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
+    if (state.view === 'tools') {
+      renderStandaloneTool(panel, toolsViewHtml());
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -2629,6 +2639,14 @@
     detail.innerHTML = homeViewHtml(statusText, first);
   }
 
+  function renderStandaloneTool(panel, html) {
+    const list = panel.querySelector('.pfh-list');
+    const detail = panel.querySelector('.pfh-detail');
+    if (list) list.innerHTML = '';
+    detail.classList.remove('is-loading');
+    detail.innerHTML = html;
+  }
+
   function renderSizeImage(panel) {
     const detail = panel.querySelector('.pfh-detail');
     detail.classList.remove('is-loading');
@@ -2777,7 +2795,8 @@
       ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
-      ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
+      ['home-unit-converter', 'calculator', '单位换算', '厘米换算英寸', '输入一个或多个厘米尺寸，立即换算为英寸。'],
+      ['home-tools', 'tools', '效率辅助', '小工具', '整理编码并输出可直接使用的搜索格式。'],
     ];
     return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
       '<div class="pfh-home-orbit"><i class="wave"></i><i class="wave"></i><i class="wave"></i><span></span></div>' +
@@ -2791,6 +2810,54 @@
         '<span>' + escapeHtml(card[4]) + '</span>' +
       '</button>').join('') + '</div>' +
       '</section></div>';
+  }
+
+  function unitConverterViewHtml() {
+    const result = convertCmInputToInches(state.cmConverterInput);
+    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page">' +
+      '<div class="pfh-mini-tool-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>UNIT CONVERTER</small><h2>厘米换算英寸</h2><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div></div>' +
+      '<div class="pfh-mini-tool-card"><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + escapeHtml(state.cmConverterInput || '') + '</textarea>' +
+      '<div class="pfh-mini-tool-result"><span>英寸（inch）</span><strong class="pfh-unit-converter-result">' + escapeHtml(result || '等待输入') + '</strong></div>' +
+      '<div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
+      '</section></div>';
+  }
+
+  function toolsViewHtml() {
+    const result = formatSearchCodes(state.codeFormatterInput);
+    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page">' +
+      '<div class="pfh-mini-tool-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>把多个编码整理为文件搜索格式。</p></div></div>' +
+      '<div class="pfh-mini-tool-card"><label>编码格式化</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + escapeHtml(state.codeFormatterInput || '') + '</textarea>' +
+      '<div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + escapeHtml(result || 'ext:zip|ext:xlsx 编码1|编码2') + '</strong></div>' +
+      '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
+      '</section></div>';
+  }
+
+  function convertCmInputToInches(value) {
+    const numbers = String(value || '').match(/-?\d+(?:\.\d+)?/g) || [];
+    if (!numbers.length) return '';
+    return numbers.map((item) => formatToolNumber(Number(item) * CM_TO_INCH)).join(' × ') + ' in';
+  }
+
+  function formatToolNumber(value) {
+    if (!Number.isFinite(value)) return '';
+    return String(Number(value.toFixed(4)));
+  }
+
+  function extractSearchCodes(value) {
+    const text = String(value || '').replace(/^\s*ext:zip\|ext:xlsx\s*/i, '');
+    const matched = text.match(/\b(?:SKU|MTL)\d+\b/gi);
+    const raw = matched && matched.length ? matched : text.split(/[\s,，;；、|/\\]+/).filter(Boolean);
+    const seen = new Set();
+    return raw.map((item) => String(item).trim().toUpperCase()).filter((item) => {
+      if (!item || seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+  }
+
+  function formatSearchCodes(value) {
+    const codes = extractSearchCodes(value);
+    return codes.length ? 'ext:zip|ext:xlsx ' + codes.join('|') : '';
   }
 
   function sizeImageViewHtml() {
@@ -5022,8 +5089,42 @@
       renderShell();
       return;
     }
-    if (action === 'home-download-detail') {
-      runHomeDetailImageDownload();
+    if (action === 'home-unit-converter') {
+      state.view = 'unitConverter';
+      expandPanel();
+      renderShell();
+      return;
+    }
+    if (action === 'home-tools') {
+      state.view = 'tools';
+      expandPanel();
+      renderShell();
+      return;
+    }
+    if (action === 'unit-converter-clear') {
+      state.cmConverterInput = '';
+      renderShell();
+      return;
+    }
+    if (action === 'unit-converter-copy') {
+      const result = convertCmInputToInches(state.cmConverterInput);
+      if (result) {
+        copyText(result);
+        showToast('换算结果已复制');
+      }
+      return;
+    }
+    if (action === 'code-formatter-clear') {
+      state.codeFormatterInput = '';
+      renderShell();
+      return;
+    }
+    if (action === 'code-formatter-copy') {
+      const result = formatSearchCodes(state.codeFormatterInput);
+      if (result) {
+        copyText(result);
+        showToast('编码格式已复制');
+      }
       return;
     }
     if (action === 'ledger-open') {
@@ -5429,6 +5530,26 @@
   }
 
   function handlePanelInput(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-unit-converter-input')) {
+      state.cmConverterInput = event.target.value;
+      const result = convertCmInputToInches(state.cmConverterInput);
+      const panel = ensurePanel();
+      const output = panel.querySelector('.pfh-unit-converter-result');
+      const copyButton = panel.querySelector('[data-action="unit-converter-copy"]');
+      if (output) output.textContent = result || '等待输入';
+      if (copyButton) copyButton.disabled = !result;
+      return;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-code-formatter-input')) {
+      state.codeFormatterInput = event.target.value;
+      const result = formatSearchCodes(state.codeFormatterInput);
+      const panel = ensurePanel();
+      const output = panel.querySelector('.pfh-code-formatter-result');
+      const copyButton = panel.querySelector('[data-action="code-formatter-copy"]');
+      if (output) output.textContent = result || 'ext:zip|ext:xlsx 编码1|编码2';
+      if (copyButton) copyButton.disabled = !result;
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
       const sku = state.selectedSku || (state.data && state.data.sku) || '';
       const type = event.target.getAttribute('data-size-image-type');
@@ -7428,418 +7549,11 @@
       }) || null;
   }
 
-  function injectDetailImageDownloadButtons() {
-    const drawers = Array.from(document.querySelectorAll('.ant-drawer-open, .ant-drawer'))
-      .filter(isVisibleElement)
-      .filter((drawer) => /\u67e5\u770b\u9879\u76ee\u8be6\u60c5/.test(getVisibleText(drawer)));
-    drawers.forEach((drawer) => {
-      if (drawer.querySelector('.' + DETAIL_IMAGE_DOWNLOAD_CLASS)) return;
-      const applyButton = findButtonLikeInScope(drawer, '\u5168\u90e8\u5e94\u7528');
-      if (!applyButton) return;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = DETAIL_IMAGE_DOWNLOAD_CLASS + ' ant-btn ant-btn-default';
-      button.textContent = '\u4e00\u952e\u4e0b\u8f7d\u56fe\u7247';
-      button.style.marginLeft = '8px';
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        downloadAllDetailImages(drawer, button);
-      });
-      applyButton.insertAdjacentElement('afterend', button);
-    });
-  }
-
-  async function downloadAllDetailImages(drawer, button) {
-    if (!drawer || button.dataset.running === '1') return;
-    button.dataset.running = '1';
-    const originalText = button.textContent;
-    try {
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5f00\u59cb');
-      const openDetailModal = getVisibleImageDetailModal();
-      if (openDetailModal) {
-        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u68c0\u6d4b\u5230\u5df2\u6253\u5f00\u7684\u67e5\u770b\u8be6\u60c5\u5f39\u7a97');
-        await downloadImagesFromDetailModal(openDetailModal);
-        button.textContent = '\u4e0b\u8f7d\u5b8c\u6210';
-        return;
-      }
-      const viewButtons = findGeneratedImageViewButtons(drawer, ['\u8be6\u60c5\u56fe']);
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3 ' + viewButtons.length + '\u4e2a');
-      if (viewButtons.length) {
-        await downloadGeneratedImageViews(viewButtons, button);
-        return;
-      }
-      const targets = findDetailImageDownloadTargets(drawer);
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u4e0b\u8f7d\u5165\u53e3 ' + targets.length + '\u4e2a');
-      if (!targets.length) {
-        button.textContent = '\u672a\u627e\u5230\u56fe\u7247\u4e0b\u8f7d';
-        addLog('error', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u672a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3\u6216\u4e0b\u8f7d\u6309\u94ae', getVisibleText(drawer).slice(0, 180));
-        showToast('\u672a\u627e\u5230\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3\u6216\u4e0b\u8f7d\u6309\u94ae');
-        return;
-      }
-      for (let index = 0; index < targets.length; index += 1) {
-        button.textContent = '\u4e0b\u8f7d ' + (index + 1) + '/' + targets.length;
-        const target = targets[index];
-        if (!document.body.contains(target)) continue;
-        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u7b2c ' + (index + 1) + '/' + targets.length + ' \u4e2a\u5165\u53e3');
-        revealUploadActions(target.closest('.filePreviewCard, .previewMasker, .ant-image, .ant-card, .ant-upload-list-item, [class*="file"], [class*="preview"]') || target);
-        await wait(120);
-        clickElement(target);
-        await chooseDirectUseAndSubmitDownload();
-        await wait(600);
-      }
-      button.textContent = '\u4e0b\u8f7d\u5b8c\u6210';
-      addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5b8c\u6210');
-      showToast('\u56fe\u7247\u4e0b\u8f7d\u5df2\u5904\u7406');
-    } catch (error) {
-      console.warn('PLM floating helper detail image download failed:', error);
-      button.textContent = '\u4e0b\u8f7d\u5931\u8d25';
-      addLog('error', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5931\u8d25', error && error.message ? error.message : '\u672a\u77e5\u9519\u8bef');
-      showToast('\u56fe\u7247\u4e0b\u8f7d\u5931\u8d25\uff1a' + (error && error.message ? error.message : '\u672a\u77e5\u9519\u8bef'));
-    } finally {
-      window.setTimeout(() => {
-        button.textContent = originalText;
-        button.dataset.running = '';
-      }, 1800);
-    }
-  }
-
-  async function downloadGeneratedImageViews(viewButtons, button) {
-    for (let index = 0; index < viewButtons.length; index += 1) {
-      const target = viewButtons[index];
-      if (!document.body.contains(target)) continue;
-      button.textContent = '\u67e5\u770b\u8be6\u60c5\u56fe ' + (index + 1) + '/' + viewButtons.length;
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u8be6\u60c5\u56fe\u67e5\u770b\u5165\u53e3 ' + (index + 1) + '/' + viewButtons.length);
-      clickElement(target);
-      const modal = await waitUntil(() => {
-        const latest = getVisibleImageDetailModal();
-        return latest || null;
-      }, 10000, 200);
-      if (!modal) throw new Error('\u672a\u6253\u5f00\u8be6\u60c5\u56fe\u67e5\u770b\u5f39\u7a97');
-      await downloadImagesFromDetailModal(modal);
-      await wait(350);
-    }
-    button.textContent = '\u4e0b\u8f7d\u5b8c\u6210';
-    addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u8be6\u60c5\u56fe\u67e5\u770b\u5f39\u7a97\u5904\u7406\u5b8c\u6210');
-    showToast('\u8be6\u60c5\u56fe\u4e0b\u8f7d\u5df2\u5904\u7406');
-  }
-
-  async function runHomeDetailImageDownload() {
-    const sku = state.selectedSku || (state.data && state.data.sku) || '';
-    addLog('info', '\u4e3b\u9875\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u5165\u53e3', sku || '\u672a\u9009\u4e2d SKU');
-    const drawer = getProjectDrawerForSku(sku) || getCurrentImageDownloadDrawer();
-    if (!drawer) {
-      addLog('error', '\u4e3b\u9875\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u672a\u627e\u5230\u9879\u76ee\u8be6\u60c5/\u8bbe\u8ba1\u8d44\u6599\u62bd\u5c49');
-      showToast('\u8bf7\u5148\u6253\u5f00\u9879\u76ee\u8be6\u60c5\u6216\u8bbe\u8ba1\u8d44\u6599');
-      return;
-    }
-    addLog('info', '\u4e3b\u9875\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u627e\u5230\u62bd\u5c49', getVisibleText(drawer).slice(0, 120));
-    let button = drawer.querySelector('.' + DETAIL_IMAGE_DOWNLOAD_CLASS);
-    if (!button) {
-      button = document.createElement('button');
-      button.type = 'button';
-      button.className = DETAIL_IMAGE_DOWNLOAD_CLASS;
-      button.textContent = '\u4e00\u952e\u4e0b\u8f7d\u56fe\u7247';
-      button.style.display = 'none';
-      drawer.appendChild(button);
-    }
-    showToast('\u5f00\u59cb\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247');
-    await downloadAllDetailImages(drawer, button);
-  }
-
-  function getCurrentImageDownloadDrawer() {
-    return Array.from(document.querySelectorAll('.ant-drawer-open, .ant-drawer'))
-      .filter(isVisibleElement)
-      .find((drawer) => {
-        const text = getVisibleText(drawer);
-        return /\u67e5\u770b\u9879\u76ee\u8be6\u60c5|\u8bbe\u8ba1\u8d44\u6599|\u6548\u679c\u56fe\u4fe1\u606f|\u8bbe\u8ba1\u6587\u4ef6/.test(text);
-      }) || null;
-  }
-
-  function findDetailImageDownloadTargets(drawer) {
-    const scopes = findImageFieldItems(drawer, ['\u8be6\u60c5\u56fe']);
-    if (!scopes.length) {
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5f53\u524d\u9875\u9762\u6ca1\u6709\u53ef\u8bc6\u522b\u7684\u8be6\u60c5\u56fe\u8868\u5355\u9879');
-      return [];
-    }
-    const roots = scopes.length ? scopes : [drawer];
-    const primaryCards = roots.flatMap((root) => Array.from(root.querySelectorAll('.filePreviewCard, .filePreviewMainBox, .ant-upload-wrapper.draggerUploader, .ant-upload-drag.draggerUploader, .ant-upload-list-item, .ant-upload-list-picture-card-container')))
-      .filter(isVisibleElement)
-      .filter((node) => !node.closest('#' + PANEL_ID))
-      .filter(isLikelyImageAssetCard);
-    const fallbackCards = primaryCards.length ? [] : roots.flatMap((root) => Array.from(root.querySelectorAll('.previewMasker, .ant-image, .ant-card, [class*="file"], [class*="preview"]')))
-      .filter(isVisibleElement)
-      .filter((node) => !node.closest('#' + PANEL_ID))
-      .filter((node) => !node.querySelector('.filePreviewCard, .ant-upload-list-item, .ant-upload-list-picture-card-container'))
-      .filter(isLikelyImageAssetCard);
-    const cards = primaryCards.length ? primaryCards : fallbackCards;
-    const targets = [];
-    cards.forEach((card) => {
-      revealUploadActions(card);
-      const target = findDownloadTargetInScope(card);
-      if (target && !targets.includes(target)) targets.push(target);
-    });
-    if (targets.length) return targets;
-    return roots.flatMap((root) => Array.from(root.querySelectorAll('button, a, [role="button"], span, i')))
-      .filter(isVisibleElement)
-      .filter((el) => !el.closest('#' + PANEL_ID))
-      .filter((el) => isDownloadControl(el) && isNearImageAsset(el))
-      .map(getClickableElement)
-      .filter((el, index, arr) => el && arr.indexOf(el) === index);
-  }
-
-  function findGeneratedImageViewButtons(drawer, labels) {
-    return findImageFieldItems(drawer, labels)
-      .map((item) => {
-        const controls = Array.from(item.querySelectorAll('button, a, [role="button"], span'))
-          .filter(isVisibleElement)
-          .filter((el) => /\u70b9\u51fb\u67e5\u770b|\u67e5\u770b/.test(compactText(el.innerText || el.textContent || '')))
-          .map(getClickableElement)
-          .filter(Boolean);
-        return controls[0] || null;
-      })
-      .filter((el, index, arr) => el && arr.indexOf(el) === index);
-  }
-
-  function findImageFieldItems(drawer, labels) {
-    const normalizedLabels = labels.map((label) => compactText(label));
-    return Array.from(drawer.querySelectorAll('.ant-form-item'))
-      .filter(isVisibleElement)
-      .filter((item) => {
-        const labelText = compactText((item.querySelector('.ant-form-item-label') || item).innerText || item.textContent || '');
-        return normalizedLabels.some((label) => labelText === label || labelText.startsWith(label + 'AI') || labelText.startsWith(label + '\u70b9\u51fb') || labelText.startsWith(label + '\u5df2'));
-      });
-  }
-
-  function isLikelyImageAssetCard(node) {
-    const text = compactText(node.innerText || node.textContent || '');
-    const html = node.innerHTML || '';
-    const imageUrls = Array.from(node.querySelectorAll('img'))
-      .map((img) => img.currentSrc || img.src || '')
-      .filter((src) => src && !/\/filePic\/(?:word|pdf|excel|zip|rar|file|image)\.png/i.test(src));
-    if (imageUrls.some((src) => /\.(?:png|jpe?g|webp|gif|bmp|tiff?)(?:\?|$)/i.test(src))) return true;
-    if (/\.(?:docx?|pdf|xlsx?|zip|rar|psd)(?:\?|$)/i.test(text + ' ' + html)) return false;
-    return /\.(?:png|jpe?g|webp|gif|bmp|tiff?)(?:\?|$)/i.test(text + ' ' + html) || /oss-pro\.plm\.westmonth\.cn/i.test(html);
-  }
-
-  function findDownloadTargetInScope(scope) {
-    const selectors = [
-      '[title*="\u4e0b\u8f7d"]',
-      '[aria-label*="\u4e0b\u8f7d"]',
-      '[title*="download" i]',
-      '[aria-label*="download" i]',
-      '.anticon-download',
-      '.downloadBtn',
-      '.downloadBtnIcon',
-      '.anticon-vertical-align-bottom',
-      '[aria-label="vertical-align-bottom"]',
-      '[class*="download" i]',
-      'button',
-      'a',
-      '[role="button"]',
-    ];
-    for (const selector of selectors) {
-      const candidates = Array.from(scope.querySelectorAll(selector)).filter(isVisibleElement).filter(isDownloadControl);
-      if (candidates.length) return getClickableElement(candidates[0]);
-    }
-    return null;
-  }
-
-  function isDownloadControl(el) {
-    const text = compactText(el.innerText || el.textContent || '');
-    const meta = [el.getAttribute('title') || '', el.getAttribute('aria-label') || '', el.className || '', el.getAttribute('class') || ''].join(' ');
-    return /\u4e0b\u8f7d|download|vertical-align-bottom/i.test(text + ' ' + meta);
-  }
-
-  function isNearImageAsset(el) {
-    const box = el.closest('.filePreviewCard, .previewMasker, .ant-image, .ant-card, .ant-upload-list-item, [class*="file"], [class*="preview"]');
-    return Boolean(box && isLikelyImageAssetCard(box));
-  }
-
-  async function chooseDirectUseAndSubmitDownload() {
-    const modal = await waitUntil(() => getVisibleModal(), 8000, 200);
-    if (!modal) throw new Error('\u672a\u6253\u5f00\u4e0b\u8f7d\u5f39\u7a97');
-    addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u5df2\u6253\u5f00\u5f39\u7a97', getVisibleText(modal).slice(0, 120));
-    if (isImageDetailDownloadModal(modal)) {
-      await downloadImagesFromDetailModal(modal);
-      return;
-    }
-    await chooseDirectUseAndSubmitDownloadInModal(modal);
-  }
-
-  function isImageDetailDownloadModal(modal) {
-    const text = compactText(modal.innerText || modal.textContent || '');
-    return /\u67e5\u770b\u8be6\u60c5/.test(text) && (getDetailModalImageUrls(modal).length > 0 || getDetailModalDownloadButtons(modal).length > 0) && !/\u76f4\u63a5\u4f7f\u7528/.test(text);
-  }
-
-  function getVisibleImageDetailModal() {
-    return Array.from(document.querySelectorAll('.ant-modal'))
-      .filter(isVisibleElement)
-      .reverse()
-      .find(isImageDetailDownloadModal) || null;
-  }
-
-  function getDetailModalDownloadButtons(modal) {
-    return Array.from(modal.querySelectorAll('button, a, [role="button"], span'))
-      .filter(isVisibleElement)
-      .filter((el) => compactText(el.innerText || el.textContent) === '\u4e0b\u8f7d')
-      .map(getClickableElement)
-      .filter((el, index, arr) => el && arr.indexOf(el) === index);
-  }
-
-  async function downloadImagesFromDetailModal(modal) {
-    const urls = getDetailModalImageUrls(modal);
-    addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u67e5\u770b\u8be6\u60c5\u5f39\u7a97\u56fe\u7247 URL ' + urls.length + '\u4e2a');
-    const initialDownloads = getDetailModalDownloadButtons(modal);
-    addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u67e5\u770b\u8be6\u60c5\u5f39\u7a97\u4e0b\u8f7d\u6309\u94ae ' + initialDownloads.length + '\u4e2a');
-    if (initialDownloads.length) {
-      for (let index = 0; isVisibleElement(modal) && document.body.contains(modal); index += 1) {
-        const downloads = getDetailModalDownloadButtons(modal);
-        if (index >= downloads.length) break;
-        const target = downloads[index];
-        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u70b9\u51fb\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae ' + (index + 1) + '/' + downloads.length);
-        clickElement(target);
-        const directModal = await waitUntil(() => {
-          const latest = getVisibleModal();
-          if (!latest || latest === modal) return null;
-          return /\u76f4\u63a5\u4f7f\u7528|\u63d0\u4ea4\u5e76\u4e0b\u8f7d/.test(getVisibleText(latest)) ? latest : null;
-        }, 8000, 200);
-        if (!directModal) throw new Error('\u672a\u6253\u5f00\u76f4\u63a5\u4f7f\u7528\u5f39\u7a97');
-        await chooseDirectUseAndSubmitDownloadInModal(directModal);
-        await wait(350);
-      }
-      addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae\u5904\u7406\u5b8c\u6210 ' + initialDownloads.length + '\u5f20');
-      showToast('\u56fe\u7247\u5df2\u6309\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae\u5904\u7406\uff1a' + initialDownloads.length + '\u5f20');
-      const close = findButtonLikeInScope(modal, '\u5173\u95ed');
-      if (close) clickElement(close);
-      await waitUntil(() => !isVisibleElement(modal) || !document.body.contains(modal), 5000, 200).catch(() => null);
-      return;
-    }
-    if (urls.length) {
-      addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1a\u672a\u627e\u5230\u539f\u59cb\u4e0b\u8f7d\u6309\u94ae\uff0c\u6539\u7528 URL \u515c\u5e95');
-      for (let index = 0; index < urls.length; index += 1) {
-        const filename = buildDetailImageFilename(urls[index], index);
-        addLog('info', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d ' + (index + 1) + '/' + urls.length, filename);
-        await downloadImageUrl(urls[index], filename);
-        await wait(180);
-      }
-      addLog('success', '\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d\u5b8c\u6210 ' + urls.length + '\u5f20');
-      showToast('\u56fe\u7247\u5df2 URL \u515c\u5e95\u4e0b\u8f7d\uff1a' + urls.length + '\u5f20');
-      const closeDirect = findButtonLikeInScope(modal, '\u5173\u95ed');
-      if (closeDirect) clickElement(closeDirect);
-      await waitUntil(() => !isVisibleElement(modal) || !document.body.contains(modal), 5000, 200).catch(() => null);
-      return;
-    }
-    let index = 0;
-    while (isVisibleElement(modal) && document.body.contains(modal)) {
-      const downloads = getDetailModalDownloadButtons(modal);
-      if (index >= downloads.length) break;
-      const target = downloads[index];
-      index += 1;
-      clickElement(target);
-      const directModal = await waitUntil(() => {
-        const latest = getVisibleModal();
-        if (!latest || latest === modal) return null;
-        return /\u76f4\u63a5\u4f7f\u7528|\u63d0\u4ea4\u5e76\u4e0b\u8f7d/.test(getVisibleText(latest)) ? latest : null;
-      }, 8000, 200);
-      if (!directModal) throw new Error('\u672a\u6253\u5f00\u76f4\u63a5\u4f7f\u7528\u5f39\u7a97');
-      await chooseDirectUseAndSubmitDownloadInModal(directModal);
-      await wait(350);
-    }
-    const close = findButtonLikeInScope(modal, '\u5173\u95ed');
-    if (close) clickElement(close);
-    await waitUntil(() => !isVisibleElement(modal) || !document.body.contains(modal), 5000, 200).catch(() => null);
-  }
-
-  function getDetailModalImageUrls(modal) {
-    const urls = Array.from(modal.querySelectorAll('img'))
-      .filter(isVisibleElement)
-      .map((img) => stripOssResizeParams(img.currentSrc || img.src || ''))
-      .filter((src) => src && !/\/filePic\//i.test(src) && /\.(?:png|jpe?g|webp|gif|bmp)(?:\?|$)/i.test(src));
-    return Array.from(new Set(urls));
-  }
-
-  function buildDetailImageFilename(url, index) {
-    const sku = (state.selectedSku || (state.data && state.data.sku) || 'PLM').replace(/[\\/:*?"<>|]+/g, '_');
-    let name = '';
-    try {
-      name = decodeURIComponent(new URL(url).pathname.split('/').pop() || '');
-    } catch (error) {
-      name = '';
-    }
-    const extMatch = (name || url).match(/\.(png|jpe?g|webp|gif|bmp)(?:\?|$)/i);
-    const ext = extMatch ? extMatch[1].toLowerCase().replace('jpeg', 'jpg') : 'png';
-    const base = name ? name.replace(/\.(png|jpe?g|webp|gif|bmp)$/i, '') : ('image_' + String(index + 1).padStart(2, '0'));
-    return sku + '_' + String(index + 1).padStart(2, '0') + '_' + base.replace(/[\\/:*?"<>|]+/g, '_') + '.' + ext;
-  }
-
-  function downloadImageUrl(url, filename) {
-    return new Promise((resolve, reject) => {
-      if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url,
-          responseType: 'blob',
-          timeout: 20000,
-          onload: (res) => {
-            if (res.status >= 200 && res.status < 300) {
-              downloadBlob(res.response, filename);
-              addLog('success', '\u56fe\u7247\u4e0b\u8f7d\u6210\u529f', filename);
-              resolve(true);
-            } else {
-              addLog('error', '\u56fe\u7247\u4e0b\u8f7d HTTP \u5931\u8d25', filename + ' status=' + res.status);
-              reject(new Error('image status ' + res.status));
-            }
-          },
-          onerror: () => {
-            addLog('error', '\u56fe\u7247\u4e0b\u8f7d\u8bf7\u6c42\u5931\u8d25', filename);
-            reject(new Error('image request failed'));
-          },
-          ontimeout: () => {
-            addLog('error', '\u56fe\u7247\u4e0b\u8f7d\u8d85\u65f6', filename);
-            reject(new Error('image request timeout'));
-          },
-        });
-        return;
-      }
-      fetchWithTimeout(url, 20000)
-        .then((res) => {
-          if (!res.ok) throw new Error('image status ' + res.status);
-          return res.blob();
-        })
-        .then((blob) => {
-          downloadBlob(blob, filename);
-          addLog('success', '\u56fe\u7247\u4e0b\u8f7d\u6210\u529f', filename);
-          resolve(true);
-        })
-        .catch(reject);
-    });
-  }
-
-  async function chooseDirectUseAndSubmitDownloadInModal(modal) {
-    const direct = await waitUntil(() => findButtonLikeInScope(modal, '\u76f4\u63a5\u4f7f\u7528') || findRadioLikeInScope(modal, '\u76f4\u63a5\u4f7f\u7528'), 8000, 200);
-    if (!direct) throw new Error('\u672a\u627e\u5230\u76f4\u63a5\u4f7f\u7528');
-    clickElement(direct);
-    await wait(250);
-    const submit = await waitUntil(() => findButtonLikeInScope(modal, '\u63d0\u4ea4\u5e76\u4e0b\u8f7d'), 8000, 200);
-    if (!submit) throw new Error('\u672a\u627e\u5230\u63d0\u4ea4\u5e76\u4e0b\u8f7d');
-    clickElement(submit);
-    await waitUntil(() => !isVisibleElement(modal) || !document.body.contains(modal), 30000, 500).catch(() => null);
-  }
-
   function findButtonLikeInScope(scope, text) {
     const expected = compactText(text);
     return Array.from(scope.querySelectorAll('button, a, [role="button"], span'))
       .filter(isVisibleElement)
       .find((el) => compactText(el.innerText || el.textContent) === expected) || null;
-  }
-
-  function findRadioLikeInScope(scope, text) {
-    const expected = compactText(text);
-    const labels = Array.from(scope.querySelectorAll('label, .ant-radio-wrapper, .ant-checkbox-wrapper, [role="radio"], [role="checkbox"]')).filter(isVisibleElement);
-    const label = labels.find((el) => compactText(el.innerText || el.textContent).includes(expected));
-    if (!label) return null;
-    return label.querySelector('input, .ant-radio, .ant-checkbox') || label;
   }
 
   async function ensureProjectDrawerForData(data) {
@@ -14935,6 +14649,129 @@
         color: #737b9f;
         font-size: 12px;
         line-height: 1.55;
+      }
+      #${PANEL_ID} .pfh-mini-tool-page {
+        width: min(100%, 760px);
+        margin: 0 auto;
+        padding: 28px;
+        display: grid;
+        gap: 20px;
+      }
+      #${PANEL_ID} .pfh-mini-tool-head {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+      #${PANEL_ID} .pfh-mini-tool-head > button {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        color: #6d4de8;
+        border: 1px solid rgba(167,139,250,.32);
+        border-radius: 13px;
+        background: rgba(255,255,255,.78);
+      }
+      #${PANEL_ID} .pfh-mini-tool-head > button .pfh-icon {
+        width: 19px;
+        height: 19px;
+      }
+      #${PANEL_ID} .pfh-mini-tool-head small {
+        color: #8b75ef;
+        font-size: 11px;
+        font-weight: 760 !important;
+        letter-spacing: .06em;
+      }
+      #${PANEL_ID} .pfh-mini-tool-head h2 {
+        margin: 3px 0 5px;
+        color: #241a54;
+        font-size: 22px;
+      }
+      #${PANEL_ID} .pfh-mini-tool-head p {
+        margin: 0;
+        color: #7c83a4;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      #${PANEL_ID} .pfh-mini-tool-card {
+        padding: 24px;
+        display: grid;
+        gap: 13px;
+        border: 1px solid rgba(197,186,255,.45);
+        border-radius: 20px;
+        background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(248,246,255,.68));
+        box-shadow: 0 18px 44px rgba(87,65,151,.1), inset 0 1px 0 rgba(255,255,255,.94);
+      }
+      #${PANEL_ID} .pfh-mini-tool-card > label {
+        color: #342766;
+        font-size: 14px;
+        font-weight: 760 !important;
+      }
+      #${PANEL_ID} .pfh-mini-tool-card textarea {
+        width: 100%;
+        min-height: 112px;
+        resize: vertical;
+        padding: 14px 16px;
+        color: #21194f;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.65;
+        border: 1px solid rgba(167,139,250,.4);
+        border-radius: 14px;
+        outline: none;
+        background: rgba(255,255,255,.82);
+        box-sizing: border-box;
+      }
+      #${PANEL_ID} .pfh-mini-tool-card textarea:focus {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139,92,246,.12);
+      }
+      #${PANEL_ID} .pfh-mini-tool-result {
+        min-height: 76px;
+        padding: 14px 16px;
+        display: grid;
+        gap: 7px;
+        align-content: center;
+        border-radius: 14px;
+        background: rgba(240,237,255,.72);
+      }
+      #${PANEL_ID} .pfh-mini-tool-result span {
+        color: #898fae;
+        font-size: 11px;
+        font-weight: 700 !important;
+      }
+      #${PANEL_ID} .pfh-mini-tool-result strong {
+        color: #302269;
+        font-size: 15px;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+        user-select: text;
+      }
+      #${PANEL_ID} .pfh-mini-tool-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      #${PANEL_ID} .pfh-mini-tool-actions button {
+        min-width: 104px;
+        height: 40px;
+        padding: 0 18px;
+        color: #655a8c;
+        border: 1px solid rgba(167,139,250,.36);
+        border-radius: 12px;
+        background: rgba(255,255,255,.78);
+      }
+      #${PANEL_ID} .pfh-mini-tool-actions button:last-child {
+        color: #fff;
+        border-color: #7c3aed;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      }
+      #${PANEL_ID} .pfh-mini-tool-actions button:disabled {
+        cursor: not-allowed;
+        opacity: .45;
       }
       #${PANEL_ID} .pfh-product-hero {
         margin-bottom: 12px;
