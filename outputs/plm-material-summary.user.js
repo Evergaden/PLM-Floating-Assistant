@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.26
+// @version      2.5.27
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.26';
+  const SCRIPT_VERSION = '2.5.27';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -511,6 +511,7 @@
 
   injectStyle();
   ensurePanel();
+  document.addEventListener('paste', handleSizeImageHoverPaste, true);
   ensureLauncher();
   renderShell(L.noDrawer);
   refreshLoadingTips(false);
@@ -2819,11 +2820,11 @@
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-remark-input"' + (session.includeRemark === false ? '' : ' checked') + '><span>\u6807\u9898\u6dfb\u52a0\u5907\u6ce8</span><small>' + escapeHtml(remarkHint) + '</small></label>' +
-        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6dfb\u52a0\u201c\u5706\u5f27\u201d\u5907\u6ce8</span><small>\u751f\u6210\u6807\u9898\u4e2d\u4f7f\u7528\uff08\u5706\u5f27\uff09\u6807\u8bc6</small></label>' +
+        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u6dfb\u52a0\u201c\u5706\u5f27\u201d</span><small>\u4ec5\u6807\u7b7e\u6807\u9898\u548c\u8f6e\u5ed3\u4f7f\u7528\uff08\u5706\u5f27\uff09\u6807\u8bc6</small></label>' +
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6807\u7b7e\u6dfb\u52a0\u201c\u6279\u6b21\u53f7\u201d</span><small>\u5728\u6807\u7b7e\u89c4\u683c\u4e0b\u65b9\u663e\u793a\u7ea2\u8272\uff08\u6279\u6b21\u53f7\uff09</small></label>' +
-        '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u53ef\u4e00\u6b21\u9009\u62e9\u7eb8\u76d2\u548c\u6807\u7b7e\u4e24\u5f20\u56fe\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
+        '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
-        '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-download-carton"' + (session.cartonResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u7eb8\u76d2 JPG</button><button type="button" class="is-primary" data-action="size-image-download-label"' + (session.labelResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u6807\u7b7e JPG</button></div>' +
+        '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('folder') + '\u4fdd\u5b58 JPG \u5230\u6587\u4ef6\u5939</button></div>' +
         '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
     '</section></div>';
@@ -3271,7 +3272,7 @@
     const artHeight = spec.height * drawScale;
     const artX = Math.max(540, Math.round((3000 - artWidth) / 2 - 100));
     const artY = 720;
-    const cornerRadius = includeRoundArc ? Math.min(56, Math.min(artWidth, artHeight) * 0.045) : 0;
+    const cornerRadius = includeRoundArc ? Math.min(18, Math.max(6, drawScale * 0.08)) : 0;
     context.save();
     context.beginPath();
     if (cornerRadius) traceSizeImageRoundedRect(context, artX, artY, artWidth, artHeight, cornerRadius);
@@ -3327,7 +3328,7 @@
     if (!includeRemark) return base;
     const remarks = getSizeImageRemarks(data);
     const sourceRemark = type === 'label' ? remarks.label : remarks.carton;
-    const roundArcRemark = includeRoundArc && !String(sourceRemark || '').includes('\u5706\u5f27') ? '\u5706\u5f27' : '';
+    const roundArcRemark = type === 'label' && includeRoundArc && !String(sourceRemark || '').includes('\u5706\u5f27') ? '\u5706\u5f27' : '';
     const remark = [sourceRemark, roundArcRemark].filter(Boolean).join(' ');
     return remark ? base + '\uff08' + remark + '\uff09' : base;
   }
@@ -3358,21 +3359,37 @@
     return message || '\u65e0\u6cd5\u8bc6\u522b\u7eb8\u76d2\u6216\u6807\u7b7e\uff0c\u8bf7\u68c0\u67e5\u56fe\u7247\u4e0e PLM \u5c3a\u5bf8\u662f\u5426\u5339\u914d\u3002';
   }
 
-  function downloadCurrentSizeImage(type) {
+  async function saveCurrentSizeImagesToFolder() {
     const sku = state.selectedSku || (state.data && state.data.sku) || '';
     const session = sku && state.sizeImageSessions[sku];
-    const isLabel = type === 'label';
-    const resultDataUrl = session && (isLabel ? session.labelResultDataUrl : session.cartonResultDataUrl);
-    if (!resultDataUrl) {
-      showToast('\u8bf7\u5148\u751f\u6210' + (isLabel ? '\u6807\u7b7e' : '\u7eb8\u76d2') + '\u5c3a\u5bf8\u56fe');
+    const files = session ? [
+      session.cartonResultDataUrl ? { name: sku + '-\u7eb8\u76d2\u5c3a\u5bf8\u56fe.jpg', dataUrl: session.cartonResultDataUrl } : null,
+      session.labelResultDataUrl ? { name: sku + '-\u6807\u7b7e\u5c3a\u5bf8\u56fe.jpg', dataUrl: session.labelResultDataUrl } : null,
+    ].filter(Boolean) : [];
+    if (!files.length) {
+      showToast('\u8bf7\u5148\u751f\u6210\u7eb8\u76d2\u6216\u6807\u7b7e\u5c3a\u5bf8\u56fe');
       return;
     }
-    const anchor = document.createElement('a');
-    anchor.href = resultDataUrl;
-    anchor.download = sku + '-' + (isLabel ? '\u6807\u7b7e' : '\u7eb8\u76d2') + '\u5c3a\u5bf8\u56fe.jpg';
-    document.documentElement.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
+    const hostWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const picker = hostWindow && hostWindow.showDirectoryPicker;
+    if (typeof picker !== 'function') {
+      showToast('\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u9009\u62e9\u6587\u4ef6\u5939\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
+      return;
+    }
+    try {
+      const directory = await picker.call(hostWindow, { mode: 'readwrite' });
+      for (const file of files) {
+        const handle = await directory.getFileHandle(file.name, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(await (await fetch(file.dataUrl)).blob());
+        await writable.close();
+      }
+      showToast('\u5df2\u4fdd\u5b58 ' + files.length + ' \u4e2a JPG \u5230\u9009\u5b9a\u6587\u4ef6\u5939');
+    } catch (error) {
+      if (error && error.name === 'AbortError') return;
+      console.warn('PLM floating helper size image folder save failed:', error);
+      showToast('\u4fdd\u5b58\u5931\u8d25\uff1a' + formatErrorMessage(error));
+    }
   }
 
   async function regenerateCurrentSizeImages() {
@@ -4933,8 +4950,8 @@
       if (input && !input.disabled) input.click();
       return;
     }
-    if (action === 'size-image-download-carton' || action === 'size-image-download-label') {
-      downloadCurrentSizeImage(action === 'size-image-download-label' ? 'label' : 'carton');
+    if (action === 'size-image-save-all') {
+      saveCurrentSizeImagesToFolder();
       return;
     }
     if (action === 'excel-prepare') {
@@ -5417,6 +5434,7 @@
   }
 
   function handlePanelPaste(event) {
+    if (event.defaultPrevented) return;
     if (!(event.target && event.target.classList && event.target.classList.contains('pfh-search-input'))) return;
     const pasted = event.clipboardData && event.clipboardData.getData('text');
     if (!pasted || !/[\r\n,，;；、|/\\]/.test(pasted)) return;
@@ -5428,6 +5446,29 @@
     input.value = normalizeSearchInput(next);
     input.setSelectionRange(input.value.length, input.value.length);
     updateSearchClear();
+  }
+
+  function handleSizeImageHoverPaste(event) {
+    if (state.view !== 'sizeImage' || state.sizeImageBusySku) return;
+    const panel = document.getElementById(PANEL_ID);
+    const drop = panel && panel.querySelector('.pfh-size-image-drop:hover');
+    if (!drop || drop.disabled) return;
+    const clipboard = event.clipboardData;
+    const imageFiles = Array.from(clipboard && clipboard.items || [])
+      .filter((item) => item.kind === 'file' && /^image\/(?:png|jpeg)$/.test(item.type || ''))
+      .map((item) => item.getAsFile())
+      .filter(Boolean)
+      .map((file, index) => {
+        if (/\.(?:png|jpe?g)$/i.test(file.name || '')) return file;
+        const extension = file.type === 'image/jpeg' ? 'jpg' : 'png';
+        return new File([file], '\u7c98\u8d34\u56fe\u7247-' + (index + 1) + '.' + extension, { type: file.type || 'image/png' });
+      });
+    if (!imageFiles.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    drop.classList.add('is-paste-received');
+    window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+    processSizeImageFiles(imageFiles);
   }
 
   function handlePanelChange(event) {
@@ -19244,6 +19285,11 @@
         border-color: rgba(124,58,237,.7) !important;
         box-shadow: 0 12px 24px rgba(124,58,237,.1);
       }
+      #${PANEL_ID} .pfh-size-image-drop.is-paste-received {
+        border-color: rgba(34,197,94,.78) !important;
+        background: rgba(236,253,245,.9) !important;
+        box-shadow: 0 0 0 4px rgba(34,197,94,.12);
+      }
       #${PANEL_ID} .pfh-size-image-drop.is-processing {
         position: relative;
         overflow: hidden;
@@ -19294,7 +19340,7 @@
       }
       #${PANEL_ID} .pfh-size-image-actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 8px;
         margin-top: auto;
       }
