@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.14
+// @version      2.5.15
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.14';
+  const SCRIPT_VERSION = '2.5.15';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -480,6 +480,8 @@
     thumbHydrateFailedAt: {},
     thumbHydratedSkus: new Set(),
     skuPage: 1,
+    sizeImageSessions: {},
+    sizeImageBusySku: '',
     cloudBackupRunning: false,
     cloudBackupQueued: false,
     cloudBackupStatus: '',
@@ -748,6 +750,11 @@
     if (lockedSku && !sku && state.openingProjectDetail) return;
     if (state.userCollapsedPanel && state.manuallyCollapsedForSku && state.manuallyCollapsedForSku === (sku || state.sku)) return;
     const shouldAdoptProgrammaticDetail = sku && state.openingProjectDetailSku && sku === state.openingProjectDetailSku;
+    if (!shouldAdoptProgrammaticDetail && state.view === 'sizeImage') {
+      state.drawer = drawer;
+      state.sku = sku || state.sku || '';
+      return;
+    }
     if (!shouldAdoptProgrammaticDetail && (state.view === 'about' || state.view === 'upload')) {
       state.drawer = drawer;
       state.sku = sku || state.sku || '';
@@ -2299,6 +2306,11 @@
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
+    if (state.view === 'sizeImage') {
+      renderSizeImage(panel);
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
     renderDetail(panel, statusText);
     restorePanelScroll(panel, scrollSnapshot);
   }
@@ -2566,7 +2578,8 @@
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
-    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>SKU\u5217\u8868</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
+    const listTitle = state.view === 'sizeImage' ? '\u5c3a\u5bf8\u56fe SKU' : 'SKU\u5217\u8868';
+    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       list.innerHTML = listHead + '<div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
@@ -2595,6 +2608,12 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = homeViewHtml(statusText, first);
+  }
+
+  function renderSizeImage(panel) {
+    const detail = panel.querySelector('.pfh-detail');
+    detail.classList.remove('is-loading');
+    detail.innerHTML = sizeImageViewHtml();
   }
 
   function renderLedger(panel) {
@@ -2734,6 +2753,7 @@
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
+      ['home-size-image', 'image', '包装辅助', '生成尺寸图', '选择 SKU 和透明 PNG，自动裁出纸盒有效区并生成 JPG。'],
       ['home-download-detail', 'detailDownload', '图像归档', '批量下载详情图', '按主图/详情图分组处理下载流程，减少重复点击。'],
     ];
     return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
@@ -2748,6 +2768,288 @@
         '<span>' + escapeHtml(card[4]) + '</span>' +
       '</button>').join('') + '</div>' +
       '</section></div>';
+  }
+
+  function sizeImageViewHtml() {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!data || !data.sku) {
+      return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u8fd9\u91cc\u4f1a\u8bfb\u53d6\u7eb8\u76d2\u957f\u3001\u5bbd\u3001\u9ad8\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
+    }
+    const spec = getSizeImageSpec(data);
+    const session = state.sizeImageSessions[data.sku] || {};
+    const busy = state.sizeImageBusySku === data.sku;
+    const dimensionText = spec ? formatSizeImageNumber(spec.length) + ' \u00d7 ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm' : '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
+    const status = session.error
+      ? '<div class="pfh-size-image-status is-error">' + escapeHtml(session.error) + '</div>'
+      : (session.resultDataUrl ? '<div class="pfh-size-image-status is-ready">\u5df2\u751f\u6210 3000 \u00d7 3000 JPG\uff0c\u8bf7\u786e\u8ba4\u540e\u4e0b\u8f7d\u3002</div>' : '');
+    const preview = session.resultDataUrl
+      ? '<div class="pfh-size-image-preview"><img src="' + session.resultDataUrl + '" alt="' + escapeHtml(data.sku + ' \u7eb8\u76d2\u5c3a\u5bf8\u56fe') + '"></div>'
+      : '<div class="pfh-size-image-placeholder">' + iconHtml('image') + '<strong>\u5c3a\u5bf8\u56fe\u9884\u89c8</strong><span>\u4e0a\u4f20\u5408\u683c\u7684\u900f\u660e PNG \u540e\u5728\u8fd9\u91cc\u751f\u6210</span></div>';
+    const disabled = spec && !busy ? '' : ' disabled';
+    return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
+      '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u7eb8\u76d2\u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div><span>' + escapeHtml(dimensionText) + '</span></header>' +
+      (!spec ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
+      '<div class="pfh-size-image-workspace"><div class="pfh-size-image-controls">' +
+        '<div class="pfh-size-image-spec"><span>\u7eb8\u76d2\u7ed3\u6784</span><b>' + escapeHtml(dimensionText) + '</b><small>\u4e3b\u4f53\uff1a\u5bbd\u3001\u957f\u3001\u5bbd\u3001\u957f / \u7b2c\u4e8c\u9762\u9876\u76d6 / \u7b2c\u56db\u9762\u5e95\u76d6</small></div>' +
+        '<button type="button" class="pfh-size-image-drop" data-action="size-image-pick"' + disabled + '>' + iconHtml('upload') + '<strong>' + (busy ? '\u6b63\u5728\u5206\u6790...' : '\u9009\u62e9\u900f\u660e PNG') + '</strong><span>\u4e5f\u53ef\u628a PNG \u62d6\u5230\u8fd9\u91cc</span></button>' +
+        (session.fileName ? '<p class="pfh-size-image-file">\u5df2\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
+        '<div class="pfh-size-image-actions"><button type="button" data-action="size-image-pick"' + disabled + '>\u91cd\u65b0\u9009\u62e9</button><button type="button" class="is-primary" data-action="size-image-download"' + (session.resultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d JPG</button></div>' +
+        '<input type="file" class="pfh-size-image-file-input" accept="image/png,.png">' + status +
+      '</div>' + preview + '</div>' +
+    '</section></div>';
+  }
+
+  function getSizeImageSpec(data) {
+    if (!data || !/\u7eb8\u76d2/.test(String(data.packageSizeLabel || ''))) return null;
+    const nums = Array.isArray(data.packageNums) ? data.packageNums.map(Number) : [];
+    if (nums.length !== 3 || nums.some((value) => !Number.isFinite(value) || value <= 0)) return null;
+    return { length: nums[0], width: nums[1], height: nums[2] };
+  }
+
+  function getSizeImageSpecError(data) {
+    if (!data || !/\u7eb8\u76d2/.test(String(data.packageSizeLabel || ''))) return '\u5f53\u524d SKU \u7684\u5305\u6750\u4e0d\u662f\u6807\u51c6\u7eb8\u76d2\uff0c\u6682\u4e0d\u652f\u6301\u751f\u6210\u3002';
+    if (Array.isArray(data.packageNums) && data.packageNums.length > 3) return '\u5f53\u524d\u7eb8\u76d2\u542b\u591a\u9875\u5c3a\u5bf8\uff0c\u7b2c\u4e00\u7248\u6682\u4e0d\u652f\u6301\u3002';
+    return '\u672a\u627e\u5230\u5b8c\u6574\u7684\u7eb8\u76d2\u957f\u3001\u5bbd\u3001\u9ad8\uff0c\u8bf7\u5148\u5237\u65b0 PLM \u7f13\u5b58\u3002';
+  }
+
+  function formatSizeImageNumber(value) {
+    return trimNumber(Number(value));
+  }
+
+  async function processSizeImageFile(file) {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    const spec = getSizeImageSpec(data);
+    if (!data || !data.sku || !spec) {
+      showToast(data ? getSizeImageSpecError(data) : '\u8bf7\u5148\u9009\u62e9 SKU');
+      return;
+    }
+    if (!file || !/\.png$/i.test(file.name || '') || (file.type && file.type !== 'image/png')) {
+      state.sizeImageSessions[data.sku] = { fileName: file && file.name || '', error: '\u53ea\u652f\u6301\u4ece Photoshop \u5bfc\u51fa\u7684\u900f\u660e PNG\u3002' };
+      renderShell();
+      return;
+    }
+    const sku = data.sku;
+    state.sizeImageBusySku = sku;
+    state.sizeImageSessions[sku] = { fileName: file.name, error: '' };
+    renderShell();
+    const sourceUrl = URL.createObjectURL(file);
+    try {
+      const image = await loadSizeImageSource(sourceUrl);
+      const geometry = analyzeSizeImageGeometry(image, spec);
+      const resultDataUrl = generateSizeImageJpeg(image, geometry, spec);
+      state.sizeImageSessions[sku] = { fileName: file.name, resultDataUrl, error: '' };
+      showToast('\u5c3a\u5bf8\u56fe\u5df2\u751f\u6210');
+    } catch (error) {
+      state.sizeImageSessions[sku] = { fileName: file.name, error: formatSizeImageError(error) };
+    } finally {
+      URL.revokeObjectURL(sourceUrl);
+      if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
+      if (state.view === 'sizeImage') renderShell();
+    }
+  }
+
+  function loadSizeImageSource(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('\u65e0\u6cd5\u8bfb\u53d6 PNG\uff0c\u6587\u4ef6\u53ef\u80fd\u5df2\u635f\u574f\u3002'));
+      image.src = url;
+    });
+  }
+
+  function analyzeSizeImageGeometry(image, spec) {
+    const maxSide = 1800;
+    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0, width, height);
+    const pixels = context.getImageData(0, 0, width, height).data;
+    const rows = new Array(height);
+    let transparentPixels = 0;
+    let opaquePixels = 0;
+    for (let y = 0; y < height; y += 1) {
+      let count = 0;
+      let left = width;
+      let right = -1;
+      for (let x = 0; x < width; x += 1) {
+        const alpha = pixels[(y * width + x) * 4 + 3];
+        if (alpha <= 12) transparentPixels += 1;
+        if (alpha >= 220) opaquePixels += 1;
+        if (alpha > 12) {
+          count += 1;
+          if (left === width) left = x;
+          right = x;
+        }
+      }
+      rows[y] = { count, left, right };
+    }
+    const totalPixels = width * height;
+    if (transparentPixels < totalPixels * 0.03 || opaquePixels < totalPixels * 0.05) {
+      throw new Error('\u56fe\u7247\u6ca1\u6709\u53ef\u9760\u7684\u900f\u660e\u8f6e\u5ed3\uff0c\u8bf7\u5728 Photoshop \u4e2d\u4fdd\u7559\u900f\u660e\u80cc\u666f\u540e\u5bfc\u51fa PNG\u3002');
+    }
+    const maxRow = rows.reduce((max, row) => Math.max(max, row.count), 0);
+    const threshold = maxRow * 0.92;
+    let bestStart = -1;
+    let bestEnd = -1;
+    let start = -1;
+    for (let y = 0; y <= height; y += 1) {
+      const active = y < height && rows[y].count >= threshold;
+      if (active && start < 0) start = y;
+      if (!active && start >= 0) {
+        if (bestStart < 0 || y - start > bestEnd - bestStart) {
+          bestStart = start;
+          bestEnd = y;
+        }
+        start = -1;
+      }
+    }
+    if (bestStart < 0 || bestEnd - bestStart < 20) throw new Error('\u65e0\u6cd5\u5b9a\u4f4d\u56db\u9762\u8fde\u7eed\u7684\u7eb8\u76d2\u4e3b\u4f53\u3002');
+    const sampleRows = rows.slice(bestStart, bestEnd).filter((row) => row.count >= threshold);
+    const bodyLeft = Math.min(...sampleRows.map((row) => row.left));
+    const bodyRight = Math.max(...sampleRows.map((row) => row.right + 1));
+    const bodyWidth = bodyRight - bodyLeft;
+    const bodyHeight = bestEnd - bestStart;
+    const physicalBodyWidth = 2 * (spec.length + spec.width);
+    const scaleX = bodyWidth / physicalBodyWidth;
+    const scaleY = bodyHeight / spec.height;
+    const scaleDelta = Math.abs(scaleX - scaleY) / Math.max(scaleX, scaleY);
+    if (scaleDelta > 0.045) throw new Error('\u7eb8\u76d2\u4e3b\u4f53\u6bd4\u4f8b\u4e0e PLM \u5c3a\u5bf8\u4e0d\u4e00\u81f4\uff0c\u8bf7\u786e\u8ba4 SKU \u548c\u5bfc\u51fa\u56fe\u662f\u5426\u5339\u914d\u3002');
+    const topRect = {
+      x: bodyLeft + spec.width * scaleX,
+      y: bestStart - spec.width * scaleY,
+      width: spec.length * scaleX,
+      height: spec.width * scaleY,
+    };
+    const bottomRect = {
+      x: bodyLeft + (2 * spec.width + spec.length) * scaleX,
+      y: bestEnd,
+      width: spec.length * scaleX,
+      height: spec.width * scaleY,
+    };
+    if (topRect.y < -2 || bottomRect.y + bottomRect.height > height + 2) throw new Error('\u9876\u76d6\u6216\u5e95\u76d6\u4e0d\u5b8c\u6574\uff0c\u8bf7\u5bfc\u51fa\u5305\u542b\u5b8c\u6574\u7eb8\u76d2\u8f6e\u5ed3\u7684 PNG\u3002');
+    const coverage = (rect) => {
+      const x0 = Math.max(0, Math.round(rect.x));
+      const y0 = Math.max(0, Math.round(rect.y));
+      const x1 = Math.min(width, Math.round(rect.x + rect.width));
+      const y1 = Math.min(height, Math.round(rect.y + rect.height));
+      let hits = 0;
+      let samples = 0;
+      const step = Math.max(1, Math.floor(Math.min(rect.width, rect.height) / 90));
+      for (let y = y0; y < y1; y += step) {
+        for (let x = x0; x < x1; x += step) {
+          samples += 1;
+          if (pixels[(y * width + x) * 4 + 3] > 12) hits += 1;
+        }
+      }
+      return samples ? hits / samples : 0;
+    };
+    const bodyCoverage = coverage({ x: bodyLeft, y: bestStart, width: bodyWidth, height: bodyHeight });
+    if (bodyCoverage < 0.94 || coverage(topRect) < 0.82 || coverage(bottomRect) < 0.82) {
+      throw new Error('\u900f\u660e\u8f6e\u5ed3\u4e0d\u7b26\u5408\u201c\u56db\u9762\u4e3b\u4f53 + \u7b2c\u4e8c\u9762\u9876\u76d6 + \u7b2c\u56db\u9762\u5e95\u76d6\u201d\u7ed3\u6784\u3002');
+    }
+    return {
+      bodyLeft: bodyLeft * image.naturalWidth / width,
+      bodyTop: bestStart * image.naturalHeight / height,
+      pixelsPerCmX: scaleX * image.naturalWidth / width,
+      pixelsPerCmY: scaleY * image.naturalHeight / height,
+    };
+  }
+
+  function generateSizeImageJpeg(image, geometry, spec) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 3000;
+    canvas.height = 3000;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.textBaseline = 'top';
+    context.fillStyle = '#000000';
+    context.font = '700 78px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText('\u7eb8\u76d2', 505, 150);
+    context.font = '72px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
+    context.fillStyle = '#ee1410';
+    context.font = '70px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText('(\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7)', 505, 370);
+
+    const physicalWidth = 2 * (spec.length + spec.width);
+    const physicalHeight = spec.height + 2 * spec.width;
+    const drawScale = Math.min(1600 / physicalWidth, 2020 / physicalHeight);
+    const artWidth = physicalWidth * drawScale;
+    const artX = Math.max(540, Math.round((3000 - artWidth) / 2 - 100));
+    const artY = 650;
+    const bodyTop = artY + spec.width * drawScale;
+    const bodyBottom = bodyTop + spec.height * drawScale;
+    context.save();
+    context.beginPath();
+    context.rect(artX + spec.width * drawScale, artY, spec.length * drawScale, spec.width * drawScale);
+    context.rect(artX, bodyTop, physicalWidth * drawScale, spec.height * drawScale);
+    context.rect(artX + (2 * spec.width + spec.length) * drawScale, bodyBottom, spec.length * drawScale, spec.width * drawScale);
+    context.clip();
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    const imageX = artX - geometry.bodyLeft / geometry.pixelsPerCmX * drawScale;
+    const imageY = bodyTop - geometry.bodyTop / geometry.pixelsPerCmY * drawScale;
+    context.drawImage(image, imageX, imageY, image.naturalWidth / geometry.pixelsPerCmX * drawScale, image.naturalHeight / geometry.pixelsPerCmY * drawScale);
+    context.restore();
+
+    context.strokeStyle = '#ee1410';
+    context.fillStyle = '#ee1410';
+    context.lineWidth = 4;
+    const tick = 28;
+    const heightX = artX - 48;
+    drawSizeImageLine(context, heightX, bodyTop, heightX, bodyBottom);
+    drawSizeImageLine(context, heightX - tick, bodyTop, heightX + tick, bodyTop);
+    drawSizeImageLine(context, heightX - tick, bodyBottom, heightX + tick, bodyBottom);
+    context.save();
+    context.translate(heightX - 112, (bodyTop + bodyBottom) / 2);
+    context.rotate(-Math.PI / 2);
+    context.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.textAlign = 'center';
+    context.fillText(formatSizeImageNumber(spec.height) + 'cm', 0, 0);
+    context.restore();
+
+    const bottomY = bodyBottom + 48;
+    const firstEnd = artX + spec.width * drawScale;
+    const secondEnd = firstEnd + spec.length * drawScale;
+    drawSizeImageLine(context, artX, bottomY, secondEnd, bottomY);
+    [artX, firstEnd, secondEnd].forEach((x) => drawSizeImageLine(context, x, bottomY - tick, x, bottomY + tick));
+    context.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.textAlign = 'center';
+    context.fillText(formatSizeImageNumber(spec.width) + 'cm', (artX + firstEnd) / 2, bottomY + 34);
+    context.fillText(formatSizeImageNumber(spec.length) + 'cm', (firstEnd + secondEnd) / 2, bottomY + 34);
+    return canvas.toDataURL('image/jpeg', 0.96);
+  }
+
+  function drawSizeImageLine(context, x1, y1, x2, y2) {
+    context.beginPath();
+    context.moveTo(Math.round(x1), Math.round(y1));
+    context.lineTo(Math.round(x2), Math.round(y2));
+    context.stroke();
+  }
+
+  function formatSizeImageError(error) {
+    const message = String(error && error.message || error || '').trim();
+    return message || '\u5c3a\u5bf8\u56fe\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u5bfc\u51fa\u900f\u660e PNG\u3002';
+  }
+
+  function downloadCurrentSizeImage() {
+    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const session = sku && state.sizeImageSessions[sku];
+    if (!session || !session.resultDataUrl) {
+      showToast('\u8bf7\u5148\u751f\u6210\u5c3a\u5bf8\u56fe');
+      return;
+    }
+    const anchor = document.createElement('a');
+    anchor.href = session.resultDataUrl;
+    anchor.download = sku + '-\u7eb8\u76d2\u5c3a\u5bf8\u56fe.jpg';
+    document.documentElement.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   }
 
   function ledgerViewHtml(records) {
@@ -4111,10 +4413,11 @@
       return;
     }
     if (action === 'search') {
-      state.view = 'detail';
+      const searchView = state.view === 'sizeImage' ? 'sizeImage' : 'detail';
+      state.view = searchView;
       state.copywritingMode = false;
       state.skuPage = 1;
-      runSearch();
+      runSearch(searchView);
       return;
     }
     if (action === 'clear-search') {
@@ -4243,6 +4546,25 @@
     }
     if (action === 'open-first-detail') {
       openFirstCachedDetail();
+      return;
+    }
+    if (action === 'home-size-image') {
+      state.view = 'sizeImage';
+      state.copywritingMode = false;
+      state.skuPage = 1;
+      if (!state.selectedSku && state.index[0]) state.selectedSku = state.index[0].sku;
+      state.data = state.selectedSku ? normalizeData(loadData(state.selectedSku) || { sku: state.selectedSku }) : null;
+      expandPanel();
+      renderShell();
+      return;
+    }
+    if (action === 'size-image-pick') {
+      const input = ensurePanel().querySelector('.pfh-size-image-file-input');
+      if (input && !input.disabled) input.click();
+      return;
+    }
+    if (action === 'size-image-download') {
+      downloadCurrentSizeImage();
       return;
     }
     if (action === 'excel-prepare') {
@@ -4658,7 +4980,12 @@
       const sku = skuButton.getAttribute('data-sku');
       const data = loadData(sku);
       state.selectedSku = sku;
-      state.data = data ? normalizeData(data) : null;
+      state.data = data ? normalizeData(data) : (state.view === 'sizeImage' ? normalizeData({ sku }) : null);
+      if (state.view === 'sizeImage') {
+        expandPanel();
+        renderShell();
+        return;
+      }
       state.view = 'detail';
       state.copywritingMode = false;
       resetExcelState();
@@ -4734,6 +5061,12 @@
   }
 
   function handlePanelChange(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-file-input')) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (file) processSizeImageFile(file);
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-upload-file')) {
       const files = Array.from(event.target.files || []);
       files.forEach((file) => storeQueuedUploadFile(file));
@@ -4747,12 +5080,23 @@
   }
 
   function handlePanelDragOver(event) {
+    if (event.target && event.target.closest && event.target.closest('.pfh-size-image-page')) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      return;
+    }
     if (event.target && event.target.closest && event.target.closest('.pfh-upload-section')) {
       event.preventDefault();
     }
   }
 
   function handlePanelDrop(event) {
+    if (event.target && event.target.closest && event.target.closest('.pfh-size-image-page')) {
+      event.preventDefault();
+      const file = Array.from(event.dataTransfer && event.dataTransfer.files || [])[0];
+      if (file) processSizeImageFile(file);
+      return;
+    }
     if (!(event.target && event.target.closest && event.target.closest('.pfh-upload-section'))) return;
     event.preventDefault();
     const files = Array.from(event.dataTransfer && event.dataTransfer.files || []);
@@ -6385,7 +6729,7 @@
     return String(sku || '') + ':' + String(kind || '');
   }
 
-  function runSearch() {
+  function runSearch(targetView) {
     const input = ensurePanel().querySelector('.pfh-search-input');
     if (input) input.value = normalizeSearchInput(input.value);
     state.searchQuery = input ? input.value.trim() : '';
@@ -6397,7 +6741,7 @@
       const data = loadData(target.sku);
       state.selectedSku = target.sku;
       state.data = data ? normalizeData(data) : null;
-      state.view = 'detail';
+      state.view = targetView === 'sizeImage' ? 'sizeImage' : 'detail';
       resetExcelState();
     }
     expandPanel();
@@ -18356,6 +18700,232 @@
       #${PANEL_ID} .pfh-sku-scroll {
         box-sizing: border-box !important;
         padding: 6px 8px 10px !important;
+      }
+      #${PANEL_ID}[data-view="sizeImage"] .pfh-detail {
+        overflow: hidden;
+      }
+      #${PANEL_ID} .pfh-size-image-scroll {
+        height: 100%;
+        overflow: auto;
+        padding: 14px;
+        box-sizing: border-box;
+      }
+      #${PANEL_ID} .pfh-size-image-page {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      #${PANEL_ID} .pfh-size-image-hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border: 1px solid rgba(211, 204, 255, .45);
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(255,255,255,.82), rgba(245,242,255,.64));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92), 0 12px 30px rgba(94,70,170,.08);
+      }
+      #${PANEL_ID} .pfh-size-image-hero small {
+        color: #8c75d8;
+        font-size: 10px;
+        font-weight: 760;
+        letter-spacing: .14em;
+      }
+      #${PANEL_ID} .pfh-size-image-hero h3 {
+        margin: 3px 0 2px;
+        color: #21194f;
+        font-size: 17px;
+      }
+      #${PANEL_ID} .pfh-size-image-hero p {
+        margin: 0;
+        color: #737b9f;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-size-image-hero > span {
+        flex: 0 0 auto;
+        padding: 7px 11px;
+        color: #6d35e8;
+        border: 1px solid rgba(151,124,236,.25);
+        border-radius: 999px;
+        background: rgba(255,255,255,.72);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-size-image-workspace {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(210px, .72fr) minmax(260px, 1.28fr);
+        gap: 12px;
+        flex: 1 1 auto;
+      }
+      #${PANEL_ID} .pfh-size-image-controls,
+      #${PANEL_ID} .pfh-size-image-preview,
+      #${PANEL_ID} .pfh-size-image-placeholder,
+      #${PANEL_ID} .pfh-size-image-empty {
+        border: 1px solid rgba(211,204,255,.42);
+        border-radius: 16px;
+        background: rgba(255,255,255,.64);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+      }
+      #${PANEL_ID} .pfh-size-image-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 13px;
+      }
+      #${PANEL_ID} .pfh-size-image-spec {
+        display: grid;
+        gap: 5px;
+        padding: 12px;
+        border-radius: 13px;
+        background: linear-gradient(145deg, rgba(248,245,255,.86), rgba(240,249,255,.72));
+      }
+      #${PANEL_ID} .pfh-size-image-spec span,
+      #${PANEL_ID} .pfh-size-image-spec small,
+      #${PANEL_ID} .pfh-size-image-file {
+        color: #7c83a4;
+        font-size: 11px;
+        line-height: 1.55;
+      }
+      #${PANEL_ID} .pfh-size-image-spec b {
+        color: #33236c;
+        font-size: 15px;
+      }
+      #${PANEL_ID} .pfh-size-image-drop {
+        min-height: 132px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 7px;
+        padding: 15px !important;
+        border: 1px dashed rgba(124,58,237,.42) !important;
+        border-radius: 14px !important;
+        background: rgba(249,247,255,.74) !important;
+        white-space: normal !important;
+      }
+      #${PANEL_ID} .pfh-size-image-drop:hover {
+        transform: translateY(-1px);
+        border-color: rgba(124,58,237,.7) !important;
+        box-shadow: 0 12px 24px rgba(124,58,237,.1);
+      }
+      #${PANEL_ID} .pfh-size-image-drop .pfh-icon {
+        width: 34px;
+        height: 34px;
+        color: #7c3aed;
+      }
+      #${PANEL_ID} .pfh-size-image-drop strong {
+        color: #34256f;
+        font-size: 13px;
+      }
+      #${PANEL_ID} .pfh-size-image-drop span:not(.pfh-icon) {
+        color: #8a91ae;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-size-image-file {
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-size-image-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: auto;
+      }
+      #${PANEL_ID} .pfh-size-image-actions button {
+        min-height: 34px;
+        border-radius: 10px;
+      }
+      #${PANEL_ID} .pfh-size-image-actions button.is-primary {
+        color: #fff;
+        border-color: #7c3aed;
+        background: linear-gradient(135deg, #8b5cf6, #6d35e8);
+      }
+      #${PANEL_ID} .pfh-size-image-file-input {
+        display: none;
+      }
+      #${PANEL_ID} .pfh-size-image-status {
+        padding: 9px 11px;
+        border-radius: 10px;
+        font-size: 11px;
+        line-height: 1.5;
+      }
+      #${PANEL_ID} .pfh-size-image-status.is-error {
+        color: #a33a48;
+        border: 1px solid rgba(220,90,112,.22);
+        background: rgba(255,239,243,.8);
+      }
+      #${PANEL_ID} .pfh-size-image-status.is-ready {
+        color: #24705c;
+        border: 1px solid rgba(64,170,135,.22);
+        background: rgba(235,252,246,.8);
+      }
+      #${PANEL_ID} .pfh-size-image-preview,
+      #${PANEL_ID} .pfh-size-image-placeholder {
+        min-height: 310px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        padding: 12px;
+      }
+      #${PANEL_ID} .pfh-size-image-preview img {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 10px;
+        box-shadow: 0 10px 28px rgba(39,30,82,.12);
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder {
+        align-content: center;
+        gap: 8px;
+        color: #8b91b2;
+        text-align: center;
+        background: linear-gradient(145deg, rgba(255,255,255,.72), rgba(247,244,255,.58));
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder .pfh-icon {
+        width: 48px;
+        height: 48px;
+        color: #9b86dc;
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder strong {
+        color: #4c4278;
+        font-size: 14px;
+      }
+      #${PANEL_ID} .pfh-size-image-placeholder span:not(.pfh-icon) {
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-size-image-empty {
+        min-height: 320px;
+        display: grid;
+        place-content: center;
+        padding: 28px;
+        text-align: center;
+      }
+      #${PANEL_ID} .pfh-size-image-empty strong {
+        color: #30255f;
+        font-size: 17px;
+      }
+      #${PANEL_ID} .pfh-size-image-empty p {
+        max-width: 390px;
+        color: #7e86a5;
+        line-height: 1.7;
+      }
+      @media (max-width: 760px) {
+        #${PANEL_ID} .pfh-size-image-workspace {
+          grid-template-columns: 1fr;
+        }
+        #${PANEL_ID} .pfh-size-image-hero {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        #${PANEL_ID} .pfh-size-image-preview,
+        #${PANEL_ID} .pfh-size-image-placeholder {
+          min-height: 260px;
+        }
       }
     `;
     document.documentElement.appendChild(style);
