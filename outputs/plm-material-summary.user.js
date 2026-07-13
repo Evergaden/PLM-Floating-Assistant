@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.23
+// @version      2.5.24
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.23';
+  const SCRIPT_VERSION = '2.5.24';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2798,7 +2798,9 @@
     const labelDimension = labelSpec ? formatSizeImageNumber(labelSpec.width) + ' \u00d7 ' + formatSizeImageNumber(labelSpec.height) + ' cm' : '';
     const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : '', labelDimension ? '\u6807\u7b7e ' + labelDimension : ''].filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
     const resultCount = Number(Boolean(session.cartonResultDataUrl)) + Number(Boolean(session.labelResultDataUrl));
-    const status = session.error
+    const status = busy
+      ? '<div class="pfh-size-image-status is-processing"><i></i><span>' + escapeHtml(session.processingStep || '\u6b63\u5728\u8bfb\u53d6\u56fe\u7247...') + '</span><em></em></div>'
+      : session.error
       ? '<div class="pfh-size-image-status is-error">' + escapeHtml(session.error) + '</div>'
       : (resultCount ? '<div class="pfh-size-image-status is-ready">\u5df2\u751f\u6210 ' + resultCount + ' \u4e2a 3000 \u00d7 3000 JPG\u3002</div>' : '');
     const previewCard = (type, url) => {
@@ -2814,10 +2816,11 @@
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
       '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div><span>' + escapeHtml(dimensionText) + '</span></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
-      '<div class="pfh-size-image-workspace"><div class="pfh-size-image-controls">' +
+      '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-remark-input"' + (session.includeRemark === false ? '' : ' checked') + '><span>\u6807\u9898\u6dfb\u52a0\u5907\u6ce8</span><small>' + escapeHtml(remarkHint) + '</small></label>' +
-        '<button type="button" class="pfh-size-image-drop" data-action="size-image-pick"' + disabled + '>' + iconHtml('upload') + '<strong>' + (busy ? '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...' : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>\u53ef\u4e00\u6b21\u9009\u62e9\u7eb8\u76d2\u548c\u6807\u7b7e\u4e24\u5f20\u56fe\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002</span></button>' +
+        '<label class="pfh-size-image-remark"><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6dfb\u52a0\u201c\u5706\u5f27\u201d\u5907\u6ce8</span><small>\u751f\u6210\u6807\u9898\u4e2d\u4f7f\u7528\uff08\u5706\u5f27\uff09\u6807\u8bc6</small></label>' +
+        '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u53ef\u4e00\u6b21\u9009\u62e9\u7eb8\u76d2\u548c\u6807\u7b7e\u4e24\u5f20\u56fe\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
         '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-download-carton"' + (session.cartonResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u7eb8\u76d2 JPG</button><button type="button" class="is-primary" data-action="size-image-download-label"' + (session.labelResultDataUrl ? '' : ' disabled') + '>' + iconHtml('download') + '\u4e0b\u8f7d\u6807\u7b7e JPG</button></div>' +
         '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
@@ -2826,8 +2829,9 @@
   }
 
   function ensureSizeImageSession(sku) {
-    if (!state.sizeImageSessions[sku]) state.sizeImageSessions[sku] = { includeRemark: true };
+    if (!state.sizeImageSessions[sku]) state.sizeImageSessions[sku] = { includeRemark: true, includeRoundArc: true };
     if (typeof state.sizeImageSessions[sku].includeRemark !== 'boolean') state.sizeImageSessions[sku].includeRemark = true;
+    if (typeof state.sizeImageSessions[sku].includeRoundArc !== 'boolean') state.sizeImageSessions[sku].includeRoundArc = true;
     return state.sizeImageSessions[sku];
   }
 
@@ -2883,6 +2887,20 @@
     return trimNumber(Number(value));
   }
 
+  function yieldSizeImageUi() {
+    return new Promise((resolve) => window.requestAnimationFrame(() => window.setTimeout(resolve, 0)));
+  }
+
+  async function setSizeImageProcessingStep(session, text) {
+    session.processingStep = text;
+    const panel = document.getElementById(PANEL_ID);
+    const strong = panel && panel.querySelector('.pfh-size-image-drop.is-processing strong');
+    const status = panel && panel.querySelector('.pfh-size-image-status.is-processing span');
+    if (strong) strong.textContent = text;
+    if (status) status.textContent = text;
+    await yieldSizeImageUi();
+  }
+
   async function processSizeImageFile(file, preferredType, silent) {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     const cartonSpec = getSizeImageSpec(data);
@@ -2903,10 +2921,13 @@
     state.sizeImageBusySku = sku;
     session.fileName = file.name;
     session.error = '';
+    session.processingStep = '\u6b63\u5728\u8bfb\u53d6 ' + file.name;
     if (!silent) renderShell();
+    if (!silent) await yieldSizeImageUi();
     const sourceUrl = URL.createObjectURL(file);
     try {
       const image = await loadSizeImageSource(sourceUrl);
+      await setSizeImageProcessingStep(session, '\u6b63\u5728\u8bc6\u522b\u7eb8\u76d2\u6216\u6807\u7b7e...');
       let detectedType = preferredType === 'carton' || preferredType === 'label' ? preferredType : '';
       let geometry = null;
       let cartonError = null;
@@ -2924,11 +2945,12 @@
         geometry = analyzeLabelSizeImageGeometry(image, labelSpec);
         detectedType = 'label';
       }
+      await setSizeImageProcessingStep(session, '\u8bc6\u522b\u5b8c\u6210\uff0c\u6b63\u5728\u7ed8\u5236 3000 \u00d7 3000 JPG...');
       if (detectedType === 'carton') {
-        session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark);
+        session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark, session.includeRoundArc);
         session.cartonFile = file;
       } else {
-        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark);
+        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark, session.includeRoundArc);
         session.labelFile = file;
       }
       session.error = '';
@@ -2937,8 +2959,11 @@
       session.error = formatSizeImageError(error);
     } finally {
       URL.revokeObjectURL(sourceUrl);
-      if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
-      if (state.view === 'sizeImage') renderShell();
+      if (!silent) {
+        if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
+        session.processingStep = '';
+        if (state.view === 'sizeImage') renderShell();
+      }
     }
   }
 
@@ -2954,9 +2979,19 @@
   async function processSizeImageFiles(files) {
     const items = Array.from(files || []).filter(Boolean);
     if (!items.length) return;
-    for (const file of items) await processSizeImageFile(file, '', true);
     const sku = state.selectedSku || (state.data && state.data.sku) || '';
     const session = sku && ensureSizeImageSession(sku);
+    if (session) {
+      state.sizeImageBusySku = sku;
+      session.error = '';
+      session.fileName = items.map((file) => file.name).join(' / ');
+      session.processingStep = '\u6b63\u5728\u8bfb\u53d6 ' + items.length + ' \u5f20\u56fe\u7247...';
+      if (state.view === 'sizeImage') renderShell();
+      await yieldSizeImageUi();
+    }
+    for (const file of items) await processSizeImageFile(file, '', true);
+    if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
+    if (session) session.processingStep = '';
     if (session && !session.error) {
       const names = [session.cartonResultDataUrl ? '\u7eb8\u76d2' : '', session.labelResultDataUrl ? '\u6807\u7b7e' : ''].filter(Boolean).join('\u548c');
       if (names) showToast('\u5df2\u751f\u6210' + names + '\u5c3a\u5bf8\u56fe');
@@ -3120,7 +3155,7 @@
     };
   }
 
-  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark) {
+  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc) {
     const canvas = document.createElement('canvas');
     canvas.width = 3000;
     canvas.height = 3000;
@@ -3129,12 +3164,12 @@
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
-    context.font = '700 78px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText(getSizeImageTitle('carton', data, includeRemark), 505, 150);
-    context.font = '72px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText(getSizeImageTitle('carton', data, includeRemark, includeRoundArc), 505, 140);
+    context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
     context.fillStyle = '#ee1410';
-    context.font = '70px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('(\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7)', 505, 370);
 
     const physicalWidth = 2 * (spec.length + spec.width);
@@ -3210,7 +3245,7 @@
     context.closePath();
   }
 
-  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark) {
+  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc) {
     const canvas = document.createElement('canvas');
     canvas.width = 3000;
     canvas.height = 3000;
@@ -3219,9 +3254,9 @@
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
-    context.font = '700 78px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText(getSizeImageTitle('label', data, includeRemark), 505, 150);
-    context.font = '72px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
+    context.fillText(getSizeImageTitle('label', data, includeRemark, includeRoundArc), 505, 140);
+    context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
 
     const drawScale = Math.min(1600 / spec.width, 1320 / spec.height);
@@ -3272,11 +3307,13 @@
     return canvas.toDataURL('image/jpeg', 0.96);
   }
 
-  function getSizeImageTitle(type, data, includeRemark) {
+  function getSizeImageTitle(type, data, includeRemark, includeRoundArc) {
     const base = type === 'label' ? '\u6807\u7b7e' : '\u7eb8\u76d2';
     if (!includeRemark) return base;
     const remarks = getSizeImageRemarks(data);
-    const remark = type === 'label' ? remarks.label : remarks.carton;
+    const sourceRemark = type === 'label' ? remarks.label : remarks.carton;
+    const roundArcRemark = includeRoundArc && !String(sourceRemark || '').includes('\u5706\u5f27') ? '\u5706\u5f27' : '';
+    const remark = [sourceRemark, roundArcRemark].filter(Boolean).join(' ');
     return remark ? base + '\uff08' + remark + '\uff09' : base;
   }
 
@@ -5369,6 +5406,13 @@
       const sku = state.selectedSku || (state.data && state.data.sku) || '';
       if (!sku) return;
       ensureSizeImageSession(sku).includeRemark = Boolean(event.target.checked);
+      regenerateCurrentSizeImages();
+      return;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-round-arc-input')) {
+      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      if (!sku) return;
+      ensureSizeImageSession(sku).includeRoundArc = Boolean(event.target.checked);
       regenerateCurrentSizeImages();
       return;
     }
@@ -19178,6 +19222,35 @@
         border-color: rgba(124,58,237,.7) !important;
         box-shadow: 0 12px 24px rgba(124,58,237,.1);
       }
+      #${PANEL_ID} .pfh-size-image-drop.is-processing {
+        position: relative;
+        overflow: hidden;
+        border-style: solid !important;
+        border-color: rgba(124,58,237,.34) !important;
+        background: linear-gradient(135deg, rgba(246,241,255,.94), rgba(238,247,255,.9)) !important;
+        cursor: wait;
+      }
+      #${PANEL_ID} .pfh-size-image-drop.is-processing::after {
+        content: '';
+        position: absolute;
+        left: -45%;
+        bottom: 0;
+        width: 45%;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, #7c3aed, #60a5fa, transparent);
+        animation: pfh-size-image-progress 1.25s ease-in-out infinite;
+      }
+      #${PANEL_ID} .pfh-size-image-spinner,
+      #${PANEL_ID} .pfh-size-image-status.is-processing > i {
+        width: 28px;
+        height: 28px;
+        border: 3px solid rgba(124,58,237,.18);
+        border-top-color: #7c3aed;
+        border-radius: 50%;
+        box-sizing: border-box;
+        animation: pfh-size-image-spin .78s linear infinite;
+      }
       #${PANEL_ID} .pfh-size-image-drop .pfh-icon {
         width: 34px;
         height: 34px;
@@ -19251,6 +19324,33 @@
         border: 1px solid rgba(64,170,135,.22);
         background: rgba(235,252,246,.8);
       }
+      #${PANEL_ID} .pfh-size-image-status.is-processing {
+        position: relative;
+        display: grid;
+        grid-template-columns: 18px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        color: #5b3aa8;
+        border: 1px solid rgba(124,58,237,.18);
+        background: rgba(246,241,255,.86);
+      }
+      #${PANEL_ID} .pfh-size-image-status.is-processing > i {
+        width: 17px;
+        height: 17px;
+        border-width: 2px;
+      }
+      #${PANEL_ID} .pfh-size-image-status.is-processing > em {
+        position: absolute;
+        left: -40%;
+        bottom: 0;
+        width: 40%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #7c3aed, transparent);
+        animation: pfh-size-image-progress 1.2s ease-in-out infinite;
+      }
+      @keyframes pfh-size-image-spin { to { transform: rotate(360deg); } }
+      @keyframes pfh-size-image-progress { 0% { left: -45%; } 100% { left: 105%; } }
       #${PANEL_ID} .pfh-size-image-preview-grid {
         min-width: 0;
         min-height: 310px;
