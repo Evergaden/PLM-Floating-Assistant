@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.17
+// @version      2.5.18
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.17';
+  const SCRIPT_VERSION = '2.5.18';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -18712,18 +18712,25 @@
       }
       #${PANEL_ID}[data-view="sizeImage"] .pfh-detail {
         overflow: hidden;
+        container-type: inline-size;
+      }
+      #${PANEL_ID}[data-view="sizeImage"] .pfh-main {
+        padding: 10px 12px 12px;
       }
       #${PANEL_ID} .pfh-size-image-scroll {
         height: 100%;
-        overflow: auto;
-        padding: 14px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 12px;
         box-sizing: border-box;
       }
       #${PANEL_ID} .pfh-size-image-page {
+        width: 100%;
         min-height: 100%;
         display: flex;
         flex-direction: column;
         gap: 12px;
+        box-sizing: border-box;
       }
       #${PANEL_ID} .pfh-size-image-hero {
         display: flex;
@@ -18746,6 +18753,7 @@
         margin: 3px 0 2px;
         color: #21194f;
         font-size: 17px;
+        overflow-wrap: anywhere;
       }
       #${PANEL_ID} .pfh-size-image-hero p {
         margin: 0;
@@ -18754,6 +18762,7 @@
       }
       #${PANEL_ID} .pfh-size-image-hero > span {
         flex: 0 0 auto;
+        max-width: 46%;
         padding: 7px 11px;
         color: #6d35e8;
         border: 1px solid rgba(151,124,236,.25);
@@ -18761,24 +18770,32 @@
         background: rgba(255,255,255,.72);
         font-size: 12px;
         font-weight: 700;
+        box-sizing: border-box;
+        white-space: normal;
+        text-align: center;
       }
       #${PANEL_ID} .pfh-size-image-workspace {
+        width: 100%;
         min-height: 0;
         display: grid;
-        grid-template-columns: minmax(210px, .72fr) minmax(260px, 1.28fr);
+        grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr);
         gap: 12px;
         flex: 1 1 auto;
+        box-sizing: border-box;
       }
       #${PANEL_ID} .pfh-size-image-controls,
       #${PANEL_ID} .pfh-size-image-preview,
       #${PANEL_ID} .pfh-size-image-placeholder,
       #${PANEL_ID} .pfh-size-image-empty {
+        min-width: 0;
+        box-sizing: border-box;
         border: 1px solid rgba(211,204,255,.42);
         border-radius: 16px;
         background: rgba(255,255,255,.64);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
       }
       #${PANEL_ID} .pfh-size-image-controls {
+        min-width: 0;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -18846,7 +18863,27 @@
       }
       #${PANEL_ID} .pfh-size-image-actions button {
         min-height: 34px;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 4px 6px;
         border-radius: 10px;
+        font-size: 11px;
+        overflow: hidden;
+      }
+      #${PANEL_ID} .pfh-size-image-actions .pfh-icon {
+        width: 15px;
+        height: 15px;
+        flex: 0 0 15px;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      #${PANEL_ID} .pfh-size-image-actions .pfh-icon svg {
+        width: 15px;
+        height: 15px;
       }
       #${PANEL_ID} .pfh-size-image-actions button.is-primary {
         color: #fff;
@@ -18874,11 +18911,13 @@
       }
       #${PANEL_ID} .pfh-size-image-preview,
       #${PANEL_ID} .pfh-size-image-placeholder {
+        min-width: 0;
         min-height: 310px;
         display: grid;
         place-items: center;
         overflow: hidden;
-        padding: 12px;
+        padding: 8px;
+        box-sizing: border-box;
       }
       #${PANEL_ID} .pfh-size-image-preview img {
         display: block;
@@ -18923,7 +18962,42 @@
         color: #7e86a5;
         line-height: 1.7;
       }
-      @media (max-width: 760px) {
+      @container (max-width: 540px) {
+        #${PANEL_ID} .pfh-size-image-scroll {
+          padding: 9px;
+        }
+        #${PANEL_ID} .pfh-size-image-page,
+        #${PANEL_ID} .pfh-size-image-workspace {
+          gap: 8px;
+        }
+        #${PANEL_ID} .pfh-size-image-hero {
+          gap: 8px;
+          padding: 12px 13px;
+        }
+        #${PANEL_ID} .pfh-size-image-hero h3 {
+          font-size: 15px;
+        }
+        #${PANEL_ID} .pfh-size-image-hero > span {
+          padding: 6px 8px;
+          font-size: 11px;
+        }
+        #${PANEL_ID} .pfh-size-image-controls {
+          gap: 8px;
+          padding: 9px;
+        }
+        #${PANEL_ID} .pfh-size-image-spec {
+          padding: 9px;
+        }
+        #${PANEL_ID} .pfh-size-image-drop {
+          min-height: 112px;
+          padding: 10px !important;
+        }
+        #${PANEL_ID} .pfh-size-image-preview,
+        #${PANEL_ID} .pfh-size-image-placeholder {
+          min-height: 260px;
+        }
+      }
+      @container (max-width: 410px) {
         #${PANEL_ID} .pfh-size-image-workspace {
           grid-template-columns: 1fr;
         }
@@ -18933,7 +19007,7 @@
         }
         #${PANEL_ID} .pfh-size-image-preview,
         #${PANEL_ID} .pfh-size-image-placeholder {
-          min-height: 260px;
+          min-height: 300px;
         }
       }
     `;
