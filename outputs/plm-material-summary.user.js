@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.42
+// @version      2.5.43
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.42';
+  const SCRIPT_VERSION = '2.5.43';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -6387,6 +6387,7 @@
     state.uploadQueue = loadUploadQueue();
     if (!state.uploadRunning || state.uploadProcessing) return;
     state.uploadProcessing = true;
+    const attemptedTaskKeys = new Set();
     try {
       await prepareToyLabelBatchQueue(state.uploadQueue);
       while (state.uploadRunning) {
@@ -6395,12 +6396,13 @@
           state.uploadQueue = loadUploadQueue();
           continue;
         }
-        const pendingItems = state.uploadQueue.filter((entry) => entry.xlsxKey && entry.zipKey && !/成功|进行中|已跳过|已有内容|失败/.test(entry.status || ''));
+        const pendingItems = state.uploadQueue.filter((entry) => entry.xlsxKey && entry.zipKey && !attemptedTaskKeys.has(uploadHistoryKey(entry)) && !/成功|进行中|已跳过|已有内容|失败/.test(entry.status || ''));
         const item = pendingItems.find((entry) => entry.kind === 'toy-label') || pendingItems[0];
         if (!item) {
           await finishUploadQueue();
           break;
         }
+        attemptedTaskKeys.add(uploadHistoryKey(item));
         await ensureUploadPageReadyForNextItem();
         try {
           await runUploadQueueItem(item);
@@ -11572,8 +11574,8 @@
     state.uploadQueue = queueSource.filter((item) => !/\u6210\u529f/.test(item.status || '') && !archivedKeys.has(uploadHistoryKey(item)));
     state.uploadHistory = additions.concat(latestHistory).slice(0, 200);
     completed.forEach(cleanupUploadFiles);
-    saveUploadHistory();
     saveUploadQueue();
+    saveUploadHistory();
   }
 
   function archiveUploadItem(item) {
@@ -11587,8 +11589,8 @@
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryKey(entry) !== archivedKey)).slice(0, 200);
     cleanupUploadFiles(latestItem);
-    saveUploadHistory();
     saveUploadQueue();
+    saveUploadHistory();
     if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
     renderShell();
   }
@@ -11613,8 +11615,8 @@
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryKey(entry) !== archivedKey)).slice(0, 200);
     if (!keepFiles) cleanupUploadFiles(latestItem);
-    saveUploadHistory();
     saveUploadQueue();
+    saveUploadHistory();
     renderShell();
   }
 
