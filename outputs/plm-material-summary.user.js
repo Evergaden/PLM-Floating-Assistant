@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.40
+// @version      2.5.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.40';
+  const SCRIPT_VERSION = '2.5.41';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2874,6 +2874,7 @@
     const flatLabel = labelSpec && labelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
     const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : '', labelDimension ? flatLabel + ' ' + labelDimension : ''].filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
     const resultCount = Number(Boolean(session.cartonResultDataUrl)) + Number(Boolean(session.labelResultDataUrl));
+    const canRegenerate = Boolean(session.cartonFile || session.labelFile);
     const status = busy
       ? '<div class="pfh-size-image-status is-processing"><i></i><span>' + escapeHtml(session.processingStep || '\u6b63\u5728\u8bfb\u53d6\u56fe\u7247...') + '</span><em></em></div>'
       : session.error
@@ -2903,7 +2904,7 @@
         '<div class="pfh-size-image-options">' + (labelSpec && labelSpec.kind === 'label' ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u5706\u5f27</span></label>' : '') + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6279\u6b21\u53f7</span></label></div>' +
         '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e/\u5370\u5237\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
-        '<div class="pfh-size-image-actions"><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
+        '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (canRegenerate && !busy ? '' : ' disabled') + '>' + iconHtml('refresh') + '\u91cd\u65b0\u751f\u6210</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
         '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
     '</section></div>';
@@ -3515,8 +3516,33 @@
     const sku = state.selectedSku || (state.data && state.data.sku) || '';
     const session = sku && ensureSizeImageSession(sku);
     if (!session) return;
-    if (session.cartonFile) await processSizeImageFile(session.cartonFile, 'carton', true);
-    if (session.labelFile) await processSizeImageFile(session.labelFile, 'label', true);
+    if (state.sizeImageBusySku === sku) return;
+    const sources = [
+      session.cartonFile ? { file: session.cartonFile, type: 'carton' } : null,
+      session.labelFile ? { file: session.labelFile, type: 'label' } : null,
+    ].filter(Boolean);
+    if (!sources.length) {
+      showToast('\u8bf7\u5148\u5bfc\u5165\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u56fe\u7247');
+      return;
+    }
+    state.sizeImageBusySku = sku;
+    session.error = '';
+    session.processingStep = '\u6b63\u5728\u6309\u6700\u65b0\u9009\u9879\u91cd\u65b0\u751f\u6210...';
+    if (state.view === 'sizeImage') renderShell();
+    await yieldSizeImageUi();
+    try {
+      const errors = [];
+      for (const source of sources) {
+        await processSizeImageFile(source.file, source.type, true);
+        if (session.error) errors.push(session.error);
+      }
+      session.error = errors.join('\n');
+      if (!errors.length) showToast('\u5df2\u6309\u6700\u65b0\u9009\u9879\u91cd\u65b0\u751f\u6210\u5c3a\u5bf8\u56fe');
+    } finally {
+      if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
+      session.processingStep = '';
+      if (state.view === 'sizeImage') renderShell();
+    }
   }
 
   function ledgerViewHtml(records) {
@@ -5091,6 +5117,10 @@
     }
     if (action === 'size-image-save-all') {
       saveCurrentSizeImagesToFolder();
+      return;
+    }
+    if (action === 'size-image-regenerate') {
+      regenerateCurrentSizeImages();
       return;
     }
     if (action === 'excel-prepare') {
@@ -19507,7 +19537,7 @@
       }
       #${PANEL_ID} .pfh-size-image-actions {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
         gap: 8px;
         margin-top: auto;
       }
@@ -19539,6 +19569,11 @@
         color: #fff;
         border-color: #7c3aed;
         background: linear-gradient(135deg, #8b5cf6, #6d35e8);
+      }
+      #${PANEL_ID} .pfh-size-image-actions button.is-secondary {
+        color: #6d35e8;
+        border-color: rgba(124,58,237,.34);
+        background: rgba(255,255,255,.88);
       }
       #${PANEL_ID} .pfh-size-image-file-input {
         display: none;
