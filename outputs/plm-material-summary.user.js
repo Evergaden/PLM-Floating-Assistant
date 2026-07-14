@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.41
+// @version      2.5.42
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.41';
+  const SCRIPT_VERSION = '2.5.42';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -4789,8 +4789,8 @@
     normalizeRunningUploadsInQueue();
     const viewingHistory = state.uploadView === 'history';
     const history = state.uploadHistory || [];
-    const successHistoryKeys = new Set(history.filter(isUploadHistorySuccess).map(uploadHistoryKey));
-    const queue = (state.uploadQueue || []).filter((item) => !/\u6210\u529f/.test(item.status || '') && !successHistoryKeys.has(uploadHistoryKey(item)));
+    const successfulHistory = history.filter(isUploadHistorySuccess);
+    const queue = (state.uploadQueue || []).filter((item) => !/\u6210\u529f/.test(item.status || ''));
     if (queue.length !== (state.uploadQueue || []).length) {
       state.uploadQueue = queue;
       saveUploadQueue();
@@ -4817,6 +4817,10 @@
         item.xlsxName ? 'XLSX \u5df2\u6709 ' + item.xlsxName : 'XLSX \u7f3a\u5c11',
         item.zipName ? 'ZIP \u5df2\u6709 ' + item.zipName : 'ZIP \u7f3a\u5c11',
       ].join(' | ');
+      const previousUpload = viewingHistory ? null : findPreviousSuccessfulUpload(item, successfulHistory);
+      const previousUploadText = previousUpload ? '\u4e0a\u6b21\u4e0a\u4f20\uff1a' + (previousUpload.completedAt || previousUpload.updatedAt || '') : '';
+      const progressText = viewingHistory ? (item.completedAt || item.updatedAt || '') : [previousUploadText, item.step || files].filter(Boolean).join(' \u00b7 ');
+      const progressTitle = viewingHistory ? (item.step || item.skipReason || '') : [previousUploadText, files].filter(Boolean).join('\n');
       const uploadName = getUploadDisplayName(item);
       const selectAction = viewingHistory ? 'upload-history-select' : 'upload-queue-select';
       const selectHtml = '<button type="button" class="pfh-upload-check' + (selectedIds.has(item.id) ? ' is-checked' : '') + '" data-action="' + selectAction + '" data-upload-id="' + escapeHtml(item.id) + '" title="\u9009\u4e2d"></button>';
@@ -4824,7 +4828,7 @@
       return '<div class="pfh-upload-item' + active + (viewingHistory ? ' is-history' : '') + '" data-upload-id="' + escapeHtml(item.id) + '">' +
         '<div><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(uploadName) + '</small></div>' +
         '<span class="' + statusClass + '">' + escapeHtml(status) + '</span>' +
-        '<em title="' + escapeHtml(viewingHistory ? (item.step || item.skipReason || '') : files) + '">' + escapeHtml(viewingHistory ? (item.completedAt || item.updatedAt || '') : (item.step || files)) + '</em>' +
+        '<em title="' + escapeHtml(progressTitle) + '">' + escapeHtml(progressText) + '</em>' +
         actionHtml +
         '</div>';
     }).join('') : '<div class="pfh-empty">' + escapeHtml(viewingHistory ? L.uploadHistoryEmpty : L.uploadQueueEmpty) + '</div>';
@@ -4840,8 +4844,7 @@
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="\u4f7f\u7528\u8bf4\u660e" aria-label="\u4f7f\u7528\u8bf4\u660e">' + uploadGuideIconHtml() + '</button>' +
       '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
-      '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button>' +
-      '<button type="button" data-action="upload-toggle">' + escapeHtml('\u6536\u8d77') + '</button></div>' +
+      '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button></div>' +
       '<div class="pfh-upload-body">' +
         (viewingHistory ? '' : uploadModeTabs + (state.uploadMode === 'toy-label'
           ? '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>'
@@ -6063,9 +6066,8 @@
         createdAt: now,
       });
     });
-    const targetKeys = new Set(targets.map(uploadHistoryKey));
     state.uploadQueue = queue;
-    state.uploadHistory = history.filter((item) => !idSet.has(item.id) && !targetKeys.has(uploadHistoryKey(item)));
+    state.uploadHistory = history;
     state.uploadSelectedIds = (state.uploadSelectedIds || []).filter((id) => !idSet.has(id));
     saveUploadQueue();
     saveUploadHistory();
@@ -11639,6 +11641,15 @@
 
   function uploadHistoryKey(item) {
     return [item && item.sku, item && item.xlsxName, item && item.zipName].filter(Boolean).join('|') || (item && item.id) || '';
+  }
+
+  function findPreviousSuccessfulUpload(item, successfulHistory) {
+    const history = Array.isArray(successfulHistory) ? successfulHistory : [];
+    const key = uploadHistoryKey(item);
+    const kind = item && item.kind || 'standard';
+    return history.find((entry) => uploadHistoryKey(entry) === key && (entry.kind || 'standard') === kind)
+      || history.find((entry) => entry.sku === item.sku && (entry.kind || 'standard') === kind)
+      || null;
   }
 
   function isUploadHistorySuccess(item) {
@@ -19757,7 +19768,7 @@
           min-height: 300px;
         }
       }
-      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > .pfh-upload-back {
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type {
         width: 30px !important;
         min-width: 30px !important;
         height: 30px !important;
