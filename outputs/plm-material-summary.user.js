@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.43
+// @version      2.5.44
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.43';
+  const SCRIPT_VERSION = '2.5.44';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -740,7 +740,10 @@
         state.uploadRunning = loadUploadWorkerRunning();
         if (state.view === 'upload' || state.uploadExpanded) renderShell();
       });
-      GM_addValueChangeListener(UPLOAD_HISTORY_KEY, () => refresh());
+      GM_addValueChangeListener(UPLOAD_HISTORY_KEY, () => {
+        if (state.uploadView === 'history') state.uploadHistoryPage = 1;
+        refresh();
+      });
       GM_addValueChangeListener(UPLOAD_WORKER_KEY, () => refresh());
     }
     window.addEventListener('storage', (event) => {
@@ -5325,6 +5328,7 @@
     }
     if (action === 'upload-history-toggle') {
       state.uploadView = state.uploadView === 'history' ? 'queue' : 'history';
+      if (state.uploadView === 'history') state.uploadHistoryPage = 1;
       renderShell();
       return;
     }
@@ -11561,18 +11565,23 @@
     const queueSource = latestQueue.length ? latestQueue : (state.uploadQueue || []);
     const completed = queueSource.filter((item) => /\u6210\u529f/.test(item.status || ''));
     if (!completed.length) return;
-    const existingIds = new Set(latestHistory.filter(isUploadHistorySuccess).map(uploadHistoryKey));
-    const additions = completed.map((item) => ({
-      ...item,
-      status: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess),
-      step: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : item.step,
-      completedAt: item.completedAt || item.updatedAt || new Date().toLocaleString(),
-      xlsxKey: '',
-      zipKey: '',
-    })).filter((item) => !existingIds.has(uploadHistoryKey(item)));
+    const additionsByProduct = new Map();
+    completed.forEach((item) => {
+      const archived = {
+        ...item,
+        status: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess),
+        step: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : item.step,
+        completedAt: item.completedAt || item.updatedAt || new Date().toLocaleString(),
+        xlsxKey: '',
+        zipKey: '',
+      };
+      additionsByProduct.set(uploadHistoryProductKey(archived), archived);
+    });
+    const additions = Array.from(additionsByProduct.values());
+    const completedProductKeys = new Set(additions.map(uploadHistoryProductKey));
     const archivedKeys = new Set(completed.map(uploadHistoryKey));
     state.uploadQueue = queueSource.filter((item) => !/\u6210\u529f/.test(item.status || '') && !archivedKeys.has(uploadHistoryKey(item)));
-    state.uploadHistory = additions.concat(latestHistory).slice(0, 200);
+    state.uploadHistory = additions.concat(latestHistory.filter((item) => !completedProductKeys.has(uploadHistoryProductKey(item)))).slice(0, 200);
     completed.forEach(cleanupUploadFiles);
     saveUploadQueue();
     saveUploadHistory();
@@ -11585,9 +11594,9 @@
     const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
     const successText = latestItem.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess;
     const archived = { ...latestItem, status: successText, step: successText, completedAt, updatedAt: completedAt, xlsxKey: '', zipKey: '' };
-    const archivedKey = uploadHistoryKey(archived);
-    state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
-    state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryKey(entry) !== archivedKey)).slice(0, 200);
+    const archivedProductKey = uploadHistoryProductKey(archived);
+    state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryProductKey(entry) !== archivedProductKey);
+    state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryProductKey(entry) !== archivedProductKey)).slice(0, 200);
     cleanupUploadFiles(latestItem);
     saveUploadQueue();
     saveUploadHistory();
@@ -11643,6 +11652,10 @@
 
   function uploadHistoryKey(item) {
     return [item && item.sku, item && item.xlsxName, item && item.zipName].filter(Boolean).join('|') || (item && item.id) || '';
+  }
+
+  function uploadHistoryProductKey(item) {
+    return [(item && item.kind) || 'standard', item && item.sku].filter(Boolean).join('|') || (item && item.id) || '';
   }
 
   function findPreviousSuccessfulUpload(item, successfulHistory) {
