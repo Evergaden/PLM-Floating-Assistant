@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.38
+// @version      2.5.39
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.38';
+  const SCRIPT_VERSION = '2.5.39';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2869,7 +2869,7 @@
     const labelSpec = getLabelSizeImageSpec(data);
     const session = ensureSizeImageSession(data.sku);
     const busy = state.sizeImageBusySku === data.sku;
-    const cartonDimension = cartonSpec ? formatSizeImageNumber(cartonSpec.length) + ' \u00d7 ' + formatSizeImageNumber(cartonSpec.width) + ' \u00d7 ' + formatSizeImageNumber(cartonSpec.height) + ' cm' : '';
+    const cartonDimension = cartonSpec ? [cartonSpec.length, cartonSpec.width, cartonSpec.height].concat(cartonSpec.extraWidths || []).map(formatSizeImageNumber).join(' \u00d7 ') + ' cm' : '';
     const labelDimension = labelSpec ? formatSizeImageNumber(labelSpec.width) + ' \u00d7 ' + formatSizeImageNumber(labelSpec.height) + ' cm' : '';
     const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : '', labelDimension ? '\u6807\u7b7e ' + labelDimension : ''].filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
     const resultCount = Number(Boolean(session.cartonResultDataUrl)) + Number(Boolean(session.labelResultDataUrl));
@@ -2919,12 +2919,12 @@
   function getSizeImageSpec(data) {
     if (!data || !/\u7eb8\u76d2/.test(String(data.packageSizeLabel || ''))) return null;
     const nums = Array.isArray(data.packageNums) ? data.packageNums.map(Number) : [];
-    if (nums.length !== 3 || nums.some((value) => !Number.isFinite(value) || value <= 0)) return null;
-    return { length: nums[0], width: nums[1], height: nums[2] };
+    if (![3, 5].includes(nums.length) || nums.some((value) => !Number.isFinite(value) || value <= 0)) return null;
+    return { length: nums[0], width: nums[1], height: nums[2], extraWidths: nums.slice(3) };
   }
 
   function getSizeImageSpecError(data) {
-    if (Array.isArray(data && data.packageNums) && data.packageNums.length > 3) return '\u5f53\u524d\u7eb8\u76d2\u542b\u591a\u9875\u5c3a\u5bf8\uff0c\u6682\u4e0d\u652f\u6301\u3002';
+    if (Array.isArray(data && data.packageNums) && data.packageNums.length > 3) return '\u591a\u9875\u7eb8\u76d2\u9700\u8981\u201c\u957f X \u5bbd X \u9ad8 X \u7b2c\u4e94\u9762\u5bbd X \u7b2c\u516d\u9762\u5bbd\u201d\u5171 5 \u4e2a\u5c3a\u5bf8\u3002';
     return '\u672a\u627e\u5230\u53ef\u7528\u7684\u7eb8\u76d2\u6216\u6807\u7b7e\u5c3a\u5bf8\uff0c\u8bf7\u5148\u5237\u65b0 PLM \u7f13\u5b58\u3002';
   }
 
@@ -3132,13 +3132,13 @@
         start = -1;
       }
     }
-    if (bestStart < 0 || bestEnd - bestStart < 20) throw new Error('\u65e0\u6cd5\u5b9a\u4f4d\u56db\u9762\u8fde\u7eed\u7684\u7eb8\u76d2\u4e3b\u4f53\u3002');
+    if (bestStart < 0 || bestEnd - bestStart < 20) throw new Error('\u65e0\u6cd5\u5b9a\u4f4d\u8fde\u7eed\u7684\u7eb8\u76d2\u4e3b\u4f53\u3002');
     const sampleRows = rows.slice(bestStart, bestEnd).filter((row) => row.count >= threshold);
     const bodyLeft = Math.min(...sampleRows.map((row) => row.left));
     const bodyRight = Math.max(...sampleRows.map((row) => row.right + 1));
     const bodyWidth = bodyRight - bodyLeft;
     const bodyHeight = bestEnd - bestStart;
-    const physicalBodyWidth = 2 * (spec.length + spec.width);
+    const physicalBodyWidth = getCartonBodyWidths(spec).reduce((sum, value) => sum + value, 0);
     const scaleX = bodyWidth / physicalBodyWidth;
     const scaleY = bodyHeight / spec.height;
     const scaleDelta = Math.abs(scaleX - scaleY) / Math.max(scaleX, scaleY);
@@ -3174,7 +3174,7 @@
     };
     const bodyCoverage = coverage({ x: bodyLeft, y: bestStart, width: bodyWidth, height: bodyHeight });
     if (bodyCoverage < 0.94 || coverage(topRect) < 0.82 || coverage(bottomRect) < 0.82) {
-      throw new Error('\u900f\u660e\u8f6e\u5ed3\u4e0d\u7b26\u5408\u201c\u56db\u9762\u4e3b\u4f53 + \u7b2c\u4e8c\u9762\u9876\u76d6 + \u7b2c\u56db\u9762\u5e95\u76d6\u201d\u7ed3\u6784\u3002');
+      throw new Error('\u900f\u660e\u8f6e\u5ed3\u4e0d\u7b26\u5408\u201c\u8fde\u7eed\u4e3b\u4f53 + \u7b2c\u4e8c\u9762\u9876\u76d6 + \u7b2c\u56db\u9762\u5e95\u76d6\u201d\u7ed3\u6784\u3002');
     }
     return {
       bodyLeft: bodyLeft * image.naturalWidth / width,
@@ -3250,12 +3250,14 @@
     context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText(getSizeImageTitle('carton', data, includeRemark, includeRoundArc, customRemark), 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
+    const extraSizeText = (spec.extraWidths || []).map((value) => 'X' + formatSizeImageNumber(value)).join('');
+    context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + extraSizeText + 'CM', 505, 260);
     context.fillStyle = '#ee1410';
     context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText('(\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7)', 505, 370);
 
-    const physicalWidth = 2 * (spec.length + spec.width);
+    const bodyWidths = getCartonBodyWidths(spec);
+    const physicalWidth = bodyWidths.reduce((sum, value) => sum + value, 0);
     const physicalHeight = spec.height + 2 * spec.width;
     const cartonAspect = physicalWidth / physicalHeight;
     const widthLimit = clamp(1600 + ((cartonAspect - 0.72) / 0.38) * 450, 1600, 2050);
@@ -3308,7 +3310,24 @@
     context.textAlign = 'center';
     context.fillText(formatSizeImageNumber(spec.width) + 'cm', (artX + firstEnd) / 2, bottomY + 34);
     context.fillText(formatSizeImageNumber(spec.length) + 'cm', (firstEnd + secondEnd) / 2, bottomY + 34);
+    if (bodyWidths.length > 4) {
+      const extraStart = artX + bodyWidths.slice(0, 4).reduce((sum, value) => sum + value, 0) * drawScale;
+      const extraLineY = bodyTop - 48;
+      let cursorX = extraStart;
+      drawSizeImageLine(context, extraStart, extraLineY, artX + artWidth, extraLineY);
+      drawSizeImageLine(context, extraStart, extraLineY - tick, extraStart, extraLineY + tick);
+      bodyWidths.slice(4).forEach((width) => {
+        const nextX = cursorX + width * drawScale;
+        drawSizeImageLine(context, nextX, extraLineY - tick, nextX, extraLineY + tick);
+        context.fillText(formatSizeImageNumber(width) + 'cm', (cursorX + nextX) / 2, extraLineY - 102);
+        cursorX = nextX;
+      });
+    }
     return canvas.toDataURL('image/jpeg', 0.96);
+  }
+
+  function getCartonBodyWidths(spec) {
+    return [spec.width, spec.length, spec.width, spec.length].concat(Array.isArray(spec.extraWidths) ? spec.extraWidths : []);
   }
 
   function traceCartonSizeImageOutline(context, artX, artY, scale, spec) {
@@ -3323,7 +3342,10 @@
     context.lineTo(artX + width * scale, artY);
     context.lineTo(artX + (width + length) * scale, artY);
     context.lineTo(artX + (width + length) * scale, bodyTop);
-    context.lineTo(artX + 2 * (width + length) * scale, bodyTop);
+    const bodyWidth = getCartonBodyWidths(spec).reduce((sum, value) => sum + value, 0);
+    context.lineTo(artX + bodyWidth * scale, bodyTop);
+    context.lineTo(artX + bodyWidth * scale, bodyBottom);
+    context.lineTo(artX + 2 * (width + length) * scale, bodyBottom);
     context.lineTo(artX + 2 * (width + length) * scale, flapBottom);
     context.lineTo(artX + (2 * width + length) * scale, flapBottom);
     context.lineTo(artX + (2 * width + length) * scale, bodyBottom);
@@ -3347,14 +3369,15 @@
     if (includeBatchNumber) {
       context.fillStyle = '#ee1410';
       context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
-      context.fillText('\uff08\u6279\u6b21\u53f7\uff09', 469, 370);
+      const batchNote = shouldUseFullLabelDateRemark(data) ? '\uff08\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7\uff09' : '\uff08\u6279\u6b21\u53f7\uff09';
+      context.fillText(batchNote, 469, 370);
     }
 
-    const drawScale = Math.min(1600 / spec.width, 1320 / spec.height);
+    const drawScale = Math.min(2050 / spec.width, 1550 / spec.height);
     const artWidth = spec.width * drawScale;
     const artHeight = spec.height * drawScale;
     const artX = Math.round((3000 - artWidth) / 2);
-    const artY = clamp(Math.round((3000 - artHeight) / 2), 860, 1040);
+    const artY = clamp(Math.round((3000 - artHeight) / 2), 760, 1200);
     const cornerRadius = includeRoundArc ? Math.min(18, Math.max(6, drawScale * 0.08)) : 0;
     context.save();
     context.beginPath();
@@ -3404,6 +3427,11 @@
     context.textAlign = 'center';
     context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth / 2, bottomY + 34);
     return canvas.toDataURL('image/jpeg', 0.96);
+  }
+
+  function shouldUseFullLabelDateRemark(data) {
+    const brand = String(data && data.brand || '').trim().toUpperCase();
+    return ['DOCTEAT', 'GOOGEER', 'BUSHAID'].some((name) => brand.includes(name)) && !getSizeImageSpec(data) && Boolean(getLabelSizeImageSpec(data));
   }
 
   function getSizeImageTitle(type, data, includeRemark, includeRoundArc, customRemark) {
