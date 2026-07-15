@@ -73,6 +73,7 @@
           englishResult: '',
           busy: false,
           error: '',
+          singleBottle: Boolean(data && data.singleBottle),
           showSide: null,
           frontIsLength: true,
           featuresDirty: false,
@@ -238,6 +239,13 @@
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(image, 0, 0, width, height);
       const pixels = ctx.getImageData(0, 0, width, height).data;
+      if (session.singleBottle) {
+        const bottle = alphaBounds(pixels, width, height, 0, width);
+        if (!bottle) throw new Error('没有可靠识别出单瓶产品轮廓，请重新导出透明 PNG。');
+        const f = 1 / scale;
+        const convert = (rect) => ({ left: rect.left * f, top: rect.top * f, right: rect.right * f, bottom: rect.bottom * f, width: rect.width * f, height: rect.height * f });
+        return { box: null, product: convert(bottle), splitX: 0, sidePixels: 0, detectedSide: false, perspective: null, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
+      }
       const occupancy = [];
       for (let x = 0; x < width; x += 1) {
         let count = 0;
@@ -294,7 +302,7 @@
       ctx.save();
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, x, rect.top, x, rect.bottom); line(ctx, x - 16, rect.top, x + 16, rect.top); line(ctx, x - 16, rect.bottom, x + 16, rect.bottom);
-      ctx.translate(x + (side === 'left' ? -58 : 58), (rect.top + rect.bottom) / 2);
+      ctx.translate(x + (side === 'left' ? -82 : 82), (rect.top + rect.bottom) / 2);
       ctx.rotate(Math.PI / 2); ctx.font = '42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
@@ -307,7 +315,7 @@
       line(ctx, rect.left, y, rect.right, y); line(ctx, rect.left, y - 16, rect.left, y + 16); line(ctx, rect.right, y - 16, rect.right, y + 16);
       ctx.font = '42px Arial'; ctx.textAlign = 'center';
       ctx.textBaseline = below ? 'top' : 'bottom';
-      ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 20 : -20));
+      ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 38 : -38));
       ctx.restore();
     }
 
@@ -317,7 +325,7 @@
       const x2 = rect.left + depth, y2 = rect.top - 30, x1 = rect.left - 12, y1 = rect.top + 12;
       ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, x1, y1, x2, y2); line(ctx, x1 - 9, y1 - 14, x1 + 9, y1 + 14); line(ctx, x2 - 9, y2 - 14, x2 + 9, y2 + 14);
-      ctx.translate((x1 + x2) / 2 - 12, (y1 + y2) / 2 - 42); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+      ctx.translate((x1 + x2) / 2 - 12, (y1 + y2) / 2 - 60); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
       ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
@@ -327,7 +335,7 @@
       const length = Math.hypot(dx, dy);
       if (length < 8) return;
       const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
-      const offset = 36, textGap = 22, tick = 16;
+      const offset = 36, textGap = 46, tick = 16;
       const a = { x: start.x + nx * offset, y: start.y + ny * offset };
       const b = { x: end.x + nx * offset, y: end.y + ny * offset };
       ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
@@ -348,10 +356,16 @@
         ctx.beginPath(); ctx.rect(area.clipLeft, 0, 1600 - area.clipLeft, 1600); ctx.clip();
       }
       ctx.drawImage(image, fit.x, fit.y, analysis.sourceWidth * fit.scale, analysis.sourceHeight * fit.scale);
-      const box = mapRect(analysis.box, fit), product = mapRect(analysis.product, fit);
+      const box = analysis.box ? mapRect(analysis.box, fit) : null, product = mapRect(analysis.product, fit);
       const frontValue = session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth;
       const sideValue = session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength;
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
+      if (session.singleBottle) {
+        drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+        drawHorizontalDimension(ctx, product, session.fields.productWidth, true);
+        ctx.restore();
+        return;
+      }
       if (session.showSide && perspective) {
         drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
         drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
@@ -429,8 +443,8 @@
         ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
       const rightArea = session.showSide
-        ? { x: 900, y: 280, width: 590, height: 1080, clipLeft: 815 }
-        : { x: 890, y: 280, width: 610, height: 1080, clipLeft: 815 };
+        ? { x: 940, y: 300, width: 500, height: 1040, clipLeft: 815 }
+        : { x: 930, y: 300, width: 510, height: 1040, clipLeft: 815 };
       drawProductModule(ctx, image, analysis, session, rightArea);
       return canvas.toDataURL('image/jpeg', .96);
     }

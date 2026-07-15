@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.49
+// @version      2.5.50
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.49';
+  const SCRIPT_VERSION = '2.5.50';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -121,6 +121,7 @@
           englishResult: '',
           busy: false,
           error: '',
+          singleBottle: Boolean(data && data.singleBottle),
           showSide: null,
           frontIsLength: true,
           featuresDirty: false,
@@ -286,6 +287,13 @@
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(image, 0, 0, width, height);
       const pixels = ctx.getImageData(0, 0, width, height).data;
+      if (session.singleBottle) {
+        const bottle = alphaBounds(pixels, width, height, 0, width);
+        if (!bottle) throw new Error('没有可靠识别出单瓶产品轮廓，请重新导出透明 PNG。');
+        const f = 1 / scale;
+        const convert = (rect) => ({ left: rect.left * f, top: rect.top * f, right: rect.right * f, bottom: rect.bottom * f, width: rect.width * f, height: rect.height * f });
+        return { box: null, product: convert(bottle), splitX: 0, sidePixels: 0, detectedSide: false, perspective: null, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
+      }
       const occupancy = [];
       for (let x = 0; x < width; x += 1) {
         let count = 0;
@@ -342,7 +350,7 @@
       ctx.save();
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, x, rect.top, x, rect.bottom); line(ctx, x - 16, rect.top, x + 16, rect.top); line(ctx, x - 16, rect.bottom, x + 16, rect.bottom);
-      ctx.translate(x + (side === 'left' ? -58 : 58), (rect.top + rect.bottom) / 2);
+      ctx.translate(x + (side === 'left' ? -82 : 82), (rect.top + rect.bottom) / 2);
       ctx.rotate(Math.PI / 2); ctx.font = '42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
@@ -355,7 +363,7 @@
       line(ctx, rect.left, y, rect.right, y); line(ctx, rect.left, y - 16, rect.left, y + 16); line(ctx, rect.right, y - 16, rect.right, y + 16);
       ctx.font = '42px Arial'; ctx.textAlign = 'center';
       ctx.textBaseline = below ? 'top' : 'bottom';
-      ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 20 : -20));
+      ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 38 : -38));
       ctx.restore();
     }
 
@@ -365,7 +373,7 @@
       const x2 = rect.left + depth, y2 = rect.top - 30, x1 = rect.left - 12, y1 = rect.top + 12;
       ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, x1, y1, x2, y2); line(ctx, x1 - 9, y1 - 14, x1 + 9, y1 + 14); line(ctx, x2 - 9, y2 - 14, x2 + 9, y2 + 14);
-      ctx.translate((x1 + x2) / 2 - 12, (y1 + y2) / 2 - 42); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+      ctx.translate((x1 + x2) / 2 - 12, (y1 + y2) / 2 - 60); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
       ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
@@ -375,7 +383,7 @@
       const length = Math.hypot(dx, dy);
       if (length < 8) return;
       const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
-      const offset = 36, textGap = 22, tick = 16;
+      const offset = 36, textGap = 46, tick = 16;
       const a = { x: start.x + nx * offset, y: start.y + ny * offset };
       const b = { x: end.x + nx * offset, y: end.y + ny * offset };
       ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
@@ -396,10 +404,16 @@
         ctx.beginPath(); ctx.rect(area.clipLeft, 0, 1600 - area.clipLeft, 1600); ctx.clip();
       }
       ctx.drawImage(image, fit.x, fit.y, analysis.sourceWidth * fit.scale, analysis.sourceHeight * fit.scale);
-      const box = mapRect(analysis.box, fit), product = mapRect(analysis.product, fit);
+      const box = analysis.box ? mapRect(analysis.box, fit) : null, product = mapRect(analysis.product, fit);
       const frontValue = session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth;
       const sideValue = session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength;
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
+      if (session.singleBottle) {
+        drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+        drawHorizontalDimension(ctx, product, session.fields.productWidth, true);
+        ctx.restore();
+        return;
+      }
       if (session.showSide && perspective) {
         drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
         drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
@@ -477,8 +491,8 @@
         ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
       const rightArea = session.showSide
-        ? { x: 900, y: 280, width: 590, height: 1080, clipLeft: 815 }
-        : { x: 890, y: 280, width: 610, height: 1080, clipLeft: 815 };
+        ? { x: 940, y: 300, width: 500, height: 1040, clipLeft: 815 }
+        : { x: 930, y: 300, width: 510, height: 1040, clipLeft: 815 };
       drawProductModule(ctx, image, analysis, session, rightArea);
       return canvas.toDataURL('image/jpeg', .96);
     }
@@ -1943,9 +1957,13 @@
     const tubeFields = extractTubeFields(drawer);
     const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'), tubeFields);
     const isTubePrint = Boolean(tubeSpec);
-    const packageNums = packaging.packageNums || outer.packageNums;
+    const singleBottle = Boolean(
+      food.productNums && !packaging.packageNums && outer.packageNums &&
+      !/\u7eb8\u76d2/.test(String(packaging.packageSizeLabel || '') + String(packaging.packageSizeText || ''))
+    );
+    const packageNums = singleBottle ? null : (packaging.packageNums || outer.packageNums);
     const hasInnerCard = hasInnerCardMark(packaging);
-    const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums;
+    const productNums = singleBottle ? outer.packageNums : (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums);
 
     return {
       sku: findSku(text),
@@ -1965,6 +1983,8 @@
       isTubePrintMaterial: isTubePrint || packaging.isTubePrintMaterial,
       packageNums,
       productNums,
+      bottleNums: singleBottle ? outer.packageNums : null,
+      singleBottle,
       packageSource: packaging.packageSizeText || food.productNums || isTubePrint ? L.sourceMaterial : (outer.packageNums ? L.sourceOuter : ''),
       hasInnerCard,
       brand: getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer),
@@ -2040,18 +2060,31 @@
     migrateLabelValue(safe, 'printSizeLabel', 'printSizeText');
     stripKnownLabelPrefix(safe, 'packageSizeLabel', 'packageSizeText');
     stripKnownLabelPrefix(safe, 'printSizeLabel', 'printSizeText');
-    const packageNums = Array.isArray(safe.packageNums) ? safe.packageNums : parseDimension(safe.packageSizeText, 3);
+    const detectedPackageNums = Array.isArray(safe.packageNums) ? safe.packageNums : parseDimension(safe.packageSizeText, 3);
+    const classificationText = [safe.name, safe.netContent, safe.packageSizeLabel, safe.packageSizeText, safe.printSizeLabel, safe.printSizeText].filter(Boolean).join(' ');
+    const singleBottle = Boolean(safe.singleBottle || (
+      detectedPackageNums &&
+      !/\u7eb8\u76d2/.test(String(safe.packageSizeLabel || '') + String(safe.packageSizeText || '')) &&
+      /\u6807\u7b7e/.test(String(safe.printSizeLabel || '') + String(safe.printSizeText || '')) &&
+      /\u98df\u54c1|\u80f6\u56ca|\u8f6f\u7cd6|capsules?|gumm(?:y|ies)|tablets?/i.test(classificationText)
+    ));
+    const bottleNums = singleBottle
+      ? (Array.isArray(safe.bottleNums) ? safe.bottleNums : (detectedPackageNums || (Array.isArray(safe.productNums) ? safe.productNums : null)))
+      : null;
+    const packageNums = singleBottle ? null : detectedPackageNums;
     const hasInnerCard = hasInnerCardMark(safe);
     if (packageNums && packageNums.length >= 5 && !/\u591a\u9875/.test(String(safe.packageSizeLabel || ''))) {
       safe.packageSizeLabel = appendChineseRemark(safe.packageSizeLabel, '\u591a\u9875');
     }
-    const productNums = packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : (Array.isArray(safe.productNums) ? safe.productNums : null);
+    const productNums = singleBottle ? bottleNums : (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : (Array.isArray(safe.productNums) ? safe.productNums : null));
     const isTubePrint = isTubePrintData(safe, packageNums);
     const copywriting = normalizeCopywritingRecord(safe.copywriting);
     return {
       ...safe,
       copywriting,
       hasInnerCard,
+      singleBottle,
+      bottleNums,
       isTubePrint,
       isTubePrintMaterial: Boolean(safe.isTubePrintMaterial),
       packageNums,
@@ -8638,7 +8671,7 @@
     if (!extra.isSkuDesignImage || (!extra.imageUrl && !extra.imageFallbackUrl)) missing.push('\u4ea7\u54c1\u56fe');
     if (!extra.benchmarkLink) missing.push('\u5bf9\u6807\u94fe\u63a5');
     if (!data.productLength || !data.productWidth || !data.productHeight) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
-    if (!data.packageLength || !data.packageWidth || !data.packageHeight) missing.push('\u5305\u88c5\u5c3a\u5bf8');
+    if (!data.singleBottle && (!data.packageLength || !data.packageWidth || !data.packageHeight)) missing.push('\u5305\u88c5\u5c3a\u5bf8');
     if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
     if (!data.grossWeight) missing.push('\u6bdb\u91cd');
     return missing;
@@ -8698,8 +8731,9 @@
       setCell(sheet, 'C4', '');
       setCell(sheet, 'E4', compactText(packQty));
       setCell(sheet, 'G4', excelData.sku || '');
-      sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"\u76d2\u88c5",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"\u888b\u88c5",""))' };
-      setCell(sheet, 'I4', formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, []));
+      if (excelData.singleBottle) setCell(sheet, 'H4', '\u74f6\u88c5');
+      else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"\u76d2\u88c5",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"\u888b\u88c5",""))' };
+      setCell(sheet, 'I4', excelData.singleBottle ? '' : (formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, [])));
       setCell(sheet, 'J4', formatExcelDimFromParts([excelData.packageLength, excelData.packageWidth, excelData.packageHeight]) || formatExcelDim(excelData.packageNums, []));
       setCell(sheet, 'L4', formatIngredientsForExcel(extra.ingredients));
       setCell(sheet, 'M4', normalizeExcelUnit(excelData.netContent));
