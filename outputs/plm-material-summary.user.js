@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.57
+// @version      2.5.58
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.57';
+  const SCRIPT_VERSION = '2.5.58';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -139,6 +139,11 @@
           showSide: null,
           frontIsLength: true,
           featuresDirty: false,
+          editorOpen: false,
+          manualTarget: Boolean(data && data.singleBottle) ? 'product' : 'box',
+          manualPoints: { box: [], product: [] },
+          editorImage: null,
+          editorDragging: null,
           fields: {
             englishName,
             netContent: String(data && data.netContent || ''),
@@ -178,9 +183,17 @@
         #${context.panelId} .pfh-parameter-drop{min-height:108px;display:grid;place-content:center;gap:6px;text-align:center;border:1px dashed rgba(124,58,237,.45);border-radius:14px;background:#faf8ff;color:#6d35e8;cursor:pointer}.pfh-parameter-drop span{color:#8991ab;font-size:11px}.pfh-parameter-drop.is-busy{cursor:wait;opacity:.72}
         #${context.panelId} .pfh-parameter-fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}.pfh-parameter-fields label{display:grid;gap:3px;min-width:0}.pfh-parameter-fields label.wide{grid-column:1/-1}.pfh-parameter-fields span{color:#777f9a;font-size:10px;font-weight:700}.pfh-parameter-fields input{width:100%;min-width:0;height:32px;padding:5px 8px;border:1px solid #e2dcf7;border-radius:9px;background:#fff;color:#302760;box-sizing:border-box}
         #${context.panelId} .pfh-parameter-options{display:flex;flex-wrap:wrap;gap:10px;padding:8px;border-radius:10px;background:#f8f6ff;font-size:11px}.pfh-parameter-options label{display:inline-flex;align-items:center;gap:5px}.pfh-parameter-options input{accent-color:#7c3aed}
-        #${context.panelId} .pfh-parameter-actions{display:grid;grid-template-columns:1fr 1.3fr;gap:8px}.pfh-parameter-actions button{min-height:37px;border:1px solid #dcd4f5;border-radius:10px;background:#fff;color:#6d35e8;font-weight:700}.pfh-parameter-actions button:last-child{border-color:#7c3aed;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}.pfh-parameter-actions button:disabled{opacity:.45}
+        #${context.panelId} .pfh-parameter-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pfh-parameter-actions button{min-height:37px;border:1px solid #dcd4f5;border-radius:10px;background:#fff;color:#6d35e8;font-weight:700}.pfh-parameter-actions button:last-child{border-color:#7c3aed;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}.pfh-parameter-actions button:disabled{opacity:.45}
         #${context.panelId} .pfh-parameter-status{padding:8px 10px;border-radius:9px;background:#eefbf6;color:#27735d;font-size:11px}.pfh-parameter-status.is-error{background:#fff0f3;color:#a33a48}
         #${context.panelId} .pfh-parameter-previews{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}.pfh-parameter-preview-card{position:relative;display:grid;place-items:center;min-height:360px;padding:10px;overflow:hidden}.pfh-parameter-preview-card b{position:absolute;top:8px;left:8px;z-index:1;padding:3px 7px;border-radius:99px;background:rgba(255,255,255,.9);color:#6d35e8;font-size:10px}.pfh-parameter-preview-card img{display:block;max-width:100%;max-height:100%;object-fit:contain}.pfh-parameter-preview-card span{color:#9299b0;font-size:12px}
+        #${context.panelId} .pfh-parameter-editor-backdrop{position:absolute;inset:6px;z-index:80;display:grid;place-items:stretch;padding:8px;border-radius:18px;background:rgba(31,25,55,.46);backdrop-filter:blur(8px)}
+        #${context.panelId} .pfh-parameter-editor{min-width:0;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:9px;padding:12px;border:1px solid rgba(167,139,250,.4);border-radius:16px;background:rgba(251,250,255,.98);box-shadow:0 24px 70px rgba(30,20,70,.24)}
+        #${context.panelId} .pfh-parameter-editor-head,#${context.panelId} .pfh-parameter-editor-tools,#${context.panelId} .pfh-parameter-editor-foot{display:flex;align-items:center;gap:8px;min-width:0}
+        #${context.panelId} .pfh-parameter-editor-head h3{margin:0;color:#2f2760;font-size:16px}.pfh-parameter-editor-head span{margin-left:auto;color:#7b84a1;font-size:11px}
+        #${context.panelId} .pfh-parameter-editor-tools{flex-wrap:wrap}.pfh-parameter-editor-tools button,.pfh-parameter-editor-head button{min-height:30px;padding:0 10px;border:1px solid #dcd4f5;border-radius:9px;background:#fff;color:#6040c8;font-size:11px;font-weight:800}.pfh-parameter-editor-tools button.is-active{border-color:#7c3aed;background:#7c3aed;color:#fff}.pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:auto;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}
+        #${context.panelId} .pfh-parameter-editor-stage{min-width:0;min-height:0;display:grid;place-items:center;overflow:auto;border:1px solid #ddd7f1;border-radius:12px;background:linear-gradient(45deg,#eef0f5 25%,transparent 25%),linear-gradient(-45deg,#eef0f5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef0f5 75%),linear-gradient(-45deg,transparent 75%,#eef0f5 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
+        #${context.panelId} .pfh-parameter-editor-canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;touch-action:none;cursor:crosshair}
+        #${context.panelId} .pfh-parameter-editor-foot{justify-content:space-between;color:#69738f;font-size:11px}.pfh-parameter-editor-foot b{color:#5d39c7}
         @container (max-width:760px){#${context.panelId} .pfh-parameter-workspace{grid-template-columns:minmax(220px,280px) minmax(280px,1fr)}#${context.panelId} .pfh-parameter-previews{grid-template-columns:1fr}.pfh-parameter-preview-card{min-height:300px}}
         @container (max-width:520px){#${context.panelId} .pfh-parameter-scroll{padding:8px}#${context.panelId} .pfh-parameter-workspace{grid-template-columns:1fr}.pfh-parameter-controls{position:static}.pfh-parameter-preview-card{min-height:280px}}
       `;
@@ -202,6 +215,142 @@
       return '<label' + (wide ? ' class="wide"' : '') + '><span>' + context.escapeHtml(label) + '</span><input class="pfh-parameter-field" data-field="' + key + '" value="' + context.escapeHtml(session.fields[key] == null ? '' : session.fields[key]) + '"></label>';
     }
 
+    function manualPointLabels(target) {
+      return target === 'box' ? ['起点', '长', '宽', '高'] : ['起点', '宽', '高'];
+    }
+
+    function requiredManualPoints(target) {
+      return manualPointLabels(target).length;
+    }
+
+    function completeManualPath(session, target) {
+      const points = session.manualPoints && session.manualPoints[target];
+      return Array.isArray(points) && points.length >= requiredManualPoints(target);
+    }
+
+    function manualEditorHtml(session) {
+      if (!session.editorOpen) return '';
+      const target = session.manualTarget === 'product' ? 'product' : 'box';
+      const boxCount = (session.manualPoints.box || []).length;
+      const productCount = (session.manualPoints.product || []).length;
+      const targetLabel = target === 'box' ? '纸盒' : '产品';
+      const labels = manualPointLabels(target);
+      return '<div class="pfh-parameter-editor-backdrop"><section class="pfh-parameter-editor">' +
+        '<header class="pfh-parameter-editor-head"><h3>手动标注尺寸路径</h3><span>拖动已有点可微调</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+        '<div class="pfh-parameter-editor-tools">' +
+          '<button type="button" data-action="parameter-editor-target" data-target="box" class="' + (target === 'box' ? 'is-active' : '') + '">纸盒 ' + boxCount + '/4</button>' +
+          '<button type="button" data-action="parameter-editor-target" data-target="product" class="' + (target === 'product' ? 'is-active' : '') + '">产品 ' + productCount + '/3</button>' +
+          '<button type="button" data-action="parameter-editor-undo">撤销一点</button><button type="button" data-action="parameter-editor-reset">重画当前</button>' +
+          '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
+        '</div>' +
+        '<div class="pfh-parameter-editor-stage"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
+        '<footer class="pfh-parameter-editor-foot"><span>当前：<b>' + targetLabel + '</b>，依次点击 ' + labels.join(' → ') + '</span><span class="pfh-parameter-editor-progress">已标 ' + (session.manualPoints[target] || []).length + '/' + labels.length + ' 点</span></footer>' +
+      '</section></div>';
+    }
+
+    function fileDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('无法读取图片。'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function editorScale(image) {
+      return Math.max(1, Math.max(image.naturalWidth, image.naturalHeight) / 1200);
+    }
+
+    function drawEditorPath(ctx, points, labels, color, active, scale) {
+      if (!points.length) return;
+      ctx.save();
+      ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = (active ? 5 : 3) * scale;
+      ctx.setLineDash(active ? [] : [10 * scale, 7 * scale]);
+      ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
+      points.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      ctx.stroke(); ctx.setLineDash([]);
+      points.forEach((point, index) => {
+        ctx.beginPath(); ctx.arc(point.x, point.y, 12 * scale, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.round(11 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(index + 1), point.x, point.y);
+        ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(labels[index] || '', point.x + 16 * scale, point.y - 10 * scale);
+      });
+      ctx.restore();
+    }
+
+    function drawManualEditorCanvas(canvas, image, session) {
+      if (!canvas || !image) return;
+      if (canvas.width !== image.naturalWidth) canvas.width = image.naturalWidth;
+      if (canvas.height !== image.naturalHeight) canvas.height = image.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const scale = editorScale(image);
+      drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale);
+      drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale);
+    }
+
+    function canvasPoint(event, canvas) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(canvas.width, (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width))),
+        y: Math.max(0, Math.min(canvas.height, (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height))),
+      };
+    }
+
+    function refreshEditorProgress(session) {
+      const root = document.getElementById(context.panelId);
+      const progress = root && root.querySelector('.pfh-parameter-editor-progress');
+      const target = session.manualTarget === 'product' ? 'product' : 'box';
+      if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
+    }
+
+    async function mountManualEditor(data) {
+      const session = ensureSession(data);
+      if (!session.editorOpen || !session.sourceDataUrl) return;
+      const root = document.getElementById(context.panelId);
+      const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
+      if (!canvas) return;
+      try {
+        if (!session.editorImage) session.editorImage = await loadImage(session.sourceDataUrl);
+      } catch (_) { return; }
+      if (!session.editorOpen || !document.body.contains(canvas)) return;
+      drawManualEditorCanvas(canvas, session.editorImage, session);
+      const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
+      canvas.onpointerdown = (event) => {
+        event.preventDefault();
+        const target = session.manualTarget === 'product' ? 'product' : 'box';
+        const points = session.manualPoints[target];
+        const point = canvasPoint(event, canvas);
+        const radius = 28 * editorScale(session.editorImage);
+        let index = points.findIndex((existing) => Math.hypot(existing.x - point.x, existing.y - point.y) <= radius);
+        if (index < 0 && points.length < requiredManualPoints(target)) { points.push(point); index = points.length - 1; }
+        if (index < 0) return;
+        session.editorDragging = { target, index };
+        canvas.setPointerCapture(event.pointerId); redraw();
+      };
+      canvas.onpointermove = (event) => {
+        const dragging = session.editorDragging;
+        if (!dragging || !session.manualPoints[dragging.target] || !session.manualPoints[dragging.target][dragging.index]) return;
+        session.manualPoints[dragging.target][dragging.index] = canvasPoint(event, canvas); redraw();
+      };
+      const release = (event) => {
+        session.editorDragging = null;
+        try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+      };
+      canvas.onpointerup = release; canvas.onpointercancel = release;
+    }
+
+    async function openManualEditor(data) {
+      const session = ensureSession(data);
+      if (!session.file) return;
+      try {
+        if (!session.sourceDataUrl) session.sourceDataUrl = await fileDataUrl(session.file);
+        session.editorOpen = true; session.error = ''; context.render();
+      } catch (error) {
+        session.error = String(error && error.message || error || '无法打开手动标注。'); context.render();
+      }
+    }
+
     function viewHtml(data) {
       ensureStyles();
       loadRules().then((changed) => {
@@ -218,7 +367,8 @@
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
       const heroImage = preferredImageUrl(data);
       const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
-      return '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
+      const editor = manualEditorHtml(session);
+      const html = '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
           '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>一张图可同时包含纸盒与产品</span></button>' +
@@ -228,10 +378,12 @@
             fieldHtml(session, 'packageLength', '纸盒正面/长') + fieldHtml(session, 'packageWidth', '纸盒侧面/宽') + fieldHtml(session, 'packageHeight', '纸盒高') + fieldHtml(session, 'productWidth', '产品宽') + fieldHtml(session, 'productHeight', '产品高') +
           '</div>' +
           '<div class="pfh-parameter-options"><label><input type="checkbox" class="pfh-parameter-side"' + (session.showSide ? ' checked' : '') + '>纸盒展示侧面</label><label><input type="radio" name="pfh-parameter-front" value="length"' + (session.frontIsLength ? ' checked' : '') + '>正面为长</label><label><input type="radio" name="pfh-parameter-front" value="width"' + (!session.frontIsLength ? ' checked' : '') + '>正面为宽</label></div>' +
-          '<div class="pfh-parameter-actions"><button type="button" data-action="parameter-image-refresh-data">刷新英文名</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>另存两张 JPG</button></div>' +
+          '<div class="pfh-parameter-actions"><button type="button" data-action="parameter-image-refresh-data">刷新英文名</button><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动标注</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>另存两张 JPG</button></div>' +
           '<input type="file" class="pfh-parameter-file" accept="image/png,.png" hidden>' + status +
         '</div><div class="pfh-parameter-previews">' + preview('产品尺寸图', session.productResult) + preview('英文参数图', session.englishResult) + '</div></div>' +
-      '</section></div>';
+      '</section></div>' + editor;
+      if (session.editorOpen) window.setTimeout(() => mountManualEditor(data), 0);
+      return html;
     }
 
     function loadImage(url) {
@@ -429,6 +581,27 @@
       ctx.fillText(label, 0, 0); ctx.restore();
     }
 
+    function manualPathCenter(points) {
+      const total = points.reduce((result, point) => ({ x: result.x + point.x, y: result.y + point.y }), { x: 0, y: 0 });
+      return { x: total.x / Math.max(1, points.length), y: total.y / Math.max(1, points.length) };
+    }
+
+    function outwardNormalSign(start, end, center) {
+      const dx = end.x - start.x, dy = end.y - start.y, length = Math.max(1, Math.hypot(dx, dy));
+      const nx = -dy / length, ny = dx / length;
+      const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      return ((center.x - middle.x) * nx + (center.y - middle.y) * ny) >= 0 ? -1 : 1;
+    }
+
+    function drawManualDimensionPath(ctx, sourcePoints, values, fit) {
+      const points = sourcePoints.map((point) => mapPoint(point, fit));
+      const center = manualPathCenter(points);
+      values.forEach((value, index) => {
+        const start = points[index], end = points[index + 1];
+        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center));
+      });
+    }
+
     function drawProductModule(ctx, image, analysis, session, area) {
       const fit = fitSource(image, analysis, area);
       ctx.save();
@@ -436,27 +609,37 @@
         ctx.beginPath(); ctx.rect(area.clipLeft, 0, 1600 - area.clipLeft, 1600); ctx.clip();
       }
       ctx.drawImage(image, fit.x, fit.y, analysis.sourceWidth * fit.scale, analysis.sourceHeight * fit.scale);
-      const box = analysis.box ? mapRect(analysis.box, fit) : null, product = mapRect(analysis.product, fit);
+      const box = analysis.box ? mapRect(analysis.box, fit) : null, product = analysis.product ? mapRect(analysis.product, fit) : null;
       const frontValue = session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth;
       const sideValue = session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength;
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
+      const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;
+      const manualProduct = completeManualPath(session, 'product') ? session.manualPoints.product.slice(0, requiredManualPoints('product')) : null;
       if (session.singleBottle) {
-        drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
-        drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+        if (manualProduct) drawManualDimensionPath(ctx, manualProduct, [session.fields.productWidth, session.fields.productHeight], fit);
+        else if (product) {
+          drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+          drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+        }
         ctx.restore();
         return;
       }
-      if (session.showSide && perspective) {
+      if (manualBox) {
+        drawManualDimensionPath(ctx, manualBox, [session.fields.packageLength, session.fields.packageWidth, session.fields.packageHeight], fit);
+      } else if (session.showSide && perspective) {
         drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
         drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
         drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1);
-      } else {
+      } else if (box) {
         drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left');
         drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true);
         if (session.showSide) drawSideDimension(ctx, box, analysis.sidePixels * fit.scale, sideValue);
       }
-      drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
-      drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+      if (manualProduct) drawManualDimensionPath(ctx, manualProduct, [session.fields.productWidth, session.fields.productHeight], fit);
+      else if (product) {
+        drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+        drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+      }
       ctx.restore();
     }
 
@@ -522,11 +705,17 @@
         fitText(ctx, String(row[1] || ''), 455, 34, 20, '400'); ctx.fillText(String(row[1] || ''), 326, y + 34);
         ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
-      const rightArea = session.showSide
-        ? { x: 940, y: 300, width: 500, height: 1040, clipLeft: 815 }
-        : { x: 930, y: 300, width: 510, height: 1040, clipLeft: 815 };
+      const rightArea = { x: 960, y: 300, width: 470, height: 1040, clipLeft: 815 };
       drawProductModule(ctx, image, analysis, session, rightArea);
       return canvas.toDataURL('image/jpeg', .96);
+    }
+
+    function manualFallbackAnalysis(image, session) {
+      if (!completeManualPath(session, 'box') && !completeManualPath(session, 'product')) return null;
+      return {
+        box: null, product: null, splitX: 0, sidePixels: 0, detectedSide: false, perspective: null,
+        sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight,
+      };
     }
 
     async function regenerate(data) {
@@ -537,7 +726,12 @@
       try {
         const image = await loadImage(url);
         const logo = await loadBrandLogo(data.brand);
-        session.analysis = analyzeImage(image, session);
+        try {
+          session.analysis = analyzeImage(image, session);
+        } catch (analysisError) {
+          session.analysis = manualFallbackAnalysis(image, session);
+          if (!session.analysis) throw analysisError;
+        }
         session.productResult = generateProductImage(image, session.analysis, session);
         session.englishResult = generateEnglishImage(image, session.analysis, session, data, logo);
         if (!session.fields.englishName) session.error = '未读取到英文产品名，请手动填写英文产品名后重新生成。';
@@ -552,6 +746,11 @@
       const session = ensureSession(data);
       if (!file || !/\.png$/i.test(file.name || '')) { session.error = '请选择透明 PNG 图片。'; context.render(); return; }
       session.file = file; session.fileName = file.name; session.showSide = null;
+      session.sourceDataUrl = '';
+      session.editorImage = null;
+      session.editorOpen = false;
+      session.editorDragging = null;
+      session.manualPoints = { box: [], product: [] };
       if (!session.fields.englishName) {
         session.busy = true; session.error = ''; context.render();
         try { await applyExtraData(data, session); } catch (_) {}
@@ -606,6 +805,25 @@
       if (action === 'parameter-image-regenerate') { regenerate(data); return true; }
       if (action === 'parameter-image-refresh-data') { refreshData(data); return true; }
       if (action === 'parameter-image-save') { save(data); return true; }
+      if (action === 'parameter-editor-open') { openManualEditor(data); return true; }
+      if (/^parameter-editor-/.test(action)) {
+        const session = ensureSession(data);
+        if (action === 'parameter-editor-close') { session.editorOpen = false; session.editorDragging = null; context.render(); return true; }
+        if (action === 'parameter-editor-target') {
+          session.manualTarget = target && target.getAttribute('data-target') === 'product' ? 'product' : 'box';
+          context.render(); return true;
+        }
+        const current = session.manualTarget === 'product' ? 'product' : 'box';
+        if (action === 'parameter-editor-undo') { session.manualPoints[current].pop(); context.render(); return true; }
+        if (action === 'parameter-editor-reset') { session.manualPoints[current] = []; context.render(); return true; }
+        if (action === 'parameter-editor-apply') {
+          const incomplete = ['box', 'product'].find((key) => session.manualPoints[key].length && !completeManualPath(session, key));
+          if (incomplete) { context.showToast((incomplete === 'box' ? '纸盒' : '产品') + '路径还没有标完整。'); return true; }
+          if (!completeManualPath(session, 'box') && !completeManualPath(session, 'product')) { context.showToast('请先完成纸盒或产品路径。'); return true; }
+          session.editorOpen = false; session.editorDragging = null; regenerate(data); return true;
+        }
+        return true;
+      }
       return false;
     }
 
