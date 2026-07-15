@@ -175,9 +175,9 @@
       });
     }
 
-    function alphaBounds(pixels, width, height, x0, x1) {
+    function alphaBoundsRegion(pixels, width, height, x0, x1, y0, y1) {
       let left = x1, top = height, right = -1, bottom = -1;
-      for (let y = 0; y < height; y += 1) for (let x = x0; x < x1; x += 1) {
+      for (let y = Math.max(0, y0); y < Math.min(height, y1); y += 1) for (let x = Math.max(0, x0); x < Math.min(width, x1); x += 1) {
         if (pixels[(y * width + x) * 4 + 3] <= 12) continue;
         if (x < left) left = x;
         if (x > right) right = x;
@@ -185,6 +185,10 @@
         if (y > bottom) bottom = y;
       }
       return right >= left ? { left, top, right: right + 1, bottom: bottom + 1, width: right - left + 1, height: bottom - top + 1 } : null;
+    }
+
+    function alphaBounds(pixels, width, height, x0, x1) {
+      return alphaBoundsRegion(pixels, width, height, x0, x1, 0, height);
     }
 
     function median(values) {
@@ -240,7 +244,8 @@
       ctx.drawImage(image, 0, 0, width, height);
       const pixels = ctx.getImageData(0, 0, width, height).data;
       if (session.singleBottle) {
-        const bottle = alphaBounds(pixels, width, height, 0, width);
+        const upperBody = alphaBoundsRegion(pixels, width, height, 0, width, 0, Math.round(height * .74));
+        const bottle = upperBody && alphaBoundsRegion(pixels, width, height, upperBody.left, upperBody.right, 0, height);
         if (!bottle) throw new Error('没有可靠识别出单瓶产品轮廓，请重新导出透明 PNG。');
         const f = 1 / scale;
         const convert = (rect) => ({ left: rect.left * f, top: rect.top * f, right: rect.right * f, bottom: rect.bottom * f, width: rect.width * f, height: rect.height * f });
@@ -299,23 +304,28 @@
     function drawVerticalDimension(ctx, rect, value, side) {
       if (!number(value)) return;
       const x = side === 'left' ? rect.left - 36 : rect.right + 36;
+      const label = dimensionLabel(value);
       ctx.save();
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, x, rect.top, x, rect.bottom); line(ctx, x - 16, rect.top, x + 16, rect.top); line(ctx, x - 16, rect.bottom, x + 16, rect.bottom);
-      ctx.translate(x + (side === 'left' ? -82 : 82), (rect.top + rect.bottom) / 2);
-      ctx.rotate(Math.PI / 2); ctx.font = '42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
+      ctx.font = '42px Arial';
+      const gap = rect.height > ctx.measureText(label).width + 48 ? 58 : 82;
+      ctx.translate(x + (side === 'left' ? -gap : gap), (rect.top + rect.bottom) / 2);
+      ctx.rotate(Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, 0, 0); ctx.restore();
     }
 
     function drawHorizontalDimension(ctx, rect, value, below) {
       if (!number(value)) return;
       const y = below ? rect.bottom + 36 : rect.top - 36;
+      const label = dimensionLabel(value);
       ctx.save();
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, rect.left, y, rect.right, y); line(ctx, rect.left, y - 16, rect.left, y + 16); line(ctx, rect.right, y - 16, rect.right, y + 16);
       ctx.font = '42px Arial'; ctx.textAlign = 'center';
+      const gap = rect.width > ctx.measureText(label).width + 48 ? 20 : 38;
       ctx.textBaseline = below ? 'top' : 'bottom';
-      ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 38 : -38));
+      ctx.fillText(label, (rect.left + rect.right) / 2, y + (below ? gap : -gap));
       ctx.restore();
     }
 
@@ -335,18 +345,20 @@
       const length = Math.hypot(dx, dy);
       if (length < 8) return;
       const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
-      const offset = 36, textGap = 46, tick = 16;
+      const label = dimensionLabel(value);
+      ctx.save(); ctx.font = '42px Arial';
+      const offset = 36, textGap = length > ctx.measureText(label).width + 48 ? 26 : 46, tick = 16;
       const a = { x: start.x + nx * offset, y: start.y + ny * offset };
       const b = { x: end.x + nx * offset, y: end.y + ny * offset };
-      ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
+      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, a.x, a.y, b.x, b.y);
       line(ctx, a.x - nx * tick, a.y - ny * tick, a.x + nx * tick, a.y + ny * tick);
       line(ctx, b.x - nx * tick, b.y - ny * tick, b.x + nx * tick, b.y + ny * tick);
       let angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
       ctx.translate((a.x + b.x) / 2 + nx * textGap, (a.y + b.y) / 2 + ny * textGap);
-      ctx.rotate(angle); ctx.font = '42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
+      ctx.rotate(angle); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, 0, 0); ctx.restore();
     }
 
     function drawProductModule(ctx, image, analysis, session, area) {
@@ -362,7 +374,7 @@
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
       if (session.singleBottle) {
         drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
-        drawHorizontalDimension(ctx, product, session.fields.productWidth, true);
+        drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
         ctx.restore();
         return;
       }
