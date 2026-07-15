@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.44
+// @version      2.5.45
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.44';
+  const SCRIPT_VERSION = '2.5.45';
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
   const STORAGE_INDEX_KEY = 'plm-floating-helper:index';
   const POSITION_KEY = 'plm-floating-helper:position';
@@ -2869,46 +2869,60 @@
       return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u53ef\u751f\u6210\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
     }
     const cartonSpec = getSizeImageSpec(data);
-    const labelSpec = getLabelSizeImageSpec(data);
+    const labelSpecs = getLabelSizeImageSpecs(data);
+    const labelSpec = labelSpecs[0] || null;
     const session = ensureSizeImageSession(data.sku);
+    migrateLegacySizeImageResult(session, labelSpec);
     const busy = state.sizeImageBusySku === data.sku;
     const cartonDimension = cartonSpec ? [cartonSpec.length, cartonSpec.width, cartonSpec.height].concat(cartonSpec.extraWidths || []).map(formatSizeImageNumber).join(' \u00d7 ') + ' cm' : '';
-    const labelDimension = labelSpec ? formatSizeImageNumber(labelSpec.width) + ' \u00d7 ' + formatSizeImageNumber(labelSpec.height) + ' cm' : '';
-    const flatLabel = labelSpec && labelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
-    const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : '', labelDimension ? flatLabel + ' ' + labelDimension : ''].filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
-    const resultCount = Number(Boolean(session.cartonResultDataUrl)) + Number(Boolean(session.labelResultDataUrl));
-    const canRegenerate = Boolean(session.cartonFile || session.labelFile);
+    const labelDimensions = labelSpecs.map((spec) => (spec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e') + ' ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm');
+    const dimensionText = [cartonDimension ? '\u7eb8\u76d2 ' + cartonDimension : ''].concat(labelDimensions).filter(Boolean).join(' / ') || '\u5c3a\u5bf8\u4e0d\u53ef\u7528';
+    const flatResultCount = labelSpecs.filter((spec) => session.flatResults[spec.key] && session.flatResults[spec.key].dataUrl).length;
+    const resultCount = Number(Boolean(session.cartonResultDataUrl)) + flatResultCount;
+    const canRegenerate = Boolean(session.cartonFile || Object.keys(session.flatFiles).length);
     const status = busy
       ? '<div class="pfh-size-image-status is-processing"><i></i><span>' + escapeHtml(session.processingStep || '\u6b63\u5728\u8bfb\u53d6\u56fe\u7247...') + '</span><em></em></div>'
       : session.error
       ? '<div class="pfh-size-image-status is-error">' + escapeHtml(session.error) + '</div>'
       : (resultCount ? '<div class="pfh-size-image-status is-ready">\u5df2\u751f\u6210 ' + resultCount + ' \u4e2a 3000 \u00d7 3000 JPG\u3002</div>' : '');
-    const previewCard = (type, url) => {
+    const previewCard = (type, url, detail) => {
       const label = type === 'label' ? '\u6807\u7b7e' : (type === 'print' ? '\u5370\u5237' : '\u7eb8\u76d2');
       return url
-        ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + label + '\u9884\u89c8</span><img src="' + url + '" alt="' + escapeHtml(data.sku + ' ' + label + '\u5c3a\u5bf8\u56fe') + '"></div>'
-        : '<div class="pfh-size-image-placeholder is-compact">' + iconHtml(type === 'carton' ? 'box' : 'tag') + '<strong>\u6682\u65e0' + label + '\u9884\u89c8</strong><span>\u53ef\u540c\u65f6\u62d6\u5165\u4e24\u5f20\u56fe\u7247</span></div>';
+        ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + label + (detail ? ' ' + escapeHtml(detail) : '') + '\u9884\u89c8</span><img src="' + url + '" alt="' + escapeHtml(data.sku + ' ' + label + '\u5c3a\u5bf8\u56fe') + '"></div>'
+        : '<div class="pfh-size-image-placeholder is-compact">' + iconHtml(type === 'carton' ? 'box' : 'tag') + '<strong>\u6682\u65e0' + label + (detail ? ' ' + escapeHtml(detail) : '') + '\u9884\u89c8</strong><span>\u53ef\u540c\u65f6\u62d6\u5165\u591a\u5f20\u56fe\u7247</span></div>';
     };
-    const preview = '<div class="pfh-size-image-preview-grid">' + previewCard('carton', session.cartonResultDataUrl) + previewCard(labelSpec && labelSpec.kind === 'print' ? 'print' : 'label', session.labelResultDataUrl) + '</div>';
+    const flatPreviews = labelSpecs.map((spec) => {
+      const result = session.flatResults[spec.key];
+      const detail = formatSizeImageNumber(spec.width) + '\u00d7' + formatSizeImageNumber(spec.height) + 'cm';
+      return previewCard(spec.kind, result && result.dataUrl, detail);
+    }).join('');
+    const preview = '<div class="pfh-size-image-preview-grid">' + (cartonSpec ? previewCard('carton', session.cartonResultDataUrl) : '') + flatPreviews + '</div>';
     const disabled = (cartonSpec || labelSpec) && !busy ? '' : ' disabled';
     const remarks = getSizeImageRemarks(data);
     if (typeof session.cartonRemarkText !== 'string') session.cartonRemarkText = remarks.carton || '';
-    if (typeof session.labelRemarkText !== 'string') session.labelRemarkText = remarks.label || '';
+    labelSpecs.forEach((spec) => {
+      if (typeof session.labelRemarkTexts[spec.key] !== 'string') session.labelRemarkTexts[spec.key] = spec.remark || remarks.label || '';
+    });
     const remarkInputs = [
       cartonSpec ? '<label><span>\u7eb8\u76d2</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="carton" value="' + escapeHtml(session.cartonRemarkText) + '" placeholder="\u7eb8\u76d2\u6807\u9898\u5907\u6ce8"></label>' : '',
-      labelSpec ? '<label><span>' + flatLabel + '</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="label" value="' + escapeHtml(session.labelRemarkText) + '" placeholder="' + flatLabel + '\u6807\u9898\u5907\u6ce8"></label>' : '',
+      ...labelSpecs.map((spec) => {
+        const flatLabel = spec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
+        const detail = formatSizeImageNumber(spec.width) + '\u00d7' + formatSizeImageNumber(spec.height);
+        return '<label><span>' + flatLabel + ' ' + detail + '</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="label" data-size-image-key="' + escapeHtml(spec.key) + '" value="' + escapeHtml(session.labelRemarkTexts[spec.key]) + '" placeholder="' + flatLabel + '\u6807\u9898\u5907\u6ce8"></label>';
+      }),
     ].filter(Boolean).join('');
+    const pendingMatch = session.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>\u8bf7\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u5c3a\u5bf8</strong>' + session.pendingLabelMatches.map((pending) => '<div><span>' + escapeHtml(pending.file.name || '\u5f85\u5339\u914d\u56fe\u7247') + '</span><select class="pfh-size-image-match-select" data-pending-id="' + escapeHtml(pending.id) + '">' + labelSpecs.map((spec) => '<option value="' + escapeHtml(spec.key) + '">' + escapeHtml((spec.kind === 'print' ? '\u5370\u5237 ' : '\u6807\u7b7e ') + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm') + '</option>').join('') + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + escapeHtml(pending.id) + '">\u786e\u8ba4\u751f\u6210</button></div>').join('') + '</div>' : '';
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
       '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u548c\u5370\u5237\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<div class="pfh-size-image-remark-editor"><span>\u6807\u9898\u5907\u6ce8</span><div>' + remarkInputs + '</div></div>' +
-        '<div class="pfh-size-image-options">' + (labelSpec && labelSpec.kind === 'label' ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u5706\u5f27</span></label>' : '') + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6279\u6b21\u53f7</span></label></div>' +
+        '<div class="pfh-size-image-options">' + (labelSpecs.some((spec) => spec.kind === 'label') ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u5706\u5f27</span></label>' : '') + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6279\u6b21\u53f7</span></label></div>' +
         '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e/\u5370\u5237\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
         '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (canRegenerate && !busy ? '' : ' disabled') + '>' + iconHtml('refresh') + '\u91cd\u65b0\u751f\u6210</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
-        '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
+        pendingMatch + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
     '</section></div>';
   }
@@ -2918,7 +2932,20 @@
     if (typeof state.sizeImageSessions[sku].includeRemark !== 'boolean') state.sizeImageSessions[sku].includeRemark = true;
     if (typeof state.sizeImageSessions[sku].includeRoundArc !== 'boolean') state.sizeImageSessions[sku].includeRoundArc = true;
     if (typeof state.sizeImageSessions[sku].includeBatchNumber !== 'boolean') state.sizeImageSessions[sku].includeBatchNumber = true;
+    if (!state.sizeImageSessions[sku].flatResults || typeof state.sizeImageSessions[sku].flatResults !== 'object') state.sizeImageSessions[sku].flatResults = {};
+    if (!state.sizeImageSessions[sku].flatFiles || typeof state.sizeImageSessions[sku].flatFiles !== 'object') state.sizeImageSessions[sku].flatFiles = {};
+    if (!state.sizeImageSessions[sku].labelRemarkTexts || typeof state.sizeImageSessions[sku].labelRemarkTexts !== 'object') state.sizeImageSessions[sku].labelRemarkTexts = {};
+    if (!Array.isArray(state.sizeImageSessions[sku].pendingLabelMatches)) state.sizeImageSessions[sku].pendingLabelMatches = [];
     return state.sizeImageSessions[sku];
+  }
+
+  function migrateLegacySizeImageResult(session, firstSpec) {
+    if (!session || !firstSpec) return;
+    if (session.labelResultDataUrl && !session.flatResults[firstSpec.key]) {
+      session.flatResults[firstSpec.key] = { dataUrl: session.labelResultDataUrl, kind: session.labelResultKind || firstSpec.kind };
+    }
+    if (session.labelFile && !session.flatFiles[firstSpec.key]) session.flatFiles[firstSpec.key] = session.labelFile;
+    if (typeof session.labelRemarkText === 'string' && typeof session.labelRemarkTexts[firstSpec.key] !== 'string') session.labelRemarkTexts[firstSpec.key] = session.labelRemarkText;
   }
 
   function getSizeImageSpec(data) {
@@ -2933,40 +2960,63 @@
     return '\u672a\u627e\u5230\u53ef\u7528\u7684\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\uff0c\u8bf7\u5148\u5237\u65b0 PLM \u7f13\u5b58\u3002';
   }
 
+  function getLabelSizeImageSpecs(data) {
+    if (!data || (!/(?:\u6807\u7b7e|\u5370\u5237)/.test(String(data.printSizeLabel || '')) && !data.isTubePrint)) return [];
+    const labels = String(data.printSizeLabel || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
+    const codes = String(data.printCode || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
+    const dimensions = [];
+    const pattern = /(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(cm|mm)?/ig;
+    let match;
+    while ((match = pattern.exec(String(data.printSizeText || '')))) {
+      const divisor = String(match[3] || '').toLowerCase() === 'mm' ? 10 : 1;
+      const width = Number(match[1]) / divisor;
+      const height = Number(match[2]) / divisor;
+      if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) dimensions.push({ width, height });
+    }
+    return dimensions.map((dimension, index) => {
+      const labelText = labels[index] || labels[0] || '';
+      const kind = /\u6807\u7b7e/.test(labelText || String(data.printSizeLabel || '')) && !data.isTubePrint ? 'label' : 'print';
+      return {
+        width: dimension.width,
+        height: dimension.height,
+        kind,
+        index,
+        key: 'flat-' + index + '-' + formatSizeImageNumber(dimension.width) + 'x' + formatSizeImageNumber(dimension.height),
+        code: codes[index] || '',
+        labelText,
+        remark: collectSizeImageRemark(labelText, []),
+      };
+    });
+  }
+
   function getLabelSizeImageSpec(data) {
-    if (!data || (!/(?:\u6807\u7b7e|\u5370\u5237)/.test(String(data.printSizeLabel || '')) && !data.isTubePrint)) return null;
-    const nums = parseDimension(data.printSizeText, 2);
-    if (!nums || nums.length < 2) return null;
-    const width = Number(nums[0]);
-    const height = Number(nums[1]);
-    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
-    const kind = /\u6807\u7b7e/.test(String(data.printSizeLabel || '')) && !data.isTubePrint ? 'label' : 'print';
-    return { width, height, kind };
+    return getLabelSizeImageSpecs(data)[0] || null;
+  }
+
+  function collectSizeImageRemark(label, extra) {
+    const values = [];
+    const source = String(label || '');
+    let match;
+    const pattern = /[\uff08(]([^\uff09)]+)[\uff09)]/g;
+    while ((match = pattern.exec(source))) {
+      const value = cleanCopywritingLine(match[1]);
+      if (value && !/\d+(?:\.\d+)?\s*[xX\u00d7*]/.test(value)) values.push(value);
+    }
+    ['\u5185\u5361', '\u900f\u660e', '\u52a0\u7c98'].forEach((keyword) => {
+      if (!source.includes(keyword) || values.some((value) => value.includes(keyword))) return;
+      const sourceIndex = source.indexOf(keyword);
+      const insertAt = values.findIndex((value) => source.indexOf(value) > sourceIndex);
+      if (insertAt >= 0) values.splice(insertAt, 0, keyword);
+      else values.push(keyword);
+    });
+    (extra || []).forEach((value) => { if (value) values.push(value); });
+    return Array.from(new Set(values)).join(' ');
   }
 
   function getSizeImageRemarks(data) {
-    const collect = (label, extra) => {
-      const values = [];
-      const source = String(label || '');
-      let match;
-      const pattern = /[\uff08(]([^\uff09)]+)[\uff09)]/g;
-      while ((match = pattern.exec(source))) {
-        const value = cleanCopywritingLine(match[1]);
-        if (value && !/\d+(?:\.\d+)?\s*[xX\u00d7*]/.test(value)) values.push(value);
-      }
-      ['\u5185\u5361', '\u900f\u660e', '\u52a0\u7c98'].forEach((keyword) => {
-        if (!source.includes(keyword) || values.some((value) => value.includes(keyword))) return;
-        const sourceIndex = source.indexOf(keyword);
-        const insertAt = values.findIndex((value) => source.indexOf(value) > sourceIndex);
-        if (insertAt >= 0) values.splice(insertAt, 0, keyword);
-        else values.push(keyword);
-      });
-      (extra || []).forEach((value) => { if (value) values.push(value); });
-      return Array.from(new Set(values)).join(' ');
-    };
     return {
-      carton: collect(data && data.packageSizeLabel, [data && data.hasInnerCard ? '\u5185\u5361' : '']),
-      label: collect(data && data.printSizeLabel, []),
+      carton: collectSizeImageRemark(data && data.packageSizeLabel, [data && data.hasInnerCard ? '\u5185\u5361' : '']),
+      label: collectSizeImageRemark(data && data.printSizeLabel, []),
     };
   }
 
@@ -2991,8 +3041,8 @@
   async function processSizeImageFile(file, preferredType, silent) {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     const cartonSpec = getSizeImageSpec(data);
-    const labelSpec = getLabelSizeImageSpec(data);
-    if (!data || !data.sku || !(cartonSpec || labelSpec)) {
+    const labelSpecs = getLabelSizeImageSpecs(data);
+    if (!data || !data.sku || !(cartonSpec || labelSpecs.length)) {
       showToast(data ? getSizeImageSpecError(data) : '\u8bf7\u5148\u9009\u62e9 SKU');
       return;
     }
@@ -3005,6 +3055,7 @@
     }
     const sku = data.sku;
     const session = ensureSizeImageSession(sku);
+    migrateLegacySizeImageResult(session, labelSpecs[0]);
     state.sizeImageBusySku = sku;
     session.fileName = file.name;
     session.error = '';
@@ -3015,7 +3066,9 @@
     try {
       const image = await loadSizeImageSource(sourceUrl);
       await setSizeImageProcessingStep(session, '\u6b63\u5728\u8bc6\u522b\u7eb8\u76d2\u6216\u6807\u7b7e...');
-      let detectedType = preferredType === 'carton' || preferredType === 'label' ? preferredType : '';
+      const preferredLabelKey = String(preferredType || '').startsWith('label:') ? String(preferredType).slice(6) : '';
+      let detectedType = preferredType === 'carton' ? 'carton' : (preferredType === 'label' || preferredLabelKey ? 'label' : '');
+      let matchedLabelSpec = null;
       let geometry = null;
       let cartonError = null;
       if ((!detectedType || detectedType === 'carton') && cartonSpec && /\.png$/i.test(file.name || '')) {
@@ -3028,8 +3081,34 @@
         }
       }
       if (!detectedType || detectedType === 'label') {
-        if (!labelSpec) throw cartonError || new Error('\u5f53\u524d SKU \u6ca1\u6709\u53ef\u7528\u7684\u6807\u7b7e\u5c3a\u5bf8\u3002');
-        geometry = analyzeLabelSizeImageGeometry(image, labelSpec);
+        if (!labelSpecs.length) throw cartonError || new Error('\u5f53\u524d SKU \u6ca1\u6709\u53ef\u7528\u7684\u6807\u7b7e\u5c3a\u5bf8\u3002');
+        if (preferredLabelKey) {
+          matchedLabelSpec = labelSpecs.find((spec) => spec.key === preferredLabelKey) || null;
+          if (!matchedLabelSpec) throw new Error('\u9009\u62e9\u7684\u6807\u7b7e\u5c3a\u5bf8\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002');
+          geometry = analyzeLabelSizeImageGeometry(image, matchedLabelSpec, true);
+        } else {
+          const matches = labelSpecs.map((spec) => {
+            try {
+              return { spec, geometry: analyzeLabelSizeImageGeometry(image, spec) };
+            } catch (_) {
+              return null;
+            }
+          }).filter(Boolean).sort((a, b) => a.geometry.matchDelta - b.geometry.matchDelta);
+          if (!matches.length && labelSpecs.length === 1) throw cartonError || new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u4e2d\u7684\u6807\u7b7e\u5c3a\u5bf8\u4e0d\u5339\u914d\u3002');
+          const first = matches[0];
+          const second = matches[1];
+          const confident = first && (!second || second.geometry.matchDelta - first.geometry.matchDelta >= 0.012);
+          if (!confident) {
+            const pendingId = 'pending-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+            session.pendingLabelMatches = session.pendingLabelMatches.filter((item) => item.file !== file);
+            session.pendingLabelMatches.push({ id: pendingId, file });
+            session.error = '';
+            if (!silent) showToast('\u4e24\u4e2a\u5c3a\u5bf8\u6bd4\u4f8b\u592a\u63a5\u8fd1\uff0c\u8bf7\u624b\u52a8\u9009\u62e9\u5bf9\u5e94\u5c3a\u5bf8');
+            return 'pending';
+          }
+          matchedLabelSpec = first.spec;
+          geometry = first.geometry;
+        }
         detectedType = 'label';
       }
       await setSizeImageProcessingStep(session, '\u8bc6\u522b\u5b8c\u6210\uff0c\u6b63\u5728\u7ed8\u5236 3000 \u00d7 3000 JPG...');
@@ -3037,13 +3116,20 @@
         session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark, session.includeRoundArc, session.cartonRemarkText);
         session.cartonFile = file;
       } else {
-        session.labelResultDataUrl = generateLabelSizeImageJpeg(image, geometry, labelSpec, data, session.includeRemark, session.includeRoundArc, session.includeBatchNumber, session.labelRemarkText);
-        session.labelResultKind = labelSpec.kind;
-        session.labelFile = file;
+        const customRemark = session.labelRemarkTexts[matchedLabelSpec.key];
+        const dataUrl = generateLabelSizeImageJpeg(image, geometry, matchedLabelSpec, data, session.includeRemark, session.includeRoundArc, session.includeBatchNumber, customRemark);
+        session.flatResults[matchedLabelSpec.key] = { dataUrl, kind: matchedLabelSpec.kind, code: matchedLabelSpec.code };
+        session.flatFiles[matchedLabelSpec.key] = file;
+        session.pendingLabelMatches = session.pendingLabelMatches.filter((item) => item.file !== file);
+        if (labelSpecs.length === 1) {
+          session.labelResultDataUrl = dataUrl;
+          session.labelResultKind = matchedLabelSpec.kind;
+          session.labelFile = file;
+        }
       }
       session.error = '';
       recordSizeImageUsage(true);
-      if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : (labelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e')) + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
+      if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : (matchedLabelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e')) + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
     } catch (error) {
       session.error = formatSizeImageError(error);
       recordSizeImageUsage(false);
@@ -3083,8 +3169,10 @@
     if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
     if (session) session.processingStep = '';
     if (session && !session.error) {
-      const names = [session.cartonResultDataUrl ? '\u7eb8\u76d2' : '', session.labelResultDataUrl ? (session.labelResultKind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e') : ''].filter(Boolean).join('\u548c');
+      const flatCount = Object.values(session.flatResults).filter((item) => item && item.dataUrl).length;
+      const names = [session.cartonResultDataUrl ? '\u7eb8\u76d2' : '', flatCount ? flatCount + '\u4e2a\u6807\u7b7e/\u5370\u5237' : ''].filter(Boolean).join('\u548c');
       if (names) showToast('\u5df2\u751f\u6210' + names + '\u5c3a\u5bf8\u56fe');
+      else if (session.pendingLabelMatches.length) showToast('\u8bf7\u624b\u52a8\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u6807\u7b7e\u5c3a\u5bf8');
     }
     if (state.view === 'sizeImage') renderShell();
   }
@@ -3191,7 +3279,7 @@
     };
   }
 
-  function analyzeLabelSizeImageGeometry(image, spec) {
+  function analyzeLabelSizeImageGeometry(image, spec, allowMismatch) {
     const maxSide = 1600;
     const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
     const width = Math.max(1, Math.round(image.naturalWidth * ratio));
@@ -3233,7 +3321,7 @@
     const directDelta = Math.abs(sourceRatio - expectedRatio) / expectedRatio;
     const rotatedDelta = Math.abs((1 / sourceRatio) - expectedRatio) / expectedRatio;
     const rotated = rotatedDelta < directDelta;
-    if (Math.min(directDelta, rotatedDelta) > 0.065) {
+    if (!allowMismatch && Math.min(directDelta, rotatedDelta) > 0.065) {
       throw new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u6807\u7b7e\u5c3a\u5bf8 ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm \u4e0d\u5339\u914d\u3002');
     }
     return {
@@ -3242,6 +3330,7 @@
       cropWidth: cropWidth * image.naturalWidth / width,
       cropHeight: cropHeight * image.naturalHeight / height,
       rotated,
+      matchDelta: Math.min(directDelta, rotatedDelta),
     };
   }
 
@@ -3482,11 +3571,18 @@
     const sku = state.selectedSku || (state.data && state.data.sku) || '';
     const session = sku && state.sizeImageSessions[sku];
     const currentData = normalizeData(state.data || (sku ? loadData(sku) : null));
-    const flatSpec = getLabelSizeImageSpec(currentData);
-    const flatLabel = (session && session.labelResultKind || flatSpec && flatSpec.kind) === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
+    const flatSpecs = getLabelSizeImageSpecs(currentData);
+    if (session) migrateLegacySizeImageResult(session, flatSpecs[0]);
+    const flatFiles = session ? flatSpecs.map((spec) => {
+      const result = session.flatResults[spec.key];
+      if (!result || !result.dataUrl) return null;
+      const flatLabel = (result.kind || spec.kind) === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
+      const suffix = flatSpecs.length > 1 ? '-' + (spec.code || (formatSizeImageNumber(spec.width) + 'x' + formatSizeImageNumber(spec.height) + 'cm')) : '';
+      return { name: sku + '-' + flatLabel + '\u5c3a\u5bf8\u56fe' + suffix + '.jpg', dataUrl: result.dataUrl };
+    }).filter(Boolean) : [];
     const files = session ? [
       session.cartonResultDataUrl ? { name: sku + '-\u7eb8\u76d2\u5c3a\u5bf8\u56fe.jpg', dataUrl: session.cartonResultDataUrl } : null,
-      session.labelResultDataUrl ? { name: sku + '-' + flatLabel + '\u5c3a\u5bf8\u56fe.jpg', dataUrl: session.labelResultDataUrl } : null,
+      ...flatFiles,
     ].filter(Boolean) : [];
     if (!files.length) {
       showToast('\u8bf7\u5148\u751f\u6210\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\u56fe');
@@ -3520,9 +3616,12 @@
     const session = sku && ensureSizeImageSession(sku);
     if (!session) return;
     if (state.sizeImageBusySku === sku) return;
+    const data = normalizeData(state.data || (sku ? loadData(sku) : null));
+    const flatSpecs = getLabelSizeImageSpecs(data);
+    migrateLegacySizeImageResult(session, flatSpecs[0]);
     const sources = [
       session.cartonFile ? { file: session.cartonFile, type: 'carton' } : null,
-      session.labelFile ? { file: session.labelFile, type: 'label' } : null,
+      ...flatSpecs.map((spec) => session.flatFiles[spec.key] ? { file: session.flatFiles[spec.key], type: 'label:' + spec.key } : null),
     ].filter(Boolean);
     if (!sources.length) {
       showToast('\u8bf7\u5148\u5bfc\u5165\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u56fe\u7247');
@@ -3546,6 +3645,21 @@
       session.processingStep = '';
       if (state.view === 'sizeImage') renderShell();
     }
+  }
+
+  async function confirmPendingSizeImageMatch(pendingId) {
+    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const session = sku && ensureSizeImageSession(sku);
+    if (!session || state.sizeImageBusySku === sku) return;
+    const pending = session.pendingLabelMatches.find((item) => item.id === pendingId);
+    const panel = document.getElementById(PANEL_ID);
+    const select = panel && panel.querySelector('.pfh-size-image-match-select[data-pending-id="' + cssEscape(pendingId) + '"]');
+    const specKey = select && select.value;
+    if (!pending || !specKey) {
+      showToast('\u8bf7\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u5c3a\u5bf8');
+      return;
+    }
+    await processSizeImageFile(pending.file, 'label:' + specKey, false);
   }
 
   function ledgerViewHtml(records) {
@@ -5129,6 +5243,10 @@
       regenerateCurrentSizeImages();
       return;
     }
+    if (action === 'size-image-confirm-match') {
+      confirmPendingSizeImageMatch(actionTarget.getAttribute('data-pending-id') || '');
+      return;
+    }
     if (action === 'excel-prepare') {
       prepareExcelInfo();
       return;
@@ -5628,7 +5746,11 @@
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
       const sku = state.selectedSku || (state.data && state.data.sku) || '';
       const type = event.target.getAttribute('data-size-image-type');
-      if (sku && (type === 'carton' || type === 'label')) ensureSizeImageSession(sku)[type + 'RemarkText'] = event.target.value;
+      if (sku && type === 'carton') ensureSizeImageSession(sku).cartonRemarkText = event.target.value;
+      if (sku && type === 'label') {
+        const key = event.target.getAttribute('data-size-image-key') || '';
+        if (key) ensureSizeImageSession(sku).labelRemarkTexts[key] = event.target.value;
+      }
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-search-input')) {
       event.target.value = normalizeSearchInput(event.target.value);
@@ -19491,6 +19613,48 @@
         margin: 0;
         accent-color: #7c3aed;
       }
+      #${PANEL_ID} .pfh-size-image-match-list {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid rgba(124,58,237,.2);
+        border-radius: 14px;
+        background: rgba(124,58,237,.05);
+      }
+      #${PANEL_ID} .pfh-size-image-match-list > strong {
+        color: #312e81;
+        font-size: 13px;
+      }
+      #${PANEL_ID} .pfh-size-image-match-list > div {
+        display: grid;
+        grid-template-columns: minmax(90px,1fr) minmax(150px,1.25fr) auto;
+        align-items: center;
+        gap: 8px;
+      }
+      #${PANEL_ID} .pfh-size-image-match-list span {
+        overflow: hidden;
+        color: #64748b;
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-size-image-match-list select,
+      #${PANEL_ID} .pfh-size-image-match-list button {
+        min-height: 34px;
+        border: 1px solid rgba(124,58,237,.22);
+        border-radius: 10px;
+      }
+      #${PANEL_ID} .pfh-size-image-match-list select {
+        min-width: 0;
+        background: #fff;
+        color: #312e81;
+      }
+      #${PANEL_ID} .pfh-size-image-match-list button {
+        padding: 0 12px;
+        background: #7c3aed;
+        color: #fff;
+        cursor: pointer;
+      }
       #${PANEL_ID} .pfh-size-image-drop {
         min-height: 132px;
         display: grid;
@@ -19652,6 +19816,7 @@
         min-height: 310px;
         display: grid;
         grid-template-rows: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: minmax(0, 1fr);
         gap: 8px;
       }
       #${PANEL_ID} .pfh-size-image-preview,
@@ -19764,6 +19929,9 @@
         #${PANEL_ID} .pfh-size-image-drop {
           min-height: 112px;
           padding: 10px !important;
+        }
+        #${PANEL_ID} .pfh-size-image-match-list > div {
+          grid-template-columns: 1fr;
         }
         #${PANEL_ID} .pfh-size-image-preview,
         #${PANEL_ID} .pfh-size-image-placeholder {
