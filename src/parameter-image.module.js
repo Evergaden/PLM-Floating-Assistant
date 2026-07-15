@@ -19,8 +19,31 @@
     const sizeText = (value) => context.formatNumber(number(value));
     const inchText = (value) => (number(value) / 2.54).toFixed(2).replace(/\.00$/, '').replace(/0$/, '');
     const fieldValue = (data, key, index) => number(data && data[key]) || number(data && data[index + 'Value']);
-    const cleanEnglishName = (value) => String(value || '').replace(/^PRODUCT NAME\s*[:：]?\s*/i, '').trim();
+    const hasCjk = (value) => /[\u3400-\u9fff]/.test(String(value || ''));
+    const sanitizeEnglishName = (value) => {
+      const text = String(value || '').replace(/^PRODUCT\s*NAME\s*[:：]?\s*/i, '').split(/[\r\n|]/)[0].trim();
+      return /[A-Za-z]/.test(text) && !hasCjk(text) ? text : '';
+    };
 
+    function collectTextValues(value, output, depth) {
+      if (depth > 5 || value == null) return;
+      if (typeof value === 'string') { output.push(value); return; }
+      if (Array.isArray(value)) { value.forEach((item) => collectTextValues(item, output, depth + 1)); return; }
+      if (typeof value === 'object') Object.values(value).forEach((item) => collectTextValues(item, output, depth + 1));
+    }
+
+    function extractEnglishName(data) {
+      const direct = sanitizeEnglishName(data && (data.englishName || data.productEnglishName || ''));
+      if (direct) return direct;
+      const values = [];
+      collectTextValues(data && (data.copywriting || data), values, 0);
+      for (const value of values) {
+        const matched = String(value).match(/PRODUCT\s*NAME\s*[:：]\s*([^\r\n|]+)/i);
+        const result = sanitizeEnglishName(matched ? matched[1] : '');
+        if (result) return result;
+      }
+      return '';
+    }
     function extractShelfLife(data) {
       const source = JSON.stringify(data && data.copywriting || data || {});
       const matched = source.match(/SHELF\s*LIFE\s*[:：]?\s*(\d+)\s*(Years?|Months?)/i);
@@ -39,7 +62,7 @@
     function ensureSession(data) {
       const sku = String(data && data.sku || '');
       if (!sessions[sku]) {
-        const englishName = cleanEnglishName(data && (data.englishName || data.productEnglishName || ''));
+        const englishName = extractEnglishName(data);
         sessions[sku] = {
           file: null,
           fileName: '',
@@ -216,27 +239,35 @@
 
     function drawVerticalDimension(ctx, rect, value, side) {
       if (!number(value)) return;
-      const x = side === 'left' ? rect.left - 32 : rect.right + 32;
-      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3;
-      line(ctx, x, rect.top, x, rect.bottom); line(ctx, x - 14, rect.top, x + 14, rect.top); line(ctx, x - 14, rect.bottom, x + 14, rect.bottom);
-      ctx.save(); ctx.translate(x + (side === 'left' ? -48 : 48), (rect.top + rect.bottom) / 2); ctx.rotate(Math.PI / 2); ctx.font = '34px Arial'; ctx.textAlign = 'center'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
+      const x = side === 'left' ? rect.left - 36 : rect.right + 36;
+      ctx.save();
+      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
+      line(ctx, x, rect.top, x, rect.bottom); line(ctx, x - 16, rect.top, x + 16, rect.top); line(ctx, x - 16, rect.bottom, x + 16, rect.bottom);
+      ctx.translate(x + (side === 'left' ? -58 : 58), (rect.top + rect.bottom) / 2);
+      ctx.rotate(Math.PI / 2); ctx.font = '42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
     function drawHorizontalDimension(ctx, rect, value, below) {
       if (!number(value)) return;
-      const y = below ? rect.bottom + 32 : rect.top - 32;
-      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3;
-      line(ctx, rect.left, y, rect.right, y); line(ctx, rect.left, y - 14, rect.left, y + 14); line(ctx, rect.right, y - 14, rect.right, y + 14);
-      ctx.font = '34px Arial'; ctx.textAlign = 'center'; ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 28 : -62));
+      const y = below ? rect.bottom + 36 : rect.top - 36;
+      ctx.save();
+      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
+      line(ctx, rect.left, y, rect.right, y); line(ctx, rect.left, y - 16, rect.left, y + 16); line(ctx, rect.right, y - 16, rect.right, y + 16);
+      ctx.font = '42px Arial'; ctx.textAlign = 'center';
+      ctx.textBaseline = below ? 'top' : 'bottom';
+      ctx.fillText(dimensionLabel(value), (rect.left + rect.right) / 2, y + (below ? 20 : -20));
+      ctx.restore();
     }
 
     function drawSideDimension(ctx, rect, sidePixels, value) {
       if (!number(value) || sidePixels < 8) return;
       const depth = Math.min(rect.width * .3, Math.max(30, sidePixels));
-      const x2 = rect.left + depth, y2 = rect.top - 28, x1 = rect.left - 12, y1 = rect.top + 12;
-      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3;
-      line(ctx, x1, y1, x2, y2); line(ctx, x1 - 8, y1 - 13, x1 + 8, y1 + 13); line(ctx, x2 - 8, y2 - 13, x2 + 8, y2 + 13);
-      ctx.save(); ctx.translate((x1 + x2) / 2 - 10, (y1 + y2) / 2 - 35); ctx.rotate(Math.atan2(y2 - y1, x2 - x1)); ctx.font = '32px Arial'; ctx.textAlign = 'center'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
+      const x2 = rect.left + depth, y2 = rect.top - 30, x1 = rect.left - 12, y1 = rect.top + 12;
+      ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
+      line(ctx, x1, y1, x2, y2); line(ctx, x1 - 9, y1 - 14, x1 + 9, y1 + 14); line(ctx, x2 - 9, y2 - 14, x2 + 9, y2 + 14);
+      ctx.translate((x1 + x2) / 2 - 12, (y1 + y2) / 2 - 42); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+      ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
     function drawProductModule(ctx, image, analysis, session, area) {
@@ -268,23 +299,46 @@
       do { ctx.font = (weight || '400') + ' ' + size + 'px Arial'; size -= 1; } while (size >= minSize && ctx.measureText(text).width > maxWidth);
     }
 
-    function generateEnglishImage(image, analysis, session, data) {
+    async function loadBrandLogo(brand) {
+      const source = typeof getParameterLogoDataUrl === 'function' ? getParameterLogoDataUrl(brand) : '';
+      if (!source) return null;
+      try { return await loadImage(source); } catch (_) { return null; }
+    }
+
+    function drawBrandHeader(ctx, logo, brand) {
+      const centerX = 443;
+      if (logo) {
+        const maxWidth = 500, maxHeight = 120;
+        const scale = Math.min(maxWidth / logo.naturalWidth, maxHeight / logo.naturalHeight);
+        const width = logo.naturalWidth * scale, height = logo.naturalHeight * scale;
+        ctx.drawImage(logo, centerX - width / 2, 240 - height / 2, width, height);
+        return;
+      }
+      const normalized = String(brand || '').trim();
+      if (!normalized || /^(AMZ|ODM|OEM)$/i.test(normalized)) return;
+      ctx.fillStyle = '#080808'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      fitText(ctx, normalized, 500, 70, 38, '400'); ctx.fillText(normalized, centerX, 240);
+    }
+
+    function generateEnglishImage(image, analysis, session, data, logo) {
       const { canvas, ctx } = baseCanvas();
-      ctx.fillStyle = '#080808'; ctx.textBaseline = 'top';
-      fitText(ctx, String(data.brand || ''), 560, 76, 42, '400'); ctx.fillText(String(data.brand || ''), 185, 190);
-      const title = String(session.fields.englishName || data.name || '').toUpperCase();
-      ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.strokeRect(60, 330, 590, 112);
-      fitText(ctx, title, 540, 42, 24, '400'); ctx.textAlign = 'center'; ctx.fillText(title, 355, 365); ctx.textAlign = 'left';
+      drawBrandHeader(ctx, logo, data.brand);
+      const title = String(session.fields.englishName || '').toUpperCase();
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.strokeRect(75, 393, 736, 144);
+      ctx.fillStyle = '#080808'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      fitText(ctx, title, 680, 52, 26, '400'); ctx.fillText(title, 443, 465);
       const rows = [
-        ['NAME', session.fields.englishName || data.name || ''], ['NET CONTENT', session.fields.netContent], ['SHELF LIFE', session.fields.shelfLife],
+        ['NAME', session.fields.englishName || ''], ['NET CONTENT', session.fields.netContent], ['SHELF LIFE', session.fields.shelfLife],
         ['STORE', session.fields.store], ['FEATURES', session.fields.features], ['WEIGHT', session.fields.grossWeight],
       ];
       rows.forEach((row, index) => {
-        const y = 585 + index * 100;
-        ctx.fillStyle = '#050505'; ctx.fillRect(55, y, 185, 54);
-        ctx.fillStyle = '#fff'; fitText(ctx, row[0], 165, 25, 17, '400'); ctx.textAlign = 'center'; ctx.fillText(row[0], 148, y + 14);
-        ctx.fillStyle = '#111'; ctx.textAlign = 'left'; fitText(ctx, String(row[1] || ''), 375, 29, 18, '400'); ctx.fillText(String(row[1] || ''), 260, y + 12);
-        ctx.setLineDash([7, 5]); ctx.lineWidth = 1.5; line(ctx, 242, y + 54, 630, y + 54); ctx.setLineDash([]);
+        const y = 709 + index * 123;
+        ctx.fillStyle = '#050505'; ctx.fillRect(70, y, 230, 67);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        fitText(ctx, row[0], 205, 32, 20, '400'); ctx.fillText(row[0], 185, y + 34);
+        ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+        fitText(ctx, String(row[1] || ''), 455, 34, 20, '400'); ctx.fillText(String(row[1] || ''), 326, y + 34);
+        ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
       drawProductModule(ctx, image, analysis, session, { x: 735, y: 330, width: 700, height: 1000 });
       return canvas.toDataURL('image/jpeg', .96);
@@ -297,9 +351,11 @@
       const url = URL.createObjectURL(session.file);
       try {
         const image = await loadImage(url);
+        const logo = await loadBrandLogo(data.brand);
         session.analysis = analyzeImage(image, session);
         session.productResult = generateProductImage(image, session.analysis, session);
-        session.englishResult = generateEnglishImage(image, session.analysis, session, data);
+        session.englishResult = generateEnglishImage(image, session.analysis, session, data, logo);
+        if (!session.fields.englishName) session.error = '未读取到英文产品名，请手动填写英文产品名后重新生成。';
       } catch (error) {
         session.error = String(error && error.message || error || '生成失败');
       } finally {
@@ -321,7 +377,8 @@
 
     async function applyExtraData(data, session) {
       const extra = await context.collectExtra(data.sku);
-      if (extra && extra.englishName) session.fields.englishName = cleanEnglishName(extra.englishName);
+      if (extra && extra.englishName) session.fields.englishName = sanitizeEnglishName(extra.englishName);
+      if (!session.fields.englishName) session.fields.englishName = extractEnglishName(extra && extra.liveData || data);
       if (extra && extra.liveData) {
         const live = extra.liveData;
         if (live.netContent) session.fields.netContent = live.netContent;

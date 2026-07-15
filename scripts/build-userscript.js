@@ -3,13 +3,21 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const outputPath = path.join(root, 'outputs', 'plm-material-summary.user.js');
-const modulePath = path.join(root, 'src', 'parameter-image.module.js');
-const start = '  // <parameter-image-module>';
-const end = '  // </parameter-image-module>';
-const output = fs.readFileSync(outputPath, 'utf8');
-const moduleSource = fs.readFileSync(modulePath, 'utf8').trimEnd();
-const pattern = new RegExp(`${start.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+const modules = [
+  { name: 'parameter-logo-assets', file: path.join(root, 'src', 'parameter-logo-assets.module.js') },
+  { name: 'parameter-image', file: path.join(root, 'src', 'parameter-image.module.js') },
+];
+let output = fs.readFileSync(outputPath, 'utf8');
 
-if (!pattern.test(output)) throw new Error('parameter image module markers are missing');
-fs.writeFileSync(outputPath, output.replace(pattern, `${start}\n${moduleSource}\n${end}`), 'utf8');
-console.log(`Injected ${path.relative(root, modulePath)} into ${path.relative(root, outputPath)}`);
+for (const module of modules) {
+  const start = `  // <${module.name}-module>`;
+  const end = `  // </${module.name}-module>`;
+  const source = fs.readFileSync(module.file, 'utf8').trimEnd();
+  const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`${escape(start)}[\\s\\S]*?${escape(end)}`);
+  if (!pattern.test(output)) throw new Error(`${module.name} module markers are missing`);
+  output = output.replace(pattern, `${start}\n${source}\n${end}`);
+}
+
+fs.writeFileSync(outputPath, output, 'utf8');
+console.log(`Injected ${modules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);
