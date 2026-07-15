@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.54
+// @version      2.5.55
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.54';
+  const SCRIPT_VERSION = '2.5.55';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -69,9 +69,9 @@
     const inchText = (value) => (number(value) / 2.54).toFixed(2).replace(/\.00$/, '').replace(/0$/, '');
     const fieldValue = (data, key, index) => number(data && data[key]) || number(data && data[index + 'Value']);
     const hasCjk = (value) => /[\u3400-\u9fff]/.test(String(value || ''));
-    const sanitizeEnglishName = (value) => {
+    const sanitizeEnglishName = (value, brand) => {
       const text = String(value || '').replace(/^PRODUCT\s*NAME\s*[:：]?\s*/i, '').split(/[\r\n|]/)[0].trim();
-      return /[A-Za-z]/.test(text) && !hasCjk(text) ? text : '';
+      return /[A-Za-z]/.test(text) && !hasCjk(text) ? cleanEnglishProductName(text, brand) : '';
     };
 
     const preferredImageUrl = (data) => {
@@ -96,13 +96,13 @@
     }
 
     function extractEnglishName(data) {
-      const direct = sanitizeEnglishName(data && (data.englishName || data.productEnglishName || ''));
+      const direct = sanitizeEnglishName(data && (data.englishName || data.productEnglishName || ''), data && data.brand);
       if (direct) return direct;
       const values = [];
       collectTextValues(data && (data.copywriting || data), values, 0);
       for (const value of values) {
         const matched = String(value).match(/PRODUCT\s*NAME\s*[:：]\s*([^\r\n|]+)/i);
-        const result = sanitizeEnglishName(matched ? matched[1] : '');
+        const result = sanitizeEnglishName(matched ? matched[1] : '', data && data.brand);
         if (result) return result;
       }
       return '';
@@ -562,7 +562,7 @@
 
     async function applyExtraData(data, session) {
       const extra = await context.collectExtra(data.sku);
-      if (extra && extra.englishName) session.fields.englishName = sanitizeEnglishName(extra.englishName);
+      if (extra && extra.englishName) session.fields.englishName = sanitizeEnglishName(extra.englishName, data && data.brand);
       if (!session.fields.englishName) session.fields.englishName = extractEnglishName(extra && extra.liveData || data);
       if (extra && extra.liveData) {
         const live = extra.liveData;
@@ -1998,6 +1998,7 @@
     const hasInnerCard = hasInnerCardMark(packaging);
     const productNums = singleBottle ? outer.packageNums : (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums);
 
+    const brand = getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer);
     return {
       sku: findSku(text),
       name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
@@ -2020,7 +2021,8 @@
       singleBottle,
       packageSource: packaging.packageSizeText || food.productNums || isTubePrint ? L.sourceMaterial : (outer.packageNums ? L.sourceOuter : ''),
       hasInnerCard,
-      brand: getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer),
+      brand,
+      englishName: seenDesign ? cleanEnglishProductName(extractLineAfter(text, 'PRODUCT NAME'), brand) : '',
       designType: getProjectLooseField(text, '\u8bbe\u8ba1\u7c7b\u578b'),
       artPriority: getProjectLooseField(text, '\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7') || extractArtPriority(text),
       projectStatus,
@@ -9335,7 +9337,8 @@
 
   async function collectExcelExtraData(sku) {
     const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
-    const extra = { englishName: '', chineseName: '', ingredients: '', benchmarkLink: '', imageUrl: '', imageFallbackUrl: '', liveData: null };
+    const cachedData = normalizeData((state.data && state.data.sku === sku ? state.data : null) || loadData(sku) || {});
+    const extra = { englishName: cleanEnglishProductName(cachedData.englishName, cachedData.brand), chineseName: '', ingredients: '', benchmarkLink: '', imageUrl: '', imageFallbackUrl: '', liveData: null };
     if (!drawer) return extra;
     await switchDrawerTab(drawer, L.productTab);
     await waitForDrawerText(drawer, '\u6bdb\u91cd', 1200);
@@ -9351,7 +9354,7 @@
       designTimeout: 4500,
     });
     Object.assign(extra, {
-      englishName: extractLineAfter(designText, 'PRODUCT NAME') || '',
+      englishName: cleanEnglishProductName(extractLineAfter(designText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
       chineseName: extractLineAfter(designText, '\u5546\u54c1\u540d\u79f0') || '',
       ingredients: extractNamedField(designText, '\u6210\u5206') || extractNamedField(designText, '\u6210\u4efd') || '',
       ...previewImageInfo,
@@ -9474,6 +9477,24 @@
   function cleanExcelFieldValue(value) {
     const text = compactText(value);
     return text === '--' ? '' : text;
+  }
+
+  function cleanEnglishProductName(value, brand) {
+    let text = cleanExcelFieldValue(value)
+      .replace(/^PRODUCT\s*NAME\s*[:：]?\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!text) return '';
+
+    const brandText = compactText(brand).replace(/[._-]+/g, ' ').trim();
+    if (brandText) {
+      const escapedBrand = brandText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[\\s._-]+');
+      text = text.replace(new RegExp('^' + escapedBrand + '(?:[\\s._–—-]+|$)', 'i'), '').trim();
+    }
+
+    const logoMatch = text.match(/^([A-Z][A-Z0-9]{3,})(?:[®™©])?[\s._–—-]+(.+)$/);
+    if (logoMatch && /[A-Za-z]/.test(logoMatch[2])) text = logoMatch[2].trim();
+    return text;
   }
 
   function isLikelyFieldLabel(value) {
