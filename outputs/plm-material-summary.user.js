@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.59
+// @version      2.5.60
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.59';
+  const SCRIPT_VERSION = '2.5.60';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -5156,7 +5156,7 @@
     const recommendations = historicalNamingRecommendations(data, key, entries);
     const entryHtml = entries.map((entry) => {
       const line = namingLine(entry, data);
-      return '<button type="button" class="pfh-packaging-naming-current" data-naming-copy="' + escapeHtml(line) + '"><span>' + escapeHtml(line) + '</span><em>复制命名</em></button>';
+      return '<button type="button" class="pfh-packaging-naming-current" data-naming-copy="' + escapeHtml(line) + '"><span>' + escapeHtml(line) + '</span></button>';
     }).join('');
     const recommendationHtml = recommendations.length ? recommendations.map((item) =>
       '<button type="button" class="pfh-packaging-naming-history" data-naming-copy="' + escapeHtml(item.code) + '">' +
@@ -21445,23 +21445,20 @@
         text-align: left;
       }
       #${PANEL_ID} .pfh-packaging-naming-current {
-        grid-template-columns: minmax(0,1fr) auto;
-        align-items: center;
-        gap: 10px;
+        grid-template-columns: minmax(0,1fr);
+        align-items: start;
         border-color: rgba(139,92,246,.34);
         background: linear-gradient(135deg,rgba(247,244,255,.98),rgba(255,255,255,.94));
       }
       #${PANEL_ID} .pfh-packaging-naming-current span {
+        display: block;
+        width: 100%;
         min-width: 0;
-        overflow-wrap: anywhere;
+        overflow-wrap: anywhere !important;
+        word-break: break-word;
+        white-space: normal !important;
         font-size: 12px;
         line-height: 1.45;
-      }
-      #${PANEL_ID} .pfh-packaging-naming-current em {
-        color: #7443dd;
-        font-size: 10px;
-        font-style: normal;
-        white-space: nowrap;
       }
       #${PANEL_ID} .pfh-packaging-naming-subtitle {
         align-items: flex-end;
