@@ -186,6 +186,49 @@
       return right >= left ? { left, top, right: right + 1, bottom: bottom + 1, width: right - left + 1, height: bottom - top + 1 } : null;
     }
 
+    function median(values) {
+      const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+      return sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+    }
+
+    function alphaColumnRange(pixels, width, height, centerX, top, bottom, spread) {
+      const tops = [], bottoms = [];
+      for (let x = Math.max(0, Math.round(centerX) - spread); x <= Math.min(width - 1, Math.round(centerX) + spread); x += 1) {
+        let first = -1, last = -1;
+        for (let y = Math.max(0, top); y < Math.min(height, bottom); y += 1) {
+          if (pixels[(y * width + x) * 4 + 3] <= 12) continue;
+          if (first < 0) first = y;
+          last = y;
+        }
+        if (first >= 0) { tops.push(first); bottoms.push(last); }
+      }
+      return tops.length ? { top: median(tops), bottom: median(bottoms) + 1 } : null;
+    }
+
+    function detectPerspectiveGeometry(pixels, width, height, box, frontPhysical, packageHeight) {
+      const expectedFront = frontPhysical && packageHeight ? box.height * frontPhysical / packageHeight : box.width * .68;
+      const expectedJunction = box.right - expectedFront;
+      const searchStart = Math.max(box.left + box.width * .12, expectedJunction - box.width * .15);
+      const searchEnd = Math.min(box.left + box.width * .58, expectedJunction + box.width * .15);
+      const columns = [];
+      for (let x = Math.round(searchStart); x <= Math.round(searchEnd); x += 1) {
+        const range = alphaColumnRange(pixels, width, height, x, box.top, box.bottom, 0);
+        if (range) columns.push({ x, ...range });
+      }
+      if (!columns.length) return null;
+      const minimumTop = Math.min(...columns.map((column) => column.top));
+      const junctionX = median(columns.filter((column) => column.top <= minimumTop + 2).map((column) => column.x));
+      const outer = alphaColumnRange(pixels, width, height, box.left + 1, box.top, box.bottom, 2);
+      const junction = alphaColumnRange(pixels, width, height, junctionX, box.top, box.bottom, 2);
+      const right = alphaColumnRange(pixels, width, height, box.right - 2, box.top, box.bottom, 2);
+      if (!outer || !junction || !right) return null;
+      return {
+        outerTop: { x: box.left, y: outer.top }, outerBottom: { x: box.left, y: outer.bottom },
+        junctionTop: { x: junctionX, y: junction.top }, junctionBottom: { x: junctionX, y: junction.bottom },
+        rightTop: { x: box.right, y: right.top }, rightBottom: { x: box.right, y: right.bottom },
+      };
+    }
+
     function analyzeImage(image, session) {
       const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
@@ -212,13 +255,16 @@
       const originalBox = convert(box), originalProduct = convert(product);
       const frontPhysical = session.frontIsLength ? number(session.fields.packageLength) : number(session.fields.packageWidth);
       const packageHeight = number(session.fields.packageHeight);
+      const perspectiveScaled = detectPerspectiveGeometry(pixels, width, height, box, frontPhysical, packageHeight);
+      const convertPoint = (point) => ({ x: point.x * f, y: point.y * f });
+      const perspective = perspectiveScaled ? Object.fromEntries(Object.entries(perspectiveScaled).map(([key, point]) => [key, convertPoint(point)])) : null;
       const expectedFrontPixels = packageHeight && frontPhysical ? originalBox.height * frontPhysical / packageHeight : originalBox.width;
       const sidePixels = Math.max(0, originalBox.width - expectedFrontPixels);
       // Front-only carton renders often include a small shadow/edge. Treat it as a
       // visible side only when the excess is substantial; users can still override.
       const detectedSide = sidePixels > originalBox.width * .18;
       if (session.showSide === null) session.showSide = detectedSide;
-      return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
+      return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, perspective, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
     }
 
     function fitSource(image, analysis, area) {
@@ -228,6 +274,10 @@
 
     function mapRect(rect, fit) {
       return { left: fit.x + rect.left * fit.scale, top: fit.y + rect.top * fit.scale, right: fit.x + rect.right * fit.scale, bottom: fit.y + rect.bottom * fit.scale, width: rect.width * fit.scale, height: rect.height * fit.scale };
+    }
+
+    function mapPoint(point, fit) {
+      return { x: fit.x + point.x * fit.scale, y: fit.y + point.y * fit.scale };
     }
 
     function line(ctx, x1, y1, x2, y2) {
@@ -271,17 +321,49 @@
       ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
+    function drawAngledDimension(ctx, start, end, value, normalSign) {
+      if (!number(value)) return;
+      const dx = end.x - start.x, dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      if (length < 8) return;
+      const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
+      const offset = 36, textGap = 22, tick = 16;
+      const a = { x: start.x + nx * offset, y: start.y + ny * offset };
+      const b = { x: end.x + nx * offset, y: end.y + ny * offset };
+      ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
+      line(ctx, a.x, a.y, b.x, b.y);
+      line(ctx, a.x - nx * tick, a.y - ny * tick, a.x + nx * tick, a.y + ny * tick);
+      line(ctx, b.x - nx * tick, b.y - ny * tick, b.x + nx * tick, b.y + ny * tick);
+      let angle = Math.atan2(dy, dx);
+      if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+      ctx.translate((a.x + b.x) / 2 + nx * textGap, (a.y + b.y) / 2 + ny * textGap);
+      ctx.rotate(angle); ctx.font = '42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
+    }
+
     function drawProductModule(ctx, image, analysis, session, area) {
       const fit = fitSource(image, analysis, area);
+      ctx.save();
+      if (number(area.clipLeft)) {
+        ctx.beginPath(); ctx.rect(area.clipLeft, 0, 1600 - area.clipLeft, 1600); ctx.clip();
+      }
       ctx.drawImage(image, fit.x, fit.y, analysis.sourceWidth * fit.scale, analysis.sourceHeight * fit.scale);
       const box = mapRect(analysis.box, fit), product = mapRect(analysis.product, fit);
       const frontValue = session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth;
       const sideValue = session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength;
-      drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left');
-      drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true);
-      if (session.showSide) drawSideDimension(ctx, box, analysis.sidePixels * fit.scale, sideValue);
+      const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
+      if (session.showSide && perspective) {
+        drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
+        drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
+        drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1);
+      } else {
+        drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left');
+        drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true);
+        if (session.showSide) drawSideDimension(ctx, box, analysis.sidePixels * fit.scale, sideValue);
+      }
       drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
       drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+      ctx.restore();
     }
 
     function baseCanvas() {
@@ -346,7 +428,10 @@
         fitText(ctx, String(row[1] || ''), 455, 34, 20, '400'); ctx.fillText(String(row[1] || ''), 326, y + 34);
         ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
-      drawProductModule(ctx, image, analysis, session, { x: 735, y: 330, width: 700, height: 1000 });
+      const rightArea = session.showSide
+        ? { x: 900, y: 280, width: 590, height: 1080, clipLeft: 815 }
+        : { x: 890, y: 280, width: 610, height: 1080, clipLeft: 815 };
+      drawProductModule(ctx, image, analysis, session, rightArea);
       return canvas.toDataURL('image/jpeg', .96);
     }
 
