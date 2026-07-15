@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.58
+// @version      2.5.59
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.58';
+  const SCRIPT_VERSION = '2.5.59';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -129,7 +129,6 @@
         sessions[sku] = {
           file: null,
           fileName: '',
-          sourceDataUrl: '',
           analysis: null,
           productResult: '',
           englishResult: '',
@@ -248,15 +247,6 @@
       '</section></div>';
     }
 
-    function fileDataUrl(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(new Error('无法读取图片。'));
-        reader.readAsDataURL(file);
-      });
-    }
-
     function editorScale(image) {
       return Math.max(1, Math.max(image.naturalWidth, image.naturalHeight) / 1200);
     }
@@ -306,13 +296,18 @@
 
     async function mountManualEditor(data) {
       const session = ensureSession(data);
-      if (!session.editorOpen || !session.sourceDataUrl) return;
+      if (!session.editorOpen || !session.file) return;
       const root = document.getElementById(context.panelId);
       const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
       if (!canvas) return;
       try {
-        if (!session.editorImage) session.editorImage = await loadImage(session.sourceDataUrl);
-      } catch (_) { return; }
+        if (!session.editorImage) session.editorImage = await loadFileImage(session.file);
+      } catch (error) {
+        session.editorOpen = false;
+        session.error = String(error && error.message || error || '无法读取标注图片。');
+        context.render();
+        return;
+      }
       if (!session.editorOpen || !document.body.contains(canvas)) return;
       drawManualEditorCanvas(canvas, session.editorImage, session);
       const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
@@ -343,12 +338,9 @@
     async function openManualEditor(data) {
       const session = ensureSession(data);
       if (!session.file) return;
-      try {
-        if (!session.sourceDataUrl) session.sourceDataUrl = await fileDataUrl(session.file);
-        session.editorOpen = true; session.error = ''; context.render();
-      } catch (error) {
-        session.error = String(error && error.message || error || '无法打开手动标注。'); context.render();
-      }
+      session.editorOpen = true;
+      session.error = '';
+      context.render();
     }
 
     function viewHtml(data) {
@@ -391,6 +383,17 @@
         const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = () => reject(new Error('无法读取图片，请重新导出透明 PNG。'));
+        image.src = url;
+      });
+    }
+
+    function loadFileImage(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        const release = () => URL.revokeObjectURL(url);
+        image.onload = () => { release(); resolve(image); };
+        image.onerror = () => { release(); reject(new Error('无法读取标注图片，请重新导入 PNG。')); };
         image.src = url;
       });
     }
@@ -746,7 +749,6 @@
       const session = ensureSession(data);
       if (!file || !/\.png$/i.test(file.name || '')) { session.error = '请选择透明 PNG 图片。'; context.render(); return; }
       session.file = file; session.fileName = file.name; session.showSide = null;
-      session.sourceDataUrl = '';
       session.editorImage = null;
       session.editorOpen = false;
       session.editorDragging = null;
