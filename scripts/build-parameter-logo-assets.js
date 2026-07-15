@@ -3,7 +3,8 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const sourceRoot = process.env.PARAMETER_LOGO_SOURCE || 'C:\\Users\\Violet\\Desktop\\功能测试\\LOGOSVG';
-const outputPath = path.join(root, 'src', 'parameter-logo-assets.module.js');
+const clientOutputPath = path.join(root, 'src', 'parameter-logo-assets.module.js');
+const workerOutputPath = path.join(root, 'cloudflare', 'plm-cloud-backup', 'src', 'parameter-logo-assets.js');
 const files = {
   brunizo: 'BRUNIZO.svg',
   bushaid: 'Bushaid.svg',
@@ -45,8 +46,7 @@ for (const [key, fileName] of Object.entries(files)) {
   assets[key] = `data:image/svg+xml;base64,${fs.readFileSync(filePath).toString('base64')}`;
 }
 
-const source = `  const PARAMETER_LOGO_ASSETS = Object.freeze(${JSON.stringify(assets, null, 2)});
-  const PARAMETER_LOGO_ALIASES = Object.freeze({
+const clientSource = `  const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
     'westmonth': 'westmonth', 'west month': 'westmonth', '한초빛': 'hanchobit', 'hanchobit': 'hanchobit'
   });
@@ -55,15 +55,15 @@ const source = `  const PARAMETER_LOGO_ASSETS = Object.freeze(${JSON.stringify(a
     return String(value || '').trim().toLowerCase().replace(/[._-]+/g, ' ').replace(/\\s+/g, ' ');
   }
 
-  function getParameterLogoDataUrl(brand) {
+  function getParameterLogoKey(brand) {
     const normalized = normalizeParameterBrandName(brand);
     if (!normalized || /^(amz|odm|oem)$/.test(normalized)) return '';
     const compact = normalized.replace(/[^a-z0-9\\u3400-\\u9fff\\uac00-\\ud7af]+/g, '');
-    const alias = PARAMETER_LOGO_ALIASES[normalized] || PARAMETER_LOGO_ALIASES[compact] || compact;
-    if (PARAMETER_LOGO_ASSETS[alias]) return PARAMETER_LOGO_ASSETS[alias];
-    const key = Object.keys(PARAMETER_LOGO_ASSETS).find((item) => compact.includes(item) || item.includes(compact));
-    return key ? PARAMETER_LOGO_ASSETS[key] : '';
+    return PARAMETER_LOGO_ALIASES[normalized] || PARAMETER_LOGO_ALIASES[compact] || compact;
   }`;
 
-fs.writeFileSync(outputPath, source, 'utf8');
-console.log(`Generated ${path.relative(root, outputPath)} with ${Object.keys(assets).length} logos`);
+const workerSource = `export const PARAMETER_LOGO_ASSETS = Object.freeze(${JSON.stringify(assets, null, 2)});\n`;
+
+fs.writeFileSync(clientOutputPath, clientSource, 'utf8');
+fs.writeFileSync(workerOutputPath, workerSource, 'utf8');
+console.log(`Generated lightweight client map and ${Object.keys(assets).length} Worker logo assets`);

@@ -1,5 +1,6 @@
   function createParameterImageFeature(context) {
     const sessions = Object.create(null);
+    const logoCache = Object.create(null);
     const defaultRules = [
       { category: '精华液', keywords: ['精华液', 'serum', 'essence'], phrase: 'Anti-wrinkle & glow', priority: 100 },
       { category: '眼霜', keywords: ['眼霜', 'eye cream', 'eye treatment'], phrase: 'Brightens & smooths', priority: 100 },
@@ -300,9 +301,14 @@
     }
 
     async function loadBrandLogo(brand) {
-      const source = typeof getParameterLogoDataUrl === 'function' ? getParameterLogoDataUrl(brand) : '';
-      if (!source) return null;
-      try { return await loadImage(source); } catch (_) { return null; }
+      const key = typeof getParameterLogoKey === 'function' ? getParameterLogoKey(brand) : '';
+      if (!key) return null;
+      if (!logoCache[key]) {
+        logoCache[key] = context.cloudRequest('/parameter-logo?brand=' + encodeURIComponent(key), { method: 'GET' })
+          .then((response) => response && response.dataUrl ? loadImage(response.dataUrl) : null)
+          .catch(() => null);
+      }
+      return logoCache[key];
     }
 
     function drawBrandHeader(ctx, logo, brand) {

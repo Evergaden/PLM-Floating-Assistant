@@ -1,3 +1,5 @@
+import { PARAMETER_LOGO_ASSETS } from './parameter-logo-assets.js';
+
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -309,6 +311,13 @@ async function handleBackupSave(request, env) {
   `).bind(backupOwnerName, version).run();
 
   return json({ ok: true, userId, bytes: serialized.length });
+}
+
+function handleParameterLogo(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const brand = String(new URL(request.url).searchParams.get('brand') || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const dataUrl = PARAMETER_LOGO_ASSETS[brand] || '';
+  return dataUrl ? json({ ok: true, brand, dataUrl }) : json({ error: 'logo not found' }, 404);
 }
 
 async function handleBackupLoad(request, env) {
@@ -3422,6 +3431,7 @@ export default {
     if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
     if (url.pathname === '/tips/impression' && request.method === 'POST') return handleLoadingTipImpression(request, env);
     if (url.pathname === '/parameter-features' && request.method === 'GET') return handleParameterFeatureRules(request, env);
+    if (url.pathname === '/parameter-logo' && request.method === 'GET') return handleParameterLogo(request, env);
     if (url.pathname === '/tips/manage' && request.method === 'GET') return handleLoadingTipsManage(request, env);
     if (url.pathname === '/tips/save' && request.method === 'POST') return handleLoadingTipSave(request, env);
     if (url.pathname === '/tips/delete' && request.method === 'POST') return handleLoadingTipDelete(request, env);
