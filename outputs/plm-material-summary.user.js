@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.52
+// @version      2.5.53
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.52';
+  const SCRIPT_VERSION = '2.5.53';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -1043,6 +1043,7 @@
     insightRecommendation: null,
     exportType: 'excel',
     exportMenuOpen: false,
+    skuSortMenuOpen: false,
     copywritingMode: false,
     copywritingLoading: false,
     copywritingError: '',
@@ -3255,10 +3256,17 @@
     const listTitle = state.view === 'sizeImage' ? '\u5c3a\u5bf8\u56fe SKU' : (state.view === 'parameterImage' ? '\u53c2\u6570\u56fe SKU' : 'SKU\u5217\u8868');
     const listMode = getSkuListMode();
     const listSort = getSkuListSort();
+    const listSortLabel = listSort === 'acquired' ? '\u83b7\u53d6\u65f6\u95f4' : '\u5206\u914d\u65f6\u95f4';
+    const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
+      '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
+      '<div class="pfh-export-menu-list">' +
+        '<button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + (listSort === 'assigned' ? 'is-active' : '') + '">\u5206\u914d\u65f6\u95f4</button>' +
+        '<button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + (listSort === 'acquired' ? 'is-active' : '') + '">\u83b7\u53d6\u65f6\u95f4</button>' +
+      '</div></div>';
     const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" role="group" aria-label="SKU\u5217\u8868\u89c6\u56fe">' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">\u5217\u8868</button>' +
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
-      '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span><select data-sku-list-sort><option value="assigned"' + (listSort === 'assigned' ? ' selected' : '') + '>\u5206\u914d\u65f6\u95f4</option><option value="acquired"' + (listSort === 'acquired' ? ' selected' : '') + '>\u83b7\u53d6\u65f6\u95f4</option></select></label></div>';
+      '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
     const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
@@ -3278,9 +3286,9 @@
         const data = normalizeData(loadData(item.sku) || item);
         const image = getSkuListImageUrl(data);
         const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
-        const subTitle = [item.brand || data.brand, item.name || data.name].filter(Boolean).join(' ');
+        const productName = data.name || item.name || '\u672a\u547d\u540d\u4ea7\u54c1';
         return '<button type="button" class="pfh-sku-waterfall-card' + active + pinned + '" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '">' +
-          '<span class="pfh-sku-waterfall-thumb">' + imageHtml + '</span><span class="pfh-sku-waterfall-meta"><b>' + escapeHtml(item.sku) + '</b>' + pinControl + (subTitle ? '<small>' + escapeHtml(subTitle) + '</small>' : '') + '</span></button>';
+          '<span class="pfh-sku-waterfall-thumb">' + imageHtml + '</span><span class="pfh-sku-waterfall-meta"><b>' + escapeHtml(productName) + '</b></span></button>';
       }
       return '<button type="button" class="pfh-sku' + active + pinned + '" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '">' +
         '<span><b>' + escapeHtml(item.sku) + '</b>' + pinControl + '</span>' +
@@ -5569,6 +5577,8 @@
     state.uploadExpanded = true;
     moveCompletedUploadsToHistory();
     normalizeRunningUploadsInQueue();
+    state.uploadQueue = loadUploadQueue();
+    state.uploadHistory = loadUploadHistory();
     const viewingHistory = state.uploadView === 'history';
     const history = state.uploadHistory || [];
     const successfulHistory = history.filter(isUploadHistorySuccess);
@@ -5689,6 +5699,11 @@
       renderShell();
       return;
     }
+    if (state.skuSortMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-sku-sort-menu'))) {
+      state.skuSortMenuOpen = false;
+      renderShell();
+      return;
+    }
     if (action === 'expand') {
       expandPanel();
       return;
@@ -5762,6 +5777,21 @@
       const mode = actionTarget.getAttribute('data-mode') === 'waterfall' ? 'waterfall' : 'list';
       state.settings.skuListMode = mode;
       state.skuPage = 1;
+      state.skuSortMenuOpen = false;
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
+    if (action === 'sku-sort-toggle') {
+      state.skuSortMenuOpen = !state.skuSortMenuOpen;
+      state.exportMenuOpen = false;
+      renderShell();
+      return;
+    }
+    if (action === 'sku-list-sort') {
+      state.settings.skuListSort = actionTarget.getAttribute('data-sort') === 'acquired' ? 'acquired' : 'assigned';
+      state.skuPage = 1;
+      state.skuSortMenuOpen = false;
       saveSettings(state.settings);
       renderShell();
       return;
@@ -6513,13 +6543,6 @@
 
   function handlePanelChange(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
-    if (event.target && event.target.matches && event.target.matches('[data-sku-list-sort]')) {
-      state.settings.skuListSort = event.target.value === 'acquired' ? 'acquired' : 'assigned';
-      state.skuPage = 1;
-      saveSettings(state.settings);
-      renderShell();
-      return;
-    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
       regenerateCurrentSizeImages();
       return;
@@ -6956,6 +6979,7 @@
     saveUploadWorkerRunning(false);
     moveCompletedUploadsToHistory();
     state.uploadQueue = loadUploadQueue();
+    state.uploadHistory = loadUploadHistory();
     const toyLabelManifest = loadToyLabelExportManifest();
     if (toyLabelManifest.downloaded) await clearToyLabelExportManifest(toyLabelManifest);
     else await downloadToyLabelBatchArchive();
@@ -11046,8 +11070,8 @@
       index: state.index,
       items,
       uploadRecords: {
-        queue: sanitizeUploadRecords(state.uploadQueue || loadUploadQueue()),
-        history: sanitizeUploadRecords(state.uploadHistory || loadUploadHistory()),
+        queue: sanitizeUploadRecords(loadUploadQueue()),
+        history: sanitizeUploadRecords(loadUploadHistory()),
       },
       dailyLedger: sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()),
       insights: state.insights || emptyInsights(),
@@ -20822,6 +20846,39 @@
         color: #4e587a;
         font-size: 10px;
       }
+      #${PANEL_ID} .pfh-sku-sort-menu {
+        position: relative;
+        flex: 0 0 auto;
+        width: 92px;
+        min-width: 92px;
+        height: 25px;
+        z-index: 12;
+      }
+      #${PANEL_ID} .pfh-sku-sort-menu .pfh-export-menu-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        min-width: 0;
+        height: 25px;
+        min-height: 25px;
+        padding: 0 8px;
+        border: 1px solid rgba(167,139,250,.34);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(246,243,255,.86));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 6px 16px rgba(124,58,237,.08);
+        color: #443075;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        cursor: pointer;
+      }
+      #${PANEL_ID} .pfh-sku-sort-menu .pfh-export-menu-list {
+        min-width: 100%;
+        box-sizing: border-box;
+      }
       #${PANEL_ID} .pfh-sku-waterfall-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -20857,7 +20914,8 @@
         display: grid;
         place-items: center;
         width: 100%;
-        height: 104px;
+        height: auto;
+        aspect-ratio: 1 / 1;
         margin-bottom: 6px;
         overflow: hidden;
         border-radius: 7px;
@@ -20868,7 +20926,8 @@
         display: block;
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: cover;
+        object-position: center;
       }
       #${PANEL_ID} .pfh-sku-waterfall-thumb .pfh-icon {
         width: 24px;
@@ -20876,12 +20935,11 @@
       }
       #${PANEL_ID} .pfh-sku-waterfall-meta {
         display: grid;
-        grid-template-columns: minmax(0,1fr) auto;
+        grid-template-columns: minmax(0,1fr);
         gap: 2px 4px;
         min-width: 0;
       }
-      #${PANEL_ID} .pfh-sku-waterfall-meta b,
-      #${PANEL_ID} .pfh-sku-waterfall-meta small {
+      #${PANEL_ID} .pfh-sku-waterfall-meta b {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -20889,11 +20947,6 @@
       }
       #${PANEL_ID} .pfh-sku-waterfall-meta b {
         font-size: 10px;
-      }
-      #${PANEL_ID} .pfh-sku-waterfall-meta small {
-        grid-column: 1 / -1;
-        color: #71809f;
-        font-size: 9px;
       }
       #${PANEL_ID} .pfh-sku-waterfall-meta em {
         color: #7c3aed;
