@@ -478,6 +478,111 @@ function cleanList(value, maxItems = 20) {
   return value.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, maxItems);
 }
 
+function parseIngredientAiJson(value) {
+  const text = String(value || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Gemini ingredient response is not JSON');
+    return JSON.parse(match[0]);
+  }
+}
+
+function normalizeIngredientEnglish(value) {
+  const chars = Array.from(cleanText(value, 300));
+  return chars.map((char, index) => {
+    if (char !== '-') return char;
+    const before = chars[index - 1] || '';
+    const after = chars[index + 1] || '';
+    return /[A-Za-z0-9]/.test(before) && /[A-Za-z0-9]/.test(after) ? '\u2011' : char;
+  }).join('').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeIngredientChinese(value) {
+  const chars = Array.from(cleanText(value, 300).replace(/\s+/g, ''));
+  return chars.map((char, index) => {
+    if (char !== '-') return char;
+    const before = chars[index - 1] || '';
+    const after = chars[index + 1] || '';
+    return before && after ? '\u2011' : char;
+  }).join('').trim();
+}
+
+function sanitizeIngredientItems(value) {
+  const items = Array.isArray(value && value.items) ? value.items : [];
+  const seen = new Set();
+  return items.map((item) => ({
+    english: normalizeIngredientEnglish(item && item.english),
+    chinese: normalizeIngredientChinese(item && item.chinese),
+  })).filter((item) => {
+    const key = item.english.toLowerCase();
+    if (!item.english || !item.chinese || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 100);
+}
+
+async function handleIngredientNormalize(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const rawText = cleanText(body && body.rawText, 30000);
+  const sku = cleanText(body && body.sku, 80);
+  const fileName = cleanText(body && body.fileName, 300);
+  if (rawText.length < 20) return json({ error: 'rawText required' }, 400);
+  try {
+    const options = {
+      model: 'gemini-3.1-flash-lite',
+      temperature: 0,
+      maxTokens: 3000,
+      timeoutMs: 50000,
+      responseMimeType: 'application/json',
+      system: [
+        'You normalize Supplement Facts or food ingredient-table text.',
+        'Return JSON only as {"items":[{"english":"...","chinese":"..."}]}.',
+        'Keep ingredients in source order and output ingredient names only.',
+        'Remove serving size, quantities, percentages, footnotes, carriers, origins and explanatory parentheses.',
+        'For vitamins and minerals, keep the primary nutrient label before parentheses; treat the "as ..." text as a source form and remove it.',
+        'For an amino acid whose parenthetical "as ..." names a chemically distinct active derivative, use that derivative.',
+        'Use standard English ingredient names and concise Simplified Chinese translations.',
+        'Do not merge, invent, repeat or omit actual ingredients.',
+      ].join(' '),
+      prompt: [
+        'SKU: ' + sku,
+        'File: ' + fileName,
+        'Required example: Biotin (as D-Biotin), Iron (as Ferrous Bisglycinate Chelate), Zinc (as Zinc Picolinate), L-Leucine (Free Form Amino Acid), Hydrolyzed Keratin Peptides (from Bovine Keratin), L-Cysteine (as N-Acetyl-L-Cysteine, NAC) => Biotin / 生物素; Iron / 铁; Zinc / 锌; L-Leucine / 亮氨酸; Hydrolyzed Keratin Peptides / 水解角蛋白肽; N-Acetyl-L-Cysteine / N-乙酰-L-半胱氨酸.',
+        'PDF text:',
+        rawText,
+      ].join('\n'),
+    };
+    let result = null;
+    let lastError = null;
+    for (let attempt = 0; attempt < 3 && !result; attempt += 1) {
+      try {
+        result = await callAiText(env, options);
+      } catch (error) {
+        lastError = error;
+        const retryable = /high demand|temporar|429|503|overload|timeout/i.test(String(error && error.message || ''));
+        if (!retryable || attempt === 2) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
+      }
+    }
+    if (!result) throw lastError || new Error('Gemini ingredient normalization failed');
+    const items = sanitizeIngredientItems(parseIngredientAiJson(result.text));
+    if (!items.length) return json({ error: 'no ingredients recognized' }, 422);
+    return json({
+      ok: true,
+      items,
+      english: items.map((item) => item.english).join('、'),
+      chinese: items.map((item) => item.chinese).join('、'),
+      model: result.model,
+      source: 'ingredient-pdf-gemini',
+    });
+  } catch (error) {
+    return json({ error: cleanText(error && error.message, 500) || 'ingredient normalization failed' }, 502);
+  }
+}
+
 async function ensureClassificationRulesTable(env) {
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS classification_rules (
@@ -3440,6 +3545,7 @@ export default {
     if (url.pathname === '/pack/record' && request.method === 'POST') return handlePackRecord(request, env);
     if (url.pathname === '/pack/recommend' && request.method === 'GET') return handlePackRecommend(request, env);
     if (url.pathname === '/pack/ai-estimate' && request.method === 'POST') return handlePackAiEstimate(request, env);
+    if (url.pathname === '/ingredients/normalize' && request.method === 'POST') return handleIngredientNormalize(request, env);
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);

@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.60
+// @version      2.5.61
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
 // @match        https://auth.westmonth.com/*
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+// @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js
 // @grant        GM_setClipboard
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -27,7 +28,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.60';
+  const SCRIPT_VERSION = '2.5.61';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -1304,6 +1305,8 @@
     thumbHydratingSku: '',
     thumbHydrateFailedAt: {},
     thumbHydratedSkus: new Set(),
+    ingredientHydratingSkus: new Set(),
+    ingredientHydrateFailedAt: {},
     skuPage: 1,
     sizeImageSessions: {},
     sizeImageBusySku: '',
@@ -1662,6 +1665,7 @@
         upsertDailyLedgerFromData(state.data, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录', requireCurrentMonth: true });
       }
       renderShell();
+      scheduleIngredientPdfHydration(state.data);
       return;
     }
 
@@ -1787,6 +1791,13 @@
       projectRowId: cached.projectRowId || '',
       projectId: cached.projectId || '',
       copywriting: cached.copywriting || null,
+      ingredientEnglish: cached.ingredientEnglish || '',
+      ingredientChinese: cached.ingredientChinese || '',
+      ingredientItems: Array.isArray(cached.ingredientItems) ? cached.ingredientItems : [],
+      ingredientPdfFileName: cached.ingredientPdfFileName || '',
+      ingredientPdfHash: cached.ingredientPdfHash || '',
+      ingredientPdfModel: cached.ingredientPdfModel || '',
+      ingredientPdfUpdatedAt: cached.ingredientPdfUpdatedAt || '',
       tailSealLengthValue: cached.tailSealLengthValue || '',
       productListImageUrl: cached.productListImageUrl || '',
       productListImageFallbackUrl: cached.productListImageFallbackUrl || '',
@@ -1857,6 +1868,7 @@
     const previous = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     if (!hasMeaningfulDataChange(previous, merged)) return;
     saveData(sku, merged);
+    if (tab === L.productTab) scheduleIngredientPdfHydration(merged);
     if (state.selectedSku === sku) renderShell();
   }
 
@@ -1999,6 +2011,7 @@
     renderShell(L.scanDone);
     if (completedData && completedData.sku) {
       scheduleProductThumbHydration(completedData, shouldRefreshThumb ? { force: true, refreshImage: true } : { force: true });
+      scheduleIngredientPdfHydration(completedData);
     }
   }
 
@@ -5298,6 +5311,134 @@
     renderShell();
   }
 
+  function scheduleIngredientPdfHydration(data) {
+    const sku = String(data && data.sku || '');
+    if (!state.settings.collectionEnabled || !sku || state.ingredientHydratingSkus.has(sku)) return;
+    const failedAt = Number(state.ingredientHydrateFailedAt[sku] || 0);
+    if (failedAt && Date.now() - failedAt < 10 * 60 * 1000) return;
+    window.setTimeout(() => {
+      hydrateIngredientPdfForSku(sku).catch(() => {});
+    }, 900);
+  }
+
+  async function hydrateIngredientPdfForSku(sku, options) {
+    const opts = options || {};
+    if (!sku || state.ingredientHydratingSkus.has(sku)) return normalizeData(loadData(sku) || {});
+    const drawer = getProjectDrawerForSku(sku);
+    if (!drawer) return normalizeData(loadData(sku) || {});
+    state.ingredientHydratingSkus.add(sku);
+    const originalTab = getActiveTabText(drawer);
+    try {
+      await switchDrawerTab(drawer, L.productTab);
+      await waitFor(() => findIngredientPdfItem(drawer), 3500, 140);
+      const item = findIngredientPdfItem(drawer);
+      if (!item) return normalizeData(loadData(sku) || {});
+      const file = findIngredientPdfFile(item);
+      if (!file) return normalizeData(loadData(sku) || {});
+      const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+      if (!opts.force && cached.ingredientPdfFileName === file.fileName && cached.ingredientEnglish && cached.ingredientChinese) return cached;
+
+      let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, '成分表 PDF 下载监听');
+      if (!source || (!source.url && !source.arrayBuffer)) throw new Error('未读取到成分表 PDF');
+      let arrayBuffer = source.arrayBuffer || await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, '成分表 PDF 读取');
+      if (!isPdfBuffer(arrayBuffer) && source.kind !== 'captured') {
+        source = { ...(await withCopywritingTimeout(captureCopywritingDownloadSource(file.card, file.fileName), 12000, '备用成分表 PDF 下载监听')), kind: 'captured' };
+        arrayBuffer = source.arrayBuffer || (source.url ? await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, '备用成分表 PDF 读取') : null);
+      }
+      if (!isPdfBuffer(arrayBuffer)) throw new Error('读取到的内容不是有效 PDF');
+      const fileHash = await hashCopywritingBuffer(arrayBuffer);
+      if (!opts.force && cached.ingredientPdfHash === fileHash && cached.ingredientEnglish && cached.ingredientChinese) {
+        if (cached.ingredientPdfFileName !== file.fileName) saveData(sku, { ...cached, ingredientPdfFileName: file.fileName });
+        return cached;
+      }
+      const rawText = await withCopywritingTimeout(extractIngredientPdfText(arrayBuffer), 20000, '成分表 PDF 解析');
+      if (!rawText || rawText.length < 20) throw new Error('成分表 PDF 没有可识别文本');
+      const response = await cloudRequest('/ingredients/normalize', {
+        method: 'POST',
+        timeoutMs: 60000,
+        body: { sku, fileName: file.fileName, rawText },
+      });
+      if (!response || !response.ok || !response.english || !response.chinese) throw new Error(response && response.error ? response.error : 'Gemini 未返回有效成分');
+      const next = normalizeData({
+        ...cached,
+        ingredientEnglish: String(response.english || '').slice(0, 8000),
+        ingredientChinese: String(response.chinese || '').slice(0, 8000),
+        ingredientItems: Array.isArray(response.items) ? response.items.slice(0, 100) : [],
+        ingredientPdfFileName: file.fileName,
+        ingredientPdfHash: fileHash,
+        ingredientPdfModel: String(response.model || ''),
+        ingredientPdfUpdatedAt: new Date().toLocaleString(),
+      });
+      saveData(sku, next);
+      delete state.ingredientHydrateFailedAt[sku];
+      addLog('success', '成分表静默缓存完成', sku + ' | ' + next.ingredientEnglish);
+      return next;
+    } catch (error) {
+      state.ingredientHydrateFailedAt[sku] = Date.now();
+      addLog('warn', '成分表静默读取失败', sku + ' | ' + formatErrorMessage(error));
+      return normalizeData(loadData(sku) || {});
+    } finally {
+      state.ingredientHydratingSkus.delete(sku);
+      const currentDrawer = getProjectDrawerForSku(sku);
+      if (currentDrawer && originalTab && getActiveTabText(currentDrawer) !== originalTab) await switchDrawerTab(currentDrawer, originalTab);
+    }
+  }
+
+  function findIngredientPdfItem(drawer) {
+    if (!drawer) return null;
+    return Array.from(drawer.querySelectorAll('.ant-form-item'))
+      .filter(isVisibleElement)
+      .find((item) => {
+        const label = item.querySelector('.ant-form-item-label');
+        return /^(?:成份表|成分表)$/.test(compactText(label && (label.innerText || label.textContent)).replace(/[：:*]/g, ''));
+      }) || null;
+  }
+
+  function findIngredientPdfFile(item) {
+    const cards = Array.from(item.querySelectorAll('.filePreviewMainBox, .filePreviewCard, .removeOtherContent'))
+      .filter(isVisibleElement)
+      .map((card) => ({ card, fileName: extractPdfFileName(card) }))
+      .filter((entry) => /\.pdf$/i.test(entry.fileName));
+    const unique = cards.filter((entry, index) => cards.findIndex((candidate) => candidate.fileName === entry.fileName) === index);
+    return unique[0] || null;
+  }
+
+  function isPdfBuffer(arrayBuffer) {
+    if (!arrayBuffer || arrayBuffer.byteLength < 4) return false;
+    const bytes = new Uint8Array(arrayBuffer, 0, 4);
+    return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  }
+
+  async function extractIngredientPdfText(arrayBuffer) {
+    const Pdf = (typeof pdfjsLib !== 'undefined' && pdfjsLib) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.pdfjsLib);
+    if (!Pdf || typeof Pdf.getDocument !== 'function') throw new Error('PDF 解析组件未加载');
+    const task = Pdf.getDocument({ data: new Uint8Array(arrayBuffer), disableWorker: true });
+    const documentHandle = await task.promise;
+    const pages = [];
+    try {
+      const pageCount = Math.min(Number(documentHandle.numPages) || 0, 12);
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        const page = await documentHandle.getPage(pageNumber);
+        const content = await page.getTextContent();
+        let line = '';
+        const lines = [];
+        (content.items || []).forEach((item) => {
+          const value = String(item && item.str || '').trim();
+          if (value) line += (line ? ' ' : '') + value;
+          if (item && item.hasEOL && line) {
+            lines.push(line);
+            line = '';
+          }
+        });
+        if (line) lines.push(line);
+        pages.push(lines.join('\n'));
+      }
+    } finally {
+      if (documentHandle && typeof documentHandle.destroy === 'function') await documentHandle.destroy();
+    }
+    return pages.join('\n\n').replace(/[ \t]+/g, ' ').trim().slice(0, 30000);
+  }
+
   function findProductCopywritingItem(drawer) {
     if (!drawer) return null;
     return Array.from(drawer.querySelectorAll('.ant-form-item'))
@@ -5328,6 +5469,15 @@
       .filter((text) => /\.docx$/i.test(text));
     if (titleSpans.length) return titleSpans[titleSpans.length - 1];
     return ((compactText(card.innerText || card.textContent).match(/[^\n\\/:*?"<>|]+\.docx\b/i) || [])[0] || '').trim();
+  }
+
+  function extractPdfFileName(card) {
+    if (!card) return '';
+    const titleSpans = Array.from(card.querySelectorAll('.title span, [class*="title"] span'))
+      .map((el) => compactText(el.innerText || el.textContent))
+      .filter((text) => /\.pdf$/i.test(text));
+    if (titleSpans.length) return titleSpans[titleSpans.length - 1];
+    return ((compactText(card.innerText || card.textContent).match(/[^\n\\/:*?"<>|]+\.pdf\b/i) || [])[0] || '').trim();
   }
 
   function extractCopywritingFileTimestamp(fileName) {
@@ -5385,7 +5535,7 @@
 
   function isUsableCopywritingUrl(url) {
     const text = String(url || '');
-    return /^blob:/i.test(text) || (/^https?:/i.test(text) && /(?:\.docx(?:\?|$)|download|attachment)/i.test(text));
+    return /^blob:/i.test(text) || (/^https?:/i.test(text) && /(?:\.(?:docx|pdf)(?:\?|$)|download|attachment)/i.test(text));
   }
 
   function scoreCopywritingUrl(url, fileName) {
@@ -5394,6 +5544,7 @@
     let score = /^(?:https?:|blob:)/i.test(text) ? 1 : 0;
     if (/^blob:/i.test(text)) score += 100;
     if (/\.docx(?:\?|$)/i.test(text)) score += 90;
+    if (/\.pdf(?:\?|$)/i.test(text)) score += 90;
     if (/download|attachment/i.test(text)) score += 45;
     if (/file(?:\/|=|\?|_)/i.test(text)) score += 18;
     if (/oss|object|storage/i.test(text)) score += 10;
@@ -5478,6 +5629,7 @@
     let capturedAt = 0;
     let capturedReady = false;
     let capturedBuffer = null;
+    const wantsPdf = /\.pdf$/i.test(String(fileName || ''));
     const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const restores = [];
     const trace = [];
@@ -5502,10 +5654,12 @@
       convert.then((buffer) => {
         if (!buffer || !buffer.byteLength) return;
         const bytes = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength));
-        if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+        const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+        const isDocx = bytes[0] === 0x50 && bytes[1] === 0x4b;
+        if ((wantsPdf && isPdf) || (!wantsPdf && isDocx)) {
           capturedBuffer = buffer;
-          trace.push('内存Word:' + buffer.byteLength + 'B');
-        } else trace.push('非Word响应:' + buffer.byteLength + 'B');
+          trace.push('内存' + (wantsPdf ? 'PDF:' : 'Word:') + buffer.byteLength + 'B');
+        } else trace.push('非目标文件响应:' + buffer.byteLength + 'B');
       }).catch(() => {});
     };
     try {
@@ -5555,7 +5709,7 @@
             const disposition = response.headers && response.headers.get ? (response.headers.get('content-disposition') || '') : '';
             const contentType = response.headers && response.headers.get ? (response.headers.get('content-type') || '') : '';
             capture(response.url || requestUrl, 25, false);
-            if (/docx|officedocument|octet-stream|attachment/i.test(disposition + ' ' + contentType + ' ' + requestUrl)) {
+            if (/docx|pdf|officedocument|octet-stream|attachment/i.test(disposition + ' ' + contentType + ' ' + requestUrl)) {
               try { captureBuffer(response.clone()); } catch (error) { /* no-op */ }
             }
           }).catch(() => {});
@@ -5583,7 +5737,7 @@
               contentType = xhr.getResponseHeader('content-type') || '';
             } catch (error) { /* no-op */ }
             capture(xhr.responseURL || requestUrl, 25, false);
-            if (/docx|officedocument|octet-stream|attachment/i.test(disposition + ' ' + contentType + ' ' + requestUrl)) captureBuffer(xhr.response);
+            if (/docx|pdf|officedocument|octet-stream|attachment/i.test(disposition + ' ' + contentType + ' ' + requestUrl)) captureBuffer(xhr.response);
           }, { once: true });
           return originalXhrSend.apply(this, arguments);
         };
@@ -9721,11 +9875,28 @@
   async function collectExcelExtraData(sku) {
     const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
     const cachedData = normalizeData((state.data && state.data.sku === sku ? state.data : null) || loadData(sku) || {});
-    const extra = { englishName: cleanEnglishProductName(cachedData.englishName, cachedData.brand), chineseName: '', ingredients: '', benchmarkLink: '', imageUrl: '', imageFallbackUrl: '', liveData: null };
+    const extra = {
+      englishName: cleanEnglishProductName(cachedData.englishName, cachedData.brand),
+      chineseName: '',
+      ingredients: cachedData.ingredientChinese || cachedData.ingredientEnglish || '',
+      ingredientEnglish: cachedData.ingredientEnglish || '',
+      ingredientChinese: cachedData.ingredientChinese || '',
+      benchmarkLink: '',
+      imageUrl: '',
+      imageFallbackUrl: '',
+      liveData: null,
+    };
     if (!drawer) return extra;
     await switchDrawerTab(drawer, L.productTab);
     await waitForDrawerText(drawer, '\u6bdb\u91cd', 1200);
     extra.liveData = extractData(drawer);
+    let ingredientData;
+    if (state.ingredientHydratingSkus.has(sku)) {
+      await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
+      ingredientData = normalizeData(loadData(sku) || {});
+    } else ingredientData = await hydrateIngredientPdfForSku(sku);
+    extra.ingredientEnglish = ingredientData.ingredientEnglish || extra.ingredientEnglish;
+    extra.ingredientChinese = ingredientData.ingredientChinese || extra.ingredientChinese;
     await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
     await waitForDesignData(drawer, 4500);
     const designText = getVisibleText(drawer);
@@ -9739,7 +9910,7 @@
     Object.assign(extra, {
       englishName: cleanEnglishProductName(extractLineAfter(designText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
       chineseName: extractLineAfter(designText, '\u5546\u54c1\u540d\u79f0') || '',
-      ingredients: extractNamedField(designText, '\u6210\u5206') || extractNamedField(designText, '\u6210\u4efd') || '',
+      ingredients: extra.ingredientChinese || extra.ingredientEnglish || extractNamedField(designText, '\u6210\u5206') || extractNamedField(designText, '\u6210\u4efd') || '',
       ...previewImageInfo,
     });
 
