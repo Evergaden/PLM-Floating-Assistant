@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.51
+// @version      2.5.52
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.51';
+  const SCRIPT_VERSION = '2.5.52';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -72,6 +72,20 @@
     const sanitizeEnglishName = (value) => {
       const text = String(value || '').replace(/^PRODUCT\s*NAME\s*[:：]?\s*/i, '').split(/[\r\n|]/)[0].trim();
       return /[A-Za-z]/.test(text) && !hasCjk(text) ? text : '';
+    };
+
+    const preferredImageUrl = (data) => {
+      const candidates = data && [
+        data.skuImageUrl,
+        data.skuImageFallbackUrl,
+        data.productListImageUrl,
+        data.productListImageFallbackUrl,
+        data.toyLabelProductImageUrl,
+        data.toyLabelProductImageFallbackUrl,
+        data.benchmarkImageUrl,
+        data.benchmarkImageFallbackUrl,
+      ];
+      return (candidates || []).map((value) => String(value || '').trim()).find((value) => value && !/^data:image\//i.test(value)) || '';
     };
 
     function collectTextValues(value, output, depth) {
@@ -152,7 +166,11 @@
         #${context.panelId}[data-view="parameterImage"] .pfh-main{min-width:0}
         #${context.panelId} .pfh-parameter-scroll{height:100%;overflow:auto;padding:14px}
         #${context.panelId} .pfh-parameter-page{display:grid;gap:12px;min-width:0}
-        #${context.panelId} .pfh-parameter-hero{display:flex;justify-content:space-between;gap:12px;padding:15px 17px;border:1px solid rgba(124,58,237,.14);border-radius:17px;background:rgba(255,255,255,.8)}
+        #${context.panelId} .pfh-parameter-hero{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:15px 17px;border:1px solid rgba(124,58,237,.14);border-radius:17px;background:rgba(255,255,255,.8)}
+        #${context.panelId} .pfh-parameter-hero-thumb{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(199,190,255,.46);border-radius:14px;background:#fff;color:#7c3aed;font-size:10px;text-align:center}
+        #${context.panelId} .pfh-parameter-hero-thumb.is-empty{background:linear-gradient(145deg,#faf8ff,#f2edff)}
+        #${context.panelId} .pfh-parameter-hero-thumb img{display:block;width:100%;height:100%;object-fit:contain}
+        #${context.panelId} .pfh-parameter-hero-copy{min-width:0}
         #${context.panelId} .pfh-parameter-hero small{color:#8b5cf6;font-weight:800}.pfh-parameter-hero h3{margin:4px 0;color:#2f2760;font-size:18px}.pfh-parameter-hero p{margin:0;color:#7b84a1;font-size:12px}
         #${context.panelId} .pfh-parameter-workspace{display:grid;grid-template-columns:minmax(250px,330px) minmax(300px,1fr);gap:12px;min-width:0}
         #${context.panelId} .pfh-parameter-controls,#${context.panelId} .pfh-parameter-preview-card{border:1px solid rgba(124,58,237,.13);border-radius:17px;background:rgba(255,255,255,.82);box-shadow:0 14px 35px rgba(70,55,130,.06)}
@@ -198,8 +216,10 @@
       const session = ensureSession(data);
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
+      const heroImage = preferredImageUrl(data);
+      const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
       return '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
-        '<header class="pfh-parameter-hero"><div><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
+        '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
           '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>一张图可同时包含纸盒与产品</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
@@ -3227,13 +3247,19 @@
     const list = panel.querySelector('.pfh-list');
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
-    const allItems = getSearchMatches(searchTokens);
+    const allItems = sortSkuListItems(getSearchMatches(searchTokens));
     const pageSize = 10;
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
     const listTitle = state.view === 'sizeImage' ? '\u5c3a\u5bf8\u56fe SKU' : (state.view === 'parameterImage' ? '\u53c2\u6570\u56fe SKU' : 'SKU\u5217\u8868');
-    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>';
+    const listMode = getSkuListMode();
+    const listSort = getSkuListSort();
+    const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" role="group" aria-label="SKU\u5217\u8868\u89c6\u56fe">' +
+      '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">\u5217\u8868</button>' +
+      '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
+      '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span><select data-sku-list-sort><option value="assigned"' + (listSort === 'assigned' ? ' selected' : '') + '>\u5206\u914d\u65f6\u95f4</option><option value="acquired"' + (listSort === 'acquired' ? ' selected' : '') + '>\u83b7\u53d6\u65f6\u95f4</option></select></label></div>';
+    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       list.innerHTML = listHead + '<div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
@@ -3242,17 +3268,26 @@
     const searchToolbar = searchTokens.length
       ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
       : '';
-    list.innerHTML = listHead + '<div class="pfh-sku-scroll">' + searchToolbar + items.map((item) => {
+    const cards = items.map((item) => {
       const active = item.sku === state.selectedSku ? ' is-active' : '';
       const pinned = item.pinned ? ' is-pinned' : '';
       const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
       const pinTitle = item.pinned ? TOOLTIP.unpin : TOOLTIP.pin;
       const pinControl = active ? '<em data-pin-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(pinTitle) + '">' + iconHtml('pin') + '</em>' : '';
+      if (listMode === 'waterfall') {
+        const data = normalizeData(loadData(item.sku) || item);
+        const image = getSkuListImageUrl(data);
+        const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
+        const subTitle = [item.brand || data.brand, item.name || data.name].filter(Boolean).join(' ');
+        return '<button type="button" class="pfh-sku-waterfall-card' + active + pinned + '" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '">' +
+          '<span class="pfh-sku-waterfall-thumb">' + imageHtml + '</span><span class="pfh-sku-waterfall-meta"><b>' + escapeHtml(item.sku) + '</b>' + pinControl + (subTitle ? '<small>' + escapeHtml(subTitle) + '</small>' : '') + '</span></button>';
+      }
       return '<button type="button" class="pfh-sku' + active + pinned + '" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '">' +
         '<span><b>' + escapeHtml(item.sku) + '</b>' + pinControl + '</span>' +
         ([item.brand, item.name].filter(Boolean).join(' ') ? '<small>' + escapeHtml([item.brand, item.name].filter(Boolean).join(' ')) + '</small>' : '') +
         '</button>';
-    }).join('') + '</div>' + pager;
+    }).join('');
+    list.innerHTML = listHead + '<div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager;
   }
 
   function renderHome(panel, statusText) {
@@ -3427,7 +3462,7 @@
       ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
-      ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。'],
+      ['home-parameter-image', 'image', '套图辅助', '生成参数图 BETA', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。'],
       ['home-unit-converter', 'calculator', '单位换算', '厘米换算英寸', '输入一个或多个厘米尺寸，立即换算为英寸。'],
       ['home-tools', 'tools', '效率辅助', '小工具', '整理编码并输出可直接使用的搜索格式。'],
     ];
@@ -3543,7 +3578,7 @@
     ].filter(Boolean).join('');
     const pendingMatch = session.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>\u8bf7\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u5c3a\u5bf8</strong>' + session.pendingLabelMatches.map((pending) => '<div><span>' + escapeHtml(pending.file.name || '\u5f85\u5339\u914d\u56fe\u7247') + '</span><select class="pfh-size-image-match-select" data-pending-id="' + escapeHtml(pending.id) + '">' + labelSpecs.map((spec) => '<option value="' + escapeHtml(spec.key) + '">' + escapeHtml((spec.kind === 'print' ? '\u5370\u5237 ' : '\u6807\u7b7e ') + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm') + '</option>').join('') + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + escapeHtml(pending.id) + '">\u786e\u8ba4\u751f\u6210</button></div>').join('') + '</div>' : '';
     return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
-      '<header class="pfh-size-image-hero"><div><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
+      '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u548c\u5370\u5237\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
@@ -4437,7 +4472,7 @@
   }
 
   function productThumbHtml(data) {
-    const src = getProductThumbUrl(data) || (data && (data.benchmarkImageUrl || data.benchmarkImageFallbackUrl)) || '';
+    const src = getSkuListImageUrl(data);
     if (!src) return '<span class="pfh-product-thumb is-empty">' + iconHtml('image') + '</span>';
     return '<button type="button" class="pfh-product-thumb" title="悬浮放大预览">' +
       '<span class="pfh-thumb-frame"><img src="' + escapeHtml(src) + '" alt=""></span>' +
@@ -4450,7 +4485,7 @@
     const panel = ensurePanel();
     const current = panel.querySelector('.pfh-product-hero .pfh-product-thumb');
     if (!current) return false;
-    const src = getProductThumbUrl(data) || data.benchmarkImageUrl || data.benchmarkImageFallbackUrl || '';
+    const src = getSkuListImageUrl(data);
     if (!src) return false;
     if (current.matches('button')) {
       current.querySelectorAll('img').forEach((image) => {
@@ -5723,6 +5758,14 @@
       clearSearch();
       return;
     }
+    if (action === 'sku-list-mode') {
+      const mode = actionTarget.getAttribute('data-mode') === 'waterfall' ? 'waterfall' : 'list';
+      state.settings.skuListMode = mode;
+      state.skuPage = 1;
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
     if (action === 'sku-page-prev') {
       state.skuPage = Math.max(1, (state.skuPage || 1) - 1);
       renderShell();
@@ -6470,6 +6513,13 @@
 
   function handlePanelChange(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
+    if (event.target && event.target.matches && event.target.matches('[data-sku-list-sort]')) {
+      state.settings.skuListSort = event.target.value === 'acquired' ? 'acquired' : 'assigned';
+      state.skuPage = 1;
+      saveSettings(state.settings);
+      renderShell();
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
       regenerateCurrentSizeImages();
       return;
@@ -12278,7 +12328,7 @@
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash' };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'list', skuListSort: 'assigned' };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       return { ...defaults, ...(saved || {}) };
@@ -12605,6 +12655,64 @@
     });
   }
 
+  function getSkuListMode() {
+    return state.settings && state.settings.skuListMode === 'waterfall' ? 'waterfall' : 'list';
+  }
+
+  function getSkuListSort() {
+    return state.settings && state.settings.skuListSort === 'acquired' ? 'acquired' : 'assigned';
+  }
+
+  function parseSkuListTime(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value > 0 && value < 100000000000 ? value * 1000 : value;
+    const text = String(value || '').trim();
+    if (!text) return 0;
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+      const number = Number(text);
+      return number > 0 && number < 100000000000 ? number * 1000 : number;
+    }
+    const parsed = Date.parse(text.replace(/[年\/]/g, '-').replace(/月/g, '-').replace(/日/g, ' '));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function getSkuListRecord(item) {
+    const cached = item && item.sku ? loadData(item.sku) : null;
+    return cached && typeof cached === 'object' ? { ...item, ...cached } : (item || {});
+  }
+
+  function sortSkuListItems(items) {
+    const sort = getSkuListSort();
+    const records = (items || []).map((item, index) => ({ item, index, record: getSkuListRecord(item) }));
+    const time = (record) => {
+      const assigned = [record.designAssignedAt, record.assignmentTime, record.assignedAt, record.allocationTime, record.projectCreatedAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+      const acquired = [record.acquiredAtMs, record.fetchedAtMs, record.listPrefetchedAtMs, record.updatedAtMs, record.firstSeenAtMs, record.listPrefetchedAt, record.updatedAt, record.createdAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+      return sort === 'acquired' ? acquired : (assigned || acquired);
+    };
+    return records.map((entry) => ({ ...entry, time: time(entry.record) })).sort((a, b) => {
+      if (a.item.pinned && b.item.pinned) return (a.item.pinOrder || 0) - (b.item.pinOrder || 0);
+      if (a.item.pinned) return -1;
+      if (b.item.pinned) return 1;
+      if (a.time !== b.time) return b.time - a.time;
+      return a.index - b.index;
+    }).map((entry) => entry.item);
+  }
+
+  function getSkuListImageUrl(data) {
+    if (!data) return '';
+    const candidates = [
+      getProductThumbUrl(data),
+      data.skuImageUrl,
+      data.skuImageFallbackUrl,
+      data.productListImageUrl,
+      data.productListImageFallbackUrl,
+      data.toyLabelProductImageUrl,
+      data.toyLabelProductImageFallbackUrl,
+      data.benchmarkImageUrl,
+      data.benchmarkImageFallbackUrl,
+    ];
+    return candidates.map((value) => String(value || '').trim()).find((value) => value && !/^data:image\//i.test(value)) || '';
+  }
+
   function getSortedIndex() {
     return [...state.index].sort((a, b) => {
       if (a.pinned && b.pinned) return (a.pinOrder || 0) - (b.pinOrder || 0);
@@ -12622,6 +12730,17 @@
       name: cleanName(data.name || ''),
       packageCode: data.packageCode || '',
       printCode: data.printCode || '',
+      designAssignedAt: data.designAssignedAt || '',
+      projectCreatedAt: data.projectCreatedAt || '',
+      skuImageUrl: data.skuImageUrl || '',
+      skuImageFallbackUrl: data.skuImageFallbackUrl || '',
+      skuImageSource: data.skuImageSource || '',
+      productListImageUrl: data.productListImageUrl || '',
+      productListImageFallbackUrl: data.productListImageFallbackUrl || '',
+      toyLabelProductImageUrl: data.toyLabelProductImageUrl || '',
+      toyLabelProductImageFallbackUrl: data.toyLabelProductImageFallbackUrl || '',
+      benchmarkImageUrl: data.benchmarkImageUrl || '',
+      benchmarkImageFallbackUrl: data.benchmarkImageFallbackUrl || '',
       updatedAt: data.updatedAt || new Date().toLocaleString(),
       updatedAtMs: data.updatedAtMs || Date.now(),
     };
@@ -20650,6 +20769,146 @@
         width: 22px !important;
         height: 22px !important;
         fill: currentColor !important;
+      }
+      #${PANEL_ID} .pfh-sku-list-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 7px;
+        margin: -5px 0 9px;
+        min-width: 0;
+      }
+      #${PANEL_ID} .pfh-sku-view-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px;
+        border: 1px solid rgba(211,204,255,.58);
+        border-radius: 9px;
+        background: rgba(248,246,255,.78);
+      }
+      #${PANEL_ID} .pfh-sku-view-switch button {
+        min-width: 39px;
+        height: 25px;
+        padding: 0 7px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: #7a82a0;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-sku-view-switch button.is-active {
+        background: #7c3aed;
+        color: #fff;
+        box-shadow: 0 4px 10px rgba(124,58,237,.18);
+      }
+      #${PANEL_ID} .pfh-sku-sort {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+        color: #8a91aa;
+        font-size: 10px;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-sku-sort select {
+        max-width: 76px;
+        height: 25px;
+        padding: 0 5px;
+        border: 1px solid rgba(211,204,255,.62);
+        border-radius: 7px;
+        background: #fff;
+        color: #4e587a;
+        font-size: 10px;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-card {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding: 6px;
+        border: 1px solid #d6dfeb;
+        border-radius: 10px;
+        background: #fff;
+        color: #18233d;
+        text-align: left;
+        overflow: hidden;
+        transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-card:hover {
+        border-color: rgba(124,58,237,.46);
+        box-shadow: 0 8px 18px rgba(79,70,229,.10);
+        transform: translateY(-1px);
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-card.is-active {
+        border-color: #7c3aed;
+        background: #faf7ff;
+        box-shadow: 0 0 0 1px rgba(124,58,237,.12);
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-card.is-pinned {
+        border-color: #f6c46b;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-thumb {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 104px;
+        margin-bottom: 6px;
+        overflow: hidden;
+        border-radius: 7px;
+        background: linear-gradient(145deg,#f8fafc,#f3f0ff);
+        color: #a78bfa;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-thumb .pfh-icon {
+        width: 24px;
+        height: 24px;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-meta {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) auto;
+        gap: 2px 4px;
+        min-width: 0;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-meta b,
+      #${PANEL_ID} .pfh-sku-waterfall-meta small {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-meta b {
+        font-size: 10px;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-meta small {
+        grid-column: 1 / -1;
+        color: #71809f;
+        font-size: 9px;
+      }
+      #${PANEL_ID} .pfh-sku-waterfall-meta em {
+        color: #7c3aed;
+        font-style: normal;
+      }
+      #${PANEL_ID} .pfh-size-image-hero-media {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+      }
+      #${PANEL_ID} .pfh-size-image-hero {
+        justify-content: flex-start;
+      }
+      #${PANEL_ID} .pfh-size-image-hero-copy {
+        min-width: 0;
       }
     `;
     document.documentElement.appendChild(style);

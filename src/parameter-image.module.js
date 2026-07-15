@@ -26,6 +26,20 @@
       return /[A-Za-z]/.test(text) && !hasCjk(text) ? text : '';
     };
 
+    const preferredImageUrl = (data) => {
+      const candidates = data && [
+        data.skuImageUrl,
+        data.skuImageFallbackUrl,
+        data.productListImageUrl,
+        data.productListImageFallbackUrl,
+        data.toyLabelProductImageUrl,
+        data.toyLabelProductImageFallbackUrl,
+        data.benchmarkImageUrl,
+        data.benchmarkImageFallbackUrl,
+      ];
+      return (candidates || []).map((value) => String(value || '').trim()).find((value) => value && !/^data:image\//i.test(value)) || '';
+    };
+
     function collectTextValues(value, output, depth) {
       if (depth > 5 || value == null) return;
       if (typeof value === 'string') { output.push(value); return; }
@@ -104,7 +118,11 @@
         #${context.panelId}[data-view="parameterImage"] .pfh-main{min-width:0}
         #${context.panelId} .pfh-parameter-scroll{height:100%;overflow:auto;padding:14px}
         #${context.panelId} .pfh-parameter-page{display:grid;gap:12px;min-width:0}
-        #${context.panelId} .pfh-parameter-hero{display:flex;justify-content:space-between;gap:12px;padding:15px 17px;border:1px solid rgba(124,58,237,.14);border-radius:17px;background:rgba(255,255,255,.8)}
+        #${context.panelId} .pfh-parameter-hero{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:15px 17px;border:1px solid rgba(124,58,237,.14);border-radius:17px;background:rgba(255,255,255,.8)}
+        #${context.panelId} .pfh-parameter-hero-thumb{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;overflow:hidden;border:1px solid rgba(199,190,255,.46);border-radius:14px;background:#fff;color:#7c3aed;font-size:10px;text-align:center}
+        #${context.panelId} .pfh-parameter-hero-thumb.is-empty{background:linear-gradient(145deg,#faf8ff,#f2edff)}
+        #${context.panelId} .pfh-parameter-hero-thumb img{display:block;width:100%;height:100%;object-fit:contain}
+        #${context.panelId} .pfh-parameter-hero-copy{min-width:0}
         #${context.panelId} .pfh-parameter-hero small{color:#8b5cf6;font-weight:800}.pfh-parameter-hero h3{margin:4px 0;color:#2f2760;font-size:18px}.pfh-parameter-hero p{margin:0;color:#7b84a1;font-size:12px}
         #${context.panelId} .pfh-parameter-workspace{display:grid;grid-template-columns:minmax(250px,330px) minmax(300px,1fr);gap:12px;min-width:0}
         #${context.panelId} .pfh-parameter-controls,#${context.panelId} .pfh-parameter-preview-card{border:1px solid rgba(124,58,237,.13);border-radius:17px;background:rgba(255,255,255,.82);box-shadow:0 14px 35px rgba(70,55,130,.06)}
@@ -150,8 +168,10 @@
       const session = ensureSession(data);
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
+      const heroImage = preferredImageUrl(data);
+      const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
       return '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
-        '<header class="pfh-parameter-hero"><div><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
+        '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
           '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>一张图可同时包含纸盒与产品</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
