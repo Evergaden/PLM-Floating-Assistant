@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.55
+// @version      2.5.57
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.55';
+  const SCRIPT_VERSION = '2.5.57';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -2759,6 +2759,7 @@
     panel.querySelector('[data-action="home-main"]').setAttribute('data-tooltip', '\u4e3b\u9875');
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.addEventListener('click', handlePanelClick);
+    panel.addEventListener('contextmenu', handlePanelContextMenu);
     panel.addEventListener('keydown', handlePanelKeydown);
     panel.addEventListener('input', handlePanelInput);
     panel.addEventListener('paste', handlePanelPaste);
@@ -4771,7 +4772,8 @@
     const shown = value || L.unknown;
     const colorClass = /^package(Length|Width|Height)$/.test(key) ? ' is-carton-dim' : (/^product(Length|Width|Height)$/.test(key) ? ' is-product-dim' : '');
     const editButton = options && options.editable ? '<button type="button" data-edit-key="' + escapeHtml(key) + '">' + escapeHtml(L.edit) + '</button>' : '';
-    const copyAttr = options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(L.copyHint) + '"';
+    const namingHint = /^(?:packageSizeText|printSizeText)$/.test(key) ? '左键复制尺寸，右键查看命名与历史编码' : L.copyHint;
+    const copyAttr = options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(namingHint) + '"';
     return '<div class="pfh-row' + colorClass + '"' + copyAttr + ' data-key="' + escapeHtml(key) + '">' +
       '<span class="pfh-label"><span>' + escapeHtml(title) + '</span></span>' +
       '<span class="pfh-value">' + escapeHtml(shown).replace(/\n/g, '<br>') + '</span>' +
@@ -4816,6 +4818,153 @@
       '<button type="button" data-action="excel-generate">' + escapeHtml(L.excel) + '</button>' +
       '<span class="pfh-excel-status' + statusClass + '">' + escapeHtml(status) + '</span>' +
       '</div>';
+  }
+
+  function namingLogoKey(data) {
+    return compactText((data && (data.logoText || data.brand)) || '').toUpperCase().replace(/[^A-Z0-9\u3400-\u9fff]/g, '');
+  }
+
+  function namingProductText(data) {
+    const brand = cleanName((data && data.brand) || '');
+    const name = cleanName((data && data.name) || '');
+    return brand && name.toUpperCase().startsWith(brand.toUpperCase()) ? name : brand + name;
+  }
+
+  function namingSizeText(values) {
+    return values.map((value) => trimNumber(Number(value))).join('x') + 'cm';
+  }
+
+  function namingCodes(value) {
+    const matches = String(value || '').match(/\bMTL\d+\b/gi);
+    return matches ? matches.map((code) => code.toUpperCase()) : [];
+  }
+
+  function packagingNamingEntries(data, key) {
+    if (!data) return [];
+    if (key === 'packageSizeText') {
+      const values = Array.isArray(data.packageNums) ? data.packageNums.slice(0, 3).map(Number) : parseDimension(data.packageSizeText, 3);
+      if (!values || values.length < 3 || values.slice(0, 3).some((value) => !Number.isFinite(value))) return [];
+      const codes = namingCodes(data.packageCode);
+      return [{
+        type: 'package',
+        label: compactText(data.packageSizeLabel || '纸盒'),
+        values: values.slice(0, 3),
+        size: namingSizeText(values.slice(0, 3)),
+        code: codes[0] || compactText(data.packageCode || ''),
+      }];
+    }
+    if (key !== 'printSizeText') return [];
+    return getLabelSizeImageSpecs(data).map((spec) => ({
+      type: 'print',
+      label: compactText(spec.labelText || (spec.kind === 'label' ? '标签' : '印刷')),
+      values: [Number(spec.width), Number(spec.height)],
+      size: namingSizeText([spec.width, spec.height]),
+      code: compactText(spec.code || ''),
+    }));
+  }
+
+  function namingLine(entry, data) {
+    const codeAndName = [entry.code, namingProductText(data)].filter(Boolean).join(' ');
+    return entry.label + (/[）)]$/.test(entry.label) ? ' ' : '') + '（' + entry.size + '）' + codeAndName;
+  }
+
+  function namingDimensionDistance(left, right) {
+    if (!left || !right || left.length !== right.length) return null;
+    const distances = left.map((value, index) => Math.abs(Number(value) - Number(right[index])));
+    if (left.length === 2) {
+      const rotated = [Math.abs(Number(left[0]) - Number(right[1])), Math.abs(Number(left[1]) - Number(right[0]))];
+      if (Math.max(...rotated) < Math.max(...distances)) distances.splice(0, distances.length, ...rotated);
+    }
+    if (distances.some((value) => !Number.isFinite(value) || value > 0.5 + 1e-8)) return null;
+    return { max: Math.max(...distances), total: distances.reduce((sum, value) => sum + value, 0) };
+  }
+
+  function historicalNamingRecommendations(data, key, entries) {
+    const currentSku = String((data && data.sku) || '');
+    const currentLogo = namingLogoKey(data);
+    const currentCodes = new Set(entries.map((entry) => entry.code).filter(Boolean));
+    const recommendations = [];
+    (state.index || []).forEach((item) => {
+      if (!item || !item.sku || item.sku === currentSku) return;
+      const history = normalizeData(loadData(item.sku) || item);
+      packagingNamingEntries(history, key).forEach((candidate) => {
+        if (!candidate.code || currentCodes.has(candidate.code)) return;
+        let best = null;
+        entries.forEach((entry) => {
+          const distance = namingDimensionDistance(entry.values, candidate.values);
+          if (distance && (!best || distance.max < best.max || (distance.max === best.max && distance.total < best.total))) best = distance;
+        });
+        if (!best) return;
+        recommendations.push({
+          code: candidate.code,
+          size: candidate.size,
+          label: candidate.label,
+          brandName: namingProductText(history),
+          sameLogo: Boolean(currentLogo && namingLogoKey(history) === currentLogo),
+          exact: best.max < 0.01,
+          max: best.max,
+          total: best.total,
+          updatedAtMs: Number(history.updatedAtMs || item.updatedAtMs || 0),
+        });
+      });
+    });
+    const deduped = new Map();
+    recommendations.forEach((item) => {
+      const old = deduped.get(item.code);
+      if (!old || item.max < old.max || (item.max === old.max && item.sameLogo && !old.sameLogo)) deduped.set(item.code, item);
+    });
+    return Array.from(deduped.values()).sort((left, right) =>
+      Number(right.sameLogo) - Number(left.sameLogo) || left.max - right.max || left.total - right.total || right.updatedAtMs - left.updatedAtMs || left.code.localeCompare(right.code)
+    );
+  }
+
+  function closePackagingNamingCard(panel) {
+    const card = (panel || document).querySelector && (panel || document).querySelector('.pfh-packaging-naming-card');
+    if (card) card.remove();
+  }
+
+  function showPackagingNamingCard(row, key, event) {
+    const panel = row && row.closest('#' + PANEL_ID);
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!panel || !data) return;
+    const entries = packagingNamingEntries(data, key);
+    if (!entries.length) {
+      showToast('当前尺寸无法生成命名');
+      return;
+    }
+    closePackagingNamingCard(panel);
+    const recommendations = historicalNamingRecommendations(data, key, entries);
+    const entryHtml = entries.map((entry) => {
+      const line = namingLine(entry, data);
+      return '<button type="button" class="pfh-packaging-naming-current" data-naming-copy="' + escapeHtml(line) + '"><span>' + escapeHtml(line) + '</span><em>复制命名</em></button>';
+    }).join('');
+    const recommendationHtml = recommendations.length ? recommendations.map((item) =>
+      '<button type="button" class="pfh-packaging-naming-history" data-naming-copy="' + escapeHtml(item.code) + '">' +
+        '<span><b>' + escapeHtml(item.code) + '</b><i>' + escapeHtml(item.exact ? '同尺寸' : '相近') + '</i>' + (item.sameLogo ? '<i class="is-logo">同 Logo</i>' : '') + '</span>' +
+        '<small>' + escapeHtml(item.label + (/[）)]$/.test(item.label) ? ' ' : '') + '（' + item.size + '）' + (item.brandName ? ' ' + item.brandName : '')) + '</small>' +
+      '</button>'
+    ).join('') : '<p class="pfh-packaging-naming-empty">暂无同尺寸或偏差 0.5cm 以内的历史文件</p>';
+    const card = document.createElement('section');
+    card.className = 'pfh-packaging-naming-card';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-label', '包材命名与历史编码');
+    card.innerHTML = '<header><div><b>' + (key === 'packageSizeText' ? '纸盒命名' : '标签 / 印刷命名') + '</b><span>点击内容即可复制</span></div><button type="button" data-naming-close aria-label="关闭">×</button></header>' +
+      '<div class="pfh-packaging-naming-current-list">' + entryHtml + '</div>' +
+      '<div class="pfh-packaging-naming-subtitle"><b>历史相近文件编码</b><span>同 Logo 优先 · 偏差 ≤ 0.5cm</span></div>' +
+      '<div class="pfh-packaging-naming-history-list">' + recommendationHtml + '</div>';
+    panel.appendChild(card);
+    const panelRect = panel.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    card.style.left = Math.max(8, Math.min(event.clientX - panelRect.left, panelRect.width - cardRect.width - 8)) + 'px';
+    card.style.top = Math.max(8, Math.min(event.clientY - panelRect.top, panelRect.height - cardRect.height - 8)) + 'px';
+  }
+
+  function handlePanelContextMenu(event) {
+    const row = event.target && event.target.closest && event.target.closest('.pfh-row[data-key="packageSizeText"], .pfh-row[data-key="printSizeText"]');
+    if (!row) return;
+    event.preventDefault();
+    event.stopPropagation();
+    showPackagingNamingCard(row, row.getAttribute('data-key'), event);
   }
 
   async function openCopywritingFromCurrent(force) {
@@ -5693,6 +5842,20 @@
   }
 
   function handlePanelClick(event) {
+    const namingCard = event.target && event.target.closest && event.target.closest('.pfh-packaging-naming-card');
+    const namingCopy = event.target && event.target.closest && event.target.closest('[data-naming-copy]');
+    if (namingCopy) {
+      copyText(namingCopy.getAttribute('data-naming-copy') || '');
+      namingCopy.classList.add('is-copied');
+      window.setTimeout(() => namingCopy.classList.remove('is-copied'), 650);
+      showToast(L.copied);
+      return;
+    }
+    if (event.target && event.target.closest && event.target.closest('[data-naming-close]')) {
+      closePackagingNamingCard(ensurePanel());
+      return;
+    }
+    if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
     if (state.view === 'parameterImage' && action && parameterImageFeature.handleAction(action, actionTarget, state.data || {})) return;
@@ -20983,6 +21146,156 @@
       }
       #${PANEL_ID} .pfh-size-image-hero-copy {
         min-width: 0;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card {
+        position: absolute;
+        z-index: 120;
+        display: grid;
+        gap: 10px;
+        width: min(390px, calc(100% - 16px));
+        max-height: calc(100% - 16px);
+        padding: 12px;
+        overflow: hidden;
+        box-sizing: border-box;
+        border: 1px solid rgba(167,139,250,.42);
+        border-radius: 16px;
+        background: rgba(252,251,255,.97);
+        box-shadow: 0 22px 55px rgba(42,30,92,.26), inset 0 1px 0 rgba(255,255,255,.92);
+        backdrop-filter: blur(18px);
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card > header,
+      #${PANEL_ID} .pfh-packaging-naming-subtitle {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card > header div,
+      #${PANEL_ID} .pfh-packaging-naming-subtitle {
+        min-width: 0;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card > header b,
+      #${PANEL_ID} .pfh-packaging-naming-card > header span,
+      #${PANEL_ID} .pfh-packaging-naming-subtitle b,
+      #${PANEL_ID} .pfh-packaging-naming-subtitle span {
+        display: block;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card > header b {
+        color: #2e255d;
+        font-size: 14px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card > header span,
+      #${PANEL_ID} .pfh-packaging-naming-subtitle span {
+        margin-top: 2px;
+        color: #8a91a8;
+        font-size: 10px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-card > header > button {
+        flex: 0 0 auto;
+        width: 27px;
+        height: 27px;
+        padding: 0;
+        border: 1px solid #e1dcf4;
+        border-radius: 9px;
+        background: #fff;
+        color: #756b98;
+        font-size: 17px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-current-list,
+      #${PANEL_ID} .pfh-packaging-naming-history-list {
+        display: grid;
+        gap: 7px;
+        min-height: 0;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-history-list {
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-current,
+      #${PANEL_ID} .pfh-packaging-naming-history {
+        display: grid;
+        width: 100%;
+        min-width: 0;
+        padding: 9px 10px;
+        box-sizing: border-box;
+        border: 1px solid rgba(203,194,242,.64);
+        border-radius: 11px;
+        background: rgba(255,255,255,.88);
+        color: #29243f;
+        text-align: left;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-current {
+        grid-template-columns: minmax(0,1fr) auto;
+        align-items: center;
+        gap: 10px;
+        border-color: rgba(139,92,246,.34);
+        background: linear-gradient(135deg,rgba(247,244,255,.98),rgba(255,255,255,.94));
+      }
+      #${PANEL_ID} .pfh-packaging-naming-current span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-current em {
+        color: #7443dd;
+        font-size: 10px;
+        font-style: normal;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-subtitle {
+        align-items: flex-end;
+        padding-top: 1px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-subtitle b {
+        color: #5f5780;
+        font-size: 11px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-history span {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-history b {
+        color: #5131b5;
+        font-size: 12px;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-history i {
+        padding: 2px 5px;
+        border-radius: 99px;
+        background: #f0edf8;
+        color: #7d7596;
+        font-size: 9px;
+        font-style: normal;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-history i.is-logo {
+        background: #eee7ff;
+        color: #6f38d3;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-history small {
+        margin-top: 3px;
+        overflow: hidden;
+        color: #777f96;
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-current:hover,
+      #${PANEL_ID} .pfh-packaging-naming-history:hover,
+      #${PANEL_ID} .pfh-packaging-naming-current.is-copied,
+      #${PANEL_ID} .pfh-packaging-naming-history.is-copied {
+        border-color: rgba(124,58,237,.62);
+        background: #f5f1ff;
+      }
+      #${PANEL_ID} .pfh-packaging-naming-empty {
+        margin: 0;
+        padding: 12px;
+        border: 1px dashed #ddd6f2;
+        border-radius: 10px;
+        color: #8d94aa;
+        font-size: 10px;
+        text-align: center;
       }
     `;
     document.documentElement.appendChild(style);
