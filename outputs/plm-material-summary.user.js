@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.53
+// @version      2.5.54
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -27,7 +27,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.53';
+  const SCRIPT_VERSION = '2.5.54';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -3249,12 +3249,12 @@
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
     const allItems = sortSkuListItems(getSearchMatches(searchTokens));
-    const pageSize = 10;
+    const listMode = getSkuListMode();
+    const pageSize = listMode === 'waterfall' ? 20 : 10;
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
     const listTitle = state.view === 'sizeImage' ? '\u5c3a\u5bf8\u56fe SKU' : (state.view === 'parameterImage' ? '\u53c2\u6570\u56fe SKU' : 'SKU\u5217\u8868');
-    const listMode = getSkuListMode();
     const listSort = getSkuListSort();
     const listSortLabel = listSort === 'acquired' ? '\u83b7\u53d6\u65f6\u95f4' : '\u5206\u914d\u65f6\u95f4';
     const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
