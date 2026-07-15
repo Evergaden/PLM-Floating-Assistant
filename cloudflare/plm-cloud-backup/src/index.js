@@ -15,6 +15,14 @@ const DEFAULT_LOADING_TIPS = [
   '有旧内容的提审项会先标记为已有内容，勾选重试时才清理重传。',
 ];
 
+const DEFAULT_PARAMETER_FEATURE_RULES = [
+  ['serum', '精华,serum,essence', 'Anti-wrinkle & glow', 100],
+  ['eye', '眼霜,eye cream,eye treatment', 'Under Eye Care', 90],
+  ['cream', '面霜,护肤霜,cream,moisturizer', 'Hydrating Skin Care', 80],
+  ['spray', '喷雾,spray', 'Refreshing Daily Care', 70],
+  ['capsule', '胶囊,capsule,supplement', 'Daily Nutritional Support', 60],
+];
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -1735,9 +1743,60 @@ function redirectBackToTips(request) {
   });
 }
 
+async function ensureParameterFeatureRulesTable(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS parameter_feature_rules (
+    rule_id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    keywords TEXT NOT NULL DEFAULT '',
+    phrase TEXT NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
+  const count = await env.DB.prepare('SELECT COUNT(*) AS total FROM parameter_feature_rules').first();
+  if (Number(count && count.total || 0)) return;
+  await env.DB.batch(DEFAULT_PARAMETER_FEATURE_RULES.map((rule, index) => env.DB.prepare(
+    'INSERT INTO parameter_feature_rules (rule_id,category,keywords,phrase,priority,enabled) VALUES (?,?,?,?,?,1)'
+  ).bind('default-' + index, rule[0], rule[1], rule[2], rule[3])));
+}
+
+async function listParameterFeatureRules(env, includeDisabled = false) {
+  await ensureParameterFeatureRulesTable(env);
+  const result = await env.DB.prepare('SELECT rule_id,category,keywords,phrase,priority,enabled FROM parameter_feature_rules' + (includeDisabled ? '' : ' WHERE enabled=1') + ' ORDER BY priority DESC, category ASC').all();
+  return (result.results || []).map((row) => ({
+    ruleId: row.rule_id,
+    category: row.category,
+    keywords: String(row.keywords || '').split(/[,，]/).map((value) => value.trim()).filter(Boolean),
+    phrase: row.phrase,
+    priority: Number(row.priority || 0),
+    enabled: Number(row.enabled || 0),
+  }));
+}
+
+async function handleParameterFeatureRules(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  return json({ ok: true, rules: await listParameterFeatureRules(env, false) });
+}
+
+async function handleAdminParameterFeatureRulesSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  const body = await parseBodyParams(request);
+  const rows = String(body.rules || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line, index) => {
+    const parts = line.split('|').map((part) => part.trim());
+    if (parts.length < 3 || !parts[0] || !parts[2]) return null;
+    return { id: 'manual-' + index + '-' + crypto.randomUUID(), category: parts[0], keywords: parts[1], phrase: parts[2], priority: clampInt(parts[3], -1000, 1000, 0) };
+  }).filter(Boolean);
+  await ensureParameterFeatureRulesTable(env);
+  const statements = [env.DB.prepare('DELETE FROM parameter_feature_rules')].concat(rows.map((row) => env.DB.prepare(
+    'INSERT INTO parameter_feature_rules (rule_id,category,keywords,phrase,priority,enabled,updated_at) VALUES (?,?,?,?,?,1,CURRENT_TIMESTAMP)'
+  ).bind(row.id, row.category, row.keywords, row.phrase, row.priority)));
+  await env.DB.batch(statements);
+  return adminRedirect('/admin?saved=features#parameter-features');
+}
+
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
-  const [users, dashboard, campaigns, holidays] = await Promise.all([
+  const [users, dashboard, campaigns, holidays, featureRules] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -1750,6 +1809,7 @@ async function handleAdminPage(request, env) {
       FROM plm_users`).first(),
     env.DB.prepare('SELECT * FROM loading_tip_campaigns ORDER BY sort_order ASC LIMIT 200').all(),
     env.DB.prepare('SELECT * FROM holiday_calendar ORDER BY start_date ASC LIMIT 100').all(),
+    listParameterFeatureRules(env, true),
   ]);
   let campaignRows = campaigns.results || [];
   if (!campaignRows.length) {
@@ -1764,10 +1824,10 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], dashboard || {}, campaignRows, holidays.results || [], saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], dashboard || {}, campaignRows, holidays.results || [], featureRules, saved));
 }
 
-function renderAdminDashboardPage(users, dashboard, campaigns, holidays, saved) {
+function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, saved) {
   const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
   const tipEditorRows = campaigns.map((tip, index) => {
     const prefix = 'tip_' + index + '_';
@@ -1775,6 +1835,7 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, saved) 
     return '<details class="tipitem"><summary><input class="tipselect" type="checkbox" name="' + prefix + 'delete" value="1" aria-label="选择删除" onclick="event.stopPropagation()"><span class="tipno">' + (index + 1) + '</span><span class="tiptext">' + htmlEscape(tip.text) + '</span><span class="tipstate">' + (Number(tip.enabled) ? '启用' : '停用') + '</span></summary><div class="tipbody"><input type="hidden" name="' + prefix + 'id" value="' + htmlEscape(tip.tip_id) + '"><label class="wide"><span>提示内容</span><textarea name="' + prefix + 'text">' + htmlEscape(tip.text) + '</textarea></label><div class="row"><label><span>权重</span><input type="number" name="' + prefix + 'weight" min="1" max="20" value="' + htmlEscape(tip.weight || 1) + '"></label><label><span>每日上限</span><input type="number" name="' + prefix + 'daily" min="1" max="20" value="' + htmlEscape(tip.daily_limit || 3) + '"></label><label><span>冷却分钟</span><input type="number" name="' + prefix + 'cooldown" min="0" value="' + htmlEscape(tip.cooldown_minutes ?? 60) + '"></label><label><span>尺寸图权限</span><select name="' + prefix + 'access"><option value="">不限</option>' + option('enabled', '已开通') + option('disabled', '未开通') + '</select></label></div><div class="row two"><label><span>指定姓名</span><input name="' + prefix + 'include" value="' + htmlEscape(tip.include_names || '') + '"></label><label><span>排除姓名</span><input name="' + prefix + 'exclude" value="' + htmlEscape(tip.exclude_names || '') + '"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="' + prefix + 'start_date" value="' + htmlEscape(tip.start_date || '') + '"></label><label><span>结束日期</span><input type="date" name="' + prefix + 'end_date" value="' + htmlEscape(tip.end_date || '') + '"></label><label><span>开始时间</span><input type="time" name="' + prefix + 'start_time" value="' + htmlEscape(tip.start_time || '') + '"></label><label><span>结束时间</span><input type="time" name="' + prefix + 'end_time" value="' + htmlEscape(tip.end_time || '') + '"></label></div><div class="row"><label><span>星期</span><input name="' + prefix + 'weekdays" value="' + htmlEscape(tip.weekdays || '') + '" placeholder="1,2,3,4,5"></label><label><span>脚本版本包含</span><input name="' + prefix + 'version" value="' + htmlEscape(tip.version_rule || '') + '"></label><label class="checks"><input type="hidden" name="' + prefix + 'enabled" value="0"><input type="checkbox" name="' + prefix + 'enabled" value="1"' + (Number(tip.enabled) ? ' checked' : '') + '>启用</label><label class="checks"><input type="checkbox" name="' + prefix + 'holiday" value="1"' + (Number(tip.holiday_eve) ? ' checked' : '') + '>节假日前一天</label></div></div></details>';
   }).join('');
   const holidayTexts = holidays.map((item) => item.holiday_name + '|' + item.start_date).join('\n');
+  const featureRuleTexts = (featureRules || []).map((item) => [item.category, (item.keywords || []).join(','), item.phrase, item.priority].join('|')).join('\n');
   const metrics = [
     ['使用人', dashboard.users || 0], ['今日活跃', dashboard.active_today || 0], ['近7日活跃', dashboard.active_week || 0],
     ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],
@@ -1783,11 +1844,12 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, saved) 
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>' +
     ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:600}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
     '<header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">用户、权限、云端数据与轮播小提示</div></div><a class="btn ghost" href="/admin/logout">退出登录</a></header>' +
-    (saved ? '<div class="notice">' + (saved === 'holidays' ? '节假日设置已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存')) + '</div>' : '') +
+    (saved ? '<div class="notice">' + (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存'))) + '</div>' : '') +
     '<section class="metrics">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
     '<section class="card"><div class="cardhead"><h2>使用人与尺寸图权限</h2><div class="sub">其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="enabled" value="1"><button>添加并开通</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="6">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
     '<section class="card" id="tips"><div class="cardhead"><h2>新增轮播小提示</h2><div class="sub">每行一条，可同时设置本次新增提示的推送条件</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="在这里输入新提示，每行一条"></textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="1"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="3"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="60"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled">已开通</option><option value="disabled">未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames"></label><label><span>排除姓名</span><input name="excludeNames"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate"></label><label><span>结束日期</span><input type="date" name="endDate"></label><label><span>开始时间</span><input type="time" name="startTime"></label><label><span>结束时间</span><input type="time" name="endTime"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1">仅法定节假日前一天</label></div><div class="actions"><button type="submit">添加提示</button></div></form></section>' +
     '<section class="card" id="saved-tips"><div class="cardhead"><h2>已保存的小提示（' + campaigns.length + '）</h2><div class="sub">勾选可批量删除；展开任意一条可维护详细条件</div></div><form class="form tip-manage-form" method="post" action="/admin/tips/manage-save"><input type="hidden" name="tipCount" value="' + campaigns.length + '"><div class="actions"><button class="ghost" type="button" data-tip-select="all">全选</button><button class="ghost" type="button" data-tip-select="none">取消全选</button><button type="submit" data-delete-selected="1">删除选中</button></div><div class="tiplist">' + tipEditorRows + '</div><div class="actions"><button type="submit">保存全部修改</button></div></form></section>' +
+    '<section class="card" id="parameter-features"><div class="cardhead"><h2>参数图 FEATURES 词典</h2><div class="sub">每行：品类|匹配关键词（逗号分隔）|英文短句|优先级</div></div><form class="form" method="post" action="/admin/parameter-features/save"><textarea name="rules" placeholder="精华|精华,serum|Anti-wrinkle & glow|100">' + htmlEscape(featureRuleTexts) + '</textarea><div class="actions"><button type="submit">保存 FEATURES 词典</button></div></form></section>' +
     '<section class="card" id="holidays"><div class="cardhead"><h2>法定节假日</h2><div class="sub">每行格式：节日名称|放假开始日期，提醒日期自动取前一天</div></div><form class="form" method="post" action="/admin/holidays/bulk-save"><textarea name="holidays" placeholder="国庆节|2026-10-01">' + htmlEscape(holidayTexts) + '</textarea><div class="actions"><button type="submit">保存节假日</button></div></form></section></div></main><script>document.querySelectorAll("[data-tip-select]").forEach(function(button){button.addEventListener("click",function(){var checked=button.dataset.tipSelect==="all";document.querySelectorAll(".tipselect").forEach(function(input){input.checked=checked})})});document.querySelectorAll("form").forEach(function(form){form.addEventListener("submit",function(event){var button=event.submitter||form.querySelector("button[type=submit],button:not([type])");if(button&&button.dataset.deleteSelected){var count=document.querySelectorAll(".tipselect:checked").length;if(!count){event.preventDefault();alert("请先勾选要删除的小提示");return}if(!confirm("确定删除选中的 "+count+" 条小提示吗？")){event.preventDefault();return}}if(button){button.disabled=true;button.textContent="保存中..."}})});</script></body></html>';
 }
 
@@ -3353,11 +3415,13 @@ export default {
     if (url.pathname === '/admin/tips/bulk-save' && request.method === 'POST') return handleLoadingTipsBulkSave(request, env);
     if (url.pathname === '/admin/tips/manage-save' && request.method === 'POST') return handleLoadingTipsManageSave(request, env);
     if (url.pathname === '/admin/holidays/bulk-save' && request.method === 'POST') return handleHolidayBulkSave(request, env);
+    if (url.pathname === '/admin/parameter-features/save' && request.method === 'POST') return handleAdminParameterFeatureRulesSave(request, env);
     if (url.pathname === '/features/size-image' && request.method === 'GET') return handleSizeImageAccess(request, env);
     if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
     if (url.pathname === '/usage/size-image' && request.method === 'POST') return handleSizeImageUsage(request, env);
     if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
     if (url.pathname === '/tips/impression' && request.method === 'POST') return handleLoadingTipImpression(request, env);
+    if (url.pathname === '/parameter-features' && request.method === 'GET') return handleParameterFeatureRules(request, env);
     if (url.pathname === '/tips/manage' && request.method === 'GET') return handleLoadingTipsManage(request, env);
     if (url.pathname === '/tips/save' && request.method === 'POST') return handleLoadingTipSave(request, env);
     if (url.pathname === '/tips/delete' && request.method === 'POST') return handleLoadingTipDelete(request, env);

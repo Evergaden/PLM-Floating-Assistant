@@ -197,3 +197,16 @@ CREATE TABLE IF NOT EXISTS admin_login_attempts (
   locked_until INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS parameter_feature_rules (
+  rule_id TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  keywords TEXT NOT NULL DEFAULT '',
+  phrase TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_parameter_feature_rules_enabled
+ON parameter_feature_rules(enabled, priority);
