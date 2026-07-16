@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.79
+// @version      2.5.80
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.79';
+  const SCRIPT_VERSION = '2.5.80';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -1327,6 +1327,7 @@
     projectListPrefetchTimer: 0,
     projectListPrefetchSignature: '',
     uploadGuideOpen: false,
+    uploadClearConfirmOpen: false,
     uploadPage: 1,
     uploadHistoryPage: 1,
     uploadSelectedIds: [],
@@ -1334,6 +1335,7 @@
     ledgerDate: getTodayKey(),
     ledgerView: 'design',
     ledgerTimeEditor: null,
+    ledgerSelectedKeys: [],
     ledgerMenuSku: '',
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
@@ -3943,7 +3945,7 @@
       ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
-      ['home-parameter-image', 'image', '套图辅助', '生成参数图 BETA', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。'],
+      ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。', false, true],
       ['home-unit-converter', 'calculator', '单位换算', '厘米换算英寸', '输入一个或多个厘米尺寸，立即换算为英寸。'],
       ['home-tools', 'tools', '效率辅助', '小工具', '整理编码并输出可直接使用的搜索格式。'],
     ];
@@ -3955,7 +3957,7 @@
       '<div class="pfh-home-grid">' + cards.map((card) => '<button type="button" class="pfh-home-card' + (card[5] ? ' is-disabled' : '') + '" data-action="' + card[0] + '"' + (card[5] ? ' disabled aria-disabled="true"' : '') + '>' +
         iconHtml(card[1]) +
         '<small>' + escapeHtml(card[2]) + '</small>' +
-        '<strong>' + escapeHtml(card[3]) + '</strong>' +
+        '<strong>' + escapeHtml(card[3]) + (card[6] ? '<i class="pfh-beta-badge">BETA</i>' : '') + '</strong>' +
         '<span>' + escapeHtml(card[4]) + '</span>' +
       '</button>').join('') + '</div>' +
       '</section></div>';
@@ -4812,7 +4814,12 @@
   function ledgerViewHtml(records) {
     const mode = state.ledgerView === 'finalized' ? 'finalized' : 'design';
     const groups = groupLedgerRecordsByDate(records, mode);
-    const rows = groups.length ? groups.map((group) => '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span></h4>' + group.items.map((record) => ledgerRowHtml(record, mode)).join('') + '</section>').join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。') + '</div>';
+    const selectedKeys = new Set(state.ledgerSelectedKeys || []);
+    const rows = groups.length ? groups.map((group) => {
+      const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
+      const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
+      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => ledgerRowHtml(record, mode)).join('') + '</section>';
+    }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。') + '</div>';
     const month = getCurrentLedgerMonth();
     return '<div class="pfh-detail-scroll"><section class="pfh-ledger-page">' +
       '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。</p></div><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span></div>' +
@@ -4827,6 +4834,7 @@
         '<button type="button" data-action="ledger-today">本月</button>' +
         '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button>' +
         '<button type="button" data-action="ledger-copy-finalized" title="复制今日定稿编码">复制编码</button>' +
+        '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>' +
       '</div>' +
       '<div class="pfh-ledger-list">' + rows + '</div>' +
       ledgerTimeEditorHtml() +
@@ -4849,6 +4857,7 @@
     const printCode = record.printCode || '';
     const purchasePrice = String(record.purchasePrice || '').trim();
     const dateAttr = escapeHtml(record.date || workDate);
+    const selected = (state.ledgerSelectedKeys || []).includes(getLedgerSelectionKey(record));
     const referenceButton = record.referenceUrl
       ? '<button type="button" class="pfh-ledger-link" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="打开参考链接">' + iconHtml('link') + '</button>'
       : '<button type="button" class="pfh-ledger-link is-disabled" disabled title="没有参考链接">' + iconHtml('link') + '</button>';
@@ -4864,12 +4873,13 @@
     const assignmentHtml = '<div class="pfh-ledger-assignment">' + escapeHtml(dateText) +
       (mode === 'finalized' ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">改时间</button>' : '') +
       '</div>';
-    const workflowHtml = '<div class="pfh-ledger-flow is-step-' + (record.finalizedAt ? '3' : (imageGenerated ? '2' : '1')) + '">' +
+    const workflowHtml = mode === 'finalized' ? '' : '<div class="pfh-ledger-flow is-step-' + (record.finalizedAt ? '3' : (imageGenerated ? '2' : '1')) + '">' +
       '<span><i></i>出图</span><em></em><span><i></i>定稿</span><em></em><span><i></i>文件</span></div>';
     const menuHtml = ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated);
     const moreButton = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="更多操作"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + menuHtml + '</div>';
     const actions = mode === 'finalized'
       ? '<div class="pfh-ledger-file-actions">' +
+        ledgerArtworkStateButtonHtml(sku, dateAttr, record.artworkState) +
         ledgerFileButtonHtml('ledger-toggle-box-file', sku, dateAttr, '纸盒', packageCode, record.boxFileState, record.boxFileDone) +
         ledgerFileButtonHtml('ledger-toggle-label-file', sku, dateAttr, '标签', printCode, record.labelFileState, record.labelFileDone) +
         ledgerFileButtonHtml('ledger-toggle-image-pack', sku, dateAttr, '图包', '', record.imagePackState, record.imagePackDone) +
@@ -4879,7 +4889,9 @@
         (!imageGenerated ? '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '"><span>出图</span></button>' : (record.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (state.ledgerFlowTransitionSku === sku ? ' is-flow-transition' : '') + '"><span>¥</span><input type="text" inputmode="decimal" value="' + escapeHtml(purchasePrice) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (state.ledgerFlowTransitionSku === sku ? ' is-flow-transition' : '') + '" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + ledgerFinalizeCheckIconHtml() + '<span>定稿</span><em>已出图</em></button>')) +
         moreButton +
       '</div>';
-    return '<article class="pfh-ledger-item is-' + escapeHtml(mode) + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '">' +
+    const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
+    return '<article class="pfh-ledger-item is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '">' +
+      selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
         '<div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><b>' + escapeHtml(title) + '</b></button>' + referenceButton + statusPill + '</div>' +
@@ -6467,7 +6479,7 @@
       '</div>' +
       '</section></div>' +
       '<div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + pager + selectedActionHtml + '</div></div>' +
-      uploadGuideModalHtml();
+      uploadGuideModalHtml() + uploadClearConfirmModalHtml();
   }
 
   function uploadGuideIconHtml() {
@@ -6477,6 +6489,12 @@
   function uploadGuideModalHtml() {
     if (!state.uploadGuideOpen) return '';
     return '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="\u4f7f\u7528\u8bf4\u660e"><header><h3>\u4f7f\u7528\u8bf4\u660e</h3><button type="button" data-action="upload-guide-close" aria-label="\u5173\u95ed">\u00d7</button></header><article><b>\u56fe\u5305\u8868\u683c</b><p>\u628a XLSX \u548c ZIP \u4e00\u8d77\u62d6\u5165\uff0c\u811a\u672c\u6309\u6587\u4ef6\u540d\u4e2d\u7684 SKU \u81ea\u52a8\u5339\u914d\u5e76\u52a0\u5165\u4efb\u52a1\u680f\u3002</p><b>\u73a9\u5177\u6807\u7b7e</b><p>\u7c98\u8d34\u591a\u4e2a SKU \u540e\u52a0\u5165\u4efb\u52a1\uff1b\u961f\u5217\u4f1a\u9010\u4e2a\u751f\u6210\u6807\u7b7e\u3001\u4e0a\u4f20 BOM\uff0c\u5e76\u5728\u7ed3\u675f\u540e\u4e0b\u8f7d\u4e00\u4e2a ZIP \u538b\u7f29\u5305\u3002</p><p class="pfh-upload-guide-tip">\u8bf7\u5148\u4fdd\u8bc1 SKU \u5df2\u6709\u672c\u5730\u7f13\u5b58\uff0c\u4ee5\u907f\u514d\u4efb\u52a1\u65e0\u6cd5\u83b7\u53d6\u5236\u4f5c\u6570\u636e\u3002</p></article></section></div>';
+  }
+
+  function uploadClearConfirmModalHtml() {
+    if (!state.uploadClearConfirmOpen) return '';
+    const history = state.uploadView === 'history';
+    return '<div class="pfh-upload-guide-modal pfh-upload-clear-modal"><section role="dialog" aria-modal="true" aria-label="确认清空"><header><h3>确认清空</h3><button type="button" data-action="upload-clear-cancel" aria-label="关闭">×</button></header><article><b>' + (history ? '清空全部历史记录？' : '清空当前提审队列？') + '</b><p>' + (history ? '清空后将无法在历史记录中查看已上传或报错的产品。' : '队列中的待上传文件会被移除，这项操作无法撤销。') + '</p><footer><button type="button" data-action="upload-clear-cancel">取消</button><button type="button" class="is-danger" data-action="upload-clear-confirm">确认清空</button></footer></article></section></div>';
   }
 
   function renderCompactPager(actionPrefix, currentPage, totalPages) {
@@ -6940,6 +6958,18 @@
       copyFinalizedLedgerSkus(state.ledgerDate);
       return;
     }
+    if (action === 'ledger-copy-video') {
+      copySelectedLedgerVideoRows();
+      return;
+    }
+    if (action === 'ledger-toggle-select') {
+      toggleLedgerSelection(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
+      return;
+    }
+    if (action === 'ledger-select-date') {
+      toggleLedgerDateSelection(actionTarget.getAttribute('data-date'));
+      return;
+    }
     if (action === 'ledger-export') {
       exportLedgerRecords(state.ledgerDate);
       return;
@@ -6996,6 +7026,10 @@
       toggleLedgerWorkFlag(action, actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
       return;
     }
+    if (action === 'ledger-cycle-artwork-state') {
+      cycleLedgerArtworkState(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
+      return;
+    }
     if (action === 'ledger-open-reference') {
       openLedgerReference(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
       return;
@@ -7032,6 +7066,15 @@
     }
     if (action === 'upload-clear-list') {
       clearCurrentUploadList();
+      return;
+    }
+    if (action === 'upload-clear-cancel') {
+      state.uploadClearConfirmOpen = false;
+      renderShell();
+      return;
+    }
+    if (action === 'upload-clear-confirm') {
+      confirmClearCurrentUploadList();
       return;
     }
     if (action === 'upload-guide') {
@@ -7905,7 +7948,12 @@
   }
 
   function clearCurrentUploadList() {
-    if (!window.confirm(L.uploadClearConfirm)) return;
+    state.uploadClearConfirmOpen = true;
+    renderShell();
+  }
+
+  function confirmClearCurrentUploadList() {
+    state.uploadClearConfirmOpen = false;
     if (state.uploadView === 'history') {
       state.uploadHistory = [];
       state.uploadHistoryPage = 1;
@@ -9767,6 +9815,7 @@
       renderShell();
       console.info('PLM floating helper Excel filename:', fileName);
       await saveExcelBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName, saveTarget);
+      syncInsightEvent('excel_generated', { sku: excelData.sku || '', name: excelData.name || '', source: 'excel-generation' });
       recordCommerceInsight(excelData, extra, {
         price: purchasePrice,
         packQty,
@@ -11632,6 +11681,7 @@
       designType: cleanName(item.designType || '').slice(0, 80),
       artPriority: cleanName(item.artPriority || '').slice(0, 80),
       referenceUrl: String(item.referenceUrl || '').slice(0, 800),
+      developerName: cleanName(item.developerName || '').slice(0, 80),
       designAssignedAt: String(item.designAssignedAt || '').slice(0, 80),
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
       packageCode: String(item.packageCode || '').slice(0, 120),
@@ -11640,6 +11690,7 @@
       boxFileState: normalizeLedgerFileState(item.boxFileState, item.boxFileDone),
       labelFileState: normalizeLedgerFileState(item.labelFileState, item.labelFileDone),
       imagePackState: normalizeLedgerFileState(item.imagePackState, item.imagePackDone),
+      artworkState: normalizeLedgerArtworkState(item.artworkState),
       boxFileDone: normalizeLedgerFileState(item.boxFileState, item.boxFileDone) === 'done',
       labelFileDone: normalizeLedgerFileState(item.labelFileState, item.labelFileDone) === 'done',
       imagePackDone: normalizeLedgerFileState(item.imagePackState, item.imagePackDone) === 'done',
@@ -11665,6 +11716,10 @@
     if (/^(?:\u5b8c\u6210|\u5df2\u5b8c\u6210|done)$/i.test(text)) return 'done';
     if (/^(?:\u4e0d\u9700\u8981|\u65e0\u9700|\u8df3\u8fc7|skip)$/i.test(text)) return 'skip';
     return doneFallback ? 'done' : 'pending';
+  }
+
+  function normalizeLedgerArtworkState(value) {
+    return /^(pending|doing|done)$/.test(String(value || '')) ? String(value) : 'pending';
   }
 
   function normalizeLedgerPurchasePrice(value) {
@@ -11771,6 +11826,7 @@
       designType: cleanName(data.designType || (existing && existing.designType) || ''),
       artPriority: cleanName(data.artPriority || (existing && existing.artPriority) || ''),
       referenceUrl: String(data.referenceUrl || (existing && existing.referenceUrl) || ''),
+      developerName: cleanName(data.developerName || (existing && existing.developerName) || ''),
       designAssignedAt: String(data.designAssignedAt || (existing && existing.designAssignedAt) || ''),
       developmentAssignedAt: String(data.developmentAssignedAt || (existing && existing.developmentAssignedAt) || ''),
       packageCode: String(data.packageCode || (existing && existing.packageCode) || ''),
@@ -11779,6 +11835,7 @@
       boxFileState: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)),
       labelFileState: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)),
       imagePackState: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)),
+      artworkState: normalizeLedgerArtworkState(opts.artworkState !== undefined ? opts.artworkState : (existing && existing.artworkState)),
       boxFileDone: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)) === 'done',
       labelFileDone: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)) === 'done',
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
@@ -11834,6 +11891,48 @@
     }
     copyText(rows.map((item) => item.sku).filter(Boolean).join('\n'));
     showToast('已复制今日定稿编码：' + rows.length + '个');
+  }
+
+  function getLedgerSelectionKey(record) {
+    return String(record && record.date || '') + '::' + String(record && record.sku || '');
+  }
+
+  function toggleLedgerSelection(sku, dateKey) {
+    const record = (state.ledgerRecords || []).find((item) => item.sku === sku && item.date === normalizeLedgerDate(dateKey));
+    if (!record) return;
+    const key = getLedgerSelectionKey(record);
+    const selected = new Set(state.ledgerSelectedKeys || []);
+    if (selected.has(key)) selected.delete(key);
+    else selected.add(key);
+    state.ledgerSelectedKeys = Array.from(selected);
+    refreshLedgerCard(record);
+  }
+
+  function toggleLedgerDateSelection(dateKey) {
+    const records = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth()).filter((item) => getLedgerFinalizedDate(item) === normalizeLedgerDate(dateKey));
+    const selected = new Set(state.ledgerSelectedKeys || []);
+    const keys = records.map(getLedgerSelectionKey);
+    const remove = keys.length && keys.every((key) => selected.has(key));
+    keys.forEach((key) => remove ? selected.delete(key) : selected.add(key));
+    state.ledgerSelectedKeys = Array.from(selected);
+    renderShell();
+  }
+
+  function copySelectedLedgerVideoRows() {
+    const selected = new Set(state.ledgerSelectedKeys || []);
+    const rows = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth()).filter((item) => selected.has(getLedgerSelectionKey(item)));
+    if (!rows.length) {
+      showToast('请先选择产品卡片或日期');
+      return;
+    }
+    const text = rows.map((item) => {
+      const cached = normalizeData(loadData(item.sku) || {});
+      const person = item.developerName || cached.developerName || cached.projectOwnerName || '';
+      return [person, item.referenceUrl || cached.referenceUrl || '', item.name || cached.name || item.sku]
+        .map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
+    }).join('\n');
+    copyText(text);
+    showToast('视频申请内容已复制：' + rows.length + '个产品');
   }
 
   function exportLedgerRecords(dateKey) {
@@ -11988,6 +12087,22 @@
     const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
     const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue) }, key);
     refreshLedgerCard(updatedRecord);
+  }
+
+  function ledgerArtworkStateButtonHtml(sku, dateAttr, value) {
+    const current = normalizeLedgerArtworkState(value);
+    const label = current === 'doing' ? '生图中' : (current === 'done' ? '完成生图' : '待生图');
+    return '<button type="button" class="pfh-ledger-artwork is-' + escapeHtml(current) + '" data-action="ledger-cycle-artwork-state" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="点击切换生图状态">' + label + '</button>';
+  }
+
+  function cycleLedgerArtworkState(sku, dateKey) {
+    const key = normalizeLedgerDate(dateKey) || getTodayKey();
+    const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
+    const current = normalizeLedgerArtworkState(existing && existing.artworkState);
+    const next = current === 'pending' ? 'doing' : (current === 'doing' ? 'done' : 'pending');
+    const label = next === 'doing' ? '生图中' : (next === 'done' ? '完成生图' : '待生图');
+    const updated = updateDailyLedgerForSku(sku, { artworkState: next, note: label }, key);
+    refreshLedgerCard(updated);
   }
 
   function openLedgerReference(sku, dateKey) {
@@ -13462,6 +13577,7 @@
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryProductKey(entry) !== archivedProductKey)).slice(0, 200);
     cleanupUploadFiles(latestItem);
     saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
+    if ((archived.kind || 'standard') === 'standard') syncInsightEvent('image_pack_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
     if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
     renderShell();
   }
@@ -20538,6 +20654,9 @@
         background: #f5f2ff;
         color: #6e5ead;
       }
+      #${PANEL_ID} .pfh-upload-clear-modal footer { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+      #${PANEL_ID} .pfh-upload-clear-modal footer button { height:34px; padding:0 14px; border:1px solid #ded7ff; border-radius:10px; background:#fff; color:#6757b5; font-weight:650; }
+      #${PANEL_ID} .pfh-upload-clear-modal footer button.is-danger { border-color:transparent; background:#ef4444; color:#fff; }
       @keyframes pfh-upload-guide-in {
         from { opacity: 0; transform: translateY(10px) scale(.94); }
         to { opacity: 1; transform: translateY(0) scale(1); }
@@ -21093,10 +21212,10 @@
       }
       #${PANEL_ID} .pfh-ledger-file-actions {
         grid-auto-flow: column !important;
-        grid-template-columns: 56px 56px 56px 30px !important;
+        grid-template-columns: 64px 56px 56px 56px 30px !important;
         grid-template-rows: 30px !important;
-        width: 213px !important;
-        min-width: 213px !important;
+        width: 287px !important;
+        min-width: 287px !important;
         align-items: center !important;
         overflow: visible !important;
       }
@@ -21106,6 +21225,19 @@
         max-width: 56px !important;
         white-space: nowrap !important;
       }
+      #${PANEL_ID} .pfh-ledger-file-actions > button.pfh-ledger-artwork { width:64px !important; max-width:64px !important; }
+      #${PANEL_ID} .pfh-ledger-file-actions > button.pfh-ledger-artwork.is-doing { border-color:#f0b429 !important; background:#fff8dc !important; color:#a16207 !important; }
+      #${PANEL_ID} .pfh-ledger-file-actions > button.pfh-ledger-artwork.is-done { border-color:#7c3aed !important; background:#7c3aed !important; color:#fff !important; }
+      #${PANEL_ID} .pfh-ledger-item { position:relative !important; }
+      #${PANEL_ID} .pfh-ledger-item.is-selected { border-color:#8b5cf6 !important; box-shadow:0 0 0 3px rgba(139,92,246,.10) !important; }
+      #${PANEL_ID} .pfh-ledger-select { position:absolute !important; z-index:3 !important; top:9px !important; left:9px !important; width:18px !important; min-width:18px !important; height:18px !important; min-height:18px !important; padding:0 !important; border:1px solid #bca9ff !important; border-radius:6px !important; background:#fff !important; }
+      #${PANEL_ID} .pfh-ledger-select.is-selected { border-color:#7c3aed !important; background:#7c3aed !important; }
+      #${PANEL_ID} .pfh-ledger-select.is-selected::after { content:'✓'; color:#fff; font-size:12px; line-height:16px; }
+      #${PANEL_ID} .pfh-ledger-day h4 { display:flex !important; align-items:center !important; gap:8px !important; }
+      #${PANEL_ID} .pfh-ledger-day-select { height:24px !important; min-height:24px !important; margin-left:auto !important; padding:0 9px !important; border:1px solid #d9d1f5 !important; border-radius:8px !important; background:#fff !important; color:#7048df !important; font-size:10px !important; }
+      #${PANEL_ID} .pfh-ledger-day-select.is-selected { background:#f0ecff !important; }
+      #${PANEL_ID} .pfh-home-card strong { display:flex; align-items:center; gap:6px; }
+      #${PANEL_ID} .pfh-beta-badge { display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:999px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:8px; font-style:normal; font-weight:750; letter-spacing:.4px; line-height:16px; }
       #${PANEL_ID} .pfh-ledger-file-actions .pfh-ledger-more,
       #${PANEL_ID} .pfh-ledger-file-actions .pfh-ledger-more > button {
         width: 30px !important;

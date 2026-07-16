@@ -1211,7 +1211,7 @@ async function handleInsightRecord(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   const eventType = cleanText(body && body.eventType, 40);
-  if (!eventType || !/^(price|issue|type|summary|log|recommendation)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
+  if (!eventType || !/^(price|issue|type|summary|log|recommendation|excel_generated|image_pack_upload_success)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
 
   const missingFields = cleanList(body && body.missingFields);
   const payload = JSON.stringify(body || {});
@@ -2081,7 +2081,7 @@ async function handleAdminParameterFeatureRulesSave(request, env) {
 
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
-  const [users, dashboard, campaigns, holidays, featureRules] = await Promise.all([
+  const [users, dashboard, usageTotals, campaigns, holidays, featureRules] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -2092,6 +2092,10 @@ async function handleAdminPage(request, env) {
       SUM(size_image_failure) AS size_failure,
       SUM(CASE WHEN last_backup_at IS NOT NULL THEN 1 ELSE 0 END) AS backup_users
       FROM plm_users`).first(),
+    env.DB.prepare(`SELECT
+      SUM(CASE WHEN event_type='excel_generated' THEN 1 ELSE 0 END) AS excel_generated_total,
+      SUM(CASE WHEN event_type='image_pack_upload_success' THEN 1 ELSE 0 END) AS image_pack_upload_success_total
+      FROM insight_events`).first(),
     env.DB.prepare('SELECT * FROM loading_tip_campaigns ORDER BY sort_order ASC LIMIT 200').all(),
     env.DB.prepare('SELECT * FROM holiday_calendar ORDER BY start_date ASC LIMIT 100').all(),
     listParameterFeatureRules(env, true),
@@ -2109,7 +2113,7 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], dashboard || {}, campaignRows, holidays.results || [], featureRules, saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, saved));
 }
 
 function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, saved) {
@@ -2124,6 +2128,7 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
   const metrics = [
     ['使用人', dashboard.users || 0], ['今日活跃', dashboard.active_today || 0], ['近7日活跃', dashboard.active_week || 0],
     ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],
+    ['生成 Excel 总量', dashboard.excel_generated_total || 0], ['图包上传成功总量', dashboard.image_pack_upload_success_total || 0],
     ['尺寸图成功', dashboard.size_success || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
   ].map((item) => '<div class="metric"><span>' + htmlEscape(item[0]) + '</span><b>' + htmlEscape(item[1]) + '</b></div>').join('');
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>' +
