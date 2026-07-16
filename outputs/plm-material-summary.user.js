@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.75
+// @version      2.5.76
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.75';
+  const SCRIPT_VERSION = '2.5.76';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -1185,7 +1185,7 @@
     uploadToggle: '\u4e0a\u4f20',
     uploadXlsx: 'XLSX',
     uploadZip: 'ZIP',
-    uploadDropHint: '\u628a xlsx/zip \u62d6\u5230\u8fd9\u91cc\uff0c\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u52a0\u5165\u961f\u5217',
+    uploadDropHint: '\u628a xlsx/zip/rar \u62d6\u5230\u8fd9\u91cc\uff0c\u6216\u60ac\u505c\u540e Ctrl+V \u7c98\u8d34\u6587\u4ef6',
     uploadStartQueue: '\u5f00\u59cb\u961f\u5217',
     uploadPauseQueue: '\u6682\u505c',
     uploadWorker: '\u4e13\u7528\u4e0a\u4f20\u9875',
@@ -6421,7 +6421,7 @@
       '<div class="pfh-upload-body">' +
         (viewingHistory ? '' : uploadModeTabs + (state.uploadMode === 'toy-label'
           ? '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>'
-          : '<div class="pfh-upload-drop" data-upload-drop="any">' + escapeHtml(L.uploadDropHint) + '</div>' +
+          : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
         '<input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar">' +
         '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>')) +
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
@@ -7291,6 +7291,23 @@
 
   function handlePanelPaste(event) {
     if (event.defaultPrevented) return;
+    if (state.view === 'upload') {
+      const panel = document.getElementById(PANEL_ID);
+      const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
+        || (panel && panel.querySelector('.pfh-upload-drop:hover'));
+      const files = Array.from(event.clipboardData && event.clipboardData.items || [])
+        .filter((item) => item.kind === 'file')
+        .map((item) => item.getAsFile())
+        .filter((file) => file && getUploadKindFromFileName(file.name));
+      if (drop && files.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        drop.classList.add('is-paste-received');
+        window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+        processQueuedUploadFiles(files);
+        return;
+      }
+    }
     if (!(event.target && event.target.classList && event.target.classList.contains('pfh-search-input'))) return;
     const pasted = event.clipboardData && event.clipboardData.getData('text');
     if (!pasted || !/[\r\n,，;；、|/\\]/.test(pasted)) return;
@@ -7375,8 +7392,8 @@
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-upload-file')) {
       const files = Array.from(event.target.files || []);
-      files.forEach((file) => storeQueuedUploadFile(file));
       event.target.value = '';
+      processQueuedUploadFiles(files);
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-date')) {
       const month = normalizeLedgerMonth(event.target.value);
@@ -7398,6 +7415,7 @@
     }
     if (event.target && event.target.closest && event.target.closest('.pfh-upload-section')) {
       event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
     }
   }
 
@@ -7416,7 +7434,16 @@
     if (!(event.target && event.target.closest && event.target.closest('.pfh-upload-section'))) return;
     event.preventDefault();
     const files = Array.from(event.dataTransfer && event.dataTransfer.files || []);
-    files.forEach((file) => storeQueuedUploadFile(file));
+    processQueuedUploadFiles(files);
+  }
+
+  async function processQueuedUploadFiles(files) {
+    const supported = Array.from(files || []).filter((file) => file && getUploadKindFromFileName(file.name));
+    if (!supported.length) {
+      showToast('\u8bf7\u62d6\u5165\u6216\u7c98\u8d34 xls\u3001xlsx\u3001zip \u6216 rar \u6587\u4ef6');
+      return;
+    }
+    for (const file of supported) await storeQueuedUploadFile(file);
   }
 
   function startTailSealEdit(target) {
@@ -19776,6 +19803,14 @@
           linear-gradient(180deg, rgba(255,255,255,.72), rgba(250,245,255,.60)) !important;
         font-size: 13px !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,.92), 0 12px 34px rgba(124,58,237,.08) !important;
+      }
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-drop:hover,
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-drop:focus,
+      #${PANEL_ID}[data-view="upload"] .pfh-upload-drop.is-paste-received {
+        outline: none !important;
+        border-color: rgba(124,58,237,.86) !important;
+        background: linear-gradient(180deg, rgba(245,239,255,.96), rgba(250,245,255,.82)) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.96), 0 0 0 4px rgba(124,58,237,.11), 0 14px 36px rgba(124,58,237,.15) !important;
       }
       #${PANEL_ID}[data-view="upload"] .pfh-upload-drop::before {
         content: "" !important;
