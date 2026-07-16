@@ -629,6 +629,35 @@ function sanitizeToyDirections(value) {
   return directions;
 }
 
+function splitToyCopywritingList(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || '').split(/\r?\n|(?=\s*\d+[.\u3001)]\s*)/);
+  return source.map((item) => cleanText(item, 500)
+    .replace(/^[-*\u2022\s]+/, '')
+    .replace(/^\d+[.\u3001)]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function sanitizeChineseToyEfficacy(value) {
+  const items = splitToyCopywritingList(value).slice(0, 3);
+  if (items.length !== 3) throw new Error('Gemini must return exactly three Chinese efficacy sentences');
+  items.forEach((item) => {
+    const characterCount = (item.match(/[\u3400-\u9fff]/g) || []).length;
+    if (characterCount < 10 || characterCount > 20) throw new Error('Each Chinese efficacy sentence must contain about 15 Chinese characters');
+  });
+  return items;
+}
+
+function sanitizeEnglishToyEfficacy(value, expectedCount) {
+  const items = splitToyCopywritingList(value).slice(0, expectedCount);
+  if (!items.length || items.length !== expectedCount) throw new Error('English efficacy must match Chinese efficacy sentence count');
+  return items;
+}
+
 async function handleToyCopywritingComplete(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
@@ -636,13 +665,18 @@ async function handleToyCopywritingComplete(request, env) {
   const name = cleanText(body && body.name, 500);
   const chineseSellingPoints = cleanText(body && body.chineseSellingPoints, 8000);
   const chineseAdvantages = cleanText(body && body.chineseAdvantages, 5000);
+  const chineseEfficacy = cleanText(body && body.chineseEfficacy, 5000);
   const chineseIngredients = cleanText(body && body.chineseIngredients, 5000);
   const chineseDirections = cleanText(body && body.chineseDirections, 12000);
   const needsAdvantages = Boolean(body && (body.needsChineseAdvantages || body.needsEnglishAdvantages));
+  const needsChineseEfficacy = Boolean(body && body.needsChineseEfficacy);
+  const needsEnglishEfficacy = Boolean(body && body.needsEnglishEfficacy);
   const needsEnglishIngredients = Boolean(body && body.needsEnglishIngredients);
   const needsEnglishDirections = Boolean(body && body.needsEnglishDirections);
   if (!sku) return json({ error: 'sku required' }, 400);
   if (needsAdvantages && !chineseAdvantages && !chineseSellingPoints && !name) return json({ error: 'Chinese advantages source required' }, 400);
+  if (needsChineseEfficacy && !chineseSellingPoints) return json({ error: 'Chinese selling points required for efficacy' }, 400);
+  if (needsEnglishEfficacy && !needsChineseEfficacy && !chineseEfficacy) return json({ error: 'Chinese efficacy required for English translation' }, 400);
   try {
     const options = {
       model: 'gemini-3.1-flash-lite',
@@ -652,9 +686,12 @@ async function handleToyCopywritingComplete(request, env) {
       responseMimeType: 'application/json',
       system: [
         'You complete bilingual product-copy fields for a toy product.',
-        'Return JSON only with this exact schema: {"chineseAdvantages":"...","englishAdvantages":"...","englishIngredients":"...","englishDirections":["...","...","..."]}.',
+        'Return JSON only with this exact schema: {"chineseAdvantages":"...","englishAdvantages":"...","chineseEfficacy":["...","...","..."],"englishEfficacy":["...","...","..."],"englishIngredients":"...","englishDirections":["...","...","..."]}.',
         'If Chinese advantages are supplied, preserve their meaning and numbering; otherwise derive 3 to 5 concise numbered Chinese advantages only from the supplied selling points and product name.',
         'Translate Chinese advantages into concise natural US English for englishAdvantages. Do not add unsupported claims.',
+        'When Chinese efficacy needs generation, derive exactly three short Chinese efficacy sentences only from the Chinese selling points.',
+        'Each generated Chinese efficacy sentence must contain about 15 Chinese characters, with an allowed range of 10 to 20 Chinese characters.',
+        'Translate the final Chinese efficacy sentence by sentence into natural concise US English for englishEfficacy, preserving its order and count.',
         'Translate Chinese ingredients directly into englishIngredients, preserving the source order and material meaning. Do not invent ingredients.',
         'Summarize Chinese directions into exactly three English imperative sentences.',
         'Every English direction must contain 8 to 15 words, excluding its array position, and must be extremely concise.',
@@ -665,6 +702,7 @@ async function handleToyCopywritingComplete(request, env) {
         'Product name: ' + name,
         'Chinese selling points: ' + chineseSellingPoints,
         'Chinese product advantages: ' + chineseAdvantages,
+        'Existing Chinese product efficacy: ' + chineseEfficacy,
         'Chinese ingredients/materials: ' + chineseIngredients,
         'Chinese directions: ' + chineseDirections,
       ].join('\n'),
@@ -678,11 +716,14 @@ async function handleToyCopywritingComplete(request, env) {
         const candidate = parseToyCopywritingAiJson(result.text);
         const completedChineseAdvantages = cleanText(candidate && candidate.chineseAdvantages, 5000);
         const englishAdvantages = cleanText(candidate && candidate.englishAdvantages, 5000);
+        const generatedChineseEfficacy = needsChineseEfficacy ? sanitizeChineseToyEfficacy(candidate && candidate.chineseEfficacy) : splitToyCopywritingList(chineseEfficacy);
+        const efficacyCount = generatedChineseEfficacy.length || 1;
+        const englishEfficacy = needsEnglishEfficacy ? sanitizeEnglishToyEfficacy(candidate && candidate.englishEfficacy, efficacyCount) : [];
         const englishIngredients = needsEnglishIngredients ? cleanText(candidate && candidate.englishIngredients, 5000) : '';
         const directions = needsEnglishDirections ? sanitizeToyDirections(candidate && candidate.englishDirections) : [];
         if (needsAdvantages && (!completedChineseAdvantages || !englishAdvantages)) throw new Error('Gemini returned empty toy advantages');
         if (needsEnglishIngredients && !englishIngredients) throw new Error('Gemini returned empty English ingredients');
-        parsed = { completedChineseAdvantages, englishAdvantages, englishIngredients, directions };
+        parsed = { completedChineseAdvantages, englishAdvantages, generatedChineseEfficacy, englishEfficacy, englishIngredients, directions };
       } catch (error) {
         lastError = error;
         if (attempt === 2) throw error;
@@ -693,6 +734,8 @@ async function handleToyCopywritingComplete(request, env) {
       ok: true,
       chineseAdvantages: parsed.completedChineseAdvantages,
       englishAdvantages: parsed.englishAdvantages,
+      chineseEfficacy: parsed.generatedChineseEfficacy.map((item, index) => (index + 1) + '. ' + item).join('\n'),
+      englishEfficacy: parsed.englishEfficacy.map((item, index) => (index + 1) + '. ' + item).join('\n'),
       englishIngredients: parsed.englishIngredients,
       englishDirections: parsed.directions.map((item, index) => (index + 1) + '. ' + item).join('\n'),
       model: result.model,
