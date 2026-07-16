@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.61
+// @version      2.5.62
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -9,6 +9,7 @@
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js
+// @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js
 // @grant        GM_setClipboard
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -28,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.61';
+  const SCRIPT_VERSION = '2.5.62';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -5412,7 +5413,10 @@
   async function extractIngredientPdfText(arrayBuffer) {
     const Pdf = (typeof pdfjsLib !== 'undefined' && pdfjsLib) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.pdfjsLib);
     if (!Pdf || typeof Pdf.getDocument !== 'function') throw new Error('PDF 解析组件未加载');
-    const task = Pdf.getDocument({ data: new Uint8Array(arrayBuffer), disableWorker: true });
+    if (Pdf.GlobalWorkerOptions && !Pdf.GlobalWorkerOptions.workerSrc) {
+      Pdf.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    }
+    const task = Pdf.getDocument({ data: new Uint8Array(arrayBuffer) });
     const documentHandle = await task.promise;
     const pages = [];
     try {
@@ -5485,12 +5489,13 @@
   }
 
   async function resolveCopywritingDocumentSource(card, fileName) {
+    const attachmentLabel = /\.pdf$/i.test(String(fileName || '')) ? '成分表' : '产品文案';
     const direct = findCopywritingUrlInCard(card);
     if (direct) {
-      addLog('info', '产品文案：命中卡片地址', fileName + ' | ' + redactCopywritingUrl(direct));
+      addLog('info', attachmentLabel + '：命中卡片地址', fileName + ' | ' + redactCopywritingUrl(direct));
       return { url: direct, arrayBuffer: null, kind: 'direct' };
     }
-    addLog('info', '产品文案：未发现静态地址，直接监听下载动作', fileName);
+    addLog('info', attachmentLabel + '：未发现静态地址，直接监听下载动作', fileName);
     return { ...(await captureCopywritingDownloadSource(card, fileName)), kind: 'captured' };
   }
 
@@ -5613,15 +5618,17 @@
   }
 
   async function captureCopywritingDownloadSource(card, fileName) {
+    const wantsPdf = /\.pdf$/i.test(String(fileName || ''));
+    const attachmentLogLabel = wantsPdf ? '成分表' : '产品文案';
     if (!card) {
-      addLog('error', '产品文案：下载监听失败', '附件卡片不存在');
+      addLog('error', attachmentLogLabel + '：下载监听失败', '附件卡片不存在');
       return { url: '', arrayBuffer: null };
     }
     // PLM only reveals this control on hover, but HTMLElement.click() works while it is hidden.
     const control = card.querySelector('.delBtn .anticon-vertical-align-bottom, .delBtn [aria-label="vertical-align-bottom"], .anticon-vertical-align-bottom, [aria-label="vertical-align-bottom"], [class*="download" i]');
     const clickable = control && (control.closest('.delBtn, button, a, [role="button"]') || control);
     if (!clickable) {
-      addLog('error', '产品文案：下载监听失败', fileName + ' | 未找到下载图标，卡片类名：' + String(card.className || ''));
+      addLog('error', attachmentLogLabel + '：下载监听失败', fileName + ' | 未找到下载图标，卡片类名：' + String(card.className || ''));
       return { url: '', arrayBuffer: null };
     }
     let captured = '';
@@ -5629,7 +5636,6 @@
     let capturedAt = 0;
     let capturedReady = false;
     let capturedBuffer = null;
-    const wantsPdf = /\.pdf$/i.test(String(fileName || ''));
     const root = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     const restores = [];
     const trace = [];
@@ -5747,7 +5753,7 @@
         });
       }
     } catch (error) {
-      addLog('warn', '产品文案：下载地址监听受限', formatErrorMessage(error));
+      addLog('warn', attachmentLogLabel + '：下载地址监听受限', formatErrorMessage(error));
     }
     const before = new Set((performance.getEntriesByType && performance.getEntriesByType('resource') || []).map((entry) => entry.name));
     const observer = new MutationObserver((mutations) => {
@@ -5780,9 +5786,9 @@
         try { restore(); } catch (error) { /* no-op */ }
       });
     }
-    if (capturedBuffer) addLog('info', '产品文案：下载监听成功', fileName + ' | 内存 Word ' + capturedBuffer.byteLength + 'B');
-    else if (captured) addLog('info', '产品文案：下载监听捕获地址', fileName + ' | ' + redactCopywritingUrl(captured));
-    else addLog('error', '产品文案：下载监听未取得文件', fileName + ' | ' + (trace.join('；') || '点击后未发现下载地址、Blob 或 Word 响应'));
+    if (capturedBuffer) addLog('info', attachmentLogLabel + '：下载监听成功', fileName + ' | 内存 ' + (wantsPdf ? 'PDF ' : 'Word ') + capturedBuffer.byteLength + 'B');
+    else if (captured) addLog('info', attachmentLogLabel + '：下载监听捕获地址', fileName + ' | ' + redactCopywritingUrl(captured));
+    else addLog('error', attachmentLogLabel + '：下载监听未取得文件', fileName + ' | ' + (trace.join('；') || '点击后未发现下载地址、Blob 或目标文件响应'));
     return { url: captured, arrayBuffer: capturedBuffer };
   }
 
