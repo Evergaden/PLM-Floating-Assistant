@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.64
+// @version      2.5.65
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.64';
+  const SCRIPT_VERSION = '2.5.65';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
@@ -4115,7 +4115,7 @@
         const alpha = pixels[(y * width + x) * 4 + 3];
         if (alpha <= 12) transparentPixels += 1;
         if (alpha >= 220) opaquePixels += 1;
-        if (alpha > 12) {
+        if (alpha >= 220) {
           count += 1;
           if (left === width) left = x;
           right = x;
