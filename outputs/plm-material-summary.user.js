@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.73
+// @version      2.5.74
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.73';
+  const SCRIPT_VERSION = '2.5.74';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -146,6 +146,7 @@
           manualTarget: Boolean(data && data.singleBottle) ? 'product' : 'box',
           manualPoints: { box: [], product: [] },
           editorImage: null,
+          editorSourceUrl: '',
           editorDragging: null,
           fields: {
             englishName,
@@ -298,7 +299,19 @@
       if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
     }
 
-    async function loadFileImageBitmap(file) {
+    function readFileDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Unable to read annotation image.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function loadFileImageBitmap(file, sourceUrl) {
+      if (sourceUrl) {
+        try { return await loadImage(sourceUrl); } catch (_) {}
+      }
       const bitmapFactory = typeof createImageBitmap === 'function'
         ? createImageBitmap
         : (typeof window !== 'undefined' && typeof window.createImageBitmap === 'function' ? window.createImageBitmap.bind(window) : null);
@@ -308,16 +321,7 @@
           return { source: bitmap, naturalWidth: bitmap.width, naturalHeight: bitmap.height };
         } catch (_) {}
       }
-      return loadFileImageDataUrl(file);
-    }
-
-    function loadFileImageDataUrl(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => loadImage(String(reader.result || '')).then(resolve).catch(() => reject(new Error('Unable to read annotation image.')));
-        reader.onerror = () => reject(new Error('Unable to read annotation image.'));
-        reader.readAsDataURL(file);
-      });
+      return loadImage(await readFileDataUrl(file));
     }
 
     async function mountManualEditor(data) {
@@ -327,7 +331,7 @@
       const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
       if (!canvas) return;
       try {
-        if (!session.editorImage) session.editorImage = await loadFileImageBitmap(session.file);
+        if (!session.editorImage) session.editorImage = await loadFileImageBitmap(session.file, session.editorSourceUrl);
       } catch (error) {
         session.editorOpen = false;
         session.error = String(error && error.message || error || '无法读取标注图片。');
@@ -365,9 +369,15 @@
     async function openManualEditor(data) {
       const session = ensureSession(data);
       if (!session.file) return;
-      session.editorOpen = true;
-      session.error = '';
-      context.render();
+      try {
+        if (!session.editorSourceUrl) session.editorSourceUrl = await readFileDataUrl(session.file);
+        session.editorOpen = true;
+        session.error = '';
+        context.render();
+      } catch (error) {
+        session.error = String(error && error.message || error || 'Unable to open manual annotation.');
+        context.render();
+      }
     }
 
     function viewHtml(data) {
@@ -777,6 +787,7 @@
       if (!file || !/\.png$/i.test(file.name || '')) { session.error = '请选择透明 PNG 图片。'; context.render(); return; }
       session.file = file; session.fileName = file.name; session.showSide = null;
       session.editorImage = null;
+      session.editorSourceUrl = '';
       session.editorOpen = false;
       session.editorDragging = null;
       session.manualPoints = { box: [], product: [] };
