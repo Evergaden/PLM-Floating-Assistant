@@ -23,6 +23,7 @@ const files = {
   kriath: 'KRIATH.svg',
   laniska: 'laniska bk.svg',
   nymixa: 'Nymixa.svg',
+  northmoon: 'North moon.svg',
   oceaura: 'OceAura.svg',
   oralhoe: 'oralhoe.svg',
   ouhoe: 'OUHOE.svg',
@@ -57,7 +58,7 @@ const clientSource = `  const PARAMETER_LOGO_ALIASES = Object.freeze({
 
   function getParameterLogoKey(brand) {
     const normalized = normalizeParameterBrandName(brand);
-    if (!normalized || /^(amz|odm|oem)$/.test(normalized)) return '';
+    if (!normalized || /^(amz|odm|oem|dowmoo)$/.test(normalized)) return '';
     const compact = normalized.replace(/[^a-z0-9\\u3400-\\u9fff\\uac00-\\ud7af]+/g, '');
     return PARAMETER_LOGO_ALIASES[normalized] || PARAMETER_LOGO_ALIASES[compact] || compact;
   }`;
