@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.70
+// @version      2.5.71
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.70';
+  const SCRIPT_VERSION = '2.5.71';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -298,6 +298,15 @@
       if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
     }
 
+    function loadFileImageDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => loadImage(String(reader.result || '')).then(resolve).catch(() => reject(new Error('Unable to read annotation image.')));
+        reader.onerror = () => reject(new Error('Unable to read annotation image.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
     async function mountManualEditor(data) {
       const session = ensureSession(data);
       if (!session.editorOpen || !session.file) return;
@@ -305,7 +314,7 @@
       const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
       if (!canvas) return;
       try {
-        if (!session.editorImage) session.editorImage = await loadFileImage(session.file);
+        if (!session.editorImage) session.editorImage = await loadFileImageDataUrl(session.file);
       } catch (error) {
         session.editorOpen = false;
         session.error = String(error && error.message || error || '无法读取标注图片。');
@@ -325,7 +334,8 @@
         if (index < 0 && points.length < requiredManualPoints(target)) { points.push(point); index = points.length - 1; }
         if (index < 0) return;
         session.editorDragging = { target, index };
-        canvas.setPointerCapture(event.pointerId); redraw();
+        try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+        redraw();
       };
       canvas.onpointermove = (event) => {
         const dragging = session.editorDragging;

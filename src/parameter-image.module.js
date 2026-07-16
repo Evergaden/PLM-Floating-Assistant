@@ -246,6 +246,15 @@
       if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
     }
 
+    function loadFileImageDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => loadImage(String(reader.result || '')).then(resolve).catch(() => reject(new Error('Unable to read annotation image.')));
+        reader.onerror = () => reject(new Error('Unable to read annotation image.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
     async function mountManualEditor(data) {
       const session = ensureSession(data);
       if (!session.editorOpen || !session.file) return;
@@ -253,7 +262,7 @@
       const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
       if (!canvas) return;
       try {
-        if (!session.editorImage) session.editorImage = await loadFileImage(session.file);
+        if (!session.editorImage) session.editorImage = await loadFileImageDataUrl(session.file);
       } catch (error) {
         session.editorOpen = false;
         session.error = String(error && error.message || error || '无法读取标注图片。');
@@ -273,7 +282,8 @@
         if (index < 0 && points.length < requiredManualPoints(target)) { points.push(point); index = points.length - 1; }
         if (index < 0) return;
         session.editorDragging = { target, index };
-        canvas.setPointerCapture(event.pointerId); redraw();
+        try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+        redraw();
       };
       canvas.onpointermove = (event) => {
         const dragging = session.editorDragging;
