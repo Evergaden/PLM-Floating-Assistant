@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.81
+// @version      2.5.82
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.81';
+  const SCRIPT_VERSION = '2.5.82';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -11925,9 +11925,13 @@
       showToast('请先选择产品卡片或日期');
       return;
     }
+    const person = findCurrentPlmUserName() || state.sizeImageAccessName || String(state.settings.cloudBackupOwnerName || '').trim();
+    if (!person) {
+      showToast('未识别到当前 PLM 用户姓名，请刷新页面后重试');
+      return;
+    }
     const text = rows.map((item) => {
       const cached = normalizeData(loadData(item.sku) || {});
-      const person = item.developerName || cached.developerName || cached.projectOwnerName || '';
       return [person, item.referenceUrl || cached.referenceUrl || '', item.name || cached.name || item.sku]
         .map((value) => String(value || '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t');
     }).join('\n');
