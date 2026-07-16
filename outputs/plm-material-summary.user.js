@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.74
+// @version      2.5.75
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.74';
+  const SCRIPT_VERSION = '2.5.75';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -11635,7 +11635,7 @@
     const opts = options || {};
     const assignedDate = parseLedgerDateFromText(data.designAssignedAt);
     const dateKey = normalizeLedgerDate(opts.date) || assignedDate || getTodayKey();
-    if (opts.requireCurrentMonth && (!assignedDate || getMonthKeyFromDateKey(dateKey) !== getMonthKeyFromDateKey(getTodayKey()))) return null;
+    if (opts.requireCurrentMonth && assignedDate && getMonthKeyFromDateKey(dateKey) !== getMonthKeyFromDateKey(getTodayKey())) return null;
     const nowText = new Date().toLocaleString();
     const nowMs = Date.now();
     const sku = data.sku;
@@ -13289,7 +13289,7 @@
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const queueSource = latestQueue.length ? latestQueue : (state.uploadQueue || []);
-    const completed = queueSource.filter((item) => /\u6210\u529f/.test(item.status || ''));
+    const completed = queueSource.filter((item) => /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9|\u7f3a\u6587\u4ef6/.test(item.status || '') && !/\u8fdb\u884c\u4e2d/.test(item.status || ''));
     if (!completed.length) return;
     const additionsByProduct = new Map();
     completed.forEach((item) => {
@@ -13306,7 +13306,7 @@
     const additions = Array.from(additionsByProduct.values());
     const completedProductKeys = new Set(additions.map(uploadHistoryProductKey));
     const archivedKeys = new Set(completed.map(uploadHistoryKey));
-    state.uploadQueue = queueSource.filter((item) => !/\u6210\u529f/.test(item.status || '') && !archivedKeys.has(uploadHistoryKey(item)));
+    state.uploadQueue = queueSource.filter((item) => !archivedKeys.has(uploadHistoryKey(item)));
     state.uploadHistory = additions.concat(latestHistory.filter((item) => !completedProductKeys.has(uploadHistoryProductKey(item)))).slice(0, 200);
     completed.forEach(cleanupUploadFiles);
     saveUploadQueue();
