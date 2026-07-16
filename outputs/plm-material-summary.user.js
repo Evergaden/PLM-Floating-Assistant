@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.78
+// @version      2.5.79
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.78';
+  const SCRIPT_VERSION = '2.5.79';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -1304,6 +1304,7 @@
     exportType: 'excel',
     exportMenuOpen: false,
     skuSortMenuOpen: false,
+    skuContextMenuSku: '',
     copywritingMode: false,
     copywritingLoading: false,
     copywritingError: '',
@@ -3687,7 +3688,7 @@
           '<button type="button" data-action="copywriting-refresh">重新获取</button>' +
           ((data && data.copywriting && data.copywriting.updatePending) ? '<button type="button" data-action="copywriting-ack">已查看更新</button>' : '') +
         '</div>'
-      : '<button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>';
+      : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button><button type="button" class="pfh-title-open-detail" data-action="copywriting-open">文案</button></div>';
     return '<section class="pfh-section pfh-file-section' + (copywritingMode ? ' pfh-copywriting-hero-section' : '') + '"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
       productThumbHtml(data) +
       '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml((data && data.sku) || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml(title) + '</strong>' + actions + '</div>' +
@@ -5262,7 +5263,7 @@
   }
 
   function excelTriggerHtml() {
-    return '<div class="pfh-excel-controls"><button type="button" data-action="copywriting-open"><span>文案</span></button><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>' + escapeHtml(L.excel) + '</span></button></div>';
+    return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + iconHtml('download') + '<span>' + escapeHtml(L.excel) + '</span></button></div>';
   }
 
   function excelOptionsHtml() {
@@ -5430,11 +5431,45 @@
   }
 
   function handlePanelContextMenu(event) {
+    const waterfallCard = event.target && event.target.closest && event.target.closest('.pfh-sku-waterfall-card[data-sku]');
+    if (waterfallCard) {
+      event.preventDefault();
+      event.stopPropagation();
+      closePackagingNamingCard(ensurePanel());
+      showSkuWaterfallContextMenu(waterfallCard.getAttribute('data-sku'), event);
+      return;
+    }
     const row = event.target && event.target.closest && event.target.closest('.pfh-row[data-key="packageSizeText"], .pfh-row[data-key="printSizeText"]');
     if (!row) return;
     event.preventDefault();
     event.stopPropagation();
     showPackagingNamingCard(row, row.getAttribute('data-key'), event);
+  }
+
+  function closeSkuWaterfallContextMenu(panel) {
+    const menu = panel && panel.querySelector('.pfh-sku-context-menu');
+    if (menu) menu.remove();
+    state.skuContextMenuSku = '';
+  }
+
+  function showSkuWaterfallContextMenu(sku, event) {
+    const panel = ensurePanel();
+    closeSkuWaterfallContextMenu(panel);
+    const item = state.index.find((entry) => entry.sku === sku);
+    if (!item) return;
+    const menu = document.createElement('div');
+    menu.className = 'pfh-sku-context-menu';
+    menu.setAttribute('role', 'menu');
+    menu.innerHTML =
+      '<button type="button" data-action="sku-context-pin" data-sku="' + escapeHtml(sku) + '">' + (item.pinned ? '取消置顶' : '置顶') + '</button>' +
+      '<button type="button" data-action="sku-context-parameter" data-sku="' + escapeHtml(sku) + '">生成参数图</button>' +
+      '<button type="button" data-action="sku-context-size" data-sku="' + escapeHtml(sku) + '"' + (!state.sizeImageAccessEnabled ? ' disabled title="当前账号暂无权限"' : '') + '>生成尺寸图</button>';
+    panel.appendChild(menu);
+    state.skuContextMenuSku = sku;
+    const panelRect = panel.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(event.clientX - panelRect.left, panelRect.width - menuRect.width - 8)) + 'px';
+    menu.style.top = Math.max(8, Math.min(event.clientY - panelRect.top, panelRect.height - menuRect.height - 8)) + 'px';
   }
 
   async function openCopywritingFromCurrent(force) {
@@ -6413,9 +6448,11 @@
     const pager = '<div class="pfh-upload-pager"><span>\u5171 ' + allItems.length + ' \u6761</span><div><button type="button" data-action="' + pagerAction + '-prev"' + (state[pageKey] <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager(pagerAction, state[pageKey], totalPages) + '<button type="button" data-action="' + pagerAction + '-next"' + (state[pageKey] >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
+    const backAction = viewingHistory ? 'upload-history-toggle' : 'home-back';
+    const backLabel = viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u8fd4\u56de\u4e3b\u9875';
     const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + '"><i class="pfh-upload-mode-indicator"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button></div>' : '';
     return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (viewingHistory ? ' is-history-view' : '') + '">' +
-      '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
+      '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + backAction + '" aria-label="' + backLabel + '">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="\u4f7f\u7528\u8bf4\u660e" aria-label="\u4f7f\u7528\u8bf4\u660e">' + uploadGuideIconHtml() + '</button>' +
       '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
@@ -6474,6 +6511,8 @@
   }
 
   function handlePanelClick(event) {
+    const skuContextMenu = event.target && event.target.closest && event.target.closest('.pfh-sku-context-menu');
+    if (!skuContextMenu) closeSkuWaterfallContextMenu(ensurePanel());
     const namingCard = event.target && event.target.closest && event.target.closest('.pfh-packaging-naming-card');
     const namingCopy = event.target && event.target.closest && event.target.closest('[data-naming-copy]');
     if (namingCopy) {
@@ -6491,6 +6530,31 @@
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
     if (state.view === 'parameterImage' && action && parameterImageFeature.handleAction(action, actionTarget, state.data || {})) return;
+    if (action === 'sku-context-pin' || action === 'sku-context-parameter' || action === 'sku-context-size') {
+      const sku = actionTarget.getAttribute('data-sku') || '';
+      if (!sku) return;
+      if (action === 'sku-context-pin') {
+        togglePin(sku);
+        closeSkuWaterfallContextMenu(ensurePanel());
+        renderShell();
+        return;
+      }
+      if (action === 'sku-context-size' && !state.sizeImageAccessEnabled) {
+        closeSkuWaterfallContextMenu(ensurePanel());
+        showToast(state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待');
+        return;
+      }
+      state.selectedSku = sku;
+      state.data = normalizeData(loadData(sku) || { sku });
+      state.view = action === 'sku-context-size' ? 'sizeImage' : 'parameterImage';
+      state.copywritingMode = false;
+      state.skuPage = 1;
+      closeSkuWaterfallContextMenu(ensurePanel());
+      if (state.view === 'parameterImage') parameterImageFeature.loadRules();
+      expandPanel();
+      renderShell();
+      return;
+    }
     if (state.exportMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-export-menu'))) {
       state.exportMenuOpen = false;
       renderShell();
@@ -18945,6 +19009,12 @@
         font-size: 12px !important;
         font-weight: 500 !important;
       }
+      #${PANEL_ID} .pfh-title-actions {
+        justify-self: start !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+      }
       #${PANEL_ID} .pfh-title-open-detail .pfh-icon {
         width: 14px !important;
         height: 14px !important;
@@ -20900,9 +20970,6 @@
         background: transparent !important;
         box-shadow: none !important;
       }
-      #${PANEL_ID}[data-view="ledger"] .pfh-header [data-action="panel-close"] {
-        display: none !important;
-      }
       #${PANEL_ID} .pfh-ledger-hero > div {
         flex: 1 1 auto !important;
         min-width: 0 !important;
@@ -21883,6 +21950,38 @@
       }
       #${PANEL_ID} .pfh-sku-waterfall-card.is-pinned {
         border-color: #f6c46b;
+      }
+      #${PANEL_ID} .pfh-sku-context-menu {
+        position: absolute;
+        z-index: 260;
+        display: grid;
+        min-width: 148px;
+        padding: 6px;
+        border: 1px solid rgba(167,139,250,.36);
+        border-radius: 12px;
+        background: rgba(255,255,255,.98);
+        box-shadow: 0 16px 42px rgba(40,28,88,.20);
+      }
+      #${PANEL_ID} .pfh-sku-context-menu button {
+        width: 100%;
+        min-height: 32px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #37296a;
+        text-align: left;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      #${PANEL_ID} .pfh-sku-context-menu button:hover {
+        background: rgba(124,58,237,.10);
+        color: #6d35e8;
+      }
+      #${PANEL_ID} .pfh-sku-context-menu button:disabled {
+        background: transparent;
+        color: #a8afbf;
+        cursor: not-allowed;
       }
       #${PANEL_ID} .pfh-sku-waterfall-thumb {
         display: grid;
