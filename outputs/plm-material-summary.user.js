@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.71
+// @version      2.5.72
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.71';
+  const SCRIPT_VERSION = '2.5.72';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -44,7 +44,7 @@
 
   function getParameterLogoKey(brand) {
     const normalized = normalizeParameterBrandName(brand);
-    if (!normalized || /^(amz|odm|oem)$/.test(normalized)) return '';
+    if (!normalized || /^(amz|odm|oem|dowmoo)$/.test(normalized)) return '';
     const compact = normalized.replace(/[^a-z0-9\u3400-\u9fff\uac00-\ud7af]+/g, '');
     return PARAMETER_LOGO_ALIASES[normalized] || PARAMETER_LOGO_ALIASES[compact] || compact;
   }
@@ -697,7 +697,7 @@
         return;
       }
       const normalized = String(brand || '').trim();
-      if (!normalized || /^(AMZ|ODM|OEM)$/i.test(normalized)) return;
+      if (!normalized || /^(AMZ|ODM|OEM|DOWMOO)$/i.test(normalized)) return;
       ctx.fillStyle = '#080808'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       fitText(ctx, normalized, 500, 70, 38, '400'); ctx.fillText(normalized, centerX, 240);
     }

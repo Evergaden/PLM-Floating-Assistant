@@ -645,7 +645,7 @@
         return;
       }
       const normalized = String(brand || '').trim();
-      if (!normalized || /^(AMZ|ODM|OEM)$/i.test(normalized)) return;
+      if (!normalized || /^(AMZ|ODM|OEM|DOWMOO)$/i.test(normalized)) return;
       ctx.fillStyle = '#080808'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       fitText(ctx, normalized, 500, 70, 38, '400'); ctx.fillText(normalized, centerX, 240);
     }
