@@ -542,6 +542,8 @@ async function handleIngredientNormalize(request, env) {
         'Return JSON only as {"items":[{"english":"...","chinese":"..."}]}.',
         'Keep ingredients in source order and output ingredient names only.',
         'Remove serving size, quantities, percentages, footnotes, carriers, origins and explanatory parentheses.',
+        'A named Blend with its own amount is one top-level ingredient. Keep the full Blend name and never expand or output ingredients listed inside its parentheses.',
+        'Only output top-level Supplement Facts rows; parenthetical continuation lines are subordinate details, not additional ingredients.',
         'For vitamins and minerals, keep the primary nutrient label before parentheses; treat the "as ..." text as a source form and remove it.',
         'For an amino acid whose parenthetical "as ..." names a chemically distinct active derivative, use that derivative.',
         'Use standard English ingredient names and concise Simplified Chinese translations.',
@@ -551,6 +553,7 @@ async function handleIngredientNormalize(request, env) {
         'SKU: ' + sku,
         'File: ' + fileName,
         'Required example: Biotin (as D-Biotin), Iron (as Ferrous Bisglycinate Chelate), Zinc (as Zinc Picolinate), L-Leucine (Free Form Amino Acid), Hydrolyzed Keratin Peptides (from Bovine Keratin), L-Cysteine (as N-Acetyl-L-Cysteine, NAC) => Biotin / 生物素; Iron / 铁; Zinc / 锌; L-Leucine / 亮氨酸; Hydrolyzed Keratin Peptides / 水解角蛋白肽; N-Acetyl-L-Cysteine / N-乙酰-L-半胱氨酸.',
+        'Required Blend example: Psyllium Seed Husk (Plantago ovata); Fiber Vegetable Blend (Broccoli, Spinach, Celery Seed, Chia Seed, Flax Seed, Collards Leaf); Enzyme Blend (Amylase, Bromelain, Papain, Protease, Cellulase, Lipase) => Psyllium Seed Husk / 洋车前子壳; Fiber Vegetable Blend / 蔬菜纤维混合物; Enzyme Blend / 酶混合物. Do not output any names inside those parentheses.',
         'PDF text:',
         rawText,
       ].join('\n'),
@@ -577,6 +580,7 @@ async function handleIngredientNormalize(request, env) {
       chinese: items.map((item) => item.chinese).join('、'),
       model: result.model,
       source: 'ingredient-pdf-gemini',
+      normalizerVersion: '2',
     });
   } catch (error) {
     return json({ error: cleanText(error && error.message, 500) || 'ingredient normalization failed' }, 502);

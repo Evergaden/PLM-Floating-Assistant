@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.62
+// @version      2.5.63
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.62';
+  const SCRIPT_VERSION = '2.5.63';
+  const INGREDIENT_NORMALIZER_VERSION = '2';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -1799,6 +1800,7 @@
       ingredientPdfHash: cached.ingredientPdfHash || '',
       ingredientPdfModel: cached.ingredientPdfModel || '',
       ingredientPdfUpdatedAt: cached.ingredientPdfUpdatedAt || '',
+      ingredientNormalizerVersion: cached.ingredientNormalizerVersion || '',
       tailSealLengthValue: cached.tailSealLengthValue || '',
       productListImageUrl: cached.productListImageUrl || '',
       productListImageFallbackUrl: cached.productListImageFallbackUrl || '',
@@ -5337,7 +5339,7 @@
       const file = findIngredientPdfFile(item);
       if (!file) return normalizeData(loadData(sku) || {});
       const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
-      if (!opts.force && cached.ingredientPdfFileName === file.fileName && cached.ingredientEnglish && cached.ingredientChinese) return cached;
+      if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfFileName === file.fileName && cached.ingredientEnglish && cached.ingredientChinese) return cached;
 
       let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, '成分表 PDF 下载监听');
       if (!source || (!source.url && !source.arrayBuffer)) throw new Error('未读取到成分表 PDF');
@@ -5348,7 +5350,7 @@
       }
       if (!isPdfBuffer(arrayBuffer)) throw new Error('读取到的内容不是有效 PDF');
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
-      if (!opts.force && cached.ingredientPdfHash === fileHash && cached.ingredientEnglish && cached.ingredientChinese) {
+      if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfHash === fileHash && cached.ingredientEnglish && cached.ingredientChinese) {
         if (cached.ingredientPdfFileName !== file.fileName) saveData(sku, { ...cached, ingredientPdfFileName: file.fileName });
         return cached;
       }
@@ -5369,6 +5371,7 @@
         ingredientPdfHash: fileHash,
         ingredientPdfModel: String(response.model || ''),
         ingredientPdfUpdatedAt: new Date().toLocaleString(),
+        ingredientNormalizerVersion: String(response.normalizerVersion || INGREDIENT_NORMALIZER_VERSION),
       });
       saveData(sku, next);
       delete state.ingredientHydrateFailedAt[sku];
