@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.67
+// @version      2.5.68
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.67';
+  const SCRIPT_VERSION = '2.5.68';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -11295,6 +11295,7 @@
       boxFileDone: normalizeLedgerFileState(item.boxFileState, item.boxFileDone) === 'done',
       labelFileDone: normalizeLedgerFileState(item.labelFileState, item.labelFileDone) === 'done',
       imagePackDone: normalizeLedgerFileState(item.imagePackState, item.imagePackDone) === 'done',
+      filesAutoCompleted: Boolean(item.filesAutoCompleted),
       status: normalizeLedgerStatus(item.status),
       stage: String(item.stage || '').slice(0, 80) || '待定稿',
       imageGeneratedAt: String(item.imageGeneratedAt || '').slice(0, 40),
@@ -11307,7 +11308,7 @@
       createdAtMs: Number(item.createdAtMs || item.updatedAtMs || 0) || Date.now(),
       updatedAt: String(item.updatedAt || new Date().toLocaleString()).slice(0, 80),
       updatedAtMs: Number(item.updatedAtMs || 0) || Date.now(),
-    })).filter((item) => item.sku);
+    })).map(reconcileLedgerFileCompletion).filter((item) => item.sku);
   }
 
   function normalizeLedgerFileState(value, doneFallback) {
@@ -11338,6 +11339,18 @@
     if (stateValue === 'done') return '\u5df2\u5b8c\u6210';
     if (stateValue === 'skip') return '\u4e0d\u9700\u8981\u5236\u4f5c\u6587\u4ef6';
     return '\u672a\u5b8c\u6210';
+  }
+
+  function reconcileLedgerFileCompletion(record) {
+    const allFilesDone = ['boxFileState', 'labelFileState', 'imagePackState']
+      .every((field) => normalizeLedgerFileState(record[field]) === 'done');
+    if (record.finalizedAt && record.status === '已定稿' && allFilesDone) {
+      return { ...record, status: '已完成', stage: '完成', filesAutoCompleted: true };
+    }
+    if (record.filesAutoCompleted && record.status === '已完成' && !allFilesDone) {
+      return { ...record, status: '已定稿', stage: '已定稿', filesAutoCompleted: false };
+    }
+    return record;
   }
 
   function normalizeLedgerStatus(value) {
@@ -11421,6 +11434,7 @@
       boxFileDone: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)) === 'done',
       labelFileDone: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)) === 'done',
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
+      filesAutoCompleted: opts.filesAutoCompleted !== undefined ? Boolean(opts.filesAutoCompleted) : Boolean(existing && existing.filesAutoCompleted),
       status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
       stage: opts.stage || (existing && existing.stage) || '待定稿',
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
@@ -11434,9 +11448,10 @@
       updatedAt: nowText,
       updatedAtMs: nowMs,
     };
-    state.ledgerRecords = [next].concat((state.ledgerRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === dateMonth))).slice(0, 1200);
+    const reconciled = reconcileLedgerFileCompletion(next);
+    state.ledgerRecords = [reconciled].concat((state.ledgerRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === dateMonth))).slice(0, 1200);
     saveDailyLedger();
-    return next;
+    return reconciled;
   }
 
   function updateDailyLedgerForSku(sku, patch, dateKey) {
@@ -11532,7 +11547,7 @@
             ? { status: '已定稿', stage: '已定稿', finalizedAt: today, finalizedDate: todayKey, finalizedAtMs: Date.now(), note: '手动定稿' }
       : action === 'ledger-void'
         ? { status: '作废', stage: '作废', note: '手动作废' }
-        : { status: '已完成', stage: '完成', note: '手动完成' };
+        : { status: '已完成', stage: '完成', note: '手动完成', filesAutoCompleted: false };
     const opts = options || {};
     const finalPatch = opts.purchasePrice ? { ...patch, purchasePrice: opts.purchasePrice } : patch;
     const updatedRecord = updateDailyLedgerForSku(sku, finalPatch, key);
