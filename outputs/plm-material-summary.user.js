@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.82
+// @version      2.5.83
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.82';
+  const SCRIPT_VERSION = '2.5.83';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -9784,7 +9784,7 @@
       setCell(sheet, 'G4', excelData.sku || '');
       if (excelData.singleBottle) setCell(sheet, 'H4', '\u74f6\u88c5');
       else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"\u76d2\u88c5",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"\u888b\u88c5",""))' };
-      setCell(sheet, 'I4', excelData.singleBottle ? '' : (formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, [])));
+      setCell(sheet, 'I4', formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, []));
       setCell(sheet, 'J4', formatExcelDimFromParts([excelData.packageLength, excelData.packageWidth, excelData.packageHeight]) || formatExcelDim(excelData.packageNums, []));
       setCell(sheet, 'L4', formatIngredientsForExcel(extra.ingredients));
       setCell(sheet, 'M4', normalizeExcelUnit(excelData.netContent));
@@ -9792,6 +9792,12 @@
       setCell(sheet, 'O4', normalizeExcelNumberOrText(purchasePrice));
       setCell(sheet, 'P4', getReturnDateText(7));
       setCell(sheet, 'S4', extra.benchmarkLink || '');
+
+      if (shouldRemoveExcelPackageSizeColumn(excelData)) {
+        sheet.spliceColumns(10, 1);
+        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
+        sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
+      }
 
       if (imageInfo) {
         state.excelStatus = L.excelPacking;
@@ -10655,7 +10661,13 @@
     if (state.excelPackQty) return false;
     const boxKey = buildPackBoxKey(data);
     if (!boxKey) return false;
-    const recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
+    let recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
+    if (!recommendation || !recommendation.packCount) {
+      recommendation = await requestPackAiEstimate(boxKey, data && data.sku).catch((error) => {
+        addLog('warn', '装箱数计算失败', formatErrorMessage(error));
+        return null;
+      });
+    }
     const count = recommendation && recommendation.packCount ? String(recommendation.packCount) : '';
     if (!count) return false;
     state.excelPackQty = count;
@@ -12458,10 +12470,21 @@
 
   function buildPackBoxKey(data) {
     if (!data) return '';
-    const parts = [data.packageLength, data.packageWidth, data.packageHeight]
+    const source = shouldUseProductSizeForPacking(data)
+      ? [data.productLength, data.productWidth, data.productHeight]
+      : [data.packageLength, data.packageWidth, data.packageHeight];
+    const parts = source
       .map((value) => normalizePackDimensionPart(value))
       .filter(Boolean);
     return parts.length === 3 ? parts.join('x') : '';
+  }
+
+  function shouldUseProductSizeForPacking(data) {
+    return Boolean(data && data.singleBottle && !/纸盒/.test(String(data.packageSizeLabel || '')));
+  }
+
+  function shouldRemoveExcelPackageSizeColumn(data) {
+    return shouldUseProductSizeForPacking(data);
   }
 
   function normalizePackDimensionPart(value) {
@@ -12527,7 +12550,10 @@
   }
 
   function hasPackDimensionInput(data) {
-    return Boolean(data && (data.packageLength || data.packageWidth || data.packageHeight || data.packageSizeText));
+    if (!data) return false;
+    return shouldUseProductSizeForPacking(data)
+      ? Boolean(data.productLength || data.productWidth || data.productHeight || data.productNums)
+      : Boolean(data.packageLength || data.packageWidth || data.packageHeight || data.packageSizeText);
   }
 
   function showPackAiToast(text) {
