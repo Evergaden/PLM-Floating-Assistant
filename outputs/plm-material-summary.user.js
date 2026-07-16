@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.76
+// @version      2.5.77
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.76';
+  const SCRIPT_VERSION = '2.5.77';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -7295,10 +7295,7 @@
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
         || (panel && panel.querySelector('.pfh-upload-drop:hover'));
-      const files = Array.from(event.clipboardData && event.clipboardData.items || [])
-        .filter((item) => item.kind === 'file')
-        .map((item) => item.getAsFile())
-        .filter((file) => file && getUploadKindFromFileName(file.name));
+      const files = getClipboardUploadFiles(event);
       if (drop && files.length) {
         event.preventDefault();
         event.stopPropagation();
@@ -7322,6 +7319,18 @@
   }
 
   function handleSizeImageHoverPaste(event) {
+    if (state.view === 'upload') {
+      const panel = document.getElementById(PANEL_ID);
+      const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
+      const files = getClipboardUploadFiles(event);
+      if (!drop || !files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      drop.classList.add('is-paste-received');
+      window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+      processQueuedUploadFiles(files);
+      return;
+    }
     if (state.view === 'parameterImage') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-parameter-drop:hover');
@@ -7355,6 +7364,23 @@
     drop.classList.add('is-paste-received');
     window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
     processSizeImageFiles(imageFiles);
+  }
+
+  function getClipboardUploadFiles(event) {
+    const clipboard = event && event.clipboardData;
+    const itemFiles = Array.from(clipboard && clipboard.items || [])
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    const directFiles = Array.from(clipboard && clipboard.files || []);
+    const seen = new Set();
+    return itemFiles.concat(directFiles).filter((file) => {
+      if (!file || !getUploadKindFromFileName(file.name)) return false;
+      const key = [file.name, file.size, file.lastModified].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   function handlePanelChange(event) {
@@ -13316,7 +13342,7 @@
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const queueSource = latestQueue.length ? latestQueue : (state.uploadQueue || []);
-    const completed = queueSource.filter((item) => /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9|\u7f3a\u6587\u4ef6/.test(item.status || '') && !/\u8fdb\u884c\u4e2d/.test(item.status || ''));
+    const completed = queueSource.filter((item) => /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(item.status || '') && !/\u8fdb\u884c\u4e2d/.test(item.status || ''));
     if (!completed.length) return;
     const additionsByProduct = new Map();
     completed.forEach((item) => {
