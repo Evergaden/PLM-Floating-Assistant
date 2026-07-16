@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.66
+// @version      2.5.67
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,8 +29,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.66';
+  const SCRIPT_VERSION = '2.5.67';
   const INGREDIENT_NORMALIZER_VERSION = '3';
+  const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -12956,10 +12957,22 @@
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'list', skuListSort: 'assigned' };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
-      return { ...defaults, ...(saved || {}) };
+      const settings = { ...defaults, ...(saved || {}) };
+      if (Number(saved && saved.skuListPreferenceVersion || 0) < SKU_LIST_PREFERENCE_VERSION) {
+        settings.skuListMode = 'waterfall';
+        settings.skuListSort = 'assigned';
+        settings.skuListPreferenceVersion = SKU_LIST_PREFERENCE_VERSION;
+        try {
+          if (typeof GM_setValue === 'function') GM_setValue(SETTINGS_KEY, settings);
+          else localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        } catch (error) {
+          console.warn('PLM floating helper list preference migration save failed:', error);
+        }
+      }
+      return settings;
     } catch (error) {
       return defaults;
     }
