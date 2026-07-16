@@ -106,7 +106,9 @@
             packageLength: fieldValue(data, 'packageLength', 'cartonLength'),
             packageWidth: fieldValue(data, 'packageWidth', 'cartonWidth'),
             packageHeight: fieldValue(data, 'packageHeight', 'cartonHeight'),
-            productWidth: fieldValue(data, 'productWidth', 'productWidth'),
+            productWidth: data && data.isTubePrint
+              ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
+              : fieldValue(data, 'productWidth', 'productWidth'),
             productHeight: fieldValue(data, 'productHeight', 'productHeight'),
           },
         };
