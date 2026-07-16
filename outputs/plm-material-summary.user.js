@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.77
+// @version      2.5.78
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.77';
+  const SCRIPT_VERSION = '2.5.78';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -1608,25 +1608,27 @@
   }
 
   function startUploadQueueSync() {
+    let refreshTimer = 0;
     const refresh = () => {
       state.uploadQueue = loadUploadQueue();
       state.uploadHistory = loadUploadHistory();
       state.uploadRunning = loadUploadWorkerRunning();
       if (state.view === 'upload' || state.uploadExpanded) renderShell();
     };
+    const scheduleRefresh = (resetHistoryPage) => {
+      if (resetHistoryPage && state.uploadView === 'history') state.uploadHistoryPage = 1;
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(refresh, 0);
+    };
     if (typeof GM_addValueChangeListener === 'function') {
-      GM_addValueChangeListener(UPLOAD_QUEUE_KEY, (_name, _oldValue, newValue, remote) => {
+      GM_addValueChangeListener(UPLOAD_QUEUE_KEY, (_name, _oldValue, _newValue, remote) => {
         if (!remote && isUploadWorkerPage()) return;
-        state.uploadQueue = Array.isArray(newValue) ? newValue : loadUploadQueue();
-        state.uploadHistory = loadUploadHistory();
-        state.uploadRunning = loadUploadWorkerRunning();
-        if (state.view === 'upload' || state.uploadExpanded) renderShell();
+        scheduleRefresh(false);
       });
       GM_addValueChangeListener(UPLOAD_HISTORY_KEY, () => {
-        if (state.uploadView === 'history') state.uploadHistoryPage = 1;
-        refresh();
+        scheduleRefresh(true);
       });
-      GM_addValueChangeListener(UPLOAD_WORKER_KEY, () => refresh());
+      GM_addValueChangeListener(UPLOAD_WORKER_KEY, () => scheduleRefresh(false));
     }
     window.addEventListener('storage', (event) => {
       if (event.key === UPLOAD_QUEUE_KEY || event.key === UPLOAD_HISTORY_KEY || event.key === UPLOAD_WORKER_KEY) refresh();
@@ -7787,8 +7789,7 @@
     state.uploadQueue = queue;
     state.uploadHistory = history;
     state.uploadSelectedIds = (state.uploadSelectedIds || []).filter((id) => !idSet.has(id));
-    saveUploadQueue();
-    saveUploadHistory();
+    saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     state.uploadView = 'queue';
     renderShell();
     showToast('\u5df2\u6062\u590d\u5230\u961f\u5217' + (targets.some((item) => !(item.xlsxKey && item.zipKey)) ? '\uff0c\u8bf7\u8865\u5145\u6587\u4ef6' : ''));
@@ -13338,6 +13339,26 @@
     }
   }
 
+  function saveUploadQueueAndHistory(queue, history) {
+    const queueSnapshot = Array.isArray(queue) ? queue : [];
+    const historySnapshot = Array.isArray(history) ? history : [];
+    state.uploadQueue = queueSnapshot;
+    state.uploadHistory = historySnapshot;
+    try {
+      if (typeof GM_setValue === 'function') {
+        GM_setValue(UPLOAD_HISTORY_KEY, historySnapshot);
+        GM_setValue(UPLOAD_QUEUE_KEY, queueSnapshot);
+      } else {
+        localStorage.setItem(UPLOAD_HISTORY_KEY, JSON.stringify(historySnapshot));
+        localStorage.setItem(UPLOAD_QUEUE_KEY, JSON.stringify(queueSnapshot));
+      }
+    } catch (error) {
+      console.warn('PLM floating helper upload state save failed:', error);
+    }
+    state.uploadQueue = queueSnapshot;
+    state.uploadHistory = historySnapshot;
+  }
+
   function moveCompletedUploadsToHistory() {
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
@@ -13362,8 +13383,7 @@
     state.uploadQueue = queueSource.filter((item) => !archivedKeys.has(uploadHistoryKey(item)));
     state.uploadHistory = additions.concat(latestHistory.filter((item) => !completedProductKeys.has(uploadHistoryProductKey(item)))).slice(0, 200);
     completed.forEach(cleanupUploadFiles);
-    saveUploadQueue();
-    saveUploadHistory();
+    saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
   }
 
   function archiveUploadItem(item) {
@@ -13377,8 +13397,7 @@
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryProductKey(entry) !== archivedProductKey);
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryProductKey(entry) !== archivedProductKey)).slice(0, 200);
     cleanupUploadFiles(latestItem);
-    saveUploadQueue();
-    saveUploadHistory();
+    saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
     renderShell();
   }
@@ -13403,8 +13422,7 @@
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryKey(entry) !== archivedKey)).slice(0, 200);
     if (!keepFiles) cleanupUploadFiles(latestItem);
-    saveUploadQueue();
-    saveUploadHistory();
+    saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     renderShell();
   }
 
