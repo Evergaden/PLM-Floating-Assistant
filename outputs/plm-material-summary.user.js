@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.80
+// @version      2.5.81
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.80';
+  const SCRIPT_VERSION = '2.5.81';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -3957,7 +3957,7 @@
       '<div class="pfh-home-grid">' + cards.map((card) => '<button type="button" class="pfh-home-card' + (card[5] ? ' is-disabled' : '') + '" data-action="' + card[0] + '"' + (card[5] ? ' disabled aria-disabled="true"' : '') + '>' +
         iconHtml(card[1]) +
         '<small>' + escapeHtml(card[2]) + '</small>' +
-        '<strong>' + escapeHtml(card[3]) + (card[6] ? '<i class="pfh-beta-badge">BETA</i>' : '') + '</strong>' +
+        '<strong class="pfh-home-card-title"><b>' + escapeHtml(card[3]) + '</b>' + (card[6] ? '<i class="pfh-beta-badge">BETA</i>' : '') + '</strong>' +
         '<span>' + escapeHtml(card[4]) + '</span>' +
       '</button>').join('') + '</div>' +
       '</section></div>';
@@ -21236,8 +21236,9 @@
       #${PANEL_ID} .pfh-ledger-day h4 { display:flex !important; align-items:center !important; gap:8px !important; }
       #${PANEL_ID} .pfh-ledger-day-select { height:24px !important; min-height:24px !important; margin-left:auto !important; padding:0 9px !important; border:1px solid #d9d1f5 !important; border-radius:8px !important; background:#fff !important; color:#7048df !important; font-size:10px !important; }
       #${PANEL_ID} .pfh-ledger-day-select.is-selected { background:#f0ecff !important; }
-      #${PANEL_ID} .pfh-home-card strong { display:flex; align-items:center; gap:6px; }
-      #${PANEL_ID} .pfh-beta-badge { display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:999px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:8px; font-style:normal; font-weight:750; letter-spacing:.4px; line-height:16px; }
+      #${PANEL_ID} .pfh-home-card-title { display:grid; justify-items:center; gap:4px; max-width:100%; }
+      #${PANEL_ID} .pfh-home-card-title b { font:inherit; color:inherit; }
+      #${PANEL_ID} .pfh-beta-badge { display:inline-flex; align-items:center; height:16px; padding:0 6px; border-radius:999px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; font-size:8px; font-style:normal; font-weight:750; letter-spacing:.4px; line-height:16px; }
       #${PANEL_ID} .pfh-ledger-file-actions .pfh-ledger-more,
       #${PANEL_ID} .pfh-ledger-file-actions .pfh-ledger-more > button {
         width: 30px !important;
