@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.63
+// @version      2.5.64
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,8 +29,8 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.63';
-  const INGREDIENT_NORMALIZER_VERSION = '2';
+  const SCRIPT_VERSION = '2.5.64';
+  const INGREDIENT_NORMALIZER_VERSION = '3';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -1804,6 +1804,8 @@
       tailSealLengthValue: cached.tailSealLengthValue || '',
       productListImageUrl: cached.productListImageUrl || '',
       productListImageFallbackUrl: cached.productListImageFallbackUrl || '',
+      benchmarkImageUrl: cached.benchmarkImageUrl || '',
+      benchmarkImageFallbackUrl: cached.benchmarkImageFallbackUrl || '',
       skuImageUrl: preservedImageSource ? (cached.skuImageUrl || '') : '',
       skuImageFallbackUrl: preservedImageSource ? (cached.skuImageFallbackUrl || '') : '',
       skuImageSource: preservedImageSource,
@@ -2810,6 +2812,8 @@
     const pcMatch = text.match(/(\d+(?:\.\d+)?)\s*PCS?\s*(?:\/\s*(?:\u4ef6|\u76d2|\u74f6|\u888b))?/i);
     if (pcMatch) return trimNumber(Number(pcMatch[1])) + 'PC';
     if (/^\d+(?:\.\d+)?\s*(CAPSULES|GUMMIES|TABLETS|PAIR|PAIRS|PC)$/i.test(text)) return text.replace(/\s+/g, '').toUpperCase();
+    const capsuleMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:\u7c92|\u80f6\u56ca)\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
+    if (capsuleMatch) return trimNumber(Number(capsuleMatch[1])) + 'CAPSULES';
     const tabletMatch = text.match(/(\d+(?:\.\d+)?)\s*\u7247\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
     if (tabletMatch) return trimNumber(Number(tabletMatch[1])) + 'TABLETS';
     const weightMatch = text.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l|\u514b|\u5343\u514b|\u6beb\u5347|\u5347)\s*(?:\/\s*[\u4e00-\u9fa5A-Za-z]+)?/i);
@@ -5354,12 +5358,18 @@
         if (cached.ingredientPdfFileName !== file.fileName) saveData(sku, { ...cached, ingredientPdfFileName: file.fileName });
         return cached;
       }
-      const rawText = await withCopywritingTimeout(extractIngredientPdfText(arrayBuffer), 20000, '成分表 PDF 解析');
-      if (!rawText || rawText.length < 20) throw new Error('成分表 PDF 没有可识别文本');
+      let rawText = '';
+      try {
+        rawText = await withCopywritingTimeout(extractIngredientPdfText(arrayBuffer), 20000, '成分表 PDF 解析');
+      } catch (error) {
+        addLog('warn', '成分表 PDF 文本层不可用', sku + ' | 将由 Gemini 直接读取 PDF | ' + formatErrorMessage(error));
+      }
+      const requestBody = { sku, fileName: file.fileName, rawText };
+      if (!rawText || rawText.length < 20) requestBody.pdfBase64 = arrayBufferToBase64(arrayBuffer);
       const response = await cloudRequest('/ingredients/normalize', {
         method: 'POST',
         timeoutMs: 60000,
-        body: { sku, fileName: file.fileName, rawText },
+        body: requestBody,
       });
       if (!response || !response.ok || !response.english || !response.chinese) throw new Error(response && response.error ? response.error : 'Gemini 未返回有效成分');
       const next = normalizeData({
@@ -5413,13 +5423,22 @@
     return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
   }
 
+  function arrayBufferToBase64(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer || new ArrayBuffer(0));
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
+    }
+    return btoa(binary);
+  }
+
   async function extractIngredientPdfText(arrayBuffer) {
     const Pdf = (typeof pdfjsLib !== 'undefined' && pdfjsLib) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.pdfjsLib);
     if (!Pdf || typeof Pdf.getDocument !== 'function') throw new Error('PDF 解析组件未加载');
     if (Pdf.GlobalWorkerOptions && !Pdf.GlobalWorkerOptions.workerSrc) {
       Pdf.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
     }
-    const task = Pdf.getDocument({ data: new Uint8Array(arrayBuffer) });
+    const task = Pdf.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)) });
     const documentHandle = await task.promise;
     const pages = [];
     try {
@@ -6032,7 +6051,7 @@
   function formatCopywritingNetContent(value) {
     const text = cleanCopywritingLine(value);
     if (!text || text === '--' || text === L.unknown) return { text: '', warning: '净含量' };
-    if (/^\d+(?:\.\d+)?PC$/i.test(text)) return { text: text.toUpperCase(), warning: '' };
+    if (/^\d+(?:\.\d+)?(?:CAPSULES|GUMMIES|TABLETS|PAIR|PAIRS|PC)$/i.test(text)) return { text: text.toUpperCase(), warning: '' };
     const match = text.match(/(\d+(?:\.\d+)?)\s*(g|ml)\b/i);
     if (!match) return { text, warning: '净含量单位无法换算' };
     const amount = Number(match[1]);

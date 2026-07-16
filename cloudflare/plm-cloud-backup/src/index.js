@@ -188,13 +188,22 @@ async function callGeminiText(config, options) {
   };
   if (options.responseMimeType) generationConfig.responseMimeType = options.responseMimeType;
   if (options.maxTokens) generationConfig.maxOutputTokens = Number(options.maxTokens);
+  const userParts = [{ text: options.prompt || '' }];
+  if (options.inlineData && options.inlineData.data) {
+    userParts.unshift({
+      inlineData: {
+        mimeType: options.inlineData.mimeType || 'application/pdf',
+        data: options.inlineData.data,
+      },
+    });
+  }
   const response = await fetch(url, {
     method: 'POST',
     signal: AbortSignal.timeout(Number(options.timeoutMs || 12000)),
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: options.system || '' }] },
-      contents: [{ role: 'user', parts: [{ text: options.prompt || '' }] }],
+      contents: [{ role: 'user', parts: userParts }],
       generationConfig,
     }),
   });
@@ -527,9 +536,11 @@ async function handleIngredientNormalize(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   const rawText = cleanText(body && body.rawText, 30000);
+  const pdfBase64 = String(body && body.pdfBase64 || '').replace(/\s+/g, '');
   const sku = cleanText(body && body.sku, 80);
   const fileName = cleanText(body && body.fileName, 300);
-  if (rawText.length < 20) return json({ error: 'rawText required' }, 400);
+  if (pdfBase64.length > 14000000) return json({ error: 'PDF is too large' }, 413);
+  if (rawText.length < 20 && !pdfBase64) return json({ error: 'rawText or pdfBase64 required' }, 400);
   try {
     const options = {
       model: 'gemini-3.1-flash-lite',
@@ -537,6 +548,7 @@ async function handleIngredientNormalize(request, env) {
       maxTokens: 3000,
       timeoutMs: 50000,
       responseMimeType: 'application/json',
+      inlineData: pdfBase64 ? { mimeType: 'application/pdf', data: pdfBase64 } : null,
       system: [
         'You normalize Supplement Facts or food ingredient-table text.',
         'Return JSON only as {"items":[{"english":"...","chinese":"..."}]}.',
@@ -544,7 +556,7 @@ async function handleIngredientNormalize(request, env) {
         'Remove serving size, quantities, percentages, footnotes, carriers, origins and explanatory parentheses.',
         'A named Blend with its own amount is one top-level ingredient. Keep the full Blend name and never expand or output ingredients listed inside its parentheses.',
         'Only output top-level Supplement Facts rows; parenthetical continuation lines are subordinate details, not additional ingredients.',
-        'For vitamins and minerals, keep the primary nutrient label before parentheses; treat the "as ..." text as a source form and remove it.',
+        'For vitamins and minerals, always keep the primary nutrient label before parentheses; treat the "as ..." text only as a source form and remove it. Never replace Vitamin B6 with Pyridoxal 5-Phosphate, for example.',
         'For an amino acid whose parenthetical "as ..." names a chemically distinct active derivative, use that derivative.',
         'Use standard English ingredient names and concise Simplified Chinese translations.',
         'Do not merge, invent, repeat or omit actual ingredients.',
@@ -553,9 +565,9 @@ async function handleIngredientNormalize(request, env) {
         'SKU: ' + sku,
         'File: ' + fileName,
         'Required example: Biotin (as D-Biotin), Iron (as Ferrous Bisglycinate Chelate), Zinc (as Zinc Picolinate), L-Leucine (Free Form Amino Acid), Hydrolyzed Keratin Peptides (from Bovine Keratin), L-Cysteine (as N-Acetyl-L-Cysteine, NAC) => Biotin / 生物素; Iron / 铁; Zinc / 锌; L-Leucine / 亮氨酸; Hydrolyzed Keratin Peptides / 水解角蛋白肽; N-Acetyl-L-Cysteine / N-乙酰-L-半胱氨酸.',
+        'Required vitamin example: Vitamin C (as Ascorbic Acid), Vitamin B6 (as Pyridoxal 5-Phosphate), Magnesium (as Magnesium Malate) => Vitamin C / 维生素C; Vitamin B6 / 维生素B6; Magnesium / 镁. The source forms must not replace these main labels.',
         'Required Blend example: Psyllium Seed Husk (Plantago ovata); Fiber Vegetable Blend (Broccoli, Spinach, Celery Seed, Chia Seed, Flax Seed, Collards Leaf); Enzyme Blend (Amylase, Bromelain, Papain, Protease, Cellulase, Lipase) => Psyllium Seed Husk / 洋车前子壳; Fiber Vegetable Blend / 蔬菜纤维混合物; Enzyme Blend / 酶混合物. Do not output any names inside those parentheses.',
-        'PDF text:',
-        rawText,
+        rawText.length >= 20 ? 'PDF text:\n' + rawText : 'Read the attached ingredient-table PDF directly. It may be image-only or have an unusable text layer.',
       ].join('\n'),
     };
     let result = null;
@@ -580,7 +592,7 @@ async function handleIngredientNormalize(request, env) {
       chinese: items.map((item) => item.chinese).join('、'),
       model: result.model,
       source: 'ingredient-pdf-gemini',
-      normalizerVersion: '2',
+      normalizerVersion: '3',
     });
   } catch (error) {
     return json({ error: cleanText(error && error.message, 500) || 'ingredient normalization failed' }, 502);
