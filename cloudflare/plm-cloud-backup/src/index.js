@@ -642,13 +642,17 @@ function splitToyCopywritingList(value) {
     .slice(0, 8);
 }
 
-function sanitizeChineseToyEfficacy(value) {
+function sanitizeChineseToyEfficacy(value, allowLengthFallback = false) {
   const items = splitToyCopywritingList(value).slice(0, 3);
   if (items.length !== 3) throw new Error('Gemini must return exactly three Chinese efficacy sentences');
-  items.forEach((item) => {
-    const characterCount = (item.match(/[\u3400-\u9fff]/g) || []).length;
-    if (characterCount < 10 || characterCount > 20) throw new Error('Each Chinese efficacy sentence must contain about 15 Chinese characters');
-  });
+  const characterCounts = items.map((item) => (item.match(/[\u3400-\u9fff]/g) || []).length);
+  const invalidCounts = characterCounts.filter((count) => count < 10 || count > 20);
+  if (invalidCounts.length && !allowLengthFallback) {
+    throw new Error('Chinese efficacy length validation failed: ' + characterCounts.join(', ') + ' characters; regenerate each sentence with 10 to 20 Chinese characters');
+  }
+  if (allowLengthFallback && characterCounts.some((count) => count < 6 || count > 30)) {
+    throw new Error('Gemini returned unusable Chinese efficacy sentence lengths');
+  }
   return items;
 }
 
@@ -712,11 +716,15 @@ async function handleToyCopywritingComplete(request, env) {
     let lastError = null;
     for (let attempt = 0; attempt < 3 && !parsed; attempt += 1) {
       try {
-        result = await callAiText(env, options);
+        const attemptOptions = attempt === 0 ? options : {
+          ...options,
+          prompt: options.prompt + '\nCorrection attempt ' + attempt + ': the previous response failed validation. Rewrite all three Chinese efficacy sentences to target 12 to 16 Chinese characters and never exceed 20, then translate those corrected sentences into English in the same order.',
+        };
+        result = await callAiText(env, attemptOptions);
         const candidate = parseToyCopywritingAiJson(result.text);
         const completedChineseAdvantages = cleanText(candidate && candidate.chineseAdvantages, 5000);
         const englishAdvantages = cleanText(candidate && candidate.englishAdvantages, 5000);
-        const generatedChineseEfficacy = needsChineseEfficacy ? sanitizeChineseToyEfficacy(candidate && candidate.chineseEfficacy) : splitToyCopywritingList(chineseEfficacy);
+        const generatedChineseEfficacy = needsChineseEfficacy ? sanitizeChineseToyEfficacy(candidate && candidate.chineseEfficacy, attempt === 2) : splitToyCopywritingList(chineseEfficacy);
         const efficacyCount = generatedChineseEfficacy.length || 1;
         const englishEfficacy = needsEnglishEfficacy ? sanitizeEnglishToyEfficacy(candidate && candidate.englishEfficacy, efficacyCount) : [];
         const englishIngredients = needsEnglishIngredients ? cleanText(candidate && candidate.englishIngredients, 5000) : '';
