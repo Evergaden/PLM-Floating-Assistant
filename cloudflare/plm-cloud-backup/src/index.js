@@ -599,6 +599,110 @@ async function handleIngredientNormalize(request, env) {
   }
 }
 
+function parseToyCopywritingAiJson(value) {
+  const text = String(value || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Gemini toy copywriting response is not JSON');
+    return JSON.parse(match[0]);
+  }
+}
+
+function sanitizeToyDirections(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || '').split(/\r?\n|(?=\s*\d+[.)]\s+)/);
+  const directions = source.map((item) => cleanText(item, 300)
+    .replace(/^[-*\u2022\s]+/, '')
+    .replace(/^\d+[.)]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  if (directions.length !== 3) throw new Error('Gemini must return exactly three English directions');
+  directions.forEach((item) => {
+    const wordCount = (item.match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g) || []).length;
+    if (wordCount < 8 || wordCount > 15) throw new Error('Each English direction must contain 8 to 15 words');
+  });
+  return directions;
+}
+
+async function handleToyCopywritingComplete(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const sku = cleanText(body && body.sku, 80);
+  const name = cleanText(body && body.name, 500);
+  const chineseSellingPoints = cleanText(body && body.chineseSellingPoints, 8000);
+  const chineseAdvantages = cleanText(body && body.chineseAdvantages, 5000);
+  const chineseIngredients = cleanText(body && body.chineseIngredients, 5000);
+  const chineseDirections = cleanText(body && body.chineseDirections, 12000);
+  const needsAdvantages = Boolean(body && (body.needsChineseAdvantages || body.needsEnglishAdvantages));
+  const needsEnglishIngredients = Boolean(body && body.needsEnglishIngredients);
+  const needsEnglishDirections = Boolean(body && body.needsEnglishDirections);
+  if (!sku) return json({ error: 'sku required' }, 400);
+  if (needsAdvantages && !chineseAdvantages && !chineseSellingPoints && !name) return json({ error: 'Chinese advantages source required' }, 400);
+  try {
+    const options = {
+      model: 'gemini-3.1-flash-lite',
+      temperature: 0,
+      maxTokens: 2500,
+      timeoutMs: 50000,
+      responseMimeType: 'application/json',
+      system: [
+        'You complete bilingual product-copy fields for a toy product.',
+        'Return JSON only with this exact schema: {"chineseAdvantages":"...","englishAdvantages":"...","englishIngredients":"...","englishDirections":["...","...","..."]}.',
+        'If Chinese advantages are supplied, preserve their meaning and numbering; otherwise derive 3 to 5 concise numbered Chinese advantages only from the supplied selling points and product name.',
+        'Translate Chinese advantages into concise natural US English for englishAdvantages. Do not add unsupported claims.',
+        'Translate Chinese ingredients directly into englishIngredients, preserving the source order and material meaning. Do not invent ingredients.',
+        'Summarize Chinese directions into exactly three English imperative sentences.',
+        'Every English direction must contain 8 to 15 words, excluding its array position, and must be extremely concise.',
+        'Do not add warnings, age grades, certifications, medical claims, headings or explanations.',
+      ].join(' '),
+      prompt: [
+        'SKU: ' + sku,
+        'Product name: ' + name,
+        'Chinese selling points: ' + chineseSellingPoints,
+        'Chinese product advantages: ' + chineseAdvantages,
+        'Chinese ingredients/materials: ' + chineseIngredients,
+        'Chinese directions: ' + chineseDirections,
+      ].join('\n'),
+    };
+    let parsed = null;
+    let result = null;
+    let lastError = null;
+    for (let attempt = 0; attempt < 3 && !parsed; attempt += 1) {
+      try {
+        result = await callAiText(env, options);
+        const candidate = parseToyCopywritingAiJson(result.text);
+        const completedChineseAdvantages = cleanText(candidate && candidate.chineseAdvantages, 5000);
+        const englishAdvantages = cleanText(candidate && candidate.englishAdvantages, 5000);
+        const englishIngredients = needsEnglishIngredients ? cleanText(candidate && candidate.englishIngredients, 5000) : '';
+        const directions = needsEnglishDirections ? sanitizeToyDirections(candidate && candidate.englishDirections) : [];
+        if (needsAdvantages && (!completedChineseAdvantages || !englishAdvantages)) throw new Error('Gemini returned empty toy advantages');
+        if (needsEnglishIngredients && !englishIngredients) throw new Error('Gemini returned empty English ingredients');
+        parsed = { completedChineseAdvantages, englishAdvantages, englishIngredients, directions };
+      } catch (error) {
+        lastError = error;
+        if (attempt === 2) throw error;
+      }
+    }
+    if (!parsed || !result) throw lastError || new Error('Gemini toy copywriting failed');
+    return json({
+      ok: true,
+      chineseAdvantages: parsed.completedChineseAdvantages,
+      englishAdvantages: parsed.englishAdvantages,
+      englishIngredients: parsed.englishIngredients,
+      englishDirections: parsed.directions.map((item, index) => (index + 1) + '. ' + item).join('\n'),
+      model: result.model,
+      source: 'toy-copywriting-gemini',
+    });
+  } catch (error) {
+    return json({ error: cleanText(error && error.message, 500) || 'toy copywriting failed' }, 502);
+  }
+}
+
 async function ensureClassificationRulesTable(env) {
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS classification_rules (
@@ -3562,6 +3666,7 @@ export default {
     if (url.pathname === '/pack/recommend' && request.method === 'GET') return handlePackRecommend(request, env);
     if (url.pathname === '/pack/ai-estimate' && request.method === 'POST') return handlePackAiEstimate(request, env);
     if (url.pathname === '/ingredients/normalize' && request.method === 'POST') return handleIngredientNormalize(request, env);
+    if (url.pathname === '/toy-copywriting/complete' && request.method === 'POST') return handleToyCopywritingComplete(request, env);
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
     if (url.pathname === '/insights/report' && request.method === 'GET') return handleInsightReport(request, env);
