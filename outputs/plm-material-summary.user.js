@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.65
+// @version      2.5.66
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.65';
+  const SCRIPT_VERSION = '2.5.66';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
@@ -4493,11 +4493,12 @@
       const result = session.flatResults[spec.key];
       if (!result || !result.dataUrl) return null;
       const flatLabel = (result.kind || spec.kind) === 'print' ? '\u5370\u5237' : '\u6807\u7b7e';
-      const suffix = flatSpecs.length > 1 ? '-' + (spec.code || (formatSizeImageNumber(spec.width) + 'x' + formatSizeImageNumber(spec.height) + 'cm')) : '';
-      return { name: sku + '-' + flatLabel + '\u5c3a\u5bf8\u56fe' + suffix + '.jpg', dataUrl: result.dataUrl };
+      const materialCode = namingCodes(result.code || spec.code)[0] || compactText(result.code || spec.code || '') || sku;
+      return { name: sanitizeDownloadFileName(flatLabel + materialCode + '.jpg'), dataUrl: result.dataUrl };
     }).filter(Boolean) : [];
+    const cartonCode = namingCodes(currentData.packageCode)[0] || compactText(currentData.packageCode || '') || sku;
     const files = session ? [
-      session.cartonResultDataUrl ? { name: sku + '-\u7eb8\u76d2\u5c3a\u5bf8\u56fe.jpg', dataUrl: session.cartonResultDataUrl } : null,
+      session.cartonResultDataUrl ? { name: sanitizeDownloadFileName('\u7eb8\u76d2' + cartonCode + '.jpg'), dataUrl: session.cartonResultDataUrl } : null,
       ...flatFiles,
     ].filter(Boolean) : [];
     if (!files.length) {
