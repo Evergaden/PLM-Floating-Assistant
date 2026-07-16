@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.72
+// @version      2.5.73
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.72';
+  const SCRIPT_VERSION = '2.5.73';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -277,7 +277,7 @@
       if (canvas.height !== image.naturalHeight) canvas.height = image.naturalHeight;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image.source || image, 0, 0, canvas.width, canvas.height);
       const scale = editorScale(image);
       drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale);
       drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale);
@@ -298,6 +298,19 @@
       if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
     }
 
+    async function loadFileImageBitmap(file) {
+      const bitmapFactory = typeof createImageBitmap === 'function'
+        ? createImageBitmap
+        : (typeof window !== 'undefined' && typeof window.createImageBitmap === 'function' ? window.createImageBitmap.bind(window) : null);
+      if (bitmapFactory) {
+        try {
+          const bitmap = await bitmapFactory(file);
+          return { source: bitmap, naturalWidth: bitmap.width, naturalHeight: bitmap.height };
+        } catch (_) {}
+      }
+      return loadFileImageDataUrl(file);
+    }
+
     function loadFileImageDataUrl(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -314,7 +327,7 @@
       const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
       if (!canvas) return;
       try {
-        if (!session.editorImage) session.editorImage = await loadFileImageDataUrl(session.file);
+        if (!session.editorImage) session.editorImage = await loadFileImageBitmap(session.file);
       } catch (error) {
         session.editorOpen = false;
         session.error = String(error && error.message || error || '无法读取标注图片。');
