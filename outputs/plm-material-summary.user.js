@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.86
+// @version      2.5.87
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.86';
+  const SCRIPT_VERSION = '2.5.87';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -3699,7 +3699,7 @@
 
   function copywritingViewHtml(data) {
     const record = normalizeCopywritingRecord(data && data.copywriting);
-    if (state.copywritingLoading) {
+    if (state.copywritingLoading && !(record && record.fullText)) {
       return '<section class="pfh-copywriting-page is-loading"><div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位设计资料里的 Word 附件...') + '</p></div></section>';
     }
     const errorHtml = state.copywritingError
@@ -3712,6 +3712,9 @@
     const updateHtml = record.updatePending
       ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span></div>'
       : '';
+    const loadingHtml = state.copywritingLoading
+      ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + escapeHtml(state.copywritingStatus || '已显示历史内容，正在读取新的文案文件...') + '</span></div>'
+      : '';
     const missingHtml = record.missingSections && record.missingSections.length
       ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + escapeHtml(record.missingSections.join('、')) + '</span></div>'
       : '';
@@ -3720,7 +3723,7 @@
         '<div class="pfh-copywriting-block-head"><span>' + escapeHtml(section.label || section.key) + '</span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + escapeHtml(section.key) + '">复制本段</button></div>' +
         '<pre>' + escapeHtml(section.text) + '</pre></div>';
     }).join('');
-    return '<section class="pfh-copywriting-page">' + errorHtml + updateHtml + missingHtml + '<div class="pfh-copywriting-content">' + sectionsHtml + '</div></section>';
+    return '<section class="pfh-copywriting-page">' + errorHtml + loadingHtml + updateHtml + missingHtml + '<div class="pfh-copywriting-content">' + sectionsHtml + '</div></section>';
   }
 
   function copywritingSectionCopyValue(section) {
@@ -5491,14 +5494,23 @@
       return;
     }
     const sku = data.sku;
+    const storedData = normalizeData(loadData(sku) || data);
+    const currentCached = normalizeCopywritingRecord(data.copywriting);
+    const storedCached = normalizeCopywritingRecord(storedData.copywriting);
+    const initialCached = (currentCached && currentCached.fullText ? currentCached : null)
+      || (storedCached && storedCached.fullText ? storedCached : null)
+      || currentCached
+      || storedCached;
+    if (initialCached && initialCached.fullText && !(data.copywriting && data.copywriting.fullText)) {
+      state.data = normalizeData({ ...data, copywriting: initialCached });
+    }
     state.copywritingMode = true;
-    state.copywritingLoading = true;
+    state.copywritingLoading = !(initialCached && initialCached.fullText);
     state.copywritingError = '';
-    state.copywritingStatus = '正在打开设计资料...';
+    state.copywritingStatus = state.copywritingLoading ? '正在打开设计资料...' : '';
     stopScan();
     stopMaterialWatch();
     expandPanel();
-    renderShell();
     addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
     try {
       let drawer = getProjectDrawerForSku(sku);
@@ -5523,11 +5535,19 @@
       const workingData = normalizeData(loadData(sku) || state.data || data);
       const cached = normalizeCopywritingRecord(workingData.copywriting);
       const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
+      if (cached && cached.fullText && compactText(cached.fileName).toLowerCase() === compactText(file.fileName).toLowerCase()) {
+        state.data = workingData;
+        state.copywritingStatus = '';
+        state.copywritingError = '';
+        addLog('info', '产品文案：命中历史缓存', file.fileName);
+        return;
+      }
       if (cached && cached.fileTimestamp && fileTimestamp && fileTimestamp < cached.fileTimestamp) {
         state.copywritingError = '页面中的 Word 版本早于缓存，已保留较新的文案';
         addLog('warn', '产品文案：检测到旧附件', file.fileName + ' < ' + cached.fileName);
         return;
       }
+      state.copywritingLoading = true;
       state.copywritingStatus = '正在触发 Word 下载 ' + file.fileName;
       renderShell();
       let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, 'Word 下载监听');
