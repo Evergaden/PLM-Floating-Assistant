@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.84
+// @version      2.5.85
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.84';
+  const SCRIPT_VERSION = '2.5.85';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -1411,7 +1411,7 @@
   startUploadQueueSync();
   handleDrawerState();
   scheduleProjectListPrefetch();
-  if (isUploadWorkerPage()) {
+  if (shouldStartUploadWorkerOnLoad()) {
     window.setTimeout(() => processUploadQueue(), 1200);
   }
 
@@ -8322,7 +8322,7 @@
       return;
     }
     try {
-      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6253\u5f00\u5546\u54c1');
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6253\u5f00\u5546\u54c1', { resumeUploadAfterRefresh: false });
       await ensureProductManagementPage();
       await searchProductManagementSku(item.sku);
       await openProductEditDrawer(item.sku);
@@ -9358,12 +9358,18 @@
     }
     updateUploadItem(item, '\u5f85\u4e0a\u4f20', '\u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u5237\u65b0\u540e\u91cd\u65b0\u641c\u7d22\u4e0a\u4f20', {
       forceReplace: true,
+      resumeUploadAfterRefresh: true,
       uploadPageRefreshRetryCount: retryCount,
     });
+    state.uploadRunning = true;
+    saveUploadWorkerRunning(true);
     addLog('warn', '\u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u5237\u65b0\u540e\u91cd\u8bd5\u7f16\u7801', (item.sku || '') + ' (' + retryCount + '/3)');
     showToast((item.sku || '') + ' \u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u6b63\u5728\u5237\u65b0\u9875\u9762\u91cd\u65b0\u4e0a\u4f20');
     await wait(120);
-    window.location.reload();
+    const refreshUrl = new URL(window.location.href);
+    refreshUrl.pathname = '/productManagementProduct';
+    refreshUrl.searchParams.set('plmUploadWorker', '1');
+    window.location.replace(refreshUrl.toString());
     await new Promise(() => {});
   }
 
@@ -13752,6 +13758,20 @@
 
   function isUploadWorkerPage() {
     return /[?&]plmUploadWorker=1\b/.test(location.search);
+  }
+
+  function hasUploadRefreshRecovery() {
+    return loadUploadQueue().some((item) => {
+      if (!item || !item.xlsxKey || !item.zipKey) return false;
+      if (item.resumeUploadAfterRefresh) return true;
+      return Number(item.uploadPageRefreshRetryCount) > 0
+        && /\u5f85\u4e0a\u4f20/.test(item.status || '')
+        && /\u5237\u65b0\u540e\u91cd\u65b0\u641c\u7d22\u4e0a\u4f20/.test(item.step || '');
+    });
+  }
+
+  function shouldStartUploadWorkerOnLoad() {
+    return loadUploadWorkerRunning() && (isUploadWorkerPage() || hasUploadRefreshRecovery());
   }
 
   function loadToyLabelExportManifest() {
