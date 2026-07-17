@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.87
+// @version      2.5.88
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,8 +29,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.87';
+  const SCRIPT_VERSION = '2.5.88';
   const INGREDIENT_NORMALIZER_VERSION = '3';
+  const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
@@ -1350,6 +1351,8 @@
     thumbHydratedSkus: new Set(),
     ingredientHydratingSkus: new Set(),
     ingredientHydrateFailedAt: {},
+    copywritingHydratingSkus: new Set(),
+    copywritingHydrateFailedAt: {},
     skuPage: 1,
     sizeImageSessions: {},
     sizeImageBusySku: '',
@@ -1711,6 +1714,7 @@
       }
       renderShell();
       scheduleIngredientPdfHydration(state.data);
+      scheduleCopywritingHydration(state.data);
       return;
     }
 
@@ -2060,6 +2064,7 @@
     if (completedData && completedData.sku) {
       scheduleProductThumbHydration(completedData, shouldRefreshThumb ? { force: true, refreshImage: true } : { force: true });
       scheduleIngredientPdfHydration(completedData);
+      scheduleCopywritingHydration(completedData);
     }
   }
 
@@ -3745,10 +3750,19 @@
     return productType === '\u73a9\u5177' || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test(getClassificationText(data));
   }
 
+  function isFoodEntryCopywritingProduct(data) {
+    if (!data || !/\u5165\u53e3/.test(String(data.name || ''))) return false;
+    const text = [data.name, data.plmCategory, data.aiProductType, data.aiCategory, data.departmentName].filter(Boolean).join(' ');
+    return /\u98df\u54c1|\u4fdd\u5065|\u6ecb\u8865|\u81b3\u98df|\u8425\u517b|\u80f6\u56ca|\u8f6f\u7cd6|\u56fa\u4f53\u996e\u6599|\u7c89/i.test(text);
+  }
+
   function toyCopywritingButtonHtml(data) {
-    if (!isToyCopywritingProduct(data)) return '';
+    const isToy = isToyCopywritingProduct(data);
+    const isFoodEntry = isFoodEntryCopywritingProduct(data);
+    if (!isToy && !isFoodEntry) return '';
+    const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848';
     return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
-      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : '\u2728 智能补充玩具文案') + '</button>';
+      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : '\u2728 ' + label) + '</button>';
   }
 
   function getToyCopywritingFieldConfig(key) {
@@ -3836,11 +3850,56 @@
     return count;
   }
 
+  function getCachedCopywritingSectionValue(data, key) {
+    const record = normalizeCopywritingRecord(data && data.copywriting);
+    const section = record && record.sections.find((item) => item.key === key);
+    return copywritingSectionCopyValue(section);
+  }
+
+  async function fillFoodEntryCopywriting(data, drawer) {
+    const sku = data.sku;
+    if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
+    if (state.copywritingHydratingSkus.has(sku)) await waitFor(() => !state.copywritingHydratingSkus.has(sku), 65000, 250);
+    await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
+    const chinese = readToyCopywritingFields(drawer);
+    await switchToyCopywritingLanguage(drawer, '\u82f1\u8bed(\u7f8e\u56fd)');
+    const english = readToyCopywritingFields(drawer);
+    const needsIngredients = !chinese.ingredients || !english.ingredients;
+    const needsDirections = !chinese.directions || !english.directions;
+    if (!needsIngredients && !needsDirections) return 0;
+    let cached = normalizeData(loadData(sku) || data);
+    if (needsIngredients && (!cached.ingredientChinese || !cached.ingredientEnglish)) cached = await hydrateIngredientPdfForSku(sku);
+    if (needsDirections && (!getCachedCopywritingSectionValue(cached, 'directions') || !getCachedCopywritingSectionValue(cached, 'directionsChinese'))) {
+      cached = await hydrateCopywritingForSku(sku, { force: true });
+    }
+    const chineseIngredients = String(cached.ingredientChinese || '').trim();
+    const englishIngredients = String(cached.ingredientEnglish || '').trim();
+    const chineseDirections = getCachedCopywritingSectionValue(cached, 'directionsChinese');
+    const englishDirections = getCachedCopywritingSectionValue(cached, 'directions');
+    if ((!chinese.ingredients && !chineseIngredients) || (!english.ingredients && !englishIngredients)) throw new Error('\u6210\u5206\u8868\u4e2d\u6587\u6216\u82f1\u6587\u7f13\u5b58\u4e3a\u7a7a');
+    if ((!chinese.directions && !chineseDirections) || (!english.directions && !englishDirections)) throw new Error('\u4ea7\u54c1\u6587\u6848 Word \u4e2d\u672a\u8bc6\u522b\u5230\u4e2d\u82f1\u6587\u4f7f\u7528\u65b9\u6cd5');
+    await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
+    let filledCount = applyToyCopywritingPatch(drawer, {
+      ingredients: chinese.ingredients ? '' : chineseIngredients,
+      directions: chinese.directions ? '' : chineseDirections,
+    });
+    await switchToyCopywritingLanguage(drawer, '\u82f1\u8bed(\u7f8e\u56fd)');
+    filledCount += applyToyCopywritingPatch(drawer, {
+      ingredients: english.ingredients ? '' : englishIngredients,
+      directions: english.directions ? '' : englishDirections,
+    });
+    if (!filledCount) return 0;
+    const saved = await saveProductDraftBeforeClose();
+    if (!saved) throw new Error('\u98df\u54c1\u6587\u6848\u5df2\u586b\u5199\uff0c\u4f46 PLM \u672a\u8fd4\u56de\u300c\u4fdd\u5b58\u6210\u529f\u300d');
+    return filledCount;
+  }
+
   async function fillToyCopywriting() {
     if (state.toyCopywritingBusy) return;
     const data = normalizeData(state.data || {});
-    if (!data.sku || !isToyCopywritingProduct(data)) {
-      showToast('\u5f53\u524d\u4ea7\u54c1\u4e0d\u662f\u73a9\u5177\u7c7b');
+    const isFoodEntry = isFoodEntryCopywritingProduct(data);
+    if (!data.sku || (!isToyCopywritingProduct(data) && !isFoodEntry)) {
+      showToast('\u5f53\u524d\u4ea7\u54c1\u4e0d\u652f\u6301\u667a\u80fd\u6587\u6848\u8865\u5145');
       return;
     }
     const drawer = getToyCopywritingDrawerForSku(data.sku);
@@ -3853,6 +3912,16 @@
     const originalLanguage = getActiveToyCopywritingLanguage(drawer) || '\u4e2d\u6587-\u7b80\u4f53';
     let filledCount = 0;
     try {
+      if (isFoodEntry) {
+        filledCount = await fillFoodEntryCopywriting(data, drawer);
+        if (!filledCount) {
+          showToast('\u98df\u54c1\u6587\u6848\u5df2\u5b8c\u6574\uff0c\u65e0\u9700\u8865\u5145');
+          return;
+        }
+        addLog('success', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
+        showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u98df\u54c1\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
+        return;
+      }
       await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
       const chinese = readToyCopywritingFields(drawer);
       await switchToyCopywritingLanguage(drawer, '\u82f1\u8bed(\u7f8e\u56fd)');
@@ -3917,8 +3986,9 @@
       showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u73a9\u5177\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
     } catch (error) {
       const message = formatErrorMessage(error) || '\u667a\u80fd\u8865\u5145\u5931\u8d25';
-      addLog('error', '\u73a9\u5177\u6587\u6848\u667a\u80fd\u8865\u5145\u5931\u8d25', data.sku + ' | ' + message);
-      showToast('\u73a9\u5177\u6587\u6848\u8865\u5145\u5931\u8d25\uff1a' + message);
+      const label = isFoodEntry ? '\u98df\u54c1\u6587\u6848' : '\u73a9\u5177\u6587\u6848';
+      addLog('error', label + '\u667a\u80fd\u8865\u5145\u5931\u8d25', data.sku + ' | ' + message);
+      showToast(label + '\u8865\u5145\u5931\u8d25\uff1a' + message);
     } finally {
       if (originalLanguage && getToyCopywritingDrawerForSku(data.sku)) {
         await switchToyCopywritingLanguage(drawer, originalLanguage).catch(() => {});
@@ -5535,7 +5605,7 @@
       const workingData = normalizeData(loadData(sku) || state.data || data);
       const cached = normalizeCopywritingRecord(workingData.copywriting);
       const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
-      if (cached && cached.fullText && compactText(cached.fileName).toLowerCase() === compactText(file.fileName).toLowerCase()) {
+      if (cached && cached.fullText && cached.parserVersion === COPYWRITING_PARSER_VERSION && compactText(cached.fileName).toLowerCase() === compactText(file.fileName).toLowerCase()) {
         state.data = workingData;
         state.copywritingStatus = '';
         state.copywritingError = '';
@@ -5613,6 +5683,73 @@
     saveData(data.sku, { ...data, copywriting: next });
     showToast('已标记为查看');
     renderShell();
+  }
+
+  function scheduleCopywritingHydration(data) {
+    const sku = String(data && data.sku || '');
+    if (!state.settings.collectionEnabled || !sku || state.copywritingHydratingSkus.has(sku)) return;
+    const failedAt = Number(state.copywritingHydrateFailedAt[sku] || 0);
+    if (failedAt && Date.now() - failedAt < 10 * 60 * 1000) return;
+    window.setTimeout(() => {
+      hydrateCopywritingForSku(sku).catch(() => {});
+    }, 1600);
+  }
+
+  async function hydrateCopywritingForSku(sku, options) {
+    const opts = options || {};
+    if (!sku || state.copywritingHydratingSkus.has(sku)) return normalizeData(loadData(sku) || {});
+    if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
+    const drawer = getProjectDrawerForSku(sku);
+    if (!drawer) return normalizeData(loadData(sku) || {});
+    state.copywritingHydratingSkus.add(sku);
+    const originalTab = getActiveTabText(drawer);
+    try {
+      await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
+      await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
+      const item = findProductCopywritingItem(drawer);
+      if (!item) return normalizeData(loadData(sku) || {});
+      const file = findProductCopywritingFile(item, sku);
+      if (!file) return normalizeData(loadData(sku) || {});
+      const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+      const oldRecord = normalizeCopywritingRecord(cached.copywriting);
+      const sameFile = oldRecord && oldRecord.fullText
+        && oldRecord.parserVersion === COPYWRITING_PARSER_VERSION
+        && compactText(oldRecord.fileName).toLowerCase() === compactText(file.fileName).toLowerCase();
+      if (!opts.force && sameFile) return cached;
+      const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
+      if (!opts.force && oldRecord && oldRecord.fileTimestamp && fileTimestamp && fileTimestamp < oldRecord.fileTimestamp) return cached;
+
+      let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, '\u4ea7\u54c1\u6587\u6848 Word \u4e0b\u8f7d\u76d1\u542c');
+      if (!source || (!source.url && !source.arrayBuffer)) throw new Error('\u672a\u8bfb\u53d6\u5230\u4ea7\u54c1\u6587\u6848 Word');
+      let arrayBuffer;
+      try {
+        arrayBuffer = source.arrayBuffer || await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, '\u4ea7\u54c1\u6587\u6848 Word \u8bfb\u53d6');
+        if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('\u8bfb\u53d6\u5230\u7684\u5185\u5bb9\u4e0d\u662f\u6709\u6548 Word \u6587\u4ef6');
+      } catch (error) {
+        if (source.kind === 'captured') throw error;
+        source = { ...(await withCopywritingTimeout(captureCopywritingDownloadSource(file.card, file.fileName), 12000, '\u5907\u7528\u4ea7\u54c1\u6587\u6848 Word \u4e0b\u8f7d\u76d1\u542c')), kind: 'captured' };
+        arrayBuffer = source.arrayBuffer || (source.url ? await withCopywritingTimeout(downloadCopywritingDocument(source.url), 18000, '\u5907\u7528\u4ea7\u54c1\u6587\u6848 Word \u8bfb\u53d6') : null);
+        if (!isCopywritingDocxBuffer(arrayBuffer)) throw error;
+      }
+      const fileHash = await hashCopywritingBuffer(arrayBuffer);
+      const tableRows = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, '\u4ea7\u54c1\u6587\u6848 Word \u8868\u683c\u89e3\u6790');
+      const built = buildMainstreamCopywriting(tableRows, cached);
+      if (!built.sections.length) throw new Error('Word \u4e2d\u672a\u8bc6\u522b\u5230\u4e3b\u6d41\u7248\u6587\u6848\u5b57\u6bb5');
+      const nextRecord = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, oldRecord);
+      const next = normalizeData({ ...cached, copywriting: nextRecord });
+      saveData(sku, next);
+      delete state.copywritingHydrateFailedAt[sku];
+      addLog('success', '\u4ea7\u54c1\u6587\u6848\u9759\u9ed8\u7f13\u5b58\u5b8c\u6210', sku + ' | ' + file.fileName);
+      return next;
+    } catch (error) {
+      state.copywritingHydrateFailedAt[sku] = Date.now();
+      addLog('warn', '\u4ea7\u54c1\u6587\u6848\u9759\u9ed8\u8bfb\u53d6\u5931\u8d25', sku + ' | ' + formatErrorMessage(error));
+      return normalizeData(loadData(sku) || {});
+    } finally {
+      state.copywritingHydratingSkus.delete(sku);
+      const currentDrawer = getProjectDrawerForSku(sku);
+      if (currentDrawer && originalTab && getActiveTabText(currentDrawer) !== originalTab) await switchDrawerTab(currentDrawer, originalTab);
+    }
   }
 
   function scheduleIngredientPdfHydration(data) {
@@ -6237,11 +6374,12 @@
     const rowMap = {};
     (rows || []).forEach((cells) => {
       const label = cleanCopywritingLine((cells[0] || []).join('')).replace(/\s+/g, '');
-      if (label && !rowMap[label]) rowMap[label] = cells[1] || [];
+      if (label && !rowMap[label]) rowMap[label] = { english: cells[1] || [], chinese: cells[2] || [] };
     });
-    const find = (pattern) => {
+    const find = (pattern, language) => {
       const key = Object.keys(rowMap).find((label) => pattern.test(label));
-      return key ? rowMap[key].slice() : [];
+      const entry = key ? rowMap[key] : null;
+      return entry ? (entry[language === 'chinese' ? 'chinese' : 'english'] || []).slice() : [];
     };
     const sections = [];
     const missingSections = [];
@@ -6266,8 +6404,9 @@
       const ingredientSection = preserveCopywritingHeading(ingredientLines, /^INGREDIENTS?\s*[:：]?$/i, 'INGREDIENTS:');
       add('ingredients', '成分表', joinCopywritingSection(ingredientSection.heading, ingredientSection.lines));
     }
-    const directionSection = preserveCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?建议使用方法|^使用方法/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i, 'DIRECTIONS:');
+    const directionSection = preserveCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?(?:建议使用方法|使用方法|食用方法)/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i, 'DIRECTIONS:');
     add('directions', '建议使用方法', joinCopywritingSection(directionSection.heading, directionSection.lines));
+    add('directionsChinese', '中文使用方法', find(/^(?:[AB][.．、]?\s*)?(?:建议使用方法|使用方法|食用方法)/i, 'chinese').join('\n'));
     const warningSection = preserveCopywritingHeading(find(/^警告语$/), /^WARNINGS?\s*[:：]?$/i, 'WARNINGS:');
     add('warning', '警告语', joinCopywritingSection(warningSection.heading, warningSection.lines));
     const emailLines = find(/^美国不良事故联系人邮箱$/);
@@ -6388,6 +6527,7 @@
       : (old && old.updatePending ? old.removedSections.slice() : []);
     return normalizeCopywritingRecord({
       fileName,
+      parserVersion: COPYWRITING_PARSER_VERSION,
       fileTimestamp,
       fileHash,
       fetchedAt: now,
@@ -6410,6 +6550,7 @@
     })).filter((section) => section.key && section.text);
     return {
       fileName: String(record.fileName || '').slice(0, 300),
+      parserVersion: String(record.parserVersion || '').slice(0, 20),
       fileTimestamp: String(record.fileTimestamp || '').slice(0, 20),
       fileHash: String(record.fileHash || '').slice(0, 128),
       fetchedAt: String(record.fetchedAt || '').slice(0, 80),
