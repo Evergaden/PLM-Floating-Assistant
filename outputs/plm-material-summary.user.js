@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.83
+// @version      2.5.84
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.83';
+  const SCRIPT_VERSION = '2.5.84';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -8327,6 +8327,7 @@
       await searchProductManagementSku(item.sku);
       await openProductEditDrawer(item.sku);
       await enterProductEditSecondStep(item.sku);
+      throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u68c0\u67e5\u65e7\u5185\u5bb9');
       const existingSummary = getProductReplaceUploadSummary(item.sku);
       if (existingSummary.total && !item.forceReplace) {
@@ -8343,19 +8344,24 @@
       if (item.forceReplace) updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u51c6\u5907\u4e0a\u4f20', { forceReplace: false });
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u63a8\u54c1\u8d44\u6599');
       await uploadFileToProductField('\u63a8\u54c1\u8d44\u6599', xlsx, item.xlsxName || xlsx.name);
+      throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u56fe\u5305\u7d20\u6750');
       await uploadFileToProductField('\u56fe\u5305\u7d20\u6750', zip, item.zipName || zip.name);
+      throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6279\u91cf\u4e0a\u4f20');
       await openBatchUploadDialog();
       await uploadBatchZip(zip, item.zipName || zip.name);
       await matchBatchUploadForm();
       await confirmBatchUpload();
       await verifyBatchImagesUploaded(item.sku);
+      throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4fdd\u5b58\u8349\u7a3f');
       const preReviewDraftSaved = await saveProductDraftBeforeClose();
       if (!preReviewDraftSaved) throw new Error('\u8349\u7a3f\u672a\u4fdd\u5b58\u6210\u529f');
+      throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u63d0\u5ba1');
       await submitProductReview();
+      throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u5173\u95ed\u5546\u54c1\u9875');
       await closeTopProductDrawer({ skipDraftSave: true, allowReviewResultModal: true });
       archiveUploadItem(item);
@@ -8363,6 +8369,10 @@
       showToast(item.sku + ' ' + L.uploadSuccess);
     } catch (error) {
       console.warn('PLM floating helper upload queue failed:', error);
+      if (isUploadRetryRefreshError(error) || findUploadRetryNotice()) {
+        await refreshPageAndRetryUploadItem(item);
+        return;
+      }
       if (error && /产品信息开品中|不能编辑/.test(error.message || '')) {
         markUploadQueueBlocked(item, '\u5df2\u8df3\u8fc7', '\u4ea7\u54c1\u4fe1\u606f\u5f00\u54c1\u4e2d\uff0c\u4e0d\u80fd\u7f16\u8f91');
         addLog('info', '\u63d0\u5ba1\u4e0a\u4f20\u8df3\u8fc7\uff1a\u4ea7\u54c1\u4fe1\u606f\u5f00\u54c1\u4e2d', item.sku);
@@ -8748,10 +8758,16 @@
 
   async function waitUploadItemDone(item, filename, timeout) {
     const base = String(filename || '').replace(/^.*[\\\/]/, '');
+    let failureSeenAt = 0;
     await waitUntil(() => {
       const html = item.innerHTML || '';
       const text = getVisibleText(item);
-      if (/\u4e0a\u4f20\u5931\u8d25|ant-upload-list-item-error/.test(html + text)) throw new Error('\u4e0a\u4f20\u5931\u8d25');
+      throwIfUploadRetryNoticeVisible();
+      if (/\u4e0a\u4f20\u5931\u8d25|ant-upload-list-item-error/.test(html + text)) {
+        if (!failureSeenAt) failureSeenAt = Date.now();
+        if (Date.now() - failureSeenAt < 1800) return false;
+        throw new Error('\u4e0a\u4f20\u5931\u8d25');
+      }
       return !/ant-progress|uploading|\u4e0a\u4f20\u4e2d/.test(html + text) && (text.includes('\u9884\u89c8') || text.includes(base) || /ant-upload-list-item-done/.test(html));
     }, timeout || 120000, 800);
   }
@@ -9310,6 +9326,45 @@
     state.copywritingMode = false;
     expandPanel();
     renderShell();
+  }
+
+  function findUploadRetryNotice() {
+    return Array.from(document.querySelectorAll('.ant-notification-notice, .ant-notification'))
+      .filter(isVisibleElement)
+      .find((node) => /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(compactText(node.innerText || node.textContent || ''))) || null;
+  }
+
+  function throwIfUploadRetryNoticeVisible() {
+    if (!findUploadRetryNotice()) return;
+    const error = new Error('\u5b58\u5728\u9700\u8981\u91cd\u8bd5\u6587\u4ef6');
+    error.code = 'PFH_UPLOAD_REFRESH_RETRY';
+    throw error;
+  }
+
+  function isUploadRetryRefreshError(error) {
+    return Boolean(error && (error.code === 'PFH_UPLOAD_REFRESH_RETRY' || /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(error.message || '')));
+  }
+
+  async function refreshPageAndRetryUploadItem(item) {
+    const latestQueue = loadUploadQueue();
+    const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
+    const retryCount = Math.max(0, Number(latestItem.uploadPageRefreshRetryCount) || 0) + 1;
+    if (retryCount > 3) {
+      const reason = '\u8fde\u7eed\u5237\u65b0 3 \u6b21\u4ecd\u63d0\u793a\u5b58\u5728\u9700\u8981\u91cd\u8bd5\u6587\u4ef6';
+      markUploadQueueBlocked(item, L.uploadFailed, reason, { uploadPageRefreshRetryCount: retryCount });
+      addLog('error', '\u63d0\u5ba1\u4e0a\u4f20\u81ea\u52a8\u6062\u590d\u5931\u8d25', (item.sku || '') + ' ' + reason);
+      showToast((item.sku || '') + ' ' + reason);
+      return;
+    }
+    updateUploadItem(item, '\u5f85\u4e0a\u4f20', '\u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u5237\u65b0\u540e\u91cd\u65b0\u641c\u7d22\u4e0a\u4f20', {
+      forceReplace: true,
+      uploadPageRefreshRetryCount: retryCount,
+    });
+    addLog('warn', '\u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u5237\u65b0\u540e\u91cd\u8bd5\u7f16\u7801', (item.sku || '') + ' (' + retryCount + '/3)');
+    showToast((item.sku || '') + ' \u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u6b63\u5728\u5237\u65b0\u9875\u9762\u91cd\u65b0\u4e0a\u4f20');
+    await wait(120);
+    window.location.reload();
+    await new Promise(() => {});
   }
 
   function pinCurrentSearchResults() {
