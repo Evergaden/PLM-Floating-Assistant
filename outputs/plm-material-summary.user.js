@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.85
+// @version      2.5.86
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -29,7 +29,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.85';
+  const SCRIPT_VERSION = '2.5.86';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   // <parameter-logo-assets-module>
@@ -7305,14 +7305,12 @@
       state.data = data ? normalizeData(data) : (state.view === 'sizeImage' || state.view === 'parameterImage' ? normalizeData({ sku }) : null);
       if (state.view === 'sizeImage' || state.view === 'parameterImage') {
         expandPanel();
-        renderShell();
         return;
       }
       state.view = 'detail';
       state.copywritingMode = false;
       resetExcelState();
       expandPanel();
-      renderShell();
       return;
     }
 
