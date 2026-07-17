@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.89
+// @version      2.5.90
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.89';
+  const SCRIPT_VERSION = '2.5.90';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1925,12 +1925,6 @@
     if (state.selectedSku === sku) renderShell();
   }
 
-  function startMaterialWatch() {
-    stopMaterialWatch();
-    state.materialWatchAttempts = 0;
-    checkMaterialOnce();
-  }
-
   function stopMaterialWatch() {
     if (state.materialWatchTimer) {
       window.clearTimeout(state.materialWatchTimer);
@@ -2676,27 +2670,6 @@
     return { diameter, body, text: parts.join(' ') };
   }
 
-  function findTubeSizeRuleByPrintDimension(text) {
-    const nums = extractTubePrintDimensionNums(text);
-    if (!nums || nums.length < 2) return null;
-    const width = Number(nums[0]);
-    const height = Number(nums[1]);
-    if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
-    let best = null;
-    TUBE_SIZE_RULES.forEach((rule) => {
-      rule.bodies.forEach((body) => {
-        const expected = getTubeRulePrintSize(rule, body);
-        const directScore = Math.abs(expected.width - width) + Math.abs(expected.height - height);
-        const swappedScore = Math.abs(expected.width - height) + Math.abs(expected.height - width) + 0.05;
-        const score = Math.min(directScore, swappedScore);
-        if (score <= 0.16 && (!best || score < best.score)) {
-          best = { rule, diameter: rule.diameter, body, score };
-        }
-      });
-    });
-    return best;
-  }
-
   function extractTubePrintDimensionNums(text) {
     const source = String(text || '');
     const labeled = source.match(/\u5370\u5237(?:\u5c3a\u5bf8)?[^\d]{0,20}(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(mm|cm)/i);
@@ -2714,12 +2687,6 @@
     const width = rule.widths.reduce((sum, value) => sum + (Number(value) || 0), 0);
     const height = Math.max(0, (Number(body) || 0) / 10 - 0.1);
     return { width, height };
-  }
-
-  function formatTubePrintSize(rule, body) {
-    const size = getTubeRulePrintSize(rule, body);
-    if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return '';
-    return trimNumber(size.width) + 'x' + trimNumber(size.height) + 'cm';
   }
 
   function formatTubeSpecPrintSize(spec) {
@@ -3539,17 +3506,6 @@
     const detail = panel.querySelector('.pfh-detail');
     detail.classList.remove('is-loading');
     detail.innerHTML = uploadPanelHtml();
-  }
-
-  function renderUploadSidebar(panel) {
-    const list = panel.querySelector('.pfh-list');
-    if (!list) return;
-    const historyLabel = state.uploadView === 'history' ? L.uploadQueueView : L.uploadHistory;
-    list.innerHTML = '<div class="pfh-upload-side">' +
-      '<button type="button" class="pfh-upload-side-card" data-action="upload-history-toggle">' + iconHtml('historyRecord') + '<strong>' + escapeHtml(historyLabel) + '</strong><span>' + escapeHtml(state.uploadView === 'history' ? '\u8fd4\u56de\u5f85\u4e0a\u4f20\u961f\u5217' : '\u67e5\u770b\u5df2\u5b8c\u6210\u548c\u5f02\u5e38\u8bb0\u5f55') + '</span></button>' +
-      '<button type="button" class="pfh-upload-side-card" data-action="upload-clear-list">' + iconHtml('clearTrash') + '<strong>' + escapeHtml(L.uploadClearList) + '</strong><span>' + escapeHtml('\u6e05\u7406\u5f53\u524d\u5217\u8868\u9879') + '</span></button>' +
-      '<article class="pfh-upload-guide"><b>\u4f7f\u7528\u8bf4\u660e</b><p>\u628a xlsx \u548c zip \u4e00\u8d77\u62d6\u5165\u53f3\u4fa7\uff0c\u811a\u672c\u4f1a\u6309\u6587\u4ef6\u540d\u91cc\u7684 SKU \u81ea\u52a8\u914d\u5bf9\u3002</p><p>\u4e24\u4e2a\u6587\u4ef6\u90fd\u9f50\u5168\u540e\u624d\u4f1a\u5165\u961f\u4e0a\u4f20\uff1b\u5df2\u6709\u5185\u5bb9\u7684\u4ea7\u54c1\u9700\u52fe\u9009\u91cd\u8bd5\u540e\u624d\u4f1a\u6e05\u7406\u91cd\u4f20\u3002</p></article>' +
-      '</div>';
   }
 
   function renderSkuList(panel) {
@@ -5262,11 +5218,6 @@
     }), 180);
   }
 
-  function hydrateCurrentProductThumb(options) {
-    const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
-    if (data && data.sku) scheduleProductThumbHydration(data, options);
-  }
-
   async function hydrateProductThumb(sku) {
     if (!state.settings.collectionEnabled) return;
     const drawer = getProjectDrawerForSku(sku);
@@ -5353,15 +5304,6 @@
       '<span class="pfh-row-actions">' + editButton +
       '</span>' +
       '</div>';
-  }
-
-  function rowIconName(key) {
-    if (key === 'packageCode') return 'box';
-    if (key === 'printCode') return 'tag';
-    if (key === 'packageSizeText') return 'list';
-    if (key === 'printSizeText') return 'print';
-    if (/^(package|product)(Length|Width|Height)$/.test(key)) return 'box';
-    return 'bag';
   }
 
   function excelTriggerHtml() {
@@ -7904,11 +7846,6 @@
 
   function cloneUploadFile(file) {
     return new File([file], file.name, { type: file.type || guessMime(file.name), lastModified: file.lastModified || Date.now() });
-  }
-
-  function getSkuFromFileName(filename) {
-    const skus = getSkusFromFileName(filename);
-    return skus[0] || '';
   }
 
   function getSkusFromFileName(filename) {
@@ -12017,11 +11954,6 @@
     return /^(待出图|待定稿|已定稿|制作中|已完成|异常|作废|跳过)$/.test(text) ? text : '待定稿';
   }
 
-  function getLedgerRecordsForDate(dateKey) {
-    const key = normalizeLedgerDate(dateKey) || getTodayKey();
-    return (state.ledgerRecords || []).filter((item) => item.date === key).sort((a, b) => (b.updatedAtMs || 0) - (a.updatedAtMs || 0));
-  }
-
   function getLedgerRecordsForMonth(view, monthKey) {
     const month = normalizeLedgerMonth(monthKey || getTodayKey());
     const mode = view === 'finalized' ? 'finalized' : 'design';
@@ -12324,13 +12256,6 @@
     if (dateInput) dateInput.value = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
     if (hourInput) hourInput.value = String(date.getHours()).padStart(2, '0');
     if (minuteInput) minuteInput.value = String(date.getMinutes()).padStart(2, '0');
-  }
-
-  function formatLedgerInputDateTime(value) {
-    const timeMs = parseLedgerDateTimeMs(value);
-    const date = new Date(timeMs || Date.now());
-    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-') +
-      ' ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
   }
 
   function toggleLedgerWorkFlag(action, sku, dateKey) {
@@ -14179,16 +14104,6 @@
     saveIndex();
   }
 
-  function promoteIndexItem(sku) {
-    const item = state.index.find((entry) => entry.sku === sku);
-    if (!item) return;
-    item.updatedAt = new Date().toLocaleString();
-    item.updatedAtMs = Date.now();
-    state.index = state.index.filter((entry) => entry.sku !== sku);
-    state.index.unshift(item);
-    saveIndex();
-  }
-
   function togglePin(sku) {
     const item = state.index.find((entry) => entry.sku === sku);
     if (!item) return;
@@ -14672,6 +14587,18 @@
     const style = document.createElement('style');
     style.textContent = `
       #${PANEL_ID} {
+        --pfh-color-primary: #6d35e8;
+        --pfh-color-primary-hover: #5b2bc4;
+        --pfh-color-primary-soft: #f3efff;
+        --pfh-color-danger: #c9364f;
+        --pfh-color-danger-hover: #a9233a;
+        --pfh-color-danger-soft: #fff1f3;
+        --pfh-color-border: #d8deea;
+        --pfh-color-border-hover: #b9a8ed;
+        --pfh-color-surface: rgba(255,255,255,.88);
+        --pfh-control-height: 32px;
+        --pfh-control-radius: 10px;
+        --pfh-focus-ring: 0 0 0 3px rgba(109,53,232,.16);
         position: fixed;
         right: 18px;
         bottom: 78px;
@@ -14975,8 +14902,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-      #${PANEL_ID} .pfh-sku small {
         margin-top: 2px;
         color: #667085;
         font-size: 11px;
@@ -15318,12 +15243,6 @@
         color: #64748b;
         font-size: 12px;
         word-break: break-all;
-      }
-      #${PANEL_ID} .pfh-upload-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        align-items: center;
       }
       #${PANEL_ID} .pfh-upload-list {
         display: grid;
@@ -16524,9 +16443,6 @@
       }
       #${PANEL_ID} .pfh-upload-drop {
         min-height: 50px !important;
-        margin: 0 !important;
-      }
-      #${PANEL_ID} .pfh-upload-actions {
         margin: 0 !important;
       }
       #${PANEL_ID} .pfh-upload-item {
@@ -19331,7 +19247,9 @@
       #${PANEL_ID} .pfh-upload-actions {
         display: flex !important;
         flex-wrap: wrap !important;
+        align-items: center !important;
         gap: 8px !important;
+        margin: 0 !important;
       }
       #${PANEL_ID} .pfh-upload-actions button,
       #${PANEL_ID} .pfh-upload-bottom-actions button {
@@ -22639,6 +22557,97 @@
         color: #8d94aa;
         font-size: 10px;
         text-align: center;
+      }
+
+      /* Shared control layer: page layouts may size containers, while controls keep one language. */
+      #${PANEL_ID} :where(
+        .pfh-about-actions,
+        .pfh-upload-actions,
+        .pfh-upload-bottom-actions,
+        .pfh-row-actions,
+        .pfh-parameter-actions,
+        .pfh-parameter-editor-tools,
+        .pfh-first-run-actions,
+        .pfh-upload-clear-modal footer
+      ) > button {
+        box-sizing: border-box;
+        min-height: var(--pfh-control-height);
+        padding: 0 12px;
+        border: 1px solid var(--pfh-color-border);
+        border-radius: var(--pfh-control-radius);
+        background: var(--pfh-color-surface);
+        color: var(--pfh-color-primary);
+        box-shadow: 0 1px 2px rgba(30,41,59,.04);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        transition: color 140ms ease, background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+      }
+      #${PANEL_ID} :where(
+        .pfh-about-actions,
+        .pfh-upload-actions,
+        .pfh-upload-bottom-actions,
+        .pfh-row-actions,
+        .pfh-parameter-actions,
+        .pfh-parameter-editor-tools,
+        .pfh-first-run-actions,
+        .pfh-upload-clear-modal footer
+      ) > button:hover:not(:disabled) {
+        border-color: var(--pfh-color-border-hover);
+        background: var(--pfh-color-primary-soft);
+        color: var(--pfh-color-primary-hover);
+        box-shadow: 0 4px 12px rgba(74,52,135,.10);
+        transform: translateY(-1px);
+      }
+      #${PANEL_ID} button:focus-visible,
+      #${LAUNCHER_ID}:focus-visible {
+        outline: 0;
+        box-shadow: var(--pfh-focus-ring, 0 0 0 3px rgba(109,53,232,.16));
+      }
+      #${PANEL_ID} button:disabled,
+      #${PANEL_ID} button[aria-disabled="true"] {
+        opacity: .48;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      #${PANEL_ID} :where(button.is-danger, [data-action$="-delete"], [data-action$="-clear-confirm"]) {
+        border-color: rgba(201,54,79,.30);
+        background: var(--pfh-color-danger-soft);
+        color: var(--pfh-color-danger);
+      }
+      #${PANEL_ID} :where(button.is-danger, [data-action$="-delete"], [data-action$="-clear-confirm"]):hover:not(:disabled) {
+        border-color: rgba(201,54,79,.55);
+        background: #ffe5e9;
+        color: var(--pfh-color-danger-hover);
+      }
+      #${PANEL_ID} :where(
+        [data-action="search"],
+        [data-action="excel-generate"],
+        [data-action="upload-start"],
+        [data-action="toy-label-queue-add"],
+        [data-action="parameter-image-save"],
+        [data-action="parameter-editor-apply"],
+        [data-action="first-run-tutorial-done"]
+      ) {
+        border-color: var(--pfh-color-primary);
+        background: linear-gradient(135deg, #8357ef, var(--pfh-color-primary));
+        color: #fff;
+        box-shadow: 0 5px 14px rgba(109,53,232,.18);
+      }
+      #${PANEL_ID} :where(
+        [data-action="search"],
+        [data-action="excel-generate"],
+        [data-action="upload-start"],
+        [data-action="toy-label-queue-add"],
+        [data-action="parameter-image-save"],
+        [data-action="parameter-editor-apply"],
+        [data-action="first-run-tutorial-done"]
+      ):hover:not(:disabled) {
+        border-color: var(--pfh-color-primary-hover);
+        background: linear-gradient(135deg, #7545e5, var(--pfh-color-primary-hover));
+        color: #fff;
       }
     `;
     document.documentElement.appendChild(style);
