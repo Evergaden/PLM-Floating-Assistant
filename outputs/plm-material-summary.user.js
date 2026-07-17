@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.88
+// @version      2.5.89
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -13,6 +13,7 @@
 // @grant        GM_setClipboard
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
@@ -29,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.88';
+  const SCRIPT_VERSION = '2.5.89';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2775,7 +2776,23 @@
     return Array.from(root.querySelectorAll('tr, .ant-table-row, [role="row"]'))
       .filter(isVisibleElement)
       .map((el) => compactText(el.innerText || el.textContent || ''))
+      .flatMap(splitCombinedMaterialRow)
       .filter((text, idx, arr) => text && arr.indexOf(text) === idx);
+  }
+
+  function splitCombinedMaterialRow(text) {
+    const source = String(text || '');
+    const matches = Array.from(source.matchAll(/\bMTL\d+\b/gi));
+    if (matches.length < 2) return [source];
+    const starts = [];
+    let previousCode = '';
+    matches.forEach((match) => {
+      const code = String(match[0] || '').toUpperCase();
+      if (code !== previousCode) starts.push(Number(match.index) || 0);
+      previousCode = code;
+    });
+    if (starts.length < 2) return [source];
+    return starts.map((start, index) => source.slice(start, starts[index + 1] || source.length).trim()).filter(Boolean);
   }
 
   function extractNetContentFromMaterial(row) {
@@ -5471,7 +5488,7 @@
     });
     return Array.from(deduped.values()).sort((left, right) =>
       Number(right.sameLogo) - Number(left.sameLogo) || left.max - right.max || left.total - right.total || right.updatedAtMs - left.updatedAtMs || left.code.localeCompare(right.code)
-    );
+    ).slice(0, 5);
   }
 
   function closePackagingNamingCard(panel) {
@@ -5548,7 +5565,8 @@
     menu.innerHTML =
       '<button type="button" data-action="sku-context-pin" data-sku="' + escapeHtml(sku) + '">' + (item.pinned ? '取消置顶' : '置顶') + '</button>' +
       '<button type="button" data-action="sku-context-parameter" data-sku="' + escapeHtml(sku) + '">生成参数图</button>' +
-      '<button type="button" data-action="sku-context-size" data-sku="' + escapeHtml(sku) + '"' + (!state.sizeImageAccessEnabled ? ' disabled title="当前账号暂无权限"' : '') + '>生成尺寸图</button>';
+      '<button type="button" data-action="sku-context-size" data-sku="' + escapeHtml(sku) + '"' + (!state.sizeImageAccessEnabled ? ' disabled title="当前账号暂无权限"' : '') + '>生成尺寸图</button>' +
+      '<button type="button" class="is-danger" data-action="sku-context-delete" data-sku="' + escapeHtml(sku) + '">删除</button>';
     panel.appendChild(menu);
     state.skuContextMenuSku = sku;
     const panelRect = panel.getBoundingClientRect();
@@ -6709,9 +6727,15 @@
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
     if (state.view === 'parameterImage' && action && parameterImageFeature.handleAction(action, actionTarget, state.data || {})) return;
-    if (action === 'sku-context-pin' || action === 'sku-context-parameter' || action === 'sku-context-size') {
+    if (action === 'sku-context-pin' || action === 'sku-context-parameter' || action === 'sku-context-size' || action === 'sku-context-delete') {
       const sku = actionTarget.getAttribute('data-sku') || '';
       if (!sku) return;
+      if (action === 'sku-context-delete') {
+        deleteSkuFromList(sku);
+        closeSkuWaterfallContextMenu(ensurePanel());
+        renderShell();
+        return;
+      }
       if (action === 'sku-context-pin') {
         togglePin(sku);
         closeSkuWaterfallContextMenu(ensurePanel());
@@ -14176,6 +14200,35 @@
       item.pinOrder = Date.now();
     }
     saveIndex();
+  }
+
+  function deleteSkuFromList(sku) {
+    if (!sku || !state.index.some((entry) => entry.sku === sku)) return;
+    try {
+      if (typeof GM_deleteValue === 'function') GM_deleteValue(STORAGE_PREFIX + sku);
+      else if (typeof GM_setValue === 'function') GM_setValue(STORAGE_PREFIX + sku, null);
+      else localStorage.removeItem(STORAGE_PREFIX + sku);
+    } catch (error) {
+      console.warn('PLM floating helper SKU delete failed:', error);
+    }
+    state.index = state.index.filter((entry) => entry.sku !== sku);
+    saveIndex();
+    state.thumbHydratedSkus.delete(sku);
+    state.ingredientHydratingSkus.delete(sku);
+    state.copywritingHydratingSkus.delete(sku);
+    delete state.thumbHydrateFailedAt[sku];
+    delete state.ingredientHydrateFailedAt[sku];
+    delete state.copywritingHydrateFailedAt[sku];
+    delete state.sizeImageSessions[sku];
+    if (state.selectedSku === sku || (state.data && state.data.sku === sku)) {
+      const next = sortSkuListItems(state.index)[0] || null;
+      state.selectedSku = next ? next.sku : '';
+      state.data = next ? normalizeData(loadData(next.sku) || next) : null;
+      state.skuPage = 1;
+    }
+    queueCloudBackup();
+    addLog('info', '已删除 SKU 缓存', sku);
+    showToast('已删除 ' + sku);
   }
 
   function loadData(sku) {
@@ -22374,6 +22427,13 @@
       #${PANEL_ID} .pfh-sku-context-menu button:hover {
         background: rgba(124,58,237,.10);
         color: #6d35e8;
+      }
+      #${PANEL_ID} .pfh-sku-context-menu button.is-danger {
+        color: #dc3545;
+      }
+      #${PANEL_ID} .pfh-sku-context-menu button.is-danger:hover {
+        background: rgba(220,53,69,.10);
+        color: #b42332;
       }
       #${PANEL_ID} .pfh-sku-context-menu button:disabled {
         background: transparent;
