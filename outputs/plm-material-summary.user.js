@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.96
+// @version      2.5.97
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.96';
+  const SCRIPT_VERSION = '2.5.97';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1633,6 +1633,7 @@
     developerInsightsUnlocked: false,
     developerToolsOpen: false,
     tutorialModalOpen: firstTutorial,
+    tutorialEmptyKeyClickCount: 0,
     settingsReturnView: '',
     searchQuery: '',
     view: firstTutorial ? 'home' : 'home',
@@ -3797,7 +3798,7 @@
         '<li><b>3</b><div><p>\u5728\u6d4f\u89c8\u5668\u5c5e\u6027\u300c\u76ee\u6807\u300d\u680f\u672b\u5c3e\u6dfb\u52a0\u53c2\u6570\uff1a</p><code>--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding</code><p>\u907f\u514d\u6d4f\u89c8\u5668\u9000\u5230\u540e\u53f0\u540e\u6682\u505c\u4efb\u52a1\uff0c\u8ba9\u81ea\u52a8\u4e0a\u4f20\u5b89\u9759\u5730\u7ee7\u7eed\u5de5\u4f5c\u3002</p></div></li>' +
         '<li><b>4</b><div><p>\u5148\u8bbe\u7f6e\u4e00\u4e32\u4ec5\u4f60\u77e5\u9053\u7684\u4e91\u5907\u4efd\u5bc6\u94a5\uff08\u81f3\u5c11 4 \u4f4d\uff09\u3002\u5b83\u7528\u6765\u533a\u5206\u548c\u627e\u56de\u4f60\u81ea\u5df1\u7684\u5907\u4efd\u3002</p><label class="pfh-tutorial-key"><span>\u5907\u4efd\u5bc6\u94a5</span><input type="text" class="pfh-tutorial-cloud-key" value="' + escapeHtml(state.settings.cloudBackupKey || '') + '" placeholder="\u8bf7\u8f93\u5165\u81f3\u5c11 4 \u4f4d\u5bc6\u94a5" minlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label></div></li>' +
       '</ol>' +
-      '<button type="button" data-action="first-run-tutorial-done"' + (getCloudBackupKey().length >= 4 ? '' : ' disabled') + '>\u5f00\u59cb\u4f7f\u7528</button>' +
+      '<button type="button" data-action="first-run-tutorial-done"' + (getCloudBackupKey().length >= 4 ? '' : ' aria-disabled="true"') + '>\u5f00\u59cb\u4f7f\u7528</button>' +
     '</section>';
     panel.appendChild(overlay);
   }
@@ -7324,6 +7325,18 @@
         saveSettings(state.settings);
       }
       if (!getCloudBackupKey()) {
+        state.tutorialEmptyKeyClickCount = (state.tutorialEmptyKeyClickCount || 0) + 1;
+        if (state.tutorialEmptyKeyClickCount >= 5) {
+          saveTutorialSeen(true);
+          state.tutorialModalOpen = false;
+          state.tutorialEmptyKeyClickCount = 0;
+          renderShell();
+          return;
+        }
+      } else {
+        state.tutorialEmptyKeyClickCount = 0;
+      }
+      if (!getCloudBackupKey()) {
         showToast(L.cloudBackupMissingKey);
         if (keyInput) keyInput.focus();
         return;
@@ -7985,8 +7998,9 @@
     if (event.target && event.target.classList && event.target.classList.contains('pfh-tutorial-cloud-key')) {
       state.settings.cloudBackupKey = event.target.value.trim();
       saveSettings(state.settings);
+      state.tutorialEmptyKeyClickCount = 0;
       const tutorialButton = ensurePanel().querySelector('[data-action="first-run-tutorial-done"]');
-      if (tutorialButton) tutorialButton.disabled = getCloudBackupKey().length < 4;
+      if (tutorialButton) tutorialButton.setAttribute('aria-disabled', getCloudBackupKey().length < 4 ? 'true' : 'false');
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-toy-label-sku-input')) {
       state.toyLabelSkuInput = event.target.value;
