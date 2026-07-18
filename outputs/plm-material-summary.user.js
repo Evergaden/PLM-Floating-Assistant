@@ -14021,6 +14021,15 @@
       const number = Number(text);
       return number > 0 && number < 100000000000 ? number * 1000 : number;
     }
+    const parts = text.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日)?(?:\s+|T)(\d{1,2})[:：](\d{1,2})(?:[:：](\d{1,2}))?/);
+    if (parts) {
+      const date = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]), Number(parts[4]), Number(parts[5]), Number(parts[6] || 0), 0);
+      const timestamp = date.getTime();
+      if (Number.isFinite(timestamp)
+        && date.getFullYear() === Number(parts[1])
+        && date.getMonth() === Number(parts[2]) - 1
+        && date.getDate() === Number(parts[3])) return timestamp;
+    }
     const parsed = Date.parse(text.replace(/[年\/]/g, '-').replace(/月/g, '-').replace(/日/g, ' '));
     return Number.isFinite(parsed) ? parsed : 0;
   }
@@ -14034,9 +14043,9 @@
     const sort = getSkuListSort();
     const records = (items || []).map((item, index) => ({ item, index, record: getSkuListRecord(item) }));
     const time = (record) => {
-      const assigned = [record.designAssignedAt, record.assignmentTime, record.assignedAt, record.allocationTime, record.projectCreatedAt].map(parseSkuListTime).find((value) => value > 0) || 0;
+      const assigned = parseSkuListTime(record.designAssignedAt);
       const acquired = [record.acquiredAtMs, record.fetchedAtMs, record.listPrefetchedAtMs, record.updatedAtMs, record.firstSeenAtMs, record.listPrefetchedAt, record.updatedAt, record.createdAt].map(parseSkuListTime).find((value) => value > 0) || 0;
-      return sort === 'acquired' ? acquired : (assigned || acquired);
+      return sort === 'acquired' ? acquired : assigned;
     };
     return records.map((entry) => ({ ...entry, time: time(entry.record) })).sort((a, b) => {
       if (a.item.pinned && b.item.pinned) return (a.item.pinOrder || 0) - (b.item.pinOrder || 0);
