@@ -85,22 +85,37 @@ function getZhipuModel(env) {
   return model;
 }
 
+const DEFAULT_MODELSCOPE_MODEL = 'Qwen/Qwen3.5-397B-A17B';
+
+function getModelScopeModel(env) {
+  return String((env && env.MODELSCOPE_MODEL) || DEFAULT_MODELSCOPE_MODEL).trim() || DEFAULT_MODELSCOPE_MODEL;
+}
+
+function isModelScopeModel(value) {
+  return /^(?:modelscope[:/])?qwen\/qwen3\.5-397b-a17b$/i.test(String(value || '').trim())
+    || /^qwen3\.5-397b-a17b$/i.test(String(value || '').trim());
+}
+
 function normalizeInsightAiModel(value, env) {
   const raw = String(value || (env && (env.INSIGHT_AI_MODEL || env.AI_MODEL || env.ZHIPU_MODEL)) || 'glm-4.7-flash').trim();
+  if (isModelScopeModel(raw)) return getModelScopeModel(env);
   if (/^gemini-3\.5-flash$/i.test(raw)) return 'gemini-3.5-flash';
   if (/^glm-4\.7-flash$/i.test(raw)) return 'glm-4.7-flash';
-  if (/^glm-/i.test(raw) || /^gemini-/i.test(raw)) return raw;
+  if (/^glm-/i.test(raw) || /^gemini-/i.test(raw) || /^qwen\//i.test(raw)) return raw;
   return 'glm-4.7-flash';
 }
 
 function getAiProvider(env, modelOverride) {
   const requestedModel = modelOverride ? normalizeInsightAiModel(modelOverride, env).toLowerCase() : '';
+  if (isModelScopeModel(requestedModel)) return 'modelscope';
   if (requestedModel.startsWith('gemini-')) return 'gemini';
   if (requestedModel.startsWith('glm-')) return 'zhipu';
   const configured = String((env && (env.AI_PROVIDER || env.AI_MODEL_PROVIDER)) || '').trim().toLowerCase();
+  if (configured === 'modelscope' || configured === 'qwen') return 'modelscope';
   if (configured === 'gemini' || configured === 'google') return 'gemini';
   if (configured === 'zhipu' || configured === 'glm') return 'zhipu';
-  const model = String((env && (env.AI_MODEL || env.GEMINI_MODEL || env.ZHIPU_MODEL)) || '').trim().toLowerCase();
+  const model = String((env && (env.AI_MODEL || env.MODELSCOPE_MODEL || env.GEMINI_MODEL || env.ZHIPU_MODEL)) || '').trim().toLowerCase();
+  if (isModelScopeModel(model)) return 'modelscope';
   if (model.startsWith('gemini-')) return 'gemini';
   return 'zhipu';
 }
@@ -114,6 +129,18 @@ function getGeminiModel(env, modelOverride) {
 function getAiModelConfig(env, modelOverride) {
   const requestedModel = modelOverride ? normalizeInsightAiModel(modelOverride, env) : '';
   const provider = getAiProvider(env, requestedModel);
+  if (provider === 'modelscope') {
+    const apiKey = env && (env.MODELSCOPE_ACCESS_TOKEN || env.MODELSCOPE_API_KEY);
+    return {
+      provider,
+      source: 'modelscope',
+      model: isModelScopeModel(requestedModel) ? requestedModel : getModelScopeModel(env),
+      apiKey,
+      configured: Boolean(apiKey),
+      fallbackConfigured: Boolean(env && (env.GEMINI_API_KEY || env.GOOGLE_API_KEY)),
+      timeoutMs: Number(env && env.MODELSCOPE_TIMEOUT_MS || 25000),
+    };
+  }
   if (provider === 'gemini') {
     const apiKey = env && (env.GEMINI_API_KEY || env.GOOGLE_API_KEY);
     return {
@@ -141,12 +168,93 @@ function getAiModel(env, modelOverride) {
 
 async function callAiText(env, options) {
   const config = getAiModelConfig(env, options && options.model);
+  if (config.provider === 'modelscope') {
+    const preferred = await callPreferredAiText(env, options);
+    return preferred.result;
+  }
   if (!config.configured) {
     const keyName = config.provider === 'gemini' ? 'GEMINI_API_KEY' : 'ZHIPU_API_KEY';
     throw new Error(keyName + ' not configured');
   }
   if (config.provider === 'gemini') return callGeminiText(config, options);
   return callZhipuText(config, options);
+}
+
+function readOpenAiMessageText(message) {
+  const content = message && message.content;
+  if (typeof content === 'string') return content.trim();
+  if (Array.isArray(content)) {
+    return content.map((item) => item && (item.text || item.content) ? String(item.text || item.content) : '').join('').trim();
+  }
+  return '';
+}
+
+async function callModelScopeText(config, options) {
+  const images = Array.isArray(options.images) ? options.images.filter(Boolean).slice(0, 6) : [];
+  const userContent = images.length ? [
+    { type: 'text', text: options.prompt || '' },
+    ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+  ] : (options.prompt || '');
+  const response = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
+    method: 'POST',
+    signal: AbortSignal.timeout(Math.min(Number(options.timeoutMs || 25000), Number(config.timeoutMs || 25000))),
+    headers: {
+      authorization: 'Bearer ' + config.apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: config.model,
+      temperature: Number(options.temperature || 0),
+      max_tokens: options.maxTokens,
+      chat_template_kwargs: { enable_thinking: false },
+      messages: [
+        { role: 'system', content: options.system || '' },
+        { role: 'user', content: userContent },
+      ],
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data && data.error && data.error.message ? data.error.message : 'ModelScope HTTP ' + response.status);
+  }
+  return {
+    provider: config.provider,
+    source: config.source,
+    model: config.model,
+    text: readOpenAiMessageText(data && data.choices && data.choices[0] && data.choices[0].message),
+  };
+}
+
+async function callPreferredAiText(env, options, validate) {
+  const primaryConfig = getAiModelConfig(env, getModelScopeModel(env));
+  const failures = [];
+  if (primaryConfig.configured) {
+    try {
+      const result = await callModelScopeText(primaryConfig, options || {});
+      const value = validate ? await validate(result) : null;
+      return { result, value };
+    } catch (error) {
+      failures.push('ModelScope: ' + cleanText(error && error.message, 240));
+    }
+  } else {
+    failures.push('ModelScope: MODELSCOPE_ACCESS_TOKEN not configured');
+  }
+
+  const fallbackConfig = getAiModelConfig(env, String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'));
+  if (fallbackConfig.configured) {
+    try {
+      const fallbackOptions = { ...(options || {}), timeoutMs: Math.min(Number(options && options.timeoutMs || 30000), 30000) };
+      const result = await callGeminiText(fallbackConfig, fallbackOptions);
+      result.fallbackFrom = 'modelscope';
+      const value = validate ? await validate(result) : null;
+      return { result, value };
+    } catch (error) {
+      failures.push('Gemini: ' + cleanText(error && error.message, 240));
+    }
+  } else {
+    failures.push('Gemini: GEMINI_API_KEY not configured');
+  }
+  throw new Error(failures.join(' | '));
 }
 
 async function callZhipuText(config, options) {
@@ -487,6 +595,20 @@ function cleanList(value, maxItems = 20) {
   return value.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, maxItems);
 }
 
+function cleanModelScopeImages(value) {
+  const result = [];
+  let totalLength = 0;
+  for (const item of Array.isArray(value) ? value : []) {
+    const image = String(item || '').trim();
+    if (!/^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=]+$/i.test(image)) continue;
+    if (image.length > 4500000 || totalLength + image.length > 12000000) break;
+    result.push(image);
+    totalLength += image.length;
+    if (result.length >= 6) break;
+  }
+  return result;
+}
+
 function parseIngredientAiJson(value) {
   const text = String(value || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try {
@@ -537,17 +659,19 @@ async function handleIngredientNormalize(request, env) {
   const body = await parseJson(request);
   const rawText = cleanText(body && body.rawText, 30000);
   const pdfBase64 = String(body && body.pdfBase64 || '').replace(/\s+/g, '');
+  const pageImages = cleanModelScopeImages(body && body.pageImages);
   const sku = cleanText(body && body.sku, 80);
   const fileName = cleanText(body && body.fileName, 300);
   if (pdfBase64.length > 14000000) return json({ error: 'PDF is too large' }, 413);
-  if (rawText.length < 20 && !pdfBase64) return json({ error: 'rawText or pdfBase64 required' }, 400);
+  if (rawText.length < 20 && !pdfBase64 && !pageImages.length) return json({ error: 'rawText, pageImages or pdfBase64 required' }, 400);
   try {
     const options = {
-      model: 'gemini-3.1-flash-lite',
+      model: getModelScopeModel(env),
       temperature: 0,
       maxTokens: 3000,
       timeoutMs: 50000,
       responseMimeType: 'application/json',
+      images: pageImages,
       inlineData: pdfBase64 ? { mimeType: 'application/pdf', data: pdfBase64 } : null,
       system: [
         'You normalize Supplement Facts or food ingredient-table text.',
@@ -567,14 +691,21 @@ async function handleIngredientNormalize(request, env) {
         'Required example: Biotin (as D-Biotin), Iron (as Ferrous Bisglycinate Chelate), Zinc (as Zinc Picolinate), L-Leucine (Free Form Amino Acid), Hydrolyzed Keratin Peptides (from Bovine Keratin), L-Cysteine (as N-Acetyl-L-Cysteine, NAC) => Biotin / 生物素; Iron / 铁; Zinc / 锌; L-Leucine / 亮氨酸; Hydrolyzed Keratin Peptides / 水解角蛋白肽; N-Acetyl-L-Cysteine / N-乙酰-L-半胱氨酸.',
         'Required vitamin example: Vitamin C (as Ascorbic Acid), Vitamin B6 (as Pyridoxal 5-Phosphate), Magnesium (as Magnesium Malate) => Vitamin C / 维生素C; Vitamin B6 / 维生素B6; Magnesium / 镁. The source forms must not replace these main labels.',
         'Required Blend example: Psyllium Seed Husk (Plantago ovata); Fiber Vegetable Blend (Broccoli, Spinach, Celery Seed, Chia Seed, Flax Seed, Collards Leaf); Enzyme Blend (Amylase, Bromelain, Papain, Protease, Cellulase, Lipase) => Psyllium Seed Husk / 洋车前子壳; Fiber Vegetable Blend / 蔬菜纤维混合物; Enzyme Blend / 酶混合物. Do not output any names inside those parentheses.',
-        rawText.length >= 20 ? 'PDF text:\n' + rawText : 'Read the attached ingredient-table PDF directly. It may be image-only or have an unusable text layer.',
+        rawText.length >= 20 ? 'PDF text:\n' + rawText : 'Read the attached ingredient-table pages directly. They may be image-only or have an unusable text layer.',
       ].join('\n'),
     };
     let result = null;
+    let items = null;
     let lastError = null;
     for (let attempt = 0; attempt < 3 && !result; attempt += 1) {
       try {
-        result = await callAiText(env, options);
+        const preferred = await callPreferredAiText(env, options, (candidate) => {
+          const parsedItems = sanitizeIngredientItems(parseIngredientAiJson(candidate.text));
+          if (!parsedItems.length) throw new Error('no ingredients recognized');
+          return parsedItems;
+        });
+        result = preferred.result;
+        items = preferred.value;
       } catch (error) {
         lastError = error;
         const retryable = /high demand|temporar|429|503|overload|timeout/i.test(String(error && error.message || ''));
@@ -582,8 +713,7 @@ async function handleIngredientNormalize(request, env) {
         await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
       }
     }
-    if (!result) throw lastError || new Error('Gemini ingredient normalization failed');
-    const items = sanitizeIngredientItems(parseIngredientAiJson(result.text));
+    if (!result) throw lastError || new Error('ingredient normalization failed');
     if (!items.length) return json({ error: 'no ingredients recognized' }, 422);
     return json({
       ok: true,
@@ -591,7 +721,8 @@ async function handleIngredientNormalize(request, env) {
       english: items.map((item) => item.english).join('、'),
       chinese: items.map((item) => item.chinese).join('、'),
       model: result.model,
-      source: 'ingredient-pdf-gemini',
+      source: 'ingredient-pdf-' + result.provider,
+      fallbackFrom: result.fallbackFrom || '',
       normalizerVersion: '3',
     });
   } catch (error) {
@@ -651,7 +782,7 @@ function sanitizeChineseToyEfficacy(value, allowLengthFallback = false) {
     throw new Error('Chinese efficacy length validation failed: ' + characterCounts.join(', ') + ' characters; regenerate each sentence with 10 to 20 Chinese characters');
   }
   if (allowLengthFallback && characterCounts.some((count) => count < 6 || count > 30)) {
-    throw new Error('Gemini returned unusable Chinese efficacy sentence lengths');
+    throw new Error('AI returned unusable Chinese efficacy sentence lengths');
   }
   return items;
 }
@@ -683,7 +814,7 @@ async function handleToyCopywritingComplete(request, env) {
   if (needsEnglishEfficacy && !needsChineseEfficacy && !chineseEfficacy) return json({ error: 'Chinese efficacy required for English translation' }, 400);
   try {
     const options = {
-      model: 'gemini-3.1-flash-lite',
+      model: getModelScopeModel(env),
       temperature: 0,
       maxTokens: 2500,
       timeoutMs: 50000,
@@ -720,24 +851,27 @@ async function handleToyCopywritingComplete(request, env) {
           ...options,
           prompt: options.prompt + '\nCorrection attempt ' + attempt + ': the previous response failed validation. Rewrite all three Chinese efficacy sentences to target 12 to 16 Chinese characters and never exceed 20, then translate those corrected sentences into English in the same order.',
         };
-        result = await callAiText(env, attemptOptions);
-        const candidate = parseToyCopywritingAiJson(result.text);
-        const completedChineseAdvantages = cleanText(candidate && candidate.chineseAdvantages, 5000);
-        const englishAdvantages = cleanText(candidate && candidate.englishAdvantages, 5000);
-        const generatedChineseEfficacy = needsChineseEfficacy ? sanitizeChineseToyEfficacy(candidate && candidate.chineseEfficacy, attempt === 2) : splitToyCopywritingList(chineseEfficacy);
-        const efficacyCount = generatedChineseEfficacy.length || 1;
-        const englishEfficacy = needsEnglishEfficacy ? sanitizeEnglishToyEfficacy(candidate && candidate.englishEfficacy, efficacyCount) : [];
-        const englishIngredients = needsEnglishIngredients ? cleanText(candidate && candidate.englishIngredients, 5000) : '';
-        const directions = needsEnglishDirections ? sanitizeToyDirections(candidate && candidate.englishDirections) : [];
-        if (needsAdvantages && (!completedChineseAdvantages || !englishAdvantages)) throw new Error('Gemini returned empty toy advantages');
-        if (needsEnglishIngredients && !englishIngredients) throw new Error('Gemini returned empty English ingredients');
-        parsed = { completedChineseAdvantages, englishAdvantages, generatedChineseEfficacy, englishEfficacy, englishIngredients, directions };
+        const preferred = await callPreferredAiText(env, attemptOptions, (candidateResult) => {
+          const candidate = parseToyCopywritingAiJson(candidateResult.text);
+          const completedChineseAdvantages = cleanText(candidate && candidate.chineseAdvantages, 5000);
+          const englishAdvantages = cleanText(candidate && candidate.englishAdvantages, 5000);
+          const generatedChineseEfficacy = needsChineseEfficacy ? sanitizeChineseToyEfficacy(candidate && candidate.chineseEfficacy, attempt === 2) : splitToyCopywritingList(chineseEfficacy);
+          const efficacyCount = generatedChineseEfficacy.length || 1;
+          const englishEfficacy = needsEnglishEfficacy ? sanitizeEnglishToyEfficacy(candidate && candidate.englishEfficacy, efficacyCount) : [];
+          const englishIngredients = needsEnglishIngredients ? cleanText(candidate && candidate.englishIngredients, 5000) : '';
+          const directions = needsEnglishDirections ? sanitizeToyDirections(candidate && candidate.englishDirections) : [];
+          if (needsAdvantages && (!completedChineseAdvantages || !englishAdvantages)) throw new Error('AI returned empty toy advantages');
+          if (needsEnglishIngredients && !englishIngredients) throw new Error('AI returned empty English ingredients');
+          return { completedChineseAdvantages, englishAdvantages, generatedChineseEfficacy, englishEfficacy, englishIngredients, directions };
+        });
+        result = preferred.result;
+        parsed = preferred.value;
       } catch (error) {
         lastError = error;
         if (attempt === 2) throw error;
       }
     }
-    if (!parsed || !result) throw lastError || new Error('Gemini toy copywriting failed');
+    if (!parsed || !result) throw lastError || new Error('toy copywriting AI failed');
     return json({
       ok: true,
       chineseAdvantages: parsed.completedChineseAdvantages,
@@ -747,7 +881,8 @@ async function handleToyCopywritingComplete(request, env) {
       englishIngredients: parsed.englishIngredients,
       englishDirections: parsed.directions.map((item, index) => (index + 1) + '. ' + item).join('\n'),
       model: result.model,
-      source: 'toy-copywriting-gemini',
+      source: 'toy-copywriting-' + result.provider,
+      fallbackFrom: result.fallbackFrom || '',
     });
   } catch (error) {
     return json({ error: cleanText(error && error.message, 500) || 'toy copywriting failed' }, 502);
@@ -1067,7 +1202,7 @@ async function callConfiguredAiClassificationSummarizer(env, samples, modelOverr
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const prompt = buildCleanClassificationPrompt(samples, attempt > 1);
-      const result = await callAiText(env, {
+      const options = {
         model: modelOverride,
         temperature: 0.15,
         maxTokens: Number(env.AI_CLASSIFY_MAX_TOKENS || 5000),
@@ -1075,8 +1210,17 @@ async function callConfiguredAiClassificationSummarizer(env, samples, modelOverr
         responseMimeType: 'application/json',
         system: 'Output one valid JSON object only. No Markdown. No explanation.',
         prompt,
-      });
-      const pkg = parseClassificationPackage(result.text, result.source);
+      };
+      let result;
+      let pkg;
+      if (getAiProvider(env, modelOverride) === 'modelscope') {
+        const preferred = await callPreferredAiText(env, options, (candidate) => parseClassificationPackage(candidate.text, candidate.source));
+        result = preferred.result;
+        pkg = preferred.value;
+      } else {
+        result = await callAiText(env, options);
+        pkg = parseClassificationPackage(result.text, result.source);
+      }
       pkg.model = result.model;
       pkg.sampleCount = samples.length;
       return pkg;
@@ -2410,15 +2554,20 @@ async function handleInsightAiStatus(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
   const config = getAiModelConfig(env, url.searchParams.get('model'));
+  const configured = config.configured || config.fallbackConfigured;
   return json({
     ok: true,
-    configured: config.configured,
+    configured,
+    primaryConfigured: config.configured,
+    fallbackConfigured: Boolean(config.fallbackConfigured),
     provider: config.provider,
     model: config.model,
     capabilities: ['洞察总结', '价格规律总结', '清洗规则建议'],
-    note: config.provider === 'gemini'
-      ? 'Gemini needs GEMINI_API_KEY or GOOGLE_API_KEY in Worker secrets. If it is missing, busy, or times out, the Worker falls back to rule-based summaries.'
-      : 'GLM needs ZHIPU_API_KEY in Worker secrets. If it is missing, busy, or times out, the Worker falls back to rule-based summaries.',
+    note: config.provider === 'modelscope'
+      ? 'ModelScope Qwen uses MODELSCOPE_ACCESS_TOKEN first and automatically falls back to Gemini when unavailable.'
+      : config.provider === 'gemini'
+        ? 'Gemini needs GEMINI_API_KEY or GOOGLE_API_KEY in Worker secrets. If it is missing, busy, or times out, the Worker falls back to rule-based summaries.'
+        : 'GLM needs ZHIPU_API_KEY in Worker secrets. If it is missing, busy, or times out, the Worker falls back to rule-based summaries.',
   });
 }
 
@@ -2433,6 +2582,7 @@ async function handleInsightReadiness(request, env) {
   const recommendationProbe = await probeRecommendationEngine(env, summary);
   const ruleMaintenance = summarizeRuleMaintenance(summary.rulePackage);
   const aiConfig = getAiModelConfig(env, url.searchParams.get('model'));
+  const aiConfigured = aiConfig.configured || aiConfig.fallbackConfigured;
   const checks = [
     { key: 'cloudEvents', ok: Object.values(totals).some((count) => count > 0), label: '云端洞察事件', detail: JSON.stringify(totals) },
     { key: 'priceSamples', ok: (totals.price || 0) > 0, label: '历史价格样本', detail: String(totals.price || 0) },
@@ -2441,7 +2591,7 @@ async function handleInsightReadiness(request, env) {
     { key: 'issueSamples', ok: (totals.issue || 0) > 0, label: '字段异常样本', detail: String(totals.issue || 0) },
     { key: 'runtimeLogs', ok: (summary.logDiagnostics && summary.logDiagnostics.total || 0) > 0, label: '运行日志诊断', detail: String(summary.logDiagnostics && summary.logDiagnostics.total || 0) },
     { key: 'cleaningRules', ok: Boolean(summary.rulePackage && summary.rulePackage.rules && summary.rulePackage.rules.length), label: '清洗规则候选', detail: formatRuleMaintenanceSummary(ruleMaintenance) },
-    { key: 'ai', ok: aiConfig.configured, label: 'AI 配置', detail: aiConfig.configured ? [aiConfig.provider, aiConfig.model].join(':') : 'AI key missing' },
+    { key: 'ai', ok: aiConfigured, label: 'AI 配置', detail: aiConfigured ? [aiConfig.provider, aiConfig.model, aiConfig.configured ? 'primary' : 'fallback'].join(':') : 'AI key missing' },
   ];
   const blockers = checks.filter((item) => !item.ok).map((item) => ({
     key: item.key,

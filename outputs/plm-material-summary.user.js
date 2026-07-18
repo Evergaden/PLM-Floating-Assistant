@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.97
+// @version      2.5.98
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,10 +30,11 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.97';
+  const SCRIPT_VERSION = '2.5.98';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
+  const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
     'eastmoon': 'eastmoon', 'east moon': 'eastmoon', 'southmoon': 'southmoon', 'south moon': 'southmoon',
@@ -3830,7 +3831,7 @@
     const current = getInsightAiModelSetting();
     return '<div class="pfh-setting-row pfh-ai-model-row"><span>' + escapeHtml(L.insightsAiModel) + '</span>' +
       '<label><input type="radio" name="pfh-ai-model" value="glm-4.7-flash"' + (current === 'glm-4.7-flash' ? ' checked' : '') + '> GLM-4.7-Flash</label>' +
-      '<label><input type="radio" name="pfh-ai-model" value="gemini-3.5-flash"' + (current === 'gemini-3.5-flash' ? ' checked' : '') + '> Gemini-3.5-Flash</label>' +
+      '<label><input type="radio" name="pfh-ai-model" value="' + MODELSCOPE_INSIGHT_MODEL + '"' + (current === MODELSCOPE_INSIGHT_MODEL ? ' checked' : '') + '> 魔搭 Qwen3.5-397B-A17B</label>' +
       '</div>';
   }
 
@@ -4369,10 +4370,10 @@
       if (!english.directions && !chinese.directions) throw new Error('\u4e2d\u6587\u4f7f\u7528\u65b9\u6cd5\u4e3a\u7a7a\uff0c\u65e0\u6cd5\u751f\u6210\u82f1\u6587 DIRECTIONS OF SAFE USE');
       let generated = {};
       if (needsAi) {
-        showToast('Gemini \u6b63\u5728\u6574\u7406\u73a9\u5177\u6587\u6848...');
+        showToast('\u9b54\u642d Qwen \u6b63\u5728\u6574\u7406\u73a9\u5177\u6587\u6848...');
         generated = await cloudRequest('/toy-copywriting/complete', {
           method: 'POST',
-          timeoutMs: 60000,
+          timeoutMs: 90000,
           body: {
             sku: data.sku,
             name: data.name || '',
@@ -4389,7 +4390,7 @@
             needsEnglishDirections: !english.directions,
           },
         });
-        if (!generated || !generated.ok) throw new Error(generated && generated.error ? generated.error : 'Gemini \u672a\u8fd4\u56de\u6709\u6548\u73a9\u5177\u6587\u6848');
+        if (!generated || !generated.ok) throw new Error(generated && generated.error ? generated.error : 'AI \u672a\u8fd4\u56de\u6709\u6548\u73a9\u5177\u6587\u6848');
       }
       const finalChineseAdvantages = chinese.advantages || String(generated.chineseAdvantages || '').trim();
       const finalEnglishAdvantages = english.advantages || String(generated.englishAdvantages || '').trim();
@@ -6221,16 +6222,23 @@
       try {
         rawText = await withCopywritingTimeout(extractIngredientPdfText(arrayBuffer), 20000, '成分表 PDF 解析');
       } catch (error) {
-        addLog('warn', '成分表 PDF 文本层不可用', sku + ' | 将由 Gemini 直接读取 PDF | ' + formatErrorMessage(error));
+        addLog('warn', '成分表 PDF 文本层不可用', sku + ' | 将转为图片交给魔搭读取 | ' + formatErrorMessage(error));
       }
       const requestBody = { sku, fileName: file.fileName, rawText };
-      if (!rawText || rawText.length < 20) requestBody.pdfBase64 = arrayBufferToBase64(arrayBuffer);
+      if (!rawText || rawText.length < 20) {
+        try {
+          requestBody.pageImages = await withCopywritingTimeout(renderIngredientPdfImages(arrayBuffer), 25000, '成分表 PDF 转图片');
+        } catch (error) {
+          addLog('warn', '成分表 PDF 转图片失败', sku + ' | 将回退 Gemini 直接读取 PDF | ' + formatErrorMessage(error));
+        }
+        requestBody.pdfBase64 = arrayBufferToBase64(arrayBuffer);
+      }
       const response = await cloudRequest('/ingredients/normalize', {
         method: 'POST',
-        timeoutMs: 60000,
+        timeoutMs: 90000,
         body: requestBody,
       });
-      if (!response || !response.ok || !response.english || !response.chinese) throw new Error(response && response.error ? response.error : 'Gemini 未返回有效成分');
+      if (!response || !response.ok || !response.english || !response.chinese) throw new Error(response && response.error ? response.error : 'AI 未返回有效成分');
       const next = normalizeData({
         ...cached,
         ingredientEnglish: String(response.english || '').slice(0, 8000),
@@ -6328,6 +6336,46 @@
       if (documentHandle && typeof documentHandle.destroy === 'function') await documentHandle.destroy();
     }
     return pages.join('\n\n').replace(/[ \t]+/g, ' ').trim().slice(0, 30000);
+  }
+
+  async function renderIngredientPdfImages(arrayBuffer) {
+    const Pdf = (typeof pdfjsLib !== 'undefined' && pdfjsLib) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.pdfjsLib);
+    if (!Pdf || typeof Pdf.getDocument !== 'function') throw new Error('PDF 解析组件未加载');
+    if (Pdf.GlobalWorkerOptions && !Pdf.GlobalWorkerOptions.workerSrc) {
+      Pdf.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    }
+    const task = Pdf.getDocument({ data: new Uint8Array(arrayBuffer.slice(0)) });
+    const documentHandle = await task.promise;
+    const images = [];
+    let totalLength = 0;
+    try {
+      const pageCount = Math.min(Number(documentHandle.numPages) || 0, 6);
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        const page = await documentHandle.getPage(pageNumber);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(2, 1800 / Math.max(1, baseViewport.width), 2400 / Math.max(1, baseViewport.height));
+        const viewport = page.getViewport({ scale: Math.max(0.1, scale) });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(viewport.width));
+        canvas.height = Math.max(1, Math.round(viewport.height));
+        const context = canvas.getContext('2d', { alpha: false });
+        if (!context) throw new Error('无法创建 PDF 图片画布');
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: context, viewport }).promise;
+        const image = canvas.toDataURL('image/jpeg', 0.82);
+        canvas.width = 1;
+        canvas.height = 1;
+        if (typeof page.cleanup === 'function') page.cleanup();
+        if (image.length > 4500000 || (images.length && totalLength + image.length > 12000000)) break;
+        images.push(image);
+        totalLength += image.length;
+      }
+    } finally {
+      if (documentHandle && typeof documentHandle.destroy === 'function') await documentHandle.destroy();
+    }
+    if (!images.length) throw new Error('PDF 页面未生成图片');
+    return images;
   }
 
   function findProductCopywritingItem(drawer) {
@@ -7883,7 +7931,7 @@
       return;
     }
     if (event.target && event.target.name === 'pfh-ai-model') {
-      state.settings.insightAiModel = event.target.value === 'gemini-3.5-flash' ? 'gemini-3.5-flash' : 'glm-4.7-flash';
+      state.settings.insightAiModel = event.target.value === MODELSCOPE_INSIGHT_MODEL ? MODELSCOPE_INSIGHT_MODEL : 'glm-4.7-flash';
       saveSettings(state.settings);
       renderShell();
       return;
@@ -12025,7 +12073,9 @@
     try {
       const response = await fetchInsightAiStatus();
       state.insightCloudStatus = response && response.configured
-        ? 'AI \u5df2\u914d\u7f6e\uff1a' + [response.provider || '', response.model || ''].filter(Boolean).join(' / ')
+        ? (response.provider === 'modelscope' && !response.primaryConfigured && response.fallbackConfigured
+          ? '\u9b54\u642d Token \u672a\u914d\u7f6e\uff0cGemini \u515c\u5e95\u53ef\u7528'
+          : 'AI \u5df2\u914d\u7f6e\uff1a' + [response.provider || '', response.model || ''].filter(Boolean).join(' / '))
         : 'AI \u672a\u914d\u7f6e\uff0c\u5c06\u4f7f\u7528\u89c4\u5219\u7248\u603b\u7ed3';
       addLog(response && response.configured ? 'success' : 'warn', 'AI \u914d\u7f6e\u68c0\u67e5', state.insightCloudStatus);
       showToast(state.insightCloudStatus);
@@ -12044,7 +12094,7 @@
       const report = response && response.report ? response.report : '';
       if (!report) throw new Error('empty ai report');
       state.insightCloudReport = report;
-      state.insightCloudStatus = response.source === 'zhipu'
+      state.insightCloudStatus = response.source && response.source !== 'fallback'
         ? 'AI \u6574\u7406\u5df2\u590d\u5236'
         : 'AI \u6682\u4e0d\u53ef\u7528\uff0c\u5df2\u590d\u5236\u89c4\u5219\u7248\u603b\u7ed3';
       copyText(report);
@@ -12985,7 +13035,8 @@
   }
 
   function getInsightAiModelSetting() {
-    return state.settings && state.settings.insightAiModel === 'gemini-3.5-flash' ? 'gemini-3.5-flash' : 'glm-4.7-flash';
+    const saved = state.settings && state.settings.insightAiModel;
+    return saved === MODELSCOPE_INSIGHT_MODEL || saved === 'gemini-3.5-flash' ? MODELSCOPE_INSIGHT_MODEL : 'glm-4.7-flash';
   }
 
   function setCloudBackupStatus(text) {

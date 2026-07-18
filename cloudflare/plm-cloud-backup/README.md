@@ -31,14 +31,34 @@ Set the Zhipu API key for AI insight summaries:
 npx.cmd wrangler secret put ZHIPU_API_KEY
 ```
 
-Optional AI provider/model override. Defaults stay on Zhipu/GLM; use these to switch insight reports and rule summarization to Gemini:
+Set the ModelScope access token for ingredient PDF normalization, toy copywriting, and the Qwen insight option. These calls use `Qwen/Qwen3.5-397B-A17B` first:
+
+```powershell
+npx.cmd wrangler secret put MODELSCOPE_ACCESS_TOKEN
+```
+
+Optional ModelScope overrides:
+
+```powershell
+npx.cmd wrangler secret put MODELSCOPE_MODEL
+# value: Qwen/Qwen3.5-397B-A17B
+npx.cmd wrangler secret put MODELSCOPE_TIMEOUT_MS
+# value: 25000
+```
+
+Keep Gemini configured as the automatic fallback when ModelScope is unavailable, rate-limited, times out, or returns an invalid result:
+
+```powershell
+npx.cmd wrangler secret put GEMINI_API_KEY
+npx.cmd wrangler secret put GEMINI_FALLBACK_MODEL
+# value: gemini-3.1-flash-lite
+```
+
+Optional AI provider/model override for insight reports and rule summarization:
 
 ```powershell
 npx.cmd wrangler secret put AI_PROVIDER
-# value: gemini
-npx.cmd wrangler secret put GEMINI_API_KEY
-npx.cmd wrangler secret put GEMINI_MODEL
-# value: gemini-3.5-flash
+# value: modelscope, gemini, or zhipu
 ```
 
 Optional Zhipu model override:
@@ -106,6 +126,8 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 - `POST /pack/record`
 - `GET /pack/recommend?boxKey=...`
 - `POST /pack/ai-estimate`
+- `POST /ingredients/normalize`
+- `POST /toy-copywriting/complete`
 - `POST /insights/record`
 - `GET /insights/summary`
 - `GET /insights/report`
@@ -125,7 +147,8 @@ Write endpoints require `x-api-key` when `API_KEY` is configured.
 - `/insights/record` stores price history, product type, and data-quality issues from the userscript.
 - `/insights/recommend` recommends purchase price from cloud history. The userscript also has local history fallback.
 - `/insights/rules` groups missing-field issues into data-cleaning rule candidates and marks high-priority cases where the page was read but parsing failed.
-- `/insights/ai-report` calls the configured AI model for a concise Chinese insight report. Configure `AI_PROVIDER=gemini` and `GEMINI_MODEL=gemini-3.5-flash` to avoid GLM rate limits. If AI is missing, busy, or times out, it returns a rule-based fallback report.
+- `/ingredients/normalize` and `/toy-copywriting/complete` call ModelScope `Qwen/Qwen3.5-397B-A17B` first, then automatically fall back to Gemini. Image-only ingredient PDFs are rendered to images in the userscript for Qwen vision input; the original PDF is retained for Gemini fallback.
+- `/insights/ai-report` calls the selected AI model for a concise Chinese insight report. The ModelScope Qwen option automatically falls back to Gemini. If all configured AI providers are missing, busy, or time out, it returns a rule-based fallback report.
 - `/insights/feishu-tsv` returns TSV that can be pasted directly into Feishu Sheets/Bitable.
 - `/insights/feishu-sync` writes records directly to Feishu Bitable when Feishu secrets are configured. Synced records are deduplicated in D1.
 
