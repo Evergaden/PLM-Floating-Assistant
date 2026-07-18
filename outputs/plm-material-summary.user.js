@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.94
+// @version      2.5.95
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.94';
+  const SCRIPT_VERSION = '2.5.95';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2848,7 +2848,11 @@
 
   function extractPackaging(root) {
     const rows = getMaterialRows(root);
-    const packageRows = rows.filter((row) => /\u5305\u6750/.test(row) && /(\u7eb8\u76d2|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(row));
+    const packageRows = rows
+      .map((row, index) => ({ row, index, score: getPackageMaterialRowScore(row) }))
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((item) => item.row);
     const printRows = rows.filter((row) => !/(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(row) && ((/\u5305\u6750/.test(row) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6|\u8f6f\u7ba1)/.test(row)) || (/\u5305\u6750/.test(row) && /\u5370\u5237/.test(row) && hasPrintDimensionText(row)) || (/\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(row) && hasPrintDimensionText(row))));
     const packageRow = packageRows[0] || '';
     const packageDim = extractDimensionString(packageRow);
@@ -3202,6 +3206,21 @@
       getFormValueByLabel('\u9ad8\uff08\u5916\u5305\u88c5\uff09', root),
     ].map(firstNumber);
     return nums.every((n) => Number.isFinite(n)) ? { packageNums: nums } : { packageNums: null };
+  }
+
+  function getPackageMaterialRowScore(row) {
+    const text = String(row || '');
+    if (!/\u5305\u6750/.test(text)) return 0;
+    const name = extractMaterialName(text);
+    const bagPattern = /(\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/;
+    let score = 0;
+    if (/\u7eb8\u76d2/.test(name)) score += 140;
+    else if (bagPattern.test(name)) score += 120;
+    if (/\u5305\u6750\s*-\s*\u7eb8\u76d2/.test(text)) score += 80;
+    else if (new RegExp('\\u5305\\u6750\\s*-\\s*[^;]{0,36}' + bagPattern.source).test(text)) score += 35;
+    if (/\u767d\u5361|\u9ed1\u5361|\u725b\u76ae\u7eb8|\u74e6\u695e/.test(text)) score += 10;
+    if (/\u74f6|\u65cb\u76d6|\u6cf5\u5934|\u55b7\u5934|\u7f50|\u8f6f\u7ba1|\u6ef4\u7ba1|\u5237\u5934|\u76d6\u5b50/.test(name)) score -= 180;
+    return score;
   }
 
   function extractInnerPackage(root) {
