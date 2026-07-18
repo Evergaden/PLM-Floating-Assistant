@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.98
+// @version      2.5.99
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.98';
+  const SCRIPT_VERSION = '2.5.99';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1276,10 +1276,7 @@
   const CM_TO_INCH = 1 / 2.54;
   const NORMAL_DELTA_CM = 0.2;
   const INNER_CARD_DELTA_CM = 0.5;
-  const AUTO_SCAN_ATTEMPTS = 10;
-  const REFRESH_SCAN_ATTEMPTS = 14;
   const SCAN_INTERVAL_MS = 650;
-  const TAB_CLICK_COOLDOWN_MS = 900;
   const MATERIAL_WATCH_ATTEMPTS = 4;
   const TUBE_SIZE_RULES = [
     { diameter: 19, bodies: [59, 64, 65, 75, 82, 85, 86, 88, 95, 98, 100, 104, 110, 112, 120], widths: [0.8, 1.5, 1.5, 1.5, 1.2] },
@@ -1607,22 +1604,20 @@
     index: loadIndex(),
     expanded: false,
     scanTimer: 0,
-    scanAttempts: 0,
-    maxAttempts: AUTO_SCAN_ATTEMPTS,
     scanRunning: false,
     scanTargetSku: '',
     scanData: null,
-    seenMaterial: false,
-    seenProduct: false,
-    seenDesign: false,
-    scanTabCounts: {},
     observedDrawer: null,
     observedSku: '',
     observedTab: '',
     manualCollectTimer: 0,
     diagnosticRunning: false,
-    nextTabTarget: L.materialTab,
-    lastTabClickAt: 0,
+    drawerTabFlowTimer: 0,
+    drawerTabFlowToken: 0,
+    drawerTabFlowRunning: false,
+    drawerTabFlowSku: '',
+    drawerTabFlowDrawer: null,
+    drawerTabFlowUserInterrupted: false,
     toastTimer: 0,
     materialWatchTimer: 0,
     materialWatchAttempts: 0,
@@ -1695,13 +1690,11 @@
     userCollapsedPanel: false,
     launcherClickAt: 0,
     launcherSuppressClickUntil: 0,
-    thumbHydratingSku: '',
-    thumbHydrateFailedAt: {},
-    thumbHydratedSkus: new Set(),
     ingredientHydratingSkus: new Set(),
     ingredientHydrateFailedAt: {},
     copywritingHydratingSkus: new Set(),
     copywritingHydrateFailedAt: {},
+    skuResultGeneration: {},
     skuPage: 1,
     sizeImageSessions: {},
     sizeImageBusySku: '',
@@ -1753,6 +1746,7 @@
   injectStyle();
   ensurePanel();
   document.addEventListener('paste', handleSizeImageHoverPaste, true);
+  document.addEventListener('click', handleUserDrawerTabClick, true);
   ensureLauncher();
   renderShell(L.noDrawer);
   refreshLoadingTips(false);
@@ -1778,6 +1772,55 @@
         positionLauncher(document.getElementById(LAUNCHER_ID));
       }, 120);
     }).observe(document.body, { childList: true, subtree: true });
+  }
+
+  function handleUserDrawerTabClick(event) {
+    if (!event || !event.isTrusted || !(event.target instanceof Element)) return;
+    const tab = event.target.closest('[role="tab"], .ant-tabs-tab');
+    if (!tab) return;
+    const drawer = tab.closest('.ant-drawer-open, .ant-drawer');
+    if (!drawer || drawer !== getProjectDrawer()) return;
+    if (state.scanRunning) {
+      const partial = state.scanData && state.scanData.sku ? state.scanData : null;
+      stopScan();
+      if (partial) {
+        saveData(partial.sku, partial);
+        if (state.selectedSku === partial.sku) state.data = partial;
+      }
+    }
+    if (state.drawerTabFlowRunning || state.drawerTabFlowTimer) {
+      state.drawerTabFlowUserInterrupted = true;
+      cancelDrawerTabFlow({ preserveUserInterrupted: true });
+    }
+  }
+
+  function cancelDrawerTabFlow(options) {
+    const preserveUserInterrupted = Boolean(options && options.preserveUserInterrupted);
+    if (state.drawerTabFlowTimer) window.clearTimeout(state.drawerTabFlowTimer);
+    state.drawerTabFlowTimer = 0;
+    state.drawerTabFlowToken += 1;
+    state.drawerTabFlowRunning = false;
+    state.drawerTabFlowSku = '';
+    state.drawerTabFlowDrawer = null;
+    if (!preserveUserInterrupted) state.drawerTabFlowUserInterrupted = false;
+  }
+
+  function beginForegroundDrawerTabFlow(sku, drawer) {
+    cancelDrawerTabFlow();
+    const token = state.drawerTabFlowToken + 1;
+    state.drawerTabFlowToken = token;
+    state.drawerTabFlowRunning = true;
+    state.drawerTabFlowSku = String(sku || '');
+    state.drawerTabFlowDrawer = drawer || null;
+    state.drawerTabFlowUserInterrupted = false;
+    return token;
+  }
+
+  function finishForegroundDrawerTabFlow(token) {
+    if (state.drawerTabFlowToken !== token) return;
+    state.drawerTabFlowRunning = false;
+    state.drawerTabFlowSku = '';
+    state.drawerTabFlowDrawer = null;
   }
 
   function scheduleProjectListPrefetch() {
@@ -2001,6 +2044,10 @@
 
     const text = getVisibleText(drawer);
     const sku = findSku(text);
+    if (state.drawerTabFlowSku && ((state.drawerTabFlowDrawer && drawer !== state.drawerTabFlowDrawer) || (sku && sku !== state.drawerTabFlowSku))) {
+      stopScan();
+      cancelDrawerTabFlow();
+    }
     if (sku && state.selectedSku && sku !== state.selectedSku) {
       state.copywritingMode = false;
       state.copywritingError = '';
@@ -2030,11 +2077,6 @@
           sku,
           name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
         });
-        state.scanAttempts = 0;
-        state.seenMaterial = false;
-        state.seenProduct = false;
-        state.seenDesign = false;
-        state.scanTabCounts = {};
       }
       return;
     }
@@ -2061,9 +2103,8 @@
       if (!shouldSkipLedgerDrawer(drawer)) {
         upsertDailyLedgerFromData(state.data, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录', requireCurrentMonth: true });
       }
-      renderShell();
-      scheduleIngredientPdfHydration(state.data);
-      scheduleCopywritingHydration(state.data);
+      renderShell(L.scanning);
+      scheduleDrawerProductFlow(state.data, { reason: 'cached-open', includeScanTabs: true });
       return;
     }
 
@@ -2075,7 +2116,7 @@
     resetExcelState();
     expandPanel();
     if (state.settings.collectionEnabled) {
-      resetRound(AUTO_SCAN_ATTEMPTS);
+      resetRound();
       state.scanTargetSku = sku || '';
       startScan();
       return;
@@ -2086,6 +2127,7 @@
   function scheduleDrawerClosedCollapse() {
     const hadDrawer = Boolean(state.drawer || state.sku);
     stopScan();
+    cancelDrawerTabFlow();
     stopMaterialWatch();
     stopManualTabRead();
     state.drawer = null;
@@ -2096,19 +2138,12 @@
     if (hadDrawer) collapsePanel(true);
   }
 
-  function resetRound(maxAttempts) {
+  function resetRound() {
     stopScan();
-    state.scanAttempts = 0;
-    state.maxAttempts = maxAttempts;
+    cancelDrawerTabFlow();
     state.scanRunning = false;
     state.scanTargetSku = '';
     state.scanData = null;
-    state.seenMaterial = false;
-    state.seenProduct = false;
-    state.seenDesign = false;
-    state.scanTabCounts = {};
-    state.nextTabTarget = L.materialTab;
-    state.lastTabClickAt = 0;
   }
 
   function startScan() {
@@ -2121,6 +2156,11 @@
     stopScan();
     const drawerSku = findSku(getVisibleText(drawer));
     const targetSku = state.scanTargetSku || drawerSku || state.sku || '';
+    if (!targetSku) {
+      state.scanRunning = true;
+      state.scanTimer = window.setTimeout(startScan, 250);
+      return;
+    }
     if (targetSku) {
       state.scanTargetSku = targetSku;
       if (!state.scanData || state.scanData.sku !== targetSku) {
@@ -2131,7 +2171,11 @@
     lockLoadingTip(targetSku || state.selectedSku || '');
     state.scanRunning = true;
     if (!isLoadingTipVisible()) renderShell(L.scanning);
-    scanOnce();
+    scheduleDrawerProductFlow(state.scanData || { sku: targetSku }, {
+      reason: 'scan',
+      includeScanTabs: true,
+      replace: true,
+    });
   }
 
   async function refreshSelectedData() {
@@ -2166,16 +2210,11 @@
     state.drawer = drawer;
     state.sku = targetSku;
     state.selectedSku = targetSku;
-    if (state.thumbHydrateFailedAt) delete state.thumbHydrateFailedAt[targetSku];
-    state.thumbHydratedSkus.delete(targetSku);
     state.data = createRefreshSeedData(targetSku);
-    state.refreshingThumbSku = targetSku;
     resetExcelState();
-    resetRound(REFRESH_SCAN_ATTEMPTS);
+    resetRound();
     state.scanTargetSku = targetSku;
     renderShell(L.scanning);
-    await wait(900);
-    await prepareDrawerForRefresh(drawer);
     startScan();
   }
 
@@ -2203,6 +2242,10 @@
       ingredientPdfUpdatedAt: cached.ingredientPdfUpdatedAt || '',
       ingredientNormalizerVersion: cached.ingredientNormalizerVersion || '',
       tailSealLengthValue: cached.tailSealLengthValue || '',
+      purchasePrice: cached.purchasePrice || '',
+      purchasePriceSource: cached.purchasePriceSource || '',
+      purchasePriceUpdatedAt: cached.purchasePriceUpdatedAt || '',
+      seenDesign: cached.seenDesign,
       productListImageUrl: cached.productListImageUrl || '',
       productListImageFallbackUrl: cached.productListImageFallbackUrl || '',
       benchmarkImageUrl: cached.benchmarkImageUrl || '',
@@ -2211,25 +2254,6 @@
       skuImageFallbackUrl: preservedImageSource ? (cached.skuImageFallbackUrl || '') : '',
       skuImageSource: preservedImageSource,
     });
-  }
-
-  async function prepareDrawerForRefresh(drawer) {
-    const productTab = drawer ? findTabButton(drawer, L.productTab) : null;
-    if (productTab && !isActiveTab(productTab)) {
-      state.ignoreOutsideClickUntil = Date.now() + 1200;
-      productTab.click();
-    }
-    await waitForProductGrossWeight(drawer, 3500);
-    await wait(250);
-  }
-
-  async function waitForProductGrossWeight(drawer, timeout) {
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < timeout) {
-      if (normalizeWeight(getFormValueByLabel('\u6bdb\u91cd', drawer))) return true;
-      await wait(150);
-    }
-    return false;
   }
 
   function stopScan() {
@@ -2268,13 +2292,12 @@
   function readCurrentManualTab(drawer, sku, tab) {
     state.manualCollectTimer = 0;
     if (!state.settings.collectionEnabled || state.scanRunning || drawer !== getProjectDrawerForSku(sku) || getActiveTabText(drawer) !== tab) return;
-    const next = extractData(drawer, { forceSkuImage: tab === '\u8bbe\u8ba1\u8d44\u6599' });
+    const next = extractData(drawer, { forceSkuImage: tab === L.productTab });
     if (!next.sku || next.sku !== sku) return;
     const merged = mergeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }), next);
     const previous = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     if (!hasMeaningfulDataChange(previous, merged)) return;
     saveData(sku, merged);
-    if (tab === L.productTab) scheduleIngredientPdfHydration(merged);
     if (state.selectedSku === sku) renderShell();
   }
 
@@ -2355,65 +2378,158 @@
     return false;
   }
 
-  function scanOnce() {
-    const drawer = getProjectDrawer();
-    if (!drawer) {
-      handleDrawerState();
-      return;
+  function scheduleDrawerProductFlow(data, options) {
+    const opts = options || {};
+    const sku = String(data && data.sku || '');
+    if (!state.settings.collectionEnabled || !sku) return;
+    if (!opts.replace && state.drawerTabFlowRunning && state.drawerTabFlowSku === sku) return;
+    cancelDrawerTabFlow();
+    const token = state.drawerTabFlowToken + 1;
+    state.drawerTabFlowToken = token;
+    state.drawerTabFlowSku = sku;
+    state.drawerTabFlowUserInterrupted = false;
+    if (opts.includeScanTabs) {
+      state.scanRunning = true;
+      state.scanTargetSku = sku;
+      state.scanData = normalizeData(data);
     }
-
-    state.scanAttempts += 1;
-    const next = extractData(drawer);
-    if (state.scanTargetSku && next.sku && next.sku !== state.scanTargetSku) {
-      stopScan();
-      state.sku = next.sku;
-      state.scanTargetSku = next.sku;
-      state.scanData = normalizeData(loadData(next.sku) || next);
-      renderShell('\u62bd\u5c49\u7f16\u7801\u5df2\u5207\u6362\uff0c\u6b63\u5728\u8bfb\u53d6\u5bf9\u5e94\u4ea7\u54c1...');
-      startScan();
-      return;
-    }
-    state.seenMaterial = state.seenMaterial || next.seenMaterial;
-    state.seenProduct = state.seenProduct || next.seenProduct;
-    state.seenDesign = state.seenDesign || next.seenDesign;
-    markCurrentScanTabRead(drawer, next);
-
-    const targetSku = next.sku || state.scanTargetSku || state.sku || '';
-    if (targetSku) state.sku = targetSku;
-    const previous = state.scanData && state.scanData.sku === targetSku
-      ? state.scanData
-      : (loadData(targetSku) || { sku: targetSku });
-    state.scanData = mergeData(previous, next);
-    if (state.selectedSku === targetSku) state.data = state.scanData;
-
-    if (isRoundComplete(state.scanData) || state.scanAttempts >= state.maxAttempts) {
-      finishRound();
-      return;
-    }
-
-    clickUsefulTab(drawer);
-    state.scanTimer = window.setTimeout(scanOnce, SCAN_INTERVAL_MS);
+    state.drawerTabFlowTimer = window.setTimeout(() => {
+      state.drawerTabFlowTimer = 0;
+      runDrawerProductFlow(sku, token, opts).catch((error) => {
+        addLog('warn', '\u4ea7\u54c1\u4fe1\u606f\u96c6\u4e2d\u83b7\u53d6\u5931\u8d25', sku + ' | ' + formatErrorMessage(error));
+      });
+    }, opts.reason === 'cached-open' ? 220 : 0);
   }
 
-  async function finishRound() {
-    stopScan();
-    const completedData = state.scanData;
-    if (completedData && completedData.sku) {
-      saveData(completedData.sku, completedData);
-      if (!shouldSkipLedgerDrawer(getProjectDrawerForSku(completedData.sku) || getProjectDrawer())) {
-        upsertDailyLedgerFromData(completedData, { status: '待定稿', stage: '待定稿', note: '打开详情自动记录', requireCurrentMonth: true });
+  function isDrawerProductFlowCurrent(sku, token, drawer) {
+    return Boolean(
+      !state.drawerTabFlowUserInterrupted &&
+      state.drawerTabFlowToken === token &&
+      state.drawerTabFlowSku === sku &&
+      drawer && drawer === getProjectDrawerForSku(sku)
+    );
+  }
+
+  async function runDrawerProductFlow(sku, token, options) {
+    const includeScanTabs = Boolean(options && options.includeScanTabs);
+    const drawer = getProjectDrawerForSku(sku);
+    if (!drawer || state.drawerTabFlowToken !== token || state.drawerTabFlowSku !== sku) {
+      if (state.drawerTabFlowToken === token) {
+        if (includeScanTabs) {
+          stopScan();
+          state.scanTargetSku = '';
+          state.scanData = null;
+          renderShell(L.openDetailFailed);
+        }
+        state.drawerTabFlowRunning = false;
+        state.drawerTabFlowSku = '';
+        state.drawerTabFlowDrawer = null;
+      }
+      return;
+    }
+    state.drawerTabFlowRunning = true;
+    state.drawerTabFlowDrawer = drawer;
+    let merged = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    try {
+      const tabs = includeScanTabs ? ['\u9879\u76ee\u4fe1\u606f', L.materialTab, L.productTab] : [L.productTab];
+      for (const tab of tabs) {
+        const ready = await switchDrawerTab(drawer, tab, { flowToken: token, timeout: 4500 });
+        if (!ready || !isDrawerProductFlowCurrent(sku, token, drawer)) return;
+        let live = extractData(drawer, { forceSkuImage: tab === L.productTab });
+        if (live.sku && live.sku !== sku) return;
+        merged = mergeData(merged, live);
+        const needsShortReread = (tab === '\u9879\u76ee\u4fe1\u606f' && !live.name && !live.projectStatus)
+          || (tab === L.materialTab && !live.seenMaterial)
+          || (tab === L.productTab && (!live.seenProduct || (!live.englishName && !live.grossWeight && !live.plmProductNums)));
+        if (needsShortReread) {
+          await wait(280);
+          if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+          live = extractData(drawer, { forceSkuImage: tab === L.productTab });
+          if (live.sku && live.sku !== sku) return;
+          merged = mergeData(merged, live);
+        }
+        if (tab === L.productTab && requiresSkuImage(merged) && !getProductThumbUrl(merged)) {
+          await waitForProductInfoImage(drawer, 420);
+          if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+          live = extractData(drawer, { forceSkuImage: true });
+          if (live.sku && live.sku !== sku) return;
+          merged = mergeData(merged, live);
+        }
+        if (includeScanTabs) state.scanData = merged;
+        if (state.selectedSku === sku) state.data = merged;
+      }
+      saveData(sku, merged);
+      if (state.selectedSku === sku) state.data = merged;
+      if (includeScanTabs && !shouldSkipLedgerDrawer(drawer)) {
+        upsertDailyLedgerFromData(merged, { status: '\u5f85\u5b9a\u7a3f', stage: '\u5f85\u5b9a\u7a3f', note: '\u6253\u5f00\u8be6\u60c5\u81ea\u52a8\u8bb0\u5f55', requireCurrentMonth: true });
+      }
+
+      if (merged.projectStatus === '\u5df2\u5b8c\u6210' && !normalizeLedgerPurchasePrice(merged.purchasePrice)) {
+        const stockReady = await switchDrawerTab(drawer, '\u5907\u8d27\u4fe1\u606f', { flowToken: token, timeout: 3800 });
+        if (stockReady && isDrawerProductFlowCurrent(sku, token, drawer)) {
+          const price = await waitFor(() => extractDomesticTierPrice(drawer), 2200, 120);
+          if (price && isDrawerProductFlowCurrent(sku, token, drawer)) merged = cacheDomesticTierPrice(sku, merged, price);
+        }
+      }
+
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+      await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+
+      const ingredientItem = findIngredientPdfItem(drawer);
+      const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
+      const copywritingItem = findProductCopywritingItem(drawer);
+      const copywritingFile = copywritingItem ? findProductCopywritingFile(copywritingItem, sku) : null;
+      if (ingredientFile) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile }).catch(() => {});
+      else addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
+      if (copywritingFile) hydrateCopywritingForSku(sku, { silent: true, drawer, file: copywritingFile }).catch(() => {});
+      else addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
+    } finally {
+      if (state.drawerTabFlowToken === token) {
+        if (includeScanTabs) {
+          stopScan();
+          state.scanTargetSku = '';
+          state.scanData = null;
+          renderShell(L.scanDone);
+        } else if (state.selectedSku === sku) {
+          renderShell(L.cached);
+        }
+        state.drawerTabFlowRunning = false;
+        state.drawerTabFlowSku = '';
+        state.drawerTabFlowDrawer = null;
       }
     }
-    const shouldRefreshThumb = state.refreshingThumbSku && completedData && completedData.sku === state.refreshingThumbSku;
-    if (shouldRefreshThumb) state.refreshingThumbSku = '';
-    state.scanTargetSku = '';
-    state.scanData = null;
-    renderShell(L.scanDone);
-    if (completedData && completedData.sku) {
-      scheduleProductThumbHydration(completedData, shouldRefreshThumb ? { force: true, refreshImage: true } : { force: true });
-      scheduleIngredientPdfHydration(completedData);
-      scheduleCopywritingHydration(completedData);
+  }
+
+  function extractDomesticTierPrice(drawer) {
+    if (!drawer || getActiveTabText(drawer) !== '\u5907\u8d27\u4fe1\u606f') return '';
+    const labeled = getFormValueByLooseLabel('\u56fd\u5185\u4e09\u6863\u4ef7\u683c', drawer);
+    const fromLabel = normalizeLedgerPurchasePrice(String(labeled || '').replace(/^[^\d]*/, ''));
+    if (fromLabel) return fromLabel;
+    const text = getVisibleText(drawer);
+    const match = text.match(/\u56fd\u5185\u4e09\u6863\u4ef7\u683c\s*[:\uff1a]?\s*(?:[\uffe5\u00a5]|RMB)?\s*(\d+(?:\.\d+)?)(?![\d.])/i);
+    return normalizeLedgerPurchasePrice(match ? match[1] : '');
+  }
+
+  function cacheDomesticTierPrice(sku, data, price) {
+    const normalizedPrice = normalizeLedgerPurchasePrice(price);
+    if (!sku || !normalizedPrice) return data;
+    const previousPrice = normalizeLedgerPurchasePrice(data && data.purchasePrice);
+    const next = normalizeData({
+      ...(data || {}),
+      purchasePrice: normalizedPrice,
+      purchasePriceSource: 'plm-stock-domestic-tier',
+      purchasePriceUpdatedAt: new Date().toLocaleString(),
+    });
+    saveData(sku, next);
+    if (state.selectedSku === sku) {
+      state.data = next;
+      state.excelPurchasePrice = normalizedPrice;
     }
+    upsertDailyLedgerFromData(next, { purchasePrice: normalizedPrice });
+    if (previousPrice !== normalizedPrice) recordCommerceInsight(next, null, { price: normalizedPrice, source: 'plm-stock-domestic-tier' });
+    addLog('success', '\u5df2\u7f13\u5b58\u56fd\u5185\u4e09\u6863\u4ef7\u683c', sku + ' | ' + normalizedPrice);
+    return next;
   }
 
   async function diagnoseMissingDataBeforeSave(data) {
@@ -2453,21 +2569,16 @@
     const attempts = [];
     try {
       for (const tabName of tabs) {
-        const tab = findTabButton(drawer, tabName);
-        if (tab && !isActiveTab(tab)) {
-          state.ignoreOutsideClickUntil = Date.now() + 1200;
-          tab.click();
-        }
+        await switchDrawerTab(drawer, tabName);
         const beforeTabMissing = getMissingFieldsForData(merged);
-        let afterTabMissing = beforeTabMissing;
-        let tabAttempts = 0;
-        for (let index = 0; index < 3; index += 1) {
+        let tabAttempts = 1;
+        merged = mergeData(merged, extractData(drawer, { forceSkuImage: tabName === L.productTab }));
+        let afterTabMissing = getMissingFieldsForData(merged);
+        if (afterTabMissing.length >= beforeTabMissing.length && afterTabMissing.some((field) => beforeTabMissing.includes(field))) {
           tabAttempts += 1;
-          await wait((tabName === '\u8bbe\u8ba1\u8d44\u6599' ? 520 : 380) + (index * 180));
-          const live = extractData(drawer);
-          merged = mergeData(merged, live);
+          await wait(280);
+          merged = mergeData(merged, extractData(drawer, { forceSkuImage: tabName === L.productTab }));
           afterTabMissing = getMissingFieldsForData(merged);
-          if (afterTabMissing.length < beforeTabMissing.length || !afterTabMissing.some((field) => beforeTabMissing.includes(field))) break;
         }
         attempts.push({
           tab: tabName,
@@ -2540,58 +2651,15 @@
     const tabs = [];
     const needMaterial = missing.some((field) => ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'].includes(field));
     const needProduct = missing.some((field) => ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'].includes(field));
-    const needDesign = missing.some((field) => ['SKU\u56fe'].includes(field));
+    const needProductAsset = missing.some((field) => ['SKU\u56fe'].includes(field));
     if (needMaterial) tabs.push(L.materialTab);
     if (needProduct) tabs.push(L.productTab);
-    if (needDesign) tabs.push('\u8bbe\u8ba1\u8d44\u6599');
+    if (needProductAsset && !tabs.includes(L.productTab)) tabs.push(L.productTab);
     return tabs;
-  }
-
-  function isRoundComplete(data) {
-    return Boolean(data && data.sku && data.name && state.seenMaterial && state.seenProduct && (!requiresSkuImage(data) || state.seenDesign));
   }
 
   function requiresSkuImage(data) {
     return Boolean(data && data.projectStatus === '\u5df2\u5b8c\u6210');
-  }
-
-  function clickUsefulTab(drawer) {
-    const now = Date.now();
-    if (now - state.lastTabClickAt < TAB_CLICK_COOLDOWN_MS) return;
-
-    const target = getNextScanTabTarget(drawer);
-
-    if (!target) return;
-    const tab = findTabButton(drawer, target);
-    if (!tab || isActiveTab(tab)) return;
-    state.lastTabClickAt = now;
-    state.ignoreOutsideClickUntil = Date.now() + 1200;
-    tab.click();
-  }
-
-  function markCurrentScanTabRead(drawer, data) {
-    const activeText = getActiveTabText(drawer);
-    const tabKey = activeText === L.materialTab
-      ? 'material'
-      : (activeText === L.productTab ? 'product' : (activeText === '\u8bbe\u8ba1\u8d44\u6599' ? 'design' : ''));
-    if (tabKey === 'material' && !(data && data.seenMaterial)) return;
-    if (tabKey === 'product' && !(data && data.seenProduct)) return;
-    if (tabKey === 'design' && !(data && data.seenDesign)) return;
-    if (!tabKey) return;
-    state.scanTabCounts[tabKey] = (state.scanTabCounts[tabKey] || 0) + 1;
-  }
-
-  function getNextScanTabTarget(drawer) {
-    const activeText = getActiveTabText(drawer);
-    const minReads = 2;
-    if (!state.seenMaterial) return activeText === L.materialTab && (state.scanTabCounts.material || 0) < minReads ? '' : L.materialTab;
-    if ((state.scanTabCounts.material || 0) < minReads && activeText === L.materialTab) return '';
-    if (!state.seenProduct) return activeText === L.productTab && (state.scanTabCounts.product || 0) < minReads ? '' : L.productTab;
-    if ((state.scanTabCounts.product || 0) < minReads && activeText === L.productTab) return '';
-    if (!requiresSkuImage(state.scanData)) return '';
-    if (!state.seenDesign) return activeText === '\u8bbe\u8ba1\u8d44\u6599' && (state.scanTabCounts.design || 0) < minReads ? '' : '\u8bbe\u8ba1\u8d44\u6599';
-    if ((state.scanTabCounts.design || 0) < minReads && activeText === '\u8bbe\u8ba1\u8d44\u6599') return '';
-    return '';
   }
 
   function getProjectDrawer() {
@@ -2613,15 +2681,16 @@
     const opts = options || {};
     const text = getVisibleText(drawer);
     const activeTabText = getActiveTabText(drawer);
-    const seenMaterial = activeTabText === L.materialTab || /\u7269\u6599\u7f16\u7801.*\u7269\u6599\u540d\u79f0.*\u89c4\u683c\u578b\u53f7/.test(text);
-    const seenProduct = activeTabText === L.productTab || /\u89c4\u683c\u4fe1\u606f[\s\S]{0,300}\u6bdb\u91cd/.test(text);
-    const seenDesign = activeTabText === '\u8bbe\u8ba1\u8d44\u6599' || /\u6548\u679c\u56fe\u4fe1\u606f|\bSKU[\s(_-]*\d+.*\.(jpg|jpeg|png|webp)\b/i.test(text);
+    const hasMaterialContent = /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0[\s\S]*\u89c4\u683c\u578b\u53f7/.test(text);
+    const hasProductContent = /PRODUCT\s*NAME|\u89c4\u683c\u4fe1\u606f[\s\S]{0,500}\u6bdb\u91cd|\u6548\u679c\u56fe\u4fe1\u606f/.test(text);
+    const seenMaterial = activeTabText === L.materialTab && hasMaterialContent;
+    const seenProduct = activeTabText === L.productTab && hasProductContent;
     const projectStatus = extractProjectStatus(text);
     const packaging = seenMaterial ? extractPackaging(drawer) : emptyPackaging();
     const outer = extractOuterPackage(drawer);
     const inner = seenProduct ? extractInnerPackage(drawer) : { productNums: null };
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
-    const imageInfo = seenDesign && (projectStatus === '\u5df2\u5b8c\u6210' || opts.forceSkuImage) ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
+    const imageInfo = seenProduct && (projectStatus === '\u5df2\u5b8c\u6210' || opts.forceSkuImage) ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
     const tubeFields = extractTubeFields(drawer);
     const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'), tubeFields);
     const isTubePrint = Boolean(tubeSpec);
@@ -2658,7 +2727,7 @@
       packageSource: packaging.packageSizeText || food.productNums || isTubePrint ? L.sourceMaterial : (outer.packageNums ? L.sourceOuter : ''),
       hasInnerCard,
       brand,
-      englishName: seenDesign ? cleanEnglishProductName(extractLineAfter(text, 'PRODUCT NAME'), brand) : '',
+      englishName: seenProduct ? cleanEnglishProductName(extractLineAfter(text, 'PRODUCT NAME'), brand) : '',
       designType: getProjectLooseField(text, '\u8bbe\u8ba1\u7c7b\u578b'),
       artPriority: getProjectLooseField(text, '\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7') || extractArtPriority(text),
       projectStatus,
@@ -2672,7 +2741,6 @@
       skuImageSource: imageInfo.isSkuDesignImage ? 'effectImage' : '',
       seenMaterial,
       seenProduct,
-      seenDesign,
       updatedAt: new Date().toLocaleString(),
       updatedAtMs: Date.now(),
     };
@@ -2701,7 +2769,7 @@
         merged.isTubePrintMaterial = false;
       }
     }
-    if (next.seenDesign && (next.skuImageUrl || next.skuImageFallbackUrl)) {
+    if (next.seenProduct && (next.skuImageUrl || next.skuImageFallbackUrl)) {
       merged.skuImageUrl = next.skuImageUrl || merged.skuImageUrl || '';
       merged.skuImageFallbackUrl = next.skuImageFallbackUrl || merged.skuImageFallbackUrl || '';
       merged.skuImageSource = next.skuImageSource || merged.skuImageSource || 'effectImage';
@@ -2711,7 +2779,6 @@
     }
     merged.seenMaterial = previous.seenMaterial || next.seenMaterial;
     merged.seenProduct = previous.seenProduct || next.seenProduct;
-    merged.seenDesign = previous.seenDesign || next.seenDesign;
     return normalizeData(merged);
   }
 
@@ -4044,7 +4111,6 @@
     }
     state.data = normalizeData(data);
     if (!state.copywritingMode) {
-      scheduleProductThumbHydration(state.data);
       scheduleInsightRecommendation(state.data);
     }
     const main = panel.querySelector('.pfh-main');
@@ -4104,13 +4170,13 @@
   function copywritingViewHtml(data) {
     const record = normalizeCopywritingRecord(data && data.copywriting);
     if (state.copywritingLoading && !(record && record.fullText)) {
-      return '<section class="pfh-copywriting-page is-loading"><div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位设计资料里的 Word 附件...') + '</p></div></section>';
+      return '<section class="pfh-copywriting-page is-loading"><div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
     }
     const errorHtml = state.copywritingError
       ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + escapeHtml(state.copywritingError) + '</span></div>'
       : '';
     if (!record || !record.fullText) {
-      return '<section class="pfh-copywriting-page">' + errorHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取设计资料里的产品文案 Word。</p></div></section>';
+      return '<section class="pfh-copywriting-page">' + errorHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
     }
     const changed = new Set(record.changedSectionKeys || []);
     const updateHtml = record.updatePending
@@ -4326,7 +4392,7 @@
     if (isFoodEntry) {
       const cached = normalizeData(loadData(data.sku) || data);
       if (!cached.ingredientChinese || !cached.ingredientEnglish) {
-        const message = '\u672a\u627e\u5230\u5b8c\u6574\u7684\u6210\u5206\u8868\u7f13\u5b58\u3002\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684\u300c\u8bbe\u8ba1\u8d44\u6599\u300d\uff0c\u7b49\u5f85\u6210\u5206\u8868\u8bfb\u53d6\u5b8c\u6210\u540e\u518d\u8bd5\u3002';
+        const message = '\u672a\u627e\u5230\u5b8c\u6574\u7684\u6210\u5206\u8868\u7f13\u5b58\u3002\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684\u300c\u4ea7\u54c1\u4fe1\u606f\u300d\uff0c\u7b49\u5f85\u6210\u5206\u8868\u8bfb\u53d6\u5b8c\u6210\u540e\u518d\u8bd5\u3002';
         setToyCopywritingError(data.sku, message, 'ingredient-cache');
         addLog('warn', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u7f3a\u5c11\u6210\u5206\u8868\u7f13\u5b58', data.sku);
         renderShell();
@@ -5668,96 +5734,6 @@
     return /^(?:effectImage|productListImage)$/.test(data.skuImageSource || '') ? (data.skuImageUrl || data.skuImageFallbackUrl || '') : '';
   }
 
-  function scheduleProductThumbHydration(data, options) {
-    const opts = options || {};
-    const sku = data && data.sku;
-    if (!state.settings.collectionEnabled || !sku || !requiresSkuImage(data) || (!opts.refreshImage && getProductThumbUrl(data)) || state.thumbHydratingSku === sku || (!opts.force && state.thumbHydratedSkus.has(sku))) return;
-    if (state.scanRunning && !opts.force) return;
-    const failedAt = state.thumbHydrateFailedAt && state.thumbHydrateFailedAt[sku] || 0;
-    if (!opts.force && failedAt && Date.now() - failedAt < 45000) return;
-    state.thumbHydratingSku = sku;
-    window.setTimeout(() => hydrateProductThumb(sku).catch((error) => {
-      console.warn('PLM floating helper thumbnail hydration failed:', error);
-      state.thumbHydrateFailedAt[sku] = Date.now();
-    }).finally(() => {
-      if (state.thumbHydratingSku === sku) state.thumbHydratingSku = '';
-    }), 180);
-  }
-
-  async function hydrateProductThumb(sku) {
-    if (!state.settings.collectionEnabled) return;
-    const drawer = getProjectDrawerForSku(sku);
-    if (!drawer) {
-      state.thumbHydrateFailedAt[sku] = Date.now();
-      return;
-    }
-    const current = normalizeData(loadData(sku) || state.data || { sku });
-    const isCompleted = /^已完成$/.test(String(current.projectStatus || '').trim());
-    const ledgerRecord = (state.ledgerRecords || []).find((item) => item.sku === sku);
-    if (!isCompleted) {
-      const activeTab = getActiveTabText(drawer);
-      let benchmarkInfo = findProjectBenchmarkImageInfo(drawer);
-      if (!benchmarkInfo.imageUrl && !benchmarkInfo.imageFallbackUrl) {
-        await switchDrawerTab(drawer, '项目信息');
-        await wait(180);
-        benchmarkInfo = findProjectBenchmarkImageInfo(drawer);
-        if (activeTab) await switchDrawerTab(drawer, activeTab);
-      }
-      const benchmarkSrc = benchmarkInfo.imageUrl || benchmarkInfo.imageFallbackUrl || '';
-      if (!benchmarkSrc) {
-        state.thumbHydrateFailedAt[sku] = Date.now();
-        return;
-      }
-      const benchmarkData = normalizeData({
-        ...current,
-        benchmarkImageUrl: benchmarkSrc,
-        benchmarkImageFallbackUrl: benchmarkInfo.imageFallbackUrl || benchmarkSrc,
-      });
-      saveDataDirect(sku, benchmarkData);
-      if (state.data && state.data.sku === sku) state.data = benchmarkData;
-      if (ledgerRecord) {
-        ledgerRecord.benchmarkImageUrl = benchmarkSrc;
-        saveDailyLedger();
-        refreshLedgerCard(ledgerRecord);
-      }
-    } else {
-      const imageInfo = await collectProductImageInfo(drawer, {
-        sku,
-        allowPreview: true,
-        restoreTab: true,
-        designTimeout: 1500,
-      });
-      if (!getProjectDrawerForSku(sku)) return;
-      const src = imageInfo.isSkuDesignImage ? (imageInfo.imageUrl || imageInfo.imageFallbackUrl) : '';
-      if (!src) {
-        state.thumbHydrateFailedAt[sku] = Date.now();
-        return;
-      }
-      cacheProductThumb(current, { skuImageUrl: src, skuImageFallbackUrl: imageInfo.imageFallbackUrl || src, isSkuDesignImage: true });
-      if (ledgerRecord) {
-        ledgerRecord.skuImageUrl = src;
-        saveDailyLedger();
-        refreshLedgerCard(ledgerRecord);
-      }
-    }
-    if (state.thumbHydrateFailedAt) delete state.thumbHydrateFailedAt[sku];
-    state.thumbHydratedSkus.add(sku);
-    if (state.data && state.data.sku === sku && state.view !== 'ledger' && !updateProductThumbInPlace(state.data)) renderShell();
-  }
-
-  function findProjectBenchmarkImageInfo(drawer) {
-    if (!drawer) return { imageUrl: '', imageFallbackUrl: '' };
-    const scope = Array.from(drawer.querySelectorAll('.ant-form-item, .ant-row, .ant-descriptions-item, .form-item, .previewFormRoot, div'))
-      .filter(isVisibleElement)
-      .find((el) => /对标图片|项目信息|项目图片|benchmark/i.test(getDesignAssetContext(el))) || drawer;
-    const preview = Array.from(scope.querySelectorAll('img, .ant-image, .filePreviewCard, .previewMasker, .preview'))
-      .filter(isVisibleElement)
-      .find((el) => /对标图片|benchmark|项目图片|预览|图片/i.test(getDesignAssetContext(el)) || /oss-pro\.plm\.westmonth\.cn|ai-obj\.westmonth\.com/.test((el.currentSrc || el.src || '').trim()));
-    if (!preview) return { imageUrl: '', imageFallbackUrl: '' };
-    const src = preview.currentSrc || preview.src || '';
-    return { imageUrl: stripOssResizeParams(src), imageFallbackUrl: src };
-  }
-
   function rowHtml(key, title, value, options) {
     const shown = value || L.unknown;
     const colorClass = /^package(Length|Width|Height)$/.test(key) ? ' is-carton-dim' : (/^product(Length|Width|Height)$/.test(key) ? ' is-product-dim' : '');
@@ -6003,9 +5979,10 @@
     state.copywritingMode = true;
     state.copywritingLoading = !(initialCached && initialCached.fullText);
     state.copywritingError = '';
-    state.copywritingStatus = state.copywritingLoading ? '正在打开设计资料...' : '';
+    state.copywritingStatus = state.copywritingLoading ? '正在打开产品信息...' : '';
     stopScan();
     stopMaterialWatch();
+    cancelDrawerTabFlow();
     expandPanel();
     addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
     try {
@@ -6016,16 +5993,16 @@
       }
       if (!drawer) throw new Error('未打开当前编码的项目详情');
       stopScan();
-      state.copywritingStatus = '正在定位设计资料里的产品文案...';
+      state.copywritingStatus = '正在定位产品信息里的产品文案...';
       renderShell();
-      await switchDrawerTab(drawer, '设计资料');
-      const designReady = await waitFor(() => {
-        const tab = findTabButton(drawer, '设计资料');
+      await switchDrawerTab(drawer, L.productTab);
+      const productReady = await waitFor(() => {
+        const tab = findTabButton(drawer, L.productTab);
         return tab && isActiveTab(tab);
       }, 5000, 120);
-      if (!designReady) throw new Error('无法切换到设计资料');
+      if (!productReady) throw new Error('无法切换到产品信息');
       const item = await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
-      if (!item) throw new Error('设计资料中未找到“产品文案”字段');
+      if (!item) throw new Error('产品信息中未找到“产品文案”字段');
       const file = findProductCopywritingFile(item, sku);
       if (!file) throw new Error('产品文案字段中未找到当前编码的 Word 文件');
       const workingData = normalizeData(loadData(sku) || state.data || data);
@@ -6111,30 +6088,24 @@
     renderShell();
   }
 
-  function scheduleCopywritingHydration(data) {
-    const sku = String(data && data.sku || '');
-    if (!state.settings.collectionEnabled || !sku || state.copywritingHydratingSkus.has(sku)) return;
-    const failedAt = Number(state.copywritingHydrateFailedAt[sku] || 0);
-    if (failedAt && Date.now() - failedAt < 10 * 60 * 1000) return;
-    window.setTimeout(() => {
-      hydrateCopywritingForSku(sku).catch(() => {});
-    }, 1600);
-  }
-
   async function hydrateCopywritingForSku(sku, options) {
     const opts = options || {};
+    const resultGeneration = Number(state.skuResultGeneration[sku] || 0);
     if (!sku || state.copywritingHydratingSkus.has(sku)) return normalizeData(loadData(sku) || {});
+    const failedAt = Number(state.copywritingHydrateFailedAt[sku] || 0);
+    if (!opts.force && failedAt && Date.now() - failedAt < 10 * 60 * 1000) return normalizeData(loadData(sku) || {});
     if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
-    const drawer = getProjectDrawerForSku(sku);
-    if (!drawer) return normalizeData(loadData(sku) || {});
+    const drawer = opts.drawer || getProjectDrawerForSku(sku);
+    if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
     state.copywritingHydratingSkus.add(sku);
     const originalTab = getActiveTabText(drawer);
     try {
-      await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
-      await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
-      const item = findProductCopywritingItem(drawer);
-      if (!item) return normalizeData(loadData(sku) || {});
-      const file = findProductCopywritingFile(item, sku);
+      if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab) return normalizeData(loadData(sku) || {});
+      if (!opts.file) await switchDrawerTab(drawer, L.productTab);
+      if (!opts.file) await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
+      const item = opts.file ? null : findProductCopywritingItem(drawer);
+      if (!opts.file && !item) return normalizeData(loadData(sku) || {});
+      const file = opts.file || findProductCopywritingFile(item, sku);
       if (!file) return normalizeData(loadData(sku) || {});
       const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
       const oldRecord = normalizeCopywritingRecord(cached.copywriting);
@@ -6163,44 +6134,41 @@
       if (!built.sections.length) throw new Error('Word \u4e2d\u672a\u8bc6\u522b\u5230\u4e3b\u6d41\u7248\u6587\u6848\u5b57\u6bb5');
       const nextRecord = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, oldRecord);
       const next = normalizeData({ ...cached, copywriting: nextRecord });
+      if (drawer !== getProjectDrawerForSku(sku) || Number(state.skuResultGeneration[sku] || 0) !== resultGeneration) return normalizeData(loadData(sku) || {});
       saveData(sku, next);
       delete state.copywritingHydrateFailedAt[sku];
       addLog('success', '\u4ea7\u54c1\u6587\u6848\u9759\u9ed8\u7f13\u5b58\u5b8c\u6210', sku + ' | ' + file.fileName);
       return next;
     } catch (error) {
-      state.copywritingHydrateFailedAt[sku] = Date.now();
-      addLog('warn', '\u4ea7\u54c1\u6587\u6848\u9759\u9ed8\u8bfb\u53d6\u5931\u8d25', sku + ' | ' + formatErrorMessage(error));
+      if (Number(state.skuResultGeneration[sku] || 0) === resultGeneration) {
+        state.copywritingHydrateFailedAt[sku] = Date.now();
+        addLog('warn', '\u4ea7\u54c1\u6587\u6848\u9759\u9ed8\u8bfb\u53d6\u5931\u8d25', sku + ' | ' + formatErrorMessage(error));
+      }
       return normalizeData(loadData(sku) || {});
     } finally {
-      state.copywritingHydratingSkus.delete(sku);
+      if (Number(state.skuResultGeneration[sku] || 0) === resultGeneration) state.copywritingHydratingSkus.delete(sku);
       const currentDrawer = getProjectDrawerForSku(sku);
-      if (currentDrawer && originalTab && getActiveTabText(currentDrawer) !== originalTab) await switchDrawerTab(currentDrawer, originalTab);
+      if (!opts.silent && currentDrawer && originalTab && getActiveTabText(currentDrawer) !== originalTab) await switchDrawerTab(currentDrawer, originalTab);
     }
-  }
-
-  function scheduleIngredientPdfHydration(data) {
-    const sku = String(data && data.sku || '');
-    if (!state.settings.collectionEnabled || !sku || state.ingredientHydratingSkus.has(sku)) return;
-    const failedAt = Number(state.ingredientHydrateFailedAt[sku] || 0);
-    if (failedAt && Date.now() - failedAt < 10 * 60 * 1000) return;
-    window.setTimeout(() => {
-      hydrateIngredientPdfForSku(sku).catch(() => {});
-    }, 900);
   }
 
   async function hydrateIngredientPdfForSku(sku, options) {
     const opts = options || {};
+    const resultGeneration = Number(state.skuResultGeneration[sku] || 0);
     if (!sku || state.ingredientHydratingSkus.has(sku)) return normalizeData(loadData(sku) || {});
-    const drawer = getProjectDrawerForSku(sku);
-    if (!drawer) return normalizeData(loadData(sku) || {});
+    const failedAt = Number(state.ingredientHydrateFailedAt[sku] || 0);
+    if (!opts.force && failedAt && Date.now() - failedAt < 10 * 60 * 1000) return normalizeData(loadData(sku) || {});
+    const drawer = opts.drawer || getProjectDrawerForSku(sku);
+    if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
     state.ingredientHydratingSkus.add(sku);
     const originalTab = getActiveTabText(drawer);
     try {
-      await switchDrawerTab(drawer, L.productTab);
-      await waitFor(() => findIngredientPdfItem(drawer), 3500, 140);
-      const item = findIngredientPdfItem(drawer);
-      if (!item) return normalizeData(loadData(sku) || {});
-      const file = findIngredientPdfFile(item);
+      if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab) return normalizeData(loadData(sku) || {});
+      if (!opts.file) await switchDrawerTab(drawer, L.productTab);
+      if (!opts.file) await waitFor(() => findIngredientPdfItem(drawer), 3500, 140);
+      const item = opts.file ? null : findIngredientPdfItem(drawer);
+      if (!opts.file && !item) return normalizeData(loadData(sku) || {});
+      const file = opts.file || findIngredientPdfFile(item);
       if (!file) return normalizeData(loadData(sku) || {});
       const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
       if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfFileName === file.fileName && cached.ingredientEnglish && cached.ingredientChinese) return cached;
@@ -6215,7 +6183,7 @@
       if (!isPdfBuffer(arrayBuffer)) throw new Error('读取到的内容不是有效 PDF');
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
       if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfHash === fileHash && cached.ingredientEnglish && cached.ingredientChinese) {
-        if (cached.ingredientPdfFileName !== file.fileName) saveData(sku, { ...cached, ingredientPdfFileName: file.fileName });
+        if (cached.ingredientPdfFileName !== file.fileName && drawer === getProjectDrawerForSku(sku) && Number(state.skuResultGeneration[sku] || 0) === resultGeneration) saveData(sku, { ...cached, ingredientPdfFileName: file.fileName });
         return cached;
       }
       let rawText = '';
@@ -6250,6 +6218,7 @@
         ingredientPdfUpdatedAt: new Date().toLocaleString(),
         ingredientNormalizerVersion: String(response.normalizerVersion || INGREDIENT_NORMALIZER_VERSION),
       });
+      if (drawer !== getProjectDrawerForSku(sku) || Number(state.skuResultGeneration[sku] || 0) !== resultGeneration) return normalizeData(loadData(sku) || {});
       saveData(sku, next);
       const clearedCopywritingError = state.toyCopywritingErrorSku === sku && state.toyCopywritingErrorKind === 'ingredient-cache' && Boolean(state.toyCopywritingError);
       if (clearedCopywritingError) {
@@ -6261,13 +6230,15 @@
       addLog('success', '成分表静默缓存完成', sku + ' | ' + next.ingredientEnglish);
       return next;
     } catch (error) {
-      state.ingredientHydrateFailedAt[sku] = Date.now();
-      addLog('warn', '成分表静默读取失败', sku + ' | ' + formatErrorMessage(error));
+      if (Number(state.skuResultGeneration[sku] || 0) === resultGeneration) {
+        state.ingredientHydrateFailedAt[sku] = Date.now();
+        addLog('warn', '成分表静默读取失败', sku + ' | ' + formatErrorMessage(error));
+      }
       return normalizeData(loadData(sku) || {});
     } finally {
-      state.ingredientHydratingSkus.delete(sku);
+      if (Number(state.skuResultGeneration[sku] || 0) === resultGeneration) state.ingredientHydratingSkus.delete(sku);
       const currentDrawer = getProjectDrawerForSku(sku);
-      if (currentDrawer && originalTab && getActiveTabText(currentDrawer) !== originalTab) await switchDrawerTab(currentDrawer, originalTab);
+      if (!opts.silent && currentDrawer && originalTab && getActiveTabText(currentDrawer) !== originalTab) await switchDrawerTab(currentDrawer, originalTab);
     }
   }
 
@@ -10405,7 +10376,7 @@
     } catch (error) {
       console.warn('PLM floating helper excel prepare failed:', error);
       state.excelExtra = null;
-      state.excelMissing = ['\u8bbe\u8ba1\u8d44\u6599'];
+      state.excelMissing = [L.productTab];
       state.excelStatus = L.excelIncomplete;
       addLog('error', '\u83b7\u53d6\u8868\u683c\u4fe1\u606f\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
       recordDataQuality(data, 'excelPrepareFailed');
@@ -10704,7 +10675,7 @@
       sku: data.sku,
       allowPreview: true,
       restoreTab: true,
-      designTimeout: 4500,
+      productInfoTimeout: 4500,
     }) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
     const imageUrl = imageInfo.isSkuDesignImage && (imageInfo.imageUrl || imageInfo.imageFallbackUrl);
     if (!imageUrl) {
@@ -10733,23 +10704,31 @@
   }
 
   async function getPlmBarcodePreviewImage(sku) {
+    stopScan();
+    cancelDrawerTabFlow();
     const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
     if (!drawer) return null;
-    await switchDrawerTab(drawer, L.productTab);
-    await waitForDrawerText(drawer, '\u6761\u7801\u6587\u4ef6', 1600);
-    const label = Array.from(drawer.querySelectorAll('label, .ant-form-item-label, .ant-form-item-no-colon'))
-      .filter(isVisibleElement)
-      .find((el) => compactText(el.innerText || el.textContent) === '\u6761\u7801\u6587\u4ef6');
-    const item = label && label.closest('.ant-form-item');
-    if (!item) return null;
-    const img = Array.from(item.querySelectorAll('img'))
-      .filter(isVisibleElement)
-      .find((el) => {
-        const src = el.currentSrc || el.src || '';
-        return src && !/filePic\/pdf\.png/i.test(src) && !/filePic\/image\.png/i.test(src);
-      });
-    if (!img) return null;
-    return { dataUrl: img.currentSrc || img.src || '', source: 'plm-preview' };
+    const token = beginForegroundDrawerTabFlow(sku, drawer);
+    try {
+      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) return null;
+      await waitForDrawerText(drawer, '\u6761\u7801\u6587\u4ef6', 1600);
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
+      const label = Array.from(drawer.querySelectorAll('label, .ant-form-item-label, .ant-form-item-no-colon'))
+        .filter(isVisibleElement)
+        .find((el) => compactText(el.innerText || el.textContent) === '\u6761\u7801\u6587\u4ef6');
+      const item = label && label.closest('.ant-form-item');
+      if (!item) return null;
+      const img = Array.from(item.querySelectorAll('img'))
+        .filter(isVisibleElement)
+        .find((el) => {
+          const src = el.currentSrc || el.src || '';
+          return src && !/filePic\/pdf\.png/i.test(src) && !/filePic\/image\.png/i.test(src);
+        });
+      if (!img) return null;
+      return { dataUrl: img.currentSrc || img.src || '', source: 'plm-preview' };
+    } finally {
+      finishForegroundDrawerTabFlow(token);
+    }
   }
 
   async function renderToyLabelPrintCanvas(options) {
@@ -11025,6 +11004,8 @@
   }
 
   async function collectExcelExtraData(sku) {
+    stopScan();
+    cancelDrawerTabFlow();
     const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
     const cachedData = normalizeData((state.data && state.data.sku === sku ? state.data : null) || loadData(sku) || {});
     const extra = {
@@ -11039,37 +11020,40 @@
       liveData: null,
     };
     if (!drawer) return extra;
-    await switchDrawerTab(drawer, L.productTab);
-    await waitForDrawerText(drawer, '\u6bdb\u91cd', 1200);
-    extra.liveData = extractData(drawer);
-    let ingredientData;
-    if (state.ingredientHydratingSkus.has(sku)) {
-      await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
-      ingredientData = normalizeData(loadData(sku) || {});
-    } else ingredientData = await hydrateIngredientPdfForSku(sku);
-    extra.ingredientEnglish = ingredientData.ingredientEnglish || extra.ingredientEnglish;
-    extra.ingredientChinese = ingredientData.ingredientChinese || extra.ingredientChinese;
-    await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
-    await waitForDesignData(drawer, 4500);
-    const designText = getVisibleText(drawer);
-    const previewImageInfo = await collectProductImageInfo(drawer, {
-      sku,
-      includeBenchmark: false,
-      allowPreview: true,
-      restoreTab: false,
-      designTimeout: 4500,
-    });
-    Object.assign(extra, {
-      englishName: cleanEnglishProductName(extractLineAfter(designText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
-      chineseName: extractLineAfter(designText, '\u5546\u54c1\u540d\u79f0') || '',
-      ingredients: extra.ingredientChinese || extra.ingredientEnglish || extractNamedField(designText, '\u6210\u5206') || extractNamedField(designText, '\u6210\u4efd') || '',
-      ...previewImageInfo,
-    });
+    const token = beginForegroundDrawerTabFlow(sku, drawer);
+    try {
+      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) throw new Error('\u4ea7\u54c1\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
+      extra.liveData = extractData(drawer, { forceSkuImage: true });
+      const ingredientItem = findIngredientPdfItem(drawer);
+      const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
+      if (ingredientFile && !state.ingredientHydratingSkus.has(sku)) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile }).catch(() => {});
+      const ingredientData = normalizeData(loadData(sku) || {});
+      extra.ingredientEnglish = ingredientData.ingredientEnglish || extra.ingredientEnglish;
+      extra.ingredientChinese = ingredientData.ingredientChinese || extra.ingredientChinese;
+      const productText = getVisibleText(drawer);
+      const previewImageInfo = await collectProductImageInfo(drawer, {
+        sku,
+        includeBenchmark: false,
+        allowPreview: true,
+        restoreTab: false,
+        productInfoTimeout: 4500,
+        flowToken: token,
+      });
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) throw new Error('\u7528\u6237\u5df2\u5207\u6362\u9875\u7b7e\uff0cExcel \u8865\u5145\u8bfb\u53d6\u5df2\u53d6\u6d88');
+      Object.assign(extra, {
+        englishName: cleanEnglishProductName(extractLineAfter(productText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
+        chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || '',
+        ingredients: extra.ingredientChinese || extra.ingredientEnglish || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
+        ...previewImageInfo,
+      });
 
-    await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f');
-    await waitForDrawerText(drawer, '\u5bf9\u6807\u94fe\u63a5', 1200);
-    extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer));
-    return extra;
+      if (!(await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f', { flowToken: token, timeout: 3500 }))) throw new Error('\u9879\u76ee\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
+      extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer));
+      await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
+      return extra;
+    } finally {
+      finishForegroundDrawerTabFlow(token);
+    }
   }
 
   function getCachedSkuImageInfo(sku) {
@@ -11087,9 +11071,41 @@
     };
   }
 
-  async function switchDrawerTab(drawer, label) {
+  async function switchDrawerTab(drawer, label, options) {
+    const opts = options || {};
+    if (!drawer) return false;
+    if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
     const button = findTabButton(drawer, label);
-    if (button && !isActiveTab(button)) button.click();
+    if (!button) return false;
+    if (!isActiveTab(button)) {
+      state.ignoreOutsideClickUntil = Date.now() + 1200;
+      button.click();
+    }
+    const timeout = Number(opts.timeout || 3500) || 3500;
+    const startedAt = Date.now();
+    const active = await waitFor(() => {
+      if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
+      const current = findTabButton(drawer, label);
+      return current && isActiveTab(current);
+    }, timeout, 100);
+    if (!active) return false;
+    const readinessTimeout = Math.max(250, timeout - (Date.now() - startedAt));
+    const ready = await waitFor(() => {
+      if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
+      return isDrawerTabContentReady(drawer, label);
+    }, readinessTimeout, 120);
+    if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
+    return Boolean(ready);
+  }
+
+  function isDrawerTabContentReady(drawer, label) {
+    if (!drawer || getActiveTabText(drawer) !== label) return false;
+    const text = getVisibleText(drawer);
+    if (label === L.materialTab) return /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0|\u89c4\u683c\u578b\u53f7/.test(text);
+    if (label === L.productTab) return /PRODUCT\s*NAME|\u89c4\u683c\u4fe1\u606f[\s\S]*\u6bdb\u91cd|\u6548\u679c\u56fe\u4fe1\u606f/.test(text);
+    if (label === '\u5907\u8d27\u4fe1\u606f') return /\u56fd\u5185\u4e09\u6863\u4ef7\u683c|\u91c7\u8d2d\u4ef7/.test(text);
+    if (label === '\u9879\u76ee\u4fe1\u606f') return /\u9879\u76ee\u7f16\u7801|\u5bf9\u6807\u94fe\u63a5/.test(text);
+    return true;
   }
 
   async function waitForDrawerText(drawer, text, timeout) {
@@ -11101,34 +11117,29 @@
     return false;
   }
 
-  async function waitForDesignData(drawer, timeout) {
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < timeout) {
-      const text = getVisibleText(drawer);
-      const hasName = text.includes('PRODUCT NAME');
-      const hasIngredients = Boolean(extractNamedField(text, '\u6210\u5206') || extractNamedField(text, '\u6210\u4efd'));
-      if (hasName && hasIngredients) return true;
-      scrollDrawerBody(drawer, 0);
-      await wait(180);
-    }
-    return false;
-  }
-
   async function collectProductImageInfo(drawer, options) {
     const opts = options || {};
     const activeText = opts.restoreTab ? getActiveTabText(drawer) : '';
     let imageInfo = { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
-    await switchDrawerTab(drawer, '\u8bbe\u8ba1\u8d44\u6599');
-    await waitForDesignImage(drawer, opts.designTimeout || 1800);
-    imageInfo = findDesignImageInfo(drawer);
-    if ((!imageInfo.imageUrl && !imageInfo.imageFallbackUrl) && opts.allowPreview) {
-      imageInfo = await openPreviewAndGetImageInfo(drawer);
+    const ownsFlow = !opts.flowToken && Boolean(opts.sku);
+    if (ownsFlow) stopScan();
+    const flowToken = opts.flowToken || (ownsFlow ? beginForegroundDrawerTabFlow(opts.sku, drawer) : 0);
+    try {
+      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken, timeout: opts.productInfoTimeout || 3500 }))) return imageInfo;
+      await waitForProductInfoImage(drawer, opts.productInfoTimeout || 1800);
+      if (flowToken && state.drawerTabFlowToken !== flowToken) return imageInfo;
+      imageInfo = findDesignImageInfo(drawer);
+      if ((!imageInfo.imageUrl && !imageInfo.imageFallbackUrl) && opts.allowPreview) {
+        imageInfo = await openPreviewAndGetImageInfo(drawer);
+      }
+      if (opts.restoreTab && activeText) await switchDrawerTab(drawer, activeText, { flowToken });
+      return imageInfo;
+    } finally {
+      if (ownsFlow) finishForegroundDrawerTabFlow(flowToken);
     }
-    if (opts.restoreTab && activeText) await switchDrawerTab(drawer, activeText);
-    return imageInfo;
   }
 
-  async function waitForDesignImage(drawer, timeout) {
+  async function waitForProductInfoImage(drawer, timeout) {
     const startedAt = Date.now();
     while (Date.now() - startedAt < timeout) {
       const imageInfo = findDesignImageInfo(drawer);
@@ -11137,11 +11148,6 @@
       await wait(120);
     }
     return false;
-  }
-
-  function scrollDrawerBody(drawer, top) {
-    const body = drawer && (drawer.querySelector('.ant-drawer-body') || drawer.querySelector('.previewFormRoot'));
-    if (body && Number.isFinite(body.scrollTop)) body.scrollTop = top;
   }
 
   function scrollDesignImageCardsIntoView(drawer) {
@@ -14010,7 +14016,6 @@
     const seen = [
       data.seenMaterial ? '\u7269\u6599' : '',
       data.seenProduct ? '\u4ea7\u54c1' : '',
-      data.seenDesign ? '\u8bbe\u8ba1' : '',
     ].filter(Boolean).join('/');
     const issueMeta = getDataQualityIssueMeta(data, missing);
     const item = {
@@ -14053,7 +14058,7 @@
     if (!shouldOmitToyProductSize(data) && (!data.productLength || !data.productWidth || !data.productHeight)) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
     if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
     if (!data.grossWeight) missing.push('\u6bdb\u91cd');
-    if (data.seenDesign && !getProductThumbUrl(data)) missing.push('SKU\u56fe');
+    if (data.seenProduct && !getProductThumbUrl(data)) missing.push('SKU\u56fe');
     return missing;
   }
 
@@ -14061,22 +14066,21 @@
     const readTabs = [
       data.seenMaterial ? '\u7269\u6599\u6e05\u5355' : '',
       data.seenProduct ? '\u4ea7\u54c1\u4fe1\u606f' : '',
-      data.seenDesign ? '\u8bbe\u8ba1\u8d44\u6599' : '',
     ].filter(Boolean);
     const allCoreTabsRead = Boolean(data.seenMaterial && data.seenProduct);
     const materialFields = ['\u5305\u88c5\u5c3a\u5bf8', '\u5370\u5237\u5c3a\u5bf8', '\u51c0\u542b\u91cf'];
     const productFields = ['\u4ea7\u54c1\u5c3a\u5bf8', '\u6bdb\u91cd'];
-    const designFields = ['SKU\u56fe'];
+    const productAssetFields = ['SKU\u56fe'];
     const projectFields = ['\u54c1\u724c', '\u5546\u54c1\u540d\u79f0'];
     const missingMaterial = missing.some((field) => materialFields.includes(field));
     const missingProduct = missing.some((field) => productFields.includes(field));
-    const missingDesign = missing.some((field) => designFields.includes(field));
+    const missingProductAsset = missing.some((field) => productAssetFields.includes(field));
     const missingProject = missing.some((field) => projectFields.includes(field));
-    const targetTabUnread = (missingMaterial && !data.seenMaterial) || (missingProduct && !data.seenProduct) || (missingDesign && !data.seenDesign);
+    const targetTabUnread = (missingMaterial && !data.seenMaterial) || ((missingProduct || missingProductAsset) && !data.seenProduct);
     let kind = '\u53ef\u80fd PLM \u7a7a\u503c';
     if (targetTabUnread || !readTabs.length) {
       kind = '\u9875\u9762\u672a\u8bfb\u5b8c';
-    } else if (missingProject || (missingMaterial && data.seenMaterial) || (missingProduct && data.seenProduct) || (missingDesign && data.seenDesign) || allCoreTabsRead) {
+    } else if (missingProject || (missingMaterial && data.seenMaterial) || ((missingProduct || missingProductAsset) && data.seenProduct) || allCoreTabsRead) {
       kind = '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790';
     }
     const diagnosticAttempt = sanitizeMissingDiagnostic(data.lastMissingDiagnostic);
@@ -14095,7 +14099,7 @@
       ? Boolean(data.sku)
       : (targetTab === '\u7269\u6599\u6e05\u5355'
       ? Boolean(data.seenMaterial)
-      : (targetTab === '\u4ea7\u54c1\u4fe1\u606f' ? Boolean(data.seenProduct) : (targetTab === '\u8bbe\u8ba1\u8d44\u6599' ? Boolean(data.seenDesign) : false)));
+      : (targetTab === '\u4ea7\u54c1\u4fe1\u606f' ? Boolean(data.seenProduct) : false));
     const issueKind = tabRead ? '\u9875\u9762\u5df2\u8bfb\u4f46\u672a\u89e3\u6790' : '\u9875\u9762\u672a\u8bfb\u5b8c';
     const retryText = formatFieldRetryAction(field, diagnosticAttempt);
     return {
@@ -14146,8 +14150,7 @@
   function getMissingFieldTargetTab(field) {
     if (field === '\u5305\u88c5\u5c3a\u5bf8' || field === '\u5370\u5237\u5c3a\u5bf8' || field === '\u51c0\u542b\u91cf') return '\u7269\u6599\u6e05\u5355';
     if (field === '\u54c1\u724c' || field === '\u5546\u54c1\u540d\u79f0') return '\u9879\u76ee\u8be6\u60c5';
-    if (field === '\u4ea7\u54c1\u5c3a\u5bf8' || field === '\u6bdb\u91cd') return '\u4ea7\u54c1\u4fe1\u606f';
-    if (field === 'SKU\u56fe') return '\u8bbe\u8ba1\u8d44\u6599';
+    if (field === '\u4ea7\u54c1\u5c3a\u5bf8' || field === '\u6bdb\u91cd' || field === 'SKU\u56fe') return '\u4ea7\u54c1\u4fe1\u606f';
     return '';
   }
 
@@ -14669,6 +14672,11 @@
 
   function deleteSkuFromList(sku) {
     if (!sku || !state.index.some((entry) => entry.sku === sku)) return;
+    if (state.drawerTabFlowSku === sku) {
+      stopScan();
+      cancelDrawerTabFlow();
+    }
+    state.skuResultGeneration[sku] = Number(state.skuResultGeneration[sku] || 0) + 1;
     try {
       if (typeof GM_deleteValue === 'function') GM_deleteValue(STORAGE_PREFIX + sku);
       else if (typeof GM_setValue === 'function') GM_setValue(STORAGE_PREFIX + sku, null);
@@ -14678,10 +14686,8 @@
     }
     state.index = state.index.filter((entry) => entry.sku !== sku);
     saveIndex();
-    state.thumbHydratedSkus.delete(sku);
     state.ingredientHydratingSkus.delete(sku);
     state.copywritingHydratingSkus.delete(sku);
-    delete state.thumbHydrateFailedAt[sku];
     delete state.ingredientHydrateFailedAt[sku];
     delete state.copywritingHydrateFailedAt[sku];
     delete state.sizeImageSessions[sku];
