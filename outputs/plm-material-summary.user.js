@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.92
+// @version      2.5.93
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.92';
+  const SCRIPT_VERSION = '2.5.93';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -169,10 +169,12 @@
             packageLength: fieldValue(data, 'packageLength', 'cartonLength'),
             packageWidth: fieldValue(data, 'packageWidth', 'cartonWidth'),
             packageHeight: fieldValue(data, 'packageHeight', 'cartonHeight'),
-            productWidth: data && data.isTubePrint
-              ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
-              : fieldValue(data, 'productWidth', 'productWidth'),
-            productHeight: fieldValue(data, 'productHeight', 'productHeight'),
+            productWidth: data && data.omitEstimatedProductSize
+              ? 0
+              : (data && data.isTubePrint
+                ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
+                : fieldValue(data, 'productWidth', 'productWidth')),
+            productHeight: data && data.omitEstimatedProductSize ? 0 : fieldValue(data, 'productHeight', 'productHeight'),
           },
         };
       }
@@ -2179,6 +2181,11 @@
       sku,
       name: cached.name || '',
       brand: cached.brand || '',
+      aiProductType: cached.aiProductType || '',
+      aiCategory: cached.aiCategory || '',
+      productType: cached.productType || '',
+      category: cached.category || '',
+      departmentName: cached.departmentName || '',
       projectRowId: cached.projectRowId || '',
       projectId: cached.projectId || '',
       copywriting: cached.copywriting || null,
@@ -2607,6 +2614,7 @@
     const projectStatus = extractProjectStatus(text);
     const packaging = seenMaterial ? extractPackaging(drawer) : emptyPackaging();
     const outer = extractOuterPackage(drawer);
+    const inner = seenProduct ? extractInnerPackage(drawer) : { productNums: null };
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
     const imageInfo = seenDesign && (projectStatus === '\u5df2\u5b8c\u6210' || opts.forceSkuImage) ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
     const tubeFields = extractTubeFields(drawer);
@@ -2638,7 +2646,8 @@
       tubeSpecKey: tubeSpec ? tubeSpec.key : '',
       isTubePrintMaterial: isTubePrint || packaging.isTubePrintMaterial,
       packageNums,
-      productNums,
+      productNums: inner.productNums || productNums,
+      plmProductNums: inner.productNums,
       bottleNums: singleBottle ? outer.packageNums : null,
       singleBottle,
       packageSource: packaging.packageSizeText || food.productNums || isTubePrint ? L.sourceMaterial : (outer.packageNums ? L.sourceOuter : ''),
@@ -2692,6 +2701,9 @@
       merged.skuImageFallbackUrl = next.skuImageFallbackUrl || merged.skuImageFallbackUrl || '';
       merged.skuImageSource = next.skuImageSource || merged.skuImageSource || 'effectImage';
     }
+    if (next.seenProduct && Object.prototype.hasOwnProperty.call(next, 'plmProductNums')) {
+      merged.plmProductNums = Array.isArray(next.plmProductNums) ? next.plmProductNums : null;
+    }
     merged.seenMaterial = previous.seenMaterial || next.seenMaterial;
     merged.seenProduct = previous.seenProduct || next.seenProduct;
     merged.seenDesign = previous.seenDesign || next.seenDesign;
@@ -2733,7 +2745,18 @@
     if (packageNums && packageNums.length >= 5 && !/\u591a\u9875/.test(String(safe.packageSizeLabel || ''))) {
       safe.packageSizeLabel = appendChineseRemark(safe.packageSizeLabel, '\u591a\u9875');
     }
-    const productNums = singleBottle ? bottleNums : (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : (Array.isArray(safe.productNums) ? safe.productNums : null));
+    const plmProductNums = Array.isArray(safe.plmProductNums) && safe.plmProductNums.length >= 3
+      ? safe.plmProductNums.slice(0, 3).map(Number)
+      : null;
+    const hasPlmProductSize = Boolean(plmProductNums && plmProductNums.every((value) => Number.isFinite(value) && value > 0));
+    const omitEstimatedProductSize = !singleBottle && !hasPlmProductSize && isToyDimensionProduct(safe);
+    const productNums = singleBottle
+      ? bottleNums
+      : (hasPlmProductSize
+        ? plmProductNums
+        : (!omitEstimatedProductSize
+          ? (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : (Array.isArray(safe.productNums) ? safe.productNums : null))
+          : null));
     const isTubePrint = isTubePrintData(safe, packageNums);
     const copywriting = normalizeCopywritingRecord(safe.copywriting);
     return {
@@ -2746,6 +2769,9 @@
       isTubePrintMaterial: Boolean(safe.isTubePrintMaterial),
       packageNums,
       productNums,
+      plmProductNums: hasPlmProductSize ? plmProductNums : null,
+      productSizeSource: singleBottle ? 'product' : (hasPlmProductSize ? 'plm' : (productNums ? 'estimated' : 'none')),
+      omitEstimatedProductSize,
       packageLength: formatDimensionPart(packageNums, 0),
       packageWidth: formatDimensionPart(packageNums, 1),
       packageHeight: formatDimensionPart(packageNums, 2),
@@ -2761,6 +2787,28 @@
   function hasInnerCardMark(data) {
     if (!data) return false;
     return Boolean(data.hasInnerCard || /\u5185\u5361/.test(String(data.packageSizeLabel || '') + String(data.packageSizeText || '')));
+  }
+
+  function isToyDimensionProduct(data) {
+    const text = [
+      data && data.brand,
+      data && data.name,
+      data && data.aiProductType,
+      data && data.aiCategory,
+      data && data.productType,
+      data && data.category,
+      data && data.departmentName,
+    ].filter(Boolean).join(' ');
+    if (/\bDOWMOO\b|\btoys?\b|\bdolls?\b|玩具|公仔|玩偶|捏捏|积木|盲盒|史莱姆|解压/i.test(text)) return true;
+    try {
+      return getProductTypeForInsight(data, null) === '\u73a9\u5177';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function shouldOmitToyProductSize(data) {
+    return Boolean(data && (data.omitEstimatedProductSize || (isToyDimensionProduct(data) && data.productSizeSource !== 'plm' && !data.singleBottle)));
   }
 
   function migrateLabelValue(data, labelKey, valueKey) {
@@ -3151,6 +3199,19 @@
       getFormValueByLabel('\u9ad8\uff08\u5916\u5305\u88c5\uff09', root),
     ].map(firstNumber);
     return nums.every((n) => Number.isFinite(n)) ? { packageNums: nums } : { packageNums: null };
+  }
+
+  function extractInnerPackage(root) {
+    const labelGroups = [
+      ['\u957f（\u5185\u5305\u6750）', '\u957f（\u4ea7\u54c1）'],
+      ['\u5bbd（\u5185\u5305\u6750）', '\u5bbd（\u4ea7\u54c1）'],
+      ['\u9ad8（\u5185\u5305\u6750）', '\u9ad8（\u4ea7\u54c1）'],
+    ];
+    const nums = labelGroups.map((labels) => {
+      const value = labels.map((label) => getFormValueByLabel(label, root)).find(Boolean) || '';
+      return firstNumber(value);
+    });
+    return nums.every((value) => Number.isFinite(value) && value > 0) ? { productNums: nums } : { productNums: null };
   }
 
   function emptyPackaging() {
@@ -10243,7 +10304,7 @@
     if (!extra.ingredients) missing.push('\u6210\u5206');
     if (!extra.isSkuDesignImage || (!extra.imageUrl && !extra.imageFallbackUrl)) missing.push('\u4ea7\u54c1\u56fe');
     if (!extra.benchmarkLink) missing.push('\u5bf9\u6807\u94fe\u63a5');
-    if (!data.productLength || !data.productWidth || !data.productHeight) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
+    if (!shouldOmitToyProductSize(data) && (!data.productLength || !data.productWidth || !data.productHeight)) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
     if (!data.singleBottle && (!data.packageLength || !data.packageWidth || !data.packageHeight)) missing.push('\u5305\u88c5\u5c3a\u5bf8');
     if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
     if (!data.grossWeight) missing.push('\u6bdb\u91cd');
@@ -10315,7 +10376,12 @@
       setCell(sheet, 'P4', getReturnDateText(7));
       setCell(sheet, 'S4', extra.benchmarkLink || '');
 
-      if (shouldRemoveExcelPackageSizeColumn(excelData)) {
+      if (shouldOmitToyProductSize(excelData)) {
+        sheet.spliceColumns(9, 1);
+        sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
+        sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
+        sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+      } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
         sheet.spliceColumns(10, 1);
         sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
         sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
@@ -13850,7 +13916,7 @@
     if (!data.name) missing.push('\u5546\u54c1\u540d\u79f0');
     if (!data.packageSizeText && !(data.packageLength && data.packageWidth && data.packageHeight)) missing.push('\u5305\u88c5\u5c3a\u5bf8');
     if (!data.printSizeText) missing.push('\u5370\u5237\u5c3a\u5bf8');
-    if (!data.productLength || !data.productWidth || !data.productHeight) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
+    if (!shouldOmitToyProductSize(data) && (!data.productLength || !data.productWidth || !data.productHeight)) missing.push('\u4ea7\u54c1\u5c3a\u5bf8');
     if (!data.netContent) missing.push('\u51c0\u542b\u91cf');
     if (!data.grossWeight) missing.push('\u6bdb\u91cd');
     if (data.seenDesign && !getProductThumbUrl(data)) missing.push('SKU\u56fe');
