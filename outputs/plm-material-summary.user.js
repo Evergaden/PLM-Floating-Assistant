@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.93
+// @version      2.5.94
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.93';
+  const SCRIPT_VERSION = '2.5.94';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1655,6 +1655,9 @@
     copywritingError: '',
     copywritingStatus: '',
     toyCopywritingBusy: false,
+    toyCopywritingError: '',
+    toyCopywritingErrorSku: '',
+    toyCopywritingErrorKind: '',
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
@@ -4045,7 +4048,7 @@
       rowHtml('printSizeText', state.data.printSizeLabel || L.printSize, formatPrintSizeDisplay(state.data) || L.noPrint),
       '</div>',
       '</section>',
-      '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + toyCopywritingButtonHtml(state.data) + excelTriggerHtml() + '</div><div class="pfh-excel-options-row">' + excelOptionsHtml() + '</div>',
+      '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + escapeHtml(L.graphicSection) + '</h3>' + toyCopywritingButtonHtml(state.data) + excelTriggerHtml() + '</div>' + toyCopywritingFeedbackHtml(state.data) + '<div class="pfh-excel-options-row">' + excelOptionsHtml() + '</div>',
       '<div class="pfh-graphic-table pfh-info-grid">',
       rowHtml('packageLength', L.cartonLength, state.data.packageLength || L.noDimension),
       rowHtml('productLength', state.data.isTubePrint ? L.tailSealLength : L.productLength, state.data.isTubePrint ? (state.data.productLength || L.noDimension) : (state.data.productLength || L.noDimension), { editable: state.data.isTubePrint }),
@@ -4136,8 +4139,30 @@
     const isFoodEntry = isFoodEntryCopywritingProduct(data);
     if (!isToy && !isFoodEntry) return '';
     const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848';
-    return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
-      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : '\u2728 ' + label) + '</button>';
+    const hasError = Boolean(data && data.sku && state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
+    return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
+      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : (hasError && isFoodEntry ? '\u26a0 \u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u2728 ' + label)) + '</button>';
+  }
+
+  function toyCopywritingFeedbackHtml(data) {
+    if (!data || !data.sku || state.toyCopywritingErrorSku !== data.sku || !state.toyCopywritingError) return '';
+    return '<div class="pfh-toy-copywriting-feedback is-error" role="alert">' +
+      '<span><strong>\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25</strong><b>' + escapeHtml(state.toyCopywritingError) + '</b></span>' +
+      '<button type="button" data-action="open-detail">\u6253\u5f00\u5f53\u524d\u8be6\u60c5</button>' +
+      '</div>';
+  }
+
+  function setToyCopywritingError(sku, message, kind) {
+    state.toyCopywritingErrorSku = String(sku || '');
+    state.toyCopywritingError = String(message || '').trim();
+    state.toyCopywritingErrorKind = String(kind || 'general');
+  }
+
+  function clearToyCopywritingError(sku) {
+    if (sku && state.toyCopywritingErrorSku && state.toyCopywritingErrorSku !== sku) return;
+    state.toyCopywritingErrorSku = '';
+    state.toyCopywritingError = '';
+    state.toyCopywritingErrorKind = '';
   }
 
   function getToyCopywritingFieldConfig(key) {
@@ -4277,9 +4302,26 @@
       showToast('\u5f53\u524d\u4ea7\u54c1\u4e0d\u652f\u6301\u667a\u80fd\u6587\u6848\u8865\u5145');
       return;
     }
+    if (isFoodEntry) {
+      const cached = normalizeData(loadData(data.sku) || data);
+      if (!cached.ingredientChinese || !cached.ingredientEnglish) {
+        const message = '\u672a\u627e\u5230\u5b8c\u6574\u7684\u6210\u5206\u8868\u7f13\u5b58\u3002\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684\u300c\u8bbe\u8ba1\u8d44\u6599\u300d\uff0c\u7b49\u5f85\u6210\u5206\u8868\u8bfb\u53d6\u5b8c\u6210\u540e\u518d\u8bd5\u3002';
+        setToyCopywritingError(data.sku, message, 'ingredient-cache');
+        addLog('warn', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u7f3a\u5c11\u6210\u5206\u8868\u7f13\u5b58', data.sku);
+        renderShell();
+        showToast('\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25\uff1a' + message);
+        return;
+      }
+    }
+    clearToyCopywritingError(data.sku);
     const drawer = getToyCopywritingDrawerForSku(data.sku);
     if (!drawer) {
-      showToast('\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684 PLM \u8be6\u60c5');
+      const message = '\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684 PLM \u8be6\u60c5';
+      if (isFoodEntry) {
+        setToyCopywritingError(data.sku, message, 'detail');
+        renderShell();
+      }
+      showToast(message);
       return;
     }
     state.toyCopywritingBusy = true;
@@ -4362,6 +4404,7 @@
     } catch (error) {
       const message = formatErrorMessage(error) || '\u667a\u80fd\u8865\u5145\u5931\u8d25';
       const label = isFoodEntry ? '\u98df\u54c1\u6587\u6848' : '\u73a9\u5177\u6587\u6848';
+      if (isFoodEntry) setToyCopywritingError(data.sku, message, 'general');
       addLog('error', label + '\u667a\u80fd\u8865\u5145\u5931\u8d25', data.sku + ' | ' + message);
       showToast(label + '\u8865\u5145\u5931\u8d25\uff1a' + message);
     } finally {
@@ -6180,6 +6223,12 @@
         ingredientNormalizerVersion: String(response.normalizerVersion || INGREDIENT_NORMALIZER_VERSION),
       });
       saveData(sku, next);
+      const clearedCopywritingError = state.toyCopywritingErrorSku === sku && state.toyCopywritingErrorKind === 'ingredient-cache' && Boolean(state.toyCopywritingError);
+      if (clearedCopywritingError) {
+        clearToyCopywritingError(sku);
+        if (state.selectedSku === sku) renderShell();
+        showToast('\u6210\u5206\u8868\u7f13\u5b58\u5df2\u83b7\u53d6\uff0c\u73b0\u5728\u53ef\u4ee5\u91cd\u8bd5\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848');
+      }
       delete state.ingredientHydrateFailedAt[sku];
       addLog('success', '成分表静默缓存完成', sku + ' | ' + next.ingredientEnglish);
       return next;
@@ -15437,6 +15486,53 @@
       #${PANEL_ID} .pfh-toy-copywriting-button:hover {
         border-color: rgba(124,58,237,.48);
         background: linear-gradient(135deg, rgba(139,92,246,.20), rgba(59,130,246,.16));
+      }
+      #${PANEL_ID} .pfh-toy-copywriting-button.is-error {
+        border-color: rgba(220,38,38,.55);
+        background: linear-gradient(135deg, rgba(254,226,226,.96), rgba(255,241,242,.94));
+        color: #b42318;
+        box-shadow: 0 0 0 3px rgba(239,68,68,.10);
+      }
+      #${PANEL_ID} .pfh-toy-copywriting-feedback {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 8px 0 10px;
+        padding: 10px 12px;
+        border: 1px solid rgba(220,38,38,.30);
+        border-radius: 11px;
+        background: linear-gradient(135deg, rgba(254,242,242,.98), rgba(255,247,237,.96));
+        color: #991b1b;
+        box-shadow: 0 8px 20px rgba(153,27,27,.08);
+      }
+      #${PANEL_ID} .pfh-toy-copywriting-feedback > span {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+      #${PANEL_ID} .pfh-toy-copywriting-feedback strong {
+        color: #b42318;
+        font-size: 12px;
+      }
+      #${PANEL_ID} .pfh-toy-copywriting-feedback b {
+        color: #7f1d1d;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.55;
+      }
+      #${PANEL_ID} .pfh-toy-copywriting-feedback button {
+        flex: 0 0 auto;
+        min-height: 30px;
+        padding: 0 11px;
+        border: 1px solid rgba(220,38,38,.38);
+        border-radius: 8px;
+        background: #fff;
+        color: #b42318;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
       }
       #${PANEL_ID} .pfh-toy-copywriting-button:disabled {
         opacity: .68;
