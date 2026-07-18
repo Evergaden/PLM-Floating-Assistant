@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.95
+// @version      2.5.96
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.95';
+  const SCRIPT_VERSION = '2.5.96';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -8181,6 +8181,7 @@
     if (!row) return;
     const valueBox = row.querySelector('.pfh-value');
     if (!valueBox) return;
+    row.classList.add('is-inline-editing');
     const current = firstNumber(state.data && state.data.productLength);
     valueBox.innerHTML = '<span class="pfh-inline-edit"><input class="pfh-tail-input" type="text" placeholder="cm" value="' +
       escapeHtml(Number.isFinite(current) ? trimNumber(current) : '') +
@@ -18880,6 +18881,38 @@
       }
       #${PANEL_ID} .pfh-info-grid .pfh-inline-edit input {
         max-width: 86px !important;
+      }
+      #${PANEL_ID} .pfh-info-grid .pfh-row.is-inline-editing .pfh-value {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      #${PANEL_ID} .pfh-info-grid .pfh-row.is-inline-editing .pfh-row-actions {
+        display: none !important;
+      }
+      #${PANEL_ID} .pfh-info-grid .pfh-row.is-inline-editing .pfh-inline-edit {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        align-items: center !important;
+        gap: 7px !important;
+      }
+      #${PANEL_ID} .pfh-info-grid .pfh-row.is-inline-editing .pfh-tail-input {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+      }
+      #${PANEL_ID} .pfh-info-grid .pfh-row.is-inline-editing [data-action="confirm-tail-seal"] {
+        min-width: 52px !important;
+        height: 28px !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(124,58,237,.32) !important;
+        border-radius: 8px !important;
+        background: rgba(255,255,255,.92) !important;
+        color: #6d35e8 !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        white-space: nowrap !important;
       }
       #${PANEL_ID} .pfh-info-grid [data-copy-key] {
         width: auto !important;
