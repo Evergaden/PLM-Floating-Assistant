@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.91
+// @version      2.5.92
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.91';
+  const SCRIPT_VERSION = '2.5.92';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -158,6 +158,7 @@
           editorLoadError: '',
           editorLogs: [],
           editorLastDrawKey: '',
+          editorResizeObserver: null,
           fields: {
             englishName,
             netContent: String(data && data.netContent || ''),
@@ -179,9 +180,12 @@
     }
 
     function ensureStyles() {
-      if (document.getElementById('pfh-parameter-image-styles')) return;
+      const existing = document.getElementById('pfh-parameter-image-styles');
+      if (existing && existing.dataset.version === SCRIPT_VERSION) return;
+      if (existing) existing.remove();
       const style = document.createElement('style');
       style.id = 'pfh-parameter-image-styles';
+      style.dataset.version = SCRIPT_VERSION;
       style.textContent = `
         #${context.panelId}[data-view="parameterImage"] .pfh-detail{overflow:hidden;container-type:inline-size;background:linear-gradient(145deg,#fbfaff,#f4f9ff)}
         #${context.panelId}[data-view="parameterImage"] .pfh-main{min-width:0}
@@ -202,18 +206,19 @@
         #${context.panelId} .pfh-parameter-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pfh-parameter-actions button{min-height:37px;border:1px solid #dcd4f5;border-radius:10px;background:#fff;color:#6d35e8;font-weight:700}.pfh-parameter-actions button:last-child{border-color:#7c3aed;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}.pfh-parameter-actions button:disabled{opacity:.45}
         #${context.panelId} .pfh-parameter-status{padding:8px 10px;border-radius:9px;background:#eefbf6;color:#27735d;font-size:11px}.pfh-parameter-status.is-error{background:#fff0f3;color:#a33a48}
         #${context.panelId} .pfh-parameter-previews{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}.pfh-parameter-preview-card{position:relative;display:grid;place-items:center;min-height:360px;padding:10px;overflow:hidden}.pfh-parameter-preview-card b{position:absolute;top:8px;left:8px;z-index:1;padding:3px 7px;border-radius:99px;background:rgba(255,255,255,.9);color:#6d35e8;font-size:10px}.pfh-parameter-preview-card img{display:block;max-width:100%;max-height:100%;object-fit:contain}.pfh-parameter-preview-card span{color:#9299b0;font-size:12px}
-        #${editorOverlayId}{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:stretch;padding:clamp(8px,1.5vw,22px);box-sizing:border-box;background:rgba(25,20,48,.58);backdrop-filter:blur(9px);font-family:Arial,"Microsoft YaHei",sans-serif}
+        html.pfh-parameter-editor-open #${context.panelId},html.pfh-parameter-editor-open #${context.panelId}-launcher{visibility:hidden!important;pointer-events:none!important}
+        #${editorOverlayId}{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:clamp(8px,1.5vw,22px);box-sizing:border-box;background:rgba(25,20,48,.64);backdrop-filter:blur(9px);font-family:Arial,"Microsoft YaHei",sans-serif}
         #${editorOverlayId} *{box-sizing:border-box}
-        #${editorOverlayId} .pfh-parameter-editor{min-width:0;min-height:0;display:grid;grid-template-rows:auto auto minmax(180px,1fr) auto auto;gap:10px;padding:clamp(10px,1.2vw,18px);border:1px solid rgba(167,139,250,.45);border-radius:18px;background:rgba(251,250,255,.985);box-shadow:0 28px 90px rgba(20,13,55,.34)}
+        #${editorOverlayId} .pfh-parameter-editor{width:min(92vw,1500px);height:min(88vh,860px);min-width:0;min-height:0;display:grid;grid-template-rows:auto auto minmax(180px,1fr) auto auto;gap:10px;padding:clamp(10px,1.2vw,18px);border:1px solid rgba(167,139,250,.45);border-radius:18px;background:rgba(251,250,255,.985);box-shadow:0 28px 90px rgba(20,13,55,.34)}
         #${editorOverlayId} .pfh-parameter-editor-head,#${editorOverlayId} .pfh-parameter-editor-tools,#${editorOverlayId} .pfh-parameter-editor-foot{display:flex;align-items:center;gap:8px;min-width:0}
         #${editorOverlayId} .pfh-parameter-editor-head h3{margin:0;color:#2f2760;font-size:17px}#${editorOverlayId} .pfh-parameter-editor-head span{margin-left:auto;color:#7b84a1;font-size:12px}
         #${editorOverlayId} .pfh-parameter-editor-tools{flex-wrap:wrap}#${editorOverlayId} .pfh-parameter-editor-tools button,#${editorOverlayId} .pfh-parameter-editor-head button{min-height:34px;padding:0 12px;border:1px solid #dcd4f5;border-radius:9px;background:#fff;color:#6040c8;font-size:12px;font-weight:800;cursor:pointer}#${editorOverlayId} .pfh-parameter-editor-tools button.is-active{border-color:#7c3aed;background:#7c3aed;color:#fff}#${editorOverlayId} .pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:auto;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}
-        #${editorOverlayId} .pfh-parameter-editor-stage{position:relative;min-width:0;min-height:0;display:grid;place-items:center;overflow:auto;border:1px solid #d7d0ed;border-radius:13px;background-color:#fff;background-image:linear-gradient(45deg,#eef0f5 25%,transparent 25%),linear-gradient(-45deg,#eef0f5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef0f5 75%),linear-gradient(-45deg,transparent 75%,#eef0f5 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
+        #${editorOverlayId} .pfh-parameter-editor-stage{position:relative;min-width:0;min-height:0;display:grid;place-items:center;overflow:hidden;border:1px solid #d7d0ed;border-radius:13px;background-color:#fff;background-image:linear-gradient(45deg,#eef0f5 25%,transparent 25%),linear-gradient(-45deg,#eef0f5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef0f5 75%),linear-gradient(-45deg,transparent 75%,#eef0f5 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
         #${editorOverlayId} .pfh-parameter-editor-stage.is-loading::after{content:"正在读取底图…";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:10px 15px;border-radius:10px;background:rgba(255,255,255,.94);box-shadow:0 8px 30px rgba(54,40,105,.15);color:#6541ce;font-size:13px;font-weight:800;pointer-events:none}
-        #${editorOverlayId} .pfh-parameter-editor-canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;touch-action:none;cursor:crosshair}
+        #${editorOverlayId} .pfh-parameter-editor-canvas{display:block;max-width:none;max-height:none;touch-action:none;cursor:crosshair}
         #${editorOverlayId} .pfh-parameter-editor-foot{justify-content:space-between;flex-wrap:wrap;color:#69738f;font-size:12px}#${editorOverlayId} .pfh-parameter-editor-foot b{color:#5d39c7}#${editorOverlayId} .pfh-parameter-editor-status{color:#59647f}#${editorOverlayId} .pfh-parameter-editor-status.is-error{color:#b4233d;font-weight:700}
         #${editorOverlayId} .pfh-parameter-editor-diagnostics{min-width:0;border:1px solid #e4def4;border-radius:10px;background:#f8f6ff;color:#5d6680;font-size:11px}#${editorOverlayId} .pfh-parameter-editor-diagnostics summary{padding:7px 10px;cursor:pointer;font-weight:800;color:#6747c5}#${editorOverlayId} .pfh-parameter-editor-diagnostics pre{max-height:112px;margin:0;padding:8px 10px;overflow:auto;border-top:1px solid #e4def4;white-space:pre-wrap;word-break:break-all;font:11px/1.45 Consolas,monospace}
-        @media (max-width:680px){#${editorOverlayId}{padding:5px}#${editorOverlayId} .pfh-parameter-editor{padding:8px;gap:7px;border-radius:12px}#${editorOverlayId} .pfh-parameter-editor-head span{display:none}#${editorOverlayId} .pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:0}}
+        @media (max-width:680px){#${editorOverlayId}{padding:5px}#${editorOverlayId} .pfh-parameter-editor{width:calc(100vw - 10px);height:calc(100vh - 10px);padding:8px;gap:7px;border-radius:12px}#${editorOverlayId} .pfh-parameter-editor-head span{display:none}#${editorOverlayId} .pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:0}}
         @container (max-width:760px){#${context.panelId} .pfh-parameter-workspace{grid-template-columns:minmax(220px,280px) minmax(280px,1fr)}#${context.panelId} .pfh-parameter-previews{grid-template-columns:1fr}.pfh-parameter-preview-card{min-height:300px}}
         @container (max-width:520px){#${context.panelId} .pfh-parameter-scroll{padding:8px}#${context.panelId} .pfh-parameter-workspace{grid-template-columns:1fr}.pfh-parameter-controls{position:static}.pfh-parameter-preview-card{min-height:280px}}
       `;
@@ -275,7 +280,7 @@
       const labels = manualPointLabels(target);
       const statusClass = session.editorLoadError ? ' is-error' : '';
       return '<section class="pfh-parameter-editor">' +
-        '<header class="pfh-parameter-editor-head"><h3>手动标注尺寸路径</h3><span>浏览器全屏工作区 · 拖动已有点可微调</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+        '<header class="pfh-parameter-editor-head"><h3>手动标注尺寸路径</h3><span>拖动已有点可微调 · 按住 Ctrl 吸附横线/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
           '<button type="button" data-action="parameter-editor-target" data-target="box" class="' + (target === 'box' ? 'is-active' : '') + '">纸盒 ' + boxCount + '/4</button>' +
           '<button type="button" data-action="parameter-editor-target" data-target="product" class="' + (target === 'product' ? 'is-active' : '') + '">产品 ' + productCount + '/3</button>' +
@@ -293,15 +298,33 @@
       return Math.max(1, Math.max(image.naturalWidth, image.naturalHeight) / 1200);
     }
 
-    function drawEditorPath(ctx, points, labels, color, active, scale) {
+    function editorCanvasPadding(image) {
+      return Math.round(68 * editorScale(image));
+    }
+
+    function fitEditorCanvas(canvas) {
+      const stage = canvas && canvas.parentElement;
+      if (!canvas || !stage || !canvas.width || !canvas.height) return { scale: 0, width: 0, height: 0 };
+      const availableWidth = Math.max(1, stage.clientWidth - 32);
+      const availableHeight = Math.max(1, stage.clientHeight - 32);
+      const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height, 1);
+      const width = Math.max(1, Math.floor(canvas.width * scale));
+      const height = Math.max(1, Math.floor(canvas.height * scale));
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      return { scale, width, height, stageWidth: stage.clientWidth, stageHeight: stage.clientHeight };
+    }
+
+    function drawEditorPath(ctx, points, labels, color, active, scale, offsetX, offsetY) {
       if (!points.length) return;
+      const displayPoints = points.map((point) => ({ x: point.x + (offsetX || 0), y: point.y + (offsetY || 0) }));
       ctx.save();
       ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = (active ? 5 : 3) * scale;
       ctx.setLineDash(active ? [] : [10 * scale, 7 * scale]);
-      ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-      points.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      ctx.beginPath(); ctx.moveTo(displayPoints[0].x, displayPoints[0].y);
+      displayPoints.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
       ctx.stroke(); ctx.setLineDash([]);
-      points.forEach((point, index) => {
+      displayPoints.forEach((point, index) => {
         ctx.beginPath(); ctx.arc(point.x, point.y, 12 * scale, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.round(11 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(index + 1), point.x, point.y);
         ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(labels[index] || '', point.x + 16 * scale, point.y - 10 * scale);
@@ -314,35 +337,57 @@
       const width = Number(image.naturalWidth || image.width || 0);
       const height = Number(image.naturalHeight || image.height || 0);
       if (!width || !height) throw new Error('底图尺寸为 0，浏览器没有完成解码。');
-      if (canvas.width !== width) canvas.width = width;
-      if (canvas.height !== height) canvas.height = height;
+      const padding = editorCanvasPadding(image);
+      const canvasWidth = width + padding * 2;
+      const canvasHeight = height + padding * 2;
+      if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+      if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('浏览器无法创建 2D 画布。');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image.source || image, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image.source || image, padding, padding, width, height);
       const scale = editorScale(image);
-      drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale);
-      drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale);
-      const drawKey = [width, height, image.sourceKind || 'image'].join('x');
+      drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale, padding, padding);
+      drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale, padding, padding);
+      const fit = fitEditorCanvas(canvas);
+      const drawKey = [width, height, padding, image.sourceKind || 'image'].join('x');
       if (session.editorLastDrawKey !== drawKey) {
         session.editorLastDrawKey = drawKey;
-        const rect = canvas.getBoundingClientRect();
         editorLog(session, '画布绘制成功', {
-          width,
-          height,
+          imageWidth: width,
+          imageHeight: height,
+          safePadding: padding,
           sourceKind: image.sourceKind || 'image',
-          cssWidth: Math.round(rect.width),
-          cssHeight: Math.round(rect.height),
+          cssWidth: fit.width,
+          cssHeight: fit.height,
+          fitScale: Number(fit.scale.toFixed(4)),
+          stageWidth: fit.stageWidth,
+          stageHeight: fit.stageHeight,
         });
       }
     }
 
-    function canvasPoint(event, canvas) {
+    function canvasPoint(event, canvas, image) {
       const rect = canvas.getBoundingClientRect();
+      const padding = editorCanvasPadding(image);
+      const width = Number(image.naturalWidth || image.width || 0);
+      const height = Number(image.naturalHeight || image.height || 0);
+      const rawX = (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width) - padding;
+      const rawY = (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height) - padding;
       return {
-        x: Math.max(0, Math.min(canvas.width, (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width))),
-        y: Math.max(0, Math.min(canvas.height, (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height))),
+        x: Math.max(0, Math.min(width, rawX)),
+        y: Math.max(0, Math.min(height, rawY)),
       };
+    }
+
+    function constrainEditorPoint(point, points, index, enabled) {
+      if (!enabled || !Array.isArray(points) || !points.length) return { point, axis: '' };
+      const anchor = index > 0 ? points[index - 1] : points[1];
+      if (!anchor) return { point, axis: '' };
+      const dx = point.x - anchor.x;
+      const dy = point.y - anchor.y;
+      if (Math.abs(dx) >= Math.abs(dy)) return { point: { x: point.x, y: anchor.y }, axis: 'horizontal' };
+      return { point: { x: anchor.x, y: point.y }, axis: 'vertical' };
     }
 
     function refreshEditorProgress(session) {
@@ -505,28 +550,47 @@
       session.editorStatus = '底图已显示，可开始标注';
       const stage = root.querySelector('.pfh-parameter-editor-stage');
       if (stage) stage.classList.remove('is-loading');
+      if (session.editorResizeObserver) {
+        try { session.editorResizeObserver.disconnect(); } catch (_) {}
+        session.editorResizeObserver = null;
+      }
+      if (stage && typeof ResizeObserver === 'function') {
+        session.editorResizeObserver = new ResizeObserver(() => {
+          if (root.contains(canvas)) fitEditorCanvas(canvas);
+        });
+        session.editorResizeObserver.observe(stage);
+      }
       refreshEditorDiagnostics(session);
       const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
       canvas.onpointerdown = (event) => {
         event.preventDefault();
         const target = session.manualTarget === 'product' ? 'product' : 'box';
         const points = session.manualPoints[target];
-        const point = canvasPoint(event, canvas);
+        let point = canvasPoint(event, canvas, session.editorImage);
         const radius = 28 * editorScale(session.editorImage);
         let index = points.findIndex((existing) => Math.hypot(existing.x - point.x, existing.y - point.y) <= radius);
+        let snapAxis = '';
         if (index < 0 && points.length < requiredManualPoints(target)) {
+          const constrained = constrainEditorPoint(point, points, points.length, event.ctrlKey);
+          point = constrained.point;
+          snapAxis = constrained.axis;
           points.push(point); index = points.length - 1;
-          editorLog(session, '新增标注点', { target, index: index + 1, x: Math.round(point.x), y: Math.round(point.y) });
+          editorLog(session, '新增标注点', { target, index: index + 1, x: Math.round(point.x), y: Math.round(point.y), ctrlSnap: snapAxis || 'none' });
         }
         if (index < 0) return;
-        session.editorDragging = { target, index };
+        session.editorDragging = { target, index, snapAxis };
         try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
         redraw();
       };
       canvas.onpointermove = (event) => {
         const dragging = session.editorDragging;
         if (!dragging || !session.manualPoints[dragging.target] || !session.manualPoints[dragging.target][dragging.index]) return;
-        session.manualPoints[dragging.target][dragging.index] = canvasPoint(event, canvas); redraw();
+        const points = session.manualPoints[dragging.target];
+        const rawPoint = canvasPoint(event, canvas, session.editorImage);
+        const constrained = constrainEditorPoint(rawPoint, points, dragging.index, event.ctrlKey);
+        points[dragging.index] = constrained.point;
+        dragging.snapAxis = constrained.axis;
+        redraw();
       };
       const release = (event) => {
         const dragging = session.editorDragging;
@@ -538,6 +602,7 @@
           index: dragging.index + 1,
           x: Math.round(finalPoint.x),
           y: Math.round(finalPoint.y),
+          ctrlSnap: dragging.snapAxis || 'none',
         });
       };
       canvas.onpointerup = release; canvas.onpointercancel = release;
@@ -547,9 +612,14 @@
       session.editorOpen = false;
       session.editorDragging = null;
       session.editorMountToken += 1;
+      if (session.editorResizeObserver) {
+        try { session.editorResizeObserver.disconnect(); } catch (_) {}
+        session.editorResizeObserver = null;
+      }
       const overlay = document.getElementById(editorOverlayId);
       if (overlay) overlay.remove();
       document.documentElement.style.overflow = editorPreviousRootOverflow;
+      document.documentElement.classList.remove('pfh-parameter-editor-open');
       editorLog(session, '关闭工作区', { reason: reason || 'close' });
     }
 
@@ -561,6 +631,7 @@
       }
       ensureStyles();
       let overlay = document.getElementById(editorOverlayId);
+      document.documentElement.classList.add('pfh-parameter-editor-open');
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = editorOverlayId;
@@ -1024,12 +1095,17 @@
       session.editorLoadError = '';
       session.editorLogs = [];
       session.editorLastDrawKey = '';
+      if (session.editorResizeObserver) {
+        try { session.editorResizeObserver.disconnect(); } catch (_) {}
+        session.editorResizeObserver = null;
+      }
       session.manualPoints = { box: [], product: [] };
       const oldEditor = document.getElementById(editorOverlayId);
       if (oldEditor) {
         oldEditor.remove();
         document.documentElement.style.overflow = editorPreviousRootOverflow;
       }
+      document.documentElement.classList.remove('pfh-parameter-editor-open');
       if (!session.fields.englishName) {
         session.busy = true; session.error = ''; context.render();
         try { await applyExtraData(data, session); } catch (_) {}
