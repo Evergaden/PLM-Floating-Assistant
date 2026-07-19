@@ -9,7 +9,6 @@ const modules = [
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
   { name: 'icon-assets', file: path.join(root, 'src', 'icon-assets.module.js') },
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
-  { name: 'ui-foundation', file: path.join(root, 'src', 'ui-foundation.module.js') },
 ];
 let output = fs.readFileSync(outputPath, 'utf8');
 
