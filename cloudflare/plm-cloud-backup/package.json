@@ -8,7 +8,10 @@
     "dev": "wrangler dev",
     "db:create": "wrangler d1 create plm-cloud-backup-db",
     "db:migrate:remote": "wrangler d1 execute plm-cloud-backup-db --remote --file=./schema.sql",
-    "db:migrate:local": "wrangler d1 execute plm-cloud-backup-db --local --file=./schema.sql"
+    "db:migrate:local": "wrangler d1 execute plm-cloud-backup-db --local --file=./schema.sql",
+    "r2:create": "wrangler r2 bucket create plm-cloud-backup-assets",
+    "r2:manifest": "node scripts/build-r2-manifest.cjs",
+    "r2:upload": "wrangler r2 object put plm-cloud-backup-assets/v1/runtime-data.json --file=assets/v1/runtime-data.json --content-type=application/json --remote && wrangler r2 object put plm-cloud-backup-assets/v1/excel-template.xlsx --file=assets/v1/excel-template.xlsx --content-type=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet --remote && wrangler r2 object put plm-cloud-backup-assets/v1/icons.json --file=assets/v1/icons.json --content-type=application/json --remote && wrangler r2 object put plm-cloud-backup-assets/manifest.json --file=assets/manifest.json --content-type=application/json --remote"
   },
   "devDependencies": {
     "wrangler": "^4.20.5"

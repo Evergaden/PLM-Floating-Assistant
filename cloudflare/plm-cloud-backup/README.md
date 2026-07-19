@@ -19,6 +19,16 @@ Then create the remote tables:
 npx.cmd wrangler d1 execute plm-cloud-backup-db --remote --file=./schema.sql
 ```
 
+Create the R2 bucket and upload the versioned runtime assets. Uploading the manifest last makes the release atomic for clients:
+
+```powershell
+npm run r2:create
+npm run r2:manifest -- 2026-07-19.1
+npm run r2:upload
+```
+
+The R2 bucket stores brand compliance data, tube rules/specs, the Excel template, and the SVG icon package. The userscript persists the last complete package in GM storage and refreshes it at most once per day.
+
 Set an API key for write endpoints:
 
 ```powershell
@@ -121,6 +131,10 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 ## Endpoints
 
 - `GET /health`
+- `GET /assets/manifest`
+- `GET /assets/v1/runtime-data.json`
+- `GET /assets/v1/excel-template.xlsx`
+- `GET /assets/v1/icons.json`
 - `POST /backup/save`
 - `GET /backup/load?backupKey=...`
 - `POST /pack/record`
@@ -144,6 +158,7 @@ Write endpoints require `x-api-key` when `API_KEY` is configured.
 ## Behavior
 
 - `/pack/ai-estimate` first checks existing history. If no record exists, it calculates the maximum pack count locally from the default outer carton size and stores the result.
+- `/assets/*` serves public, versioned R2 objects. The manifest is short-cached; versioned objects are immutable and long-cached.
 - `/insights/record` stores price history, product type, and data-quality issues from the userscript.
 - `/insights/recommend` recommends purchase price from cloud history. The userscript also has local history fallback.
 - `/insights/rules` groups missing-field issues into data-cleaning rule candidates and marks high-priority cases where the page was read but parsing failed.

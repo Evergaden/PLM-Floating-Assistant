@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.101
+// @version      2.5.102
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.101';
+  const SCRIPT_VERSION = '2.5.102';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1272,13 +1272,11 @@
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const PRODUCT_REPLACE_UPLOAD_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe', '\u89c6\u9891', '\u52a8\u56fe', '\u63a8\u54c1\u8d44\u6599', '\u56fe\u5305\u7d20\u6750'];
   const PRODUCT_BATCH_IMAGE_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe'];
-  const BRAND_COMPLIANCE_DATA = [{"brand":"WEST MONTH","distributed_by":"Shantou West Month Supply Chain Management","address":"Room 1001, West Tower, Huarun Building, No.\n95 Changping Road, Longhu District, Shantou\nCity \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MONARCH CHEMICALS LIMITED","address":"Building 990, Cornforth Drive, Kent Science\nPark, Sittingbourne, ME9 8PX, United Kingdom","contact":"MONARCH CHEMICALS LIMITED","phone":"+44 1795 583333","postal_code":"ME9 8PX"},"us_rep":{"company":"UA INTERNATIONAL INC.","address":"5030 Boardwalk Dr, Suite 818 Colorado Springs, CO 80919, United States","contact":"Jessica Zhong","phone":"001-719-6787182","postal_code":"80919"}},{"brand":"VIARELINE","distributed_by":"HONGKONG VIARELINE COSMETICS CO.,\nLIMITED","address":"SHOP 185 G/F, HANG WAI IND.CENTRE, NO.6\nKIN TAI ST., TUEN MUN HK","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"VIARELINE SKINCARE LLC","address":"30 N Gould St #23619, Sheridan, WY 82801","contact":"Zhang Nana","phone":"+1 7025455912","postal_code":"82801"}},{"brand":"WOODSLEEP","distributed_by":"Shantou Woodsleep Biotechnology Co., Ltd.","address":"Room 102, 1st Floor, Building 8-2, (Shenzhen\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22 Qiaoyun Road,\nLonghu District, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"Postaldepot","address":"2636 Judah St, San Francisco, California, 94122-1432, United States ","contact":"Postaldepot","phone":"+1 415-759-5076","postal_code":"94122-1432"}},{"brand":"EAST MOON","distributed_by":"Shantou East Moon Biotechnology Co., Ltd.","address":"Room 111, 1st Floor, Building 8-2, (Shenzhen\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22 Qiaoyun Road,\nLonghu District, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"Postaldepot","address":"2636 Judah St, San Francisco, California, 94122-1432, United States ","contact":"Postaldepot","phone":"+1 415-759-5076","postal_code":"94122-1432"}},{"brand":"HOYGI","distributed_by":"Shantou Hoygi Biological Co., Ltd.","address":"Room 105, 1st Floor, Building 8-2, (Shenzhen\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22 Qiaoyun Road,\nLonghu District, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"EELHOE PERFECT DAILY LTD","address":"FLAT 46 EAGLE WORK 58 QUAKER STREET,LO\nNDON,ENGLAND E1 6SX","contact":"Zhang Jiaming","phone":"447472085998","postal_code":"E1 6SX"},"us_rep":{"company":"Postaldepot","address":"2636 Judah St, San Francisco, California, 94122-1432, United States ","contact":"Postaldepot","phone":"+1 415-759-5076","postal_code":"94122-1432"}},{"brand":"OCEAURA","distributed_by":"Guangzhou AOHELA Biotechnology Co., Ltd.","address":"Room 0585, Area C, 2nd Floor, No. 8 Shengtang\nStreet, Cencun, Tianhe District, Guangzhou\nCity \uff0c510000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside,\nLiverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"HOEGOA","distributed_by":"Guangzhou Hoegoa Biotechnology Co., Ltd.","address":"Room 0586, Area C, 2nd Floor, No. 8 Shengtang\nStreet, Cencun, Tianhe District, Guangzhou City","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside,\nLiverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"OUHOE","distributed_by":"Shantou Ouhoe Technology Co., Ltd.","address":"Room 106, 1st Floor, Building 8-2, (Shenzhen-\nShantou Digital Science and Technology\nInnovation Industrial Park) No. 22, Qiaoyun\nRoad, Longhu District, Shantou City, 515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"FM BUSINESS SERVICES LIMITED","address":"Leigh House, Brook Lane, Alderley Edge,\nCheshire, SK9 7QJ, United Kingdom","contact":"FMKJ","phone":"+44 7962502494","postal_code":"SK9 7QJ"},"us_rep":{"company":"UColor LLC","address":"75 E 3rd St Ste 7, Sheridan, Wyoming, 82801, United States","contact":"FMKJ","phone":"+1 6182806558","postal_code":"82801"}},{"brand":"EELHOE","distributed_by":"Shantou Eelhoe Daily Chemical Technology Co.,\nLtd.","address":"One of Room 402, H8 Industrial Building,\nLonghu Industrial Zone, Lianjiang Road, Longhu\nDistrict, Shantou City \uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"SHISEIDO UK LIMITED","address":"6th Floor, 1 Kingsway, Westminster LONDON\nUnited Kingdom","contact":"SHISEIDO UK LIMITED","phone":"+44 2038100613","postal_code":"WC2B 6AN"},"us_rep":{"company":"Blooming Cosmetics, Inc","address":"928 S Western Ave Ste 111 Los Angeles California United States","contact":"Blooming Cosmetics, Inc","phone":"+1 213368-2975","postal_code":"90006"}},{"brand":"EELHOPE","distributed_by":null,"address":null,"eu_rep":null,"uk_rep":null,"us_rep":null},{"brand":"EOHOE","distributed_by":null,"address":null,"eu_rep":null,"uk_rep":null,"us_rep":null},{"brand":"JAYSUING","distributed_by":"Shantou Jaysuing Management Consulting Co., Ltd.","address":"Room 120, Huiyi Business Building, No. 2 Keji Middle Road, High-tech Zone Shantou\uff0c515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"FKA BRANDS LIMITED","address":"Somerhill Business Park Five Oak Green Road TONBRIDGE, Kent ,TN11 OGP United Kingdom","contact":"Anna Smith","phone":"+44 7940509131","postal_code":"TN11 OGP"},"us_rep":{"company":"SUNFLOWER\u00a0STYLE\u00a0CO.","address":"3950\u00a0E\u00a0Costilla\u00a0Ave\u00a0Centennial,\u00a0CO,\u00a080122-2020\u00a0USA","contact":"Hannah\u00a0Grace","phone":"1-307-221-6488","postal_code":"80122"}},{"brand":"Zyvarn","distributed_by":"HK Ouhao Biotechnology Limited","address":"ROOM A1, 11/F WINNER BUILDING, 36 MAN\nYUE STREET, HUNG HOM, KOWLOON,HONG\nKONG \uff0c999077","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002    "},"uk_rep":{"company":"BAO YAN LTD","address":"Suite 9840 Moat House Business Centre, 54 Bloomfield Avenue, Belfast, Northern Ireland, BT5 5AD","contact":"BAO YAN LTD","phone":"+44 2890256709","postal_code":"BT5 5AD"},"us_rep":{"company":"ASHERIF LLC","address":"2211 E ORANGEWOOD AVE UNIT 210 ANAHEIM,CA92806","contact":"ASHERIF LLC","phone":"+1-619-8997342","postal_code":"92806"}},{"brand":"zephoco","distributed_by":"HK Timu Cross border Supply Chain Limited","address":"Unit 89, 3/F., Yau Lee Centre, No.45 Hoi Yuen\nRoad, Kwun Tong, Hong Kong \uff0c999077","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"WESLEY BAIRD LTD","address":"Suite 9844 Moat House Business\nCentre, 54 Bloomfield Avenue, Belfast,\nNorthern Ireland, BT5 5AD","contact":"WESLEY BAIRD LTD","phone":"+44 2891246809","postal_code":"BT5 5AD"},"us_rep":{"company":"DILRUBA LLC","address":"1406 W EVANS ST SAN BERNARDINO, CA92411","contact":"DILRUBA LLC","phone":"+1-619-8797632","postal_code":"92411"}},{"brand":"Moxirea","distributed_by":"HongKong KHS supply chain Limited","address":"ROOM 5042, 5/F, YAU LEE CENTRE, NO. 45, HOI\nYUEN ROAD, KWUN TONG, KOWLOON,\nHONGKONG","eu_rep":{"company":"PROCONSEIL FR","address":"8 bis rue Abel 75012 Paris, France","contact":"Sophie Dupont","phone":"+33 0780843245","postal_code":"75012"},"uk_rep":{"company":"BRITCORP SOLUTIONS LTD","address":"167-169 GREAT PORTLAND STREET,\nLondon, England","contact":"MarieDubois","phone":"+44 7395178678","postal_code":"W1W 5PF"},"us_rep":{"company":"PrimePath Consulting LLC","address":"30 N Gould St # 29084, Sheridan, WY 82801 United States","contact":"Michael Johnson","phone":"+1 3072008351","postal_code":"82801"}},{"brand":"lumavire","distributed_by":"Hong Kong Lumavire Trading Co., Limited","address":"Unit D18, 3/F Wong King Industrial Building\nNo.2-4 Tai Yau Street San Po Kong Hong Kong","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside,\nLiverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"Nymixa","distributed_by":"HK Yiouhao Biotechnology Limited","address":"RM A133 OF UNIT 1, 15/F, BLK A WAH SANG\nBLDG NO.14-18 WONG CHUK YEUNG ST,\nFOTAN NT","eu_rep":{"company":"Ubuy SAS","address":"15 AVENUE GEORGE SAND","contact":"Ubuy","phone":"+ 33 147342165","postal_code":"93210"},"uk_rep":{"company":"GAO DING LTD.","address":"Chase Business Centre, 39-41 Chase\nSide, London, United Kingdom, N14 5BP","contact":"ZUJI YU","phone":"+44 2070482982","postal_code":"N14 5BP"},"us_rep":{"company":"UNICO AMERICA CO., LTD.","address":"4781 Shadowglen Dr Colorado Springs CO 80918 ","contact":"Ayssa Gao","phone":"+1 630 8636724","postal_code":"80918"}},{"brand":"GleamXi","distributed_by":"HK GleamXi Supply Chain Co., Limited","address":"ROOM 602,6/F, KAI YUE COMMERCIAL\nBUILDING, NO.2C, ARGYLE STREET, MONGKOK\nKOWLOON, HONG KONG","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"CCL PROJECTS LTD","address":"72e New Court Way, Ormskirk, Lancashire, United Kingdom, L39 2YT","contact":"PROJECTS","phone":"+44 7712583429","postal_code":"L39 2YT"},"us_rep":{"company":"ALLOY MOVE INC","address":"3 E EVERGREEN RD #312 NEW CITY 10956 NEW YORK United States","contact":"ALLOY MOVE INC","phone":"+1 8452937218","postal_code":"10956"}},{"brand":"Zamzarah","distributed_by":"Hong Kong Zhouye Trading Co., Limited","address":"RM 102, 1/F, THE CLOUD, 111 TUNG CHAU\nSTREET, TAI KOK TSUI , HONG KONG","eu_rep":{"company":"Yutop International GmbH","address":"Hauptstr. 17, 55765 Birkenfeld,\nRheinland-Pfalz, Germany","contact":"Yutop International GmbH","phone":"+49 15258298417","postal_code":"55765"},"uk_rep":{"company":"COSMETICS LIMITED","address":"71-75 Shelton Street, COVENT GARDEN,\nLONDON WC2H 9JQ, United Kingdom","contact":"COSMETICS LIMITED","phone":"+44 2076327557","postal_code":"WC2H 9JQ"},"us_rep":{"company":"Veckridge Chemical Company, Inc.","address":"60 Central Ave, Kearny, New Jersey 07032-4603, United States","contact":"Veckridge Chemical Company, Inc.","phone":"+1 9733441818 ","postal_code":"07032-4603"}},{"brand":"\u5ba2\u6237\u5b9a\u5236\nOEM/ODM","distributed_by":"Hong Kong Alite Technology Limited","address":"RM C20, BLK C, 3/F, EAST SUN INDUSTRIAL\nCENTRE, 16 SHING YIP STREET, KWUN TONG,\nHONG KONG","eu_rep":{"company":"MOEHS CATALANA SL","address":"CALLE ROMA (INDUSTRIAL COVA\nSOLERA) 8, 08191 RUBI, Barcelona, Spain","contact":"MOEHS CATALANA SL","phone":"+34 935 86 05 20","postal_code":"08191"},"uk_rep":{"company":"MLE SKINCARE LIMITED","address":"20 Seymour Mews, LONDON W1H 6BQ,\nUnited Kingdom","contact":"MLE SKINCARE LIMITED","phone":"+44 7500 664227","postal_code":"W1H 6BQ"},"us_rep":{"company":"WACKER CHEMICAL CORPORATION","address":"13910 Oaks Ave, Chino, California 91710-7010, United States","contact":"WACKER CHEMICAL CORPORATION","phone":"+1 9095908822","postal_code":"91710-7010"}},{"brand":"AMZ","distributed_by":"HONG KONG CYRAVIS TECHNOLOGY LIMITED","address":"FLAT 2304, 23/F HO KING, COMM CENTRE, 2-16\nFA YUEN STREET,MONG KOK,HONG KONG","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"PEARL CHEMICALS LIMITED","address":"Unit 29A Whitebridge Estate,\nWhitebridge Lane, STONE ST15 8LQ, United\nKingdom","contact":"PEARL CHEMICALS LIMITED","phone":"+44 1785 819747","postal_code":"ST15 8LQ"},"us_rep":{"company":"Mitsui Chemicals America, Inc.","address":"1 N Lexington Ave FL 8, White Plains, New York 10601-1770, United States","contact":"Mitsui Chemicals America, Inc.","phone":"+1\u00a09142530777","postal_code":"10601-1770"}},{"brand":"LANISKA","distributed_by":"GOOGEER LTD\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","address":"FLAT 46 EAGLE WORKS EAST 58 QUAKER STREET LONDON ENGLAND E1 6SX\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"REBECCA TRADE LTD","address":"5 Brayford Square, London, England, E1 0SG,United Kingdom","contact":"Kathryn Rebecca","phone":"+44 1923937025","postal_code":"E1 0SG"},"us_rep":{"company":"Cro&ssant LLC","address":"30 N Gould St Ste R, Sheridan, WY 82801, United States","contact":"CROSS","phone":"+1 6187379250","postal_code":"82801"}},{"brand":"\uc218\ucd08\ub2f4 SUCHODAM \n\ud55c\ucd08\ube5b HANCHOBIT","distributed_by":"HANCHOYEANBIOTEC Co.,Ltd.\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","address":"Rm 606-A416 1072 Hyohaeng-ro Hwaseong, Gyeonggi, 18405 Republic Of Korea\n\n(\u5305\u88c5\u4e0a\u4e0d\u663e\u793a\u201c\u5236\u9020\u5546DISTRIBUTED\u00a0BY\u201d\u548c\u201c\u5730\u5740Address\u201d\u6807\u9898)","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"MJCM Product LTD","address":"Unit36 Alsup Arcade,Merseyside, Liverpool","contact":"MJCM Product LTD","phone":"00447825478164","postal_code":"L3 5TX"},"us_rep":{"company":"DH&C Health Food Co.Inc","address":"2311 Merced Ave South El Monte California United States","contact":"Jessica","phone":"+01 626 3766800","postal_code":"91733-2624"}},{"brand":"HOUKEA","distributed_by":"Guangzhou Houkea Biotechnology Co., Ltd.","address":"Room 0601, Area C, 2nd Floor, No. 8 Shengtang Street, Cencun, Tianhe District, Guangzhou City,510000","eu_rep":{"company":"JK CONSEILS","address":"54 Rue Saint-Fargeau 75020 Paris, France","contact":"JK","phone":"+33 773190609","postal_code":"75020"},"uk_rep":{"company":"REP FITNESS UK LTD","address":"Windsor House, Bayshill Road, Gloucestershire/Cheltenham GL50 3AT, UNITED KINGDOM","contact":"REP","phone":"+44 7962502494","postal_code":"GL50 3AT"},"us_rep":{"company":"Guger Technologies Inc","address":"20935 E 49th Ave, Denver, CO 80249,United States","contact":"Zheng Xiyue","phone":"+1 7025455912","postal_code":"80249"}},{"brand":"ORALHOE","distributed_by":"Shantou Oralhoe Biotechnology Co., Ltd.","address":"Room 101, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"NOVA ID LIMITED","address":"167-169 Great Portland Street, London, England, W1W 5PF","contact":"NOVA","phone":"+44 2075638912","postal_code":"W1W 5PF"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL,MT 59901 ","contact":"Boris","phone":"+1 818 579 7288","postal_code":"59901"}},{"brand":"WIYUN","distributed_by":"Shantou Wiyun Biotechnology Co., Ltd.","address":"Room 107, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"NOVA ID LIMITED","address":"167-169 Great Portland Street, London, England, W1W 5PF","contact":"NOVA","phone":"+44 2075638912","postal_code":"W1W 5PF"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL,MT 59901 ","contact":"Boris","phone":"+1 818 579 7288","postal_code":"59901"}},{"brand":"ROXELIS","distributed_by":"Shantou Roxelis Biotechnology Co., Ltd.","address":"Room 103, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"FM BUSINESS SERVICES LIMITED","address":"Leigh House, Brook Lane, Alderley Edge, Cheshire, SK9 7QJ, United Kingdom","contact":"FMKJ","phone":"+44 7962502494","postal_code":"SK9 7QJ"},"us_rep":{"company":"UColor LLC","address":"75 E 3rd St Ste 7, Sheridan, Wyoming, 82801, United States","contact":"FMKJ","phone":"+1 6182806558","postal_code":"82801"}},{"brand":"WIIEEY","distributed_by":"Shantou Wiieey Biotechnology Co., Ltd.","address":"Room 108, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"NOVA ID LIMITED","address":"167-169 Great Portland Street, London, England, W1W 5PF","contact":"NOVA","phone":"+44 2075638912","postal_code":"W1W 5PF"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL,MT 59901 ","contact":"Boris","phone":"+1 818 579 7288","postal_code":"59901"}},{"brand":"SOUTH MOON","distributed_by":"Shantou South Moon Biotechnology Co., Ltd.","address":"Room 114, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"REP FITNESS UK LTD","address":"Windsor House, Bayshill Road, Gloucestershire/Cheltenham GL50 3AT, UNITED KINGDOM","contact":"REP","phone":"+44 7962502494","postal_code":"GL50 3AT"},"us_rep":{"company":"Orion Nexus LLC","address":"1314 Laurenwood way Hghlnds Ranch,CO 80129 United States","contact":"GLENN IV THOMAS","phone":"+1 (213) 882-5090","postal_code":"80129"}},{"brand":"XIMONTH","distributed_by":"Shantou Ximonth Biotechnology Co., Ltd.","address":"Room 112, 1st Floor, Building 8-2, (Shenzhen Shantou Digital Science and Technology Innovation Industrial Park) No. 22 Qiaoyun Road, Longhu District, Shantou City,515000","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"CCL PROJECTS LTD","address":"72e New Court Way, Ormskirk, Lancashire, United Kingdom, L39 2YT","contact":"PROJECTS","phone":"+44 7712583429","postal_code":"L39 2YT"},"us_rep":{"company":"ALLOY MOVE INC","address":"3 E EVERGREEN RD #312 NEW CITY 10956 NEW YORK United States ","contact":"ALLOY MOVE INC","phone":"1-845-293-7218","postal_code":"10956"}},{"brand":"Nebluva","distributed_by":"HK Nebluva Brand Management Limited","address":"ROOM 5031, 5/F, YAU LEE CENTRE, NO. 45,HOI YUEN ROAD, KWUN TONG, KOWLOON\uff0cHONGKONG\uff0c999077","eu_rep":{"company":"HUMISS TRADING S.L","address":"Calle Luis Bu\u00f1uel 12-3A, Madrid, 28018, Spain","contact":"Sarah Zhang","phone":"+34602474012","postal_code":"28018"},"uk_rep":{"company":"OYE GLOBAL CONSULTING LTD","address":"OFFICE 10998 182-184 HIGH STREET NORTH EAST HAM LONDON UNITED KINGDOM E6 2JA","contact":"Chris Brown","phone":"+44 7378480426","postal_code":"E6 2JA"},"us_rep":{"company":"OYE Global consulting Inc","address":"169 Madison Ave STE 11911 New York 10016 US","contact":"Nancy","phone":"+1 3134133043","postal_code":"10016"}},{"brand":"Feimuko","distributed_by":"HK Feimuko Management Limited","address":"WORKSHOP 60, 3/F, BLOCK A, EAST SUN INDUSTRIAL CENTRE, NO. 16 SHING YIP STREET, KWUN TONG, HONG KONG","eu_rep":{"company":"YKT EU REP SAS","address":"BUREAU 1471, 37 PASSAGE DU PONCEAU, 75002 PARIS","contact":"Damien Tang","phone":"+33 605651273","postal_code":"75002"},"uk_rep":{"company":"SELLERCROSS LTD","address":"Unit 82a James Carter Road, Mildenhall, Bury St. Edmunds, Suffolk, IP28 7DE, United Kingdom","contact":"SellerCross","phone":"+44 7537135166","postal_code":"IP28 7DE"},"us_rep":{"company":"Buckland Serassey INC","address":"1001 S.MAIN ST.STE 500KALISPELL, MT 59901","contact":"Boris","phone":"+1 8185797288","postal_code":"59901"}},{"brand":"Cen Moon","distributed_by":"Shantou Cen Moon Biotechnology Co., Ltd.","address":"7th, 1st Floor, No.24 Pujiang Road, Longhu District, Shantou City\uff0c515000","eu_rep":{"company":"GET RICH","address":"8 bis rue Abel 75012 Paris, France","contact":"Taylor Chan","phone":"+33 745452622","postal_code":"75012"},"uk_rep":{"company":"GET RICH LTD","address":"71-75 Shelton Street, Covent Garden, London WC2H 9JQ, UNITED KINGDOM","contact":"Chris Xu","phone":"+44 7759072428","postal_code":"WC2H 9JQ"},"us_rep":{"company":"US Operations LLC","address":"30 N Gould St Ste N, Sheridan, WY 82801, United States","contact":"Edison Luo","phone":"+1 323-754-6128","postal_code":"82801"}},{"brand":"CleJoy","distributed_by":"Shantou Yuedong Cross Border E-commerce Co., Ltd.","address":"06, Room 401, Building 2, No.16, Science and Technology West Road, Gaoxin Zone, Shantou","eu_rep":{"company":"TechnoVision Solutions SARL","address":"60 rue Francois ler 75008 Paris, France","contact":"Pierre Dubois","phone":"+33 0781786046","postal_code":"75008"},"uk_rep":{"company":"OK Midtands Limited","address":"Unit 11 StirchleyTrading Estate, Hazelwell Road, Birmingham, England, \nB30 2PF","contact":"Xiaobing","phone":"+44 7577472388","postal_code":"B30 2PF"},"us_rep":{"company":"Vast Maritime Inc","address":"10276 Kentwood Dr Colorado Springs, CO 80918 United States","contact":"Chris Topher","phone":"+1 719-200-3570","postal_code":"80918"}},{"brand":"VORVITA","distributed_by":"HK Vorvita Technology Co., Limited","address":"Unit 29, 13/F, Fook Cheong Building, No.63 Hoi Yuen Road, Kwum Tong, Kowloon","eu_rep":{"company":"VAT SPEED SL","address":"ES-Calle Antonio Salvador N99.1, Madrid, Spain","contact":"VAT SPEED SL","phone":"+34 916321624","postal_code":"28026"},"uk_rep":{"company":"PRIVYSEAL LIMITED","address":"Unit A 82 James Carter Road, Mildenhall, Bury St. Edmunds, England, IP28 7DE","contact":"PRIVYSEAL LIMITED","phone":"020 3807 1946","postal_code":"IP28 7DE"},"us_rep":{"company":"Raymond James & Associates, Inc.","address":"880 Carillon Parkway, Saint Petersburg, FL 33716, United States ","contact":"Jamal","phone":"+1 7275671000","postal_code":"33716"}}];
-  const CM_TO_INCH = 1 / 2.54;
-  const NORMAL_DELTA_CM = 0.2;
-  const INNER_CARD_DELTA_CM = 0.5;
-  const SCAN_INTERVAL_MS = 650;
-  const MATERIAL_WATCH_ATTEMPTS = 4;
-  const TUBE_SIZE_RULES = [
+  // <cloud-assets-module>
+  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v1';
+  const CLOUD_ASSET_CACHE_SCHEMA = 1;
+  const CLOUD_ASSET_REFRESH_MS = 24 * 60 * 60 * 1000;
+  const FALLBACK_TUBE_SIZE_RULES = [
     { diameter: 19, bodies: [59, 64, 65, 75, 82, 85, 86, 88, 95, 98, 100, 104, 110, 112, 120], widths: [0.8, 1.5, 1.5, 1.5, 1.2] },
     { diameter: 22, bodies: [72, 81, 100, 110, 111], widths: [0.8, 1.75, 1.75, 1.75, 1.45] },
     { diameter: 25, bodies: [70, 75, 80, 85, 88, 90, 92, 94, 95, 97, 104, 108, 110, 114, 115, 116, 134, 135, 154], widths: [0.8, 2, 2, 2, 1.65] },
@@ -1288,121 +1286,199 @@
     { diameter: 45, bodies: [94, 107, 158], widths: [0.9, 3.55, 3.55, 3.55, 3.15] },
     { diameter: 50, bodies: [95, 180], widths: [0.9, 3.925, 3.925, 3.925, 3.525] },
   ];
-  const TUBE_SIZE_SPECS = [
-    [19, 59, [0.8, 1.5, 1.5, 1.5, 1.2], 5.8, 6.5],
-    [19, 64, [0.8, 1.5, 1.5, 1.5, 1.2], 6.3, 6.5],
-    [19, 65, [0.8, 1.5, 1.5, 1.5, 1.2], 6.4, 6.5],
-    [19, 75, [0.8, 1.5, 1.5, 1.5, 1.2], 7.4, 6.5],
-    [19, 82, [0.8, 1.5, 1.5, 1.5, 1.2], 8.1, 6.5],
-    [19, 85, [0.8, 1.5, 1.5, 1.5, 1.2], 8.4, 6.5],
-    [19, 86, [0.8, 1.5, 1.5, 1.5, 1.2], 8.5, 6.5],
-    [19, 88, [0.8, 1.5, 1.5, 1.5, 1.2], 8.7, 6.5],
-    [19, 95, [0.8, 1.5, 1.5, 1.5, 1.2], 9.4, 6.5],
-    [19, 98, [0.8, 1.5, 1.5, 1.5, 1.2], 9.7, 6.5],
-    [19, 100, [0.8, 1.5, 1.5, 1.5, 1.2], 9.9, 6.5],
-    [19, 104, [0.8, 1.5, 1.5, 1.5, 1.2], 10.3, 6.5],
-    [19, 110, [0.8, 1.5, 1.5, 1.5, 1.2], 10.9, 6.5],
-    [19, 112, [0.8, 1.5, 1.5, 1.5, 1.2], 11.1, 6.5],
-    [19, 120, [0.8, 1.5, 1.5, 1.5, 1.2], 11.9, 6.5],
-    [22, 72, [0.8, 1.75, 1.75, 1.75, 1.45], 7.1, 7.5],
-    [22, 81, [0.8, 1.75, 1.75, 1.75, 1.45], 8, 7.5],
-    [22, 100, [0.8, 1.75, 1.75, 1.75, 1.45], 9.9, 7.5],
-    [22, 110, [0.8, 1.75, 1.75, 1.75, 1.45], 10.9, 7.5],
-    [22, 111, [0.8, 1.75, 1.75, 1.75, 1.45], 11, 7.5],
-    [25, 70, [0.8, 2, 2, 2, 1.65], 6.9, 8.45],
-    [25, 75, [0.8, 2, 2, 2, 1.65], 7.4, 8.45],
-    [25, 80, [0.8, 2, 2, 2, 1.65], 7.9, 8.45],
-    [25, 85, [0.8, 2, 2, 2, 1.65], 8.4, 8.45],
-    [25, 88, [0.8, 2, 2, 2, 1.65], 8.7, 8.45],
-    [25, 90, [0.8, 2, 2, 2, 1.65], 8.9, 8.45],
-    [25, 92, [0.8, 2, 2, 2, 1.65], 9.1, 8.45],
-    [25, 94, [0.8, 2, 2, 2, 1.65], 9.3, 8.45],
-    [25, 95, [0.8, 2, 2, 2, 1.65], 9.4, 8.45],
-    [25, 97, [0.8, 2, 2, 2, 1.65], 9.6, 8.45],
-    [25, 104, [0.8, 2, 2, 2, 1.65], 10.3, 8.45],
-    [25, 108, [0.8, 2, 2, 2, 1.65], 10.7, 8.45],
-    [25, 110, [0.8, 2, 2, 2, 1.65], 10.9, 8.45],
-    [25, 114, [0.8, 2, 2, 2, 1.65], 11.3, 8.45],
-    [25, 115, [0.8, 2, 2, 2, 1.65], 11.4, 8.45],
-    [25, 116, [0.8, 2, 2, 2, 1.65], 11.5, 8.45],
-    [25, 134, [0.8, 2, 2, 2, 1.65], 13.3, 8.45],
-    [25, 135, [0.8, 2, 2, 2, 1.65], 13.4, 8.45],
-    [25, 154, [0.8, 2, 2, 2, 1.65], 15.3, 8.45],
-    [30, 65, [0.8, 2.375, 2.375, 2.375, 2.075], 6.4, 10],
-    [30, 70, [0.8, 2.375, 2.375, 2.375, 2.075], 6.9, 10],
-    [30, 78, [0.8, 2.375, 2.375, 2.375, 2.075], 7.7, 10],
-    [30, 80, [0.8, 2.375, 2.375, 2.375, 2.075], 7.9, 10],
-    [30, 85, [0.8, 2.375, 2.375, 2.375, 2.075], 8.4, 10],
-    [30, 86, [0.8, 2.375, 2.375, 2.375, 2.075], 8.5, 10],
-    [30, 89, [0.8, 2.375, 2.375, 2.375, 2.075], 8.8, 10],
-    [30, 90, [0.8, 2.375, 2.375, 2.375, 2.075], 8.9, 10],
-    [30, 92, [0.8, 2.375, 2.375, 2.375, 2.075], 9.1, 10],
-    [30, 94, [0.8, 2.375, 2.375, 2.375, 2.075], 9.3, 10],
-    [30, 98, [0.8, 2.375, 2.375, 2.375, 2.075], 9.7, 10],
-    [30, 100, [0.8, 2.375, 2.375, 2.375, 2.075], 9.9, 10],
-    [30, 105, [0.8, 2.375, 2.375, 2.375, 2.075], 10.4, 10],
-    [30, 106, [0.8, 2.375, 2.375, 2.375, 2.075], 10.5, 10],
-    [30, 108, [0.8, 2.375, 2.375, 2.375, 2.075], 10.7, 10],
-    [30, 109, [0.8, 2.375, 2.375, 2.375, 2.075], 10.8, 10],
-    [30, 110, [0.8, 2.375, 2.375, 2.375, 2.075], 10.9, 10],
-    [30, 111, [0.8, 2.375, 2.375, 2.375, 2.075], 11, 10],
-    [30, 113, [0.8, 2.375, 2.375, 2.375, 2.075], 11.2, 10],
-    [30, 114, [0.8, 2.375, 2.375, 2.375, 2.075], 11.3, 10],
-    [30, 115, [0.8, 2.375, 2.375, 2.375, 2.075], 11.4, 10],
-    [30, 118, [0.8, 2.375, 2.375, 2.375, 2.075], 11.7, 10],
-    [30, 120, [0.8, 2.375, 2.375, 2.375, 2.075], 11.9, 10],
-    [30, 122, [0.8, 2.375, 2.375, 2.375, 2.075], 12.1, 10],
-    [30, 148, [0.8, 2.375, 2.375, 2.375, 2.075], 14.7, 10],
-    [35, 89, [0.9, 2.75, 2.75, 2.75, 2.35], 8.8, 11.5],
-    [35, 96, [0.9, 2.75, 2.75, 2.75, 2.35], 9.5, 11.5],
-    [35, 100, [0.9, 2.75, 2.75, 2.75, 2.35], 9.9, 11.5],
-    [35, 101, [0.9, 2.75, 2.75, 2.75, 2.35], 10, 11.5],
-    [35, 104, [0.9, 2.75, 2.75, 2.75, 2.35], 10.3, 11.5],
-    [35, 105, [0.9, 2.75, 2.75, 2.75, 2.35], 10.4, 11.5],
-    [35, 114, [0.9, 2.75, 2.75, 2.75, 2.35], 11.3, 11.5],
-    [35, 120, [0.9, 2.75, 2.75, 2.75, 2.35], 11.9, 11.5],
-    [35, 121, [0.9, 2.75, 2.75, 2.75, 2.35], 12, 11.5],
-    [35, 125, [0.9, 2.75, 2.75, 2.75, 2.35], 12.4, 11.5],
-    [35, 130, [0.9, 2.75, 2.75, 2.75, 2.35], 12.9, 11.5],
-    [35, 134, [0.9, 2.75, 2.75, 2.75, 2.35], 13.3, 11.5],
-    [35, 135, [0.9, 2.75, 2.75, 2.75, 2.35], 13.4, 11.5],
-    [35, 140, [0.9, 2.75, 2.75, 2.75, 2.35], 13.9, 11.5],
-    [35, 142, [0.9, 2.75, 2.75, 2.75, 2.35], 14.1, 11.5],
-    [35, 148, [0.9, 2.75, 2.75, 2.75, 2.35], 14.7, 11.5],
-    [35, 151, [0.9, 2.75, 2.75, 2.75, 2.35], 15, 11.5],
-    [35, 155, [0.9, 2.75, 2.75, 2.75, 2.35], 15.4, 11.5],
-    [35, 164, [0.9, 2.75, 2.75, 2.75, 2.35], 16.3, 11.5],
-    [40, 82, [0.9, 3.15, 3.15, 3.15, 2.75], 8.1, 13.1],
-    [40, 90, [0.9, 3.15, 3.15, 3.15, 2.75], 8.9, 13.1],
-    [40, 106, [0.9, 3.15, 3.15, 3.15, 2.75], 10.5, 13.1],
-    [40, 114, [0.9, 3.15, 3.15, 3.15, 2.75], 11.3, 13.1],
-    [40, 118, [0.9, 3.15, 3.15, 3.15, 2.75], 11.7, 13.1],
-    [40, 122, [0.9, 3.15, 3.15, 3.15, 2.75], 12.1, 13.1],
-    [40, 126, [0.9, 3.15, 3.15, 3.15, 2.75], 12.5, 13.1],
-    [40, 130, [0.9, 3.15, 3.15, 3.15, 2.75], 12.9, 13.1],
-    [40, 133, [0.9, 3.15, 3.15, 3.15, 2.75], 13.3, 13.1],
-    [40, 134, [0.9, 3.15, 3.15, 3.15, 2.75], 13.3, 13.1],
-    [40, 135, [0.9, 3.15, 3.15, 3.15, 2.75], 13.4, 13.1],
-    [40, 137, [0.9, 3.15, 3.15, 3.15, 2.75], 13.6, 13.1],
-    [40, 138, [0.9, 3.15, 3.15, 3.15, 2.75], 13.7, 13.1],
-    [40, 140, [0.9, 3.15, 3.15, 3.15, 2.75], 13.9, 13.1],
-    [40, 145, [0.9, 3.15, 3.15, 3.15, 2.75], 14.4, 13.1],
-    [40, 150, [0.9, 3.15, 3.15, 3.15, 2.75], 14.9, 13.1],
-    [40, 160, [0.9, 3.15, 3.15, 3.15, 2.75], 15.9, 13.1],
-    [45, 94, [0.9, 3.55, 3.55, 3.55, 3.15], 9.3, 14.7],
-    [45, 107, [0.9, 3.55, 3.55, 3.55, 3.15], 10.6, 14.7],
-    [45, 158, [0.9, 3.55, 3.55, 3.55, 3.15], 15.7, 14.7],
-    [50, 95, [0.9, 3.925, 3.925, 3.925, 3.525], 9.5, 16.2],
-    [50, 180, [0.9, 3.925, 3.925, 3.925, 3.525], 17.9, 16.2],
-  ].map(([diameter, body, widths, height, width]) => ({
-    key: diameter + '\u7ba1\u5f84' + body + '\u7ba1\u8eab',
-    diameter,
-    body,
-    widths,
-    height,
-    width,
-  }));
-  const TEMPLATE_XLSX_BASE64 = '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';
+  let BRAND_COMPLIANCE_DATA = [];
+  let TUBE_SIZE_RULES = FALLBACK_TUBE_SIZE_RULES.slice();
+  let TUBE_SIZE_SPECS = [];
+  let TEMPLATE_XLSX_BASE64 = '';
+  let ICON_ASSETS = Object.create(null);
+  let cloudAssetCache = loadCloudAssetCache();
+  let cloudAssetRefreshPromise = null;
+
+  applyCloudAssetCache(cloudAssetCache);
+
+  function loadCloudAssetCache() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(CLOUD_ASSET_CACHE_KEY, null)
+        : JSON.parse(localStorage.getItem(CLOUD_ASSET_CACHE_KEY) || 'null');
+      if (!saved || Number(saved.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA) return null;
+      return saved;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveCloudAssetCache(value) {
+    if (typeof GM_setValue === 'function') GM_setValue(CLOUD_ASSET_CACHE_KEY, value);
+    else localStorage.setItem(CLOUD_ASSET_CACHE_KEY, JSON.stringify(value));
+  }
+
+  function hasCompleteCloudAssetCache(value) {
+    const runtime = value && value.runtimeData;
+    return Boolean(
+      Number(value && value.schemaVersion) === CLOUD_ASSET_CACHE_SCHEMA
+      && runtime && Array.isArray(runtime.brands) && runtime.brands.length
+      && Array.isArray(runtime.tubeRules) && runtime.tubeRules.length
+      && Array.isArray(runtime.tubeSpecs) && runtime.tubeSpecs.length
+      && typeof value.templateBase64 === 'string' && value.templateBase64.length > 1000
+      && value.icons && typeof value.icons === 'object' && Object.keys(value.icons).length
+    );
+  }
+
+  function applyCloudAssetCache(value) {
+    if (!value || Number(value.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA) return false;
+    const runtime = value.runtimeData || {};
+    if (Array.isArray(runtime.brands) && runtime.brands.length) BRAND_COMPLIANCE_DATA = runtime.brands;
+    if (Array.isArray(runtime.tubeRules) && runtime.tubeRules.length) TUBE_SIZE_RULES = runtime.tubeRules;
+    if (Array.isArray(runtime.tubeSpecs) && runtime.tubeSpecs.length) TUBE_SIZE_SPECS = runtime.tubeSpecs;
+    if (typeof value.templateBase64 === 'string' && value.templateBase64.length > 1000) TEMPLATE_XLSX_BASE64 = value.templateBase64;
+    if (value.icons && typeof value.icons === 'object') ICON_ASSETS = value.icons;
+    return true;
+  }
+
+  function scheduleCloudAssetRefresh(delay) {
+    window.setTimeout(() => {
+      refreshCloudAssets(false).catch((error) => {
+        addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
+      });
+    }, Math.max(0, Number(delay) || 0));
+  }
+
+  function refreshCloudAssets(force) {
+    if (cloudAssetRefreshPromise) return cloudAssetRefreshPromise;
+    cloudAssetRefreshPromise = refreshCloudAssetsNow(Boolean(force)).finally(() => {
+      cloudAssetRefreshPromise = null;
+    });
+    return cloudAssetRefreshPromise;
+  }
+
+  async function refreshCloudAssetsNow(force) {
+    const now = Date.now();
+    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+      return cloudAssetCache;
+    }
+    const manifest = await cloudAssetRequest('/assets/manifest', 'json');
+    if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
+      throw new Error('unsupported cloud asset manifest');
+    }
+    if (hasCompleteCloudAssetCache(cloudAssetCache) && cloudAssetCache.dataVersion === manifest.dataVersion) {
+      cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
+      saveCloudAssetCache(cloudAssetCache);
+      return cloudAssetCache;
+    }
+    const runtimeDescriptor = manifest.assets.runtimeData;
+    const templateDescriptor = manifest.assets.excelTemplate;
+    const iconsDescriptor = manifest.assets.icons;
+    if (!runtimeDescriptor || !templateDescriptor || !iconsDescriptor) throw new Error('cloud asset manifest is incomplete');
+    const [runtimeText, templateBuffer, iconsText] = await Promise.all([
+      fetchCloudAsset(runtimeDescriptor, 'text'),
+      fetchCloudAsset(templateDescriptor, 'arraybuffer'),
+      fetchCloudAsset(iconsDescriptor, 'text'),
+    ]);
+    const runtimeData = JSON.parse(runtimeText);
+    const iconPackage = JSON.parse(iconsText);
+    if (!runtimeData || Number(runtimeData.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA
+      || !Array.isArray(runtimeData.brands) || !Array.isArray(runtimeData.tubeRules) || !Array.isArray(runtimeData.tubeSpecs)) {
+      throw new Error('cloud runtime data is invalid');
+    }
+    if (!iconPackage || Number(iconPackage.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA
+      || !iconPackage.icons || typeof iconPackage.icons !== 'object') {
+      throw new Error('cloud icon data is invalid');
+    }
+    const nextCache = {
+      schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
+      dataVersion: String(manifest.dataVersion || ''),
+      checkedAt: now,
+      updatedAt: new Date(now).toISOString(),
+      runtimeData,
+      templateBase64: arrayBufferToBase64(templateBuffer),
+      icons: iconPackage.icons,
+    };
+    if (!hasCompleteCloudAssetCache(nextCache)) throw new Error('cloud asset cache is incomplete');
+    saveCloudAssetCache(nextCache);
+    cloudAssetCache = nextCache;
+    applyCloudAssetCache(nextCache);
+    const panel = document.getElementById(PANEL_ID);
+    if (panel) renderShell();
+    addLog('success', '\u4e91\u7aef\u8d44\u6e90\u5df2\u66f4\u65b0', nextCache.dataVersion);
+    return nextCache;
+  }
+
+  async function fetchCloudAsset(descriptor, responseType) {
+    const path = String(descriptor && descriptor.path || '').split('/').filter(Boolean).map(encodeURIComponent).join('/');
+    if (!path) throw new Error('cloud asset path is missing');
+    const value = await cloudAssetRequest('/assets/' + path, responseType);
+    const bytes = responseType === 'arraybuffer'
+      ? value.byteLength
+      : new TextEncoder().encode(value).byteLength;
+    if (Number(descriptor.bytes) && bytes !== Number(descriptor.bytes)) throw new Error('cloud asset size mismatch: ' + path);
+    if (descriptor.sha256) {
+      const digest = await sha256Asset(responseType === 'arraybuffer' ? value : new TextEncoder().encode(value));
+      if (digest && digest !== String(descriptor.sha256).toLowerCase()) throw new Error('cloud asset checksum mismatch: ' + path);
+    }
+    return value;
+  }
+
+  async function sha256Asset(value) {
+    if (!window.crypto || !window.crypto.subtle) return '';
+    const buffer = value instanceof ArrayBuffer ? value : value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+    const digest = await window.crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  function cloudAssetRequest(path, responseType) {
+    const url = CLOUD_BACKUP_API_BASE + path;
+    return new Promise((resolve, reject) => {
+      const finish = (status, text, buffer) => {
+        if (status < 200 || status >= 300) {
+          reject(new Error('cloud asset HTTP ' + status));
+          return;
+        }
+        try {
+          if (responseType === 'arraybuffer') resolve(buffer);
+          else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
+          else resolve(text || '');
+        } catch (error) {
+          reject(error);
+        }
+      };
+      if (typeof GM_xmlhttpRequest === 'function') {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url,
+          responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
+          timeout: 30000,
+          onload: (response) => finish(response.status, response.responseText, response.response),
+          onerror: () => reject(new Error('cloud asset network unavailable')),
+          ontimeout: () => reject(new Error('cloud asset timeout')),
+        });
+        return;
+      }
+      fetch(url).then(async (response) => {
+        const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
+        finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
+      }).catch(reject);
+    });
+  }
+
+  async function ensureExcelTemplateLoaded() {
+    if (TEMPLATE_XLSX_BASE64) return true;
+    try {
+      await refreshCloudAssets(true);
+    } catch (error) {
+      addLog('warn', '\u4e91\u7aef Excel \u6a21\u677f\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
+    }
+    return Boolean(TEMPLATE_XLSX_BASE64);
+  }
+  // </cloud-assets-module>
+  const CM_TO_INCH = 1 / 2.54;
+  const NORMAL_DELTA_CM = 0.2;
+  const INNER_CARD_DELTA_CM = 0.5;
+  const SCAN_INTERVAL_MS = 650;
+  const MATERIAL_WATCH_ATTEMPTS = 4;
+
+
+
 
   const L = {
     title: '\u0050\u004c\u004d\u60ac\u6d6e\u52a9\u624b',
@@ -1750,6 +1826,7 @@
   ensureLauncher();
   renderShell(L.noDrawer);
   refreshLoadingTips(false);
+  scheduleCloudAssetRefresh(1200);
   scheduleSizeImageAccessRefresh(300);
   scheduleUserHeartbeat(800);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
@@ -3627,38 +3704,22 @@
     return launcher;
   }
 
+  // <icon-assets-module>
+  const CORE_ICON_ASSETS = Object.freeze({
+    home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z"></path></svg>',
+    settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"></path></svg>',
+    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 8 8 8M16 8l-8 8"></path></svg>',
+    refresh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"></path><path d="M6.2 8a7 7 0 0 1 11.5-1L20 12M4 12l2.3 5a7 7 0 0 0 11.5-1"></path></svg>',
+    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6M10 12h9"></path></svg>',
+    warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"></path><path d="M12 9v5M12 18h.01"></path></svg>',
+  });
+  const DEFAULT_ICON_ASSET = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"></rect><circle cx="12" cy="12" r="2"></circle></svg>';
+
   function iconHtml(name) {
-    const icons = {
-      home: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M453.037 86.017c33.826-29.356 84.099-29.356 117.926 0l374.262 324.79c16.676 14.472 18.461 39.72 3.988 56.393a39.982 39.982 0 0 1-30.194 13.773h-69.096v389.083c0 49.178-39.472 89.138-88.467 89.932l-1.488 0.012H263.904c-49.681 0-89.956-40.27-89.956-89.944V480.973H104.98c-21.86 0-39.622-17.541-39.98-39.314v-0.661a39.973 39.973 0 0 1 13.774-30.19z m78.617 45.285c-11.276-9.785-28.033-9.785-39.309 0L158.508 421.01h35.43c21.86 0 39.622 17.541 39.975 39.314l0.006 0.661v409.07c0 16.559 13.424 29.982 29.985 29.982h496.064c16.56 0 29.985-13.423 29.985-29.981v-409.07c0-22.078 17.9-39.976 39.98-39.976h35.557z m110.285 654.805c16.558 0 29.981 13.423 29.981 29.982 0 16.558-13.423 29.981-29.981 29.981H382.06c-16.559 0-29.982-13.423-29.982-29.981 0-16.559 13.423-29.982 29.982-29.982h259.878z"></path></svg>',
-      link: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M722.664727 628.736a34.955636 34.955636 0 0 1-24.692363-59.601455l154.949818-154.926545c68.049455-68.049455 68.049455-178.781091 0-246.853818-68.072727-68.049455-178.850909-68.049455-246.877091 0l-154.926546 154.926545a34.909091 34.909091 0 1 1-49.338181-49.361454L556.683636 117.992727c95.278545-95.232 250.321455-95.278545 345.6 0 95.278545 95.278545 95.278545 250.321455 0 345.576728l-154.926545 154.949818a34.792727 34.792727 0 0 1-24.669091 10.216727zM290.816 973.707636a243.665455 243.665455 0 0 1-172.823273-71.447272c-95.278545-95.301818-95.278545-250.321455 0-345.6l138.472728-138.449455a34.909091 34.909091 0 1 1 49.384727 49.361455l-138.472727 138.449454c-68.072727 68.049455-68.072727 178.804364 0 246.877091 68.072727 68.049455 178.827636 68.002909 246.853818 0l138.472727-138.496a34.909091 34.909091 0 1 1 49.338182 49.361455l-138.426182 138.472727a243.595636 243.595636 0 0 1-172.8 71.447273z m137.076364-346.414545a34.955636 34.955636 0 0 1-24.692364-59.601455l164.538182-164.538181a34.909091 34.909091 0 1 1 49.361454 49.361454l-164.538181 164.561455a34.792727 34.792727 0 0 1-24.669091 10.24z"></path></svg>',
-      taskPlan: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M449.408 896H192a64 64 0 0 1-64-64V192a64 64 0 0 1 64-64h576a64 64 0 0 1 64 64v219.008c23.04 10.112 44.096 23.424 64 38.464V192a128 128 0 0 0-128-128H192a128 128 0 0 0-128 128v640a128 128 0 0 0 128 128h321.728a322.432 322.432 0 0 1-64.32-64z"></path><path d="M704 448a256 256 0 1 0 0 512 256 256 0 0 0 0-512z m0 447.872a191.872 191.872 0 1 1 0-383.808 191.872 191.872 0 0 1 0 383.808z"></path><path d="M800 672h-64V640a32 32 0 0 0-64 0v64a32 32 0 0 0 32 32h96a32 32 0 0 0 0-64zM438.848 265.216a31.808 31.808 0 0 0-44.992 0L287.232 371.84l-42.688-42.688a30.72 30.72 0 1 0-43.456 43.456l59.584 59.584c1.344 2.304 2.432 4.672 4.416 6.656 6.656 6.592 15.36 9.408 23.936 9.088a30.848 30.848 0 0 0 21.824-9.024c0.704-0.704 1.024-1.6 1.6-2.432l126.4-126.336a31.744 31.744 0 0 0 0-44.928zM544 320a32 32 0 0 0 0 64h192a32 32 0 0 0 0-64h-192zM393.856 489.216L287.232 595.84l-42.688-42.688a30.72 30.72 0 1 0-43.456 43.456l59.584 59.584c1.344 2.304 2.432 4.672 4.416 6.656 6.656 6.592 15.36 9.408 23.936 9.088a30.848 30.848 0 0 0 21.824-9.024c0.704-0.704 1.024-1.6 1.6-2.432l126.4-126.336a31.872 31.872 0 0 0-44.992-44.928z"></path></svg>',
-      settings: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512.7 664.3c-82.9 0-150.4-67.4-150.4-150.4 0-82.9 67.4-150.4 150.4-150.4 82.9 0 150.4 67.4 150.4 150.4-0.1 83-67.5 150.4-150.4 150.4z m0-244.7c-52 0-94.4 42.3-94.4 94.4 0 52 42.3 94.4 94.4 94.4S607 566 607 514c0-52-42.3-94.4-94.3-94.4z"></path><path d="M631.2 940.5c-15.2 0-30.1-6-41.2-17.3l-63.5-64.8c-4.1-4.2-9.5-6.5-15.4-6.5-5.8 0-11.3 2.3-15.3 6.4l-63.5 64.4c-17.4 17.6-44 22.2-66.2 11.4l-94.5-45.7c-22.2-10.8-35.2-34.5-32.2-59l11-90.1c0.7-5.8-0.9-11.5-4.5-16-3.6-4.6-8.8-7.4-14.6-8l-89.9-9.5c-24.6-2.6-44.8-20.5-50.2-44.6L67.7 558.8c-5.5-24.1 5-49 26-62l77.3-47.6c5-3.1 8.4-7.9 9.7-13.5 1.3-5.7 0.3-11.5-2.8-16.4L129.2 343c-13.3-20.8-11.9-47.8 3.5-67.1l65.5-82c15.4-19.3 41.4-26.7 64.7-18.3l85.4 30.7c5.5 2 11.4 1.7 16.6-0.9 5.2-2.5 9.2-7 11.1-12.5l29.2-85.6c8-23.4 29.9-39.1 54.6-39.1h105c24.7 0 46.7 15.7 54.6 39.1l29.6 86.8c1.9 5.5 5.8 9.9 11 12.5s11.1 2.8 16.6 0.9l86.1-30.6c23.3-8.3 49.2-0.8 64.6 18.5l65.2 82.3c15.3 19.4 16.7 46.3 3.3 67.1l-49.1 76.3c-3.2 4.9-4.2 10.7-2.9 16.4 1.3 5.7 4.7 10.5 9.7 13.6l76.8 47.7c21 13 31.4 38 25.8 62l-23.6 102.3a57.67 57.67 0 0 1-50.4 44.4l-90.3 9.2c-5.8 0.6-11 3.4-14.6 8-3.6 4.5-5.3 10.2-4.6 16l10.7 89.8c2.9 24.5-10.1 48.2-32.4 58.9l-94.7 45.4c-8.1 3.9-16.6 5.7-25 5.7zM511 795.9h0.1c21 0 40.6 8.3 55.3 23.3l63.5 64.8c0.5 0.5 1.3 0.7 2 0.4l94.7-45.4c0.7-0.3 1.1-1 1-1.8l-10.7-89.8c-2.5-20.8 3.4-41.3 16.5-57.6s31.8-26.5 52.7-28.7l90.3-9.2c0.7-0.1 1.3-0.6 1.5-1.3l23.6-102.3c0.2-0.7-0.1-1.5-0.8-1.9l-76.8-47.7c-17.8-11.1-30.2-28.4-34.8-48.8-4.6-20.4-0.9-41.4 10.5-59l49.1-76.3c0.4-0.6 0.4-1.4-0.1-2l-65.2-82.3c-0.5-0.6-1.2-0.8-1.9-0.6l-86.1 30.6c-19.7 7-40.9 5.9-59.7-3.2-18.8-9.1-32.9-25-39.7-44.8l-29.6-86.8c-0.2-0.7-0.9-1.2-1.6-1.2h-105c-0.7 0-1.4 0.5-1.6 1.2L429 211c-6.8 19.8-20.9 35.8-39.8 44.9-18.9 9.1-40.1 10.2-59.9 3.1l-85.4-30.7c-0.7-0.2-1.5 0-1.9 0.5l-65.5 82c-0.5 0.6-0.5 1.4-0.1 2l48.7 76.2c11.3 17.7 14.9 38.6 10.2 59.1-4.7 20.4-17.1 37.7-34.9 48.7l-77.3 47.6c-0.6 0.4-0.9 1.1-0.8 1.9l23.3 102.4c0.2 0.7 0.8 1.3 1.5 1.3l89.9 9.5c20.8 2.2 39.5 12.4 52.6 28.8 13 16.4 18.8 36.9 16.3 57.7l-11 90.1c-0.1 0.7 0.3 1.4 1 1.8l94.5 45.7c0.7 0.3 1.5 0.2 2-0.3l63.5-64.4c14.6-14.8 34.2-23 55.1-23z"></path></svg>',
-      folder: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M752 80H272c-70.4 0-128 57.6-128 128v608c0 70.4 57.6 128 128 128h353.6c33.6 0 65.6-12.8 91.2-36.8l126.4-126.4c24-24 36.8-56 36.8-91.2V208c0-70.4-57.6-128-128-128zM208 816V208c0-35.2 28.8-64 64-64h480c35.2 0 64 28.8 64 64v464h-96c-70.4 0-128 57.6-128 128v80H272c-35.2 0-64-28.8-64-64z m462.4 44.8c-4.8 4.8-9.6 8-14.4 11.2V800c0-35.2 28.8-64 64-64h75.2l-124.8 124.8z"></path><path d="M368 352h288c17.6 0 32-14.4 32-32s-14.4-32-32-32H368c-17.6 0-32 14.4-32 32s14.4 32 32 32zM496 608h-128c-17.6 0-32 14.4-32 32s14.4 32 32 32h128c17.6 0 32-14.4 32-32s-14.4-32-32-32zM368 512h288c17.6 0 32-14.4 32-32s-14.4-32-32-32H368c-17.6 0-32 14.4-32 32s14.4 32 32 32z"></path></svg>',
-      upload: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M802 664v146c0 7.7-6.3 14-14 14H236c-7.7 0-14-6.3-14-14V664c0-5.5-4.5-10-10-10h-50c-5.5 0-10 4.5-10 10v170c0 33.1 26.9 60 60 60h600c33.1 0 60-26.9 60-60V664c0-5.5-4.5-10-10-10h-50c-5.5 0-10 4.5-10 10z"></path><path d="M547 697V247.5l173.6 173.6c13.7 13.7 35.8 13.7 49.5 0 13.7-13.7 13.7-35.8 0-49.5L536.8 138.3c-0.4-0.4-0.8-0.8-1.3-1.2-0.2-0.2-0.4-0.4-0.6-0.5-0.2-0.2-0.4-0.4-0.7-0.6-0.3-0.2-0.5-0.4-0.8-0.6-0.2-0.1-0.4-0.3-0.5-0.4l-0.9-0.6c-0.2-0.1-0.3-0.2-0.5-0.3-0.3-0.2-0.6-0.4-1-0.6-0.2-0.1-0.3-0.2-0.5-0.3-0.3-0.2-0.6-0.4-1-0.5-0.2-0.1-0.4-0.2-0.5-0.3-0.3-0.2-0.6-0.3-0.9-0.5l-0.6-0.3c-0.3-0.1-0.6-0.3-0.8-0.4-0.2-0.1-0.5-0.2-0.7-0.3-0.3-0.1-0.5-0.2-0.8-0.3l-0.9-0.3c-0.2-0.1-0.4-0.2-0.7-0.2-0.3-0.1-0.6-0.2-1-0.3-0.2-0.1-0.4-0.1-0.6-0.2-0.4-0.1-0.7-0.2-1.1-0.3-0.2 0-0.4-0.1-0.6-0.1-0.4-0.1-0.7-0.2-1.1-0.2-0.2 0-0.4-0.1-0.6-0.1-0.4-0.1-0.7-0.1-1.1-0.2-0.2 0-0.4-0.1-0.7-0.1-0.3 0-0.7-0.1-1-0.1-0.3 0-0.6 0-0.9-0.1-0.3 0-0.5 0-0.8-0.1-1.2-0.1-2.3-0.1-3.5 0-0.3 0-0.5 0-0.8 0.1-0.3 0-0.6 0-0.9 0.1-0.3 0-0.7 0.1-1 0.1-0.2 0-0.4 0.1-0.7 0.1-0.4 0.1-0.7 0.1-1.1 0.2-0.2 0-0.4 0.1-0.6 0.1-0.4 0.1-0.7 0.2-1.1 0.2-0.2 0-0.4 0.1-0.6 0.1-0.4 0.1-0.7 0.2-1.1 0.3-0.2 0.1-0.4 0.1-0.6 0.2-0.3 0.1-0.6 0.2-1 0.3-0.2 0.1-0.5 0.1-0.7 0.2l-0.9 0.3c-0.3 0.1-0.5 0.2-0.8 0.3-0.2 0.1-0.5 0.2-0.7 0.3-0.3 0.1-0.6 0.3-0.8 0.4l-0.6 0.3c-0.3 0.2-0.6 0.3-0.9 0.5-0.2 0.1-0.4 0.2-0.5 0.3-0.3 0.2-0.6 0.4-1 0.6-0.2 0.1-0.3 0.2-0.5 0.3-0.3 0.2-0.6 0.4-1 0.6-0.2 0.1-0.3 0.2-0.5 0.3-0.3 0.2-0.6 0.4-0.9 0.7-0.2 0.1-0.3 0.3-0.5 0.4-0.3 0.2-0.5 0.4-0.8 0.6-0.2 0.2-0.4 0.4-0.7 0.6-0.2 0.2-0.4 0.4-0.6 0.5l-1.2 1.2-233.1 233.1c-13.7 13.7-13.7 35.8 0 49.5 13.7 13.7 35.8 13.7 49.5 0L477 247.5V697c0 19.3 15.7 35 35 35s35-15.7 35-35z"></path></svg>',
-      collapse: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"></rect><path d="M9 8h6M9 12h6M9 16h4"></path></svg>',
-      close: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M859.00288 178.741248c-188.43648-188.471296-495.06304-188.471296-683.49952 0-188.469248 188.432384-188.469248 495.060992 0 683.493376 188.43648 188.473344 495.06304 188.473344 683.49952 0C1047.472128 673.80224 1047.472128 367.173632 859.00288 178.741248zM809.965568 813.19936c-161.41312 161.409024-424.04864 161.376256-585.424896 0-161.409024-161.41312-161.409024-424.011776 0-585.424896 161.376256-161.376256 424.011776-161.409024 585.424896 0C971.341824 389.15072 971.341824 651.8272 809.965568 813.19936z"></path><path d="M571.764736 518.862848l154.630144-154.871808c13.508608-13.529088 13.508608-35.463168 0-48.992256-13.508608-13.529088-35.407872-13.529088-48.91648 0l-154.628096 154.86976L362.14784 308.92032c-13.45536-13.473792-35.270656-13.473792-48.726016 0-13.453312 13.477888-13.453312 35.325952 0 48.80384l160.698368 160.950272-168.409088 168.67328c-13.510656 13.529088-13.510656 35.465216 0 48.994304 13.508608 13.529088 35.407872 13.529088 48.914432 0l168.411136-168.675328 160.700416 160.950272c13.45536 13.473792 35.270656 13.473792 48.726016 0 13.45536-13.477888 13.45536-35.325952 0-48.801792L571.764736 518.862848z"></path></svg>',
-      refresh: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M850.845805 255.97539c-16.530184-18.113648-44.618178-19.386339-62.717028-2.841357-18.09885 16.530184-19.386339 44.618178-2.841356 62.717028C847.63448 384.132412 881.967539 472.702825 881.967539 565.239298c0 98.825934-38.476704 191.732376-108.356318 261.61199s-162.786056 108.356318-261.61199 108.356318-191.732376-38.476704-261.61199-108.356318S142.030923 664.065232 142.030923 565.239298s38.476704-191.732376 108.356318-261.61199c53.556612-53.556612 120.639266-88.644407 193.537821-102.126052v71.655462c0 25.439021 29.952634 39.024257 49.087395 22.272092l139.063688-121.763969c13.466846-11.79459 13.466846-32.749595 0-44.529386L493.012457 7.386284C473.877696-9.365881 443.925062 4.219355 443.925062 29.658376v81.807393c-96.694917 14.295575-185.931273 59.002546-256.314044 129.385316C100.964441 327.497663 53.238529 442.705794 53.238529 565.239298s47.725912 237.741635 134.372489 324.388212 201.854709 134.37249 324.388213 134.37249 237.741635-47.725912 324.388213-134.37249 134.37249-201.854709 134.372489-324.388212c0-114.74937-42.590752-224.585562-119.914128-309.263908z"></path></svg>',
-      pin: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M930.206 812.172c16.523 0 29.918 13.39 29.918 29.91 0 16.283-13.015 29.527-29.212 29.902l-0.706 0.008H94.794c-16.523 0-29.918-13.391-29.918-29.91 0-16.283 13.015-29.527 29.212-29.902l0.706-0.008h835.412zM577.584 146.059L929.58 538.586a87.467 87.467 0 0 1 22.347 58.396c0 48.299-39.143 87.453-87.43 87.453H160.504a87.416 87.416 0 0 1-58.38-22.352C66.18 629.832 63.179 574.54 95.42 538.586L447.418 146.06a87.441 87.441 0 0 1 6.704-6.706c35.944-32.25 91.22-29.248 123.462 6.706z m-82.956 37.345l-0.563 0.492a27.613 27.613 0 0 0-2.117 2.118L139.95 578.54c-10.181 11.354-9.233 28.814 2.117 38.999a27.605 27.605 0 0 0 18.436 7.059h703.996c15.248 0 27.609-12.365 27.609-27.617a27.621 27.621 0 0 0-7.057-18.44L533.053 186.013c-10.014-11.168-27.067-12.268-38.425-2.61z"></path></svg>',
-      warning: '<svg viewBox="0 0 1026 1024" aria-hidden="true"><path d="M1004.657 801.716 602.263 91.599c-49.213-86.817-129.646-86.817-178.866 0L21.004 801.716c-49.207 86.906-8.949 157.798 89.388 157.798h804.877c98.337 0 138.556-70.892 89.388-157.798zM544.635 832.216h-63.649v-63.649h63.649v63.649zM544.635 641.27h-63.649V259.377h63.649V641.27z"></path></svg>',
-      copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="6.5" r="2.5"></circle><path d="M8.5 8.2 19 20"></path><path d="M15.5 8.2 5 20"></path><path d="M10 13h4"></path></svg>',
-      back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6"></path><path d="M10 12h9"></path></svg>',
-      batchExcel: '<svg viewBox="0 0 179 191.5" aria-hidden="true"><path d="m80.29,191.5c-.37,0-.75-.04-1.13-.12l-56.04-12.38-.38-.02C10,178.45.01,168.04,0,155.29V36.2C.01,23.45,10.01,13.04,22.75,12.52l.37-.02L79.19.12c.36-.08.74-.12,1.11-.12,13.05.01,23.68,10.65,23.7,23.7v144.09c-.01,13.05-10.65,23.69-23.7,23.7ZM24.81,22.63c-.36.08-.73.12-1.11.12-7.41,0-13.45,6.03-13.45,13.45v119.09c0,7.42,6.03,13.46,13.45,13.46.37,0,.75.04,1.13.12l56.05,12.38.67-.06c6.95-.66,12.19-6.42,12.2-13.4V23.7c0-7-5.25-12.75-12.21-13.4l-.66-.06-56.07,12.39Zm111.57,152.73c-2.83,0-5.12-2.3-5.12-5.12V21.27c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v148.96c0,1.37-.53,2.66-1.5,3.63-.97.97-2.25,1.5-3.62,1.5h0Zm37.5-18.23c-2.83,0-5.12-2.3-5.12-5.12V39.5c0-2.82,2.3-5.12,5.12-5.12s5.12,2.3,5.12,5.12v112.5c0,2.83-2.3,5.12-5.12,5.12Zm-133.86-16.67c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.12h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,2.83-2.3,5.12-5.12,5.13h-23.96Zm0-39.58c-2.82,0-5.12-2.3-5.12-5.12s2.3-5.12,5.12-5.12h23.96c2.83,0,5.12,2.3,5.13,5.12,0,1.37-.53,2.66-1.5,3.62s-2.25,1.5-3.62,1.5h-23.96Z"></path></svg>',
-      batch: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M464.896 1024c-3.488 0-6.944-0.384-10.368-1.12l-285.184-63.008A143.264 143.264 0 0 1 32 816.864V207.104a143.296 143.296 0 0 1 137.344-143.008L454.528 1.12c3.424-0.736 6.88-1.12 10.368-1.12A143.264 143.264 0 0 1 608 143.104v737.76A143.296 143.296 0 0 1 464.896 1024z m4.352-927.808L185.472 158.88A49.216 49.216 0 0 1 175.104 160C149.152 160 128 181.152 128 207.104v609.76C128 842.88 149.152 864 175.104 864c3.488 0 6.944 0.384 10.368 1.12l283.776 62.688A47.2 47.2 0 0 0 512 880.864V143.104c0-24.512-18.816-44.704-42.752-46.912zM752 941.344a48 48 0 0 1-48-48V130.656a48 48 0 1 1 96 0v762.656a48 48 0 0 1-48 48.032zM944 848A48 48 0 0 1 896 800V224a48 48 0 1 1 96 0v576a48 48 0 0 1-48 48z"></path><path d="M381.344 357.344H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 560H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96zM381.344 762.656H258.656a48 48 0 1 1 0-96h122.656a48 48 0 1 1 0.032 96z"></path></svg>',
-      calculator: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M760.9856 100.8128H265.728A161.4848 161.4848 0 0 0 104.3968 262.144v493.0048A161.4848 161.4848 0 0 0 265.728 916.48h495.2576a161.4848 161.4848 0 0 0 161.3312-161.3312V262.144a161.4848 161.4848 0 0 0-161.3312-161.3312z m99.8912 654.336A99.9936 99.9936 0 0 1 760.9856 855.04H265.728a99.9936 99.9936 0 0 1-99.8912-99.8912V262.144A99.9936 99.9936 0 0 1 265.728 162.2528h495.2576a99.9936 99.9936 0 0 1 99.8912 99.8912z"></path><path d="M457.1136 330.1888H392.8576V265.9328a30.72 30.72 0 0 0-61.44 0v64.256H267.1616a30.72 30.72 0 1 0 0 61.44h64.256v64.3072a30.72 30.72 0 0 0 61.44 0V391.6288h64.256a30.72 30.72 0 0 0 0-61.44zM757.76 325.0688h-176.5888a30.72 30.72 0 0 0 0 61.44H757.76a30.72 30.72 0 1 0 0-61.44zM757.76 564.6848h-176.5888a30.72 30.72 0 0 0 0 61.44H757.76a30.72 30.72 0 0 0 0-61.44zM757.76 680.96h-176.5888a30.72 30.72 0 0 0 0 61.44H757.76a30.72 30.72 0 0 0 0-61.44zM451.0208 576.5632a30.72 30.72 0 0 0-43.4688 0l-45.4144 45.4656-45.4144-45.4656a30.72 30.72 0 1 0-43.4688 43.4688l45.4656 45.568-45.4656 45.4656a30.72 30.72 0 1 0 43.4688 43.4176l45.4144-45.4144 45.4144 45.4144a30.72 30.72 0 0 0 43.4688-43.4176L405.6064 665.6l45.4144-45.4144a30.72 30.72 0 0 0 0-43.6224z"></path></svg>',
-      tools: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><rect x="82" y="82" width="350" height="350" rx="58"></rect><rect x="592" y="82" width="350" height="350" rx="58"></rect><rect x="82" y="592" width="350" height="350" rx="58"></rect><rect x="592" y="592" width="350" height="350" rx="58"></rect></svg>',
-      download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10"></path><path d="m8 10 4 4 4-4"></path><path d="M5 20h14"></path></svg>',
-      box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10v12H7z"></path><path d="M9 8V5h6v3"></path></svg>',
-      tag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 11 4h7v7l-7 7-7-7Z"></path><circle cx="15.5" cy="7.5" r="1"></circle></svg>',
-      list: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h10v14H7z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg>',
-      historyRecord: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M653.9 248.3c-16.8 0-30.4-13.6-30.4-30.4V96.2c0-16.8 13.6-30.4 30.4-30.4 16.8 0 30.4 13.6 30.4 30.4v121.7c0.1 16.8-13.5 30.4-30.4 30.4zM370.1 248.3c-16.8 0-30.4-13.6-30.4-30.4V96.2c0-16.8 13.6-30.4 30.4-30.4 16.8 0 30.4 13.6 30.4 30.4v121.7c0 16.8-13.7 30.4-30.4 30.4zM856.9 370.1H167.1c-16.8 0-30.4-13.6-30.4-30.4 0-16.8 13.6-30.4 30.4-30.4h689.7c16.8 0 30.4 13.6 30.4 30.4 0.1 16.6-13.5 30.4-30.3 30.4zM653.9 755.5H370.1c-16.8 0-30.4-13.6-30.4-30.4 0-16.8 13.6-30.4 30.4-30.4H654c16.8 0 30.4 13.6 30.4 30.4 0 16.8-13.6 30.4-30.5 30.4zM653.9 572.9H370.1c-16.8 0-30.4-13.6-30.4-30.4s13.6-30.4 30.4-30.4H654c16.8 0 30.4 13.6 30.4 30.4s-13.6 30.4-30.5 30.4z"></path><path d="M836.5 958.3h-649c-39.2 0-71-31.9-71-71V197.6c0-39.2 31.9-71 71-71h649.1c39.2 0 71 31.9 71 71v689.7c-0.1 39.1-31.9 71-71.1 71z m-649-770.8c-5.6 0-10.1 4.5-10.1 10.1v689.7c0 5.6 4.5 10.1 10.1 10.1h649.1c5.6 0 10.1-4.5 10.1-10.1V197.6c0-5.6-4.5-10.1-10.1-10.1H187.5z"></path></svg>',
-      clearTrash: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M687.6 96.4H336.4v91.2h351.1V96.4zM636.7 398v405.5h-73.9V398h73.9z m-175.5 0v405.5h-73.9V398h73.9z m332.1-119.2H230.7l27.9 648.8h506.7l28-648.8zM696.8 5.1c40.4 0 73.3 35.6 73.9 79.8v102.7h147.8c20.2 0 36.6 17.8 37 39.9v41.2c0 5.5-4 10-9 10.1h-70.1L848 941.6c-1.8 42.9-33.7 76.6-72.6 77.3H249.8c-39 0-71.3-33.4-73.7-76l-0.1-1.3-28.5-662.7H77.7c-5 0-9.1-4.4-9.2-9.8v-40.9c0-22.2 16.2-40.2 36.3-40.5h148.4V86.2c0-44.3 32.5-80.4 72.7-81.1h370.9z"></path></svg>',
-      print: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V4h10v4"></path><path d="M7 17H5V9h14v8h-2"></path><path d="M7 14h10v6H7z"></path></svg>',
-      bag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h10l1 11H6L7 9Z"></path><path d="M9 9a3 3 0 0 1 6 0"></path></svg>',
-      image: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M778.24 947.2H143.36c-53.248 0-96.256-43.008-96.256-96.256V275.456c0-53.248 43.008-96.256 96.256-96.256h634.88c53.248 0 96.256 43.008 96.256 96.256v575.488c0 53.248-43.008 96.256-96.256 96.256z m-634.88-706.56c-19.456 0-34.816 15.36-34.816 34.816v575.488c0 19.456 15.36 34.816 34.816 34.816h634.88c19.456 0 34.816-15.36 34.816-34.816V275.456c0-19.456-15.36-34.816-34.816-34.816H143.36z"></path><path d="M946.176 844.8c-17.408 0-30.72-13.312-30.72-30.72V244.736c0-58.368-48.128-106.496-106.496-106.496H180.224c-17.408 0-30.72-13.312-30.72-30.72s13.312-30.72 30.72-30.72H808.96c93.184 0 167.936 75.776 167.936 167.936v569.344c0 17.408-13.312 30.72-30.72 30.72z"></path><path d="M77.824 834.56c-11.264 0-21.504-6.144-26.624-16.384-8.192-15.36-2.048-33.792 12.288-41.984l512-276.48c12.288-7.168 27.648-4.096 36.864 6.144L739.328 645.12c11.264 12.288 10.24 31.744-2.048 43.008s-31.744 10.24-43.008-2.048L583.68 565.248 92.16 830.464c-4.096 3.072-9.216 4.096-14.336 4.096zM287.744 547.84c-53.248 0-97.28-44.032-97.28-97.28s44.032-97.28 97.28-97.28 97.28 44.032 97.28 97.28-44.032 97.28-97.28 97.28z m0-133.12c-19.456 0-35.84 16.384-35.84 35.84s16.384 35.84 35.84 35.84 35.84-16.384 35.84-35.84-16.384-35.84-35.84-35.84z"></path></svg>',
-      backArrow: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M224.32 505.6a31.936 31.936 0 0 1 10.88-19.84l222.08-222.08a32 32 0 0 1 45.12 45.12l-169.28 169.28H768a32 32 0 0 1 0 64H333.12l169.28 169.28a32 32 0 1 1-45.12 45.44l-224-224a31.968 31.968 0 0 1-8.96-27.2z"></path></svg>',
-    };
-    return '<span class="pfh-icon pfh-icon-' + escapeHtml(name) + '">' + (icons[name] || '') + '</span>';
+    const svg = ICON_ASSETS[name] || CORE_ICON_ASSETS[name] || DEFAULT_ICON_ASSET;
+    return '<span class="pfh-icon pfh-icon-' + escapeHtml(name) + '">' + svg + '</span>';
   }
+  // </icon-assets-module>
 
   function expandPanel() {
     state.expanded = true;
@@ -10497,6 +10558,10 @@
     }
     if (!window.ExcelJS) {
       showToast(L.excelNeedLibrary);
+      return;
+    }
+    if (!await ensureExcelTemplateLoaded()) {
+      showToast('Excel \u6a21\u677f\u5c1a\u672a\u7f13\u5b58\uff0c\u8bf7\u8054\u7f51\u540e\u91cd\u8bd5');
       return;
     }
     syncExcelInputs();

@@ -6,6 +6,8 @@ const outputPath = path.join(root, 'outputs', 'plm-material-summary.user.js');
 const modules = [
   { name: 'parameter-logo-assets', file: path.join(root, 'src', 'parameter-logo-assets.module.js') },
   { name: 'parameter-image', file: path.join(root, 'src', 'parameter-image.module.js') },
+  { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
+  { name: 'icon-assets', file: path.join(root, 'src', 'icon-assets.module.js') },
 ];
 let output = fs.readFileSync(outputPath, 'utf8');
 

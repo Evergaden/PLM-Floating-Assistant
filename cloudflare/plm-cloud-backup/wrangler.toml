@@ -8,3 +8,7 @@ preview_urls = false
 binding = "DB"
 database_name = "plm-cloud-backup-db"
 database_id = "75a4e636-aa91-4e95-a617-e42bb2e23bc7"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "plm-cloud-backup-assets"
