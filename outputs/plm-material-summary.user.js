@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.117
+// @version      2.5.118
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.117';
+  const SCRIPT_VERSION = '2.5.118';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -4889,6 +4889,13 @@
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover .pfh-ledger-thumb{transform:translate3d(0,-1px,0) scale(1.025)!important;box-shadow:0 7px 16px rgba(83,60,168,.12)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-menu-open .pfh-ledger-more{position:relative!important;z-index:101!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-menu-open .pfh-ledger-overflow-menu{z-index:102!important;pointer-events:auto!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-height:58px!important;padding:10px 16px!important;border:1px solid rgba(139,92,246,.20)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(248,245,255,.96),rgba(255,255,255,.94))!important;box-shadow:0 9px 24px rgba(91,62,180,.08)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance>div{display:grid!important;gap:3px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance span{color:#5e36cc!important;font-size:12px!important;font-weight:700!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance small{overflow:hidden!important;color:#8a83a3!important;font-size:10px!important;line-height:1.35!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance strong{flex:0 0 auto!important;color:#6d35e8!important;font-size:27px!important;font-weight:750!important;line-height:1!important;letter-spacing:-.03em!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance strong::after{content:" 分"!important;margin-left:3px!important;color:#9b87db!important;font-size:10px!important;font-weight:600!important;letter-spacing:0!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22)!important;outline-offset:2px!important;border-color:#9b7cf5!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}' +
@@ -6198,9 +6205,46 @@
     await processSizeImageFile(pending.file, 'label:' + specKey, false);
   }
 
+  function getLedgerPerformanceKind(record) {
+    if (record && record.status === '作废') return 'void';
+    const designType = String(record && record.designType || '').replace(/\s+/g, '');
+    return /换(?:logo|标识|商标)/i.test(designType) ? 'logo' : 'design';
+  }
+
+  function summarizeLedgerPerformance(records) {
+    const summary = { design: 0, logo: 0, void: 0, total: 0 };
+    (records || []).forEach((record) => {
+      const kind = getLedgerPerformanceKind(record);
+      summary[kind] += 1;
+    });
+    summary.total = (summary.design * 14 + summary.logo * 10 + summary.void * 5) / 10;
+    return summary;
+  }
+
+  function formatLedgerPerformance(value) {
+    const number = Math.round((Number(value) || 0) * 10) / 10;
+    return Number.isInteger(number) ? String(number) : number.toFixed(1);
+  }
+
+  function ledgerPerformanceHtml(summary) {
+    const value = summary || summarizeLedgerPerformance([]);
+    const breakdown = '设计 ' + value.design + ' × 1.4 · 换 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5';
+    return '<div class="pfh-ledger-performance" aria-live="polite"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>';
+  }
+
+  function refreshLedgerPerformanceSummary() {
+    if (state.view !== 'ledger' || state.ledgerView !== 'finalized') return;
+    const panel = document.getElementById(PANEL_ID);
+    const current = panel && panel.querySelector('.pfh-ledger-performance');
+    if (!current) return;
+    const records = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth());
+    current.outerHTML = ledgerPerformanceHtml(summarizeLedgerPerformance(records));
+  }
+
   function ledgerViewHtml(records) {
     const mode = state.ledgerView === 'finalized' ? 'finalized' : 'design';
     const groups = groupLedgerRecordsByDate(records, mode);
+    const performanceHtml = mode === 'finalized' ? ledgerPerformanceHtml(summarizeLedgerPerformance(records)) : '';
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
@@ -6214,6 +6258,7 @@
         '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
         '<button type="button" class="' + (mode === 'finalized' ? 'is-active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
       '</div>' +
+      performanceHtml +
       '<div class="pfh-ledger-toolbar">' +
         '<button type="button" class="pfh-ledger-month" data-action="ledger-prev-month" title="上个月">‹</button>' +
         '<button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + escapeHtml(formatLedgerMonthLabel(month)) + '</button>' +
@@ -6250,7 +6295,7 @@
       : '<button type="button" class="pfh-ledger-link is-disabled" disabled title="没有参考链接">' + iconHtml('link') + '</button>';
     const statusPill = '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(workflowStatus)) + '">' + escapeHtml(workflowStatus) + '</span>';
     const dateText = mode === 'finalized'
-      ? ('定稿 ' + (record.finalizedAt ? formatLedgerMinuteLabel(record.finalizedAt, workDate) : formatLedgerDateLabel(workDate)))
+      ? ((record.status === '作废' ? '作废 ' : '定稿 ') + (record.finalizedAt ? formatLedgerMinuteLabel(record.finalizedAt, workDate) : formatLedgerDateLabel(workDate)))
       : ('分配 ' + formatLedgerMinuteLabel(record.designAssignedAt || workDate, workDate));
     const tagHtml = '<div class="pfh-ledger-tags">' +
       '<button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + escapeHtml(sku) + '" title="点击复制产品编码">' + escapeHtml(sku) + '</button>' +
@@ -6298,7 +6343,8 @@
     const mode = state.ledgerView === 'finalized' ? 'finalized' : 'design';
     const panel = ensurePanel();
     const card = Array.from(panel.querySelectorAll('.pfh-ledger-item')).find((item) => item.getAttribute('data-ledger-sku') === record.sku && item.getAttribute('data-ledger-date') === record.date);
-    if ((mode === 'finalized' && (!record.finalizedAt || record.status === '作废')) || (mode === 'design' && record.finalizedAt)) {
+    const finalized = isLedgerFinalizedRecord(record);
+    if ((mode === 'finalized' && !finalized) || (mode === 'design' && finalized)) {
       if (card) card.remove();
       else renderShell();
       return;
@@ -6324,7 +6370,9 @@
 
   function ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated) {
     if (state.ledgerMenuSku !== sku || state.ledgerMenuDate !== normalizeLedgerDate(dateAttr)) return '';
-    const rollback = record.finalizedAt
+    const rollback = record.status === '作废'
+      ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回作废</button>'
+      : record.finalizedAt
       ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回定稿</button>'
       : (imageGenerated ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回出图</button>' : '');
     return '<div class="pfh-ledger-overflow-menu">' + rollback +
@@ -13324,7 +13372,14 @@
   }
 
   function getLedgerFinalizedDate(record) {
-    return normalizeLedgerDate(record && record.finalizedDate) || parseLedgerDateFromText(record && record.finalizedAt) || getLedgerDesignDate(record);
+    return normalizeLedgerDate(record && record.finalizedDate)
+      || parseLedgerDateFromText(record && record.finalizedAt)
+      || (record && record.status === '作废' ? parseLedgerDateFromText(record.updatedAt) : '')
+      || getLedgerDesignDate(record);
+  }
+
+  function isLedgerFinalizedRecord(record) {
+    return Boolean(record && (record.finalizedAt || record.status === '作废'));
   }
 
   function loadDailyLedger() {
@@ -13443,8 +13498,9 @@
     const mode = view === 'finalized' ? 'finalized' : 'design';
     return (state.ledgerRecords || [])
       .filter((item) => {
-        if (mode === 'finalized' && (!item.finalizedAt || item.status === '作废')) return false;
-        if (mode === 'design' && item.finalizedAt) return false;
+        const finalized = isLedgerFinalizedRecord(item);
+        if (mode === 'finalized' && !finalized) return false;
+        if (mode === 'design' && finalized) return false;
         const key = mode === 'finalized' ? getLedgerFinalizedDate(item) : getLedgerDesignDate(item);
         return getMonthKeyFromDateKey(key) === month;
       })
@@ -13680,7 +13736,14 @@
           : action === 'ledger-finalize'
             ? { status: '已定稿', stage: '已定稿', finalizedAt: today, finalizedDate: todayKey, finalizedAtMs: Date.now(), note: '手动定稿' }
       : action === 'ledger-void'
-        ? { status: '作废', stage: '作废', note: '手动作废' }
+        ? {
+          status: '作废',
+          stage: '作废',
+          finalizedAt: existing && existing.finalizedAt || today,
+          finalizedDate: existing && existing.finalizedDate || todayKey,
+          finalizedAtMs: Number(existing && existing.finalizedAtMs) || Date.now(),
+          note: '手动作废',
+        }
         : { status: '已完成', stage: '完成', note: '手动完成', filesAutoCompleted: false };
     const opts = options || {};
     const finalPatch = opts.purchasePrice ? { ...patch, purchasePrice: opts.purchasePrice } : patch;
@@ -13694,6 +13757,7 @@
       if (changed) recordCommerceInsight(pricedData, null, { price: opts.purchasePrice, source: 'ledger-finalize' });
     }
     refreshLedgerCard(updatedRecord);
+    refreshLedgerPerformanceSummary();
   }
 
   function openLedgerFinalizedTimeEditor(sku, dateKey) {
