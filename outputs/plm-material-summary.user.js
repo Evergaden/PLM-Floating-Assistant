@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.99
+// @version      2.5.100
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.99';
+  const SCRIPT_VERSION = '2.5.100';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1776,6 +1776,18 @@
 
   function handleUserDrawerTabClick(event) {
     if (!event || !event.isTrusted || !(event.target instanceof Element)) return;
+    const detailButton = event.target.closest('button, a, [role="button"]');
+    const projectRow = detailButton && detailButton.closest('tr');
+    if (
+      detailButton && projectRow &&
+      !detailButton.closest('#' + PANEL_ID + ', .ant-drawer-open, .ant-drawer') &&
+      /\/projectManagementChemicalNew/.test(location.pathname) &&
+      compactText(detailButton.innerText || detailButton.textContent) === '\u8be6\u60c5'
+    ) {
+      const sku = findSku(getVisibleText(projectRow));
+      if (sku) showProjectDetailOpeningFeedback(sku, loadData(sku) || { sku });
+      return;
+    }
     const tab = event.target.closest('[role="tab"], .ant-tabs-tab');
     if (!tab) return;
     const drawer = tab.closest('.ant-drawer-open, .ant-drawer');
@@ -1792,6 +1804,25 @@
       state.drawerTabFlowUserInterrupted = true;
       cancelDrawerTabFlow({ preserveUserInterrupted: true });
     }
+  }
+
+  function showProjectDetailOpeningFeedback(sku, data) {
+    if (!sku) return;
+    state.openingProjectDetail = true;
+    state.openingProjectDetailSku = sku;
+    state.view = 'detail';
+    state.selectedSku = sku;
+    state.data = normalizeData(data || { sku });
+    resetExcelState();
+    lockLoadingTip(sku);
+    expandPanel();
+    renderShell(L.openingDetail);
+    window.setTimeout(() => {
+      if (!state.openingProjectDetail || state.openingProjectDetailSku !== sku) return;
+      state.openingProjectDetail = false;
+      state.openingProjectDetailSku = '';
+      renderShell();
+    }, 7000);
   }
 
   function cancelDrawerTabFlow(options) {
@@ -2083,6 +2114,10 @@
     if (!changed && state.manuallyCollapsedForSku && state.manuallyCollapsedForSku === (sku || state.sku)) return;
     if (!changed) return;
     state.manuallyCollapsedForSku = '';
+    if (shouldAdoptProgrammaticDetail) {
+      state.openingProjectDetail = false;
+      state.openingProjectDetailSku = '';
+    }
 
     const cached = sku ? loadData(sku) : null;
     if (cached) {
@@ -2410,6 +2445,32 @@
     );
   }
 
+  function getProductAttachmentFiles(drawer, sku) {
+    const ingredientItem = findIngredientPdfItem(drawer);
+    const copywritingItem = findProductCopywritingItem(drawer);
+    return {
+      ingredientFile: ingredientItem ? findIngredientPdfFile(ingredientItem) : null,
+      copywritingFile: copywritingItem ? findProductCopywritingFile(copywritingItem, sku) : null,
+    };
+  }
+
+  async function waitForProductAttachmentFiles(drawer, sku, token) {
+    let files = getProductAttachmentFiles(drawer, sku);
+    const copywritingDeadline = Date.now() + 2600;
+    while (!files.copywritingFile && Date.now() < copywritingDeadline) {
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
+      await wait(140);
+      files = getProductAttachmentFiles(drawer, sku);
+    }
+    const ingredientDeadline = Date.now() + 800;
+    while (!files.ingredientFile && Date.now() < ingredientDeadline) {
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
+      await wait(140);
+      files = getProductAttachmentFiles(drawer, sku);
+    }
+    return isDrawerProductFlowCurrent(sku, token, drawer) ? files : null;
+  }
+
   async function runDrawerProductFlow(sku, token, options) {
     const includeScanTabs = Boolean(options && options.includeScanTabs);
     const drawer = getProjectDrawerForSku(sku);
@@ -2476,13 +2537,11 @@
       await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
 
-      const ingredientItem = findIngredientPdfItem(drawer);
-      const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
-      const copywritingItem = findProductCopywritingItem(drawer);
-      const copywritingFile = copywritingItem ? findProductCopywritingFile(copywritingItem, sku) : null;
-      if (ingredientFile) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile }).catch(() => {});
+      const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
+      if (!attachmentFiles) return;
+      if (attachmentFiles.ingredientFile) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile }).catch(() => {});
       else addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
-      if (copywritingFile) hydrateCopywritingForSku(sku, { silent: true, drawer, file: copywritingFile }).catch(() => {});
+      if (attachmentFiles.copywritingFile) hydrateCopywritingForSku(sku, { silent: true, drawer, file: attachmentFiles.copywritingFile }).catch(() => {});
       else addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
     } finally {
       if (state.drawerTabFlowToken === token) {
@@ -4097,8 +4156,15 @@
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
-    const loading = state.scanRunning || state.copywritingLoading || statusText === L.scanning || statusText === L.checkingMaterial;
+    const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
+    const loading = openingDetail || state.scanRunning || state.copywritingLoading || statusText === L.scanning || statusText === L.checkingMaterial;
     detail.classList.toggle('is-loading', loading);
+    if (openingDetail) {
+      const main = panel.querySelector('.pfh-main');
+      if (main) main.classList.remove('is-home');
+      detail.innerHTML = renderStatusHtml(L.openingDetail) + '<div class="pfh-detail-scroll"></div>';
+      return;
+    }
     if (!data) {
       if (loading) {
         const main = panel.querySelector('.pfh-main');
@@ -5588,9 +5654,10 @@
   }
 
   function renderStatusHtml(statusText) {
-    if (state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial) {
+    const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
+    if (openingDetail || state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial) {
       const tip = getCurrentLoadingTip();
-      return '<div class="pfh-status pfh-loading-tip"><span>\u8bc6\u522b\u4e2d</span><strong>' + escapeHtml(tip) + '</strong></div>';
+      return '<div class="pfh-status pfh-loading-tip"><span>' + (openingDetail ? '\u52a0\u8f7d\u4e2d' : '\u8bc6\u522b\u4e2d') + '</span><strong>' + escapeHtml(tip) + '</strong></div>';
     }
     return '';
   }
@@ -9901,15 +9968,8 @@
       showToast(L.excelNeedData);
       return;
     }
-    state.openingProjectDetail = true;
-    state.openingProjectDetailSku = sku;
     state.ignoreOutsideClickUntil = Date.now() + 2500;
-    state.view = 'detail';
-    state.selectedSku = sku;
-    state.data = data;
-    resetExcelState();
-    expandPanel();
-    renderShell(L.openingDetail);
+    showProjectDetailOpeningFeedback(sku, data);
     showToast(L.openingDetail);
     try {
       if (!(await ensureNewProductProjectPage())) throw new Error('new product project page not ready');
@@ -9931,6 +9991,7 @@
       showToast(L.openDetailFailed);
     } finally {
       state.openingProjectDetail = false;
+      if (state.selectedSku === sku) renderShell(state.scanRunning ? L.scanning : '');
       window.setTimeout(() => {
         if (state.openingProjectDetailSku === sku) state.openingProjectDetailSku = '';
       }, 1000);
