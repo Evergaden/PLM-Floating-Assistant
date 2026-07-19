@@ -21,5 +21,14 @@ for (const module of modules) {
   output = output.replace(pattern, `${start}\n${source}\n${end}`);
 }
 
+const startupIndex = output.indexOf('\n  injectStyle();');
+if (startupIndex < 0) throw new Error('userscript startup marker is missing');
+for (const name of ['cloud-assets', 'icon-assets']) {
+  const moduleIndex = output.indexOf(`  // <${name}-module>`);
+  if (moduleIndex < 0 || moduleIndex > startupIndex) {
+    throw new Error(`${name} module must be initialized before userscript startup`);
+  }
+}
+
 fs.writeFileSync(outputPath, output, 'utf8');
 console.log(`Injected ${modules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);
