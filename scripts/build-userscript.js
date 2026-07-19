@@ -9,6 +9,7 @@ const modules = [
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
   { name: 'icon-assets', file: path.join(root, 'src', 'icon-assets.module.js') },
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
+  { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
 ];
 let output = fs.readFileSync(outputPath, 'utf8');
 
@@ -24,7 +25,7 @@ for (const module of modules) {
 
 const startupIndex = output.indexOf('\n  injectStyle();');
 if (startupIndex < 0) throw new Error('userscript startup marker is missing');
-for (const name of ['cloud-assets', 'icon-assets', 'notifications']) {
+for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'ui-loader']) {
   const moduleIndex = output.indexOf(`  // <${name}-module>`);
   if (moduleIndex < 0 || moduleIndex > startupIndex) {
     throw new Error(`${name} module must be initialized before userscript startup`);

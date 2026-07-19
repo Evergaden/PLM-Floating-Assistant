@@ -61,6 +61,11 @@
     return true;
   }
 
+  function getCachedCloudUiStyles() {
+    const css = cloudAssetCache && cloudAssetCache.uiCss;
+    return typeof css === 'string' && css.length > 10000 ? css : '';
+  }
+
   function scheduleCloudAssetRefresh(delay) {
     window.setTimeout(() => {
       refreshCloudAssets(false).catch((error) => {
@@ -79,14 +84,15 @@
 
   async function refreshCloudAssetsNow(force) {
     const now = Date.now();
-    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+    const hasUiStyles = Boolean(getCachedCloudUiStyles());
+    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
     const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
     if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
       throw new Error('unsupported cloud asset manifest');
     }
-    if (hasCompleteCloudAssetCache(cloudAssetCache) && cloudAssetCache.dataVersion === manifest.dataVersion) {
+    if (hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && cloudAssetCache.dataVersion === manifest.dataVersion) {
       cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
       saveCloudAssetCache(cloudAssetCache);
       return cloudAssetCache;
@@ -94,11 +100,13 @@
     const runtimeDescriptor = manifest.assets.runtimeData;
     const templateDescriptor = manifest.assets.excelTemplate;
     const iconsDescriptor = manifest.assets.icons;
-    if (!runtimeDescriptor || !templateDescriptor || !iconsDescriptor) throw new Error('cloud asset manifest is incomplete');
-    const [runtimeText, templateBuffer, iconsText] = await Promise.all([
+    const uiDescriptor = manifest.assets.uiStyles;
+    if (!runtimeDescriptor || !templateDescriptor || !iconsDescriptor || !uiDescriptor) throw new Error('cloud asset manifest is incomplete');
+    const [runtimeText, templateBuffer, iconsText, uiCss] = await Promise.all([
       fetchCloudAsset(runtimeDescriptor, 'text'),
       fetchCloudAsset(templateDescriptor, 'arraybuffer'),
       fetchCloudAsset(iconsDescriptor, 'text'),
+      fetchCloudAsset(uiDescriptor, 'text'),
     ]);
     const runtimeData = JSON.parse(runtimeText);
     const iconPackage = JSON.parse(iconsText);
@@ -110,6 +118,9 @@
       || !iconPackage.icons || typeof iconPackage.icons !== 'object') {
       throw new Error('cloud icon data is invalid');
     }
+    if (typeof uiCss !== 'string' || uiCss.length < 10000 || !uiCss.includes('#' + PANEL_ID)) {
+      throw new Error('cloud UI stylesheet is invalid');
+    }
     const nextCache = {
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
@@ -118,11 +129,13 @@
       runtimeData,
       templateBase64: arrayBufferToBase64(templateBuffer),
       icons: iconPackage.icons,
+      uiCss,
     };
     if (!hasCompleteCloudAssetCache(nextCache)) throw new Error('cloud asset cache is incomplete');
     saveCloudAssetCache(nextCache);
     cloudAssetCache = nextCache;
     applyCloudAssetCache(nextCache);
+    applyCloudUiStyles(uiCss);
     const panel = document.getElementById(PANEL_ID);
     if (panel) renderShell();
     addLog('success', '\u4e91\u7aef\u8d44\u6e90\u5df2\u66f4\u65b0', nextCache.dataVersion);

@@ -22,11 +22,11 @@ npx.cmd wrangler d1 execute plm-cloud-backup-db --remote --file=./schema.sql
 Build the versioned runtime asset manifest, then deploy the Worker and its Static Assets together:
 
 ```powershell
-npm run assets:manifest -- 2026-07-19.2
+npm run assets:manifest -- 2026-07-19.4
 npm run deploy
 ```
 
-Worker Static Assets stores brand compliance data, tube rules/specs, the Excel template, and the SVG icon package under `static/assets/`. The userscript persists the last complete package in GM storage and refreshes it at most once per day.
+Worker Static Assets stores brand compliance data, tube rules/specs, the Excel template, the SVG icon package, and the full userscript UI stylesheet under `static/assets/`. The userscript persists the last complete package in GM storage and refreshes it at most once per day. Cached CSS remains available offline; a compact local skeleton stylesheet covers first-run offline startup.
 
 Set an API key for write endpoints:
 
@@ -134,6 +134,7 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 - `GET /assets/v1/runtime-data.json`
 - `GET /assets/v1/excel-template.xlsx`
 - `GET /assets/v1/icons.json`
+- `GET /assets/v1/ui-2.5.108.css`
 - `POST /backup/save`
 - `GET /backup/load?backupKey=...`
 - `POST /pack/record`
