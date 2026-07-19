@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.104
+// @version      2.5.105
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.104';
+  const SCRIPT_VERSION = '2.5.105';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1473,8 +1473,9 @@
   // </cloud-assets-module>
   // <icon-assets-module>
   const CORE_ICON_ASSETS = Object.freeze({
-    home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z"></path></svg>',
-    settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"></path></svg>',
+    home: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M453.037 86.017c33.826-29.356 84.099-29.356 117.926 0l374.262 324.79c16.676 14.472 18.461 39.72 3.988 56.393a39.982 39.982 0 0 1-30.194 13.773h-69.096v389.083c0 49.178-39.472 89.138-88.467 89.932l-1.488 0.012H263.904c-49.681 0-89.956-40.27-89.956-89.944V480.973H104.98c-21.86 0-39.622-17.541-39.98-39.314v-0.661a39.973 39.973 0 0 1 13.774-30.19z m78.617 45.285c-11.276-9.785-28.033-9.785-39.309 0L158.508 421.01h35.43c21.86 0 39.622 17.541 39.975 39.314l0.006 0.661v409.07c0 16.559 13.424 29.982 29.985 29.982h496.064c16.56 0 29.985-13.423 29.985-29.981v-409.07c0-22.078 17.9-39.976 39.98-39.976h35.557z m110.285 654.805c16.558 0 29.981 13.423 29.981 29.982 0 16.558-13.423 29.981-29.981 29.981H382.06c-16.559 0-29.982-13.423-29.982-29.981 0-16.559 13.423-29.982 29.982-29.982h259.878z\"></path></svg>",
+    settings: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M512.7 664.3c-82.9 0-150.4-67.4-150.4-150.4 0-82.9 67.4-150.4 150.4-150.4 82.9 0 150.4 67.4 150.4 150.4-0.1 83-67.5 150.4-150.4 150.4z m0-244.7c-52 0-94.4 42.3-94.4 94.4 0 52 42.3 94.4 94.4 94.4S607 566 607 514c0-52-42.3-94.4-94.3-94.4z\"></path><path d=\"M631.2 940.5c-15.2 0-30.1-6-41.2-17.3l-63.5-64.8c-4.1-4.2-9.5-6.5-15.4-6.5-5.8 0-11.3 2.3-15.3 6.4l-63.5 64.4c-17.4 17.6-44 22.2-66.2 11.4l-94.5-45.7c-22.2-10.8-35.2-34.5-32.2-59l11-90.1c0.7-5.8-0.9-11.5-4.5-16-3.6-4.6-8.8-7.4-14.6-8l-89.9-9.5c-24.6-2.6-44.8-20.5-50.2-44.6L67.7 558.8c-5.5-24.1 5-49 26-62l77.3-47.6c5-3.1 8.4-7.9 9.7-13.5 1.3-5.7 0.3-11.5-2.8-16.4L129.2 343c-13.3-20.8-11.9-47.8 3.5-67.1l65.5-82c15.4-19.3 41.4-26.7 64.7-18.3l85.4 30.7c5.5 2 11.4 1.7 16.6-0.9 5.2-2.5 9.2-7 11.1-12.5l29.2-85.6c8-23.4 29.9-39.1 54.6-39.1h105c24.7 0 46.7 15.7 54.6 39.1l29.6 86.8c1.9 5.5 5.8 9.9 11 12.5s11.1 2.8 16.6 0.9l86.1-30.6c23.3-8.3 49.2-0.8 64.6 18.5l65.2 82.3c15.3 19.4 16.7 46.3 3.3 67.1l-49.1 76.3c-3.2 4.9-4.2 10.7-2.9 16.4 1.3 5.7 4.7 10.5 9.7 13.6l76.8 47.7c21 13 31.4 38 25.8 62l-23.6 102.3a57.67 57.67 0 0 1-50.4 44.4l-90.3 9.2c-5.8 0.6-11 3.4-14.6 8-3.6 4.5-5.3 10.2-4.6 16l10.7 89.8c2.9 24.5-10.1 48.2-32.4 58.9l-94.7 45.4c-8.1 3.9-16.6 5.7-25 5.7zM511 795.9h0.1c21 0 40.6 8.3 55.3 23.3l63.5 64.8c0.5 0.5 1.3 0.7 2 0.4l94.7-45.4c0.7-0.3 1.1-1 1-1.8l-10.7-89.8c-2.5-20.8 3.4-41.3 16.5-57.6s31.8-26.5 52.7-28.7l90.3-9.2c0.7-0.1 1.3-0.6 1.5-1.3l23.6-102.3c0.2-0.7-0.1-1.5-0.8-1.9l-76.8-47.7c-17.8-11.1-30.2-28.4-34.8-48.8-4.6-20.4-0.9-41.4 10.5-59l49.1-76.3c0.4-0.6 0.4-1.4-0.1-2l-65.2-82.3c-0.5-0.6-1.2-0.8-1.9-0.6l-86.1 30.6c-19.7 7-40.9 5.9-59.7-3.2-18.8-9.1-32.9-25-39.7-44.8l-29.6-86.8c-0.2-0.7-0.9-1.2-1.6-1.2h-105c-0.7 0-1.4 0.5-1.6 1.2L429 211c-6.8 19.8-20.9 35.8-39.8 44.9-18.9 9.1-40.1 10.2-59.9 3.1l-85.4-30.7c-0.7-0.2-1.5 0-1.9 0.5l-65.5 82c-0.5 0.6-0.5 1.4-0.1 2l48.7 76.2c11.3 17.7 14.9 38.6 10.2 59.1-4.7 20.4-17.1 37.7-34.9 48.7l-77.3 47.6c-0.6 0.4-0.9 1.1-0.8 1.9l23.3 102.4c0.2 0.7 0.8 1.3 1.5 1.3l89.9 9.5c20.8 2.2 39.5 12.4 52.6 28.8 13 16.4 18.8 36.9 16.3 57.7l-11 90.1c-0.1 0.7 0.3 1.4 1 1.8l94.5 45.7c0.7 0.3 1.5 0.2 2-0.3l63.5-64.4c14.6-14.8 34.2-23 55.1-23z\"></path></svg>",
+    notification: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M512 1024c-85.333333 0-159.288889-62.577778-159.288889-136.533333 0-17.066667 11.377778-28.444444 28.444445-28.444445s28.444444 11.377778 28.444444 28.444445c0 45.511111 45.511111 79.644444 102.4 79.644444s102.4-34.133333 102.4-79.644444c0-17.066667 11.377778-28.444444 28.444444-28.444445s28.444444 11.377778 28.444445 28.444445c0 73.955556-73.955556 136.533333-159.288889 136.533333zM853.333333 853.333333H170.666667c-39.822222 0-73.955556-34.133333-73.955556-73.955555 0-39.822222 28.444444-68.266667 68.266667-68.266667 11.377778-17.066667 17.066667-79.644444 17.066666-142.222222V449.422222c0-147.911111 85.333333-284.444444 216.177778-335.644444 0-62.577778 51.2-113.777778 113.777778-113.777778s113.777778 45.511111 113.777778 108.088889c130.844444 51.2 216.177778 187.733333 216.177778 335.644444V568.888889c0 62.577778 11.377778 125.155556 22.755555 142.222222 34.133333 0 68.266667 34.133333 68.266667 68.266667-5.688889 39.822222-39.822222 73.955556-79.644445 73.955555zM512 56.888889c-34.133333 0-56.888889 28.444444-56.888889 56.888889v11.377778c0 11.377778-5.688889 28.444444-17.066667 34.133333-113.777778 39.822222-199.111111 159.288889-199.111111 290.133333V568.888889c0 130.844444-22.755556 199.111111-68.266666 199.111111-11.377778 0-17.066667 5.688889-17.066667 17.066667 0 5.688889 5.688889 11.377778 17.066667 11.377777h682.666666c5.688889 0 17.066667-5.688889 17.066667-17.066666 0-5.688889-5.688889-17.066667-17.066667-17.066667-45.511111 0-73.955556-68.266667-73.955555-199.111111v-113.777778c0-130.844444-79.644444-250.311111-193.422222-290.133333-11.377778-5.688889-17.066667-22.755556-17.066667-34.133333V113.777778c0-28.444444-22.755556-56.888889-56.888889-56.888889z\"></path></svg>",
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 8 8 8M16 8l-8 8"></path></svg>',
     refresh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"></path><path d="M6.2 8a7 7 0 0 1 11.5-1L20 12M4 12l2.3 5a7 7 0 0 0 11.5-1"></path></svg>',
     back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6M10 12h9"></path></svg>',
@@ -1487,6 +1488,210 @@
     return '<span class="pfh-icon pfh-icon-' + escapeHtml(name) + '">' + svg + '</span>';
   }
   // </icon-assets-module>
+  // <notifications-module>
+  const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
+  const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
+
+  function normalizeNotificationItem(item) {
+    const source = item && typeof item === 'object' ? item : {};
+    const notificationId = String(source.notificationId || source.notification_id || '').trim();
+    if (!notificationId) return null;
+    return {
+      notificationId,
+      title: String(source.title || '\u672a\u547d\u540d\u901a\u77e5').slice(0, 120),
+      content: String(source.content || '').slice(0, 4000),
+      publishedAt: String(source.publishedAt || source.published_at || ''),
+      updatedAt: String(source.updatedAt || source.updated_at || ''),
+      isRead: Boolean(source.isRead || source.is_read),
+      readAt: String(source.readAt || source.read_at || ''),
+    };
+  }
+
+  function loadNotificationCache() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(NOTIFICATION_CACHE_KEY, null)
+        : JSON.parse(localStorage.getItem(NOTIFICATION_CACHE_KEY) || 'null');
+      const source = saved && typeof saved === 'object' ? saved : {};
+      return {
+        items: (Array.isArray(source.items) ? source.items : []).map(normalizeNotificationItem).filter(Boolean),
+        pendingReadIds: (Array.isArray(source.pendingReadIds) ? source.pendingReadIds : []).map(String).filter(Boolean),
+        checkedAt: Number(source.checkedAt || 0) || 0,
+      };
+    } catch (error) {
+      return { items: [], pendingReadIds: [], checkedAt: 0 };
+    }
+  }
+
+  function saveNotificationCache() {
+    const payload = {
+      items: Array.isArray(state.notifications) ? state.notifications.slice(0, 80) : [],
+      pendingReadIds: Array.isArray(state.notificationPendingReadIds) ? state.notificationPendingReadIds.slice(0, 100) : [],
+      checkedAt: Number(state.notificationCheckedAt || Date.now()),
+    };
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(NOTIFICATION_CACHE_KEY, payload);
+      else localStorage.setItem(NOTIFICATION_CACHE_KEY, JSON.stringify(payload));
+    } catch (error) {}
+  }
+
+  function notificationUnreadCount() {
+    return (state.notifications || []).filter((item) => item && !item.isRead).length;
+  }
+
+  function updateNotificationButton(panel) {
+    const button = panel && panel.querySelector('[data-action="notifications"]');
+    if (!button) return;
+    const count = notificationUnreadCount();
+    const badge = button.querySelector('.pfh-notification-badge');
+    button.classList.toggle('has-unread', count > 0);
+    button.setAttribute('aria-label', count ? '\u901a\u77e5\uff0c' + count + '\u6761\u672a\u8bfb' : '\u901a\u77e5');
+    if (badge) {
+      badge.textContent = count > 99 ? '99+' : String(count || '');
+      badge.setAttribute('aria-hidden', count ? 'false' : 'true');
+    }
+  }
+
+  function formatNotificationTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('zh-CN', { hour12: false });
+  }
+
+  function notificationListHtml(items, emptyText) {
+    if (!items.length) return '<div class="pfh-notification-empty">' + escapeHtml(emptyText) + '</div>';
+    return items.map((item) => '<article class="pfh-notification-item' + (item.isRead ? ' is-read' : ' is-unread') + '">' +
+      '<div class="pfh-notification-item-head"><h4>' + escapeHtml(item.title) + '</h4>' + (!item.isRead ? '<span>\u65b0</span>' : '') + '</div>' +
+      '<div class="pfh-notification-content">' + escapeHtml(item.content) + '</div>' +
+      '<div class="pfh-notification-foot"><time>' + escapeHtml(formatNotificationTime(item.publishedAt)) + '</time>' +
+      (!item.isRead ? '<button type="button" data-action="notification-read" data-notification-id="' + escapeHtml(item.notificationId) + '">\u6211\u77e5\u9053\u4e86</button>' : '<span>\u5df2\u8bfb</span>') + '</div></article>').join('');
+  }
+
+  function renderNotificationModal(panel) {
+    if (!panel) return;
+    let layer = panel.querySelector('.pfh-notification-layer');
+    if (!state.notificationModalOpen) {
+      if (layer) layer.remove();
+      return;
+    }
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-notification-layer';
+      layer.setAttribute('data-action', 'notification-close');
+      panel.querySelector('.pfh-full').appendChild(layer);
+    }
+    const tab = state.notificationTab === 'history' ? 'history' : 'new';
+    const items = (state.notifications || []).filter((item) => tab === 'new' ? !item.isRead : item.isRead);
+    const status = state.notificationsLoading
+      ? '<span class="pfh-notification-status">\u6b63\u5728\u540c\u6b65\u2026</span>'
+      : state.notificationsError
+        ? '<span class="pfh-notification-status is-error">\u5df2\u663e\u793a\u672c\u5730\u7f13\u5b58</span>'
+        : '<span class="pfh-notification-status">' + (state.notificationCheckedAt ? '\u66f4\u65b0\u4e8e ' + escapeHtml(formatNotificationTime(state.notificationCheckedAt)) : '\u6682\u672a\u540c\u6b65') + '</span>';
+    layer.innerHTML = '<section class="pfh-notification-dialog" role="dialog" aria-modal="true" aria-label="\u901a\u77e5\u4e2d\u5fc3" data-notification-dialog="1">' +
+      '<header><div><h3>\u901a\u77e5\u4e2d\u5fc3</h3>' + status + '</div><button type="button" class="pfh-notification-close" data-action="notification-close" aria-label="\u5173\u95ed">\u00d7</button></header>' +
+      '<nav><button type="button" data-action="notification-tab" data-tab="new" class="' + (tab === 'new' ? 'is-active' : '') + '">\u65b0\u901a\u77e5 <em>' + notificationUnreadCount() + '</em></button>' +
+      '<button type="button" data-action="notification-tab" data-tab="history" class="' + (tab === 'history' ? 'is-active' : '') + '">\u5386\u53f2\u901a\u77e5</button>' +
+      '<button type="button" data-action="notification-refresh">\u5237\u65b0</button></nav>' +
+      '<div class="pfh-notification-list">' + notificationListHtml(items, tab === 'new' ? '\u6682\u65e0\u65b0\u901a\u77e5' : '\u6682\u65e0\u5386\u53f2\u901a\u77e5') + '</div>' +
+      (notificationUnreadCount() ? '<footer><button type="button" data-action="notification-read-all">\u5168\u90e8\u6807\u4e3a\u5df2\u8bfb</button></footer>' : '') + '</section>';
+  }
+
+  function openNotificationModal() {
+    state.notificationModalOpen = true;
+    state.notificationTab = notificationUnreadCount() ? 'new' : 'history';
+    expandPanel();
+    renderShell();
+    refreshNotifications(false);
+  }
+
+  function closeNotificationModal() {
+    state.notificationModalOpen = false;
+    const panel = document.getElementById(PANEL_ID);
+    if (panel) renderNotificationModal(panel);
+  }
+
+  async function syncPendingNotificationReads(name, instanceId) {
+    const pending = Array.from(new Set(state.notificationPendingReadIds || []));
+    if (!pending.length) return;
+    const completed = [];
+    for (const notificationId of pending) {
+      try {
+        await cloudRequest('/notifications/read', {
+          method: 'POST',
+          body: { notificationId, name, instanceId, version: SCRIPT_VERSION },
+        });
+        completed.push(notificationId);
+      } catch (error) {}
+    }
+    if (completed.length) {
+      state.notificationPendingReadIds = pending.filter((id) => !completed.includes(id));
+      saveNotificationCache();
+    }
+  }
+
+  async function refreshNotifications(showFeedback) {
+    if (state.notificationsLoading) return;
+    const name = findCurrentPlmUserName();
+    const instanceId = getClientInstanceId();
+    state.notificationsLoading = true;
+    state.notificationsError = '';
+    if (state.notificationModalOpen) renderShell();
+    try {
+      await syncPendingNotificationReads(name, instanceId);
+      const response = await cloudRequest('/notifications?name=' + encodeURIComponent(name || '') + '&instanceId=' + encodeURIComponent(instanceId) + '&version=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
+      const pending = new Set(state.notificationPendingReadIds || []);
+      state.notifications = (Array.isArray(response && response.notifications) ? response.notifications : [])
+        .map(normalizeNotificationItem)
+        .filter(Boolean)
+        .map((item) => pending.has(item.notificationId) ? { ...item, isRead: true } : item);
+      state.notificationCheckedAt = Date.now();
+      saveNotificationCache();
+      if (showFeedback) showToast('\u901a\u77e5\u5df2\u66f4\u65b0');
+    } catch (error) {
+      state.notificationsError = formatErrorMessage(error);
+      if (showFeedback) showToast('\u65e0\u6cd5\u8054\u7f51\uff0c\u5df2\u663e\u793a\u672c\u5730\u7f13\u5b58');
+    } finally {
+      state.notificationsLoading = false;
+      const panel = document.getElementById(PANEL_ID);
+      if (panel) {
+        updateNotificationButton(panel);
+        if (state.notificationModalOpen) renderNotificationModal(panel);
+      }
+    }
+  }
+
+  function scheduleNotificationRefresh(delay) {
+    window.clearTimeout(state.notificationRefreshTimer);
+    state.notificationRefreshTimer = window.setTimeout(async () => {
+      await refreshNotifications(false);
+      scheduleNotificationRefresh(NOTIFICATION_REFRESH_MS);
+    }, Math.max(0, Number(delay) || 0));
+  }
+
+  async function markNotificationRead(notificationId, showFeedback) {
+    const id = String(notificationId || '');
+    if (!id) return;
+    state.notifications = (state.notifications || []).map((item) => item.notificationId === id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item);
+    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), id]));
+    saveNotificationCache();
+    renderShell();
+    await syncPendingNotificationReads(findCurrentPlmUserName(), getClientInstanceId());
+    if (showFeedback) showToast('\u5df2\u6807\u4e3a\u5df2\u8bfb');
+  }
+
+  async function markAllNotificationsRead() {
+    const ids = (state.notifications || []).filter((item) => !item.isRead).map((item) => item.notificationId);
+    if (!ids.length) return;
+    state.notifications = (state.notifications || []).map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }));
+    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), ...ids]));
+    state.notificationTab = 'history';
+    saveNotificationCache();
+    renderShell();
+    await syncPendingNotificationReads(findCurrentPlmUserName(), getClientInstanceId());
+    showToast('\u5df2\u5168\u90e8\u6807\u4e3a\u5df2\u8bfb');
+  }
+  // </notifications-module>
   const CM_TO_INCH = 1 / 2.54;
   const NORMAL_DELTA_CM = 0.2;
   const INNER_CARD_DELTA_CM = 0.5;
@@ -1688,6 +1893,7 @@
   };
 
   const firstTutorial = !loadTutorialSeen();
+  const initialNotificationCache = loadNotificationCache();
   const state = {
     drawer: null,
     sku: '',
@@ -1816,6 +2022,14 @@
     loadingTipSeed: '',
     loadingTipId: '',
     userHeartbeatTimer: 0,
+    notifications: initialNotificationCache.items,
+    notificationPendingReadIds: initialNotificationCache.pendingReadIds,
+    notificationCheckedAt: initialNotificationCache.checkedAt,
+    notificationsLoading: false,
+    notificationsError: '',
+    notificationModalOpen: false,
+    notificationTab: 'new',
+    notificationRefreshTimer: 0,
   };
   const parameterImageFeature = createParameterImageFeature({
     panelId: PANEL_ID,
@@ -1845,6 +2059,7 @@
   scheduleCloudAssetRefresh(1200);
   scheduleSizeImageAccessRefresh(300);
   scheduleUserHeartbeat(800);
+  scheduleNotificationRefresh(1600);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startUploadQueueSync();
@@ -3668,7 +3883,7 @@
     panel = document.createElement('div');
     panel.id = PANEL_ID;
     panel.dataset.version = SCRIPT_VERSION;
-    panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="about"></button><button type="button" data-action="home-main"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
+    panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="home-main"></button><button type="button" data-action="notifications"></button><button type="button" data-action="about"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
     document.documentElement.appendChild(panel);
     panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6">P</button>');
     panel.querySelector('strong').textContent = L.title;
@@ -3685,6 +3900,9 @@
     panel.querySelector('[data-action="home-main"]').removeAttribute('title');
     panel.querySelector('[data-action="home-main"]').setAttribute('aria-label', '\u4e3b\u9875');
     panel.querySelector('[data-action="home-main"]').setAttribute('data-tooltip', '\u4e3b\u9875');
+    panel.querySelector('[data-action="notifications"]').innerHTML = iconHtml('notification') + '<span>\u901a\u77e5</span><i class="pfh-notification-badge" aria-hidden="true"></i>';
+    panel.querySelector('[data-action="notifications"]').setAttribute('aria-label', '\u901a\u77e5');
+    panel.querySelector('[data-action="notifications"]').setAttribute('data-tooltip', '\u901a\u77e5');
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.addEventListener('click', handlePanelClick);
     panel.addEventListener('contextmenu', handlePanelContextMenu);
@@ -3835,9 +4053,11 @@
     const scrollSnapshot = capturePanelScroll(panel);
     updatePanelPinButton(panel);
     updateSettingsNotice(panel);
+    updateNotificationButton(panel);
     updateCollectionSwitch(panel);
     renderUploadProgressOverlay(panel);
     renderFirstRunTutorialModal(panel);
+    renderNotificationModal(panel);
     if (state.view === 'home') {
       renderHome(panel, statusText);
       restorePanelScroll(panel, scrollSnapshot);
@@ -7296,6 +7516,32 @@
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (action === 'notifications') {
+      openNotificationModal();
+      return;
+    }
+    if (action === 'notification-close') {
+      if (actionTarget.classList.contains('pfh-notification-layer') && event.target !== actionTarget) return;
+      closeNotificationModal();
+      return;
+    }
+    if (action === 'notification-tab') {
+      state.notificationTab = actionTarget.getAttribute('data-tab') === 'history' ? 'history' : 'new';
+      renderNotificationModal(ensurePanel());
+      return;
+    }
+    if (action === 'notification-refresh') {
+      refreshNotifications(true);
+      return;
+    }
+    if (action === 'notification-read') {
+      markNotificationRead(actionTarget.getAttribute('data-notification-id'), true);
+      return;
+    }
+    if (action === 'notification-read-all') {
+      markAllNotificationsRead();
+      return;
+    }
     if (state.view === 'parameterImage' && action && parameterImageFeature.handleAction(action, actionTarget, state.data || {})) return;
     if (action === 'sku-context-pin' || action === 'sku-context-parameter' || action === 'sku-context-size' || action === 'sku-context-delete') {
       const sku = actionTarget.getAttribute('data-sku') || '';
@@ -23419,6 +23665,203 @@
         border-color: var(--pfh-color-primary-hover);
         background: linear-gradient(135deg, #7545e5, var(--pfh-color-primary-hover));
         color: #fff;
+      }
+
+      #${PANEL_ID} .pfh-actions [data-action="notifications"] {
+        position: relative !important;
+      }
+      #${PANEL_ID} .pfh-actions .pfh-icon-notification svg,
+      #${PANEL_ID} .pfh-actions .pfh-icon-home svg {
+        fill: currentColor !important;
+        stroke: none !important;
+      }
+      #${PANEL_ID} .pfh-notification-badge {
+        display: none;
+        position: absolute;
+        top: -3px;
+        right: -5px;
+        z-index: 4;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        box-sizing: border-box;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fff;
+        border-radius: 999px;
+        background: #ef3340;
+        color: #fff;
+        font-size: 9px;
+        font-style: normal;
+        font-weight: 800;
+        line-height: 12px;
+        box-shadow: 0 2px 7px rgba(220,38,38,.34);
+      }
+      #${PANEL_ID} .pfh-actions [data-action="notifications"].has-unread .pfh-notification-badge {
+        display: inline-flex;
+      }
+      #${PANEL_ID} .pfh-notification-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 500;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-end;
+        padding: 72px 18px 18px;
+        box-sizing: border-box;
+        border-radius: inherit;
+        background: rgba(33,25,58,.20);
+        backdrop-filter: blur(3px);
+        cursor: default;
+      }
+      #${PANEL_ID} .pfh-notification-dialog {
+        display: flex;
+        flex-direction: column;
+        width: min(520px, 100%);
+        max-height: calc(100% - 2px);
+        overflow: hidden;
+        border: 1px solid rgba(210,201,240,.92);
+        border-radius: 18px;
+        background: rgba(255,255,255,.98);
+        box-shadow: 0 24px 70px rgba(50,37,94,.24);
+      }
+      #${PANEL_ID} .pfh-notification-dialog > header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 17px 18px 12px;
+        border-bottom: 1px solid #eeeaf8;
+        background: linear-gradient(135deg,#faf8ff,#f4f9ff);
+      }
+      #${PANEL_ID} .pfh-notification-dialog h3 {
+        margin: 0 0 3px;
+        color: #2b2343;
+        font-size: 17px;
+      }
+      #${PANEL_ID} .pfh-notification-status {
+        color: #8a829e;
+        font-size: 10px;
+      }
+      #${PANEL_ID} .pfh-notification-status.is-error { color: #b45309; }
+      #${PANEL_ID} .pfh-notification-close {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #7c748f;
+        font-size: 22px;
+        line-height: 28px;
+      }
+      #${PANEL_ID} .pfh-notification-dialog > nav {
+        display: flex;
+        gap: 7px;
+        padding: 10px 14px;
+        border-bottom: 1px solid #f0edf7;
+      }
+      #${PANEL_ID} .pfh-notification-dialog > nav button {
+        height: 30px;
+        padding: 0 11px;
+        border-color: transparent;
+        border-radius: 9px;
+        background: transparent;
+        color: #70677f;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-notification-dialog > nav button.is-active {
+        border-color: #d9cff7;
+        background: #f1ecff;
+        color: #6734d4;
+      }
+      #${PANEL_ID} .pfh-notification-dialog > nav button:last-child { margin-left: auto; }
+      #${PANEL_ID} .pfh-notification-dialog > nav em {
+        display: inline-flex;
+        min-width: 17px;
+        height: 17px;
+        margin-left: 3px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: #ef3340;
+        color: #fff;
+        font-size: 9px;
+        font-style: normal;
+      }
+      #${PANEL_ID} .pfh-notification-list {
+        min-height: 150px;
+        overflow-y: auto;
+        padding: 12px 14px;
+        background: #fbfafd;
+      }
+      #${PANEL_ID} .pfh-notification-item {
+        margin-bottom: 10px;
+        padding: 13px 14px 11px;
+        border: 1px solid #e8e3f3;
+        border-radius: 13px;
+        background: #fff;
+      }
+      #${PANEL_ID} .pfh-notification-item.is-unread {
+        border-color: #d7c9ff;
+        box-shadow: 0 7px 20px rgba(91,53,171,.08);
+      }
+      #${PANEL_ID} .pfh-notification-item-head,
+      #${PANEL_ID} .pfh-notification-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      #${PANEL_ID} .pfh-notification-item-head h4 {
+        margin: 0;
+        color: #302747;
+        font-size: 13px;
+      }
+      #${PANEL_ID} .pfh-notification-item-head span {
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: #fff0f1;
+        color: #d62f3c;
+        font-size: 9px;
+        font-weight: 800;
+      }
+      #${PANEL_ID} .pfh-notification-content {
+        margin: 8px 0 11px;
+        color: #565066;
+        font-size: 12px;
+        line-height: 1.65;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      #${PANEL_ID} .pfh-notification-foot time,
+      #${PANEL_ID} .pfh-notification-foot > span {
+        color: #9991a8;
+        font-size: 10px;
+      }
+      #${PANEL_ID} .pfh-notification-foot button,
+      #${PANEL_ID} .pfh-notification-dialog > footer button {
+        height: 29px;
+        padding: 0 11px;
+        border-color: #d8ccfb;
+        border-radius: 9px;
+        background: #f4f0ff;
+        color: #6937d4;
+        font-weight: 700;
+      }
+      #${PANEL_ID} .pfh-notification-dialog > footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 10px 14px 13px;
+        border-top: 1px solid #eeeaf6;
+        background: #fff;
+      }
+      #${PANEL_ID} .pfh-notification-empty {
+        display: grid;
+        min-height: 150px;
+        place-items: center;
+        color: #9b94aa;
+        font-size: 12px;
       }
     `;
     document.documentElement.appendChild(style);

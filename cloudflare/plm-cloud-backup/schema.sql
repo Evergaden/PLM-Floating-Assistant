@@ -134,6 +134,34 @@ CREATE TABLE IF NOT EXISTS plm_users (
 CREATE INDEX IF NOT EXISTS idx_plm_users_last_seen
 ON plm_users(last_seen_at);
 
+CREATE TABLE IF NOT EXISTS notifications (
+  notification_id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_enabled_published
+ON notifications(enabled, published_at);
+
+CREATE TABLE IF NOT EXISTS notification_reads (
+  notification_id TEXT NOT NULL,
+  user_name TEXT NOT NULL DEFAULT '',
+  instance_id TEXT NOT NULL,
+  script_version TEXT,
+  read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(notification_id, instance_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_reads_notification
+ON notification_reads(notification_id, read_at);
+
+CREATE INDEX IF NOT EXISTS idx_notification_reads_user
+ON notification_reads(user_name, read_at);
+
 CREATE TABLE IF NOT EXISTS feature_access_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_name TEXT NOT NULL,

@@ -1060,6 +1060,126 @@ async function handleUserHeartbeat(request, env) {
   return json({ ok: true, sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)) });
 }
 
+async function ensureNotificationTables(env) {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications (
+      notification_id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_notifications_enabled_published ON notifications(enabled, published_at)'),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS notification_reads (
+      notification_id TEXT NOT NULL,
+      user_name TEXT NOT NULL DEFAULT '',
+      instance_id TEXT NOT NULL,
+      script_version TEXT,
+      read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(notification_id, instance_id)
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_notification_reads_notification ON notification_reads(notification_id, read_at)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_notification_reads_user ON notification_reads(user_name, read_at)'),
+  ]);
+}
+
+async function handleNotifications(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  await ensureNotificationTables(env);
+  const url = new URL(request.url);
+  const name = normalizeAccessUserName(url.searchParams.get('name'));
+  const instanceId = String(url.searchParams.get('instanceId') || '').trim().slice(0, 80);
+  if (!instanceId) return json({ error: 'instanceId required' }, 400);
+  const result = await env.DB.prepare(`
+    SELECT n.notification_id, n.title, n.content, n.published_at, n.updated_at,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM notification_reads r
+        WHERE r.notification_id=n.notification_id
+          AND (r.instance_id=? OR (?<>'' AND r.user_name=?))
+      ) THEN 1 ELSE 0 END AS is_read,
+      (SELECT MAX(r.read_at) FROM notification_reads r
+        WHERE r.notification_id=n.notification_id
+          AND (r.instance_id=? OR (?<>'' AND r.user_name=?))) AS read_at
+    FROM notifications n
+    WHERE n.enabled=1 AND datetime(n.published_at)<=datetime('now')
+    ORDER BY datetime(n.published_at) DESC, n.notification_id DESC
+    LIMIT 80
+  `).bind(instanceId, name, name, instanceId, name, name).all();
+  const notifications = (result.results || []).map((row) => ({
+    notificationId: row.notification_id,
+    title: row.title,
+    content: row.content,
+    publishedAt: row.published_at,
+    updatedAt: row.updated_at,
+    isRead: Boolean(Number(row.is_read || 0)),
+    readAt: row.read_at || '',
+  }));
+  return json({ ok: true, notifications, unreadCount: notifications.filter((item) => !item.isRead).length });
+}
+
+async function handleNotificationRead(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  await ensureNotificationTables(env);
+  const body = await parseJson(request) || {};
+  const notificationId = String(body.notificationId || '').trim().slice(0, 100);
+  const name = normalizeAccessUserName(body.name);
+  const instanceId = String(body.instanceId || '').trim().slice(0, 80);
+  const version = String(body.version || '').trim().slice(0, 30);
+  if (!notificationId || !instanceId) return json({ error: 'notificationId and instanceId required' }, 400);
+  const notification = await env.DB.prepare('SELECT notification_id FROM notifications WHERE notification_id=? AND enabled=1').bind(notificationId).first();
+  if (!notification) return json({ error: 'notification not found' }, 404);
+  await env.DB.prepare(`
+    INSERT INTO notification_reads (notification_id,user_name,instance_id,script_version,read_at)
+    VALUES (?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(notification_id,instance_id) DO UPDATE SET
+      user_name=excluded.user_name,
+      script_version=excluded.script_version,
+      read_at=CURRENT_TIMESTAMP
+  `).bind(notificationId, name, instanceId, version).run();
+  return json({ ok: true, notificationId, readAt: new Date().toISOString() });
+}
+
+async function handleAdminNotificationSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureNotificationTables(env);
+  const body = await parseBodyParams(request);
+  const title = String(body.title || '').trim().slice(0, 120);
+  const content = String(body.content || '').trim().slice(0, 4000);
+  if (!title || !content) return json({ error: 'title and content required' }, 400);
+  const requestedId = String(body.notificationId || '').trim().slice(0, 100);
+  const notificationId = requestedId || 'notice_' + Date.now().toString(36) + '_' + crypto.randomUUID().slice(0, 8);
+  const enabled = body.enabled === '1' || body.enabled === 'on' ? 1 : 0;
+  const existing = requestedId ? await env.DB.prepare('SELECT notification_id FROM notifications WHERE notification_id=?').bind(requestedId).first() : null;
+  if (existing) {
+    const republish = body.republish === '1' || body.republish === 'on';
+    await env.DB.prepare(`UPDATE notifications SET title=?,content=?,enabled=?,updated_at=CURRENT_TIMESTAMP${republish ? ',published_at=CURRENT_TIMESTAMP' : ''} WHERE notification_id=?`)
+      .bind(title, content, enabled, notificationId).run();
+  } else {
+    await env.DB.prepare('INSERT INTO notifications (notification_id,title,content,enabled,published_at,created_at,updated_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)')
+      .bind(notificationId, title, content, enabled).run();
+  }
+  if (body.resetRead === '1' || body.resetRead === 'on') {
+    await env.DB.prepare('DELETE FROM notification_reads WHERE notification_id=?').bind(notificationId).run();
+  }
+  return adminRedirect('/admin?saved=notifications#notifications');
+}
+
+async function handleAdminNotificationDelete(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureNotificationTables(env);
+  const body = await parseBodyParams(request);
+  const notificationId = String(body.notificationId || '').trim().slice(0, 100);
+  if (notificationId) {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM notification_reads WHERE notification_id=?').bind(notificationId),
+      env.DB.prepare('DELETE FROM notifications WHERE notification_id=?').bind(notificationId),
+    ]);
+  }
+  return adminRedirect('/admin?saved=notifications#notifications');
+}
+
 async function handleSizeImageUsage(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request) || {};
@@ -2225,7 +2345,8 @@ async function handleAdminParameterFeatureRulesSave(request, env) {
 
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
-  const [users, dashboard, usageTotals, campaigns, holidays, featureRules] = await Promise.all([
+  await ensureNotificationTables(env);
+  const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -2243,6 +2364,14 @@ async function handleAdminPage(request, env) {
     env.DB.prepare('SELECT * FROM loading_tip_campaigns ORDER BY sort_order ASC LIMIT 200').all(),
     env.DB.prepare('SELECT * FROM holiday_calendar ORDER BY start_date ASC LIMIT 100').all(),
     listParameterFeatureRules(env, true),
+    env.DB.prepare(`SELECT n.*,
+      COUNT(DISTINCT CASE WHEN r.user_name<>'' THEN r.user_name ELSE r.instance_id END) AS read_count
+      FROM notifications n
+      LEFT JOIN notification_reads r ON r.notification_id=n.notification_id
+      GROUP BY n.notification_id
+      ORDER BY datetime(n.published_at) DESC, n.notification_id DESC
+      LIMIT 100`).all(),
+    env.DB.prepare('SELECT notification_id,user_name,instance_id,read_at FROM notification_reads ORDER BY datetime(read_at) DESC LIMIT 5000').all(),
   ]);
   let campaignRows = campaigns.results || [];
   if (!campaignRows.length) {
@@ -2257,10 +2386,29 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], saved));
 }
 
-function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, saved) {
+function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, notifications, notificationReads, saved) {
+  const knownUserNames = Array.from(new Set(users.map((user) => String(user.user_name || '').trim()).filter(Boolean)));
+  const readsByNotification = new Map();
+  (notificationReads || []).forEach((row) => {
+    if (!readsByNotification.has(row.notification_id)) readsByNotification.set(row.notification_id, []);
+    readsByNotification.get(row.notification_id).push(row);
+  });
+  const notificationEditorRows = (notifications || []).map((notice) => {
+    const reads = readsByNotification.get(notice.notification_id) || [];
+    const namedReads = new Map();
+    reads.forEach((row) => {
+      const name = String(row.user_name || '').trim();
+      if (name && !namedReads.has(name)) namedReads.set(name, row.read_at || '');
+    });
+    const unreadNames = knownUserNames.filter((name) => !namedReads.has(name));
+    const readDetail = Array.from(namedReads.entries()).map(([name, time]) => name + '（' + (formatBeijingDateTime(time) || time) + '）').join('、') || '暂无';
+    return '<details class="tipitem notification-item"><summary><span class="tipno">' + (Number(notice.enabled) ? '开' : '停') + '</span><span class="tiptext">' + htmlEscape(notice.title) + '</span><span class="tipstate">已读 ' + htmlEscape(Number(notice.read_count || 0)) + ' / 用户 ' + knownUserNames.length + '</span></summary><div class="tipbody">' +
+      '<form class="form notification-edit" method="post" action="/admin/notifications/save"><input type="hidden" name="notificationId" value="' + htmlEscape(notice.notification_id) + '"><label class="wide"><span>标题</span><input name="title" maxlength="120" required value="' + htmlEscape(notice.title) + '"></label><label class="wide"><span>通知内容</span><textarea name="content" maxlength="4000" required>' + htmlEscape(notice.content) + '</textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1"' + (Number(notice.enabled) ? ' checked' : '') + '>启用</label><label class="checks"><input type="checkbox" name="resetRead" value="1">清空阅读记录</label><label class="checks"><input type="checkbox" name="republish" value="1">按当前时间重新发布</label></div><div class="sub">发布时间：' + htmlEscape(formatBeijingDateTime(notice.published_at) || notice.published_at) + '</div><div class="read-state"><b>已读：</b>' + htmlEscape(readDetail) + '</div><div class="read-state"><b>未读：</b>' + htmlEscape(unreadNames.join('、') || '暂无') + '</div><div class="actions"><button type="submit">保存修改</button></div></form>' +
+      '<form method="post" action="/admin/notifications/delete" onsubmit="return confirm(\'确定删除这条通知吗？\')"><input type="hidden" name="notificationId" value="' + htmlEscape(notice.notification_id) + '"><button class="ghost danger" type="submit">删除通知</button></form></div></details>';
+  }).join('');
   const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
   const tipEditorRows = campaigns.map((tip, index) => {
     const prefix = 'tip_' + index + '_';
@@ -2275,11 +2423,15 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
     ['生成 Excel 总量', dashboard.excel_generated_total || 0], ['图包上传成功总量', dashboard.image_pack_upload_success_total || 0],
     ['尺寸图成功', dashboard.size_success || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
   ].map((item) => '<div class="metric"><span>' + htmlEscape(item[0]) + '</span><b>' + htmlEscape(item[1]) + '</b></div>').join('');
+  const notificationAdminSection = '<section class="card" id="notifications"><div class="cardhead"><h2>发布通知</h2><div class="sub">发送给所有安装新版脚本的用户；用户端会缓存通知历史并上报阅读状态。</div></div>' +
+    '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：功能更新通知"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +
+    '<div class="form"><div class="cardhead" style="padding:0"><h2>通知记录（' + (notifications || []).length + '）</h2><div class="sub">展开后可编辑、停用、重新发布、清空阅读记录，并查看已读和未读用户。</div></div><div class="tiplist">' + (notificationEditorRows || '<div class="sub">暂无通知</div>') + '</div></div></section>';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>' +
     ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:600}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
     '<header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">用户、权限、云端数据与轮播小提示</div></div><a class="btn ghost" href="/admin/logout">退出登录</a></header>' +
-    (saved ? '<div class="notice">' + (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存'))) + '</div>' : '') +
+    (saved ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存')))) + '</div>' : '') +
     '<section class="metrics">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
+    notificationAdminSection +
     '<section class="card"><div class="cardhead"><h2>使用人与尺寸图权限</h2><div class="sub">其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="enabled" value="1"><button>添加并开通</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="6">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
     '<section class="card" id="tips"><div class="cardhead"><h2>新增轮播小提示</h2><div class="sub">每行一条，可同时设置本次新增提示的推送条件</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="在这里输入新提示，每行一条"></textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="1"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="3"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="60"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled">已开通</option><option value="disabled">未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames"></label><label><span>排除姓名</span><input name="excludeNames"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate"></label><label><span>结束日期</span><input type="date" name="endDate"></label><label><span>开始时间</span><input type="time" name="startTime"></label><label><span>结束时间</span><input type="time" name="endTime"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1">仅法定节假日前一天</label></div><div class="actions"><button type="submit">添加提示</button></div></form></section>' +
     '<section class="card" id="saved-tips"><div class="cardhead"><h2>已保存的小提示（' + campaigns.length + '）</h2><div class="sub">勾选可批量删除；展开任意一条可维护详细条件</div></div><form class="form tip-manage-form" method="post" action="/admin/tips/manage-save"><input type="hidden" name="tipCount" value="' + campaigns.length + '"><div class="actions"><button class="ghost" type="button" data-tip-select="all">全选</button><button class="ghost" type="button" data-tip-select="none">取消全选</button><button type="submit" data-delete-selected="1">删除选中</button></div><div class="tiplist">' + tipEditorRows + '</div><div class="actions"><button type="submit">保存全部修改</button></div></form></section>' +
@@ -3856,8 +4008,12 @@ export default {
     if (url.pathname === '/admin/tips/manage-save' && request.method === 'POST') return handleLoadingTipsManageSave(request, env);
     if (url.pathname === '/admin/holidays/bulk-save' && request.method === 'POST') return handleHolidayBulkSave(request, env);
     if (url.pathname === '/admin/parameter-features/save' && request.method === 'POST') return handleAdminParameterFeatureRulesSave(request, env);
+    if (url.pathname === '/admin/notifications/save' && request.method === 'POST') return handleAdminNotificationSave(request, env);
+    if (url.pathname === '/admin/notifications/delete' && request.method === 'POST') return handleAdminNotificationDelete(request, env);
     if (url.pathname === '/features/size-image' && request.method === 'GET') return handleSizeImageAccess(request, env);
     if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
+    if (url.pathname === '/notifications' && request.method === 'GET') return handleNotifications(request, env);
+    if (url.pathname === '/notifications/read' && request.method === 'POST') return handleNotificationRead(request, env);
     if (url.pathname === '/usage/size-image' && request.method === 'POST') return handleSizeImageUsage(request, env);
     if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
     if (url.pathname === '/tips/impression' && request.method === 'POST') return handleLoadingTipImpression(request, env);
