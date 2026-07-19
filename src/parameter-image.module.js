@@ -1,6 +1,9 @@
   function createParameterImageFeature(context) {
     const sessions = Object.create(null);
     const logoCache = Object.create(null);
+    const editorOverlayId = context.panelId + '-parameter-editor-overlay';
+    const editorLogPrefix = '[PLM参数图][手动标注]';
+    let editorPreviousRootOverflow = '';
     const defaultRules = [
       { category: '精华液', keywords: ['精华液', 'serum', 'essence'], phrase: 'Anti-wrinkle & glow', priority: 100 },
       { category: '眼霜', keywords: ['眼霜', 'eye cream', 'eye treatment'], phrase: 'Brightens & smooths', priority: 100 },
@@ -96,6 +99,12 @@
           editorImage: null,
           editorSourceUrl: '',
           editorDragging: null,
+          editorMountToken: 0,
+          editorStatus: '',
+          editorLoadError: '',
+          editorLogs: [],
+          editorLastDrawKey: '',
+          editorResizeObserver: null,
           fields: {
             englishName,
             netContent: String(data && data.netContent || ''),
@@ -106,10 +115,12 @@
             packageLength: fieldValue(data, 'packageLength', 'cartonLength'),
             packageWidth: fieldValue(data, 'packageWidth', 'cartonWidth'),
             packageHeight: fieldValue(data, 'packageHeight', 'cartonHeight'),
-            productWidth: data && data.isTubePrint
-              ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
-              : fieldValue(data, 'productWidth', 'productWidth'),
-            productHeight: fieldValue(data, 'productHeight', 'productHeight'),
+            productWidth: data && data.omitEstimatedProductSize
+              ? 0
+              : (data && data.isTubePrint
+                ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
+                : fieldValue(data, 'productWidth', 'productWidth')),
+            productHeight: data && data.omitEstimatedProductSize ? 0 : fieldValue(data, 'productHeight', 'productHeight'),
           },
         };
       }
@@ -117,9 +128,12 @@
     }
 
     function ensureStyles() {
-      if (document.getElementById('pfh-parameter-image-styles')) return;
+      const existing = document.getElementById('pfh-parameter-image-styles');
+      if (existing && existing.dataset.version === SCRIPT_VERSION) return;
+      if (existing) existing.remove();
       const style = document.createElement('style');
       style.id = 'pfh-parameter-image-styles';
+      style.dataset.version = SCRIPT_VERSION;
       style.textContent = `
         #${context.panelId}[data-view="parameterImage"] .pfh-detail{overflow:hidden;container-type:inline-size;background:linear-gradient(145deg,#fbfaff,#f4f9ff)}
         #${context.panelId}[data-view="parameterImage"] .pfh-main{min-width:0}
@@ -140,14 +154,19 @@
         #${context.panelId} .pfh-parameter-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pfh-parameter-actions button{min-height:37px;border:1px solid #dcd4f5;border-radius:10px;background:#fff;color:#6d35e8;font-weight:700}.pfh-parameter-actions button:last-child{border-color:#7c3aed;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}.pfh-parameter-actions button:disabled{opacity:.45}
         #${context.panelId} .pfh-parameter-status{padding:8px 10px;border-radius:9px;background:#eefbf6;color:#27735d;font-size:11px}.pfh-parameter-status.is-error{background:#fff0f3;color:#a33a48}
         #${context.panelId} .pfh-parameter-previews{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}.pfh-parameter-preview-card{position:relative;display:grid;place-items:center;min-height:360px;padding:10px;overflow:hidden}.pfh-parameter-preview-card b{position:absolute;top:8px;left:8px;z-index:1;padding:3px 7px;border-radius:99px;background:rgba(255,255,255,.9);color:#6d35e8;font-size:10px}.pfh-parameter-preview-card img{display:block;max-width:100%;max-height:100%;object-fit:contain}.pfh-parameter-preview-card span{color:#9299b0;font-size:12px}
-        #${context.panelId} .pfh-parameter-editor-backdrop{position:absolute;inset:6px;z-index:80;display:grid;place-items:stretch;padding:8px;border-radius:18px;background:rgba(31,25,55,.46);backdrop-filter:blur(8px)}
-        #${context.panelId} .pfh-parameter-editor{min-width:0;min-height:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:9px;padding:12px;border:1px solid rgba(167,139,250,.4);border-radius:16px;background:rgba(251,250,255,.98);box-shadow:0 24px 70px rgba(30,20,70,.24)}
-        #${context.panelId} .pfh-parameter-editor-head,#${context.panelId} .pfh-parameter-editor-tools,#${context.panelId} .pfh-parameter-editor-foot{display:flex;align-items:center;gap:8px;min-width:0}
-        #${context.panelId} .pfh-parameter-editor-head h3{margin:0;color:#2f2760;font-size:16px}.pfh-parameter-editor-head span{margin-left:auto;color:#7b84a1;font-size:11px}
-        #${context.panelId} .pfh-parameter-editor-tools{flex-wrap:wrap}.pfh-parameter-editor-tools button,.pfh-parameter-editor-head button{min-height:30px;padding:0 10px;border:1px solid #dcd4f5;border-radius:9px;background:#fff;color:#6040c8;font-size:11px;font-weight:800}.pfh-parameter-editor-tools button.is-active{border-color:#7c3aed;background:#7c3aed;color:#fff}.pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:auto;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}
-        #${context.panelId} .pfh-parameter-editor-stage{min-width:0;min-height:0;display:grid;place-items:center;overflow:auto;border:1px solid #ddd7f1;border-radius:12px;background:linear-gradient(45deg,#eef0f5 25%,transparent 25%),linear-gradient(-45deg,#eef0f5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef0f5 75%),linear-gradient(-45deg,transparent 75%,#eef0f5 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
-        #${context.panelId} .pfh-parameter-editor-canvas{display:block;max-width:100%;max-height:100%;width:auto;height:auto;touch-action:none;cursor:crosshair}
-        #${context.panelId} .pfh-parameter-editor-foot{justify-content:space-between;color:#69738f;font-size:11px}.pfh-parameter-editor-foot b{color:#5d39c7}
+        html.pfh-parameter-editor-open #${context.panelId},html.pfh-parameter-editor-open #${context.panelId}-launcher{visibility:hidden!important;pointer-events:none!important}
+        #${editorOverlayId}{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:clamp(8px,1.5vw,22px);box-sizing:border-box;background:rgba(25,20,48,.64);backdrop-filter:blur(9px);font-family:Arial,"Microsoft YaHei",sans-serif}
+        #${editorOverlayId} *{box-sizing:border-box}
+        #${editorOverlayId} .pfh-parameter-editor{width:min(92vw,1500px);height:min(88vh,860px);min-width:0;min-height:0;display:grid;grid-template-rows:auto auto minmax(180px,1fr) auto auto;gap:10px;padding:clamp(10px,1.2vw,18px);border:1px solid rgba(167,139,250,.45);border-radius:18px;background:rgba(251,250,255,.985);box-shadow:0 28px 90px rgba(20,13,55,.34)}
+        #${editorOverlayId} .pfh-parameter-editor-head,#${editorOverlayId} .pfh-parameter-editor-tools,#${editorOverlayId} .pfh-parameter-editor-foot{display:flex;align-items:center;gap:8px;min-width:0}
+        #${editorOverlayId} .pfh-parameter-editor-head h3{margin:0;color:#2f2760;font-size:17px}#${editorOverlayId} .pfh-parameter-editor-head span{margin-left:auto;color:#7b84a1;font-size:12px}
+        #${editorOverlayId} .pfh-parameter-editor-tools{flex-wrap:wrap}#${editorOverlayId} .pfh-parameter-editor-tools button,#${editorOverlayId} .pfh-parameter-editor-head button{min-height:34px;padding:0 12px;border:1px solid #dcd4f5;border-radius:9px;background:#fff;color:#6040c8;font-size:12px;font-weight:800;cursor:pointer}#${editorOverlayId} .pfh-parameter-editor-tools button.is-active{border-color:#7c3aed;background:#7c3aed;color:#fff}#${editorOverlayId} .pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:auto;background:linear-gradient(135deg,#8b5cf6,#6d35e8);color:#fff}
+        #${editorOverlayId} .pfh-parameter-editor-stage{position:relative;min-width:0;min-height:0;display:grid;place-items:center;overflow:hidden;border:1px solid #d7d0ed;border-radius:13px;background-color:#fff;background-image:linear-gradient(45deg,#eef0f5 25%,transparent 25%),linear-gradient(-45deg,#eef0f5 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef0f5 75%),linear-gradient(-45deg,transparent 75%,#eef0f5 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}
+        #${editorOverlayId} .pfh-parameter-editor-stage.is-loading::after{content:"正在读取底图…";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:10px 15px;border-radius:10px;background:rgba(255,255,255,.94);box-shadow:0 8px 30px rgba(54,40,105,.15);color:#6541ce;font-size:13px;font-weight:800;pointer-events:none}
+        #${editorOverlayId} .pfh-parameter-editor-canvas{display:block;max-width:none;max-height:none;touch-action:none;cursor:crosshair}
+        #${editorOverlayId} .pfh-parameter-editor-foot{justify-content:space-between;flex-wrap:wrap;color:#69738f;font-size:12px}#${editorOverlayId} .pfh-parameter-editor-foot b{color:#5d39c7}#${editorOverlayId} .pfh-parameter-editor-status{color:#59647f}#${editorOverlayId} .pfh-parameter-editor-status.is-error{color:#b4233d;font-weight:700}
+        #${editorOverlayId} .pfh-parameter-editor-diagnostics{min-width:0;border:1px solid #e4def4;border-radius:10px;background:#f8f6ff;color:#5d6680;font-size:11px}#${editorOverlayId} .pfh-parameter-editor-diagnostics summary{padding:7px 10px;cursor:pointer;font-weight:800;color:#6747c5}#${editorOverlayId} .pfh-parameter-editor-diagnostics pre{max-height:112px;margin:0;padding:8px 10px;overflow:auto;border-top:1px solid #e4def4;white-space:pre-wrap;word-break:break-all;font:11px/1.45 Consolas,monospace}
+        @media (max-width:680px){#${editorOverlayId}{padding:5px}#${editorOverlayId} .pfh-parameter-editor{width:calc(100vw - 10px);height:calc(100vh - 10px);padding:8px;gap:7px;border-radius:12px}#${editorOverlayId} .pfh-parameter-editor-head span{display:none}#${editorOverlayId} .pfh-parameter-editor-tools .pfh-parameter-editor-apply{margin-left:0}}
         @container (max-width:760px){#${context.panelId} .pfh-parameter-workspace{grid-template-columns:minmax(220px,280px) minmax(280px,1fr)}#${context.panelId} .pfh-parameter-previews{grid-template-columns:1fr}.pfh-parameter-preview-card{min-height:300px}}
         @container (max-width:520px){#${context.panelId} .pfh-parameter-scroll{padding:8px}#${context.panelId} .pfh-parameter-workspace{grid-template-columns:1fr}.pfh-parameter-controls{position:static}.pfh-parameter-preview-card{min-height:280px}}
       `;
@@ -182,39 +201,78 @@
       return Array.isArray(points) && points.length >= requiredManualPoints(target);
     }
 
+    function editorLog(session, step, detail, level) {
+      const payload = detail && typeof detail === 'object' ? detail : (detail == null ? {} : { detail: String(detail) });
+      const entry = { time: new Date().toLocaleTimeString(), step: String(step || '状态'), detail: payload };
+      if (!Array.isArray(session.editorLogs)) session.editorLogs = [];
+      session.editorLogs.push(entry);
+      if (session.editorLogs.length > 80) session.editorLogs.splice(0, session.editorLogs.length - 80);
+      const method = level === 'error' ? 'error' : (level === 'warn' ? 'warn' : 'log');
+      try { console[method](editorLogPrefix + ' ' + entry.step, payload); } catch (_) {}
+      refreshEditorDiagnostics(session);
+    }
+
+    function editorLogText(session) {
+      return (session.editorLogs || []).map((entry) => {
+        let detail = '';
+        try { detail = Object.keys(entry.detail || {}).length ? ' ' + JSON.stringify(entry.detail) : ''; } catch (_) {}
+        return '[' + entry.time + '] ' + entry.step + detail;
+      }).join('\n') || '暂无日志';
+    }
+
     function manualEditorHtml(session) {
-      if (!session.editorOpen) return '';
       const target = session.manualTarget === 'product' ? 'product' : 'box';
       const boxCount = (session.manualPoints.box || []).length;
       const productCount = (session.manualPoints.product || []).length;
       const targetLabel = target === 'box' ? '纸盒' : '产品';
       const labels = manualPointLabels(target);
-      return '<div class="pfh-parameter-editor-backdrop"><section class="pfh-parameter-editor">' +
-        '<header class="pfh-parameter-editor-head"><h3>手动标注尺寸路径</h3><span>拖动已有点可微调</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+      const statusClass = session.editorLoadError ? ' is-error' : '';
+      return '<section class="pfh-parameter-editor">' +
+        '<header class="pfh-parameter-editor-head"><h3>手动标注尺寸路径</h3><span>拖动已有点可微调 · 按住 Ctrl 吸附横线/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
           '<button type="button" data-action="parameter-editor-target" data-target="box" class="' + (target === 'box' ? 'is-active' : '') + '">纸盒 ' + boxCount + '/4</button>' +
           '<button type="button" data-action="parameter-editor-target" data-target="product" class="' + (target === 'product' ? 'is-active' : '') + '">产品 ' + productCount + '/3</button>' +
           '<button type="button" data-action="parameter-editor-undo">撤销一点</button><button type="button" data-action="parameter-editor-reset">重画当前</button>' +
+          '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
           '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
         '</div>' +
-        '<div class="pfh-parameter-editor-stage"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
-        '<footer class="pfh-parameter-editor-foot"><span>当前：<b>' + targetLabel + '</b>，依次点击 ' + labels.join(' → ') + '</span><span class="pfh-parameter-editor-progress">已标 ' + (session.manualPoints[target] || []).length + '/' + labels.length + ' 点</span></footer>' +
-      '</section></div>';
+        '<div class="pfh-parameter-editor-stage' + (!session.editorImage && !session.editorLoadError ? ' is-loading' : '') + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
+        '<footer class="pfh-parameter-editor-foot"><span>当前：<b>' + targetLabel + '</b>，依次点击 ' + labels.join(' → ') + '</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">已标 ' + (session.manualPoints[target] || []).length + '/' + labels.length + ' 点</span></footer>' +
+        '<details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + context.escapeHtml(editorLogText(session)) + '</pre></details>' +
+      '</section>';
     }
 
     function editorScale(image) {
       return Math.max(1, Math.max(image.naturalWidth, image.naturalHeight) / 1200);
     }
 
-    function drawEditorPath(ctx, points, labels, color, active, scale) {
+    function editorCanvasPadding(image) {
+      return Math.round(68 * editorScale(image));
+    }
+
+    function fitEditorCanvas(canvas) {
+      const stage = canvas && canvas.parentElement;
+      if (!canvas || !stage || !canvas.width || !canvas.height) return { scale: 0, width: 0, height: 0 };
+      const availableWidth = Math.max(1, stage.clientWidth - 32);
+      const availableHeight = Math.max(1, stage.clientHeight - 32);
+      const scale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height, 1);
+      const width = Math.max(1, Math.floor(canvas.width * scale));
+      const height = Math.max(1, Math.floor(canvas.height * scale));
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      return { scale, width, height, stageWidth: stage.clientWidth, stageHeight: stage.clientHeight };
+    }
+
+    function drawEditorPath(ctx, points, labels, color, active, scale, offsetX, offsetY) {
       if (!points.length) return;
+      const displayPoints = points.map((point) => ({ x: point.x + (offsetX || 0), y: point.y + (offsetY || 0) }));
       ctx.save();
       ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = (active ? 5 : 3) * scale;
       ctx.setLineDash(active ? [] : [10 * scale, 7 * scale]);
-      ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
-      points.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      ctx.beginPath(); ctx.moveTo(displayPoints[0].x, displayPoints[0].y);
+      displayPoints.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
       ctx.stroke(); ctx.setLineDash([]);
-      points.forEach((point, index) => {
+      displayPoints.forEach((point, index) => {
         ctx.beginPath(); ctx.arc(point.x, point.y, 12 * scale, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.round(11 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(index + 1), point.x, point.y);
         ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(labels[index] || '', point.x + 16 * scale, point.y - 10 * scale);
@@ -223,30 +281,79 @@
     }
 
     function drawManualEditorCanvas(canvas, image, session) {
-      if (!canvas || !image) return;
-      if (canvas.width !== image.naturalWidth) canvas.width = image.naturalWidth;
-      if (canvas.height !== image.naturalHeight) canvas.height = image.naturalHeight;
+      if (!canvas || !image) throw new Error('标注画布或底图不存在。');
+      const width = Number(image.naturalWidth || image.width || 0);
+      const height = Number(image.naturalHeight || image.height || 0);
+      if (!width || !height) throw new Error('底图尺寸为 0，浏览器没有完成解码。');
+      const padding = editorCanvasPadding(image);
+      const canvasWidth = width + padding * 2;
+      const canvasHeight = height + padding * 2;
+      if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
+      if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
       const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('浏览器无法创建 2D 画布。');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image.source || image, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image.source || image, padding, padding, width, height);
       const scale = editorScale(image);
-      drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale);
-      drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale);
+      drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale, padding, padding);
+      drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale, padding, padding);
+      const fit = fitEditorCanvas(canvas);
+      const drawKey = [width, height, padding, image.sourceKind || 'image'].join('x');
+      if (session.editorLastDrawKey !== drawKey) {
+        session.editorLastDrawKey = drawKey;
+        editorLog(session, '画布绘制成功', {
+          imageWidth: width,
+          imageHeight: height,
+          safePadding: padding,
+          sourceKind: image.sourceKind || 'image',
+          cssWidth: fit.width,
+          cssHeight: fit.height,
+          fitScale: Number(fit.scale.toFixed(4)),
+          stageWidth: fit.stageWidth,
+          stageHeight: fit.stageHeight,
+        });
+      }
     }
 
-    function canvasPoint(event, canvas) {
+    function canvasPoint(event, canvas, image) {
       const rect = canvas.getBoundingClientRect();
+      const padding = editorCanvasPadding(image);
+      const width = Number(image.naturalWidth || image.width || 0);
+      const height = Number(image.naturalHeight || image.height || 0);
+      const rawX = (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width) - padding;
+      const rawY = (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height) - padding;
       return {
-        x: Math.max(0, Math.min(canvas.width, (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width))),
-        y: Math.max(0, Math.min(canvas.height, (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height))),
+        x: Math.max(0, Math.min(width, rawX)),
+        y: Math.max(0, Math.min(height, rawY)),
       };
     }
 
+    function constrainEditorPoint(point, points, index, enabled) {
+      if (!enabled || !Array.isArray(points) || !points.length) return { point, axis: '' };
+      const anchor = index > 0 ? points[index - 1] : points[1];
+      if (!anchor) return { point, axis: '' };
+      const dx = point.x - anchor.x;
+      const dy = point.y - anchor.y;
+      if (Math.abs(dx) >= Math.abs(dy)) return { point: { x: point.x, y: anchor.y }, axis: 'horizontal' };
+      return { point: { x: anchor.x, y: point.y }, axis: 'vertical' };
+    }
+
     function refreshEditorProgress(session) {
-      const root = document.getElementById(context.panelId);
+      const root = document.getElementById(editorOverlayId);
       const progress = root && root.querySelector('.pfh-parameter-editor-progress');
       const target = session.manualTarget === 'product' ? 'product' : 'box';
       if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
+    }
+
+    function refreshEditorDiagnostics(session) {
+      const root = document.getElementById(editorOverlayId);
+      const pre = root && root.querySelector('.pfh-parameter-editor-diagnostics pre');
+      const status = root && root.querySelector('.pfh-parameter-editor-status');
+      if (pre) pre.textContent = editorLogText(session);
+      if (status) {
+        status.textContent = session.editorStatus || '等待载入底图';
+        status.classList.toggle('is-error', Boolean(session.editorLoadError));
+      }
     }
 
     function readFileDataUrl(file) {
@@ -258,76 +365,253 @@
       });
     }
 
-    async function loadFileImageBitmap(file, sourceUrl) {
-      if (sourceUrl) {
-        try { return await loadImage(sourceUrl); } catch (_) {}
+    function inspectEditorSnapshot(snapshot) {
+      try {
+        const sample = document.createElement('canvas');
+        const maxSide = 80;
+        const scale = Math.min(1, maxSide / Math.max(snapshot.width, snapshot.height));
+        sample.width = Math.max(1, Math.round(snapshot.width * scale));
+        sample.height = Math.max(1, Math.round(snapshot.height * scale));
+        const ctx = sample.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return { sampled: false, reason: 'no-2d-context' };
+        ctx.drawImage(snapshot, 0, 0, sample.width, sample.height);
+        const pixels = ctx.getImageData(0, 0, sample.width, sample.height).data;
+        let visible = 0;
+        for (let index = 3; index < pixels.length; index += 4) if (pixels[index] > 8) visible += 1;
+        return {
+          sampled: true,
+          sampleWidth: sample.width,
+          sampleHeight: sample.height,
+          visiblePixels: visible,
+          alphaCoveragePercent: Number((visible / Math.max(1, pixels.length / 4) * 100).toFixed(2)),
+        };
+      } catch (error) {
+        return { sampled: false, reason: String(error && error.message || error) };
+      }
+    }
+
+    function snapshotEditorImage(source, width, height, sourceKind) {
+      if (!width || !height) throw new Error(sourceKind + ' 解码后的尺寸为 0。');
+      const snapshot = document.createElement('canvas');
+      snapshot.width = width;
+      snapshot.height = height;
+      const ctx = snapshot.getContext('2d');
+      if (!ctx) throw new Error('无法创建底图快照画布。');
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(source, 0, 0, width, height);
+      return {
+        source: snapshot,
+        sourceKind,
+        naturalWidth: width,
+        naturalHeight: height,
+        inspection: inspectEditorSnapshot(snapshot),
+      };
+    }
+
+    async function loadFileImageBitmap(file, sourceUrl, session) {
+      editorLog(session, '开始读取底图', {
+        fileName: file && file.name || '',
+        fileType: file && file.type || '',
+        fileSize: file && file.size || 0,
+        hasCachedDataUrl: Boolean(sourceUrl),
+      });
+      let blobUrl = '';
+      try {
+        blobUrl = URL.createObjectURL(file);
+        const image = await loadImage(blobUrl);
+        const result = snapshotEditorImage(image, image.naturalWidth, image.naturalHeight, 'blob-url');
+        editorLog(session, 'Blob URL 解码成功', { width: result.naturalWidth, height: result.naturalHeight, inspection: result.inspection });
+        return result;
+      } catch (error) {
+        editorLog(session, 'Blob URL 读取失败，准备回退', { message: String(error && error.message || error) }, 'warn');
+      } finally {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
       }
       const bitmapFactory = typeof createImageBitmap === 'function'
         ? createImageBitmap
         : (typeof window !== 'undefined' && typeof window.createImageBitmap === 'function' ? window.createImageBitmap.bind(window) : null);
       if (bitmapFactory) {
+        let bitmap = null;
         try {
-          const bitmap = await bitmapFactory(file);
-          return { source: bitmap, naturalWidth: bitmap.width, naturalHeight: bitmap.height };
-        } catch (_) {}
+          bitmap = await bitmapFactory(file);
+          const result = snapshotEditorImage(bitmap, bitmap.width, bitmap.height, 'image-bitmap');
+          editorLog(session, 'ImageBitmap 解码成功', { width: result.naturalWidth, height: result.naturalHeight, inspection: result.inspection });
+          return result;
+        } catch (error) {
+          editorLog(session, 'ImageBitmap 读取失败，准备回退', { message: String(error && error.message || error) }, 'warn');
+        } finally {
+          try { if (bitmap && bitmap.close) bitmap.close(); } catch (_) {}
+        }
       }
-      return loadImage(await readFileDataUrl(file));
+      let dataUrl = sourceUrl;
+      if (!dataUrl) {
+        dataUrl = await readFileDataUrl(file);
+        session.editorSourceUrl = dataUrl;
+        editorLog(session, 'FileReader 转换成功', { dataUrlLength: dataUrl.length });
+      }
+      const image = await loadImage(dataUrl);
+      const result = snapshotEditorImage(image, image.naturalWidth, image.naturalHeight, 'data-url');
+      editorLog(session, 'Data URL 解码成功', { width: result.naturalWidth, height: result.naturalHeight, inspection: result.inspection });
+      return result;
     }
 
-    async function mountManualEditor(data) {
+    async function mountManualEditor(data, suppliedRoot) {
       const session = ensureSession(data);
       if (!session.editorOpen || !session.file) return;
-      const root = document.getElementById(context.panelId);
+      const root = suppliedRoot || document.getElementById(editorOverlayId);
       const canvas = root && root.querySelector('.pfh-parameter-editor-canvas');
-      if (!canvas) return;
-      try {
-        if (!session.editorImage) session.editorImage = await loadFileImageBitmap(session.file, session.editorSourceUrl);
-      } catch (error) {
-        session.editorOpen = false;
-        session.error = String(error && error.message || error || '无法读取标注图片。');
-        context.render();
+      if (!canvas) {
+        editorLog(session, '挂载失败', { reason: '找不到 canvas 节点' }, 'error');
         return;
       }
-      if (!session.editorOpen || !document.body.contains(canvas)) return;
-      drawManualEditorCanvas(canvas, session.editorImage, session);
+      const mountToken = ++session.editorMountToken;
+      editorLog(session, '开始挂载工作区', { mountToken, hasCachedImage: Boolean(session.editorImage) });
+      try {
+        session.editorStatus = session.editorImage ? '正在恢复底图…' : '正在读取底图…';
+        refreshEditorDiagnostics(session);
+        if (!session.editorImage) session.editorImage = await loadFileImageBitmap(session.file, session.editorSourceUrl, session);
+      } catch (error) {
+        session.editorLoadError = String(error && error.message || error || '无法读取标注图片。');
+        session.editorStatus = '底图读取失败：' + session.editorLoadError;
+        editorLog(session, '底图读取最终失败', { mountToken, message: session.editorLoadError }, 'error');
+        const failedStage = root.querySelector('.pfh-parameter-editor-stage');
+        if (failedStage) failedStage.classList.remove('is-loading');
+        refreshEditorDiagnostics(session);
+        return;
+      }
+      const activeRoot = document.getElementById(editorOverlayId);
+      // The userscript mounts UI directly under <html>, so document.body.contains(canvas) is always false here.
+      if (!session.editorOpen || mountToken !== session.editorMountToken || activeRoot !== root || !root.contains(canvas)) {
+        editorLog(session, '放弃过期挂载', { mountToken, currentMountToken: session.editorMountToken }, 'warn');
+        return;
+      }
+      try {
+        drawManualEditorCanvas(canvas, session.editorImage, session);
+      } catch (error) {
+        session.editorLoadError = String(error && error.message || error || '底图绘制失败。');
+        session.editorStatus = '底图绘制失败：' + session.editorLoadError;
+        editorLog(session, '画布绘制失败', { mountToken, message: session.editorLoadError }, 'error');
+        refreshEditorDiagnostics(session);
+        return;
+      }
+      session.editorLoadError = '';
+      session.editorStatus = '底图已显示，可开始标注';
+      const stage = root.querySelector('.pfh-parameter-editor-stage');
+      if (stage) stage.classList.remove('is-loading');
+      if (session.editorResizeObserver) {
+        try { session.editorResizeObserver.disconnect(); } catch (_) {}
+        session.editorResizeObserver = null;
+      }
+      if (stage && typeof ResizeObserver === 'function') {
+        session.editorResizeObserver = new ResizeObserver(() => {
+          if (root.contains(canvas)) fitEditorCanvas(canvas);
+        });
+        session.editorResizeObserver.observe(stage);
+      }
+      refreshEditorDiagnostics(session);
       const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
       canvas.onpointerdown = (event) => {
         event.preventDefault();
         const target = session.manualTarget === 'product' ? 'product' : 'box';
         const points = session.manualPoints[target];
-        const point = canvasPoint(event, canvas);
+        let point = canvasPoint(event, canvas, session.editorImage);
         const radius = 28 * editorScale(session.editorImage);
         let index = points.findIndex((existing) => Math.hypot(existing.x - point.x, existing.y - point.y) <= radius);
-        if (index < 0 && points.length < requiredManualPoints(target)) { points.push(point); index = points.length - 1; }
+        let snapAxis = '';
+        if (index < 0 && points.length < requiredManualPoints(target)) {
+          const constrained = constrainEditorPoint(point, points, points.length, event.ctrlKey);
+          point = constrained.point;
+          snapAxis = constrained.axis;
+          points.push(point); index = points.length - 1;
+          editorLog(session, '新增标注点', { target, index: index + 1, x: Math.round(point.x), y: Math.round(point.y), ctrlSnap: snapAxis || 'none' });
+        }
         if (index < 0) return;
-        session.editorDragging = { target, index };
+        session.editorDragging = { target, index, snapAxis };
         try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
         redraw();
       };
       canvas.onpointermove = (event) => {
         const dragging = session.editorDragging;
         if (!dragging || !session.manualPoints[dragging.target] || !session.manualPoints[dragging.target][dragging.index]) return;
-        session.manualPoints[dragging.target][dragging.index] = canvasPoint(event, canvas); redraw();
+        const points = session.manualPoints[dragging.target];
+        const rawPoint = canvasPoint(event, canvas, session.editorImage);
+        const constrained = constrainEditorPoint(rawPoint, points, dragging.index, event.ctrlKey);
+        points[dragging.index] = constrained.point;
+        dragging.snapAxis = constrained.axis;
+        redraw();
       };
       const release = (event) => {
+        const dragging = session.editorDragging;
+        const finalPoint = dragging && session.manualPoints[dragging.target] && session.manualPoints[dragging.target][dragging.index];
         session.editorDragging = null;
         try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+        if (dragging && finalPoint) editorLog(session, '完成标注点定位', {
+          target: dragging.target,
+          index: dragging.index + 1,
+          x: Math.round(finalPoint.x),
+          y: Math.round(finalPoint.y),
+          ctrlSnap: dragging.snapAxis || 'none',
+        });
       };
       canvas.onpointerup = release; canvas.onpointercancel = release;
     }
 
-    async function openManualEditor(data) {
+    function closeManualEditor(session, reason) {
+      session.editorOpen = false;
+      session.editorDragging = null;
+      session.editorMountToken += 1;
+      if (session.editorResizeObserver) {
+        try { session.editorResizeObserver.disconnect(); } catch (_) {}
+        session.editorResizeObserver = null;
+      }
+      const overlay = document.getElementById(editorOverlayId);
+      if (overlay) overlay.remove();
+      document.documentElement.style.overflow = editorPreviousRootOverflow;
+      document.documentElement.classList.remove('pfh-parameter-editor-open');
+      editorLog(session, '关闭工作区', { reason: reason || 'close' });
+    }
+
+    function renderManualEditor(data) {
+      const session = ensureSession(data);
+      if (!session.editorOpen) {
+        closeManualEditor(session, 'render-closed');
+        return;
+      }
+      ensureStyles();
+      let overlay = document.getElementById(editorOverlayId);
+      document.documentElement.classList.add('pfh-parameter-editor-open');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = editorOverlayId;
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.tabIndex = -1;
+        editorPreviousRootOverflow = document.documentElement.style.overflow;
+        document.documentElement.style.overflow = 'hidden';
+        document.documentElement.appendChild(overlay);
+        overlay.addEventListener('click', (event) => {
+          const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
+          const action = actionTarget && actionTarget.getAttribute('data-action');
+          if (action) handleEditorAction(action, actionTarget, data);
+        });
+        overlay.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') { event.preventDefault(); closeManualEditor(session, 'escape'); }
+        });
+      }
+      overlay.innerHTML = manualEditorHtml(session);
+      overlay.focus({ preventScroll: true });
+      mountManualEditor(data, overlay);
+    }
+
+    function openManualEditor(data) {
       const session = ensureSession(data);
       if (!session.file) return;
-      try {
-        if (!session.editorSourceUrl) session.editorSourceUrl = await readFileDataUrl(session.file);
-        session.editorOpen = true;
-        session.error = '';
-        context.render();
-      } catch (error) {
-        session.error = String(error && error.message || error || 'Unable to open manual annotation.');
-        context.render();
-      }
+      session.editorOpen = true;
+      session.editorLoadError = '';
+      session.editorStatus = session.editorImage ? '正在恢复底图…' : '正在读取底图…';
+      session.error = '';
+      editorLog(session, '打开全屏工作区', { sku: data && data.sku || '', hasCachedImage: Boolean(session.editorImage) });
+      renderManualEditor(data);
     }
 
     function viewHtml(data) {
@@ -346,7 +630,6 @@
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
       const heroImage = preferredImageUrl(data);
       const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
-      const editor = manualEditorHtml(session);
       const html = '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
@@ -360,8 +643,7 @@
           '<div class="pfh-parameter-actions"><button type="button" data-action="parameter-image-refresh-data">刷新英文名</button><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动标注</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>另存两张 JPG</button></div>' +
           '<input type="file" class="pfh-parameter-file" accept="image/png,.png" hidden>' + status +
         '</div><div class="pfh-parameter-previews">' + preview('产品尺寸图', session.productResult) + preview('英文参数图', session.englishResult) + '</div></div>' +
-      '</section></div>' + editor;
-      if (session.editorOpen) window.setTimeout(() => mountManualEditor(data), 0);
+        '</section></div>';
       return html;
     }
 
@@ -711,22 +993,38 @@
     async function regenerate(data) {
       const session = ensureSession(data);
       if (!session.file) return;
+      const hasManualPath = completeManualPath(session, 'box') || completeManualPath(session, 'product');
+      if (hasManualPath) editorLog(session, '开始生成参数图', {
+        boxPoints: session.manualPoints.box.length,
+        productPoints: session.manualPoints.product.length,
+      });
       session.busy = true; session.error = ''; context.render();
       const url = URL.createObjectURL(session.file);
       try {
         const image = await loadImage(url);
+        if (hasManualPath) editorLog(session, '生成阶段底图解码成功', { width: image.naturalWidth, height: image.naturalHeight });
         const logo = await loadBrandLogo(data.brand);
         try {
           session.analysis = analyzeImage(image, session);
+          if (hasManualPath) editorLog(session, '自动图像分析成功，手动路径将优先覆盖', {
+            hasBox: Boolean(session.analysis && session.analysis.box),
+            hasProduct: Boolean(session.analysis && session.analysis.product),
+          });
         } catch (analysisError) {
           session.analysis = manualFallbackAnalysis(image, session);
+          if (session.analysis && hasManualPath) editorLog(session, '自动分析失败，已使用手动路径回退', { message: String(analysisError && analysisError.message || analysisError) }, 'warn');
           if (!session.analysis) throw analysisError;
         }
         session.productResult = generateProductImage(image, session.analysis, session);
         session.englishResult = generateEnglishImage(image, session.analysis, session, data, logo);
+        if (hasManualPath) editorLog(session, '两张参数图生成成功', {
+          productResultLength: session.productResult.length,
+          englishResultLength: session.englishResult.length,
+        });
         if (!session.fields.englishName) session.error = '未读取到英文产品名，请手动填写英文产品名后重新生成。';
       } catch (error) {
         session.error = String(error && error.message || error || '生成失败');
+        if (hasManualPath) editorLog(session, '参数图生成失败', { message: session.error }, 'error');
       } finally {
         URL.revokeObjectURL(url); session.busy = false; context.render();
       }
@@ -740,7 +1038,22 @@
       session.editorSourceUrl = '';
       session.editorOpen = false;
       session.editorDragging = null;
+      session.editorMountToken += 1;
+      session.editorStatus = '';
+      session.editorLoadError = '';
+      session.editorLogs = [];
+      session.editorLastDrawKey = '';
+      if (session.editorResizeObserver) {
+        try { session.editorResizeObserver.disconnect(); } catch (_) {}
+        session.editorResizeObserver = null;
+      }
       session.manualPoints = { box: [], product: [] };
+      const oldEditor = document.getElementById(editorOverlayId);
+      if (oldEditor) {
+        oldEditor.remove();
+        document.documentElement.style.overflow = editorPreviousRootOverflow;
+      }
+      document.documentElement.classList.remove('pfh-parameter-editor-open');
       if (!session.fields.englishName) {
         session.busy = true; session.error = ''; context.render();
         try { await applyExtraData(data, session); } catch (_) {}
@@ -790,30 +1103,60 @@
       } catch (error) { if (!error || error.name !== 'AbortError') context.showToast('保存失败'); }
     }
 
+    function handleEditorAction(action, target, data) {
+      const session = ensureSession(data);
+      if (action === 'parameter-editor-close') {
+        closeManualEditor(session, 'button');
+        return true;
+      }
+      if (action === 'parameter-editor-target') {
+        session.manualTarget = target && target.getAttribute('data-target') === 'product' ? 'product' : 'box';
+        editorLog(session, '切换标注对象', { target: session.manualTarget });
+        renderManualEditor(data);
+        return true;
+      }
+      const current = session.manualTarget === 'product' ? 'product' : 'box';
+      if (action === 'parameter-editor-undo') {
+        const removed = session.manualPoints[current].pop();
+        editorLog(session, '撤销标注点', { target: current, removed: Boolean(removed), remaining: session.manualPoints[current].length });
+        renderManualEditor(data);
+        return true;
+      }
+      if (action === 'parameter-editor-reset') {
+        const removedCount = session.manualPoints[current].length;
+        session.manualPoints[current] = [];
+        editorLog(session, '重画当前对象', { target: current, removedCount });
+        renderManualEditor(data);
+        return true;
+      }
+      if (action === 'parameter-editor-retry') {
+        session.editorImage = null;
+        session.editorLastDrawKey = '';
+        session.editorLoadError = '';
+        session.editorStatus = '正在重新读取底图…';
+        editorLog(session, '用户要求重新载入底图');
+        renderManualEditor(data);
+        return true;
+      }
+      if (action === 'parameter-editor-apply') {
+        const incomplete = ['box', 'product'].find((key) => session.manualPoints[key].length && !completeManualPath(session, key));
+        if (incomplete) { context.showToast((incomplete === 'box' ? '纸盒' : '产品') + '路径还没有标完整。'); return true; }
+        if (!completeManualPath(session, 'box') && !completeManualPath(session, 'product')) { context.showToast('请先完成纸盒或产品路径。'); return true; }
+        editorLog(session, '应用手动路径', { boxPoints: session.manualPoints.box.length, productPoints: session.manualPoints.product.length });
+        closeManualEditor(session, 'apply');
+        regenerate(data);
+        return true;
+      }
+      return false;
+    }
+
     function handleAction(action, target, data) {
       if (action === 'parameter-image-pick') { const input = document.querySelector('#' + context.panelId + ' .pfh-parameter-file'); if (input) input.click(); return true; }
       if (action === 'parameter-image-regenerate') { regenerate(data); return true; }
       if (action === 'parameter-image-refresh-data') { refreshData(data); return true; }
       if (action === 'parameter-image-save') { save(data); return true; }
       if (action === 'parameter-editor-open') { openManualEditor(data); return true; }
-      if (/^parameter-editor-/.test(action)) {
-        const session = ensureSession(data);
-        if (action === 'parameter-editor-close') { session.editorOpen = false; session.editorDragging = null; context.render(); return true; }
-        if (action === 'parameter-editor-target') {
-          session.manualTarget = target && target.getAttribute('data-target') === 'product' ? 'product' : 'box';
-          context.render(); return true;
-        }
-        const current = session.manualTarget === 'product' ? 'product' : 'box';
-        if (action === 'parameter-editor-undo') { session.manualPoints[current].pop(); context.render(); return true; }
-        if (action === 'parameter-editor-reset') { session.manualPoints[current] = []; context.render(); return true; }
-        if (action === 'parameter-editor-apply') {
-          const incomplete = ['box', 'product'].find((key) => session.manualPoints[key].length && !completeManualPath(session, key));
-          if (incomplete) { context.showToast((incomplete === 'box' ? '纸盒' : '产品') + '路径还没有标完整。'); return true; }
-          if (!completeManualPath(session, 'box') && !completeManualPath(session, 'product')) { context.showToast('请先完成纸盒或产品路径。'); return true; }
-          session.editorOpen = false; session.editorDragging = null; regenerate(data); return true;
-        }
-        return true;
-      }
+      if (/^parameter-editor-/.test(action)) return handleEditorAction(action, target, data);
       return false;
     }
 
