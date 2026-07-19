@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.119
+// @version      2.5.120
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.119';
+  const SCRIPT_VERSION = '2.5.120';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1774,10 +1774,25 @@
   }
 
   function formatNotificationTime(value) {
-    if (!value) return '';
-    const date = new Date(value);
+    if (value === undefined || value === null || value === '') return '';
+    const text = String(value).trim();
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+    const isCloudTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(text);
+    const normalized = typeof value === 'number'
+      ? value
+      : (isCloudTimestamp && !hasTimezone ? text.replace(' ', 'T') + 'Z' : text);
+    const date = new Date(normalized);
     if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleString('zh-CN', { hour12: false });
+    return new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).format(date);
   }
 
   function notificationListHtml(items, emptyText) {
