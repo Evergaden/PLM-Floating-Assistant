@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.100
+// @version      2.5.101
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.100';
+  const SCRIPT_VERSION = '2.5.101';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1784,7 +1784,7 @@
       /\/projectManagementChemicalNew/.test(location.pathname) &&
       compactText(detailButton.innerText || detailButton.textContent) === '\u8be6\u60c5'
     ) {
-      const sku = findSku(getVisibleText(projectRow));
+      const sku = findProjectSkuForActionRow(projectRow);
       if (sku) showProjectDetailOpeningFeedback(sku, loadData(sku) || { sku });
       return;
     }
@@ -1804,6 +1804,17 @@
       state.drawerTabFlowUserInterrupted = true;
       cancelDrawerTabFlow({ preserveUserInterrupted: true });
     }
+  }
+
+  function findProjectSkuForActionRow(row) {
+    if (!row) return '';
+    const directSku = findSku(getVisibleText(row));
+    if (directSku) return directSku;
+    const rowId = row.getAttribute('rowid');
+    if (!rowId) return '';
+    const linkedRow = Array.from(document.querySelectorAll('tr[rowid="' + cssEscape(rowId) + '"]'))
+      .find((candidate) => candidate !== row && findSku(getVisibleText(candidate)));
+    return linkedRow ? findSku(getVisibleText(linkedRow)) : '';
   }
 
   function showProjectDetailOpeningFeedback(sku, data) {
