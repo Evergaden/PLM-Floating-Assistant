@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.116
+// @version      2.5.117
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.116';
+  const SCRIPT_VERSION = '2.5.117';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2583,6 +2583,8 @@
     if (signature === state.projectListPrefetchSignature) return;
     state.projectListPrefetchSignature = signature;
     let changedCount = 0;
+    let ledgerChangedCount = 0;
+    let ledgerEligibleCount = 0;
     rows.forEach((row) => {
       const previous = normalizeData(loadData(row.sku) || { sku: row.sku });
       const benchmarkImageUrl = stripOssResizeParams(row.benchmarkImageUrl || '');
@@ -2622,6 +2624,18 @@
         skuImageSource: useProductListAsSkuImage ? 'productListImage' : (previous.skuImageSource || ''),
         listPrefetchSource: 'project-all',
       });
+      const assignedDate = parseLedgerDateFromText(row.designAssignedAt);
+      if (assignedDate) {
+        ledgerEligibleCount += 1;
+        const assignedMonth = getMonthKeyFromDateKey(assignedDate);
+        const existingLedger = (state.ledgerRecords || []).find((item) => item.sku === row.sku && getMonthKeyFromDateKey(item.date) === assignedMonth);
+        const syncedLedger = upsertDailyLedgerFromData(candidate, {
+          deferSave: true,
+          skipUnchanged: true,
+          note: existingLedger ? undefined : '\u6574\u9875\u5217\u8868\u81ea\u52a8\u52a0\u5165',
+        });
+        if (syncedLedger && syncedLedger !== existingLedger) ledgerChangedCount += 1;
+      }
       if (!hasMeaningfulDataChange(previous, candidate)) return;
       const saved = normalizeData({
         ...candidate,
@@ -2634,10 +2648,16 @@
       if (state.data && state.data.sku === row.sku) state.data = saved;
       changedCount += 1;
     });
-    if (!changedCount) return;
-    queueCloudBackup();
-    addLog('info', '\u65b0\u54c1\u5f00\u53d1\u5217\u8868\u57fa\u7840\u4fe1\u606f\u5df2\u9759\u9ed8\u7f13\u5b58', changedCount + '/' + rows.length + '\u4e2a\u7f16\u7801');
-    if (state.view === 'home' || state.view === 'detail') renderShell();
+    if (ledgerChangedCount) {
+      saveDailyLedger();
+      addLog('info', '\u6574\u9875\u8bbe\u8ba1\u5206\u914d\u4efb\u52a1\u5df2\u540c\u6b65\u5230\u4eca\u65e5\u5de5\u4f5c\u53f0', ledgerChangedCount + '/' + ledgerEligibleCount + '\u4e2a\u7f16\u7801');
+    }
+    if (!changedCount && !ledgerChangedCount) return;
+    if (changedCount) {
+      queueCloudBackup();
+      addLog('info', '\u65b0\u54c1\u5f00\u53d1\u5217\u8868\u57fa\u7840\u4fe1\u606f\u5df2\u9759\u9ed8\u7f13\u5b58', changedCount + '/' + rows.length + '\u4e2a\u7f16\u7801');
+    }
+    if (state.view === 'home' || state.view === 'detail' || state.view === 'ledger') renderShell();
   }
 
   function collectProjectAllListRows() {
@@ -13455,6 +13475,15 @@
     return /已完成|已作废|已拒绝/.test(text);
   }
 
+  function hasMeaningfulLedgerRecordChange(previous, next) {
+    const ignored = new Set(['updatedAt', 'updatedAtMs']);
+    const comparable = (record) => Object.keys(record || {}).sort().reduce((result, key) => {
+      if (!ignored.has(key)) result[key] = record[key];
+      return result;
+    }, {});
+    return JSON.stringify(comparable(previous)) !== JSON.stringify(comparable(next));
+  }
+
   function upsertDailyLedgerFromData(data, options) {
     if (!data || !data.sku) return null;
     const opts = options || {};
@@ -13506,8 +13535,9 @@
       updatedAtMs: nowMs,
     };
     const reconciled = reconcileLedgerFileCompletion(next);
+    if (opts.skipUnchanged && existing && !hasMeaningfulLedgerRecordChange(existing, reconciled)) return existing;
     state.ledgerRecords = [reconciled].concat((state.ledgerRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === dateMonth))).slice(0, 1200);
-    saveDailyLedger();
+    if (!opts.deferSave) saveDailyLedger();
     return reconciled;
   }
 
