@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.112
+// @version      2.5.113
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.112';
+  const SCRIPT_VERSION = '2.5.113';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2303,6 +2303,7 @@
     tutorialModalOpen: firstTutorial,
     tutorialEmptyKeyClickCount: 0,
     settingsReturnView: '',
+    detailReturnScroll: null,
     searchQuery: '',
     view: firstTutorial ? 'home' : 'home',
     settings: loadSettings(),
@@ -4810,12 +4811,27 @@
   }
 
   function renderLedger(panel) {
+    ensureLedgerInteractionStyles();
     const list = panel.querySelector('.pfh-list');
     const detail = panel.querySelector('.pfh-detail');
     const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
+  }
+
+  function ensureLedgerInteractionStyles() {
+    const styleId = PANEL_ID + '-ledger-interaction-styles';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent =
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable{cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover{transform:translateY(-4px)!important;border-color:#b9a7ff!important;background:linear-gradient(135deg,#fff,#faf7ff)!important;box-shadow:0 16px 34px rgba(91,62,180,.16)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22)!important;outline-offset:2px!important;border-color:#9b7cf5!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}';
+    document.documentElement.appendChild(style);
   }
 
   function renderDetail(panel, statusText) {
@@ -6175,7 +6191,7 @@
       ? ('定稿 ' + (record.finalizedAt ? formatLedgerMinuteLabel(record.finalizedAt, workDate) : formatLedgerDateLabel(workDate)))
       : ('分配 ' + formatLedgerMinuteLabel(record.designAssignedAt || workDate, workDate));
     const tagHtml = '<div class="pfh-ledger-tags">' +
-      '<span class="is-sku" title="产品编码">' + escapeHtml(sku) + '</span>' +
+      '<button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + escapeHtml(sku) + '" title="点击复制产品编码">' + escapeHtml(sku) + '</button>' +
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
       (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
       '</div>';
@@ -6199,7 +6215,7 @@
         moreButton +
       '</div>';
     const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
-    return '<article class="pfh-ledger-item is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '">' +
+    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
       selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
@@ -7890,6 +7906,14 @@
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (!action && state.view === 'ledger') {
+      const card = event.target && event.target.closest && event.target.closest('.pfh-ledger-item.is-clickable');
+      const interactive = event.target && event.target.closest && event.target.closest('button,a,input,textarea,select,label,[contenteditable="true"]');
+      if (card && !interactive) {
+        openLedgerSku(card.getAttribute('data-ledger-sku'), card);
+        return;
+      }
+    }
     if (action === 'notifications') {
       openNotificationModal();
       return;
@@ -8421,8 +8445,18 @@
       openLedgerReference(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
       return;
     }
+    if (action === 'ledger-copy-sku') {
+      const sku = actionTarget.getAttribute('data-sku') || '';
+      if (sku) {
+        copyText(sku);
+        actionTarget.classList.add('is-copied');
+        window.setTimeout(() => actionTarget.classList.remove('is-copied'), 650);
+        showToast('已复制编码：' + sku);
+      }
+      return;
+    }
     if (action === 'ledger-open-sku') {
-      openLedgerSku(actionTarget.getAttribute('data-sku'));
+      openLedgerSku(actionTarget.getAttribute('data-sku'), actionTarget.closest('.pfh-ledger-item'));
       return;
     }
     if (action === 'home-excel-coming-soon') {
@@ -8438,11 +8472,14 @@
         updateSearchClear();
       }
       const returnView = state.detailReturnView || '';
+      const returnScroll = state.detailReturnScroll;
       state.view = returnView || 'home';
       state.detailReturnView = '';
+      state.detailReturnScroll = null;
       state.uploadExpanded = false;
       state.uploadReturnView = '';
       renderShell();
+      if (returnView === 'ledger') restoreLedgerReturnScroll(returnScroll);
       return;
     }
     if (action === 'upload-history-toggle') {
@@ -8720,6 +8757,11 @@
   }
 
   function handlePanelKeydown(event) {
+    if (state.view === 'ledger' && event.target && event.target.classList && event.target.classList.contains('pfh-ledger-item') && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      openLedgerSku(event.target.getAttribute('data-ledger-sku'), event.target);
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-search-input') && event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       runSearch();
@@ -13603,9 +13645,54 @@
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
-  function openLedgerSku(sku) {
+  function captureLedgerReturnScroll(originCard) {
+    const panel = document.getElementById(PANEL_ID);
+    const detailScroll = panel && panel.querySelector('.pfh-detail-scroll');
+    const ledgerList = panel && panel.querySelector('.pfh-ledger-list');
+    const card = originCard && originCard.classList && originCard.classList.contains('pfh-ledger-item') ? originCard : null;
+    const detailRect = detailScroll && detailScroll.getBoundingClientRect();
+    const cardRect = card && card.getBoundingClientRect();
+    return {
+      detailTop: detailScroll ? detailScroll.scrollTop : 0,
+      detailLeft: detailScroll ? detailScroll.scrollLeft : 0,
+      listTop: ledgerList ? ledgerList.scrollTop : 0,
+      listLeft: ledgerList ? ledgerList.scrollLeft : 0,
+      sku: card && card.getAttribute('data-ledger-sku') || '',
+      date: card && card.getAttribute('data-ledger-date') || '',
+      cardOffset: detailRect && cardRect ? cardRect.top - detailRect.top : null,
+    };
+  }
+
+  function restoreLedgerReturnScroll(snapshot) {
+    if (!snapshot) return;
+    window.requestAnimationFrame(() => {
+      const panel = document.getElementById(PANEL_ID);
+      const detailScroll = panel && panel.querySelector('.pfh-detail-scroll');
+      const ledgerList = panel && panel.querySelector('.pfh-ledger-list');
+      if (detailScroll) {
+        detailScroll.scrollTop = Number(snapshot.detailTop) || 0;
+        detailScroll.scrollLeft = Number(snapshot.detailLeft) || 0;
+      }
+      if (ledgerList) {
+        ledgerList.scrollTop = Number(snapshot.listTop) || 0;
+        ledgerList.scrollLeft = Number(snapshot.listLeft) || 0;
+      }
+      window.requestAnimationFrame(() => {
+        if (!detailScroll || !Number.isFinite(snapshot.cardOffset) || !snapshot.sku) return;
+        const card = Array.from(panel.querySelectorAll('.pfh-ledger-item')).find((item) =>
+          item.getAttribute('data-ledger-sku') === snapshot.sku && (!snapshot.date || item.getAttribute('data-ledger-date') === snapshot.date)
+        );
+        if (!card) return;
+        const delta = card.getBoundingClientRect().top - detailScroll.getBoundingClientRect().top - snapshot.cardOffset;
+        if (Math.abs(delta) > 1) detailScroll.scrollTop += delta;
+      });
+    });
+  }
+
+  function openLedgerSku(sku, originCard) {
     if (!sku) return;
     const data = normalizeData(loadData(sku) || { sku });
+    state.detailReturnScroll = state.view === 'ledger' ? captureLedgerReturnScroll(originCard) : null;
     state.selectedSku = sku;
     state.data = data;
     state.detailReturnView = state.view || 'ledger';
