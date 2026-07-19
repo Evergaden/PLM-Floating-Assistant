@@ -82,7 +82,7 @@
     if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
-    const manifest = await cloudAssetRequest('/assets/manifest', 'json');
+    const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
     if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
       throw new Error('unsupported cloud asset manifest');
     }

@@ -2,7 +2,7 @@ import { PARAMETER_LOGO_ASSETS } from './parameter-logo-assets.js';
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,HEAD,POST,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
   'access-control-allow-headers': 'content-type,x-api-key',
 };
 
@@ -83,35 +83,6 @@ function getZhipuModel(env) {
   const model = String((env && env.ZHIPU_MODEL) || 'glm-4.7-flash').trim();
   if (/^glm-4\.7-flash$/i.test(model)) return 'glm-4.7-flash';
   return model;
-}
-
-function normalizePublicAssetKey(pathname) {
-  if (pathname === '/assets/manifest') return 'manifest.json';
-  if (!pathname.startsWith('/assets/')) return '';
-  let key = '';
-  try {
-    key = pathname.slice('/assets/'.length).split('/').map(decodeURIComponent).join('/');
-  } catch (_) {
-    return '';
-  }
-  if (!key || key.includes('..') || key.includes('\\') || !/^[a-z0-9][a-z0-9._/-]*$/i.test(key)) return '';
-  return key;
-}
-
-async function handlePublicAsset(request, env, pathname) {
-  const key = normalizePublicAssetKey(pathname);
-  if (!key) return json({ error: 'asset not found' }, 404);
-  if (!env.ASSETS) return json({ error: 'asset storage unavailable' }, 503);
-  const object = request.method === 'HEAD' ? await env.ASSETS.head(key) : await env.ASSETS.get(key);
-  if (!object) return json({ error: 'asset not found' }, 404);
-  const headers = new Headers(CORS_HEADERS);
-  object.writeHttpMetadata(headers);
-  headers.set('etag', object.httpEtag);
-  headers.set('cache-control', key === 'manifest.json'
-    ? 'public, max-age=300, must-revalidate'
-    : 'public, max-age=31536000, immutable');
-  headers.set('x-content-type-options', 'nosniff');
-  return new Response(request.method === 'HEAD' ? null : object.body, { headers });
 }
 
 const DEFAULT_MODELSCOPE_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -3874,9 +3845,6 @@ export default {
     if (request.method === 'OPTIONS') return json({ ok: true });
 
     const url = new URL(request.url);
-    if ((request.method === 'GET' || request.method === 'HEAD') && (url.pathname === '/assets/manifest' || url.pathname.startsWith('/assets/'))) {
-      return handlePublicAsset(request, env, url.pathname);
-    }
     if (url.pathname === '/health') return json({ ok: true });
     if (url.pathname === '/admin/login' && request.method === 'GET') return htmlResponse(renderAdminLogin(false));
     if (url.pathname === '/admin/login' && request.method === 'POST') return handleAdminLogin(request, env);

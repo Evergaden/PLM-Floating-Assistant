@@ -3,10 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const manifestPath = path.join(root, 'assets', 'manifest.json');
+const assetRoot = path.join(root, 'static', 'assets');
+const manifestPath = path.join(assetRoot, 'manifest.json');
 const previous = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const dataVersion = String(process.argv[2] || previous.dataVersion || '').trim();
-if (!dataVersion) throw new Error('Pass a data version, for example: npm run r2:manifest -- 2026-07-19.2');
+if (!dataVersion) throw new Error('Pass a data version, for example: npm run assets:manifest -- 2026-07-19.2');
 
 const definitions = {
   runtimeData: 'v1/runtime-data.json',
@@ -15,7 +16,7 @@ const definitions = {
 };
 const assets = {};
 for (const [name, relativePath] of Object.entries(definitions)) {
-  const data = fs.readFileSync(path.join(root, 'assets', relativePath));
+  const data = fs.readFileSync(path.join(assetRoot, relativePath));
   assets[name] = {
     path: relativePath,
     bytes: data.length,
@@ -26,7 +27,7 @@ for (const [name, relativePath] of Object.entries(definitions)) {
 const manifest = {
   schemaVersion: 1,
   dataVersion,
-  minimumClientVersion: previous.minimumClientVersion || '2.5.102',
+  minimumClientVersion: previous.minimumClientVersion || '2.5.103',
   assets,
 };
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');

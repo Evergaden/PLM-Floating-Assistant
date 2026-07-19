@@ -1,0 +1,9 @@
+/assets/*
+  Access-Control-Allow-Origin: *
+  X-Content-Type-Options: nosniff
+
+/assets/manifest.json
+  Cache-Control: public, max-age=300, must-revalidate
+
+/assets/v1/*
+  Cache-Control: public, max-age=31536000, immutable

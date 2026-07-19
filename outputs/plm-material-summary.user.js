@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.102
+// @version      2.5.103
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.102';
+  const SCRIPT_VERSION = '2.5.103';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1357,7 +1357,7 @@
     if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
-    const manifest = await cloudAssetRequest('/assets/manifest', 'json');
+    const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
     if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
       throw new Error('unsupported cloud asset manifest');
     }

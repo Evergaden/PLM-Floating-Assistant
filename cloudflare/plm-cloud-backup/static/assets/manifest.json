@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "dataVersion": "2026-07-19.1",
-  "minimumClientVersion": "2.5.102",
+  "dataVersion": "2026-07-19.2",
+  "minimumClientVersion": "2.5.103",
   "assets": {
     "runtimeData": {
       "path": "v1/runtime-data.json",
