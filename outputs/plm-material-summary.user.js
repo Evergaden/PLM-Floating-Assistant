@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.111
+// @version      2.5.112
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.111';
+  const SCRIPT_VERSION = '2.5.112';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -152,6 +152,7 @@
           manualTarget: Boolean(data && data.singleBottle) ? 'product' : 'box',
           manualPoints: { box: [], product: [] },
           manualLineTypes: { box: [], product: [] },
+          manualPointHistory: [],
           editorImage: null,
           editorSourceUrl: '',
           editorDragging: null,
@@ -185,6 +186,7 @@
       if (!session.manualLineTypes) session.manualLineTypes = { box: [], product: [] };
       if (!Array.isArray(session.manualLineTypes.box)) session.manualLineTypes.box = [];
       if (!Array.isArray(session.manualLineTypes.product)) session.manualLineTypes.product = [];
+      if (!Array.isArray(session.manualPointHistory)) session.manualPointHistory = [];
       return session;
     }
 
@@ -296,11 +298,11 @@
       return best;
     }
 
-    function manualProgressText(session, target) {
-      const complete = completedManualLines(session, target);
-      const total = manualDimensionTypes(target).length;
-      const hasStart = (session.manualPoints[target] || []).length % 2 === 1;
-      return '已完成 ' + complete + '/' + total + ' 条边' + (hasStart ? '，请选择终点' : '');
+    function manualOverallProgressText(session) {
+      const box = completedManualLines(session, 'box');
+      const product = completedManualLines(session, 'product');
+      const pending = ['box', 'product'].find((target) => (session.manualPoints[target] || []).length % 2 === 1);
+      return '纸盒 ' + box + '/3 · 产品 ' + product + '/2' + (pending ? ' · 正在画' + (pending === 'box' ? '纸盒' : '产品') + '终点' : '');
     }
 
     function manualCalibrationHtml(session, target) {
@@ -313,10 +315,17 @@
         const buttons = ['auto'].concat(manualDimensionTypes(target)).map((type) => {
           const label = type === 'auto' ? '自动' : manualDimensionLabel(type);
           const active = (type === 'auto' ? !override : override === type) ? ' is-active' : '';
-          return '<button type="button" class="' + active + '" data-action="parameter-editor-line-type" data-line-index="' + index + '" data-dimension="' + type + '">' + label + '</button>';
+          return '<button type="button" class="' + active + '" data-action="parameter-editor-line-type" data-object="' + target + '" data-line-index="' + index + '" data-dimension="' + type + '">' + label + '</button>';
         }).join('');
         return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid #e4def4;border-radius:10px;background:#f8f6ff"><b style="color:#4d3a8b;font-size:12px">第' + (index + 1) + '条：' + (override ? '已校准 ' : '智能识别 ') + manualDimensionLabel(effective[index]) + '</b>' + buttons + '</span>';
       }).join('');
+    }
+
+    function manualAllCalibrationHtml(session) {
+      const sections = ['box', 'product'].filter((target) => completedManualLines(session, target)).map((target) =>
+        '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + (target === 'box' ? '#7c3aed' : '#0891b2') + ';font-size:12px">' + (target === 'box' ? '纸盒' : '产品') + '</strong>' + manualCalibrationHtml(session, target) + '</span>'
+      );
+      return sections.join('') || '<span style="color:#7b84a1;font-size:12px">直接在图片上画线：每条线点击起点和终点，系统会自动判断纸盒/产品及长宽高。</span>';
     }
 
     function editorLog(session, step, detail, level) {
@@ -339,24 +348,21 @@
     }
 
     function manualEditorHtml(session) {
-      const target = session.manualTarget === 'product' ? 'product' : 'box';
       const boxCount = completedManualLines(session, 'box');
       const productCount = completedManualLines(session, 'product');
-      const targetLabel = target === 'box' ? '纸盒' : '产品';
-      const totalLines = manualDimensionTypes(target).length;
       const statusClass = session.editorLoadError ? ' is-error' : '';
       return '<section class="pfh-parameter-editor">' +
-        '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>每条边分别画起点和终点 · 拖动端点微调 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+        '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，自动判断纸盒/产品 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
-          '<button type="button" data-action="parameter-editor-target" data-target="box" class="' + (target === 'box' ? 'is-active' : '') + '">纸盒 ' + boxCount + '/3 边</button>' +
-          '<button type="button" data-action="parameter-editor-target" data-target="product" class="' + (target === 'product' ? 'is-active' : '') + '">产品 ' + productCount + '/2 边</button>' +
-          '<button type="button" data-action="parameter-editor-undo">撤销一点</button><button type="button" data-action="parameter-editor-reset">重画当前</button>' +
+          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:#f1edff;color:#6541ce;font-size:12px;font-weight:800">纸盒 ' + boxCount + '/3 边</span>' +
+          '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:#e8f7fa;color:#087f95;font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
+          '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
           '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
-          '<div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:7px;flex-wrap:wrap">' + manualCalibrationHtml(session, target) + '</div>' +
+          '<div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + manualAllCalibrationHtml(session) + '</div>' +
         '</div>' +
         '<div class="pfh-parameter-editor-stage' + (!session.editorImage && !session.editorLoadError ? ' is-loading' : '') + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
-        '<footer class="pfh-parameter-editor-foot"><span>当前：<b>' + targetLabel + '</b>，共画 ' + totalLines + ' 条独立尺寸边，每条点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualProgressText(session, target) + '</span></footer>' +
+        '<footer class="pfh-parameter-editor-foot"><span>无需选择对象，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualOverallProgressText(session) + '</span></footer>' +
         '<details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + context.escapeHtml(editorLogText(session)) + '</pre></details>' +
       '</section>';
     }
@@ -426,8 +432,8 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image.source || image, padding, padding, width, height);
       const scale = editorScale(image);
-      drawEditorLines(ctx, session, 'box', '#7c3aed', session.manualTarget === 'box', scale, padding, padding);
-      drawEditorLines(ctx, session, 'product', '#0891b2', session.manualTarget === 'product', scale, padding, padding);
+      drawEditorLines(ctx, session, 'box', '#7c3aed', true, scale, padding, padding);
+      drawEditorLines(ctx, session, 'product', '#0891b2', true, scale, padding, padding);
       const fit = fitEditorCanvas(canvas);
       const drawKey = [width, height, padding, image.sourceKind || 'image'].join('x');
       if (session.editorLastDrawKey !== drawKey) {
@@ -459,6 +465,57 @@
       };
     }
 
+    function manualPointRectScore(point, rect) {
+      if (!rect) return Infinity;
+      const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
+      const dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
+      const diagonal = Math.max(1, Math.hypot(rect.width, rect.height));
+      const centerDistance = Math.hypot(point.x - (rect.left + rect.right) / 2, point.y - (rect.top + rect.bottom) / 2);
+      return Math.hypot(dx, dy) / diagonal + centerDistance / diagonal * .04;
+    }
+
+    function autoManualTarget(session, point) {
+      const pending = ['box', 'product'].find((target) => (session.manualPoints[target] || []).length % 2 === 1);
+      if (pending) return pending;
+      if (session.singleBottle) return 'product';
+      const available = ['box', 'product'].filter((target) => (session.manualPoints[target] || []).length < requiredManualPoints(target));
+      if (available.length === 1) return available[0];
+      if (!available.length) return '';
+      const analysis = session.analysis || {};
+      const boxScore = manualPointRectScore(point, analysis.box);
+      const productScore = manualPointRectScore(point, analysis.product);
+      if (Number.isFinite(boxScore) || Number.isFinite(productScore)) return boxScore <= productScore ? 'box' : 'product';
+      if (number(analysis.splitX)) return point.x < analysis.splitX ? 'box' : 'product';
+      const imageWidth = Number(session.editorImage && (session.editorImage.naturalWidth || session.editorImage.width) || 0);
+      return !imageWidth || point.x < imageWidth / 2 ? 'box' : 'product';
+    }
+
+    function findManualPointHit(session, point, radius) {
+      let best = null;
+      ['box', 'product'].forEach((target) => {
+        (session.manualPoints[target] || []).forEach((existing, index) => {
+          const distance = Math.hypot(existing.x - point.x, existing.y - point.y);
+          if (distance <= radius && (!best || distance < best.distance)) best = { target, index, distance };
+        });
+      });
+      return best;
+    }
+
+    function undoLastManualPoint(session) {
+      let target = session.manualPointHistory.pop();
+      if (!target || !session.manualPoints[target] || !session.manualPoints[target].length) {
+        const pending = ['box', 'product'].find((key) => (session.manualPoints[key] || []).length % 2 === 1);
+        target = pending || (session.manualPoints[session.manualTarget] || []).length && session.manualTarget ||
+          ['product', 'box'].find((key) => (session.manualPoints[key] || []).length);
+      }
+      if (!target || !session.manualPoints[target] || !session.manualPoints[target].length) return { target: '', removed: null };
+      const removed = session.manualPoints[target].pop();
+      session.manualLineTypes[target] = session.manualLineTypes[target].slice(0, Math.ceil(session.manualPoints[target].length / 2));
+      session.manualTarget = target;
+      session.editorStatus = '已撤回最近的' + (target === 'box' ? '纸盒' : '产品') + '端点';
+      return { target, removed };
+    }
+
     function constrainEditorPoint(point, points, index, enabled) {
       if (!enabled || !Array.isArray(points) || !points.length) return { point, axis: '' };
       const anchorIndex = index % 2 === 0 ? index + 1 : index - 1;
@@ -474,9 +531,12 @@
       const root = document.getElementById(editorOverlayId);
       const progress = root && root.querySelector('.pfh-parameter-editor-progress');
       const calibration = root && root.querySelector('.pfh-parameter-editor-calibration');
-      const target = session.manualTarget === 'product' ? 'product' : 'box';
-      if (progress) progress.textContent = manualProgressText(session, target);
-      if (calibration) calibration.innerHTML = manualCalibrationHtml(session, target);
+      const boxProgress = root && root.querySelector('.pfh-parameter-editor-box-progress');
+      const productProgress = root && root.querySelector('.pfh-parameter-editor-product-progress');
+      if (progress) progress.textContent = manualOverallProgressText(session);
+      if (calibration) calibration.innerHTML = manualAllCalibrationHtml(session);
+      if (boxProgress) boxProgress.textContent = '纸盒 ' + completedManualLines(session, 'box') + '/3 边';
+      if (productProgress) productProgress.textContent = '产品 ' + completedManualLines(session, 'product') + '/2 边';
     }
 
     function refreshEditorDiagnostics(session) {
@@ -646,24 +706,32 @@
       const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
       canvas.onpointerdown = (event) => {
         event.preventDefault();
-        const target = session.manualTarget === 'product' ? 'product' : 'box';
-        const points = session.manualPoints[target];
         let point = canvasPoint(event, canvas, session.editorImage);
         const radius = 28 * editorScale(session.editorImage);
-        let index = points.findIndex((existing) => Math.hypot(existing.x - point.x, existing.y - point.y) <= radius);
+        const hit = findManualPointHit(session, point, radius);
+        const target = hit ? hit.target : autoManualTarget(session, point);
+        if (!target) {
+          session.editorStatus = '纸盒和产品尺寸边都已画完，可校准后应用生成';
+          refreshEditorDiagnostics(session);
+          return;
+        }
+        session.manualTarget = target;
+        const points = session.manualPoints[target];
+        let index = hit ? hit.index : -1;
         let snapAxis = '';
         if (index < 0 && points.length < requiredManualPoints(target)) {
           const constrained = constrainEditorPoint(point, points, points.length, event.ctrlKey);
           point = constrained.point;
           snapAxis = constrained.axis;
           points.push(point); index = points.length - 1;
+          session.manualPointHistory.push(target);
           editorLog(session, '新增标注点', { target, index: index + 1, x: Math.round(point.x), y: Math.round(point.y), ctrlSnap: snapAxis || 'none' });
           if (points.length % 2 === 0) {
             const lineIndex = points.length / 2 - 1;
             const assigned = autoAssignedManualTypes(session, target);
-            session.editorStatus = '第' + (lineIndex + 1) + '条边智能识别为“' + manualDimensionLabel(assigned[lineIndex]) + '”，可在上方手动校准';
+            session.editorStatus = (target === 'box' ? '纸盒' : '产品') + '第' + (lineIndex + 1) + '条边智能识别为“' + manualDimensionLabel(assigned[lineIndex]) + '”，可在上方校准';
             editorLog(session, '智能识别尺寸边', { target, line: lineIndex + 1, dimension: assigned[lineIndex] || '' });
-          }
+          } else session.editorStatus = '已自动判断为“' + (target === 'box' ? '纸盒' : '产品') + '”，请点击这条边的终点';
         }
         if (index < 0) return;
         session.editorDragging = { target, index, snapAxis };
@@ -735,6 +803,10 @@
         });
         overlay.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') { event.preventDefault(); closeManualEditor(session, 'escape'); }
+          else if ((event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key).toLowerCase() === 'z') {
+            event.preventDefault();
+            handleEditorAction('parameter-editor-undo', null, data);
+          }
         });
       }
       overlay.innerHTML = manualEditorHtml(session);
@@ -1189,6 +1261,7 @@
       }
       session.manualPoints = { box: [], product: [] };
       session.manualLineTypes = { box: [], product: [] };
+      session.manualPointHistory = [];
       const oldEditor = document.getElementById(editorOverlayId);
       if (oldEditor) {
         oldEditor.remove();
@@ -1250,14 +1323,8 @@
         closeManualEditor(session, 'button');
         return true;
       }
-      if (action === 'parameter-editor-target') {
-        session.manualTarget = target && target.getAttribute('data-target') === 'product' ? 'product' : 'box';
-        editorLog(session, '切换标注对象', { target: session.manualTarget });
-        renderManualEditor(data);
-        return true;
-      }
-      const current = session.manualTarget === 'product' ? 'product' : 'box';
       if (action === 'parameter-editor-line-type') {
+        const current = target && target.getAttribute('data-object') === 'product' ? 'product' : 'box';
         const lineIndex = Number(target && target.getAttribute('data-line-index'));
         const requested = String(target && target.getAttribute('data-dimension') || 'auto');
         const allowed = manualDimensionTypes(current);
@@ -1277,17 +1344,18 @@
         return true;
       }
       if (action === 'parameter-editor-undo') {
-        const removed = session.manualPoints[current].pop();
-        session.manualLineTypes[current] = session.manualLineTypes[current].slice(0, Math.ceil(session.manualPoints[current].length / 2));
-        editorLog(session, '撤销标注点', { target: current, removed: Boolean(removed), remaining: session.manualPoints[current].length });
+        const result = undoLastManualPoint(session);
+        editorLog(session, '撤销最近标注点', { target: result.target, removed: Boolean(result.removed), remaining: result.target ? session.manualPoints[result.target].length : 0 });
         renderManualEditor(data);
         return true;
       }
       if (action === 'parameter-editor-reset') {
-        const removedCount = session.manualPoints[current].length;
-        session.manualPoints[current] = [];
-        session.manualLineTypes[current] = [];
-        editorLog(session, '重画当前对象', { target: current, removedCount });
+        const removedCount = session.manualPoints.box.length + session.manualPoints.product.length;
+        session.manualPoints = { box: [], product: [] };
+        session.manualLineTypes = { box: [], product: [] };
+        session.manualPointHistory = [];
+        session.editorStatus = '标注已全部清空，可重新直接画线';
+        editorLog(session, '全部重画', { removedCount });
         renderManualEditor(data);
         return true;
       }
