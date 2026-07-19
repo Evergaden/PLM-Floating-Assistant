@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.114
+// @version      2.5.115
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,9 +30,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.114';
+  const SCRIPT_VERSION = '2.5.115';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '2';
+  const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -2989,6 +2989,10 @@
       ingredientPdfModel: cached.ingredientPdfModel || '',
       ingredientPdfUpdatedAt: cached.ingredientPdfUpdatedAt || '',
       ingredientNormalizerVersion: cached.ingredientNormalizerVersion || '',
+      ingredientSource: cached.ingredientSource || '',
+      ingredientWordFileName: cached.ingredientWordFileName || '',
+      ingredientWordHash: cached.ingredientWordHash || '',
+      ingredientWordUpdatedAt: cached.ingredientWordUpdatedAt || '',
       tailSealLengthValue: cached.tailSealLengthValue || '',
       purchasePrice: cached.purchasePrice || '',
       purchasePriceSource: cached.purchasePriceSource || '',
@@ -3252,10 +3256,17 @@
 
       const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
       if (!attachmentFiles) return;
-      if (attachmentFiles.ingredientFile) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile }).catch(() => {});
-      else addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
-      if (attachmentFiles.copywritingFile) hydrateCopywritingForSku(sku, { silent: true, drawer, file: attachmentFiles.copywritingFile }).catch(() => {});
-      else addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
+      if (attachmentFiles.copywritingFile) {
+        hydrateCopywritingForSku(sku, { silent: true, drawer, file: attachmentFiles.copywritingFile }).then((cached) => {
+          if (attachmentFiles.ingredientFile && (!cached.ingredientChinese || !cached.ingredientEnglish)) {
+            hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile }).catch(() => {});
+          }
+        }).catch(() => {});
+      } else {
+        addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
+        if (attachmentFiles.ingredientFile) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile }).catch(() => {});
+      }
+      if (!attachmentFiles.ingredientFile) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
     } finally {
       if (state.drawerTabFlowToken === token) {
         if (includeScanTabs) {
@@ -3606,6 +3617,8 @@
     return {
       ...safe,
       copywriting,
+      ingredientEnglish: safe.ingredientEnglish || copywriting && copywriting.ingredientEnglish || '',
+      ingredientChinese: safe.ingredientChinese || copywriting && copywriting.ingredientChinese || '',
       hasInnerCard,
       singleBottle,
       bottleNums,
@@ -6819,7 +6832,7 @@
       const built = buildMainstreamCopywriting(tableRows, workingData);
       if (!built.sections.length) throw new Error('Word 中未识别到主流版文案字段');
       const next = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, cached);
-      saveData(sku, { ...workingData, copywriting: next });
+      saveData(sku, mergeCopywritingCacheIntoData(workingData, next));
       state.copywritingStatus = '';
       state.copywritingError = '';
       const updated = Boolean(cached && cached.fullText && next.updatePending && (
@@ -6900,7 +6913,7 @@
       const built = buildMainstreamCopywriting(tableRows, cached);
       if (!built.sections.length) throw new Error('Word \u4e2d\u672a\u8bc6\u522b\u5230\u4e3b\u6d41\u7248\u6587\u6848\u5b57\u6bb5');
       const nextRecord = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, oldRecord);
-      const next = normalizeData({ ...cached, copywriting: nextRecord });
+      const next = mergeCopywritingCacheIntoData(cached, nextRecord);
       if (drawer !== getProjectDrawerForSku(sku) || Number(state.skuResultGeneration[sku] || 0) !== resultGeneration) return normalizeData(loadData(sku) || {});
       saveData(sku, next);
       delete state.copywritingHydrateFailedAt[sku];
@@ -7587,6 +7600,19 @@
     return String(value || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/[ \t]+/g, ' ').trim();
   }
 
+  function cleanCopywritingIngredientValue(lines, language) {
+    let text = (lines || []).map(cleanCopywritingLine).filter(Boolean).join(' ').trim();
+    if (!text) return '';
+    if (language === 'chinese') {
+      text = text.replace(/^(?:中文)?(?:成分表|成份表|成分|成份)\s*[:：]?\s*/i, '');
+    } else {
+      text = text
+        .replace(/\bINACTIVE\s+INGREDIENTS?\s*[:：]?/gi, '; ')
+        .replace(/^(?:ACTIVE\s+)?INGREDIENTS?\s*[:：]?\s*/i, '');
+    }
+    return text.replace(/^\s*[;；,，、]+\s*/, '').replace(/\s+/g, ' ').trim().slice(0, 8000);
+  }
+
   function buildMainstreamCopywriting(rows, data) {
     const rowMap = {};
     (rows || []).forEach((cells) => {
@@ -7612,6 +7638,9 @@
     const functionLines = find(/^24国语言功效内容/).map((line) => line.replace(/;\s*$/, '').trim()).filter(Boolean);
     add('functions', '24国语言功效内容', functionLines.join(';  '));
     const ingredientLines = find(/^(?:成分表|成分活性非活性成分)/);
+    const ingredientChineseLines = find(/^(?:成分表|成分活性非活性成分)/, 'chinese');
+    const ingredientEnglish = cleanCopywritingIngredientValue(ingredientLines, 'english');
+    const ingredientChinese = cleanCopywritingIngredientValue(ingredientChineseLines, 'chinese');
     const activeIngredients = extractLabeledCopywritingSection(ingredientLines, /\bACTIVE\s+INGREDIENTS?\s*[:：]?/i, /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i, 'ACTIVE INGREDIENTS:');
     const inactiveIngredients = extractLabeledCopywritingSection(ingredientLines, /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i, null, 'INACTIVE INGREDIENTS:');
     if (activeIngredients.lines.length || inactiveIngredients.lines.length) {
@@ -7637,7 +7666,7 @@
     const shelfLines = find(/^保质期$/);
     add('shelfLife', '保质期', shelfLines.join('\n'));
     formatBrandComplianceSections(data).forEach((section) => add(section.key, section.label, section.text));
-    return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections };
+    return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections, ingredientEnglish, ingredientChinese };
   }
 
   function findBrandCompliance(data) {
@@ -7750,6 +7779,8 @@
       fetchedAt: now,
       sections: built.sections,
       fullText: built.fullText,
+      ingredientEnglish: built.ingredientEnglish,
+      ingredientChinese: built.ingredientChinese,
       missingSections: built.missingSections,
       updatePending: changedFile || Boolean(old && old.updatePending),
       changedSectionKeys,
@@ -7773,12 +7804,30 @@
       fetchedAt: String(record.fetchedAt || '').slice(0, 80),
       sections: normalizeSections(record.sections),
       fullText: String(record.fullText || '').slice(0, 50000),
+      ingredientEnglish: String(record.ingredientEnglish || '').trim().slice(0, 8000),
+      ingredientChinese: String(record.ingredientChinese || '').trim().slice(0, 8000),
       missingSections: (Array.isArray(record.missingSections) ? record.missingSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
       updatePending: Boolean(record.updatePending),
       changedSectionKeys: (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16),
       removedSections: (Array.isArray(record.removedSections) ? record.removedSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
       previousSections: normalizeSections(record.previousSections),
     };
+  }
+
+  function mergeCopywritingCacheIntoData(data, record) {
+    const cached = normalizeCopywritingRecord(record);
+    const english = String(cached && cached.ingredientEnglish || '').trim();
+    const chinese = String(cached && cached.ingredientChinese || '').trim();
+    return normalizeData({
+      ...(data || {}),
+      copywriting: cached,
+      ingredientEnglish: english || data && data.ingredientEnglish || '',
+      ingredientChinese: chinese || data && data.ingredientChinese || '',
+      ingredientSource: english || chinese ? 'copywritingWord' : data && data.ingredientSource || '',
+      ingredientWordFileName: english || chinese ? cached.fileName : data && data.ingredientWordFileName || '',
+      ingredientWordHash: english || chinese ? cached.fileHash : data && data.ingredientWordHash || '',
+      ingredientWordUpdatedAt: english || chinese ? cached.fetchedAt : data && data.ingredientWordUpdatedAt || '',
+    });
   }
 
   function uploadPanelHtml() {
@@ -11841,10 +11890,25 @@
     try {
       if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) throw new Error('\u4ea7\u54c1\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
       extra.liveData = extractData(drawer, { forceSkuImage: true });
+      let ingredientData = normalizeData(loadData(sku) || cachedData);
+      let copywritingRecord = normalizeCopywritingRecord(ingredientData.copywriting);
+      if (!copywritingRecord || copywritingRecord.parserVersion !== COPYWRITING_PARSER_VERSION) {
+        if (state.copywritingHydratingSkus.has(sku)) await waitFor(() => !state.copywritingHydratingSkus.has(sku), 25000, 200);
+        ingredientData = normalizeData(loadData(sku) || ingredientData);
+        copywritingRecord = normalizeCopywritingRecord(ingredientData.copywriting);
+        if (!copywritingRecord || copywritingRecord.parserVersion !== COPYWRITING_PARSER_VERSION) {
+          const copywritingItem = findProductCopywritingItem(drawer);
+          const copywritingFile = copywritingItem ? findProductCopywritingFile(copywritingItem, sku) : null;
+          if (copywritingFile) ingredientData = await hydrateCopywritingForSku(sku, { silent: true, drawer, file: copywritingFile });
+        }
+      }
       const ingredientItem = findIngredientPdfItem(drawer);
       const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
-      if (ingredientFile && !state.ingredientHydratingSkus.has(sku)) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile }).catch(() => {});
-      const ingredientData = normalizeData(loadData(sku) || {});
+      if (ingredientFile && (!ingredientData.ingredientChinese || !ingredientData.ingredientEnglish)) {
+        if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
+        else ingredientData = await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile });
+        ingredientData = normalizeData(loadData(sku) || ingredientData);
+      }
       extra.ingredientEnglish = ingredientData.ingredientEnglish || extra.ingredientEnglish;
       extra.ingredientChinese = ingredientData.ingredientChinese || extra.ingredientChinese;
       const productText = getVisibleText(drawer);
