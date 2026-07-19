@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.115
+// @version      2.5.116
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.115';
+  const SCRIPT_VERSION = '2.5.116';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2374,6 +2374,7 @@
     ledgerTimeEditor: null,
     ledgerSelectedKeys: [],
     ledgerMenuSku: '',
+    ledgerMenuDate: '',
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
     ledgerTabTransition: '',
@@ -4858,11 +4859,20 @@
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent =
-      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable{cursor:pointer!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover{transform:translateY(-4px)!important;border-color:#b9a7ff!important;background:linear-gradient(135deg,#fff,#faf7ff)!important;box-shadow:0 16px 34px rgba(91,62,180,.16)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-list{isolation:isolate!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-day{position:relative!important;z-index:0!important;overflow:visible!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-day:has(.pfh-ledger-item.is-menu-open){z-index:90!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable{position:relative!important;z-index:0!important;cursor:pointer!important;transform:none!important;transform-origin:50% 55%!important;transition:transform .46s cubic-bezier(.18,.88,.32,1.08),border-color .3s cubic-bezier(.22,1,.36,1),background .3s cubic-bezier(.22,1,.36,1),box-shadow .44s cubic-bezier(.16,1,.3,1)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover{z-index:2!important;transform:scale(1.008)!important;border-color:#b9a7ff!important;background:linear-gradient(135deg,#fff,#faf7ff)!important;box-shadow:0 15px 32px rgba(91,62,180,.15)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open:hover{z-index:100!important;transform:scale(1.006)!important;border-color:#ad98f8!important;box-shadow:0 18px 38px rgba(91,62,180,.18)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:transform .5s cubic-bezier(.16,1,.3,1),box-shadow .4s cubic-bezier(.16,1,.3,1)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover .pfh-ledger-thumb{transform:translate3d(0,-1px,0) scale(1.025)!important;box-shadow:0 7px 16px rgba(83,60,168,.12)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-menu-open .pfh-ledger-more{position:relative!important;z-index:101!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-menu-open .pfh-ledger-overflow-menu{z-index:102!important;pointer-events:auto!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22)!important;outline-offset:2px!important;border-color:#9b7cf5!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}';
+      '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}' +
+      '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
     document.documentElement.appendChild(style);
   }
 
@@ -6233,7 +6243,8 @@
     const workflowHtml = mode === 'finalized' ? '' : '<div class="pfh-ledger-flow is-step-' + (record.finalizedAt ? '3' : (imageGenerated ? '2' : '1')) + '">' +
       '<span><i></i>出图</span><em></em><span><i></i>定稿</span><em></em><span><i></i>文件</span></div>';
     const menuHtml = ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated);
-    const moreButton = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="更多操作"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + menuHtml + '</div>';
+    const menuOpen = state.ledgerMenuSku === sku && state.ledgerMenuDate === normalizeLedgerDate(record.date || workDate);
+    const moreButton = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="更多操作" aria-expanded="' + (menuOpen ? 'true' : 'false') + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + menuHtml + '</div>';
     const actions = mode === 'finalized'
       ? '<div class="pfh-ledger-file-actions">' +
         ledgerArtworkStateButtonHtml(sku, dateAttr, record.artworkState) +
@@ -6247,7 +6258,7 @@
         moreButton +
       '</div>';
     const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
-    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
+    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
       selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
@@ -6279,8 +6290,20 @@
     card.outerHTML = ledgerRowHtml(record, mode);
   }
 
+  function closeRenderedLedgerMenus(panel, keepCard) {
+    if (!panel) return;
+    panel.querySelectorAll('.pfh-ledger-item.is-menu-open').forEach((card) => {
+      if (keepCard && card === keepCard) return;
+      card.classList.remove('is-menu-open');
+      const menu = card.querySelector('.pfh-ledger-overflow-menu');
+      const button = card.querySelector('[data-action="ledger-more"]');
+      if (menu) menu.remove();
+      if (button) button.setAttribute('aria-expanded', 'false');
+    });
+  }
+
   function ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated) {
-    if (state.ledgerMenuSku !== sku) return '';
+    if (state.ledgerMenuSku !== sku || state.ledgerMenuDate !== normalizeLedgerDate(dateAttr)) return '';
     const rollback = record.finalizedAt
       ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回定稿</button>'
       : (imageGenerated ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回出图</button>' : '');
@@ -7974,6 +7997,12 @@
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    const ledgerMoreArea = event.target && event.target.closest && event.target.closest('.pfh-ledger-more');
+    if (state.view === 'ledger' && state.ledgerMenuSku && !ledgerMoreArea) {
+      state.ledgerMenuSku = '';
+      state.ledgerMenuDate = '';
+      closeRenderedLedgerMenus(ensurePanel(), null);
+    }
     if (!action && state.view === 'ledger') {
       const card = event.target && event.target.closest && event.target.closest('.pfh-ledger-item.is-clickable');
       const interactive = event.target && event.target.closest && event.target.closest('button,a,input,textarea,select,label,[contenteditable="true"]');
@@ -8461,7 +8490,10 @@
       const sku = actionTarget.getAttribute('data-sku');
       const date = normalizeLedgerDate(actionTarget.getAttribute('data-date')) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
       state.ledgerFlowTransitionSku = '';
-      state.ledgerMenuSku = state.ledgerMenuSku === sku ? '' : sku;
+      const opening = state.ledgerMenuSku !== sku || state.ledgerMenuDate !== date;
+      state.ledgerMenuSku = opening ? sku : '';
+      state.ledgerMenuDate = opening ? date : '';
+      closeRenderedLedgerMenus(ensurePanel(), opening ? actionTarget.closest('.pfh-ledger-item') : null);
       const record = (state.ledgerRecords || []).find((item) => item.sku === sku && item.date === date);
       if (record) refreshLedgerCard(record);
       else renderShell();
@@ -8825,6 +8857,11 @@
   }
 
   function handlePanelKeydown(event) {
+    if (state.view === 'ledger' && state.ledgerTimeEditor && event.key === 'Enter' && !event.isComposing && event.target && event.target.matches && event.target.matches('.pfh-ledger-time-date,.pfh-ledger-time-hour,.pfh-ledger-time-minute')) {
+      event.preventDefault();
+      saveLedgerFinalizedTimeEditor();
+      return;
+    }
     if (state.view === 'ledger' && event.target && event.target.classList && event.target.classList.contains('pfh-ledger-item') && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault();
       openLedgerSku(event.target.getAttribute('data-ledger-sku'), event.target);
@@ -13582,6 +13619,7 @@
   function updateLedgerFromAction(action, sku, dateKey, options) {
     if (!sku) return;
     state.ledgerMenuSku = '';
+    state.ledgerMenuDate = '';
     if (action === 'ledger-image-generated') {
       state.ledgerFlowTransitionSku = sku;
       window.clearTimeout(state.ledgerFlowTransitionTimer);
