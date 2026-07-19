@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.118
+// @version      2.5.119
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.118';
+  const SCRIPT_VERSION = '2.5.119';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -4896,6 +4896,9 @@
       '#' + PANEL_ID + ' .pfh-ledger-performance small{overflow:hidden!important;color:#8a83a3!important;font-size:10px!important;line-height:1.35!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance strong{flex:0 0 auto!important;color:#6d35e8!important;font-size:27px!important;font-weight:750!important;line-height:1!important;letter-spacing:-.03em!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance strong::after{content:" 分"!important;margin-left:3px!important;color:#9b87db!important;font-size:10px!important;font-weight:600!important;letter-spacing:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge{border-color:#a991f4!important;background:#f4f0ff!important;color:#6737d5!important;font-weight:650!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:hover{border-color:#7c3aed!important;background:#ebe4ff!important;color:#5525c4!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:disabled{border-color:#ded9ed!important;background:#f5f4f8!important;color:#aaa5b7!important;cursor:not-allowed!important;opacity:.72!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22)!important;outline-offset:2px!important;border-color:#9b7cf5!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}' +
@@ -6208,14 +6211,27 @@
   function getLedgerPerformanceKind(record) {
     if (record && record.status === '作废') return 'void';
     const designType = String(record && record.designType || '').replace(/\s+/g, '');
-    return /换(?:logo|标识|商标)/i.test(designType) ? 'logo' : 'design';
+    return /(?:换|无)(?:logo|标识|商标)/i.test(designType) ? 'logo' : 'design';
   }
 
   function summarizeLedgerPerformance(records) {
-    const summary = { design: 0, logo: 0, void: 0, total: 0 };
-    (records || []).forEach((record) => {
+    const summary = { design: 0, logo: 0, void: 0, mergedGroups: 0, total: 0 };
+    const units = new Map();
+    const weight = { void: 5, logo: 10, design: 14 };
+    (records || []).forEach((record, index) => {
+      const groupId = String(record && record.performanceGroupId || '').trim();
+      const unitKey = groupId ? 'group:' + groupId : 'record:' + getLedgerSelectionKey(record) + ':' + index;
       const kind = getLedgerPerformanceKind(record);
-      summary[kind] += 1;
+      const current = units.get(unitKey);
+      if (!current) units.set(unitKey, { kind, count: 1, grouped: Boolean(groupId) });
+      else {
+        current.count += 1;
+        if (weight[kind] > weight[current.kind]) current.kind = kind;
+      }
+    });
+    units.forEach((unit) => {
+      summary[unit.kind] += 1;
+      if (unit.grouped && unit.count > 1) summary.mergedGroups += 1;
     });
     summary.total = (summary.design * 14 + summary.logo * 10 + summary.void * 5) / 10;
     return summary;
@@ -6228,7 +6244,7 @@
 
   function ledgerPerformanceHtml(summary) {
     const value = summary || summarizeLedgerPerformance([]);
-    const breakdown = '设计 ' + value.design + ' × 1.4 · 换 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5';
+    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5' + (value.mergedGroups ? ' · 已合并 ' + value.mergedGroups + ' 组' : '');
     return '<div class="pfh-ledger-performance" aria-live="polite"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>';
   }
 
@@ -6241,11 +6257,30 @@
     current.outerHTML = ledgerPerformanceHtml(summarizeLedgerPerformance(records));
   }
 
+  function ledgerPerformanceMergeButtonHtml(records, selectedKeys) {
+    const selected = selectedKeys instanceof Set ? selectedKeys : new Set(selectedKeys || []);
+    const selectedRecords = (records || []).filter((record) => selected.has(getLedgerSelectionKey(record)));
+    const selectedGroupId = String(selectedRecords[0] && selectedRecords[0].performanceGroupId || '');
+    const canUnmerge = Boolean(selectedGroupId) && selectedRecords.every((record) => String(record.performanceGroupId || '') === selectedGroupId);
+    const disabled = !canUnmerge && selectedRecords.length < 2;
+    return '<button type="button" class="pfh-ledger-performance-merge" data-action="' + (canUnmerge ? 'ledger-performance-unmerge' : 'ledger-performance-merge') + '" title="' + (canUnmerge ? '取消选中编码的绩效合并' : '将选中的多个编码合并为一个绩效单位') + '"' + (disabled ? ' disabled' : '') + '>' + (canUnmerge ? '取消合并' : '合并绩效') + '</button>';
+  }
+
+  function refreshLedgerPerformanceMergeButton() {
+    if (state.view !== 'ledger' || state.ledgerView !== 'finalized') return;
+    const panel = document.getElementById(PANEL_ID);
+    const current = panel && panel.querySelector('.pfh-ledger-performance-merge');
+    if (!current) return;
+    const records = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth());
+    current.outerHTML = ledgerPerformanceMergeButtonHtml(records, new Set(state.ledgerSelectedKeys || []));
+  }
+
   function ledgerViewHtml(records) {
     const mode = state.ledgerView === 'finalized' ? 'finalized' : 'design';
     const groups = groupLedgerRecordsByDate(records, mode);
     const performanceHtml = mode === 'finalized' ? ledgerPerformanceHtml(summarizeLedgerPerformance(records)) : '';
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
+    const mergePerformanceHtml = mode === 'finalized' ? ledgerPerformanceMergeButtonHtml(records, selectedKeys) : '';
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
@@ -6264,6 +6299,7 @@
         '<button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + escapeHtml(formatLedgerMonthLabel(month)) + '</button>' +
         '<button type="button" class="pfh-ledger-month" data-action="ledger-next-month" title="下个月">›</button>' +
         '<button type="button" data-action="ledger-today">本月</button>' +
+        mergePerformanceHtml +
         '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button>' +
         '<button type="button" data-action="ledger-copy-finalized" title="复制今日定稿编码">复制编码</button>' +
         '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>' +
@@ -8544,6 +8580,10 @@
     }
     if (action === 'ledger-select-date') {
       toggleLedgerDateSelection(actionTarget.getAttribute('data-date'));
+      return;
+    }
+    if (action === 'ledger-performance-merge' || action === 'ledger-performance-unmerge') {
+      updateSelectedLedgerPerformanceGroups(action === 'ledger-performance-merge');
       return;
     }
     if (action === 'ledger-export') {
@@ -13416,6 +13456,7 @@
       developerName: cleanName(item.developerName || '').slice(0, 80),
       designAssignedAt: String(item.designAssignedAt || '').slice(0, 80),
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
+      performanceGroupId: String(item.performanceGroupId || '').slice(0, 80),
       packageCode: String(item.packageCode || '').slice(0, 120),
       printCode: String(item.printCode || '').slice(0, 180),
       purchasePrice: normalizeLedgerPurchasePrice(item.purchasePrice),
@@ -13644,6 +13685,7 @@
     else selected.add(key);
     state.ledgerSelectedKeys = Array.from(selected);
     refreshLedgerCard(record);
+    refreshLedgerPerformanceMergeButton();
   }
 
   function toggleLedgerDateSelection(dateKey) {
@@ -13654,6 +13696,31 @@
     keys.forEach((key) => remove ? selected.delete(key) : selected.add(key));
     state.ledgerSelectedKeys = Array.from(selected);
     renderShell();
+  }
+
+  function updateSelectedLedgerPerformanceGroups(merge) {
+    const selectedKeys = new Set(state.ledgerSelectedKeys || []);
+    const selectedRecords = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())
+      .filter((record) => selectedKeys.has(getLedgerSelectionKey(record)));
+    if (merge && selectedRecords.length < 2) {
+      showToast('请至少选择两个编码再合并绩效');
+      return;
+    }
+    if (!merge && !selectedRecords.some((record) => record.performanceGroupId)) {
+      showToast('选中的编码尚未合并绩效');
+      return;
+    }
+    const targetKeys = new Set(selectedRecords.map(getLedgerSelectionKey));
+    const groupId = merge ? 'performance-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) : '';
+    const nowText = new Date().toLocaleString();
+    const nowMs = Date.now();
+    state.ledgerRecords = (state.ledgerRecords || []).map((record) => targetKeys.has(getLedgerSelectionKey(record))
+      ? { ...record, performanceGroupId: groupId, updatedAt: nowText, updatedAtMs: nowMs }
+      : record);
+    state.ledgerSelectedKeys = [];
+    saveDailyLedger();
+    renderShell();
+    showToast(merge ? '已合并为 1 个绩效单位' : '已取消绩效合并');
   }
 
   function copySelectedLedgerVideoRows() {
