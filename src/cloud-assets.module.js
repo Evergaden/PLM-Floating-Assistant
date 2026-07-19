@@ -69,6 +69,7 @@
   function scheduleCloudAssetRefresh(delay) {
     window.setTimeout(() => {
       refreshCloudAssets(false).catch((error) => {
+        if (typeof showUiOfflineFallback === 'function') showUiOfflineFallback(error);
         addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
       });
     }, Math.max(0, Number(delay) || 0));
@@ -102,11 +103,23 @@
     const iconsDescriptor = manifest.assets.icons;
     const uiDescriptor = manifest.assets.uiStyles;
     if (!runtimeDescriptor || !templateDescriptor || !iconsDescriptor || !uiDescriptor) throw new Error('cloud asset manifest is incomplete');
-    const [runtimeText, templateBuffer, iconsText, uiCss] = await Promise.all([
+    const uiCss = await fetchCloudAsset(uiDescriptor, 'text');
+    if (typeof uiCss !== 'string' || uiCss.length < 10000 || !uiCss.includes('#' + PANEL_ID)) {
+      throw new Error('cloud UI stylesheet is invalid');
+    }
+    applyCloudUiStyles(uiCss);
+    cloudAssetCache = {
+      ...(cloudAssetCache || {}),
+      schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
+      dataVersion: String(manifest.dataVersion || ''),
+      uiCss,
+      uiCssUpdatedAt: new Date(now).toISOString(),
+    };
+    saveCloudAssetCache(cloudAssetCache);
+    const [runtimeText, templateBuffer, iconsText] = await Promise.all([
       fetchCloudAsset(runtimeDescriptor, 'text'),
       fetchCloudAsset(templateDescriptor, 'arraybuffer'),
       fetchCloudAsset(iconsDescriptor, 'text'),
-      fetchCloudAsset(uiDescriptor, 'text'),
     ]);
     const runtimeData = JSON.parse(runtimeText);
     const iconPackage = JSON.parse(iconsText);
@@ -117,9 +130,6 @@
     if (!iconPackage || Number(iconPackage.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA
       || !iconPackage.icons || typeof iconPackage.icons !== 'object') {
       throw new Error('cloud icon data is invalid');
-    }
-    if (typeof uiCss !== 'string' || uiCss.length < 10000 || !uiCss.includes('#' + PANEL_ID)) {
-      throw new Error('cloud UI stylesheet is invalid');
     }
     const nextCache = {
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
@@ -135,7 +145,6 @@
     saveCloudAssetCache(nextCache);
     cloudAssetCache = nextCache;
     applyCloudAssetCache(nextCache);
-    applyCloudUiStyles(uiCss);
     const panel = document.getElementById(PANEL_ID);
     if (panel) renderShell();
     addLog('success', '\u4e91\u7aef\u8d44\u6e90\u5df2\u66f4\u65b0', nextCache.dataVersion);
