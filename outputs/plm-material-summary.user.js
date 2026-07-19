@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.113
+// @version      2.5.114
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.113';
+  const SCRIPT_VERSION = '2.5.114';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '2';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -132,6 +132,23 @@
       return matched ? matched.phrase : 'Everyday care & comfort';
     }
 
+    function isFoodParameterProduct(data) {
+      const resolvedType = String(context.productType(data) || '').trim();
+      if (/面霜|精华|眼霜|防晒|身体护理|洗护|护肤|化妆|cream|serum|skincare|cosmetic/i.test(resolvedType)) return false;
+      const text = [
+        resolvedType,
+        data && data.aiProductType,
+        data && data.aiCategory,
+        data && data.productType,
+        data && data.category,
+        data && data.departmentName,
+        data && data.name,
+        data && data.englishName,
+      ].filter(Boolean).join(' ');
+      if (/面霜|精华液?|眼霜|防晒|洗发|护发|身体乳|face\s*cream|serum|shampoo|conditioner|sunscreen|body\s*lotion/i.test(text)) return false;
+      return /食品|保健品?|保健食品|营养补充|营养品|膳食补充|胶囊|软糖|片剂|咀嚼片|口服液|饮品|固体饮料|维生素|益生菌|鱼油|钙片|蛋白粉|supplement|capsule|gumm(?:y|ies)?|vitamin|mineral|probiotic|fish\s*oil|protein\s*powder/i.test(text);
+    }
+
     function ensureSession(data) {
       const sku = String(data && data.sku || '');
       if (!sessions[sku]) {
@@ -145,6 +162,7 @@
           busy: false,
           error: '',
           singleBottle: Boolean(data && data.singleBottle),
+          productHeightSide: isFoodParameterProduct(data) ? 'left' : 'right',
           showSide: null,
           frontIsLength: true,
           featuresDirty: false,
@@ -187,6 +205,7 @@
       if (!Array.isArray(session.manualLineTypes.box)) session.manualLineTypes.box = [];
       if (!Array.isArray(session.manualLineTypes.product)) session.manualLineTypes.product = [];
       if (!Array.isArray(session.manualPointHistory)) session.manualPointHistory = [];
+      session.productHeightSide = isFoodParameterProduct(data) ? 'left' : 'right';
       return session;
     }
 
@@ -1102,7 +1121,7 @@
       if (session.singleBottle) {
         if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
         else if (product) {
-          drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+          drawVerticalDimension(ctx, product, session.fields.productHeight, session.productHeightSide || 'right');
           drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
         }
         ctx.restore();
@@ -1121,7 +1140,7 @@
       }
       if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
       else if (product) {
-        drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+        drawVerticalDimension(ctx, product, session.fields.productHeight, session.productHeightSide || 'right');
         drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
       }
       ctx.restore();
