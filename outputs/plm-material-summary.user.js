@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.123
+// @version      2.5.124
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.123';
+  const SCRIPT_VERSION = '2.5.124';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2524,6 +2524,15 @@
       state.drawerTabFlowUserInterrupted = true;
       cancelDrawerTabFlow({ preserveUserInterrupted: true });
     }
+    const sku = findSku(getVisibleText(drawer));
+    const tabName = compactText(tab.innerText || tab.textContent || '');
+    if (sku && tabName) {
+      state.observedDrawer = drawer;
+      state.observedSku = sku;
+      state.observedTab = tabName;
+      stopManualTabRead();
+      state.manualCollectTimer = window.setTimeout(() => readCurrentManualTab(drawer, sku, tabName), 420);
+    }
   }
 
   function findProjectSkuForActionRow(row) {
@@ -2932,7 +2941,8 @@
     state.scanData = null;
   }
 
-  function startScan() {
+  function startScan(options) {
+    const opts = options || {};
     if (!state.settings.collectionEnabled) return;
     const drawer = getProjectDrawer();
     if (!drawer) {
@@ -2961,6 +2971,7 @@
       reason: 'scan',
       includeScanTabs: true,
       replace: true,
+      forceAllTabs: Boolean(opts.forceAllTabs),
     });
   }
 
@@ -3001,7 +3012,7 @@
     resetRound();
     state.scanTargetSku = targetSku;
     renderShell(L.scanning);
-    startScan();
+    startScan({ forceAllTabs: true });
   }
 
   function createRefreshSeedData(sku) {
@@ -3086,9 +3097,14 @@
     if (!next.sku || next.sku !== sku) return;
     const merged = mergeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }), next);
     const previous = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
-    if (!hasMeaningfulDataChange(previous, merged)) return;
-    saveData(sku, merged);
-    if (state.selectedSku === sku) renderShell();
+    const changed = hasMeaningfulDataChange(previous, merged);
+    if (changed) {
+      saveData(sku, merged);
+      if (state.selectedSku === sku) renderShell();
+    }
+    if (tab === L.productTab) {
+      scheduleDrawerProductFlow(merged, { reason: 'manual-product-tab', includeScanTabs: false, replace: true });
+    }
   }
 
   function stopMaterialWatch() {
@@ -3196,14 +3212,15 @@
     return Boolean(record && record.fullText && record.parserVersion === COPYWRITING_PARSER_VERSION);
   }
 
-  function getDrawerCollectionTabs(data, includeScanTabs) {
+  function getDrawerCollectionTabs(data, includeScanTabs, forceAllTabs) {
     if (!includeScanTabs) return [L.productTab];
+    if (forceAllTabs) return ['\u9879\u76ee\u4fe1\u606f', L.materialTab, L.productTab];
     const cached = normalizeData(data || {});
     const tabs = [];
     const hasProjectCache = Boolean(cached.name && cached.projectStatus);
     if (!hasProjectCache) tabs.push('\u9879\u76ee\u4fe1\u606f');
     if (!cached.seenMaterial) tabs.push(L.materialTab);
-    if (!cached.seenProduct || !hasCurrentCopywritingCache(cached)) tabs.push(L.productTab);
+    if (!cached.seenProduct || !cached.grossWeight || !hasCurrentCopywritingCache(cached)) tabs.push(L.productTab);
     return tabs;
   }
 
@@ -3261,9 +3278,10 @@
     }
     state.drawerTabFlowRunning = true;
     state.drawerTabFlowDrawer = drawer;
-    let merged = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    const scanSeed = includeScanTabs && state.scanData && state.scanData.sku === sku ? state.scanData : null;
+    let merged = normalizeData(scanSeed || loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     try {
-      const tabs = getDrawerCollectionTabs(merged, includeScanTabs);
+      const tabs = getDrawerCollectionTabs(merged, includeScanTabs, Boolean(options && options.forceAllTabs));
       const refreshProductPage = tabs.includes(L.productTab);
       for (const tab of tabs) {
         const ready = await switchDrawerTab(drawer, tab, { flowToken: token, timeout: 4500 });
@@ -3579,7 +3597,7 @@
       designAssignedAt: getProjectLooseField(text, '\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4'),
       developmentAssignedAt: getProjectLooseField(text, '\u5f00\u53d1\u5206\u914d\u65f6\u95f4'),
       netContent: normalizeNetContentValue(getBestNetContent(drawer) || food.netContent || packaging.netContent),
-      grossWeight: normalizeWeight(getFormValueByLabel('\u6bdb\u91cd', drawer)),
+      grossWeight: getGrossWeightValue(drawer),
       skuImageUrl: imageInfo.isSkuDesignImage ? (imageInfo.imageUrl || '') : '',
       skuImageFallbackUrl: imageInfo.isSkuDesignImage ? (imageInfo.imageFallbackUrl || '') : '',
       skuImageSource: imageInfo.isSkuDesignImage ? 'effectImage' : '',
@@ -4238,6 +4256,8 @@
     for (const labelEl of labels) {
       const item = labelEl.closest('.ant-form-item') || labelEl.parentElement;
       if (!item || !isVisibleElement(item)) continue;
+      const controlValue = getVisibleFormControlValue(item);
+      if (controlValue) return controlValue;
       const text = compactText(item.innerText || item.textContent || '');
       const value = text.replace(new RegExp('^' + escapeRegExp(fieldLabel) + '\\*?\\s*'), '').trim();
       const cleaned = cleanValue(value);
@@ -4254,6 +4274,8 @@
     for (const labelEl of labels) {
       const item = labelEl.closest('.ant-form-item') || labelEl.closest('.ant-descriptions-item') || labelEl.parentElement;
       if (!item || !isVisibleElement(item)) continue;
+      const controlValue = getVisibleFormControlValue(item);
+      if (controlValue) return controlValue;
       const text = compactText(item.innerText || item.textContent || '');
       const value = text
         .replace(new RegExp('^' + escapeRegExp(normalizeFieldLabel(labelEl.textContent)) + '\\*?\\s*'), '')
@@ -4265,9 +4287,21 @@
     return getFormValueByLabel(fieldLabel, root);
   }
 
+  function getVisibleFormControlValue(item) {
+    if (!item) return '';
+    const control = Array.from(item.querySelectorAll('input, textarea, select'))
+      .filter(isVisibleElement)
+      .find((element) => cleanValue(element.value || element.getAttribute('value') || ''));
+    if (control) return cleanValue(control.value || control.getAttribute('value') || '');
+    const valueNode = Array.from(item.querySelectorAll('.ant-select-selection-item, .ant-input-number-input, .ant-descriptions-item-content'))
+      .filter(isVisibleElement)
+      .find((element) => cleanValue(element.innerText || element.textContent || ''));
+    return valueNode ? cleanValue(valueNode.innerText || valueNode.textContent || '') : '';
+  }
+
   function normalizeLooseFieldLabel(text) {
     return normalizeFieldLabel(text)
-      .replace(/[\uff08(]\s*(?:mm|cm|\u6beb\u7c73|\u5398\u7c73)\s*[\uff09)]/ig, '')
+      .replace(/[\uff08(]\s*(?:mm|cm|kg|g|ml|l|\u6beb\u7c73|\u5398\u7c73|\u5343\u514b|\u514b|\u6beb\u5347|\u5347)\s*[\uff09)]/ig, '')
       .replace(/\s+/g, '')
       .trim();
   }
@@ -4278,6 +4312,21 @@
     if (!match) return cleanValue(raw);
     const unit = /kg|\u5343\u514b/i.test(match[2]) ? 'kg' : 'g';
     return trimNumber(Number(match[1])) + unit;
+  }
+
+  function getGrossWeightValue(root) {
+    const raw = getFormValueByLooseLabel('\u6bdb\u91cd', root);
+    if (!raw) return '';
+    if (/(?:kg|\u5343\u514b|g|\u514b)/i.test(raw)) return normalizeWeight(raw);
+    if (/^\d+(?:\.\d+)?$/.test(raw)) {
+      const label = Array.from(root.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]'))
+        .filter(isVisibleElement)
+        .find((element) => normalizeLooseFieldLabel(element.textContent) === '\u6bdb\u91cd');
+      const unitText = String(label && label.textContent || '');
+      if (/(?:kg|\u5343\u514b)/i.test(unitText)) return normalizeWeight(raw + 'kg');
+      if (/(?:g|\u514b)/i.test(unitText)) return normalizeWeight(raw + 'g');
+    }
+    return normalizeWeight(raw);
   }
 
   function cleanValue(value) {
