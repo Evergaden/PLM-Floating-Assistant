@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.122
+// @version      2.5.123
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.122';
+  const SCRIPT_VERSION = '2.5.123';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1463,6 +1463,7 @@
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
   const USER_INSTANCE_KEY = 'plm-floating-helper:user-instance';
   const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
+  const DAILY_LEDGER_TRASH_KEY = 'plm-floating-helper:daily-ledger-trash';
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
@@ -2384,6 +2385,7 @@
     uploadHistoryPage: 1,
     uploadSelectedIds: [],
     ledgerRecords: loadDailyLedger(),
+    ledgerTrashRecords: loadDailyLedgerTrash(),
     ledgerDate: getTodayKey(),
     ledgerView: 'design',
     ledgerTimeEditor: null,
@@ -4918,6 +4920,7 @@
     style.id = styleId;
     style.textContent =
       '#' + PANEL_ID + ' .pfh-ledger-list{isolation:isolate!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-tabs{grid-template-columns:repeat(3,minmax(0,1fr))!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-day{position:relative!important;z-index:0!important;overflow:visible!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-day:has(.pfh-ledger-item.is-menu-open){z-index:90!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable{position:relative!important;z-index:0!important;cursor:pointer!important;transform:none!important;transform-origin:50% 55%!important;transition:transform .46s cubic-bezier(.18,.88,.32,1.08),border-color .3s cubic-bezier(.22,1,.36,1),background .3s cubic-bezier(.22,1,.36,1),box-shadow .44s cubic-bezier(.16,1,.3,1)!important;}' +
@@ -4940,6 +4943,11 @@
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22)!important;outline-offset:2px!important;border-color:#9b7cf5!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-trash-actions{display:flex!important;align-items:center!important;gap:7px!important;margin-left:auto!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-trash-actions button{min-height:30px!important;padding:0 12px!important;border:1px solid #d9d3e8!important;border-radius:9px!important;background:#fff!important;color:#6b647a!important;font-size:11px!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-trash-actions button.is-restore{border-color:#bdaaf7!important;background:#f2edff!important;color:#6433d5!important;font-weight:650!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-trash-actions button.is-delete{color:#a44c5c!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-trash{cursor:default!important;}' +
       '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
     document.documentElement.appendChild(style);
   }
@@ -6314,22 +6322,23 @@
   }
 
   function ledgerViewHtml(records) {
-    const mode = state.ledgerView === 'finalized' ? 'finalized' : 'design';
-    const groups = groupLedgerRecordsByDate(records, mode);
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+    const groups = groupLedgerRecordsByDate(records, mode === 'trash' ? 'design' : mode);
     const performanceHtml = mode === 'finalized' ? ledgerPerformanceHtml(summarizeLedgerPerformance(records)) : '';
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
     const mergePerformanceHtml = mode === 'finalized' ? ledgerPerformanceMergeButtonHtml(records, selectedKeys) : '';
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
-      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => ledgerRowHtml(record, mode)).join('') + '</section>';
-    }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。') + '</div>';
+      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode)).join('') + '</section>';
+    }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。')) + '</div>';
     const month = getCurrentLedgerMonth();
     return '<div class="pfh-detail-scroll"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。</p></div><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span></div>' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span></div>' +
       '<div class="pfh-ledger-tabs">' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
         '<button type="button" class="' + (mode === 'finalized' ? 'is-active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
+        '<button type="button" class="' + (mode === 'trash' ? 'is-active' : '') + (state.ledgerTabTransition === 'trash' ? ' is-tab-transition' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
       '</div>' +
       performanceHtml +
       '<div class="pfh-ledger-toolbar">' +
@@ -6337,10 +6346,12 @@
         '<button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + escapeHtml(formatLedgerMonthLabel(month)) + '</button>' +
         '<button type="button" class="pfh-ledger-month" data-action="ledger-next-month" title="下个月">›</button>' +
         '<button type="button" data-action="ledger-today">本月</button>' +
-        mergePerformanceHtml +
-        '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button>' +
-        '<button type="button" data-action="ledger-copy-finalized" title="复制今日定稿编码">复制编码</button>' +
-        '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>' +
+        (mode === 'trash'
+          ? '<button type="button" data-action="ledger-trash-empty"' + (records.length ? '' : ' disabled') + '>清空本月垃圾篓</button>'
+          : mergePerformanceHtml +
+            '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button>' +
+            '<button type="button" data-action="ledger-copy-finalized" title="复制今日定稿编码">复制编码</button>' +
+            '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') +
       '</div>' +
       '<div class="pfh-ledger-list">' + rows + '</div>' +
       ledgerTimeEditorHtml() +
@@ -6428,6 +6439,21 @@
       return;
     }
     card.outerHTML = ledgerRowHtml(record, mode);
+  }
+
+  function ledgerTrashRowHtml(record) {
+    const sku = record.sku || '';
+    const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
+    const thumbUrl = record.skuImageUrl || record.benchmarkImageUrl || '';
+    const thumb = thumbUrl ? '<img src="' + escapeHtml(thumbUrl) + '" alt="">' : '<span class="pfh-ledger-thumb-empty">' + iconHtml('image') + '</span>';
+    const dateAttr = escapeHtml(record.date || '');
+    const removedAt = record.removedAt ? '移除 ' + formatLedgerMinuteLabel(record.removedAt, record.date) : '已从工作台移除';
+    return '<article class="pfh-ledger-item is-trash" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '">' +
+      '<div class="pfh-ledger-thumb">' + thumb + '</div>' +
+      '<div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><b>' + escapeHtml(title) + '</b><span class="pfh-ledger-status is-skip">垃圾篓</span></div>' +
+      '<div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + escapeHtml(sku) + '">' + escapeHtml(sku) + '</button><span class="is-design-type">' + escapeHtml(record.designType || '未分类') + '</span></div>' +
+      '<div class="pfh-ledger-bottom"><div class="pfh-ledger-assignment">' + escapeHtml(removedAt) + '</div><div class="pfh-ledger-trash-actions"><button type="button" class="is-restore" data-action="ledger-trash-restore" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">恢复</button><button type="button" class="is-delete" data-action="ledger-trash-delete" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">清除</button></div></div></div>' +
+      '</article>';
   }
 
   function closeRenderedLedgerMenus(panel, keepCard) {
@@ -8574,8 +8600,8 @@
       renderShell();
       return;
     }
-    if (action === 'ledger-view-design' || action === 'ledger-view-finalized') {
-      state.ledgerView = action === 'ledger-view-finalized' ? 'finalized' : 'design';
+    if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash') {
+      state.ledgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : 'design');
       state.ledgerTabTransition = state.ledgerView;
       window.clearTimeout(state.ledgerTabTransitionTimer);
       state.ledgerTabTransitionTimer = window.setTimeout(() => {
@@ -8630,6 +8656,14 @@
     }
     if (action === 'ledger-clear') {
       clearLedgerDate(state.ledgerDate);
+      return;
+    }
+    if (action === 'ledger-trash-restore' || action === 'ledger-trash-delete') {
+      updateLedgerTrashFromAction(action, actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
+      return;
+    }
+    if (action === 'ledger-trash-empty') {
+      emptyLedgerTrashMonth(state.ledgerDate);
       return;
     }
     if (action === 'ledger-more') {
@@ -13481,6 +13515,48 @@
     }
   }
 
+  function loadDailyLedgerTrash() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(DAILY_LEDGER_TRASH_KEY, null) : JSON.parse(localStorage.getItem(DAILY_LEDGER_TRASH_KEY) || 'null');
+      return sanitizeLedgerTrashRecords(saved);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveDailyLedgerTrash() {
+    try {
+      state.ledgerTrashRecords = sanitizeLedgerTrashRecords(state.ledgerTrashRecords);
+      if (typeof GM_setValue === 'function') GM_setValue(DAILY_LEDGER_TRASH_KEY, state.ledgerTrashRecords);
+      else localStorage.setItem(DAILY_LEDGER_TRASH_KEY, JSON.stringify(state.ledgerTrashRecords));
+      queueCloudBackup();
+    } catch (error) {
+      console.warn('PLM floating helper daily ledger trash save failed:', error);
+    }
+  }
+
+  function sanitizeLedgerTrashRecords(records) {
+    return (Array.isArray(records) ? records : []).slice(0, 1200).map((item) => {
+      const record = sanitizeLedgerRecords([item])[0];
+      if (!record) return null;
+      return {
+        ...record,
+        removedAt: String(item.removedAt || item.updatedAt || new Date().toLocaleString()).slice(0, 80),
+        removedAtMs: Number(item.removedAtMs || item.updatedAtMs || 0) || Date.now(),
+        purged: Boolean(item.purged),
+      };
+    }).filter(Boolean);
+  }
+
+  function isLedgerRecordTrashed(sku, dateKey) {
+    const month = getMonthKeyFromDateKey(normalizeLedgerDate(dateKey) || getTodayKey());
+    return (state.ledgerTrashRecords || []).some((item) => item.sku === sku && getMonthKeyFromDateKey(item.date) === month);
+  }
+
+  function filterLedgerRecordsNotInTrash(records) {
+    return sanitizeLedgerRecords(records).filter((item) => !isLedgerRecordTrashed(item.sku, item.date));
+  }
+
   function sanitizeLedgerRecords(records) {
     return (Array.isArray(records) ? records : []).slice(0, 1200).map((item) => ({
       date: normalizeLedgerDate(item.date) || getTodayKey(),
@@ -13575,6 +13651,11 @@
 
   function getLedgerRecordsForMonth(view, monthKey) {
     const month = normalizeLedgerMonth(monthKey || getTodayKey());
+    if (view === 'trash') {
+      return (state.ledgerTrashRecords || [])
+        .filter((item) => !item.purged && getMonthKeyFromDateKey(item.date) === month)
+        .sort((a, b) => (b.removedAtMs || b.updatedAtMs || 0) - (a.removedAtMs || a.updatedAtMs || 0));
+    }
     const mode = view === 'finalized' ? 'finalized' : 'design';
     return (state.ledgerRecords || [])
       .filter((item) => {
@@ -13630,6 +13711,7 @@
     const nowMs = Date.now();
     const sku = data.sku;
     const dateMonth = getMonthKeyFromDateKey(dateKey);
+    if (!opts.allowTrashRestore && isLedgerRecordTrashed(sku, dateKey)) return null;
     const existing = (state.ledgerRecords || []).find((item) => item.sku === sku && getMonthKeyFromDateKey(item.date) === dateMonth);
     const imageUrl = getProductThumbUrl(data) || data.skuImageUrl || data.skuImageFallbackUrl || '';
     const next = {
@@ -13824,9 +13906,20 @@
     }
     if (action === 'ledger-remove') {
       const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
-      state.ledgerRecords = (state.ledgerRecords || []).filter((item) => !(item.date === key && item.sku === sku));
+      const record = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
+      if (!record) return;
+      const nowText = new Date().toLocaleString();
+      const nowMs = Date.now();
+      const month = getMonthKeyFromDateKey(key);
+      state.ledgerTrashRecords = [{ ...record, removedAt: nowText, removedAtMs: nowMs }]
+        .concat((state.ledgerTrashRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === month)))
+        .slice(0, 1200);
+      state.ledgerRecords = (state.ledgerRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === month));
+      state.ledgerSelectedKeys = (state.ledgerSelectedKeys || []).filter((item) => item !== getLedgerSelectionKey(record));
       saveDailyLedger();
+      saveDailyLedgerTrash();
       renderShell();
+      showToast('已移入垃圾篓，不会再次自动加入');
       return;
     }
     const today = getNowLedgerMinuteLabel();
@@ -13864,6 +13957,35 @@
     }
     refreshLedgerCard(updatedRecord);
     refreshLedgerPerformanceSummary();
+  }
+
+  function updateLedgerTrashFromAction(action, sku, dateKey) {
+    const key = normalizeLedgerDate(dateKey) || getTodayKey();
+    const month = getMonthKeyFromDateKey(key);
+    const record = (state.ledgerTrashRecords || []).find((item) => item.sku === sku && getMonthKeyFromDateKey(item.date) === month);
+    if (!record) return;
+    if (action === 'ledger-trash-delete' && !window.confirm('确定从垃圾篓清除 ' + sku + ' 吗？清除后仍会保留防回抓标记。')) return;
+    if (action === 'ledger-trash-restore') {
+      state.ledgerTrashRecords = (state.ledgerTrashRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === month));
+      const restored = sanitizeLedgerRecords([{ ...record, updatedAt: new Date().toLocaleString(), updatedAtMs: Date.now() }])[0];
+      state.ledgerRecords = [restored].concat((state.ledgerRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === month))).slice(0, 1200);
+      saveDailyLedger();
+    } else {
+      state.ledgerTrashRecords = (state.ledgerTrashRecords || []).map((item) => item.sku === sku && getMonthKeyFromDateKey(item.date) === month ? { ...item, purged: true } : item);
+    }
+    saveDailyLedgerTrash();
+    renderShell();
+    showToast(action === 'ledger-trash-restore' ? '已恢复到今日工作台' : '已从垃圾篓清除，仍会阻止自动加入');
+  }
+
+  function emptyLedgerTrashMonth(dateKey) {
+    const month = normalizeLedgerMonth(dateKey || getTodayKey());
+    const count = (state.ledgerTrashRecords || []).filter((item) => !item.purged && getMonthKeyFromDateKey(item.date) === month).length;
+    if (!count || !window.confirm('确定清空 ' + formatLedgerMonthLabel(month) + ' 的 ' + count + ' 条垃圾篓记录吗？清空后仍会保留防回抓标记。')) return;
+    state.ledgerTrashRecords = (state.ledgerTrashRecords || []).map((item) => getMonthKeyFromDateKey(item.date) === month ? { ...item, purged: true } : item);
+    saveDailyLedgerTrash();
+    renderShell();
+    showToast('本月垃圾篓已清空，移除编码仍不会自动加入');
   }
 
   function openLedgerFinalizedTimeEditor(sku, dateKey) {
@@ -14052,6 +14174,7 @@
         history: sanitizeUploadRecords(loadUploadHistory()),
       },
       dailyLedger: sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()),
+      dailyLedgerTrash: sanitizeLedgerTrashRecords(state.ledgerTrashRecords || loadDailyLedgerTrash()),
       insights: state.insights || emptyInsights(),
     };
   }
@@ -14160,10 +14283,16 @@
         saveUploadHistory();
       }
     }
+    if (Array.isArray(payload.dailyLedgerTrash)) {
+      const importedTrash = sanitizeLedgerTrashRecords(payload.dailyLedgerTrash);
+      const importedTrashKeys = new Set(importedTrash.map((item) => getMonthKeyFromDateKey(item.date) + '|' + item.sku));
+      state.ledgerTrashRecords = importedTrash.concat((state.ledgerTrashRecords || loadDailyLedgerTrash()).filter((item) => !importedTrashKeys.has(getMonthKeyFromDateKey(item.date) + '|' + item.sku))).slice(0, 1200);
+      saveDailyLedgerTrash();
+    }
     if (Array.isArray(payload.dailyLedger)) {
-      const imported = sanitizeLedgerRecords(payload.dailyLedger);
+      const imported = filterLedgerRecordsNotInTrash(payload.dailyLedger);
       const importedKeys = new Set(imported.map((item) => item.date + '|' + item.sku));
-      state.ledgerRecords = imported.concat((state.ledgerRecords || loadDailyLedger()).filter((item) => !importedKeys.has(item.date + '|' + item.sku))).slice(0, 1200);
+      state.ledgerRecords = filterLedgerRecordsNotInTrash(imported.concat((state.ledgerRecords || loadDailyLedger()).filter((item) => !importedKeys.has(item.date + '|' + item.sku)))).slice(0, 1200);
       saveDailyLedger();
     }
     if (payload.insights && typeof payload.insights === 'object') {
