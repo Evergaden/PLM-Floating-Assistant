@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.121
+// @version      2.5.122
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.121';
+  const SCRIPT_VERSION = '2.5.122';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -3189,6 +3189,22 @@
     }, opts.reason === 'cached-open' ? 220 : 0);
   }
 
+  function hasCurrentCopywritingCache(data) {
+    const record = normalizeCopywritingRecord(data && data.copywriting);
+    return Boolean(record && record.fullText && record.parserVersion === COPYWRITING_PARSER_VERSION);
+  }
+
+  function getDrawerCollectionTabs(data, includeScanTabs) {
+    if (!includeScanTabs) return [L.productTab];
+    const cached = normalizeData(data || {});
+    const tabs = [];
+    const hasProjectCache = Boolean(cached.name && cached.projectStatus);
+    if (!hasProjectCache) tabs.push('\u9879\u76ee\u4fe1\u606f');
+    if (!cached.seenMaterial) tabs.push(L.materialTab);
+    if (!cached.seenProduct || !hasCurrentCopywritingCache(cached)) tabs.push(L.productTab);
+    return tabs;
+  }
+
   function isDrawerProductFlowCurrent(sku, token, drawer) {
     return Boolean(
       !state.drawerTabFlowUserInterrupted &&
@@ -3245,7 +3261,8 @@
     state.drawerTabFlowDrawer = drawer;
     let merged = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     try {
-      const tabs = includeScanTabs ? ['\u9879\u76ee\u4fe1\u606f', L.materialTab, L.productTab] : [L.productTab];
+      const tabs = getDrawerCollectionTabs(merged, includeScanTabs);
+      const refreshProductPage = tabs.includes(L.productTab);
       for (const tab of tabs) {
         const ready = await switchDrawerTab(drawer, tab, { flowToken: token, timeout: 4500 });
         if (!ready || !isDrawerProductFlowCurrent(sku, token, drawer)) return;
@@ -3286,23 +3303,29 @@
         }
       }
 
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
-      await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+      if (refreshProductPage) {
+        if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
+        await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
+        if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
 
-      const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
-      if (!attachmentFiles) return;
-      if (attachmentFiles.copywritingFile) {
-        hydrateCopywritingForSku(sku, { silent: true, drawer, file: attachmentFiles.copywritingFile }).then((cached) => {
+        const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
+        if (!attachmentFiles) return;
+        if (attachmentFiles.copywritingFile) {
+          const cached = await hydrateCopywritingForSku(sku, {
+            silent: true,
+            force: true,
+            drawer,
+            file: attachmentFiles.copywritingFile,
+          });
           if (attachmentFiles.ingredientFile && (!cached.ingredientChinese || !cached.ingredientEnglish)) {
-            hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile }).catch(() => {});
+            await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile });
           }
-        }).catch(() => {});
-      } else {
-        addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
-        if (attachmentFiles.ingredientFile) hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile }).catch(() => {});
+        } else {
+          addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
+          if (attachmentFiles.ingredientFile) await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile });
+        }
+        if (!attachmentFiles.ingredientFile) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
       }
-      if (!attachmentFiles.ingredientFile) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
     } finally {
       if (state.drawerTabFlowToken === token) {
         if (includeScanTabs) {
@@ -11049,7 +11072,8 @@
     if (switchingSku) state.copywritingMode = false;
     resetExcelState();
     expandPanel();
-    renderShell();
+    renderShell(L.scanning);
+    scheduleDrawerProductFlow(state.data, { reason: 'cached-open', includeScanTabs: true });
   }
 
   async function ensureNewProductProjectPage() {
