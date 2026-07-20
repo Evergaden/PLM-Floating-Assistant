@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.120
+// @version      2.5.121
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.120';
+  const SCRIPT_VERSION = '2.5.121';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '3';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1320,8 +1320,8 @@
     async function save(data) {
       const session = ensureSession(data);
       const outputs = [
-        { name: data.sku + '-产品尺寸图.jpg', url: session.productResult },
-        { name: data.sku + '-英文参数图.jpg', url: session.englishResult },
+        { name: '尺寸.jpg', url: session.productResult },
+        { name: '英文参数图.jpg', url: session.englishResult },
       ].filter((item) => item.url);
       if (!outputs.length) return;
       const picker = context.getSaveFilePicker();
