@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.124
+// @version      2.5.125
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,9 +30,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.124';
+  const SCRIPT_VERSION = '2.5.125';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '3';
+  const COPYWRITING_PARSER_VERSION = '4';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -1541,6 +1541,13 @@
     return typeof css === 'string' && css.length > 10000 ? css : '';
   }
 
+  function cloudBrandComplianceNeedsRefresh(cache) {
+    const brands = cache && cache.runtimeData && cache.runtimeData.brands;
+    if (!Array.isArray(brands)) return false;
+    const amz = brands.find((item) => String(item && item.brand || '').trim().toUpperCase() === 'AMZ');
+    return Boolean(amz && (!amz.us_rep || !cleanComplianceValue(amz.us_rep.company)));
+  }
+
   function scheduleCloudAssetRefresh(delay) {
     window.setTimeout(() => {
       refreshCloudAssets(false).catch((error) => {
@@ -1561,14 +1568,15 @@
   async function refreshCloudAssetsNow(force) {
     const now = Date.now();
     const hasUiStyles = Boolean(getCachedCloudUiStyles());
-    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+    const staleBrandCompliance = cloudBrandComplianceNeedsRefresh(cloudAssetCache);
+    if (!force && !staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
     const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
     if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
       throw new Error('unsupported cloud asset manifest');
     }
-    if (hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && cloudAssetCache.dataVersion === manifest.dataVersion) {
+    if (!staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && cloudAssetCache.dataVersion === manifest.dataVersion) {
       cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
       saveCloudAssetCache(cloudAssetCache);
       return cloudAssetCache;
@@ -3291,9 +3299,10 @@
         merged = mergeData(merged, live);
         const needsShortReread = (tab === '\u9879\u76ee\u4fe1\u606f' && !live.name && !live.projectStatus)
           || (tab === L.materialTab && !live.seenMaterial)
-          || (tab === L.productTab && (!live.seenProduct || (!live.englishName && !live.grossWeight && !live.plmProductNums)));
+          || (tab === L.productTab && (!live.seenProduct || !live.grossWeight));
         if (needsShortReread) {
-          await wait(280);
+          if (tab === L.productTab && !live.grossWeight) await waitFor(() => getGrossWeightValue(drawer), 2600, 120);
+          else await wait(280);
           if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
           live = extractData(drawer, { forceSkuImage: tab === L.productTab });
           if (live.sku && live.sku !== sku) return;
@@ -3554,7 +3563,9 @@
     const food = seenMaterial ? extractFoodSemiFinished(drawer) : emptyFoodSemiFinished();
     const imageInfo = seenProduct && (projectStatus === '\u5df2\u5b8c\u6210' || opts.forceSkuImage) ? findDesignImageInfo(drawer) : { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
     const tubeFields = extractTubeFields(drawer);
-    const tubeSpec = findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel, text].filter(Boolean).join('\n'), tubeFields);
+    const tubeSpec = packaging.isTubePrintMaterial
+      ? findTubeSizeSpec([tubeFields.text, packaging.printRawText, packaging.printSizeText, packaging.printSizeLabel].filter(Boolean).join('\n'), tubeFields)
+      : null;
     const isTubePrint = Boolean(tubeSpec);
     const singleBottle = Boolean(
       food.productNums && !packaging.packageNums && outer.packageNums &&
@@ -3786,7 +3797,7 @@
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map((item) => item.row);
-    const printRows = rows.filter((row) => !/(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(row) && ((/\u5305\u6750/.test(row) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6|\u8f6f\u7ba1)/.test(row)) || (/\u5305\u6750/.test(row) && /\u5370\u5237/.test(row) && hasPrintDimensionText(row)) || (/\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(row) && hasPrintDimensionText(row))));
+    const printRows = rows.filter((row) => !/(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(row) && ((/\u5305\u6750/.test(row) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6)/.test(row)) || (/\u5305\u6750/.test(row) && /\u5370\u5237/.test(row) && hasPrintDimensionText(row)) || (/\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(row) && hasPrintDimensionText(row))));
     const packageRow = packageRows[0] || '';
     const packageDim = extractDimensionString(packageRow);
     const packageNums = parseDimension(packageDim, 3);
@@ -7028,14 +7039,14 @@
       const workingData = normalizeData(loadData(sku) || state.data || data);
       const cached = normalizeCopywritingRecord(workingData.copywriting);
       const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
-      if (cached && cached.fullText && cached.parserVersion === COPYWRITING_PARSER_VERSION && compactText(cached.fileName).toLowerCase() === compactText(file.fileName).toLowerCase()) {
+      if (!force && cached && cached.fullText && cached.parserVersion === COPYWRITING_PARSER_VERSION && compactText(cached.fileName).toLowerCase() === compactText(file.fileName).toLowerCase()) {
         state.data = workingData;
         state.copywritingStatus = '';
         state.copywritingError = '';
         addLog('info', '产品文案：命中历史缓存', file.fileName);
         return;
       }
-      if (cached && cached.fileTimestamp && fileTimestamp && fileTimestamp < cached.fileTimestamp) {
+      if (!force && cached && cached.fileTimestamp && fileTimestamp && fileTimestamp < cached.fileTimestamp) {
         state.copywritingError = '页面中的 Word 版本早于缓存，已保留较新的文案';
         addLog('warn', '产品文案：检测到旧附件', file.fileName + ' < ' + cached.fileName);
         return;
@@ -12157,6 +12168,15 @@
     try {
       if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) throw new Error('\u4ea7\u54c1\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
       extra.liveData = extractData(drawer, { forceSkuImage: true });
+      if (!extra.liveData.grossWeight) {
+        await waitFor(() => getGrossWeightValue(drawer), 2600, 120);
+        extra.liveData = extractData(drawer, { forceSkuImage: true });
+      }
+      if (extra.liveData.sku === sku) {
+        const refreshed = mergeData(cachedData, extra.liveData);
+        saveData(sku, refreshed);
+        if (state.selectedSku === sku) state.data = refreshed;
+      }
       let ingredientData = normalizeData(loadData(sku) || cachedData);
       let copywritingRecord = normalizeCopywritingRecord(ingredientData.copywriting);
       if (!copywritingRecord || copywritingRecord.parserVersion !== COPYWRITING_PARSER_VERSION) {
