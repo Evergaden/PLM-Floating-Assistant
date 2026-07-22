@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.126
+// @version      2.5.127
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.126';
+  const SCRIPT_VERSION = '2.5.127';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '5';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -190,11 +190,11 @@
             packageLength: fieldValue(data, 'packageLength', 'cartonLength'),
             packageWidth: fieldValue(data, 'packageWidth', 'cartonWidth'),
             packageHeight: fieldValue(data, 'packageHeight', 'cartonHeight'),
-            productWidth: data && data.omitEstimatedProductSize
+            productLength: data && data.omitEstimatedProductSize
               ? 0
               : (data && data.isTubePrint
-                ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
-                : fieldValue(data, 'productWidth', 'productWidth')),
+                ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productLength', 'productLength'))
+                : fieldValue(data, 'productLength', 'productLength')),
             productHeight: data && data.omitEstimatedProductSize ? 0 : fieldValue(data, 'productHeight', 'productHeight'),
           },
         };
@@ -225,7 +225,7 @@
     }
 
     function manualDimensionTypes(target) {
-      return target === 'box' ? ['length', 'width', 'height'] : ['width', 'height'];
+      return ['length', 'height'];
     }
 
     function manualDimensionLabel(type) {
@@ -247,7 +247,7 @@
     }
 
     function manualDimensionValue(session, target, type) {
-      if (target === 'product') return type === 'height' ? session.fields.productHeight : session.fields.productWidth;
+      if (target === 'product') return type === 'height' ? session.fields.productHeight : session.fields.productLength;
       if (type === 'length') return session.fields.packageLength;
       if (type === 'height') return session.fields.packageHeight;
       return session.fields.packageWidth;
@@ -264,9 +264,7 @@
 
     function manualTypeOrientationScore(session, target, type, geometry) {
       if (type === 'height') return geometry.vertical * 4;
-      if (target === 'product') return geometry.horizontal * 4;
-      const frontType = session.frontIsLength ? 'length' : 'width';
-      if (type === frontType) return geometry.horizontal * 3 + (1 - geometry.vertical);
+      if (type === 'length') return geometry.horizontal * 4;
       const diagonal = 1 - Math.abs(geometry.horizontal - geometry.vertical);
       return diagonal * 2 + geometry.horizontal * .35;
     }
@@ -321,14 +319,14 @@
       const box = completedManualLines(session, 'box');
       const product = completedManualLines(session, 'product');
       const pending = ['box', 'product'].find((target) => (session.manualPoints[target] || []).length % 2 === 1);
-      return '纸盒 ' + box + '/3 · 产品 ' + product + '/2' + (pending ? ' · 正在画' + (pending === 'box' ? '纸盒' : '产品') + '终点' : '');
+      return '纸盒 ' + box + '/2 · 产品 ' + product + '/2' + (pending ? ' · 正在画' + (pending === 'box' ? '纸盒' : '产品') + '终点' : '');
     }
 
     function manualCalibrationHtml(session, target) {
       const lineCount = completedManualLines(session, target);
       const effective = autoAssignedManualTypes(session, target);
       const overrides = session.manualLineTypes[target] || [];
-      if (!lineCount) return '<span style="color:#7b84a1;font-size:12px">每条尺寸边分别点击起点和终点，画完后可在这里校准长/宽/高。</span>';
+      if (!lineCount) return '<span style="color:#7b84a1;font-size:12px">每条尺寸边分别点击起点和终点，画完后可在这里校准长/高。</span>';
       return Array.from({ length: lineCount }, (_, index) => {
         const override = overrides[index] || '';
         const buttons = ['auto'].concat(manualDimensionTypes(target)).map((type) => {
@@ -344,7 +342,7 @@
       const sections = ['box', 'product'].filter((target) => completedManualLines(session, target)).map((target) =>
         '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + (target === 'box' ? '#7c3aed' : '#0891b2') + ';font-size:12px">' + (target === 'box' ? '纸盒' : '产品') + '</strong>' + manualCalibrationHtml(session, target) + '</span>'
       );
-      return sections.join('') || '<span style="color:#7b84a1;font-size:12px">直接在图片上画线：每条线点击起点和终点，系统会自动判断纸盒/产品及长宽高。</span>';
+      return sections.join('') || '<span style="color:#7b84a1;font-size:12px">直接在图片上画线：纸盒与产品都只需标注长和高。</span>';
     }
 
     function editorLog(session, step, detail, level) {
@@ -373,7 +371,7 @@
       return '<section class="pfh-parameter-editor">' +
         '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，自动判断纸盒/产品 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
-          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:#f1edff;color:#6541ce;font-size:12px;font-weight:800">纸盒 ' + boxCount + '/3 边</span>' +
+          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:#f1edff;color:#6541ce;font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2 边</span>' +
           '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:#e8f7fa;color:#087f95;font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
           '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
@@ -554,7 +552,7 @@
       const productProgress = root && root.querySelector('.pfh-parameter-editor-product-progress');
       if (progress) progress.textContent = manualOverallProgressText(session);
       if (calibration) calibration.innerHTML = manualAllCalibrationHtml(session);
-      if (boxProgress) boxProgress.textContent = '纸盒 ' + completedManualLines(session, 'box') + '/3 边';
+      if (boxProgress) boxProgress.textContent = '纸盒 ' + completedManualLines(session, 'box') + '/2 边';
       if (productProgress) productProgress.textContent = '产品 ' + completedManualLines(session, 'product') + '/2 边';
     }
 
@@ -866,7 +864,7 @@
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
           '<div class="pfh-parameter-fields">' +
             fieldHtml(session, 'englishName', '英文产品名', true) + fieldHtml(session, 'netContent', '净含量') + fieldHtml(session, 'grossWeight', '毛重') + fieldHtml(session, 'shelfLife', '保质期') + fieldHtml(session, 'features', 'FEATURES', true) +
-            fieldHtml(session, 'packageLength', '纸盒正面/长') + fieldHtml(session, 'packageWidth', '纸盒侧面/宽') + fieldHtml(session, 'packageHeight', '纸盒高') + fieldHtml(session, 'productWidth', '产品宽') + fieldHtml(session, 'productHeight', '产品高') +
+            fieldHtml(session, 'packageLength', '纸盒正面/长') + fieldHtml(session, 'packageWidth', '纸盒侧面/宽') + fieldHtml(session, 'packageHeight', '纸盒高') + fieldHtml(session, 'productLength', '产品长') + fieldHtml(session, 'productHeight', '产品高') +
           '</div>' +
           '<div class="pfh-parameter-options"><label><input type="checkbox" class="pfh-parameter-side"' + (session.showSide ? ' checked' : '') + '>纸盒展示侧面</label><label><input type="radio" name="pfh-parameter-front" value="length"' + (session.frontIsLength ? ' checked' : '') + '>正面为长</label><label><input type="radio" name="pfh-parameter-front" value="width"' + (!session.frontIsLength ? ' checked' : '') + '>正面为宽</label></div>' +
           '<div class="pfh-parameter-actions" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动修改</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>保存图片</button></div>' +
@@ -1122,7 +1120,7 @@
         if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
         else if (product) {
           drawVerticalDimension(ctx, product, session.fields.productHeight, session.productHeightSide || 'right');
-          drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+          drawHorizontalDimension(ctx, product, session.fields.productLength, false);
         }
         ctx.restore();
         return;
@@ -1141,7 +1139,7 @@
       if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
       else if (product) {
         drawVerticalDimension(ctx, product, session.fields.productHeight, session.productHeightSide || 'right');
-        drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
+        drawHorizontalDimension(ctx, product, session.fields.productLength, false);
       }
       ctx.restore();
     }
