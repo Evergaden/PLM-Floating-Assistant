@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.129
+// @version      2.5.130
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.129';
+  const SCRIPT_VERSION = '2.5.130';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -3753,9 +3753,13 @@
     return Boolean(data.hasInnerCard || /\u5185\u5361/.test(String(data.packageSizeLabel || '') + String(data.packageSizeText || '')));
   }
 
+  function isDowmooBrand(data) {
+    return Boolean(data && /\bDOWMOO\b/i.test(String(data.brand || '').trim()));
+  }
+
   function isToyDimensionProduct(data) {
+    if (isDowmooBrand(data)) return true;
     const text = [
-      data && data.brand,
       data && data.name,
       data && data.aiProductType,
       data && data.aiCategory,
@@ -3763,7 +3767,7 @@
       data && data.category,
       data && data.departmentName,
     ].filter(Boolean).join(' ');
-    if (/\bDOWMOO\b|\btoys?\b|\bdolls?\b|玩具|公仔|玩偶|捏捏|积木|盲盒|史莱姆|解压/i.test(text)) return true;
+    if (/\btoys?\b|\bdolls?\b|玩具|公仔|玩偶|捏捏|积木|盲盒|史莱姆|解压/i.test(text)) return true;
     try {
       return getProductTypeForInsight(data, null) === '\u73a9\u5177';
     } catch (error) {
@@ -5153,6 +5157,7 @@
 
   function isToyCopywritingProduct(data) {
     if (!data) return false;
+    if (isDowmooBrand(data)) return true;
     const productType = getProductTypeForInsight(data, null);
     return productType === '\u73a9\u5177' || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test(getClassificationText(data));
   }
@@ -15273,6 +15278,7 @@
   }
 
   function getProductTypeForInsight(data, extra) {
+    if (isDowmooBrand(data)) return '\u73a9\u5177';
     if (data && data.aiProductType && !/^\u672a\u5206\u7c7b$/i.test(String(data.aiProductType))) return String(data.aiProductType);
     const text = [
       extra && extra.englishName,
