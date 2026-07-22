@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.125
+// @version      2.5.126
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,9 +30,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.125';
+  const SCRIPT_VERSION = '2.5.126';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '4';
+  const COPYWRITING_PARSER_VERSION = '5';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -2482,6 +2482,7 @@
   scheduleNotificationRefresh(1600);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
+  startDailyLedgerSync();
   startUploadQueueSync();
   handleDrawerState();
   scheduleProjectListPrefetch();
@@ -2619,6 +2620,7 @@
     let changedCount = 0;
     let ledgerChangedCount = 0;
     let ledgerEligibleCount = 0;
+    syncDailyLedgerBeforeMutation();
     rows.forEach((row) => {
       const previous = normalizeData(loadData(row.sku) || { sku: row.sku });
       const benchmarkImageUrl = stripOssResizeParams(row.benchmarkImageUrl || '');
@@ -2665,6 +2667,7 @@
         const existingLedger = (state.ledgerRecords || []).find((item) => item.sku === row.sku && getMonthKeyFromDateKey(item.date) === assignedMonth);
         const syncedLedger = upsertDailyLedgerFromData(candidate, {
           deferSave: true,
+          skipStorageSync: true,
           skipUnchanged: true,
           note: existingLedger ? undefined : '\u6574\u9875\u5217\u8868\u81ea\u52a8\u52a0\u5165',
         });
@@ -3227,7 +3230,9 @@
     const tabs = [];
     const hasProjectCache = Boolean(cached.name && cached.projectStatus);
     if (!hasProjectCache) tabs.push('\u9879\u76ee\u4fe1\u606f');
-    if (!cached.seenMaterial) tabs.push(L.materialTab);
+    const hasPackageDimensions = Boolean(cached.packageLength && cached.packageWidth && cached.packageHeight);
+    const missingMaterialSize = !hasPackageDimensions && !cached.printSizeText;
+    if (!cached.seenMaterial || missingMaterialSize) tabs.push(L.materialTab);
     if (!cached.seenProduct || !cached.grossWeight || !hasCurrentCopywritingCache(cached)) tabs.push(L.productTab);
     return tabs;
   }
@@ -3356,6 +3361,9 @@
         if (!attachmentFiles.ingredientFile) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
       }
     } finally {
+      if (includeScanTabs && isDrawerProductFlowCurrent(sku, token, drawer)) {
+        await switchDrawerTab(drawer, L.materialTab, { flowToken: token, timeout: 4500 }).catch(() => false);
+      }
       if (state.drawerTabFlowToken === token) {
         if (includeScanTabs) {
           stopScan();
@@ -8042,7 +8050,7 @@
 
   function normalizeCopywritingRecord(record) {
     if (!record || typeof record !== 'object') return null;
-    const normalizeSections = (items) => (Array.isArray(items) ? items : []).slice(0, 16).map((section) => ({
+    const normalizeSections = (items) => (Array.isArray(items) ? items : []).slice(0, 24).map((section) => ({
       key: String(section && section.key || '').slice(0, 60),
       label: String(section && section.label || '').slice(0, 100),
       text: String(section && section.text || '').slice(0, 12000),
@@ -13584,6 +13592,34 @@
     }
   }
 
+  function startDailyLedgerSync() {
+    if (typeof GM_addValueChangeListener === 'function') {
+      GM_addValueChangeListener(DAILY_LEDGER_KEY, (_name, _oldValue, newValue, remote) => {
+        if (!remote) return;
+        state.ledgerRecords = filterLedgerRecordsNotInTrash(newValue);
+        if (state.view === 'ledger') renderShell();
+      });
+      GM_addValueChangeListener(DAILY_LEDGER_TRASH_KEY, (_name, _oldValue, newValue, remote) => {
+        if (!remote) return;
+        state.ledgerTrashRecords = sanitizeLedgerTrashRecords(newValue);
+        state.ledgerRecords = filterLedgerRecordsNotInTrash(state.ledgerRecords);
+        if (state.view === 'ledger') renderShell();
+      });
+    }
+    window.addEventListener('storage', (event) => {
+      if (event.key !== DAILY_LEDGER_KEY || typeof GM_getValue === 'function') return;
+      try {
+        state.ledgerRecords = filterLedgerRecordsNotInTrash(JSON.parse(event.newValue || '[]'));
+        if (state.view === 'ledger') renderShell();
+      } catch (_) {}
+    });
+  }
+
+  function syncDailyLedgerBeforeMutation() {
+    state.ledgerTrashRecords = loadDailyLedgerTrash();
+    state.ledgerRecords = filterLedgerRecordsNotInTrash(loadDailyLedger()).slice(0, 1200);
+  }
+
   function loadDailyLedgerTrash() {
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(DAILY_LEDGER_TRASH_KEY, null) : JSON.parse(localStorage.getItem(DAILY_LEDGER_TRASH_KEY) || 'null');
@@ -13773,6 +13809,7 @@
   function upsertDailyLedgerFromData(data, options) {
     if (!data || !data.sku) return null;
     const opts = options || {};
+    if (!opts.skipStorageSync) syncDailyLedgerBeforeMutation();
     const assignedDate = parseLedgerDateFromText(data.designAssignedAt);
     const dateKey = normalizeLedgerDate(opts.date) || assignedDate || getTodayKey();
     if (opts.requireCurrentMonth && assignedDate && getMonthKeyFromDateKey(dateKey) !== getMonthKeyFromDateKey(getTodayKey())) return null;
@@ -13961,6 +13998,7 @@
 
   function updateLedgerFromAction(action, sku, dateKey, options) {
     if (!sku) return;
+    syncDailyLedgerBeforeMutation();
     state.ledgerMenuSku = '';
     state.ledgerMenuDate = '';
     if (action === 'ledger-image-generated') {
@@ -14116,6 +14154,7 @@
 
   function toggleLedgerWorkFlag(action, sku, dateKey) {
     if (!sku) return;
+    syncDailyLedgerBeforeMutation();
     const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
     const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
     const field = action === 'ledger-toggle-box-file'
@@ -14137,6 +14176,7 @@
   }
 
   function cycleLedgerArtworkState(sku, dateKey) {
+    syncDailyLedgerBeforeMutation();
     const key = normalizeLedgerDate(dateKey) || getTodayKey();
     const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
     const current = normalizeLedgerArtworkState(existing && existing.artworkState);
