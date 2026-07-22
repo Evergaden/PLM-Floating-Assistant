@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.130
+// @version      2.5.131
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.130';
+  const SCRIPT_VERSION = '2.5.131';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2379,6 +2379,8 @@
     uploadProcessing: false,
     uploadView: 'queue',
     uploadMode: 'standard',
+    copyrightSkuInput: '',
+    copyrightPendingFiles: [],
     toyLabelSkuInput: '',
     toyLabelBatchFiles: [],
     toyLabelBatchPreparedSignature: '',
@@ -8158,14 +8160,23 @@
     const rows = pageItems.length ? pageItems.map((item) => {
       const active = currentSku && item.sku === currentSku ? ' is-current' : '';
       const isToyLabel = item.kind === 'toy-label';
-      const ready = isToyLabel || Boolean(item.xlsxKey && item.zipKey);
-      const historyStatus = isToyLabel && (!item.status || item.status === L.uploadSuccess) ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess);
-      const status = viewingHistory ? historyStatus : (ready ? (item.status || (isToyLabel ? '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e' : '\u5f85\u4e0a\u4f20')) : '\u7f3a\u6587\u4ef6');
+      const isCopyright = item.kind === 'copyright';
+      const ready = isUploadItemReady(item);
+      const historyStatus = isToyLabel && (!item.status || item.status === L.uploadSuccess)
+        ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f'
+        : (isCopyright && (!item.status || item.status === L.uploadSuccess) ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess));
+      const defaultStatus = isToyLabel ? '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e' : '\u5f85\u4e0a\u4f20';
+      const status = viewingHistory ? historyStatus : (ready ? (item.status || defaultStatus) : '\u7f3a\u6587\u4ef6');
       const statusClass = /\u6210\u529f/.test(status) ? 'is-success' : (!ready || /\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(status) ? 'is-missing' : 'is-ready');
-      const files = isToyLabel ? '\u73a9\u5177\u6807\u7b7e\uff1a\u751f\u6210 / \u4e0a\u4f20 BOM / \u4e0b\u8f7d PSD \u4e0e\u56fe\u7247' : [
-        item.xlsxName ? 'XLSX \u5df2\u6709 ' + item.xlsxName : 'XLSX \u7f3a\u5c11',
-        item.zipName ? 'ZIP \u5df2\u6709 ' + item.zipName : 'ZIP \u7f3a\u5c11',
-      ].join(' | ');
+      const copyrightFiles = getCopyrightUploadEntries(item);
+      const files = isToyLabel
+        ? '\u73a9\u5177\u6807\u7b7e\uff1a\u751f\u6210 / \u4e0a\u4f20 BOM / \u4e0b\u8f7d PSD \u4e0e\u56fe\u7247'
+        : (isCopyright
+          ? '\u7248\u6743\u56fe\uff1a' + (copyrightFiles.length ? copyrightFiles.map((entry) => entry.name).join(' / ') : '\u7f3a\u5c11\u56fe\u7247')
+          : [
+            item.xlsxName ? 'XLSX \u5df2\u6709 ' + item.xlsxName : 'XLSX \u7f3a\u5c11',
+            item.zipName ? 'ZIP \u5df2\u6709 ' + item.zipName : 'ZIP \u7f3a\u5c11',
+          ].join(' | '));
       const previousUpload = viewingHistory ? null : findPreviousSuccessfulUpload(item, successfulHistory);
       const previousUploadText = previousUpload ? '\u4e0a\u6b21\u4e0a\u4f20\uff1a' + (previousUpload.completedAt || previousUpload.updatedAt || '') : '';
       const progressText = viewingHistory ? (item.completedAt || item.updatedAt || '') : [previousUploadText, item.step || files].filter(Boolean).join(' \u00b7 ');
@@ -8189,7 +8200,14 @@
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
     const backAction = viewingHistory ? 'upload-history-toggle' : 'home-back';
     const backLabel = viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u8fd4\u56de\u4e3b\u9875';
-    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + '"><i class="pfh-upload-mode-indicator"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button></div>' : '';
+    const uploadModeIndex = state.uploadMode === 'toy-label' ? 1 : (state.uploadMode === 'copyright' ? 2 : 0);
+    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + (state.uploadMode === 'copyright' ? ' is-copyright' : '') + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" style="width:calc(33.333% - 2px);transform:translateX(' + (uploadModeIndex * 100) + '%) scale(.96)"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (state.uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
+    const copyrightPendingFiles = Array.isArray(state.copyrightPendingFiles) ? state.copyrightPendingFiles : [];
+    const queueControl = state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>';
+    const copyrightModeHtml = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="\u7c98\u8d34\u4e00\u4e2a\u6216\u591a\u4e2a SKU \u7f16\u7801">' + escapeHtml(state.copyrightSkuInput || '') + '</textarea>' +
+      '<div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe">\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe\uff08JPG / PNG\uff09' + (copyrightPendingFiles.length ? '<small>\u5df2\u9009 ' + copyrightPendingFiles.length + ' \u5f20\uff1a' + escapeHtml(copyrightPendingFiles.slice(0, 6).map((file) => file.name).join(' / ') + (copyrightPendingFiles.length > 6 ? ' ...' : '')) + '</small>' : '') + '</div>' +
+      '<input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png">' +
+      '<div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + (!(state.copyrightSkuInput || '').trim() || !copyrightPendingFiles.length ? ' disabled' : '') + '>\u52a0\u5165\u7248\u6743\u56fe\u4efb\u52a1</button>' + (copyrightPendingFiles.length ? '<button type="button" data-action="copyright-pending-clear">\u6e05\u7a7a\u5df2\u9009</button>' : '') + queueControl + '</div>';
     return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (viewingHistory ? ' is-history-view' : '') + '">' +
       '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + backAction + '" aria-label="' + backLabel + '">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
@@ -8198,10 +8216,10 @@
       '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button></div>' +
       '<div class="pfh-upload-body">' +
         (viewingHistory ? '' : uploadModeTabs + (state.uploadMode === 'toy-label'
-          ? '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>'
-          : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
+          ? '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + queueControl + '</div>'
+          : (state.uploadMode === 'copyright' ? copyrightModeHtml : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
         '<input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar">' +
-        '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + (state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>') + '</div>')) +
+        '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + queueControl + '</div>'))) +
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
       '</div>' +
       '</section></div>' +
@@ -8215,7 +8233,7 @@
 
   function uploadGuideModalHtml() {
     if (!state.uploadGuideOpen) return '';
-    return '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="\u4f7f\u7528\u8bf4\u660e"><header><h3>\u4f7f\u7528\u8bf4\u660e</h3><button type="button" data-action="upload-guide-close" aria-label="\u5173\u95ed">\u00d7</button></header><article><b>\u56fe\u5305\u8868\u683c</b><p>\u628a XLSX \u548c ZIP \u4e00\u8d77\u62d6\u5165\uff0c\u811a\u672c\u6309\u6587\u4ef6\u540d\u4e2d\u7684 SKU \u81ea\u52a8\u5339\u914d\u5e76\u52a0\u5165\u4efb\u52a1\u680f\u3002</p><b>\u73a9\u5177\u6807\u7b7e</b><p>\u7c98\u8d34\u591a\u4e2a SKU \u540e\u52a0\u5165\u4efb\u52a1\uff1b\u961f\u5217\u4f1a\u9010\u4e2a\u751f\u6210\u6807\u7b7e\u3001\u4e0a\u4f20 BOM\uff0c\u5e76\u5728\u7ed3\u675f\u540e\u4e0b\u8f7d\u4e00\u4e2a ZIP \u538b\u7f29\u5305\u3002</p><p class="pfh-upload-guide-tip">\u8bf7\u5148\u4fdd\u8bc1 SKU \u5df2\u6709\u672c\u5730\u7f13\u5b58\uff0c\u4ee5\u907f\u514d\u4efb\u52a1\u65e0\u6cd5\u83b7\u53d6\u5236\u4f5c\u6570\u636e\u3002</p></article></section></div>';
+    return '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="\u4f7f\u7528\u8bf4\u660e"><header><h3>\u4f7f\u7528\u8bf4\u660e</h3><button type="button" data-action="upload-guide-close" aria-label="\u5173\u95ed">\u00d7</button></header><article><b>\u56fe\u5305\u8868\u683c</b><p>\u628a XLSX \u548c ZIP \u4e00\u8d77\u62d6\u5165\uff0c\u811a\u672c\u6309\u6587\u4ef6\u540d\u4e2d\u7684 SKU \u81ea\u52a8\u5339\u914d\u5e76\u52a0\u5165\u4efb\u52a1\u680f\u3002</p><b>\u73a9\u5177\u6807\u7b7e</b><p>\u7c98\u8d34\u591a\u4e2a SKU \u540e\u52a0\u5165\u4efb\u52a1\uff1b\u961f\u5217\u4f1a\u9010\u4e2a\u751f\u6210\u6807\u7b7e\u3001\u4e0a\u4f20 BOM\uff0c\u5e76\u5728\u7ed3\u675f\u540e\u4e0b\u8f7d\u4e00\u4e2a ZIP \u538b\u7f29\u5305\u3002</p><b>\u7248\u6743\u56fe</b><p>\u8f93\u5165 SKU \u540e\u7c98\u8d34\u6216\u62d6\u5165 JPG/PNG\uff1b\u961f\u5217\u4f1a\u4e0a\u4f20\u5230\u300c\u8bbe\u8ba1\u6587\u4ef6 - \u7248\u6743\u56fe\u300d\uff0c\u4fdd\u5b58\u8349\u7a3f\u540e\u63d0\u5ba1\u3002\u591a SKU \u53ef\u6309\u6587\u4ef6\u540d\u4e2d\u7684 SKU \u5339\u914d\uff0c\u6216\u6309\u56fe\u7247\u987a\u5e8f\u4e00\u5bf9\u4e00\u5206\u914d\u3002</p><p class="pfh-upload-guide-tip">\u8bf7\u5148\u4fdd\u8bc1 SKU \u5df2\u6709\u672c\u5730\u7f13\u5b58\uff0c\u4ee5\u907f\u514d\u4efb\u52a1\u65e0\u6cd5\u83b7\u53d6\u5236\u4f5c\u6570\u636e\u3002</p></article></section></div>';
   }
 
   function uploadClearConfirmModalHtml() {
@@ -8902,12 +8920,22 @@
       return;
     }
     if (action === 'upload-mode') {
-      state.uploadMode = actionTarget.getAttribute('data-upload-mode') === 'toy-label' ? 'toy-label' : 'standard';
+      const mode = actionTarget.getAttribute('data-upload-mode');
+      state.uploadMode = /^(?:standard|toy-label|copyright)$/.test(mode || '') ? mode : 'standard';
       renderShell();
       return;
     }
     if (action === 'toy-label-queue-add') {
       addToyLabelQueueItems(state.toyLabelSkuInput);
+      return;
+    }
+    if (action === 'copyright-queue-add') {
+      addCopyrightQueueItems(state.copyrightSkuInput, state.copyrightPendingFiles);
+      return;
+    }
+    if (action === 'copyright-pending-clear') {
+      state.copyrightPendingFiles = [];
+      renderShell();
       return;
     }
     if (action === 'upload-page-prev') {
@@ -9215,8 +9243,13 @@
       const tutorialButton = ensurePanel().querySelector('[data-action="first-run-tutorial-done"]');
       if (tutorialButton) tutorialButton.setAttribute('aria-disabled', getCloudBackupKey().length < 4 ? 'true' : 'false');
     }
-    if (event.target && event.target.classList && event.target.classList.contains('pfh-toy-label-sku-input')) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-toy-label-sku-input') && !event.target.classList.contains('pfh-copyright-sku-input')) {
       state.toyLabelSkuInput = event.target.value;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-copyright-sku-input')) {
+      state.copyrightSkuInput = event.target.value;
+      const button = ensurePanel().querySelector('[data-action="copyright-queue-add"]');
+      if (button) button.disabled = !state.copyrightSkuInput.trim() || !(state.copyrightPendingFiles || []).length;
     }
   }
 
@@ -9226,13 +9259,14 @@
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
         || (panel && panel.querySelector('.pfh-upload-drop:hover'));
-      const files = getClipboardUploadFiles(event);
+      const files = state.uploadMode === 'copyright' ? getClipboardCopyrightFiles(event) : getClipboardUploadFiles(event);
       if (drop && files.length) {
         event.preventDefault();
         event.stopPropagation();
         drop.classList.add('is-paste-received');
         window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
-        processQueuedUploadFiles(files);
+        if (state.uploadMode === 'copyright') stageCopyrightUploadFiles(files);
+        else processQueuedUploadFiles(files);
         return;
       }
     }
@@ -9253,13 +9287,14 @@
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
-      const files = getClipboardUploadFiles(event);
+      const files = state.uploadMode === 'copyright' ? getClipboardCopyrightFiles(event) : getClipboardUploadFiles(event);
       if (!drop || !files.length) return;
       event.preventDefault();
       event.stopPropagation();
       drop.classList.add('is-paste-received');
       window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
-      processQueuedUploadFiles(files);
+      if (state.uploadMode === 'copyright') stageCopyrightUploadFiles(files);
+      else processQueuedUploadFiles(files);
       return;
     }
     if (state.view === 'parameterImage') {
@@ -9314,6 +9349,23 @@
     });
   }
 
+  function getClipboardCopyrightFiles(event) {
+    const clipboard = event && event.clipboardData;
+    const itemFiles = Array.from(clipboard && clipboard.items || [])
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    const directFiles = Array.from(clipboard && clipboard.files || []);
+    const seen = new Set();
+    return itemFiles.concat(directFiles).filter((file) => {
+      if (!file || !isCopyrightImageFile(file)) return false;
+      const key = [file.name, file.size, file.lastModified].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((file, index) => normalizeCopyrightImageFile(file, index));
+  }
+
   function handlePanelChange(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
@@ -9349,8 +9401,10 @@
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-upload-file')) {
       const files = Array.from(event.target.files || []);
+      const kind = event.target.getAttribute('data-upload-kind') || '';
       event.target.value = '';
-      processQueuedUploadFiles(files);
+      if (kind === 'copyright') stageCopyrightUploadFiles(files);
+      else processQueuedUploadFiles(files);
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-date')) {
       const month = normalizeLedgerMonth(event.target.value);
@@ -9391,7 +9445,8 @@
     if (!(event.target && event.target.closest && event.target.closest('.pfh-upload-section'))) return;
     event.preventDefault();
     const files = Array.from(event.dataTransfer && event.dataTransfer.files || []);
-    processQueuedUploadFiles(files);
+    if (state.uploadMode === 'copyright') stageCopyrightUploadFiles(files);
+    else processQueuedUploadFiles(files);
   }
 
   async function processQueuedUploadFiles(files) {
@@ -9401,6 +9456,117 @@
       return;
     }
     for (const file of supported) await storeQueuedUploadFile(file);
+  }
+
+  function isCopyrightImageFile(file) {
+    return Boolean(file && (/^image\/(?:jpeg|png)$/i.test(file.type || '') || /\.(?:png|jpe?g)$/i.test(file.name || '')));
+  }
+
+  function normalizeCopyrightImageFile(file, index) {
+    if (/\.(?:png|jpe?g)$/i.test(file && file.name || '')) return file;
+    const extension = file && file.type === 'image/jpeg' ? 'jpg' : 'png';
+    return new File([file], '\u7248\u6743\u56fe-' + (Number(index) + 1) + '.' + extension, { type: file.type || 'image/png', lastModified: file.lastModified || Date.now() });
+  }
+
+  function stageCopyrightUploadFiles(files) {
+    const candidates = Array.from(files || []).filter(isCopyrightImageFile).map(normalizeCopyrightImageFile);
+    const supported = candidates.filter((file) => file.size <= 50 * 1024 * 1024);
+    if (!supported.length) {
+      showToast(candidates.length ? '\u7248\u6743\u56fe\u5355\u4e2a\u6587\u4ef6\u4e0d\u80fd\u8d85\u8fc7 50MB' : '\u8bf7\u7c98\u8d34\u6216\u62d6\u5165 JPG / PNG \u56fe\u7247');
+      return;
+    }
+    const current = Array.isArray(state.copyrightPendingFiles) ? state.copyrightPendingFiles : [];
+    const seen = new Set(current.map((file) => [file.name, file.size, file.lastModified].join('|')));
+    const additions = supported.filter((file) => {
+      const key = [file.name, file.size, file.lastModified].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    state.copyrightPendingFiles = current.concat(additions).slice(0, 60);
+    renderShell();
+    showToast('\u5df2\u9009\u62e9 ' + state.copyrightPendingFiles.length + ' \u5f20\u7248\u6743\u56fe');
+  }
+
+  function assignCopyrightFilesToSkus(skus, files) {
+    const assignments = new Map(skus.map((sku) => [sku, []]));
+    const named = files.map((file) => ({ file, matches: skus.filter((sku) => String(file.name || '').toUpperCase().includes(sku)) }));
+    if (named.every((item) => item.matches.length === 1)) {
+      named.forEach((item) => assignments.get(item.matches[0]).push(item.file));
+      if (skus.every((sku) => assignments.get(sku).length)) return assignments;
+      assignments.forEach((value, key) => assignments.set(key, []));
+    }
+    if (skus.length === 1) {
+      assignments.set(skus[0], files.slice());
+      return assignments;
+    }
+    if (files.length === 1) {
+      skus.forEach((sku) => assignments.set(sku, files.slice()));
+      return assignments;
+    }
+    if (files.length === skus.length) {
+      skus.forEach((sku, index) => assignments.set(sku, [files[index]]));
+      return assignments;
+    }
+    return null;
+  }
+
+  async function addCopyrightQueueItems(input, pendingFiles) {
+    const skus = Array.from(new Set((String(input || '').match(/\bSKU\d+\b/ig) || []).map((sku) => sku.toUpperCase())));
+    const files = Array.from(pendingFiles || []).filter(isCopyrightImageFile);
+    if (!skus.length || !files.length) {
+      showToast('\u8bf7\u5148\u8f93\u5165 SKU \u5e76\u7c98\u8d34\u6216\u9009\u62e9\u7248\u6743\u56fe');
+      return;
+    }
+    const assignments = assignCopyrightFilesToSkus(skus, files);
+    if (!assignments) {
+      showToast('\u591a SKU \u65f6\uff0c\u8bf7\u8ba9\u56fe\u7247\u6570\u91cf\u4e0e SKU \u6570\u91cf\u4e00\u81f4\uff0c\u6216\u5728\u6587\u4ef6\u540d\u4e2d\u5e26\u4e0a SKU');
+      return;
+    }
+    try {
+      const queue = loadUploadQueue();
+      const now = new Date().toLocaleString();
+      for (const sku of skus) {
+        let item = queue.find((entry) => entry.kind === 'copyright' && entry.sku === sku && !/\u6210\u529f/.test(entry.status || ''));
+        if (!item) {
+          const cached = loadData(sku);
+          item = {
+            id: 'copyright-' + sku + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+            kind: 'copyright',
+            sku,
+            name: buildUploadDisplayName(cached, '', sku),
+            copyrightFiles: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          queue.unshift(item);
+        }
+        const existingNames = new Set(getCopyrightUploadEntries(item).map((entry) => entry.name + '|' + entry.size));
+        for (const [index, file] of assignments.get(sku).entries()) {
+          const identity = file.name + '|' + file.size;
+          if (existingNames.has(identity)) continue;
+          const key = uploadFileKey(sku, 'copyright') + ':' + Date.now() + ':' + index + ':' + Math.random().toString(36).slice(2, 7);
+          await putUploadFile(key, cloneUploadFile(file));
+          item.copyrightFiles.push({ key, name: file.name, size: file.size, type: file.type || guessMime(file.name) });
+          existingNames.add(identity);
+        }
+        item.status = getCopyrightUploadEntries(item).length ? '\u5f85\u4e0a\u4f20' : '\u7f3a\u6587\u4ef6';
+        item.step = getCopyrightUploadEntries(item).length ? '\u7248\u6743\u56fe\u5df2\u5c31\u7eea' : '\u7f3a\u7248\u6743\u56fe';
+        item.skipReason = '';
+        item.forceReplace = false;
+        item.updatedAt = now;
+      }
+      state.uploadQueue = queue;
+      state.copyrightSkuInput = '';
+      state.copyrightPendingFiles = [];
+      state.uploadPage = 1;
+      saveUploadQueue();
+      renderShell();
+      showToast(skus.length + ' \u4e2a\u7248\u6743\u56fe\u4efb\u52a1\u5df2\u52a0\u5165');
+    } catch (error) {
+      console.warn('PLM floating helper copyright queue failed:', error);
+      showToast('\u7248\u6743\u56fe\u4efb\u52a1\u4fdd\u5b58\u5931\u8d25');
+    }
   }
 
   function startTailSealEdit(target) {
@@ -9490,7 +9656,7 @@
   }
 
   function ensureUploadQueueItem(sku, filename) {
-    let item = state.uploadQueue.find((entry) => entry.sku === sku && !/成功/.test(entry.status || ''));
+    let item = state.uploadQueue.find((entry) => (entry.kind || 'standard') === 'standard' && entry.sku === sku && !/成功/.test(entry.status || ''));
     if (item) return item;
     const cached = loadData(sku);
     item = {
@@ -9569,7 +9735,8 @@
 
   function getUploadDisplayName(item) {
     const cached = item && item.sku ? loadData(item.sku) : null;
-    const filename = (item && (item.xlsxName || item.zipName)) || '';
+    const copyrightEntry = getCopyrightUploadEntries(item)[0];
+    const filename = (item && (item.xlsxName || item.zipName)) || (copyrightEntry && copyrightEntry.name) || '';
     const name = buildUploadDisplayName(cached, filename, item && item.sku);
     if (name && item && item.name !== name) {
       item.name = name;
@@ -9586,10 +9753,27 @@
   }
 
   function getMissingUploadText(item) {
+    if (item && item.kind === 'copyright') return getCopyrightUploadEntries(item).length ? '\u6587\u4ef6\u5df2\u9f50' : '\u7f3a\u7248\u6743\u56fe';
     const missing = [];
     if (!item.xlsxKey) missing.push('XLSX');
     if (!item.zipKey) missing.push('ZIP');
     return '\u7f3a ' + missing.join(' + ');
+  }
+
+  function getCopyrightUploadEntries(item) {
+    return Array.isArray(item && item.copyrightFiles)
+      ? item.copyrightFiles.filter((entry) => entry && entry.name)
+      : [];
+  }
+
+  function isUploadItemReady(item) {
+    if (!item) return false;
+    if (item.kind === 'toy-label') return Boolean(item.xlsxKey && item.zipKey);
+    if (item.kind === 'copyright') {
+      const entries = getCopyrightUploadEntries(item);
+      return Boolean(entries.length && entries.every((entry) => entry.key));
+    }
+    return Boolean(item.xlsxKey && item.zipKey);
   }
 
   function removeUploadQueueItem(id) {
@@ -9606,7 +9790,7 @@
     state.uploadQueue = latestQueue.map((item) => {
       if (item.id !== id) return item;
       found = true;
-      const ready = Boolean(item.xlsxKey && item.zipKey);
+      const ready = isUploadItemReady(item);
       const hadExistingContent = /\u5df2\u6709\u5185\u5bb9/.test(item.status || '');
       return {
         ...item,
@@ -9654,7 +9838,7 @@
     state.uploadQueue = loadUploadQueue().map((item) => {
       if (!idSet.has(item.id)) return item;
       changed = true;
-      const ready = Boolean(item.xlsxKey && item.zipKey);
+      const ready = isUploadItemReady(item);
       const hadExistingContent = /\u5df2\u6709\u5185\u5bb9/.test(item.status || '');
       return {
         ...item,
@@ -9698,7 +9882,7 @@
     const queue = loadUploadQueue();
     const now = new Date().toLocaleString();
     targets.forEach((item) => {
-      const ready = Boolean(item.xlsxKey && item.zipKey);
+      const ready = isUploadItemReady(item);
       queue.unshift({
         ...item,
         id: item.sku + '-retry-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
@@ -9717,7 +9901,7 @@
     saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     state.uploadView = 'queue';
     renderShell();
-    showToast('\u5df2\u6062\u590d\u5230\u961f\u5217' + (targets.some((item) => !(item.xlsxKey && item.zipKey)) ? '\uff0c\u8bf7\u8865\u5145\u6587\u4ef6' : ''));
+    showToast('\u5df2\u6062\u590d\u5230\u961f\u5217' + (targets.some((item) => !isUploadItemReady(item)) ? '\uff0c\u8bf7\u8865\u5145\u6587\u4ef6' : ''));
   }
 
   function deleteUploadHistoryItems(ids) {
@@ -9797,7 +9981,7 @@
     const queue = loadUploadQueue();
     state.uploadQueue = queue.map((item) => {
       if (!/\u8fdb\u884c\u4e2d/.test(item.status || '')) return item;
-      const ready = Boolean(item.xlsxKey && item.zipKey);
+      const ready = isUploadItemReady(item);
       return {
         ...item,
         status: ready ? '\u5f85\u4e0a\u4f20' : '\u7f3a\u6587\u4ef6',
@@ -9851,7 +10035,7 @@
           updatedAt: now,
         };
       }
-      const ready = Boolean(entry.xlsxKey && entry.zipKey);
+      const ready = isUploadItemReady(entry);
       return {
         ...entry,
         status: ready ? '\u5f85\u4e0a\u4f20' : '\u7f3a\u6587\u4ef6',
@@ -10046,7 +10230,7 @@
           state.uploadQueue = loadUploadQueue();
           continue;
         }
-        const pendingItems = state.uploadQueue.filter((entry) => entry.xlsxKey && entry.zipKey && !attemptedTaskKeys.has(uploadHistoryKey(entry)) && !/成功|进行中|已跳过|已有内容|失败/.test(entry.status || ''));
+        const pendingItems = state.uploadQueue.filter((entry) => isUploadItemReady(entry) && !attemptedTaskKeys.has(uploadHistoryKey(entry)) && !/成功|进行中|已跳过|已有内容|失败/.test(entry.status || ''));
         const item = pendingItems.find((entry) => entry.kind === 'toy-label') || pendingItems[0];
         if (!item) {
           await finishUploadQueue();
@@ -10126,9 +10310,60 @@
     return blob ? { filename: entry.filename, blob } : null;
   }
 
+  async function runCopyrightUploadQueueItem(item) {
+    addLog('info', '\u7248\u6743\u56fe\u63d0\u5ba1\u4e0a\u4f20\u5f00\u59cb', item && item.sku ? item.sku : '');
+    const entries = getCopyrightUploadEntries(item);
+    const files = [];
+    for (const entry of entries) {
+      const file = await getUploadFile(entry.key);
+      if (!file) {
+        markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u7248\u6743\u56fe\u6587\u4ef6\uff1a' + entry.name);
+        return;
+      }
+      files.push({ entry, file });
+    }
+    if (!files.length) {
+      markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u7248\u6743\u56fe\u6587\u4ef6');
+      return;
+    }
+    try {
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6253\u5f00\u5546\u54c1', { resumeUploadAfterRefresh: false });
+      await ensureProductManagementPage();
+      await searchProductManagementSku(item.sku);
+      await openProductEditDrawer(item.sku);
+      await enterProductEditSecondStep(item.sku);
+      throwIfUploadRetryNoticeVisible();
+      for (let index = 0; index < files.length; index += 1) {
+        const current = files[index];
+        updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u7248\u6743\u56fe ' + (index + 1) + '/' + files.length);
+        await uploadFileToProductField('\u7248\u6743\u56fe', current.file, current.entry.name || current.file.name);
+        throwIfUploadRetryNoticeVisible();
+      }
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4fdd\u5b58\u8349\u7a3f');
+      const draftSaved = await saveProductDraftBeforeClose();
+      if (!draftSaved) throw new Error('\u8349\u7a3f\u672a\u4fdd\u5b58\u6210\u529f');
+      throwIfUploadRetryNoticeVisible();
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u63d0\u5ba1');
+      await submitProductReview();
+      throwIfUploadRetryNoticeVisible();
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u5173\u95ed\u5546\u54c1\u9875');
+      await closeTopProductDrawer({ skipDraftSave: true, allowReviewResultModal: true });
+      archiveUploadItem(item);
+      addLog('success', '\u7248\u6743\u56fe\u63d0\u5ba1\u4e0a\u4f20\u6210\u529f', item.sku);
+      showToast(item.sku + ' \u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f');
+    } catch (error) {
+      addLog('error', '\u7248\u6743\u56fe\u63d0\u5ba1\u4e0a\u4f20\u5931\u8d25', item.sku + ' ' + formatErrorMessage(error));
+      throw error;
+    }
+  }
+
   async function runUploadQueueItem(item) {
     if (item && item.kind === 'toy-label') {
       await runToyLabelQueueItem(item);
+      return;
+    }
+    if (item && item.kind === 'copyright') {
+      await runCopyrightUploadQueueItem(item);
       return;
     }
     addLog('info', '\u63d0\u5ba1\u4e0a\u4f20\u5f00\u59cb', item && item.sku ? item.sku : '');
@@ -10364,7 +10599,12 @@
         const text = normalizeLabel(el);
         return text === labelText || text.startsWith(labelText + ' ') || text.startsWith(labelText + '\u3000');
       });
-    return label ? label.closest('.ant-form-item') : null;
+    if (label) return label.closest('.ant-form-item');
+    if (labelText === '\u7248\u6743\u56fe') {
+      const stableField = scope.querySelector('[id="351"], input[id*="attr_group_408_0_attr_language_config_json_0_value"]');
+      return stableField ? stableField.closest('.ant-form-item') : null;
+    }
+    return null;
   }
 
   async function uploadFileToProductField(labelText, file, filename) {
@@ -14385,6 +14625,7 @@
       ...item,
       xlsxKey: '',
       zipKey: '',
+      copyrightFiles: getCopyrightUploadEntries(item).map((entry) => ({ ...entry, key: '' })),
       selected: false,
     }));
   }
@@ -15748,11 +15989,12 @@
     completed.forEach((item) => {
       const archived = {
         ...item,
-        status: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess),
-        step: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : item.step,
+        status: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess)),
+        step: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : item.step),
         completedAt: item.completedAt || item.updatedAt || new Date().toLocaleString(),
         xlsxKey: '',
         zipKey: '',
+        copyrightFiles: getCopyrightUploadEntries(item).map((entry) => ({ ...entry, key: '' })),
       };
       additionsByProduct.set(uploadHistoryProductKey(archived), archived);
     });
@@ -15770,8 +16012,8 @@
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
-    const successText = latestItem.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess;
-    const archived = { ...latestItem, status: successText, step: successText, completedAt, updatedAt: completedAt, xlsxKey: '', zipKey: '' };
+    const successText = latestItem.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess);
+    const archived = { ...latestItem, status: successText, step: successText, completedAt, updatedAt: completedAt, xlsxKey: '', zipKey: '', copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: '' })) };
     const archivedProductKey = uploadHistoryProductKey(archived);
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryProductKey(entry) !== archivedProductKey);
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryProductKey(entry) !== archivedProductKey)).slice(0, 200);
@@ -15803,6 +16045,7 @@
       updatedAt: completedAt,
       xlsxKey: keepFiles ? (latestItem.xlsxKey || '') : '',
       zipKey: keepFiles ? (latestItem.zipKey || '') : '',
+      copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
     };
     const archivedKey = uploadHistoryKey(archived);
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
@@ -15834,7 +16077,8 @@
   }
 
   function uploadHistoryKey(item) {
-    return [item && item.sku, item && item.xlsxName, item && item.zipName].filter(Boolean).join('|') || (item && item.id) || '';
+    const copyrightNames = getCopyrightUploadEntries(item).map((entry) => entry.name).join(',');
+    return [item && item.sku, item && item.xlsxName, item && item.zipName, copyrightNames].filter(Boolean).join('|') || (item && item.id) || '';
   }
 
   function uploadHistoryProductKey(item) {
@@ -15990,7 +16234,7 @@
 
   function cleanupUploadFiles(item) {
     if (!item) return;
-    [item.xlsxKey, item.zipKey].filter(Boolean).forEach((key) => {
+    [item.xlsxKey, item.zipKey].concat(getCopyrightUploadEntries(item).map((entry) => entry.key)).filter(Boolean).forEach((key) => {
       deleteUploadFile(key).catch((error) => console.warn('PLM floating helper upload file cleanup failed:', error));
     });
   }
