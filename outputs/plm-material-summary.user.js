@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.131
+// @version      2.5.132
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.131';
+  const SCRIPT_VERSION = '2.5.132';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2362,6 +2362,7 @@
     skuSortMenuOpen: false,
     skuContextMenuSku: '',
     copywritingMode: false,
+    skuEditMode: false,
     copywritingLoading: false,
     copywritingError: '',
     copywritingStatus: '',
@@ -2526,7 +2527,7 @@
       stopScan();
       if (partial) {
         saveData(partial.sku, partial);
-        if (state.selectedSku === partial.sku) state.data = partial;
+        if (state.selectedSku === partial.sku) state.data = normalizeData(loadData(partial.sku) || partial);
       }
     }
     if (state.drawerTabFlowRunning || state.drawerTabFlowTimer) {
@@ -3670,7 +3671,7 @@
   }
 
   function hasMeaningfulDataChange(previous, next) {
-    const ignored = new Set(['updatedAt', 'updatedAtMs', 'lastMissingDiagnostic']);
+    const ignored = new Set(['updatedAt', 'updatedAtMs', 'lastMissingDiagnostic', 'recentFieldChanges']);
     const before = {};
     const after = {};
     Object.keys(previous || {}).forEach((key) => {
@@ -5035,7 +5036,44 @@
     document.documentElement.appendChild(style);
   }
 
+  function ensureSkuDataInteractionStyles() {
+    const styleId = PANEL_ID + '-sku-data-interaction-styles';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent =
+      '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:rgba(139,92,246,.58)!important;background:linear-gradient(135deg,rgba(250,247,255,.94),rgba(255,255,255,.82))!important;box-shadow:0 8px 20px rgba(91,62,180,.12),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:rgba(124,58,237,.38)!important;background:#eee8ff!important;color:#6030cf!important;}' +
+      '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid rgba(139,92,246,.34)!important;border-radius:9px!important;outline:none!important;background:rgba(255,255,255,.95)!important;color:#292337!important;font:inherit!important;box-shadow:0 0 0 0 rgba(124,58,237,0)!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:#8b5cf6!important;box-shadow:0 0 0 3px rgba(139,92,246,.14)!important;}' +
+      '#' + PANEL_ID + ' .pfh-row.is-sku-editing{cursor:text!important;border-color:rgba(139,92,246,.30)!important;background:rgba(250,248,255,.82)!important;}' +
+      '#' + PANEL_ID + ' .pfh-row.is-sku-editing .pfh-value,#' + PANEL_ID + ' .pfh-row.is-sku-editing .pfh-row-actions{display:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-alert{margin:0 0 11px;padding:12px 14px;border:1px solid rgba(245,158,11,.38);border-radius:14px;background:linear-gradient(135deg,rgba(255,251,235,.98),rgba(255,247,237,.94));box-shadow:0 10px 24px rgba(180,83,9,.10);}' +
+      '#' + PANEL_ID + ' .pfh-data-change-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;color:#8a4b08;font-size:12px;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-head strong{font-size:13px;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-head button{min-height:26px;padding:0 10px;border:1px solid rgba(180,83,9,.25);border-radius:999px;background:rgba(255,255,255,.76);color:#92400e;font-size:11px;cursor:pointer;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-list{display:grid;gap:7px;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-item{display:grid;grid-template-columns:70px minmax(0,1fr);gap:8px;align-items:start;font-size:11px;line-height:1.45;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-item>span{color:#9a6a30;font-weight:700;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-values{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center;min-width:0;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-values del{color:#a15d63;text-decoration:none;overflow-wrap:anywhere;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-values i{color:#b28a57;font-style:normal;}' +
+      '#' + PANEL_ID + ' .pfh-data-change-values ins{color:#5f32c6;font-weight:700;text-decoration:none;overflow-wrap:anywhere;}' +
+      '#' + PANEL_ID + ' .pfh-sparkle-entrance-icon{display:inline-block!important;flex:0 0 auto!important;width:17px!important;height:17px!important;vertical-align:-3px!important;margin-right:4px!important;}' +
+      '@media(max-width:680px){#' + PANEL_ID + ' .pfh-data-change-item{grid-template-columns:1fr;}#' + PANEL_ID + ' .pfh-data-change-values{grid-template-columns:1fr;}#' + PANEL_ID + ' .pfh-data-change-values i{transform:rotate(90deg);justify-self:start;}}';
+    document.documentElement.appendChild(style);
+  }
+
+  function skuDataChangeAlertHtml(data) {
+    const changes = getStoredDataChanges(data).slice(0, 8);
+    if (!changes.length) return '';
+    const rows = changes.map((change) => '<div class="pfh-data-change-item"><span>' + escapeHtml(change.label) + '</span><div class="pfh-data-change-values"><del>' + escapeHtml(change.before || '未识别') + '</del><i>→</i><ins>' + escapeHtml(change.after || '已清空') + '</ins></div></div>').join('');
+    return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><button type="button" data-action="sku-changes-ack">已核对</button></div><div class="pfh-data-change-list">' + rows + '</div></div>';
+  }
+
   function renderDetail(panel, statusText) {
+    ensureSkuDataInteractionStyles();
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
     const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
@@ -5076,6 +5114,7 @@
       renderStatusHtml(statusText),
       '<div class="pfh-detail-scroll">',
       productHeroSectionHtml(state.data, false),
+      skuDataChangeAlertHtml(state.data),
       '<div class="pfh-info-grid">',
       rowHtml('packageCode', L.packageCode, state.data.packageCode),
       rowHtml('printCode', L.printCode, state.data.printCode),
@@ -5108,7 +5147,11 @@
           '<button type="button" data-action="copywriting-refresh">重新获取</button>' +
           ((data && data.copywriting && data.copywriting.updatePending) ? '<button type="button" data-action="copywriting-ack">已查看更新</button>' : '') +
         '</div>'
-      : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button><button type="button" class="pfh-title-open-detail" data-action="copywriting-open">文案</button></div>';
+      : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button><button type="button" class="pfh-title-open-detail" data-action="copywriting-open">文案</button>' +
+          (state.skuEditMode
+            ? '<button type="button" class="pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-title-open-detail" data-action="sku-edit-cancel">取消</button>'
+            : '<button type="button" class="pfh-title-open-detail" data-action="sku-edit-open">编辑数据</button>') +
+        '</div>';
     return '<section class="pfh-section pfh-file-section' + (copywritingMode ? ' pfh-copywriting-hero-section' : '') + '"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
       productThumbHtml(data) +
       '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml((data && data.sku) || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml(title) + '</strong>' + actions + '</div>' +
@@ -5177,7 +5220,13 @@
     const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848';
     const hasError = Boolean(data && data.sku && state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
     return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
-      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : (hasError && isFoodEntry ? '\u26a0 \u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u2728 ' + label)) + '</button>';
+      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : (hasError && isFoodEntry ? '\u26a0 \u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
+  }
+
+  function sparkleEntranceIconHtml() {
+    return '<svg class="pfh-sparkle-entrance-icon" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">' +
+      '<path d="M571.993043 77.913043a89.043478 89.043478 0 0 1 87.485218 69.676522l43.52 194.003478A18.921739 18.921739 0 0 0 716.8 356.173913l192.333913 50.309565a89.043478 89.043478 0 0 1 22.928696 163.06087l-171.074783 101.398261a18.810435 18.810435 0 0 0-9.238261 17.474782l11.130435 198.455652a89.043478 89.043478 0 0 1-89.043478 94.608696 87.485217 87.485217 0 0 1-58.434783-22.260869L466.031304 827.770435a18.810435 18.810435 0 0 0-12.577391-4.786087 18.587826 18.587826 0 0 0-6.90087 1.335652l-185.09913 72.347826a91.492174 91.492174 0 0 1-33.391304 6.344348 89.043478 89.043478 0 0 1-81.363479-124.883478l78.692174-182.427826a19.144348 19.144348 0 0 0-2.782608-19.70087L96.946087 422.288696a89.043478 89.043478 0 0 1 68.452174-145.808696 80.806957 80.806957 0 0 1 8.904348 0l197.89913 18.476522h1.78087a18.810435 18.810435 0 0 0 15.582608-8.236522l107.297392-166.956522A87.485217 87.485217 0 0 1 571.993043 77.913043" fill="#FFD652"/><path d="M505.433043 546.393043l-418.83826-222.608695a87.04 87.04 0 0 1 86.483478-46.747826l193.669565 18.031304a27.714783 27.714783 0 0 0 15.026087-2.671304z" fill="#FFCD69"/><path d="M588.02087 78.692174l-82.476522 467.478261-123.881739-253.996522a28.382609 28.382609 0 0 0 11.130434-10.128696l104.96-163.84a87.707826 87.707826 0 0 1 90.267827-39.513043z" fill="#FFC952"/><path d="M709.008696 349.829565L505.544348 546.281739l82.476522-467.478261a87.373913 87.373913 0 0 1 71.123478 67.895652l42.629565 189.885218a27.603478 27.603478 0 0 0 7.234783 13.245217z" fill="#FFC248"/><path d="M975.693913 480.389565l-470.149565 66.003478L709.008696 349.829565a29.384348 29.384348 0 0 0 13.022608 7.791305l188.438261 49.196521a87.04 87.04 0 0 1 65.224348 73.572174zM933.286957 568.876522L765.885217 667.826087a26.824348 26.824348 0 0 0-11.130434 11.130435L505.655652 546.726957l470.149565-66.003479a86.928696 86.928696 0 0 1-42.51826 88.153044z" fill="#FFC536"/><path d="M713.572174 973.245217a87.81913 87.81913 0 0 1-97.28-13.245217L470.26087 831.443478a27.714783 27.714783 0 0 0-13.913044-6.678261l49.085217-278.260869z" fill="#F7A116"/><path d="M505.544348 546.504348L456.347826 824.765217a28.271304 28.271304 0 0 0-15.137391 1.558261L260.118261 897.113043a87.485217 87.485217 0 0 1-96.166957-21.036521L505.321739 546.504348z" fill="#F99C15"/><path d="M505.321739 546.504348L163.951304 876.076522A87.373913 87.373913 0 0 1 146.476522 779.130435l77.133913-178.086957a28.382609 28.382609 0 0 0 2.003478-15.137391z" fill="#FFB727"/><path d="M505.321739 546.504348l-279.707826 39.17913a27.937391 27.937391 0 0 0-6.121739-14.024348L96.166957 421.286957a87.151304 87.151304 0 0 1-9.683479-97.725218zM505.433043 546.54887l0.011131-0.111305 0.111304 0.022261-0.022261 0.111304z" fill="#FFC536"/><path d="M713.572174 973.245217L505.655652 546.726957 755.2 678.956522a27.492174 27.492174 0 0 0-3.116522 14.580869l11.130435 194.226087a87.262609 87.262609 0 0 1-49.641739 85.481739z" fill="#FFB727"/><path d="M463.544082 272.373941a21.481739 44.410435 36.19 1 0 52.445598-71.684071 21.481739 44.410435 36.19 1 0-52.445598 71.684071Z" fill="#fff"/><path d="M798.052174 168.292174l3.784348 8.013913a6.344348 6.344348 0 0 0 4.674782 3.450435l8.681739 1.446956a6.233043 6.233043 0 0 1 3.339131 11.130435l-6.455652 6.121739a6.455652 6.455652 0 0 0-1.892174 5.565218l1.335652 8.681739a6.233043 6.233043 0 0 1-9.126957 6.455652l-7.791304-4.229565a6.233043 6.233043 0 0 0-5.787826 0l-7.902609 4.006956a6.344348 6.344348 0 0 1-9.015652-6.789565l1.669565-8.570435a6.678261 6.678261 0 0 0-1.780869-5.676522l-6.233044-6.121739a6.344348 6.344348 0 0 1 3.673044-11.130434l8.681739-1.224348a5.89913 5.89913 0 0 0 4.786087-3.339131l4.006956-7.791304a6.344348 6.344348 0 0 1 11.353044 0z" fill="#FFC840"/><path d="M326.455652 202.24l-2.671304 26.37913a19.033043 19.033043 0 0 0 6.678261 16.473044l20.257391 17.140869a19.033043 19.033043 0 0 1-8.236522 33.391305l-25.933913 5.676522a19.144348 19.144348 0 0 0-13.57913 11.130434l-10.017392 24.598261a19.033043 19.033043 0 0 1-34.05913 2.448696l-13.356522-22.928696a18.921739 18.921739 0 0 0-15.026087-9.349565l-26.490434-2.003478a19.033043 19.033043 0 0 1-12.911305-31.610435l17.697392-19.812174a18.69913 18.69913 0 0 0 4.229565-17.252174l-6.344348-25.822609a19.033043 19.033043 0 0 1 26.156522-22.260869l24.375652 11.130435a19.255652 19.255652 0 0 0 17.586087-1.224348l22.260869-14.024348a19.033043 19.033043 0 0 1 29.384348 17.92zM889.655652 793.266087l-5.676522 10.462609a8.681739 8.681739 0 0 0 0 8.125217l5.342609 11.130435a8.236522 8.236522 0 0 1-9.126956 11.798261l-11.130435-2.893913a8.125217 8.125217 0 0 0-7.568696 1.892174l-8.45913 8.125217a8.793043 8.793043 0 0 1-14.469565-5.89913L836.452174 823.652174a9.572174 9.572174 0 0 0-4.563478-7.012174l-11.130435-6.121739a8.793043 8.793043 0 0 1 0-15.693913l11.130435-4.563478a8.125217 8.125217 0 0 0 4.786087-6.233044l1.780869-12.020869a8.236522 8.236522 0 0 1 14.692174-3.673044l8.236522 9.349565a8.45913 8.45913 0 0 0 7.457391 3.005218l11.798261-1.113044a9.126957 9.126957 0 0 1 9.015652 13.690435z" fill="#F99C15"/>' +
+      '</svg>';
   }
 
   function toyCopywritingFeedbackHtml(data) {
@@ -6794,15 +6843,118 @@
     return /^(?:effectImage|productListImage)$/.test(data.skuImageSource || '') ? (data.skuImageUrl || data.skuImageFallbackUrl || '') : '';
   }
 
+  function getSkuEditableFields() {
+    return ['packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight'];
+  }
+
+  function isSkuEditableField(key) {
+    return getSkuEditableFields().includes(key);
+  }
+
+  function getSkuDataFieldLabel(key) {
+    const labels = {
+      brand: '品牌',
+      name: '商品名称',
+      packageCode: L.packageCode,
+      printCode: L.printCode,
+      packageSizeText: L.packageSize,
+      printSizeText: L.printSize,
+      packageLength: L.cartonLength,
+      packageWidth: L.cartonWidth,
+      packageHeight: L.cartonHeight,
+      productLength: L.productLength,
+      productWidth: L.productWidth,
+      productHeight: L.productHeight,
+      netContent: L.netContent,
+      grossWeight: L.grossWeight,
+      englishName: '英文产品名',
+      ingredientChinese: '中文成分',
+      ingredientEnglish: '英文成分',
+      referenceUrl: '对标链接',
+    };
+    return labels[key] || key;
+  }
+
+  function getStoredDataChanges(data) {
+    return Array.isArray(data && data.recentFieldChanges)
+      ? data.recentFieldChanges.filter((item) => item && item.key && item.before !== item.after).slice(0, 20)
+      : [];
+  }
+
+  function saveSkuManualEdits() {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!data || !data.sku) return;
+    const panel = ensurePanel();
+    const values = {};
+    Array.from(panel.querySelectorAll('[data-sku-edit-key]')).forEach((input) => {
+      values[input.getAttribute('data-sku-edit-key')] = String(input.value || '').trim();
+    });
+    const next = { ...data };
+    ['packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'netContent', 'grossWeight'].forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(values, key)) next[key] = values[key];
+    });
+
+    const packageKeys = ['packageLength', 'packageWidth', 'packageHeight'];
+    const packageChanged = packageKeys.some((key) => compactText(values[key]) !== compactText(data[key]));
+    if (packageChanged) {
+      const packageNums = packageKeys.map((key) => firstNumber(values[key]));
+      if (!packageNums.every((value) => Number.isFinite(value) && value > 0)) {
+        showToast('纸盒长、宽、高需要填写完整的有效数字');
+        return;
+      }
+      next.packageNums = packageNums;
+      next.packageSizeText = packageNums.map(trimNumber).join('x') + 'cm';
+    } else if (Object.prototype.hasOwnProperty.call(values, 'packageSizeText') && compactText(values.packageSizeText) !== compactText(data.packageSizeText)) {
+      next.packageNums = null;
+    }
+
+    const productKeys = ['productLength', 'productWidth', 'productHeight'];
+    const productChanged = productKeys.some((key) => compactText(values[key]) !== compactText(data[key]));
+    if (productChanged) {
+      const productNums = productKeys.map((key) => firstNumber(values[key]));
+      if (!productNums.every((value) => Number.isFinite(value) && value > 0)) {
+        showToast('产品长、宽、高需要填写完整的有效数字');
+        return;
+      }
+      next.plmProductNums = productNums;
+      next.productNums = productNums;
+      if (data.isTubePrint) {
+        next.tailSealLengthValue = formatSingleDimension(productNums[0]);
+        next.tubeTailSealLengthValue = next.tailSealLengthValue;
+      }
+    }
+    next.updatedAt = new Date().toLocaleString();
+    next.updatedAtMs = Date.now();
+    saveData(data.sku, next, { changeSource: '手动校准', trackEmptyChanges: true });
+    state.skuEditMode = false;
+    resetExcelState();
+    renderShell();
+    addLog('success', 'SKU 数据手动校准已保存', data.sku);
+    showToast('校准数据已保存');
+  }
+
+  function acknowledgeSkuDataChanges() {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!data || !data.sku) return;
+    const next = { ...data, recentFieldChanges: [] };
+    saveData(data.sku, next, { suppressChangeTracking: true });
+    renderShell();
+    showToast('已确认本次数据更新');
+  }
+
   function rowHtml(key, title, value, options) {
     const shown = value || L.unknown;
     const colorClass = /^package(Length|Width|Height)$/.test(key) ? ' is-carton-dim' : (/^product(Length|Width|Height)$/.test(key) ? ' is-product-dim' : '');
-    const editButton = options && options.editable ? '<button type="button" data-edit-key="' + escapeHtml(key) + '">' + escapeHtml(L.edit) + '</button>' : '';
+    const skuEditing = state.skuEditMode && isSkuEditableField(key);
+    const editButton = !skuEditing && options && options.editable ? '<button type="button" data-edit-key="' + escapeHtml(key) + '">' + escapeHtml(L.edit) + '</button>' : '';
     const namingHint = /^(?:packageSizeText|printSizeText)$/.test(key) ? '左键复制尺寸，右键查看命名与历史编码' : L.copyHint;
-    const copyAttr = options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(namingHint) + '"';
-    return '<div class="pfh-row' + colorClass + '"' + copyAttr + ' data-key="' + escapeHtml(key) + '">' +
+    const copyAttr = skuEditing || options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(namingHint) + '"';
+    const rawEditValue = state.data && state.data[key] != null ? state.data[key] : '';
+    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '" autocomplete="off" spellcheck="false">' : '';
+    return '<div class="pfh-row' + colorClass + (skuEditing ? ' is-sku-editing' : '') + '"' + copyAttr + ' data-key="' + escapeHtml(key) + '">' +
       '<span class="pfh-label"><span>' + escapeHtml(title) + '</span></span>' +
       '<span class="pfh-value">' + escapeHtml(shown).replace(/\n/g, '<br>') + '</span>' +
+      inputHtml +
       '<span class="pfh-row-actions">' + editButton +
       '</span>' +
       '</div>';
@@ -6816,7 +6968,7 @@
     if (!state.excelPanelOpen) {
       return '';
     }
-    const status = state.excelStatus || (state.excelMissing.length ? L.excelIncomplete : L.excelReady);
+    const status = state.excelStatus || formatExcelMissingStatus(state.excelMissing);
     const statusClass = state.excelMissing.length || !state.excelExtra ? ' is-bad' : ' is-good';
     const priceValue = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
     const exportLabel = state.exportType === 'toy-label' ? L.exportTypeToyLabel : L.exportTypeExcel;
@@ -8357,6 +8509,7 @@
       state.data = normalizeData(loadData(sku) || { sku });
       state.view = action === 'sku-context-size' ? 'sizeImage' : 'parameterImage';
       state.copywritingMode = false;
+      state.skuEditMode = false;
       state.skuPage = 1;
       closeSkuWaterfallContextMenu(ensurePanel());
       if (state.view === 'parameterImage') parameterImageFeature.loadRules();
@@ -8555,6 +8708,26 @@
     }
     if (action === 'open-detail') {
       openSelectedProjectDetail();
+      return;
+    }
+    if (action === 'sku-edit-open') {
+      state.skuEditMode = true;
+      renderShell();
+      const firstInput = ensurePanel().querySelector('[data-sku-edit-key]');
+      if (firstInput) firstInput.focus();
+      return;
+    }
+    if (action === 'sku-edit-cancel') {
+      state.skuEditMode = false;
+      renderShell();
+      return;
+    }
+    if (action === 'sku-edit-save') {
+      saveSkuManualEdits();
+      return;
+    }
+    if (action === 'sku-changes-ack') {
+      acknowledgeSkuDataChanges();
       return;
     }
     if (action === 'copywriting-open') {
@@ -9150,6 +9323,7 @@
       }
       state.view = 'detail';
       state.copywritingMode = false;
+      state.skuEditMode = false;
       resetExcelState();
       expandPanel();
       return;
@@ -9174,6 +9348,19 @@
   }
 
   function handlePanelKeydown(event) {
+    if (state.skuEditMode && event.target && event.target.matches && event.target.matches('[data-sku-edit-key]')) {
+      if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        saveSkuManualEdits();
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        state.skuEditMode = false;
+        renderShell();
+        return;
+      }
+    }
     if (state.view === 'ledger' && state.ledgerTimeEditor && event.key === 'Enter' && !event.isComposing && event.target && event.target.matches && event.target.matches('.pfh-ledger-time-date,.pfh-ledger-time-hour,.pfh-ledger-time-minute')) {
       event.preventDefault();
       saveLedgerFinalizedTimeEditor();
@@ -11775,6 +11962,43 @@
     if (price) state.excelPurchasePrice = price.value;
   }
 
+  function buildCachedExcelExtraData(data) {
+    const cached = normalizeData(data || {});
+    const imageInfo = getCachedSkuImageInfo(cached.sku);
+    return {
+      englishName: cleanEnglishProductName(cached.englishName, cached.brand),
+      chineseName: cached.name || '',
+      ingredients: getPreferredExcelIngredients(cached),
+      ingredientEnglish: cached.ingredientEnglish || cached.copywritingIngredientEnglish || '',
+      ingredientChinese: cached.ingredientChinese || cached.copywritingIngredientChinese || '',
+      benchmarkLink: cached.benchmarkLink || cached.referenceUrl || '',
+      imageUrl: imageInfo.imageUrl || '',
+      imageFallbackUrl: imageInfo.imageFallbackUrl || '',
+      skuImageUrl: imageInfo.skuImageUrl || '',
+      skuImageFallbackUrl: imageInfo.skuImageFallbackUrl || '',
+      isSkuDesignImage: Boolean(imageInfo.isSkuDesignImage),
+      liveData: null,
+    };
+  }
+
+  function formatExcelMissingStatus(missing) {
+    const fields = Array.isArray(missing) ? missing.filter(Boolean) : [];
+    return fields.length ? L.excelIncomplete + '：缺少' + fields.join('、') : L.excelReady;
+  }
+
+  function formatExcelCacheDiagnostic(data, extra, missing) {
+    const available = [];
+    if (extra.englishName) available.push('英文产品名');
+    if (extra.ingredients) available.push('成分');
+    if (extra.isSkuDesignImage && (extra.imageUrl || extra.imageFallbackUrl)) available.push('产品图');
+    if (extra.benchmarkLink) available.push('对标链接');
+    if (data.productLength && data.productWidth && data.productHeight) available.push('产品尺寸');
+    if (data.packageLength && data.packageWidth && data.packageHeight) available.push('包装尺寸');
+    if (data.netContent) available.push('净含量');
+    if (data.grossWeight) available.push('毛重');
+    return '缓存已有：' + (available.join('、') || '无') + ' | 缓存缺少：' + ((missing || []).join('、') || '无');
+  }
+
   async function prepareExcelInfo() {
     syncExcelInputs();
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
@@ -11787,31 +12011,45 @@
     state.data = data;
     if (data.purchasePrice) state.excelPurchasePrice = String(data.purchasePrice);
     state.excelPanelOpen = true;
-    state.excelExtra = null;
-    state.excelMissing = [];
-    state.excelStatus = L.excelPreparing;
+    const cachedExtra = buildCachedExcelExtraData(data);
+    const cachedMissing = getExcelMissingFields(data, cachedExtra);
+    state.excelExtra = { extra: cachedExtra, excelData: data };
+    state.excelMissing = cachedMissing;
+    state.excelStatus = cachedMissing.length ? L.excelPreparing + '（缓存缺少：' + cachedMissing.join('、') + '）' : L.excelReady + '（使用缓存）';
+    addLog(cachedMissing.length ? 'info' : 'success', 'Excel 缓存预检', data.sku + ' | ' + formatExcelCacheDiagnostic(data, cachedExtra, cachedMissing));
     renderShell();
+    if (!cachedMissing.length) {
+      await fillRecommendedPackQty(data);
+      await fillRecommendedPurchasePrice(data, cachedExtra);
+      renderShell();
+      return true;
+    }
     try {
-      if (!(await ensureProjectDrawerForData(data))) throw new Error('target project drawer not open');
+      addLog('info', 'Excel 开始补全实时数据', data.sku + ' | 需要补全：' + cachedMissing.join('、'));
+      if (!(await ensureProjectDrawerForData(data))) throw new Error('未能打开目标项目详情抽屉');
       const extra = await collectExcelExtraData(data.sku);
       const excelData = normalizeData(mergeData(data, extra.liveData || {}));
       cacheProductThumb(excelData, extra);
       state.excelExtra = { extra, excelData };
       state.excelMissing = getExcelMissingFields(excelData, extra);
-      state.excelStatus = state.excelMissing.length ? L.excelIncomplete : L.excelReady;
+      state.excelStatus = formatExcelMissingStatus(state.excelMissing);
+      addLog(state.excelMissing.length ? 'warn' : 'success', 'Excel 信息补全结果', data.sku + ' | ' + formatExcelCacheDiagnostic(excelData, extra, state.excelMissing));
       await fillRecommendedPackQty(excelData);
       await fillRecommendedPurchasePrice(excelData, extra);
       if (state.excelMissing.length) showExcelMissingToast();
+      return true;
     } catch (error) {
       console.warn('PLM floating helper excel prepare failed:', error);
-      state.excelExtra = null;
-      state.excelMissing = [L.productTab];
-      state.excelStatus = L.excelIncomplete;
-      addLog('error', '\u83b7\u53d6\u8868\u683c\u4fe1\u606f\u5931\u8d25', data.sku + ' ' + formatErrorMessage(error));
+      state.excelExtra = { extra: cachedExtra, excelData: data };
+      state.excelMissing = cachedMissing;
+      state.excelStatus = formatExcelMissingStatus(cachedMissing);
+      addLog('error', '\u83b7\u53d6\u8868\u683c\u4fe1\u606f\u5931\u8d25', data.sku + ' | ' + formatExcelCacheDiagnostic(data, cachedExtra, cachedMissing) + ' | 错误：' + formatErrorMessage(error));
       recordDataQuality(data, 'excelPrepareFailed');
       showExcelMissingToast();
+      return true;
+    } finally {
+      renderShell();
     }
-    renderShell();
   }
 
   function cacheProductThumb(data, extra) {
@@ -11863,12 +12101,20 @@
     syncExcelInputs();
     const packQty = normalizePackQty(state.excelPackQty);
     const purchasePrice = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
-    if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
-      state.excelPanelOpen = true;
-      state.excelStatus = '\ud83d\udd34 \u8bf7\u5148\u83b7\u53d6\u8868\u683c\u4fe1\u606f';
+    if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku || state.excelMissing.length) {
+      addLog('info', '生成 Excel 前自动准备数据', data.sku + ' | ' + (state.excelMissing.length ? '上次仍缺：' + state.excelMissing.join('、') : '当前没有匹配的表格数据快照'));
+      await prepareExcelInfo();
+      if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku) {
+        state.excelStatus = '\ud83d\udd34 \u8868\u683c\u6570\u636e\u51c6\u5907\u5931\u8d25';
+        renderShell();
+        showToast(state.excelStatus);
+        return;
+      }
+    }
+    if (state.excelMissing.length) {
+      state.excelStatus = formatExcelMissingStatus(state.excelMissing);
+      addLog('warn', 'Excel 将使用不完整数据生成', data.sku + ' | 缺少：' + state.excelMissing.join('、'));
       renderShell();
-      showToast('\ud83d\udd34 \u8bf7\u5148\u83b7\u53d6\u8868\u683c\u4fe1\u606f');
-      return;
     }
     if (state.excelMissing.length) showExcelMissingToast();
     try {
@@ -12451,17 +12697,7 @@
     cancelDrawerTabFlow();
     const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
     const cachedData = normalizeData((state.data && state.data.sku === sku ? state.data : null) || loadData(sku) || {});
-    const extra = {
-      englishName: cleanEnglishProductName(cachedData.englishName, cachedData.brand),
-      chineseName: '',
-      ingredients: getPreferredExcelIngredients(cachedData),
-      ingredientEnglish: cachedData.ingredientEnglish || '',
-      ingredientChinese: cachedData.ingredientChinese || '',
-      benchmarkLink: '',
-      imageUrl: '',
-      imageFallbackUrl: '',
-      liveData: null,
-    };
+    const extra = buildCachedExcelExtraData(cachedData);
     if (!drawer) return extra;
     const token = beginForegroundDrawerTabFlow(sku, drawer);
     try {
@@ -12509,16 +12745,17 @@
         productInfoTimeout: 4500,
         flowToken: token,
       });
+      const resolvedImageInfo = previewImageInfo && previewImageInfo.isSkuDesignImage ? previewImageInfo : getCachedSkuImageInfo(sku);
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) throw new Error('\u7528\u6237\u5df2\u5207\u6362\u9875\u7b7e\uff0cExcel \u8865\u5145\u8bfb\u53d6\u5df2\u53d6\u6d88');
       Object.assign(extra, {
         englishName: cleanEnglishProductName(extractLineAfter(productText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
-        chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || '',
+        chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || extra.chineseName,
         ingredients: getPreferredExcelIngredients(ingredientData) || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
-        ...previewImageInfo,
+        ...resolvedImageInfo,
       });
 
       if (!(await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f', { flowToken: token, timeout: 3500 }))) throw new Error('\u9879\u76ee\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
-      extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer));
+      extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer)) || extra.benchmarkLink;
       await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
       return extra;
     } finally {
@@ -16420,11 +16657,41 @@
     }
   }
 
-  function saveData(sku, data) {
+  function collectTrackedDataChanges(previous, next, options) {
+    if (!previous || !next) return [];
+    const opts = options || {};
+    const tracked = ['brand', 'name', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight', 'englishName', 'ingredientChinese', 'ingredientEnglish', 'referenceUrl'];
+    const source = opts.changeSource || '自动获取';
+    const changedAt = new Date().toLocaleString();
+    return tracked.reduce((changes, key) => {
+      const before = compactText(previous[key]);
+      const after = compactText(next[key]);
+      if (before === after || (!before && !opts.trackEmptyChanges)) return changes;
+      changes.push({ key, label: getSkuDataFieldLabel(key), before, after, source, changedAt });
+      return changes;
+    }, []);
+  }
+
+  function saveData(sku, data, options) {
     if (!sku || !data) return;
+    const opts = options || {};
     const previous = loadData(sku);
     const previousNormalized = previous ? normalizeData(previous) : null;
     const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || new Date().toLocaleString(), updatedAtMs: data.updatedAtMs || Date.now() });
+    if (!opts.suppressChangeTracking && !Object.prototype.hasOwnProperty.call(data, 'recentFieldChanges') && previousNormalized) {
+      normalized.recentFieldChanges = getStoredDataChanges(previousNormalized);
+    }
+    const detectedChanges = opts.suppressChangeTracking ? [] : collectTrackedDataChanges(previousNormalized, normalized, opts);
+    if (detectedChanges.length) {
+      const combined = detectedChanges.concat(getStoredDataChanges(normalized));
+      const seen = new Set();
+      normalized.recentFieldChanges = combined.filter((item) => {
+        const identity = [item.key, item.before, item.after].join('|');
+        if (seen.has(identity)) return false;
+        seen.add(identity);
+        return true;
+      }).slice(0, 20);
+    }
     try {
       saveDataDirect(sku, normalized);
       const viewingSku = state.selectedSku || (state.data && state.data.sku) || '';
@@ -16438,6 +16705,9 @@
       const previousPackKey = previousNormalized ? buildPackBoxKey(previousNormalized) : '';
       const nextPackKey = buildPackBoxKey(normalized);
       if (nextPackKey && nextPackKey !== previousPackKey) schedulePackAiEstimate(normalized);
+      if (detectedChanges.length) {
+        addLog('warn', 'SKU 数据发生变化', sku + ' | ' + detectedChanges.map((item) => item.label + '：' + (item.before || '未识别') + ' → ' + (item.after || '已清空')).join('；'));
+      }
     } catch (error) {
       console.warn('PLM floating helper save failed:', error);
       addLog('error', '\u7f13\u5b58\u5546\u54c1\u5931\u8d25', (sku || '') + ' ' + formatErrorMessage(error));
