@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.128
+// @version      2.5.129
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.128';
+  const SCRIPT_VERSION = '2.5.129';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -4887,7 +4887,7 @@
       const level = item.level || 'info';
       return '<div class="pfh-log-row is-' + escapeHtml(level) + '"><span>' + escapeHtml(item.time || '') + '</span><b>' + escapeHtml(level.toUpperCase()) + '</b><p>' + escapeHtml(item.message || '') + '</p></div>';
     }).join('') : '<div class="pfh-empty">' + escapeHtml(L.logEmpty) + '</div>';
-    return '<div class="pfh-log-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.logTitle) + '</strong><span>' + escapeHtml(String((state.logs || []).length)) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="copy-logs">' + escapeHtml(L.logCopy) + '</button><button type="button" data-action="clear-logs">' + escapeHtml(L.logClear) + '</button></div><div class="pfh-log-list">' + rows + '</div></div>';
+    return '<div class="pfh-log-panel pfh-runtime-log-panel"><div class="pfh-log-head"><strong>' + escapeHtml(L.logTitle) + '</strong><span>' + escapeHtml(String((state.logs || []).length)) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="copy-logs">' + escapeHtml(L.logCopy) + '</button><button type="button" data-action="clear-logs">' + escapeHtml(L.logClear) + '</button></div><div class="pfh-log-list">' + rows + '</div></div>';
   }
 
   function renderUpload(panel) {
@@ -5796,6 +5796,11 @@
         }
       }
       session.error = '';
+      if (detectedType === 'carton') {
+        updateDailyLedgerForSku(sku, { boxFileState: 'done', boxFileDone: true }, getTodayKey());
+      } else {
+        updateDailyLedgerForSku(sku, { labelFileState: 'done', labelFileDone: true }, getTodayKey());
+      }
       recordSizeImageUsage(true);
       if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : (matchedLabelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e')) + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
     } catch (error) {
@@ -15129,7 +15134,7 @@
     syncImportantLog(item, detail);
     const panel = document.getElementById(PANEL_ID);
     if (panel && panel.dataset.view === 'about') {
-      const logPanel = panel.querySelector('.pfh-log-panel');
+      const logPanel = panel.querySelector('.pfh-runtime-log-panel');
       if (logPanel) logPanel.outerHTML = renderLogSection();
     }
   }
@@ -15767,7 +15772,13 @@
     cleanupUploadFiles(latestItem);
     saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     if ((archived.kind || 'standard') === 'standard') syncInsightEvent('image_pack_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
-    if (archived.sku) updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
+    if (archived.sku) {
+      if ((archived.kind || 'standard') === 'standard') {
+        updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
+      } else if (archived.kind === 'toy-label') {
+        updateDailyLedgerForSku(archived.sku, { labelFileState: 'done', labelFileDone: true }, getTodayKey());
+      }
+    }
     renderShell();
   }
 
