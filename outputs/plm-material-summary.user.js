@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.127
+// @version      2.5.128
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,9 +30,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.127';
+  const SCRIPT_VERSION = '2.5.128';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '5';
+  const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -3039,6 +3039,9 @@
       projectRowId: cached.projectRowId || '',
       projectId: cached.projectId || '',
       copywriting: cached.copywriting || null,
+      copywritingIngredientEnglish: cached.copywritingIngredientEnglish || '',
+      copywritingIngredientChinese: cached.copywritingIngredientChinese || '',
+      copywritingIngredientSplit: Boolean(cached.copywritingIngredientSplit),
       ingredientEnglish: cached.ingredientEnglish || '',
       ingredientChinese: cached.ingredientChinese || '',
       ingredientItems: Array.isArray(cached.ingredientItems) ? cached.ingredientItems : [],
@@ -3349,7 +3352,10 @@
             drawer,
             file: attachmentFiles.copywritingFile,
           });
-          if (attachmentFiles.ingredientFile && (!cached.ingredientChinese || !cached.ingredientEnglish)) {
+          if (attachmentFiles.ingredientFile && (
+            cached.ingredientPdfFileName !== attachmentFiles.ingredientFile.fileName
+            || cached.ingredientNormalizerVersion !== INGREDIENT_NORMALIZER_VERSION
+          )) {
             await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile });
           }
         } else {
@@ -3710,11 +3716,16 @@
           : null));
     const isTubePrint = isTubePrintData(safe, packageNums);
     const copywriting = normalizeCopywritingRecord(safe.copywriting);
+    const copywritingIngredientEnglish = String(safe.copywritingIngredientEnglish || copywriting && copywriting.cleanedIngredientEnglish || '').trim();
+    const copywritingIngredientChinese = String(safe.copywritingIngredientChinese || copywriting && copywriting.cleanedIngredientChinese || '').trim();
     return {
       ...safe,
       copywriting,
-      ingredientEnglish: safe.ingredientEnglish || copywriting && copywriting.ingredientEnglish || '',
-      ingredientChinese: safe.ingredientChinese || copywriting && copywriting.ingredientChinese || '',
+      copywritingIngredientEnglish,
+      copywritingIngredientChinese,
+      copywritingIngredientSplit: Boolean(safe.copywritingIngredientSplit || copywriting && copywriting.ingredientSplit),
+      ingredientEnglish: safe.ingredientEnglish || copywritingIngredientEnglish,
+      ingredientChinese: safe.ingredientChinese || copywritingIngredientChinese,
       hasInnerCard,
       singleBottle,
       bottleNums,
@@ -7254,6 +7265,7 @@
         ingredientPdfModel: String(response.model || ''),
         ingredientPdfUpdatedAt: new Date().toLocaleString(),
         ingredientNormalizerVersion: String(response.normalizerVersion || INGREDIENT_NORMALIZER_VERSION),
+        ingredientSource: 'ingredientPdf',
       });
       if (drawer !== getProjectDrawerForSku(sku) || Number(state.skuResultGeneration[sku] || 0) !== resultGeneration) return normalizeData(loadData(sku) || {});
       saveData(sku, next);
@@ -7858,16 +7870,26 @@
   }
 
   function cleanCopywritingIngredientValue(lines, language) {
-    let text = (lines || []).map(cleanCopywritingLine).filter(Boolean).join(' ').trim();
+    let text = (lines || []).map(cleanCopywritingLine).filter(Boolean).join('\n').trim();
     if (!text) return '';
     if (language === 'chinese') {
-      text = text.replace(/^(?:中文)?(?:成分表|成份表|成分|成份)\s*[:：]?\s*/i, '');
+      text = text.replace(/(?:非活性成分|活性成分|(?:中文)?成[分份]表|(?:中文)?成[分份])\s*[:：]?/gi, '、');
     } else {
-      text = text
-        .replace(/\bINACTIVE\s+INGREDIENTS?\s*[:：]?/gi, '; ')
-        .replace(/^(?:ACTIVE\s+)?INGREDIENTS?\s*[:：]?\s*/i, '');
+      text = text.replace(/\b(?:(?:INACTIVE|ACTIVE)\s+)?INGREDIENTS?\s*[:：]?/gi, '、');
     }
-    return text.replace(/^\s*[;；,，、]+\s*/, '').replace(/\s+/g, ' ').trim().slice(0, 8000);
+    return text
+      .split(/[\n、,，;；]+/)
+      .map((item) => cleanCopywritingLine(item).replace(/^[\s:：.。]+|[\s:：.。]+$/g, ''))
+      .filter(Boolean)
+      .join('、')
+      .slice(0, 8000);
+  }
+
+  function hasSplitCopywritingIngredients(englishLines, chineseLines) {
+    const english = (englishLines || []).map(cleanCopywritingLine).join('\n');
+    const chinese = (chineseLines || []).map(cleanCopywritingLine).join('\n');
+    return (/\bACTIVE\s+INGREDIENTS?\s*[:：]?/i.test(english) && /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i.test(english))
+      || (/(?:^|\n)\s*活性成分\s*[:：]?/.test(chinese) && /(?:^|\n)\s*非活性成分\s*[:：]?/.test(chinese));
   }
 
   function buildMainstreamCopywriting(rows, data) {
@@ -7898,6 +7920,7 @@
     const ingredientChineseLines = find(/^(?:成分表|成分活性非活性成分)/, 'chinese');
     const ingredientEnglish = cleanCopywritingIngredientValue(ingredientLines, 'english');
     const ingredientChinese = cleanCopywritingIngredientValue(ingredientChineseLines, 'chinese');
+    const ingredientSplit = hasSplitCopywritingIngredients(ingredientLines, ingredientChineseLines);
     const activeIngredients = extractLabeledCopywritingSection(ingredientLines, /\bACTIVE\s+INGREDIENTS?\s*[:：]?/i, /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i, 'ACTIVE INGREDIENTS:');
     const inactiveIngredients = extractLabeledCopywritingSection(ingredientLines, /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i, null, 'INACTIVE INGREDIENTS:');
     if (activeIngredients.lines.length || inactiveIngredients.lines.length) {
@@ -7923,7 +7946,7 @@
     const shelfLines = find(/^保质期$/);
     add('shelfLife', '保质期', shelfLines.join('\n'));
     formatBrandComplianceSections(data).forEach((section) => add(section.key, section.label, section.text));
-    return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections, ingredientEnglish, ingredientChinese };
+    return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections, ingredientEnglish, ingredientChinese, ingredientSplit };
   }
 
   function findBrandCompliance(data) {
@@ -8038,6 +8061,9 @@
       fullText: built.fullText,
       ingredientEnglish: built.ingredientEnglish,
       ingredientChinese: built.ingredientChinese,
+      cleanedIngredientEnglish: built.ingredientEnglish,
+      cleanedIngredientChinese: built.ingredientChinese,
+      ingredientSplit: Boolean(built.ingredientSplit),
       missingSections: built.missingSections,
       updatePending: changedFile || Boolean(old && old.updatePending),
       changedSectionKeys,
@@ -8063,6 +8089,9 @@
       fullText: String(record.fullText || '').slice(0, 50000),
       ingredientEnglish: String(record.ingredientEnglish || '').trim().slice(0, 8000),
       ingredientChinese: String(record.ingredientChinese || '').trim().slice(0, 8000),
+      cleanedIngredientEnglish: String(record.cleanedIngredientEnglish || record.ingredientEnglish || '').trim().slice(0, 8000),
+      cleanedIngredientChinese: String(record.cleanedIngredientChinese || record.ingredientChinese || '').trim().slice(0, 8000),
+      ingredientSplit: Boolean(record.ingredientSplit),
       missingSections: (Array.isArray(record.missingSections) ? record.missingSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
       updatePending: Boolean(record.updatePending),
       changedSectionKeys: (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16),
@@ -8073,14 +8102,18 @@
 
   function mergeCopywritingCacheIntoData(data, record) {
     const cached = normalizeCopywritingRecord(record);
-    const english = String(cached && cached.ingredientEnglish || '').trim();
-    const chinese = String(cached && cached.ingredientChinese || '').trim();
+    const english = String(cached && cached.cleanedIngredientEnglish || '').trim();
+    const chinese = String(cached && cached.cleanedIngredientChinese || '').trim();
+    const hasExistingIngredients = Boolean(data && (data.ingredientEnglish || data.ingredientChinese));
     return normalizeData({
       ...(data || {}),
       copywriting: cached,
-      ingredientEnglish: english || data && data.ingredientEnglish || '',
-      ingredientChinese: chinese || data && data.ingredientChinese || '',
-      ingredientSource: english || chinese ? 'copywritingWord' : data && data.ingredientSource || '',
+      copywritingIngredientEnglish: english,
+      copywritingIngredientChinese: chinese,
+      copywritingIngredientSplit: Boolean(cached && cached.ingredientSplit),
+      ingredientEnglish: data && data.ingredientEnglish || english,
+      ingredientChinese: data && data.ingredientChinese || chinese,
+      ingredientSource: hasExistingIngredients ? (data && data.ingredientSource || '') : (english || chinese ? 'copywritingWord' : data && data.ingredientSource || ''),
       ingredientWordFileName: english || chinese ? cached.fileName : data && data.ingredientWordFileName || '',
       ingredientWordHash: english || chinese ? cached.fileHash : data && data.ingredientWordHash || '',
       ingredientWordUpdatedAt: english || chinese ? cached.fetchedAt : data && data.ingredientWordUpdatedAt || '',
@@ -12153,6 +12186,16 @@
     return { imageUrl: '', imageFallbackUrl: '' };
   }
 
+  function getPreferredExcelIngredients(data) {
+    const cached = normalizeData(data || {});
+    if (cached.copywritingIngredientSplit && cached.copywritingIngredientChinese) return cached.copywritingIngredientChinese;
+    return cached.ingredientChinese
+      || cached.copywritingIngredientChinese
+      || cached.ingredientEnglish
+      || cached.copywritingIngredientEnglish
+      || '';
+  }
+
   async function collectExcelExtraData(sku) {
     stopScan();
     cancelDrawerTabFlow();
@@ -12161,7 +12204,7 @@
     const extra = {
       englishName: cleanEnglishProductName(cachedData.englishName, cachedData.brand),
       chineseName: '',
-      ingredients: cachedData.ingredientChinese || cachedData.ingredientEnglish || '',
+      ingredients: getPreferredExcelIngredients(cachedData),
       ingredientEnglish: cachedData.ingredientEnglish || '',
       ingredientChinese: cachedData.ingredientChinese || '',
       benchmarkLink: '',
@@ -12197,7 +12240,10 @@
       }
       const ingredientItem = findIngredientPdfItem(drawer);
       const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
-      if (ingredientFile && (!ingredientData.ingredientChinese || !ingredientData.ingredientEnglish)) {
+      if (ingredientFile && (
+        ingredientData.ingredientPdfFileName !== ingredientFile.fileName
+        || ingredientData.ingredientNormalizerVersion !== INGREDIENT_NORMALIZER_VERSION
+      )) {
         if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
         else ingredientData = await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile });
         ingredientData = normalizeData(loadData(sku) || ingredientData);
@@ -12217,7 +12263,7 @@
       Object.assign(extra, {
         englishName: cleanEnglishProductName(extractLineAfter(productText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
         chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || '',
-        ingredients: extra.ingredientChinese || extra.ingredientEnglish || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
+        ingredients: getPreferredExcelIngredients(ingredientData) || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
         ...previewImageInfo,
       });
 
