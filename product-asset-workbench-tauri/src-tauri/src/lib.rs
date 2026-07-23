@@ -403,6 +403,7 @@ fn request_excel(
         "type": "excel.generate",
         "jobId": job_id,
         "sku": product.sku,
+        "product": product,
         "fileName": excel_path.file_name().and_then(|value| value.to_str()).unwrap_or("PLM产品信息.xlsx"),
         "transparentImageDataUrl": transparent_image_data_url
     });

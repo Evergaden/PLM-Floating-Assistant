@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.144
+// @version      2.5.145
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.144';
+  const SCRIPT_VERSION = '2.5.145';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2173,7 +2173,12 @@
     if (!/^SKU\d{8}$/.test(sku) || !jobId) throw new Error('Excel 任务参数无效');
     if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载');
     if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
-    const data = normalizeData(loadData(sku) || state.index.find((item) => item.sku === sku) || {});
+    const cachedData = normalizeData(loadData(sku) || state.index.find((item) => item.sku === sku) || {});
+    const ledgerData = normalizeData(
+      sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()).find((item) => String(item.sku || '').toUpperCase() === sku) || {}
+    );
+    const bridgeData = normalizeData(message && message.product || {});
+    const data = normalizeData(mergeData(mergeData(cachedData, ledgerData), bridgeData));
     if (!data.sku) throw new Error('本地缓存中找不到 ' + sku);
     state.selectedSku = sku;
     state.data = data;
@@ -2185,7 +2190,11 @@
     const excelData = normalizeData(prepared.excelData || data);
     const packQty = normalizePackQty(state.excelPackQty || excelData.packQty || excelData.packCount || excelData.cartonQty || '');
     const purchasePrice = String(state.excelPurchasePrice || excelData.purchasePrice || '6');
-    if (!packQty) throw new Error(sku + ' 未能补全装箱数，请先检查装箱推荐配置');
+    if (!packQty) {
+      const packBoxKey = buildPackBoxKey(excelData);
+      if (!packBoxKey) throw new Error(sku + ' 缺少完整包装尺寸，无法计算装箱数');
+      throw new Error(sku + ' 的包装尺寸为 ' + packBoxKey + '，但装箱推荐服务未返回结果');
+    }
     if (!extra.isSkuDesignImage || !(extra.skuImageUrl || extra.imageUrl || extra.skuImageFallbackUrl || extra.imageFallbackUrl)) {
       throw new Error(sku + ' 未能读取 SKU 设计图，请确认项目详情中的产品图可预览');
     }
