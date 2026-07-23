@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.134
+// @version      2.5.135
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.134';
+  const SCRIPT_VERSION = '2.5.135';
+  // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
+  const UI_ASSET_VERSION = '2.5.134';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -1535,6 +1537,7 @@
   }
 
   function getCachedCloudUiStyles() {
+    if (String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION) return '';
     const css = cloudAssetCache && cloudAssetCache.uiCss;
     return typeof css === 'string' && css.length > 10000 ? css : '';
   }
@@ -1567,7 +1570,8 @@
     const now = Date.now();
     const hasUiStyles = Boolean(getCachedCloudUiStyles());
     const staleBrandCompliance = cloudBrandComplianceNeedsRefresh(cloudAssetCache);
-    if (!force && !staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+    const staleUiAsset = String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION;
+    if (!force && !staleBrandCompliance && !staleUiAsset && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
     const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
@@ -1575,7 +1579,7 @@
       throw new Error('unsupported cloud asset manifest');
     }
     if (!staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && cloudAssetCache.dataVersion === manifest.dataVersion) {
-      cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
+      cloudAssetCache = { ...cloudAssetCache, checkedAt: now, uiAssetVersion: UI_ASSET_VERSION };
       saveCloudAssetCache(cloudAssetCache);
       return cloudAssetCache;
     }
@@ -1593,6 +1597,7 @@
       ...(cloudAssetCache || {}),
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
+      uiAssetVersion: UI_ASSET_VERSION,
       uiCss,
       uiCssUpdatedAt: new Date(now).toISOString(),
     };
@@ -1615,6 +1620,7 @@
     const nextCache = {
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
+      uiAssetVersion: UI_ASSET_VERSION,
       checkedAt: now,
       updatedAt: new Date(now).toISOString(),
       runtimeData,
