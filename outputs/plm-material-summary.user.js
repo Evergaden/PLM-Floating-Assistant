@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.136
+// @version      2.5.137
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.136';
+  const SCRIPT_VERSION = '2.5.137';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5189,6 +5189,10 @@
     return '<svg class="pfh-copywriting-copied-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m7.5 12.2 3 3 6-6"></path></svg>';
   }
 
+  function isCopywritingFileViewSection(section) {
+    return Boolean(section && section.key !== 'functionsHeading' && section.key !== 'directionsChinese');
+  }
+
   function copywritingViewHtml(data) {
     const record = normalizeCopywritingRecord(data && data.copywriting);
     if (state.copywritingLoading && !(record && record.fullText)) {
@@ -5203,7 +5207,7 @@
     const changed = new Set(record.changedSectionKeys || []);
     const copied = new Set(record.copiedSectionKeys || []);
     const view = state.copywritingView === 'full' ? 'full' : 'file';
-    const visibleSections = record.sections.filter((section) => section.key !== 'functionsHeading');
+    const visibleSections = record.sections.filter(isCopywritingFileViewSection);
     const copiedCount = visibleSections.filter((section) => copied.has(section.key)).length;
     const updateHtml = record.updatePending
       ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>'
@@ -7350,15 +7354,46 @@
     const keys = new Set(record.copiedSectionKeys || []);
     if (copiedFullText) record.sections.forEach((section) => keys.add(section.key));
     else if (sectionKey) keys.add(sectionKey);
+    const nextRecord = normalizeCopywritingRecord({
+      ...record,
+      copiedSectionKeys: Array.from(keys),
+      copiedFullText: Boolean(record.copiedFullText || copiedFullText),
+    });
     saveData(data.sku, {
       ...data,
-      copywriting: {
-        ...record,
-        copiedSectionKeys: Array.from(keys),
-        copiedFullText: Boolean(record.copiedFullText || copiedFullText),
-      },
+      copywriting: nextRecord,
     }, { suppressChangeTracking: true });
-    renderShell();
+    updateCopywritingCopiedUi(nextRecord);
+  }
+
+  function updateCopywritingCopiedUi(record) {
+    const panel = document.getElementById(PANEL_ID);
+    if (!panel || !state.copywritingMode || !record) return;
+    const copied = new Set(record.copiedSectionKeys || []);
+    const sectionMap = new Map((record.sections || []).map((section) => [section.key, section]));
+    panel.querySelectorAll('.pfh-copywriting-block[data-copywriting-key]').forEach((block) => {
+      const key = block.getAttribute('data-copywriting-key') || '';
+      if (!copied.has(key)) return;
+      const section = sectionMap.get(key);
+      block.classList.add('is-copied');
+      const button = block.querySelector('[data-action="copywriting-section-copy"]');
+      if (button) button.innerHTML = copywritingCopiedIconHtml() + '已复制本段';
+      if (!block.querySelector('.pfh-copywriting-copied-note')) {
+        block.insertAdjacentHTML('beforeend', '<div class="pfh-copywriting-copied-note">' + copywritingCopiedIconHtml() + '<span>已复制：' + escapeHtml(section && (section.label || section.key) || key) + '</span></div>');
+      }
+    });
+    const fullCard = panel.querySelector('.pfh-copywriting-full-card');
+    if (fullCard && record.copiedFullText) {
+      fullCard.classList.add('is-copied');
+      const button = fullCard.querySelector('[data-action="copywriting-copy"]');
+      if (button) button.innerHTML = copywritingCopiedIconHtml() + '已复制全文';
+    }
+    const progress = panel.querySelector('.pfh-copywriting-progress');
+    if (progress && state.copywritingView !== 'full') {
+      const visibleSections = (record.sections || []).filter(isCopywritingFileViewSection);
+      const copiedCount = visibleSections.filter((section) => copied.has(section.key)).length;
+      progress.textContent = '已复制 ' + copiedCount + ' / ' + visibleSections.length + ' · 点击卡片右侧按钮复制';
+    }
   }
 
   async function hydrateCopywritingForSku(sku, options) {
