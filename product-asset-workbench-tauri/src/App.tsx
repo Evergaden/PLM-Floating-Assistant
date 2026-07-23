@@ -154,9 +154,9 @@ export default function App() {
   async function generateSelected() {
     const targets = rows.filter((row) => selected.has(row.product.sku));
     if (!targets.length) return notify("请先选择至少一个 SKU");
-    if (!bridge.connected && targets.some((row) => overwrite || !row.excelExists)) {
+    if (!bridge.connected) {
       setShowConnect(true);
-      return notify("生成 Excel 前需要连接悬浮助手");
+      return notify("生成资产前需要连接悬浮助手");
     }
     const unresolved = targets.filter((row) => !row.folder);
     if (unresolved.length) {
@@ -165,15 +165,9 @@ export default function App() {
       return;
     }
     for (const row of targets) {
-      setJobs((current) => ({ ...current, [row.product.sku]: { state: "running", message: "正在生成图片" } }));
+      setJobs((current) => ({ ...current, [row.product.sku]: { state: "queued", message: "等待悬浮助手生成三类资产" } }));
       try {
-        await invoke("generate_images", { product: row.product, folder: row.folder, overwrite });
-        if (overwrite || !row.excelExists) {
-          setJobs((current) => ({ ...current, [row.product.sku]: { state: "queued", message: "等待悬浮助手生成 Excel" } }));
-          await invoke("request_excel", { product: row.product, folder: row.folder, overwrite });
-        } else {
-          setJobs((current) => ({ ...current, [row.product.sku]: { state: "done", message: "图片完成，Excel 已跳过" } }));
-        }
+        await invoke("request_excel", { product: row.product, folder: row.folder, overwrite });
       } catch (error) {
         setJobs((current) => ({ ...current, [row.product.sku]: { state: "error", message: String(error) } }));
       }

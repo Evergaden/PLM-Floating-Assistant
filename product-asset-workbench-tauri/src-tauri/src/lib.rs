@@ -5,17 +5,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use ab_glyph::{FontArc, PxScale};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use futures_util::{SinkExt, StreamExt};
-use image::{
-    DynamicImage, GenericImageView, ImageReader, Rgba, RgbaImage,
-    codecs::jpeg::JpegEncoder, imageops,
-};
-use imageproc::{
-    drawing::{draw_line_segment_mut, draw_text_mut},
-    rect::Rect,
-};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -37,14 +28,16 @@ struct BridgeInner {
     snapshot_path: PathBuf,
     sender: Mutex<Option<mpsc::UnboundedSender<Message>>>,
     products: Mutex<Vec<FinalizedProduct>>,
-    pending: Mutex<HashMap<String, PendingExcel>>,
+    pending: Mutex<HashMap<String, PendingAssets>>,
     script_version: Mutex<String>,
 }
 
 #[derive(Clone)]
-struct PendingExcel {
+struct PendingAssets {
     sku: String,
-    path: PathBuf,
+    excel_path: PathBuf,
+    english_path: PathBuf,
+    size_path: PathBuf,
     overwrite: bool,
 }
 
@@ -113,14 +106,6 @@ struct ProductPreview {
     size_exists: bool,
     ambiguous_folders: Vec<String>,
     missing: Vec<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ImageGenerationResult {
-    created: Vec<String>,
-    skipped: Vec<String>,
-    warnings: Vec<String>,
 }
 
 fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
@@ -253,14 +238,13 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str)
             }
             let _ = app.emit("snapshot-updated", json!({"count": state.inner.products.lock().map(|items| items.len()).unwrap_or(0)}));
         }
-        "excel.file" => {
+        "asset.bundle" => {
             let job_id = value.get("jobId").and_then(Value::as_str).unwrap_or_default();
-            let encoded = value.get("base64").and_then(Value::as_str).unwrap_or_default();
             let pending = state.inner.pending.lock().ok().and_then(|mut jobs| jobs.remove(job_id));
             let Some(pending) = pending else { return };
-            let result = persist_excel(encoded, &pending);
+            let result = persist_assets(&value, &pending);
             let (job_state, message) = match result {
-                Ok(()) => ("done", "Excel 与图片已生成".to_string()),
+                Ok(message) => ("done", message),
                 Err(error) => ("error", error),
             };
             let _ = app.emit("asset-job", json!({"sku": pending.sku, "state": job_state, "message": message}));
@@ -278,7 +262,10 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str)
     }
 }
 
-fn persist_excel(encoded: &str, pending: &PendingExcel) -> Result<(), String> {
+fn persist_excel(encoded: &str, pending: &PendingAssets) -> Result<bool, String> {
+    if pending.excel_path.exists() && !pending.overwrite {
+        return Ok(false);
+    }
     if encoded.len() > MAX_EXCEL_BYTES * 2 {
         return Err("Excel 文件超过允许大小".to_string());
     }
@@ -286,19 +273,65 @@ fn persist_excel(encoded: &str, pending: &PendingExcel) -> Result<(), String> {
     if bytes.len() > MAX_EXCEL_BYTES || !bytes.starts_with(b"PK") {
         return Err("悬浮助手返回的 Excel 文件无效".to_string());
     }
-    if pending.path.exists() && !pending.overwrite {
-        return Ok(());
-    }
-    if let Some(parent) = pending.path.parent() {
+    if let Some(parent) = pending.excel_path.parent() {
         fs::create_dir_all(parent).map_err(|error| format!("无法创建 Excel 目录：{error}"))?;
     }
-    let temporary = pending.path.with_extension(format!("xlsx.{}.partial", Uuid::new_v4()));
+    let temporary = pending.excel_path.with_extension(format!("xlsx.{}.partial", Uuid::new_v4()));
     fs::write(&temporary, bytes).map_err(|error| format!("无法写入 Excel 临时文件：{error}"))?;
-    if pending.path.exists() {
-        fs::remove_file(&pending.path).map_err(|error| format!("无法覆盖已有 Excel：{error}"))?;
+    if pending.excel_path.exists() {
+        fs::remove_file(&pending.excel_path).map_err(|error| format!("无法覆盖已有 Excel：{error}"))?;
     }
-    fs::rename(&temporary, &pending.path).map_err(|error| format!("无法完成 Excel 文件写入：{error}"))?;
-    Ok(())
+    fs::rename(&temporary, &pending.excel_path).map_err(|error| format!("无法完成 Excel 文件写入：{error}"))?;
+    Ok(true)
+}
+
+fn persist_jpeg(data_url: &str, path: &Path, overwrite: bool) -> Result<bool, String> {
+    if path.exists() && !overwrite {
+        return Ok(false);
+    }
+    if data_url.is_empty() {
+        return Ok(false);
+    }
+    let encoded = data_url.split_once(',').map(|(_, data)| data).unwrap_or(data_url);
+    let bytes = BASE64.decode(encoded).map_err(|error| format!("图片数据无法解码：{error}"))?;
+    if bytes.len() < 4 || !bytes.starts_with(&[0xff, 0xd8, 0xff]) {
+        return Err("悬浮助手返回的 JPG 图片无效".to_string());
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("无法创建图片目录：{error}"))?;
+    }
+    let temporary = path.with_extension(format!("jpg.{}.partial", Uuid::new_v4()));
+    fs::write(&temporary, bytes).map_err(|error| format!("无法写入图片临时文件：{error}"))?;
+    if path.exists() {
+        fs::remove_file(path).map_err(|error| format!("无法覆盖已有图片：{error}"))?;
+    }
+    fs::rename(&temporary, path).map_err(|error| format!("无法完成图片文件写入：{error}"))?;
+    Ok(true)
+}
+
+fn persist_assets(value: &Value, pending: &PendingAssets) -> Result<String, String> {
+    let excel_created = persist_excel(
+        value.get("excelBase64").and_then(Value::as_str).unwrap_or_default(),
+        pending,
+    )?;
+    let english_created = persist_jpeg(
+        value.get("englishDataUrl").and_then(Value::as_str).unwrap_or_default(),
+        &pending.english_path,
+        pending.overwrite,
+    )?;
+    let size_created = persist_jpeg(
+        value.get("sizeDataUrl").and_then(Value::as_str).unwrap_or_default(),
+        &pending.size_path,
+        pending.overwrite,
+    )?;
+    let created = [excel_created, english_created, size_created].into_iter().filter(|value| *value).count();
+    if created == 3 {
+        Ok("Excel、英文参数图和尺寸图已由悬浮助手生成".to_string())
+    } else if created == 0 {
+        Ok("目标文件均已存在，已跳过".to_string())
+    } else {
+        Ok(format!("悬浮助手已生成 {created} 个文件，其余文件已存在或缺少透明.png"))
+    }
 }
 
 #[tauri::command]
@@ -333,39 +366,6 @@ fn preview_products(
 }
 
 #[tauri::command]
-fn generate_images(
-    product: FinalizedProduct,
-    folder: String,
-    overwrite: bool,
-) -> Result<ImageGenerationResult, String> {
-    let folder = PathBuf::from(folder);
-    if !folder.is_dir() {
-        return Err("产品目录不存在".to_string());
-    }
-    let (_, english_path, size_path) = output_paths(&folder, &product);
-    let transparent = find_transparent_image(&folder);
-    let mut result = ImageGenerationResult { created: Vec::new(), skipped: Vec::new(), warnings: Vec::new() };
-    let Some(source) = transparent else {
-        result.warnings.push("缺少透明.png，英文参数图和尺寸图未生成".to_string());
-        return Ok(result);
-    };
-
-    if english_path.exists() && !overwrite {
-        result.skipped.push(path_text(&english_path));
-    } else {
-        render_english_parameter_image(&source, &english_path, &product)?;
-        result.created.push(path_text(&english_path));
-    }
-    if size_path.exists() && !overwrite {
-        result.skipped.push(path_text(&size_path));
-    } else {
-        render_size_image(&source, &size_path, &product)?;
-        result.created.push(path_text(&size_path));
-    }
-    Ok(result)
-}
-
-#[tauri::command]
 fn request_excel(
     app: AppHandle,
     state: State<'_, BridgeState>,
@@ -377,19 +377,34 @@ fn request_excel(
     if !folder.is_dir() {
         return Err("产品目录不存在".to_string());
     }
-    let (excel_path, _, _) = output_paths(&folder, &product);
-    if excel_path.exists() && !overwrite {
-        let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"done", "message":"已有 Excel，已跳过"}));
+    let (excel_path, english_path, size_path) = output_paths(&folder, &product);
+    if !overwrite && excel_path.exists() && english_path.exists() && size_path.exists() {
+        let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"done", "message":"三个目标文件均已存在，已跳过"}));
         return Ok(String::new());
     }
+    let transparent_image_data_url = if overwrite || !english_path.exists() || !size_path.exists() {
+        find_transparent_image(&folder)
+            .and_then(|path| fs::read(path).ok())
+            .map(|bytes| format!("data:image/png;base64,{}", BASE64.encode(bytes)))
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
     let job_id = Uuid::new_v4().to_string();
-    let pending = PendingExcel { sku: product.sku.clone(), path: excel_path.clone(), overwrite };
+    let pending = PendingAssets {
+        sku: product.sku.clone(),
+        excel_path: excel_path.clone(),
+        english_path,
+        size_path,
+        overwrite,
+    };
     state.inner.pending.lock().map_err(|_| "无法访问任务队列".to_string())?.insert(job_id.clone(), pending);
     let message = json!({
         "type": "excel.generate",
         "jobId": job_id,
         "sku": product.sku,
-        "fileName": excel_path.file_name().and_then(|value| value.to_str()).unwrap_or("PLM产品信息.xlsx")
+        "fileName": excel_path.file_name().and_then(|value| value.to_str()).unwrap_or("PLM产品信息.xlsx"),
+        "transparentImageDataUrl": transparent_image_data_url
     });
     let send_result = state.inner.sender.lock()
         .map_err(|_| "无法访问桥接状态".to_string())?
@@ -400,7 +415,7 @@ fn request_excel(
         state.inner.pending.lock().ok().map(|mut jobs| jobs.remove(&job_id));
         return Err("Excel 任务发送失败".to_string());
     }
-    let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"queued", "message":"等待悬浮助手生成 Excel"}));
+    let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"queued", "message":"等待悬浮助手生成 Excel、英文参数图和尺寸图"}));
     Ok(job_id)
 }
 
@@ -500,99 +515,6 @@ fn path_text(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
 
-fn load_font() -> Result<FontArc, String> {
-    let candidates = [
-        PathBuf::from(r"C:\Windows\Fonts\msyh.ttc"),
-        PathBuf::from(r"C:\Windows\Fonts\Deng.ttf"),
-        PathBuf::from(r"C:\Windows\Fonts\simhei.ttf"),
-        PathBuf::from(r"C:\Windows\Fonts\arial.ttf"),
-    ];
-    candidates
-        .iter()
-        .find_map(|path| fs::read(path).ok().and_then(|bytes| FontArc::try_from_vec(bytes).ok()))
-        .ok_or_else(|| "无法加载系统字体".to_string())
-}
-
-fn open_product_image(path: &Path) -> Result<DynamicImage, String> {
-    ImageReader::open(path)
-        .map_err(|error| format!("无法读取透明图：{error}"))?
-        .with_guessed_format()
-        .map_err(|error| format!("无法识别透明图格式：{error}"))?
-        .decode()
-        .map_err(|error| format!("透明图无法解码：{error}"))
-}
-
-fn place_product(canvas: &mut RgbaImage, source: &DynamicImage, bounds: Rect) {
-    let (source_width, source_height) = source.dimensions();
-    let scale = (bounds.width() as f32 / source_width as f32).min(bounds.height() as f32 / source_height as f32);
-    let width = (source_width as f32 * scale).round().max(1.0) as u32;
-    let height = (source_height as f32 * scale).round().max(1.0) as u32;
-    let resized = source.resize(width, height, image::imageops::FilterType::Lanczos3).to_rgba8();
-    let x = bounds.left() as i64 + ((bounds.width().saturating_sub(width)) / 2) as i64;
-    let y = bounds.top() as i64 + ((bounds.height().saturating_sub(height)) / 2) as i64;
-    imageops::overlay(canvas, &resized, x, y);
-}
-
-fn save_jpeg(canvas: &RgbaImage, output: &Path) -> Result<(), String> {
-    if let Some(parent) = output.parent() {
-        fs::create_dir_all(parent).map_err(|error| format!("无法创建图片目录：{error}"))?;
-    }
-    let file = fs::File::create(output).map_err(|error| format!("无法创建图片：{error}"))?;
-    JpegEncoder::new_with_quality(file, 96)
-        .encode_image(&DynamicImage::ImageRgba8(canvas.clone()))
-        .map_err(|error| format!("无法保存 JPG：{error}"))
-}
-
-fn dim_text(a: &str, b: &str, c: &str) -> String {
-    let values = [a.trim(), b.trim(), c.trim()].into_iter().filter(|value| !value.is_empty()).collect::<Vec<_>>();
-    if values.is_empty() { "—".to_string() } else { format!("{} cm", values.join(" × ")) }
-}
-
-fn render_english_parameter_image(source: &Path, output: &Path, product: &FinalizedProduct) -> Result<(), String> {
-    let source = open_product_image(source)?;
-    let font = load_font()?;
-    let mut canvas = RgbaImage::from_pixel(1600, 1600, Rgba([255, 255, 255, 255]));
-    draw_text_mut(&mut canvas, Rgba([63, 72, 96, 255]), 92, 74, PxScale::from(34.0), &font, &product.brand);
-    draw_text_mut(&mut canvas, Rgba([19, 32, 51, 255]), 92, 142, PxScale::from(57.0), &font, &product.english_name);
-    draw_text_mut(&mut canvas, Rgba([101, 71, 245, 255]), 94, 246, PxScale::from(27.0), &font, &format!("SKU  {}", product.sku));
-    let lines = [
-        ("NET CONTENT", product.net_content.clone()),
-        ("GROSS WEIGHT", product.gross_weight.clone()),
-        ("PACKAGE SIZE", dim_text(&product.package_length, &product.package_width, &product.package_height)),
-        ("PRODUCT SIZE", dim_text(&product.product_length, &product.product_width, &product.product_height)),
-    ];
-    for (index, (label, value)) in lines.iter().enumerate() {
-        let y = 440 + index as i32 * 175;
-        draw_text_mut(&mut canvas, Rgba([126, 136, 153, 255]), 96, y, PxScale::from(24.0), &font, label);
-        draw_text_mut(&mut canvas, Rgba([24, 40, 62, 255]), 96, y + 45, PxScale::from(39.0), &font, value);
-        draw_line_segment_mut(&mut canvas, (96.0, (y + 119) as f32), (650.0, (y + 119) as f32), Rgba([230, 233, 239, 255]));
-    }
-    place_product(&mut canvas, &source, Rect::at(760, 320).of_size(760, 1120));
-    save_jpeg(&canvas, output)
-}
-
-fn render_size_image(source: &Path, output: &Path, product: &FinalizedProduct) -> Result<(), String> {
-    let source = open_product_image(source)?;
-    let font = load_font()?;
-    let mut canvas = RgbaImage::from_pixel(1600, 1600, Rgba([255, 255, 255, 255]));
-    draw_text_mut(&mut canvas, Rgba([63, 72, 96, 255]), 88, 70, PxScale::from(32.0), &font, &product.brand);
-    draw_text_mut(&mut canvas, Rgba([19, 32, 51, 255]), 88, 132, PxScale::from(49.0), &font, &product.english_name);
-    place_product(&mut canvas, &source, Rect::at(260, 275).of_size(1000, 960));
-    let accent = Rgba([101, 71, 245, 255]);
-    draw_line_segment_mut(&mut canvas, (280.0, 1300.0), (1260.0, 1300.0), accent);
-    draw_line_segment_mut(&mut canvas, (280.0, 1285.0), (280.0, 1315.0), accent);
-    draw_line_segment_mut(&mut canvas, (1260.0, 1285.0), (1260.0, 1315.0), accent);
-    draw_line_segment_mut(&mut canvas, (1330.0, 300.0), (1330.0, 1230.0), accent);
-    draw_line_segment_mut(&mut canvas, (1315.0, 300.0), (1345.0, 300.0), accent);
-    draw_line_segment_mut(&mut canvas, (1315.0, 1230.0), (1345.0, 1230.0), accent);
-    let width = if product.product_width.trim().is_empty() { &product.package_width } else { &product.product_width };
-    let height = if product.product_height.trim().is_empty() { &product.package_height } else { &product.product_height };
-    draw_text_mut(&mut canvas, accent, 660, 1325, PxScale::from(34.0), &font, &format!("{} cm", width));
-    draw_text_mut(&mut canvas, accent, 1360, 720, PxScale::from(34.0), &font, &format!("{} cm", height));
-    draw_text_mut(&mut canvas, Rgba([128, 138, 155, 255]), 88, 1480, PxScale::from(22.0), &font, "Measurements are approximate.");
-    save_jpeg(&canvas, output)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -635,7 +557,6 @@ pub fn run() {
             get_products,
             request_snapshot,
             preview_products,
-            generate_images,
             request_excel,
         ])
         .run(tauri::generate_context!())

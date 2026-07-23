@@ -210,41 +210,56 @@
     if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
     const data = normalizeData(loadData(sku) || state.index.find((item) => item.sku === sku) || {});
     if (!data.sku) throw new Error('本地缓存中找不到 ' + sku);
-    const extra = buildCachedExcelExtraData(data);
-    const packQty = normalizePackQty(data.packQty || data.packCount || data.cartonQty || '');
-    const purchasePrice = data.purchasePrice === '' ? '6' : (data.purchasePrice || '6');
-    addLog('info', '桌面工作台生成 Excel', sku);
+    state.selectedSku = sku;
+    state.data = data;
+    resetExcelState();
+    addLog('info', '桌面工作台请求悬浮助手生成资产', sku);
+    await prepareExcelInfo();
+    const prepared = state.excelExtra || {};
+    const extra = prepared.extra || buildCachedExcelExtraData(data);
+    const excelData = normalizeData(prepared.excelData || data);
+    const packQty = normalizePackQty(state.excelPackQty || excelData.packQty || excelData.packCount || excelData.cartonQty || '');
+    const purchasePrice = String(state.excelPurchasePrice || excelData.purchasePrice || '6');
+    if (!packQty) throw new Error(sku + ' 未能补全装箱数，请先检查装箱推荐配置');
+    if (!extra.isSkuDesignImage || !(extra.skuImageUrl || extra.imageUrl || extra.skuImageFallbackUrl || extra.imageFallbackUrl)) {
+      throw new Error(sku + ' 未能读取 SKU 设计图，请确认项目详情中的产品图可预览');
+    }
+    const imageData = normalizeData({
+      ...excelData,
+      englishName: extra.englishName || excelData.englishName,
+      ingredients: extra.ingredients || getPreferredExcelIngredients(excelData),
+    });
 
     const workbook = new window.ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
-    const excelImageSource = getExcelImageSource(data, extra);
+    const excelImageSource = getExcelImageSource(excelData, extra);
     const imageInfo = excelImageSource.imageUrl
       ? await fetchImageForExcel(excelImageSource.imageUrl, excelImageSource.imageFallbackUrl).catch(() => null)
       : null;
 
-    setCell(sheet, 'A4', buildExcelKeyword(data, extra));
-    setCell(sheet, 'B4', data.name || extra.chineseName || '');
+    setCell(sheet, 'A4', buildExcelKeyword(excelData, extra));
+    setCell(sheet, 'B4', excelData.name || extra.chineseName || '');
     setCell(sheet, 'C4', '');
     setCell(sheet, 'E4', compactText(packQty));
-    setCell(sheet, 'G4', data.sku || '');
-    if (data.singleBottle) setCell(sheet, 'H4', '瓶装');
+    setCell(sheet, 'G4', excelData.sku || '');
+    if (excelData.singleBottle) setCell(sheet, 'H4', '瓶装');
     else sheet.getCell('H4').value = { formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))' };
-    setCell(sheet, 'I4', formatExcelDimFromParts([data.productLength, data.productWidth, data.productHeight]) || formatExcelDim(data.productNums, []));
-    setCell(sheet, 'J4', formatExcelDimFromParts([data.packageLength, data.packageWidth, data.packageHeight]) || formatExcelDim(data.packageNums, []));
+    setCell(sheet, 'I4', formatExcelDimFromParts([excelData.productLength, excelData.productWidth, excelData.productHeight]) || formatExcelDim(excelData.productNums, []));
+    setCell(sheet, 'J4', formatExcelDimFromParts([excelData.packageLength, excelData.packageWidth, excelData.packageHeight]) || formatExcelDim(excelData.packageNums, []));
     setCell(sheet, 'L4', formatIngredientsForExcel(extra.ingredients));
-    setCell(sheet, 'M4', normalizeExcelUnit(data.netContent));
-    setCell(sheet, 'N4', normalizeExcelUnit(data.grossWeight));
+    setCell(sheet, 'M4', normalizeExcelUnit(excelData.netContent));
+    setCell(sheet, 'N4', normalizeExcelUnit(excelData.grossWeight));
     setCell(sheet, 'O4', normalizeExcelNumberOrText(purchasePrice));
     setCell(sheet, 'P4', getReturnDateText(7));
     setCell(sheet, 'S4', extra.benchmarkLink || '');
 
-    if (shouldOmitToyProductSize(data)) {
+    if (shouldOmitToyProductSize(excelData)) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))' };
       sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
-    } else if (shouldRemoveExcelPackageSizeColumn(data)) {
+    } else if (shouldRemoveExcelPackageSizeColumn(excelData)) {
       sheet.spliceColumns(10, 1);
       sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))' };
@@ -255,12 +270,17 @@
     }
     const buffer = await workbook.xlsx.writeBuffer();
     const bytes = new Uint8Array(buffer);
+    const assets = message.transparentImageDataUrl
+      ? await parameterImageFeature.generateBridgeAssets(imageData, String(message.transparentImageDataUrl))
+      : { englishDataUrl: '', sizeDataUrl: '' };
     sendDesktopBridgeMessage({
-      type: 'excel.file',
+      type: 'asset.bundle',
       jobId,
       sku,
-      fileName: String(message.fileName || buildExcelFileName(data, extra)),
-      base64: bytesToBase64(bytes),
+      fileName: String(message.fileName || buildExcelFileName(excelData, extra)),
+      excelBase64: bytesToBase64(bytes),
+      englishDataUrl: assets.englishDataUrl,
+      sizeDataUrl: assets.sizeDataUrl,
     });
-    addLog('success', '桌面工作台 Excel 已返回', sku + ' / ' + bytes.length + ' bytes');
+    addLog('success', '桌面工作台资产已返回', sku + ' / Excel ' + bytes.length + ' bytes');
   }
