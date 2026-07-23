@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
-  Archive, Check, ChevronRight, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet,
+  Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet,
   FolderOpen, Link2, LoaderCircle, Play, RefreshCw, Search, Settings2,
   Sparkles, Trash2, Unplug, Upload, X,
 } from "lucide-react";
@@ -15,6 +15,7 @@ const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
 const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
 const PACK_RULES_KEY = "plm-workbench.pack-rules";
+const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -61,6 +62,27 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   return { label: "可以生成", tone: "success" };
 }
 
+function ProductThumbnail({ row }: { row: ProductPreview }) {
+  const sources = useMemo(() => [...new Set([
+    row.skuImageExists && row.skuImagePath ? convertFileSrc(row.skuImagePath) : "",
+    row.product.skuImageUrl,
+    row.product.skuImageFallbackUrl,
+    row.product.benchmarkImageUrl,
+    row.product.benchmarkImageFallbackUrl,
+  ].filter(Boolean))], [row]);
+  const [sourceIndex, setSourceIndex] = useState(0);
+
+  useEffect(() => setSourceIndex(0), [sources.join("|")]);
+
+  return (
+    <div className="product-thumb" title={sources.length ? "SKU 图；缺少时显示对标图" : "暂无 SKU 图或对标图"}>
+      {sources[sourceIndex]
+        ? <img src={sources[sourceIndex]} alt="" onError={() => setSourceIndex((current) => current + 1)} />
+        : <FileImage size={20} />}
+    </div>
+  );
+}
+
 export default function App() {
   const [bridge, setBridge] = useState<BridgeInfo>({ url: "ws://127.0.0.1:37191", token: "", connected: false, scriptVersion: "" });
   const [products, setProducts] = useState<FinalizedProduct[]>([]);
@@ -79,6 +101,7 @@ export default function App() {
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
   const [usePackRules, setUsePackRules] = useState(true);
   const [deleteZip, setDeleteZip] = useState(false);
+  const [compactTop, setCompactTop] = useState(() => localStorage.getItem(COMPACT_TOP_KEY) === "1");
   const [packBusy, setPackBusy] = useState(false);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -316,8 +339,16 @@ export default function App() {
     notify("连接码已复制");
   }
 
+  function toggleCompactTop() {
+    setCompactTop((current) => {
+      const next = !current;
+      localStorage.setItem(COMPACT_TOP_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${compactTop ? "top-collapsed" : ""}`}>
       <header className="topbar">
         <div className="brand-mark"><Sparkles size={20} /></div>
         <div className="brand-copy">
@@ -334,7 +365,7 @@ export default function App() {
       </header>
 
       <main>
-        <section className="hero-panel">
+        {!compactTop && <section className="hero-panel">
           <div>
             <span className="eyebrow">LOCAL PRODUCTION DESK</span>
             <h1>把已定稿产品，整理成可交付成品</h1>
@@ -347,14 +378,18 @@ export default function App() {
             </button>
           </div>
           {root && <button className="path-chip" onClick={() => openPath(root)} title={root}><FolderOpen size={14} />{root}</button>}
-        </section>
+        </section>}
 
         <nav className="workspace-tabs">
           <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
+          <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
+            {compactTop ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            {compactTop ? "展开概览" : "收起概览"}
+          </button>
         </nav>
 
-        <section className={`metrics ${workspaceView !== "assets" ? "is-hidden" : ""}`}>
+        <section className={`metrics ${workspaceView !== "assets" || compactTop ? "is-hidden" : ""}`}>
           <article><span>全部定稿</span><strong>{rows.length}</strong><small>来自悬浮助手</small></article>
           <article className="green"><span>可以生成</span><strong>{counts.ready}</strong><small>资料与目录已就绪</small></article>
           <article className="amber"><span>需要确认</span><strong>{counts.missing}</strong><small>缺图、参数或目录</small></article>
@@ -397,9 +432,12 @@ export default function App() {
                     {selected.has(row.product.sku) && <Check size={14} />}
                   </button>
                   <div className="product-cell">
-                    <strong>{row.product.sku}</strong>
-                    <span>{[row.product.brand, row.product.name].filter(Boolean).join(" · ") || "未命名产品"}</span>
-                    <small>{row.product.finalizedAt || "已定稿"}</small>
+                    <ProductThumbnail row={row} />
+                    <div className="product-copy">
+                      <strong>{row.product.sku}</strong>
+                      <span>{[row.product.brand, row.product.name].filter(Boolean).join(" · ") || "未命名产品"}</span>
+                      <small>{row.product.finalizedAt || "已定稿"}</small>
+                    </div>
                   </div>
                   <div className="asset-cell">
                     <span className={row.transparentImage ? "ok" : "missing"}><FileImage size={16} />{row.transparentImage ? "透明.png" : "缺少透明.png"}</span>

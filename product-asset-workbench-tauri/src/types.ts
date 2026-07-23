@@ -23,6 +23,10 @@ export interface FinalizedProduct {
   grossWeight: string;
   ingredients: string;
   referenceUrl: string;
+  skuImageUrl: string;
+  skuImageFallbackUrl: string;
+  benchmarkImageUrl: string;
+  benchmarkImageFallbackUrl: string;
   packageCode: string;
   printCode: string;
   purchasePrice: string;

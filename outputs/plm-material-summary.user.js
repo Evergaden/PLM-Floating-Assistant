@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.148
+// @version      2.5.149
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.148';
+  const SCRIPT_VERSION = '2.5.149';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2156,6 +2156,10 @@
         grossWeight: String(data.grossWeight || ''),
         ingredients: String(getPreferredExcelIngredients(data) || ''),
         referenceUrl: String(data.referenceUrl || data.benchmarkLink || row.referenceUrl || ''),
+        skuImageUrl: String(data.skuImageUrl || ''),
+        skuImageFallbackUrl: String(data.skuImageFallbackUrl || data.skuImageUrl || ''),
+        benchmarkImageUrl: String(data.benchmarkImageUrl || ''),
+        benchmarkImageFallbackUrl: String(data.benchmarkImageFallbackUrl || data.benchmarkImageUrl || ''),
         packageCode: String(data.packageCode || row.packageCode || ''),
         printCode: String(data.printCode || row.printCode || ''),
         purchasePrice: String(data.purchasePrice || row.purchasePrice || ''),

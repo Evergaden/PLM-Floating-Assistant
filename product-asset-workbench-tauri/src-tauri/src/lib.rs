@@ -95,6 +95,14 @@ struct FinalizedProduct {
     #[serde(default)]
     reference_url: String,
     #[serde(default)]
+    sku_image_url: String,
+    #[serde(default)]
+    sku_image_fallback_url: String,
+    #[serde(default)]
+    benchmark_image_url: String,
+    #[serde(default)]
+    benchmark_image_fallback_url: String,
+    #[serde(default)]
     package_code: String,
     #[serde(default)]
     print_code: String,

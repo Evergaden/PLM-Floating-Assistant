@@ -33,6 +33,7 @@ button { cursor: pointer; }
 .icon-button { width: 38px; padding: 0; justify-content: center; }
 
 main { width: min(1540px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 40px; }
+.top-collapsed main { padding-top: 12px; }
 .hero-panel { min-height: 178px; padding: 31px 34px; border-radius: 22px; position: relative; overflow: hidden; color: white; background: linear-gradient(112deg, #17243b, #243756 61%, #5b40d4); box-shadow: 0 18px 45px rgba(27,39,69,.16); }
 .hero-panel::after { content: ""; position: absolute; width: 360px; height: 360px; right: -50px; top: -170px; border-radius: 50%; border: 54px solid rgba(255,255,255,.08); }
 .eyebrow { color: #9b8dfb; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; }
@@ -46,9 +47,11 @@ button.primary:hover { background: var(--purple-dark); }
 button.primary:disabled { opacity: .6; cursor: default; }
 button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(10px); }
 .path-chip { position: absolute; bottom: 24px; right: 34px; z-index: 2; max-width: 510px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; color: #cdd6e7; background: rgba(0,0,0,.16); border-radius: 8px; padding: 7px 11px; font-size: 11px; display: flex; align-items: center; gap: 7px; }
-.workspace-tabs { display: flex; gap: 5px; margin: 16px 0 0; padding: 5px; width: fit-content; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.86); }
+.workspace-tabs { display: flex; gap: 5px; margin: 16px 0 0; padding: 5px; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.86); }
 .workspace-tabs button { min-width: 124px; height: 36px; padding: 0 14px; border: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #6f7a8d; background: transparent; font-size: 12px; font-weight: 700; }
 .workspace-tabs button.active { color: var(--purple); background: var(--purple-soft); box-shadow: inset 0 0 0 1px rgba(101,71,245,.1); }
+.workspace-tabs .collapse-top { margin-left: auto; min-width: 108px; color: #687487; }
+.top-collapsed .workspace-tabs { margin-top: 0; }
 
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin: 16px 0; }
 .metrics article { background: white; padding: 17px 20px; border: 1px solid var(--line); border-radius: 16px; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; box-shadow: 0 5px 18px rgba(27,39,69,.035); }
@@ -76,16 +79,20 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .table-tools button { border: 0; background: white; color: #5f6a7c; border-radius: 7px; padding: 6px 10px; font-size: 11px; }
 .table-tools span { margin-left: auto; color: var(--muted); font-size: 11px; }
 .table-tools b { color: var(--purple); }
-.product-table { min-height: 310px; max-height: 500px; overflow: auto; }
+.product-table { min-height: 420px; max-height: calc(100vh - 430px); overflow: auto; }
+.top-collapsed .product-table { min-height: 500px; max-height: calc(100vh - 285px); }
 .table-row { display: grid; grid-template-columns: 38px minmax(230px,1.25fr) minmax(220px,1.35fr) minmax(250px,1.15fr) minmax(175px,.8fr) 34px; gap: 13px; align-items: center; min-height: 82px; padding: 9px 20px; border-bottom: 1px solid #edf0f4; transition: background .15s; }
 .table-row.selected { background: #faf9ff; }
 .table-header { min-height: 38px; position: sticky; top: 0; z-index: 3; color: #8b94a3; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; background: #fff; }
 .check-button { width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border-radius: 6px; border: 1px solid #cfd5df; color: white; background: white; }
 .check-button.checked { border-color: var(--purple); background: var(--purple); }
-.product-cell, .asset-cell { display: grid; gap: 3px; min-width: 0; }
-.product-cell strong { color: var(--purple); font-family: "Segoe UI", sans-serif; font-size: 13px; }
-.product-cell span { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.product-cell small, .asset-cell small { color: #919aa9; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-cell { display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 10px; align-items: center; min-width: 0; }
+.product-copy, .asset-cell { display: grid; gap: 3px; min-width: 0; }
+.product-copy strong { color: var(--purple); font-family: "Segoe UI", sans-serif; font-size: 13px; }
+.product-copy span { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-copy small, .asset-cell small { color: #919aa9; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-thumb { width: 58px; height: 58px; display: grid; place-items: center; overflow: hidden; border: 1px solid #e5e8ef; border-radius: 11px; color: #a8b0be; background: linear-gradient(145deg,#fff,#f2f4f8); }
+.product-thumb img { width: 100%; height: 100%; display: block; object-fit: contain; background: white; }
 .asset-cell > span { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
 .asset-cell .ok { color: var(--green); }
 .asset-cell .missing { color: var(--amber); }
