@@ -1,0 +1,29 @@
+[package]
+name = "plm-product-asset-workbench"
+version = "0.1.0"
+description = "PLM finalized product asset production workbench"
+authors = ["Violet"]
+edition = "2024"
+
+[lib]
+name = "plm_product_asset_workbench_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+ab_glyph = "0.2"
+base64 = "0.22"
+futures-util = "0.3"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+imageproc = "0.25"
+rand = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tokio = { version = "1", features = ["net", "sync", "time"] }
+tokio-tungstenite = "0.28"
+uuid = { version = "1", features = ["v4"] }

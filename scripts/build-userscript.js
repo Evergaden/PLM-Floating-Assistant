@@ -9,11 +9,16 @@ const modules = [
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
   { name: 'icon-assets', file: path.join(root, 'src', 'icon-assets.module.js') },
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
+  { name: 'desktop-bridge', file: path.join(root, 'src', 'desktop-bridge.module.js') },
   { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
 ];
+const requestedModules = new Set(process.argv.slice(2));
+const selectedModules = requestedModules.size
+  ? modules.filter((module) => requestedModules.has(module.name))
+  : modules;
 let output = fs.readFileSync(outputPath, 'utf8');
 
-for (const module of modules) {
+for (const module of selectedModules) {
   const start = `  // <${module.name}-module>`;
   const end = `  // </${module.name}-module>`;
   const source = fs.readFileSync(module.file, 'utf8').trimEnd();
@@ -25,7 +30,7 @@ for (const module of modules) {
 
 const startupIndex = output.indexOf('\n  injectStyle();');
 if (startupIndex < 0) throw new Error('userscript startup marker is missing');
-for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'ui-loader']) {
+for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'desktop-bridge', 'ui-loader']) {
   const moduleIndex = output.indexOf(`  // <${name}-module>`);
   if (moduleIndex < 0 || moduleIndex > startupIndex) {
     throw new Error(`${name} module must be initialized before userscript startup`);
@@ -33,4 +38,4 @@ for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'ui-loader']
 }
 
 fs.writeFileSync(outputPath, output, 'utf8');
-console.log(`Injected ${modules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);
+console.log(`Injected ${selectedModules.map((module) => path.relative(root, module.file)).join(', ')} into ${path.relative(root, outputPath)}`);

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PLM 产品资产工作台",
+  "version": "0.1.0",
+  "identifier": "com.violet.plm-asset-workbench",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "PLM 产品资产工作台",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 1000,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "shortDescription": "连接 PLM 悬浮助手，批量生成产品交付资产",
+    "longDescription": "扫描本地产品文件夹，预览全部已定稿 SKU，并批量生成 Excel、英文参数图和尺寸图。"
+  }
+}
