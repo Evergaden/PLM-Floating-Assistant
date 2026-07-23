@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.140
+// @version      2.5.141
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.140';
+  const SCRIPT_VERSION = '2.5.141';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2541,7 +2541,7 @@
       state.drawerTabFlowUserInterrupted = true;
       cancelDrawerTabFlow({ preserveUserInterrupted: true });
     }
-    const sku = findSku(getVisibleText(drawer));
+    const sku = getProjectDrawerHeaderSku(drawer);
     const tabName = compactText(tab.innerText || tab.textContent || '');
     if (sku && tabName) {
       state.observedDrawer = drawer;
@@ -2848,12 +2848,14 @@
     const lockedSku = state.openingProjectDetailSku || '';
     const drawer = getProjectDrawer();
     if (!drawer) {
+      if (lockedSku) return;
       scheduleDrawerClosedCollapse();
       return;
     }
 
     const text = getVisibleText(drawer);
-    const sku = findSku(text);
+    const sku = getProjectDrawerHeaderSku(drawer);
+    if (!sku) return;
     if (state.drawerTabFlowSku && ((state.drawerTabFlowDrawer && drawer !== state.drawerTabFlowDrawer) || (sku && sku !== state.drawerTabFlowSku))) {
       stopScan();
       cancelDrawerTabFlow();
@@ -2969,13 +2971,14 @@
       return;
     }
     stopScan();
-    const drawerSku = findSku(getVisibleText(drawer));
-    const targetSku = state.scanTargetSku || drawerSku || state.sku || '';
-    if (!targetSku) {
+    const drawerSku = getProjectDrawerHeaderSku(drawer);
+    const requestedSku = state.scanTargetSku || state.sku || '';
+    if (!drawerSku || (requestedSku && requestedSku !== drawerSku)) {
       state.scanRunning = true;
       state.scanTimer = window.setTimeout(startScan, 250);
       return;
     }
+    const targetSku = drawerSku;
     if (targetSku) {
       state.scanTargetSku = targetSku;
       if (!state.scanData || state.scanData.sku !== targetSku) {
@@ -3097,7 +3100,7 @@
   function observeManualTabRead() {
     const drawer = getProjectDrawer();
     if (!drawer || state.scanRunning || !state.settings.collectionEnabled) return;
-    const sku = findSku(getVisibleText(drawer));
+    const sku = getProjectDrawerHeaderSku(drawer);
     const tab = getActiveTabText(drawer);
     if (!sku || !tab) return;
     if (drawer !== state.observedDrawer || sku !== state.observedSku) {
@@ -3137,8 +3140,8 @@
   }
 
   function checkMaterialOnce() {
-    const drawer = getProjectDrawer();
     const targetSku = state.scanTargetSku || state.sku || (state.data && state.data.sku) || '';
+    const drawer = targetSku ? getProjectDrawerForSku(targetSku) : null;
     const trackedData = state.scanData && state.scanData.sku === targetSku
       ? state.scanData
       : normalizeData(loadData(targetSku) || {});
@@ -3253,8 +3256,24 @@
       !state.drawerTabFlowUserInterrupted &&
       state.drawerTabFlowToken === token &&
       state.drawerTabFlowSku === sku &&
-      drawer && drawer === getProjectDrawerForSku(sku)
+      drawer && drawer === getProjectDrawerForSku(sku) &&
+      getProjectDrawerHeaderSku(drawer) === sku
     );
+  }
+
+  async function waitForStableProjectDrawerIdentity(drawer, sku, timeout) {
+    const startedAt = Date.now();
+    let stableSince = 0;
+    while (Date.now() - startedAt < (Number(timeout) || 5000)) {
+      if (getProjectDrawerHeaderSku(drawer) === sku && drawer === getProjectDrawerForSku(sku)) {
+        if (!stableSince) stableSince = Date.now();
+        if (Date.now() - stableSince >= 300) return true;
+      } else {
+        stableSince = 0;
+      }
+      await wait(100);
+    }
+    return false;
   }
 
   function getProductAttachmentFiles(drawer, sku) {
@@ -3286,7 +3305,8 @@
   async function runDrawerProductFlow(sku, token, options) {
     const includeScanTabs = Boolean(options && options.includeScanTabs);
     const drawer = getProjectDrawerForSku(sku);
-    if (!drawer || state.drawerTabFlowToken !== token || state.drawerTabFlowSku !== sku) {
+    const identityReady = drawer && await waitForStableProjectDrawerIdentity(drawer, sku, 5000);
+    if (!identityReady || state.drawerTabFlowToken !== token || state.drawerTabFlowSku !== sku) {
       if (state.drawerTabFlowToken === token) {
         if (includeScanTabs) {
           stopScan();
@@ -3311,7 +3331,7 @@
         const ready = await switchDrawerTab(drawer, tab, { flowToken: token, timeout: 4500 });
         if (!ready || !isDrawerProductFlowCurrent(sku, token, drawer)) return;
         let live = extractData(drawer, { forceSkuImage: tab === L.productTab });
-        if (live.sku && live.sku !== sku) return;
+        if (live.sku !== sku) return;
         merged = mergeData(merged, live);
         const needsShortReread = (tab === '\u9879\u76ee\u4fe1\u606f' && !live.name && !live.projectStatus)
           || (tab === L.materialTab && !live.seenMaterial)
@@ -3321,21 +3341,21 @@
           else await wait(280);
           if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
           live = extractData(drawer, { forceSkuImage: tab === L.productTab });
-          if (live.sku && live.sku !== sku) return;
+          if (live.sku !== sku) return;
           merged = mergeData(merged, live);
         }
         if (tab === L.productTab && requiresSkuImage(merged) && !getProductThumbUrl(merged)) {
           await waitForProductInfoImage(drawer, 420);
           if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
           live = extractData(drawer, { forceSkuImage: true });
-          if (live.sku && live.sku !== sku) return;
+          if (live.sku !== sku) return;
           merged = mergeData(merged, live);
         }
         if (includeScanTabs) state.scanData = merged;
-        if (state.selectedSku === sku) state.data = merged;
       }
+      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
       saveData(sku, merged);
-      if (state.selectedSku === sku) state.data = merged;
+      if (state.selectedSku === sku) state.data = normalizeData(loadData(sku) || merged);
       if (includeScanTabs && !shouldSkipLedgerDrawer(drawer)) {
         upsertDailyLedgerFromData(merged, { status: '\u5f85\u5b9a\u7a3f', stage: '\u5f85\u5b9a\u7a3f', note: '\u6253\u5f00\u8be6\u60c5\u81ea\u52a8\u8bb0\u5f55', requireCurrentMonth: true });
       }
@@ -3555,10 +3575,18 @@
     return Boolean(data && data.projectStatus === '\u5df2\u5b8c\u6210');
   }
 
+  function getProjectDrawerHeaderSku(drawer) {
+    if (!drawer) return '';
+    const header = drawer.querySelector('.taskInfo');
+    if (!header || !isVisibleElement(header)) return '';
+    const match = getVisibleText(header).match(/\u5546\u54c1\u7f16\u7801\s*[:\uff1a]\s*(SKU\d+)/i);
+    return match ? match[1].toUpperCase() : '';
+  }
+
   function getProjectDrawer() {
     if (state.openingProjectDetailSku) {
       const locked = getProjectDrawerForSku(state.openingProjectDetailSku);
-      if (locked) return locked;
+      return locked || null;
     }
     const drawers = Array.from(document.querySelectorAll('.ant-drawer-open'))
       .filter(isVisibleElement)
@@ -3599,7 +3627,7 @@
 
     const brand = getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer);
     return {
-      sku: findSku(text),
+      sku: getProjectDrawerHeaderSku(drawer),
       name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
       packageSizeText: packaging.packageSizeText || '',
       packageSizeLabel: packaging.packageSizeLabel || '',
@@ -11907,7 +11935,8 @@
       .filter(isVisibleElement)
       .find((drawer) => {
         const text = getVisibleText(drawer);
-        return /\u67e5\u770b\u9879\u76ee\u8be6\u60c5/.test(text) && (!sku || text.includes(sku));
+        const headerSku = getProjectDrawerHeaderSku(drawer);
+        return /\u67e5\u770b\u9879\u76ee\u8be6\u60c5/.test(text) && Boolean(headerSku) && (!sku || headerSku === String(sku).toUpperCase());
       }) || null;
   }
 
