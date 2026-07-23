@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "tauri": "tauri",
+    "tauri": "node scripts/tauri-with-cargo.mjs",
     "test": "vitest run"
   },
   "dependencies": {
