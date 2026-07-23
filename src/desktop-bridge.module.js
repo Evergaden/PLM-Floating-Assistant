@@ -171,12 +171,19 @@
         name: String(data.name || ''),
         englishName: String(data.englishName || ''),
         finalizedAt: String(row.finalizedAt || ''),
+        packageSizeText: String(data.packageSizeText || ''),
+        packageSizeLabel: String(data.packageSizeLabel || ''),
+        packageNums: Array.isArray(data.packageNums) ? data.packageNums.slice() : [],
         packageLength: String(data.packageLength || ''),
         packageWidth: String(data.packageWidth || ''),
         packageHeight: String(data.packageHeight || ''),
+        productNums: Array.isArray(data.productNums) ? data.productNums.slice() : [],
+        plmProductNums: Array.isArray(data.plmProductNums) ? data.plmProductNums.slice() : [],
         productLength: String(data.productLength || ''),
         productWidth: String(data.productWidth || ''),
         productHeight: String(data.productHeight || ''),
+        singleBottle: Boolean(data.singleBottle),
+        hasInnerCard: Boolean(data.hasInnerCard),
         netContent: String(data.netContent || ''),
         grossWeight: String(data.grossWeight || ''),
         ingredients: String(getPreferredExcelIngredients(data) || ''),
@@ -212,7 +219,20 @@
     const ledgerData = normalizeData(
       sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()).find((item) => String(item.sku || '').toUpperCase() === sku) || {}
     );
-    const bridgeData = normalizeData(message && message.product || {});
+    const bridgeRaw = { ...(message && message.product || {}) };
+    if (!Array.isArray(bridgeRaw.packageNums) || bridgeRaw.packageNums.length < 3) {
+      const packageParts = [bridgeRaw.packageLength, bridgeRaw.packageWidth, bridgeRaw.packageHeight]
+        .map(extractCmValue)
+        .map(Number);
+      if (packageParts.every((value) => Number.isFinite(value) && value > 0)) bridgeRaw.packageNums = packageParts;
+    }
+    if (!Array.isArray(bridgeRaw.productNums) || bridgeRaw.productNums.length < 3) {
+      const productParts = [bridgeRaw.productLength, bridgeRaw.productWidth, bridgeRaw.productHeight]
+        .map(extractCmValue)
+        .map(Number);
+      if (productParts.every((value) => Number.isFinite(value) && value > 0)) bridgeRaw.productNums = productParts;
+    }
+    const bridgeData = normalizeData(bridgeRaw);
     const data = normalizeData(mergeData(mergeData(cachedData, ledgerData), bridgeData));
     if (!data.sku) throw new Error('本地缓存中找不到 ' + sku);
     state.selectedSku = sku;

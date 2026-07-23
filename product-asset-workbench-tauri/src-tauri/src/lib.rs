@@ -54,17 +54,31 @@ struct FinalizedProduct {
     #[serde(default)]
     finalized_at: String,
     #[serde(default)]
+    package_size_text: String,
+    #[serde(default)]
+    package_size_label: String,
+    #[serde(default)]
+    package_nums: Vec<f64>,
+    #[serde(default)]
     package_length: String,
     #[serde(default)]
     package_width: String,
     #[serde(default)]
     package_height: String,
     #[serde(default)]
+    product_nums: Vec<f64>,
+    #[serde(default)]
+    plm_product_nums: Vec<f64>,
+    #[serde(default)]
     product_length: String,
     #[serde(default)]
     product_width: String,
     #[serde(default)]
     product_height: String,
+    #[serde(default)]
+    single_bottle: bool,
+    #[serde(default)]
+    has_inner_card: bool,
     #[serde(default)]
     net_content: String,
     #[serde(default)]
