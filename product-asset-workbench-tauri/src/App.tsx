@@ -1,18 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
-  Check, ChevronRight, CircleAlert, Copy, FileImage, FileSpreadsheet,
+  Archive, Check, ChevronRight, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet,
   FolderOpen, Link2, LoaderCircle, Play, RefreshCw, Search, Settings2,
-  Sparkles, Unplug, X,
+  Sparkles, Trash2, Unplug, Upload, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob } from "./types";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
 const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
+const PACK_RULES_KEY = "plm-workbench.pack-rules";
+const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
+^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
+^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
+^input-main-prompt-3-[a-zA-Z0-9]{8}$|主图3
+^input-main-prompt-4-[a-zA-Z0-9]{8}$|主图4
+^input-main-prompt-5-[a-zA-Z0-9]{8}$|主图5
+^input-main-prompt-6-[a-zA-Z0-9]{8}$|主图6
+^input-main-prompt-7-[a-zA-Z0-9]{8}$|主图7
+^input-detail-sale-prompt-1-.+$|详情图1
+^input-detail-sale-prompt-2-.+$|详情图2
+^input-detail-component-prompt-.+$|详情图3
+^input-detail-advantage-prompt-1-.+$|详情图4
+^input-detail-advantage-prompt-2-.+$|详情图5
+^input-detail-details-prompt-1-.+$|详情图6
+^input-detail-details-prompt-2-.+$|详情图7
+^input-detail-efficacy-prompt-.+$|详情图8
+^input-detail-use-step-prompt-.+$|详情图9
+^input-detail-scene-prompt-.+$|详情图10`;
+
+interface ArchivePacksResult {
+  logs: string[];
+  success: number;
+  skipped: number;
+  failed: number;
+  deleted: number;
+}
 
 function readMappings(): Record<string, string> {
   try {
@@ -46,6 +74,13 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs">("assets");
+  const [zipPaths, setZipPaths] = useState<string[]>([]);
+  const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
+  const [usePackRules, setUsePackRules] = useState(true);
+  const [deleteZip, setDeleteZip] = useState(false);
+  const [packBusy, setPackBusy] = useState(false);
+  const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
   const autoAttempts = useRef(new Map<string, string>());
   const bridgeRef = useRef(bridge);
@@ -53,6 +88,10 @@ export default function App() {
   const notify = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2600);
+  }, []);
+
+  const addZipPaths = useCallback((paths: string[]) => {
+    setZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
   }, []);
 
   const refreshPreview = useCallback(async (
@@ -150,6 +189,14 @@ export default function App() {
   }, [loadProducts, notify]);
 
   useEffect(() => {
+    let clean: (() => void) | undefined;
+    getCurrentWebview().onDragDropEvent((event) => {
+      if (event.payload.type === "drop") addZipPaths(event.payload.paths);
+    }).then((unlisten) => { clean = unlisten; });
+    return () => clean?.();
+  }, [addZipPaths]);
+
+  useEffect(() => {
     refreshPreview(products, root, mappings).catch(console.error);
   }, [bridge.connected, mappings, products, refreshPreview, root]);
 
@@ -170,6 +217,42 @@ export default function App() {
     if (typeof value !== "string") return;
     setRoot(value);
     localStorage.setItem(ROOT_KEY, value);
+  }
+
+  async function chooseZipPacks() {
+    const value = await open({
+      multiple: true,
+      directory: false,
+      title: "选择图包 ZIP",
+      filters: [{ name: "ZIP 图包", extensions: ["zip"] }],
+    });
+    if (Array.isArray(value)) addZipPaths(value);
+    else if (typeof value === "string") addZipPaths([value]);
+  }
+
+  async function archivePacks() {
+    if (!root) return notify("请先选择产品文件夹根目录");
+    if (!zipPaths.length) return notify("请先添加图包 ZIP");
+    localStorage.setItem(PACK_RULES_KEY, packRules);
+    setPackBusy(true);
+    setPackLogs(["开始处理图包…"]);
+    try {
+      const result = await invoke<ArchivePacksResult>("archive_image_packs", {
+        zipPaths,
+        root,
+        rulesText: packRules,
+        useRules: usePackRules,
+        deleteZip,
+      });
+      setPackLogs(result.logs);
+      if (deleteZip && result.deleted === zipPaths.length) setZipPaths([]);
+      notify(`图包完成：成功 ${result.success}，跳过 ${result.skipped}，失败 ${result.failed}`);
+    } catch (error) {
+      setPackLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setPackBusy(false);
+    }
   }
 
   async function assignFolder(row: ProductPreview) {
@@ -266,14 +349,19 @@ export default function App() {
           {root && <button className="path-chip" onClick={() => openPath(root)} title={root}><FolderOpen size={14} />{root}</button>}
         </section>
 
-        <section className="metrics">
+        <nav className="workspace-tabs">
+          <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
+          <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
+        </nav>
+
+        <section className={`metrics ${workspaceView !== "assets" ? "is-hidden" : ""}`}>
           <article><span>全部定稿</span><strong>{rows.length}</strong><small>来自悬浮助手</small></article>
           <article className="green"><span>可以生成</span><strong>{counts.ready}</strong><small>资料与目录已就绪</small></article>
           <article className="amber"><span>需要确认</span><strong>{counts.missing}</strong><small>缺图、参数或目录</small></article>
           <article className="violet"><span>完整成品</span><strong>{counts.complete}</strong><small>三类文件均已存在</small></article>
         </section>
 
-        <section className="work-panel">
+        <section className={`work-panel ${workspaceView !== "assets" ? "is-hidden" : ""}`}>
           <div className="panel-heading">
             <div>
               <span className="eyebrow">FINALIZED QUEUE</span>
@@ -347,6 +435,52 @@ export default function App() {
             <button className="primary large" onClick={generateSelected}><Play size={18} fill="currentColor" />批量生成所选资产</button>
           </div>
         </section>
+
+        {workspaceView === "packs" && (
+          <section className="pack-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">IMAGE PACK ARCHIVE</span>
+                <h2>批量图包处理</h2>
+                <p>从 ZIP 文件名识别 SKU，匹配产品目录，解压并按规则重命名到“套图”。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
+            </div>
+            <div className="pack-grid">
+              <div className="pack-card">
+                <div className="pack-card-title"><div><strong>待处理 ZIP</strong><span>支持点击添加或直接拖入窗口</span></div><button onClick={chooseZipPacks}><Upload size={15} />添加 ZIP</button></div>
+                <div className="zip-drop" onClick={chooseZipPacks}>
+                  <FileArchive size={30} />
+                  <strong>{zipPaths.length ? `已添加 ${zipPaths.length} 个图包` : "拖入图包 ZIP"}</strong>
+                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip</span>
+                </div>
+                <div className="zip-list">
+                  {zipPaths.map((path) => (
+                    <div key={path}><FileArchive size={15} /><span title={path}>{path}</span><button onClick={() => setZipPaths((current) => current.filter((item) => item !== path))}><X size={14} /></button></div>
+                  ))}
+                  {!zipPaths.length && <small>还没有添加 ZIP</small>}
+                </div>
+                <div className="pack-options">
+                  <label className="toggle"><input type="checkbox" checked={usePackRules} onChange={(event) => setUsePackRules(event.target.checked)} /><span />应用重命名规则</label>
+                  <label className="toggle"><input type="checkbox" checked={deleteZip} onChange={(event) => setDeleteZip(event.target.checked)} /><span />全部成功后删除原 ZIP</label>
+                  <button className="clear-zips" onClick={() => setZipPaths([])}><Trash2 size={14} />清空</button>
+                </div>
+              </div>
+              <div className="pack-card rules-card">
+                <div className="pack-card-title"><div><strong>重命名规则</strong><span>每行：正则表达式 | 新名称</span></div><button onClick={() => { setPackRules(DEFAULT_PACK_RULES); localStorage.setItem(PACK_RULES_KEY, DEFAULT_PACK_RULES); }}>恢复默认</button></div>
+                <textarea value={packRules} onChange={(event) => setPackRules(event.target.value)} spellCheck={false} />
+              </div>
+            </div>
+            <div className="pack-console">
+              <div><strong>处理日志</strong><span>{packLogs.length} 条</span></div>
+              <pre>{packLogs.join("\n")}</pre>
+            </div>
+            <div className="pack-actions">
+              <div><strong>输出目录</strong><span>{root ? `${root}\\产品文件夹\\套图` : "请先选择产品根目录"}</span></div>
+              <button className="primary large" onClick={archivePacks} disabled={packBusy}>{packBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}开始归档</button>
+            </div>
+          </section>
+        )}
       </main>
 
       {showConnect && (

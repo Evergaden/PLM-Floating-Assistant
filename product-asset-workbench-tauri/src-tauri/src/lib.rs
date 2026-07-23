@@ -8,12 +8,14 @@ use std::{
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use futures_util::{SinkExt, StreamExt};
 use rand::RngCore;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use uuid::Uuid;
+use zip::ZipArchive;
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
@@ -127,6 +129,21 @@ struct ProductPreview {
     size_exists: bool,
     ambiguous_folders: Vec<String>,
     missing: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchivePacksResult {
+    logs: Vec<String>,
+    success: usize,
+    skipped: usize,
+    failed: usize,
+    deleted: usize,
+}
+
+struct RenameRule {
+    pattern: Regex,
+    target: String,
 }
 
 fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
@@ -391,6 +408,182 @@ fn preview_products(
         .collect()
 }
 
+fn parse_pack_rules(text: &str) -> Result<Vec<RenameRule>, String> {
+    let mut rules = Vec::new();
+    let mut errors = Vec::new();
+    for (index, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((pattern, target)) = line.split_once('|') else {
+            errors.push(format!("第 {} 行缺少 | 分隔符：{}", index + 1, raw));
+            continue;
+        };
+        let pattern = pattern.trim();
+        let target = target.trim();
+        if pattern.is_empty() || target.is_empty() {
+            errors.push(format!("第 {} 行包含空值：{}", index + 1, raw));
+            continue;
+        }
+        match Regex::new(&format!("^(?:{pattern})$")) {
+            Ok(pattern) => rules.push(RenameRule { pattern, target: target.to_string() }),
+            Err(error) => errors.push(format!("第 {} 行正则无效：{}", index + 1, error)),
+        }
+    }
+    if errors.is_empty() { Ok(rules) } else { Err(errors.join("\n")) }
+}
+
+fn extract_pack_sku(filename: &str) -> Option<String> {
+    Regex::new(r"(?i)SKU\d{8}")
+        .ok()?
+        .find(filename)
+        .map(|matched| matched.as_str().to_uppercase())
+}
+
+fn unique_archive_path(folder: &Path, file_name: &str) -> PathBuf {
+    let original = Path::new(file_name);
+    let stem = original.file_stem().and_then(|value| value.to_str()).unwrap_or("图包文件");
+    let extension = original.extension().and_then(|value| value.to_str()).unwrap_or_default();
+    let mut candidate = folder.join(file_name);
+    let mut index = 2;
+    while candidate.exists() {
+        let name = if extension.is_empty() {
+            format!("{stem}_{index}")
+        } else {
+            format!("{stem}_{index}.{extension}")
+        };
+        candidate = folder.join(name);
+        index += 1;
+    }
+    candidate
+}
+
+#[tauri::command]
+fn archive_image_packs(
+    zip_paths: Vec<String>,
+    root: String,
+    rules_text: String,
+    use_rules: bool,
+    delete_zip: bool,
+) -> Result<ArchivePacksResult, String> {
+    let root = PathBuf::from(root);
+    if !root.is_dir() {
+        return Err(format!("产品根目录不存在：{}", path_text(&root)));
+    }
+    if zip_paths.is_empty() {
+        return Err("请先添加至少一个图包 ZIP".to_string());
+    }
+    let rules = if use_rules { parse_pack_rules(&rules_text)? } else { Vec::new() };
+    let directories = direct_product_directories(&root);
+    let mut result = ArchivePacksResult {
+        logs: Vec::new(),
+        success: 0,
+        skipped: 0,
+        failed: 0,
+        deleted: 0,
+    };
+    for raw_path in zip_paths {
+        let zip_path = PathBuf::from(&raw_path);
+        let zip_name = zip_path.file_name().and_then(|value| value.to_str()).unwrap_or(&raw_path);
+        result.logs.push(format!("━━━ {zip_name} ━━━"));
+        let Some(sku) = extract_pack_sku(zip_name) else {
+            result.failed += 1;
+            result.logs.push("错误：无法从 ZIP 文件名提取 SKU 编码".to_string());
+            continue;
+        };
+        let matches = directories
+            .iter()
+            .filter(|path| path.file_name().map(|value| value.to_string_lossy().to_uppercase().contains(&sku)).unwrap_or(false))
+            .collect::<Vec<_>>();
+        let Some(product_folder) = matches.first() else {
+            result.failed += 1;
+            result.logs.push(format!("错误：在产品根目录下找不到含 {sku} 的文件夹"));
+            continue;
+        };
+        if matches.len() > 1 {
+            result.logs.push(format!("警告：找到 {} 个匹配文件夹，使用 {}", matches.len(), product_folder.file_name().unwrap_or_default().to_string_lossy()));
+        }
+        let target = product_folder.join("套图");
+        fs::create_dir_all(&target).map_err(|error| format!("无法创建套图目录：{error}"))?;
+        let file = match fs::File::open(&zip_path) {
+            Ok(file) => file,
+            Err(error) => {
+                result.failed += 1;
+                result.logs.push(format!("错误：无法打开 ZIP：{error}"));
+                continue;
+            }
+        };
+        let mut archive = match ZipArchive::new(file) {
+            Ok(archive) => archive,
+            Err(error) => {
+                result.failed += 1;
+                result.logs.push(format!("错误：不是有效的 ZIP 文件：{error}"));
+                continue;
+            }
+        };
+        let before_failed = result.failed;
+        let before_skipped = result.skipped;
+        for index in 0..archive.len() {
+            let mut entry = match archive.by_index(index) {
+                Ok(entry) => entry,
+                Err(error) => {
+                    result.failed += 1;
+                    result.logs.push(format!("读取压缩项失败：{error}"));
+                    continue;
+                }
+            };
+            if entry.is_dir() {
+                continue;
+            }
+            let Some(source_name) = Path::new(entry.name()).file_name().and_then(|value| value.to_str()).map(str::to_string) else {
+                result.skipped += 1;
+                result.logs.push(format!("跳过无效文件名：{}", entry.name()));
+                continue;
+            };
+            let source_path = Path::new(&source_name);
+            let stem = source_path.file_stem().and_then(|value| value.to_str()).unwrap_or_default();
+            let extension = source_path.extension().and_then(|value| value.to_str()).unwrap_or_default();
+            let target_name = if use_rules {
+                let Some(rule) = rules.iter().find(|rule| rule.pattern.is_match(stem)) else {
+                    result.skipped += 1;
+                    result.logs.push(format!("跳过（无匹配规则）：{source_name}"));
+                    continue;
+                };
+                if extension.is_empty() { rule.target.clone() } else { format!("{}.{}", rule.target, extension) }
+            } else {
+                source_name.clone()
+            };
+            let destination = unique_archive_path(&target, &target_name);
+            match fs::File::create(&destination).and_then(|mut output| std::io::copy(&mut entry, &mut output).map(|_| ())) {
+                Ok(()) => {
+                    result.success += 1;
+                    result.logs.push(format!("{source_name} → {}", destination.file_name().unwrap_or_default().to_string_lossy()));
+                }
+                Err(error) => {
+                    result.failed += 1;
+                    result.logs.push(format!("解压失败：{source_name} — {error}"));
+                }
+            }
+        }
+        let zip_failed = result.failed > before_failed;
+        let zip_skipped = result.skipped > before_skipped;
+        if delete_zip && !zip_failed && !zip_skipped {
+            match fs::remove_file(&zip_path) {
+                Ok(()) => {
+                    result.deleted += 1;
+                    result.logs.push("已删除原 ZIP".to_string());
+                }
+                Err(error) => {
+                    result.failed += 1;
+                    result.logs.push(format!("删除 ZIP 失败：{error}"));
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+
 #[tauri::command]
 fn request_excel(
     app: AppHandle,
@@ -583,6 +776,43 @@ mod tests {
         assert!(english.ends_with(r"套图\WESTMONTH 面霜 SKU00000001\英文参数图\英文参数图.jpg"));
         assert!(size.ends_with(r"套图\WESTMONTH 面霜 SKU00000001\产品参数图\尺寸.jpg"));
     }
+
+    #[test]
+    fn parses_pack_rules_and_sku() {
+        let rules = parse_pack_rules("^input-main-prompt-1-.+$|主图1\n^detail-.+$|详情图1").unwrap();
+        assert_eq!(rules.len(), 2);
+        assert!(rules[0].pattern.is_match("input-main-prompt-1-abc12345"));
+        assert_eq!(extract_pack_sku("主图_SKU00044974_001.zip").as_deref(), Some("SKU00044974"));
+    }
+
+    #[test]
+    fn archives_and_renames_image_pack() {
+        use std::io::Write;
+        use zip::{ZipWriter, write::SimpleFileOptions};
+
+        let root = std::env::temp_dir().join(format!("plm-pack-test-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 身体乳 SKU00044974");
+        fs::create_dir_all(&product).unwrap();
+        let zip_path = root.join("主图_SKU00044974_001.zip");
+        let zip_file = fs::File::create(&zip_path).unwrap();
+        let mut writer = ZipWriter::new(zip_file);
+        writer.start_file("nested/input-main-prompt-1-abc12345.png", SimpleFileOptions::default()).unwrap();
+        writer.write_all(b"fake-png").unwrap();
+        writer.finish().unwrap();
+
+        let result = archive_image_packs(
+            vec![path_text(&zip_path)],
+            path_text(&root),
+            "^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1".to_string(),
+            true,
+            false,
+        ).unwrap();
+
+        assert_eq!(result.success, 1);
+        assert_eq!(result.failed, 0);
+        assert!(product.join("套图").join("主图1.png").is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -602,6 +832,7 @@ pub fn run() {
             get_products,
             request_snapshot,
             preview_products,
+            archive_image_packs,
             request_excel,
         ])
         .run(tauri::generate_context!())
