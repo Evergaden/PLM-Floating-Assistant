@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -12,6 +12,7 @@ import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob } from "./typ
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
+const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
 
 function readMappings(): Record<string, string> {
   try {
@@ -27,7 +28,7 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   if (job?.state === "error") return { label: job.message || "生成失败", tone: "danger" };
   if (!row.folder) return { label: "待指定目录", tone: "danger" };
   if (row.missing.length) return { label: `缺少 ${row.missing.join("、")}`, tone: "warning" };
-  if (row.excelExists && row.englishExists && row.sizeExists) return { label: "成品已存在", tone: "neutral" };
+  if (row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists) return { label: "成品已存在", tone: "neutral" };
   if (row.ambiguousFolders.length > 1) return { label: `SKU 命中 ${row.ambiguousFolders.length} 个目录`, tone: "warning" };
   return { label: "可以生成", tone: "success" };
 }
@@ -45,6 +46,9 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
+  const autoRunning = useRef(new Set<string>());
+  const autoAttempts = useRef(new Map<string, string>());
+  const bridgeRef = useRef(bridge);
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -66,6 +70,33 @@ export default function App() {
       manualMappings: nextMappings,
     });
     setRows(result);
+    if (bridgeRef.current.connected) {
+      let completed: Record<string, string> = {};
+      try {
+        completed = JSON.parse(localStorage.getItem(AUTO_DONE_KEY) || "{}");
+      } catch {
+        completed = {};
+      }
+      const now = new Date();
+      const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+      result.filter((row) =>
+        row.product.finalizedDate === today
+        && row.folder
+        && !row.missing.length
+        && !(row.excelExists && row.skuImageExists)
+        && completed[row.product.sku] !== `${row.product.finalizedAt}|${row.product.cacheUpdatedAtMs}`
+        && !autoRunning.current.has(row.product.sku)
+        && autoAttempts.current.get(row.product.sku) !== `${row.product.finalizedAt}|${row.product.cacheUpdatedAtMs}`
+      ).forEach((row) => {
+        autoAttempts.current.set(row.product.sku, `${row.product.finalizedAt}|${row.product.cacheUpdatedAtMs}`);
+        autoRunning.current.add(row.product.sku);
+        setJobs((current) => ({ ...current, [row.product.sku]: { state: "queued", message: "定稿资料完整，自动归档 SKU 图并生成 Excel" } }));
+        invoke("request_excel", { product: row.product, folder: row.folder, overwrite: false, auto: true }).catch((error) => {
+          autoRunning.current.delete(row.product.sku);
+          setJobs((current) => ({ ...current, [row.product.sku]: { state: "error", message: String(error) } }));
+        });
+      });
+    }
     setSelected((current) => {
       const valid = new Set(result.map((item) => item.product.sku));
       return new Set([...current].filter((sku) => valid.has(sku)));
@@ -76,6 +107,10 @@ export default function App() {
     const latest = await invoke<FinalizedProduct[]>("get_products");
     setProducts(latest);
   }, []);
+
+  useEffect(() => {
+    bridgeRef.current = bridge;
+  }, [bridge]);
 
   useEffect(() => {
     invoke<BridgeInfo>("bridge_info").then(setBridge).catch(console.error);
@@ -90,7 +125,25 @@ export default function App() {
       listen<{ sku: string; state: string; message: string }>("asset-job", (event) => {
         const { sku, state, message } = event.payload;
         setJobs((current) => ({ ...current, [sku]: { state: state as RowJob["state"], message } }));
-        if (state === "done" || state === "error") loadProducts().catch(console.error);
+        if (state === "done") {
+          const wasAuto = autoRunning.current.has(sku);
+          const completedSignature = autoAttempts.current.get(sku);
+          autoRunning.current.delete(sku);
+          if (wasAuto && completedSignature) {
+            let completed: Record<string, string> = {};
+            try {
+              completed = JSON.parse(localStorage.getItem(AUTO_DONE_KEY) || "{}");
+            } catch {
+              completed = {};
+            }
+            completed[sku] = completedSignature;
+            localStorage.setItem(AUTO_DONE_KEY, JSON.stringify(completed));
+          }
+          loadProducts().catch(console.error);
+        } else if (state === "error") {
+          autoRunning.current.delete(sku);
+          loadProducts().catch(console.error);
+        }
       }),
     ]).then((items) => cleaners.push(...items));
     return () => cleaners.forEach((clean) => clean());
@@ -98,7 +151,7 @@ export default function App() {
 
   useEffect(() => {
     refreshPreview(products, root, mappings).catch(console.error);
-  }, [mappings, products, refreshPreview, root]);
+  }, [bridge.connected, mappings, products, refreshPreview, root]);
 
   const visible = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -107,9 +160,9 @@ export default function App() {
   }, [query, rows]);
 
   const counts = useMemo(() => ({
-    ready: rows.filter((row) => row.folder && !row.missing.length && !(row.excelExists && row.englishExists && row.sizeExists)).length,
+    ready: rows.filter((row) => row.folder && !row.missing.length && !(row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists)).length,
     missing: rows.filter((row) => !row.folder || row.missing.length).length,
-    complete: rows.filter((row) => row.excelExists && row.englishExists && row.sizeExists).length,
+    complete: rows.filter((row) => row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists).length,
   }), [rows]);
 
   async function chooseRoot() {
@@ -167,7 +220,7 @@ export default function App() {
     for (const row of targets) {
       setJobs((current) => ({ ...current, [row.product.sku]: { state: "queued", message: "等待悬浮助手生成三类资产" } }));
       try {
-        await invoke("request_excel", { product: row.product, folder: row.folder, overwrite });
+        await invoke("request_excel", { product: row.product, folder: row.folder, overwrite, auto: false });
       } catch (error) {
         setJobs((current) => ({ ...current, [row.product.sku]: { state: "error", message: String(error) } }));
       }
@@ -266,6 +319,7 @@ export default function App() {
                   </div>
                   <div className="deliverables">
                     <span className={row.excelExists ? "complete" : ""}><FileSpreadsheet size={15} />Excel</span>
+                    <span className={row.skuImageExists ? "complete" : ""}><FileImage size={15} />SKU图</span>
                     <span className={row.englishExists ? "complete" : ""}><FileImage size={15} />英文参数图</span>
                     <span className={row.sizeExists ? "complete" : ""}><FileImage size={15} />尺寸图</span>
                   </div>

@@ -36,6 +36,7 @@ struct BridgeInner {
 struct PendingAssets {
     sku: String,
     excel_path: PathBuf,
+    sku_image_path: PathBuf,
     english_path: PathBuf,
     size_path: PathBuf,
     overwrite: bool,
@@ -53,6 +54,10 @@ struct FinalizedProduct {
     english_name: String,
     #[serde(default)]
     finalized_at: String,
+    #[serde(default)]
+    finalized_date: String,
+    #[serde(default)]
+    cache_updated_at_ms: u64,
     #[serde(default)]
     package_size_text: String,
     #[serde(default)]
@@ -113,9 +118,11 @@ struct ProductPreview {
     folder: Option<String>,
     transparent_image: Option<String>,
     excel_path: Option<String>,
+    sku_image_path: Option<String>,
     english_path: Option<String>,
     size_path: Option<String>,
     excel_exists: bool,
+    sku_image_exists: bool,
     english_exists: bool,
     size_exists: bool,
     ambiguous_folders: Vec<String>,
@@ -328,6 +335,11 @@ fn persist_assets(value: &Value, pending: &PendingAssets) -> Result<String, Stri
         value.get("excelBase64").and_then(Value::as_str).unwrap_or_default(),
         pending,
     )?;
+    let sku_image_created = persist_jpeg(
+        value.get("skuImageDataUrl").and_then(Value::as_str).unwrap_or_default(),
+        &pending.sku_image_path,
+        pending.overwrite,
+    )?;
     let english_created = persist_jpeg(
         value.get("englishDataUrl").and_then(Value::as_str).unwrap_or_default(),
         &pending.english_path,
@@ -338,9 +350,9 @@ fn persist_assets(value: &Value, pending: &PendingAssets) -> Result<String, Stri
         &pending.size_path,
         pending.overwrite,
     )?;
-    let created = [excel_created, english_created, size_created].into_iter().filter(|value| *value).count();
-    if created == 3 {
-        Ok("Excel、英文参数图和尺寸图已由悬浮助手生成".to_string())
+    let created = [excel_created, sku_image_created, english_created, size_created].into_iter().filter(|value| *value).count();
+    if created == 4 {
+        Ok("Excel、SKU 图、英文参数图和尺寸图已由悬浮助手生成".to_string())
     } else if created == 0 {
         Ok("目标文件均已存在，已跳过".to_string())
     } else {
@@ -386,14 +398,16 @@ fn request_excel(
     product: FinalizedProduct,
     folder: String,
     overwrite: bool,
+    auto: Option<bool>,
 ) -> Result<String, String> {
     let folder = PathBuf::from(folder);
     if !folder.is_dir() {
         return Err("产品目录不存在".to_string());
     }
     let (excel_path, english_path, size_path) = output_paths(&folder, &product);
-    if !overwrite && excel_path.exists() && english_path.exists() && size_path.exists() {
-        let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"done", "message":"三个目标文件均已存在，已跳过"}));
+    let sku_image_path = output_sku_image_path(&folder, &product);
+    if !overwrite && excel_path.exists() && sku_image_path.exists() && english_path.exists() && size_path.exists() {
+        let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"done", "message":"四个目标文件均已存在，已跳过"}));
         return Ok(String::new());
     }
     let transparent_image_data_url = if overwrite || !english_path.exists() || !size_path.exists() {
@@ -408,6 +422,7 @@ fn request_excel(
     let pending = PendingAssets {
         sku: product.sku.clone(),
         excel_path: excel_path.clone(),
+        sku_image_path,
         english_path,
         size_path,
         overwrite,
@@ -418,6 +433,7 @@ fn request_excel(
         "jobId": job_id,
         "sku": product.sku,
         "product": product,
+        "auto": auto.unwrap_or(false),
         "fileName": excel_path.file_name().and_then(|value| value.to_str()).unwrap_or("PLM产品信息.xlsx"),
         "transparentImageDataUrl": transparent_image_data_url
     });
@@ -465,6 +481,10 @@ fn build_preview(
         .as_ref()
         .map(|path| output_paths(path, &product))
         .unwrap_or_default();
+    let sku_image_path = folder
+        .as_ref()
+        .map(|path| output_sku_image_path(path, &product))
+        .unwrap_or_default();
     let mut missing = Vec::new();
     if folder.is_some() && transparent.is_none() {
         missing.push("透明.png".to_string());
@@ -483,9 +503,11 @@ fn build_preview(
         folder: folder.as_ref().map(|path| path_text(path)),
         transparent_image: transparent.as_ref().map(|path| path_text(path)),
         excel_exists: excel_path.exists(),
+        sku_image_exists: sku_image_path.exists(),
         english_exists: english_path.exists(),
         size_exists: size_path.exists(),
         excel_path: folder.as_ref().map(|_| path_text(&excel_path)),
+        sku_image_path: folder.as_ref().map(|_| path_text(&sku_image_path)),
         english_path: folder.as_ref().map(|_| path_text(&english_path)),
         size_path: folder.as_ref().map(|_| path_text(&size_path)),
         ambiguous_folders: matches.iter().map(|path| path_text(path)).collect(),
@@ -505,6 +527,13 @@ fn output_paths(folder: &Path, product: &FinalizedProduct) -> (PathBuf, PathBuf,
         asset_folder.join("英文参数图").join("英文参数图.jpg"),
         asset_folder.join("产品参数图").join("尺寸.jpg"),
     )
+}
+
+fn output_sku_image_path(folder: &Path, product: &FinalizedProduct) -> PathBuf {
+    if folder.as_os_str().is_empty() {
+        return PathBuf::new();
+    }
+    folder.join("套图").join("SKU图").join(format!("{}.jpg", sanitize_component(&product.sku)))
 }
 
 fn sanitize_component(value: &str) -> String {
@@ -550,6 +579,7 @@ mod tests {
         let folder = PathBuf::from(r"D:\产品");
         let (excel, english, size) = output_paths(&folder, &product);
         assert!(excel.ends_with(r"套图\WESTMONTH 面霜 SKU00000001.xlsx"));
+        assert!(output_sku_image_path(&folder, &product).ends_with(r"套图\SKU图\SKU00000001.jpg"));
         assert!(english.ends_with(r"套图\WESTMONTH 面霜 SKU00000001\英文参数图\英文参数图.jpg"));
         assert!(size.ends_with(r"套图\WESTMONTH 面霜 SKU00000001\产品参数图\尺寸.jpg"));
     }

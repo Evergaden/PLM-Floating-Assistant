@@ -4,6 +4,8 @@ export interface FinalizedProduct {
   name: string;
   englishName: string;
   finalizedAt: string;
+  finalizedDate: string;
+  cacheUpdatedAtMs: number;
   packageSizeText: string;
   packageSizeLabel: string;
   packageNums: number[];
@@ -32,9 +34,11 @@ export interface ProductPreview {
   folder: string | null;
   transparentImage: string | null;
   excelPath: string | null;
+  skuImagePath: string | null;
   englishPath: string | null;
   sizePath: string | null;
   excelExists: boolean;
+  skuImageExists: boolean;
   englishExists: boolean;
   sizeExists: boolean;
   ambiguousFolders: string[];

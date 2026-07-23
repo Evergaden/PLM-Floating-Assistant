@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.146
+// @version      2.5.147
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.146';
+  const SCRIPT_VERSION = '2.5.147';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1967,6 +1967,7 @@
   const DESKTOP_BRIDGE_TOKEN_KEY = 'plm_desktop_bridge_token';
   let desktopBridgeSocket = null;
   let desktopBridgeReconnectTimer = 0;
+  let desktopBridgeSnapshotTimer = 0;
   let desktopBridgeStatus = '未配对';
   let desktopBridgeExcelQueue = Promise.resolve();
 
@@ -2136,6 +2137,8 @@
         name: String(data.name || ''),
         englishName: String(data.englishName || ''),
         finalizedAt: String(row.finalizedAt || ''),
+        finalizedDate: String(row.finalizedDate || ''),
+        cacheUpdatedAtMs: Number(data.updatedAtMs || row.updatedAtMs || 0) || 0,
         packageSizeText: String(data.packageSizeText || ''),
         packageSizeLabel: String(data.packageSizeLabel || ''),
         packageNums: Array.isArray(data.packageNums) ? data.packageNums.slice() : [],
@@ -2174,6 +2177,73 @@
     addLog('success', '桌面工作台同步完成', products.length + ' 个已定稿 SKU');
   }
 
+  function scheduleDesktopBridgeSnapshot() {
+    if (!isDesktopBridgeConnected()) return;
+    window.clearTimeout(desktopBridgeSnapshotTimer);
+    desktopBridgeSnapshotTimer = window.setTimeout(() => sendDesktopBridgeSnapshot(), 700);
+  }
+
+  function countHashDistance(left, right) {
+    let value = BigInt('0x' + left) ^ BigInt('0x' + right);
+    let count = 0;
+    while (value) {
+      count += Number(value & 1n);
+      value >>= 1n;
+    }
+    return count;
+  }
+
+  async function getSkuImagePerceptualHash(dataUrl) {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('SKU 图片无法解码'));
+      element.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.drawImage(image, 0, 0, 16, 16);
+    const pixels = ctx.getImageData(0, 0, 16, 16).data;
+    const luminance = [];
+    for (let index = 0; index < pixels.length; index += 4) {
+      luminance.push(pixels[index] * .299 + pixels[index + 1] * .587 + pixels[index + 2] * .114);
+    }
+    const average = luminance.reduce((sum, value) => sum + value, 0) / luminance.length;
+    let bits = '';
+    luminance.forEach((value) => { bits += value < average ? '1' : '0'; });
+    return BigInt('0b' + bits).toString(16).padStart(64, '0');
+  }
+
+  async function isPlaceholderSkuImage(dataUrl) {
+    const hash = await getSkuImagePerceptualHash(dataUrl);
+    const placeholders = [
+      '0000000000000ff00ff00ff01f70082000000000000000000000000000000000',
+      '000000000000000000001ff83ff83ff83ff83ff81ff800000000000000000000',
+    ];
+    return placeholders.some((placeholder) => countHashDistance(hash, placeholder) <= 14);
+  }
+
+  async function convertSkuImageToJpeg(dataUrl) {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('SKU 图片无法解码'));
+      element.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth || image.width;
+    canvas.height = image.naturalHeight || image.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0);
+    return canvas.toDataURL('image/jpeg', .95);
+  }
+
   async function generateDesktopBridgeExcel(message) {
     const sku = String(message && message.sku || '').toUpperCase();
     const jobId = String(message && message.jobId || '');
@@ -2204,10 +2274,24 @@
     state.data = data;
     resetExcelState();
     addLog('info', '桌面工作台请求悬浮助手生成资产', sku);
-    await prepareExcelInfo();
-    const prepared = state.excelExtra || {};
-    const extra = prepared.extra || buildCachedExcelExtraData(data);
-    const excelData = normalizeData(prepared.excelData || data);
+    let extra;
+    let excelData;
+    if (message.auto) {
+      extra = buildCachedExcelExtraData(data);
+      excelData = data;
+      state.excelExtra = { extra, excelData };
+      state.excelMissing = getExcelMissingFields(excelData, extra);
+      if (state.excelMissing.length) {
+        throw new Error(sku + ' 缓存资料尚未完整，等待补齐：' + state.excelMissing.join('、'));
+      }
+      await fillRecommendedPackQty(excelData);
+      await fillRecommendedPurchasePrice(excelData, extra);
+    } else {
+      await prepareExcelInfo();
+      const prepared = state.excelExtra || {};
+      extra = prepared.extra || buildCachedExcelExtraData(data);
+      excelData = normalizeData(prepared.excelData || data);
+    }
     const packQty = normalizePackQty(state.excelPackQty || excelData.packQty || excelData.packCount || excelData.cartonQty || '');
     const purchasePrice = String(state.excelPurchasePrice || excelData.purchasePrice || '6');
     if (!packQty) {
@@ -2231,6 +2315,11 @@
     const imageInfo = excelImageSource.imageUrl
       ? await fetchImageForExcel(excelImageSource.imageUrl, excelImageSource.imageFallbackUrl).catch(() => null)
       : null;
+    if (!imageInfo || !imageInfo.dataUrl) throw new Error(sku + ' 未能读取真实 SKU 产品图');
+    if (await isPlaceholderSkuImage(imageInfo.dataUrl)) {
+      throw new Error(sku + ' 当前仍是 JPG/透明占位图，等待真实 SKU 产品图后自动生成');
+    }
+    const skuImageDataUrl = await convertSkuImageToJpeg(imageInfo.dataUrl);
 
     setCell(sheet, 'A4', buildExcelKeyword(excelData, extra));
     setCell(sheet, 'B4', excelData.name || extra.chineseName || '');
@@ -2273,6 +2362,7 @@
       sku,
       fileName: String(message.fileName || buildExcelFileName(excelData, extra)),
       excelBase64: bytesToBase64(bytes),
+      skuImageDataUrl,
       englishDataUrl: assets.englishDataUrl,
       sizeDataUrl: assets.sizeDataUrl,
     });
@@ -15132,6 +15222,7 @@
     }
     refreshLedgerCard(updatedRecord);
     refreshLedgerPerformanceSummary();
+    if (action === 'ledger-finalize') scheduleDesktopBridgeSnapshot();
   }
 
   function updateLedgerTrashFromAction(action, sku, dateKey) {
@@ -17239,6 +17330,7 @@
       upsertIndex(normalized);
       recordDataQuality(normalized, 'saveData');
       queueCloudBackup();
+      scheduleDesktopBridgeSnapshot();
       const previousPackKey = previousNormalized ? buildPackBoxKey(previousNormalized) : '';
       const nextPackKey = buildPackBoxKey(normalized);
       if (nextPackKey && nextPackKey !== previousPackKey) schedulePackAiEstimate(normalized);
