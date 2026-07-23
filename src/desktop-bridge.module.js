@@ -33,9 +33,9 @@
     const token = getDesktopBridgeToken();
     return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>桌面工作台</strong><span>' +
       escapeHtml(isDesktopBridgeConnected() ? '已连接' : '本机直连') +
-      '</span></div><label class="pfh-cloud-key"><span>工作台连接码</span><input type="password" class="pfh-desktop-bridge-token" value="' +
+      '</span></div><label class="pfh-cloud-key"><span>工作台连接码</span><input type="text" name="plm-desktop-pairing-code" class="pfh-desktop-bridge-token" value="' +
       escapeHtml(token) +
-      '" placeholder="从 PLM 产品资产工作台复制连接码" autocomplete="off" spellcheck="false"></label>' +
+      '" placeholder="从 PLM 产品资产工作台复制连接码" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true" style="-webkit-text-security:disc"></label>' +
       '<div class="pfh-about-actions"><button type="button" data-action="desktop-bridge-connect">连接工作台</button>' +
       '<button type="button" data-action="desktop-bridge-disconnect">断开</button>' +
       '<span class="pfh-desktop-bridge-status">' + escapeHtml(desktopBridgeStatus) + '</span></div></div>';
