@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.139
+// @version      2.5.140
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.139';
+  const SCRIPT_VERSION = '2.5.140';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5732,10 +5732,20 @@
     return '\u672a\u627e\u5230\u53ef\u7528\u7684\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\uff0c\u8bf7\u5148\u5237\u65b0 PLM \u7f13\u5b58\u3002';
   }
 
+  function isPrintedBagSizeImageData(data) {
+    const source = [
+      data && data.printRawText,
+      data && data.printSizeLabel,
+      data && data.packageSizeLabel,
+    ].filter(Boolean).join(' ');
+    return /(?:\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\/\u819c\u7c7b)/.test(source);
+  }
+
   function getLabelSizeImageSpecs(data) {
     if (!data || (!/(?:\u6807\u7b7e|\u5370\u5237)/.test(String(data.printSizeLabel || '')) && !data.isTubePrint)) return [];
     const labels = String(data.printSizeLabel || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
     const codes = String(data.printCode || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
+    const printedBag = isPrintedBagSizeImageData(data);
     const dimensions = [];
     const pattern = /(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(cm|mm)?/ig;
     let match;
@@ -5757,6 +5767,7 @@
         code: codes[index] || '',
         labelText,
         remark: collectSizeImageRemark(labelText, []),
+        printedBag: kind === 'print' && printedBag,
       };
     });
   }
@@ -5866,7 +5877,7 @@
               return null;
             }
           }).filter(Boolean).sort((a, b) => a.geometry.matchDelta - b.geometry.matchDelta);
-          if (!matches.length && labelSpecs.length === 1) throw cartonError || new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u4e2d\u7684\u6807\u7b7e\u5c3a\u5bf8\u4e0d\u5339\u914d\u3002');
+          if (!matches.length && labelSpecs.length === 1) throw new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u4e2d\u7684\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\u4e0d\u5339\u914d\u3002');
           const first = matches[0];
           const second = matches[1];
           const confident = first && (!second || second.geometry.matchDelta - first.geometry.matchDelta >= 0.012);
@@ -6056,6 +6067,25 @@
     };
   }
 
+  function matchFlatSizeImageRatio(sourceRatio, spec) {
+    const panelCounts = spec && spec.printedBag ? [1, 2] : [1];
+    const candidates = [];
+    panelCounts.forEach((panelCount) => {
+      const expectedRatio = spec.width * panelCount / spec.height;
+      candidates.push({
+        panelCount,
+        rotated: false,
+        matchDelta: Math.abs(sourceRatio - expectedRatio) / expectedRatio,
+      });
+      candidates.push({
+        panelCount,
+        rotated: true,
+        matchDelta: Math.abs((1 / sourceRatio) - expectedRatio) / expectedRatio,
+      });
+    });
+    return candidates.sort((a, b) => a.matchDelta - b.matchDelta)[0];
+  }
+
   function analyzeLabelSizeImageGeometry(image, spec, allowMismatch) {
     const maxSide = 1600;
     const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
@@ -6094,11 +6124,8 @@
     const cropWidth = right - left + 1;
     const cropHeight = bottom - top + 1;
     const sourceRatio = cropWidth / cropHeight;
-    const expectedRatio = spec.width / spec.height;
-    const directDelta = Math.abs(sourceRatio - expectedRatio) / expectedRatio;
-    const rotatedDelta = Math.abs((1 / sourceRatio) - expectedRatio) / expectedRatio;
-    const rotated = rotatedDelta < directDelta;
-    if (!allowMismatch && Math.min(directDelta, rotatedDelta) > 0.065) {
+    const ratioMatch = matchFlatSizeImageRatio(sourceRatio, spec);
+    if (!allowMismatch && ratioMatch.matchDelta > 0.065) {
       throw new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u6807\u7b7e\u5c3a\u5bf8 ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm \u4e0d\u5339\u914d\u3002');
     }
     return {
@@ -6106,8 +6133,9 @@
       cropY: top * image.naturalHeight / height,
       cropWidth: cropWidth * image.naturalWidth / width,
       cropHeight: cropHeight * image.naturalHeight / height,
-      rotated,
-      matchDelta: Math.min(directDelta, rotatedDelta),
+      rotated: ratioMatch.rotated,
+      panelCount: ratioMatch.panelCount,
+      matchDelta: ratioMatch.matchDelta,
     };
   }
 
@@ -6238,7 +6266,12 @@
     context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.fillText(getSizeImageTitle(spec.kind === 'print' ? 'print' : 'label', data, includeRemark, includeRoundArc, customRemark), 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM', 505, 260);
+    const panelCount = Math.max(1, Number(geometry.panelCount) || 1);
+    const artworkWidth = spec.width * panelCount;
+    const sizeText = panelCount > 1
+      ? '\u89c4\u683c\u5c3a\u5bf8\uff1a\u5355\u9762\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM\uff08\u53cc\u9762\u5c55\u5f00\u5bbd' + formatSizeImageNumber(artworkWidth) + 'CM\uff09'
+      : '\u89c4\u683c\u5c3a\u5bf8\uff1a\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + 'CM';
+    context.fillText(sizeText, 505, 260);
     if (includeBatchNumber) {
       context.fillStyle = '#ee1410';
       context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
@@ -6246,8 +6279,8 @@
       context.fillText(batchNote, 469, 370);
     }
 
-    const drawScale = Math.min(2050 / spec.width, 1550 / spec.height);
-    const artWidth = spec.width * drawScale;
+    const drawScale = Math.min(2050 / artworkWidth, 1550 / spec.height);
+    const artWidth = artworkWidth * drawScale;
     const artHeight = spec.height * drawScale;
     const artX = Math.round((3000 - artWidth) / 2);
     const artY = clamp(Math.round((3000 - artHeight) / 2), 760, 1200);
@@ -6298,7 +6331,22 @@
     drawSizeImageLine(context, artX + artWidth, bottomY - tick, artX + artWidth, bottomY + tick);
     context.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif';
     context.textAlign = 'center';
-    context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth / 2, bottomY + 34);
+    if (panelCount > 1) {
+      for (let panelIndex = 1; panelIndex < panelCount; panelIndex += 1) {
+        const dividerX = artX + artWidth * panelIndex / panelCount;
+        context.save();
+        context.strokeStyle = 'rgba(238, 20, 16, 0.65)';
+        context.setLineDash([18, 14]);
+        drawSizeImageLine(context, dividerX, artY, dividerX, artY + artHeight);
+        context.restore();
+        drawSizeImageLine(context, dividerX, bottomY - tick, dividerX, bottomY + tick);
+      }
+      for (let panelIndex = 0; panelIndex < panelCount; panelIndex += 1) {
+        context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth * (panelIndex + 0.5) / panelCount, bottomY + 34);
+      }
+    } else {
+      context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth / 2, bottomY + 34);
+    }
     return canvas.toDataURL('image/jpeg', 0.96);
   }
 
