@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.147
+// @version      2.5.148
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.147';
+  const SCRIPT_VERSION = '2.5.148';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -13720,6 +13720,13 @@
     if (state.excelPackQty) return false;
     const boxKey = buildPackBoxKey(data);
     if (!boxKey) return false;
+    const cachedCount = normalizePackCountValue(data && (data.packQty || data.packCount || data.cartonQty));
+    const cachedBoxKey = String(data && data.packQtyBoxKey || '');
+    if (cachedCount && (!cachedBoxKey || cachedBoxKey === boxKey)) {
+      state.excelPackQty = cachedCount;
+      state.excelStatus = L.excelPackRecommended + ': ' + cachedCount + '（缓存）';
+      return true;
+    }
     let recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
     if (!recommendation || !recommendation.packCount) {
       recommendation = await requestPackAiEstimate(boxKey, data && data.sku).catch((error) => {
@@ -13727,10 +13734,18 @@
         return null;
       });
     }
+    if (!recommendation || !recommendation.packCount) {
+      recommendation = calculateLocalPackRecommendation(boxKey);
+    }
     const count = recommendation && recommendation.packCount ? String(recommendation.packCount) : '';
     if (!count) return false;
     state.excelPackQty = count;
-    state.excelStatus = L.excelPackRecommended + ': ' + count;
+    const sourceText = recommendation.source === 'local-calc'
+      ? '本地计算 56x36x21cm'
+      : (recommendation.source || '历史推荐');
+    state.excelStatus = L.excelPackRecommended + ': ' + count + '（' + sourceText + '）';
+    cachePackRecommendation(data, boxKey, recommendation);
+    addLog('success', '已补全装箱数', String(data && data.sku || '') + ' ' + boxKey + ' → ' + count + '（' + sourceText + '）');
     return true;
   }
 
@@ -15757,6 +15772,63 @@
     return parts.length === 3 ? parts.join('x') : '';
   }
 
+  function normalizePackCountValue(value) {
+    const count = Number.parseInt(String(value || '').replace(/[^0-9]/g, ''), 10);
+    return Number.isInteger(count) && count > 0 ? String(count) : '';
+  }
+
+  function calculateLocalPackRecommendation(boxKey) {
+    const itemDims = String(boxKey || '')
+      .split('x')
+      .map((part) => Number(part));
+    if (itemDims.length !== 3 || itemDims.some((value) => !Number.isFinite(value) || value <= 0)) return null;
+    const cartonDims = [56, 36, 21];
+    const permutations = [
+      [itemDims[0], itemDims[1], itemDims[2]],
+      [itemDims[0], itemDims[2], itemDims[1]],
+      [itemDims[1], itemDims[0], itemDims[2]],
+      [itemDims[1], itemDims[2], itemDims[0]],
+      [itemDims[2], itemDims[0], itemDims[1]],
+      [itemDims[2], itemDims[1], itemDims[0]],
+    ];
+    const best = permutations.reduce((current, dims) => {
+      const count = Math.floor(cartonDims[0] / dims[0])
+        * Math.floor(cartonDims[1] / dims[1])
+        * Math.floor(cartonDims[2] / dims[2]);
+      return count > current.packCount ? { packCount: count, orientation: dims.join('x') } : current;
+    }, { packCount: 0, orientation: '' });
+    if (!best.packCount) return null;
+    return {
+      boxKey,
+      packCount: best.packCount,
+      orientation: best.orientation,
+      cartonKey: cartonDims.join('x'),
+      source: 'local-calc',
+    };
+  }
+
+  function cachePackRecommendation(data, boxKey, recommendation) {
+    const sku = String(data && data.sku || '').trim();
+    const count = normalizePackCountValue(recommendation && recommendation.packCount);
+    if (!sku || !boxKey || !count) return;
+    const current = normalizeData(loadData(sku) || data);
+    if (
+      normalizePackCountValue(current.packQty || current.packCount || current.cartonQty) === count
+      && String(current.packQtyBoxKey || '') === boxKey
+    ) return;
+    saveData(sku, {
+      ...current,
+      packQty: count,
+      packCount: count,
+      packQtyBoxKey: boxKey,
+      packQtySource: String(recommendation.source || 'recommendation'),
+      packQtyUpdatedAt: new Date().toLocaleString(),
+    }, {
+      suppressChangeTracking: true,
+      changeSource: '装箱数推荐',
+    });
+  }
+
   function shouldUseProductSizeForPacking(data) {
     return Boolean(data && data.singleBottle && !/纸盒/.test(String(data.packageSizeLabel || '')));
   }
@@ -15811,15 +15883,22 @@
     const recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
     if (recommendation && recommendation.found && recommendation.packCount) {
       showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5df2\u5b58\u5728\u5386\u53f2 ' + recommendation.packCount);
+      cachePackRecommendation(data, boxKey, recommendation);
       return recommendation;
     }
     showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u672a\u67e5\u5230\u5386\u53f2\uff0c\u540e\u53f0\u8ba1\u7b97\u4e2d ' + boxKey);
-    const estimated = await requestPackAiEstimate(boxKey, data && data.sku);
+    let estimated = await requestPackAiEstimate(boxKey, data && data.sku).catch((error) => {
+      addLog('warn', '在线装箱推荐不可用，改用本地计算', String(data && data.sku || '') + ' ' + formatErrorMessage(error));
+      return null;
+    });
+    if (!estimated || !estimated.packCount) estimated = calculateLocalPackRecommendation(boxKey);
     if (estimated && estimated.packCount) {
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5df2\u5199\u5165 ' + estimated.packCount + (estimated.source ? '\uff08' + estimated.source + '\uff09' : ''));
+      const sourceText = estimated.source === 'local-calc' ? '本地计算 56x36x21cm' : estimated.source;
+      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5df2\u5199\u5165 ' + estimated.packCount + (sourceText ? '\uff08' + sourceText + '\uff09' : ''));
+      cachePackRecommendation(data, boxKey, estimated);
       if (state.excelPanelOpen && state.data && data && state.data.sku === data.sku && !state.excelPackQty) {
         state.excelPackQty = String(estimated.packCount);
-        state.excelStatus = L.excelPackRecommended + ': ' + estimated.packCount;
+        state.excelStatus = L.excelPackRecommended + ': ' + estimated.packCount + (sourceText ? '（' + sourceText + '）' : '');
         renderShell();
       }
       return estimated;
