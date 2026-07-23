@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.133
+// @version      2.5.134
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.133';
+  const SCRIPT_VERSION = '2.5.134';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -2362,6 +2362,7 @@
     skuSortMenuOpen: false,
     skuContextMenuSku: '',
     copywritingMode: false,
+    copywritingView: 'file',
     skuEditMode: false,
     copywritingLoading: false,
     copywritingError: '',
@@ -5159,10 +5160,9 @@
     const title = [data && data.brand, data && data.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
     const actions = copywritingMode
       ? '<div class="pfh-copywriting-hero-actions">' +
-          '<button type="button" data-action="copywriting-back">返回数据</button>' +
-          '<button type="button" data-action="copywriting-copy">复制全文</button>' +
-          '<button type="button" data-action="copywriting-refresh">重新获取</button>' +
-          ((data && data.copywriting && data.copywriting.updatePending) ? '<button type="button" data-action="copywriting-ack">已查看更新</button>' : '') +
+          '<button type="button" class="is-primary" data-action="copywriting-back">' + iconHtml('back') + '返回数据</button>' +
+          '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' +
+          '<button type="button" data-action="copywriting-refresh">' + iconHtml('refresh') + '重新获取</button>' +
         '</div>'
       : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button><button type="button" class="pfh-title-open-detail" data-action="copywriting-open">文案</button>' +
           (state.skuEditMode
@@ -5173,6 +5173,14 @@
       productThumbHtml(data) +
       '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml((data && data.sku) || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml(title) + '</strong>' + actions + '</div>' +
       '</div></div>' + (copywritingMode ? '</section>' : '');
+  }
+
+  function copywritingCopyIconHtml() {
+    return '<svg class="pfh-copywriting-copy-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M720 192H176a80 80 0 0 0-80 80v608a80 80 0 0 0 80 80h544a80 80 0 0 0 80-80V272a80 80 0 0 0-80-80zm16 688c0 8.8-7.2 16-16 16H176a16 16 0 0 1-16-16V272a16 16 0 0 1 16-16h544a16 16 0 0 1 16 16v608z"></path><path d="M848 64H304a32 32 0 0 0 0 64h544a16 16 0 0 1 16 16v608a32 32 0 1 0 64 0V144a80 80 0 0 0-80-80zM608 360H288a32 32 0 0 0 0 64h320a32 32 0 1 0 0-64zM608 520H288a32 32 0 1 0 0 64h320a32 32 0 1 0 0-64zM480 679H288a32 32 0 1 0 0 64h192a32 32 0 1 0 0-64z"></path></svg>';
+  }
+
+  function copywritingCopiedIconHtml() {
+    return '<svg class="pfh-copywriting-copied-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m7.5 12.2 3 3 6-6"></path></svg>';
   }
 
   function copywritingViewHtml(data) {
@@ -5187,8 +5195,12 @@
       return '<section class="pfh-copywriting-page">' + errorHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
     }
     const changed = new Set(record.changedSectionKeys || []);
+    const copied = new Set(record.copiedSectionKeys || []);
+    const view = state.copywritingView === 'full' ? 'full' : 'file';
+    const visibleSections = record.sections.filter((section) => section.key !== 'functionsHeading');
+    const copiedCount = visibleSections.filter((section) => copied.has(section.key)).length;
     const updateHtml = record.updatePending
-      ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span></div>'
+      ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>'
       : '';
     const loadingHtml = state.copywritingLoading
       ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + escapeHtml(state.copywritingStatus || '已显示历史内容，正在读取新的文案文件...') + '</span></div>'
@@ -5196,12 +5208,19 @@
     const missingHtml = record.missingSections && record.missingSections.length
       ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + escapeHtml(record.missingSections.join('、')) + '</span></div>'
       : '';
-    const sectionsHtml = record.sections.map((section) => {
-      return '<div class="pfh-copywriting-block' + (changed.has(section.key) ? ' is-changed' : '') + '" data-copywriting-key="' + escapeHtml(section.key) + '">' +
-        '<div class="pfh-copywriting-block-head"><span>' + escapeHtml(section.label || section.key) + '</span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + escapeHtml(section.key) + '">复制本段</button></div>' +
-        '<pre>' + escapeHtml(section.text) + '</pre></div>';
-    }).join('');
-    return '<section class="pfh-copywriting-page">' + errorHtml + loadingHtml + updateHtml + missingHtml + '<div class="pfh-copywriting-content">' + sectionsHtml + '</div></section>';
+    const toolbarHtml = '<div class="pfh-copywriting-toolbar"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
+      '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
+      '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
+      '</select></label><span class="pfh-copywriting-progress">' + (view === 'file' ? ('已复制 ' + copiedCount + ' / ' + visibleSections.length + ' · 点击卡片右侧按钮复制') : '完整展示全部文案内容') + '</span></div>';
+    const contentHtml = view === 'full'
+      ? '<div class="pfh-copywriting-full-card' + (record.copiedFullText ? ' is-copied' : '') + '"><div class="pfh-copywriting-block-head"><span><b>全文</b><small>全部文案内容</small></span><button type="button" data-action="copywriting-copy">' + (record.copiedFullText ? copywritingCopiedIconHtml() + '已复制全文' : copywritingCopyIconHtml() + '复制全文') + '</button></div><pre>' + escapeHtml(record.fullText) + '</pre></div>'
+      : visibleSections.map((section, index) => {
+          const isCopied = copied.has(section.key);
+          return '<div class="pfh-copywriting-block' + (changed.has(section.key) ? ' is-changed' : '') + (isCopied ? ' is-copied' : '') + '" data-copywriting-key="' + escapeHtml(section.key) + '">' +
+            '<div class="pfh-copywriting-block-head"><span><b>' + String(index + 1).padStart(2, '0') + '</b><strong>' + escapeHtml(section.label || section.key) + '</strong></span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + escapeHtml(section.key) + '">' + (isCopied ? copywritingCopiedIconHtml() + '已复制本段' : copywritingCopyIconHtml() + '复制本段') + '</button></div>' +
+            '<pre>' + escapeHtml(section.text) + '</pre>' + (isCopied ? '<div class="pfh-copywriting-copied-note">' + copywritingCopiedIconHtml() + '<span>已复制：' + escapeHtml(section.label || section.key) + '</span></div>' : '') + '</div>';
+        }).join('');
+    return '<section class="pfh-copywriting-page">' + errorHtml + loadingHtml + updateHtml + missingHtml + toolbarHtml + '<div class="pfh-copywriting-content is-' + view + '">' + contentHtml + '</div></section>';
   }
 
   function copywritingSectionCopyValue(section) {
@@ -7205,6 +7224,7 @@
     if (initialCached && initialCached.fullText && !(data.copywriting && data.copywriting.fullText)) {
       state.data = normalizeData({ ...data, copywriting: initialCached });
     }
+    if (!state.copywritingMode) state.copywritingView = 'file';
     state.copywritingMode = true;
     state.copywritingLoading = !(initialCached && initialCached.fullText);
     state.copywritingError = '';
@@ -7314,6 +7334,24 @@
     };
     saveData(data.sku, { ...data, copywriting: next });
     showToast('已标记为查看');
+    renderShell();
+  }
+
+  function markCopywritingCopied(sectionKey, copiedFullText) {
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    const record = normalizeCopywritingRecord(data && data.copywriting);
+    if (!data || !data.sku || !record) return;
+    const keys = new Set(record.copiedSectionKeys || []);
+    if (copiedFullText) record.sections.forEach((section) => keys.add(section.key));
+    else if (sectionKey) keys.add(sectionKey);
+    saveData(data.sku, {
+      ...data,
+      copywriting: {
+        ...record,
+        copiedSectionKeys: Array.from(keys),
+        copiedFullText: Boolean(record.copiedFullText || copiedFullText),
+      },
+    }, { suppressChangeTracking: true });
     renderShell();
   }
 
@@ -8250,6 +8288,8 @@
       changedSectionKeys,
       removedSections,
       previousSections: changedFile ? old.sections : (old && old.updatePending ? old.previousSections : []),
+      copiedSectionKeys: changedFile ? [] : (old && old.copiedSectionKeys || []),
+      copiedFullText: changedFile ? false : Boolean(old && old.copiedFullText),
     });
   }
 
@@ -8278,6 +8318,8 @@
       changedSectionKeys: (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16),
       removedSections: (Array.isArray(record.removedSections) ? record.removedSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
       previousSections: normalizeSections(record.previousSections),
+      copiedSectionKeys: (Array.isArray(record.copiedSectionKeys) ? record.copiedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 24),
+      copiedFullText: Boolean(record.copiedFullText),
     };
   }
 
@@ -8768,6 +8810,7 @@
       else {
         copyText(record.fullText);
         showToast('文案已复制');
+        markCopywritingCopied('', true);
       }
       return;
     }
@@ -8780,6 +8823,7 @@
       else {
         copyText(value);
         showToast((section && section.label ? section.label : '本段') + '已复制');
+        markCopywritingCopied(key, false);
       }
       return;
     }
@@ -9572,6 +9616,11 @@
 
   function handlePanelChange(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-copywriting-view-select')) {
+      state.copywritingView = event.target.value === 'full' ? 'full' : 'file';
+      renderShell();
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
       regenerateCurrentSizeImages();
       return;
