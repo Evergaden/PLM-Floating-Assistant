@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.132
+// @version      2.5.133
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.132';
+  const SCRIPT_VERSION = '2.5.133';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -3821,7 +3821,7 @@
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map((item) => item.row);
-    const printRows = rows.filter((row) => !/(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(row) && ((/\u5305\u6750/.test(row) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6)/.test(row)) || (/\u5305\u6750/.test(row) && /\u5370\u5237/.test(row) && hasPrintDimensionText(row)) || (/\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(row) && hasPrintDimensionText(row))));
+    const printRows = rows.filter(isPrintMaterialRow);
     const packageRow = packageRows[0] || '';
     const packageDim = extractDimensionString(packageRow);
     const packageNums = parseDimension(packageDim, 3);
@@ -3848,6 +3848,16 @@
       printRawText: printRows.join('\uff1b').slice(0, 1000),
       netContent: extractNetContentFromMaterial(packageRow) || extractNetContentFromMaterial(printRows[0] || ''),
     };
+  }
+
+  function isPrintMaterialRow(row) {
+    const text = String(row || '');
+    const excludedPackaging = /(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(text);
+    // PLM categories are sometimes entered as "printed bag" even when the material description clearly identifies a tube.
+    if (excludedPackaging && !isTubePrintRow(text)) return false;
+    return (/\u5305\u6750/.test(text) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6)/.test(text))
+      || (/\u5305\u6750/.test(text) && /\u5370\u5237/.test(text) && hasPrintDimensionText(text))
+      || (/\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(text) && hasPrintDimensionText(text));
   }
 
   function getProjectField(text, fieldName) {
@@ -3976,7 +3986,14 @@
 
   function isTubePrintRow(row) {
     const text = String(row || '');
-    return /\u5370\u5237(?:\u8f6f\u7ba1|\u7ba1|\u74f6|\u4e73\u6db2\u74f6)/.test(text) || (/\u8f6f\u7ba1|\u767d\u7ba1|PE\u7ba1|pe\u7ba1|\u7ba1\u8eab|\u5c01\u5c3e|\u76d6\u5b50/.test(text) && /\u5370\u5237(?:\u5c3a\u5bf8)?/.test(text));
+    return /\u5370\u5237(?:\u8f6f\u7ba1|\u7ba1|\u74f6|\u4e73\u6db2\u74f6)/.test(text) || (hasStrongTubeMaterialFeatures(text) && /\u5370\u5237(?:\u5c3a\u5bf8)?/.test(text));
+  }
+
+  function hasStrongTubeMaterialFeatures(text) {
+    const source = String(text || '');
+    if (/\u8f6f\u7ba1|\u767d\u7ba1|\u9ed1\u7ba1|(?:PE|pe)[^\s,，;；]{0,4}\u7ba1/.test(source)) return true;
+    const structuralMarkers = ['\u7ba1\u5f84', '\u7ba1\u8eab', '\u5c01\u5c3e', '\u76d6\u5b50\u9ad8\u5ea6', '\u603b\u9ad8\u5ea6'].filter((marker) => source.includes(marker));
+    return structuralMarkers.length >= 2;
   }
 
   function isTubePrintData(data, packageNums) {
