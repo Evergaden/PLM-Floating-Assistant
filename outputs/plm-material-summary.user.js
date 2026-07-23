@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.135
+// @version      2.5.136
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,9 +30,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.135';
+  const SCRIPT_VERSION = '2.5.136';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.134';
+  const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '6';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -5182,7 +5182,7 @@
   }
 
   function copywritingCopyIconHtml() {
-    return '<svg class="pfh-copywriting-copy-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M720 192H176a80 80 0 0 0-80 80v608a80 80 0 0 0 80 80h544a80 80 0 0 0 80-80V272a80 80 0 0 0-80-80zm16 688c0 8.8-7.2 16-16 16H176a16 16 0 0 1-16-16V272a16 16 0 0 1 16-16h544a16 16 0 0 1 16 16v608z"></path><path d="M848 64H304a32 32 0 0 0 0 64h544a16 16 0 0 1 16 16v608a32 32 0 1 0 64 0V144a80 80 0 0 0-80-80zM608 360H288a32 32 0 0 0 0 64h320a32 32 0 1 0 0-64zM608 520H288a32 32 0 1 0 0 64h320a32 32 0 1 0 0-64zM480 679H288a32 32 0 1 0 0 64h192a32 32 0 1 0 0-64z"></path></svg>';
+    return '<svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>';
   }
 
   function copywritingCopiedIconHtml() {
