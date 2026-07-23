@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.142
+// @version      2.5.141
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.142';
+  const SCRIPT_VERSION = '2.5.141';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -11173,27 +11173,9 @@
     return getScopedProductFormItem(drawer, labelText);
   }
 
-  const uploadItemStartStates = new WeakMap();
-
-  function getUploadItemCompletionState(item) {
-    if (!item) return { doneCount: 0, listCount: 0, remoteImages: [], signature: '' };
-    const listItems = Array.from(item.querySelectorAll('.ant-upload-list-item'));
-    const remoteImages = Array.from(item.querySelectorAll('img'))
-      .map((image) => String(image.currentSrc || image.src || ''))
-      .filter((src) => /^https?:\/\//i.test(src));
-    const doneCount = listItems.filter((node) => /ant-upload-list-item-done/.test(String(node.className || ''))).length;
-    return {
-      doneCount,
-      listCount: listItems.length,
-      remoteImages,
-      signature: [doneCount, listItems.length, remoteImages.join('|')].join(':'),
-    };
-  }
-
   async function putFileIntoUploadItem(item, file, filename) {
     const input = item.querySelector('input[type="file"]');
     if (!input) throw new Error('\u672a\u627e\u5230\u4e0a\u4f20\u63a7\u4ef6');
-    uploadItemStartStates.set(item, getUploadItemCompletionState(item));
     const mime = (file && file.type && /^image\//.test(file.type)) ? file.type : guessMime(filename);
     const uploadFile = file instanceof File ? file : new File([file], filename, { type: mime });
     const namedFile = uploadFile.name === filename && uploadFile.type ? uploadFile : new File([uploadFile], filename, { type: uploadFile.type || mime, lastModified: uploadFile.lastModified || Date.now() });
@@ -11206,10 +11188,7 @@
 
   async function waitUploadItemDone(item, filename, timeout) {
     const base = String(filename || '').replace(/^.*[\\\/]/, '');
-    const startState = uploadItemStartStates.get(item);
     let failureSeenAt = 0;
-    let completedSignature = '';
-    let completedStableAt = 0;
     await waitUntil(() => {
       const html = item.innerHTML || '';
       const text = getVisibleText(item);
@@ -11219,31 +11198,8 @@
         if (Date.now() - failureSeenAt < 1800) return false;
         throw new Error('\u4e0a\u4f20\u5931\u8d25');
       }
-      if (/ant-progress|uploading|\u4e0a\u4f20\u4e2d/.test(html + text)) {
-        completedSignature = '';
-        completedStableAt = 0;
-        return false;
-      }
-      const currentState = getUploadItemCompletionState(item);
-      const hasNewRemoteImage = Boolean(startState && currentState.remoteImages.some((src) => !startState.remoteImages.includes(src)));
-      const hasNewDoneItem = Boolean(startState && currentState.doneCount > startState.doneCount);
-      const hasNewListItem = Boolean(startState && currentState.listCount > startState.listCount && /ant-upload-list-item-done/.test(html));
-      const hasCompletionEvidence = startState
-        ? (hasNewRemoteImage || hasNewDoneItem || hasNewListItem)
-        : (text.includes('\u9884\u89c8') || text.includes(base) || /ant-upload-list-item-done/.test(html));
-      if (!hasCompletionEvidence) {
-        completedSignature = '';
-        completedStableAt = 0;
-        return false;
-      }
-      if (completedSignature !== currentState.signature) {
-        completedSignature = currentState.signature;
-        completedStableAt = Date.now();
-        return false;
-      }
-      return Date.now() - completedStableAt >= 1600;
+      return !/ant-progress|uploading|\u4e0a\u4f20\u4e2d/.test(html + text) && (text.includes('\u9884\u89c8') || text.includes(base) || /ant-upload-list-item-done/.test(html));
     }, timeout || 120000, 800);
-    uploadItemStartStates.delete(item);
   }
 
   async function openBatchUploadDialog() {
@@ -12093,13 +12049,6 @@
   }
 
   async function saveProjectBomDrawer(drawer) {
-    const uploadsSettled = await waitFor(() => {
-      if (!drawer || !document.body.contains(drawer)) return false;
-      const html = drawer.innerHTML || '';
-      return !/ant-upload-list-item-uploading|ant-progress|uploading|\u4e0a\u4f20\u4e2d/.test(html);
-    }, 180000, 500);
-    if (!uploadsSettled) throw new Error('\u7ed1BOM\u56fe\u7247\u5c1a\u672a\u4e0a\u4f20\u5b8c\u6210\uff0c\u5df2\u53d6\u6d88\u6279\u91cf\u4fdd\u5b58');
-    await wait(1200);
     const button = findButtonLikeInScope(drawer, '\u6279\u91cf\u4fdd\u5b58');
     if (!button) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u6309\u94ae');
     clickElement(button);
@@ -12547,6 +12496,7 @@
     await wait(180);
     await putFileIntoUploadItem(uploadItem, blob, filename);
     await waitUploadItemDone(uploadItem, filename, 180000);
+    await wait(1600);
     addLog('success', '\u73a9\u5177\u6807\u7b7e\uff1a\u8bf4\u660e\u56fe\u5df2\u4e0a\u4f20\u5230\u7ed1BOM\u6807\u7b7e', filename);
     await saveProjectBomDrawer(drawer);
     await closeProjectBomDrawer(drawer);
