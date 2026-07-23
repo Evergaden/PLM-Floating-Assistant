@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.138
+// @version      2.5.139
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -30,7 +30,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.138';
+  const SCRIPT_VERSION = '2.5.139';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -3724,7 +3724,7 @@
         : (!omitEstimatedProductSize
           ? (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : (Array.isArray(safe.productNums) ? safe.productNums : null))
           : null));
-    const isTubePrint = isTubePrintData(safe, packageNums);
+    const isTubePrint = isTubePrintData(safe);
     const copywriting = normalizeCopywritingRecord(safe.copywriting);
     const copywritingIngredientEnglish = String(safe.copywritingIngredientEnglish || copywriting && copywriting.cleanedIngredientEnglish || '').trim();
     const copywritingIngredientChinese = String(safe.copywritingIngredientChinese || copywriting && copywriting.cleanedIngredientChinese || '').trim();
@@ -4005,13 +4005,13 @@
     return structuralMarkers.length >= 2;
   }
 
-  function isTubePrintData(data, packageNums) {
+  function isTubePrintData(data) {
     const text = String(data.printRawText || '') + String(data.printSizeLabel || '') + String(data.printSizeText || '');
     if (data.tubeDiameter && data.tubeBody) return true;
     if (Boolean(data.isTubePrintMaterial) || isTubePrintRow(text)) return true;
-    const printNums = parseDimension(data.printSizeText, 2);
-    const labelLooksGenericPrint = /^\s*(?:\u5370\u5237|\u5370\u5237\u5c3a\u5bf8)?\s*$/.test(String(data.printSizeLabel || ''));
-    return labelLooksGenericPrint && Array.isArray(printNums) && printNums.length === 2 && Array.isArray(packageNums) && packageNums.length >= 3;
+    // A 2D print size plus a 3D carton also describes printed bags, so geometry alone is not tube evidence.
+    const fallbackEvidence = [data.name, data.packageSizeLabel, data.packageSizeText].filter(Boolean).join(' ');
+    return hasStrongTubeMaterialFeatures(fallbackEvidence) && hasPrintDimensionText(data.printSizeText);
   }
 
   function findTubeSizeSpec(text, fields) {
