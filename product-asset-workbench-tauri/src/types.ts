@@ -45,6 +45,7 @@ export interface ProductPreview {
   skuImageExists: boolean;
   englishExists: boolean;
   sizeExists: boolean;
+  matchSource: string;
   ambiguousFolders: string[];
   missing: string[];
 }

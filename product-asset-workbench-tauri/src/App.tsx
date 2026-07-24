@@ -6,8 +6,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
   Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet,
-  FolderOpen, Link2, LoaderCircle, Play, RefreshCw, Search, Settings2,
-  Sparkles, Trash2, Unplug, Upload, X,
+  Eye, FolderOpen, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
+  Sparkles, Trash2, Undo2, Unplug, Upload, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob } from "./types";
 
@@ -55,10 +55,10 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   if (job?.state === "running" || job?.state === "queued") return { label: job.message || "生成中", tone: "working" };
   if (job?.state === "done") return { label: "生成完成", tone: "success" };
   if (job?.state === "error") return { label: job.message || "生成失败", tone: "danger" };
+  if (row.ambiguousFolders.length > 1) return { label: `同名目录 ${row.ambiguousFolders.length} 个，请手动选择`, tone: "warning" };
   if (!row.folder) return { label: "待指定目录", tone: "danger" };
   if (row.missing.length) return { label: `缺少 ${row.missing.join("、")}`, tone: "warning" };
   if (row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists) return { label: "成品已存在", tone: "neutral" };
-  if (row.ambiguousFolders.length > 1) return { label: `SKU 命中 ${row.ambiguousFolders.length} 个目录`, tone: "warning" };
   return { label: "可以生成", tone: "success" };
 }
 
@@ -83,6 +83,208 @@ function ProductThumbnail({ row }: { row: ProductPreview }) {
   );
 }
 
+type PreviewKind = "english" | "size";
+type AnnotationLine = { x1: number; y1: number; x2: number; y2: number; label: string };
+
+function annotationOptions(product: FinalizedProduct) {
+  return [
+    ["包装长", product.packageLength],
+    ["包装宽", product.packageWidth],
+    ["包装高", product.packageHeight],
+    ["产品长", product.productLength],
+    ["产品宽", product.productWidth],
+    ["产品高", product.productHeight],
+  ].filter((item) => item[1]).map(([label, value]) => {
+    const text = String(value).trim();
+    return `${label} ${text}${/cm|厘米|公分/i.test(text) ? "" : "cm"}`;
+  });
+}
+
+function ManualAnnotationCanvas({ dataUrl, row, onSaved, notify }: {
+  dataUrl: string;
+  row: ProductPreview;
+  onSaved: (dataUrl: string) => void;
+  notify: (message: string) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [lines, setLines] = useState<AnnotationLine[]>([]);
+  const [draft, setDraft] = useState<AnnotationLine | null>(null);
+  const [imageReady, setImageReady] = useState(0);
+  const options = useMemo(() => annotationOptions(row.product), [row.product]);
+  const [label, setLabel] = useState(options[0] || "尺寸");
+  const [saving, setSaving] = useState(false);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    const image = imageRef.current;
+    if (!canvas || !image) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const scale = Math.max(1, canvas.width / 1200);
+    [...lines, ...(draft ? [draft] : [])].forEach((line) => {
+      const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
+      const arrow = 13 * scale;
+      ctx.save();
+      ctx.strokeStyle = "#6c4df6";
+      ctx.fillStyle = "#6c4df6";
+      ctx.lineWidth = 4 * scale;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(line.x1, line.y1);
+      ctx.lineTo(line.x2, line.y2);
+      ctx.stroke();
+      [0, Math.PI].forEach((offset, index) => {
+        const x = index ? line.x1 : line.x2;
+        const y = index ? line.y1 : line.y2;
+        const direction = angle + offset;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - arrow * Math.cos(direction - Math.PI / 6), y - arrow * Math.sin(direction - Math.PI / 6));
+        ctx.lineTo(x - arrow * Math.cos(direction + Math.PI / 6), y - arrow * Math.sin(direction + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.font = `700 ${22 * scale}px "Microsoft YaHei UI", sans-serif`;
+      const width = ctx.measureText(line.label).width;
+      const centerX = (line.x1 + line.x2) / 2;
+      const centerY = (line.y1 + line.y2) / 2;
+      ctx.fillStyle = "rgba(255,255,255,.92)";
+      ctx.fillRect(centerX - width / 2 - 10 * scale, centerY - 36 * scale, width + 20 * scale, 31 * scale);
+      ctx.fillStyle = "#5034d8";
+      ctx.textAlign = "center";
+      ctx.fillText(line.label, centerX, centerY - 12 * scale);
+      ctx.restore();
+    });
+  }, [draft, lines]);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => {
+      imageRef.current = image;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      setImageReady((current) => current + 1);
+    };
+    image.src = dataUrl;
+  }, [dataUrl]);
+
+  useEffect(() => draw(), [draw, imageReady]);
+
+  function pointFromEvent(event: React.MouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height,
+    };
+  }
+
+  async function save() {
+    const canvas = canvasRef.current;
+    if (!canvas || !row.sizePath) return;
+    setSaving(true);
+    try {
+      const nextDataUrl = canvas.toDataURL("image/jpeg", .95);
+      await invoke("save_annotated_size_image", { path: row.sizePath, dataUrl: nextDataUrl });
+      onSaved(nextDataUrl);
+      notify("手动标注已保存到尺寸.jpg");
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="annotation-workspace">
+      <div className="annotation-toolbar">
+        <label>当前尺寸<select value={label} onChange={(event) => setLabel(event.target.value)}>
+          {(options.length ? options : ["尺寸"]).map((option) => <option key={option}>{option}</option>)}
+        </select></label>
+        <span>在画布上按住拖动，画出尺寸线</span>
+        <button onClick={() => setLines((current) => current.slice(0, -1))} disabled={!lines.length}><Undo2 size={15} />撤销</button>
+        <button onClick={() => setLines([])} disabled={!lines.length}><RotateCcw size={15} />重画</button>
+        <button className="save-annotation" onClick={save} disabled={saving || !lines.length}>{saving ? <LoaderCircle size={15} className="spin" /> : <Save size={15} />}保存尺寸图</button>
+      </div>
+      <div className="annotation-stage">
+        <canvas
+          ref={canvasRef}
+          onMouseDown={(event) => {
+            const point = pointFromEvent(event);
+            setDraft({ x1: point.x, y1: point.y, x2: point.x, y2: point.y, label });
+          }}
+          onMouseMove={(event) => {
+            if (!draft) return;
+            const point = pointFromEvent(event);
+            setDraft({ ...draft, x2: point.x, y2: point.y });
+          }}
+          onMouseUp={() => {
+            if (!draft) return;
+            if (Math.hypot(draft.x2 - draft.x1, draft.y2 - draft.y1) > 12) setLines((current) => [...current, draft]);
+            setDraft(null);
+          }}
+          onMouseLeave={() => setDraft(null)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AssetPreviewModal({ initialKind, row, onClose, notify }: {
+  initialKind: PreviewKind;
+  row: ProductPreview;
+  onClose: () => void;
+  notify: (message: string) => void;
+}) {
+  const [kind, setKind] = useState<PreviewKind>(initialKind);
+  const [dataUrl, setDataUrl] = useState("");
+  const [error, setError] = useState("");
+  const [annotating, setAnnotating] = useState(false);
+  const path = kind === "english" ? row.englishPath : (row.sizeExists ? row.sizePath : row.transparentImage);
+  const exists = kind === "english" ? row.englishExists : Boolean(path);
+
+  useEffect(() => {
+    setAnnotating(false);
+    setDataUrl("");
+    setError("");
+    if (!exists || !path) {
+      setError(kind === "english" ? "英文参数图尚未生成" : "尺寸图尚未生成，并且没有透明图可供手动标注");
+      return;
+    }
+    invoke<string>("read_image_data_url", { path }).then(setDataUrl).catch((reason) => setError(String(reason)));
+  }, [exists, kind, path]);
+
+  return (
+    <div className="modal-backdrop asset-preview-backdrop" onMouseDown={onClose}>
+      <section className="asset-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <div><strong>{row.product.sku}</strong><span>{row.product.brand} {row.product.name}</span></div>
+          <nav>
+            <button className={kind === "english" ? "active" : ""} onClick={() => setKind("english")}>英文参数图</button>
+            <button className={kind === "size" ? "active" : ""} onClick={() => setKind("size")}>尺寸图</button>
+          </nav>
+          {kind === "size" && dataUrl && <button className={`annotation-toggle ${annotating ? "active" : ""}`} onClick={() => setAnnotating((current) => !current)}><Pencil size={15} />{annotating ? "返回预览" : "手动标注"}</button>}
+          <button className="modal-close" onClick={onClose}><X size={19} /></button>
+        </header>
+        <div className="asset-preview-body">
+          {error && <div className="preview-error"><CircleAlert size={28} /><strong>{error}</strong></div>}
+          {!error && !dataUrl && <LoaderCircle size={28} className="spin preview-loader" />}
+          {dataUrl && (annotating
+            ? <ManualAnnotationCanvas dataUrl={dataUrl} row={row} onSaved={setDataUrl} notify={notify} />
+            : <img src={dataUrl} alt={kind === "english" ? "英文参数图" : "尺寸图"} />)}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [bridge, setBridge] = useState<BridgeInfo>({ url: "ws://127.0.0.1:37191", token: "", connected: false, scriptVersion: "" });
   const [products, setProducts] = useState<FinalizedProduct[]>([]);
@@ -103,6 +305,7 @@ export default function App() {
   const [deleteZip, setDeleteZip] = useState(false);
   const [compactTop, setCompactTop] = useState(() => localStorage.getItem(COMPACT_TOP_KEY) === "1");
   const [packBusy, setPackBusy] = useState(false);
+  const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
   const autoAttempts = useRef(new Map<string, string>());
@@ -441,13 +644,13 @@ export default function App() {
                   </div>
                   <div className="asset-cell">
                     <span className={row.transparentImage ? "ok" : "missing"}><FileImage size={16} />{row.transparentImage ? "透明.png" : "缺少透明.png"}</span>
-                    <small>{row.folder ? row.folder : "尚未匹配产品目录"}</small>
+                    <small>{row.folder ? `${row.folder}${row.matchSource === "product-name" ? "（按产品名匹配）" : ""}` : (row.ambiguousFolders.length > 1 ? `发现 ${row.ambiguousFolders.length} 个同名目录，请手动指定` : "尚未匹配产品目录")}</small>
                   </div>
                   <div className="deliverables">
                     <span className={row.excelExists ? "complete" : ""}><FileSpreadsheet size={15} />Excel</span>
                     <span className={row.skuImageExists ? "complete" : ""}><FileImage size={15} />SKU图</span>
-                    <span className={row.englishExists ? "complete" : ""}><FileImage size={15} />英文参数图</span>
-                    <span className={row.sizeExists ? "complete" : ""}><FileImage size={15} />尺寸图</span>
+                    <button className={row.englishExists ? "complete" : ""} disabled={!row.englishExists} onClick={() => setAssetPreview({ row, kind: "english" })}><Eye size={15} />英文参数图</button>
+                    <button className={row.sizeExists ? "complete" : ""} disabled={!row.sizeExists && !row.transparentImage} onClick={() => setAssetPreview({ row, kind: "size" })}>{row.sizeExists ? <Eye size={15} /> : <Pencil size={15} />}尺寸图</button>
                   </div>
                   <div><span className={`status ${status.tone}`}>{status.tone === "working" && <LoaderCircle size={13} className="spin" />}{status.label}</span></div>
                   <button className="row-action" onClick={() => row.folder ? openPath(row.folder) : assignFolder(row)} title={row.folder ? "打开目录" : "指定目录"}>
@@ -541,6 +744,7 @@ export default function App() {
           </section>
         </div>
       )}
+      {assetPreview && <AssetPreviewModal initialKind={assetPreview.kind} row={assetPreview.row} onClose={() => setAssetPreview(null)} notify={notify} />}
       {toast && <div className="toast">{toast}</div>}
     </div>
   );

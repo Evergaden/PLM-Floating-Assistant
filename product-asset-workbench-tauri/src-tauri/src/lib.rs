@@ -135,6 +135,7 @@ struct ProductPreview {
     sku_image_exists: bool,
     english_exists: bool,
     size_exists: bool,
+    match_source: String,
     ambiguous_folders: Vec<String>,
     missing: Vec<String>,
 }
@@ -400,6 +401,35 @@ fn request_snapshot(state: State<'_, BridgeState>) -> Result<(), String> {
     let sender = state.inner.sender.lock().map_err(|_| "无法访问桥接状态".to_string())?;
     let sender = sender.as_ref().ok_or_else(|| "PLM 悬浮助手尚未连接".to_string())?;
     sender.send(Message::Text(json!({"type":"snapshot.request"}).to_string().into())).map_err(|_| "无法发送同步请求".to_string())
+}
+
+#[tauri::command]
+fn read_image_data_url(path: String) -> Result<String, String> {
+    let path = PathBuf::from(path);
+    if !path.is_file() {
+        return Err("图片文件不存在".to_string());
+    }
+    let extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_lowercase();
+    let mime = match extension.as_str() {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "webp" => "image/webp",
+        _ => return Err("不支持的图片格式".to_string()),
+    };
+    let bytes = fs::read(&path).map_err(|error| format!("无法读取图片：{error}"))?;
+    if bytes.len() > 25 * 1024 * 1024 {
+        return Err("图片超过 25MB，无法预览".to_string());
+    }
+    Ok(format!("data:{mime};base64,{}", BASE64.encode(bytes)))
+}
+
+#[tauri::command]
+fn save_annotated_size_image(path: String, data_url: String) -> Result<bool, String> {
+    let path = PathBuf::from(path);
+    if path.file_name().and_then(|value| value.to_str()) != Some("尺寸.jpg") {
+        return Err("只能覆盖产品参数图中的尺寸.jpg".to_string());
+    }
+    persist_jpeg(&data_url, &path, true)
 }
 
 #[tauri::command]
@@ -670,13 +700,34 @@ fn build_preview(
     product: FinalizedProduct,
 ) -> ProductPreview {
     let sku = product.sku.to_uppercase();
-    let matches = directories
+    let sku_matches = directories
         .iter()
         .filter(|path| path.file_name().map(|value| value.to_string_lossy().to_uppercase().contains(&sku)).unwrap_or(false))
         .cloned()
         .collect::<Vec<_>>();
+    let product_name_key = normalize_folder_match_text(&product.name);
+    let name_matches = if sku_matches.is_empty() && product_name_key.chars().count() >= 3 {
+        directories
+            .iter()
+            .filter(|path| {
+                path.file_name()
+                    .map(|value| normalize_folder_match_text(&value.to_string_lossy()).contains(&product_name_key))
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let (matches, match_source) = if !sku_matches.is_empty() {
+        (sku_matches, "sku")
+    } else if !name_matches.is_empty() {
+        (name_matches, "product-name")
+    } else {
+        (Vec::new(), "")
+    };
     let mapped = mappings.get(&product.sku).map(PathBuf::from).filter(|path| path.is_dir());
-    let folder = mapped.or_else(|| matches.first().cloned());
+    let folder = mapped.clone().or_else(|| if matches.len() == 1 { matches.first().cloned() } else { None });
     let transparent = folder.as_ref().and_then(|path| find_transparent_image(path));
     let (excel_path, english_path, size_path) = folder
         .as_ref()
@@ -707,6 +758,7 @@ fn build_preview(
         sku_image_exists: sku_image_path.exists(),
         english_exists: english_path.exists(),
         size_exists: size_path.exists(),
+        match_source: if mapped.is_some() { "manual".to_string() } else { match_source.to_string() },
         excel_path: folder.as_ref().map(|_| path_text(&excel_path)),
         sku_image_path: folder.as_ref().map(|_| path_text(&sku_image_path)),
         english_path: folder.as_ref().map(|_| path_text(&english_path)),
@@ -714,6 +766,16 @@ fn build_preview(
         ambiguous_folders: matches.iter().map(|path| path_text(path)).collect(),
         missing,
     }
+}
+
+fn normalize_folder_match_text(value: &str) -> String {
+    let sku_pattern = Regex::new(r"(?i)SKU\d{8}").expect("valid SKU regex");
+    sku_pattern
+        .replace_all(value, "")
+        .chars()
+        .filter(|character| character.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
 }
 
 fn output_paths(folder: &Path, product: &FinalizedProduct) -> (PathBuf, PathBuf, PathBuf) {
@@ -794,6 +856,30 @@ mod tests {
     }
 
     #[test]
+    fn matches_legacy_folder_by_unique_product_name_and_stops_on_duplicates() {
+        let root = std::env::temp_dir().join(format!("plm-folder-match-test-{}", Uuid::new_v4()));
+        let first = root.join("AMZ 紧致提拉精华液");
+        fs::create_dir_all(&first).unwrap();
+        let product = FinalizedProduct {
+            sku: "SKU00045419".into(),
+            brand: "AMZ".into(),
+            name: "紧致提拉精华液".into(),
+            ..Default::default()
+        };
+        let preview = build_preview(&direct_product_directories(&root), &HashMap::new(), product.clone());
+        let first_path = path_text(&first);
+        assert_eq!(preview.folder.as_deref(), Some(first_path.as_str()));
+        assert_eq!(preview.match_source, "product-name");
+
+        let second = root.join("旧款 紧致提拉精华液");
+        fs::create_dir_all(&second).unwrap();
+        let ambiguous = build_preview(&direct_product_directories(&root), &HashMap::new(), product);
+        assert!(ambiguous.folder.is_none());
+        assert_eq!(ambiguous.ambiguous_folders.len(), 2);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn archives_and_renames_image_pack() {
         use std::io::Write;
         use zip::{ZipWriter, write::SimpleFileOptions};
@@ -839,6 +925,8 @@ pub fn run() {
             bridge_info,
             get_products,
             request_snapshot,
+            read_image_data_url,
+            save_annotated_size_image,
             preview_products,
             archive_image_packs,
             request_excel,
