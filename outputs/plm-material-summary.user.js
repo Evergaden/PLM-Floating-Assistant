@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.150
+// @version      2.5.151
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.150';
+  const SCRIPT_VERSION = '2.5.151';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5730,13 +5730,14 @@
   }
 
   function toyCopywritingButtonHtml(data) {
+    if (!data || !data.sku) return '';
     const isToy = isToyCopywritingProduct(data);
     const isFoodEntry = isFoodEntryCopywritingProduct(data);
-    if (!isToy && !isFoodEntry) return '';
-    const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848';
+    const isIngredientOnly = !isToy && !isFoodEntry;
+    const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : (isToy ? '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848' : '\u8865\u5168\u6210\u5206');
     const hasError = Boolean(data && data.sku && state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
     return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
-      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>智能补充中' : (hasError && isFoodEntry ? '\u26a0 \u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
+      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>' + (isIngredientOnly ? '\u6210\u5206\u8865\u5145\u4e2d' : '\u667a\u80fd\u8865\u5145\u4e2d') : (hasError && !isToy ? '\u26a0 ' + (isFoodEntry ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25') : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
   }
 
   function sparkleEntranceIconHtml() {
@@ -5747,8 +5748,9 @@
 
   function toyCopywritingFeedbackHtml(data) {
     if (!data || !data.sku || state.toyCopywritingErrorSku !== data.sku || !state.toyCopywritingError) return '';
+    const label = isFoodEntryCopywritingProduct(data) ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25';
     return '<div class="pfh-toy-copywriting-feedback is-error" role="alert">' +
-      '<span><strong>\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25</strong><b>' + escapeHtml(state.toyCopywritingError) + '</b></span>' +
+      '<span><strong>' + label + '</strong><b>' + escapeHtml(state.toyCopywritingError) + '</b></span>' +
       '<button type="button" data-action="open-detail">\u6253\u5f00\u5f53\u524d\u8be6\u60c5</button>' +
       '</div>';
   }
@@ -5818,7 +5820,7 @@
     clickElement(tab);
     const switched = await waitFor(() => getActiveToyCopywritingLanguage(drawer) === language, 5000, 120);
     if (!switched) throw new Error('\u5207\u6362\u300c' + language + '\u300d\u9875\u7b7e\u8d85\u65f6');
-    await waitFor(() => findToyCopywritingField(drawer, 'advantages'), 4000, 120);
+    await waitFor(() => findToyCopywritingField(drawer, 'ingredients') || findToyCopywritingField(drawer, 'advantages'), 4000, 120);
   }
 
   function readToyCopywritingFields(drawer) {
@@ -5895,12 +5897,55 @@
     return filledCount;
   }
 
+  function getCleanedWordIngredientValue(data, language) {
+    const cached = normalizeData(data || {});
+    const record = normalizeCopywritingRecord(cached.copywriting);
+    if (language === 'chinese') {
+      return String(record && record.cleanedIngredientChinese || cached.copywritingIngredientChinese || '').trim();
+    }
+    return String(record && record.cleanedIngredientEnglish || cached.copywritingIngredientEnglish || '').trim();
+  }
+
+  async function fillOtherProductIngredients(data, drawer) {
+    const sku = data.sku;
+    if (state.copywritingHydratingSkus.has(sku)) await waitFor(() => !state.copywritingHydratingSkus.has(sku), 65000, 250);
+    await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
+    const chinese = readToyCopywritingFields(drawer);
+    await switchToyCopywritingLanguage(drawer, '\u82f1\u8bed(\u7f8e\u56fd)');
+    const english = readToyCopywritingFields(drawer);
+    if (chinese.ingredients && english.ingredients) return 0;
+    let cached = normalizeData(loadData(sku) || data);
+    if ((!chinese.ingredients && !getCleanedWordIngredientValue(cached, 'chinese'))
+      || (!english.ingredients && !getCleanedWordIngredientValue(cached, 'english'))) {
+      cached = await hydrateCopywritingForSku(sku, { force: true, drawer });
+    }
+    const chineseIngredients = getCleanedWordIngredientValue(cached, 'chinese');
+    const englishIngredients = getCleanedWordIngredientValue(cached, 'english');
+    if ((!chinese.ingredients && !chineseIngredients) || (!english.ingredients && !englishIngredients)) {
+      throw new Error('\u4ea7\u54c1\u6587\u6848 Word \u4e2d\u672a\u8bc6\u522b\u5230\u5b8c\u6574\u7684\u4e2d\u82f1\u6587\u6210\u5206');
+    }
+    await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
+    let filledCount = applyToyCopywritingPatch(drawer, {
+      ingredients: chinese.ingredients ? '' : chineseIngredients,
+    });
+    await switchToyCopywritingLanguage(drawer, '\u82f1\u8bed(\u7f8e\u56fd)');
+    filledCount += applyToyCopywritingPatch(drawer, {
+      ingredients: english.ingredients ? '' : englishIngredients,
+    });
+    if (!filledCount) return 0;
+    const saved = await saveProductDraftBeforeClose();
+    if (!saved) throw new Error('\u6210\u5206\u5df2\u586b\u5199\uff0c\u4f46 PLM \u672a\u8fd4\u56de\u300c\u4fdd\u5b58\u6210\u529f\u300d');
+    return filledCount;
+  }
+
   async function fillToyCopywriting() {
     if (state.toyCopywritingBusy) return;
     const data = normalizeData(state.data || {});
+    const isToy = isToyCopywritingProduct(data);
     const isFoodEntry = isFoodEntryCopywritingProduct(data);
-    if (!data.sku || (!isToyCopywritingProduct(data) && !isFoodEntry)) {
-      showToast('\u5f53\u524d\u4ea7\u54c1\u4e0d\u652f\u6301\u667a\u80fd\u6587\u6848\u8865\u5145');
+    const isIngredientOnly = !isToy && !isFoodEntry;
+    if (!data.sku) {
+      showToast('\u672a\u627e\u5230\u5f53\u524d SKU');
       return;
     }
     if (isFoodEntry) {
@@ -5918,8 +5963,8 @@
     const drawer = getToyCopywritingDrawerForSku(data.sku);
     if (!drawer) {
       const message = '\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684 PLM \u8be6\u60c5';
-      if (isFoodEntry) {
-        setToyCopywritingError(data.sku, message, 'detail');
+      if (!isToy) {
+        setToyCopywritingError(data.sku, message, isFoodEntry ? 'detail' : 'ingredient-detail');
         renderShell();
       }
       showToast(message);
@@ -5938,6 +5983,16 @@
         }
         addLog('success', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
         showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u98df\u54c1\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
+        return;
+      }
+      if (isIngredientOnly) {
+        filledCount = await fillOtherProductIngredients(data, drawer);
+        if (!filledCount) {
+          showToast('\u4e2d\u82f1\u6587\u6210\u5206\u5df2\u5b8c\u6574\uff0c\u65e0\u9700\u8865\u5145');
+          return;
+        }
+        addLog('success', '\u4ea7\u54c1\u6210\u5206\u8865\u5168\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
+        showToast('\u5df2\u8865\u5168 ' + filledCount + ' \u4e2a\u4e2d\u82f1\u6587\u6210\u5206\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
         return;
       }
       await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
@@ -6004,8 +6059,8 @@
       showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u73a9\u5177\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
     } catch (error) {
       const message = formatErrorMessage(error) || '\u667a\u80fd\u8865\u5145\u5931\u8d25';
-      const label = isFoodEntry ? '\u98df\u54c1\u6587\u6848' : '\u73a9\u5177\u6587\u6848';
-      if (isFoodEntry) setToyCopywritingError(data.sku, message, 'general');
+      const label = isFoodEntry ? '\u98df\u54c1\u6587\u6848' : (isIngredientOnly ? '\u6210\u5206' : '\u73a9\u5177\u6587\u6848');
+      if (!isToy) setToyCopywritingError(data.sku, message, isIngredientOnly ? 'ingredient' : 'general');
       addLog('error', label + '\u667a\u80fd\u8865\u5145\u5931\u8d25', data.sku + ' | ' + message);
       showToast(label + '\u8865\u5145\u5931\u8d25\uff1a' + message);
     } finally {
