@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    process::Command,
     sync::{Arc, Mutex},
 };
 
@@ -19,6 +20,93 @@ use zip::ZipArchive;
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
+const PS_BATCH_SCRIPT: &str = r#"#target photoshop
+var inputPaths = __INPUT_PATHS__;
+var categories = __CATEGORIES__;
+var moveOriginalsToRecycle = __MOVE_ORIGINALS__;
+var maxWidth = 1600;
+var maxHeight = 1600;
+var jpegQuality = 12;
+var originalDialogs = app.displayDialogs;
+app.displayDialogs = DialogModes.NO;
+var MAIN_FOLDER = String.fromCharCode(0x4E3B, 0x56FE);
+var DETAIL_FOLDER = String.fromCharCode(0x8BE6, 0x60C5, 0x56FE);
+var OTHER_FOLDER = String.fromCharCode(0x5176, 0x4ED6);
+var RECYCLE_FOLDER = String.fromCharCode(0x56DE, 0x6536, 0x7AD9);
+
+function uniqueRecycleFile(folder, sourceFile) {
+    var candidate = File(folder.fsName + "\\" + sourceFile.name);
+    if (!candidate.exists) { return candidate; }
+    var extensionMatch = sourceFile.name.match(/(\.[^\.]+)$/);
+    var extension = extensionMatch ? extensionMatch[1] : "";
+    var stem = extension ? sourceFile.name.substring(0, sourceFile.name.length - extension.length) : sourceFile.name;
+    var index = 2;
+    while (candidate.exists) {
+        candidate = File(folder.fsName + "\\" + stem + "_" + index + extension);
+        index++;
+    }
+    return candidate;
+}
+
+for (var i = 0; i < inputPaths.length; i++) {
+    var doc = null;
+    var previousBackground = null;
+    try {
+        var inputFile = File(inputPaths[i]);
+        if (!inputFile.exists) { continue; }
+        var baseName = inputFile.name.replace(/\.[^\.]+$/, "");
+        var categoryFolder = categories[i] === 1 ? MAIN_FOLDER :
+            (categories[i] === 2 ? DETAIL_FOLDER : OTHER_FOLDER);
+        var outputFolder = Folder(inputFile.parent.fsName + "\\" + categoryFolder);
+        if (!outputFolder.exists && !outputFolder.create()) {
+            throw new Error("Unable to create output folder: " + outputFolder.fsName);
+        }
+        doc = app.open(inputFile);
+        var width = doc.width.as("px");
+        var height = doc.height.as("px");
+        var scale = Math.min(maxWidth / width, maxHeight / height, 1);
+        if (scale < 1) {
+            doc.resizeImage(UnitValue(Math.round(width * scale), "px"),
+                UnitValue(Math.round(height * scale), "px"), undefined,
+                ResampleMethod.BICUBICSHARPER);
+        }
+        if (doc.mode !== DocumentMode.RGB) { doc.changeMode(ChangeMode.RGB); }
+        previousBackground = app.backgroundColor;
+        var white = new SolidColor();
+        white.rgb.red = 255; white.rgb.green = 255; white.rgb.blue = 255;
+        app.backgroundColor = white;
+        doc.flatten();
+        app.backgroundColor = previousBackground;
+        var outputFile = File(outputFolder.fsName + "\\" + baseName + ".jpg");
+        var options = new JPEGSaveOptions();
+        options.quality = jpegQuality;
+        options.embedColorProfile = true;
+        options.formatOptions = FormatOptions.STANDARDBASELINE;
+        doc.saveAs(outputFile, options, true, Extension.LOWERCASE);
+        doc.close(SaveOptions.DONOTSAVECHANGES);
+        doc = null;
+        if (moveOriginalsToRecycle) {
+            var recycleFolder = Folder(inputFile.parent.fsName + "\\" + RECYCLE_FOLDER);
+            if (!recycleFolder.exists && !recycleFolder.create()) {
+                throw new Error("Unable to create recycle folder: " + recycleFolder.fsName);
+            }
+            var recycleFile = uniqueRecycleFile(recycleFolder, inputFile);
+            if (!inputFile.copy(recycleFile.fsName)) {
+                throw new Error("Unable to copy original into recycle folder: " + inputFile.fsName);
+            }
+            if (!inputFile.remove()) {
+                try { recycleFile.remove(); } catch (ignoredRemove) {}
+                throw new Error("Unable to remove original after recycle copy: " + inputFile.fsName);
+            }
+        }
+    } catch (error) {
+        if (doc) { try { doc.close(SaveOptions.DONOTSAVECHANGES); } catch (ignored) {} }
+    } finally {
+        if (previousBackground) { app.backgroundColor = previousBackground; }
+    }
+}
+app.displayDialogs = originalDialogs;
+"#;
 
 #[derive(Clone)]
 struct BridgeState {
@@ -160,6 +248,15 @@ struct ArchivePacksResult {
     skipped: usize,
     failed: usize,
     deleted: usize,
+    compressed_images: usize,
+    photoshop_started: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EmptyRecycleResult {
+    deleted_files: usize,
+    deleted_folders: usize,
 }
 
 struct RenameRule {
@@ -168,10 +265,7 @@ struct RenameRule {
 }
 
 fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
-    let data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("无法确定应用数据目录：{error}"))?;
+    let data_dir = app.path().app_data_dir().map_err(|error| format!("无法确定应用数据目录：{error}"))?;
     fs::create_dir_all(&data_dir).map_err(|error| format!("无法创建应用数据目录：{error}"))?;
     let token_path = data_dir.join("bridge-token.txt");
     let token = match fs::read_to_string(&token_path) {
@@ -240,9 +334,7 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
                 Ok(value) => value,
                 Err(_) => return,
             };
-            if hello.get("type").and_then(Value::as_str) != Some("hello")
-                || hello.get("token").and_then(Value::as_str) != Some(state.inner.token.as_str())
-            {
+            if hello.get("type").and_then(Value::as_str) != Some("hello") || hello.get("token").and_then(Value::as_str) != Some(state.inner.token.as_str()) {
                 let _ = sink.send(Message::Text(json!({"type":"hello.error","message":"连接码无效"}).to_string().into())).await;
                 return;
             }
@@ -369,25 +461,10 @@ fn persist_jpeg(data_url: &str, path: &Path, overwrite: bool) -> Result<bool, St
 }
 
 fn persist_assets(value: &Value, pending: &PendingAssets) -> Result<String, String> {
-    let excel_created = persist_excel(
-        value.get("excelBase64").and_then(Value::as_str).unwrap_or_default(),
-        pending,
-    )?;
-    let sku_image_created = persist_jpeg(
-        value.get("skuImageDataUrl").and_then(Value::as_str).unwrap_or_default(),
-        &pending.sku_image_path,
-        pending.overwrite,
-    )?;
-    let english_created = persist_jpeg(
-        value.get("englishDataUrl").and_then(Value::as_str).unwrap_or_default(),
-        &pending.english_path,
-        pending.overwrite,
-    )?;
-    let size_created = persist_jpeg(
-        value.get("sizeDataUrl").and_then(Value::as_str).unwrap_or_default(),
-        &pending.size_path,
-        pending.overwrite,
-    )?;
+    let excel_created = persist_excel(value.get("excelBase64").and_then(Value::as_str).unwrap_or_default(), pending)?;
+    let sku_image_created = persist_jpeg(value.get("skuImageDataUrl").and_then(Value::as_str).unwrap_or_default(), &pending.sku_image_path, pending.overwrite)?;
+    let english_created = persist_jpeg(value.get("englishDataUrl").and_then(Value::as_str).unwrap_or_default(), &pending.english_path, pending.overwrite)?;
+    let size_created = persist_jpeg(value.get("sizeDataUrl").and_then(Value::as_str).unwrap_or_default(), &pending.size_path, pending.overwrite)?;
     let created = [excel_created, sku_image_created, english_created, size_created].into_iter().filter(|value| *value).count();
     if created == 4 {
         Ok("Excel、SKU 图、英文参数图和尺寸图已由悬浮助手生成".to_string())
@@ -412,7 +489,9 @@ fn get_products(state: State<'_, BridgeState>) -> Vec<FinalizedProduct> {
 fn request_snapshot(state: State<'_, BridgeState>) -> Result<(), String> {
     let sender = state.inner.sender.lock().map_err(|_| "无法访问桥接状态".to_string())?;
     let sender = sender.as_ref().ok_or_else(|| "PLM 悬浮助手尚未连接".to_string())?;
-    sender.send(Message::Text(json!({"type":"snapshot.request"}).to_string().into())).map_err(|_| "无法发送同步请求".to_string())
+    sender
+        .send(Message::Text(json!({"type":"snapshot.request"}).to_string().into()))
+        .map_err(|_| "无法发送同步请求".to_string())
 }
 
 #[tauri::command]
@@ -445,17 +524,10 @@ fn save_annotated_size_image(path: String, data_url: String) -> Result<bool, Str
 }
 
 #[tauri::command]
-fn preview_products(
-    root: String,
-    products: Vec<FinalizedProduct>,
-    manual_mappings: HashMap<String, String>,
-) -> Vec<ProductPreview> {
+fn preview_products(root: String, products: Vec<FinalizedProduct>, manual_mappings: HashMap<String, String>) -> Vec<ProductPreview> {
     let root = PathBuf::from(root);
     let directories = direct_product_directories(&root);
-    products
-        .into_iter()
-        .map(|product| build_preview(&directories, &manual_mappings, product))
-        .collect()
+    products.into_iter().map(|product| build_preview(&directories, &manual_mappings, product)).collect()
 }
 
 fn parse_pack_rules(text: &str) -> Result<Vec<RenameRule>, String> {
@@ -485,10 +557,7 @@ fn parse_pack_rules(text: &str) -> Result<Vec<RenameRule>, String> {
 }
 
 fn extract_pack_sku(filename: &str) -> Option<String> {
-    Regex::new(r"(?i)SKU\d{8}")
-        .ok()?
-        .find(filename)
-        .map(|matched| matched.as_str().to_uppercase())
+    Regex::new(r"(?i)SKU\d{8}").ok()?.find(filename).map(|matched| matched.as_str().to_uppercase())
 }
 
 fn unique_archive_path(folder: &Path, file_name: &str) -> PathBuf {
@@ -498,15 +567,91 @@ fn unique_archive_path(folder: &Path, file_name: &str) -> PathBuf {
     let mut candidate = folder.join(file_name);
     let mut index = 2;
     while candidate.exists() {
-        let name = if extension.is_empty() {
-            format!("{stem}_{index}")
-        } else {
-            format!("{stem}_{index}.{extension}")
-        };
+        let name = if extension.is_empty() { format!("{stem}_{index}") } else { format!("{stem}_{index}.{extension}") };
         candidate = folder.join(name);
         index += 1;
     }
     candidate
+}
+
+fn is_pack_image(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_lowercase().as_str(),
+        "jpg" | "jpeg" | "png" | "tif" | "tiff" | "bmp" | "webp"
+    )
+}
+
+fn photoshop_image_category(path: &Path) -> u8 {
+    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or_default();
+    if stem.starts_with("主图") {
+        1
+    } else if stem.starts_with("详情图") {
+        2
+    } else {
+        0
+    }
+}
+
+fn start_photoshop_compression(photoshop_path: &Path, image_paths: &[PathBuf], move_originals_to_recycle: bool) -> Result<PathBuf, String> {
+    if !photoshop_path.is_file() {
+        return Err("Photoshop.exe 路径无效".to_string());
+    }
+    if image_paths.is_empty() {
+        return Err("没有可交给 Photoshop 压缩的图片".to_string());
+    }
+    let input_paths = image_paths.iter().map(|path| path_text(path)).collect::<Vec<_>>();
+    let categories = image_paths.iter().map(|path| photoshop_image_category(path)).collect::<Vec<_>>();
+    let script = PS_BATCH_SCRIPT
+        .replace(
+            "__INPUT_PATHS__",
+            &serde_json::to_string(&input_paths).map_err(|error| format!("无法生成 Photoshop 图片清单：{error}"))?,
+        )
+        .replace("__CATEGORIES__", &serde_json::to_string(&categories).map_err(|error| format!("无法生成 Photoshop 分类清单：{error}"))?)
+        .replace("__MOVE_ORIGINALS__", if move_originals_to_recycle { "true" } else { "false" });
+    let script_path = std::env::temp_dir().join(format!("plm-ps-batch-resize-1600-{}.jsx", Uuid::new_v4()));
+    let mut encoded = vec![0xef, 0xbb, 0xbf];
+    encoded.extend_from_slice(script.as_bytes());
+    fs::write(&script_path, encoded).map_err(|error| format!("无法写入 Photoshop 脚本：{error}"))?;
+    Command::new(photoshop_path)
+        .arg("-r")
+        .arg(&script_path)
+        .spawn()
+        .map_err(|error| format!("启动 Photoshop 失败：{error}"))?;
+    Ok(script_path)
+}
+
+#[tauri::command]
+fn detect_photoshop() -> String {
+    let mut matches = Vec::new();
+    let mut adobe_roots = Vec::new();
+    for variable in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
+        let Some(root) = std::env::var_os(variable) else {
+            continue;
+        };
+        adobe_roots.push(PathBuf::from(root).join("Adobe"));
+    }
+    for drive in b'C'..=b'Z' {
+        adobe_roots.push(PathBuf::from(format!("{}:\\Adobe", drive as char)));
+    }
+    adobe_roots.sort();
+    adobe_roots.dedup();
+    for adobe in adobe_roots {
+        let Ok(entries) = fs::read_dir(adobe) else {
+            continue;
+        };
+        for entry in entries.filter_map(Result::ok) {
+            let folder = entry.path();
+            let name = folder.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+            if name.to_lowercase().starts_with("adobe photoshop") {
+                let executable = folder.join("Photoshop.exe");
+                if executable.is_file() {
+                    matches.push(executable);
+                }
+            }
+        }
+    }
+    matches.sort_by_key(|path| path.to_string_lossy().to_lowercase());
+    matches.last().map(|path| path_text(path)).unwrap_or_default()
 }
 
 #[tauri::command]
@@ -516,6 +661,9 @@ fn archive_image_packs(
     rules_text: String,
     use_rules: bool,
     delete_zip: bool,
+    compress_images: bool,
+    photoshop_path: String,
+    move_originals_to_recycle: bool,
 ) -> Result<ArchivePacksResult, String> {
     let root = PathBuf::from(root);
     if !root.is_dir() {
@@ -524,14 +672,21 @@ fn archive_image_packs(
     if zip_paths.is_empty() {
         return Err("请先添加至少一个图包 ZIP".to_string());
     }
+    let photoshop = PathBuf::from(photoshop_path);
+    if compress_images && !photoshop.is_file() {
+        return Err("请先选择有效的 Photoshop.exe".to_string());
+    }
     let rules = if use_rules { parse_pack_rules(&rules_text)? } else { Vec::new() };
     let directories = direct_product_directories(&root);
+    let mut extracted_images = Vec::new();
     let mut result = ArchivePacksResult {
         logs: Vec::new(),
         success: 0,
         skipped: 0,
         failed: 0,
         deleted: 0,
+        compressed_images: 0,
+        photoshop_started: false,
     };
     for raw_path in zip_paths {
         let zip_path = PathBuf::from(&raw_path);
@@ -552,7 +707,11 @@ fn archive_image_packs(
             continue;
         };
         if matches.len() > 1 {
-            result.logs.push(format!("警告：找到 {} 个匹配文件夹，使用 {}", matches.len(), product_folder.file_name().unwrap_or_default().to_string_lossy()));
+            result.logs.push(format!(
+                "警告：找到 {} 个匹配文件夹，使用 {}",
+                matches.len(),
+                product_folder.file_name().unwrap_or_default().to_string_lossy()
+            ));
         }
         let target = product_folder.join("套图");
         fs::create_dir_all(&target).map_err(|error| format!("无法创建套图目录：{error}"))?;
@@ -609,6 +768,9 @@ fn archive_image_packs(
                 Ok(()) => {
                     result.success += 1;
                     result.logs.push(format!("{source_name} → {}", destination.file_name().unwrap_or_default().to_string_lossy()));
+                    if is_pack_image(&destination) {
+                        extracted_images.push(destination);
+                    }
                 }
                 Err(error) => {
                     result.failed += 1;
@@ -631,18 +793,64 @@ fn archive_image_packs(
             }
         }
     }
+    if compress_images {
+        if extracted_images.is_empty() {
+            result.logs.push("未找到可压缩的图片，已跳过 Photoshop".to_string());
+        } else {
+            start_photoshop_compression(&photoshop, &extracted_images, move_originals_to_recycle)?;
+            result.compressed_images = extracted_images.len();
+            result.photoshop_started = true;
+            result.logs.push(format!(
+                "已启动 Photoshop：将 {} 张图片压缩到各自的“主图 / 详情图 / 其他”文件夹（最长边 1600px）",
+                extracted_images.len()
+            ));
+            if move_originals_to_recycle {
+                result.logs.push("每张 JPG 保存成功后，原图将移到该产品的“套图\\回收站”".to_string());
+            }
+        }
+    }
+    Ok(result)
+}
+
+fn count_recycle_files(folder: &Path) -> Result<usize, String> {
+    let mut count = 0;
+    for entry in fs::read_dir(folder).map_err(|error| format!("无法读取回收站 {}：{error}", path_text(folder)))? {
+        let entry = entry.map_err(|error| format!("无法读取回收站项目：{error}"))?;
+        let file_type = entry.file_type().map_err(|error| format!("无法读取回收站项目类型：{error}"))?;
+        if file_type.is_dir() {
+            count += count_recycle_files(&entry.path())?;
+        } else {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+#[tauri::command]
+fn empty_pack_recycle(root: String) -> Result<EmptyRecycleResult, String> {
+    let root = PathBuf::from(root);
+    if !root.is_dir() {
+        return Err(format!("产品根目录不存在：{}", path_text(&root)));
+    }
+    let mut result = EmptyRecycleResult { deleted_files: 0, deleted_folders: 0 };
+    for product_folder in direct_product_directories(&root) {
+        let recycle = product_folder.join("套图").join("回收站");
+        if !recycle.exists() {
+            continue;
+        }
+        let metadata = fs::symlink_metadata(&recycle).map_err(|error| format!("无法检查回收站 {}：{error}", path_text(&recycle)))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(format!("为安全起见，未删除非普通目录：{}", path_text(&recycle)));
+        }
+        result.deleted_files += count_recycle_files(&recycle)?;
+        fs::remove_dir_all(&recycle).map_err(|error| format!("无法清空回收站 {}：{error}", path_text(&recycle)))?;
+        result.deleted_folders += 1;
+    }
     Ok(result)
 }
 
 #[tauri::command]
-fn request_excel(
-    app: AppHandle,
-    state: State<'_, BridgeState>,
-    product: FinalizedProduct,
-    folder: String,
-    overwrite: bool,
-    auto: Option<bool>,
-) -> Result<String, String> {
+fn request_excel(app: AppHandle, state: State<'_, BridgeState>, product: FinalizedProduct, folder: String, overwrite: bool, auto: Option<bool>) -> Result<String, String> {
     let folder = PathBuf::from(folder);
     if !folder.is_dir() {
         return Err("产品目录不存在".to_string());
@@ -680,7 +888,10 @@ fn request_excel(
         "fileName": excel_path.file_name().and_then(|value| value.to_str()).unwrap_or("PLM产品信息.xlsx"),
         "transparentImageDataUrl": transparent_image_data_url
     });
-    let send_result = state.inner.sender.lock()
+    let send_result = state
+        .inner
+        .sender
+        .lock()
         .map_err(|_| "无法访问桥接状态".to_string())?
         .as_ref()
         .ok_or_else(|| "PLM 悬浮助手尚未连接".to_string())?
@@ -706,11 +917,7 @@ fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
     items
 }
 
-fn build_preview(
-    directories: &[PathBuf],
-    mappings: &HashMap<String, String>,
-    product: FinalizedProduct,
-) -> ProductPreview {
+fn build_preview(directories: &[PathBuf], mappings: &HashMap<String, String>, product: FinalizedProduct) -> ProductPreview {
     let sku = product.sku.to_uppercase();
     let sku_matches = directories
         .iter()
@@ -741,14 +948,8 @@ fn build_preview(
     let mapped = mappings.get(&product.sku).map(PathBuf::from).filter(|path| path.is_dir());
     let folder = mapped.clone().or_else(|| if matches.len() == 1 { matches.first().cloned() } else { None });
     let transparent = folder.as_ref().and_then(|path| find_transparent_image(path));
-    let (excel_path, english_path, size_path) = folder
-        .as_ref()
-        .map(|path| output_paths(path, &product))
-        .unwrap_or_default();
-    let sku_image_path = folder
-        .as_ref()
-        .map(|path| output_sku_image_path(path, &product))
-        .unwrap_or_default();
+    let (excel_path, english_path, size_path) = folder.as_ref().map(|path| output_paths(path, &product)).unwrap_or_default();
+    let sku_image_path = folder.as_ref().map(|path| output_sku_image_path(path, &product)).unwrap_or_default();
     let mut missing = Vec::new();
     if folder.is_some() && transparent.is_none() {
         missing.push("透明.png".to_string());
@@ -813,7 +1014,10 @@ fn output_sku_image_path(folder: &Path, product: &FinalizedProduct) -> PathBuf {
 
 fn sanitize_component(value: &str) -> String {
     let invalid = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
-    let replaced = value.chars().map(|character| if invalid.contains(&character) || character.is_control() { ' ' } else { character }).collect::<String>();
+    let replaced = value
+        .chars()
+        .map(|character| if invalid.contains(&character) || character.is_control() { ' ' } else { character })
+        .collect::<String>();
     let normalized = replaced.split_whitespace().collect::<Vec<_>>().join(" ");
     if normalized.is_empty() { "未命名产品".to_string() } else { normalized }
 }
@@ -826,7 +1030,10 @@ fn find_transparent_image(folder: &Path) -> Option<PathBuf> {
     fs::read_dir(folder).ok()?.filter_map(Result::ok).map(|entry| entry.path()).find(|path| {
         path.is_file()
             && path.file_stem().map(|value| value.to_string_lossy().starts_with("透明")).unwrap_or(false)
-            && matches!(path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_lowercase().as_str(), "png" | "jpg" | "jpeg" | "webp")
+            && matches!(
+                path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_lowercase().as_str(),
+                "png" | "jpg" | "jpeg" | "webp"
+            )
     })
 }
 
@@ -912,11 +1119,37 @@ mod tests {
             "^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1".to_string(),
             true,
             false,
-        ).unwrap();
+            false,
+            String::new(),
+            false,
+        )
+        .unwrap();
 
         assert_eq!(result.success, 1);
         assert_eq!(result.failed, 0);
+        assert_eq!(photoshop_image_category(Path::new("主图1.png")), 1);
+        assert_eq!(photoshop_image_category(Path::new("详情图3.webp")), 2);
+        assert_eq!(photoshop_image_category(Path::new("附件.bmp")), 0);
         assert!(product.join("套图").join("主图1.png").is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn empties_only_product_pack_recycle_folders() {
+        let root = std::env::temp_dir().join(format!("plm-recycle-test-{}", Uuid::new_v4()));
+        let recycle = root.join("AMZ 产品 SKU00044974").join("套图").join("回收站");
+        let keep = root.join("AMZ 产品 SKU00044974").join("套图").join("主图");
+        fs::create_dir_all(&recycle).unwrap();
+        fs::create_dir_all(&keep).unwrap();
+        fs::write(recycle.join("主图1.png"), b"original").unwrap();
+        fs::write(keep.join("主图1.jpg"), b"compressed").unwrap();
+
+        let result = empty_pack_recycle(path_text(&root)).unwrap();
+
+        assert_eq!(result.deleted_files, 1);
+        assert_eq!(result.deleted_folders, 1);
+        assert!(!recycle.exists());
+        assert!(keep.join("主图1.jpg").is_file());
         fs::remove_dir_all(&root).unwrap();
     }
 }
@@ -940,7 +1173,9 @@ pub fn run() {
             read_image_data_url,
             save_annotated_size_image,
             preview_products,
+            detect_photoshop,
             archive_image_packs,
+            empty_pack_recycle,
             request_excel,
         ])
         .run(tauri::generate_context!())

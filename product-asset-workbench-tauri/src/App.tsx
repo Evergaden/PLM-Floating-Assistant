@@ -15,6 +15,9 @@ const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
 const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
 const PACK_RULES_KEY = "plm-workbench.pack-rules";
+const PHOTOSHOP_PATH_KEY = "plm-workbench.photoshop-path";
+const PHOTOSHOP_COMPRESS_KEY = "plm-workbench.photoshop-compress";
+const PHOTOSHOP_RECYCLE_KEY = "plm-workbench.photoshop-recycle-originals";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
@@ -41,6 +44,13 @@ interface ArchivePacksResult {
   skipped: number;
   failed: number;
   deleted: number;
+  compressedImages: number;
+  photoshopStarted: boolean;
+}
+
+interface EmptyRecycleResult {
+  deletedFiles: number;
+  deletedFolders: number;
 }
 
 function isWorktableOperationDone(state: string, done: boolean) {
@@ -315,6 +325,9 @@ export default function App() {
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
   const [usePackRules, setUsePackRules] = useState(true);
   const [deleteZip, setDeleteZip] = useState(false);
+  const [compressImages, setCompressImages] = useState(() => localStorage.getItem(PHOTOSHOP_COMPRESS_KEY) === "1");
+  const [moveOriginalsToRecycle, setMoveOriginalsToRecycle] = useState(() => localStorage.getItem(PHOTOSHOP_RECYCLE_KEY) === "1");
+  const [photoshopPath, setPhotoshopPath] = useState(() => localStorage.getItem(PHOTOSHOP_PATH_KEY) || "");
   const [compactTop, setCompactTop] = useState(() => localStorage.getItem(COMPACT_TOP_KEY) === "1");
   const [packBusy, setPackBusy] = useState(false);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
@@ -388,6 +401,15 @@ export default function App() {
   useEffect(() => {
     bridgeRef.current = bridge;
   }, [bridge]);
+
+  useEffect(() => {
+    if (photoshopPath) return;
+    invoke<string>("detect_photoshop").then((path) => {
+      if (!path) return;
+      setPhotoshopPath(path);
+      localStorage.setItem(PHOTOSHOP_PATH_KEY, path);
+    }).catch(console.error);
+  }, [photoshopPath]);
 
   useEffect(() => {
     invoke<BridgeInfo>("bridge_info").then(setBridge).catch(console.error);
@@ -472,10 +494,27 @@ export default function App() {
     else if (typeof value === "string") addZipPaths([value]);
   }
 
+  async function choosePhotoshop() {
+    const value = await open({
+      multiple: false,
+      directory: false,
+      title: "选择 Photoshop.exe",
+      defaultPath: photoshopPath || undefined,
+      filters: [{ name: "Adobe Photoshop", extensions: ["exe"] }],
+    });
+    if (typeof value !== "string") return;
+    setPhotoshopPath(value);
+    localStorage.setItem(PHOTOSHOP_PATH_KEY, value);
+  }
+
   async function archivePacks() {
     if (!root) return notify("请先选择产品文件夹根目录");
     if (!zipPaths.length) return notify("请先添加图包 ZIP");
+    if (compressImages && !photoshopPath) return notify("请先选择 Photoshop.exe");
     localStorage.setItem(PACK_RULES_KEY, packRules);
+    localStorage.setItem(PHOTOSHOP_COMPRESS_KEY, compressImages ? "1" : "0");
+    localStorage.setItem(PHOTOSHOP_RECYCLE_KEY, moveOriginalsToRecycle ? "1" : "0");
+    if (photoshopPath) localStorage.setItem(PHOTOSHOP_PATH_KEY, photoshopPath);
     setPackBusy(true);
     setPackLogs(["开始处理图包…"]);
     try {
@@ -485,12 +524,33 @@ export default function App() {
         rulesText: packRules,
         useRules: usePackRules,
         deleteZip,
+        compressImages,
+        photoshopPath,
+        moveOriginalsToRecycle,
       });
       setPackLogs(result.logs);
       if (deleteZip && result.deleted === zipPaths.length) setZipPaths([]);
-      notify(`图包完成：成功 ${result.success}，跳过 ${result.skipped}，失败 ${result.failed}`);
+      notify(`图包完成：成功 ${result.success}，跳过 ${result.skipped}，失败 ${result.failed}${result.photoshopStarted ? `；PS 压缩 ${result.compressedImages} 张` : ""}`);
     } catch (error) {
       setPackLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setPackBusy(false);
+    }
+  }
+
+  async function emptyPackRecycle() {
+    if (!root) return notify("请先选择产品文件夹根目录");
+    if (!window.confirm("将永久删除各产品“套图\\回收站”中的原图，且无法恢复。请确认已核对压缩图无误。")) return;
+    setPackBusy(true);
+    try {
+      const result = await invoke<EmptyRecycleResult>("empty_pack_recycle", { root });
+      const message = result.deletedFolders
+        ? `已清空 ${result.deletedFolders} 个回收站，永久删除 ${result.deletedFiles} 个文件`
+        : "没有找到需要清空的“套图\\回收站”";
+      setPackLogs((current) => [...current, message]);
+      notify(message);
+    } catch (error) {
       notify(String(error));
     } finally {
       setPackBusy(false);
@@ -725,6 +785,23 @@ export default function App() {
                   <label className="toggle"><input type="checkbox" checked={usePackRules} onChange={(event) => setUsePackRules(event.target.checked)} /><span />应用重命名规则</label>
                   <label className="toggle"><input type="checkbox" checked={deleteZip} onChange={(event) => setDeleteZip(event.target.checked)} /><span />全部成功后删除原 ZIP</label>
                   <button className="clear-zips" onClick={() => setZipPaths([])}><Trash2 size={14} />清空</button>
+                </div>
+                <div className="photoshop-option">
+                  <label className="toggle"><input type="checkbox" checked={compressImages} onChange={(event) => {
+                    setCompressImages(event.target.checked);
+                    localStorage.setItem(PHOTOSHOP_COMPRESS_KEY, event.target.checked ? "1" : "0");
+                  }} /><span />重命名后用 Photoshop 压缩</label>
+                  <small>最长边 1600px，输出到“主图 / 详情图 / 其他”</small>
+                  <label className="toggle recycle-toggle"><input type="checkbox" checked={moveOriginalsToRecycle} disabled={!compressImages} onChange={(event) => {
+                    setMoveOriginalsToRecycle(event.target.checked);
+                    localStorage.setItem(PHOTOSHOP_RECYCLE_KEY, event.target.checked ? "1" : "0");
+                  }} /><span />压缩成功后将原图移到“套图\回收站”</label>
+                  <small>只在对应 JPG 保存成功后移动；核对完成再永久清空</small>
+                  <div>
+                    <input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} disabled={!compressImages} placeholder="Photoshop.exe 路径" />
+                    <button onClick={choosePhotoshop} disabled={!compressImages}>选择 Photoshop</button>
+                  </div>
+                  <button className="empty-recycle" onClick={emptyPackRecycle} disabled={packBusy || !root}><Trash2 size={14} />核对后批量清空回收站</button>
                 </div>
               </div>
               <div className="pack-card rules-card">
