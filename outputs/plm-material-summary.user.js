@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.152
+// @version      2.5.153
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,11 +32,11 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.152';
+  const SCRIPT_VERSION = '2.5.153';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '7';
+  const COPYWRITING_PARSER_VERSION = '8';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -8645,20 +8645,12 @@
       const cells = Array.from(row.children || []).filter((node) => node.localName === 'tc').map(copywritingCellLines);
       if (cells.length >= 2) rows.push(cells);
     });
-    const body = Array.from(xml.getElementsByTagNameNS('*', 'body'))[0];
-    const fullText = Array.from(body && body.children || [])
-      .map((block) => {
-        if (block.localName === 'p') return copywritingParagraphText(block);
-        if (block.localName !== 'tbl') return '';
-        return Array.from(block.children || [])
-          .filter((node) => node.localName === 'tr')
-          .map((row) => Array.from(row.children || [])
-            .filter((node) => node.localName === 'tc')
-            .map((cell) => copywritingCellLines(cell).join('\n'))
-            .join('\t'))
-          .join('\n');
-      })
-      .map((text) => String(text || '').trim())
+    const fullText = rows
+      .filter((cells) => !/^内容说明$/.test(cleanCopywritingLine((cells[0] || []).join('')).replace(/\s+/g, '')))
+      .map((cells) => [
+        (cells[1] || []).map(cleanCopywritingLine).filter(Boolean).join('\n'),
+        (cells[2] || []).map(cleanCopywritingLine).filter(Boolean).join('\n'),
+      ].filter(Boolean).join('\n'))
       .filter(Boolean)
       .join('\n');
     return { rows, fullText: fullText.slice(0, 50000) };
@@ -8714,13 +8706,6 @@
       .filter(Boolean);
   }
 
-  function copywritingParagraphText(paragraph) {
-    return Array.from(paragraph && paragraph.getElementsByTagNameNS('*', 't') || [])
-      .map((node) => node.textContent || '')
-      .join('')
-      .trim();
-  }
-
   function cleanCopywritingLine(value) {
     return String(value || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/[ \t]+/g, ' ').trim();
   }
@@ -8746,73 +8731,6 @@
     const chinese = (chineseLines || []).map(cleanCopywritingLine).join('\n');
     return (/\bACTIVE\s+INGREDIENTS?\s*[:：]?/i.test(english) && /\bINACTIVE\s+INGREDIENTS?\s*[:：]?/i.test(english))
       || (/(?:^|\n)\s*活性成分\s*[:：]?/.test(chinese) && /(?:^|\n)\s*非活性成分\s*[:：]?/.test(chinese));
-  }
-
-  function buildOrderedCopywritingSections(rows, sourceSections) {
-    const sectionByKey = new Map((sourceSections || []).map((section) => [section.key, section]));
-    const ordered = [];
-    const added = new Set();
-    const addKnown = (key) => {
-      const section = sectionByKey.get(key);
-      if (!section || added.has(key)) return;
-      ordered.push(section);
-      added.add(key);
-    };
-    (rows || []).forEach((cells, index) => {
-      const rawLabel = cleanCopywritingLine((cells[0] || []).join(' '));
-      const label = rawLabel.replace(/\s+/g, '');
-      const englishLines = (cells[1] || []).map(cleanCopywritingLine).filter(Boolean);
-      const chineseLines = (cells[2] || []).map(cleanCopywritingLine).filter(Boolean);
-      if (!label || /^内容说明$/.test(label) || (!englishLines.length && !chineseLines.length)) return;
-      let known = false;
-      if (/^产品名称$/.test(label)) {
-        addKnown('productName');
-        known = true;
-      } else if (/^24国语言功效标题/.test(label)) {
-        addKnown('functionsHeading');
-        known = true;
-      } else if (/^24国语言功效内容/.test(label)) {
-        addKnown('functions');
-        known = true;
-      } else if (/^(?:成分表|成分活性非活性成分)/.test(label)) {
-        if (sectionByKey.has('activeIngredients') || sectionByKey.has('inactiveIngredients')) {
-          addKnown('activeIngredients');
-          addKnown('inactiveIngredients');
-        } else {
-          addKnown('ingredients');
-        }
-        known = true;
-      } else if (/^(?:[AB][.．、]?\s*)?(?:建议使用方法|使用方法|食用方法)/i.test(rawLabel)) {
-        addKnown('directions');
-        addKnown('directionsChinese');
-        known = true;
-      } else if (/^警告语$/.test(label)) {
-        addKnown('warning');
-        known = true;
-      } else if (/^美国不良事故联系人邮箱$/.test(label)) {
-        addKnown('email');
-        known = true;
-      } else if (/^原产国$/.test(label)) {
-        addKnown('origin');
-        known = true;
-      } else if (/^保质期$/.test(label)) {
-        addKnown('shelfLife');
-        known = true;
-      }
-      if (known) return;
-      const text = [englishLines.join('\n'), chineseLines.join('\n')].filter(Boolean).join('\n');
-      if (!text) return;
-      const key = ('wordRow-' + index + '-' + label).slice(0, 60);
-      ordered.push({ key, label: rawLabel || ('Word 文案 ' + (index + 1)), text: text.slice(0, 12000) });
-      added.add(key);
-    });
-    (sourceSections || []).forEach((section) => {
-      if (!added.has(section.key)) {
-        ordered.push(section);
-        added.add(section.key);
-      }
-    });
-    return ordered;
   }
 
   function buildMainstreamCopywriting(parsedDocument, data) {
@@ -8855,6 +8773,9 @@
       const ingredientSection = preserveCopywritingHeading(ingredientLines, /^INGREDIENTS?\s*[:：]?$/i, 'INGREDIENTS:');
       add('ingredients', '成分表', joinCopywritingSection(ingredientSection.heading, ingredientSection.lines));
     }
+    const materialEnglish = find(/^(?:材质|材料)$/);
+    const materialChinese = find(/^(?:材质|材料)$/, 'chinese');
+    add('material', '材质', [materialEnglish.join('\n'), materialChinese.join('\n')].filter(Boolean).join('\n'), false);
     const directionSection = preserveCopywritingHeading(find(/^(?:[AB][.．、]?\s*)?(?:建议使用方法|使用方法|食用方法)/i), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?$/i, 'DIRECTIONS:');
     add('directions', '建议使用方法', joinCopywritingSection(directionSection.heading, directionSection.lines));
     add('directionsChinese', '中文使用方法', find(/^(?:[AB][.．、]?\s*)?(?:建议使用方法|使用方法|食用方法)/i, 'chinese').join('\n'));
@@ -8871,10 +8792,9 @@
     const shelfLines = find(/^保质期$/);
     add('shelfLife', '保质期', shelfLines.join('\n'));
     formatBrandComplianceSections(data).forEach((section) => add(section.key, section.label, section.text));
-    const orderedSections = buildOrderedCopywritingSections(rows, sections);
     return {
-      sections: orderedSections,
-      fullText: (wordFullText || orderedSections.map((section) => section.text).join('\n')).slice(0, 50000),
+      sections,
+      fullText: (wordFullText || sections.map((section) => section.text).join('\n')).slice(0, 50000),
       missingSections,
       ingredientEnglish,
       ingredientChinese,
