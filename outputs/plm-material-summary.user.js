@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.151
+// @version      2.5.152
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,11 +32,11 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.151';
+  const SCRIPT_VERSION = '2.5.152';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '6';
+  const COPYWRITING_PARSER_VERSION = '7';
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -5660,7 +5660,7 @@
   }
 
   function isCopywritingFileViewSection(section) {
-    return Boolean(section && section.key !== 'functionsHeading' && section.key !== 'directionsChinese');
+    return Boolean(section && section.key !== 'directionsChinese');
   }
 
   function copywritingViewHtml(data) {
@@ -7880,8 +7880,8 @@
       state.copywritingStatus = '正在解析 Word 表格...';
       renderShell();
       addLog('info', '产品文案：开始解析 Word', file.fileName + ' | ' + arrayBuffer.byteLength + 'B');
-      const tableRows = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, 'Word 表格解析');
-      const built = buildMainstreamCopywriting(tableRows, workingData);
+      const parsedDocument = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, 'Word 表格解析');
+      const built = buildMainstreamCopywriting(parsedDocument, workingData);
       if (!built.sections.length) throw new Error('Word 中未识别到主流版文案字段');
       const next = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, cached);
       saveData(sku, mergeCopywritingCacheIntoData(workingData, next));
@@ -8010,8 +8010,8 @@
         if (!isCopywritingDocxBuffer(arrayBuffer)) throw error;
       }
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
-      const tableRows = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, '\u4ea7\u54c1\u6587\u6848 Word \u8868\u683c\u89e3\u6790');
-      const built = buildMainstreamCopywriting(tableRows, cached);
+      const parsedDocument = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, '\u4ea7\u54c1\u6587\u6848 Word \u8868\u683c\u89e3\u6790');
+      const built = buildMainstreamCopywriting(parsedDocument, cached);
       if (!built.sections.length) throw new Error('Word \u4e2d\u672a\u8bc6\u522b\u5230\u4e3b\u6d41\u7248\u6587\u6848\u5b57\u6bb5');
       const nextRecord = buildCopywritingRecord(file.fileName, fileTimestamp, fileHash, built, oldRecord);
       const next = mergeCopywritingCacheIntoData(cached, nextRecord);
@@ -8645,7 +8645,23 @@
       const cells = Array.from(row.children || []).filter((node) => node.localName === 'tc').map(copywritingCellLines);
       if (cells.length >= 2) rows.push(cells);
     });
-    return rows;
+    const body = Array.from(xml.getElementsByTagNameNS('*', 'body'))[0];
+    const fullText = Array.from(body && body.children || [])
+      .map((block) => {
+        if (block.localName === 'p') return copywritingParagraphText(block);
+        if (block.localName !== 'tbl') return '';
+        return Array.from(block.children || [])
+          .filter((node) => node.localName === 'tr')
+          .map((row) => Array.from(row.children || [])
+            .filter((node) => node.localName === 'tc')
+            .map((cell) => copywritingCellLines(cell).join('\n'))
+            .join('\t'))
+          .join('\n');
+      })
+      .map((text) => String(text || '').trim())
+      .filter(Boolean)
+      .join('\n');
+    return { rows, fullText: fullText.slice(0, 50000) };
   }
 
   async function readDocxDocumentXmlNative(arrayBuffer) {
@@ -8698,6 +8714,13 @@
       .filter(Boolean);
   }
 
+  function copywritingParagraphText(paragraph) {
+    return Array.from(paragraph && paragraph.getElementsByTagNameNS('*', 't') || [])
+      .map((node) => node.textContent || '')
+      .join('')
+      .trim();
+  }
+
   function cleanCopywritingLine(value) {
     return String(value || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/[ \t]+/g, ' ').trim();
   }
@@ -8725,7 +8748,76 @@
       || (/(?:^|\n)\s*活性成分\s*[:：]?/.test(chinese) && /(?:^|\n)\s*非活性成分\s*[:：]?/.test(chinese));
   }
 
-  function buildMainstreamCopywriting(rows, data) {
+  function buildOrderedCopywritingSections(rows, sourceSections) {
+    const sectionByKey = new Map((sourceSections || []).map((section) => [section.key, section]));
+    const ordered = [];
+    const added = new Set();
+    const addKnown = (key) => {
+      const section = sectionByKey.get(key);
+      if (!section || added.has(key)) return;
+      ordered.push(section);
+      added.add(key);
+    };
+    (rows || []).forEach((cells, index) => {
+      const rawLabel = cleanCopywritingLine((cells[0] || []).join(' '));
+      const label = rawLabel.replace(/\s+/g, '');
+      const englishLines = (cells[1] || []).map(cleanCopywritingLine).filter(Boolean);
+      const chineseLines = (cells[2] || []).map(cleanCopywritingLine).filter(Boolean);
+      if (!label || /^内容说明$/.test(label) || (!englishLines.length && !chineseLines.length)) return;
+      let known = false;
+      if (/^产品名称$/.test(label)) {
+        addKnown('productName');
+        known = true;
+      } else if (/^24国语言功效标题/.test(label)) {
+        addKnown('functionsHeading');
+        known = true;
+      } else if (/^24国语言功效内容/.test(label)) {
+        addKnown('functions');
+        known = true;
+      } else if (/^(?:成分表|成分活性非活性成分)/.test(label)) {
+        if (sectionByKey.has('activeIngredients') || sectionByKey.has('inactiveIngredients')) {
+          addKnown('activeIngredients');
+          addKnown('inactiveIngredients');
+        } else {
+          addKnown('ingredients');
+        }
+        known = true;
+      } else if (/^(?:[AB][.．、]?\s*)?(?:建议使用方法|使用方法|食用方法)/i.test(rawLabel)) {
+        addKnown('directions');
+        addKnown('directionsChinese');
+        known = true;
+      } else if (/^警告语$/.test(label)) {
+        addKnown('warning');
+        known = true;
+      } else if (/^美国不良事故联系人邮箱$/.test(label)) {
+        addKnown('email');
+        known = true;
+      } else if (/^原产国$/.test(label)) {
+        addKnown('origin');
+        known = true;
+      } else if (/^保质期$/.test(label)) {
+        addKnown('shelfLife');
+        known = true;
+      }
+      if (known) return;
+      const text = [englishLines.join('\n'), chineseLines.join('\n')].filter(Boolean).join('\n');
+      if (!text) return;
+      const key = ('wordRow-' + index + '-' + label).slice(0, 60);
+      ordered.push({ key, label: rawLabel || ('Word 文案 ' + (index + 1)), text: text.slice(0, 12000) });
+      added.add(key);
+    });
+    (sourceSections || []).forEach((section) => {
+      if (!added.has(section.key)) {
+        ordered.push(section);
+        added.add(section.key);
+      }
+    });
+    return ordered;
+  }
+
+  function buildMainstreamCopywriting(parsedDocument, data) {
+    const rows = Array.isArray(parsedDocument) ? parsedDocument : (parsedDocument && parsedDocument.rows || []);
+    const wordFullText = Array.isArray(parsedDocument) ? '' : String(parsedDocument && parsedDocument.fullText || '').trim();
     const rowMap = {};
     (rows || []).forEach((cells) => {
       const label = cleanCopywritingLine((cells[0] || []).join('')).replace(/\s+/g, '');
@@ -8738,17 +8830,17 @@
     };
     const sections = [];
     const missingSections = [];
-    const add = (key, label, text) => {
+    const add = (key, label, text, required) => {
       const value = String(text || '').trim();
       if (value) sections.push({ key, label, text: value.slice(0, 12000) });
-      else missingSections.push(label);
+      else if (required !== false) missingSections.push(label);
     };
     const productSection = preserveCopywritingHeading(find(/^产品名称$/), /^PRODUCT\s+NAME\s*[:：]?$/i, 'PRODUCT NAME:');
     add('productName', '产品名称', joinCopywritingSection(productSection.heading, productSection.lines));
     const functionsHeading = find(/^24国语言功效标题/).join('').trim();
-    add('functionsHeading', '24国语言功效标题', functionsHeading);
+    add('functionsHeading', '24国语言功效标题', functionsHeading, false);
     const functionLines = find(/^24国语言功效内容/).map((line) => line.replace(/;\s*$/, '').trim()).filter(Boolean);
-    add('functions', '24国语言功效内容', functionLines.join(';  '));
+    add('functions', '24国语言功效内容', functionLines.join(';  '), false);
     const ingredientLines = find(/^(?:成分表|成分活性非活性成分)/);
     const ingredientChineseLines = find(/^(?:成分表|成分活性非活性成分)/, 'chinese');
     const ingredientEnglish = cleanCopywritingIngredientValue(ingredientLines, 'english');
@@ -8770,7 +8862,7 @@
     add('warning', '警告语', joinCopywritingSection(warningSection.heading, warningSection.lines));
     const emailLines = find(/^美国不良事故联系人邮箱$/);
     const emailSection = preserveCopywritingHeading(emailLines, /^E-?MAIL\s*[:：]?$/i, 'e-mail:');
-    add('email', '联系邮箱', joinCopywritingSection(emailSection.heading, emailSection.lines));
+    add('email', '联系邮箱', joinCopywritingSection(emailSection.heading, emailSection.lines), false);
     const net = formatCopywritingNetContent(data && data.netContent);
     if (net.warning && net.text) missingSections.push(net.warning);
     add('netContent', '净含量', net.text);
@@ -8779,7 +8871,15 @@
     const shelfLines = find(/^保质期$/);
     add('shelfLife', '保质期', shelfLines.join('\n'));
     formatBrandComplianceSections(data).forEach((section) => add(section.key, section.label, section.text));
-    return { sections, fullText: sections.map((section) => section.text).join('\n'), missingSections, ingredientEnglish, ingredientChinese, ingredientSplit };
+    const orderedSections = buildOrderedCopywritingSections(rows, sections);
+    return {
+      sections: orderedSections,
+      fullText: (wordFullText || orderedSections.map((section) => section.text).join('\n')).slice(0, 50000),
+      missingSections,
+      ingredientEnglish,
+      ingredientChinese,
+      ingredientSplit,
+    };
   }
 
   function findBrandCompliance(data) {
@@ -8909,7 +9009,7 @@
 
   function normalizeCopywritingRecord(record) {
     if (!record || typeof record !== 'object') return null;
-    const normalizeSections = (items) => (Array.isArray(items) ? items : []).slice(0, 24).map((section) => ({
+    const normalizeSections = (items) => (Array.isArray(items) ? items : []).slice(0, 80).map((section) => ({
       key: String(section && section.key || '').slice(0, 60),
       label: String(section && section.label || '').slice(0, 100),
       text: String(section && section.text || '').slice(0, 12000),
@@ -8932,7 +9032,7 @@
       changedSectionKeys: (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16),
       removedSections: (Array.isArray(record.removedSections) ? record.removedSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
       previousSections: normalizeSections(record.previousSections),
-      copiedSectionKeys: (Array.isArray(record.copiedSectionKeys) ? record.copiedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 24),
+      copiedSectionKeys: (Array.isArray(record.copiedSectionKeys) ? record.copiedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 80),
       copiedFullText: Boolean(record.copiedFullText),
     };
   }
