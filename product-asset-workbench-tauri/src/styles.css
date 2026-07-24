@@ -79,7 +79,7 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .table-tools button { border: 0; background: white; color: #5f6a7c; border-radius: 7px; padding: 6px 10px; font-size: 11px; }
 .table-tools span { margin-left: auto; color: var(--muted); font-size: 11px; }
 .table-tools b { color: var(--purple); }
-.product-table { min-height: 420px; max-height: calc(100vh - 430px); overflow: auto; }
+.product-table { min-height: 420px; max-height: calc(100vh - 430px); overflow: auto; padding-bottom: 72px; }
 .top-collapsed .product-table { min-height: 500px; max-height: calc(100vh - 285px); }
 .table-row { display: grid; grid-template-columns: 38px minmax(230px,1.25fr) minmax(220px,1.35fr) minmax(250px,1.15fr) minmax(175px,.8fr) 34px; gap: 13px; align-items: center; min-height: 82px; padding: 9px 20px; border-bottom: 1px solid #edf0f4; transition: background .15s; }
 .table-row.selected { background: #faf9ff; }
@@ -112,7 +112,7 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .empty-state { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 8px; color: #929cab; }
 .empty-state strong { color: #556174; }
 .empty-state span { font-size: 11px; }
-.batch-bar { min-height: 76px; padding: 13px 24px; display: flex; align-items: center; border-top: 1px solid var(--line); background: #fafbfc; }
+.batch-bar { width: min(1492px,calc(100% - 80px)); min-height: 76px; padding: 13px 24px; display: flex; align-items: center; position: fixed; left: 50%; bottom: 14px; z-index: 18; transform: translateX(-50%); border: 1px solid var(--line); border-radius: 16px; background: rgba(250,251,252,.96); box-shadow: 0 14px 38px rgba(27,39,69,.16); backdrop-filter: blur(16px); }
 .batch-bar > div { display: grid; gap: 3px; }
 .batch-bar strong { font-size: 13px; }
 .batch-bar span { color: var(--muted); font-size: 10px; }
