@@ -110,6 +110,18 @@ struct FinalizedProduct {
     purchase_price: String,
     #[serde(default)]
     pack_qty: String,
+    #[serde(default)]
+    box_file_state: String,
+    #[serde(default)]
+    label_file_state: String,
+    #[serde(default)]
+    image_pack_state: String,
+    #[serde(default)]
+    box_file_done: bool,
+    #[serde(default)]
+    label_file_done: bool,
+    #[serde(default)]
+    image_pack_done: bool,
 }
 
 #[derive(Clone, Serialize)]

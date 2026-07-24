@@ -31,6 +31,12 @@ export interface FinalizedProduct {
   printCode: string;
   purchasePrice: string;
   packQty: string;
+  boxFileState: string;
+  labelFileState: string;
+  imagePackState: string;
+  boxFileDone: boolean;
+  labelFileDone: boolean;
+  imagePackDone: boolean;
 }
 
 export interface ProductPreview {

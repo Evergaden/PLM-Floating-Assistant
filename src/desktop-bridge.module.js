@@ -199,6 +199,12 @@
         printCode: String(data.printCode || row.printCode || ''),
         purchasePrice: String(data.purchasePrice || row.purchasePrice || ''),
         packQty: String(data.packQty || data.packCount || data.cartonQty || ''),
+        boxFileState: String(row.boxFileState || data.boxFileState || ''),
+        labelFileState: String(row.labelFileState || data.labelFileState || ''),
+        imagePackState: String(row.imagePackState || data.imagePackState || ''),
+        boxFileDone: Boolean(row.boxFileDone || data.boxFileDone),
+        labelFileDone: Boolean(row.labelFileDone || data.labelFileDone),
+        imagePackDone: Boolean(row.imagePackDone || data.imagePackDone),
       });
       return products;
     }, []);

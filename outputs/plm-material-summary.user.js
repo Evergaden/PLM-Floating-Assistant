@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.149
+// @version      2.5.150
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.149';
+  const SCRIPT_VERSION = '2.5.150';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2164,6 +2164,12 @@
         printCode: String(data.printCode || row.printCode || ''),
         purchasePrice: String(data.purchasePrice || row.purchasePrice || ''),
         packQty: String(data.packQty || data.packCount || data.cartonQty || ''),
+        boxFileState: String(row.boxFileState || data.boxFileState || ''),
+        labelFileState: String(row.labelFileState || data.labelFileState || ''),
+        imagePackState: String(row.imagePackState || data.imagePackState || ''),
+        boxFileDone: Boolean(row.boxFileDone || data.boxFileDone),
+        labelFileDone: Boolean(row.labelFileDone || data.labelFileDone),
+        imagePackDone: Boolean(row.imagePackDone || data.imagePackDone),
       });
       return products;
     }, []);
@@ -15345,6 +15351,7 @@
     const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
     const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue) }, key);
     refreshLedgerCard(updatedRecord);
+    scheduleDesktopBridgeSnapshot();
   }
 
   function ledgerArtworkStateButtonHtml(sku, dateAttr, value) {

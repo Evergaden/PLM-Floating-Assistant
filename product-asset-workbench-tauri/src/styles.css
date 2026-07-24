@@ -79,6 +79,10 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .table-tools button { border: 0; background: white; color: #5f6a7c; border-radius: 7px; padding: 6px 10px; font-size: 11px; }
 .table-tools span { margin-left: auto; color: var(--muted); font-size: 11px; }
 .table-tools b { color: var(--purple); }
+.queue-view-tabs { display: flex; gap: 4px; margin-right: 8px; padding: 3px; border-radius: 9px; background: #eceff5; }
+.table-tools .queue-view-tabs button { padding: 5px 10px; background: transparent; }
+.table-tools .queue-view-tabs button.active { color: var(--purple); background: white; box-shadow: 0 2px 7px rgba(32,40,60,.08); }
+.table-tools .queue-view-tabs button b { margin-left: 3px; }
 .product-table { min-height: 420px; max-height: calc(100vh - 430px); overflow: auto; padding-bottom: 72px; }
 .top-collapsed .product-table { min-height: 500px; max-height: calc(100vh - 285px); }
 .table-row { display: grid; grid-template-columns: 38px minmax(230px,1.25fr) minmax(220px,1.35fr) minmax(250px,1.15fr) minmax(175px,.8fr) 34px; gap: 13px; align-items: center; min-height: 82px; padding: 9px 20px; border-bottom: 1px solid #edf0f4; transition: background .15s; }

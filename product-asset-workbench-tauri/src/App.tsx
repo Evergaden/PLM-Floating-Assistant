@@ -43,6 +43,17 @@ interface ArchivePacksResult {
   deleted: number;
 }
 
+function isWorktableOperationDone(state: string, done: boolean) {
+  return done || state === "done";
+}
+
+function isWorktableComplete(row: ProductPreview) {
+  const product = row.product;
+  return isWorktableOperationDone(product.boxFileState, product.boxFileDone)
+    && isWorktableOperationDone(product.labelFileState, product.labelFileDone)
+    && isWorktableOperationDone(product.imagePackState, product.imagePackDone);
+}
+
 function readMappings(): Record<string, string> {
   try {
     return JSON.parse(localStorage.getItem(MAP_KEY) || "{}");
@@ -58,7 +69,7 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   if (row.ambiguousFolders.length > 1) return { label: `同名目录 ${row.ambiguousFolders.length} 个，请手动选择`, tone: "warning" };
   if (!row.folder) return { label: "待指定目录", tone: "danger" };
   if (row.missing.length) return { label: `缺少 ${row.missing.join("、")}`, tone: "warning" };
-  if (row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists) return { label: "成品已存在", tone: "neutral" };
+  if (isWorktableComplete(row)) return { label: "三项操作完成，已收纳", tone: "neutral" };
   return { label: "可以生成", tone: "success" };
 }
 
@@ -299,6 +310,7 @@ export default function App() {
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
   const [workspaceView, setWorkspaceView] = useState<"assets" | "packs">("assets");
+  const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
   const [usePackRules, setUsePackRules] = useState(true);
@@ -363,7 +375,7 @@ export default function App() {
       });
     }
     setSelected((current) => {
-      const valid = new Set(result.map((item) => item.product.sku));
+      const valid = new Set(result.filter((item) => !isWorktableComplete(item)).map((item) => item.product.sku));
       return new Set([...current].filter((sku) => valid.has(sku)));
     });
   }, []);
@@ -426,16 +438,20 @@ export default function App() {
     refreshPreview(products, root, mappings).catch(console.error);
   }, [bridge.connected, mappings, products, refreshPreview, root]);
 
-  const visible = useMemo(() => {
+  const matchingRows = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     return rows.filter((row) => !keyword || [row.product.sku, row.product.brand, row.product.name, row.product.englishName]
       .join(" ").toLowerCase().includes(keyword));
   }, [query, rows]);
 
+  const activeRows = useMemo(() => matchingRows.filter((row) => !isWorktableComplete(row)), [matchingRows]);
+  const completedRows = useMemo(() => matchingRows.filter(isWorktableComplete), [matchingRows]);
+  const visible = queueView === "complete" ? completedRows : activeRows;
+
   const counts = useMemo(() => ({
-    ready: rows.filter((row) => row.folder && !row.missing.length && !(row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists)).length,
-    missing: rows.filter((row) => !row.folder || row.missing.length).length,
-    complete: rows.filter((row) => row.excelExists && row.skuImageExists && row.englishExists && row.sizeExists).length,
+    ready: rows.filter((row) => !isWorktableComplete(row) && row.folder && !row.missing.length).length,
+    missing: rows.filter((row) => !isWorktableComplete(row) && (!row.folder || row.missing.length)).length,
+    complete: rows.filter(isWorktableComplete).length,
   }), [rows]);
 
   async function chooseRoot() {
@@ -596,7 +612,7 @@ export default function App() {
           <article><span>全部定稿</span><strong>{rows.length}</strong><small>来自悬浮助手</small></article>
           <article className="green"><span>可以生成</span><strong>{counts.ready}</strong><small>资料与目录已就绪</small></article>
           <article className="amber"><span>需要确认</span><strong>{counts.missing}</strong><small>缺图、参数或目录</small></article>
-          <article className="violet"><span>完整成品</span><strong>{counts.complete}</strong><small>三类文件均已存在</small></article>
+          <article className="violet"><span>已完成收纳</span><strong>{counts.complete}</strong><small>纸盒、标签、图包均已操作</small></article>
         </section>
 
         <section className={`work-panel ${workspaceView !== "assets" ? "is-hidden" : ""}`}>
@@ -613,12 +629,16 @@ export default function App() {
           </div>
 
           <div className="table-tools">
+            <div className="queue-view-tabs">
+              <button className={queueView === "active" ? "active" : ""} onClick={() => { setQueueView("active"); setSelected(new Set()); }}>待处理 <b>{rows.length - counts.complete}</b></button>
+              <button className={queueView === "complete" ? "active" : ""} onClick={() => { setQueueView("complete"); setSelected(new Set()); }}>已完成收纳 <b>{counts.complete}</b></button>
+            </div>
             <button onClick={() => setSelected(new Set(visible.map((row) => row.product.sku)))}>全选当前</button>
             <button onClick={() => setSelected(new Set())}>取消选择</button>
             <span>已选择 <b>{selected.size}</b> 个产品</span>
           </div>
 
-          <div className="product-table">
+          <div className={`product-table ${queueView === "complete" ? "no-batch" : ""}`}>
             <div className="table-row table-header">
               <span />
               <span>SKU / 产品</span>
@@ -661,20 +681,20 @@ export default function App() {
             })}
             {!visible.length && (
               <div className="empty-state">
-                <CircleAlert size={28} />
-                <strong>{root ? "还没有同步到已定稿产品" : "请先选择产品文件夹根目录"}</strong>
-                <span>{root ? "连接悬浮助手后点击“同步已定稿产品”" : "工作台会扫描其中的 SKU 产品文件夹"}</span>
+                {queueView === "complete" ? <Check size={28} /> : <CircleAlert size={28} />}
+                <strong>{queueView === "complete" ? "还没有已完成产品" : (root ? "待处理队列已清空" : "请先选择产品文件夹根目录")}</strong>
+                <span>{queueView === "complete" ? "今日工作台中的纸盒、标签和图包都操作过后会自动收纳到这里" : (root ? "纸盒、标签、图包三项都完成的产品已移入“已完成收纳”" : "工作台会扫描其中的 SKU 产品文件夹")}</span>
               </div>
             )}
           </div>
 
-          <div className="batch-bar">
+          {queueView === "active" && <div className="batch-bar">
             <div>
               <strong>{selected.size ? `准备处理 ${selected.size} 个产品` : "选择产品后开始批量生成"}</strong>
               <span>已有文件默认跳过；缺少透明图时仍可生成 Excel。</span>
             </div>
             <button className="primary large" onClick={generateSelected}><Play size={18} fill="currentColor" />批量生成所选资产</button>
-          </div>
+          </div>}
         </section>
 
         {workspaceView === "packs" && (
