@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.154
+// @version      2.5.155
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.154';
+  const SCRIPT_VERSION = '2.5.155';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5543,6 +5543,8 @@
       '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:rgba(124,58,237,.38)!important;background:#eee8ff!important;color:#6030cf!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid rgba(139,92,246,.34)!important;border-radius:9px!important;outline:none!important;background:rgba(255,255,255,.95)!important;color:#292337!important;font:inherit!important;box-shadow:0 0 0 0 rgba(124,58,237,0)!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:#8b5cf6!important;box-shadow:0 0 0 3px rgba(139,92,246,.14)!important;}' +
+      '#' + PANEL_ID + ' .pfh-smart-category-input{display:inline-block!important;width:92px!important;min-width:72px!important;height:25px!important;box-sizing:border-box!important;margin:0 2px!important;padding:0 7px!important;border:1px solid rgba(139,92,246,.42)!important;border-radius:7px!important;outline:none!important;background:#fff!important;color:#4d2aad!important;font:inherit!important;font-weight:700!important;vertical-align:middle!important;}' +
+      '#' + PANEL_ID + ' .pfh-smart-category-input:focus{border-color:#7c3aed!important;box-shadow:0 0 0 3px rgba(124,58,237,.13)!important;}' +
       '#' + PANEL_ID + ' .pfh-row.is-sku-editing{cursor:text!important;border-color:rgba(139,92,246,.30)!important;background:rgba(250,248,255,.82)!important;}' +
       '#' + PANEL_ID + ' .pfh-row.is-sku-editing .pfh-value,#' + PANEL_ID + ' .pfh-row.is-sku-editing .pfh-row-actions{display:none!important;}' +
       '#' + PANEL_ID + ' .pfh-data-change-alert{margin:0 0 11px;padding:12px 14px;border:1px solid rgba(245,158,11,.38);border-radius:14px;background:linear-gradient(135deg,rgba(255,251,235,.98),rgba(255,247,237,.94));box-shadow:0 10px 24px rgba(180,83,9,.10);}' +
@@ -5612,7 +5614,6 @@
       productHeroSectionHtml(state.data, false),
       skuDataChangeAlertHtml(state.data),
       '<div class="pfh-info-grid">',
-      rowHtml('manualCategory', '产品分类', getDisplayedProductCategory(state.data), { noCopy: true }),
       rowHtml('packageCode', L.packageCode, state.data.packageCode),
       rowHtml('printCode', L.printCode, state.data.printCode),
       rowHtml('packageSizeText', state.data.packageSizeLabel || L.packageSize, state.data.packageSizeText || L.noPackage),
@@ -7302,6 +7303,7 @@
 
   function updateInsightRecommendationInPlace(sku) {
     if (!sku || state.view !== 'detail' || !state.data || state.data.sku !== sku) return false;
+    if (state.skuEditMode) return true;
     const panel = ensurePanel();
     const section = panel.querySelector('.pfh-graphic-section');
     if (!section) return false;
@@ -7381,17 +7383,24 @@
   function insightRecommendationHtml(data) {
     if (!data || !data.sku) return '';
     const recommendation = state.insightRecommendationSku === data.sku ? state.insightRecommendation : null;
-    if (state.insightRecommendationLoading && state.insightRecommendationSku === data.sku) {
+    const categoryEditor = state.skuEditMode
+      ? '<input type="text" class="pfh-smart-category-input" data-sku-edit-key="manualCategory" value="' + escapeHtml(getDisplayedProductCategory(data, true)) + '" placeholder="例如：玩具" autocomplete="off" spellcheck="false">'
+      : '';
+    if (state.insightRecommendationLoading && state.insightRecommendationSku === data.sku && !state.skuEditMode) {
       return '<div class="pfh-smart-recommend is-loading"><strong>\u667a\u80fd\u8865\u5168</strong><span>\u6b63\u5728\u5339\u914d\u5386\u53f2\u4ef7\u683c\u548c\u5546\u54c1\u7c7b\u578b...</span></div>';
     }
-    if (!recommendation || !recommendation.recommendedPrice) return '';
+    if (!recommendation || !recommendation.recommendedPrice) {
+      return state.skuEditMode
+        ? '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong><span>产品分类 / ' + categoryEditor + '</span></div>'
+        : '';
+    }
     const type = recommendation.effectiveProductType || recommendation.recommendedProductType || recommendation.productType || '';
     const confidence = recommendation.priceConfidence || recommendation.recommendationConfidence || '';
     const stats = formatRecommendationPriceStats(recommendation.priceStats);
     const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, type);
     const samples = formatRecommendationSamples(recommendation.priceSamples);
     return '<div class="pfh-smart-recommend"><strong>\u667a\u80fd\u8865\u5168</strong>' +
-      '<span>\u63a8\u8350\u4ef7\u683c <b>' + escapeHtml(String(recommendation.recommendedPrice)) + '</b>' + (type ? ' / ' + escapeHtml(type) : '') + (confidence ? ' / \u7f6e\u4fe1\u5ea6' + escapeHtml(confidence) : '') + '</span>' +
+      '<span>\u63a8\u8350\u4ef7\u683c <b>' + escapeHtml(String(recommendation.recommendedPrice)) + '</b>' + (state.skuEditMode ? ' / ' + categoryEditor : (type ? ' / ' + escapeHtml(type) : '')) + (confidence ? ' / \u7f6e\u4fe1\u5ea6' + escapeHtml(confidence) : '') + '</span>' +
       (stats || reason ? '<small>' + escapeHtml([stats, reason].filter(Boolean).join(' / ')) + '</small>' : '') +
       (samples ? '<em>\u6837\u672c\u4f9d\u636e\uff1a' + escapeHtml(samples) + '</em>' : '') +
       '</div>';
@@ -7467,7 +7476,7 @@
   }
 
   function getSkuEditableFields() {
-    return ['manualCategory', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight'];
+    return ['packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight'];
   }
 
   function isSkuEditableField(key) {
@@ -7584,10 +7593,8 @@
     const editButton = !skuEditing && options && options.editable ? '<button type="button" data-edit-key="' + escapeHtml(key) + '">' + escapeHtml(L.edit) + '</button>' : '';
     const namingHint = /^(?:packageSizeText|printSizeText)$/.test(key) ? '左键复制尺寸，右键查看命名与历史编码' : L.copyHint;
     const copyAttr = skuEditing || options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(namingHint) + '"';
-    const rawEditValue = key === 'manualCategory'
-      ? getDisplayedProductCategory(state.data, true)
-      : (state.data && state.data[key] != null ? state.data[key] : '');
-    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '"' + (key === 'manualCategory' ? ' placeholder="例如：玩具、食品、美妆"' : '') + ' autocomplete="off" spellcheck="false">' : '';
+    const rawEditValue = state.data && state.data[key] != null ? state.data[key] : '';
+    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '" autocomplete="off" spellcheck="false">' : '';
     return '<div class="pfh-row' + colorClass + (skuEditing ? ' is-sku-editing' : '') + '"' + copyAttr + ' data-key="' + escapeHtml(key) + '">' +
       '<span class="pfh-label"><span>' + escapeHtml(title) + '</span></span>' +
       '<span class="pfh-value">' + escapeHtml(shown).replace(/\n/g, '<br>') + '</span>' +
@@ -9424,7 +9431,7 @@
     if (action === 'sku-edit-open') {
       state.skuEditMode = true;
       renderShell();
-      const firstInput = ensurePanel().querySelector('[data-sku-edit-key]');
+      const firstInput = ensurePanel().querySelector('[data-sku-edit-key="manualCategory"]') || ensurePanel().querySelector('[data-sku-edit-key]');
       if (firstInput) firstInput.focus();
       return;
     }
