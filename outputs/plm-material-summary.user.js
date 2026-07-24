@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.153
+// @version      2.5.154
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.153';
+  const SCRIPT_VERSION = '2.5.154';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -3483,6 +3483,7 @@
       sku,
       name: cached.name || '',
       brand: cached.brand || '',
+      manualCategory: cached.manualCategory || '',
       aiProductType: cached.aiProductType || '',
       aiCategory: cached.aiCategory || '',
       productType: cached.productType || '',
@@ -4238,6 +4239,7 @@
     if (isDowmooBrand(data)) return true;
     const text = [
       data && data.name,
+      data && data.manualCategory,
       data && data.aiProductType,
       data && data.aiCategory,
       data && data.productType,
@@ -5610,6 +5612,7 @@
       productHeroSectionHtml(state.data, false),
       skuDataChangeAlertHtml(state.data),
       '<div class="pfh-info-grid">',
+      rowHtml('manualCategory', '产品分类', getDisplayedProductCategory(state.data), { noCopy: true }),
       rowHtml('packageCode', L.packageCode, state.data.packageCode),
       rowHtml('printCode', L.printCode, state.data.printCode),
       rowHtml('packageSizeText', state.data.packageSizeLabel || L.packageSize, state.data.packageSizeText || L.noPackage),
@@ -5718,14 +5721,15 @@
 
   function isToyCopywritingProduct(data) {
     if (!data) return false;
-    if (isDowmooBrand(data)) return true;
     const productType = getProductTypeForInsight(data, null);
     return productType === '\u73a9\u5177' || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test(getClassificationText(data));
   }
 
   function isFoodEntryCopywritingProduct(data) {
     if (!data || !/\u5165\u53e3/.test(String(data.name || ''))) return false;
-    const text = [data.name, data.plmCategory, data.aiProductType, data.aiCategory, data.departmentName].filter(Boolean).join(' ');
+    const manualCategory = normalizeManualProductCategory(data.manualCategory);
+    if (manualCategory) return manualCategory === '\u98df\u54c1';
+    const text = [data.name, data.manualCategory, data.plmCategory, data.aiProductType, data.aiCategory, data.departmentName].filter(Boolean).join(' ');
     return /\u98df\u54c1|\u4fdd\u5065|\u6ecb\u8865|\u81b3\u98df|\u8425\u517b|\u80f6\u56ca|\u8f6f\u7cd6|\u56fa\u4f53\u996e\u6599|\u7c89/i.test(text);
   }
 
@@ -7463,7 +7467,7 @@
   }
 
   function getSkuEditableFields() {
-    return ['packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight'];
+    return ['manualCategory', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight'];
   }
 
   function isSkuEditableField(key) {
@@ -7474,6 +7478,7 @@
     const labels = {
       brand: '品牌',
       name: '商品名称',
+      manualCategory: '产品分类',
       packageCode: L.packageCode,
       printCode: L.printCode,
       packageSizeText: L.packageSize,
@@ -7509,6 +7514,10 @@
       values[input.getAttribute('data-sku-edit-key')] = String(input.value || '').trim();
     });
     const next = { ...data };
+    if (Object.prototype.hasOwnProperty.call(values, 'manualCategory')) {
+      next.manualCategory = normalizeManualProductCategory(values.manualCategory);
+      next.manualCategoryUpdatedAt = next.manualCategory ? new Date().toLocaleString() : '';
+    }
     ['packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'netContent', 'grossWeight'].forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(values, key)) next[key] = values[key];
     });
@@ -7544,8 +7553,15 @@
     }
     next.updatedAt = new Date().toLocaleString();
     next.updatedAtMs = Date.now();
+    const categoryChanged = compactText(next.manualCategory) !== compactText(data.manualCategory);
     saveData(data.sku, next, { changeSource: '手动校准', trackEmptyChanges: true });
     state.skuEditMode = false;
+    if (categoryChanged) {
+      state.insightRecommendationSku = '';
+      state.insightRecommendation = null;
+      state.toyCopywritingErrorSku = '';
+      state.toyCopywritingError = '';
+    }
     resetExcelState();
     renderShell();
     addLog('success', 'SKU 数据手动校准已保存', data.sku);
@@ -7568,8 +7584,10 @@
     const editButton = !skuEditing && options && options.editable ? '<button type="button" data-edit-key="' + escapeHtml(key) + '">' + escapeHtml(L.edit) + '</button>' : '';
     const namingHint = /^(?:packageSizeText|printSizeText)$/.test(key) ? '左键复制尺寸，右键查看命名与历史编码' : L.copyHint;
     const copyAttr = skuEditing || options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(namingHint) + '"';
-    const rawEditValue = state.data && state.data[key] != null ? state.data[key] : '';
-    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '" autocomplete="off" spellcheck="false">' : '';
+    const rawEditValue = key === 'manualCategory'
+      ? getDisplayedProductCategory(state.data, true)
+      : (state.data && state.data[key] != null ? state.data[key] : '');
+    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '"' + (key === 'manualCategory' ? ' placeholder="例如：玩具、食品、美妆"' : '') + ' autocomplete="off" spellcheck="false">' : '';
     return '<div class="pfh-row' + colorClass + (skuEditing ? ' is-sku-editing' : '') + '"' + copyAttr + ' data-key="' + escapeHtml(key) + '">' +
       '<span class="pfh-label"><span>' + escapeHtml(title) + '</span></span>' +
       '<span class="pfh-value">' + escapeHtml(shown).replace(/\n/g, '<br>') + '</span>' +
@@ -16549,6 +16567,8 @@
   }
 
   function getProductTypeForInsight(data, extra) {
+    const manualCategory = normalizeManualProductCategory(data && data.manualCategory);
+    if (manualCategory) return manualCategory;
     if (isDowmooBrand(data)) return '\u73a9\u5177';
     if (data && data.aiProductType && !/^\u672a\u5206\u7c7b$/i.test(String(data.aiProductType))) return String(data.aiProductType);
     const text = [
@@ -16575,6 +16595,7 @@
       data && data.sku,
       data && data.brand,
       data && data.name,
+      data && data.manualCategory,
       data && data.netContent,
       data && data.packageSizeLabel,
       data && data.packageSizeText,
@@ -16585,6 +16606,24 @@
       data && data.aiCategory,
       Array.isArray(data && data.aiPackageTypes) ? data.aiPackageTypes.join(' ') : '',
     ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function normalizeManualProductCategory(value) {
+    const text = String(value || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!text || /^(?:未设置|自动识别|未分类)$/i.test(text)) return '';
+    if (/玩具/i.test(text)) return '玩具';
+    if (/食品/i.test(text)) return '食品';
+    return text.slice(0, 60);
+  }
+
+  function getDisplayedProductCategory(data, editing) {
+    if (!data) return '';
+    const manualCategory = normalizeManualProductCategory(data.manualCategory);
+    if (manualCategory) return manualCategory;
+    const automaticCategory = String(data.aiProductType || data.aiCategory || data.productType || data.category || '').trim();
+    if (automaticCategory && !/^\u672a\u5206\u7c7b$/i.test(automaticCategory)) return automaticCategory;
+    const inferred = getProductTypeForInsight(data, null);
+    return inferred && !/^\u672a\u5206\u7c7b$/i.test(inferred) ? inferred : (editing ? '' : '未分类');
   }
 
   function normalizeRuleKeywords(value) {
@@ -17453,7 +17492,7 @@
   function collectTrackedDataChanges(previous, next, options) {
     if (!previous || !next) return [];
     const opts = options || {};
-    const tracked = ['brand', 'name', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight', 'englishName', 'ingredientChinese', 'ingredientEnglish', 'referenceUrl'];
+    const tracked = ['brand', 'name', 'manualCategory', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight', 'englishName', 'ingredientChinese', 'ingredientEnglish', 'referenceUrl'];
     const source = opts.changeSource || '自动获取';
     const changedAt = new Date().toLocaleString();
     return tracked.reduce((changes, key) => {
