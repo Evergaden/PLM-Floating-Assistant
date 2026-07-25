@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.155
+// @version      2.5.156
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.155';
+  const SCRIPT_VERSION = '2.5.156';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -7483,6 +7483,13 @@
     return getSkuEditableFields().includes(key);
   }
 
+  function getSkuEditInputValue(data, key) {
+    const rawValue = data && data[key] != null ? data[key] : '';
+    if (!/^(?:package|product)(?:Length|Width|Height)$/.test(key)) return rawValue;
+    const cmValue = extractCmValue(rawValue);
+    return Number.isFinite(Number(cmValue)) && Number(cmValue) > 0 ? trimNumber(Number(cmValue)) : '';
+  }
+
   function getSkuDataFieldLabel(key) {
     const labels = {
       brand: '品牌',
@@ -7593,8 +7600,9 @@
     const editButton = !skuEditing && options && options.editable ? '<button type="button" data-edit-key="' + escapeHtml(key) + '">' + escapeHtml(L.edit) + '</button>' : '';
     const namingHint = /^(?:packageSizeText|printSizeText)$/.test(key) ? '左键复制尺寸，右键查看命名与历史编码' : L.copyHint;
     const copyAttr = skuEditing || options && options.noCopy ? '' : ' data-copy-key="' + escapeHtml(key) + '" title="' + escapeHtml(namingHint) + '"';
-    const rawEditValue = state.data && state.data[key] != null ? state.data[key] : '';
-    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '" autocomplete="off" spellcheck="false">' : '';
+    const rawEditValue = getSkuEditInputValue(state.data, key);
+    const dimensionPlaceholder = /^(?:package|product)(?:Length|Width|Height)$/.test(key) ? 'cm（自动换算 inch）' : '';
+    const inputHtml = skuEditing ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + escapeHtml(key) + '" value="' + escapeHtml(rawEditValue) + '" placeholder="' + escapeHtml(dimensionPlaceholder) + '" autocomplete="off" spellcheck="false">' : '';
     return '<div class="pfh-row' + colorClass + (skuEditing ? ' is-sku-editing' : '') + '"' + copyAttr + ' data-key="' + escapeHtml(key) + '">' +
       '<span class="pfh-label"><span>' + escapeHtml(title) + '</span></span>' +
       '<span class="pfh-value">' + escapeHtml(shown).replace(/\n/g, '<br>') + '</span>' +
@@ -12712,6 +12720,7 @@
       imageFallbackUrl: imageInfo.imageFallbackUrl || '',
       skuImageUrl: imageInfo.skuImageUrl || '',
       skuImageFallbackUrl: imageInfo.skuImageFallbackUrl || '',
+      skuImageSource: imageInfo.skuImageSource || '',
       isSkuDesignImage: Boolean(imageInfo.isSkuDesignImage),
       liveData: null,
     };
@@ -12796,7 +12805,7 @@
       ...data,
       skuImageUrl: extra.skuImageUrl || extra.imageUrl || '',
       skuImageFallbackUrl: extra.skuImageFallbackUrl || extra.imageFallbackUrl || extra.skuImageUrl || extra.imageUrl || '',
-      skuImageSource: 'effectImage',
+      skuImageSource: extra.skuImageSource || data.skuImageSource || 'effectImage',
     });
     saveDataDirect(sku, thumbData);
     if ((state.data && state.data.sku === sku) || (!state.data && state.selectedSku === sku)) state.data = thumbData;
@@ -13412,9 +13421,16 @@
     if (extraImageUrl) {
       return { imageUrl: extra.skuImageUrl || extra.imageUrl || extraImageUrl, imageFallbackUrl: extra.skuImageFallbackUrl || extra.imageFallbackUrl || extraImageUrl };
     }
-    const skuImageUrl = data && data.skuImageSource === 'effectImage' && (data.skuImageUrl || data.skuImageFallbackUrl);
+    const skuImageUrl = data && /^(?:effectImage|productListImage)$/.test(data.skuImageSource || '') && (data.skuImageUrl || data.skuImageFallbackUrl);
     if (skuImageUrl) {
       return { imageUrl: data.skuImageUrl || skuImageUrl, imageFallbackUrl: data.skuImageFallbackUrl || data.skuImageUrl || skuImageUrl };
+    }
+    const productListImageUrl = data && (data.productListImageUrl || data.productListImageFallbackUrl);
+    if (productListImageUrl) {
+      return {
+        imageUrl: data.productListImageUrl || productListImageUrl,
+        imageFallbackUrl: data.productListImageFallbackUrl || data.productListImageUrl || productListImageUrl,
+      };
     }
     return { imageUrl: '', imageFallbackUrl: '' };
   }
@@ -13489,6 +13505,7 @@
         chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || extra.chineseName,
         ingredients: getPreferredExcelIngredients(ingredientData) || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
         ...resolvedImageInfo,
+        skuImageSource: previewImageInfo && previewImageInfo.isSkuDesignImage ? 'effectImage' : (resolvedImageInfo.skuImageSource || extra.skuImageSource || ''),
       });
 
       if (!(await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f', { flowToken: token, timeout: 3500 }))) throw new Error('\u9879\u76ee\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
@@ -13503,14 +13520,21 @@
   function getCachedSkuImageInfo(sku) {
     const current = state.data && state.data.sku === sku ? state.data : null;
     const data = normalizeData(current || loadData(sku) || {});
-    if (data.skuImageSource !== 'effectImage') return { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
-    const imageUrl = data.skuImageUrl || data.skuImageFallbackUrl || '';
+    const hasReusableSkuImage = /^(?:effectImage|productListImage)$/.test(data.skuImageSource || '') && Boolean(data.skuImageUrl || data.skuImageFallbackUrl);
+    const imageUrl = hasReusableSkuImage
+      ? (data.skuImageUrl || data.skuImageFallbackUrl || '')
+      : (data.productListImageUrl || data.productListImageFallbackUrl || '');
     if (!imageUrl) return { imageUrl: '', imageFallbackUrl: '', isSkuDesignImage: false };
+    const imageFallbackUrl = hasReusableSkuImage
+      ? (data.skuImageFallbackUrl || data.skuImageUrl || imageUrl)
+      : (data.productListImageFallbackUrl || data.productListImageUrl || imageUrl);
+    const skuImageSource = hasReusableSkuImage ? data.skuImageSource : 'productListImage';
     return {
       imageUrl,
-      imageFallbackUrl: data.skuImageFallbackUrl || data.skuImageUrl || imageUrl,
-      skuImageUrl: data.skuImageUrl || imageUrl,
-      skuImageFallbackUrl: data.skuImageFallbackUrl || data.skuImageUrl || imageUrl,
+      imageFallbackUrl,
+      skuImageUrl: imageUrl,
+      skuImageFallbackUrl: imageFallbackUrl,
+      skuImageSource,
       isSkuDesignImage: true,
     };
   }
