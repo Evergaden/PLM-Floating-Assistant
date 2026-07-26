@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.162
+// @version      2.5.163
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.162';
+  const SCRIPT_VERSION = '2.5.163';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5581,7 +5581,7 @@
       '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:rgba(139,92,246,.58)!important;background:linear-gradient(135deg,rgba(250,247,255,.94),rgba(255,255,255,.82))!important;box-shadow:0 8px 20px rgba(91,62,180,.12),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:rgba(124,58,237,.38)!important;background:#eee8ff!important;color:#6030cf!important;}' +
-      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{width:34px!important;min-width:34px!important;padding:0!important;border-color:rgba(124,58,237,.28)!important;background:#f3efff!important;color:#7040d8!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{display:inline-flex!important;width:34px!important;min-width:34px!important;padding:0!important;align-items:center!important;justify-content:center!important;border-color:rgba(124,58,237,.28)!important;background:#f3efff!important;color:#7040d8!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data:hover{border-color:#8b5cf6!important;background:#e9e1ff!important;color:#5b21b6!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;height:16px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;line-height:1!important;box-sizing:content-box!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg{display:block!important;width:16px!important;height:16px!important;}' +
