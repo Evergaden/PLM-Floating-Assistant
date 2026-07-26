@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.181
+// @version      2.5.182
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.181';
+  const SCRIPT_VERSION = '2.5.182';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2683,21 +2683,32 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button::after{display:none!important;content:none!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button,
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .14s ease!important;}
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="toy-label"] .pfh-main,
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="copyright"] .pfh-main{grid-template-columns:minmax(150px,var(--pfh-list-width,214px)) 6px minmax(0,1fr)!important;}
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="toy-label"] .pfh-list,
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="copyright"] .pfh-list{display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;border-right:1px solid var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;overflow:hidden!important;}
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="toy-label"] .pfh-splitter,
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="copyright"] .pfh-splitter{display:block!important;visibility:visible!important;background:linear-gradient(to right,transparent 0,transparent 2px,var(--pfh-theme-border) 2px,var(--pfh-theme-border) 4px,transparent 4px)!important;opacity:.7!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-main{grid-template-columns:minmax(0,1fr)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-list,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-splitter{display:none!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-detail > .pfh-upload-scroll{overflow-x:hidden!important;overflow-y:auto!important;padding:0 14px 14px!important;scrollbar-gutter:stable!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-section.is-open{gap:12px!important;min-height:100%!important;padding:0 4px 14px!important;align-content:start!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title{position:sticky!important;top:0!important;z-index:30!important;height:auto!important;min-height:44px!important;max-height:none!important;flex:0 0 auto!important;box-sizing:border-box!important;margin:0!important;padding:8px 0!important;border-bottom:1px solid var(--pfh-theme-border)!important;background:color-mix(in srgb,var(--pfh-theme-page) 92%,transparent)!important;backdrop-filter:blur(14px)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type{margin-left:0!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"]{margin-left:auto!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]{display:none!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-sku-picker{display:flex!important;flex:0 0 auto!important;flex-direction:column!important;gap:7px!important;min-width:0!important;padding:9px 10px 8px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:14px!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 8px 20px var(--pfh-theme-shadow-soft)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head{margin:0 0 4px!important;padding:0 2px!important;border:0!important;background:transparent!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head strong{color:var(--pfh-theme-text)!important;font-size:13px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head span{color:var(--pfh-theme-muted)!important;font-size:11px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-tip{flex:0 0 auto!important;margin:0 2px 7px!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.35!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-toolbar{flex:0 0 auto!important;margin:0 0 7px!important;justify-content:flex-start!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:0 2px 2px!important;overscroll-behavior:contain!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-list{display:flex!important;flex-direction:column!important;gap:6px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card{display:flex!important;align-items:center!important;gap:7px!important;width:100%!important;min-width:0!important;min-height:48px!important;padding:5px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:10px!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left!important;cursor:grab!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 5px 12px var(--pfh-theme-shadow-soft)!important;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s ease,box-shadow .2s ease,opacity .2s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-toolbar{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;flex:0 0 auto!important;margin:0!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll-hint{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll{flex:0 0 auto!important;min-height:0!important;width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;padding:0 2px 4px!important;overscroll-behavior-x:contain!important;scrollbar-width:thin!important;scroll-snap-type:x proximity!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar{height:5px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar-thumb{background:var(--pfh-theme-border-strong)!important;border-radius:999px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-list,
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:stretch!important;gap:7px!important;width:max-content!important;min-width:100%!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{grid-template-columns:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card{display:flex!important;align-items:center!important;flex:0 0 178px!important;gap:7px!important;width:178px!important;min-width:178px!important;min-height:48px!important;padding:5px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:10px!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left!important;cursor:grab!important;scroll-snap-align:start!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 5px 12px var(--pfh-theme-shadow-soft)!important;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s ease,box-shadow .2s ease,opacity .2s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-card{flex-basis:118px!important;width:118px!important;min-width:118px!important;min-height:102px!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:5px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-thumb{flex:0 0 58px!important;width:100%!important;height:58px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-meta{width:100%!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:hover{transform:translateY(-1px)!important;border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:active,
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card.is-dragging{cursor:grabbing!important;transform:scale(.97)!important;opacity:.58!important;}
@@ -2707,10 +2718,15 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta{display:flex!important;min-width:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:2px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta b{overflow:hidden!important;color:var(--pfh-theme-text)!important;font-size:11px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta small{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:9px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager{margin-top:7px!important;padding-top:6px!important;border-top:1px solid var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin-top:0!important;padding:6px 2px 0!important;border-top:1px solid var(--pfh-theme-border)!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > span{white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > div{margin-left:auto!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-drop-target{display:grid!important;place-items:center!important;min-height:44px!important;padding:8px!important;border:1px dashed var(--pfh-theme-border-strong)!important;border-radius:12px!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;color:var(--pfh-theme-primary)!important;font-size:11px!important;font-weight:700!important;transition:border-color .2s ease,background-color .2s ease,box-shadow .2s ease,transform .2s ease!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-drop-target.is-drag-over{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;box-shadow:0 0 0 4px var(--pfh-theme-shadow-soft),0 10px 24px var(--pfh-theme-shadow-soft)!important;transform:scale(1.01)!important;}
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body{grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;gap:10px!important;min-height:0!important;grid-template-rows:none!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body .pfh-upload-list{flex:1 1 auto!important;min-height:140px!important;overflow-y:auto!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{gap:7px!important;flex-wrap:wrap!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-clear-list"]{order:0!important;}
     @media(max-width:620px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
     @media(max-width:430px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
   `;
@@ -5507,8 +5523,7 @@
     }
     if (state.view === 'upload') {
       const list = panel.querySelector('.pfh-list');
-      if (list && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(list);
-      else if (list) list.innerHTML = '';
+      if (list) list.innerHTML = '';
     }
     else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools') renderSkuList(panel);
     if (state.view === 'about') {
@@ -5840,6 +5855,8 @@
     detail.classList.remove('is-loading');
     detail.innerHTML = uploadPanelHtml();
     setupUploadModeFusion(detail);
+    const picker = detail.querySelector('[data-upload-sku-picker]');
+    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker);
   }
 
   function setupUploadModeFusion(root) {
@@ -5883,11 +5900,13 @@
     const detail = panel && panel.querySelector('.pfh-detail');
     const currentBody = detail && detail.querySelector('.pfh-upload-body');
     const currentTabs = detail && detail.querySelector('.pfh-upload-mode-tabs');
+    const currentPicker = detail && detail.querySelector('[data-upload-sku-picker]');
     if (!currentBody || !currentTabs) return false;
     const template = document.createElement('template');
     template.innerHTML = uploadPanelHtml();
     const nextBody = template.content.querySelector('.pfh-upload-body');
     const nextTabs = template.content.querySelector('.pfh-upload-mode-tabs');
+    const nextPicker = template.content.querySelector('[data-upload-sku-picker]');
     if (!nextBody || !nextTabs) return false;
     const currentSection = currentBody.closest('.pfh-upload-section');
     const nextSection = nextBody.closest('.pfh-upload-section');
@@ -5901,6 +5920,9 @@
     currentTabs.querySelectorAll('button[data-action="upload-mode"]').forEach((button) => {
       button.classList.toggle('is-active', button.getAttribute('data-upload-mode') === state.uploadMode);
     });
+    if (currentPicker && nextPicker) currentPicker.replaceWith(nextPicker);
+    else if (!currentPicker && nextPicker) currentBody.parentNode.insertBefore(nextPicker, currentBody);
+    else if (currentPicker && !nextPicker) currentPicker.remove();
     currentBody.replaceWith(nextBody);
     const indicator = currentTabs.querySelector('.pfh-upload-mode-indicator');
     const activeButton = currentTabs.querySelector('button.is-active');
@@ -5913,8 +5935,8 @@
       });
     }
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
-    const list = panel.querySelector('.pfh-list');
-    if (list && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(list);
+    const picker = panel.querySelector('[data-upload-sku-picker]');
+    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker);
     return true;
   }
 
@@ -5957,11 +5979,11 @@
     }).join('');
     const modeLabel = state.uploadMode === 'copyright' ? '版权图' : '玩具标签';
     const listHead = '<div class="pfh-list-head pfh-upload-sku-picker-head"><strong>SKU任务源</strong><span>' + allItems.length + ' 条</span></div>' +
-      '<p class="pfh-upload-sku-picker-tip">拖动 SKU 卡片到右侧，加入' + modeLabel + '任务</p>';
-    const listTools = '<div class="pfh-sku-list-toolbar pfh-upload-sku-picker-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
+      '<p class="pfh-upload-sku-picker-tip">拖动 SKU 卡片到下方，加入' + modeLabel + '任务</p>';
+    const listTools = '<div class="pfh-sku-list-toolbar pfh-upload-sku-picker-toolbar"><span class="pfh-upload-sku-picker-scroll-hint">左右滑动选择 SKU</span><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button>' +
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div></div>';
-    const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
+    const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><span>第 ' + state.skuPage + ' / ' + totalPages + ' 页</span><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
     const content = items.length ? (listMode === 'waterfall' ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + cards + '</div>' : '<div class="pfh-upload-sku-card-list">' + cards + '</div>') : '<div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div>';
     list.innerHTML = listHead + listTools + '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
     setupSkuViewFusion(list);
@@ -9880,14 +9902,15 @@
     const tableHead = '<div class="pfh-upload-table-head' + (viewingHistory ? ' is-history' : '') + '">' + historyHeadActions + '<span>\u72b6\u6001</span><span>' + escapeHtml(viewingHistory ? '\u65f6\u95f4' : '\u6587\u4ef6/\u8fdb\u5ea6') + '</span><span>\u9009\u62e9</span></div>';
     const pagerAction = viewingHistory ? 'upload-history-page' : 'upload-page';
     const pager = '<div class="pfh-upload-pager"><span>\u5171 ' + allItems.length + ' \u6761</span><div><button type="button" data-action="' + pagerAction + '-prev"' + (state[pageKey] <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager(pagerAction, state[pageKey], totalPages) + '<button type="button" data-action="' + pagerAction + '-next"' + (state[pageKey] >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
-    const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
+    const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
     const backAction = viewingHistory ? 'upload-history-toggle' : 'home-back';
     const backLabel = viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u8fd4\u56de\u4e3b\u9875';
     const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (uploadMode === 'toy-label' ? ' is-toy-label' : '') + (uploadMode === 'copyright' ? ' is-copyright' : '') + '" data-active-mode="' + escapeHtml(uploadMode) + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
     const copyrightPendingFiles = Array.isArray(state.copyrightPendingFiles) ? state.copyrightPendingFiles : [];
     const queueControl = state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>';
-    const uploadSkuDropHtml = isUploadSkuPickerMode(uploadMode) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">\u4ece\u5de6\u4fa7\u62d6\u5165 SKU，\u6dfb\u52a0\u4e3a\u4efb\u52a1</div>' : '';
+    const uploadSkuDropHtml = isUploadSkuPickerMode(uploadMode) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">\u62d6\u52a8\u4e0a\u65b9 SKU \u5361\u7247\u5230\u8fd9\u91cc\u6dfb\u52a0\u4efb\u52a1</div>' : '';
+    const uploadSkuPickerHtml = !viewingHistory && isUploadSkuPickerMode(uploadMode) ? '<div class="pfh-upload-sku-picker" data-upload-sku-picker="true"></div>' : '';
     const copyrightModeHtml = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="\u7c98\u8d34\u4e00\u4e2a\u6216\u591a\u4e2a SKU \u7f16\u7801">' + escapeHtml(state.copyrightSkuInput || '') + '</textarea>' +
       '<div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe">\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe\uff08JPG / PNG\uff09' + (copyrightPendingFiles.length ? '<small>\u5df2\u9009 ' + copyrightPendingFiles.length + ' \u5f20\uff1a' + escapeHtml(copyrightPendingFiles.slice(0, 6).map((file) => file.name).join(' / ') + (copyrightPendingFiles.length > 6 ? ' ...' : '')) + '</small>' : '') + '</div>' +
       '<input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png">' +
@@ -9897,7 +9920,7 @@
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="\u4f7f\u7528\u8bf4\u660e" aria-label="\u4f7f\u7528\u8bf4\u660e">' + uploadGuideIconHtml() + '</button>' +
       '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
-      '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button></div>' +
+      '</div>' + uploadSkuPickerHtml +
       '<div class="pfh-upload-body">' +
         (viewingHistory ? '' : (uploadMode === 'toy-label'
           ? uploadSkuDropHtml + '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + queueControl + '</div>'
