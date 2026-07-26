@@ -23,6 +23,7 @@
 - Preserve existing GM/local storage keys, backup payload compatibility, and cached SKU data fields. Add backward-compatible defaults when extending data.
 - When changing the userscript, update both `SCRIPT_VERSION` and the metadata `@version` together.
 - Follow the existing light-glass UI language and responsive panel constraints. Keep current user-dragged layout and settings intact.
+- For the 今日工作台 tabs, preserve the existing `.pfh-ledger-tabs` and `.pfh-ledger-tab-indicator` DOM nodes during tab changes; refresh only the content below the tabs. Keep the indicator motion on `left`/`width` with `cubic-bezier(.25,1.2,.35,1)`, and do not restore full `renderShell()` tab redraws, transform-based tab animations, or the legacy `.is-tab-transition` class.
 - Use `apply_patch` for manual edits. Prefer ASCII in code; Chinese UI/document text is acceptable where needed.
 - Treat PLM DOM selectors, upload flow, and drawer automation as fragile integrations. Do not broadly refactor them without browser verification.
 - Keep API keys, Worker secrets, local credential files, and `.dev.vars` out of source control and out of the userscript.
