@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.184
+// @version      2.5.185
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.184';
+  const SCRIPT_VERSION = '2.5.185';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2539,9 +2539,9 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active::after,
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-list-content{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-height:0!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch{position:relative!important;isolation:isolate!important;gap:0!important;overflow:hidden!important;border-radius:999px!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px;width:39px;height:25px;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 5px 12px var(--pfh-theme-shadow-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button{position:relative!important;z-index:1!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;line-height:1!important;border-radius:999px!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch{position:relative!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;isolation:isolate!important;gap:0!important;width:max-content!important;height:31px!important;min-height:31px!important;margin:0!important;padding:2px!important;overflow:hidden!important;border-radius:999px!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;vertical-align:middle!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;width:39px!important;height:25px!important;box-sizing:border-box!important;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 5px 12px var(--pfh-theme-shadow-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button{position:relative!important;z-index:1!important;display:inline-grid!important;place-items:center!important;box-sizing:border-box!important;flex:0 0 auto!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:39px!important;height:25px!important;min-height:25px!important;margin:0!important;padding:0 7px!important;text-align:center!important;line-height:1!important;vertical-align:middle!important;border-radius:999px!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button:active{transform:scale(.94)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button::after{content:'';position:absolute;inset:0;border-radius:99px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
@@ -2751,9 +2751,6 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"]{margin-left:auto!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]{display:none!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-sku-picker{display:flex!important;flex:0 0 auto!important;flex-direction:column!important;gap:7px!important;min-width:0!important;padding:9px 10px 8px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:14px!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 8px 20px var(--pfh-theme-shadow-soft)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:0 0 2px!important;padding:0 2px!important;border:0!important;background:transparent!important;color:var(--pfh-theme-text)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head strong{display:block!important;flex:0 0 auto!important;white-space:nowrap!important;color:var(--pfh-theme-text)!important;font-size:13px!important;line-height:1.2!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head span{flex:0 0 auto!important;margin-left:auto!important;color:var(--pfh-theme-muted)!important;font-size:11px!important;line-height:1.2!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll{flex:0 0 auto!important;min-height:0!important;width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;padding:0 2px 4px!important;overscroll-behavior-x:contain!important;scrollbar-width:thin!important;scroll-snap-type:x proximity!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar{height:5px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar-thumb{background:var(--pfh-theme-border-strong)!important;border-radius:999px!important;}
@@ -2766,10 +2763,13 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-thumb{flex:0 0 52px!important;width:100%!important;height:52px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-meta{width:100%!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:hover{transform:translateY(-1px)!important;border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card.is-queued{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;box-shadow:inset 0 0 0 1px var(--pfh-theme-primary),inset 0 1px 0 rgba(255,255,255,.84),0 5px 12px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card.is-queued .pfh-upload-sku-thumb{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-surface)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:active,
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card.is-dragging{cursor:grabbing!important;transform:scale(.97)!important;opacity:.58!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;flex:0 0 30px!important;width:30px!important;height:30px!important;overflow:hidden!important;padding:2px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:7px!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb img{display:block!important;width:100%!important;height:100%!important;margin:auto!important;object-fit:contain!important;object-position:center center!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-thumb img{width:100%!important;height:100%!important;object-fit:cover!important;object-position:50% 50%!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb svg{width:18px!important;height:18px!important;fill:currentColor!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta{display:flex!important;min-width:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:2px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta b{overflow:hidden!important;color:var(--pfh-theme-text)!important;font-size:10px!important;line-height:1.15!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
@@ -5917,11 +5917,14 @@
 
   function renderUpload(panel) {
     const detail = panel.querySelector('.pfh-detail');
+    const previousPicker = detail && detail.querySelector('[data-upload-sku-picker]');
+    const previousScroll = previousPicker && previousPicker.querySelector('.pfh-upload-sku-picker-scroll');
+    const previousPickerScrollLeft = previousScroll ? previousScroll.scrollLeft : 0;
     detail.classList.remove('is-loading');
     detail.innerHTML = uploadPanelHtml();
     setupUploadModeFusion(detail);
     const picker = detail.querySelector('[data-upload-sku-picker]');
-    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker);
+    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker, previousPickerScrollLeft);
   }
 
   function setupUploadModeFusion(root) {
@@ -5977,6 +5980,8 @@
     const nextSection = nextBody.closest('.pfh-upload-section');
     const currentStatus = currentSection && currentSection.querySelector('.pfh-upload-status');
     const nextStatus = nextSection && nextSection.querySelector('.pfh-upload-status');
+    const currentPickerScroll = currentPicker && currentPicker.querySelector('.pfh-upload-sku-picker-scroll');
+    const currentPickerScrollLeft = currentPickerScroll ? currentPickerScroll.scrollLeft : 0;
     if (currentSection && nextSection) currentSection.className = nextSection.className;
     if (currentStatus && nextStatus) currentStatus.textContent = nextStatus.textContent;
     currentTabs.className = nextTabs.className;
@@ -6001,7 +6006,7 @@
     }
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     const picker = panel.querySelector('[data-upload-sku-picker]');
-    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker);
+    if (picker && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(picker, currentPickerScrollLeft);
     return true;
   }
 
@@ -6024,12 +6029,20 @@
     return mode === 'toy-label' || mode === 'copyright';
   }
 
-  function renderUploadSkuPicker(list) {
+  function renderUploadSkuPicker(list, restoreScrollLeft) {
     if (!list) return;
+    const currentScroll = list.querySelector('.pfh-upload-sku-picker-scroll');
+    const requestedScrollLeft = restoreScrollLeft === undefined ? (currentScroll ? currentScroll.scrollLeft : 0) : Number(restoreScrollLeft);
+    const pickerScrollLeft = Number.isFinite(requestedScrollLeft) ? Math.max(0, requestedScrollLeft) : 0;
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
     const allItems = sortSkuListItems(getSearchMatches(searchTokens));
     const listMode = getSkuListMode();
+    const uploadMode = normalizeUploadMode(state.uploadMode);
+    const queuedSkus = new Set((state.uploadQueue || loadUploadQueue())
+      .filter((item) => getUploadItemMode(item) === uploadMode && !/\u6210\u529f/.test(item.status || ''))
+      .map((item) => String(item.sku || '').trim().toUpperCase())
+      .filter(Boolean));
     const pageSize = 20;
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
@@ -6039,13 +6052,20 @@
       const title = [item.brand || data.brand, item.name || data.name, item.sku].filter(Boolean).join(' ');
       const image = getSkuListImageUrl(data);
       const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
-      return '<button type="button" class="pfh-upload-sku-card" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" title="拖动到下方添加任务：' + escapeHtml(title) + '">' +
+      const queued = queuedSkus.has(String(item.sku || '').trim().toUpperCase());
+      return '<button type="button" class="pfh-upload-sku-card' + (queued ? ' is-queued' : '') + '" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" aria-pressed="' + String(queued) + '" title="拖动到下方添加任务：' + escapeHtml(title) + '">' +
         '<span class="pfh-upload-sku-thumb">' + imageHtml + '</span><span class="pfh-upload-sku-meta"><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(item.name || data.name || '未命名产品') + '</small></span></button>';
     }).join('');
-    const listHead = '<div class="pfh-list-head pfh-upload-sku-picker-head"><strong>SKU任务源</strong><span>' + allItems.length + ' 条</span></div>';
     const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div class="pfh-upload-sku-picker-pager-leading"><span>第 ' + state.skuPage + ' / ' + totalPages + ' 页</span></div><div class="pfh-upload-sku-picker-pager-controls"><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
     const content = items.length ? (listMode === 'waterfall' ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + cards + '</div>' : '<div class="pfh-upload-sku-card-list">' + cards + '</div>') : '<div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div>';
-    list.innerHTML = listHead + '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
+    list.innerHTML = '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
+    const nextScroll = list.querySelector('.pfh-upload-sku-picker-scroll');
+    if (nextScroll) {
+      nextScroll.scrollLeft = pickerScrollLeft;
+      window.requestAnimationFrame(() => {
+        if (nextScroll.isConnected) nextScroll.scrollLeft = pickerScrollLeft;
+      });
+    }
   }
 
   function renderSkuListHtml() {
