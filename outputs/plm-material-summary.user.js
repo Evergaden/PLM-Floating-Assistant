@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.156
+// @version      2.5.157
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.156';
+  const SCRIPT_VERSION = '2.5.157';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -12609,14 +12609,33 @@
   async function saveProjectBomDrawer(drawer) {
     const button = findButtonLikeInScope(drawer, '\u6279\u91cf\u4fdd\u5b58');
     if (!button) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u6309\u94ae');
+    const existingNotices = new Set(getVisiblePlmNoticeNodes());
     clickElement(button);
-    await wait(600);
-    const saved = await waitFor(() => {
-      const text = getVisibleText(document.body);
-      if (/\u4fdd\u5b58\u6210\u529f|\u64cd\u4f5c\u6210\u529f|\u6210\u529f/.test(text)) return true;
-      return !/ant-btn-loading|loading/.test(String(button.className || ''));
-    }, 30000, 300);
-    if (!saved) throw new Error('\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u8d85\u65f6');
+    const result = await waitFor(() => getFreshBomSaveNoticeResult(existingNotices), 120000, 150);
+    if (result === 'saved') return true;
+    state.uploadRunning = false;
+    saveUploadWorkerRunning(false);
+    if (result === 'failed') {
+      throw new Error('\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u5931\u8d25\uff0c\u5df2\u6682\u505c\u961f\u5217\u5e76\u4fdd\u7559\u5f53\u524d\u62bd\u5c49');
+    }
+    throw new Error('\u672a\u68c0\u6d4b\u5230\u7ed1BOM\u201c\u4fdd\u5b58\u6210\u529f\u201d\u63d0\u793a\uff0c\u5df2\u6682\u505c\u961f\u5217\u5e76\u4fdd\u7559\u5f53\u524d\u62bd\u5c49');
+  }
+
+  function getVisiblePlmNoticeNodes() {
+    return Array.from(document.querySelectorAll('.ant-message-notice, .ant-notification-notice'))
+      .filter(isVisibleElement)
+      .filter((node) => !node.closest('#' + PANEL_ID));
+  }
+
+  function getFreshBomSaveNoticeResult(existingNotices) {
+    const baseline = existingNotices && typeof existingNotices.has === 'function' ? existingNotices : new Set();
+    const text = getVisiblePlmNoticeNodes()
+      .filter((node) => !baseline.has(node))
+      .map((node) => getNodeText(node))
+      .join('\n');
+    if (/\u4fdd\u5b58\u5931\u8d25|\u64cd\u4f5c\u5931\u8d25|\u8bf7\u6c42\u5931\u8d25|\u7f51\u7edc\u5f02\u5e38|\u7cfb\u7edf\u5f02\u5e38/.test(text)) return 'failed';
+    if (/\u4fdd\u5b58\u6210\u529f|\u64cd\u4f5c\u6210\u529f|\u6279\u91cf\u4fdd\u5b58\u6210\u529f/.test(text)) return 'saved';
+    return '';
   }
 
   async function closeProjectBomDrawer(drawer) {
