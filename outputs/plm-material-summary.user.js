@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.168
+// @version      2.5.169
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.168';
+  const SCRIPT_VERSION = '2.5.169';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -330,7 +330,7 @@
       const lineCount = completedManualLines(session, target);
       const effective = autoAssignedManualTypes(session, target);
       const overrides = session.manualLineTypes[target] || [];
-      if (!lineCount) return '<span style="color:#7b84a1;font-size:12px">每条尺寸边分别点击起点和终点，画完后可在这里校准长/高。</span>';
+      if (!lineCount) return '<span style="color:' + getActiveTheme().muted + ';font-size:12px">每条尺寸边分别点击起点和终点，画完后可在这里校准长/高。</span>';
       return Array.from({ length: lineCount }, (_, index) => {
         const override = overrides[index] || '';
         const buttons = ['auto'].concat(manualDimensionTypes(target)).map((type) => {
@@ -338,15 +338,15 @@
           const active = (type === 'auto' ? !override : override === type) ? ' is-active' : '';
           return '<button type="button" class="' + active + '" data-action="parameter-editor-line-type" data-object="' + target + '" data-line-index="' + index + '" data-dimension="' + type + '">' + label + '</button>';
         }).join('');
-        return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid #e4def4;border-radius:10px;background:#f8f6ff"><b style="color:#4d3a8b;font-size:12px">第' + (index + 1) + '条：' + (override ? '已校准 ' : '智能识别 ') + manualDimensionLabel(effective[index]) + '</b>' + buttons + '</span>';
+        return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid ' + getActiveTheme().border + ';border-radius:10px;background:' + getActiveTheme().primarySoft + '"><b style="color:' + getActiveTheme().primaryHover + ';font-size:12px">第' + (index + 1) + '条：' + (override ? '已校准 ' : '智能识别 ') + manualDimensionLabel(effective[index]) + '</b>' + buttons + '</span>';
       }).join('');
     }
 
     function manualAllCalibrationHtml(session) {
       const sections = ['box', 'product'].filter((target) => completedManualLines(session, target)).map((target) =>
-        '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + (target === 'box' ? '#7c3aed' : '#0891b2') + ';font-size:12px">' + (target === 'box' ? '纸盒' : '产品') + '</strong>' + manualCalibrationHtml(session, target) + '</span>'
+        '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + (target === 'box' ? getActiveTheme().primary : getActiveTheme().secondary) + ';font-size:12px">' + (target === 'box' ? '纸盒' : '产品') + '</strong>' + manualCalibrationHtml(session, target) + '</span>'
       );
-      return sections.join('') || '<span style="color:#7b84a1;font-size:12px">直接在图片上画线：纸盒与产品都只需标注长和高。</span>';
+      return sections.join('') || '<span style="color:' + getActiveTheme().muted + ';font-size:12px">直接在图片上画线：纸盒与产品都只需标注长和高。</span>';
     }
 
     function editorLog(session, step, detail, level) {
@@ -375,8 +375,8 @@
       return '<section class="pfh-parameter-editor">' +
         '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，自动判断纸盒/产品 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
-          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:#f1edff;color:#6541ce;font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2 边</span>' +
-          '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:#e8f7fa;color:#087f95;font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
+          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2 边</span>' +
+          '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().secondarySoft + ';color:' + getActiveTheme().secondary + ';font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
           '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
           '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
@@ -453,8 +453,8 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image.source || image, padding, padding, width, height);
       const scale = editorScale(image);
-      drawEditorLines(ctx, session, 'box', '#7c3aed', true, scale, padding, padding);
-      drawEditorLines(ctx, session, 'product', '#0891b2', true, scale, padding, padding);
+      drawEditorLines(ctx, session, 'box', getActiveTheme().primary, true, scale, padding, padding);
+      drawEditorLines(ctx, session, 'product', getActiveTheme().secondary, true, scale, padding, padding);
       const fit = fitEditorCanvas(canvas);
       const drawKey = [width, height, padding, image.sourceKind || 'image'].join('x');
       if (session.editorLastDrawKey !== drawKey) {
@@ -817,6 +817,7 @@
         editorPreviousRootOverflow = document.documentElement.style.overflow;
         document.documentElement.style.overflow = 'hidden';
         document.documentElement.appendChild(overlay);
+        if (typeof context.applyTheme === 'function') context.applyTheme();
         overlay.addEventListener('click', (event) => {
           const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
           const action = actionTarget && actionTarget.getAttribute('data-action');
@@ -1475,6 +1476,30 @@
     splitWidth: 237,
   });
   const SETTINGS_KEY = 'plm-floating-helper:settings';
+  const DEFAULT_THEME_ID = 'default';
+  const THEME_OPTIONS = Object.freeze([
+    { id: 'default', name: '默认', primary: '#7c3aed', primaryHover: '#5b21b6', primarySoft: '#f3efff', secondary: '#0891b2', secondarySoft: '#e8f7fa', page: '#fafbff', surface: '#ffffff', surfaceAlt: '#f7f8fc', border: '#d8deea', borderStrong: '#b9a8ed', text: '#1f2937', muted: '#64748b', header: '#f5f7fb' },
+    { id: 'gold', name: '金黄色', primary: '#d79b00', primaryHover: '#a66f00', primarySoft: '#fff6d7', secondary: '#b7791f', secondarySoft: '#fff2d8', page: '#fffdf7', surface: '#fffefa', surfaceAlt: '#fff8e8', border: '#eadcb8', borderStrong: '#d6b862', text: '#443a24', muted: '#8a7a5b', header: '#fff4cf' },
+    { id: 'light-orange', name: '浅橙色', primary: '#e27d43', primaryHover: '#b95725', primarySoft: '#fff0e6', secondary: '#d97706', secondarySoft: '#fff4df', page: '#fffaf7', surface: '#fffdfb', surfaceAlt: '#fff5ed', border: '#efd4c1', borderStrong: '#e7ae8d', text: '#483229', muted: '#8c7165', header: '#fff0e5' },
+    { id: 'brick-red', name: '砖红色', primary: '#b85a4b', primaryHover: '#8f3c31', primarySoft: '#fbecea', secondary: '#a94b4b', secondarySoft: '#fae9e9', page: '#fffafa', surface: '#fffdfd', surfaceAlt: '#fff3f1', border: '#e7c7c2', borderStrong: '#d69287', text: '#432e2c', muted: '#876f6d', header: '#fae6e1' },
+    { id: 'crimson', name: '鸢红色', primary: '#bd5a67', primaryHover: '#963d4c', primarySoft: '#fbeaec', secondary: '#b84f70', secondarySoft: '#fae8ee', page: '#fff9fb', surface: '#fffdfd', surfaceAlt: '#fff1f4', border: '#e8c8ce', borderStrong: '#d896a2', text: '#472e34', muted: '#886d75', header: '#f8e1e5' },
+    { id: 'red', name: '红色', primary: '#d63d52', primaryHover: '#ae2439', primarySoft: '#ffebef', secondary: '#c2415a', secondarySoft: '#ffedf0', page: '#fff9fa', surface: '#fffdfd', surfaceAlt: '#fff0f2', border: '#edc5cc', borderStrong: '#e18b99', text: '#482a30', muted: '#8d6870', header: '#fbe1e5' },
+    { id: 'rose', name: '玫瑰色', primary: '#ce5c8d', primaryHover: '#a83b6c', primarySoft: '#fce8f1', secondary: '#c2478e', secondarySoft: '#fbe5f1', page: '#fff9fc', surface: '#fffdfd', surfaceAlt: '#fff0f6', border: '#ecc6d8', borderStrong: '#df92b1', text: '#482c3d', muted: '#8b6b7d', header: '#f8dce9' },
+    { id: 'blue', name: '蓝色', primary: '#2f7fd3', primaryHover: '#1f5fa7', primarySoft: '#e6f1ff', secondary: '#087f95', secondarySoft: '#e3f6fa', page: '#f7fbff', surface: '#ffffff', surfaceAlt: '#eef6ff', border: '#c4d9ee', borderStrong: '#8db9e3', text: '#20364c', muted: '#64809a', header: '#dceefb' },
+    { id: 'pink-tail', name: '粉黛尾花色', primary: '#c66f9b', primaryHover: '#9e4c78', primarySoft: '#fbeaf3', secondary: '#a85e9c', secondarySoft: '#f7eaf5', page: '#fff9fc', surface: '#fffdfd', surfaceAlt: '#fff1f8', border: '#e8c9dc', borderStrong: '#d99bbb', text: '#472f42', muted: '#896e82', header: '#f8dce9' },
+    { id: 'iris', name: '蕾蒲色', primary: '#a768b8', primaryHover: '#814a96', primarySoft: '#f5eafa', secondary: '#8564b5', secondarySoft: '#eeeafa', page: '#fcf9ff', surface: '#fffdfd', surfaceAlt: '#f7effb', border: '#dfc9e8', borderStrong: '#c79bd5', text: '#3f3047', muted: '#7e6b88', header: '#f1dff2' },
+    { id: 'light-blue', name: '浅蓝色', primary: '#4e9fd1', primaryHover: '#2f76a6', primarySoft: '#e8f5fc', secondary: '#298f9d', secondarySoft: '#e3f5f6', page: '#f7fcfe', surface: '#ffffff', surfaceAlt: '#edf8fb', border: '#c7e0eb', borderStrong: '#91c4d8', text: '#24404d', muted: '#668492', header: '#dceff6' },
+    { id: 'seagreen', name: '海泡石', primary: '#439ba0', primaryHover: '#2d7377', primarySoft: '#e5f7f6', secondary: '#278b72', secondarySoft: '#e3f5ed', page: '#f6fcfc', surface: '#ffffff', surfaceAlt: '#eaf7f6', border: '#c1dfdc', borderStrong: '#83c1bc', text: '#24413f', muted: '#64827f', header: '#d8efed' },
+    { id: 'sky', name: '天青色', primary: '#2e9cae', primaryHover: '#1f7382', primarySoft: '#e2f6f8', secondary: '#358bbf', secondarySoft: '#e6f2fa', page: '#f6fcfd', surface: '#ffffff', surfaceAlt: '#e9f8fa', border: '#bfdee4', borderStrong: '#82bdc8', text: '#23404a', muted: '#63808a', header: '#d7eff1' },
+    { id: 'gray', name: '灰色', primary: '#77818d', primaryHover: '#555e68', primarySoft: '#edf0f3', secondary: '#687785', secondarySoft: '#e9eef2', page: '#fafbfc', surface: '#ffffff', surfaceAlt: '#f2f4f6', border: '#d5dbe0', borderStrong: '#aeb8c1', text: '#303941', muted: '#71808b', header: '#e9ecef' },
+    { id: 'green', name: '绿色', primary: '#4e9b62', primaryHover: '#347345', primarySoft: '#e8f6eb', secondary: '#2d8b78', secondarySoft: '#e3f5ef', page: '#f8fcf8', surface: '#ffffff', surfaceAlt: '#edf8ef', border: '#c7dfca', borderStrong: '#91bf98', text: '#294333', muted: '#688070', header: '#dcefdc' },
+    { id: 'cloudy', name: '阴天', primary: '#788792', primaryHover: '#596771', primarySoft: '#edf1f3', secondary: '#637e8b', secondarySoft: '#e8f0f2', page: '#fafcfc', surface: '#ffffff', surfaceAlt: '#f1f4f5', border: '#d3dade', borderStrong: '#aab9bf', text: '#303c42', muted: '#718087', header: '#e4eaec' },
+    { id: 'storm', name: '风暴', primary: '#59697d', primaryHover: '#3b4a5c', primarySoft: '#e8edf3', secondary: '#4d7188', secondarySoft: '#e7f0f4', page: '#f8fafc', surface: '#ffffff', surfaceAlt: '#edf2f6', border: '#cbd4de', borderStrong: '#9baaba', text: '#283541', muted: '#687887', header: '#dfe6ed' },
+    { id: 'blue-gray', name: '蓝灰色', primary: '#52728d', primaryHover: '#38556d', primarySoft: '#e7f0f5', secondary: '#4c8898', secondarySoft: '#e5f3f4', page: '#f7fbfc', surface: '#ffffff', surfaceAlt: '#edf5f7', border: '#c7d9df', borderStrong: '#91b5c0', text: '#283d49', muted: '#68808a', header: '#dcebee' },
+    { id: 'dark-gray', name: '暗灰色', primary: '#626b74', primaryHover: '#424a51', primarySoft: '#e9edf0', secondary: '#5b7478', secondarySoft: '#e7eff0', page: '#fafbfb', surface: '#ffffff', surfaceAlt: '#f0f3f4', border: '#d0d6da', borderStrong: '#a4afb5', text: '#2b3338', muted: '#707b82', header: '#e5e9eb' },
+    { id: 'camouflage', name: '迷彩色', primary: '#77835b', primaryHover: '#59643f', primarySoft: '#eef2e5', secondary: '#6e8a67', secondarySoft: '#e8f1e7', page: '#fafcf8', surface: '#ffffff', surfaceAlt: '#f1f5ec', border: '#d5dec8', borderStrong: '#acbd98', text: '#374132', muted: '#74806b', header: '#e7eedc' },
+  ]);
+  const THEME_BY_ID = Object.freeze(THEME_OPTIONS.reduce((map, theme) => { map[theme.id] = theme; return map; }, Object.create(null)));
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
@@ -2442,8 +2467,94 @@
   // </desktop-bridge-module>
   // <ui-loader-module>
   const UI_STYLE_ID = 'pfh-ui-styles';
+  const UI_THEME_STYLE_ID = 'pfh-ui-theme-styles';
   let uiFallbackNoticeTimer = 0;
   let uiAssetRecoveryBound = false;
+  const THEME_STYLE_TEXT = `
+    #${PANEL_ID}[data-pfh-theme],#${LAUNCHER_ID}[data-pfh-theme]{
+      --pfh-color-primary:var(--pfh-theme-primary)!important;
+      --pfh-color-primary-hover:var(--pfh-theme-primary-hover)!important;
+      --pfh-color-primary-soft:var(--pfh-theme-primary-soft)!important;
+      --pfh-color-border:var(--pfh-theme-border)!important;
+      --pfh-color-border-hover:var(--pfh-theme-border-strong)!important;
+      --pfh-color-surface:var(--pfh-theme-surface)!important;
+      --pfh-focus-ring:0 0 0 3px var(--pfh-theme-primary-soft)!important;
+    }
+    #${PANEL_ID}[data-pfh-theme]{
+      color:var(--pfh-theme-text)!important;
+      background:var(--pfh-theme-surface)!important;
+      border-color:var(--pfh-theme-border)!important;
+    }
+    #${PANEL_ID}[data-pfh-theme] .pfh-full,
+    #${PANEL_ID}[data-pfh-theme] .pfh-main,
+    #${PANEL_ID}[data-pfh-theme] .pfh-list,
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail,
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-scroll,
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-scroll,
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-list{background:var(--pfh-theme-page)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-header{background:linear-gradient(135deg,var(--pfh-theme-header),var(--pfh-theme-surface))!important;border-color:var(--pfh-theme-border)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-splitter{background:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(
+      .pfh-section,.pfh-settings-card,.pfh-home-card,.pfh-sku,.pfh-ledger-item,.pfh-row,
+      .pfh-parameter-preview-card,.pfh-size-image-preview,.pfh-mini-tool-card,.pfh-log-panel,
+      .pfh-notification-dialog,.pfh-first-run-dialog,.pfh-developer-dialog,.pfh-packaging-naming-card,
+      .pfh-copywriting-block,.pfh-copywriting-full-card,.pfh-readiness-panel,.pfh-rule-panel,
+      .pfh-sku-context-menu,.pfh-sku-sort-menu,.pfh-export-menu,.pfh-export-menu-list,
+      .pfh-ledger-time-modal,.pfh-ledger-time-card
+    ){background:var(--pfh-theme-surface)!important;border-color:var(--pfh-theme-border)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(
+      .pfh-section-title,.pfh-settings-card-head,.pfh-list-head,.pfh-log-head,.pfh-ledger-head,
+      .pfh-home-stats,.pfh-parameter-editor-head,.pfh-parameter-editor-foot,.pfh-size-image-hero,
+      .pfh-copywriting-block-head,.pfh-notification-foot,.pfh-notification-item-head
+    ){border-color:var(--pfh-theme-border)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(input,select,textarea){background:var(--pfh-theme-surface)!important;border-color:var(--pfh-theme-border)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(button){border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(button:hover:not(:disabled),input:focus,select:focus,textarea:focus){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(h1,h2,h3,h4,strong,b,.pfh-list-head strong,.pfh-section-title h3,.pfh-home-card strong,.pfh-product-title-copy h2){color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(small,em,.pfh-list-note,.pfh-note,.pfh-title-meta,.pfh-about-note,.pfh-empty,.pfh-setting-row>span,.pfh-loading-tip){color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(a,.pfh-sku b,.pfh-home-card strong,.pfh-title-actions .is-primary,.pfh-ledger-link){color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(svg,.pfh-icon){color:inherit;}
+    #${PANEL_ID}[data-pfh-theme] :where(
+      [data-action="search"],[data-action="excel-generate"],[data-action="upload-start"],
+      [data-action="toy-label-queue-add"],[data-action="parameter-image-save"],
+      [data-action="parameter-editor-apply"],[data-action="first-run-tutorial-done"]
+    ){border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(
+      [data-action="search"]:hover:not(:disabled),[data-action="excel-generate"]:hover:not(:disabled),
+      [data-action="upload-start"]:hover:not(:disabled),[data-action="toy-label-queue-add"]:hover:not(:disabled),
+      [data-action="parameter-image-save"]:hover:not(:disabled),[data-action="parameter-editor-apply"]:hover:not(:disabled),
+      [data-action="first-run-tutorial-done"]:hover:not(:disabled)
+    ){border-color:var(--pfh-theme-primary-hover)!important;background:var(--pfh-theme-primary-hover)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-sku.is-active,.pfh-sku-waterfall-card.is-active,.pfh-row:hover,.pfh-home-card:hover,.pfh-ledger-item.is-group-highlighted){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-sku.is-pinned.is-active,.pfh-collection-mark.is-on){border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-parameter-editor-box-progress,.pfh-parameter-editor-product-progress){border-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-parameter-editor-box-progress{background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-parameter-editor-product-progress{background:var(--pfh-theme-secondary-soft)!important;color:var(--pfh-theme-secondary)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where([style*="#7c3aed"],[style*="#6d35e8"],[style*="#0891b2"],[style*="#6541ce"],[style*="#6030cf"]){color:var(--pfh-theme-primary)!important;border-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-toast,.pfh-note-toast,.pfh-notification-badge){background:var(--pfh-theme-primary)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-ledger-tabs button.is-active,.pfh-ledger-overflow-menu button.is-active,.pfh-tags .is-extension,.pfh-ledger-tags .is-extension,.pfh-ledger-tags .is-performance-group){background:var(--pfh-theme-primary-soft)!important;border-color:var(--pfh-theme-border-strong)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-parameter-drop,.pfh-size-image-drop,.pfh-upload-drop){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-item.is-clickable:hover,
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-item.is-clickable.is-menu-open,
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-item.is-group-highlighted{border-color:var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-performance{border-color:var(--pfh-theme-border)!important;background:linear-gradient(135deg,var(--pfh-theme-primary-soft),var(--pfh-theme-surface))!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-ledger-performance span,.pfh-ledger-performance strong,.pfh-ledger-merge-groups summary,.pfh-ledger-merge-group b){color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-ledger-merge-groups,.pfh-ledger-merge-group){border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
+    #${PANEL_ID}-upload-progress[data-pfh-theme]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}-upload-progress[data-pfh-theme] :where(.pfh-upload-progress-main span,.pfh-upload-progress-icon){background:var(--pfh-theme-primary)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme]{color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor{background:var(--pfh-theme-surface)!important;border-color:var(--pfh-theme-border)!important;}
+    #${LAUNCHER_ID}[data-pfh-theme]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-primary)!important;box-shadow:0 8px 24px rgba(35,25,70,.14);}
+    #${LAUNCHER_ID}[data-pfh-theme]:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option{display:flex;min-width:0;min-height:62px;flex-direction:column;align-items:stretch;gap:6px;padding:7px 7px 6px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:10px;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option:hover{transform:translateY(-1px);border-color:var(--pfh-theme-option-primary)!important;background:var(--pfh-theme-option-soft)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option.is-selected{border:2px solid var(--pfh-theme-option-primary)!important;padding:6px 6px 5px!important;box-shadow:0 0 0 2px var(--pfh-theme-option-soft);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-swatch{display:block;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--pfh-theme-option-primary),var(--pfh-theme-option-secondary));box-shadow:inset 0 0 0 1px rgba(255,255,255,.45);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-label{overflow:hidden;font-size:11px;line-height:1.2;text-overflow:ellipsis;white-space:nowrap;}
+    @media(max-width:620px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+    @media(max-width:430px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+  `;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
       position:fixed;right:18px;bottom:78px;z-index:2147483647;width:686px;height:min(906px,96vh);min-width:520px;min-height:520px;
@@ -2593,6 +2704,50 @@
     return true;
   }
 
+  function ensureThemeStyle() {
+    let style = document.getElementById(UI_THEME_STYLE_ID);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = UI_THEME_STYLE_ID;
+      document.documentElement.appendChild(style);
+    }
+    if (style.textContent !== THEME_STYLE_TEXT) style.textContent = THEME_STYLE_TEXT;
+  }
+
+  function normalizeThemeId(value) {
+    const id = String(value || '').trim();
+    return THEME_BY_ID[id] ? id : DEFAULT_THEME_ID;
+  }
+
+  function getActiveTheme() {
+    const configuredId = typeof state !== 'undefined' && state.settings ? state.settings.theme : DEFAULT_THEME_ID;
+    return THEME_BY_ID[normalizeThemeId(configuredId)] || THEME_BY_ID[DEFAULT_THEME_ID];
+  }
+
+  function applyThemeToView() {
+    const theme = getActiveTheme();
+    const variables = {
+      '--pfh-theme-primary': theme.primary,
+      '--pfh-theme-primary-hover': theme.primaryHover,
+      '--pfh-theme-primary-soft': theme.primarySoft,
+      '--pfh-theme-secondary': theme.secondary,
+      '--pfh-theme-secondary-soft': theme.secondarySoft,
+      '--pfh-theme-page': theme.page,
+      '--pfh-theme-surface': theme.surface,
+      '--pfh-theme-surface-alt': theme.surfaceAlt,
+      '--pfh-theme-border': theme.border,
+      '--pfh-theme-border-strong': theme.borderStrong,
+      '--pfh-theme-text': theme.text,
+      '--pfh-theme-muted': theme.muted,
+      '--pfh-theme-header': theme.header,
+    };
+    [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {
+      if (!element) return;
+      element.dataset.pfhTheme = theme.id;
+      Object.keys(variables).forEach((key) => element.style.setProperty(key, variables[key]));
+    });
+  }
+
   function applyCloudUiStyles(cssText) {
     const text = String(cssText || '');
     if (text.length < 10000 || !text.includes('#' + PANEL_ID)) return false;
@@ -2606,10 +2761,13 @@
   function injectStyle() {
     bindUiAssetRecovery();
     const cached = getCloudUiStyleText();
-    if (applyCloudUiStyles(cached)) return;
-    setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
-    updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
-    scheduleUiFallbackNotice();
+    if (!applyCloudUiStyles(cached)) {
+      setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
+      updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
+      scheduleUiFallbackNotice();
+    }
+    ensureThemeStyle();
+    applyThemeToView();
   }
   // </ui-loader-module>
   const CM_TO_INCH = 1 / 2.54;
@@ -2969,6 +3127,7 @@
     collectExtra: collectExcelExtraData,
     getSaveFilePicker,
     showToast,
+    applyTheme: applyThemeToView,
     render: () => { if (state.view === 'parameterImage') renderShell(); },
   });
   state.expanded = firstTutorial;
@@ -4989,6 +5148,7 @@
         panel = null;
       } else {
         panel.dataset.version = SCRIPT_VERSION;
+        applyThemeToView();
         return panel;
       }
     }
@@ -5032,6 +5192,7 @@
     applyPanelSize(panel);
     applySplitWidth(panel);
     updatePanelPinButton(panel);
+    applyThemeToView();
     return panel;
   }
 
@@ -5047,6 +5208,7 @@
       makeLauncherDraggable(launcher);
     }
     positionLauncher(launcher);
+    applyThemeToView();
     return launcher;
   }
 
@@ -5244,6 +5406,7 @@
       '<div><span style="width:' + percent + '%"></span></div></div>' +
       '<b>' + percent + '%</b>';
     positionUploadProgressOverlay(panel, overlay);
+    applyThemeToView();
   }
 
   function positionUploadProgressOverlay(panel, overlay) {
@@ -5339,11 +5502,17 @@
       '<div class="pfh-setting-row"><span>' + escapeHtml(L.excelKeywordSetting) + '</span><label><input type="radio" name="pfh-keyword-mode" value="brandName"' + (state.settings.excelKeywordMode === 'brandName' ? ' checked' : '') + '> ' + escapeHtml(L.excelKeywordBrandName) + '</label><label><input type="radio" name="pfh-keyword-mode" value="english"' + (state.settings.excelKeywordMode === 'english' ? ' checked' : '') + '> ' + escapeHtml(L.excelKeywordEnglish) + '</label></div>',
       '<div class="pfh-setting-row"><span>' + escapeHtml(L.excelDownloadSetting) + '</span><label><input type="radio" name="pfh-download-mode" value="picker"' + (state.settings.excelDownloadMode === 'picker' ? ' checked' : '') + '> ' + escapeHtml(L.excelDownloadPicker) + '</label><label><input type="radio" name="pfh-download-mode" value="direct"' + (state.settings.excelDownloadMode === 'direct' ? ' checked' : '') + '> ' + escapeHtml(L.excelDownloadDirect) + '</label></div>',
     ].join('');
+    const themeOptions = THEME_OPTIONS.map((theme) => {
+      const selected = normalizeThemeId(state.settings.theme) === theme.id;
+      return '<button type="button" class="pfh-theme-option' + (selected ? ' is-selected' : '') + '" data-action="theme-select" data-theme-id="' + escapeHtml(theme.id) + '" aria-pressed="' + String(selected) + '" style="--pfh-theme-option-primary:' + escapeHtml(theme.primary) + ';--pfh-theme-option-secondary:' + escapeHtml(theme.secondary) + ';--pfh-theme-option-soft:' + escapeHtml(theme.primarySoft) + '"><span class="pfh-theme-option-swatch"></span><span class="pfh-theme-option-label">' + escapeHtml(theme.name) + '</span></button>';
+    }).join('');
+    const themeBody = '<div class="pfh-settings-card pfh-theme-settings-card"><div class="pfh-settings-card-head"><strong>主题颜色</strong><span>' + escapeHtml(getActiveTheme().name) + '</span></div><div class="pfh-about-note">选择后会应用到整个浮动界面，并自动保存。</div><div class="pfh-theme-grid">' + themeOptions + '</div></div>';
     const cacheBody = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + escapeHtml(L.exportCache) + '</button><button type="button" data-action="import-cache">' + escapeHtml(L.importCache) + '</button></div>';
     detail.innerHTML = [
       '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">',
       '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + escapeHtml(L.settingsTitle) + '</h3><p>\u4e91\u5907\u4efd\u3001\u8fd0\u884c\u504f\u597d\u548c\u8c03\u8bd5\u8bb0\u5f55</p></div><span>v' + escapeHtml(SCRIPT_VERSION) + ' / ' + escapeHtml(String(state.index.length)) + ' \u4e2a\u7f16\u7801</span></div>',
       desktopBridgeSettingsHtml(),
+      themeBody,
       '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + escapeHtml(L.cloudBackupTitle) + '</strong><span>\u4f18\u5148</span></div>' + cloudBody + '</div>',
       state.developerInsightsUnlocked ? renderInsightsSection() : '',
       renderLogSection(),
@@ -9460,6 +9629,14 @@
     if (action === 'panel-close') {
       suppressPanelTooltips(actionTarget);
       collapsePanel(true);
+      return;
+    }
+    if (action === 'theme-select') {
+      state.settings.theme = normalizeThemeId(actionTarget.getAttribute('data-theme-id'));
+      saveSettings(state.settings);
+      applyThemeToView();
+      renderShell();
+      showToast('\u4e3b\u9898\u5df2\u5207\u6362\u4e3a ' + getActiveTheme().name);
       return;
     }
     if (action === 'developer-settings-tap') {
@@ -17221,10 +17398,11 @@
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
+      settings.theme = normalizeThemeId(settings.theme);
       if (Number(saved && saved.skuListPreferenceVersion || 0) < SKU_LIST_PREFERENCE_VERSION) {
         settings.skuListMode = 'waterfall';
         settings.skuListSort = 'assigned';
