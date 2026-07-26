@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.172
+// @version      2.5.173
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.172';
+  const SCRIPT_VERSION = '2.5.173';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5832,6 +5832,40 @@
     setupLedgerTabFusion(detail);
   }
 
+  function renderLedgerTabContent(panel) {
+    const detail = panel && panel.querySelector('.pfh-detail');
+    const page = detail && detail.querySelector('.pfh-ledger-page');
+    const tabs = page && page.querySelector('.pfh-ledger-tabs');
+    if (!detail || !page || !tabs) return false;
+    const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
+    const template = document.createElement('template');
+    template.innerHTML = ledgerViewHtml(records);
+    const nextPage = template.content.querySelector('.pfh-ledger-page');
+    const nextTabs = nextPage && nextPage.querySelector('.pfh-ledger-tabs');
+    if (!nextPage || !nextTabs) return false;
+    const currentDetailScroll = detail.querySelector('.pfh-detail-scroll');
+    const nextDetailScroll = nextPage.parentElement;
+    if (currentDetailScroll && nextDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', nextDetailScroll.getAttribute('data-scroll-context') || '');
+    const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
+    const nextHeroNote = nextPage.querySelector('[data-ledger-hero-note]');
+    if (currentHeroNote && nextHeroNote) currentHeroNote.textContent = nextHeroNote.textContent;
+    const currentRecordCount = page.querySelector('[data-ledger-record-count]');
+    const nextRecordCount = nextPage.querySelector('[data-ledger-record-count]');
+    if (currentRecordCount && nextRecordCount) currentRecordCount.textContent = nextRecordCount.textContent;
+    tabs.setAttribute('data-active-tab', nextTabs.getAttribute('data-active-tab') || 'design');
+    const nextActiveButton = nextTabs.querySelector('button.is-active');
+    const nextActiveAction = nextActiveButton ? nextActiveButton.getAttribute('data-action') : '';
+    tabs.querySelectorAll('button[data-action^="ledger-view-"]').forEach((button) => {
+      const active = button.getAttribute('data-action') === nextActiveAction;
+      button.classList.toggle('active', active);
+      button.classList.toggle('is-active', active);
+    });
+    while (tabs.nextElementSibling) tabs.nextElementSibling.remove();
+    const nextTabsIndex = Array.from(nextPage.children).indexOf(nextTabs);
+    Array.from(nextPage.children).slice(nextTabsIndex + 1).forEach((node) => page.appendChild(node));
+    return true;
+  }
+
   function setupLedgerTabFusion(detail) {
     const tabs = detail && detail.querySelector('.pfh-ledger-tabs');
     const indicator = tabs && tabs.querySelector('.pfh-ledger-tab-indicator');
@@ -5853,6 +5887,9 @@
       button.addEventListener('click', () => {
         buttons.forEach((item) => item.classList.remove('active', 'is-active'));
         button.classList.add('active', 'is-active');
+        const action = button.getAttribute('data-action') || '';
+        tabs.setAttribute('data-active-tab', action === 'ledger-view-finalized' ? 'finalized' : (action === 'ledger-view-trash' ? 'trash' : 'design'));
+        tabs.removeAttribute('data-tab-from');
         moveIndicator(button);
       });
     });
@@ -7558,7 +7595,7 @@
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '"' + (state.ledgerTabTransitionFrom && state.ledgerTabTransitionFrom !== mode ? ' data-tab-from="' + state.ledgerTabTransitionFrom + '"' : '') + '>' +
         '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
@@ -10114,7 +10151,7 @@
       state.ledgerView = nextLedgerView;
       state.ledgerTabTransition = state.ledgerView;
       window.clearTimeout(state.ledgerTabTransitionTimer);
-      renderShell();
+      if (!renderLedgerTabContent(ensurePanel())) renderShell();
       state.ledgerTabTransition = '';
       state.ledgerTabTransitionFrom = '';
       return;
