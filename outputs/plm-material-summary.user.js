@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.182
+// @version      2.5.183
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.182';
+  const SCRIPT_VERSION = '2.5.183';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2693,31 +2693,32 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"]{margin-left:auto!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]{display:none!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-sku-picker{display:flex!important;flex:0 0 auto!important;flex-direction:column!important;gap:7px!important;min-width:0!important;padding:9px 10px 8px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:14px!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 8px 20px var(--pfh-theme-shadow-soft)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head{margin:0 0 4px!important;padding:0 2px!important;border:0!important;background:transparent!important;color:var(--pfh-theme-text)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head strong{color:var(--pfh-theme-text)!important;font-size:13px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head span{color:var(--pfh-theme-muted)!important;font-size:11px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-tip{flex:0 0 auto!important;margin:0 2px 7px!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.35!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:0 0 2px!important;padding:0 2px!important;border:0!important;background:transparent!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head strong{display:block!important;flex:0 0 auto!important;white-space:nowrap!important;color:var(--pfh-theme-text)!important;font-size:13px!important;line-height:1.2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head span{flex:0 0 auto!important;margin-left:auto!important;color:var(--pfh-theme-muted)!important;font-size:11px!important;line-height:1.2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-tip{flex:0 0 auto!important;margin:0 2px 3px!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.25!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-toolbar{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;flex:0 0 auto!important;margin:0!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll-hint{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll{flex:0 0 auto!important;min-height:0!important;width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;padding:0 2px 4px!important;overscroll-behavior-x:contain!important;scrollbar-width:thin!important;scroll-snap-type:x proximity!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar{height:5px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar-thumb{background:var(--pfh-theme-border-strong)!important;border-radius:999px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-list,
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:stretch!important;gap:7px!important;width:max-content!important;min-width:100%!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{grid-template-columns:none!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card{display:flex!important;align-items:center!important;flex:0 0 178px!important;gap:7px!important;width:178px!important;min-width:178px!important;min-height:48px!important;padding:5px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:10px!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left!important;cursor:grab!important;scroll-snap-align:start!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 5px 12px var(--pfh-theme-shadow-soft)!important;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s ease,box-shadow .2s ease,opacity .2s ease!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-card{flex-basis:118px!important;width:118px!important;min-width:118px!important;min-height:102px!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:5px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-thumb{flex:0 0 58px!important;width:100%!important;height:58px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{display:grid!important;grid-auto-flow:column!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;gap:6px!important;width:max-content!important;min-width:100%!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-list{grid-template-rows:repeat(2,45px)!important;grid-auto-columns:148px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{grid-template-rows:repeat(2,84px)!important;grid-auto-columns:108px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card{display:flex!important;align-items:center!important;box-sizing:border-box!important;flex:none!important;gap:6px!important;width:auto!important;min-width:0!important;min-height:45px!important;height:45px!important;padding:4px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left!important;cursor:grab!important;scroll-snap-align:start!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 4px 9px var(--pfh-theme-shadow-soft)!important;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s ease,box-shadow .2s ease,opacity .2s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-card{height:84px!important;min-height:84px!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:4px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-thumb{flex:0 0 43px!important;width:100%!important;height:43px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid .pfh-upload-sku-meta{width:100%!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:hover{transform:translateY(-1px)!important;border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:active,
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card.is-dragging{cursor:grabbing!important;transform:scale(.97)!important;opacity:.58!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb{display:grid!important;place-items:center!important;flex:0 0 34px!important;width:34px!important;height:34px!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border)!important;border-radius:8px!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb{display:grid!important;place-items:center!important;flex:0 0 30px!important;width:30px!important;height:30px!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border)!important;border-radius:7px!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb img{width:100%!important;height:100%!important;object-fit:contain!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb svg{width:18px!important;height:18px!important;fill:currentColor!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta{display:flex!important;min-width:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:2px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta b{overflow:hidden!important;color:var(--pfh-theme-text)!important;font-size:11px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta small{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:9px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta b{overflow:hidden!important;color:var(--pfh-theme-text)!important;font-size:10px!important;line-height:1.15!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta small{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:8px!important;line-height:1.15!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin-top:0!important;padding:6px 2px 0!important;border-top:1px solid var(--pfh-theme-border)!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > span{white-space:nowrap!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > div{margin-left:auto!important;}
@@ -5965,7 +5966,7 @@
     const searchTokens = parseSearchTokens(query);
     const allItems = sortSkuListItems(getSearchMatches(searchTokens));
     const listMode = getSkuListMode();
-    const pageSize = listMode === 'waterfall' ? 20 : 10;
+    const pageSize = 20;
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
@@ -5974,7 +5975,7 @@
       const title = [item.brand || data.brand, item.name || data.name, item.sku].filter(Boolean).join(' ');
       const image = getSkuListImageUrl(data);
       const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
-      return '<button type="button" class="pfh-upload-sku-card" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" title="拖动到右侧添加任务：' + escapeHtml(title) + '">' +
+      return '<button type="button" class="pfh-upload-sku-card" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" title="拖动到下方添加任务：' + escapeHtml(title) + '">' +
         '<span class="pfh-upload-sku-thumb">' + imageHtml + '</span><span class="pfh-upload-sku-meta"><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(item.name || data.name || '未命名产品') + '</small></span></button>';
     }).join('');
     const modeLabel = state.uploadMode === 'copyright' ? '版权图' : '玩具标签';
