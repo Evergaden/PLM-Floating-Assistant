@@ -1475,7 +1475,7 @@ async function handleInsightRecord(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
   const eventType = cleanText(body && body.eventType, 40);
-  if (!eventType || !/^(price|issue|type|summary|log|recommendation|excel_generated|image_pack_upload_success)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
+  if (!eventType || !/^(price|issue|type|summary|log|recommendation|excel_generated|image_pack_upload_success|toy_label_upload_success|toy_copywriting_supplement_success)$/.test(eventType)) return json({ error: 'invalid eventType' }, 400);
 
   const missingFields = cleanList(body && body.missingFields);
   const payload = JSON.stringify(body || {});
@@ -2359,7 +2359,9 @@ async function handleAdminPage(request, env) {
       FROM plm_users`).first(),
     env.DB.prepare(`SELECT
       SUM(CASE WHEN event_type='excel_generated' THEN 1 ELSE 0 END) AS excel_generated_total,
-      SUM(CASE WHEN event_type='image_pack_upload_success' THEN 1 ELSE 0 END) AS image_pack_upload_success_total
+      SUM(CASE WHEN event_type='image_pack_upload_success' THEN 1 ELSE 0 END) AS image_pack_upload_success_total,
+      SUM(CASE WHEN event_type='toy_label_upload_success' THEN 1 ELSE 0 END) AS toy_label_upload_success_total,
+      SUM(CASE WHEN event_type='toy_copywriting_supplement_success' THEN 1 ELSE 0 END) AS toy_copywriting_supplement_success_total
       FROM insight_events`).first(),
     env.DB.prepare('SELECT * FROM loading_tip_campaigns ORDER BY sort_order ASC LIMIT 200').all(),
     env.DB.prepare('SELECT * FROM holiday_calendar ORDER BY start_date ASC LIMIT 100').all(),
@@ -2420,8 +2422,9 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
   const metrics = [
     ['使用人', dashboard.users || 0], ['今日活跃', dashboard.active_today || 0], ['近7日活跃', dashboard.active_week || 0],
     ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],
-    ['生成 Excel 总量', dashboard.excel_generated_total || 0], ['图包上传成功总量', dashboard.image_pack_upload_success_total || 0],
-    ['尺寸图成功', dashboard.size_success || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
+    ['表格生成总量', dashboard.excel_generated_total || 0], ['图包上传成功总量', dashboard.image_pack_upload_success_total || 0],
+    ['玩具标签上传成功', dashboard.toy_label_upload_success_total || 0], ['生成尺寸图总量', dashboard.size_success || 0],
+    ['玩具文案智能补充', dashboard.toy_copywriting_supplement_success_total || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
   ].map((item) => '<div class="metric"><span>' + htmlEscape(item[0]) + '</span><b>' + htmlEscape(item[1]) + '</b></div>').join('');
   const notificationAdminSection = '<section class="card" id="notifications"><div class="cardhead"><h2>发布通知</h2><div class="sub">发送给所有安装新版脚本的用户；用户端会缓存通知历史并上报阅读状态。</div></div>' +
     '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：功能更新通知"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +

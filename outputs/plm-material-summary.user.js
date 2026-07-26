@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.158
+// @version      2.5.159
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -23,6 +23,7 @@
 // @connect      plm.westmonth.com
 // @connect      velvet.qzz.io
 // @connect      plm-cloud-backup.wt196731.workers.dev
+// @connect      update.greasyfork.org
 // @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
@@ -32,7 +33,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.158';
+  const SCRIPT_VERSION = '2.5.159';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1731,6 +1732,7 @@
     home: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M453.037 86.017c33.826-29.356 84.099-29.356 117.926 0l374.262 324.79c16.676 14.472 18.461 39.72 3.988 56.393a39.982 39.982 0 0 1-30.194 13.773h-69.096v389.083c0 49.178-39.472 89.138-88.467 89.932l-1.488 0.012H263.904c-49.681 0-89.956-40.27-89.956-89.944V480.973H104.98c-21.86 0-39.622-17.541-39.98-39.314v-0.661a39.973 39.973 0 0 1 13.774-30.19z m78.617 45.285c-11.276-9.785-28.033-9.785-39.309 0L158.508 421.01h35.43c21.86 0 39.622 17.541 39.975 39.314l0.006 0.661v409.07c0 16.559 13.424 29.982 29.985 29.982h496.064c16.56 0 29.985-13.423 29.985-29.981v-409.07c0-22.078 17.9-39.976 39.98-39.976h35.557z m110.285 654.805c16.558 0 29.981 13.423 29.981 29.982 0 16.558-13.423 29.981-29.981 29.981H382.06c-16.559 0-29.982-13.423-29.982-29.981 0-16.559 13.423-29.982 29.982-29.982h259.878z\"></path></svg>",
     settings: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M512.7 664.3c-82.9 0-150.4-67.4-150.4-150.4 0-82.9 67.4-150.4 150.4-150.4 82.9 0 150.4 67.4 150.4 150.4-0.1 83-67.5 150.4-150.4 150.4z m0-244.7c-52 0-94.4 42.3-94.4 94.4 0 52 42.3 94.4 94.4 94.4S607 566 607 514c0-52-42.3-94.4-94.3-94.4z\"></path><path d=\"M631.2 940.5c-15.2 0-30.1-6-41.2-17.3l-63.5-64.8c-4.1-4.2-9.5-6.5-15.4-6.5-5.8 0-11.3 2.3-15.3 6.4l-63.5 64.4c-17.4 17.6-44 22.2-66.2 11.4l-94.5-45.7c-22.2-10.8-35.2-34.5-32.2-59l11-90.1c0.7-5.8-0.9-11.5-4.5-16-3.6-4.6-8.8-7.4-14.6-8l-89.9-9.5c-24.6-2.6-44.8-20.5-50.2-44.6L67.7 558.8c-5.5-24.1 5-49 26-62l77.3-47.6c5-3.1 8.4-7.9 9.7-13.5 1.3-5.7 0.3-11.5-2.8-16.4L129.2 343c-13.3-20.8-11.9-47.8 3.5-67.1l65.5-82c15.4-19.3 41.4-26.7 64.7-18.3l85.4 30.7c5.5 2 11.4 1.7 16.6-0.9 5.2-2.5 9.2-7 11.1-12.5l29.2-85.6c8-23.4 29.9-39.1 54.6-39.1h105c24.7 0 46.7 15.7 54.6 39.1l29.6 86.8c1.9 5.5 5.8 9.9 11 12.5s11.1 2.8 16.6 0.9l86.1-30.6c23.3-8.3 49.2-0.8 64.6 18.5l65.2 82.3c15.3 19.4 16.7 46.3 3.3 67.1l-49.1 76.3c-3.2 4.9-4.2 10.7-2.9 16.4 1.3 5.7 4.7 10.5 9.7 13.6l76.8 47.7c21 13 31.4 38 25.8 62l-23.6 102.3a57.67 57.67 0 0 1-50.4 44.4l-90.3 9.2c-5.8 0.6-11 3.4-14.6 8-3.6 4.5-5.3 10.2-4.6 16l10.7 89.8c2.9 24.5-10.1 48.2-32.4 58.9l-94.7 45.4c-8.1 3.9-16.6 5.7-25 5.7zM511 795.9h0.1c21 0 40.6 8.3 55.3 23.3l63.5 64.8c0.5 0.5 1.3 0.7 2 0.4l94.7-45.4c0.7-0.3 1.1-1 1-1.8l-10.7-89.8c-2.5-20.8 3.4-41.3 16.5-57.6s31.8-26.5 52.7-28.7l90.3-9.2c0.7-0.1 1.3-0.6 1.5-1.3l23.6-102.3c0.2-0.7-0.1-1.5-0.8-1.9l-76.8-47.7c-17.8-11.1-30.2-28.4-34.8-48.8-4.6-20.4-0.9-41.4 10.5-59l49.1-76.3c0.4-0.6 0.4-1.4-0.1-2l-65.2-82.3c-0.5-0.6-1.2-0.8-1.9-0.6l-86.1 30.6c-19.7 7-40.9 5.9-59.7-3.2-18.8-9.1-32.9-25-39.7-44.8l-29.6-86.8c-0.2-0.7-0.9-1.2-1.6-1.2h-105c-0.7 0-1.4 0.5-1.6 1.2L429 211c-6.8 19.8-20.9 35.8-39.8 44.9-18.9 9.1-40.1 10.2-59.9 3.1l-85.4-30.7c-0.7-0.2-1.5 0-1.9 0.5l-65.5 82c-0.5 0.6-0.5 1.4-0.1 2l48.7 76.2c11.3 17.7 14.9 38.6 10.2 59.1-4.7 20.4-17.1 37.7-34.9 48.7l-77.3 47.6c-0.6 0.4-0.9 1.1-0.8 1.9l23.3 102.4c0.2 0.7 0.8 1.3 1.5 1.3l89.9 9.5c20.8 2.2 39.5 12.4 52.6 28.8 13 16.4 18.8 36.9 16.3 57.7l-11 90.1c-0.1 0.7 0.3 1.4 1 1.8l94.5 45.7c0.7 0.3 1.5 0.2 2-0.3l63.5-64.4c14.6-14.8 34.2-23 55.1-23z\"></path></svg>",
     notification: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M512 1024c-85.333333 0-159.288889-62.577778-159.288889-136.533333 0-17.066667 11.377778-28.444444 28.444445-28.444445s28.444444 11.377778 28.444444 28.444445c0 45.511111 45.511111 79.644444 102.4 79.644444s102.4-34.133333 102.4-79.644444c0-17.066667 11.377778-28.444444 28.444444-28.444445s28.444444 11.377778 28.444445 28.444445c0 73.955556-73.955556 136.533333-159.288889 136.533333zM853.333333 853.333333H170.666667c-39.822222 0-73.955556-34.133333-73.955556-73.955555 0-39.822222 28.444444-68.266667 68.266667-68.266667 11.377778-17.066667 17.066667-79.644444 17.066666-142.222222V449.422222c0-147.911111 85.333333-284.444444 216.177778-335.644444 0-62.577778 51.2-113.777778 113.777778-113.777778s113.777778 45.511111 113.777778 108.088889c130.844444 51.2 216.177778 187.733333 216.177778 335.644444V568.888889c0 62.577778 11.377778 125.155556 22.755555 142.222222 34.133333 0 68.266667 34.133333 68.266667 68.266667-5.688889 39.822222-39.822222 73.955556-79.644445 73.955555zM512 56.888889c-34.133333 0-56.888889 28.444444-56.888889 56.888889v11.377778c0 11.377778-5.688889 28.444444-17.066667 34.133333-113.777778 39.822222-199.111111 159.288889-199.111111 290.133333V568.888889c0 130.844444-22.755556 199.111111-68.266666 199.111111-11.377778 0-17.066667 5.688889-17.066667 17.066667 0 5.688889 5.688889 11.377778 17.066667 11.377777h682.666666c5.688889 0 17.066667-5.688889 17.066667-17.066666 0-5.688889-5.688889-17.066667-17.066667-17.066667-45.511111 0-73.955556-68.266667-73.955555-199.111111v-113.777778c0-130.844444-79.644444-250.311111-193.422222-290.133333-11.377778-5.688889-17.066667-22.755556-17.066667-34.133333V113.777778c0-28.444444-22.755556-56.888889-56.888889-56.888889z\"></path></svg>",
+    edit: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M343.291 560.334c-.585.776-1.168 1.577-1.434 2.543l-45.09 170.896c-2.615 9.952.073 20.683 7.194 28.238 5.326 5.376 12.352 8.334 19.834 8.334 2.467 0 4.934-.294 7.359-.974l164.117-46.28c.263 0 .386.246.58.246 1.887 0 3.755-.7 5.133-2.207l438.852-453.64C952.859 254.001 960 235.623 960 215.615c0-22.668-9.294-45.311-25.572-62.112l-41.432-42.911c-16.272-16.829-38.212-26.474-60.102-26.474-19.35 0-37.123 7.393-50.203 20.851L343.943 558.76c-.462.437-.341 1.07-.652 1.574m553.58-337.287-43.589 45.045-70.636-74.223 42.959-44.409c6.779-7.073 19.952-6.032 27.748 2.055l41.486 42.914c4.312 4.478 6.782 10.411 6.782 16.297-.026 4.822-1.675 9.201-4.75 12.321m-475.557 344.41 316.655-327.405 70.709 74.268L492.606 641.1l-71.292-73.643zm-57.685 132.752 22.884-86.838 61.051 63.109-83.935 23.729zm561.043-297.381c-16.614 0-30.223 13.976-30.293 31.388v422.941c0 22.181-17.412 40.198-38.893 40.198H163.482c-21.453 0-38.937-18.017-38.937-40.198V166.824c0-22.209 17.485-40.226 38.937-40.226h445.681c16.701 0 30.268-14.046 30.268-31.312 0-17.244-13.567-31.287-30.268-31.287H158.855C106.572 64 64 107.98 64 162.075V861.95C64 916.051 106.572 960 158.855 960h701.207c52.337 0 94.855-43.95 94.855-98.051V434c-.047-17.196-13.634-31.172-30.245-31.172"></path></svg>',
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 8 8 8M16 8l-8 8"></path></svg>',
     refresh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"></path><path d="M6.2 8a7 7 0 0 1 11.5-1L20 12M4 12l2.3 5a7 7 0 0 0 11.5-1"></path></svg>',
     back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6M10 12h9"></path></svg>',
@@ -1746,6 +1748,10 @@
   // <notifications-module>
   const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
   const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
+  const SCRIPT_UPDATE_PREFIX = 'script-update:';
+  const SCRIPT_UPDATE_PROMPTED_KEY = 'plm-floating-helper:update-prompted-version';
+  const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
+  const GREASYFORK_META_URL = 'https://update.greasyfork.org/scripts/582138/PLM%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B.meta.js';
 
   function normalizeNotificationItem(item) {
     const source = item && typeof item === 'object' ? item : {};
@@ -1759,6 +1765,8 @@
       updatedAt: String(source.updatedAt || source.updated_at || ''),
       isRead: Boolean(source.isRead || source.is_read),
       readAt: String(source.readAt || source.read_at || ''),
+      actionUrl: String(source.actionUrl || '').slice(0, 500),
+      actionLabel: String(source.actionLabel || '').slice(0, 40),
     };
   }
 
@@ -1835,11 +1843,92 @@
       '<div class="pfh-notification-item-head"><h4>' + escapeHtml(item.title) + '</h4>' + (!item.isRead ? '<span>\u65b0</span>' : '') + '</div>' +
       '<div class="pfh-notification-content">' + escapeHtml(item.content) + '</div>' +
       '<div class="pfh-notification-foot"><time>' + escapeHtml(formatNotificationTime(item.publishedAt)) + '</time>' +
+      (item.actionUrl ? '<a class="pfh-notification-action" href="' + escapeHtml(item.actionUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(item.actionLabel || '\u53bb\u66f4\u65b0') + '</a>' : '') +
       (!item.isRead ? '<button type="button" data-action="notification-read" data-notification-id="' + escapeHtml(item.notificationId) + '">\u6211\u77e5\u9053\u4e86</button>' : '<span>\u5df2\u8bfb</span>') + '</div></article>').join('');
+  }
+
+  function compareScriptVersions(left, right) {
+    const leftParts = String(left || '').split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+    const rightParts = String(right || '').split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+    const length = Math.max(leftParts.length, rightParts.length);
+    for (let index = 0; index < length; index += 1) {
+      if ((leftParts[index] || 0) !== (rightParts[index] || 0)) return (leftParts[index] || 0) > (rightParts[index] || 0) ? 1 : -1;
+    }
+    return 0;
+  }
+
+  function requestText(url) {
+    return new Promise((resolve, reject) => {
+      if (typeof GM_xmlhttpRequest === 'function') {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url,
+          timeout: 15000,
+          onload: (response) => response.status >= 200 && response.status < 300 ? resolve(response.responseText || '') : reject(new Error('HTTP ' + response.status)),
+          onerror: () => reject(new Error('network error')),
+          ontimeout: () => reject(new Error('timeout')),
+        });
+        return;
+      }
+      fetch(url).then((response) => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.text();
+      }).then(resolve, reject);
+    });
+  }
+
+  async function checkForScriptUpdate() {
+    try {
+      const metadata = await requestText(GREASYFORK_META_URL);
+      const match = metadata.match(/^\s*\/\/\s*@version\s+([^\s]+)\s*$/mi);
+      const latestVersion = match ? String(match[1]).trim() : '';
+      const notificationId = SCRIPT_UPDATE_PREFIX + latestVersion;
+      const previous = (state.notifications || []).find((item) => item.notificationId === notificationId);
+      state.notifications = (state.notifications || []).filter((item) => !String(item.notificationId || '').startsWith(SCRIPT_UPDATE_PREFIX));
+      if (!latestVersion || compareScriptVersions(latestVersion, SCRIPT_VERSION) <= 0) {
+        saveNotificationCache();
+        return;
+      }
+      state.notifications.unshift(normalizeNotificationItem({
+        notificationId,
+        title: '\u53d1\u73b0\u65b0\u7248\u672c v' + latestVersion,
+        content: '\u5f53\u524d\u7248\u672c v' + SCRIPT_VERSION + '\uff0c\u5efa\u8bae\u66f4\u65b0\u540e\u4f7f\u7528\u6700\u65b0\u529f\u80fd\u4e0e\u4fee\u590d\u3002',
+        publishedAt: new Date().toISOString(),
+        isRead: Boolean(previous && previous.isRead),
+        actionUrl: GREASYFORK_SCRIPT_URL,
+        actionLabel: '\u53bb\u66f4\u65b0',
+      }));
+      saveNotificationCache();
+      let promptedVersion = '';
+      try {
+        promptedVersion = String(typeof GM_getValue === 'function' ? GM_getValue(SCRIPT_UPDATE_PROMPTED_KEY, '') : localStorage.getItem(SCRIPT_UPDATE_PROMPTED_KEY) || '');
+      } catch (error) {}
+      if (promptedVersion !== latestVersion) {
+        try {
+          if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_PROMPTED_KEY, latestVersion);
+          else localStorage.setItem(SCRIPT_UPDATE_PROMPTED_KEY, latestVersion);
+        } catch (error) {}
+        state.notificationModalOpen = true;
+        state.notificationTab = 'new';
+        expandPanel();
+        renderShell();
+      } else {
+        const panel = document.getElementById(PANEL_ID);
+        if (panel) updateNotificationButton(panel);
+      }
+    } catch (error) {
+      console.warn('PLM floating helper update check failed:', error);
+    }
   }
 
   function renderNotificationModal(panel) {
     if (!panel) return;
+    if (!document.getElementById(PANEL_ID + '-notification-action-styles')) {
+      const style = document.createElement('style');
+      style.id = PANEL_ID + '-notification-action-styles';
+      style.textContent = '#' + PANEL_ID + ' .pfh-notification-action{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 12px;border:1px solid rgba(124,58,237,.28);border-radius:9px;background:#7c3aed;color:#fff;font-size:12px;font-weight:650;text-decoration:none;}';
+      document.documentElement.appendChild(style);
+    }
     let layer = panel.querySelector('.pfh-notification-layer');
     if (!state.notificationModalOpen) {
       if (layer) layer.remove();
@@ -1911,10 +2000,11 @@
       await syncPendingNotificationReads(name, instanceId);
       const response = await cloudRequest('/notifications?name=' + encodeURIComponent(name || '') + '&instanceId=' + encodeURIComponent(instanceId) + '&version=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
       const pending = new Set(state.notificationPendingReadIds || []);
-      state.notifications = (Array.isArray(response && response.notifications) ? response.notifications : [])
+      const updateNotices = (state.notifications || []).filter((item) => String(item.notificationId || '').startsWith(SCRIPT_UPDATE_PREFIX));
+      state.notifications = updateNotices.concat((Array.isArray(response && response.notifications) ? response.notifications : [])
         .map(normalizeNotificationItem)
         .filter(Boolean)
-        .map((item) => pending.has(item.notificationId) ? { ...item, isRead: true } : item);
+        .map((item) => pending.has(item.notificationId) ? { ...item, isRead: true } : item));
       state.notificationCheckedAt = Date.now();
       saveNotificationCache();
       if (showFeedback) showToast('\u901a\u77e5\u5df2\u66f4\u65b0');
@@ -1943,7 +2033,9 @@
     const id = String(notificationId || '');
     if (!id) return;
     state.notifications = (state.notifications || []).map((item) => item.notificationId === id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item);
-    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), id]));
+    if (!id.startsWith(SCRIPT_UPDATE_PREFIX)) {
+      state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), id]));
+    }
     saveNotificationCache();
     renderShell();
     await syncPendingNotificationReads(findCurrentPlmUserName(), getClientInstanceId());
@@ -1954,7 +2046,7 @@
     const ids = (state.notifications || []).filter((item) => !item.isRead).map((item) => item.notificationId);
     if (!ids.length) return;
     state.notifications = (state.notifications || []).map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }));
-    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), ...ids]));
+    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), ...ids.filter((id) => !String(id).startsWith(SCRIPT_UPDATE_PREFIX))]));
     state.notificationTab = 'history';
     saveNotificationCache();
     renderShell();
@@ -2926,6 +3018,7 @@
   scheduleSizeImageAccessRefresh(300);
   scheduleUserHeartbeat(800);
   scheduleNotificationRefresh(1600);
+  window.setTimeout(checkForScriptUpdate, 2200);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startDailyLedgerSync();
@@ -5543,6 +5636,8 @@
       '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:rgba(139,92,246,.58)!important;background:linear-gradient(135deg,rgba(250,247,255,.94),rgba(255,255,255,.82))!important;box-shadow:0 8px 20px rgba(91,62,180,.12),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:rgba(124,58,237,.38)!important;background:#eee8ff!important;color:#6030cf!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{width:34px!important;min-width:34px!important;padding:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{width:16px!important;height:16px!important;margin:0!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid rgba(139,92,246,.34)!important;border-radius:9px!important;outline:none!important;background:rgba(255,255,255,.95)!important;color:#292337!important;font:inherit!important;box-shadow:0 0 0 0 rgba(124,58,237,0)!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:#8b5cf6!important;box-shadow:0 0 0 3px rgba(139,92,246,.14)!important;}' +
       '#' + PANEL_ID + ' .pfh-smart-category-input{display:inline-block!important;width:92px!important;min-width:72px!important;height:25px!important;box-sizing:border-box!important;margin:0 2px!important;padding:0 7px!important;border:1px solid rgba(139,92,246,.42)!important;border-radius:7px!important;outline:none!important;background:#fff!important;color:#4d2aad!important;font:inherit!important;font-weight:700!important;vertical-align:middle!important;}' +
@@ -5649,7 +5744,7 @@
       : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button><button type="button" class="pfh-title-open-detail" data-action="copywriting-open">文案</button>' +
           (state.skuEditMode
             ? '<button type="button" class="pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-title-open-detail" data-action="sku-edit-cancel">取消</button>'
-            : '<button type="button" class="pfh-title-open-detail" data-action="sku-edit-open">编辑数据</button>') +
+            : '<button type="button" class="pfh-title-open-detail pfh-title-edit-data" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '</button>') +
         '</div>';
     return '<section class="pfh-section pfh-file-section' + (copywritingMode ? ' pfh-copywriting-hero-section' : '') + '"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
       productThumbHtml(data) +
@@ -6063,6 +6158,7 @@
       const saved = await saveProductDraftBeforeClose();
       if (!saved) throw new Error('\u6587\u6848\u5df2\u586b\u5199\uff0c\u4f46 PLM \u672a\u8fd4\u56de\u300c\u4fdd\u5b58\u6210\u529f\u300d');
       addLog('success', '\u73a9\u5177\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
+      syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'toy-copywriting', filledCount });
       showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u73a9\u5177\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
     } catch (error) {
       const message = formatErrorMessage(error) || '\u667a\u80fd\u8865\u5145\u5931\u8d25';
@@ -17141,6 +17237,7 @@
     cleanupUploadFiles(latestItem);
     saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     if ((archived.kind || 'standard') === 'standard') syncInsightEvent('image_pack_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
+    if (archived.kind === 'toy-label') syncInsightEvent('toy_label_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
     if (archived.sku) {
       if ((archived.kind || 'standard') === 'standard') {
         updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
