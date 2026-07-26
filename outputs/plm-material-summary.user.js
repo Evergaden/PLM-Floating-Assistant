@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.183
+// @version      2.5.184
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.183';
+  const SCRIPT_VERSION = '2.5.184';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2696,9 +2696,6 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:0 0 2px!important;padding:0 2px!important;border:0!important;background:transparent!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head strong{display:block!important;flex:0 0 auto!important;white-space:nowrap!important;color:var(--pfh-theme-text)!important;font-size:13px!important;line-height:1.2!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head span{flex:0 0 auto!important;margin-left:auto!important;color:var(--pfh-theme-muted)!important;font-size:11px!important;line-height:1.2!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-tip{flex:0 0 auto!important;margin:0 2px 3px!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.25!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-toolbar{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;flex:0 0 auto!important;margin:0!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll-hint{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll{flex:0 0 auto!important;min-height:0!important;width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;padding:0 2px 4px!important;overscroll-behavior-x:contain!important;scrollbar-width:thin!important;scroll-snap-type:x proximity!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar{height:5px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll::-webkit-scrollbar-thumb{background:var(--pfh-theme-border-strong)!important;border-radius:999px!important;}
@@ -2719,12 +2716,22 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta{display:flex!important;min-width:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:2px!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta b{overflow:hidden!important;color:var(--pfh-theme-text)!important;font-size:10px!important;line-height:1.15!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta small{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:8px!important;line-height:1.15!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin-top:0!important;padding:6px 2px 0!important;border-top:1px solid var(--pfh-theme-border)!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > span{white-space:nowrap!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > div{margin-left:auto!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin-top:0!important;padding:6px 2px 0!important;border-top:1px solid var(--pfh-theme-border)!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager > div{display:flex!important;align-items:center!important;gap:7px!important;min-width:0!important;margin:0!important;overflow:visible!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager-leading{flex:0 0 auto!important;justify-content:flex-start!important;overflow:visible!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager-leading > span{white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager-leading .pfh-sku-view-switch{flex:0 0 auto!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager-controls{margin-left:auto!important;justify-content:flex-end!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager button,
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager b,
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager .pfh-pager-ellipsis{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager b{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager button:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager button:disabled{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-muted)!important;opacity:.55!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-drop-target{display:grid!important;place-items:center!important;min-height:44px!important;padding:8px!important;border:1px dashed var(--pfh-theme-border-strong)!important;border-radius:12px!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;color:var(--pfh-theme-primary)!important;font-size:11px!important;font-weight:700!important;transition:border-color .2s ease,background-color .2s ease,box-shadow .2s ease,transform .2s ease!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-drop-target.is-drag-over{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;box-shadow:0 0 0 4px var(--pfh-theme-shadow-soft),0 10px 24px var(--pfh-theme-shadow-soft)!important;transform:scale(1.01)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;gap:10px!important;min-height:0!important;grid-template-rows:none!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body .pfh-toy-label-sku-input:not(.pfh-copyright-sku-input){height:64px!important;min-height:64px!important;max-height:96px!important;resize:vertical!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body .pfh-upload-list{flex:1 1 auto!important;min-height:140px!important;overflow-y:auto!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{gap:7px!important;flex-wrap:wrap!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-clear-list"]{order:0!important;}
@@ -5978,16 +5985,48 @@
       return '<button type="button" class="pfh-upload-sku-card" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" title="拖动到下方添加任务：' + escapeHtml(title) + '">' +
         '<span class="pfh-upload-sku-thumb">' + imageHtml + '</span><span class="pfh-upload-sku-meta"><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(item.name || data.name || '未命名产品') + '</small></span></button>';
     }).join('');
-    const modeLabel = state.uploadMode === 'copyright' ? '版权图' : '玩具标签';
-    const listHead = '<div class="pfh-list-head pfh-upload-sku-picker-head"><strong>SKU任务源</strong><span>' + allItems.length + ' 条</span></div>' +
-      '<p class="pfh-upload-sku-picker-tip">拖动 SKU 卡片到下方，加入' + modeLabel + '任务</p>';
-    const listTools = '<div class="pfh-sku-list-toolbar pfh-upload-sku-picker-toolbar"><span class="pfh-upload-sku-picker-scroll-hint">左右滑动选择 SKU</span><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
+    const listHead = '<div class="pfh-list-head pfh-upload-sku-picker-head"><strong>SKU任务源</strong><span>' + allItems.length + ' 条</span></div>';
+    const viewSwitch = '<div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button>' +
-      '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div></div>';
-    const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><span>第 ' + state.skuPage + ' / ' + totalPages + ' 页</span><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
+      '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div>';
+    const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div class="pfh-upload-sku-picker-pager-leading">' + viewSwitch + '<span>第 ' + state.skuPage + ' / ' + totalPages + ' 页</span></div><div class="pfh-upload-sku-picker-pager-controls"><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
     const content = items.length ? (listMode === 'waterfall' ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + cards + '</div>' : '<div class="pfh-upload-sku-card-list">' + cards + '</div>') : '<div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div>';
-    list.innerHTML = listHead + listTools + '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
+    list.innerHTML = listHead + '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
     setupSkuViewFusion(list);
+  }
+
+  function renderUploadSkuPickerContent(panel) {
+    const picker = panel && panel.querySelector('[data-upload-sku-picker]');
+    const currentSwitch = picker && picker.querySelector('.pfh-sku-view-switch');
+    const currentScroll = picker && picker.querySelector('.pfh-upload-sku-picker-scroll');
+    const currentPager = picker && picker.querySelector('.pfh-upload-sku-picker-pager');
+    if (!picker || !currentSwitch || !currentScroll || !currentPager) return false;
+    const template = document.createElement('div');
+    renderUploadSkuPicker(template);
+    const nextScroll = template.querySelector('.pfh-upload-sku-picker-scroll');
+    const nextPager = template.querySelector('.pfh-upload-sku-picker-pager');
+    const nextSwitch = nextPager && nextPager.querySelector('.pfh-sku-view-switch');
+    if (!nextScroll || !nextPager || !nextSwitch) return false;
+    const activeMode = getSkuListMode();
+    currentSwitch.setAttribute('data-active-mode', activeMode);
+    currentSwitch.querySelectorAll('button[data-action="sku-list-mode"]').forEach((button) => {
+      button.classList.toggle('is-active', button.getAttribute('data-mode') === activeMode);
+    });
+    nextSwitch.replaceWith(currentSwitch);
+    currentScroll.replaceWith(nextScroll);
+    currentPager.replaceWith(nextPager);
+    const indicator = currentSwitch.querySelector('.pfh-sku-view-indicator');
+    const activeButton = currentSwitch.querySelector('button.is-active');
+    if (indicator && activeButton) {
+      const indicatorTransition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+      indicator.style.setProperty('transition', indicatorTransition, 'important');
+      window.requestAnimationFrame(() => {
+        if (!indicator.isConnected) return;
+        indicator.style.setProperty('left', activeButton.offsetLeft + 'px', 'important');
+        indicator.style.setProperty('width', activeButton.offsetWidth + 'px', 'important');
+      });
+    }
+    return true;
   }
 
   function renderSkuListHtml() {
@@ -10166,6 +10205,7 @@
       state.skuPage = 1;
       state.skuSortMenuOpen = false;
       saveSettings(state.settings);
+      if (state.view === 'upload' && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode) && renderUploadSkuPickerContent(ensurePanel())) return;
       if (!renderSkuListContent(ensurePanel())) renderShell();
       return;
     }
