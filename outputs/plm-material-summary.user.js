@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.180
+// @version      2.5.181
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.180';
+  const SCRIPT_VERSION = '2.5.181';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1504,6 +1504,8 @@
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
+  const UPLOAD_WORKER_STATES_KEY = 'plm-floating-helper:upload-worker-states';
+  const UPLOAD_MODES = Object.freeze(['standard', 'toy-label', 'copyright']);
   const TOY_LABEL_EXPORT_MANIFEST_KEY = 'plm-floating-helper:toy-label-export-manifest';
   const LOG_KEY = 'plm-floating-helper:logs';
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
@@ -2666,6 +2668,49 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-option.is-selected{border:2px solid var(--pfh-theme-option-primary)!important;padding:6px 6px 5px!important;box-shadow:0 0 0 2px var(--pfh-theme-option-soft);}
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-swatch{display:block;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--pfh-theme-option-primary),var(--pfh-theme-option-secondary));box-shadow:inset 0 0 0 1px rgba(255,255,255,.45);}
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-label{overflow:hidden;font-size:11px;line-height:1.2;text-overflow:ellipsis;white-space:nowrap;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-beta-badge{align-self:center!important;border:1px solid var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;box-shadow:0 4px 10px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme="default"] .pfh-beta-badge{background:linear-gradient(135deg,#7c3aed,#a855f7)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-card{grid-template-rows:42px auto auto auto 1fr!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note-toast.is-quiet{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title{flex-wrap:wrap!important;align-items:center!important;gap:8px!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title .pfh-upload-mode-tabs{order:0!important;flex:0 1 286px!important;width:min(100%,286px)!important;min-width:210px!important;margin:0!important;padding:3px!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 6px 14px var(--pfh-theme-shadow-soft)!important;overflow:hidden!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title .pfh-upload-mode-tabs button{color:var(--pfh-theme-muted)!important;background:transparent!important;transition:color .22s ease!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title .pfh-upload-mode-tabs button.is-active{color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title .pfh-upload-mode-indicator{transform:none!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 8px 18px var(--pfh-theme-shadow-soft)!important;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .3s ease!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button::after,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-mode-tabs button::after,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button::after,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button::after{display:none!important;content:none!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,transform .14s ease!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="toy-label"] .pfh-main,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="copyright"] .pfh-main{grid-template-columns:minmax(150px,var(--pfh-list-width,214px)) 6px minmax(0,1fr)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="toy-label"] .pfh-list,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="copyright"] .pfh-list{display:flex!important;flex-direction:column!important;min-width:0!important;min-height:0!important;border-right:1px solid var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;overflow:hidden!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="toy-label"] .pfh-splitter,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"][data-upload-mode="copyright"] .pfh-splitter{display:block!important;visibility:visible!important;background:linear-gradient(to right,transparent 0,transparent 2px,var(--pfh-theme-border) 2px,var(--pfh-theme-border) 4px,transparent 4px)!important;opacity:.7!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head{margin:0 0 4px!important;padding:0 2px!important;border:0!important;background:transparent!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head strong{color:var(--pfh-theme-text)!important;font-size:13px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-head span{color:var(--pfh-theme-muted)!important;font-size:11px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-tip{flex:0 0 auto!important;margin:0 2px 7px!important;color:var(--pfh-theme-muted)!important;font-size:10px!important;line-height:1.35!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-toolbar{flex:0 0 auto!important;margin:0 0 7px!important;justify-content:flex-start!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-scroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:0 2px 2px!important;overscroll-behavior:contain!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-list{display:flex!important;flex-direction:column!important;gap:6px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card{display:flex!important;align-items:center!important;gap:7px!important;width:100%!important;min-width:0!important;min-height:48px!important;padding:5px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:10px!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left!important;cursor:grab!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.84),0 5px 12px var(--pfh-theme-shadow-soft)!important;transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s ease,box-shadow .2s ease,opacity .2s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:hover{transform:translateY(-1px)!important;border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card:active,
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-card.is-dragging{cursor:grabbing!important;transform:scale(.97)!important;opacity:.58!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb{display:grid!important;place-items:center!important;flex:0 0 34px!important;width:34px!important;height:34px!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border)!important;border-radius:8px!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb img{width:100%!important;height:100%!important;object-fit:contain!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-thumb svg{width:18px!important;height:18px!important;fill:currentColor!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta{display:flex!important;min-width:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:2px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta b{overflow:hidden!important;color:var(--pfh-theme-text)!important;font-size:11px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-meta small{overflow:hidden!important;color:var(--pfh-theme-muted)!important;font-size:9px!important;line-height:1.2!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-picker-pager{margin-top:7px!important;padding-top:6px!important;border-top:1px solid var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-drop-target{display:grid!important;place-items:center!important;min-height:44px!important;padding:8px!important;border:1px dashed var(--pfh-theme-border-strong)!important;border-radius:12px!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;color:var(--pfh-theme-primary)!important;font-size:11px!important;font-weight:700!important;transition:border-color .2s ease,background-color .2s ease,box-shadow .2s ease,transform .2s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-sku-drop-target.is-drag-over{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;box-shadow:0 0 0 4px var(--pfh-theme-shadow-soft),0 10px 24px var(--pfh-theme-shadow-soft)!important;transform:scale(1.01)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body{grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}
     @media(max-width:620px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
     @media(max-width:430px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
   `;
@@ -3154,10 +3199,11 @@
     uploadReturnView: '',
     uploadQueue: loadUploadQueue(),
     uploadHistory: loadUploadHistory(),
-    uploadRunning: loadUploadWorkerRunning(),
+    uploadRunning: loadUploadWorkerRunning(getUploadWorkerModeFromUrl()),
+    uploadWorkerMode: getUploadWorkerModeFromUrl(),
     uploadProcessing: false,
     uploadView: 'queue',
-    uploadMode: 'standard',
+    uploadMode: getUploadWorkerModeFromUrl(),
     copyrightSkuInput: '',
     copyrightPendingFiles: [],
     toyLabelSkuInput: '',
@@ -3593,7 +3639,9 @@
     const refresh = () => {
       state.uploadQueue = loadUploadQueue();
       state.uploadHistory = loadUploadHistory();
-      state.uploadRunning = loadUploadWorkerRunning();
+      const mode = isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : normalizeUploadMode(state.uploadMode);
+      state.uploadWorkerMode = mode;
+      state.uploadRunning = loadUploadWorkerRunning(mode);
       if (state.view === 'upload') {
         if (!refreshUploadViewInPlace(ensurePanel())) renderShell();
       }
@@ -3613,9 +3661,10 @@
         scheduleRefresh(true);
       });
       GM_addValueChangeListener(UPLOAD_WORKER_KEY, () => scheduleRefresh(false));
+      GM_addValueChangeListener(UPLOAD_WORKER_STATES_KEY, () => scheduleRefresh(false));
     }
     window.addEventListener('storage', (event) => {
-      if (event.key === UPLOAD_QUEUE_KEY || event.key === UPLOAD_HISTORY_KEY || event.key === UPLOAD_WORKER_KEY) refresh();
+      if (event.key === UPLOAD_QUEUE_KEY || event.key === UPLOAD_HISTORY_KEY || event.key === UPLOAD_WORKER_KEY || event.key === UPLOAD_WORKER_STATES_KEY) refresh();
     });
     window.setInterval(refresh, 5000);
   }
@@ -5297,6 +5346,8 @@
     panel.addEventListener('input', handlePanelInput);
     panel.addEventListener('paste', handlePanelPaste);
     panel.addEventListener('change', handlePanelChange);
+    panel.addEventListener('dragstart', handlePanelDragStart);
+    panel.addEventListener('dragend', handlePanelDragEnd);
     panel.addEventListener('dragover', handlePanelDragOver);
     panel.addEventListener('drop', handlePanelDrop);
     panel.querySelector('.pfh-import-file').addEventListener('change', handleImportFile);
@@ -5433,6 +5484,7 @@
   function renderShell(statusText) {
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
+    panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
     const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'unitConverter' || state.view === 'tools';
@@ -5455,7 +5507,8 @@
     }
     if (state.view === 'upload') {
       const list = panel.querySelector('.pfh-list');
-      if (list) list.innerHTML = '';
+      if (list && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(list);
+      else if (list) list.innerHTML = '';
     }
     else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools') renderSkuList(panel);
     if (state.view === 'about') {
@@ -5501,7 +5554,8 @@
   function renderUploadProgressOverlay(panel) {
     if (!panel) return;
     const queue = state.uploadQueue || loadUploadQueue();
-    const currentUpload = getCurrentRunningUpload(queue);
+    const mode = isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : normalizeUploadMode(state.uploadMode);
+    const currentUpload = getCurrentRunningUpload(queue, mode);
     const oldInlineOverlay = panel.querySelector('.pfh-upload-progress-pop');
     if (oldInlineOverlay) oldInlineOverlay.remove();
     let overlay = document.getElementById(PANEL_ID + '-upload-progress');
@@ -5828,12 +5882,12 @@
   function renderUploadModeContent(panel) {
     const detail = panel && panel.querySelector('.pfh-detail');
     const currentBody = detail && detail.querySelector('.pfh-upload-body');
-    const currentTabs = currentBody && currentBody.querySelector('.pfh-upload-mode-tabs');
+    const currentTabs = detail && detail.querySelector('.pfh-upload-mode-tabs');
     if (!currentBody || !currentTabs) return false;
     const template = document.createElement('template');
     template.innerHTML = uploadPanelHtml();
     const nextBody = template.content.querySelector('.pfh-upload-body');
-    const nextTabs = nextBody && nextBody.querySelector('.pfh-upload-mode-tabs');
+    const nextTabs = template.content.querySelector('.pfh-upload-mode-tabs');
     if (!nextBody || !nextTabs) return false;
     const currentSection = currentBody.closest('.pfh-upload-section');
     const nextSection = nextBody.closest('.pfh-upload-section');
@@ -5842,14 +5896,25 @@
     if (currentSection && nextSection) currentSection.className = nextSection.className;
     if (currentStatus && nextStatus) currentStatus.textContent = nextStatus.textContent;
     currentTabs.className = nextTabs.className;
+    currentTabs.style.cssText = nextTabs.style.cssText;
     currentTabs.setAttribute('data-active-mode', state.uploadMode || 'standard');
     currentTabs.querySelectorAll('button[data-action="upload-mode"]').forEach((button) => {
       button.classList.toggle('is-active', button.getAttribute('data-upload-mode') === state.uploadMode);
     });
-    while (currentTabs.nextElementSibling) currentTabs.nextElementSibling.remove();
-    const nextChildren = Array.from(nextBody.children);
-    const nextTabsIndex = nextChildren.indexOf(nextTabs);
-    nextChildren.slice(nextTabsIndex + 1).forEach((node) => currentBody.appendChild(node));
+    currentBody.replaceWith(nextBody);
+    const indicator = currentTabs.querySelector('.pfh-upload-mode-indicator');
+    const activeButton = currentTabs.querySelector('button.is-active');
+    if (indicator && activeButton) {
+      indicator.style.setProperty('transition', 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)', 'important');
+      window.requestAnimationFrame(() => {
+        if (!indicator.isConnected) return;
+        indicator.style.setProperty('left', activeButton.offsetLeft + 'px', 'important');
+        indicator.style.setProperty('width', activeButton.offsetWidth + 'px', 'important');
+      });
+    }
+    panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
+    const list = panel.querySelector('.pfh-list');
+    if (list && state.uploadView === 'queue' && isUploadSkuPickerMode(state.uploadMode)) renderUploadSkuPicker(list);
     return true;
   }
 
@@ -5865,6 +5930,40 @@
     const list = panel.querySelector('.pfh-list');
     if (!list) return;
     list.innerHTML = renderSkuListHtml();
+    setupSkuViewFusion(list);
+  }
+
+  function isUploadSkuPickerMode(mode) {
+    return mode === 'toy-label' || mode === 'copyright';
+  }
+
+  function renderUploadSkuPicker(list) {
+    if (!list) return;
+    const query = state.searchQuery.trim();
+    const searchTokens = parseSearchTokens(query);
+    const allItems = sortSkuListItems(getSearchMatches(searchTokens));
+    const listMode = getSkuListMode();
+    const pageSize = listMode === 'waterfall' ? 20 : 10;
+    const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
+    state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
+    const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
+    const cards = items.map((item) => {
+      const data = normalizeData(loadData(item.sku) || item);
+      const title = [item.brand || data.brand, item.name || data.name, item.sku].filter(Boolean).join(' ');
+      const image = getSkuListImageUrl(data);
+      const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
+      return '<button type="button" class="pfh-upload-sku-card" data-sku="' + escapeHtml(item.sku) + '" data-upload-drag-sku="' + escapeHtml(item.sku) + '" draggable="true" title="拖动到右侧添加任务：' + escapeHtml(title) + '">' +
+        '<span class="pfh-upload-sku-thumb">' + imageHtml + '</span><span class="pfh-upload-sku-meta"><b>' + escapeHtml(item.sku) + '</b><small>' + escapeHtml(item.name || data.name || '未命名产品') + '</small></span></button>';
+    }).join('');
+    const modeLabel = state.uploadMode === 'copyright' ? '版权图' : '玩具标签';
+    const listHead = '<div class="pfh-list-head pfh-upload-sku-picker-head"><strong>SKU任务源</strong><span>' + allItems.length + ' 条</span></div>' +
+      '<p class="pfh-upload-sku-picker-tip">拖动 SKU 卡片到右侧，加入' + modeLabel + '任务</p>';
+    const listTools = '<div class="pfh-sku-list-toolbar pfh-upload-sku-picker-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
+      '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button>' +
+      '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div></div>';
+    const pager = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
+    const content = items.length ? (listMode === 'waterfall' ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + cards + '</div>' : '<div class="pfh-upload-sku-card-list">' + cards + '</div>') : '<div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div>';
+    list.innerHTML = listHead + listTools + '<div class="pfh-upload-sku-picker-scroll">' + content + '</div>' + pager;
     setupSkuViewFusion(list);
   }
 
@@ -6759,7 +6858,8 @@
       '<div class="pfh-home-grid">' + cards.map((card) => '<button type="button" class="pfh-home-card' + (card[5] ? ' is-disabled' : '') + '" data-action="' + card[0] + '"' + (card[5] ? ' disabled aria-disabled="true"' : '') + '>' +
         iconHtml(card[1]) +
         '<small>' + escapeHtml(card[2]) + '</small>' +
-        '<strong class="pfh-home-card-title"><b>' + escapeHtml(card[3]) + '</b>' + (card[6] ? '<i class="pfh-beta-badge">BETA</i>' : '') + '</strong>' +
+        '<strong class="pfh-home-card-title"><b>' + escapeHtml(card[3]) + '</b></strong>' +
+        (card[6] ? '<i class="pfh-beta-badge">BETA</i>' : '') +
         '<span>' + escapeHtml(card[4]) + '</span>' +
       '</button>').join('') + '</div>' +
       '</section></div>';
@@ -8453,7 +8553,7 @@
     if (!panel || !data) return;
     const entries = packagingNamingEntries(data, key);
     if (!entries.length) {
-      showToast('当前尺寸无法生成命名');
+      showToast('当前尺寸无法生成命名', { quiet: true });
       return;
     }
     closePackagingNamingCard(panel);
@@ -9718,18 +9818,18 @@
 
   function uploadPanelHtml() {
     state.uploadExpanded = true;
-    moveCompletedUploadsToHistory();
+    const uploadMode = normalizeUploadMode(state.uploadMode);
+    state.uploadMode = uploadMode;
+    state.uploadWorkerMode = uploadMode;
+    state.uploadRunning = loadUploadWorkerRunning(uploadMode);
+    moveCompletedUploadsToHistory(uploadMode);
     normalizeRunningUploadsInQueue();
     state.uploadQueue = loadUploadQueue();
     state.uploadHistory = loadUploadHistory();
     const viewingHistory = state.uploadView === 'history';
-    const history = state.uploadHistory || [];
+    const history = (state.uploadHistory || []).filter((item) => getUploadItemMode(item) === uploadMode);
     const successfulHistory = history.filter(isUploadHistorySuccess);
-    const queue = (state.uploadQueue || []).filter((item) => !/\u6210\u529f/.test(item.status || ''));
-    if (queue.length !== (state.uploadQueue || []).length) {
-      state.uploadQueue = queue;
-      saveUploadQueue();
-    }
+    const queue = (state.uploadQueue || []).filter((item) => getUploadItemMode(item) === uploadMode && !/\u6210\u529f/.test(item.status || ''));
     const allItems = viewingHistory ? history : queue;
     const pageSize = 10;
     const pageKey = viewingHistory ? 'uploadHistoryPage' : 'uploadPage';
@@ -9737,7 +9837,7 @@
     state[pageKey] = clamp(state[pageKey] || 1, 1, totalPages);
     const pageItems = allItems.slice((state[pageKey] - 1) * pageSize, state[pageKey] * pageSize);
     const currentSku = state.data && state.data.sku ? state.data.sku : '';
-    const currentUpload = state.uploadRunning ? getCurrentRunningUpload(queue) : null;
+    const currentUpload = state.uploadRunning ? getCurrentRunningUpload(queue, uploadMode) : null;
     const statusText = (state.uploadRunning ? '\u8fd0\u884c\u4e2d' : '\u5df2\u6682\u505c') + (currentUpload ? ' | ' + currentUpload.sku : '');
     const visibleIdSet = new Set(allItems.map((item) => item.id));
     const selectedIds = new Set((state.uploadSelectedIds || []).filter((id) => visibleIdSet.has(id)));
@@ -9784,23 +9884,24 @@
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
     const backAction = viewingHistory ? 'upload-history-toggle' : 'home-back';
     const backLabel = viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u8fd4\u56de\u4e3b\u9875';
-    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + (state.uploadMode === 'copyright' ? ' is-copyright' : '') + '" data-active-mode="' + escapeHtml(state.uploadMode || 'standard') + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (state.uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
+    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (uploadMode === 'toy-label' ? ' is-toy-label' : '') + (uploadMode === 'copyright' ? ' is-copyright' : '') + '" data-active-mode="' + escapeHtml(uploadMode) + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
     const copyrightPendingFiles = Array.isArray(state.copyrightPendingFiles) ? state.copyrightPendingFiles : [];
     const queueControl = state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>';
+    const uploadSkuDropHtml = isUploadSkuPickerMode(uploadMode) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">\u4ece\u5de6\u4fa7\u62d6\u5165 SKU，\u6dfb\u52a0\u4e3a\u4efb\u52a1</div>' : '';
     const copyrightModeHtml = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="\u7c98\u8d34\u4e00\u4e2a\u6216\u591a\u4e2a SKU \u7f16\u7801">' + escapeHtml(state.copyrightSkuInput || '') + '</textarea>' +
       '<div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe">\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe\uff08JPG / PNG\uff09' + (copyrightPendingFiles.length ? '<small>\u5df2\u9009 ' + copyrightPendingFiles.length + ' \u5f20\uff1a' + escapeHtml(copyrightPendingFiles.slice(0, 6).map((file) => file.name).join(' / ') + (copyrightPendingFiles.length > 6 ? ' ...' : '')) + '</small>' : '') + '</div>' +
       '<input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png">' +
       '<div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + (!(state.copyrightSkuInput || '').trim() || !copyrightPendingFiles.length ? ' disabled' : '') + '>\u52a0\u5165\u7248\u6743\u56fe\u4efb\u52a1</button>' + (copyrightPendingFiles.length ? '<button type="button" data-action="copyright-pending-clear">\u6e05\u7a7a\u5df2\u9009</button>' : '') + queueControl + '</div>';
     return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (viewingHistory ? ' is-history-view' : '') + '">' +
-      '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + backAction + '" aria-label="' + backLabel + '">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' +
+      '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + backAction + '" aria-label="' + backLabel + '">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' + uploadModeTabs +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="\u4f7f\u7528\u8bf4\u660e" aria-label="\u4f7f\u7528\u8bf4\u660e">' + uploadGuideIconHtml() + '</button>' +
       '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
       '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button></div>' +
       '<div class="pfh-upload-body">' +
-        (viewingHistory ? '' : uploadModeTabs + (state.uploadMode === 'toy-label'
-          ? '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + queueControl + '</div>'
-          : (state.uploadMode === 'copyright' ? copyrightModeHtml : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
+        (viewingHistory ? '' : (uploadMode === 'toy-label'
+          ? uploadSkuDropHtml + '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + queueControl + '</div>'
+          : (uploadMode === 'copyright' ? uploadSkuDropHtml + copyrightModeHtml : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
         '<input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar">' +
         '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + queueControl + '</div>'))) +
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
@@ -11077,7 +11178,32 @@
     }
   }
 
+  function handlePanelDragStart(event) {
+    const card = event.target && event.target.closest && event.target.closest('[data-upload-drag-sku]');
+    if (!card || state.view !== 'upload' || !isUploadSkuPickerMode(state.uploadMode)) return;
+    const sku = card.getAttribute('data-upload-drag-sku') || card.getAttribute('data-sku') || '';
+    if (!sku || !event.dataTransfer) return;
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/x-pfh-upload-sku', sku);
+    event.dataTransfer.setData('text/plain', sku);
+    card.classList.add('is-dragging');
+  }
+
+  function handlePanelDragEnd(event) {
+    const card = event.target && event.target.closest && event.target.closest('[data-upload-drag-sku]');
+    if (card) card.classList.remove('is-dragging');
+    const panel = event.currentTarget;
+    if (panel && panel.querySelectorAll) panel.querySelectorAll('.is-drag-over').forEach((item) => item.classList.remove('is-drag-over'));
+  }
+
   function handlePanelDragOver(event) {
+    const skuDrop = event.target && event.target.closest && event.target.closest('[data-upload-sku-drop]');
+    if (skuDrop && state.view === 'upload' && isUploadSkuPickerMode(state.uploadMode)) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      skuDrop.classList.add('is-drag-over');
+      return;
+    }
     if (event.target && event.target.closest && event.target.closest('.pfh-parameter-page')) {
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
@@ -11095,6 +11221,14 @@
   }
 
   function handlePanelDrop(event) {
+    const skuDrop = event.target && event.target.closest && event.target.closest('[data-upload-sku-drop]');
+    const draggedSku = event.dataTransfer && event.dataTransfer.getData('application/x-pfh-upload-sku');
+    if (skuDrop && draggedSku && state.view === 'upload' && isUploadSkuPickerMode(state.uploadMode)) {
+      event.preventDefault();
+      skuDrop.classList.remove('is-drag-over');
+      addUploadTaskFromSku(draggedSku, state.uploadMode);
+      return;
+    }
     if (event.target && event.target.closest && event.target.closest('.pfh-parameter-page')) {
       event.preventDefault();
       parameterImageFeature.handleDrop(Array.from(event.dataTransfer && event.dataTransfer.files || []), state.data || {});
@@ -11372,6 +11506,55 @@
     showToast(items.length + ' 个玩具标签任务已加入');
   }
 
+  function addUploadTaskFromSku(sku, mode) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const uploadMode = normalizeUploadMode(mode);
+    if (!normalizedSku || !isUploadSkuPickerMode(uploadMode)) return;
+    const queue = loadUploadQueue();
+    const existing = queue.find((item) => getUploadItemMode(item) === uploadMode && item.sku === normalizedSku && !/\u6210\u529f/.test(item.status || ''));
+    if (existing) {
+      state.uploadMode = uploadMode;
+      state.uploadView = 'queue';
+      renderShell();
+      showToast(normalizedSku + ' 已在当前任务栏中');
+      return;
+    }
+    const cached = loadData(normalizedSku);
+    const now = new Date().toLocaleString();
+    const item = uploadMode === 'toy-label'
+      ? {
+        id: 'toy-label-' + normalizedSku + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        kind: 'toy-label',
+        sku: normalizedSku,
+        name: buildUploadDisplayName(cached, '', normalizedSku),
+        xlsxKey: 'toy-label',
+        zipKey: 'toy-label',
+        status: '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e',
+        step: cached ? '\u7b49\u5f85\u6279\u91cf\u641c\u7d22' : '\u7b49\u5f85\u4ece\u8bbe\u8ba1\u4efb\u52a1\u83b7\u53d6\u6570\u636e',
+        createdAt: now,
+        updatedAt: now,
+      }
+      : {
+        id: 'copyright-' + normalizedSku + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        kind: 'copyright',
+        sku: normalizedSku,
+        name: buildUploadDisplayName(cached, '', normalizedSku),
+        copyrightFiles: [],
+        status: '\u7f3a\u6587\u4ef6',
+        step: '\u7f3a\u7248\u6743\u56fe',
+        createdAt: now,
+        updatedAt: now,
+      };
+    queue.unshift(item);
+    state.uploadQueue = queue;
+    state.uploadMode = uploadMode;
+    state.uploadView = 'queue';
+    state.uploadPage = 1;
+    saveUploadQueue();
+    renderShell();
+    showToast(normalizedSku + ' 已加入' + (uploadMode === 'copyright' ? '版权图' : '玩具标签') + '任务');
+  }
+
   function cloneUploadFile(file) {
     return new File([file], file.name, { type: file.type || guessMime(file.name), lastModified: file.lastModified || Date.now() });
   }
@@ -11579,36 +11762,44 @@
   }
 
   function startUploadQueue() {
+    const mode = normalizeUploadMode(state.uploadMode);
+    state.uploadWorkerMode = mode;
     state.uploadRunning = true;
-    saveUploadWorkerRunning(true);
+    saveUploadWorkerRunning(mode, true);
     saveUploadQueue();
     state.uploadExpanded = true;
     renderShell();
     showToast(L.uploadQueueStarted);
-    const workerUrl = location.origin + '/productManagementProduct?plmUploadWorker=1';
-    if (!isUploadWorkerPage()) window.open(workerUrl, 'plm-upload-worker');
-    else window.setTimeout(() => processUploadQueue(), 800);
+    const workerUrl = location.origin + '/productManagementProduct?plmUploadWorker=1&plmUploadMode=' + encodeURIComponent(mode);
+    if (!isUploadWorkerPage()) window.open(workerUrl, 'plm-upload-worker-' + mode);
+    else window.setTimeout(() => processUploadQueue(mode), 800);
   }
 
   function pauseUploadQueue() {
+    const mode = getUploadControlMode();
+    state.uploadWorkerMode = mode;
     state.uploadRunning = false;
-    saveUploadWorkerRunning(false);
-    resetRunningUploadsToPending();
+    saveUploadWorkerRunning(mode, false);
+    resetRunningUploadsToPending(mode);
     saveUploadQueue();
     renderShell();
     showToast(L.uploadQueuePaused);
   }
 
-  async function finishUploadQueue() {
+  async function finishUploadQueue(mode) {
+    const uploadMode = normalizeUploadMode(mode || getUploadControlMode());
     await closeCancelConfigModalIfPresent();
     state.uploadRunning = false;
-    saveUploadWorkerRunning(false);
-    moveCompletedUploadsToHistory();
+    state.uploadWorkerMode = uploadMode;
+    saveUploadWorkerRunning(uploadMode, false);
+    moveCompletedUploadsToHistory(uploadMode);
     state.uploadQueue = loadUploadQueue();
     state.uploadHistory = loadUploadHistory();
-    const toyLabelManifest = loadToyLabelExportManifest();
-    if (toyLabelManifest.downloaded) await clearToyLabelExportManifest(toyLabelManifest);
-    else await downloadToyLabelBatchArchive();
+    if (uploadMode === 'toy-label') {
+      const toyLabelManifest = loadToyLabelExportManifest();
+      if (toyLabelManifest.downloaded) await clearToyLabelExportManifest(toyLabelManifest);
+      else await downloadToyLabelBatchArchive();
+    }
     renderShell();
     showToast(L.uploadQueuePaused);
   }
@@ -11619,9 +11810,10 @@
   }
 
   function confirmClearCurrentUploadList() {
+    const mode = normalizeUploadMode(state.uploadMode);
     state.uploadClearConfirmOpen = false;
     if (state.uploadView === 'history') {
-      state.uploadHistory = [];
+      state.uploadHistory = loadUploadHistory().filter((item) => getUploadItemMode(item) !== mode);
       state.uploadHistoryPage = 1;
       state.uploadSelectedIds = [];
       saveUploadHistory();
@@ -11630,20 +11822,23 @@
       return;
     }
     const queue = loadUploadQueue();
-    queue.forEach(cleanupUploadFiles);
-    state.uploadQueue = [];
+    const removed = queue.filter((item) => getUploadItemMode(item) === mode);
+    removed.forEach(cleanupUploadFiles);
+    state.uploadQueue = queue.filter((item) => getUploadItemMode(item) !== mode);
     state.uploadPage = 1;
     state.uploadSelectedIds = [];
     state.uploadRunning = false;
-    saveUploadWorkerRunning(false);
+    saveUploadWorkerRunning(mode, false);
     saveUploadQueue();
     renderShell();
     showToast('\u961f\u5217\u5df2\u6e05\u7a7a');
   }
 
-  function resetRunningUploadsToPending() {
+  function resetRunningUploadsToPending(mode) {
+    const targetMode = normalizeUploadMode(mode || getUploadControlMode());
     const queue = loadUploadQueue();
     state.uploadQueue = queue.map((item) => {
+      if (getUploadItemMode(item) !== targetMode) return item;
       if (!/\u8fdb\u884c\u4e2d/.test(item.status || '')) return item;
       const ready = isUploadItemReady(item);
       return {
@@ -11673,8 +11868,10 @@
     renderShell();
   }
 
-  function getCurrentRunningUpload(queue) {
+  function getCurrentRunningUpload(queue, mode) {
+    const targetMode = mode ? normalizeUploadMode(mode) : '';
     return (queue || [])
+      .filter((item) => !targetMode || getUploadItemMode(item) === targetMode)
       .filter((item) => /\u8fdb\u884c\u4e2d/.test(item.status || ''))
       .sort((a, b) => getUploadTimeMs(b) - getUploadTimeMs(a))[0] || null;
   }
@@ -11686,7 +11883,8 @@
   }
 
   function archiveOtherRunningUploads(queue, activeItem) {
-    const stale = (queue || []).filter((entry) => entry.id !== activeItem.id && /\u8fdb\u884c\u4e2d/.test(entry.status || ''));
+    const activeMode = getUploadItemMode(activeItem);
+    const stale = (queue || []).filter((entry) => entry.id !== activeItem.id && getUploadItemMode(entry) === activeMode && /\u8fdb\u884c\u4e2d/.test(entry.status || ''));
     if (!stale.length) return queue;
     const now = new Date().toLocaleString();
     return (queue || []).map((entry) => {
@@ -11711,10 +11909,15 @@
 
   function normalizeRunningUploadsInQueue() {
     const queue = loadUploadQueue();
-    const running = queue.filter((entry) => /\u8fdb\u884c\u4e2d/.test(entry.status || ''));
-    if (running.length <= 1) return;
-    const active = getCurrentRunningUpload(running);
-    state.uploadQueue = archiveOtherRunningUploads(queue, active);
+    let normalizedQueue = queue;
+    UPLOAD_MODES.forEach((mode) => {
+      const running = normalizedQueue.filter((entry) => getUploadItemMode(entry) === mode && /\u8fdb\u884c\u4e2d/.test(entry.status || ''));
+      if (running.length <= 1) return;
+      const active = getCurrentRunningUpload(running, mode);
+      normalizedQueue = archiveOtherRunningUploads(normalizedQueue, active);
+    });
+    if (normalizedQueue === queue) return;
+    state.uploadQueue = normalizedQueue;
     saveUploadQueue();
   }
 
@@ -11880,24 +12083,26 @@
     await waitFor(() => !isProjectResultLoading(), 8000, 180);
   }
 
-  async function processUploadQueue() {
-    state.uploadRunning = loadUploadWorkerRunning();
+  async function processUploadQueue(mode) {
+    const workerMode = normalizeUploadMode(mode || (isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : state.uploadMode));
+    state.uploadWorkerMode = workerMode;
+    state.uploadRunning = loadUploadWorkerRunning(workerMode);
     state.uploadQueue = loadUploadQueue();
     if (!state.uploadRunning || state.uploadProcessing) return;
     state.uploadProcessing = true;
     const attemptedTaskKeys = new Set();
     try {
-      await prepareToyLabelBatchQueue(state.uploadQueue);
+      if (workerMode === 'toy-label') await prepareToyLabelBatchQueue(state.uploadQueue.filter((entry) => getUploadItemMode(entry) === workerMode));
       while (state.uploadRunning) {
-        if (await recoverPurchaseEmptyRunningUpload()) {
-          state.uploadRunning = loadUploadWorkerRunning();
+        if (await recoverPurchaseEmptyRunningUpload(workerMode)) {
+          state.uploadRunning = loadUploadWorkerRunning(workerMode);
           state.uploadQueue = loadUploadQueue();
           continue;
         }
-        const pendingItems = state.uploadQueue.filter((entry) => isUploadItemReady(entry) && !attemptedTaskKeys.has(uploadHistoryKey(entry)) && !/成功|进行中|已跳过|已有内容|失败/.test(entry.status || ''));
-        const item = pendingItems.find((entry) => entry.kind === 'toy-label') || pendingItems[0];
+        const pendingItems = state.uploadQueue.filter((entry) => getUploadItemMode(entry) === workerMode && isUploadItemReady(entry) && !attemptedTaskKeys.has(uploadHistoryKey(entry)) && !/成功|进行中|已跳过|已有内容|失败/.test(entry.status || ''));
+        const item = pendingItems[0];
         if (!item) {
-          await finishUploadQueue();
+          await finishUploadQueue(workerMode);
           break;
         }
         attemptedTaskKeys.add(uploadHistoryKey(item));
@@ -11905,8 +12110,8 @@
         try {
           await runUploadQueueItem(item);
         } catch (error) {
-          if (await recoverPurchaseEmptyRunningUpload()) {
-            state.uploadRunning = loadUploadWorkerRunning();
+          if (await recoverPurchaseEmptyRunningUpload(workerMode)) {
+            state.uploadRunning = loadUploadWorkerRunning(workerMode);
             state.uploadQueue = loadUploadQueue();
             continue;
           }
@@ -11917,14 +12122,14 @@
             console.warn('PLM floating helper close failed after item error:', closeError);
           });
         }
-        state.uploadRunning = loadUploadWorkerRunning();
+        state.uploadRunning = loadUploadWorkerRunning(workerMode);
         state.uploadQueue = loadUploadQueue();
       }
     } finally {
       await closeCancelConfigModalIfPresent().catch((error) => console.warn('PLM floating helper final modal cleanup failed:', error));
       state.uploadProcessing = false;
-      if (loadUploadWorkerRunning()) {
-        window.setTimeout(() => processUploadQueue(), 800);
+      if (loadUploadWorkerRunning(workerMode)) {
+        window.setTimeout(() => processUploadQueue(workerMode), 800);
       }
     }
   }
@@ -12120,7 +12325,7 @@
       } catch (closeError) {
         console.warn('PLM floating helper close after upload failure failed:', closeError);
         state.uploadRunning = false;
-        saveUploadWorkerRunning(false);
+        saveUploadWorkerRunning(getUploadControlMode(), false);
         markUploadQueueBlocked(item, L.uploadFailed, message + '\uff1b\u5173\u95ed\u5f53\u524d\u5546\u54c1\u9875\u5931\u8d25\uff0c\u5df2\u6682\u505c');
         addLog('error', '\u63d0\u5ba1\u4e0a\u4f20\u5931\u8d25\uff1a\u5173\u95ed\u5546\u54c1\u9875\u5931\u8d25', item.sku + ' ' + (closeError && closeError.message ? closeError.message : '\u672a\u77e5\u9519\u8bef'));
         showToast('\u5173\u95ed\u5f53\u524d\u5546\u54c1\u9875\u5931\u8d25\uff0c\u5df2\u6682\u505c\uff0c\u8bf7\u624b\u52a8\u5904\u7406\u5f39\u7a97');
@@ -12135,15 +12340,15 @@
     await closeTopProductDrawer({ skipDraftSave: true });
     if (getVisibleModal() || getOpenProductDrawer()) {
       state.uploadRunning = false;
-      saveUploadWorkerRunning(false);
+      saveUploadWorkerRunning(getUploadControlMode(), false);
       throw new Error('\u5f53\u524d\u5f39\u7a97\u6216\u5546\u54c1\u9875\u672a\u5173\u95ed\uff0c\u5df2\u6682\u505c\u4e0a\u4f20\u961f\u5217');
     }
   }
 
-  async function recoverPurchaseEmptyRunningUpload() {
+  async function recoverPurchaseEmptyRunningUpload(mode) {
     if (!findPurchaseInfoEmptyError()) return false;
     const queue = loadUploadQueue();
-    const running = getCurrentRunningUpload(queue);
+    const running = getCurrentRunningUpload(queue, mode || getUploadControlMode());
     if (!running) return false;
     markUploadQueueBlocked(running, L.uploadFailed, '\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
     addLog('error', '\u63d0\u5ba1\u4e0a\u4f20\u5931\u8d25\uff1a\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a', running.sku || '');
@@ -12156,7 +12361,7 @@
 
   async function ensureProductManagementPage() {
     if (!/\/productManagementProduct/.test(location.pathname)) {
-      location.href = location.origin + '/productManagementProduct?plmUploadWorker=1';
+      location.href = location.origin + '/productManagementProduct?plmUploadWorker=1&plmUploadMode=' + encodeURIComponent(getUploadControlMode());
       await waitUntil(() => /\/productManagementProduct/.test(location.pathname), 15000, 300);
     }
     await waitUntil(() => document.body && document.body.innerText.includes('\u5546\u54c1\u7ba1\u7406'), 20000, 300);
@@ -12755,10 +12960,10 @@
     const saved = await saveProductDraftBeforeClose();
     if (!saved) {
       state.uploadRunning = false;
-      saveUploadWorkerRunning(false);
+      saveUploadWorkerRunning(getUploadControlMode(), false);
       throw new Error('\u8349\u7a3f\u672a\u4fdd\u5b58\u6210\u529f\uff0c\u5df2\u6682\u505c');
     }
-    const running = getCurrentRunningUpload(loadUploadQueue());
+    const running = getCurrentRunningUpload(loadUploadQueue(), getUploadControlMode());
     if (running) updateUploadItem(running, '\u8fdb\u884c\u4e2d', '\u5173\u95ed\u5546\u54c1\u9875');
     const drawer = Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open'))
       .filter(isVisibleElement)
@@ -13062,6 +13267,7 @@
   }
 
   async function refreshPageAndRetryUploadItem(item) {
+    const mode = getUploadItemMode(item);
     const latestQueue = loadUploadQueue();
     const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
     const retryCount = Math.max(0, Number(latestItem.uploadPageRefreshRetryCount) || 0) + 1;
@@ -13077,14 +13283,16 @@
       resumeUploadAfterRefresh: true,
       uploadPageRefreshRetryCount: retryCount,
     });
+    state.uploadWorkerMode = mode;
     state.uploadRunning = true;
-    saveUploadWorkerRunning(true);
+    saveUploadWorkerRunning(mode, true);
     addLog('warn', '\u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u5237\u65b0\u540e\u91cd\u8bd5\u7f16\u7801', (item.sku || '') + ' (' + retryCount + '/3)');
     showToast((item.sku || '') + ' \u68c0\u6d4b\u5230\u9700\u91cd\u8bd5\u6587\u4ef6\uff0c\u6b63\u5728\u5237\u65b0\u9875\u9762\u91cd\u65b0\u4e0a\u4f20');
     await wait(120);
     const refreshUrl = new URL(window.location.href);
     refreshUrl.pathname = '/productManagementProduct';
     refreshUrl.searchParams.set('plmUploadWorker', '1');
+    refreshUrl.searchParams.set('plmUploadMode', mode);
     window.location.replace(refreshUrl.toString());
     await new Promise(() => {});
   }
@@ -13348,7 +13556,7 @@
     const result = await waitFor(() => getFreshBomSaveNoticeResult(existingNotices), 120000, 150);
     if (result === 'saved') return true;
     state.uploadRunning = false;
-    saveUploadWorkerRunning(false);
+    saveUploadWorkerRunning(getUploadControlMode(), false);
     if (result === 'failed') {
       throw new Error('\u7ed1BOM\u6279\u91cf\u4fdd\u5b58\u5931\u8d25\uff0c\u5df2\u6682\u505c\u961f\u5217\u5e76\u4fdd\u7559\u5f53\u524d\u62bd\u5c49');
     }
@@ -17186,15 +17394,18 @@
     else if (navigator.clipboard) navigator.clipboard.writeText(value);
   }
 
-  function showToast(text) {
+  function showToast(text, options) {
     const panel = ensurePanel();
+    const quiet = Boolean(options && options.quiet);
     const noteToast = panel.querySelector('.pfh-note-toast');
     if (noteToast) {
       noteToast.textContent = text || '';
+      noteToast.classList.toggle('is-quiet', quiet);
       noteToast.classList.toggle('is-visible', Boolean(text));
       clearTimeout(state.toastTimer);
       state.toastTimer = setTimeout(() => {
         noteToast.textContent = '';
+        noteToast.classList.remove('is-quiet');
         noteToast.classList.remove('is-visible');
       }, String(text || '').length > 12 ? 12000 : 7000);
       return;
@@ -17205,6 +17416,7 @@
       toast.className = 'pfh-toast';
       panel.appendChild(toast);
     }
+    toast.classList.toggle('is-quiet', quiet);
     toast.textContent = text;
     clearTimeout(state.toastTimer);
     state.toastTimer = setTimeout(() => toast.remove(), String(text || '').length > 12 ? 12000 : 7000);
@@ -17843,11 +18055,12 @@
     state.uploadHistory = historySnapshot;
   }
 
-  function moveCompletedUploadsToHistory() {
+  function moveCompletedUploadsToHistory(mode) {
+    const targetMode = mode ? normalizeUploadMode(mode) : '';
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const queueSource = latestQueue.length ? latestQueue : (state.uploadQueue || []);
-    const completed = queueSource.filter((item) => /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(item.status || '') && !/\u8fdb\u884c\u4e2d/.test(item.status || ''));
+    const completed = queueSource.filter((item) => (!targetMode || getUploadItemMode(item) === targetMode) && /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(item.status || '') && !/\u8fdb\u884c\u4e2d/.test(item.status || ''));
     if (!completed.length) return;
     const additionsByProduct = new Map();
     completed.forEach((item) => {
@@ -17963,29 +18176,82 @@
     return /\u6210\u529f/.test(String(item && item.status || ''));
   }
 
-  function loadUploadWorkerRunning() {
-    try {
-      return Boolean(typeof GM_getValue === 'function' ? GM_getValue(UPLOAD_WORKER_KEY, false) : JSON.parse(localStorage.getItem(UPLOAD_WORKER_KEY) || 'false'));
-    } catch (error) {
-      return false;
-    }
+  function normalizeUploadMode(value) {
+    return UPLOAD_MODES.includes(value) ? value : 'standard';
   }
 
-  function saveUploadWorkerRunning(value) {
-    try {
-      if (typeof GM_setValue === 'function') GM_setValue(UPLOAD_WORKER_KEY, Boolean(value));
-      else localStorage.setItem(UPLOAD_WORKER_KEY, JSON.stringify(Boolean(value)));
-    } catch (error) {
-      console.warn('PLM floating helper upload worker save failed:', error);
-    }
+  function getUploadItemMode(item) {
+    return normalizeUploadMode(item && item.kind);
   }
 
   function isUploadWorkerPage() {
     return /[?&]plmUploadWorker=1\b/.test(location.search);
   }
 
-  function hasUploadRefreshRecovery() {
+  function getUploadWorkerModeFromUrl() {
+    try {
+      return normalizeUploadMode(new URLSearchParams(location.search).get('plmUploadMode'));
+    } catch (error) {
+      return 'standard';
+    }
+  }
+
+  function getUploadControlMode() {
+    return isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : normalizeUploadMode(state.uploadMode);
+  }
+
+  function loadUploadWorkerStates() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(UPLOAD_WORKER_STATES_KEY, null)
+        : JSON.parse(localStorage.getItem(UPLOAD_WORKER_STATES_KEY) || 'null');
+      const parsed = typeof saved === 'string' ? JSON.parse(saved) : saved;
+      const legacy = typeof GM_getValue === 'function'
+        ? GM_getValue(UPLOAD_WORKER_KEY, false)
+        : JSON.parse(localStorage.getItem(UPLOAD_WORKER_KEY) || 'false');
+      return {
+        standard: Boolean(parsed && parsed.standard !== undefined ? parsed.standard : legacy),
+        'toy-label': Boolean(parsed && parsed['toy-label']),
+        copyright: Boolean(parsed && parsed.copyright),
+      };
+    } catch (error) {
+      return { standard: false, 'toy-label': false, copyright: false };
+    }
+  }
+
+  function loadUploadWorkerRunning(mode) {
+    const targetMode = normalizeUploadMode(mode || (isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : 'standard'));
+    return Boolean(loadUploadWorkerStates()[targetMode]);
+  }
+
+  function saveUploadWorkerRunning(mode, value) {
+    let targetMode = mode;
+    let targetValue = value;
+    if (typeof value === 'undefined') {
+      targetValue = mode;
+      targetMode = isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : 'standard';
+    }
+    targetMode = normalizeUploadMode(targetMode);
+    try {
+      const states = loadUploadWorkerStates();
+      states[targetMode] = Boolean(targetValue);
+      const anyRunning = UPLOAD_MODES.some((item) => Boolean(states[item]));
+      if (typeof GM_setValue === 'function') {
+        GM_setValue(UPLOAD_WORKER_STATES_KEY, states);
+        GM_setValue(UPLOAD_WORKER_KEY, anyRunning);
+      } else {
+        localStorage.setItem(UPLOAD_WORKER_STATES_KEY, JSON.stringify(states));
+        localStorage.setItem(UPLOAD_WORKER_KEY, JSON.stringify(anyRunning));
+      }
+    } catch (error) {
+      console.warn('PLM floating helper upload worker save failed:', error);
+    }
+  }
+
+  function hasUploadRefreshRecovery(mode) {
+    const targetMode = mode ? normalizeUploadMode(mode) : '';
     return loadUploadQueue().some((item) => {
+      if (targetMode && getUploadItemMode(item) !== targetMode) return false;
       if (!item || !item.xlsxKey || !item.zipKey) return false;
       if (item.resumeUploadAfterRefresh) return true;
       return Number(item.uploadPageRefreshRetryCount) > 0
@@ -17995,7 +18261,8 @@
   }
 
   function shouldStartUploadWorkerOnLoad() {
-    return loadUploadWorkerRunning() && (isUploadWorkerPage() || hasUploadRefreshRecovery());
+    const mode = isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : '';
+    return loadUploadWorkerRunning(mode) && (isUploadWorkerPage() || hasUploadRefreshRecovery(mode));
   }
 
   function loadToyLabelExportManifest() {
