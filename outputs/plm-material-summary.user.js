@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.179
+// @version      2.5.180
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.179';
+  const SCRIPT_VERSION = '2.5.180';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2553,6 +2553,44 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button:hover::after{opacity:1;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button.is-active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs .pfh-upload-mode-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;bottom:auto!important;width:calc((100% - 6px) / 3)!important;height:calc(100% - 6px)!important;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;transform:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-status{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"],
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"]:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type{border-color:transparent!important;background:transparent!important;color:var(--pfh-theme-primary)!important;box-shadow:none!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type:hover{color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-guide-button,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-guide-button:hover,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-guide-button:focus-visible{color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-drop{border-color:var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% -10%,var(--pfh-theme-primary-soft),transparent 46%),linear-gradient(180deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 12px 34px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-drop:hover,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-drop:focus,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-drop.is-paste-received{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(180deg,var(--pfh-theme-primary-soft),var(--pfh-theme-surface-alt))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 0 0 4px var(--pfh-theme-shadow-soft),0 14px 36px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-drop::before{border-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button[data-action="upload-start"],
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button[data-action="toy-label-queue-add"],
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button[data-action="copyright-queue-add"]{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;-webkit-text-fill-color:#fff!important;box-shadow:0 10px 20px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button[data-action="upload-start"]:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button[data-action="toy-label-queue-add"]:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-actions > button[data-action="copyright-queue-add"]:hover:not(:disabled){border-color:var(--pfh-theme-primary-hover)!important;background:var(--pfh-theme-primary-hover)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-table-head,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-item{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-item.is-current{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-table-head{color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-item b{color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-item small,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-item em,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-item span:not(.is-success):not(.is-ready):not(.is-missing){color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-pager{color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-pager button,
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-pager .pfh-pager-ellipsis{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-pager b{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-toy-label-sku-input{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
@@ -5773,13 +5811,18 @@
         buttons.forEach((item) => item.classList.remove('is-active'));
         button.classList.add('is-active');
         tabs.setAttribute('data-active-mode', button.getAttribute('data-upload-mode') || 'standard');
+        indicator.style.setProperty('transition', indicatorTransition, 'important');
         moveIndicator(button);
       });
     });
     const activeButton = tabs.querySelector('button.is-active') || buttons[0];
     if (!activeButton) return;
     tabs.setAttribute('data-active-mode', activeButton.getAttribute('data-upload-mode') || 'standard');
+    indicator.style.setProperty('transition', 'none', 'important');
     moveIndicator(activeButton);
+    window.requestAnimationFrame(() => {
+      if (indicator.isConnected) indicator.style.setProperty('transition', indicatorTransition, 'important');
+    });
   }
 
   function renderUploadModeContent(panel) {
@@ -5931,13 +5974,18 @@
         buttons.forEach((item) => item.classList.remove('is-active'));
         button.classList.add('is-active');
         switcher.setAttribute('data-active-mode', button.getAttribute('data-mode') || 'list');
+        indicator.style.setProperty('transition', indicatorTransition, 'important');
         moveIndicator(button);
       });
     });
     const activeButton = switcher.querySelector('button.is-active') || buttons[0];
     if (!activeButton) return;
     switcher.setAttribute('data-active-mode', activeButton.getAttribute('data-mode') || 'list');
+    indicator.style.setProperty('transition', 'none', 'important');
     moveIndicator(activeButton);
+    window.requestAnimationFrame(() => {
+      if (indicator.isConnected) indicator.style.setProperty('transition', indicatorTransition, 'important');
+    });
   }
 
   function renderHome(panel, statusText) {
