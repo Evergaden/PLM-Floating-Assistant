@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.177
+// @version      2.5.178
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.177';
+  const SCRIPT_VERSION = '2.5.178';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2479,11 +2479,14 @@
       --pfh-color-border-hover:var(--pfh-theme-border-strong)!important;
       --pfh-color-surface:var(--pfh-theme-surface)!important;
       --pfh-focus-ring:0 0 0 3px var(--pfh-theme-primary-soft)!important;
+      --pfh-theme-shadow-soft:color-mix(in srgb,var(--pfh-theme-primary) 12%,transparent)!important;
+      --pfh-theme-shadow:color-mix(in srgb,var(--pfh-theme-primary) 20%,transparent)!important;
     }
     #${PANEL_ID}[data-pfh-theme]{
       color:var(--pfh-theme-text)!important;
       background:var(--pfh-theme-surface)!important;
       border-color:var(--pfh-theme-border)!important;
+      box-shadow:0 22px 70px var(--pfh-theme-shadow),inset 0 1px 0 rgba(255,255,255,.86)!important;
     }
     #${PANEL_ID}[data-pfh-theme] .pfh-full,
     #${PANEL_ID}[data-pfh-theme] .pfh-main,
@@ -2525,21 +2528,29 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
     @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{transition:none!important;}}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{display:none!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator{position:absolute!important;z-index:0!important;top:4px!important;left:4px;width:calc((100% - 8px) / 3);height:calc(100% - 8px)!important;border:0!important;border-radius:99px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 8px 18px var(--pfh-theme-primary-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator{position:absolute!important;z-index:0!important;top:4px!important;left:4px;width:calc((100% - 8px) / 3);height:calc(100% - 8px)!important;border:0!important;border-radius:99px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 8px 18px var(--pfh-theme-shadow-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button:active{transform:scale(.94)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button::after{content:'';position:absolute;inset:0;border-radius:99px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button:hover::after{opacity:1;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active::after,
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-list-content{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-height:0!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch{position:relative!important;isolation:isolate!important;gap:0!important;overflow:hidden!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px;width:39px;height:25px;border:0!important;border-radius:99px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 5px 12px var(--pfh-theme-primary-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button{position:relative!important;z-index:1!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch{position:relative!important;isolation:isolate!important;gap:0!important;overflow:hidden!important;border-radius:999px!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px;width:39px;height:25px;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 5px 12px var(--pfh-theme-shadow-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button{position:relative!important;z-index:1!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;line-height:1!important;border-radius:999px!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button:active{transform:scale(.94)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button::after{content:'';position:absolute;inset:0;border-radius:99px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button:hover::after{opacity:1;}
     #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button.is-active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs{position:relative!important;isolation:isolate!important;gap:0!important;overflow:hidden!important;border-radius:999px!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button{position:relative!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;line-height:1!important;border-radius:999px!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button:active{transform:scale(.94)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button::after{content:'';position:absolute;inset:0;border-radius:999px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button:hover::after{opacity:1;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button.is-active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs .pfh-upload-mode-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;bottom:auto!important;width:calc((100% - 6px) / 3)!important;height:calc(100% - 6px)!important;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;transform:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
@@ -2562,6 +2573,11 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button:hover,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button.is-active{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-status{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-secondary-soft)!important;color:var(--pfh-theme-secondary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-product-title-copy > span[data-action="copy-sku"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;border:1px solid var(--pfh-theme-primary)!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;-webkit-text-fill-color:#fff!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 5px 12px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-product-title-copy > span[data-action="copy-sku"]:hover{border-color:var(--pfh-theme-primary-hover)!important;background:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-title-actions .pfh-title-edit-data{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-title-actions .pfh-title-edit-data:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-title-meta,.pfh-row,.pfh-sku,.pfh-sku-waterfall-card,.pfh-home-card,.pfh-ledger-item,.pfh-export-menu-button,.pfh-excel-price,.pfh-row-actions>button,.pfh-upload-actions>button,.pfh-parameter-actions>button){box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 8px 18px var(--pfh-theme-shadow-soft)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit{width:104px!important;height:104px!important;overflow:visible!important;isolation:isolate!important;background:transparent!important;border:0!important;box-shadow:none!important;animation:pfh-theme-star-breathe 6.2s ease-in-out infinite!important;animation-play-state:running!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit .wave{display:none!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before{inset:8px!important;border:1px solid var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% 1%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 93% 31%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 76% 86%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 18% 80%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 5% 34%,var(--pfh-theme-primary) 0 1.8px,transparent 2.8px)!important;-webkit-mask:none!important;mask:none!important;box-shadow:0 0 0 1px var(--pfh-theme-primary-soft),0 0 24px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring 8.8s linear infinite!important;animation-play-state:running!important;z-index:2!important;}
@@ -2602,7 +2618,7 @@
     #${PANEL_ID}-upload-progress[data-pfh-theme] :where(.pfh-upload-progress-main span,.pfh-upload-progress-icon){background:var(--pfh-theme-primary)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme]{color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor{background:var(--pfh-theme-surface)!important;border-color:var(--pfh-theme-border)!important;}
-    #${LAUNCHER_ID}[data-pfh-theme]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-primary)!important;box-shadow:0 8px 24px rgba(35,25,70,.14);}
+    #${LAUNCHER_ID}[data-pfh-theme]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-primary)!important;box-shadow:0 8px 24px var(--pfh-theme-shadow)!important;}
     #${LAUNCHER_ID}[data-pfh-theme]:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px;}
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-option{display:flex;min-width:0;min-height:62px;flex-direction:column;align-items:stretch;gap:6px;padding:7px 7px 6px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:10px;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;text-align:left;cursor:pointer;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;}
@@ -5726,6 +5742,61 @@
     const detail = panel.querySelector('.pfh-detail');
     detail.classList.remove('is-loading');
     detail.innerHTML = uploadPanelHtml();
+    setupUploadModeFusion(detail);
+  }
+
+  function setupUploadModeFusion(root) {
+    const tabs = root && root.querySelector('.pfh-upload-mode-tabs');
+    const indicator = tabs && tabs.querySelector('.pfh-upload-mode-indicator');
+    if (!tabs || !indicator) return;
+    const indicatorTransition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+    indicator.style.setProperty('transition', indicatorTransition, 'important');
+    const buttons = Array.from(tabs.querySelectorAll('button[data-action="upload-mode"]'));
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    };
+    buttons.forEach((button) => {
+      button.addEventListener('mousemove', (event) => {
+        const rect = button.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        button.style.setProperty('--mx', ((event.clientX - rect.left) / rect.width * 100) + '%');
+        button.style.setProperty('--my', ((event.clientY - rect.top) / rect.height * 100) + '%');
+      });
+      button.addEventListener('click', () => {
+        buttons.forEach((item) => item.classList.remove('is-active'));
+        button.classList.add('is-active');
+        tabs.setAttribute('data-active-mode', button.getAttribute('data-upload-mode') || 'standard');
+        moveIndicator(button);
+      });
+    });
+    const activeButton = tabs.querySelector('button.is-active') || buttons[0];
+    if (!activeButton) return;
+    tabs.setAttribute('data-active-mode', activeButton.getAttribute('data-upload-mode') || 'standard');
+    moveIndicator(activeButton);
+  }
+
+  function renderUploadModeContent(panel) {
+    const detail = panel && panel.querySelector('.pfh-detail');
+    const currentBody = detail && detail.querySelector('.pfh-upload-body');
+    const currentTabs = currentBody && currentBody.querySelector('.pfh-upload-mode-tabs');
+    if (!currentBody || !currentTabs) return false;
+    const template = document.createElement('template');
+    template.innerHTML = uploadPanelHtml();
+    const nextBody = template.content.querySelector('.pfh-upload-body');
+    const nextTabs = nextBody && nextBody.querySelector('.pfh-upload-mode-tabs');
+    if (!nextBody || !nextTabs) return false;
+    currentTabs.className = nextTabs.className;
+    currentTabs.setAttribute('data-active-mode', state.uploadMode || 'standard');
+    currentTabs.querySelectorAll('button[data-action="upload-mode"]').forEach((button) => {
+      button.classList.toggle('is-active', button.getAttribute('data-upload-mode') === state.uploadMode);
+    });
+    while (currentTabs.nextElementSibling) currentTabs.nextElementSibling.remove();
+    const nextChildren = Array.from(nextBody.children);
+    const nextTabsIndex = nextChildren.indexOf(nextTabs);
+    nextChildren.slice(nextTabsIndex + 1).forEach((node) => currentBody.appendChild(node));
+    return true;
   }
 
   function renderSkuList(panel) {
@@ -5900,30 +5971,32 @@
     if (!detail || !page || !tabs) return false;
     const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
     const template = document.createElement('template');
-    template.innerHTML = ledgerViewHtml(records);
-    const nextPage = template.content.querySelector('.pfh-ledger-page');
-    const nextTabs = nextPage && nextPage.querySelector('.pfh-ledger-tabs');
-    if (!nextPage || !nextTabs) return false;
+    template.innerHTML = ledgerViewContentHtml(records);
+    const nextContent = Array.from(template.content.childNodes);
+    if (!nextContent.length) return false;
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+    const month = getCurrentLedgerMonth();
     const currentDetailScroll = detail.querySelector('.pfh-detail-scroll');
-    const nextDetailScroll = nextPage.parentElement;
-    if (currentDetailScroll && nextDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', nextDetailScroll.getAttribute('data-scroll-context') || '');
+    if (currentDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', ['ledger', mode, month].join('|'));
     const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
-    const nextHeroNote = nextPage.querySelector('[data-ledger-hero-note]');
-    if (currentHeroNote && nextHeroNote) currentHeroNote.textContent = nextHeroNote.textContent;
+    if (currentHeroNote) currentHeroNote.textContent = mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。';
     const currentRecordCount = page.querySelector('[data-ledger-record-count]');
-    const nextRecordCount = nextPage.querySelector('[data-ledger-record-count]');
-    if (currentRecordCount && nextRecordCount) currentRecordCount.textContent = nextRecordCount.textContent;
-    tabs.setAttribute('data-active-tab', nextTabs.getAttribute('data-active-tab') || 'design');
-    const nextActiveButton = nextTabs.querySelector('button.is-active');
-    const nextActiveAction = nextActiveButton ? nextActiveButton.getAttribute('data-action') : '';
+    if (currentRecordCount) currentRecordCount.textContent = records.length + ' 条 / ' + month;
+    tabs.setAttribute('data-active-tab', mode);
+    const nextActiveAction = mode === 'trash' ? 'ledger-view-trash' : (mode === 'finalized' ? 'ledger-view-finalized' : 'ledger-view-design');
     tabs.querySelectorAll('button[data-action^="ledger-view-"]').forEach((button) => {
       const active = button.getAttribute('data-action') === nextActiveAction;
       button.classList.toggle('active', active);
       button.classList.toggle('is-active', active);
     });
     while (tabs.nextElementSibling) tabs.nextElementSibling.remove();
-    const nextTabsIndex = Array.from(nextPage.children).indexOf(nextTabs);
-    Array.from(nextPage.children).slice(nextTabsIndex + 1).forEach((node) => page.appendChild(node));
+    nextContent.forEach((node) => page.appendChild(node));
+    const indicator = tabs.querySelector('.pfh-ledger-tab-indicator');
+    const activeButton = tabs.querySelector('button.is-active,button.active');
+    if (indicator && activeButton) {
+      indicator.style.setProperty('left', activeButton.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', activeButton.offsetWidth + 'px', 'important');
+    }
     return true;
   }
 
@@ -6041,19 +6114,19 @@
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent =
-      '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:rgba(139,92,246,.58)!important;background:linear-gradient(135deg,rgba(250,247,255,.94),rgba(255,255,255,.82))!important;box-shadow:0 8px 20px rgba(91,62,180,.12),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
+      '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;box-shadow:0 8px 20px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
-      '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:rgba(124,58,237,.38)!important;background:#eee8ff!important;color:#6030cf!important;}' +
-      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{display:inline-flex!important;width:34px!important;min-width:34px!important;padding:0!important;align-items:center!important;justify-content:center!important;border-color:rgba(124,58,237,.28)!important;background:#f3efff!important;color:#7040d8!important;}' +
-      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data:hover{border-color:#8b5cf6!important;background:#e9e1ff!important;color:#5b21b6!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{display:inline-flex!important;width:34px!important;min-width:34px!important;padding:0!important;align-items:center!important;justify-content:center!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;height:16px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;line-height:1!important;box-sizing:content-box!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg{display:block!important;width:16px!important;height:16px!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon path{fill:currentColor!important;stroke:none!important;}' +
-      '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid rgba(139,92,246,.34)!important;border-radius:9px!important;outline:none!important;background:rgba(255,255,255,.95)!important;color:#292337!important;font:inherit!important;box-shadow:0 0 0 0 rgba(124,58,237,0)!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
-      '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:#8b5cf6!important;box-shadow:0 0 0 3px rgba(139,92,246,.14)!important;}' +
-      '#' + PANEL_ID + ' .pfh-smart-category-input{display:inline-block!important;width:92px!important;min-width:72px!important;height:25px!important;box-sizing:border-box!important;margin:0 2px!important;padding:0 7px!important;border:1px solid rgba(139,92,246,.42)!important;border-radius:7px!important;outline:none!important;background:#fff!important;color:#4d2aad!important;font:inherit!important;font-weight:700!important;vertical-align:middle!important;}' +
-      '#' + PANEL_ID + ' .pfh-smart-category-input:focus{border-color:#7c3aed!important;box-shadow:0 0 0 3px rgba(124,58,237,.13)!important;}' +
-      '#' + PANEL_ID + ' .pfh-row.is-sku-editing{cursor:text!important;border-color:rgba(139,92,246,.30)!important;background:rgba(250,248,255,.82)!important;}' +
+      '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;outline:none!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;font:inherit!important;box-shadow:0 0 0 0 transparent!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:var(--pfh-theme-border-strong)!important;box-shadow:0 0 0 3px var(--pfh-theme-shadow-soft)!important;}' +
+      '#' + PANEL_ID + ' .pfh-smart-category-input{display:inline-block!important;width:92px!important;min-width:72px!important;height:25px!important;box-sizing:border-box!important;margin:0 2px!important;padding:0 7px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:7px!important;outline:none!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-primary-hover)!important;font:inherit!important;font-weight:700!important;vertical-align:middle!important;}' +
+      '#' + PANEL_ID + ' .pfh-smart-category-input:focus{border-color:var(--pfh-theme-border-strong)!important;box-shadow:0 0 0 3px var(--pfh-theme-shadow-soft)!important;}' +
+      '#' + PANEL_ID + ' .pfh-row.is-sku-editing{cursor:text!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;}' +
       '#' + PANEL_ID + ' .pfh-row.is-sku-editing .pfh-value,#' + PANEL_ID + ' .pfh-row.is-sku-editing .pfh-row-actions{display:none!important;}' +
       '#' + PANEL_ID + ' .pfh-data-change-alert{margin:0 0 11px;padding:12px 14px;border:1px solid rgba(245,158,11,.38);border-radius:14px;background:linear-gradient(135deg,rgba(255,251,235,.98),rgba(255,247,237,.94));box-shadow:0 10px 24px rgba(180,83,9,.10);}' +
       '#' + PANEL_ID + ' .pfh-data-change-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;color:#8a4b08;font-size:12px;}' +
@@ -7630,7 +7703,7 @@
     current.outerHTML = ledgerPerformanceMergeButtonHtml(records, new Set(state.ledgerSelectedKeys || []));
   }
 
-  function ledgerViewHtml(records) {
+  function ledgerViewContentHtml(records) {
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const groups = groupLedgerRecordsByDate(records, mode === 'trash' ? 'design' : mode);
     const performanceSummary = mode === 'finalized' ? summarizeLedgerPerformance(records) : null;
@@ -7645,15 +7718,7 @@
     }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。')) + '</div>';
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
-    return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
-      '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
-        '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
-        '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
-        '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
-        '<button type="button" class="' + (mode === 'trash' ? 'is-active active' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
-      '</div>' +
-      performanceHtml +
+    return performanceHtml +
       '<div class="pfh-ledger-toolbar">' +
         '<button type="button" class="pfh-ledger-month" data-action="ledger-prev-month" title="上个月">‹</button>' +
         '<button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + escapeHtml(formatLedgerMonthLabel(month)) + '</button>' +
@@ -7667,7 +7732,22 @@
             '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') +
       '</div>' +
       '<div class="pfh-ledger-list" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '">' + rows + '</div>' +
-      ledgerTimeEditorHtml() +
+      ledgerTimeEditorHtml();
+  }
+
+  function ledgerViewHtml(records) {
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+    const month = getCurrentLedgerMonth();
+    const ledgerScrollContext = ['ledger', mode, month].join('|');
+    return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
+      '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
+        '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
+        '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
+        '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
+        '<button type="button" class="' + (mode === 'trash' ? 'is-active active' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
+      '</div>' +
+      ledgerViewContentHtml(records) +
       '</section></div>';
   }
 
@@ -9638,8 +9718,7 @@
     const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
     const backAction = viewingHistory ? 'upload-history-toggle' : 'home-back';
     const backLabel = viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u8fd4\u56de\u4e3b\u9875';
-    const uploadModeIndex = state.uploadMode === 'toy-label' ? 1 : (state.uploadMode === 'copyright' ? 2 : 0);
-    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + (state.uploadMode === 'copyright' ? ' is-copyright' : '') + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" style="width:calc(33.333% - 2px);transform:translateX(' + (uploadModeIndex * 100) + '%) scale(.96)"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (state.uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
+    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (state.uploadMode === 'toy-label' ? ' is-toy-label' : '') + (state.uploadMode === 'copyright' ? ' is-copyright' : '') + '" data-active-mode="' + escapeHtml(state.uploadMode || 'standard') + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (state.uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (state.uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (state.uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
     const copyrightPendingFiles = Array.isArray(state.copyrightPendingFiles) ? state.copyrightPendingFiles : [];
     const queueControl = state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>';
     const copyrightModeHtml = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="\u7c98\u8d34\u4e00\u4e2a\u6216\u591a\u4e2a SKU \u7f16\u7801">' + escapeHtml(state.copyrightSkuInput || '') + '</textarea>' +
@@ -10199,7 +10278,17 @@
     if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash') {
       const nextLedgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : 'design');
       state.ledgerView = nextLedgerView;
-      if (!renderLedgerTabContent(ensurePanel())) renderShell();
+      const renderToken = (Number(state.ledgerTabRenderToken) || 0) + 1;
+      state.ledgerTabRenderToken = renderToken;
+      const repaintLedgerContent = () => {
+        if (state.ledgerTabRenderToken !== renderToken || state.view !== 'ledger') return;
+        if (!renderLedgerTabContent(ensurePanel())) renderShell();
+      };
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(repaintLedgerContent));
+      } else {
+        window.setTimeout(repaintLedgerContent, 32);
+      }
       return;
     }
     if (action === 'ledger-prev-day') {
@@ -10396,7 +10485,7 @@
     if (action === 'upload-mode') {
       const mode = actionTarget.getAttribute('data-upload-mode');
       state.uploadMode = /^(?:standard|toy-label|copyright)$/.test(mode || '') ? mode : 'standard';
-      renderShell();
+      if (!renderUploadModeContent(ensurePanel())) renderShell();
       return;
     }
     if (action === 'toy-label-queue-add') {
