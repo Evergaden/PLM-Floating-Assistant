@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.169
+// @version      2.5.170
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.169';
+  const SCRIPT_VERSION = '2.5.170';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1478,26 +1478,26 @@
   const SETTINGS_KEY = 'plm-floating-helper:settings';
   const DEFAULT_THEME_ID = 'default';
   const THEME_OPTIONS = Object.freeze([
-    { id: 'default', name: '默认', primary: '#7c3aed', primaryHover: '#5b21b6', primarySoft: '#f3efff', secondary: '#0891b2', secondarySoft: '#e8f7fa', page: '#fafbff', surface: '#ffffff', surfaceAlt: '#f7f8fc', border: '#d8deea', borderStrong: '#b9a8ed', text: '#1f2937', muted: '#64748b', header: '#f5f7fb' },
-    { id: 'gold', name: '金黄色', primary: '#d79b00', primaryHover: '#a66f00', primarySoft: '#fff6d7', secondary: '#b7791f', secondarySoft: '#fff2d8', page: '#fffdf7', surface: '#fffefa', surfaceAlt: '#fff8e8', border: '#eadcb8', borderStrong: '#d6b862', text: '#443a24', muted: '#8a7a5b', header: '#fff4cf' },
-    { id: 'light-orange', name: '浅橙色', primary: '#e27d43', primaryHover: '#b95725', primarySoft: '#fff0e6', secondary: '#d97706', secondarySoft: '#fff4df', page: '#fffaf7', surface: '#fffdfb', surfaceAlt: '#fff5ed', border: '#efd4c1', borderStrong: '#e7ae8d', text: '#483229', muted: '#8c7165', header: '#fff0e5' },
-    { id: 'brick-red', name: '砖红色', primary: '#b85a4b', primaryHover: '#8f3c31', primarySoft: '#fbecea', secondary: '#a94b4b', secondarySoft: '#fae9e9', page: '#fffafa', surface: '#fffdfd', surfaceAlt: '#fff3f1', border: '#e7c7c2', borderStrong: '#d69287', text: '#432e2c', muted: '#876f6d', header: '#fae6e1' },
-    { id: 'crimson', name: '鸢红色', primary: '#bd5a67', primaryHover: '#963d4c', primarySoft: '#fbeaec', secondary: '#b84f70', secondarySoft: '#fae8ee', page: '#fff9fb', surface: '#fffdfd', surfaceAlt: '#fff1f4', border: '#e8c8ce', borderStrong: '#d896a2', text: '#472e34', muted: '#886d75', header: '#f8e1e5' },
-    { id: 'red', name: '红色', primary: '#d63d52', primaryHover: '#ae2439', primarySoft: '#ffebef', secondary: '#c2415a', secondarySoft: '#ffedf0', page: '#fff9fa', surface: '#fffdfd', surfaceAlt: '#fff0f2', border: '#edc5cc', borderStrong: '#e18b99', text: '#482a30', muted: '#8d6870', header: '#fbe1e5' },
-    { id: 'rose', name: '玫瑰色', primary: '#ce5c8d', primaryHover: '#a83b6c', primarySoft: '#fce8f1', secondary: '#c2478e', secondarySoft: '#fbe5f1', page: '#fff9fc', surface: '#fffdfd', surfaceAlt: '#fff0f6', border: '#ecc6d8', borderStrong: '#df92b1', text: '#482c3d', muted: '#8b6b7d', header: '#f8dce9' },
-    { id: 'blue', name: '蓝色', primary: '#2f7fd3', primaryHover: '#1f5fa7', primarySoft: '#e6f1ff', secondary: '#087f95', secondarySoft: '#e3f6fa', page: '#f7fbff', surface: '#ffffff', surfaceAlt: '#eef6ff', border: '#c4d9ee', borderStrong: '#8db9e3', text: '#20364c', muted: '#64809a', header: '#dceefb' },
-    { id: 'pink-tail', name: '粉黛尾花色', primary: '#c66f9b', primaryHover: '#9e4c78', primarySoft: '#fbeaf3', secondary: '#a85e9c', secondarySoft: '#f7eaf5', page: '#fff9fc', surface: '#fffdfd', surfaceAlt: '#fff1f8', border: '#e8c9dc', borderStrong: '#d99bbb', text: '#472f42', muted: '#896e82', header: '#f8dce9' },
-    { id: 'iris', name: '蕾蒲色', primary: '#a768b8', primaryHover: '#814a96', primarySoft: '#f5eafa', secondary: '#8564b5', secondarySoft: '#eeeafa', page: '#fcf9ff', surface: '#fffdfd', surfaceAlt: '#f7effb', border: '#dfc9e8', borderStrong: '#c79bd5', text: '#3f3047', muted: '#7e6b88', header: '#f1dff2' },
-    { id: 'light-blue', name: '浅蓝色', primary: '#4e9fd1', primaryHover: '#2f76a6', primarySoft: '#e8f5fc', secondary: '#298f9d', secondarySoft: '#e3f5f6', page: '#f7fcfe', surface: '#ffffff', surfaceAlt: '#edf8fb', border: '#c7e0eb', borderStrong: '#91c4d8', text: '#24404d', muted: '#668492', header: '#dceff6' },
-    { id: 'seagreen', name: '海泡石', primary: '#439ba0', primaryHover: '#2d7377', primarySoft: '#e5f7f6', secondary: '#278b72', secondarySoft: '#e3f5ed', page: '#f6fcfc', surface: '#ffffff', surfaceAlt: '#eaf7f6', border: '#c1dfdc', borderStrong: '#83c1bc', text: '#24413f', muted: '#64827f', header: '#d8efed' },
-    { id: 'sky', name: '天青色', primary: '#2e9cae', primaryHover: '#1f7382', primarySoft: '#e2f6f8', secondary: '#358bbf', secondarySoft: '#e6f2fa', page: '#f6fcfd', surface: '#ffffff', surfaceAlt: '#e9f8fa', border: '#bfdee4', borderStrong: '#82bdc8', text: '#23404a', muted: '#63808a', header: '#d7eff1' },
-    { id: 'gray', name: '灰色', primary: '#77818d', primaryHover: '#555e68', primarySoft: '#edf0f3', secondary: '#687785', secondarySoft: '#e9eef2', page: '#fafbfc', surface: '#ffffff', surfaceAlt: '#f2f4f6', border: '#d5dbe0', borderStrong: '#aeb8c1', text: '#303941', muted: '#71808b', header: '#e9ecef' },
-    { id: 'green', name: '绿色', primary: '#4e9b62', primaryHover: '#347345', primarySoft: '#e8f6eb', secondary: '#2d8b78', secondarySoft: '#e3f5ef', page: '#f8fcf8', surface: '#ffffff', surfaceAlt: '#edf8ef', border: '#c7dfca', borderStrong: '#91bf98', text: '#294333', muted: '#688070', header: '#dcefdc' },
-    { id: 'cloudy', name: '阴天', primary: '#788792', primaryHover: '#596771', primarySoft: '#edf1f3', secondary: '#637e8b', secondarySoft: '#e8f0f2', page: '#fafcfc', surface: '#ffffff', surfaceAlt: '#f1f4f5', border: '#d3dade', borderStrong: '#aab9bf', text: '#303c42', muted: '#718087', header: '#e4eaec' },
-    { id: 'storm', name: '风暴', primary: '#59697d', primaryHover: '#3b4a5c', primarySoft: '#e8edf3', secondary: '#4d7188', secondarySoft: '#e7f0f4', page: '#f8fafc', surface: '#ffffff', surfaceAlt: '#edf2f6', border: '#cbd4de', borderStrong: '#9baaba', text: '#283541', muted: '#687887', header: '#dfe6ed' },
-    { id: 'blue-gray', name: '蓝灰色', primary: '#52728d', primaryHover: '#38556d', primarySoft: '#e7f0f5', secondary: '#4c8898', secondarySoft: '#e5f3f4', page: '#f7fbfc', surface: '#ffffff', surfaceAlt: '#edf5f7', border: '#c7d9df', borderStrong: '#91b5c0', text: '#283d49', muted: '#68808a', header: '#dcebee' },
-    { id: 'dark-gray', name: '暗灰色', primary: '#626b74', primaryHover: '#424a51', primarySoft: '#e9edf0', secondary: '#5b7478', secondarySoft: '#e7eff0', page: '#fafbfb', surface: '#ffffff', surfaceAlt: '#f0f3f4', border: '#d0d6da', borderStrong: '#a4afb5', text: '#2b3338', muted: '#707b82', header: '#e5e9eb' },
-    { id: 'camouflage', name: '迷彩色', primary: '#77835b', primaryHover: '#59643f', primarySoft: '#eef2e5', secondary: '#6e8a67', secondarySoft: '#e8f1e7', page: '#fafcf8', surface: '#ffffff', surfaceAlt: '#f1f5ec', border: '#d5dec8', borderStrong: '#acbd98', text: '#374132', muted: '#74806b', header: '#e7eedc' },
+    { id: 'default', name: '默认', primary: '#9a92d8', primaryHover: '#7169b5', primarySoft: '#f2f0ff', secondary: '#78b7c2', secondarySoft: '#edf8f9', page: '#fbfcff', surface: '#ffffff', surfaceAlt: '#f8f9fd', border: '#e1e4f0', borderStrong: '#cbc9e8', text: '#4e506e', muted: '#8589a0', header: '#f6f6fc' },
+    { id: 'gold', name: '金黄色', primary: '#d8bd78', primaryHover: '#a78d4f', primarySoft: '#fff9e7', secondary: '#c5a976', secondarySoft: '#fff7e8', page: '#fffdf8', surface: '#fffefa', surfaceAlt: '#fffbf0', border: '#eee5ca', borderStrong: '#ddc98f', text: '#665a3f', muted: '#9e9273', header: '#fff8df' },
+    { id: 'light-orange', name: '浅橙色', primary: '#e3a276', primaryHover: '#b87850', primarySoft: '#fff4ed', secondary: '#d9b07d', secondarySoft: '#fff7eb', page: '#fffdfb', surface: '#ffffff', surfaceAlt: '#fff9f4', border: '#f0dfd1', borderStrong: '#e5bfa6', text: '#6c574b', muted: '#a08b7f', header: '#fff4eb' },
+    { id: 'brick-red', name: '砖红色', primary: '#c68c82', primaryHover: '#a4665d', primarySoft: '#fff2ef', secondary: '#c38383', secondarySoft: '#fff0f0', page: '#fffdfc', surface: '#ffffff', surfaceAlt: '#fff8f7', border: '#eedbd8', borderStrong: '#dfb8b0', text: '#664b49', muted: '#9c807d', header: '#ffefec' },
+    { id: 'crimson', name: '鸢红色', primary: '#cf909d', primaryHover: '#aa6876', primarySoft: '#fff1f4', secondary: '#ca86a1', secondarySoft: '#fff0f5', page: '#fffdfd', surface: '#ffffff', surfaceAlt: '#fff8fa', border: '#eed9de', borderStrong: '#e1b5bf', text: '#684c55', muted: '#9e8089', header: '#ffedf1' },
+    { id: 'red', name: '红色', primary: '#dc929d', primaryHover: '#b86a76', primarySoft: '#fff1f3', secondary: '#d18b9a', secondarySoft: '#fff0f3', page: '#fffdfd', surface: '#ffffff', surfaceAlt: '#fff8f9', border: '#f0d8dc', borderStrong: '#e4b2bb', text: '#6c4a52', muted: '#a18088', header: '#ffedf0' },
+    { id: 'rose', name: '玫瑰色', primary: '#d99bb6', primaryHover: '#b87495', primarySoft: '#fff0f6', secondary: '#cf91b4', secondarySoft: '#fff0f7', page: '#fffdfd', surface: '#ffffff', surfaceAlt: '#fff8fb', border: '#eed9e4', borderStrong: '#e2b4cb', text: '#684e5f', muted: '#a08293', header: '#ffedf5' },
+    { id: 'blue', name: '蓝色', primary: '#82acd8', primaryHover: '#5f83b0', primarySoft: '#edf6ff', secondary: '#7eb8c2', secondarySoft: '#edf9fa', page: '#fbfdff', surface: '#ffffff', surfaceAlt: '#f5faff', border: '#d9e7f3', borderStrong: '#b8d0e7', text: '#4c6276', muted: '#8498a9', header: '#edf7ff' },
+    { id: 'pink-tail', name: '粉黛尾花色', primary: '#d5a0bc', primaryHover: '#af7597', primarySoft: '#fff1f7', secondary: '#c99cbd', secondarySoft: '#fff1f8', page: '#fffdfd', surface: '#ffffff', surfaceAlt: '#fff8fc', border: '#eedbe7', borderStrong: '#dfb8d1', text: '#665065', muted: '#9f8399', header: '#ffedf6' },
+    { id: 'iris', name: '蕾蒲色', primary: '#b996c7', primaryHover: '#8f6ca0', primarySoft: '#faf1fc', secondary: '#a79acb', secondarySoft: '#f5f2fc', page: '#fefcff', surface: '#ffffff', surfaceAlt: '#fbf6fd', border: '#e8ddec', borderStrong: '#d0b9dc', text: '#5c4e64', muted: '#95869d', header: '#f9effa' },
+    { id: 'light-blue', name: '浅蓝色', primary: '#91c5dd', primaryHover: '#6699b4', primarySoft: '#eef9fd', secondary: '#83c3c6', secondarySoft: '#edfafa', page: '#fbfeff', surface: '#ffffff', surfaceAlt: '#f5fbfd', border: '#d9ebf1', borderStrong: '#b2d6e1', text: '#4d6570', muted: '#8499a1', header: '#edf9fc' },
+    { id: 'seagreen', name: '海泡石', primary: '#87c5c1', primaryHover: '#5e9996', primarySoft: '#eefaf8', secondary: '#7ebaa4', secondarySoft: '#edf9f3', page: '#fbfefd', surface: '#ffffff', surfaceAlt: '#f4fbf9', border: '#d7ece8', borderStrong: '#afd5cd', text: '#4d6a67', muted: '#849d99', header: '#ecfaf7' },
+    { id: 'sky', name: '天青色', primary: '#77bdc8', primaryHover: '#51909b', primarySoft: '#ebf9fb', secondary: '#86b8d1', secondarySoft: '#edf7fb', page: '#fbfeff', surface: '#ffffff', surfaceAlt: '#f4fbfc', border: '#d4ebee', borderStrong: '#aad5dc', text: '#4c6870', muted: '#82979c', header: '#ebf9fa' },
+    { id: 'gray', name: '灰色', primary: '#a5afb9', primaryHover: '#78848f', primarySoft: '#f1f4f6', secondary: '#9cabb8', secondarySoft: '#f0f4f6', page: '#fcfdfe', surface: '#ffffff', surfaceAlt: '#f7f9fa', border: '#e3e8ec', borderStrong: '#cbd5dc', text: '#59636d', muted: '#8f99a3', header: '#f3f6f8' },
+    { id: 'green', name: '绿色', primary: '#8cbe93', primaryHover: '#64946d', primarySoft: '#eff9f0', secondary: '#7db9a5', secondarySoft: '#edf9f3', page: '#fbfefb', surface: '#ffffff', surfaceAlt: '#f5fbf5', border: '#d9eddc', borderStrong: '#b5d6b9', text: '#506b56', muted: '#879e8b', header: '#effaf0' },
+    { id: 'cloudy', name: '阴天', primary: '#a3b1b6', primaryHover: '#788a91', primarySoft: '#f1f5f6', secondary: '#91b0b6', secondarySoft: '#eff7f8', page: '#fcfefe', surface: '#ffffff', surfaceAlt: '#f6fafb', border: '#e0eaec', borderStrong: '#c2d2d6', text: '#586b70', muted: '#8b9ba0', header: '#f0f6f7' },
+    { id: 'storm', name: '风暴', primary: '#8fa2b6', primaryHover: '#687c92', primarySoft: '#eef3f8', secondary: '#88aeba', secondarySoft: '#edf7fa', page: '#fbfdff', surface: '#ffffff', surfaceAlt: '#f5f9fc', border: '#dbe5ee', borderStrong: '#b9cbdc', text: '#526376', muted: '#8796a6', header: '#eef5fa' },
+    { id: 'blue-gray', name: '蓝灰色', primary: '#8caaba', primaryHover: '#668494', primarySoft: '#eef7fa', secondary: '#89b7be', secondarySoft: '#eef8f9', page: '#fbfeff', surface: '#ffffff', surfaceAlt: '#f4fafc', border: '#d9e9ed', borderStrong: '#b5d0d8', text: '#506a75', muted: '#879ba2', header: '#edf8fa' },
+    { id: 'dark-gray', name: '暗灰色', primary: '#98a3aa', primaryHover: '#707c84', primarySoft: '#f0f3f4', secondary: '#8fa8a9', secondarySoft: '#eef6f5', page: '#fcfefe', surface: '#ffffff', surfaceAlt: '#f6f9f9', border: '#e0e6e8', borderStrong: '#c4d0d3', text: '#56636a', muted: '#8b989d', header: '#f1f5f6' },
+    { id: 'camouflage', name: '迷彩色', primary: '#aab88c', primaryHover: '#7f9061', primarySoft: '#f3f8e9', secondary: '#9dbb94', secondarySoft: '#f0f8ee', page: '#fcfefb', surface: '#ffffff', surfaceAlt: '#f7fbf2', border: '#e2ecd8', borderStrong: '#c5d5b2', text: '#5b6a4f', muted: '#909e84', header: '#f0f7e8' },
   ]);
   const THEME_BY_ID = Object.freeze(THEME_OPTIONS.reduce((map, theme) => { map[theme.id] = theme; return map; }, Object.create(null)));
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
@@ -2514,6 +2514,30 @@
     #${PANEL_ID}[data-pfh-theme] :where(small,em,.pfh-list-note,.pfh-note,.pfh-title-meta,.pfh-about-note,.pfh-empty,.pfh-setting-row>span,.pfh-loading-tip){color:var(--pfh-theme-muted)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(a,.pfh-sku b,.pfh-home-card strong,.pfh-title-actions .is-primary,.pfh-ledger-link){color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(svg,.pfh-icon){color:inherit;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-icon{color:var(--pfh-theme-primary)!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-icon svg,
+    #${PANEL_ID}[data-pfh-theme] .pfh-icon svg *{color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;}
+    #${PANEL_ID}[data-pfh-theme] :where(.pfh-copywriting-copy-icon,.pfh-copywriting-copied-icon,.pfh-sparkle-entrance-icon,.pfh-ledger-finalize-check){color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs{position:relative!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;padding:4px!important;overflow:hidden!important;isolation:isolate!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{content:"";position:absolute;z-index:0;top:4px;left:4px;width:calc((100% - 8px) / 3);height:calc(100% - 8px);border-radius:10px;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover));box-shadow:0 8px 18px var(--pfh-theme-primary-soft);pointer-events:none;transition:transform .72s cubic-bezier(.16,1.42,.3,1),background .28s ease,box-shadow .28s ease;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-active-tab="design"]::before{transform:translateX(0);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-active-tab="finalized"]::before{transform:translateX(100%);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-active-tab="trash"]::before{transform:translateX(200%);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{position:relative!important;z-index:1!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .72s cubic-bezier(.16,1.42,.3,1)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="design"][data-active-tab="finalized"]::before{animation:pfh-theme-tab-design-finalized .72s cubic-bezier(.16,1.42,.3,1) both;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="finalized"][data-active-tab="design"]::before{animation:pfh-theme-tab-finalized-design .72s cubic-bezier(.16,1.42,.3,1) both;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="finalized"][data-active-tab="trash"]::before{animation:pfh-theme-tab-finalized-trash .72s cubic-bezier(.16,1.42,.3,1) both;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="trash"][data-active-tab="finalized"]::before{animation:pfh-theme-tab-trash-finalized .72s cubic-bezier(.16,1.42,.3,1) both;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="design"][data-active-tab="trash"]::before{animation:pfh-theme-tab-design-trash .72s cubic-bezier(.16,1.42,.3,1) both;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="trash"][data-active-tab="design"]::before{animation:pfh-theme-tab-trash-design .72s cubic-bezier(.16,1.42,.3,1) both;}
+    @keyframes pfh-theme-tab-design-finalized{0%{transform:translateX(0)}62%{transform:translateX(108%)}100%{transform:translateX(100%)}}
+    @keyframes pfh-theme-tab-finalized-design{0%{transform:translateX(100%)}62%{transform:translateX(-8%)}100%{transform:translateX(0)}}
+    @keyframes pfh-theme-tab-finalized-trash{0%{transform:translateX(100%)}62%{transform:translateX(208%)}100%{transform:translateX(200%)}}
+    @keyframes pfh-theme-tab-trash-finalized{0%{transform:translateX(200%)}62%{transform:translateX(92%)}100%{transform:translateX(100%)}}
+    @keyframes pfh-theme-tab-design-trash{0%{transform:translateX(0)}62%{transform:translateX(208%)}100%{transform:translateX(200%)}}
+    @keyframes pfh-theme-tab-trash-design{0%{transform:translateX(200%)}62%{transform:translateX(-8%)}100%{transform:translateX(0)}}
+    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{animation:none!important;transition:none!important;}#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{transition:none!important;}}
     #${PANEL_ID}[data-pfh-theme] :where(
       [data-action="search"],[data-action="excel-generate"],[data-action="upload-start"],
       [data-action="toy-label-queue-add"],[data-action="parameter-image-save"],
@@ -3070,6 +3094,7 @@
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
     ledgerTabTransition: '',
+    ledgerTabTransitionFrom: '',
     ledgerTabTransitionTimer: 0,
     manuallyCollapsedForSku: '',
     userCollapsedPanel: false,
@@ -7457,7 +7482,7 @@
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
       '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
-      '<div class="pfh-ledger-tabs">' +
+      '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '"' + (state.ledgerTabTransitionFrom && state.ledgerTabTransitionFrom !== mode ? ' data-tab-from="' + state.ledgerTabTransitionFrom + '"' : '') + '>' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
         '<button type="button" class="' + (mode === 'finalized' ? 'is-active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
         '<button type="button" class="' + (mode === 'trash' ? 'is-active' : '') + (state.ledgerTabTransition === 'trash' ? ' is-tab-transition' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
@@ -10006,13 +10031,16 @@
       return;
     }
     if (action === 'ledger-view-design' || action === 'ledger-view-finalized' || action === 'ledger-view-trash') {
-      state.ledgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : 'design');
+      const nextLedgerView = action === 'ledger-view-trash' ? 'trash' : (action === 'ledger-view-finalized' ? 'finalized' : 'design');
+      state.ledgerTabTransitionFrom = state.ledgerView === nextLedgerView ? '' : state.ledgerView;
+      state.ledgerView = nextLedgerView;
       state.ledgerTabTransition = state.ledgerView;
       window.clearTimeout(state.ledgerTabTransitionTimer);
       state.ledgerTabTransitionTimer = window.setTimeout(() => {
         state.ledgerTabTransition = '';
+        state.ledgerTabTransitionFrom = '';
         if (state.view === 'ledger') renderShell();
-      }, 460);
+      }, 720);
       renderShell();
       return;
     }
