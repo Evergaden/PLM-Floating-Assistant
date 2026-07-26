@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.165
+// @version      2.5.166
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.165';
+  const SCRIPT_VERSION = '2.5.166';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2908,6 +2908,7 @@
     ledgerMenuSku: '',
     ledgerMenuDate: '',
     ledgerFullscreen: false,
+    ledgerGroupHighlightTimer: 0,
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
     ledgerTabTransition: '',
@@ -5587,9 +5588,11 @@
       '#' + PANEL_ID + ' .pfh-ledger-merge-groups{border-top:1px solid rgba(139,92,246,.13)!important;padding-top:7px!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-groups summary{color:#6b4bc2!important;font-size:10px!important;font-weight:700!important;cursor:pointer!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-list{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin-top:6px!important;max-height:88px!important;overflow:auto!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-merge-group{display:flex!important;align-items:center!important;gap:7px!important;max-width:100%!important;padding:5px 8px!important;border:1px solid rgba(139,92,246,.17)!important;border-radius:8px!important;background:rgba(255,255,255,.78)!important;color:#756c88!important;font-size:9px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-group{display:flex!important;align-items:center!important;gap:7px!important;max-width:100%!important;padding:5px 8px!important;border:1px solid rgba(139,92,246,.17)!important;border-radius:8px!important;background:rgba(255,255,255,.78)!important;color:#756c88!important;font:inherit!important;font-size:9px!important;text-align:left!important;cursor:pointer!important;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-group:hover{border-color:#9f85f5!important;background:#f4f0ff!important;box-shadow:0 5px 14px rgba(91,62,180,.11)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-group b{flex:0 0 auto!important;color:#6336cd!important;font-size:9px!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-group span{overflow:hidden!important;color:#756c88!important;font-size:9px!important;font-weight:500!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-item.is-group-highlighted{z-index:4!important;border-color:#7c3aed!important;background:linear-gradient(135deg,#f4efff,#fff)!important;box-shadow:0 0 0 3px rgba(124,58,237,.18),0 16px 34px rgba(91,62,180,.20)!important;transform:scale(1.012)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags .is-extension,#' + PANEL_ID + ' .pfh-ledger-tags .is-performance-group{border-color:#cabcf7!important;background:#f3efff!important;color:#6537ce!important;font-weight:700!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge{border-color:#a991f4!important;background:#f4f0ff!important;color:#6737d5!important;font-weight:650!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:hover{border-color:#7c3aed!important;background:#ebe4ff!important;color:#5525c4!important;}' +
@@ -7156,8 +7159,8 @@
     const kindLabels = { design: '设计 1.4 分', logo: '换/无 Logo 1 分', void: '作废 0.5 分', extension: '延伸 0.3 分' };
     const groups = Array.isArray(value.groups) ? value.groups : [];
     const groupHtml = groups.length
-      ? '<details class="pfh-ledger-merge-groups" open><summary>已合并 ' + escapeHtml(String(groups.length)) + ' 组，点击收起或展开组合明细</summary><div class="pfh-ledger-merge-list">' +
-        groups.map((group, index) => '<div class="pfh-ledger-merge-group"><b>合并组 ' + escapeHtml(String(index + 1)) + ' · ' + escapeHtml(kindLabels[group.kind] || '') + '</b><span title="' + escapeHtml((group.skus || []).join(' + ')) + '">' + escapeHtml((group.skus || []).join(' + ')) + '</span></div>').join('') +
+      ? '<details class="pfh-ledger-merge-groups"><summary>已合并 ' + escapeHtml(String(groups.length)) + ' 组，点击展开组合明细</summary><div class="pfh-ledger-merge-list">' +
+        groups.map((group, index) => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + escapeHtml(group.id) + '" title="高亮这一组的产品卡片"><b>合并组 ' + escapeHtml(String(index + 1)) + ' · ' + escapeHtml(kindLabels[group.kind] || '') + '</b><span>' + escapeHtml((group.skus || []).join(' + ')) + '</span></button>').join('') +
         '</div></details>'
       : '';
     return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>' + groupHtml + '</div>';
@@ -7170,6 +7173,26 @@
     if (!current) return;
     const records = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth());
     current.outerHTML = ledgerPerformanceHtml(summarizeLedgerPerformance(records));
+  }
+
+  function highlightLedgerPerformanceGroup(groupId) {
+    const id = String(groupId || '').trim();
+    const panel = document.getElementById(PANEL_ID);
+    if (!id || !panel) return;
+    const cards = Array.from(panel.querySelectorAll('.pfh-ledger-item[data-performance-group-id="' + cssEscape(id) + '"]'));
+    panel.querySelectorAll('.pfh-ledger-item.is-group-highlighted').forEach((card) => card.classList.remove('is-group-highlighted'));
+    if (!cards.length) {
+      showToast('当前列表中没有找到这一组合并产品');
+      return;
+    }
+    cards.forEach((card) => card.classList.add('is-group-highlighted'));
+    cards[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    window.clearTimeout(state.ledgerGroupHighlightTimer);
+    state.ledgerGroupHighlightTimer = window.setTimeout(() => {
+      cards.forEach((card) => card.classList.remove('is-group-highlighted'));
+      state.ledgerGroupHighlightTimer = 0;
+    }, 2600);
+    showToast('已高亮这一组的 ' + cards.length + ' 个产品');
   }
 
   function ledgerPerformanceMergeButtonHtml(records, selectedKeys) {
@@ -7221,7 +7244,7 @@
           ? '<button type="button" data-action="ledger-trash-empty"' + (records.length ? '' : ' disabled') + '>清空本月垃圾篓</button>'
           : mergePerformanceHtml +
             '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button>' +
-            '<button type="button" data-action="ledger-copy-finalized" title="复制今日定稿编码">复制编码</button>' +
+            '<button type="button" data-action="ledger-copy-selected" title="复制当前勾选的产品编码">复制选中编码</button>' +
             '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') +
       '</div>' +
       '<div class="pfh-ledger-list">' + rows + '</div>' +
@@ -7281,7 +7304,7 @@
         moreButton +
       '</div>';
     const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
-    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
+    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" data-performance-group-id="' + escapeHtml(record.performanceGroupId || '') + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
       selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
@@ -9781,8 +9804,8 @@
       copyLedgerTsv(state.ledgerDate);
       return;
     }
-    if (action === 'ledger-copy-finalized') {
-      copyFinalizedLedgerSkus(state.ledgerDate);
+    if (action === 'ledger-copy-selected') {
+      copySelectedFinalizedLedgerSkus();
       return;
     }
     if (action === 'ledger-copy-video') {
@@ -9799,6 +9822,10 @@
     }
     if (action === 'ledger-performance-merge' || action === 'ledger-performance-unmerge') {
       updateSelectedLedgerPerformanceGroups(action === 'ledger-performance-merge');
+      return;
+    }
+    if (action === 'ledger-highlight-performance-group') {
+      highlightLedgerPerformanceGroup(actionTarget.getAttribute('data-group-id'));
       return;
     }
     if (action === 'ledger-export') {
@@ -15346,15 +15373,17 @@
     showToast('本月登记已复制：' + rows.length + '条');
   }
 
-  function copyFinalizedLedgerSkus(dateKey) {
-    const today = getTodayKey();
-    const rows = getLedgerRecordsForMonth('finalized', normalizeLedgerMonth(today)).filter((item) => item.finalizedAt && item.status !== '作废' && getLedgerFinalizedDate(item) === today);
+  function copySelectedFinalizedLedgerSkus() {
+    const selected = new Set(state.ledgerSelectedKeys || []);
+    const rows = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())
+      .filter((item) => selected.has(getLedgerSelectionKey(item)));
     if (!rows.length) {
-      showToast('今天还没有已定稿编码');
+      showToast('请先勾选需要复制的产品');
       return;
     }
-    copyText(rows.map((item) => item.sku).filter(Boolean).join('\n'));
-    showToast('已复制今日定稿编码：' + rows.length + '个');
+    const skus = Array.from(new Set(rows.map((item) => item.sku).filter(Boolean)));
+    copyText(skus.join('\n'));
+    showToast('已复制选中编码：' + skus.length + '个');
   }
 
   function getLedgerSelectionKey(record) {
