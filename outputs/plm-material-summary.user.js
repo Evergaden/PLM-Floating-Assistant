@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.166
+// @version      2.5.167
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.166';
+  const SCRIPT_VERSION = '2.5.167';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -6080,6 +6080,7 @@
           return;
         }
         addLog('success', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
+        syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'food-copywriting', copywritingType: 'food', filledCount });
         showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u98df\u54c1\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
         return;
       }
@@ -6090,6 +6091,7 @@
           return;
         }
         addLog('success', '\u4ea7\u54c1\u6210\u5206\u8865\u5168\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
+        syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'product-ingredients', copywritingType: 'ingredients', filledCount });
         showToast('\u5df2\u8865\u5168 ' + filledCount + ' \u4e2a\u4e2d\u82f1\u6587\u6210\u5206\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
         return;
       }
@@ -6154,7 +6156,7 @@
       const saved = await saveProductDraftBeforeClose();
       if (!saved) throw new Error('\u6587\u6848\u5df2\u586b\u5199\uff0c\u4f46 PLM \u672a\u8fd4\u56de\u300c\u4fdd\u5b58\u6210\u529f\u300d');
       addLog('success', '\u73a9\u5177\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
-      syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'toy-copywriting', filledCount });
+      syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'toy-copywriting', copywritingType: 'toy', filledCount });
       showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u73a9\u5177\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
     } catch (error) {
       const message = formatErrorMessage(error) || '\u667a\u80fd\u8865\u5145\u5931\u8d25';

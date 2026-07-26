@@ -2634,7 +2634,7 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
     ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],
     ['表格生成总量', dashboard.excel_generated_total || 0], ['图包上传成功总量', dashboard.image_pack_upload_success_total || 0],
     ['玩具标签上传成功', dashboard.toy_label_upload_success_total || 0], ['生成尺寸图总量', dashboard.size_success || 0],
-    ['玩具文案智能补充', dashboard.toy_copywriting_supplement_success_total || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
+    ['文案智能补充总数', dashboard.toy_copywriting_supplement_success_total || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
   ].map((item) => '<div class="metric"><span>' + htmlEscape(item[0]) + '</span><b>' + htmlEscape(item[1]) + '</b></div>').join('');
   const notificationAdminSection = '<section class="card" id="notifications"><div class="cardhead"><h2>发布通知</h2><div class="sub">发送给所有安装新版脚本的用户；标题或内容包含“新版本 / 版本更新 / 更新提示 / 脚本更新”时，用户端会自动弹出并显示“去更新”。</div></div>' +
     '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：版本更新提示 v2.5.160"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +
