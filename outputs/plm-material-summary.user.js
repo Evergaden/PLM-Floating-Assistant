@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.164
+// @version      2.5.165
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.164';
+  const SCRIPT_VERSION = '2.5.165';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2907,6 +2907,7 @@
     ledgerSelectedKeys: [],
     ledgerMenuSku: '',
     ledgerMenuDate: '',
+    ledgerFullscreen: false,
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
     ledgerTabTransition: '',
@@ -5154,6 +5155,7 @@
   function renderShell(statusText) {
     const panel = ensurePanel();
     panel.dataset.view = state.view || 'home';
+    panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
     const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'unitConverter' || state.view === 'tools';
     if (main) {
@@ -5573,13 +5575,22 @@
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover .pfh-ledger-thumb{transform:translate3d(0,-1px,0) scale(1.025)!important;box-shadow:0 7px 16px rgba(83,60,168,.12)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-menu-open .pfh-ledger-more{position:relative!important;z-index:101!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-menu-open .pfh-ledger-overflow-menu{z-index:102!important;pointer-events:auto!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-overflow-menu button.is-active{background:#eee8ff!important;color:#6030cf!important;font-weight:700!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-performance{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-height:58px!important;padding:10px 16px!important;border:1px solid rgba(139,92,246,.20)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(248,245,255,.96),rgba(255,255,255,.94))!important;box-shadow:0 9px 24px rgba(91,62,180,.08)!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-performance>div{display:grid!important;gap:3px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance{display:grid!important;gap:8px!important;min-height:58px!important;padding:10px 16px!important;border:1px solid rgba(139,92,246,.20)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(248,245,255,.96),rgba(255,255,255,.94))!important;box-shadow:0 9px 24px rgba(91,62,180,.08)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance-summary>div{display:grid!important;gap:3px!important;min-width:0!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance span{color:#5e36cc!important;font-size:12px!important;font-weight:700!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-performance small{overflow:hidden!important;color:#8a83a3!important;font-size:10px!important;line-height:1.35!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance small{color:#8a83a3!important;font-size:10px!important;line-height:1.35!important;white-space:normal!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance strong{flex:0 0 auto!important;color:#6d35e8!important;font-size:27px!important;font-weight:750!important;line-height:1!important;letter-spacing:-.03em!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance strong::after{content:" 分"!important;margin-left:3px!important;color:#9b87db!important;font-size:10px!important;font-weight:600!important;letter-spacing:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-groups{border-top:1px solid rgba(139,92,246,.13)!important;padding-top:7px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-groups summary{color:#6b4bc2!important;font-size:10px!important;font-weight:700!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-list{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin-top:6px!important;max-height:88px!important;overflow:auto!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-group{display:flex!important;align-items:center!important;gap:7px!important;max-width:100%!important;padding:5px 8px!important;border:1px solid rgba(139,92,246,.17)!important;border-radius:8px!important;background:rgba(255,255,255,.78)!important;color:#756c88!important;font-size:9px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-group b{flex:0 0 auto!important;color:#6336cd!important;font-size:9px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-merge-group span{overflow:hidden!important;color:#756c88!important;font-size:9px!important;font-weight:500!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-tags .is-extension,#' + PANEL_ID + ' .pfh-ledger-tags .is-performance-group{border-color:#cabcf7!important;background:#f3efff!important;color:#6537ce!important;font-weight:700!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge{border-color:#a991f4!important;background:#f4f0ff!important;color:#6737d5!important;font-weight:650!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:hover{border-color:#7c3aed!important;background:#ebe4ff!important;color:#5525c4!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:disabled{border-color:#ded9ed!important;background:#f5f4f8!important;color:#aaa5b7!important;cursor:not-allowed!important;opacity:.72!important;}' +
@@ -5591,6 +5602,17 @@
       '#' + PANEL_ID + ' .pfh-ledger-trash-actions button.is-restore{border-color:#bdaaf7!important;background:#f2edff!important;color:#6433d5!important;font-weight:650!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-trash-actions button.is-delete{color:#a44c5c!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-trash{cursor:default!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-hero-actions{display:flex!important;align-items:center!important;gap:8px!important;margin-left:auto!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-hero-actions>span{white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-fullscreen-toggle{min-height:30px!important;padding:0 10px!important;border:1px solid rgba(124,58,237,.28)!important;border-radius:9px!important;background:#f4f0ff!important;color:#6232cf!important;font-size:11px!important;font-weight:700!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen{position:fixed!important;inset:12px!important;width:calc(100vw - 24px)!important;height:calc(100vh - 24px)!important;max-width:none!important;max-height:none!important;z-index:2147483647!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-resize-handle{display:none!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-list{gap:10px!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(430px,1fr))!important;gap:9px!important;align-items:start!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day>h4{grid-column:1/-1!important;margin-bottom:0!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-item{min-width:0!important;min-height:104px!important;padding:9px!important;}' +
+      '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-performance{padding:8px 13px!important;}' +
+      '@media(max-width:940px){#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-hero-actions>span{display:none!important;}}' +
       '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
     document.documentElement.appendChild(style);
   }
@@ -7087,30 +7109,39 @@
 
   function getLedgerPerformanceKind(record) {
     if (record && record.status === '作废') return 'void';
+    if (record && record.performanceType === 'extension') return 'extension';
     const designType = String(record && record.designType || '').replace(/\s+/g, '');
     return /(?:换|无)(?:logo|标识|商标)/i.test(designType) ? 'logo' : 'design';
   }
 
   function summarizeLedgerPerformance(records) {
-    const summary = { design: 0, logo: 0, void: 0, mergedGroups: 0, total: 0 };
+    const summary = { design: 0, logo: 0, void: 0, extension: 0, mergedGroups: 0, groups: [], total: 0 };
     const units = new Map();
-    const weight = { void: 5, logo: 10, design: 14 };
+    const weight = { extension: 3, void: 5, logo: 10, design: 14 };
     (records || []).forEach((record, index) => {
       const groupId = String(record && record.performanceGroupId || '').trim();
       const unitKey = groupId ? 'group:' + groupId : 'record:' + getLedgerSelectionKey(record) + ':' + index;
       const kind = getLedgerPerformanceKind(record);
       const current = units.get(unitKey);
-      if (!current) units.set(unitKey, { kind, count: 1, grouped: Boolean(groupId) });
+      if (!current) units.set(unitKey, { kind, count: 1, grouped: Boolean(groupId), groupId, records: [record] });
       else {
         current.count += 1;
+        current.records.push(record);
         if (weight[kind] > weight[current.kind]) current.kind = kind;
       }
     });
     units.forEach((unit) => {
       summary[unit.kind] += 1;
-      if (unit.grouped && unit.count > 1) summary.mergedGroups += 1;
+      if (unit.grouped && unit.count > 1) {
+        summary.mergedGroups += 1;
+        summary.groups.push({
+          id: unit.groupId,
+          kind: unit.kind,
+          skus: unit.records.map((record) => String(record && record.sku || '')).filter(Boolean),
+        });
+      }
     });
-    summary.total = (summary.design * 14 + summary.logo * 10 + summary.void * 5) / 10;
+    summary.total = (summary.design * 14 + summary.logo * 10 + summary.void * 5 + summary.extension * 3) / 10;
     return summary;
   }
 
@@ -7121,8 +7152,15 @@
 
   function ledgerPerformanceHtml(summary) {
     const value = summary || summarizeLedgerPerformance([]);
-    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5' + (value.mergedGroups ? ' · 已合并 ' + value.mergedGroups + ' 组' : '');
-    return '<div class="pfh-ledger-performance" aria-live="polite"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>';
+    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5 · 延伸 ' + value.extension + ' × 0.3';
+    const kindLabels = { design: '设计 1.4 分', logo: '换/无 Logo 1 分', void: '作废 0.5 分', extension: '延伸 0.3 分' };
+    const groups = Array.isArray(value.groups) ? value.groups : [];
+    const groupHtml = groups.length
+      ? '<details class="pfh-ledger-merge-groups" open><summary>已合并 ' + escapeHtml(String(groups.length)) + ' 组，点击收起或展开组合明细</summary><div class="pfh-ledger-merge-list">' +
+        groups.map((group, index) => '<div class="pfh-ledger-merge-group"><b>合并组 ' + escapeHtml(String(index + 1)) + ' · ' + escapeHtml(kindLabels[group.kind] || '') + '</b><span title="' + escapeHtml((group.skus || []).join(' + ')) + '">' + escapeHtml((group.skus || []).join(' + ')) + '</span></div>').join('') +
+        '</div></details>'
+      : '';
+    return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>' + groupHtml + '</div>';
   }
 
   function refreshLedgerPerformanceSummary() {
@@ -7155,17 +7193,19 @@
   function ledgerViewHtml(records) {
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const groups = groupLedgerRecordsByDate(records, mode === 'trash' ? 'design' : mode);
-    const performanceHtml = mode === 'finalized' ? ledgerPerformanceHtml(summarizeLedgerPerformance(records)) : '';
+    const performanceSummary = mode === 'finalized' ? summarizeLedgerPerformance(records) : null;
+    const performanceHtml = performanceSummary ? ledgerPerformanceHtml(performanceSummary) : '';
+    const performanceGroupLabels = new Map((performanceSummary && performanceSummary.groups || []).map((group, index) => [group.id, '合并组 ' + (index + 1)]));
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
     const mergePerformanceHtml = mode === 'finalized' ? ledgerPerformanceMergeButtonHtml(records, selectedKeys) : '';
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
-      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode)).join('') + '</section>';
+      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupLabels)).join('') + '</section>';
     }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。')) + '</div>';
     const month = getCurrentLedgerMonth();
     return '<div class="pfh-detail-scroll"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span></div>' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs">' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
         '<button type="button" class="' + (mode === 'finalized' ? 'is-active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
@@ -7189,7 +7229,7 @@
       '</section></div>';
   }
 
-  function ledgerRowHtml(record, mode) {
+  function ledgerRowHtml(record, mode, performanceGroupLabels) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
     const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : (record.skuImageUrl || record.benchmarkImageUrl);
@@ -7217,6 +7257,8 @@
       '<button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + escapeHtml(sku) + '" title="点击复制产品编码">' + escapeHtml(sku) + '</button>' +
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
       (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
+      (record.performanceType === 'extension' ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : '') +
+      (performanceGroupLabels && performanceGroupLabels.get(record.performanceGroupId) ? '<span class="is-performance-group" title="此编码已合并绩效">' + escapeHtml(performanceGroupLabels.get(record.performanceGroupId)) + '</span>' : '') +
       '</div>';
     const assignmentHtml = '<div class="pfh-ledger-assignment">' + escapeHtml(dateText) +
       (mode === 'finalized' ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">改时间</button>' : '') +
@@ -7269,7 +7311,10 @@
       renderShell();
       return;
     }
-    card.outerHTML = ledgerRowHtml(record, mode);
+    const performanceGroupLabels = mode === 'finalized'
+      ? new Map(summarizeLedgerPerformance(getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())).groups.map((group, index) => [group.id, '合并组 ' + (index + 1)]))
+      : null;
+    card.outerHTML = ledgerRowHtml(record, mode, performanceGroupLabels);
   }
 
   function ledgerTrashRowHtml(record) {
@@ -7307,6 +7352,7 @@
       ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回定稿</button>'
       : (imageGenerated ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回出图</button>' : '');
     return '<div class="pfh-ledger-overflow-menu">' + rollback +
+      '<button type="button" class="' + (record.performanceType === 'extension' ? 'is-active' : '') + '" data-action="ledger-extension" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + (record.performanceType === 'extension' ? '取消延伸（当前 0.3）' : '延伸（绩效 0.3）') + '</button>' +
       '<button type="button" data-action="ledger-void" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">作废</button>' +
       '<button type="button" data-action="ledger-done" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">完成</button>' +
       '<button type="button" data-action="ledger-remove" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">移除</button>' +
@@ -9726,6 +9772,11 @@
       renderShell();
       return;
     }
+    if (action === 'ledger-fullscreen-toggle') {
+      state.ledgerFullscreen = !state.ledgerFullscreen;
+      renderShell();
+      return;
+    }
     if (action === 'ledger-copy') {
       copyLedgerTsv(state.ledgerDate);
       return;
@@ -9779,7 +9830,7 @@
       else renderShell();
       return;
     }
-    if (action === 'ledger-image-generated' || action === 'ledger-unmark-image-generated' || action === 'ledger-finalize' || action === 'ledger-unfinalize' || action === 'ledger-void' || action === 'ledger-done' || action === 'ledger-remove') {
+    if (action === 'ledger-image-generated' || action === 'ledger-unmark-image-generated' || action === 'ledger-finalize' || action === 'ledger-unfinalize' || action === 'ledger-extension' || action === 'ledger-void' || action === 'ledger-done' || action === 'ledger-remove') {
       const options = {};
       if (action === 'ledger-finalize') {
         const card = actionTarget.closest('.pfh-ledger-item');
@@ -9853,6 +9904,7 @@
       }
       const returnView = state.detailReturnView || '';
       const returnScroll = state.detailReturnScroll;
+      if (state.view === 'ledger' && returnView !== 'ledger') state.ledgerFullscreen = false;
       state.view = returnView || 'home';
       state.detailReturnView = '';
       state.detailReturnScroll = null;
@@ -10158,6 +10210,12 @@
   }
 
   function handlePanelKeydown(event) {
+    if (state.view === 'ledger' && state.ledgerFullscreen && event.key === 'Escape') {
+      event.preventDefault();
+      state.ledgerFullscreen = false;
+      renderShell();
+      return;
+    }
     if (state.skuEditMode && event.target && event.target.matches && event.target.matches('[data-sku-edit-key]')) {
       if (event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
@@ -15075,6 +15133,7 @@
       designAssignedAt: String(item.designAssignedAt || '').slice(0, 80),
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
       performanceGroupId: String(item.performanceGroupId || '').slice(0, 80),
+      performanceType: item.performanceType === 'extension' ? 'extension' : '',
       packageCode: String(item.packageCode || '').slice(0, 120),
       printCode: String(item.printCode || '').slice(0, 180),
       purchasePrice: normalizeLedgerPurchasePrice(item.purchasePrice),
@@ -15243,6 +15302,7 @@
       labelFileDone: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)) === 'done',
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
       filesAutoCompleted: opts.filesAutoCompleted !== undefined ? Boolean(opts.filesAutoCompleted) : Boolean(existing && existing.filesAutoCompleted),
+      performanceType: opts.performanceType !== undefined ? (opts.performanceType === 'extension' ? 'extension' : '') : ((existing && existing.performanceType) || ''),
       status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
       stage: opts.stage || (existing && existing.stage) || '待定稿',
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
@@ -15437,18 +15497,23 @@
         ? { status: '待出图', stage: '待出图', imageGeneratedAt: '', imageGeneratedAtMs: 0, note: '已撤回出图' }
         : action === 'ledger-unfinalize'
           ? { status: '待定稿', stage: '待定稿', finalizedAt: '', finalizedDate: '', finalizedAtMs: 0, note: '已撤回定稿' }
+        : action === 'ledger-extension'
+          ? {
+            performanceType: existing && existing.performanceType === 'extension' ? '' : 'extension',
+            note: existing && existing.performanceType === 'extension' ? '已取消延伸绩效' : '延伸绩效按 0.3 计算',
+          }
           : action === 'ledger-finalize'
             ? { status: '已定稿', stage: '已定稿', finalizedAt: today, finalizedDate: todayKey, finalizedAtMs: Date.now(), note: '手动定稿' }
-      : action === 'ledger-void'
-        ? {
-          status: '作废',
-          stage: '作废',
-          finalizedAt: existing && existing.finalizedAt || today,
-          finalizedDate: existing && existing.finalizedDate || todayKey,
-          finalizedAtMs: Number(existing && existing.finalizedAtMs) || Date.now(),
-          note: '手动作废',
-        }
-        : { status: '已完成', stage: '完成', note: '手动完成', filesAutoCompleted: false };
+            : action === 'ledger-void'
+              ? {
+                status: '作废',
+                stage: '作废',
+                finalizedAt: existing && existing.finalizedAt || today,
+                finalizedDate: existing && existing.finalizedDate || todayKey,
+                finalizedAtMs: Number(existing && existing.finalizedAtMs) || Date.now(),
+                note: '手动作废',
+              }
+              : { status: '已完成', stage: '完成', note: '手动完成', filesAutoCompleted: false };
     const opts = options || {};
     const finalPatch = opts.purchasePrice ? { ...patch, purchasePrice: opts.purchasePrice } : patch;
     const updatedRecord = updateDailyLedgerForSku(sku, finalPatch, key);
@@ -15462,6 +15527,7 @@
     }
     refreshLedgerCard(updatedRecord);
     refreshLedgerPerformanceSummary();
+    if (action === 'ledger-extension') showToast(updatedRecord && updatedRecord.performanceType === 'extension' ? '已设为延伸，绩效按 0.3 分计算' : '已取消延伸绩效');
     if (action === 'ledger-finalize') scheduleDesktopBridgeSnapshot();
   }
 
