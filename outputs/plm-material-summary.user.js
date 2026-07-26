@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.170
+// @version      2.5.171
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.170';
+  const SCRIPT_VERSION = '2.5.171';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1478,7 +1478,7 @@
   const SETTINGS_KEY = 'plm-floating-helper:settings';
   const DEFAULT_THEME_ID = 'default';
   const THEME_OPTIONS = Object.freeze([
-    { id: 'default', name: '默认', primary: '#9a92d8', primaryHover: '#7169b5', primarySoft: '#f2f0ff', secondary: '#78b7c2', secondarySoft: '#edf8f9', page: '#fbfcff', surface: '#ffffff', surfaceAlt: '#f8f9fd', border: '#e1e4f0', borderStrong: '#cbc9e8', text: '#4e506e', muted: '#8589a0', header: '#f6f6fc' },
+    { id: 'default', name: '默认', primary: '#7c3aed', primaryHover: '#5b21b6', primarySoft: '#f3efff', secondary: '#0891b2', secondarySoft: '#e8f7fa', page: '#fafbff', surface: '#ffffff', surfaceAlt: '#f7f8fc', border: '#d8deea', borderStrong: '#b9a8ed', text: '#1f2937', muted: '#64748b', header: '#f5f7fb' },
     { id: 'gold', name: '金黄色', primary: '#d8bd78', primaryHover: '#a78d4f', primarySoft: '#fff9e7', secondary: '#c5a976', secondarySoft: '#fff7e8', page: '#fffdf8', surface: '#fffefa', surfaceAlt: '#fffbf0', border: '#eee5ca', borderStrong: '#ddc98f', text: '#665a3f', muted: '#9e9273', header: '#fff8df' },
     { id: 'light-orange', name: '浅橙色', primary: '#e3a276', primaryHover: '#b87850', primarySoft: '#fff4ed', secondary: '#d9b07d', secondarySoft: '#fff7eb', page: '#fffdfb', surface: '#ffffff', surfaceAlt: '#fff9f4', border: '#f0dfd1', borderStrong: '#e5bfa6', text: '#6c574b', muted: '#a08b7f', header: '#fff4eb' },
     { id: 'brick-red', name: '砖红色', primary: '#c68c82', primaryHover: '#a4665d', primarySoft: '#fff2ef', secondary: '#c38383', secondarySoft: '#fff0f0', page: '#fffdfc', surface: '#ffffff', surfaceAlt: '#fff8f7', border: '#eedbd8', borderStrong: '#dfb8b0', text: '#664b49', muted: '#9c807d', header: '#ffefec' },
@@ -2538,6 +2538,37 @@
     @keyframes pfh-theme-tab-design-trash{0%{transform:translateX(0)}62%{transform:translateX(208%)}100%{transform:translateX(200%)}}
     @keyframes pfh-theme-tab-trash-design{0%{transform:translateX(200%)}62%{transform:translateX(-8%)}100%{transform:translateX(0)}}
     @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{animation:none!important;transition:none!important;}#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{transition:none!important;}}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{display:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator{position:absolute!important;z-index:0!important;top:4px!important;left:4px!important;width:calc((100% - 8px) / 3)!important;height:calc(100% - 8px)!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 8px 18px var(--pfh-theme-primary-soft)!important;pointer-events:none!important;will-change:transform;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"],
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"] .pfh-icon,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"] svg,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"] svg *,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] .pfh-icon,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg *{color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;background:transparent!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-generate"],
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-generate"]{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-weight:800!important;line-height:1!important;text-shadow:none!important;opacity:1!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-button,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-excel-price{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:0 12px 28px var(--pfh-theme-primary-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button{border-color:transparent!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button:hover,
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button.is-active{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-status{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-secondary-soft)!important;color:var(--pfh-theme-secondary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit{width:104px!important;height:104px!important;overflow:visible!important;isolation:isolate!important;background:transparent!important;border:0!important;box-shadow:none!important;animation:pfh-theme-star-breathe 4.8s ease-in-out infinite!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit .wave{display:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before{inset:8px!important;border:1px solid var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% 1%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 93% 31%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 76% 86%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 18% 80%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 5% 34%,var(--pfh-theme-primary) 0 1.8px,transparent 2.8px)!important;-webkit-mask:none!important;mask:none!important;box-shadow:0 0 0 1px var(--pfh-theme-primary-soft),0 0 24px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring 6.8s linear infinite!important;z-index:2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after{inset:21px!important;border:1px solid var(--pfh-theme-border)!important;background:transparent!important;box-shadow:0 0 18px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring-reverse 5.2s linear infinite!important;z-index:1!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{inset:auto!important;left:50%!important;top:50%!important;width:22px!important;height:22px!important;z-index:3!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;transform:translate(-50%,-50%);animation:pfh-theme-star-twinkle 2.8s ease-in-out infinite!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span::before{content:"✦";position:absolute;inset:0;color:var(--pfh-theme-primary)!important;font-size:27px!important;line-height:22px!important;text-align:center;text-shadow:0 0 12px var(--pfh-theme-primary-soft);}
+    @keyframes pfh-theme-star-breathe{0%,100%{opacity:.82}50%{opacity:1}}
+    @keyframes pfh-theme-star-ring{to{transform:rotate(360deg)}}
+    @keyframes pfh-theme-star-ring-reverse{to{transform:rotate(-360deg)}}
+    @keyframes pfh-theme-star-twinkle{0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.7}50%{transform:translate(-50%,-50%) scale(1.08);opacity:1}}
+    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tab-indicator,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{animation:none!important;}}
     #${PANEL_ID}[data-pfh-theme] :where(
       [data-action="search"],[data-action="excel-generate"],[data-action="upload-start"],
       [data-action="toy-label-queue-add"],[data-action="parameter-image-save"],
@@ -5792,6 +5823,41 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
+    animateLedgerTabIndicator(detail);
+  }
+
+  function getLedgerTabIndex(mode) {
+    return mode === 'finalized' ? 1 : (mode === 'trash' ? 2 : 0);
+  }
+
+  function animateLedgerTabIndicator(detail) {
+    const tabs = detail && detail.querySelector('.pfh-ledger-tabs');
+    const indicator = tabs && tabs.querySelector('.pfh-ledger-tab-indicator');
+    if (!tabs || !indicator) return;
+    const from = tabs.getAttribute('data-tab-from');
+    const to = tabs.getAttribute('data-active-tab') || 'design';
+    const targetIndex = getLedgerTabIndex(to);
+    const targetTransform = 'translateX(' + (targetIndex * 100) + '%)';
+    if (!from || from === to || !indicator.animate || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      indicator.style.transform = targetTransform;
+      return;
+    }
+    const fromIndex = getLedgerTabIndex(from);
+    const direction = targetIndex >= fromIndex ? 1 : -1;
+    const overshootTransform = 'translateX(' + (targetIndex * 100 + direction * 8) + '%)';
+    const fromTransform = 'translateX(' + (fromIndex * 100) + '%)';
+    indicator.style.transform = fromTransform;
+    window.requestAnimationFrame(() => {
+      if (!indicator.isConnected) return;
+      const animation = indicator.animate([
+        { transform: fromTransform },
+        { transform: overshootTransform, offset: .62 },
+        { transform: targetTransform }
+      ], { duration: 720, easing: 'cubic-bezier(.16,1.42,.3,1)', fill: 'forwards' });
+      if (animation.finished) animation.finished.then(() => {
+        if (indicator.isConnected) indicator.style.transform = targetTransform;
+      }).catch(() => {});
+    });
   }
 
   function ensureContinuousListScrollStyles() {
@@ -7483,6 +7549,7 @@
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
       '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '"' + (state.ledgerTabTransitionFrom && state.ledgerTabTransitionFrom !== mode ? ' data-tab-from="' + state.ledgerTabTransitionFrom + '"' : '') + '>' +
+        '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
         '<button type="button" class="' + (mode === 'finalized' ? 'is-active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
         '<button type="button" class="' + (mode === 'trash' ? 'is-active' : '') + (state.ledgerTabTransition === 'trash' ? ' is-tab-transition' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
