@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.178
+// @version      2.5.179
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.178';
+  const SCRIPT_VERSION = '2.5.179';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1702,7 +1702,9 @@
     cloudAssetCache = nextCache;
     applyCloudAssetCache(nextCache);
     const panel = document.getElementById(PANEL_ID);
-    if (panel) renderShell();
+    if (panel) {
+      if (!refreshUploadViewInPlace(panel)) renderShell();
+    }
     addLog('success', '\u4e91\u7aef\u8d44\u6e90\u5df2\u66f4\u65b0', nextCache.dataVersion);
     return nextCache;
   }
@@ -3554,7 +3556,10 @@
       state.uploadQueue = loadUploadQueue();
       state.uploadHistory = loadUploadHistory();
       state.uploadRunning = loadUploadWorkerRunning();
-      if (state.view === 'upload' || state.uploadExpanded) renderShell();
+      if (state.view === 'upload') {
+        if (!refreshUploadViewInPlace(ensurePanel())) renderShell();
+      }
+      else if (state.uploadExpanded) renderShell();
     };
     const scheduleRefresh = (resetHistoryPage) => {
       if (resetHistoryPage && state.uploadView === 'history') state.uploadHistoryPage = 1;
@@ -5787,6 +5792,12 @@
     const nextBody = template.content.querySelector('.pfh-upload-body');
     const nextTabs = nextBody && nextBody.querySelector('.pfh-upload-mode-tabs');
     if (!nextBody || !nextTabs) return false;
+    const currentSection = currentBody.closest('.pfh-upload-section');
+    const nextSection = nextBody.closest('.pfh-upload-section');
+    const currentStatus = currentSection && currentSection.querySelector('.pfh-upload-status');
+    const nextStatus = nextSection && nextSection.querySelector('.pfh-upload-status');
+    if (currentSection && nextSection) currentSection.className = nextSection.className;
+    if (currentStatus && nextStatus) currentStatus.textContent = nextStatus.textContent;
     currentTabs.className = nextTabs.className;
     currentTabs.setAttribute('data-active-mode', state.uploadMode || 'standard');
     currentTabs.querySelectorAll('button[data-action="upload-mode"]').forEach((button) => {
@@ -5796,6 +5807,13 @@
     const nextChildren = Array.from(nextBody.children);
     const nextTabsIndex = nextChildren.indexOf(nextTabs);
     nextChildren.slice(nextTabsIndex + 1).forEach((node) => currentBody.appendChild(node));
+    return true;
+  }
+
+  function refreshUploadViewInPlace(panel) {
+    if (!panel || state.view !== 'upload') return false;
+    if (!renderUploadModeContent(panel)) return false;
+    renderUploadProgressOverlay(panel);
     return true;
   }
 
