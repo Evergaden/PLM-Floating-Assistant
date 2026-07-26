@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.175
+// @version      2.5.176
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.175';
+  const SCRIPT_VERSION = '2.5.176';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2549,17 +2549,16 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button:hover,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button.is-active{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-status{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-secondary-soft)!important;color:var(--pfh-theme-secondary)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit{width:104px!important;height:104px!important;overflow:visible!important;isolation:isolate!important;background:transparent!important;border:0!important;box-shadow:none!important;animation:pfh-theme-star-breathe 4.8s ease-in-out infinite!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit{width:104px!important;height:104px!important;overflow:visible!important;isolation:isolate!important;background:transparent!important;border:0!important;box-shadow:none!important;animation:pfh-theme-star-breathe 4.2s ease-in-out infinite!important;animation-play-state:running!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit .wave{display:none!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before{inset:8px!important;border:1px solid var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% 1%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 93% 31%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 76% 86%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 18% 80%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 5% 34%,var(--pfh-theme-primary) 0 1.8px,transparent 2.8px)!important;-webkit-mask:none!important;mask:none!important;box-shadow:0 0 0 1px var(--pfh-theme-primary-soft),0 0 24px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring 6.8s linear infinite!important;z-index:2!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after{inset:21px!important;border:1px solid var(--pfh-theme-border)!important;background:transparent!important;box-shadow:0 0 18px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring-reverse 5.2s linear infinite!important;z-index:1!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{inset:auto!important;left:50%!important;top:50%!important;width:22px!important;height:22px!important;z-index:3!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;transform:translate(-50%,-50%);animation:pfh-theme-star-twinkle 2.8s ease-in-out infinite!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before{inset:8px!important;border:1px solid var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% 1%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 93% 31%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 76% 86%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 18% 80%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 5% 34%,var(--pfh-theme-primary) 0 1.8px,transparent 2.8px)!important;-webkit-mask:none!important;mask:none!important;box-shadow:0 0 0 1px var(--pfh-theme-primary-soft),0 0 24px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring 5.4s linear infinite!important;animation-play-state:running!important;z-index:2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after{inset:21px!important;border:1px solid var(--pfh-theme-border)!important;background:transparent!important;box-shadow:0 0 18px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring-reverse 4.6s linear infinite!important;animation-play-state:running!important;z-index:1!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{inset:auto!important;left:50%!important;top:50%!important;width:22px!important;height:22px!important;z-index:3!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;transform:translate(-50%,-50%);animation:pfh-theme-star-twinkle 2.2s ease-in-out infinite!important;animation-play-state:running!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span::before{content:"✦";position:absolute;inset:0;color:var(--pfh-theme-primary)!important;font-size:27px!important;line-height:22px!important;text-align:center;text-shadow:0 0 12px var(--pfh-theme-primary-soft);}
     @keyframes pfh-theme-star-breathe{0%,100%{opacity:.82}50%{opacity:1}}
     @keyframes pfh-theme-star-ring{to{transform:rotate(360deg)}}
     @keyframes pfh-theme-star-ring-reverse{to{transform:rotate(-360deg)}}
     @keyframes pfh-theme-star-twinkle{0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.7}50%{transform:translate(-50%,-50%) scale(1.08);opacity:1}}
-    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{animation:none!important;}}
     #${PANEL_ID}[data-pfh-theme] :where(
       [data-action="search"],[data-action="excel-generate"],[data-action="upload-start"],
       [data-action="toy-label-queue-add"],[data-action="parameter-image-save"],
