@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.167
+// @version      2.5.168
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,9 +32,9 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.167';
+  const SCRIPT_VERSION = '2.5.168';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.136';
+  const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '8';
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -5275,9 +5275,33 @@
     const selectors = ['.pfh-sku-scroll', '.pfh-detail-scroll', '.pfh-upload-list', '.pfh-ledger-list'];
     return selectors.reduce((snapshot, selector) => {
       const node = panel && panel.querySelector(selector);
-      if (node) snapshot[selector] = { top: node.scrollTop, left: node.scrollLeft };
+      if (node) snapshot[selector] = {
+        top: node.scrollTop,
+        left: node.scrollLeft,
+        context: node.getAttribute('data-scroll-context') || '',
+        anchor: capturePanelScrollAnchor(node, selector),
+      };
       return snapshot;
     }, {});
+  }
+
+  function capturePanelScrollAnchor(node, selector) {
+    const itemSelector = selector === '.pfh-sku-scroll'
+      ? '.pfh-sku[data-sku],.pfh-sku-waterfall-card[data-sku]'
+      : (selector === '.pfh-ledger-list' ? '.pfh-ledger-item[data-ledger-sku]' : '');
+    if (!itemSelector || !node) return null;
+    const containerRect = node.getBoundingClientRect();
+    const item = Array.from(node.querySelectorAll(itemSelector)).find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      return rect.bottom > containerRect.top + 1 && rect.top < containerRect.bottom - 1;
+    });
+    if (!item) return null;
+    const rect = item.getBoundingClientRect();
+    return {
+      sku: item.getAttribute('data-sku') || item.getAttribute('data-ledger-sku') || '',
+      date: item.getAttribute('data-ledger-date') || '',
+      offset: rect.top - containerRect.top,
+    };
   }
 
   function restorePanelScroll(panel, snapshot) {
@@ -5287,8 +5311,22 @@
         const node = panel && panel.querySelector(selector);
         const pos = snapshot[selector];
         if (!node || !pos) return;
-        node.scrollTop = pos.top || 0;
+        const context = node.getAttribute('data-scroll-context') || '';
+        const sameContext = !pos.context || !context || pos.context === context;
+        node.scrollTop = sameContext ? (pos.top || 0) : 0;
         node.scrollLeft = pos.left || 0;
+        if (!sameContext || !pos.anchor || !pos.anchor.sku) return;
+        window.requestAnimationFrame(() => {
+          const anchor = Array.from(node.querySelectorAll(selector === '.pfh-sku-scroll'
+            ? '.pfh-sku[data-sku],.pfh-sku-waterfall-card[data-sku]'
+            : '.pfh-ledger-item[data-ledger-sku]')).find((item) =>
+            (item.getAttribute('data-sku') || item.getAttribute('data-ledger-sku') || '') === pos.anchor.sku
+            && (!pos.anchor.date || item.getAttribute('data-ledger-date') === pos.anchor.date)
+          );
+          if (!anchor) return;
+          const delta = anchor.getBoundingClientRect().top - node.getBoundingClientRect().top - Number(pos.anchor.offset || 0);
+          if (Math.abs(delta) > 1) node.scrollTop += delta;
+        });
       });
     });
   }
@@ -5466,6 +5504,7 @@
   }
 
   function renderSkuList(panel) {
+    ensureContinuousListScrollStyles();
     const list = panel.querySelector('.pfh-list');
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
@@ -5477,6 +5516,7 @@
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
     const listTitle = state.view === 'sizeImage' ? '\u5c3a\u5bf8\u56fe SKU' : (state.view === 'parameterImage' ? '\u53c2\u6570\u56fe SKU' : 'SKU\u5217\u8868');
     const listSort = getSkuListSort();
+    const skuScrollContext = ['sku', state.view, listMode, listSort, state.skuPage, query].join('|');
     const listSortLabel = listSort === 'acquired' ? '\u83b7\u53d6\u65f6\u95f4' : '\u5206\u914d\u65f6\u95f4';
     const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
       '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
@@ -5491,7 +5531,7 @@
     const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
-      list.innerHTML = listHead + '<div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
+      list.innerHTML = listHead + '<div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
       return;
     }
     const searchToolbar = searchTokens.length
@@ -5516,7 +5556,7 @@
         ([item.brand, item.name].filter(Boolean).join(' ') ? '<small>' + escapeHtml([item.brand, item.name].filter(Boolean).join(' ')) + '</small>' : '') +
         '</button>';
     }).join('');
-    list.innerHTML = listHead + '<div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager;
+    list.innerHTML = listHead + '<div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager;
   }
 
   function renderHome(panel, statusText) {
@@ -5550,6 +5590,7 @@
   }
 
   function renderLedger(panel) {
+    ensureContinuousListScrollStyles();
     ensureLedgerInteractionStyles();
     const list = panel.querySelector('.pfh-list');
     const detail = panel.querySelector('.pfh-detail');
@@ -5557,6 +5598,21 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
+  }
+
+  function ensureContinuousListScrollStyles() {
+    const styleId = PANEL_ID + '-continuous-list-scroll-styles';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent =
+      '#' + PANEL_ID + '[data-view="ledger"] .pfh-detail-scroll{height:100%!important;min-height:0!important;overflow:hidden!important;}' +
+      '#' + PANEL_ID + '[data-view="ledger"] .pfh-ledger-page{height:100%!important;min-height:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-list,#' + PANEL_ID + ' .pfh-sku-scroll{overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior-y:contain!important;scrollbar-gutter:stable!important;-webkit-overflow-scrolling:touch;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-list{scroll-padding-block:34px 10px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-day>h4{position:sticky!important;top:0!important;z-index:8!important;min-height:28px!important;margin:0 -2px 1px!important;padding:5px 8px!important;border:1px solid rgba(211,204,255,.34)!important;border-radius:9px!important;background:rgba(250,249,255,.94)!important;box-shadow:0 5px 12px rgba(76,60,132,.06)!important;backdrop-filter:blur(12px)!important;}' +
+      '#' + PANEL_ID + ' .pfh-sku-scroll{scroll-padding-block:8px!important;}';
+    document.documentElement.appendChild(style);
   }
 
   function ensureLedgerInteractionStyles() {
@@ -7229,7 +7285,8 @@
       return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupLabels)).join('') + '</section>';
     }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。')) + '</div>';
     const month = getCurrentLedgerMonth();
-    return '<div class="pfh-detail-scroll"><section class="pfh-ledger-page">' +
+    const ledgerScrollContext = ['ledger', mode, month].join('|');
+    return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
       '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs">' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
@@ -7249,7 +7306,7 @@
             '<button type="button" data-action="ledger-copy-selected" title="复制当前勾选的产品编码">复制选中编码</button>' +
             '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') +
       '</div>' +
-      '<div class="pfh-ledger-list">' + rows + '</div>' +
+      '<div class="pfh-ledger-list" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '">' + rows + '</div>' +
       ledgerTimeEditorHtml() +
       '</section></div>';
   }
