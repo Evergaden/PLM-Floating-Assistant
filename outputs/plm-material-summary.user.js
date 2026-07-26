@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.171
+// @version      2.5.172
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.171';
+  const SCRIPT_VERSION = '2.5.172';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2523,8 +2523,9 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-active-tab="design"]::before{transform:translateX(0);}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-active-tab="finalized"]::before{transform:translateX(100%);}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-active-tab="trash"]::before{transform:translateX(200%);}
-    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{position:relative!important;z-index:1!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .72s cubic-bezier(.16,1.42,.3,1)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{position:relative!important;z-index:1!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active,
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="design"][data-active-tab="finalized"]::before{animation:pfh-theme-tab-design-finalized .72s cubic-bezier(.16,1.42,.3,1) both;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="finalized"][data-active-tab="design"]::before{animation:pfh-theme-tab-finalized-design .72s cubic-bezier(.16,1.42,.3,1) both;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs[data-tab-from="finalized"][data-active-tab="trash"]::before{animation:pfh-theme-tab-finalized-trash .72s cubic-bezier(.16,1.42,.3,1) both;}
@@ -2539,7 +2540,12 @@
     @keyframes pfh-theme-tab-trash-design{0%{transform:translateX(200%)}62%{transform:translateX(-8%)}100%{transform:translateX(0)}}
     @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{animation:none!important;transition:none!important;}#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button{transition:none!important;}}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{display:none!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator{position:absolute!important;z-index:0!important;top:4px!important;left:4px!important;width:calc((100% - 8px) / 3)!important;height:calc(100% - 8px)!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 8px 18px var(--pfh-theme-primary-soft)!important;pointer-events:none!important;will-change:transform;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator{position:absolute!important;z-index:0!important;top:4px!important;left:4px;width:calc((100% - 8px) / 3);height:calc(100% - 8px)!important;border:0!important;border-radius:99px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 8px 18px var(--pfh-theme-primary-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button:active{transform:scale(.94)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button::after{content:'';position:absolute;inset:0;border-radius:99px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button:hover::after{opacity:1;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active::after,
+    #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
@@ -2568,7 +2574,7 @@
     @keyframes pfh-theme-star-ring{to{transform:rotate(360deg)}}
     @keyframes pfh-theme-star-ring-reverse{to{transform:rotate(-360deg)}}
     @keyframes pfh-theme-star-twinkle{0%,100%{transform:translate(-50%,-50%) scale(.86);opacity:.7}50%{transform:translate(-50%,-50%) scale(1.08);opacity:1}}
-    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tab-indicator,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{animation:none!important;}}
+    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-ledger-tab-indicator{transition:none!important;}#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after,#${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{animation:none!important;}}
     #${PANEL_ID}[data-pfh-theme] :where(
       [data-action="search"],[data-action="excel-generate"],[data-action="upload-start"],
       [data-action="toy-label-queue-add"],[data-action="parameter-image-save"],
@@ -5823,41 +5829,46 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
-    animateLedgerTabIndicator(detail);
+    setupLedgerTabFusion(detail);
   }
 
-  function getLedgerTabIndex(mode) {
-    return mode === 'finalized' ? 1 : (mode === 'trash' ? 2 : 0);
-  }
-
-  function animateLedgerTabIndicator(detail) {
+  function setupLedgerTabFusion(detail) {
     const tabs = detail && detail.querySelector('.pfh-ledger-tabs');
     const indicator = tabs && tabs.querySelector('.pfh-ledger-tab-indicator');
     if (!tabs || !indicator) return;
-    const from = tabs.getAttribute('data-tab-from');
-    const to = tabs.getAttribute('data-active-tab') || 'design';
-    const targetIndex = getLedgerTabIndex(to);
-    const targetTransform = 'translateX(' + (targetIndex * 100) + '%)';
-    if (!from || from === to || !indicator.animate || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
-      indicator.style.transform = targetTransform;
+    const buttons = Array.from(tabs.querySelectorAll('button[data-action^="ledger-view-"]'));
+    const getButtonForMode = (mode) => tabs.querySelector('[data-action="ledger-view-' + (mode === 'finalized' ? 'finalized' : (mode === 'trash' ? 'trash' : 'design')) + '"]');
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.left = button.offsetLeft + 'px';
+      indicator.style.width = button.offsetWidth + 'px';
+    };
+    buttons.forEach((button) => {
+      button.addEventListener('mousemove', (event) => {
+        const rect = button.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        button.style.setProperty('--mx', ((event.clientX - rect.left) / rect.width * 100) + '%');
+        button.style.setProperty('--my', ((event.clientY - rect.top) / rect.height * 100) + '%');
+      });
+      button.addEventListener('click', () => {
+        buttons.forEach((item) => item.classList.remove('active', 'is-active'));
+        button.classList.add('active', 'is-active');
+        moveIndicator(button);
+      });
+    });
+    const activeButton = tabs.querySelector('button.is-active,button.active') || buttons[0];
+    const sourceButton = tabs.hasAttribute('data-tab-from') ? getButtonForMode(tabs.getAttribute('data-tab-from')) : null;
+    if (!activeButton) return;
+    if (sourceButton && sourceButton !== activeButton) {
+      indicator.style.transition = 'none';
+      moveIndicator(sourceButton);
+      window.requestAnimationFrame(() => {
+        indicator.style.transition = '';
+        window.requestAnimationFrame(() => moveIndicator(activeButton));
+      });
       return;
     }
-    const fromIndex = getLedgerTabIndex(from);
-    const direction = targetIndex >= fromIndex ? 1 : -1;
-    const overshootTransform = 'translateX(' + (targetIndex * 100 + direction * 8) + '%)';
-    const fromTransform = 'translateX(' + (fromIndex * 100) + '%)';
-    indicator.style.transform = fromTransform;
-    window.requestAnimationFrame(() => {
-      if (!indicator.isConnected) return;
-      const animation = indicator.animate([
-        { transform: fromTransform },
-        { transform: overshootTransform, offset: .62 },
-        { transform: targetTransform }
-      ], { duration: 720, easing: 'cubic-bezier(.16,1.42,.3,1)', fill: 'forwards' });
-      if (animation.finished) animation.finished.then(() => {
-        if (indicator.isConnected) indicator.style.transform = targetTransform;
-      }).catch(() => {});
-    });
+    moveIndicator(activeButton);
   }
 
   function ensureContinuousListScrollStyles() {
@@ -7550,9 +7561,9 @@
       '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><h3>今日工作台</h3><p>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '"' + (state.ledgerTabTransitionFrom && state.ledgerTabTransitionFrom !== mode ? ' data-tab-from="' + state.ledgerTabTransitionFrom + '"' : '') + '>' +
         '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
-        '<button type="button" class="' + (mode === 'design' ? 'is-active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
-        '<button type="button" class="' + (mode === 'finalized' ? 'is-active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
-        '<button type="button" class="' + (mode === 'trash' ? 'is-active' : '') + (state.ledgerTabTransition === 'trash' ? ' is-tab-transition' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
+        '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + (state.ledgerTabTransition === 'design' ? ' is-tab-transition' : '') + '" data-action="ledger-view-design">待定稿</button>' +
+        '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + (state.ledgerTabTransition === 'finalized' ? ' is-tab-transition' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
+        '<button type="button" class="' + (mode === 'trash' ? 'is-active active' : '') + (state.ledgerTabTransition === 'trash' ? ' is-tab-transition' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
       '</div>' +
       performanceHtml +
       '<div class="pfh-ledger-toolbar">' +
@@ -10103,12 +10114,9 @@
       state.ledgerView = nextLedgerView;
       state.ledgerTabTransition = state.ledgerView;
       window.clearTimeout(state.ledgerTabTransitionTimer);
-      state.ledgerTabTransitionTimer = window.setTimeout(() => {
-        state.ledgerTabTransition = '';
-        state.ledgerTabTransitionFrom = '';
-        if (state.view === 'ledger') renderShell();
-      }, 720);
       renderShell();
+      state.ledgerTabTransition = '';
+      state.ledgerTabTransitionFrom = '';
       return;
     }
     if (action === 'ledger-prev-day') {
