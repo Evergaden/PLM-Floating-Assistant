@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.176
+// @version      2.5.177
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.176';
+  const SCRIPT_VERSION = '2.5.177';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -2531,6 +2531,15 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button:hover::after{opacity:1;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.is-active::after,
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs button.active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-list-content{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;min-height:0!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch{position:relative!important;isolation:isolate!important;gap:0!important;overflow:hidden!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px;width:39px;height:25px;border:0!important;border-radius:99px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 5px 12px var(--pfh-theme-primary-soft)!important;pointer-events:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button{position:relative!important;z-index:1!important;background:transparent!important;border:0!important;color:var(--pfh-theme-muted)!important;transition:color .28s ease,transform .12s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button:active{transform:scale(.94)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button::after{content:'';position:absolute;inset:0;border-radius:99px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button:hover::after{opacity:1;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-view-switch button.is-active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
@@ -2540,8 +2549,12 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] .pfh-icon,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg *{color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;background:transparent!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-generate"],
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form.is-open > button[data-action="excel-generate"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-generate"],
-    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-generate"]{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-weight:800!important;line-height:1!important;text-shadow:none!important;opacity:1!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-generate"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-size:11px!important;font-weight:800!important;line-height:1!important;text-align:center!important;text-indent:0!important;text-shadow:none!important;opacity:1!important;visibility:visible!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-generate"]:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form.is-open > button[data-action="excel-generate"]:hover:not(:disabled){border-color:var(--pfh-theme-primary-hover)!important;background:var(--pfh-theme-primary-hover)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-button,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-excel-price{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:0 12px 28px var(--pfh-theme-primary-soft)!important;}
@@ -2549,11 +2562,11 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button:hover,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form .pfh-export-menu-list button.is-active{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-status{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-secondary-soft)!important;color:var(--pfh-theme-secondary)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit{width:104px!important;height:104px!important;overflow:visible!important;isolation:isolate!important;background:transparent!important;border:0!important;box-shadow:none!important;animation:pfh-theme-star-breathe 4.2s ease-in-out infinite!important;animation-play-state:running!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit{width:104px!important;height:104px!important;overflow:visible!important;isolation:isolate!important;background:transparent!important;border:0!important;box-shadow:none!important;animation:pfh-theme-star-breathe 6.2s ease-in-out infinite!important;animation-play-state:running!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit .wave{display:none!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before{inset:8px!important;border:1px solid var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% 1%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 93% 31%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 76% 86%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 18% 80%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 5% 34%,var(--pfh-theme-primary) 0 1.8px,transparent 2.8px)!important;-webkit-mask:none!important;mask:none!important;box-shadow:0 0 0 1px var(--pfh-theme-primary-soft),0 0 24px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring 5.4s linear infinite!important;animation-play-state:running!important;z-index:2!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after{inset:21px!important;border:1px solid var(--pfh-theme-border)!important;background:transparent!important;box-shadow:0 0 18px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring-reverse 4.6s linear infinite!important;animation-play-state:running!important;z-index:1!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{inset:auto!important;left:50%!important;top:50%!important;width:22px!important;height:22px!important;z-index:3!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;transform:translate(-50%,-50%);animation:pfh-theme-star-twinkle 2.2s ease-in-out infinite!important;animation-play-state:running!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::before{inset:8px!important;border:1px solid var(--pfh-theme-border-strong)!important;background:radial-gradient(circle at 50% 1%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 93% 31%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 76% 86%,var(--pfh-theme-primary) 0 2px,transparent 2.9px),radial-gradient(circle at 18% 80%,var(--pfh-theme-secondary) 0 1.6px,transparent 2.6px),radial-gradient(circle at 5% 34%,var(--pfh-theme-primary) 0 1.8px,transparent 2.8px)!important;-webkit-mask:none!important;mask:none!important;box-shadow:0 0 0 1px var(--pfh-theme-primary-soft),0 0 24px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring 8.8s linear infinite!important;animation-play-state:running!important;z-index:2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit::after{inset:21px!important;border:1px solid var(--pfh-theme-border)!important;background:transparent!important;box-shadow:0 0 18px var(--pfh-theme-primary-soft)!important;animation:pfh-theme-star-ring-reverse 7.2s linear infinite!important;animation-play-state:running!important;z-index:1!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span{inset:auto!important;left:50%!important;top:50%!important;width:22px!important;height:22px!important;z-index:3!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;transform:translate(-50%,-50%);animation:pfh-theme-star-twinkle 3.6s ease-in-out infinite!important;animation-play-state:running!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-home-orbit span::before{content:"✦";position:absolute;inset:0;color:var(--pfh-theme-primary)!important;font-size:27px!important;line-height:22px!important;text-align:center;text-shadow:0 0 12px var(--pfh-theme-primary-soft);}
     @keyframes pfh-theme-star-breathe{0%,100%{opacity:.82}50%{opacity:1}}
     @keyframes pfh-theme-star-ring{to{transform:rotate(360deg)}}
@@ -5718,6 +5731,12 @@
   function renderSkuList(panel) {
     ensureContinuousListScrollStyles();
     const list = panel.querySelector('.pfh-list');
+    if (!list) return;
+    list.innerHTML = renderSkuListHtml();
+    setupSkuViewFusion(list);
+  }
+
+  function renderSkuListHtml() {
     const query = state.searchQuery.trim();
     const searchTokens = parseSearchTokens(query);
     const allItems = sortSkuListItems(getSearchMatches(searchTokens));
@@ -5736,15 +5755,14 @@
         '<button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + (listSort === 'assigned' ? 'is-active' : '') + '">\u5206\u914d\u65f6\u95f4</button>' +
         '<button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + (listSort === 'acquired' ? 'is-active' : '') + '">\u83b7\u53d6\u65f6\u95f4</button>' +
       '</div></div>';
-    const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" role="group" aria-label="SKU\u5217\u8868\u89c6\u56fe">' +
+    const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU\u5217\u8868\u89c6\u56fe"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">\u5217\u8868</button>' +
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
     const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
-      list.innerHTML = listHead + '<div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager;
-      return;
+      return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager + '</div>';
     }
     const searchToolbar = searchTokens.length
       ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
@@ -5768,7 +5786,69 @@
         ([item.brand, item.name].filter(Boolean).join(' ') ? '<small>' + escapeHtml([item.brand, item.name].filter(Boolean).join(' ')) + '</small>' : '') +
         '</button>';
     }).join('');
-    list.innerHTML = listHead + '<div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager;
+    return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
+  }
+
+  function renderSkuListContent(panel) {
+    const list = panel && panel.querySelector('.pfh-list');
+    const currentSwitch = list && list.querySelector('.pfh-sku-view-switch');
+    const currentContent = list && list.querySelector('.pfh-sku-list-content');
+    if (!list || !currentSwitch || !currentContent) return false;
+    const template = document.createElement('template');
+    template.innerHTML = renderSkuListHtml();
+    const nextSwitch = template.content.querySelector('.pfh-sku-view-switch');
+    const nextContent = template.content.querySelector('.pfh-sku-list-content');
+    if (!nextSwitch || !nextContent) return false;
+    currentSwitch.setAttribute('data-active-mode', getSkuListMode());
+    currentSwitch.querySelectorAll('button[data-action="sku-list-mode"]').forEach((button) => {
+      const active = button.getAttribute('data-mode') === getSkuListMode();
+      button.classList.toggle('is-active', active);
+    });
+    const currentSortMenu = list.querySelector('.pfh-sku-sort-menu');
+    const nextSortMenu = template.content.querySelector('.pfh-sku-sort-menu');
+    if (currentSortMenu && nextSortMenu) {
+      currentSortMenu.className = nextSortMenu.className;
+      const currentSortButton = currentSortMenu.querySelector('.pfh-export-menu-button');
+      const nextSortButton = nextSortMenu.querySelector('.pfh-export-menu-button');
+      if (currentSortButton && nextSortButton) currentSortButton.setAttribute('aria-expanded', nextSortButton.getAttribute('aria-expanded') || 'false');
+      const currentSortLabel = currentSortMenu.querySelector('.pfh-export-menu-button span');
+      const nextSortLabel = nextSortMenu.querySelector('.pfh-export-menu-button span');
+      if (currentSortLabel && nextSortLabel) currentSortLabel.textContent = nextSortLabel.textContent;
+    }
+    currentContent.replaceWith(nextContent);
+    return true;
+  }
+
+  function setupSkuViewFusion(list) {
+    const switcher = list && list.querySelector('.pfh-sku-view-switch');
+    const indicator = switcher && switcher.querySelector('.pfh-sku-view-indicator');
+    if (!switcher || !indicator) return;
+    const indicatorTransition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+    indicator.style.setProperty('transition', indicatorTransition, 'important');
+    const buttons = Array.from(switcher.querySelectorAll('button[data-action="sku-list-mode"]'));
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    };
+    buttons.forEach((button) => {
+      button.addEventListener('mousemove', (event) => {
+        const rect = button.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        button.style.setProperty('--mx', ((event.clientX - rect.left) / rect.width * 100) + '%');
+        button.style.setProperty('--my', ((event.clientY - rect.top) / rect.height * 100) + '%');
+      });
+      button.addEventListener('click', () => {
+        buttons.forEach((item) => item.classList.remove('is-active'));
+        button.classList.add('is-active');
+        switcher.setAttribute('data-active-mode', button.getAttribute('data-mode') || 'list');
+        moveIndicator(button);
+      });
+    });
+    const activeButton = switcher.querySelector('button.is-active') || buttons[0];
+    if (!activeButton) return;
+    switcher.setAttribute('data-active-mode', activeButton.getAttribute('data-mode') || 'list');
+    moveIndicator(activeButton);
   }
 
   function renderHome(panel, statusText) {
@@ -9816,7 +9896,7 @@
       state.skuPage = 1;
       state.skuSortMenuOpen = false;
       saveSettings(state.settings);
-      renderShell();
+      if (!renderSkuListContent(ensurePanel())) renderShell();
       return;
     }
     if (action === 'sku-sort-toggle') {
