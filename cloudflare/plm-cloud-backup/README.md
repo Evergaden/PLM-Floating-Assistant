@@ -28,6 +28,15 @@ npm run deploy
 
 Worker Static Assets stores brand compliance data, tube rules/specs, the Excel template, the SVG icon package, and the full userscript UI stylesheet under `static/assets/`. The userscript persists the last complete package in GM storage and refreshes it at most once per day. Cached CSS remains available offline; a compact local skeleton stylesheet covers first-run offline startup.
 
+Brand compliance data is seeded from the runtime asset into D1 on first use. Administrators can then add, edit, or delete distributor, EU REP, UK REP, and US REP fields from `/admin`. The userscript reads `/brand-compliance` on every page load and falls back to its cached runtime asset if the request fails.
+
+To rebuild the seed and runtime fallback from a new CSV:
+
+```powershell
+npm run brands:import -- "C:\path\to\brand-addresses.csv"
+npm run assets:manifest -- 2026-07-26.1
+```
+
 Set an API key for write endpoints:
 
 ```powershell
@@ -159,6 +168,7 @@ Write endpoints require `x-api-key` when `API_KEY` is configured.
 
 - `/pack/ai-estimate` first checks existing history. If no record exists, it calculates the maximum pack count locally from the default outer carton size and stores the result.
 - `/assets/*` is served directly by Worker Static Assets. The manifest is short-cached; versioned objects are immutable and long-cached.
+- `/brand-compliance` returns the current D1-maintained brand address data for the userscript.
 - `/insights/record` stores price history, product type, and data-quality issues from the userscript.
 - `/insights/recommend` recommends purchase price from cloud history. The userscript also has local history fallback.
 - `/insights/rules` groups missing-field issues into data-cleaning rule candidates and marks high-priority cases where the page was read but parsing failed.

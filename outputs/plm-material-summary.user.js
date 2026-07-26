@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.163
+// @version      2.5.164
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.163';
+  const SCRIPT_VERSION = '2.5.164';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1571,12 +1571,35 @@
   }
 
   function scheduleCloudAssetRefresh(delay) {
-    window.setTimeout(() => {
-      refreshCloudAssets(false).catch((error) => {
+    window.setTimeout(async () => {
+      try {
+        await refreshCloudAssets(false);
+      } catch (error) {
         if (typeof showUiOfflineFallback === 'function') showUiOfflineFallback(error);
         addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
-      });
+      }
+      try {
+        await refreshBrandComplianceData();
+      } catch (error) {
+        addLog('warn', '\u54c1\u724c\u5730\u5740\u66f4\u65b0\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u5907\u7528\u6570\u636e', formatErrorMessage(error));
+      }
     }, Math.max(0, Number(delay) || 0));
+  }
+
+  async function refreshBrandComplianceData() {
+    const response = await cloudRequest('/brand-compliance', { method: 'GET' });
+    const brands = response && response.brands;
+    if (!Array.isArray(brands) || !brands.length) throw new Error('cloud brand compliance data is empty');
+    BRAND_COMPLIANCE_DATA = brands;
+    if (cloudAssetCache && cloudAssetCache.runtimeData) {
+      cloudAssetCache = {
+        ...cloudAssetCache,
+        runtimeData: { ...cloudAssetCache.runtimeData, brands },
+        brandComplianceUpdatedAt: String(response.updatedAt || new Date().toISOString()),
+      };
+      saveCloudAssetCache(cloudAssetCache);
+    }
+    return brands;
   }
 
   function refreshCloudAssets(force) {
@@ -8884,7 +8907,10 @@
   function findBrandCompliance(data) {
     const brand = String(data && data.brand || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
     if (!brand) return null;
-    return BRAND_COMPLIANCE_DATA.find((item) => String(item && item.brand || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase() === brand) || null;
+    return BRAND_COMPLIANCE_DATA.find((item) => {
+      const names = [item && item.brand].concat(Array.isArray(item && item.aliases) ? item.aliases : []);
+      return names.some((name) => String(name || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase() === brand);
+    }) || null;
   }
 
   function cleanComplianceValue(value) {

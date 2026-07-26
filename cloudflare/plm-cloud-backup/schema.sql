@@ -238,3 +238,25 @@ CREATE TABLE IF NOT EXISTS parameter_feature_rules (
 
 CREATE INDEX IF NOT EXISTS idx_parameter_feature_rules_enabled
 ON parameter_feature_rules(enabled, priority);
+
+CREATE TABLE IF NOT EXISTS brand_compliance (
+  brand_key TEXT PRIMARY KEY,
+  brand TEXT NOT NULL,
+  aliases_json TEXT NOT NULL DEFAULT '[]',
+  distributed_by TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  eu_rep_json TEXT NOT NULL DEFAULT '{}',
+  uk_rep_json TEXT NOT NULL DEFAULT '{}',
+  us_rep_json TEXT NOT NULL DEFAULT '{}',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_brand_compliance_sort
+ON brand_compliance(sort_order, brand);
+
+CREATE TABLE IF NOT EXISTS brand_compliance_meta (
+  meta_key TEXT PRIMARY KEY,
+  meta_value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,4 +1,5 @@
 import { PARAMETER_LOGO_ASSETS } from './parameter-logo-assets.js';
+import { BRAND_COMPLIANCE_SEED } from './brand-compliance-seed.js';
 
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
@@ -2343,10 +2344,180 @@ async function handleAdminParameterFeatureRulesSave(request, env) {
   return adminRedirect('/admin?saved=features#parameter-features');
 }
 
+function normalizeBrandKey(value) {
+  return String(value || '').replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 160);
+}
+
+function normalizeBrandText(value, maxLength = 2000) {
+  return String(value || '').replace(/\r\n?/g, '\n').trim().slice(0, maxLength);
+}
+
+function normalizeBrandAliases(value) {
+  const source = Array.isArray(value) ? value : String(value || '').split(/[,\n，]+/);
+  const seen = new Set();
+  return source.map((item) => normalizeBrandText(item, 160)).filter((item) => {
+    const key = normalizeBrandKey(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 20);
+}
+
+function normalizeRepresentative(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    company: normalizeBrandText(source.company, 300),
+    address: normalizeBrandText(source.address, 1200),
+    contact: normalizeBrandText(source.contact, 300),
+    phone: normalizeBrandText(source.phone, 120),
+    postal_code: normalizeBrandText(source.postal_code, 120),
+  };
+}
+
+function parseBrandJson(value, fallback) {
+  try {
+    const parsed = JSON.parse(value || '');
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function brandComplianceFromRow(row) {
+  return {
+    brand: row.brand || '',
+    aliases: normalizeBrandAliases(parseBrandJson(row.aliases_json, [])),
+    distributed_by: row.distributed_by || '',
+    address: row.address || '',
+    eu_rep: normalizeRepresentative(parseBrandJson(row.eu_rep_json, {})),
+    uk_rep: normalizeRepresentative(parseBrandJson(row.uk_rep_json, {})),
+    us_rep: normalizeRepresentative(parseBrandJson(row.us_rep_json, {})),
+    sort_order: Number(row.sort_order || 0),
+    updated_at: row.updated_at || '',
+  };
+}
+
+async function ensureBrandComplianceTables(env) {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS brand_compliance (
+      brand_key TEXT PRIMARY KEY,
+      brand TEXT NOT NULL,
+      aliases_json TEXT NOT NULL DEFAULT '[]',
+      distributed_by TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      eu_rep_json TEXT NOT NULL DEFAULT '{}',
+      uk_rep_json TEXT NOT NULL DEFAULT '{}',
+      us_rep_json TEXT NOT NULL DEFAULT '{}',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_brand_compliance_sort ON brand_compliance(sort_order, brand)'),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS brand_compliance_meta (
+      meta_key TEXT PRIMARY KEY,
+      meta_value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+  ]);
+  const initialized = await env.DB.prepare("SELECT meta_value FROM brand_compliance_meta WHERE meta_key='seed_version'").first();
+  if (initialized) return;
+  const inserts = BRAND_COMPLIANCE_SEED.map((item, index) => env.DB.prepare(`
+    INSERT OR IGNORE INTO brand_compliance (
+      brand_key,brand,aliases_json,distributed_by,address,eu_rep_json,uk_rep_json,us_rep_json,sort_order,updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+  `).bind(
+    normalizeBrandKey(item.brand),
+    normalizeBrandText(item.brand, 160),
+    JSON.stringify(normalizeBrandAliases(item.aliases)),
+    normalizeBrandText(item.distributed_by),
+    normalizeBrandText(item.address),
+    JSON.stringify(normalizeRepresentative(item.eu_rep)),
+    JSON.stringify(normalizeRepresentative(item.uk_rep)),
+    JSON.stringify(normalizeRepresentative(item.us_rep)),
+    Number.isFinite(Number(item.sort_order)) ? Number(item.sort_order) : index
+  ));
+  inserts.push(env.DB.prepare("INSERT OR REPLACE INTO brand_compliance_meta (meta_key,meta_value,updated_at) VALUES ('seed_version','2026-07-26',CURRENT_TIMESTAMP)"));
+  await env.DB.batch(inserts);
+}
+
+async function listBrandCompliance(env) {
+  await ensureBrandComplianceTables(env);
+  const result = await env.DB.prepare('SELECT * FROM brand_compliance ORDER BY sort_order ASC, brand COLLATE NOCASE ASC').all();
+  return (result.results || []).map(brandComplianceFromRow);
+}
+
+async function handleBrandCompliance(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const brands = await listBrandCompliance(env);
+  return json({ ok: true, brands, updatedAt: brands.reduce((latest, item) => item.updated_at > latest ? item.updated_at : latest, '') });
+}
+
+function representativeFromAdminBody(body, prefix) {
+  return normalizeRepresentative({
+    company: body[prefix + 'Company'],
+    address: body[prefix + 'Address'],
+    contact: body[prefix + 'Contact'],
+    phone: body[prefix + 'Phone'],
+    postal_code: body[prefix + 'PostalCode'],
+  });
+}
+
+async function handleAdminBrandComplianceSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureBrandComplianceTables(env);
+  const body = await parseBodyParams(request);
+  const brand = normalizeBrandText(body.brand, 160);
+  const brandKey = normalizeBrandKey(brand);
+  const originalKey = normalizeBrandKey(body.originalBrandKey);
+  if (!brandKey) return adminRedirect('/admin?saved=brands-error#brand-compliance');
+  if (originalKey && originalKey !== brandKey) {
+    const duplicate = await env.DB.prepare('SELECT brand_key FROM brand_compliance WHERE brand_key=?').bind(brandKey).first();
+    if (duplicate) return adminRedirect('/admin?saved=brands-duplicate#brand-compliance');
+  }
+  const statement = env.DB.prepare(`
+    INSERT INTO brand_compliance (
+      brand_key,brand,aliases_json,distributed_by,address,eu_rep_json,uk_rep_json,us_rep_json,sort_order,updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(brand_key) DO UPDATE SET
+      brand=excluded.brand,
+      aliases_json=excluded.aliases_json,
+      distributed_by=excluded.distributed_by,
+      address=excluded.address,
+      eu_rep_json=excluded.eu_rep_json,
+      uk_rep_json=excluded.uk_rep_json,
+      us_rep_json=excluded.us_rep_json,
+      sort_order=excluded.sort_order,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(
+    brandKey,
+    brand,
+    JSON.stringify(normalizeBrandAliases(body.aliases)),
+    normalizeBrandText(body.distributedBy),
+    normalizeBrandText(body.address),
+    JSON.stringify(representativeFromAdminBody(body, 'eu')),
+    JSON.stringify(representativeFromAdminBody(body, 'uk')),
+    JSON.stringify(representativeFromAdminBody(body, 'us')),
+    clampInt(body.sortOrder, -100000, 100000, 0)
+  );
+  const statements = [statement];
+  if (originalKey && originalKey !== brandKey) statements.unshift(env.DB.prepare('DELETE FROM brand_compliance WHERE brand_key=?').bind(originalKey));
+  await env.DB.batch(statements);
+  return adminRedirect('/admin?saved=brands#brand-compliance');
+}
+
+async function handleAdminBrandComplianceDelete(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureBrandComplianceTables(env);
+  const body = await parseBodyParams(request);
+  const brandKey = normalizeBrandKey(body.brandKey);
+  if (brandKey) await env.DB.prepare('DELETE FROM brand_compliance WHERE brand_key=?').bind(brandKey).run();
+  return adminRedirect('/admin?saved=brands-deleted#brand-compliance');
+}
+
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
   await ensureNotificationTables(env);
-  const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads] = await Promise.all([
+  await ensureBrandComplianceTables(env);
+  const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads, brands] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -2374,6 +2545,7 @@ async function handleAdminPage(request, env) {
       ORDER BY datetime(n.published_at) DESC, n.notification_id DESC
       LIMIT 100`).all(),
     env.DB.prepare('SELECT notification_id,user_name,instance_id,read_at FROM notification_reads ORDER BY datetime(read_at) DESC LIMIT 5000').all(),
+    env.DB.prepare('SELECT * FROM brand_compliance ORDER BY sort_order ASC, brand COLLATE NOCASE ASC').all(),
   ]);
   let campaignRows = campaigns.results || [];
   if (!campaignRows.length) {
@@ -2388,10 +2560,44 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), saved));
 }
 
-function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, notifications, notificationReads, saved) {
+function renderBrandRepresentativeFields(label, prefix, representative) {
+  const item = normalizeRepresentative(representative);
+  return '<fieldset class="repbox"><legend>' + htmlEscape(label) + '</legend>' +
+    '<label><span>公司名</span><input name="' + prefix + 'Company" value="' + htmlEscape(item.company) + '"></label>' +
+    '<label class="wide"><span>地址</span><textarea name="' + prefix + 'Address">' + htmlEscape(item.address) + '</textarea></label>' +
+    '<label><span>联系人</span><input name="' + prefix + 'Contact" value="' + htmlEscape(item.contact) + '"></label>' +
+    '<label><span>电话</span><input name="' + prefix + 'Phone" value="' + htmlEscape(item.phone) + '"></label>' +
+    '<label><span>邮编</span><input name="' + prefix + 'PostalCode" value="' + htmlEscape(item.postal_code) + '"></label>' +
+  '</fieldset>';
+}
+
+function renderBrandComplianceEditor(item, index, isNew = false) {
+  const brand = item || {};
+  const aliases = normalizeBrandAliases(brand.aliases).join(', ');
+  const title = isNew ? '新增品牌地址' : String(index + 1) + '. ' + (brand.brand || '未命名品牌');
+  const updated = !isNew && brand.updated_at ? ' · 更新于 ' + formatBeijingDateTime(brand.updated_at) : '';
+  return '<details class="tipitem branditem"' + (isNew ? ' open' : '') + '><summary><span class="tipno">' + (isNew ? '+' : htmlEscape(index + 1)) + '</span><span class="tiptext">' + htmlEscape(title) + '</span><span class="tipstate">' + htmlEscape(updated) + '</span></summary>' +
+    '<div class="tipbody"><form class="brandform" method="post" action="/admin/brand-compliance/save">' +
+      '<input type="hidden" name="originalBrandKey" value="' + htmlEscape(isNew ? '' : normalizeBrandKey(brand.brand)) + '">' +
+      '<div class="brandbase"><label><span>品牌名</span><input name="brand" required maxlength="160" value="' + htmlEscape(brand.brand || '') + '"></label>' +
+      '<label><span>别名（逗号分隔）</span><input name="aliases" value="' + htmlEscape(aliases) + '" placeholder="例如：JAYSUING/简素净, 简素净"></label>' +
+      '<label><span>排序</span><input type="number" name="sortOrder" value="' + htmlEscape(Number(brand.sort_order || 0)) + '"></label>' +
+      '<label class="wide"><span>分销商公司</span><textarea name="distributedBy">' + htmlEscape(brand.distributed_by || '') + '</textarea></label>' +
+      '<label class="wide"><span>分销商地址</span><textarea name="address">' + htmlEscape(brand.address || '') + '</textarea></label></div>' +
+      '<div class="repgrid">' +
+        renderBrandRepresentativeFields('欧代 EU REP', 'eu', brand.eu_rep) +
+        renderBrandRepresentativeFields('英代 UK REP', 'uk', brand.uk_rep) +
+        renderBrandRepresentativeFields('美代 US REP', 'us', brand.us_rep) +
+      '</div><div class="actions"><button type="submit">' + (isNew ? '新增品牌' : '保存修改') + '</button></div>' +
+    '</form>' +
+    (isNew ? '' : '<form method="post" action="/admin/brand-compliance/delete" onsubmit="return confirm(\'确定删除这个品牌地址吗？\')"><input type="hidden" name="brandKey" value="' + htmlEscape(normalizeBrandKey(brand.brand)) + '"><button class="ghost danger" type="submit">删除品牌</button></form>') +
+    '</div></details>';
+}
+
+function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, notifications, notificationReads, brands, saved) {
   const knownUserNames = Array.from(new Set(users.map((user) => String(user.user_name || '').trim()).filter(Boolean)));
   const readsByNotification = new Map();
   (notificationReads || []).forEach((row) => {
@@ -2419,6 +2625,10 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
   }).join('');
   const holidayTexts = holidays.map((item) => item.holiday_name + '|' + item.start_date).join('\n');
   const featureRuleTexts = (featureRules || []).map((item) => [item.category, (item.keywords || []).join(','), item.phrase, item.priority].join('|')).join('\n');
+  const brandEditorRows = (brands || []).map((item, index) => renderBrandComplianceEditor(item, index)).join('');
+  const brandAdminSection = '<section class="card" id="brand-compliance"><div class="cardhead"><h2>品牌地址维护（' + (brands || []).length + '）</h2><div class="sub">这里保存后，用户刷新 PLM 页面即可读取最新分销商、欧代、英代和美代信息；别名也可以匹配同一品牌。</div></div><div class="form"><div class="tiplist">' +
+    renderBrandComplianceEditor({}, 0, true) + brandEditorRows +
+    '</div></div></section>';
   const metrics = [
     ['使用人', dashboard.users || 0], ['今日活跃', dashboard.active_today || 0], ['近7日活跃', dashboard.active_week || 0],
     ['云端SKU汇总', dashboard.sku_total || 0], ['云备份用户', dashboard.backup_users || 0],
@@ -2430,11 +2640,12 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
     '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：版本更新提示 v2.5.160"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +
     '<div class="form"><div class="cardhead" style="padding:0"><h2>通知记录（' + (notifications || []).length + '）</h2><div class="sub">展开后可编辑、停用、重新发布、清空阅读记录，并查看已读和未读用户。</div></div><div class="tiplist">' + (notificationEditorRows || '<div class="sub">暂无通知</div>') + '</div></div></section>';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>.tiptext,.tipbody textarea{font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Microsoft YaHei",sans-serif}' +
-    ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:600}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
+    ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:600}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}.brandform,.brandbase{display:grid;gap:11px}.brandbase{grid-template-columns:2fr 2fr 100px}.brandbase .wide{grid-column:1/-1}.brandbase textarea{min-height:70px}.repgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.repbox{min-width:0;border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:9px}.repbox legend{padding:0 6px;color:var(--accent);font-weight:600;font-size:13px}.repbox textarea{min-height:85px}.branditem .tipbody{gap:14px}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two,.brandbase,.repgrid{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
     '<header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">用户、权限、云端数据与轮播小提示</div></div><a class="btn ghost" href="/admin/logout">退出登录</a></header>' +
-    (saved ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存')))) + '</div>' : '') +
+    (saved ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'brands' ? '品牌地址已保存，用户刷新页面后生效' : (saved === 'brands-deleted' ? '品牌地址已删除' : (saved === 'brands-duplicate' ? '品牌名与现有数据重复，未保存' : (saved === 'brands-error' ? '品牌名不能为空' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存')))))))) + '</div>' : '') +
     '<section class="metrics">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
     notificationAdminSection +
+    brandAdminSection +
     '<section class="card"><div class="cardhead"><h2>使用人与尺寸图权限</h2><div class="sub">其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="enabled" value="1"><button>添加并开通</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="6">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
     '<section class="card" id="tips"><div class="cardhead"><h2>新增轮播小提示</h2><div class="sub">每行一条，可同时设置本次新增提示的推送条件</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="在这里输入新提示，每行一条"></textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="1"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="3"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="60"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled">已开通</option><option value="disabled">未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames"></label><label><span>排除姓名</span><input name="excludeNames"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate"></label><label><span>结束日期</span><input type="date" name="endDate"></label><label><span>开始时间</span><input type="time" name="startTime"></label><label><span>结束时间</span><input type="time" name="endTime"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1">仅法定节假日前一天</label></div><div class="actions"><button type="submit">添加提示</button></div></form></section>' +
     '<section class="card" id="saved-tips"><div class="cardhead"><h2>已保存的小提示（' + campaigns.length + '）</h2><div class="sub">勾选可批量删除；展开任意一条可维护详细条件</div></div><form class="form tip-manage-form" method="post" action="/admin/tips/manage-save"><input type="hidden" name="tipCount" value="' + campaigns.length + '"><div class="actions"><button class="ghost" type="button" data-tip-select="all">全选</button><button class="ghost" type="button" data-tip-select="none">取消全选</button><button type="submit" data-delete-selected="1">删除选中</button></div><div class="tiplist">' + tipEditorRows + '</div><div class="actions"><button type="submit">保存全部修改</button></div></form></section>' +
@@ -4013,6 +4224,9 @@ export default {
     if (url.pathname === '/admin/parameter-features/save' && request.method === 'POST') return handleAdminParameterFeatureRulesSave(request, env);
     if (url.pathname === '/admin/notifications/save' && request.method === 'POST') return handleAdminNotificationSave(request, env);
     if (url.pathname === '/admin/notifications/delete' && request.method === 'POST') return handleAdminNotificationDelete(request, env);
+    if (url.pathname === '/admin/brand-compliance/save' && request.method === 'POST') return handleAdminBrandComplianceSave(request, env);
+    if (url.pathname === '/admin/brand-compliance/delete' && request.method === 'POST') return handleAdminBrandComplianceDelete(request, env);
+    if (url.pathname === '/brand-compliance' && request.method === 'GET') return handleBrandCompliance(request, env);
     if (url.pathname === '/features/size-image' && request.method === 'GET') return handleSizeImageAccess(request, env);
     if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
     if (url.pathname === '/notifications' && request.method === 'GET') return handleNotifications(request, env);
