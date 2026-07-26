@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.157
+// @version      2.5.158
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.157';
+  const SCRIPT_VERSION = '2.5.158';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -4566,9 +4566,11 @@
     if (labelPair) return normalizeTubeMeasureValue(label === '\u7ba1\u5f84' ? labelPair[1] : labelPair[2], '');
     const inlinePair = source.match(/\u7ba1\u5f84[^\d]{0,12}(\d+(?:\.\d+)?)\s*(mm|cm)?[^\u7ba1\d]{0,20}\u7ba1\u8eab[^\d]{0,12}(\d+(?:\.\d+)?)\s*(mm|cm)?/i);
     if (inlinePair) {
+      const diameterUnit = inlinePair[2] || inlinePair[4] || '';
+      const bodyUnit = inlinePair[4] || inlinePair[2] || '';
       return label === '\u7ba1\u5f84'
-        ? normalizeTubeMeasureValue(inlinePair[1], inlinePair[2])
-        : normalizeTubeMeasureValue(inlinePair[3], inlinePair[4]);
+        ? normalizeTubeMeasureValue(inlinePair[1], diameterUnit)
+        : normalizeTubeMeasureValue(inlinePair[3], bodyUnit);
     }
     const labelIndex = source.search(new RegExp(escaped, 'i'));
     const scope = labelIndex >= 0 ? source.slice(labelIndex, labelIndex + 120) : source;
