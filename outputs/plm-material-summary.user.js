@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.5.159
+// @version      2.5.160
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -23,7 +23,6 @@
 // @connect      plm.westmonth.com
 // @connect      velvet.qzz.io
 // @connect      plm-cloud-backup.wt196731.workers.dev
-// @connect      update.greasyfork.org
 // @connect      127.0.0.1
 // @run-at       document-idle
 // ==/UserScript==
@@ -33,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.5.159';
+  const SCRIPT_VERSION = '2.5.160';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.136';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -1748,25 +1747,30 @@
   // <notifications-module>
   const NOTIFICATION_CACHE_KEY = 'plm-floating-helper:notifications:v1';
   const NOTIFICATION_REFRESH_MS = 5 * 60 * 1000;
-  const SCRIPT_UPDATE_PREFIX = 'script-update:';
-  const SCRIPT_UPDATE_PROMPTED_KEY = 'plm-floating-helper:update-prompted-version';
+  const BACKEND_UPDATE_PROMPTED_KEY = 'plm-floating-helper:backend-update-prompted-id';
   const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
-  const GREASYFORK_META_URL = 'https://update.greasyfork.org/scripts/582138/PLM%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B.meta.js';
+
+  function isVersionUpdateNotification(item) {
+    const source = item && typeof item === 'object' ? item : {};
+    return /(?:新版本|版本更新|更新提示|脚本更新)/.test(String(source.title || '') + ' ' + String(source.content || ''));
+  }
 
   function normalizeNotificationItem(item) {
     const source = item && typeof item === 'object' ? item : {};
     const notificationId = String(source.notificationId || source.notification_id || '').trim();
     if (!notificationId) return null;
+    const title = String(source.title || '\u672a\u547d\u540d\u901a\u77e5').slice(0, 120);
+    const content = String(source.content || '').slice(0, 4000);
     return {
       notificationId,
-      title: String(source.title || '\u672a\u547d\u540d\u901a\u77e5').slice(0, 120),
-      content: String(source.content || '').slice(0, 4000),
+      title,
+      content,
       publishedAt: String(source.publishedAt || source.published_at || ''),
       updatedAt: String(source.updatedAt || source.updated_at || ''),
       isRead: Boolean(source.isRead || source.is_read),
       readAt: String(source.readAt || source.read_at || ''),
-      actionUrl: String(source.actionUrl || '').slice(0, 500),
-      actionLabel: String(source.actionLabel || '').slice(0, 40),
+      actionUrl: String(source.actionUrl || (isVersionUpdateNotification({ title, content }) ? GREASYFORK_SCRIPT_URL : '')).slice(0, 500),
+      actionLabel: String(source.actionLabel || (isVersionUpdateNotification({ title, content }) ? '\u53bb\u66f4\u65b0' : '')).slice(0, 40),
     };
   }
 
@@ -1847,78 +1851,22 @@
       (!item.isRead ? '<button type="button" data-action="notification-read" data-notification-id="' + escapeHtml(item.notificationId) + '">\u6211\u77e5\u9053\u4e86</button>' : '<span>\u5df2\u8bfb</span>') + '</div></article>').join('');
   }
 
-  function compareScriptVersions(left, right) {
-    const leftParts = String(left || '').split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
-    const rightParts = String(right || '').split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
-    const length = Math.max(leftParts.length, rightParts.length);
-    for (let index = 0; index < length; index += 1) {
-      if ((leftParts[index] || 0) !== (rightParts[index] || 0)) return (leftParts[index] || 0) > (rightParts[index] || 0) ? 1 : -1;
-    }
-    return 0;
-  }
-
-  function requestText(url) {
-    return new Promise((resolve, reject) => {
-      if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url,
-          timeout: 15000,
-          onload: (response) => response.status >= 200 && response.status < 300 ? resolve(response.responseText || '') : reject(new Error('HTTP ' + response.status)),
-          onerror: () => reject(new Error('network error')),
-          ontimeout: () => reject(new Error('timeout')),
-        });
-        return;
-      }
-      fetch(url).then((response) => {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.text();
-      }).then(resolve, reject);
-    });
-  }
-
-  async function checkForScriptUpdate() {
+  function promptBackendUpdateNotification() {
+    const updateNotice = (state.notifications || []).find((item) => item && !item.isRead && isVersionUpdateNotification(item));
+    if (!updateNotice) return false;
+    let promptedId = '';
     try {
-      const metadata = await requestText(GREASYFORK_META_URL);
-      const match = metadata.match(/^\s*\/\/\s*@version\s+([^\s]+)\s*$/mi);
-      const latestVersion = match ? String(match[1]).trim() : '';
-      const notificationId = SCRIPT_UPDATE_PREFIX + latestVersion;
-      const previous = (state.notifications || []).find((item) => item.notificationId === notificationId);
-      state.notifications = (state.notifications || []).filter((item) => !String(item.notificationId || '').startsWith(SCRIPT_UPDATE_PREFIX));
-      if (!latestVersion || compareScriptVersions(latestVersion, SCRIPT_VERSION) <= 0) {
-        saveNotificationCache();
-        return;
-      }
-      state.notifications.unshift(normalizeNotificationItem({
-        notificationId,
-        title: '\u53d1\u73b0\u65b0\u7248\u672c v' + latestVersion,
-        content: '\u5f53\u524d\u7248\u672c v' + SCRIPT_VERSION + '\uff0c\u5efa\u8bae\u66f4\u65b0\u540e\u4f7f\u7528\u6700\u65b0\u529f\u80fd\u4e0e\u4fee\u590d\u3002',
-        publishedAt: new Date().toISOString(),
-        isRead: Boolean(previous && previous.isRead),
-        actionUrl: GREASYFORK_SCRIPT_URL,
-        actionLabel: '\u53bb\u66f4\u65b0',
-      }));
-      saveNotificationCache();
-      let promptedVersion = '';
-      try {
-        promptedVersion = String(typeof GM_getValue === 'function' ? GM_getValue(SCRIPT_UPDATE_PROMPTED_KEY, '') : localStorage.getItem(SCRIPT_UPDATE_PROMPTED_KEY) || '');
-      } catch (error) {}
-      if (promptedVersion !== latestVersion) {
-        try {
-          if (typeof GM_setValue === 'function') GM_setValue(SCRIPT_UPDATE_PROMPTED_KEY, latestVersion);
-          else localStorage.setItem(SCRIPT_UPDATE_PROMPTED_KEY, latestVersion);
-        } catch (error) {}
-        state.notificationModalOpen = true;
-        state.notificationTab = 'new';
-        expandPanel();
-        renderShell();
-      } else {
-        const panel = document.getElementById(PANEL_ID);
-        if (panel) updateNotificationButton(panel);
-      }
-    } catch (error) {
-      console.warn('PLM floating helper update check failed:', error);
-    }
+      promptedId = String(typeof GM_getValue === 'function' ? GM_getValue(BACKEND_UPDATE_PROMPTED_KEY, '') : localStorage.getItem(BACKEND_UPDATE_PROMPTED_KEY) || '');
+    } catch (error) {}
+    if (promptedId === updateNotice.notificationId) return false;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(BACKEND_UPDATE_PROMPTED_KEY, updateNotice.notificationId);
+      else localStorage.setItem(BACKEND_UPDATE_PROMPTED_KEY, updateNotice.notificationId);
+    } catch (error) {}
+    state.notificationModalOpen = true;
+    state.notificationTab = 'new';
+    expandPanel();
+    return true;
   }
 
   function renderNotificationModal(panel) {
@@ -2000,13 +1948,13 @@
       await syncPendingNotificationReads(name, instanceId);
       const response = await cloudRequest('/notifications?name=' + encodeURIComponent(name || '') + '&instanceId=' + encodeURIComponent(instanceId) + '&version=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
       const pending = new Set(state.notificationPendingReadIds || []);
-      const updateNotices = (state.notifications || []).filter((item) => String(item.notificationId || '').startsWith(SCRIPT_UPDATE_PREFIX));
-      state.notifications = updateNotices.concat((Array.isArray(response && response.notifications) ? response.notifications : [])
+      state.notifications = (Array.isArray(response && response.notifications) ? response.notifications : [])
         .map(normalizeNotificationItem)
         .filter(Boolean)
-        .map((item) => pending.has(item.notificationId) ? { ...item, isRead: true } : item));
+        .map((item) => pending.has(item.notificationId) ? { ...item, isRead: true } : item);
       state.notificationCheckedAt = Date.now();
       saveNotificationCache();
+      promptBackendUpdateNotification();
       if (showFeedback) showToast('\u901a\u77e5\u5df2\u66f4\u65b0');
     } catch (error) {
       state.notificationsError = formatErrorMessage(error);
@@ -2033,9 +1981,7 @@
     const id = String(notificationId || '');
     if (!id) return;
     state.notifications = (state.notifications || []).map((item) => item.notificationId === id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item);
-    if (!id.startsWith(SCRIPT_UPDATE_PREFIX)) {
-      state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), id]));
-    }
+    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), id]));
     saveNotificationCache();
     renderShell();
     await syncPendingNotificationReads(findCurrentPlmUserName(), getClientInstanceId());
@@ -2046,7 +1992,7 @@
     const ids = (state.notifications || []).filter((item) => !item.isRead).map((item) => item.notificationId);
     if (!ids.length) return;
     state.notifications = (state.notifications || []).map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }));
-    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), ...ids.filter((id) => !String(id).startsWith(SCRIPT_UPDATE_PREFIX))]));
+    state.notificationPendingReadIds = Array.from(new Set([...(state.notificationPendingReadIds || []), ...ids]));
     state.notificationTab = 'history';
     saveNotificationCache();
     renderShell();
@@ -3018,7 +2964,6 @@
   scheduleSizeImageAccessRefresh(300);
   scheduleUserHeartbeat(800);
   scheduleNotificationRefresh(1600);
-  window.setTimeout(checkForScriptUpdate, 2200);
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startDailyLedgerSync();
@@ -5636,8 +5581,10 @@
       '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:rgba(139,92,246,.58)!important;background:linear-gradient(135deg,rgba(250,247,255,.94),rgba(255,255,255,.82))!important;box-shadow:0 8px 20px rgba(91,62,180,.12),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:rgba(124,58,237,.38)!important;background:#eee8ff!important;color:#6030cf!important;}' +
-      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{width:34px!important;min-width:34px!important;padding:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{width:34px!important;min-width:34px!important;padding:0!important;border-color:rgba(124,58,237,.28)!important;background:#f3efff!important;color:#7040d8!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data:hover{border-color:#8b5cf6!important;background:#e9e1ff!important;color:#5b21b6!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{width:16px!important;height:16px!important;margin:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon path{fill:currentColor!important;stroke:none!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid rgba(139,92,246,.34)!important;border-radius:9px!important;outline:none!important;background:rgba(255,255,255,.95)!important;color:#292337!important;font:inherit!important;box-shadow:0 0 0 0 rgba(124,58,237,0)!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:#8b5cf6!important;box-shadow:0 0 0 3px rgba(139,92,246,.14)!important;}' +
       '#' + PANEL_ID + ' .pfh-smart-category-input{display:inline-block!important;width:92px!important;min-width:72px!important;height:25px!important;box-sizing:border-box!important;margin:0 2px!important;padding:0 7px!important;border:1px solid rgba(139,92,246,.42)!important;border-radius:7px!important;outline:none!important;background:#fff!important;color:#4d2aad!important;font:inherit!important;font-weight:700!important;vertical-align:middle!important;}' +
