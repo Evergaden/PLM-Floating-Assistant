@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.7
+// @version      2.6.8
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.7';
+  const SCRIPT_VERSION = '2.6.8';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10026,6 +10026,15 @@
       .trim();
   }
 
+  function areCopywritingSectionsEquivalent(previousSections, nextSections) {
+    if (!Array.isArray(previousSections) || !Array.isArray(nextSections) || previousSections.length !== nextSections.length) return false;
+    const nextMap = new Map(nextSections.map((section) => [section.key, section]));
+    return previousSections.every((section) => {
+      const next = nextMap.get(section.key);
+      return Boolean(next) && normalizeCopywritingComparisonText(section.text) === normalizeCopywritingComparisonText(next.text);
+    });
+  }
+
   function buildCopywritingRecord(fileName, fileTimestamp, fileHash, built, cached) {
     const now = new Date().toLocaleString();
     const old = normalizeCopywritingRecord(cached);
@@ -10080,6 +10089,9 @@
       label: String(section && section.label || '').slice(0, 100),
       text: String(section && section.text || '').slice(0, 12000),
     })).filter((section) => section.key && section.text);
+    const sections = normalizeSections(record.sections);
+    const previousSections = normalizeSections(record.previousSections);
+    const updatePending = Boolean(record.updatePending) && (!previousSections.length || !areCopywritingSectionsEquivalent(previousSections, sections));
     return {
       fileName: String(record.fileName || '').slice(0, 300),
       parserVersion: String(record.parserVersion || '').slice(0, 20),
@@ -10087,7 +10099,7 @@
       fileHash: String(record.fileHash || '').slice(0, 128),
       fetchedAt: String(record.fetchedAt || '').slice(0, 80),
       lastCheckedAtMs: Math.max(0, Number(record.lastCheckedAtMs) || 0),
-      sections: normalizeSections(record.sections),
+      sections,
       fullText: String(record.fullText || '').slice(0, 50000),
       ingredientEnglish: String(record.ingredientEnglish || '').trim().slice(0, 8000),
       ingredientChinese: String(record.ingredientChinese || '').trim().slice(0, 8000),
@@ -10095,10 +10107,10 @@
       cleanedIngredientChinese: String(record.cleanedIngredientChinese || record.ingredientChinese || '').trim().slice(0, 8000),
       ingredientSplit: Boolean(record.ingredientSplit),
       missingSections: (Array.isArray(record.missingSections) ? record.missingSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
-      updatePending: Boolean(record.updatePending),
-      changedSectionKeys: (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16),
-      removedSections: (Array.isArray(record.removedSections) ? record.removedSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16),
-      previousSections: normalizeSections(record.previousSections),
+      updatePending,
+      changedSectionKeys: updatePending ? (Array.isArray(record.changedSectionKeys) ? record.changedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 16) : [],
+      removedSections: updatePending ? (Array.isArray(record.removedSections) ? record.removedSections : []).map((item) => String(item || '').slice(0, 100)).filter(Boolean).slice(0, 16) : [],
+      previousSections: updatePending ? previousSections : [],
       copiedSectionKeys: (Array.isArray(record.copiedSectionKeys) ? record.copiedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 80),
       copiedFullText: Boolean(record.copiedFullText),
     };
