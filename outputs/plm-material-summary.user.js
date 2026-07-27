@@ -12382,7 +12382,14 @@
         markUploadQueueBlocked(item, L.uploadExistingContent, '\u65e7\u5185\u5bb9\uff1a' + existingSummary.parts.join(' / '), { existingContent: existingSummary.parts.join(' / ') });
         addLog('info', '\u63d0\u5ba1\u4e0a\u4f20\u8df3\u8fc7\uff1a\u5df2\u6709\u5185\u5bb9', item.sku + ' ' + existingSummary.parts.join(' / '));
         showToast(item.sku + ' ' + L.uploadExistingContent + '\uff0c\u5df2\u8df3\u8fc7\uff1b\u52fe\u9009\u91cd\u8bd5\u624d\u4f1a\u6e05\u7406\u540e\u91cd\u4f20');
-        await closeTopProductDrawer({ skipDraftSave: true });
+        try {
+          await closeTopProductDrawer({ skipDraftSave: true });
+        } catch (closeError) {
+          state.uploadRunning = false;
+          saveUploadWorkerRunning(getUploadControlMode(), false);
+          addLog('error', '\u63d0\u5ba1\u4e0a\u4f20\u8df3\u8fc7\uff1a\u5173\u95ed\u5546\u54c1\u9875\u5931\u8d25', item.sku + ' ' + formatErrorMessage(closeError));
+          showToast(item.sku + ' \u5df2\u6709\u5185\u5bb9\uff0c\u4f46\u5173\u95ed\u5546\u54c1\u9875\u5931\u8d25\uff0c\u961f\u5217\u5df2\u6682\u505c');
+        }
         return;
       }
       if (item.forceReplace) {
@@ -13341,9 +13348,9 @@
   }
 
   function getOpenProductDrawer() {
-    return Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open'))
+    return Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .ant-drawer-open'))
       .filter(isVisibleElement)
-      .find((drawer) => drawer.matches('.pdmDetailDrawer, .pdmDetailDrawer.ant-drawer-open') || getVisibleText(drawer).includes('\u7f16\u8f91\u5546\u54c1')) || null;
+      .find((drawer) => drawer.matches('.pdmDetailDrawer.ant-drawer-open') || getVisibleText(drawer).includes('\u7f16\u8f91\u5546\u54c1')) || null;
   }
 
   function findVisibleButton(text) {
