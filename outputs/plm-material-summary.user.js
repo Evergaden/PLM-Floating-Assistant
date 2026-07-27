@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.2
+// @version      2.6.3
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.2';
+  const SCRIPT_VERSION = '2.6.3';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3273,6 +3273,7 @@
     copywritingView: 'file',
     skuEditMode: false,
     copywritingLoading: false,
+    copywritingChecking: false,
     copywritingError: '',
     copywritingStatus: '',
     toyCopywritingBusy: false,
@@ -5640,6 +5641,13 @@
     state.detailViewPreviousTab = '';
   }
 
+  function mountDetailViewTabs(panel) {
+    const detail = panel && panel.querySelector('.pfh-detail');
+    const tabs = detail && detail.querySelector('.pfh-detail-view-tabs');
+    if (!detail || !tabs || tabs.parentNode === detail) return;
+    detail.insertBefore(tabs, detail.firstChild);
+  }
+
   function renderShell(statusText) {
     const panel = ensurePanel();
     ensureDetailViewTabsStyles();
@@ -5698,17 +5706,20 @@
     }
     if (state.view === 'sizeImage') {
       renderSizeImage(panel);
+      mountDetailViewTabs(panel);
       setupDetailViewTabs(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
     if (state.view === 'parameterImage') {
       renderParameterImage(panel);
+      mountDetailViewTabs(panel);
       setupDetailViewTabs(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
     renderDetail(panel, statusText);
+    mountDetailViewTabs(panel);
     setupDetailViewTabs(panel);
     restorePanelScroll(panel, scrollSnapshot);
   }
@@ -6386,7 +6397,9 @@
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent =
-      '#' + PANEL_ID + ' .pfh-detail-view-tabs{position:relative!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;box-sizing:border-box!important;margin:0 0 12px!important;padding:3px!important;overflow:hidden!important;isolation:isolate!important;border:1px solid var(--pfh-theme-border)!important;border-radius:13px!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 7px 18px var(--pfh-theme-shadow-soft)!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs{position:relative!important;display:grid!important;flex:0 0 auto!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;box-sizing:border-box!important;margin:12px 16px 0!important;padding:3px!important;overflow:hidden!important;isolation:isolate!important;border:1px solid var(--pfh-theme-border)!important;border-radius:13px!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 7px 18px var(--pfh-theme-shadow-soft)!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail > .pfh-detail-view-tabs{position:relative!important;z-index:20!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail:has(> .pfh-detail-view-tabs){display:flex!important;flex-direction:column!important;}' +
       '#' + PANEL_ID + ' .pfh-detail-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;width:calc((100% - 6px) / 4)!important;height:calc(100% - 6px)!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;pointer-events:none!important;will-change:left,width!important;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}' +
       '#' + PANEL_ID + ' .pfh-detail-view-tabs button{position:relative!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;min-height:34px!important;margin:0!important;padding:0 8px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:var(--pfh-theme-muted)!important;font:inherit!important;font-size:12px!important;font-weight:700!important;line-height:1!important;cursor:pointer!important;transition:color .28s ease,transform .12s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-detail-view-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}' +
@@ -6490,6 +6503,8 @@
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;height:16px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;line-height:1!important;box-sizing:content-box!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg{display:block!important;width:16px!important;height:16px!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon path{fill:currentColor!important;stroke:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-graphic-table{grid-row:3!important;order:3!important;}' +
+      '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-smart-recommend{grid-row:4!important;grid-column:1/-1!important;order:4!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;outline:none!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;font:inherit!important;box-shadow:0 0 0 0 transparent!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input:focus{border-color:var(--pfh-theme-border-strong)!important;box-shadow:0 0 0 3px var(--pfh-theme-shadow-soft)!important;}' +
       '#' + PANEL_ID + ' .pfh-smart-category-input{display:inline-block!important;width:92px!important;min-width:72px!important;height:25px!important;box-sizing:border-box!important;margin:0 2px!important;padding:0 7px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:7px!important;outline:none!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-primary-hover)!important;font:inherit!important;font-weight:700!important;vertical-align:middle!important;}' +
@@ -6524,7 +6539,8 @@
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
     const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
-    const loading = openingDetail || state.scanRunning || state.copywritingLoading || statusText === L.scanning || statusText === L.checkingMaterial;
+    const hasVisibleCopywriting = Boolean(state.copywritingMode && data && normalizeCopywritingRecord(data.copywriting) && normalizeCopywritingRecord(data.copywriting).fullText);
+    const loading = openingDetail || state.copywritingLoading || (!hasVisibleCopywriting && (state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial));
     detail.classList.toggle('is-loading', loading);
     if (openingDetail) {
       const main = panel.querySelector('.pfh-main');
@@ -6595,7 +6611,7 @@
           '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' +
           '<button type="button" data-action="copywriting-refresh">' + iconHtml('refresh') + '重新获取</button>' +
         '</div>'
-      : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button><button type="button" class="pfh-title-open-detail" data-action="copywriting-open">文案</button>' +
+      : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>' +
           (state.skuEditMode
             ? '<button type="button" class="pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-title-open-detail" data-action="sku-edit-cancel">取消</button>'
             : '<button type="button" class="pfh-title-open-detail pfh-title-edit-data" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '</button>') +
@@ -6637,9 +6653,11 @@
     const updateHtml = record.updatePending
       ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>'
       : '';
-    const loadingHtml = state.copywritingLoading
-      ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + escapeHtml(state.copywritingStatus || '已显示历史内容，正在读取新的文案文件...') + '</span></div>'
-      : '';
+    const loadingHtml = state.copywritingChecking
+      ? '<div class="pfh-copywriting-alert is-update"><strong>正在检查新文案</strong><span>' + escapeHtml(state.copywritingStatus || '已显示历史内容，正在读取新的文案文件...') + '</span></div>'
+      : state.copywritingLoading
+        ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + escapeHtml(state.copywritingStatus || '正在读取新的文案文件...') + '</span></div>'
+        : '';
     const missingHtml = record.missingSections && record.missingSections.length
       ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + escapeHtml(record.missingSections.join('、')) + '</span></div>'
       : '';
@@ -8848,20 +8866,23 @@
     if (initialCached && initialCached.fullText && !(data.copywriting && data.copywriting.fullText)) {
       state.data = normalizeData({ ...data, copywriting: initialCached });
     }
+    const hasCachedCopywriting = Boolean(initialCached && initialCached.fullText);
     if (!state.copywritingMode) state.copywritingView = 'file';
     state.copywritingMode = true;
-    state.copywritingLoading = !(initialCached && initialCached.fullText);
+    state.copywritingLoading = !hasCachedCopywriting;
+    state.copywritingChecking = true;
     state.copywritingError = '';
-    state.copywritingStatus = state.copywritingLoading ? '正在打开产品信息...' : '';
+    state.copywritingStatus = hasCachedCopywriting ? '正在检查新文案...' : '正在打开产品信息...';
     stopScan();
     stopMaterialWatch();
     cancelDrawerTabFlow();
     expandPanel();
+    await wait(0);
     addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
     try {
       let drawer = getProjectDrawerForSku(sku);
       if (!drawer) {
-        await openSelectedProjectDetail();
+        await openSelectedProjectDetail({ preserveCopywriting: hasCachedCopywriting });
         drawer = await waitFor(() => getProjectDrawerForSku(sku), 6000, 150);
       }
       if (!drawer) throw new Error('未打开当前编码的项目详情');
@@ -8893,7 +8914,7 @@
         addLog('warn', '产品文案：检测到旧附件', file.fileName + ' < ' + cached.fileName);
         return;
       }
-      state.copywritingLoading = true;
+      if (!hasCachedCopywriting) state.copywritingLoading = true;
       state.copywritingStatus = '正在触发 Word 下载 ' + file.fileName;
       renderShell();
       let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, 'Word 下载监听');
@@ -8941,6 +8962,7 @@
       showToast('产品文案读取失败');
     } finally {
       state.copywritingLoading = false;
+      state.copywritingChecking = false;
       renderShell();
     }
   }
@@ -13572,7 +13594,7 @@
     clear.classList.toggle('is-visible', Boolean(input && input.value));
   }
 
-  async function openSelectedProjectDetail() {
+  async function openSelectedProjectDetail(options) {
     if (state.openingProjectDetail) {
       showToast(L.openingDetail);
       return;
@@ -13583,8 +13605,18 @@
       showToast(L.excelNeedData);
       return;
     }
+    const preserveCopywriting = Boolean(options && options.preserveCopywriting && state.copywritingMode && state.selectedSku === sku);
     state.ignoreOutsideClickUntil = Date.now() + 2500;
-    showProjectDetailOpeningFeedback(sku, data);
+    if (preserveCopywriting) {
+      state.openingProjectDetail = false;
+      state.openingProjectDetailSku = '';
+      state.selectedSku = sku;
+      state.data = data;
+      resetExcelState();
+      expandPanel();
+    } else {
+      showProjectDetailOpeningFeedback(sku, data);
+    }
     showToast(L.openingDetail);
     try {
       if (!(await ensureNewProductProjectPage())) throw new Error('new product project page not ready');
@@ -13606,7 +13638,7 @@
       showToast(L.openDetailFailed);
     } finally {
       state.openingProjectDetail = false;
-      if (state.selectedSku === sku) renderShell(state.scanRunning ? L.scanning : '');
+      if (state.selectedSku === sku) renderShell(preserveCopywriting ? '' : (state.scanRunning ? L.scanning : ''));
       window.setTimeout(() => {
         if (state.openingProjectDetailSku === sku) state.openingProjectDetailSku = '';
       }, 1000);
