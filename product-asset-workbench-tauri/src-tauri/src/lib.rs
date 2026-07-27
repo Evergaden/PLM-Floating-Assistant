@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
+    time::UNIX_EPOCH,
 };
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -987,7 +988,13 @@ fn scan_video_files(source: String, root: String) -> Result<VideoScanResult, Str
     let directories = direct_product_directories(&root);
     let mut paths = Vec::new();
     collect_video_files(&source_dir, &mut paths);
-    paths.sort_by_key(|path| path.to_string_lossy().to_lowercase());
+    paths.sort_by(|left, right| {
+        let left_time = fs::metadata(left).and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH);
+        let right_time = fs::metadata(right).and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH);
+        right_time
+            .cmp(&left_time)
+            .then_with(|| left.to_string_lossy().to_lowercase().cmp(&right.to_string_lossy().to_lowercase()))
+    });
     let mut skipped_processed = 0;
     let mut files = Vec::new();
     for path in &paths {
@@ -1290,11 +1297,10 @@ fn output_paths(folder: &Path, product: &FinalizedProduct) -> (PathBuf, PathBuf,
     }
     let base_name = sanitize_component(&format!("{} {} {}", product.brand, product.name, product.sku));
     let pack = folder.join("套图");
-    let asset_folder = pack.join(&base_name);
     (
         pack.join(format!("{base_name}.xlsx")),
-        asset_folder.join("英文参数图").join("英文参数图.jpg"),
-        asset_folder.join("产品参数图").join("尺寸.jpg"),
+        folder.join("英文参数图").join("英文参数图.jpg"),
+        folder.join("产品参数图").join("尺寸.jpg"),
     )
 }
 
@@ -1355,8 +1361,8 @@ mod tests {
         let (excel, english, size) = output_paths(&folder, &product);
         assert!(excel.ends_with(r"套图\WESTMONTH 面霜 SKU00000001.xlsx"));
         assert!(output_sku_image_path(&folder, &product).ends_with(r"套图\SKU图\SKU00000001.jpg"));
-        assert!(english.ends_with(r"套图\WESTMONTH 面霜 SKU00000001\英文参数图\英文参数图.jpg"));
-        assert!(size.ends_with(r"套图\WESTMONTH 面霜 SKU00000001\产品参数图\尺寸.jpg"));
+        assert!(english.ends_with(r"英文参数图\英文参数图.jpg"));
+        assert!(size.ends_with(r"产品参数图\尺寸.jpg"));
     }
 
     #[test]
