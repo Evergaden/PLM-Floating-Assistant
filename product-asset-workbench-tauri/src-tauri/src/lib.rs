@@ -276,6 +276,7 @@ struct VideoMatch {
 struct VideoScanResult {
     source_dir: String,
     files: Vec<VideoMatch>,
+    skipped_processed: usize,
     logs: Vec<String>,
 }
 
@@ -954,6 +955,17 @@ fn video_match_for_path(path: &Path, directories: &[PathBuf]) -> VideoMatch {
     }
 }
 
+fn video_outputs_exist(item: &VideoMatch) -> bool {
+    let Some(product_text) = item.product_folder.as_ref() else {
+        return false;
+    };
+    let source = Path::new(&item.source_path);
+    let stem = source.file_stem().and_then(|value| value.to_str()).unwrap_or("video");
+    let product = Path::new(product_text);
+    product.join("套图").join("视频").join(&item.file_name).is_file()
+        && product.join("套图").join("动图").join(format!("{stem}.gif")).is_file()
+}
+
 #[tauri::command]
 fn default_video_source() -> String {
     DEFAULT_VIDEO_SOURCE.to_string()
@@ -973,17 +985,28 @@ fn scan_video_files(source: String, root: String) -> Result<VideoScanResult, Str
     let mut paths = Vec::new();
     collect_video_files(&source_dir, &mut paths);
     paths.sort_by_key(|path| path.to_string_lossy().to_lowercase());
-    let files = paths.iter().map(|path| video_match_for_path(path, &directories)).collect::<Vec<_>>();
+    let mut skipped_processed = 0;
+    let mut files = Vec::new();
+    for path in &paths {
+        let item = video_match_for_path(path, &directories);
+        if video_outputs_exist(&item) {
+            skipped_processed += 1;
+            continue;
+        }
+        files.push(item);
+    }
     let matched = files.iter().filter(|item| item.product_folder.is_some()).count();
     let logs = vec![format!(
-        "扫描完成：发现 {} 个视频，唯一匹配 {} 个，待人工确认 {} 个",
-        files.len(),
+        "扫描完成：发现 {} 个视频，唯一匹配 {} 个，待人工确认 {} 个，已忽略已处理 {} 个（源文件保留）",
+        files.len() + skipped_processed,
         matched,
         files.len().saturating_sub(matched),
+        skipped_processed,
     )];
     Ok(VideoScanResult {
         source_dir: path_text(&source_dir),
         files,
+        skipped_processed,
         logs,
     })
 }

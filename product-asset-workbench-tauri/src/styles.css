@@ -184,10 +184,14 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .video-console > div:first-child { height: 35px; padding: 0 12px; display: flex; align-items: center; color: #dce4f0; border-bottom: 1px solid rgba(255,255,255,.08); }
 .video-console > div:first-child strong { font-size: 11px; }
 .video-console > div:first-child span { margin-left: auto; color: #8fa0b8; font-size: 9px; }
+.video-console-heading button { height: 25px; margin-left: 7px; padding: 0 8px; border: 1px solid #475675; border-radius: 6px; color: #b4c0d4; background: transparent; font-size: 9px; }
 .video-list { max-height: 390px; overflow: auto; }
 .video-empty { min-height: 160px; display: grid; place-items: center; align-content: center; gap: 8px; color: #8fa0b8; font-size: 11px; }
-.video-row { min-height: 64px; padding: 8px 12px; display: grid; grid-template-columns: 24px minmax(180px,1.2fr) minmax(190px,1fr) 120px; align-items: center; gap: 9px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.video-row { min-height: 64px; padding: 8px 12px; display: grid; grid-template-columns: 24px 24px minmax(180px,1.2fr) minmax(190px,1fr) 120px; align-items: center; gap: 9px; border-bottom: 1px solid rgba(255,255,255,.07); }
 .video-row:last-child { border-bottom: 0; }
+.video-check { width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border: 1px solid #667490; border-radius: 6px; color: white; background: transparent; }
+.video-check.checked { border-color: #9b8dfb; background: var(--purple); }
+.video-check:disabled { opacity: .35; cursor: default; }
 .video-row-icon { color: #a99bff; }
 .video-file-copy, .video-match-copy { min-width: 0; display: grid; gap: 3px; }
 .video-file-copy strong, .video-match-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #edf2fa; font-size: 11px; }
@@ -253,5 +257,5 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
   .path-chip { display: none; }
   .pack-grid { grid-template-columns: 1fr; }
   .video-setting-grid { grid-template-columns: repeat(2,minmax(150px,1fr)); }
-  .video-row { grid-template-columns: 24px minmax(150px,1fr) minmax(150px,1fr) 110px; }
+  .video-row { grid-template-columns: 24px 24px minmax(150px,1fr) minmax(150px,1fr) 110px; }
 }

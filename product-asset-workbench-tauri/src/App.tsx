@@ -72,6 +72,7 @@ interface VideoMatch {
 interface VideoScanResult {
   sourceDir: string;
   files: VideoMatch[];
+  skippedProcessed: number;
   logs: string[];
 }
 
@@ -366,6 +367,7 @@ export default function App() {
   const [videoLossy, setVideoLossy] = useState(() => localStorage.getItem(VIDEO_LOSSY_KEY) || "40");
   const [videoThreads, setVideoThreads] = useState(() => localStorage.getItem(VIDEO_THREADS_KEY) || "8");
   const [videoFiles, setVideoFiles] = useState<VideoMatch[]>([]);
+  const [selectedVideoPaths, setSelectedVideoPaths] = useState<Set<string>>(new Set());
   const [videoLogs, setVideoLogs] = useState<string[]>(["等待扫描视频目录。"]);
   const [videoBusy, setVideoBusy] = useState(false);
   const [compactTop, setCompactTop] = useState(() => localStorage.getItem(COMPACT_TOP_KEY) === "1");
@@ -597,8 +599,9 @@ export default function App() {
     try {
       const result = await invoke<VideoScanResult>("scan_video_files", { source: videoSource, root });
       setVideoFiles(result.files);
+      setSelectedVideoPaths(new Set(result.files.filter((item) => item.productFolder).map((item) => item.sourcePath)));
       setVideoLogs(result.logs);
-      notify(`扫描完成：发现 ${result.files.length} 个视频，唯一匹配 ${result.files.filter((item) => item.productFolder).length} 个`);
+      notify(`扫描完成：发现 ${result.files.length} 个待处理视频，已忽略 ${result.skippedProcessed} 个已处理视频`);
     } catch (error) {
       setVideoLogs((current) => [...current, `错误：${String(error)}`]);
       notify(String(error));
@@ -609,8 +612,8 @@ export default function App() {
 
   async function processVideos() {
     if (!root) return notify("请先选择产品文件夹根目录");
-    const matched = videoFiles.filter((item) => item.productFolder);
-    if (!matched.length) return notify("请先扫描并确认至少一个匹配产品的视频");
+    const matched = videoFiles.filter((item) => item.productFolder && selectedVideoPaths.has(item.sourcePath));
+    if (!matched.length) return notify("请先勾选至少一个匹配产品的视频");
     saveVideoSettings();
     setVideoBusy(true);
     try {
@@ -624,7 +627,11 @@ export default function App() {
         lossy: Number(videoLossy),
         threads: Number(videoThreads),
       });
-      setVideoFiles((current) => current.map((item) => result.files.find((processed) => processed.sourcePath === item.sourcePath) || item));
+      const completedPaths = new Set(result.files.filter((item) => item.status === "已完成").map((item) => item.sourcePath));
+      setVideoFiles((current) => current
+        .map((item) => result.files.find((processed) => processed.sourcePath === item.sourcePath) || item)
+        .filter((item) => !completedPaths.has(item.sourcePath)));
+      setSelectedVideoPaths((current) => new Set([...current].filter((path) => !completedPaths.has(path))));
       setVideoLogs(result.logs);
       notify(`视频处理完成：GIF ${result.converted} 个，视频复制 ${result.copied} 个，失败 ${result.failed} 个`);
     } catch (error) {
@@ -633,6 +640,15 @@ export default function App() {
     } finally {
       setVideoBusy(false);
     }
+  }
+
+  function toggleVideoSelection(sourcePath: string) {
+    setSelectedVideoPaths((current) => {
+      const next = new Set(current);
+      if (next.has(sourcePath)) next.delete(sourcePath);
+      else next.add(sourcePath);
+      return next;
+    });
   }
 
   async function archivePacks() {
@@ -980,11 +996,12 @@ export default function App() {
               <small>当前默认：FPS 18、缩放 6、Gifsicle lossy 40、8 线程；GIF 写入产品的 套图/动图，MP4 复制到 套图/视频。</small>
             </div>
             <div className="video-console">
-              <div><strong>匹配结果</strong><span>{videoFiles.length} 个视频 · {videoFiles.filter((item) => item.productFolder).length} 个唯一匹配</span></div>
+              <div className="video-console-heading"><strong>匹配结果</strong><span>{videoFiles.length} 个待处理 · 已勾选 {selectedVideoPaths.size} 个</span><button onClick={() => setSelectedVideoPaths(new Set(videoFiles.filter((item) => item.productFolder).map((item) => item.sourcePath)))}>全选匹配</button><button onClick={() => setSelectedVideoPaths(new Set())}>取消全选</button></div>
               <div className="video-list">
                 {!videoFiles.length && <div className="video-empty"><Film size={28} /><span>点击“扫描并匹配”检查视频文件名</span></div>}
                 {videoFiles.map((item) => (
                   <div className="video-row" key={item.sourcePath}>
+                    <button className={`video-check ${selectedVideoPaths.has(item.sourcePath) ? "checked" : ""}`} disabled={!item.productFolder} onClick={() => toggleVideoSelection(item.sourcePath)}>{selectedVideoPaths.has(item.sourcePath) && <Check size={13} />}</button>
                     <Film size={17} className="video-row-icon" />
                     <div className="video-file-copy"><strong title={item.fileName}>{item.fileName}</strong><small title={item.sourcePath}>{item.sourcePath}</small></div>
                     <div className="video-match-copy">
@@ -997,7 +1014,7 @@ export default function App() {
             </div>
             <div className="video-actions">
               <div><strong>输出位置</strong><span>{root ? `${root}/各产品目录/套图/动图 + 套图/视频` : "请先选择产品根目录"}</span></div>
-              <button className="primary large" onClick={processVideos} disabled={videoBusy || !videoFiles.some((item) => item.productFolder)}>{videoBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}处理已匹配视频</button>
+              <button className="primary large" onClick={processVideos} disabled={videoBusy || !selectedVideoPaths.size}>{videoBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}处理已勾选视频</button>
             </div>
             <div className="video-log"><strong>处理日志</strong><pre>{videoLogs.join("\n")}</pre></div>
           </section>
