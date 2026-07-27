@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.3
+// @version      2.6.4
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.3';
+  const SCRIPT_VERSION = '2.6.4';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -40,6 +40,7 @@
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '8';
+  const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
   const SKU_LIST_PREFERENCE_VERSION = 1;
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -8856,28 +8857,32 @@
       return;
     }
     const sku = data.sku;
-    const storedData = normalizeData(loadData(sku) || data);
     const currentCached = normalizeCopywritingRecord(data.copywriting);
+    const hasImmediateCopywriting = Boolean(currentCached && currentCached.fullText);
+    if (!state.copywritingMode) state.copywritingView = 'file';
+    state.copywritingMode = true;
+    state.copywritingLoading = !hasImmediateCopywriting;
+    state.copywritingChecking = true;
+    state.copywritingError = '';
+    state.copywritingStatus = hasImmediateCopywriting ? '正在检查新文案...' : '正在读取本地缓存...';
+    stopScan();
+    stopMaterialWatch();
+    cancelDrawerTabFlow();
+    expandPanel();
+    await wait(COPYWRITING_CACHE_DEBOUNCE_MS);
+    const storedData = hasImmediateCopywriting ? data : normalizeData(loadData(sku) || data);
     const storedCached = normalizeCopywritingRecord(storedData.copywriting);
     const initialCached = (currentCached && currentCached.fullText ? currentCached : null)
       || (storedCached && storedCached.fullText ? storedCached : null)
       || currentCached
       || storedCached;
-    if (initialCached && initialCached.fullText && !(data.copywriting && data.copywriting.fullText)) {
-      state.data = normalizeData({ ...data, copywriting: initialCached });
-    }
     const hasCachedCopywriting = Boolean(initialCached && initialCached.fullText);
-    if (!state.copywritingMode) state.copywritingView = 'file';
-    state.copywritingMode = true;
-    state.copywritingLoading = !hasCachedCopywriting;
-    state.copywritingChecking = true;
-    state.copywritingError = '';
-    state.copywritingStatus = hasCachedCopywriting ? '正在检查新文案...' : '正在打开产品信息...';
-    stopScan();
-    stopMaterialWatch();
-    cancelDrawerTabFlow();
-    expandPanel();
-    await wait(0);
+    if (initialCached && initialCached.fullText && !hasImmediateCopywriting) {
+      state.data = normalizeData({ ...state.data, copywriting: initialCached });
+      state.copywritingLoading = false;
+      state.copywritingStatus = '正在检查新文案...';
+      renderShell();
+    }
     addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
     try {
       let drawer = getProjectDrawerForSku(sku);
