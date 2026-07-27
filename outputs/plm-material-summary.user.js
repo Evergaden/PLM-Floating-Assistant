@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.6
+// @version      2.6.7
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.6';
+  const SCRIPT_VERSION = '2.6.7';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -6498,8 +6498,9 @@
       '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;box-shadow:0 8px 20px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
-      '#' + PANEL_ID + ' .pfh-copywriting-toolbar{justify-content:flex-start!important;align-items:center!important;flex-direction:row!important;flex-wrap:nowrap!important;gap:8px!important;min-width:0!important;overflow:hidden!important;}' +
-      '#' + PANEL_ID + ' .pfh-copywriting-toolbar label{flex:1 1 auto!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr) max-content!important;justify-content:initial!important;align-items:center!important;flex-direction:row!important;flex-wrap:nowrap!important;gap:8px!important;min-width:0!important;overflow:hidden!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar label{display:inline-flex!important;flex:0 1 auto!important;min-width:0!important;overflow:hidden!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-view-select{width:112px!important;min-width:112px!important;max-width:112px!important;flex:0 0 112px!important;}' +
       '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions{display:flex!important;align-items:center!important;gap:8px!important;flex:0 0 auto!important;min-width:0!important;white-space:nowrap!important;}' +
       '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;min-height:30px!important;padding:0 10px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;font:inherit!important;font-size:11px!important;font-weight:700!important;line-height:1!important;white-space:nowrap!important;cursor:pointer!important;}' +
       '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
@@ -10017,21 +10018,36 @@
     }
   }
 
+  function normalizeCopywritingComparisonText(value) {
+    return String(value || '')
+      .replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/(\d+(?:\.\d+)?)\s*(fl\s*oz|mcg|mg|kg|g|ml|l|oz|lbs?|cm|mm|in(?:ches?)?|ft|pcs?|capsules?|tablets?|gummies?|pairs?)(?=\b)/gi, (_, amount, unit) => amount + unit.replace(/\s+/g, '').toLowerCase())
+      .trim();
+  }
+
   function buildCopywritingRecord(fileName, fileTimestamp, fileHash, built, cached) {
     const now = new Date().toLocaleString();
     const old = normalizeCopywritingRecord(cached);
-    const changedFile = Boolean(old && old.fullText && (
-      old.fileHash !== fileHash
-      || old.fileName !== fileName
-      || old.fullText !== built.fullText
-    ));
     const oldMap = new Map((old && old.sections || []).map((section) => [section.key, section]));
     const nextMap = new Map((built.sections || []).map((section) => [section.key, section]));
+    const contentChangedSectionKeys = built.sections
+      .filter((section) => !oldMap.has(section.key) || normalizeCopywritingComparisonText(oldMap.get(section.key).text) !== normalizeCopywritingComparisonText(section.text))
+      .map((section) => section.key);
+    const contentRemovedSections = (old && old.sections || [])
+      .filter((section) => !nextMap.has(section.key))
+      .map((section) => section.label || section.key);
+    const changedFile = Boolean(old && old.fullText && (
+      old.fileName !== fileName
+      || normalizeCopywritingComparisonText(old.fullText) !== normalizeCopywritingComparisonText(built.fullText)
+      || contentChangedSectionKeys.length
+      || contentRemovedSections.length
+    ));
     const changedSectionKeys = changedFile
-      ? built.sections.filter((section) => !oldMap.has(section.key) || oldMap.get(section.key).text !== section.text).map((section) => section.key)
+      ? contentChangedSectionKeys
       : (old && old.updatePending ? old.changedSectionKeys.slice() : []);
     const removedSections = changedFile
-      ? (old.sections || []).filter((section) => !nextMap.has(section.key)).map((section) => section.label || section.key)
+      ? contentRemovedSections
       : (old && old.updatePending ? old.removedSections.slice() : []);
     return normalizeCopywritingRecord({
       fileName,
