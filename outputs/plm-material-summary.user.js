@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.5
+// @version      2.6.6
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.5';
+  const SCRIPT_VERSION = '2.6.6';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -2585,7 +2585,6 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-toolbar label{color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-view-select{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-view-select:focus{border-color:var(--pfh-theme-border-strong)!important;box-shadow:0 0 0 3px var(--pfh-theme-shadow-soft)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-progress{color:var(--pfh-theme-muted)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-content{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 28px var(--pfh-theme-shadow-soft)!important;scrollbar-color:var(--pfh-theme-border-strong) transparent!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-block,
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-full-card{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 8px 20px var(--pfh-theme-shadow-soft)!important;}
@@ -6499,6 +6498,13 @@
       '#' + PANEL_ID + ' .pfh-info-grid .pfh-row:hover{border-color:var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-primary-soft))!important;box-shadow:0 8px 20px var(--pfh-theme-shadow-soft),inset 0 1px 0 rgba(255,255,255,.94)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions{flex-wrap:wrap!important;justify-content:flex-start!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .is-primary{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar{justify-content:flex-start!important;flex-wrap:wrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions{display:flex!important;align-items:center!important;gap:8px!important;flex:0 0 auto!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;min-height:30px!important;padding:0 10px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;font:inherit!important;font-size:11px!important;font-weight:700!important;line-height:1!important;white-space:nowrap!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button:disabled{cursor:wait!important;opacity:.56!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button .pfh-icon{display:inline-flex!important;width:14px!important;height:14px!important;flex:0 0 14px!important;align-items:center!important;justify-content:center!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;}' +
+      '#' + PANEL_ID + ' .pfh-copywriting-toolbar-actions button svg{width:14px!important;height:14px!important;flex:0 0 14px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data{display:inline-flex!important;width:34px!important;min-width:34px!important;padding:0!important;align-items:center!important;justify-content:center!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;height:16px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;line-height:1!important;box-sizing:content-box!important;}' +
@@ -6605,22 +6611,28 @@
   }
 
   function productHeroSectionHtml(data, copywritingMode) {
+    if (copywritingMode) return copywritingHeroSectionHtml(data);
     const title = [data && data.brand, data && data.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
-    const actions = copywritingMode
-      ? '<div class="pfh-copywriting-hero-actions">' +
-          '<button type="button" class="is-primary" data-action="copywriting-back">' + iconHtml('back') + '返回数据</button>' +
-          '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' +
-          '<button type="button" data-action="copywriting-refresh">' + iconHtml('refresh') + '重新获取</button>' +
-        '</div>'
-      : '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>' +
+    const actions = '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>' +
           (state.skuEditMode
             ? '<button type="button" class="pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-title-open-detail" data-action="sku-edit-cancel">取消</button>'
             : '<button type="button" class="pfh-title-open-detail pfh-title-edit-data" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '</button>') +
         '</div>';
-    return '<section class="pfh-section pfh-file-section' + (copywritingMode ? ' pfh-copywriting-hero-section' : '') + '"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
+    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
       productThumbHtml(data) +
       '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml((data && data.sku) || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml(title) + '</strong>' + actions + '</div>' +
-      '</div></div>' + (copywritingMode ? '</section>' : '');
+      '</div></div></section>';
+  }
+
+  function copywritingHeroSectionHtml(data) {
+    const sku = String(data && data.sku || L.sku);
+    const imageUrl = getSkuListImageUrl(data);
+    const heroThumb = imageUrl
+      ? '<span class="pfh-parameter-hero-thumb"><img src="' + escapeHtml(imageUrl) + '" alt=""></span>'
+      : '<span class="pfh-parameter-hero-thumb is-empty">' + escapeHtml(sku) + '</span>';
+    const title = sku + ' 文案';
+    const subtitle = [data && data.brand, data && data.name].filter(Boolean).join(' ') || L.noDrawer;
+    return '<section class="pfh-section pfh-file-section pfh-copywriting-hero-section"><header class="pfh-parameter-hero pfh-copywriting-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>COPYWRITING</small><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(subtitle) + '</p></div></header></section>';
   }
 
   function copywritingCopyIconHtml() {
@@ -6637,20 +6649,25 @@
 
   function copywritingViewHtml(data) {
     const record = normalizeCopywritingRecord(data && data.copywriting);
+    const view = state.copywritingView === 'full' ? 'full' : 'file';
+    const toolbarHtml = '<div class="pfh-copywriting-toolbar"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
+      '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
+      '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
+      '</select></label><div class="pfh-copywriting-toolbar-actions"><button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
+      (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + (record.copiedFullText ? copywritingCopiedIconHtml() + '已复制全文' : copywritingCopyIconHtml() + '复制全文') + '</button>' : '') +
+      '</div></div>';
     if (state.copywritingLoading && !(record && record.fullText)) {
-      return '<section class="pfh-copywriting-page is-loading"><div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
+      return '<section class="pfh-copywriting-page is-loading">' + toolbarHtml + '<div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
     }
     const errorHtml = state.copywritingError
       ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + escapeHtml(state.copywritingError) + '</span></div>'
       : '';
     if (!record || !record.fullText) {
-      return '<section class="pfh-copywriting-page">' + errorHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
+      return '<section class="pfh-copywriting-page">' + errorHtml + toolbarHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
     }
     const changed = new Set(record.changedSectionKeys || []);
     const copied = new Set(record.copiedSectionKeys || []);
-    const view = state.copywritingView === 'full' ? 'full' : 'file';
     const visibleSections = record.sections.filter(isCopywritingFileViewSection);
-    const copiedCount = visibleSections.filter((section) => copied.has(section.key)).length;
     const updateHtml = record.updatePending
       ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>'
       : '';
@@ -6662,10 +6679,6 @@
     const missingHtml = record.missingSections && record.missingSections.length
       ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + escapeHtml(record.missingSections.join('、')) + '</span></div>'
       : '';
-    const toolbarHtml = '<div class="pfh-copywriting-toolbar"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
-      '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
-      '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
-      '</select></label><span class="pfh-copywriting-progress">' + (view === 'file' ? ('已复制 ' + copiedCount + ' / ' + visibleSections.length + ' · 点击卡片右侧按钮复制') : '完整展示全部文案内容') + '</span></div>';
     const contentHtml = view === 'full'
       ? '<div class="pfh-copywriting-full-card' + (record.copiedFullText ? ' is-copied' : '') + '"><div class="pfh-copywriting-block-head"><span><b>全文</b><small>全部文案内容</small></span><button type="button" data-action="copywriting-copy">' + (record.copiedFullText ? copywritingCopiedIconHtml() + '已复制全文' : copywritingCopyIconHtml() + '复制全文') + '</button></div><pre>' + escapeHtml(record.fullText) + '</pre></div>'
       : visibleSections.map((section, index) => {
@@ -9071,14 +9084,9 @@
     const fullCard = panel.querySelector('.pfh-copywriting-full-card');
     if (fullCard && record.copiedFullText) {
       fullCard.classList.add('is-copied');
-      const button = fullCard.querySelector('[data-action="copywriting-copy"]');
-      if (button) button.innerHTML = copywritingCopiedIconHtml() + '已复制全文';
-    }
-    const progress = panel.querySelector('.pfh-copywriting-progress');
-    if (progress && state.copywritingView !== 'full') {
-      const visibleSections = (record.sections || []).filter(isCopywritingFileViewSection);
-      const copiedCount = visibleSections.filter((section) => copied.has(section.key)).length;
-      progress.textContent = '已复制 ' + copiedCount + ' / ' + visibleSections.length + ' · 点击卡片右侧按钮复制';
+      panel.querySelectorAll('[data-action="copywriting-copy"]').forEach((button) => {
+        button.innerHTML = copywritingCopiedIconHtml() + '已复制全文';
+      });
     }
   }
 
@@ -10579,13 +10587,6 @@
     }
     if (action === 'toy-copywriting-fill') {
       fillToyCopywriting();
-      return;
-    }
-    if (action === 'copywriting-back') {
-      state.copywritingMode = false;
-      state.copywritingError = '';
-      state.copywritingStatus = '';
-      renderShell();
       return;
     }
     if (action === 'copywriting-copy') {
