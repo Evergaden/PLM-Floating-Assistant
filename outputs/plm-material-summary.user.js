@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7
+// @version      2.8
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,12 +32,14 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7';
+  const SCRIPT_VERSION = '2.8';
+  const REVIEW_CONFIRM_WAIT_MS = 30000;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '8';
   const SKU_LIST_PREFERENCE_VERSION = 1;
+  let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
   const PARAMETER_LOGO_ALIASES = Object.freeze({
@@ -12217,6 +12219,12 @@
             state.uploadQueue = loadUploadQueue();
             continue;
           }
+          if (isReviewConfirmWaitError(error)) {
+            pauseUploadAfterReviewConfirmTimeout(item, error);
+            state.uploadRunning = loadUploadWorkerRunning(workerMode);
+            state.uploadQueue = loadUploadQueue();
+            continue;
+          }
           const message = error && error.message ? error.message : '\u672a\u77e5\u9519\u8bef';
           console.warn('PLM floating helper upload queue item failed, continue next:', error);
           markUploadQueueBlocked(item, L.uploadFailed, message);
@@ -12395,6 +12403,10 @@
       console.warn('PLM floating helper upload queue failed:', error);
       if (isUploadRetryRefreshError(error) || findUploadRetryNotice()) {
         await refreshPageAndRetryUploadItem(item);
+        return;
+      }
+      if (isReviewConfirmWaitError(error)) {
+        pauseUploadAfterReviewConfirmTimeout(item, error);
         return;
       }
       if (error && /产品信息开品中|不能编辑/.test(error.message || '')) {
@@ -12869,24 +12881,58 @@
     await wait(1500);
   }
 
+  function isReviewConfirmWaitError(error) {
+    return Boolean(error && error.code === 'PFH_REVIEW_CONFIRM_TIMEOUT');
+  }
+
+  function pauseUploadAfterReviewConfirmTimeout(item, error) {
+    const message = error && error.message ? error.message : '\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97\u7b49\u5f85\u8d85\u65f6';
+    reviewConfirmRequestedAt = 0;
+    state.uploadRunning = false;
+    saveUploadWorkerRunning(getUploadControlMode(), false);
+    markUploadQueueBlocked(item, L.uploadFailed, message + '\uff0c\u5df2\u6682\u505c\uff0c\u8bf7\u624b\u52a8\u5904\u7406\u63d0\u5ba1\u5f39\u7a97');
+    addLog('error', '\u63d0\u5ba1\u4e0a\u4f20\u5931\u8d25\uff1a\u63d0\u5ba1\u5f39\u7a97\u54cd\u5e94\u8d85\u65f6\uff0c\u5df2\u6682\u505c', item && item.sku ? item.sku : '');
+    showToast((item && item.sku ? item.sku + ' ' : '') + '\u63d0\u5ba1\u5f39\u7a97\u54cd\u5e94\u8f83\u6162\uff0c\u5df2\u6682\u505c\u961f\u5217\uff0c\u8bf7\u624b\u52a8\u5904\u7406');
+  }
+
   async function submitProductReview() {
     const reviewResult = await clickReviewAndWaitConfirm();
-    if (reviewResult === 'disabled') throw new Error('\u4ea7\u54c1\u5df2\u505c\u7528');
-    if (reviewResult === 'purchase-empty') throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
+    if (reviewResult === 'disabled') {
+      reviewConfirmRequestedAt = 0;
+      throw new Error('\u4ea7\u54c1\u5df2\u505c\u7528');
+    }
+    if (reviewResult === 'purchase-empty') {
+      reviewConfirmRequestedAt = 0;
+      throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
+    }
     if (reviewResult === 'minimum-order') {
+      reviewConfirmRequestedAt = 0;
       const filled = await fillMinimumOrderQuantityIfNeeded();
       if (!filled) throw new Error('\u672a\u6253\u5f00\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97');
       const retryResult = await clickReviewAndWaitConfirm();
-      if (retryResult === 'disabled') throw new Error('\u4ea7\u54c1\u5df2\u505c\u7528');
-      if (retryResult === 'purchase-empty') throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
+      if (retryResult === 'disabled') {
+        reviewConfirmRequestedAt = 0;
+        throw new Error('\u4ea7\u54c1\u5df2\u505c\u7528');
+      }
+      if (retryResult === 'purchase-empty') {
+        reviewConfirmRequestedAt = 0;
+        throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
+      }
       if (retryResult !== 'confirm') throw new Error('\u672a\u6253\u5f00\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97');
     }
-    if (findProductDisabledError()) throw new Error('\u4ea7\u54c1\u5df2\u505c\u7528');
-    if (findPurchaseInfoEmptyError()) throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
+    if (findProductDisabledError()) {
+      reviewConfirmRequestedAt = 0;
+      throw new Error('\u4ea7\u54c1\u5df2\u505c\u7528');
+    }
+    if (findPurchaseInfoEmptyError()) {
+      reviewConfirmRequestedAt = 0;
+      throw new Error('\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a');
+    }
     if (!getVisibleModal()) throw new Error('\u672a\u6253\u5f00\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97');
     const confirm = await waitUntil(() => findReviewConfirmButton(), 30000, 200);
     if (!confirm) throw new Error('\u672a\u627e\u5230\u786e\u8ba4\u63d0\u5ba1');
     confirm.click();
+    reviewConfirmRequestedAt = 0;
     const result = await waitUntil(() => {
       const text = getVisibleText(document.body);
       if (text.includes('\u4ea7\u54c1\u63d0\u5ba1\u6210\u529f') || text.includes('\u63d0\u5ba1\u6210\u529f')) {
@@ -12915,8 +12961,9 @@
     const button = await waitUntil(() => findProductReviewButton(), 60000, 800);
     if (!button) throw new Error('\u672a\u627e\u5230\u63d0\u5ba1\u6309\u94ae');
     button.click();
+    reviewConfirmRequestedAt = Date.now();
     const startedAt = Date.now();
-    while (Date.now() - startedAt < 8000) {
+    while (Date.now() - startedAt < REVIEW_CONFIRM_WAIT_MS) {
       const modal = getVisibleModal();
       if (isReviewConfirmModal(modal)) return 'confirm';
       if (findMinimumOrderQuantityErrorItem()) return 'minimum-order';
@@ -12928,7 +12975,9 @@
     if (findProductDisabledError()) return 'disabled';
     if (findMinimumOrderQuantityErrorItem()) return 'minimum-order';
     if (findReviewConfirmButton()) return 'confirm';
-    return '';
+    const error = new Error('\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97\u54cd\u5e94\u8d85\u65f6');
+    error.code = 'PFH_REVIEW_CONFIRM_TIMEOUT';
+    throw error;
   }
 
   function findProductReviewButton() {
@@ -13196,9 +13245,18 @@
     });
   }
 
+  function isReviewConfirmRequestPending() {
+    return Boolean(reviewConfirmRequestedAt && Date.now() - reviewConfirmRequestedAt < REVIEW_CONFIRM_WAIT_MS);
+  }
+
   function assertNoReviewConfirmModal() {
     const modal = getVisibleModal();
     if (isReviewConfirmModal(modal)) throw new Error('\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97\u672a\u5904\u7406\uff0c\u5df2\u963b\u6b62\u5173\u95ed\u6216\u5207\u6362\u4e0b\u4e00\u4e2a\u7f16\u7801');
+    if (isReviewConfirmRequestPending()) {
+      const error = new Error('\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97\u6b63\u5728\u54cd\u5e94\uff0c\u5df2\u963b\u6b62\u5173\u95ed\u5546\u54c1\u9875');
+      error.code = 'PFH_REVIEW_CONFIRM_TIMEOUT';
+      throw error;
+    }
   }
 
   function findDrawerCloseButton(drawer) {
