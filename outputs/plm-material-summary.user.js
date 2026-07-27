@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.1
+// @version      2.6.2
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.1';
+  const SCRIPT_VERSION = '2.6.2';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -860,13 +860,13 @@
           context.render();
         }
       });
-      if (!data || !data.sku) return '<div class="pfh-parameter-scroll"><div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div>';
+      if (!data || !data.sku) return '<div class="pfh-parameter-scroll">' + (context.detailViewTabs ? context.detailViewTabs('parameterImage') : '') + '<div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div>';
       const session = ensureSession(data);
       const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
       const heroImage = preferredImageUrl(data);
       const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
-      const html = '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
+      const html = '<div class="pfh-parameter-scroll">' + (context.detailViewTabs ? context.detailViewTabs('parameterImage') : '') + '<section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
           '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>一张图可同时包含纸盒与产品</span></button>' +
@@ -3269,6 +3269,7 @@
     skuSortMenuOpen: false,
     skuContextMenuSku: '',
     copywritingMode: false,
+    detailViewPreviousTab: '',
     copywritingView: 'file',
     skuEditMode: false,
     copywritingLoading: false,
@@ -3365,6 +3366,7 @@
     panelId: PANEL_ID,
     escapeHtml,
     formatNumber: formatSizeImageNumber,
+    detailViewTabs: (activeView) => detailViewTabsHtml(activeView),
     productType: (data) => getProductTypeForInsight(data, null),
     cloudRequest,
     collectExtra: collectExcelExtraData,
@@ -5566,8 +5568,81 @@
     button.title = enabled ? '\u6570\u636e\u91c7\u96c6\u5df2\u5f00\u542f' : '\u6570\u636e\u91c7\u96c6\u5df2\u5173\u95ed';
   }
 
+  const DETAIL_VIEW_TABS = Object.freeze([
+    { id: 'detail', label: '详情' },
+    { id: 'copywriting', label: '文案' },
+    { id: 'parameterImage', label: '参数图' },
+    { id: 'sizeImage', label: '尺寸图' },
+  ]);
+
+  function normalizeDetailViewTab(value) {
+    const tab = String(value || '');
+    return DETAIL_VIEW_TABS.some((item) => item.id === tab) ? tab : 'detail';
+  }
+
+  function getCurrentDetailViewTab() {
+    if (state.view === 'parameterImage') return 'parameterImage';
+    if (state.view === 'sizeImage') return 'sizeImage';
+    return state.copywritingMode ? 'copywriting' : 'detail';
+  }
+
+  function detailViewTabsHtml(activeView) {
+    const active = normalizeDetailViewTab(activeView || getCurrentDetailViewTab());
+    const sizeImageDisabled = !state.sizeImageAccessEnabled;
+    const sizeImageTitle = state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待';
+    const buttons = DETAIL_VIEW_TABS.map((tab) => {
+      const selected = tab.id === active;
+      const disabled = tab.id === 'sizeImage' && sizeImageDisabled;
+      return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + tab.id + '" class="' + (selected ? 'is-active' : '') + '" aria-selected="' + String(selected) + '"' + (disabled ? ' disabled aria-disabled="true" title="' + escapeHtml(sizeImageTitle) + '"' : '') + '>' + escapeHtml(tab.label) + '</button>';
+    }).join('');
+    return '<nav class="pfh-detail-view-tabs" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
+  }
+
+  function setupDetailViewTabs(panel) {
+    const tabs = panel && panel.querySelector('.pfh-detail-view-tabs');
+    const indicator = tabs && tabs.querySelector('.pfh-detail-view-indicator');
+    const activeButton = tabs && tabs.querySelector('button.is-active');
+    if (!tabs || !indicator || !activeButton) return;
+    const transition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    };
+    const previousValue = String(state.detailViewPreviousTab || '');
+    const previous = DETAIL_VIEW_TABS.some((item) => item.id === previousValue) ? previousValue : '';
+    const previousButton = previous && previous !== activeButton.getAttribute('data-detail-view')
+      ? tabs.querySelector('button[data-detail-view="' + previous + '"]')
+      : null;
+    if (previousButton) {
+      indicator.style.setProperty('transition', 'none', 'important');
+      moveIndicator(previousButton);
+      window.requestAnimationFrame(() => {
+        if (!indicator.isConnected) return;
+        indicator.style.setProperty('transition', transition, 'important');
+        moveIndicator(activeButton);
+      });
+    } else {
+      indicator.style.setProperty('transition', 'none', 'important');
+      moveIndicator(activeButton);
+      window.requestAnimationFrame(() => {
+        if (indicator.isConnected) indicator.style.setProperty('transition', transition, 'important');
+      });
+    }
+    tabs.querySelectorAll('button[data-action="detail-view-tab"]').forEach((button) => {
+      button.addEventListener('mousemove', (event) => {
+        const rect = button.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        button.style.setProperty('--mx', ((event.clientX - rect.left) / rect.width * 100) + '%');
+        button.style.setProperty('--my', ((event.clientY - rect.top) / rect.height * 100) + '%');
+      });
+    });
+    state.detailViewPreviousTab = '';
+  }
+
   function renderShell(statusText) {
     const panel = ensurePanel();
+    ensureDetailViewTabsStyles();
     panel.dataset.view = state.view || 'home';
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
@@ -5623,15 +5698,18 @@
     }
     if (state.view === 'sizeImage') {
       renderSizeImage(panel);
+      setupDetailViewTabs(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
     if (state.view === 'parameterImage') {
       renderParameterImage(panel);
+      setupDetailViewTabs(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
     renderDetail(panel, statusText);
+    setupDetailViewTabs(panel);
     restorePanelScroll(panel, scrollSnapshot);
   }
 
@@ -6302,6 +6380,26 @@
     moveIndicator(activeButton);
   }
 
+  function ensureDetailViewTabsStyles() {
+    const styleId = PANEL_ID + '-detail-view-tabs-styles';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent =
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs{position:relative!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:0!important;box-sizing:border-box!important;margin:0 0 12px!important;padding:3px!important;overflow:hidden!important;isolation:isolate!important;border:1px solid var(--pfh-theme-border)!important;border-radius:13px!important;background:var(--pfh-theme-surface)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 7px 18px var(--pfh-theme-shadow-soft)!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;width:calc((100% - 6px) / 4)!important;height:calc(100% - 6px)!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;pointer-events:none!important;will-change:left,width!important;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button{position:relative!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;min-height:34px!important;margin:0!important;padding:0 8px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:var(--pfh-theme-muted)!important;font:inherit!important;font-size:12px!important;font-weight:700!important;line-height:1!important;cursor:pointer!important;transition:color .28s ease,transform .12s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button:active{transform:scale(.94)!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button::after{content:"";position:absolute!important;inset:0!important;border-radius:10px!important;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%)!important;opacity:0!important;transition:opacity .25s!important;pointer-events:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button:hover::after{opacity:1!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button.is-active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%)!important;}' +
+      '#' + PANEL_ID + ' .pfh-detail-view-tabs button:disabled{cursor:not-allowed!important;opacity:.48!important;}' +
+      '@media(max-width:680px){#' + PANEL_ID + ' .pfh-detail-view-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important;}#' + PANEL_ID + ' .pfh-detail-view-indicator{width:calc((100% - 6px) / 2)!important;}}' +
+      '@media(prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-detail-view-tabs button{transition:none!important;}#' + PANEL_ID + ' .pfh-detail-view-indicator{transition:none!important;}}';
+    document.documentElement.appendChild(style);
+  }
+
   function ensureContinuousListScrollStyles() {
     const styleId = PANEL_ID + '-continuous-list-scroll-styles';
     if (document.getElementById(styleId)) return;
@@ -6453,6 +6551,7 @@
     if (state.copywritingMode) {
       detail.innerHTML = [
         '<div class="pfh-detail-scroll pfh-copywriting-scroll">',
+        detailViewTabsHtml('copywriting'),
         productHeroSectionHtml(state.data, true),
         copywritingViewHtml(state.data),
         '</div>',
@@ -6462,6 +6561,7 @@
     detail.innerHTML = [
       renderStatusHtml(statusText),
       '<div class="pfh-detail-scroll">',
+      detailViewTabsHtml('detail'),
       productHeroSectionHtml(state.data, false),
       skuDataChangeAlertHtml(state.data),
       '<div class="pfh-info-grid">',
@@ -7021,7 +7121,7 @@
   function sizeImageViewHtml() {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
-      return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u53ef\u751f\u6210\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
+      return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u53ef\u751f\u6210\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
     }
     const cartonSpec = getSizeImageSpec(data);
     const labelSpecs = getLabelSizeImageSpecs(data);
@@ -7067,7 +7167,7 @@
       }),
     ].filter(Boolean).join('');
     const pendingMatch = session.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>\u8bf7\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u5c3a\u5bf8</strong>' + session.pendingLabelMatches.map((pending) => '<div><span>' + escapeHtml(pending.file.name || '\u5f85\u5339\u914d\u56fe\u7247') + '</span><select class="pfh-size-image-match-select" data-pending-id="' + escapeHtml(pending.id) + '">' + labelSpecs.map((spec) => '<option value="' + escapeHtml(spec.key) + '">' + escapeHtml((spec.kind === 'print' ? '\u5370\u5237 ' : '\u6807\u7b7e ') + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm') + '</option>').join('') + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + escapeHtml(pending.id) + '">\u786e\u8ba4\u751f\u6210</button></div>').join('') + '</div>' : '';
-    return '<div class="pfh-detail-scroll pfh-size-image-scroll"><section class="pfh-size-image-page">' +
+    return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page">' +
       '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
@@ -8845,6 +8945,34 @@
     }
   }
 
+  function switchDetailViewTab(nextView) {
+    const target = normalizeDetailViewTab(nextView);
+    const current = getCurrentDetailViewTab();
+    if (target === 'sizeImage' && !state.sizeImageAccessEnabled) {
+      showToast(state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待');
+      return;
+    }
+    if (target === current) return;
+    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    if (!data || !data.sku) {
+      showToast('请先从左侧选择 SKU');
+      return;
+    }
+    state.detailViewPreviousTab = current;
+    state.selectedSku = data.sku;
+    state.data = data;
+    if (target === 'copywriting') {
+      state.view = 'detail';
+      state.copywritingMode = false;
+      openCopywritingFromCurrent(false);
+      return;
+    }
+    state.copywritingMode = false;
+    state.view = target;
+    if (target === 'parameterImage') parameterImageFeature.loadRules();
+    expandPanel();
+  }
+
   function acknowledgeCopywritingUpdate() {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     const record = normalizeCopywritingRecord(data && data.copywriting);
@@ -10122,6 +10250,10 @@
       markAllNotificationsRead();
       return;
     }
+    if (action === 'detail-view-tab') {
+      switchDetailViewTab(actionTarget.getAttribute('data-detail-view') || 'detail');
+      return;
+    }
     if (state.view === 'parameterImage' && action && parameterImageFeature.handleAction(action, actionTarget, state.data || {})) return;
     if (action === 'sku-context-pin' || action === 'sku-context-parameter' || action === 'sku-context-size' || action === 'sku-context-delete') {
       const sku = actionTarget.getAttribute('data-sku') || '';
@@ -10230,9 +10362,7 @@
       return;
     }
     if (action === 'search') {
-      const searchView = state.view === 'sizeImage' || state.view === 'parameterImage' ? state.view : 'detail';
-      state.view = searchView;
-      state.copywritingMode = false;
+      const searchView = getCurrentDetailViewTab();
       state.skuPage = 1;
       runSearch(searchView);
       return;
@@ -10986,18 +11116,29 @@
 
     const skuButton = event.target && event.target.closest && event.target.closest('[data-sku]');
     if (skuButton) {
+      const currentTab = getCurrentDetailViewTab();
       const sku = skuButton.getAttribute('data-sku');
       const data = loadData(sku);
       state.selectedSku = sku;
-      state.data = data ? normalizeData(data) : (state.view === 'sizeImage' || state.view === 'parameterImage' ? normalizeData({ sku }) : null);
-      if (state.view === 'sizeImage' || state.view === 'parameterImage') {
+      state.data = data ? normalizeData(data) : (currentTab === 'sizeImage' || currentTab === 'parameterImage' ? normalizeData({ sku }) : null);
+      state.detailViewPreviousTab = '';
+      if (currentTab === 'sizeImage' || currentTab === 'parameterImage') {
+        state.view = currentTab;
+        state.copywritingMode = false;
+        state.skuEditMode = false;
+        resetExcelState();
+        if (currentTab === 'parameterImage') parameterImageFeature.loadRules();
         expandPanel();
         return;
       }
       state.view = 'detail';
-      state.copywritingMode = false;
+      state.copywritingMode = currentTab === 'copywriting' && Boolean(state.data);
       state.skuEditMode = false;
       resetExcelState();
+      if (state.copywritingMode) {
+        openCopywritingFromCurrent(false);
+        return;
+      }
       expandPanel();
       return;
     }
@@ -13385,6 +13526,8 @@
   }
 
   function runSearch(targetView) {
+    const requestedView = normalizeDetailViewTab(targetView || getCurrentDetailViewTab());
+    const previousView = getCurrentDetailViewTab();
     const input = ensurePanel().querySelector('.pfh-search-input');
     if (input) input.value = normalizeSearchInput(input.value);
     state.searchQuery = input ? input.value.trim() : '';
@@ -13396,8 +13539,16 @@
       const data = loadData(target.sku);
       state.selectedSku = target.sku;
       state.data = data ? normalizeData(data) : null;
-      state.view = targetView === 'sizeImage' ? 'sizeImage' : 'detail';
+      state.detailViewPreviousTab = previousView !== requestedView ? previousView : '';
+      state.view = requestedView === 'copywriting' ? 'detail' : requestedView;
+      state.copywritingMode = requestedView === 'copywriting';
       resetExcelState();
+      if (requestedView === 'parameterImage') parameterImageFeature.loadRules();
+      if (requestedView === 'copywriting' && state.data) {
+        state.copywritingMode = false;
+        openCopywritingFromCurrent(false);
+        return;
+      }
     }
     expandPanel();
     renderShell();
