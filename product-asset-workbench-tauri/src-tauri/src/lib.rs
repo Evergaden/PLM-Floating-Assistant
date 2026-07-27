@@ -651,8 +651,7 @@ fn start_photoshop_compression(photoshop_path: &Path, image_paths: &[PathBuf], m
     Ok(script_path)
 }
 
-#[tauri::command]
-fn detect_photoshop() -> String {
+fn find_photoshop() -> String {
     let mut matches = Vec::new();
     let mut adobe_roots = Vec::new();
     for variable in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
@@ -683,6 +682,11 @@ fn detect_photoshop() -> String {
     }
     matches.sort_by_key(|path| path.to_string_lossy().to_lowercase());
     matches.last().map(|path| path_text(path)).unwrap_or_default()
+}
+
+#[tauri::command]
+async fn detect_photoshop() -> String {
+    tauri::async_runtime::spawn_blocking(find_photoshop).await.unwrap_or_default()
 }
 
 #[tauri::command]
@@ -962,8 +966,7 @@ fn video_outputs_exist(item: &VideoMatch) -> bool {
     let source = Path::new(&item.source_path);
     let stem = source.file_stem().and_then(|value| value.to_str()).unwrap_or("video");
     let product = Path::new(product_text);
-    product.join("套图").join("视频").join(&item.file_name).is_file()
-        && product.join("套图").join("动图").join(format!("{stem}.gif")).is_file()
+    product.join("套图").join("视频").join(&item.file_name).is_file() && product.join("套图").join("动图").join(format!("{stem}.gif")).is_file()
 }
 
 #[tauri::command]
@@ -1445,10 +1448,7 @@ mod tests {
 
     #[test]
     fn matches_video_by_sku_before_product_name() {
-        let directories = vec![
-            PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045826"),
-            PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045827"),
-        ];
+        let directories = vec![PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045826"), PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045827")];
         let (matches, source) = video_product_candidates("检测视频_惊喜_SKU00045827.mp4", &directories);
         assert_eq!(source, "sku");
         assert_eq!(matches, vec![directories[1].clone()]);
