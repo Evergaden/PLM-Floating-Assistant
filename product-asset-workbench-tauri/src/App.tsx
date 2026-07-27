@@ -541,13 +541,13 @@ export default function App() {
 
   async function emptyPackRecycle() {
     if (!root) return notify("请先选择产品文件夹根目录");
-    if (!window.confirm("将永久删除各产品“套图\\回收站”中的原图，且无法恢复。请确认已核对压缩图无误。")) return;
+    if (!window.confirm("将永久删除各产品“套图/回收站”中的原图，且无法恢复。请确认已核对压缩图无误。")) return;
     setPackBusy(true);
     try {
       const result = await invoke<EmptyRecycleResult>("empty_pack_recycle", { root });
       const message = result.deletedFolders
         ? `已清空 ${result.deletedFolders} 个回收站，永久删除 ${result.deletedFiles} 个文件`
-        : "没有找到需要清空的“套图\\回收站”";
+        : "没有找到需要清空的“套图/回收站”";
       setPackLogs((current) => [...current, message]);
       notify(message);
     } catch (error) {
@@ -795,7 +795,7 @@ export default function App() {
                   <label className="toggle recycle-toggle"><input type="checkbox" checked={moveOriginalsToRecycle} disabled={!compressImages} onChange={(event) => {
                     setMoveOriginalsToRecycle(event.target.checked);
                     localStorage.setItem(PHOTOSHOP_RECYCLE_KEY, event.target.checked ? "1" : "0");
-                  }} /><span />压缩成功后将原图移到“套图\回收站”</label>
+                  }} /><span />压缩成功后将原图移到“套图/回收站”</label>
                   <small>只在对应 JPG 保存成功后移动；核对完成再永久清空</small>
                   <div>
                     <input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} disabled={!compressImages} placeholder="Photoshop.exe 路径" />
@@ -814,7 +814,7 @@ export default function App() {
               <pre>{packLogs.join("\n")}</pre>
             </div>
             <div className="pack-actions">
-              <div><strong>输出目录</strong><span>{root ? `${root}\\产品文件夹\\套图` : "请先选择产品根目录"}</span></div>
+              <div><strong>输出目录</strong><span>{root ? `${root}/产品文件夹/套图` : "请先选择产品根目录"}</span></div>
               <button className="primary large" onClick={archivePacks} disabled={packBusy}>{packBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}开始归档</button>
             </div>
           </section>
