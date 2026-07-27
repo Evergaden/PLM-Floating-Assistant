@@ -5,9 +5,9 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
-  Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet,
+  Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet, Film,
   Eye, FolderOpen, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
-  Sparkles, Trash2, Undo2, Unplug, Upload, X,
+  ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob } from "./types";
 
@@ -18,6 +18,13 @@ const PACK_RULES_KEY = "plm-workbench.pack-rules";
 const PHOTOSHOP_PATH_KEY = "plm-workbench.photoshop-path";
 const PHOTOSHOP_COMPRESS_KEY = "plm-workbench.photoshop-compress";
 const PHOTOSHOP_RECYCLE_KEY = "plm-workbench.photoshop-recycle-originals";
+const VIDEO_SOURCE_KEY = "plm-workbench.video-source";
+const VIDEO_FFMPEG_KEY = "plm-workbench.video-ffmpeg-path";
+const VIDEO_GIFSICLE_KEY = "plm-workbench.video-gifsicle-path";
+const VIDEO_FPS_KEY = "plm-workbench.video-fps";
+const VIDEO_SCALE_KEY = "plm-workbench.video-scale";
+const VIDEO_LOSSY_KEY = "plm-workbench.video-lossy";
+const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
@@ -51,6 +58,29 @@ interface ArchivePacksResult {
 interface EmptyRecycleResult {
   deletedFiles: number;
   deletedFolders: number;
+}
+
+interface VideoMatch {
+  sourcePath: string;
+  fileName: string;
+  productFolder: string | null;
+  matchSource: string;
+  ambiguousFolders: string[];
+  status: string;
+}
+
+interface VideoScanResult {
+  sourceDir: string;
+  files: VideoMatch[];
+  logs: string[];
+}
+
+interface VideoProcessResult {
+  files: VideoMatch[];
+  converted: number;
+  copied: number;
+  failed: number;
+  logs: string[];
 }
 
 function isWorktableOperationDone(state: string, done: boolean) {
@@ -319,7 +349,7 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs">("assets");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -328,6 +358,16 @@ export default function App() {
   const [compressImages, setCompressImages] = useState(() => localStorage.getItem(PHOTOSHOP_COMPRESS_KEY) === "1");
   const [moveOriginalsToRecycle, setMoveOriginalsToRecycle] = useState(() => localStorage.getItem(PHOTOSHOP_RECYCLE_KEY) === "1");
   const [photoshopPath, setPhotoshopPath] = useState(() => localStorage.getItem(PHOTOSHOP_PATH_KEY) || "");
+  const [videoSource, setVideoSource] = useState(() => localStorage.getItem(VIDEO_SOURCE_KEY) || "E:/WXWork/1688857110932701/Cache/Video/7月");
+  const [ffmpegPath, setFfmpegPath] = useState(() => localStorage.getItem(VIDEO_FFMPEG_KEY) || "");
+  const [gifsiclePath, setGifsiclePath] = useState(() => localStorage.getItem(VIDEO_GIFSICLE_KEY) || "");
+  const [videoFps, setVideoFps] = useState(() => localStorage.getItem(VIDEO_FPS_KEY) || "18");
+  const [videoScale, setVideoScale] = useState(() => localStorage.getItem(VIDEO_SCALE_KEY) || "6");
+  const [videoLossy, setVideoLossy] = useState(() => localStorage.getItem(VIDEO_LOSSY_KEY) || "40");
+  const [videoThreads, setVideoThreads] = useState(() => localStorage.getItem(VIDEO_THREADS_KEY) || "8");
+  const [videoFiles, setVideoFiles] = useState<VideoMatch[]>([]);
+  const [videoLogs, setVideoLogs] = useState<string[]>(["等待扫描视频目录。"]);
+  const [videoBusy, setVideoBusy] = useState(false);
   const [compactTop, setCompactTop] = useState(() => localStorage.getItem(COMPACT_TOP_KEY) === "1");
   const [packBusy, setPackBusy] = useState(false);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
@@ -507,6 +547,94 @@ export default function App() {
     localStorage.setItem(PHOTOSHOP_PATH_KEY, value);
   }
 
+  async function chooseVideoSource() {
+    const value = await open({ directory: true, multiple: false, defaultPath: videoSource || undefined, title: "选择视频目录" });
+    if (typeof value !== "string") return;
+    setVideoSource(value);
+    localStorage.setItem(VIDEO_SOURCE_KEY, value);
+  }
+
+  async function chooseVideoTool(kind: "ffmpeg" | "gifsicle") {
+    const value = await open({
+      multiple: false,
+      directory: false,
+      title: kind === "ffmpeg" ? "选择 ffmpeg.exe" : "选择 gifsicle.exe",
+      filters: [{ name: "可执行文件", extensions: ["exe"] }],
+    });
+    if (typeof value !== "string") return;
+    if (kind === "ffmpeg") {
+      setFfmpegPath(value);
+      localStorage.setItem(VIDEO_FFMPEG_KEY, value);
+    } else {
+      setGifsiclePath(value);
+      localStorage.setItem(VIDEO_GIFSICLE_KEY, value);
+    }
+  }
+
+  async function assignVideoFolder(sourcePath: string) {
+    const value = await open({ directory: true, multiple: false, defaultPath: root || undefined, title: "为视频指定产品目录" });
+    if (typeof value !== "string") return;
+    setVideoFiles((current) => current.map((item) => item.sourcePath === sourcePath
+      ? { ...item, productFolder: value, matchSource: "manual", ambiguousFolders: [], status: "待处理" }
+      : item));
+  }
+
+  function saveVideoSettings() {
+    localStorage.setItem(VIDEO_SOURCE_KEY, videoSource);
+    localStorage.setItem(VIDEO_FFMPEG_KEY, ffmpegPath);
+    localStorage.setItem(VIDEO_GIFSICLE_KEY, gifsiclePath);
+    localStorage.setItem(VIDEO_FPS_KEY, videoFps);
+    localStorage.setItem(VIDEO_SCALE_KEY, videoScale);
+    localStorage.setItem(VIDEO_LOSSY_KEY, videoLossy);
+    localStorage.setItem(VIDEO_THREADS_KEY, videoThreads);
+  }
+
+  async function scanVideos() {
+    if (!root) return notify("请先选择产品文件夹根目录");
+    if (!videoSource.trim()) return notify("请先填写视频目录");
+    saveVideoSettings();
+    setVideoBusy(true);
+    try {
+      const result = await invoke<VideoScanResult>("scan_video_files", { source: videoSource, root });
+      setVideoFiles(result.files);
+      setVideoLogs(result.logs);
+      notify(`扫描完成：发现 ${result.files.length} 个视频，唯一匹配 ${result.files.filter((item) => item.productFolder).length} 个`);
+    } catch (error) {
+      setVideoLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
+  async function processVideos() {
+    if (!root) return notify("请先选择产品文件夹根目录");
+    const matched = videoFiles.filter((item) => item.productFolder);
+    if (!matched.length) return notify("请先扫描并确认至少一个匹配产品的视频");
+    saveVideoSettings();
+    setVideoBusy(true);
+    try {
+      const result = await invoke<VideoProcessResult>("process_video_files", {
+        root,
+        files: matched,
+        ffmpegPath,
+        gifsiclePath,
+        fps: Number(videoFps),
+        scale: Number(videoScale),
+        lossy: Number(videoLossy),
+        threads: Number(videoThreads),
+      });
+      setVideoFiles((current) => current.map((item) => result.files.find((processed) => processed.sourcePath === item.sourcePath) || item));
+      setVideoLogs(result.logs);
+      notify(`视频处理完成：GIF ${result.converted} 个，视频复制 ${result.copied} 个，失败 ${result.failed} 个`);
+    } catch (error) {
+      setVideoLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setVideoBusy(false);
+    }
+  }
+
   async function archivePacks() {
     if (!root) return notify("请先选择产品文件夹根目录");
     if (!zipPaths.length) return notify("请先添加图包 ZIP");
@@ -662,6 +790,7 @@ export default function App() {
         <nav className="workspace-tabs">
           <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
+          <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
             {compactTop ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             {compactTop ? "展开概览" : "收起概览"}
@@ -817,6 +946,60 @@ export default function App() {
               <div><strong>输出目录</strong><span>{root ? `${root}/产品文件夹/套图` : "请先选择产品根目录"}</span></div>
               <button className="primary large" onClick={archivePacks} disabled={packBusy}>{packBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}开始归档</button>
             </div>
+          </section>
+        )}
+
+        {workspaceView === "videos" && (
+          <section className="video-panel">
+            <div className="panel-heading video-heading">
+              <div>
+                <span className="eyebrow">VIDEO TO GIF</span>
+                <h2>视频转动图</h2>
+                <p>扫描 7 月检测视频文件名，匹配产品后复制视频并生成 GIF。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
+            </div>
+            <div className="video-toolbar">
+              <div className="video-source-field">
+                <label>检测视频目录</label>
+                <input value={videoSource} onChange={(event) => setVideoSource(event.target.value)} placeholder="E:/WXWork/.../7月" />
+              </div>
+              <button className="secondary video-browse" onClick={chooseVideoSource}><FolderOpen size={15} />选择目录</button>
+              <button className="primary" onClick={scanVideos} disabled={videoBusy}><ScanLine size={16} />{videoBusy ? "扫描中…" : "扫描并匹配"}</button>
+            </div>
+            <div className="video-settings">
+              <div className="video-settings-title"><strong>转换设置</strong><span>参数会保存在本机，下次打开自动恢复</span></div>
+              <div className="video-setting-grid">
+                <label><span>FFmpeg</span><div><input value={ffmpegPath} onChange={(event) => setFfmpegPath(event.target.value)} placeholder="自动从 PATH 查找" /><button onClick={() => chooseVideoTool("ffmpeg")}>选择</button></div></label>
+                <label><span>Gifsicle</span><div><input value={gifsiclePath} onChange={(event) => setGifsiclePath(event.target.value)} placeholder="自动从 PATH 查找" /><button onClick={() => chooseVideoTool("gifsicle")}>选择</button></div></label>
+                <label><span>FPS</span><input type="number" min="1" value={videoFps} onChange={(event) => setVideoFps(event.target.value)} /></label>
+                <label><span>缩放倍数</span><input type="number" min="1" value={videoScale} onChange={(event) => setVideoScale(event.target.value)} /></label>
+                <label><span>压缩程度</span><input type="number" min="0" max="200" value={videoLossy} onChange={(event) => setVideoLossy(event.target.value)} /></label>
+                <label><span>线程</span><input type="number" min="1" value={videoThreads} onChange={(event) => setVideoThreads(event.target.value)} /></label>
+              </div>
+              <small>当前默认：FPS 18、缩放 6、Gifsicle lossy 40、8 线程；GIF 写入产品的 套图/动图，MP4 复制到 套图/视频。</small>
+            </div>
+            <div className="video-console">
+              <div><strong>匹配结果</strong><span>{videoFiles.length} 个视频 · {videoFiles.filter((item) => item.productFolder).length} 个唯一匹配</span></div>
+              <div className="video-list">
+                {!videoFiles.length && <div className="video-empty"><Film size={28} /><span>点击“扫描并匹配”检查视频文件名</span></div>}
+                {videoFiles.map((item) => (
+                  <div className="video-row" key={item.sourcePath}>
+                    <Film size={17} className="video-row-icon" />
+                    <div className="video-file-copy"><strong title={item.fileName}>{item.fileName}</strong><small title={item.sourcePath}>{item.sourcePath}</small></div>
+                    <div className="video-match-copy">
+                      {item.productFolder ? <><strong>{item.productFolder.split(/[\\/]/).pop()}</strong><small>{item.matchSource === "sku" ? "按 SKU 匹配" : item.matchSource === "manual" ? "手动指定" : "按产品名匹配"}</small></> : <><strong>{item.status}</strong><small>{item.ambiguousFolders.length ? item.ambiguousFolders.join("；") : "请检查文件名与产品目录"}</small></>}
+                    </div>
+                    {item.productFolder ? <span className={`status ${item.status === "已完成" ? "success" : "warning"}`}>{item.status}</span> : <button className="video-assign" onClick={() => assignVideoFolder(item.sourcePath)}>指定目录</button>}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="video-actions">
+              <div><strong>输出位置</strong><span>{root ? `${root}/各产品目录/套图/动图 + 套图/视频` : "请先选择产品根目录"}</span></div>
+              <button className="primary large" onClick={processVideos} disabled={videoBusy || !videoFiles.some((item) => item.productFolder)}>{videoBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}处理已匹配视频</button>
+            </div>
+            <div className="video-log"><strong>处理日志</strong><pre>{videoLogs.join("\n")}</pre></div>
           </section>
         )}
       </main>

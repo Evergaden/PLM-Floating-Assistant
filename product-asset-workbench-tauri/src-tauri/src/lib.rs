@@ -20,6 +20,7 @@ use zip::ZipArchive;
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
+const DEFAULT_VIDEO_SOURCE: &str = r"E:\WXWork\1688857110932701\Cache\Video\7月";
 const PS_BATCH_SCRIPT: &str = r#"#target photoshop
 var inputPaths = __INPUT_PATHS__;
 var categories = __CATEGORIES__;
@@ -257,6 +258,35 @@ struct ArchivePacksResult {
 struct EmptyRecycleResult {
     deleted_files: usize,
     deleted_folders: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoMatch {
+    source_path: String,
+    file_name: String,
+    product_folder: Option<String>,
+    match_source: String,
+    ambiguous_folders: Vec<String>,
+    status: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoScanResult {
+    source_dir: String,
+    files: Vec<VideoMatch>,
+    logs: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoProcessResult {
+    files: Vec<VideoMatch>,
+    converted: usize,
+    copied: usize,
+    failed: usize,
+    logs: Vec<String>,
 }
 
 struct RenameRule {
@@ -849,6 +879,243 @@ fn empty_pack_recycle(root: String) -> Result<EmptyRecycleResult, String> {
     Ok(result)
 }
 
+fn is_video_file(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_lowercase().as_str(),
+        "mp4" | "mov" | "m4v" | "avi" | "mkv" | "webm"
+    )
+}
+
+fn collect_video_files(folder: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(folder) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_dir() {
+            collect_video_files(&path, files);
+        } else if file_type.is_file() && is_video_file(&path) {
+            files.push(path);
+        }
+    }
+}
+
+fn video_product_candidates(file_name: &str, directories: &[PathBuf]) -> (Vec<PathBuf>, &'static str) {
+    let file_upper = file_name.to_uppercase();
+    let sku_pattern = Regex::new(r"(?i)SKU\d{8}").expect("valid SKU regex");
+    let sku_matches = directories
+        .iter()
+        .filter(|path| {
+            let folder_name = path.file_name().map(|value| value.to_string_lossy()).unwrap_or_default();
+            sku_pattern.find_iter(&folder_name).any(|sku| file_upper.contains(&sku.as_str().to_uppercase()))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if !sku_matches.is_empty() {
+        return (sku_matches, "sku");
+    }
+    let file_key = normalize_folder_match_text(Path::new(file_name).file_stem().and_then(|value| value.to_str()).unwrap_or(file_name));
+    if file_key.chars().count() < 3 {
+        return (Vec::new(), "");
+    }
+    let name_matches = directories
+        .iter()
+        .filter(|path| {
+            let folder_key = normalize_folder_match_text(&path.file_name().map(|value| value.to_string_lossy()).unwrap_or_default());
+            folder_key.chars().count() >= 3 && (file_key.contains(&folder_key) || folder_key.contains(&file_key))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let match_source = if name_matches.is_empty() { "" } else { "product-name" };
+    (name_matches, match_source)
+}
+
+fn video_match_for_path(path: &Path, directories: &[PathBuf]) -> VideoMatch {
+    let file_name = path.file_name().map(|value| value.to_string_lossy().to_string()).unwrap_or_default();
+    let (matches, match_source) = video_product_candidates(&file_name, directories);
+    let ambiguous_folders = matches.iter().map(|item| path_text(item)).collect::<Vec<_>>();
+    let (product_folder, status) = if matches.len() == 1 {
+        (Some(path_text(&matches[0])), "待处理")
+    } else if matches.len() > 1 {
+        (None, "匹配到多个产品")
+    } else {
+        (None, "未匹配")
+    };
+    VideoMatch {
+        source_path: path_text(path),
+        file_name,
+        product_folder,
+        match_source: match_source.to_string(),
+        ambiguous_folders,
+        status: status.to_string(),
+    }
+}
+
+#[tauri::command]
+fn default_video_source() -> String {
+    DEFAULT_VIDEO_SOURCE.to_string()
+}
+
+#[tauri::command]
+fn scan_video_files(source: String, root: String) -> Result<VideoScanResult, String> {
+    let source_dir = PathBuf::from(source);
+    let root = PathBuf::from(root);
+    if !source_dir.is_dir() {
+        return Err(format!("视频目录不存在：{}", path_text(&source_dir)));
+    }
+    if !root.is_dir() {
+        return Err(format!("产品根目录不存在：{}", path_text(&root)));
+    }
+    let directories = direct_product_directories(&root);
+    let mut paths = Vec::new();
+    collect_video_files(&source_dir, &mut paths);
+    paths.sort_by_key(|path| path.to_string_lossy().to_lowercase());
+    let files = paths.iter().map(|path| video_match_for_path(path, &directories)).collect::<Vec<_>>();
+    let matched = files.iter().filter(|item| item.product_folder.is_some()).count();
+    let logs = vec![format!(
+        "扫描完成：发现 {} 个视频，唯一匹配 {} 个，待人工确认 {} 个",
+        files.len(),
+        matched,
+        files.len().saturating_sub(matched),
+    )];
+    Ok(VideoScanResult {
+        source_dir: path_text(&source_dir),
+        files,
+        logs,
+    })
+}
+
+fn resolve_video_tool(configured: &str, command_name: &str) -> Result<PathBuf, String> {
+    if !configured.trim().is_empty() {
+        let path = PathBuf::from(configured.trim());
+        if path.is_file() {
+            return Ok(path);
+        }
+        return Err(format!("找不到可执行文件：{}", path_text(&path)));
+    }
+    let result = Command::new("where.exe").arg(command_name).output();
+    let Ok(result) = result else {
+        return Err(format!("未找到 {command_name}，请在设置中选择可执行文件"));
+    };
+    if !result.status.success() {
+        return Err(format!("未找到 {command_name}，请在设置中选择可执行文件"));
+    }
+    let path = String::from_utf8_lossy(&result.stdout).lines().next().unwrap_or_default().trim().to_string();
+    if path.is_empty() {
+        Err(format!("未找到 {command_name}，请在设置中选择可执行文件"))
+    } else {
+        Ok(PathBuf::from(path))
+    }
+}
+
+#[tauri::command]
+fn process_video_files(root: String, files: Vec<VideoMatch>, ffmpeg_path: String, gifsicle_path: String, fps: u32, scale: u32, lossy: u32, threads: u32) -> Result<VideoProcessResult, String> {
+    let root = PathBuf::from(root);
+    if !root.is_dir() {
+        return Err(format!("产品根目录不存在：{}", path_text(&root)));
+    }
+    if fps == 0 || scale == 0 || threads == 0 {
+        return Err("FPS、缩放倍数和线程数必须大于 0".to_string());
+    }
+    if lossy > 200 {
+        return Err("Gifsicle 压缩程度必须在 0 到 200 之间".to_string());
+    }
+    let ffmpeg = resolve_video_tool(&ffmpeg_path, "ffmpeg")?;
+    let gifsicle = resolve_video_tool(&gifsicle_path, "gifsicle")?;
+    let mut result = VideoProcessResult {
+        files: Vec::new(),
+        converted: 0,
+        copied: 0,
+        failed: 0,
+        logs: Vec::new(),
+    };
+    let filter = format!("fps={fps},scale=iw/{scale}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse");
+    for mut item in files {
+        let source = PathBuf::from(&item.source_path);
+        let Some(product_text) = item.product_folder.clone() else {
+            item.status = "跳过：未匹配产品".to_string();
+            result.failed += 1;
+            result.logs.push(format!("跳过 {}：未匹配唯一产品目录", item.file_name));
+            result.files.push(item);
+            continue;
+        };
+        let product = PathBuf::from(product_text);
+        if !source.is_file() || !is_video_file(&source) || !product.is_dir() || !product.starts_with(&root) {
+            item.status = "失败：路径无效".to_string();
+            result.failed += 1;
+            result.logs.push(format!("失败 {}：视频或产品目录路径无效", item.file_name));
+            result.files.push(item);
+            continue;
+        }
+        let pack = product.join("套图");
+        let video_dir = pack.join("视频");
+        let gif_dir = pack.join("动图");
+        if let Err(error) = fs::create_dir_all(&video_dir).and_then(|_| fs::create_dir_all(&gif_dir)) {
+            item.status = "失败：无法创建输出目录".to_string();
+            result.failed += 1;
+            result.logs.push(format!("失败 {}：{error}", item.file_name));
+            result.files.push(item);
+            continue;
+        }
+        let video_target = video_dir.join(&item.file_name);
+        if let Err(error) = fs::copy(&source, &video_target) {
+            item.status = "失败：视频复制失败".to_string();
+            result.failed += 1;
+            result.logs.push(format!("失败 {}：复制视频失败：{error}", item.file_name));
+            result.files.push(item);
+            continue;
+        }
+        result.copied += 1;
+        let stem = source.file_stem().and_then(|value| value.to_str()).unwrap_or("video");
+        let output_gif = gif_dir.join(format!("{stem}.gif"));
+        let temporary_gif = std::env::temp_dir().join(format!("plm-video-{}.gif", Uuid::new_v4()));
+        let ffmpeg_status = Command::new(&ffmpeg)
+            .arg("-i")
+            .arg(&source)
+            .arg("-vf")
+            .arg(&filter)
+            .arg("-y")
+            .arg("-threads")
+            .arg(threads.to_string())
+            .arg(&temporary_gif)
+            .status();
+        let ffmpeg_ok = ffmpeg_status.map(|status| status.success()).unwrap_or(false);
+        if !ffmpeg_ok || !temporary_gif.is_file() {
+            let _ = fs::remove_file(&temporary_gif);
+            item.status = "失败：FFmpeg 转换失败".to_string();
+            result.failed += 1;
+            result.logs.push(format!("失败 {}：FFmpeg 转 GIF 失败", item.file_name));
+            result.files.push(item);
+            continue;
+        }
+        let gifsicle_status = Command::new(&gifsicle)
+            .arg("-O2")
+            .arg(format!("--lossy={lossy}"))
+            .arg(format!("-j{threads}"))
+            .arg(&temporary_gif)
+            .arg("-o")
+            .arg(&output_gif)
+            .status();
+        let gifsicle_ok = gifsicle_status.map(|status| status.success()).unwrap_or(false);
+        let _ = fs::remove_file(&temporary_gif);
+        if !gifsicle_ok || !output_gif.is_file() {
+            item.status = "失败：Gifsicle 压缩失败".to_string();
+            result.failed += 1;
+            result.logs.push(format!("失败 {}：Gifsicle 压缩 GIF 失败", item.file_name));
+            result.files.push(item);
+            continue;
+        }
+        item.status = "已完成".to_string();
+        result.converted += 1;
+        result.logs.push(format!("完成 {} → 动图/{}.gif，视频已复制到 视频/", item.file_name, stem));
+        result.files.push(item);
+    }
+    Ok(result)
+}
+
 #[tauri::command]
 fn request_excel(app: AppHandle, state: State<'_, BridgeState>, product: FinalizedProduct, folder: String, overwrite: bool, auto: Option<bool>) -> Result<String, String> {
     let folder = PathBuf::from(folder);
@@ -1152,6 +1419,17 @@ mod tests {
         assert!(keep.join("主图1.jpg").is_file());
         fs::remove_dir_all(&root).unwrap();
     }
+
+    #[test]
+    fn matches_video_by_sku_before_product_name() {
+        let directories = vec![
+            PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045826"),
+            PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045827"),
+        ];
+        let (matches, source) = video_product_candidates("检测视频_惊喜_SKU00045827.mp4", &directories);
+        assert_eq!(source, "sku");
+        assert_eq!(matches, vec![directories[1].clone()]);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1176,6 +1454,9 @@ pub fn run() {
             detect_photoshop,
             archive_image_packs,
             empty_pack_recycle,
+            default_video_source,
+            scan_video_files,
+            process_video_files,
             request_excel,
         ])
         .run(tauri::generate_context!())
