@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6
+// @version      2.7
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6';
+  const SCRIPT_VERSION = '2.7';
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -4548,7 +4548,9 @@
       tubeDiameter: tubeSpec ? tubeSpec.diameter : '',
       tubeBody: tubeSpec ? tubeSpec.body : '',
       tubeSpecKey: tubeSpec ? tubeSpec.key : '',
-      isTubePrintMaterial: isTubePrint || packaging.isTubePrintMaterial,
+      // Only promote the material to a tube after its segmented print size is recognized.
+      // A generic printed-size row must remain a normal print material.
+      isTubePrintMaterial: isTubePrint,
       packageNums,
       productNums: inner.productNums || productNums,
       plmProductNums: inner.productNums,
@@ -4942,12 +4944,10 @@
   }
 
   function isTubePrintData(data) {
-    const text = String(data.printRawText || '') + String(data.printSizeLabel || '') + String(data.printSizeText || '');
-    if (data.tubeDiameter && data.tubeBody) return true;
-    if (Boolean(data.isTubePrintMaterial) || isTubePrintRow(text)) return true;
-    // A 2D print size plus a 3D carton also describes printed bags, so geometry alone is not tube evidence.
-    const fallbackEvidence = [data.name, data.packageSizeLabel, data.packageSizeText].filter(Boolean).join(' ');
-    return hasStrongTubeMaterialFeatures(fallbackEvidence) && hasPrintDimensionText(data.printSizeText);
+    // The segmented size is the authoritative signal for tube-specific fields.
+    // Material labels alone are not enough: printed bags and other print materials
+    // can contain the same words but must not show a tail-seal length.
+    return Boolean(String(data && data.tubeSegmentText || '').trim());
   }
 
   function findTubeSizeSpec(text, fields) {
