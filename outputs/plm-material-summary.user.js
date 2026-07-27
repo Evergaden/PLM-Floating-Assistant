@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8
+// @version      2.9
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,8 +32,10 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8';
+  const SCRIPT_VERSION = '2.9';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
+  const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
+  const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -12228,9 +12230,23 @@
           const message = error && error.message ? error.message : '\u672a\u77e5\u9519\u8bef';
           console.warn('PLM floating helper upload queue item failed, continue next:', error);
           markUploadQueueBlocked(item, L.uploadFailed, message);
-          await closeTopProductDrawer({ skipDraftSave: true }).catch((closeError) => {
+          let closeFailure = null;
+          try {
+            await closeTopProductDrawer({ skipDraftSave: true });
+          } catch (closeError) {
+            closeFailure = closeError;
             console.warn('PLM floating helper close failed after item error:', closeError);
-          });
+          }
+          if (closeFailure || getVisibleModal() || getOpenProductDrawer()) {
+            const closeMessage = closeFailure && closeFailure.message
+              ? closeFailure.message
+              : '\u5f53\u524d\u5546\u54c1\u9875\u6216\u5f39\u7a97\u672a\u5b8c\u5168\u5173\u95ed';
+            state.uploadRunning = false;
+            saveUploadWorkerRunning(workerMode, false);
+            markUploadQueueBlocked(item, L.uploadFailed, message + '\uff1b' + closeMessage + '\uff0c\u5df2\u6682\u505c');
+            addLog('error', '\u63d0\u5ba1\u4e0a\u4f20\u5931\u8d25\uff1a\u5173\u95ed\u5f53\u524d\u5546\u54c1\u9875\u5931\u8d25', item.sku + ' ' + closeMessage);
+            showToast('\u5f53\u524d\u5546\u54c1\u9875\u6216\u5f39\u7a97\u672a\u5173\u95ed\uff0c\u5df2\u6682\u505c\u961f\u5217');
+          }
         }
         state.uploadRunning = loadUploadWorkerRunning(workerMode);
         state.uploadQueue = loadUploadQueue();
@@ -12449,14 +12465,45 @@
   }
 
   async function ensureUploadPageReadyForNextItem() {
-    assertNoReviewConfirmModal();
-    if (!getVisibleModal() && !getOpenProductDrawer()) return;
-    await closeTopProductDrawer({ skipDraftSave: true });
-    if (getVisibleModal() || getOpenProductDrawer()) {
+    try {
+      assertNoReviewConfirmModal();
+      if (getVisibleModal() || getOpenProductDrawer()) await closeTopProductDrawer({ skipDraftSave: true });
+      await waitForUploadPageIdle();
+    } catch (error) {
       state.uploadRunning = false;
       saveUploadWorkerRunning(getUploadControlMode(), false);
-      throw new Error('\u5f53\u524d\u5f39\u7a97\u6216\u5546\u54c1\u9875\u672a\u5173\u95ed\uff0c\u5df2\u6682\u505c\u4e0a\u4f20\u961f\u5217');
+      throw error;
     }
+  }
+
+  async function waitForUploadPageIdle() {
+    const startedAt = Date.now();
+    let idleSince = 0;
+    while (Date.now() - startedAt < UPLOAD_PAGE_IDLE_TIMEOUT_MS) {
+      const modal = getVisibleModal();
+      if (modal) {
+        idleSince = 0;
+        if (isReviewConfirmModal(modal)) {
+          throw new Error('\u63d0\u5ba1\u786e\u8ba4\u5f39\u7a97\u672a\u5904\u7406\uff0c\u5df2\u6682\u505c\u4e0a\u4f20\u961f\u5217');
+        }
+        if (isCancelConfigModal(modal)) {
+          confirmCancelConfigModal(modal);
+          await wait(120);
+          continue;
+        }
+        await wait(120);
+        continue;
+      }
+      if (getOpenProductDrawer()) {
+        idleSince = 0;
+        await wait(120);
+        continue;
+      }
+      if (!idleSince) idleSince = Date.now();
+      if (Date.now() - idleSince >= UPLOAD_PAGE_IDLE_STABLE_MS) return true;
+      await wait(120);
+    }
+    throw new Error('\u7b49\u5f85\u5546\u54c1\u9875\u548c\u5f39\u7a97\u5b8c\u5168\u5173\u95ed\u8d85\u65f6\uff0c\u5df2\u6682\u505c\u4e0a\u4f20\u961f\u5217');
   }
 
   async function recoverPurchaseEmptyRunningUpload(mode) {
@@ -12814,8 +12861,23 @@
   }
 
   async function openBatchUploadDialog() {
-    const button = findBatchUploadEntryButton();
+    await closeCancelConfigModalIfPresent();
+    let button = findBatchUploadEntryButton();
+    for (let attempt = 0; !button && attempt < 4; attempt += 1) {
+      await wait(300);
+      await closeCancelConfigModalIfPresent();
+      button = findBatchUploadEntryButton();
+    }
     if (!button) throw new Error('\u672a\u627e\u5230\u6279\u91cf\u4e0a\u4f20\u5165\u53e3');
+    await wait(120);
+    await closeCancelConfigModalIfPresent();
+    button = findBatchUploadEntryButton();
+    if (!button) {
+      await wait(300);
+      await closeCancelConfigModalIfPresent();
+      button = findBatchUploadEntryButton();
+    }
+    if (!button) throw new Error('\u6279\u91cf\u4e0a\u4f20\u5165\u53e3\u88ab\u5f39\u7a97\u5360\u7528');
     button.click();
     await waitUntil(() => getVisibleText(document.body).includes('\u6279\u91cf\u4e0a\u4f20\u6587\u4ef6') && getVisibleModal(), 30000, 500);
   }
@@ -13145,7 +13207,6 @@
       } else {
         confirmCancelConfigModal(existingModal);
         await waitUntil(() => !getVisibleModal(), 10000, 100);
-        return result;
       }
     } else if (existingModal) {
       closeVisibleModal(existingModal);
@@ -13280,9 +13341,9 @@
   }
 
   function getOpenProductDrawer() {
-    return Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .ant-drawer-open'))
+    return Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open'))
       .filter(isVisibleElement)
-      .find((drawer) => getVisibleText(drawer).includes('\u7f16\u8f91\u5546\u54c1')) || null;
+      .find((drawer) => drawer.matches('.pdmDetailDrawer, .pdmDetailDrawer.ant-drawer-open') || getVisibleText(drawer).includes('\u7f16\u8f91\u5546\u54c1')) || null;
   }
 
   function findVisibleButton(text) {
