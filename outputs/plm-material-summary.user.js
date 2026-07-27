@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.4
+// @version      2.6.5
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.4';
+  const SCRIPT_VERSION = '2.6.5';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -41,6 +41,7 @@
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '8';
   const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
+  const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
   const SKU_LIST_PREFERENCE_VERSION = 1;
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -4293,7 +4294,6 @@
         if (attachmentFiles.copywritingFile) {
           const cached = await hydrateCopywritingForSku(sku, {
             silent: true,
-            force: true,
             drawer,
             file: attachmentFiles.copywritingFile,
           });
@@ -8877,10 +8877,23 @@
       || currentCached
       || storedCached;
     const hasCachedCopywriting = Boolean(initialCached && initialCached.fullText);
+    const skipRecentCopywritingCheck = !force && hasCachedCopywriting && isCopywritingCheckFresh(initialCached);
     if (initialCached && initialCached.fullText && !hasImmediateCopywriting) {
       state.data = normalizeData({ ...state.data, copywriting: initialCached });
+    }
+    if (skipRecentCopywritingCheck) {
+      state.copywritingLoading = false;
+      state.copywritingChecking = false;
+      state.copywritingStatus = '';
+      state.copywritingError = '';
+      addLog('info', '产品文案：30分钟内已检查，跳过重复检查', sku);
+      renderShell();
+      return;
+    }
+    if (initialCached && initialCached.fullText && !hasImmediateCopywriting) {
       state.copywritingLoading = false;
       state.copywritingStatus = '正在检查新文案...';
+      state.copywritingChecking = true;
       renderShell();
     }
     addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
@@ -8904,8 +8917,12 @@
       if (!item) throw new Error('产品信息中未找到“产品文案”字段');
       const file = findProductCopywritingFile(item, sku);
       if (!file) throw new Error('产品文案字段中未找到当前编码的 Word 文件');
-      const workingData = normalizeData(loadData(sku) || state.data || data);
-      const cached = normalizeCopywritingRecord(workingData.copywriting);
+      let workingData = normalizeData(loadData(sku) || state.data || data);
+      let cached = normalizeCopywritingRecord(workingData.copywriting);
+      if (cached && cached.fullText) {
+        workingData = markCopywritingCheckedAt(workingData, cached, Date.now());
+        cached = normalizeCopywritingRecord(workingData.copywriting);
+      }
       const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
       if (!force && cached && cached.fullText && cached.parserVersion === COPYWRITING_PARSER_VERSION && compactText(cached.fileName).toLowerCase() === compactText(file.fileName).toLowerCase()) {
         state.data = workingData;
@@ -9071,6 +9088,9 @@
     if (!sku || state.copywritingHydratingSkus.has(sku)) return normalizeData(loadData(sku) || {});
     const failedAt = Number(state.copywritingHydrateFailedAt[sku] || 0);
     if (!opts.force && failedAt && Date.now() - failedAt < 10 * 60 * 1000) return normalizeData(loadData(sku) || {});
+    const recentData = normalizeData(loadData(sku) || {});
+    const recentRecord = normalizeCopywritingRecord(recentData.copywriting);
+    if (!opts.force && isCopywritingCheckFresh(recentRecord)) return recentData;
     if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
     const drawer = opts.drawer || getProjectDrawerForSku(sku);
     if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
@@ -9089,9 +9109,10 @@
       const sameFile = oldRecord && oldRecord.fullText
         && oldRecord.parserVersion === COPYWRITING_PARSER_VERSION
         && compactText(oldRecord.fileName).toLowerCase() === compactText(file.fileName).toLowerCase();
-      if (!opts.force && sameFile) return cached;
+      if (!opts.force && isCopywritingCheckFresh(oldRecord)) return cached;
       const fileTimestamp = extractCopywritingFileTimestamp(file.fileName);
-      if (!opts.force && oldRecord && oldRecord.fileTimestamp && fileTimestamp && fileTimestamp < oldRecord.fileTimestamp) return cached;
+      if (!opts.force && sameFile) return markCopywritingCheckedAt(cached, oldRecord, Date.now());
+      if (!opts.force && oldRecord && oldRecord.fileTimestamp && fileTimestamp && fileTimestamp < oldRecord.fileTimestamp) return markCopywritingCheckedAt(cached, oldRecord, Date.now());
 
       let source = await withCopywritingTimeout(resolveCopywritingDocumentSource(file.card, file.fileName), 12000, '\u4ea7\u54c1\u6587\u6848 Word \u4e0b\u8f7d\u76d1\u542c');
       if (!source || (!source.url && !source.arrayBuffer)) throw new Error('\u672a\u8bfb\u53d6\u5230\u4ea7\u54c1\u6587\u6848 Word');
@@ -10009,6 +10030,7 @@
       fileTimestamp,
       fileHash,
       fetchedAt: now,
+      lastCheckedAtMs: Date.now(),
       sections: built.sections,
       fullText: built.fullText,
       ingredientEnglish: built.ingredientEnglish,
@@ -10039,6 +10061,7 @@
       fileTimestamp: String(record.fileTimestamp || '').slice(0, 20),
       fileHash: String(record.fileHash || '').slice(0, 128),
       fetchedAt: String(record.fetchedAt || '').slice(0, 80),
+      lastCheckedAtMs: Math.max(0, Number(record.lastCheckedAtMs) || 0),
       sections: normalizeSections(record.sections),
       fullText: String(record.fullText || '').slice(0, 50000),
       ingredientEnglish: String(record.ingredientEnglish || '').trim().slice(0, 8000),
@@ -10054,6 +10077,23 @@
       copiedSectionKeys: (Array.isArray(record.copiedSectionKeys) ? record.copiedSectionKeys : []).map((item) => String(item || '').slice(0, 60)).filter(Boolean).slice(0, 80),
       copiedFullText: Boolean(record.copiedFullText),
     };
+  }
+
+  function isCopywritingCheckFresh(record, now) {
+    const checkedAtMs = Number(record && record.lastCheckedAtMs) || 0;
+    const currentTime = Number(now) || Date.now();
+    return checkedAtMs > 0 && currentTime >= checkedAtMs && currentTime - checkedAtMs < COPYWRITING_CHECK_WINDOW_MS;
+  }
+
+  function markCopywritingCheckedAt(data, record, checkedAtMs) {
+    const cached = normalizeCopywritingRecord(record);
+    if (!data || !data.sku || !cached || !cached.fullText) return normalizeData(data || {});
+    const checkedAt = Number(checkedAtMs) || Date.now();
+    if (cached.lastCheckedAtMs && checkedAt - cached.lastCheckedAtMs < 1000) return normalizeData(data);
+    const nextRecord = normalizeCopywritingRecord({ ...cached, lastCheckedAtMs: checkedAt });
+    const next = mergeCopywritingCacheIntoData(data, nextRecord);
+    saveData(data.sku, next, { suppressChangeTracking: true });
+    return next;
   }
 
   function mergeCopywritingCacheIntoData(data, record) {
