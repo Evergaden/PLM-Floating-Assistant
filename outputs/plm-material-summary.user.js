@@ -3526,10 +3526,14 @@
     GM_registerMenuCommand(plmApiMonitorState.enabled ? '关闭 PLM API 监听' : '开启 PLM API 监听', () => {
       plmApiMonitorState.enabled = !plmApiMonitorState.enabled;
       savePlmApiMonitorState();
-      showToast(plmApiMonitorState.enabled ? 'API 监听已开启，请刷新页面后操作 PLM' : 'API 监听已关闭');
+      const message = plmApiMonitorState.enabled ? 'API 监听已开启，请刷新页面后操作 PLM' : 'API 监听已关闭';
+      console.info('[PLM API监听]', message);
+      try { showToast(message); } catch (_) { /* panel may not exist yet */ }
+      window.alert(message);
     });
     GM_registerMenuCommand('导出 PLM API 监听结果', () => {
       downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-api-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json');
+      console.info('[PLM API监听] 已导出 ' + plmApiMonitorState.entries.length + ' 条记录');
     });
     GM_registerMenuCommand('清空 PLM API 监听结果', () => {
       plmApiMonitorState.entries = [];
