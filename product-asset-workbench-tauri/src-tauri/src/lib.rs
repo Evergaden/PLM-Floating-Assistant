@@ -1299,8 +1299,8 @@ fn output_paths(folder: &Path, product: &FinalizedProduct) -> (PathBuf, PathBuf,
     let pack = folder.join("套图");
     (
         pack.join(format!("{base_name}.xlsx")),
-        folder.join("英文参数图").join("英文参数图.jpg"),
-        folder.join("产品参数图").join("尺寸.jpg"),
+        pack.join("英文参数图").join("英文参数图.jpg"),
+        pack.join("产品参数图").join("尺寸.jpg"),
     )
 }
 
@@ -1361,8 +1361,8 @@ mod tests {
         let (excel, english, size) = output_paths(&folder, &product);
         assert!(excel.ends_with(r"套图\WESTMONTH 面霜 SKU00000001.xlsx"));
         assert!(output_sku_image_path(&folder, &product).ends_with(r"套图\SKU图\SKU00000001.jpg"));
-        assert!(english.ends_with(r"英文参数图\英文参数图.jpg"));
-        assert!(size.ends_with(r"产品参数图\尺寸.jpg"));
+        assert!(english.ends_with(r"套图\英文参数图\英文参数图.jpg"));
+        assert!(size.ends_with(r"套图\产品参数图\尺寸.jpg"));
     }
 
     #[test]
