@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.21
+// @version      2.6.22
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.21';
+  const SCRIPT_VERSION = '2.6.22';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -16501,7 +16501,7 @@
     const fitWidth = Math.max(1, Math.round(width * ratio));
     const fitHeight = Math.max(1, Math.round(height * ratio));
     return {
-      tl: { col: 2.12, row: 3.06 + (Number(rowOffset) || 0) },
+      tl: { col: 2.85, row: 3.17 + (Number(rowOffset) || 0) },
       ext: { width: fitWidth, height: fitHeight },
       editAs: 'oneCell',
     };
