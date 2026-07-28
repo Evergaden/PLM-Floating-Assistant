@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.11
+// @version      2.6.13
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.11';
+  const SCRIPT_VERSION = '2.6.13';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -12300,7 +12300,7 @@
     const signature = skus.join('|');
     await ensureToyLabelExportRun(signature);
     const prepared = state.toyLabelBatchRows || {};
-    if (state.toyLabelBatchPreparedSignature === signature && skus.every((sku) => prepared[sku])) return true;
+    if (state.toyLabelBatchPreparedSignature === signature && skus.every((sku) => prepared[sku] && prepared[sku].productImageUrl)) return true;
     if (!(await ensureNewProductProjectPage()) || !(await ensureDesignTaskTab())) {
       addLog('error', '玩具标签：无法进入设计任务批量搜索', skus.join(' '));
       return false;
@@ -12341,7 +12341,7 @@
     state.toyLabelBatchRows = rowMap;
     state.toyLabelBatchPreparedSignature = signature;
     state.uploadQueue = loadUploadQueue().map((entry) => {
-      if (entry.kind !== 'toy-label' || !rowMap[entry.sku]) return entry;
+      if (entry.kind !== 'toy-label' || !rowMap[entry.sku] || !rowMap[entry.sku].productImageUrl) return entry;
       const cached = loadData(entry.sku);
       return {
         ...entry,
@@ -12353,10 +12353,24 @@
     saveUploadQueue();
     queueCloudBackup();
     const missing = skus.filter((sku) => !rowMap[sku]);
-    await prepareAndDownloadToyLabelBatch(items.filter((item) => rowMap[item.sku]), signature);
-    addLog(missing.length ? 'warn' : 'success', '玩具标签：设计任务批量数据已读取', rows.length + '/' + skus.length + (missing.length ? '，未找到 ' + missing.join(' ') : ''));
+    const missingImage = rows.filter((row) => !row.productImageUrl).map((row) => row.sku);
+    const unavailable = new Map();
+    missing.forEach((sku) => unavailable.set(sku, '\u8bbe\u8ba1\u4efb\u52a1\u6279\u91cf\u641c\u7d22\u672a\u627e\u5230\u5546\u54c1\u884c'));
+    missingImage.forEach((sku) => unavailable.set(sku, '\u8bbe\u8ba1\u4efb\u52a1\u4e2d\u672a\u627e\u5230 SKU \u5546\u54c1\u56fe'));
+    if (unavailable.size) {
+      const fallbackReason = '\u8bbe\u8ba1\u4efb\u52a1\u6279\u91cf\u641c\u7d22\u672a\u627e\u5230\u5546\u54c1\u56fe\u7247\u6216\u884c\u6570\u636e';
+      state.uploadQueue = loadUploadQueue().map((entry) => entry.kind === 'toy-label' && unavailable.has(entry.sku)
+        ? { ...entry, status: L.uploadFailed, step: unavailable.get(entry.sku) || fallbackReason, skipReason: unavailable.get(entry.sku) || fallbackReason, updatedAt: new Date().toLocaleString() }
+        : entry);
+      saveUploadQueue();
+    }
+    await prepareAndDownloadToyLabelBatch(items.filter((item) => rowMap[item.sku] && rowMap[item.sku].productImageUrl), signature);
+    const diagnostics = [];
+    if (missing.length) diagnostics.push('\u672a\u627e\u5230 ' + missing.join(' '));
+    if (missingImage.length) diagnostics.push('\u7f3a\u5c11 SKU \u56fe ' + missingImage.join(' '));
+    addLog(diagnostics.length ? 'warn' : 'success', '玩具标签：设计任务批量数据已读取', rows.length + '/' + skus.length + (diagnostics.length ? '\uff0c' + diagnostics.join('\uff0c') : ''));
     renderShell();
-    return rows.length > 0;
+    return rows.some((row) => Boolean(row.productImageUrl));
   }
 
   async function prepareAndDownloadToyLabelBatch(items, signature) {
@@ -12414,7 +12428,7 @@
         name: nameIndex >= 0 && cells[nameIndex] ? compactText(cells[nameIndex].innerText || cells[nameIndex].textContent) : '',
         productImageUrl: image ? (image.currentSrc || image.src || image.getAttribute('src') || '') : '',
       };
-    }).filter((row) => row.sku && requested.has(row.sku) && row.rowId && row.productImageUrl);
+    }).filter((row) => row.sku && requested.has(row.sku) && row.rowId);
   }
 
   function isProjectResultLoading() {
@@ -12464,7 +12478,19 @@
     state.uploadProcessing = true;
     const attemptedTaskKeys = new Set();
     try {
-      if (workerMode === 'toy-label') await prepareToyLabelBatchQueue(state.uploadQueue.filter((entry) => getUploadItemMode(entry) === workerMode));
+      if (workerMode === 'toy-label') {
+        const prepared = await prepareToyLabelBatchQueue(state.uploadQueue.filter((entry) => getUploadItemMode(entry) === workerMode));
+        if (!prepared) {
+          state.uploadRunning = false;
+          state.uploadWorkerMode = workerMode;
+          saveUploadWorkerRunning(workerMode, false);
+          state.uploadQueue = loadUploadQueue();
+          addLog('error', '\u73a9\u5177\u6807\u7b7e\uff1a\u6279\u91cf\u6570\u636e\u672a\u8bfb\u53d6\uff0c\u5df2\u6682\u505c\u4e0a\u4f20', '\u672a\u6267\u884c BOM \u4e0a\u4f20');
+          showToast('\u6279\u91cf\u8bbe\u8ba1\u4efb\u52a1\u6570\u636e\u672a\u8bfb\u53d6\uff0c\u5df2\u6682\u505c\uff0c\u672a\u6267\u884c\u4e0a\u4f20');
+          renderShell();
+          return;
+        }
+      }
       while (state.uploadRunning) {
         if (await recoverPurchaseEmptyRunningUpload(workerMode)) {
           state.uploadRunning = loadUploadWorkerRunning(workerMode);
@@ -18578,10 +18604,12 @@
     if (!completed.length) return;
     const additionsByProduct = new Map();
     completed.forEach((item) => {
+      const uploadSucceeded = /\u6210\u529f/.test(item.status || '');
+      const successStatus = item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess);
       const archived = {
         ...item,
-        status: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess)),
-        step: item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : item.step),
+        status: uploadSucceeded ? successStatus : (item.status || L.uploadFailed),
+        step: uploadSucceeded ? successStatus : (item.step || item.status || L.uploadFailed),
         completedAt: item.completedAt || item.updatedAt || new Date().toLocaleString(),
         xlsxKey: '',
         zipKey: '',
@@ -18611,11 +18639,11 @@
     cleanupUploadFiles(latestItem);
     saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     if ((archived.kind || 'standard') === 'standard') syncInsightEvent('image_pack_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
-    if (archived.kind === 'toy-label') syncInsightEvent('toy_label_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
+    if (archived.kind === 'toy-label' && /\u6210\u529f/.test(archived.status || '')) syncInsightEvent('toy_label_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
     if (archived.sku) {
       if ((archived.kind || 'standard') === 'standard') {
         updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
-      } else if (archived.kind === 'toy-label') {
+      } else if (archived.kind === 'toy-label' && /\u6210\u529f/.test(archived.status || '')) {
         updateDailyLedgerForSku(archived.sku, { labelFileState: 'done', labelFileDone: true }, getTodayKey());
       }
     }
