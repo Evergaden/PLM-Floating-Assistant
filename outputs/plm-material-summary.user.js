@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.23
+// @version      2.6.24
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.23';
+  const SCRIPT_VERSION = '2.6.24';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -45,6 +45,7 @@
   const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
   const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
   const SKU_LIST_PREFERENCE_VERSION = 1;
+  const apiProjectMaterialCache = Object.create(null);
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -4582,6 +4583,17 @@
     const scanSeed = includeScanTabs && state.scanData && state.scanData.sku === sku ? state.scanData : null;
     let merged = normalizeData(scanSeed || loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     try {
+      const apiPackaging = await fetchApiMaterialPackaging(merged);
+      if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard)) {
+        merged = normalizeData({
+          ...merged,
+          ...apiPackaging,
+          packageSource: apiPackaging.packageSizeText ? 'plm-project-pms' : merged.packageSource,
+          updatedAt: new Date().toLocaleString(),
+          updatedAtMs: Date.now(),
+        });
+        if (includeScanTabs) state.scanData = merged;
+      }
       const tabs = getDrawerCollectionTabs(merged, includeScanTabs, Boolean(options && options.forceAllTabs));
       const refreshProductPage = tabs.includes(L.productTab);
       for (const tab of tabs) {
@@ -4609,6 +4621,17 @@
           merged = mergeData(merged, live);
         }
         if (includeScanTabs) state.scanData = merged;
+      }
+      const apiPackagingFinal = await fetchApiMaterialPackaging(merged);
+      if (apiPackagingFinal && (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.hasInnerCard)) {
+        merged = normalizeData({
+          ...merged,
+          ...apiPackagingFinal,
+          packageSource: apiPackagingFinal.packageSizeText ? 'plm-project-pms' : merged.packageSource,
+          updatedAt: new Date().toLocaleString(),
+          updatedAtMs: Date.now(),
+        });
+        if (apiPackagingFinal.packageSizeText) addLog('success', '已用 PLM 物料接口更新纸盒尺寸', sku + ' | ' + apiPackagingFinal.packageSizeText);
       }
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
       saveData(sku, merged);
@@ -5124,6 +5147,85 @@
     if (value === '' || value === undefined || value === null || value === false) return false;
     if (Array.isArray(value) && value.length === 0) return false;
     return true;
+  }
+
+  function getProjectIdForMaterialApi(data) {
+    const candidates = [data && data.projectRowId, data && data.projectId];
+    const id = candidates.map((value) => String(value || '').trim()).find((value) => /^\d+$/.test(value));
+    return id || '';
+  }
+
+  function getApiMaterialItems(payload) {
+    const data = payload && payload.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.pms)) return data.pms;
+    if (data && Array.isArray(data.list)) return data.list;
+    return [];
+  }
+
+  function getApiMaterialDimensions(item, count) {
+    const values = [item && item.material_length, item && item.material_width, item && item.material_height]
+      .map((value) => Number(value))
+      .map((value) => Number.isFinite(value) && value > 0 ? value : 0);
+    if (values.slice(0, count).every((value) => value > 0)) return values.slice(0, count);
+    const parsed = parseDimension(extractDimensionString(item && item.properties_value), count);
+    return parsed && parsed.length >= count ? parsed.slice(0, count) : null;
+  }
+
+  function formatApiMaterialDimensions(values) {
+    return Array.isArray(values) && values.length >= 2
+      ? values.map((value) => trimNumber(value)).join('x') + 'cm'
+      : '';
+  }
+
+  function extractApiMaterialPackaging(payload) {
+    const items = getApiMaterialItems(payload);
+    const candidates = items.map((item, index) => {
+      const name = compactText(item && item.name);
+      const category = compactText(item && item.category_name);
+      const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
+      const dimensions = getApiMaterialDimensions(item, 3);
+      let score = 0;
+      if (/纸盒|彩盒|纸箱|包装盒|外盒/.test(text)) score += 160;
+      if (/包材/.test(category)) score += 20;
+      if (/标签|印刷|贴纸|不干胶/.test(text)) score -= 100;
+      if (dimensions && dimensions.length >= 3) score += 40;
+      return { item, index, name, category, text, dimensions, score };
+    }).filter((item) => item.score > 0 && item.dimensions && item.dimensions.length >= 3)
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+    const packageItem = candidates[0];
+    const printItems = items.map((item, index) => {
+      const name = compactText(item && item.name);
+      const category = compactText(item && item.category_name);
+      const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
+      const dimensions = getApiMaterialDimensions(item, 2);
+      return { item, index, name, category, text, dimensions };
+    }).filter((item) => /标签|印刷|贴纸|不干胶/.test(item.text) && item.dimensions && item.dimensions.length >= 2);
+    const packageNums = packageItem ? packageItem.dimensions : null;
+    return {
+      packageSizeText: formatApiMaterialDimensions(packageNums),
+      packageSizeLabel: packageItem ? (packageItem.name || packageItem.category) : '',
+      packageCode: packageItem ? String(packageItem.item.code || '') : '',
+      packageNums,
+      hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name))),
+      printSizeText: printItems.map((item) => formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
+      printSizeLabel: printItems.map((item) => item.name || item.category).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
+      printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
+      netContent: packageItem ? extractNetContentFromMaterial(packageItem.name + ' ' + compactText(packageItem.item.properties_value)) : '',
+      apiMaterialSource: packageItem ? 'plm-project-pms' : '',
+    };
+  }
+
+  async function fetchApiMaterialPackaging(data) {
+    const projectId = getProjectIdForMaterialApi(data);
+    if (!projectId || !window.fetch) return emptyPackaging();
+    if (!apiProjectMaterialCache[projectId]) {
+      apiProjectMaterialCache[projectId] = fetch('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(projectId), { credentials: 'same-origin' })
+        .then((response) => response.ok ? response.json() : null)
+        .then((payload) => extractApiMaterialPackaging(payload))
+        .catch(() => emptyPackaging());
+    }
+    return apiProjectMaterialCache[projectId];
   }
 
   function extractPackaging(root) {
