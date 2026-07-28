@@ -7,7 +7,7 @@ const { buildSelectionPlan } = require('./selection-layout');
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.13';
+const PLUGIN_VERSION = '0.1.14';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -377,6 +377,16 @@ function styleFor(baseStyle, size, bold, resolution) {
   if (Object.prototype.hasOwnProperty.call(style, 'impliedFontSize')) {
     style.impliedFontSize = sizeDescriptor(style.impliedFontSize, size, resolution);
   }
+  // Match the supplied artwork: leading is exactly the font size, never
+  // Photoshop's automatic 120% leading.
+  style.autoLeading = false;
+  style.leading = sizeDescriptor(style.leading, size, resolution);
+  if (Object.prototype.hasOwnProperty.call(style, 'impliedLeading')) {
+    style.impliedLeading = sizeDescriptor(style.impliedLeading, size, resolution);
+  }
+  if (Object.prototype.hasOwnProperty.call(style, 'useAutoLeading')) {
+    style.useAutoLeading = false;
+  }
   return style;
 }
 
@@ -437,14 +447,14 @@ function setTextBoxBounds(textKey, bounds) {
   }
   const shape = textKey.textShape[0] = copyDescriptor(textKey.textShape[0]);
   const current = shape.bounds && typeof shape.bounds === 'object' ? shape.bounds : {};
-  const currentLeft = Number.isFinite(numberValue(current.left)) ? numberValue(current.left) : 0;
-  const currentTop = Number.isFinite(numberValue(current.top)) ? numberValue(current.top) : 0;
   shape.bounds = {
     ...current,
-    top: pixelDescriptor(currentTop),
-    left: pixelDescriptor(currentLeft),
-    bottom: pixelDescriptor(currentTop + bounds.bottom - bounds.top),
-    right: pixelDescriptor(currentLeft + bounds.right - bounds.left),
+    // textShape.bounds are local to the text insertion point. Keep the
+    // origin at zero and set only the requested width/height.
+    top: pixelDescriptor(0),
+    left: pixelDescriptor(0),
+    bottom: pixelDescriptor(bounds.bottom - bounds.top),
+    right: pixelDescriptor(bounds.right - bounds.left),
   };
   return textKey;
 }
@@ -471,10 +481,12 @@ function blackColor() {
   return color;
 }
 
-function replaceSelection(document, bounds) {
+function replaceSelection(document, bounds, antiAlias) {
   return document.selection.selectRectangle(
     bounds,
     constants.SelectionType.REPLACE,
+    0,
+    antiAlias === true,
   );
 }
 
@@ -514,8 +526,20 @@ async function createParagraphTextLayer(document, spec, size, resolution, create
   const next = formattedTextKey(original, spec.layout, size, resolution);
   setTextBoxBounds(next, spec.bounds);
   await setTextKeyDescriptor(layer.id, next);
-  await moveLayerToTopLeft(layer, spec.bounds);
+  if (!setTextLayerPosition(layer, spec.bounds.left, spec.bounds.top + fontPixels)) {
+    await moveLayerToTopLeft(layer, spec.bounds);
+  }
   return layer;
+}
+
+function setTextLayerPosition(layer, x, y) {
+  try {
+    if (!layer || !layer.textItem) return false;
+    layer.textItem.textClickPoint = { x: Number(x), y: Number(y) };
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function createHeadingTextLayer(document, text, cellBounds, size, resolution, createdLayers, name) {
@@ -548,16 +572,36 @@ async function createHeadingTextLayer(document, text, cellBounds, size, resoluti
 async function createRepFrameLayer(document, frameBounds, strokeWidth, createdLayers, name) {
   const layer = await document.createPixelLayer({ name });
   createdLayers.push(layer);
-  await replaceSelection(document, frameBounds);
-  await document.selection.selectBorder(Math.max(1, Math.round(strokeWidth)));
-  await fillSelection();
-  const middle = (frameBounds.left + frameBounds.right) / 2;
+  const left = Math.round(frameBounds.left);
+  const top = Math.round(frameBounds.top);
+  const right = Math.round(frameBounds.right);
+  const bottom = Math.round(frameBounds.bottom);
+  const width = Math.max(2, right - left);
+  const height = Math.max(2, bottom - top);
+  const thickness = Math.max(1, Math.min(
+    Math.round(strokeWidth),
+    Math.floor(width / 2),
+    Math.floor(height / 2),
+  ));
+  // Filling four un-antialiased rectangles avoids the fuzzy multi-line edge
+  // produced by Selection.selectBorder at low zoom levels.
+  const strips = [
+    { left, top, right, bottom: top + thickness },
+    { left, top: bottom - thickness, right, bottom },
+    { left, top: top + thickness, right: left + thickness, bottom: bottom - thickness },
+    { left: right - thickness, top: top + thickness, right, bottom: bottom - thickness },
+  ];
+  for (const strip of strips) {
+    await replaceSelection(document, strip, false);
+    await fillSelection();
+  }
+  const dividerLeft = Math.floor((left + right - thickness) / 2);
   await replaceSelection(document, {
-    left: middle - Math.max(1, Math.round(strokeWidth / 2)),
-    top: frameBounds.top,
-    right: middle + Math.max(1, Math.round(strokeWidth / 2)),
-    bottom: frameBounds.bottom,
-  });
+    left: dividerLeft,
+    top,
+    right: dividerLeft + thickness,
+    bottom,
+  }, false);
   await fillSelection();
   return layer;
 }
@@ -681,7 +725,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
         createdGroup.name = groupName;
       }
       if (oldGroup && oldGroup.id !== createdGroup.id) oldGroup.delete();
-      await replaceSelection(document, plan.selection);
+      await replaceSelection(document, plan.selection, false);
       return {
         mode: 'selection',
         size: plan.size,
@@ -694,7 +738,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
         if (createdGroup) createdGroup.delete();
         else createdLayers.slice().reverse().forEach((layer) => layer.delete());
       } catch (_) {}
-      try { await replaceSelection(document, plan.selection); } catch (_) {}
+      try { await replaceSelection(document, plan.selection, false); } catch (_) {}
       throw error;
     } finally {
       try { app.foregroundColor = previousForeground; } catch (_) {}

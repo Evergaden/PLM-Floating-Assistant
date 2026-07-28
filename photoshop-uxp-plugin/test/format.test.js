@@ -34,6 +34,8 @@ assert.equal(ranges.reduce((total, range) => total + range.to - range.from, 0), 
 assert.ok(ranges.some((range) => range.bold));
 assert.equal(layout.boxes.reps.length, 3);
 assert.equal(layout.boxes.info.text.includes('PRODUCT NAME:'), true);
+assert.equal(layout.boxes.info.text.includes('DISTRIBUTED BY:'), false);
+assert.equal(layout.boxes.address.text.includes('DISTRIBUTED BY:'), true);
 assert.equal(layout.boxes.address.text.includes('ADDRESS:'), true);
 assert.equal(layout.boxes.reps[0].text.includes('YKT EU REP SAS'), true);
 assert.equal(/^EU REP(?:\r?\n|$)/.test(layout.boxes.reps[0].text), false);

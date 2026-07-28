@@ -31,6 +31,7 @@ assert.equal(plan.size, 4);
 assert.equal(plan.blocks.length, 5);
 assert.equal(plan.blocks[0].key, 'info');
 assert.equal(plan.blocks[1].key, 'address');
+assert.equal(plan.blocks[0].bounds.bottom < selection.bottom, true);
 assert.equal(plan.blocks[2].headingBounds.right > plan.blocks[2].headingBounds.left, true);
 assert.equal(plan.blocks[2].bodyBounds.top > plan.blocks[2].headingBounds.bottom, true);
 assert.equal(plan.blocks[4].bodyBounds.bottom <= selection.bottom, true);

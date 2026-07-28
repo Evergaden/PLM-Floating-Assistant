@@ -23,10 +23,10 @@ const INFO_BOX_ORDER = [
   'netContent',
   'origin',
   'shelfLife',
-  'distributedBy',
 ];
 
-const ADDRESS_BOX_ORDER = ['address'];
+// Keep the distributor and address together in one editable paragraph box.
+const ADDRESS_BOX_ORDER = ['distributedBy', 'address'];
 const REP_BOX_ORDER = ['euRep', 'ukRep', 'usRep'];
 
 const LABELS = {

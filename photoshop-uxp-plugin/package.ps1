@@ -1,7 +1,7 @@
 $pluginRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $distDirectory = Join-Path $pluginRoot 'dist'
-$packagePath = Join-Path $distDirectory 'PLM-Photoshop-Copywriting-0.1.13.ccx'
-$zipPath = Join-Path $distDirectory 'PLM-Photoshop-Copywriting-0.1.13.zip'
+$packagePath = Join-Path $distDirectory 'PLM-Photoshop-Copywriting-0.1.14.ccx'
+$zipPath = Join-Path $distDirectory 'PLM-Photoshop-Copywriting-0.1.14.zip'
 $packageFiles = @(
   'manifest.json',
   'index.html',

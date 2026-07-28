@@ -39,7 +39,10 @@ function textLineCount(text, width, size, resolution) {
 
 function textMetrics(layout, width, size, resolution) {
   const fontPixels = Math.max(1, pointsToPixels(size, resolution));
-  const lineHeight = Math.max(1, fontPixels * 1.16);
+  // The artwork uses a fixed leading equal to the font size. Do not use
+  // Photoshop's automatic 120% leading and do not stretch boxes to fill the
+  // whole marquee selection.
+  const lineHeight = fontPixels;
   const lines = textLineCount(layout && layout.text, width, size, resolution);
   return {
     lines,
@@ -83,7 +86,6 @@ function buildSelectionPlan(layout, rawBounds, resolution, options) {
   const bottom = bounds.bottom - marginY;
   const contentWidth = Math.max(4, right - left);
   const availableHeight = Math.max(4, bottom - top);
-  const gap = Math.max(1, Math.round(pointsToPixels(4, resolution) * 0.35));
   const specs = createBlockSpecs(layout);
   if (!specs.length) throw new Error('当前 SKU 没有可生成的第四页文案。');
 
@@ -93,10 +95,11 @@ function buildSelectionPlan(layout, rawBounds, resolution, options) {
   let requiredHeight = 0;
   for (;;) {
     const fontPixels = Math.max(1, pointsToPixels(size, resolution));
+    const gap = Math.max(1, Math.round(fontPixels * 0.25));
     metrics = specs.map((spec) => {
       const body = textMetrics(spec.layout, contentWidth, size, resolution);
       if (spec.type === 'rep') {
-        const headingHeight = Math.max(fontPixels * 1.6, 8);
+        const headingHeight = Math.max(fontPixels + Math.max(2, Math.round(fontPixels * 0.2) * 2), 8);
         return {
           ...body,
           headingHeight,
@@ -116,16 +119,14 @@ function buildSelectionPlan(layout, rawBounds, resolution, options) {
     throw new Error('选区高度不足，请把矩形选框向下扩大，或减少选区内的其他内容。');
   }
 
-  const extra = Math.max(0, availableHeight - requiredHeight);
   let cursor = top;
   const blocks = specs.map((spec, index) => {
     const metric = metrics[index];
-    const share = extra * (metric.required / Math.max(1, requiredHeight));
     const blockTop = cursor;
-    const blockBottom = index === specs.length - 1
-      ? bottom
-      : Math.min(bottom, cursor + metric.required + share);
-    cursor = blockBottom + gap;
+    const blockBottom = Math.min(bottom, blockTop + metric.required);
+    const fontPixels = fontPixelsFor(size, resolution);
+    const gap = Math.max(1, Math.round(fontPixels * 0.25));
+    cursor = blockBottom + (index === specs.length - 1 ? 0 : gap);
     if (spec.type !== 'rep') {
       return {
         ...spec,
