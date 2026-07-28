@@ -1014,7 +1014,7 @@ export default function App() {
               <div>
                 <span className="eyebrow">RANDOM PACK COMPOSER</span>
                 <h2>随机组合图包</h2>
-                <p>导入多个主图/详情图 ZIP，标准化命名后每个编号随机抽取一张，导出完整组合。</p>
+                <p>导入多个主图/详情图 ZIP，标准化命名后每个编号随机抽取一张，直接导出到所选目录的主图、详情图文件夹。</p>
               </div>
               <button className="pack-root" onClick={chooseRandomOutputDir}><FolderOpen size={16} />{randomOutputDir || "选择导出目录"}</button>
             </div>
@@ -1025,7 +1025,7 @@ export default function App() {
               <label className="toggle"><input type="checkbox" checked={randomCompress} onChange={(event) => setRandomCompress(event.target.checked)} /><span />组合后用 Photoshop 压缩</label>
               <button className="primary" onClick={composeRandomPack} disabled={randomBusy || !randomZipPaths.length}>{randomBusy ? <LoaderCircle size={16} className="spin" /> : <RotateCw size={16} />}开始随机组合</button>
             </div>
-            {randomCompress && <div className="random-pack-photoshop"><span>Photoshop</span><input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} placeholder="Photoshop.exe 路径" /><button onClick={choosePhotoshop}>选择 Photoshop</button><small>压缩完成后导出的 ZIP 内为 JPG，原始 ZIP 不会删除。</small></div>}
+            {randomCompress && <div className="random-pack-photoshop"><span>Photoshop</span><input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} placeholder="Photoshop.exe 路径" /><button onClick={choosePhotoshop}>选择 Photoshop</button><small>压缩后直接写入主图、详情图文件夹，原始 ZIP 不会删除。</small></div>}
             <div className="random-pack-list">
               {!randomZipPaths.length && <div className="empty-state"><Archive size={28} /><strong>还没有导入 ZIP</strong><span>主图 ZIP 和详情图 ZIP 可以混合导入。</span></div>}
               {randomZipPaths.map((path) => <div key={path}><Archive size={15} /><span title={path}>{path}</span><button onClick={() => setRandomZipPaths((current) => current.filter((item) => item !== path))}><X size={14} /></button></div>)}

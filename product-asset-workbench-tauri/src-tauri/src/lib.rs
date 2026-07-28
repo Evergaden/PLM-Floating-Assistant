@@ -18,7 +18,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use uuid::Uuid;
-use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
+use zip::ZipArchive;
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
@@ -1339,10 +1339,10 @@ fn compose_random_pack(
         logs.push(format!("Photoshop 已压缩 {} 张图片", selected.len()));
     }
 
-    let output_name = format!("随机组合_主图{}_详情图{}_{}.zip", main_count, detail_count, bridge_timestamp());
-    let output_path = unique_archive_path(&output_dir, &output_name);
-    let output_file = fs::File::create(&output_path).map_err(|error| format!("无法创建导出 ZIP：{error}"))?;
-    let mut writer = ZipWriter::new(output_file);
+    let main_output_dir = output_dir.join("主图");
+    let detail_output_dir = output_dir.join("详情图");
+    fs::create_dir_all(&main_output_dir).map_err(|error| format!("无法创建主图目录：{error}"))?;
+    fs::create_dir_all(&detail_output_dir).map_err(|error| format!("无法创建详情图目录：{error}"))?;
     for (is_main, index, original_path) in &selected {
         let (name, source_path) = if compress_images {
             let folder = if *is_main { "主图" } else { "详情图" };
@@ -1351,14 +1351,13 @@ fn compose_random_pack(
         } else {
             (original_path.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string(), original_path.clone())
         };
-        let bytes = fs::read(&source_path).map_err(|error| format!("无法读取组合图片 {name}：{error}"))?;
-        writer.start_file(name, SimpleFileOptions::default()).map_err(|error| format!("无法写入 ZIP：{error}"))?;
-        std::io::Write::write_all(&mut writer, &bytes).map_err(|error| format!("无法写入图片：{error}"))?;
+        let destination_dir = if *is_main { &main_output_dir } else { &detail_output_dir };
+        let destination = destination_dir.join(&name);
+        fs::copy(&source_path, &destination).map_err(|error| format!("无法导出组合图片 {name}：{error}"))?;
+        logs.push(format!("已导出：{}", path_text(&destination)));
     }
-    writer.finish().map_err(|error| format!("无法完成导出 ZIP：{error}"))?;
     let _ = fs::remove_dir_all(&temp);
-    logs.push(format!("已导出：{}", path_text(&output_path)));
-    Ok(ComposePackResult { logs, output_path: path_text(&output_path), selected_count: selected.len(), missing_slots, photoshop_started })
+    Ok(ComposePackResult { logs, output_path: path_text(&output_dir), selected_count: selected.len(), missing_slots, photoshop_started })
 }
 
 fn count_recycle_files(folder: &Path) -> Result<usize, String> {
