@@ -1,15 +1,16 @@
 use std::{
     collections::HashMap,
     fs,
+    io::Read,
     path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
-    time::UNIX_EPOCH,
+    time::{Duration, UNIX_EPOCH},
 };
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use futures_util::{SinkExt, StreamExt};
-use rand::RngCore;
+use rand::{Rng, RngCore};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -17,7 +18,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use uuid::Uuid;
-use zip::ZipArchive;
+use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
@@ -330,6 +331,16 @@ struct ArchivePacksResult {
     failed: usize,
     deleted: usize,
     compressed_images: usize,
+    photoshop_started: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ComposePackResult {
+    logs: Vec<String>,
+    output_path: String,
+    selected_count: usize,
+    missing_slots: Vec<String>,
     photoshop_started: bool,
 }
 
@@ -1185,6 +1196,171 @@ fn archive_image_packs(
     Ok(result)
 }
 
+struct ComposeImage {
+    source_name: String,
+    extension: String,
+    bytes: Vec<u8>,
+}
+
+fn compose_slot(stem: &str) -> Option<(bool, usize)> {
+    let lower = stem.to_ascii_lowercase();
+    if let Some(rest) = lower.strip_prefix("input-main-prompt-") {
+        let index = rest.split('-').next()?.parse::<usize>().ok()?;
+        if (1..=6).contains(&index) { return Some((true, index)); }
+    }
+    if let Some(rest) = lower.strip_prefix("主图") {
+        let index = rest.parse::<usize>().ok()?;
+        if (1..=6).contains(&index) { return Some((true, index)); }
+    }
+    let detail_prefixes = [
+        ("input-detail-sale-prompt-1-", 1),
+        ("input-detail-sale-prompt-2-", 2),
+        ("input-detail-component-prompt-", 3),
+        ("input-detail-advantage-prompt-1-", 4),
+        ("input-detail-advantage-prompt-2-", 5),
+        ("input-detail-details-prompt-1-", 6),
+        ("input-detail-details-prompt-2-", 7),
+        ("input-detail-efficacy-prompt-", 8),
+        ("input-detail-use-step-prompt-", 9),
+        ("input-detail-scene-prompt-", 10),
+    ];
+    if let Some((_, index)) = detail_prefixes.iter().find(|(prefix, _)| lower.starts_with(prefix)) {
+        return Some((false, *index));
+    }
+    if let Some(rest) = lower.strip_prefix("详情图") {
+        let index = rest.parse::<usize>().ok()?;
+        if (1..=10).contains(&index) { return Some((false, index)); }
+    }
+    None
+}
+
+fn wait_for_composed_photoshop_outputs(temp: &Path, selected: &[(bool, usize, PathBuf)]) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(300);
+    loop {
+        let complete = selected.iter().all(|(is_main, index, _)| {
+            let folder = if *is_main { "主图" } else { "详情图" };
+            let name = if *is_main { format!("主图{index}.jpg") } else { format!("详情图{index}.jpg") };
+            temp.join(folder).join(name).is_file()
+        });
+        if complete { return Ok(()); }
+        if std::time::Instant::now() >= deadline {
+            return Err("Photoshop 压缩超时，未生成完整组合".to_string());
+        }
+        std::thread::sleep(Duration::from_millis(600));
+    }
+}
+
+#[tauri::command]
+fn compose_random_pack(
+    zip_paths: Vec<String>,
+    output_dir: String,
+    main_count: usize,
+    detail_count: usize,
+    compress_images: bool,
+    photoshop_path: String,
+) -> Result<ComposePackResult, String> {
+    if zip_paths.is_empty() { return Err("请先导入至少一个主图或详情图 ZIP".to_string()); }
+    let main_count = main_count.clamp(1, 6);
+    let detail_count = detail_count.clamp(1, 10);
+    let output_dir = PathBuf::from(output_dir);
+    if !output_dir.is_dir() { return Err("导出目录不存在".to_string()); }
+    let photoshop = PathBuf::from(photoshop_path);
+    if compress_images && !photoshop.is_file() { return Err("请先选择有效的 Photoshop.exe".to_string()); }
+
+    let mut main_candidates: Vec<Vec<ComposeImage>> = (0..main_count).map(|_| Vec::new()).collect();
+    let mut detail_candidates: Vec<Vec<ComposeImage>> = (0..detail_count).map(|_| Vec::new()).collect();
+    let mut logs = Vec::new();
+    for raw_path in zip_paths {
+        let zip_path = PathBuf::from(&raw_path);
+        let zip_name = zip_path.file_name().and_then(|value| value.to_str()).unwrap_or(&raw_path);
+        let file = match fs::File::open(&zip_path) {
+            Ok(file) => file,
+            Err(error) => { logs.push(format!("跳过 {zip_name}：{error}")); continue; }
+        };
+        let mut archive = match ZipArchive::new(file) {
+            Ok(archive) => archive,
+            Err(error) => { logs.push(format!("跳过 {zip_name}：不是有效 ZIP（{error}）")); continue; }
+        };
+        for index in 0..archive.len() {
+            let mut entry = match archive.by_index(index) { Ok(entry) => entry, Err(_) => continue };
+            if entry.is_dir() { continue; }
+            let Some(source_name) = Path::new(entry.name()).file_name().and_then(|value| value.to_str()).map(str::to_string) else { continue };
+            let source_path = Path::new(&source_name);
+            if !is_pack_image(source_path) { continue; }
+            let stem = source_path.file_stem().and_then(|value| value.to_str()).unwrap_or_default();
+            let Some((is_main, slot)) = compose_slot(stem) else { continue; };
+            let mut bytes = Vec::new();
+            if entry.read_to_end(&mut bytes).is_err() { continue; }
+            let extension = source_path.extension().and_then(|value| value.to_str()).unwrap_or("png").to_ascii_lowercase();
+            let candidate = ComposeImage { source_name: format!("{zip_name} / {source_name}"), extension, bytes };
+            if is_main {
+                if let Some(items) = main_candidates.get_mut(slot - 1) { items.push(candidate); }
+            } else if let Some(items) = detail_candidates.get_mut(slot - 1) {
+                items.push(candidate);
+            }
+        }
+    }
+
+    let mut missing_slots = Vec::new();
+    for index in 1..=main_count { if main_candidates[index - 1].is_empty() { missing_slots.push(format!("主图{index}")); } }
+    for index in 1..=detail_count { if detail_candidates[index - 1].is_empty() { missing_slots.push(format!("详情图{index}")); } }
+    if !missing_slots.is_empty() {
+        logs.push(format!("缺少素材：{}", missing_slots.join("、")));
+        return Ok(ComposePackResult { logs, output_path: String::new(), selected_count: 0, missing_slots, photoshop_started: false });
+    }
+
+    let temp = std::env::temp_dir().join(format!("plm-random-pack-{}", Uuid::new_v4()));
+    fs::create_dir_all(&temp).map_err(|error| format!("无法创建临时目录：{error}"))?;
+    let mut selected = Vec::new();
+    let mut rng = rand::rng();
+    for index in 1..=main_count {
+        let candidate_index = rng.random_range(0..main_candidates[index - 1].len());
+        let candidate = &main_candidates[index - 1][candidate_index];
+        let path = temp.join(format!("主图{index}.{}", candidate.extension));
+        fs::write(&path, &candidate.bytes).map_err(|error| format!("无法写入主图{index}：{error}"))?;
+        logs.push(format!("主图{index} ← {}", candidate.source_name));
+        selected.push((true, index, path));
+    }
+    for index in 1..=detail_count {
+        let candidate_index = rng.random_range(0..detail_candidates[index - 1].len());
+        let candidate = &detail_candidates[index - 1][candidate_index];
+        let path = temp.join(format!("详情图{index}.{}", candidate.extension));
+        fs::write(&path, &candidate.bytes).map_err(|error| format!("无法写入详情图{index}：{error}"))?;
+        logs.push(format!("详情图{index} ← {}", candidate.source_name));
+        selected.push((false, index, path));
+    }
+
+    let mut photoshop_started = false;
+    if compress_images {
+        let paths = selected.iter().map(|(_, _, path)| path.clone()).collect::<Vec<_>>();
+        start_photoshop_compression(&photoshop, &paths, false)?;
+        wait_for_composed_photoshop_outputs(&temp, &selected)?;
+        photoshop_started = true;
+        logs.push(format!("Photoshop 已压缩 {} 张图片", selected.len()));
+    }
+
+    let output_name = format!("随机组合_主图{}_详情图{}_{}.zip", main_count, detail_count, bridge_timestamp());
+    let output_path = unique_archive_path(&output_dir, &output_name);
+    let output_file = fs::File::create(&output_path).map_err(|error| format!("无法创建导出 ZIP：{error}"))?;
+    let mut writer = ZipWriter::new(output_file);
+    for (is_main, index, original_path) in &selected {
+        let (name, source_path) = if compress_images {
+            let folder = if *is_main { "主图" } else { "详情图" };
+            let name = if *is_main { format!("主图{index}.jpg") } else { format!("详情图{index}.jpg") };
+            (name.clone(), temp.join(folder).join(name))
+        } else {
+            (original_path.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string(), original_path.clone())
+        };
+        let bytes = fs::read(&source_path).map_err(|error| format!("无法读取组合图片 {name}：{error}"))?;
+        writer.start_file(name, SimpleFileOptions::default()).map_err(|error| format!("无法写入 ZIP：{error}"))?;
+        std::io::Write::write_all(&mut writer, &bytes).map_err(|error| format!("无法写入图片：{error}"))?;
+    }
+    writer.finish().map_err(|error| format!("无法完成导出 ZIP：{error}"))?;
+    let _ = fs::remove_dir_all(&temp);
+    logs.push(format!("已导出：{}", path_text(&output_path)));
+    Ok(ComposePackResult { logs, output_path: path_text(&output_path), selected_count: selected.len(), missing_slots, photoshop_started })
+}
+
 fn count_recycle_files(folder: &Path) -> Result<usize, String> {
     let mut count = 0;
     for entry in fs::read_dir(folder).map_err(|error| format!("无法读取回收站 {}：{error}", path_text(folder)))? {
@@ -1838,6 +2014,7 @@ pub fn run() {
             preview_products,
             detect_photoshop,
             archive_image_packs,
+            compose_random_pack,
             empty_pack_recycle,
             default_video_source,
             scan_video_files,

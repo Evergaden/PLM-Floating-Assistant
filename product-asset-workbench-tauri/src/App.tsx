@@ -7,7 +7,7 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import {
   Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet, Film,
   Eye, FolderOpen, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
-  ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, X,
+  ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, RotateCw, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
@@ -26,6 +26,7 @@ const VIDEO_SCALE_KEY = "plm-workbench.video-scale";
 const VIDEO_LOSSY_KEY = "plm-workbench.video-lossy";
 const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
+const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -58,6 +59,14 @@ interface ArchivePacksResult {
 interface EmptyRecycleResult {
   deletedFiles: number;
   deletedFolders: number;
+}
+
+interface ComposePackResult {
+  logs: string[];
+  outputPath: string;
+  selectedCount: number;
+  missingSlots: string[];
+  photoshopStarted: boolean;
 }
 
 interface VideoMatch {
@@ -350,7 +359,7 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload">("assets");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -376,6 +385,13 @@ export default function App() {
   const [selectedUploadSkus, setSelectedUploadSkus] = useState<Set<string>>(new Set());
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadAutoStart, setUploadAutoStart] = useState(true);
+  const [randomZipPaths, setRandomZipPaths] = useState<string[]>([]);
+  const [randomMainCount, setRandomMainCount] = useState("6");
+  const [randomDetailCount, setRandomDetailCount] = useState("10");
+  const [randomOutputDir, setRandomOutputDir] = useState(() => localStorage.getItem(RANDOM_OUTPUT_KEY) || "");
+  const [randomCompress, setRandomCompress] = useState(true);
+  const [randomBusy, setRandomBusy] = useState(false);
+  const [randomLogs, setRandomLogs] = useState<string[]>(["等待导入主图或详情图 ZIP。"]);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -540,6 +556,24 @@ export default function App() {
     else if (typeof value === "string") addZipPaths([value]);
   }
 
+  async function chooseRandomZipPacks() {
+    const value = await open({
+      multiple: true,
+      directory: false,
+      title: "选择随机组合 ZIP",
+      filters: [{ name: "ZIP 图包", extensions: ["zip"] }],
+    });
+    const paths = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+    setRandomZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
+  }
+
+  async function chooseRandomOutputDir() {
+    const value = await open({ directory: true, multiple: false, defaultPath: randomOutputDir || root || undefined, title: "选择随机组合导出目录" });
+    if (typeof value !== "string") return;
+    setRandomOutputDir(value);
+    localStorage.setItem(RANDOM_OUTPUT_KEY, value);
+  }
+
   async function choosePhotoshop() {
     const value = await open({
       multiple: false,
@@ -702,6 +736,35 @@ export default function App() {
     }
   }
 
+  async function composeRandomPack() {
+    if (!randomZipPaths.length) return notify("请先导入至少一个主图或详情图 ZIP");
+    if (!randomOutputDir) return notify("请先选择导出目录");
+    if (randomCompress && !photoshopPath) return notify("请先选择 Photoshop.exe");
+    setRandomBusy(true);
+    setRandomLogs(["开始随机抽取并组合…"]);
+    try {
+      const result = await invoke<ComposePackResult>("compose_random_pack", {
+        zipPaths: randomZipPaths,
+        outputDir: randomOutputDir,
+        mainCount: Number(randomMainCount),
+        detailCount: Number(randomDetailCount),
+        compressImages: randomCompress,
+        photoshopPath,
+      });
+      setRandomLogs(result.logs);
+      if (result.missingSlots.length) {
+        notify(`素材不完整，缺少：${result.missingSlots.join("、")}`);
+      } else {
+        notify(`随机组合完成：${result.selectedCount} 张${result.photoshopStarted ? "，Photoshop 已压缩" : ""}`);
+      }
+    } catch (error) {
+      setRandomLogs((current) => [...current, String(error)]);
+      notify(String(error));
+    } finally {
+      setRandomBusy(false);
+    }
+  }
+
   async function queueUploadPairs() {
     const targets = uploadPairs.filter((item) => item.status === "ready" && selectedUploadSkus.has(item.sku) && item.xlsxPath && item.zipPath);
     if (!targets.length) return notify("请先勾选完整的 XLSX + ZIP");
@@ -847,6 +910,7 @@ export default function App() {
         <nav className="workspace-tabs">
           <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
+          <button className={workspaceView === "random" ? "active" : ""} onClick={() => setWorkspaceView("random")}><RotateCw size={16} />随机组合</button>
           <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
           <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
@@ -943,6 +1007,32 @@ export default function App() {
             <button className="primary large" onClick={generateSelected}><Play size={18} fill="currentColor" />批量生成所选资产</button>
           </div>}
         </section>
+
+        {workspaceView === "random" && (
+          <section className="random-pack-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">RANDOM PACK COMPOSER</span>
+                <h2>随机组合图包</h2>
+                <p>导入多个主图/详情图 ZIP，标准化命名后每个编号随机抽取一张，导出完整组合。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRandomOutputDir}><FolderOpen size={16} />{randomOutputDir || "选择导出目录"}</button>
+            </div>
+            <div className="random-pack-toolbar">
+              <button className="secondary" onClick={chooseRandomZipPacks} disabled={randomBusy}><Upload size={16} />导入 ZIP</button>
+              <label><span>主图数量</span><input type="number" min="1" max="6" value={randomMainCount} onChange={(event) => setRandomMainCount(event.target.value)} /></label>
+              <label><span>详情图数量</span><input type="number" min="1" max="10" value={randomDetailCount} onChange={(event) => setRandomDetailCount(event.target.value)} /></label>
+              <label className="toggle"><input type="checkbox" checked={randomCompress} onChange={(event) => setRandomCompress(event.target.checked)} /><span />组合后用 Photoshop 压缩</label>
+              <button className="primary" onClick={composeRandomPack} disabled={randomBusy || !randomZipPaths.length}>{randomBusy ? <LoaderCircle size={16} className="spin" /> : <RotateCw size={16} />}开始随机组合</button>
+            </div>
+            {randomCompress && <div className="random-pack-photoshop"><span>Photoshop</span><input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} placeholder="Photoshop.exe 路径" /><button onClick={choosePhotoshop}>选择 Photoshop</button><small>压缩完成后导出的 ZIP 内为 JPG，原始 ZIP 不会删除。</small></div>}
+            <div className="random-pack-list">
+              {!randomZipPaths.length && <div className="empty-state"><Archive size={28} /><strong>还没有导入 ZIP</strong><span>主图 ZIP 和详情图 ZIP 可以混合导入。</span></div>}
+              {randomZipPaths.map((path) => <div key={path}><Archive size={15} /><span title={path}>{path}</span><button onClick={() => setRandomZipPaths((current) => current.filter((item) => item !== path))}><X size={14} /></button></div>)}
+            </div>
+            <div className="random-pack-console"><div><strong>抽取日志</strong><span>{randomLogs.length} 条</span></div><pre>{randomLogs.join("\n")}</pre></div>
+          </section>
+        )}
 
         {workspaceView === "packs" && (
           <section className="pack-panel">

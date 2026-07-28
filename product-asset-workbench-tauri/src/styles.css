@@ -224,6 +224,25 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .upload-check-row.ready { background: linear-gradient(90deg,#fff,#fbfaff); }
 .upload-check-row.invalid { background: #fffaf6; }
 .upload-check-row.missing { background: #fffdf8; }
+.random-pack-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(35,46,72,.07); }
+.random-pack-toolbar { min-height: 58px; padding: 9px 24px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafbfe; }
+.random-pack-toolbar > button { height: 34px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #657187; background: white; font-size: 10px; font-weight: 700; }
+.random-pack-toolbar > button.primary { margin-left: auto; color: white; border-color: var(--purple); background: var(--purple); }
+.random-pack-toolbar label:not(.toggle) { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.random-pack-toolbar input[type=number] { width: 55px; height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 7px; color: #38445a; background: white; }
+.random-pack-photoshop { min-height: 45px; padding: 8px 24px; display: flex; align-items: center; gap: 8px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 10px; }
+.random-pack-photoshop > span { font-weight: 700; }
+.random-pack-photoshop > input { width: 280px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; color: #38445a; background: white; font-size: 10px; }
+.random-pack-photoshop > button { height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; color: #657187; background: white; font-size: 10px; }
+.random-pack-photoshop small { margin-left: auto; color: #929bad; }
+.random-pack-list { max-height: 260px; overflow: auto; padding: 10px 24px; display: grid; gap: 5px; }
+.random-pack-list > div:not(.empty-state) { min-height: 35px; padding: 0 9px; display: flex; align-items: center; gap: 7px; border: 1px solid #edf0f4; border-radius: 8px; color: #697589; background: #fff; }
+.random-pack-list > div > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.random-pack-list > div > button { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: 0; color: #9aa3b1; background: transparent; }
+.random-pack-console { margin: 0 24px 18px; overflow: hidden; border: 1px solid #27344a; border-radius: 11px; background: #1e293b; }
+.random-pack-console > div { min-height: 34px; padding: 0 11px; display: flex; align-items: center; color: #dce4f0; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 10px; }
+.random-pack-console > div span { margin-left: auto; color: #8fa0b8; }
+.random-pack-console pre { max-height: 190px; margin: 0; padding: 10px 12px; overflow: auto; white-space: pre-wrap; color: #aebbd0; font: 10px/1.55 Consolas, monospace; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(18,24,38,.48); backdrop-filter: blur(6px); display: grid; place-items: center; }
 .modal { width: 480px; padding: 30px; border-radius: 22px; background: white; position: relative; box-shadow: 0 30px 80px rgba(12,18,31,.27); }
 .modal-close { position: absolute; right: 18px; top: 18px; border: 0; background: #f2f4f7; color: #697487; border-radius: 8px; width: 32px; height: 32px; display: grid; place-items: center; }
