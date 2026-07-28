@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.25
+// @version      2.6.26
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.25';
+  const SCRIPT_VERSION = '2.6.26';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5227,12 +5227,13 @@
     };
   }
 
-  async function fetchApiMaterialPackaging(data) {
+  async function fetchApiMaterialPackaging(data, options) {
     const projectId = getProjectIdForMaterialApi(data);
     if (!projectId || !window.fetch) {
       if (data && data.sku) addLog('warn', '详情自动读取物料接口跳过', data.sku + ' | 未找到项目 ID');
       return emptyPackaging();
     }
+    if (options && options.force) delete apiProjectMaterialCache[projectId];
     if (!apiProjectMaterialCache[projectId]) {
       addLog('info', '详情自动读取 PLM 物料接口', String(data && data.sku || '') + ' | projectId=' + projectId);
       apiProjectMaterialCache[projectId] = fetch('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(projectId), { credentials: 'same-origin' })
@@ -5248,6 +5249,25 @@
         });
     }
     return apiProjectMaterialCache[projectId];
+  }
+
+  async function refreshMaterialFromApiWithoutDrawer(sku) {
+    if (!state.settings.collectionEnabled || !sku) return;
+    const current = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    const packaging = await fetchApiMaterialPackaging(current, { force: true });
+    if (!packaging || (!packaging.packageSizeText && !packaging.printSizeText && !packaging.hasInnerCard)) return;
+    const merged = normalizeData({
+      ...current,
+      ...packaging,
+      packageSource: packaging.packageSizeText ? 'plm-project-pms' : current.packageSource,
+      updatedAt: new Date().toLocaleString(),
+      updatedAtMs: Date.now(),
+    });
+    saveData(sku, merged);
+    if (state.selectedSku === sku) {
+      state.data = merged;
+      renderShell('已后台刷新物料尺寸');
+    }
   }
 
   function extractPackaging(root) {
@@ -11833,6 +11853,9 @@
       const data = loadData(sku);
       state.selectedSku = sku;
       state.data = data ? normalizeData(data) : (currentTab === 'sizeImage' || currentTab === 'parameterImage' ? normalizeData({ sku }) : null);
+      window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku).catch((error) => {
+        addLog('warn', '悬浮窗后台刷新物料失败', sku + ' | ' + formatErrorMessage(error));
+      }), 0);
       state.detailViewPreviousTab = '';
       if (currentTab === 'sizeImage' || currentTab === 'parameterImage') {
         state.view = currentTab;
