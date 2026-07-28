@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { buildPage4Layout } = require('../copywriting');
-const { buildSelectionPlan, normalizeBounds } = require('../selection-layout');
+const { buildSelectionPlan, normalizeBounds, wrapLayout } = require('../selection-layout');
 
 const product = {
   copywriting: {
@@ -41,5 +41,12 @@ const labelPlan = buildSelectionPlan(labelLayout, { left: 100, top: 200, right: 
 assert.equal(labelPlan.orientation, 'wide');
 assert.equal(labelPlan.blocks.filter((block) => block.type === 'rep').length, 3);
 assert.equal(labelPlan.blocks.filter((block) => block.type === 'rep')[0].bodyBounds.left < labelPlan.blocks.filter((block) => block.type === 'rep')[1].bodyBounds.left, true);
+
+const wrapped = wrapLayout({
+  text: 'ABCDEFGHIJKLMNO',
+  segments: [{ text: 'ABCDEFGHIJKLMNO', bold: true }],
+}, 20, 4, 72);
+assert.equal(wrapped.text.includes('\n'), true);
+assert.equal(wrapped.segments.some((segment) => segment.bold && segment.text.includes('\n')), false);
 
 console.log('selection layout: ok');

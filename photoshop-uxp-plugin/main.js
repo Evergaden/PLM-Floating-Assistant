@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.16';
+const PLUGIN_VERSION = '0.1.17';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -477,24 +477,35 @@ function setTextKeyDescriptor(layerId, textKey) {
   });
 }
 
-function pixelDescriptor(value) {
-  return { _unit: 'pixelsUnit', _value: Number(value) };
+function unitDescriptor(value, unit) {
+  return { _unit: unit || 'pixelsUnit', _value: Number(value) };
 }
 
-function setTextBoxBounds(textKey, bounds) {
+function lengthInUnit(pixels, unit, resolution) {
+  return unit === 'pointsUnit' ? pixelsToPoints(pixels, resolution) : pixels;
+}
+
+function setTextBoxBounds(textKey, bounds, resolution) {
   if (!textKey || !Array.isArray(textKey.textShape) || !textKey.textShape.length) {
     throw new Error('Photoshop 没有返回可设置的段落文字框。');
   }
   const shape = textKey.textShape[0] = copyDescriptor(textKey.textShape[0]);
   const current = shape.bounds && typeof shape.bounds === 'object' ? shape.bounds : {};
+  const horizontalUnit = unitName(current.left) || unitName(current.right) || 'pixelsUnit';
+  const verticalUnit = unitName(current.top) || unitName(current.bottom) || 'pixelsUnit';
+  const currentLeft = Number.isFinite(numberValue(current.left)) ? numberValue(current.left) : 0;
+  const currentTop = Number.isFinite(numberValue(current.top)) ? numberValue(current.top) : 0;
+  const width = Math.max(1, Number(bounds.right) - Number(bounds.left));
+  const height = Math.max(1, Number(bounds.bottom) - Number(bounds.top));
   shape.bounds = {
     ...current,
-    // textShape.bounds are local to the text insertion point. Keep the
-    // origin at zero and set only the requested width/height.
-    top: pixelDescriptor(0),
-    left: pixelDescriptor(0),
-    bottom: pixelDescriptor(bounds.bottom - bounds.top),
-    right: pixelDescriptor(bounds.right - bounds.left),
+    // Keep Photoshop's native unit for textShape.bounds. Some Photoshop
+    // versions return points here; writing pixel values into that descriptor
+    // makes the paragraph frame several times wider than the marquee.
+    top: unitDescriptor(currentTop, verticalUnit),
+    left: unitDescriptor(currentLeft, horizontalUnit),
+    bottom: unitDescriptor(currentTop + lengthInUnit(height, verticalUnit, resolution), verticalUnit),
+    right: unitDescriptor(currentLeft + lengthInUnit(width, horizontalUnit, resolution), horizontalUnit),
   };
   return textKey;
 }
@@ -555,7 +566,7 @@ async function createParagraphTextLayer(document, spec, size, resolution, create
   }
   const original = await getTextKey(layer.id);
   const next = formattedTextKey(original, spec.layout, size, resolution, textColor);
-  setTextBoxBounds(next, spec.bounds);
+  setTextBoxBounds(next, spec.bounds, resolution);
   await setTextKeyDescriptor(layer.id, next);
   if (!setTextLayerPosition(layer, spec.bounds.left, spec.bounds.top + fontPixels)) {
     await moveLayerToTopLeft(layer, spec.bounds);

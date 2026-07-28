@@ -1,5 +1,6 @@
 const DEFAULT_FONT_SIZE_PT = 4;
 const MIN_FONT_SIZE_PT = 2.5;
+const APPROX_CHAR_WIDTH = 0.52;
 
 function numeric(value) {
   if (typeof value === 'number') return value;
@@ -28,12 +29,16 @@ function pointsToPixels(points, resolution) {
   return points * (Number(resolution) || 72) / 72;
 }
 
-function textLineCount(text, width, size, resolution) {
+function charactersPerLine(width, size, resolution) {
   const fontPixels = Math.max(1, pointsToPixels(size, resolution));
-  const charactersPerLine = Math.max(1, Math.floor(width / (fontPixels * 0.52)));
+  return Math.max(1, Math.floor(width / (fontPixels * APPROX_CHAR_WIDTH)));
+}
+
+function textLineCount(text, width, size, resolution) {
+  const maxCharacters = charactersPerLine(width, size, resolution);
   return String(text || '').split(/\r?\n/).reduce((total, line) => {
     const length = line.length || 1;
-    return total + Math.max(1, Math.ceil(length / charactersPerLine));
+    return total + Math.max(1, Math.ceil(length / maxCharacters));
   }, 0);
 }
 
@@ -48,6 +53,47 @@ function textMetrics(layout, width, size, resolution) {
     lines,
     lineHeight,
     height: lines * lineHeight,
+  };
+}
+
+function wrapLayout(layout, width, size, resolution) {
+  if (!layout || !Array.isArray(layout.segments) || !layout.segments.length) return layout;
+  const maxCharacters = charactersPerLine(width, size, resolution);
+  const segments = [];
+  let lineLength = 0;
+  const append = (text, bold) => {
+    if (!text) return;
+    const last = segments[segments.length - 1];
+    if (last && last.bold === Boolean(bold)) last.text += text;
+    else segments.push({ text, bold: Boolean(bold) });
+  };
+
+  layout.segments.forEach((segment) => {
+    const bold = Boolean(segment && segment.bold);
+    String(segment && segment.text || '').split('').forEach((character) => {
+      if (character === '\r' || character === '\n') {
+        append('\n', false);
+        lineLength = 0;
+        return;
+      }
+      if (lineLength >= maxCharacters) {
+        if (character === ' ') {
+          append('\n', false);
+          lineLength = 0;
+          return;
+        }
+        append('\n', false);
+        lineLength = 0;
+      }
+      append(character, bold);
+      lineLength += 1;
+    });
+  });
+
+  return {
+    ...layout,
+    segments,
+    text: segments.map((segment) => segment.text).join(''),
   };
 }
 
@@ -133,10 +179,12 @@ function buildPortraitSelectionPlan(layout, rawBounds, resolution, options) {
     const blockBottom = Math.min(bottom, blockTop + metric.required);
     const fontPixels = fontPixelsFor(size, resolution);
     const gap = Math.max(1, Math.round(fontPixels * 0.25));
+    const wrappedLayout = wrapLayout(spec.layout, contentWidth, size, resolution);
     cursor = blockBottom + (index === specs.length - 1 ? 0 : gap);
     if (spec.type !== 'rep') {
       return {
         ...spec,
+        layout: wrappedLayout,
         bounds: { left, top: blockTop, right, bottom: blockBottom },
       };
     }
@@ -153,6 +201,7 @@ function buildPortraitSelectionPlan(layout, rawBounds, resolution, options) {
     const bodyTop = headingBounds.bottom + gap;
     return {
       ...spec,
+      layout: wrappedLayout,
       bounds: { left, top: blockTop, right, bottom: blockBottom },
       headingBounds,
       bodyBounds: { left, top: bodyTop, right, bottom: blockBottom },
@@ -222,6 +271,7 @@ function buildWideSelectionPlan(layout, rawBounds, resolution, options) {
     const blockBottom = Math.min(bottom, cursor + metric.height);
     blocks.push({
       ...spec,
+      layout: wrapLayout(spec.layout, contentWidth, size, resolution),
       bounds: { left, top: cursor, right, bottom: blockBottom },
     });
     cursor = blockBottom + (index === textSpecs.length - 1 && !repSpecs.length ? 0 : measured.gap);
@@ -244,6 +294,7 @@ function buildWideSelectionPlan(layout, rawBounds, resolution, options) {
       const bodyTop = headingBounds.bottom + measured.gap;
       blocks.push({
         ...spec,
+        layout: wrapLayout(spec.layout, columnWidth, size, resolution),
         bounds: {
           left: columnLeft,
           top: rowTop,
@@ -288,7 +339,9 @@ if (typeof module !== 'undefined') {
     DEFAULT_FONT_SIZE_PT,
     MIN_FONT_SIZE_PT,
     normalizeBounds,
+    charactersPerLine,
     textLineCount,
+    wrapLayout,
     buildSelectionPlan,
   };
 }
