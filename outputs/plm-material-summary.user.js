@@ -5157,17 +5157,23 @@
   }
 
   function getApiMaterialItems(payload) {
-    const data = payload && payload.data;
+    const data = payload && (payload.data || payload.response && payload.response.data);
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.pms)) return data.pms;
+    if (data && data.data && Array.isArray(data.data.pms)) return data.data.pms;
+    if (payload && Array.isArray(payload.pms)) return payload.pms;
     if (data && Array.isArray(data.list)) return data.list;
     return [];
   }
 
   function getApiMaterialDimensions(item, count) {
     const values = [item && item.material_length, item && item.material_width, item && item.material_height]
-      .map((value) => Number(value))
-      .map((value) => Number.isFinite(value) && value > 0 ? value : 0);
+      .map((value) => {
+        const text = String(value == null ? '' : value);
+        const number = Number(text) || firstNumber(text);
+        if (!Number.isFinite(number) || number <= 0) return 0;
+        return /mm$/i.test(text.trim()) ? number / 10 : number;
+      });
     if (values.slice(0, count).every((value) => value > 0)) return values.slice(0, count);
     const parsed = parseDimension(extractDimensionString(item && item.properties_value), count);
     return parsed && parsed.length >= count ? parsed.slice(0, count) : null;
