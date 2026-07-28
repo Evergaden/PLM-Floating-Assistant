@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.15
+// @version      2.6.16
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.15';
+  const SCRIPT_VERSION = '2.6.16';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1508,6 +1508,7 @@
   const THEME_BY_ID = Object.freeze(THEME_OPTIONS.reduce((map, theme) => { map[theme.id] = theme; return map; }, Object.create(null)));
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
+  const EXCEL_BATCH_QUEUE_KEY = 'plm-floating-helper:excel-batch-queue';
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const UPLOAD_WORKER_STATES_KEY = 'plm-floating-helper:upload-worker-states';
@@ -2971,6 +2972,37 @@
     @media(max-width:620px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
     @media(max-width:430px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
   `;
+  const BATCH_EXCEL_STYLE_ID = 'pfh-batch-excel-styles';
+  const BATCH_EXCEL_STYLE_TEXT = `
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-page{display:flex;flex-direction:column;gap:12px;padding:14px 16px 22px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-head{flex:0 0 auto;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-card{display:flex;flex-direction:column;gap:10px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-form{display:flex;flex-direction:column;gap:8px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-form label{font-size:11px;font-weight:800;letter-spacing:.02em;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-input{width:100%;min-height:104px;max-height:190px;resize:vertical;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-hint{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.55;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-mode button{min-height:36px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:10px;background:var(--pfh-theme-surface-alt,#f7f8fc);color:var(--pfh-theme-muted,#64748b);font-weight:800;cursor:pointer;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-mode button.is-active{border-color:var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary-hover,#5b21b6);box-shadow:0 0 0 2px var(--pfh-theme-shadow-soft,rgba(124,58,237,.12));}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--pfh-theme-muted,#64748b);font-size:10px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-summary strong{color:var(--pfh-theme-text,#1f2937);font-size:12px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-queue{display:flex;flex-direction:column;gap:7px;max-height:310px;overflow:auto;padding-right:2px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:11px;background:var(--pfh-theme-surface-alt,#f7f8fc);}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row-main{display:flex;flex:1 1 auto;min-width:0;flex-direction:column;gap:2px;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row-main b{overflow:hidden;color:var(--pfh-theme-text,#1f2937);font-size:11px;text-overflow:ellipsis;white-space:nowrap;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row-main small{overflow:hidden;color:var(--pfh-theme-muted,#64748b);font-size:9px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status{flex:0 0 auto;font-size:9px;font-weight:800;white-space:nowrap;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status.is-ready{color:#16803c;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status.is-error{color:#c2410c;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status.is-pending{color:#9a6700;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row button{flex:0 0 auto;width:24px;height:24px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--pfh-theme-muted,#64748b);cursor:pointer;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row button:hover{background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary,#7c3aed);}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-empty{padding:18px 10px;border:1px dashed var(--pfh-theme-border,#d8deea);border-radius:11px;color:var(--pfh-theme-muted,#64748b);font-size:11px;text-align:center;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-actions{display:flex;gap:7px;flex-wrap:wrap;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-actions button{flex:1 1 120px;min-width:0;}
+    #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-progress{margin:0;color:var(--pfh-theme-primary-hover,#5b21b6);font-size:10px;line-height:1.5;}
+    @media(max-width:430px){#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-page{padding-left:11px;padding-right:11px;}#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row{align-items:flex-start;}#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status{white-space:normal;text-align:right;}}
+  `;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
       position:fixed;right:18px;bottom:78px;z-index:2147483647;width:686px;height:min(906px,96vh);min-width:520px;min-height:520px;
@@ -3012,7 +3044,8 @@
     html.pfh-ui-fallback #${PANEL_ID}[data-view="ledger"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="upload"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="unitConverter"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before{
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before,
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="batchExcel"] .pfh-full::before{
       background:
         linear-gradient(#B9BDC6,#B9BDC6) 18px 17px/38px 38px no-repeat,
         linear-gradient(#E2E4EA,#E2E4EA) 68px 22px/118px 14px no-repeat,
@@ -3130,6 +3163,16 @@
     if (style.textContent !== THEME_STYLE_TEXT) style.textContent = THEME_STYLE_TEXT;
   }
 
+  function ensureBatchExcelStyle() {
+    let style = document.getElementById(BATCH_EXCEL_STYLE_ID);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = BATCH_EXCEL_STYLE_ID;
+      document.documentElement.appendChild(style);
+    }
+    if (style.textContent !== BATCH_EXCEL_STYLE_TEXT) style.textContent = BATCH_EXCEL_STYLE_TEXT;
+  }
+
   function normalizeThemeId(value) {
     const id = String(value || '').trim();
     return THEME_BY_ID[id] ? id : DEFAULT_THEME_ID;
@@ -3183,6 +3226,7 @@
       scheduleUiFallbackNotice();
     }
     ensureThemeStyle();
+    ensureBatchExcelStyle();
     applyThemeToView();
   }
   // </ui-loader-module>
@@ -3433,6 +3477,13 @@
     excelStatus: '',
     excelPackQty: '',
     excelPurchasePrice: '6',
+    batchExcelMode: 'separate',
+    batchExcelInput: '',
+    batchExcelQueue: loadExcelBatchQueue(),
+    batchExcelWorkerRunning: false,
+    batchExcelDownloadRunning: false,
+    batchExcelCurrentSku: '',
+    batchExcelStatus: '',
     insightRecommendationSku: '',
     insightRecommendationLoading: false,
     insightRecommendation: null,
@@ -3930,6 +3981,7 @@
   }
 
   function handleDrawerState() {
+    if (state.view === 'batchExcel') return;
     const lockedSku = state.openingProjectDetailSku || '';
     const drawer = getProjectDrawer();
     if (!drawer) {
@@ -5844,7 +5896,7 @@
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'unitConverter' || state.view === 'tools';
+    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'unitConverter' || state.view === 'tools' || state.view === 'batchExcel';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -5866,7 +5918,7 @@
       const list = panel.querySelector('.pfh-list');
       if (list) list.innerHTML = '';
     }
-    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools') renderSkuList(panel);
+    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools' && state.view !== 'batchExcel') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
       updateSettingsNotice(panel);
@@ -5890,6 +5942,11 @@
     }
     if (state.view === 'tools') {
       renderStandaloneTool(panel, toolsViewHtml());
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
+    if (state.view === 'batchExcel') {
+      renderStandaloneTool(panel, batchExcelViewHtml());
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -7271,7 +7328,7 @@
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
-      ['home-excel-coming-soon', 'batchExcel', '规格成表', '批量生成 Excel', '把纸盒、标签、净含量与图片整理成可交付表格。', true],
+      ['home-batch-excel', 'batchExcel', '规格成表', '批量生成 Excel', '输入多个 SKU，自动补全缓存并排队下载。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
       ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。', false, true],
@@ -7311,6 +7368,61 @@
       '<div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + escapeHtml(result || 'ext:zip|ext:xlsx 编码1|编码2') + '</strong></div>' +
       '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
       '</section></div>';
+  }
+
+  function batchExcelViewHtml() {
+    const queue = loadExcelBatchQueue();
+    state.batchExcelQueue = queue;
+    const stats = getExcelBatchQueueStats(queue);
+    const mode = state.batchExcelMode === 'merge' ? 'merge' : 'separate';
+    const running = Boolean(state.batchExcelWorkerRunning);
+    const downloading = Boolean(state.batchExcelDownloadRunning);
+    const modeDisabled = running || downloading ? ' disabled' : '';
+    const canDownload = stats.ready > 0 && !running && !downloading;
+    const progressText = state.batchExcelStatus || (running ? '正在按顺序补全缓存，请保持 PLM 页面登录状态。' : '缓存完整的编码会进入下载候选，缺失项会留在队列中。');
+    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-batch-excel-page">' +
+      '<div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，自动查找缺失资料、补全本地缓存，再按队列下载。</p></div></div>' +
+      '<div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-form"><label>SKU 编码</label><textarea class="pfh-batch-excel-input" placeholder="例如：SKU00046398\nSKU00046397\nSKU00046396\nSKU00046395">' + escapeHtml(state.batchExcelInput || '') + '</textarea><p class="pfh-batch-excel-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="batch-excel-clear-input">清空</button><button type="button" data-action="batch-excel-add">加入补全队列</button></div></div>' +
+      '<div class="pfh-batch-excel-mode"><button type="button" data-action="batch-excel-mode" data-mode="separate" class="' + (mode === 'separate' ? 'is-active' : '') + '"' + modeDisabled + '>分别下载 Excel</button><button type="button" data-action="batch-excel-mode" data-mode="merge" class="' + (mode === 'merge' ? 'is-active' : '') + '"' + modeDisabled + '>合并成一个 Excel</button></div>' +
+      '<div class="pfh-mini-tool-card pfh-batch-excel-card"><div class="pfh-batch-excel-summary"><strong>补全与下载队列</strong><span>共 ' + stats.total + ' 个 · 完整 ' + stats.ready + ' 个 · 待补全 ' + stats.pending + ' 个</span></div><div class="pfh-batch-excel-queue">' + getExcelBatchQueueRowsHtml(queue, running || downloading) + '</div><p class="pfh-batch-excel-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" data-action="batch-excel-prepare"' + (running || downloading || !queue.length ? ' disabled' : '') + '>' + (running ? '正在补全…' : '自动补全缓存') + '</button><button type="button" data-action="batch-excel-download"' + (canDownload ? '' : ' disabled') + '>' + (mode === 'merge' ? '下载合并 Excel' : '按队列下载 Excel') + '</button><button type="button" data-action="batch-excel-clear-completed"' + (stats.downloaded ? '' : ' disabled') + '>清除已下载</button></div></div>' +
+      '</section></div>';
+  }
+
+  function getExcelBatchQueueStats(queue) {
+    const items = Array.isArray(queue) ? queue : [];
+    return items.reduce((stats, entry) => {
+      const snapshot = getExcelBatchCacheSnapshot(entry.sku);
+      if (entry.status === 'downloaded') stats.downloaded += 1;
+      if (!snapshot.missing.length && entry.status !== 'preparing' && entry.status !== 'error') stats.ready += 1;
+      else stats.pending += 1;
+      stats.total += 1;
+      return stats;
+    }, { total: 0, ready: 0, pending: 0, downloaded: 0 });
+  }
+
+  function getExcelBatchQueueRowsHtml(queue, locked) {
+    if (!Array.isArray(queue) || !queue.length) return '<div class="pfh-batch-excel-empty">还没有编码。先粘贴 SKU，再加入补全队列。</div>';
+    return queue.map((entry) => {
+      const snapshot = getExcelBatchCacheSnapshot(entry.sku);
+      const missing = snapshot.missing;
+      const status = getExcelBatchEntryStatus(entry, missing);
+      const statusClass = status.kind === 'ready' ? 'is-ready' : (status.kind === 'error' ? 'is-error' : 'is-pending');
+      const title = snapshot.data.name || snapshot.data.englishName || '未读取产品名称';
+      const detail = status.kind === 'ready'
+        ? (entry.status === 'downloaded' ? '已生成文件，可再次下载' : '缓存字段完整，等待下载')
+        : (status.text + (missing.length ? '：' + missing.join('、') : '') + (entry.error ? ' / ' + entry.error : ''));
+      const retry = !locked && status.kind !== 'ready' ? '<button type="button" data-action="batch-excel-retry" data-sku="' + escapeHtml(entry.sku) + '" title="重新补全">↻</button>' : '';
+      return '<div class="pfh-batch-excel-row"><div class="pfh-batch-excel-row-main"><b>' + escapeHtml(entry.sku) + '</b><small title="' + escapeHtml(title + ' / ' + detail) + '">' + escapeHtml(title + ' · ' + detail) + '</small></div><span class="pfh-batch-excel-status ' + statusClass + '">' + escapeHtml(status.text) + '</span>' + retry + '<button type="button" data-action="batch-excel-remove" data-sku="' + escapeHtml(entry.sku) + '" title="移除">×</button></div>';
+    }).join('');
+  }
+
+  function getExcelBatchEntryStatus(entry, missing) {
+    const current = String(entry && entry.status || 'pending');
+    if (current === 'preparing') return { kind: 'pending', text: '补全中' };
+    if (current === 'error') return { kind: 'error', text: '补全失败' };
+    if (current === 'downloaded') return { kind: 'ready', text: '已下载' };
+    if (!missing.length) return { kind: 'ready', text: '缓存完整' };
+    return { kind: 'pending', text: '待补全' };
   }
 
   function convertCmInputToInches(value) {
@@ -11139,8 +11251,45 @@
       openLedgerSku(actionTarget.getAttribute('data-sku'), actionTarget.closest('.pfh-ledger-item'));
       return;
     }
-    if (action === 'home-excel-coming-soon') {
-      showToast('\u656c\u8bf7\u671f\u5f85');
+    if (action === 'home-batch-excel' || action === 'home-excel-coming-soon') {
+      state.view = 'batchExcel';
+      state.batchExcelStatus = '';
+      expandPanel();
+      renderShell();
+      return;
+    }
+    if (action === 'batch-excel-mode') {
+      state.batchExcelMode = actionTarget.getAttribute('data-mode') === 'merge' ? 'merge' : 'separate';
+      renderShell();
+      return;
+    }
+    if (action === 'batch-excel-clear-input') {
+      state.batchExcelInput = '';
+      renderShell();
+      return;
+    }
+    if (action === 'batch-excel-add') {
+      addExcelBatchQueueItems(state.batchExcelInput);
+      return;
+    }
+    if (action === 'batch-excel-prepare') {
+      startExcelBatchPreparation();
+      return;
+    }
+    if (action === 'batch-excel-download') {
+      downloadExcelBatchQueue();
+      return;
+    }
+    if (action === 'batch-excel-remove') {
+      removeExcelBatchQueueItem(actionTarget.getAttribute('data-sku'));
+      return;
+    }
+    if (action === 'batch-excel-retry') {
+      retryExcelBatchQueueItem(actionTarget.getAttribute('data-sku'));
+      return;
+    }
+    if (action === 'batch-excel-clear-completed') {
+      clearCompletedExcelBatchQueue();
       return;
     }
     if (action === 'home-back') {
@@ -11546,6 +11695,9 @@
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-excel-price')) {
       state.excelPurchasePrice = event.target.value;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-batch-excel-input')) {
+      state.batchExcelInput = event.target.value;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cloud-backup-key')) {
       state.settings.cloudBackupKey = event.target.value.trim();
@@ -14509,6 +14661,470 @@
     return missing;
   }
 
+  function extractExcelBatchSkus(value) {
+    const matches = String(value || '').match(/\bSKU\d{8}\b/gi) || [];
+    const seen = new Set();
+    return matches.map((item) => String(item).toUpperCase()).filter((sku) => {
+      if (seen.has(sku)) return false;
+      seen.add(sku);
+      return true;
+    });
+  }
+
+  function getExcelBatchCacheSnapshot(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const indexed = state.index.find((item) => String(item && item.sku || '').toUpperCase() === normalizedSku);
+    const data = normalizeData(loadData(normalizedSku) || indexed || { sku: normalizedSku });
+    const extra = buildCachedExcelExtraData(data);
+    const missing = getExcelMissingFields(data, extra);
+    const packQty = normalizePackQty(data.packQty || data.packCount || data.cartonQty || '');
+    if (!packQty) missing.push('\u88c5\u7bb1\u6570');
+    return {
+      data,
+      extra,
+      missing: Array.from(new Set(missing)),
+      packQty,
+      purchasePrice: String(data.purchasePrice || '6'),
+    };
+  }
+
+  function addExcelBatchQueueItems(value) {
+    const skus = extractExcelBatchSkus(value);
+    if (!skus.length) {
+      showToast('\u6ca1\u6709\u627e\u5230\u6709\u6548 SKU\uff0c\u8bf7\u68c0\u67e5\u7f16\u7801\u683c\u5f0f');
+      return;
+    }
+    const queue = loadExcelBatchQueue();
+    const next = queue.slice();
+    skus.forEach((sku) => {
+      const snapshot = getExcelBatchCacheSnapshot(sku);
+      const index = next.findIndex((entry) => entry.sku === sku);
+      const previous = index >= 0 ? next[index] : {};
+      const item = {
+        ...previous,
+        sku,
+        status: 'pending',
+        missing: snapshot.missing,
+        packQty: snapshot.packQty,
+        purchasePrice: snapshot.purchasePrice,
+        error: '',
+        updatedAt: Date.now(),
+      };
+      if (index >= 0) next[index] = item;
+      else next.push(item);
+    });
+    state.batchExcelInput = '';
+    saveExcelBatchQueue(next);
+    state.batchExcelStatus = '\u5df2\u52a0\u5165 ' + skus.length + ' \u4e2a SKU\uff0c\u7b49\u5f85\u8865\u5168\u7f13\u5b58';
+    renderShell();
+    showToast(state.batchExcelStatus);
+    startExcelBatchPreparation();
+  }
+
+  function updateExcelBatchQueueEntry(sku, patch) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const queue = loadExcelBatchQueue();
+    const next = queue.map((entry) => entry.sku === normalizedSku ? { ...entry, ...(patch || {}), updatedAt: Date.now() } : entry);
+    saveExcelBatchQueue(next);
+    return next.find((entry) => entry.sku === normalizedSku) || null;
+  }
+
+  function removeExcelBatchQueueItem(sku) {
+    if (state.batchExcelWorkerRunning || state.batchExcelDownloadRunning) {
+      showToast('\u5f53\u524d\u961f\u5217\u6b63\u5728\u5904\u7406\uff0c\u8bf7\u7b49\u5f85\u5b8c\u6210');
+      return;
+    }
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    saveExcelBatchQueue(loadExcelBatchQueue().filter((entry) => entry.sku !== normalizedSku));
+    renderShell();
+  }
+
+  function retryExcelBatchQueueItem(sku) {
+    if (state.batchExcelWorkerRunning || state.batchExcelDownloadRunning) return;
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!loadExcelBatchQueue().some((entry) => entry.sku === normalizedSku)) return;
+    updateExcelBatchQueueEntry(normalizedSku, { status: 'pending', error: '' });
+    renderShell();
+    startExcelBatchPreparation();
+  }
+
+  function clearCompletedExcelBatchQueue() {
+    if (state.batchExcelWorkerRunning || state.batchExcelDownloadRunning) return;
+    saveExcelBatchQueue(loadExcelBatchQueue().filter((entry) => entry.status !== 'downloaded'));
+    state.batchExcelStatus = '\u5df2\u6e05\u9664\u5df2\u4e0b\u8f7d\u9879';
+    renderShell();
+  }
+
+  async function startExcelBatchPreparation() {
+    if (state.batchExcelWorkerRunning || state.batchExcelDownloadRunning) return;
+    const pending = loadExcelBatchQueue().filter((entry) => entry.status === 'pending' || entry.status === 'error');
+    if (!pending.length) {
+      state.batchExcelStatus = loadExcelBatchQueue().length ? '\u5f53\u524d\u961f\u5217\u6ca1\u6709\u9700\u8981\u8865\u5168\u7684\u9879\u76ee' : '\u961f\u5217\u6682\u7a7a';
+      renderShell();
+      return;
+    }
+    state.batchExcelWorkerRunning = true;
+    state.view = 'batchExcel';
+    expandPanel();
+    state.batchExcelStatus = '\u5f00\u59cb\u6309\u987a\u5e8f\u8865\u5168 ' + pending.length + ' \u4e2a SKU';
+    renderShell();
+    try {
+      for (let index = 0; index < pending.length; index += 1) {
+        const item = loadExcelBatchQueue().find((entry) => entry.sku === pending[index].sku);
+        if (!item || (item.status !== 'pending' && item.status !== 'error')) continue;
+        const sku = item.sku;
+        state.batchExcelCurrentSku = sku;
+        state.batchExcelStatus = '\u6b63\u5728\u8865\u5168 ' + (index + 1) + '/' + pending.length + '\uff1a' + sku;
+        updateExcelBatchQueueEntry(sku, { status: 'preparing', error: '' });
+        renderShell();
+        try {
+          const prepared = await prepareExcelBatchSku(sku);
+          const patch = {
+            status: prepared.missing.length ? 'pending' : 'ready',
+            missing: prepared.missing,
+            packQty: prepared.packQty,
+            purchasePrice: prepared.purchasePrice,
+            error: '',
+          };
+          updateExcelBatchQueueEntry(sku, patch);
+          state.batchExcelStatus = prepared.missing.length
+            ? sku + ' \u8fd8\u7f3a\uff1a' + prepared.missing.join('\u3001')
+            : sku + ' \u7f13\u5b58\u5df2\u5b8c\u6574\uff0c\u7b49\u5f85\u4e0b\u8f7d';
+        } catch (error) {
+          const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
+          updateExcelBatchQueueEntry(sku, { status: 'error', error: message, missing: getExcelBatchCacheSnapshot(sku).missing });
+          state.batchExcelStatus = sku + ' \u8865\u5168\u5931\u8d25\uff1a' + message;
+          addLog('error', 'Excel \u6279\u91cf\u8865\u5168\u5931\u8d25', sku + ' | ' + message);
+        }
+        if (state.view === 'batchExcel') renderShell();
+        await wait(120);
+      }
+    } finally {
+      state.batchExcelWorkerRunning = false;
+      state.batchExcelCurrentSku = '';
+      if (!state.batchExcelStatus || /\u6b63\u5728\u8865\u5168/.test(state.batchExcelStatus)) state.batchExcelStatus = '\u8865\u5168\u961f\u5217\u5df2\u5b8c\u6210';
+      if (state.view === 'batchExcel') renderShell();
+    }
+  }
+
+  async function prepareExcelBatchSku(sku) {
+    let snapshot = getExcelBatchCacheSnapshot(sku);
+    let data = snapshot.data;
+    let extra = snapshot.extra;
+    state.selectedSku = sku;
+    state.data = data;
+    resetExcelState();
+    state.selectedSku = sku;
+    state.data = data;
+    try {
+      if (getExcelMissingFields(data, extra).length) {
+        const currentDrawer = getProjectDrawer();
+        const currentSku = currentDrawer ? getProjectDrawerHeaderSku(currentDrawer) : '';
+        if (currentDrawer && currentSku && currentSku !== sku) await closeProjectDetailDrawerForSku(currentSku).catch(() => false);
+        if (!(await ensureProjectDrawerForData(data))) throw new Error('\u672a\u80fd\u6253\u5f00 ' + sku + ' \u9879\u76ee\u8be6\u60c5\u62bd\u5c49');
+        try {
+          extra = await collectExcelExtraData(sku);
+        } finally {
+          await closeProjectDetailDrawerForSku(sku).catch(() => false);
+        }
+        data = normalizeData(mergeData(data, extra.liveData || {}));
+        const ingredientValue = extra.ingredients || extra.ingredientChinese || extra.ingredientEnglish || data.ingredientChinese || data.ingredientEnglish || '';
+        const enriched = {
+          ...data,
+          englishName: extra.englishName || data.englishName || '',
+          name: data.name || extra.chineseName || '',
+          ingredientChinese: extra.ingredientChinese || ingredientValue,
+          ingredientEnglish: extra.ingredientEnglish || ingredientValue,
+          copywritingIngredientChinese: extra.ingredientChinese || ingredientValue,
+          copywritingIngredientEnglish: extra.ingredientEnglish || ingredientValue,
+          benchmarkLink: extra.benchmarkLink || data.benchmarkLink || '',
+          referenceUrl: extra.benchmarkLink || data.referenceUrl || '',
+          skuImageUrl: extra.skuImageUrl || extra.imageUrl || data.skuImageUrl || '',
+          skuImageFallbackUrl: extra.skuImageFallbackUrl || extra.imageFallbackUrl || data.skuImageFallbackUrl || '',
+          skuImageSource: extra.skuImageSource || data.skuImageSource || '',
+        };
+        cacheProductThumb(enriched, extra);
+        saveData(sku, enriched, { suppressChangeTracking: true, changeSource: '\u6279\u91cf Excel \u8865\u5168' });
+        data = normalizeData(loadData(sku) || enriched);
+        extra = buildCachedExcelExtraData(data);
+      }
+      state.data = data;
+      state.selectedSku = sku;
+      state.excelPackQty = normalizePackQty(data.packQty || data.packCount || data.cartonQty || '');
+      state.excelPurchasePrice = String(data.purchasePrice || '6');
+      await fillRecommendedPackQty(data);
+      data = normalizeData(loadData(sku) || data);
+      extra = buildCachedExcelExtraData(data);
+      await fillRecommendedPurchasePrice(data, extra);
+      data = normalizeData(loadData(sku) || data);
+      extra = buildCachedExcelExtraData(data);
+      const missing = getExcelMissingFields(data, extra);
+      const packQty = normalizePackQty(state.excelPackQty || data.packQty || data.packCount || data.cartonQty || '');
+      if (!packQty) missing.push('\u88c5\u7bb1\u6570');
+      return {
+        data,
+        extra,
+        missing: Array.from(new Set(missing)),
+        packQty,
+        purchasePrice: String(state.excelPurchasePrice || data.purchasePrice || '6'),
+      };
+    } finally {
+      await closeProjectDetailDrawerForSku(sku).catch(() => false);
+    }
+  }
+
+  function getExcelBatchField(data, keys) {
+    for (const key of keys || []) {
+      const value = data && data[key];
+      if (value !== undefined && value !== null && compactText(value)) return compactText(value);
+    }
+    return '';
+  }
+
+  function cloneExcelTemplateValue(value) {
+    if (!value || typeof value !== 'object') return value;
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+      return { ...value };
+    }
+  }
+
+  function captureExcelTemplateRow(sheet, rowNumber) {
+    const row = sheet.getRow(rowNumber);
+    const count = Math.max(21, Number(sheet.columnCount) || 0);
+    return {
+      height: row.height,
+      cells: Array.from({ length: count }, (_, index) => {
+        const cell = row.getCell(index + 1);
+        return { value: cloneExcelTemplateValue(cell.value), style: cloneExcelTemplateValue(cell.style) };
+      }),
+    };
+  }
+
+  function applyExcelTemplateRow(sheet, rowNumber, template) {
+    const row = sheet.getRow(rowNumber);
+    (template && template.cells || []).forEach((source, index) => {
+      const cell = row.getCell(index + 1);
+      cell.value = cloneExcelTemplateValue(source.value);
+      if (source.style) cell.style = cloneExcelTemplateValue(source.style);
+    });
+    row.height = Math.max(Number(template && template.height) || 0, 96);
+  }
+
+  function writeExcelBatchRow(sheet, rowNumber, data, extra, packQty, purchasePrice) {
+    const cell = (column, value) => setCell(sheet, column + rowNumber, value);
+    const productSize = formatExcelDimFromParts([data.productLength, data.productWidth, data.productHeight]) || formatExcelDim(data.productNums, []);
+    const packageSize = formatExcelDimFromParts([data.packageLength, data.packageWidth, data.packageHeight]) || formatExcelDim(data.packageNums, []);
+    const cartonSpec = getExcelBatchField(data, ['cartonSpec', 'outerCartonSpec', 'cartonSize', 'cartonSizeText', 'boxSpec']);
+    const material = getExcelBatchField(data, ['packageMaterial', 'packagingMaterial', 'material']);
+    const dueText = getExcelBatchField(data, ['leadTimeText', 'deliveryText', 'deliveryNote', 'leadTimeNote']);
+    const aliLink = getExcelBatchField(data, ['alibabaLink', 'aliLink', '1688Link', 'alibabaUrl']);
+    cell('A', buildExcelKeyword(data, extra));
+    cell('B', data.name || extra.chineseName || '');
+    cell('C', '');
+    if (cartonSpec) cell('D', cartonSpec);
+    cell('E', compactText(packQty));
+    cell('F', { formula: 'TEXT(VALUE(LEFT(E' + rowNumber + ',LEN(E' + rowNumber + ')-3))*(VALUE(LEFT(N' + rowNumber + ',LEN(N' + rowNumber + ')-1))/1000)+0.75,"0.00")&"KG"' });
+    cell('G', data.sku || '');
+    if (data.singleBottle) cell('H', '\u74f6\u88c5');
+    else cell('H', { formula: 'IF(LEN(J' + rowNumber + ')-LEN(SUBSTITUTE(J' + rowNumber + ',"*",""))=2,"\u76d2\u88c5",IF(LEN(J' + rowNumber + ')-LEN(SUBSTITUTE(J' + rowNumber + ',"*",""))=1,"\u888b\u88c5",""))' });
+    cell('I', productSize);
+    cell('J', packageSize);
+    if (material) cell('K', material);
+    cell('L', formatIngredientsForExcel(extra.ingredients || getPreferredExcelIngredients(data)));
+    cell('M', normalizeExcelUnit(data.netContent));
+    cell('N', normalizeExcelUnit(data.grossWeight));
+    cell('O', normalizeExcelNumberOrText(purchasePrice));
+    cell('P', data.returnDate || getReturnDateText(7));
+    if (dueText) cell('Q', dueText);
+    if (aliLink) cell('R', aliLink);
+    cell('S', extra.benchmarkLink || data.benchmarkLink || data.referenceUrl || '');
+  }
+
+  function applyExcelBatchSingleColumnLayout(sheet, data) {
+    if (shouldOmitToyProductSize(data)) {
+      sheet.spliceColumns(9, 1);
+      sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
+      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+    } else if (shouldRemoveExcelPackageSizeColumn(data)) {
+      sheet.spliceColumns(10, 1);
+      sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
+      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
+      sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+    }
+  }
+
+  function applyExcelBatchMergedColumnLayout(sheet, items) {
+    const rows = Array.isArray(items) ? items : [];
+    if (!rows.length) return;
+    const omitProductSize = rows.every((item) => shouldOmitToyProductSize(item.data));
+    const removePackageSize = !omitProductSize && rows.every((item) => shouldRemoveExcelPackageSizeColumn(item.data));
+    if (!omitProductSize && !removePackageSize) return;
+    if (omitProductSize) sheet.spliceColumns(9, 1);
+    else sheet.spliceColumns(10, 1);
+    const lastRow = 3 + rows.length;
+    for (let rowNumber = 4; rowNumber <= lastRow; rowNumber += 1) {
+      sheet.getCell('H' + rowNumber).value = rows[rowNumber - 4].data.singleBottle
+        ? '\u74f6\u88c5'
+        : { formula: 'IF(LEN(I' + rowNumber + ')-LEN(SUBSTITUTE(I' + rowNumber + ',"*",""))=2,"\u76d2\u88c5",IF(LEN(I' + rowNumber + ')-LEN(SUBSTITUTE(I' + rowNumber + ',"*",""))=1,"\u888b\u88c5",""))' };
+      sheet.getCell('F' + rowNumber).value = { formula: 'TEXT(VALUE(LEFT(E' + rowNumber + ',LEN(E' + rowNumber + ')-3))*(VALUE(LEFT(M' + rowNumber + ',LEN(M' + rowNumber + ')-1))/1000)+0.75,"0.00")&"KG"' };
+    }
+    sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
+  }
+
+  async function getExcelBatchImageInfo(item) {
+    const source = getExcelImageSource(item.data, item.extra);
+    const target = source.imageUrl || source.imageFallbackUrl;
+    const imageInfo = target ? await fetchImageForExcel(target, source.imageFallbackUrl).catch(() => null) : null;
+    if (!imageInfo || !imageInfo.dataUrl) throw new Error(item.data.sku + ' \u672a\u80fd\u8bfb\u53d6\u771f\u5b9e SKU \u4ea7\u54c1\u56fe');
+    if (await isPlaceholderSkuImage(imageInfo.dataUrl)) throw new Error(item.data.sku + ' \u5f53\u524d\u4ecd\u662f JPG/\u900f\u660e\u5360\u4f4d\u56fe');
+    return imageInfo;
+  }
+
+  async function buildExcelBatchSingleBuffer(item) {
+    const workbook = new window.ExcelJS.Workbook();
+    await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+    const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    const imageInfo = await getExcelBatchImageInfo(item);
+    writeExcelBatchRow(sheet, 4, item.data, item.extra, item.packQty, item.purchasePrice);
+    applyExcelBatchSingleColumnLayout(sheet, item.data);
+    const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
+    sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
+    return workbook.xlsx.writeBuffer();
+  }
+
+  async function buildExcelBatchMergedBuffer(items) {
+    const workbook = new window.ExcelJS.Workbook();
+    await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
+    const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    const template = captureExcelTemplateRow(sheet, 4);
+    sheet.getRow(4).height = Math.max(Number(template.height) || 0, 96);
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const rowNumber = index === 0 ? 4 : sheet.addRow([]).number;
+      if (index > 0) applyExcelTemplateRow(sheet, rowNumber, template);
+      const imageInfo = await getExcelBatchImageInfo(item);
+      writeExcelBatchRow(sheet, rowNumber, item.data, item.extra, item.packQty, item.purchasePrice);
+      const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
+      sheet.addImage(imageId, getExcelImageAnchor(imageInfo, rowNumber - 4));
+    }
+    applyExcelBatchMergedColumnLayout(sheet, items);
+    return workbook.xlsx.writeBuffer();
+  }
+
+  function getExcelBatchDownloadItems() {
+    return loadExcelBatchQueue().map((entry) => {
+      const snapshot = getExcelBatchCacheSnapshot(entry.sku);
+      return {
+        entry,
+        data: snapshot.data,
+        extra: snapshot.extra,
+        missing: snapshot.missing,
+        packQty: normalizePackQty(entry.packQty || snapshot.packQty),
+        purchasePrice: String(entry.purchasePrice || snapshot.purchasePrice || '6'),
+      };
+    }).filter((item) => item.missing.length === 0 && item.entry.status !== 'preparing' && item.entry.status !== 'error');
+  }
+
+  function buildExcelBatchFileName(items) {
+    const first = items[0] || {};
+    const data = first.data || {};
+    const skus = items.map((item) => item.data && item.data.sku).filter(Boolean).join(' ');
+    const parts = [data.brand, data.name || (first.extra && first.extra.chineseName), skus].filter(Boolean);
+    return sanitizeExcelFileName((parts.join(' ').replace(/\s+/g, ' ').trim() || 'PLM\u6279\u91cf\u4ea7\u54c1\u4fe1\u606f') + '.xlsx');
+  }
+
+  function markExcelBatchItemsDownloaded(items, fileName) {
+    const skus = new Set((items || []).map((item) => item.data && item.data.sku).filter(Boolean));
+    saveExcelBatchQueue(loadExcelBatchQueue().map((entry) => skus.has(entry.sku)
+      ? { ...entry, status: 'downloaded', missing: [], lastFileName: fileName, downloadedAt: Date.now(), error: '' }
+      : entry));
+  }
+
+  function recordExcelBatchItems(items, source, fileName) {
+    (items || []).forEach((item) => {
+      const data = item.data || {};
+      const extra = item.extra || {};
+      syncInsightEvent('excel_generated', { sku: data.sku || '', name: data.name || '', source });
+      recordCommerceInsight(data, extra, { price: item.purchasePrice, packQty: item.packQty, source, fileName });
+      upsertDailyLedgerFromData(data, { status: '制作中', stage: '表格/上传处理中', note: '已生成 Excel' });
+    });
+  }
+
+  async function downloadExcelBatchQueue() {
+    if (state.batchExcelWorkerRunning || state.batchExcelDownloadRunning) return;
+    if (!window.ExcelJS) {
+      showToast(L.excelNeedLibrary);
+      return;
+    }
+    if (!await ensureExcelTemplateLoaded()) {
+      showToast('\u6a21\u677f\u5c1a\u672a\u7f13\u5b58\uff0c\u8bf7\u8054\u7f51\u540e\u91cd\u8bd5');
+      return;
+    }
+    const items = getExcelBatchDownloadItems();
+    if (!items.length) {
+      showToast('\u961f\u5217\u4e2d\u6ca1\u6709\u7f13\u5b58\u5b8c\u6574\u7684 SKU');
+      return;
+    }
+    state.batchExcelDownloadRunning = true;
+    state.view = 'batchExcel';
+    expandPanel();
+    renderShell();
+    try {
+      if (state.batchExcelMode === 'merge') {
+        const fileName = buildExcelBatchFileName(items);
+        const saveTarget = await chooseExcelSaveTarget(fileName);
+        if (!saveTarget) {
+          state.batchExcelStatus = L.excelSaveCanceled;
+          return;
+        }
+        state.batchExcelStatus = '\u6b63\u5728\u5408\u5e76 ' + items.length + ' \u4e2a SKU \u5e76\u63d2\u5165\u4ea7\u54c1\u56fe';
+        renderShell();
+        const buffer = await buildExcelBatchMergedBuffer(items);
+        await saveExcelBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName, saveTarget);
+        markExcelBatchItemsDownloaded(items, fileName);
+        recordExcelBatchItems(items, 'excel-batch-merge', fileName);
+        state.batchExcelStatus = '\u5408\u5e76 Excel \u5df2\u4e0b\u8f7d\uff1a' + fileName;
+        showToast('\u5df2\u4e0b\u8f7d\u5408\u5e76 Excel');
+      } else {
+        for (let index = 0; index < items.length; index += 1) {
+          const item = items[index];
+          const fileName = sanitizeExcelFileName(buildExcelFileName(item.data, item.extra));
+          const saveTarget = await chooseExcelSaveTarget(fileName);
+          if (!saveTarget) {
+            state.batchExcelStatus = L.excelSaveCanceled;
+            break;
+          }
+          state.batchExcelStatus = '\u6b63\u5728\u4e0b\u8f7d ' + (index + 1) + '/' + items.length + '\uff1a' + item.data.sku;
+          renderShell();
+          try {
+            const buffer = await buildExcelBatchSingleBuffer(item);
+            await saveExcelBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName, saveTarget);
+            markExcelBatchItemsDownloaded([item], fileName);
+            recordExcelBatchItems([item], 'excel-batch', fileName);
+          } catch (error) {
+            const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
+            updateExcelBatchQueueEntry(item.data.sku, { status: 'error', error: message });
+            state.batchExcelStatus = item.data.sku + ' \u4e0b\u8f7d\u5931\u8d25\uff1a' + message;
+            addLog('error', 'Excel \u5355\u72ec\u4e0b\u8f7d\u5931\u8d25', item.data.sku + ' | ' + message);
+          }
+          if (state.view === 'batchExcel') renderShell();
+          await wait(120);
+        }
+      }
+    } catch (error) {
+      const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
+      state.batchExcelStatus = '\u6279\u91cf Excel \u751f\u6210\u5931\u8d25\uff1a' + message;
+      addLog('error', '\u6279\u91cf Excel \u751f\u6210\u5931\u8d25', message);
+      showToast(state.batchExcelStatus);
+    } finally {
+      state.batchExcelDownloadRunning = false;
+      if (state.view === 'batchExcel') renderShell();
+    }
+  }
+
   function showExcelMissingToast() {
     showToast(L.excelMissing + state.excelMissing.join('\u3001'));
   }
@@ -15786,7 +16402,7 @@
     });
   }
 
-  function getExcelImageAnchor(imageInfo) {
+  function getExcelImageAnchor(imageInfo, rowOffset) {
     const boxWidth = 170;
     const boxHeight = 124;
     const width = Number(imageInfo.width) || boxWidth;
@@ -15795,7 +16411,7 @@
     const fitWidth = Math.max(1, Math.round(width * ratio));
     const fitHeight = Math.max(1, Math.round(height * ratio));
     return {
-      tl: { col: 2.12, row: 3.06 },
+      tl: { col: 2.12, row: 3.06 + (Number(rowOffset) || 0) },
       ext: { width: fitWidth, height: fitHeight },
       editAs: 'oneCell',
     };
@@ -18729,6 +19345,46 @@
     } catch (error) {
       return [];
     }
+  }
+
+  function loadExcelBatchQueue() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(EXCEL_BATCH_QUEUE_KEY, null) : JSON.parse(localStorage.getItem(EXCEL_BATCH_QUEUE_KEY) || 'null');
+      const workerActive = (() => {
+        try { return Boolean(state && state.batchExcelWorkerRunning); } catch (error) { return false; }
+      })();
+      return (Array.isArray(saved) ? saved : []).map(normalizeExcelBatchQueueEntry).filter(Boolean).map((entry) => !workerActive && entry.status === 'preparing' ? { ...entry, status: 'pending' } : entry).slice(0, 300);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveExcelBatchQueue(queue) {
+    const snapshot = (Array.isArray(queue) ? queue : []).map(normalizeExcelBatchQueueEntry).filter(Boolean).slice(0, 300);
+    state.batchExcelQueue = snapshot;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(EXCEL_BATCH_QUEUE_KEY, snapshot);
+      else localStorage.setItem(EXCEL_BATCH_QUEUE_KEY, JSON.stringify(snapshot));
+    } catch (error) {
+      console.warn('PLM floating helper Excel batch queue save failed:', error);
+    }
+  }
+
+  function normalizeExcelBatchQueueEntry(entry) {
+    const sku = String(entry && entry.sku || '').trim().toUpperCase();
+    if (!/^SKU\d{8}$/.test(sku)) return null;
+    const validStatuses = new Set(['pending', 'preparing', 'ready', 'downloaded', 'error']);
+    const status = validStatuses.has(String(entry && entry.status || '')) ? String(entry.status) : 'pending';
+    return {
+      ...(entry || {}),
+      sku,
+      status,
+      missing: Array.isArray(entry && entry.missing) ? entry.missing.filter(Boolean).slice(0, 20) : [],
+      packQty: normalizePackQty(entry && entry.packQty || ''),
+      purchasePrice: String(entry && entry.purchasePrice || ''),
+      error: String(entry && entry.error || ''),
+      updatedAt: Number(entry && entry.updatedAt) || Date.now(),
+    };
   }
 
   function saveUploadQueue() {
