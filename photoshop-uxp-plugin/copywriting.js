@@ -160,6 +160,13 @@ function addProductName(segments, raw) {
   return true;
 }
 
+function addLabelProductName(segments, raw) {
+  const body = stripHeading(linesOf(raw), /^PRODUCT\s+NAME\s*:?\s*/i);
+  if (!body.length) return false;
+  body.forEach((line) => addLine(segments, line, false));
+  return true;
+}
+
 function addIngredients(segments, map) {
   let value = map.get('ingredients') || '';
   if (!value) {
@@ -228,6 +235,24 @@ function addAddress(segments, raw) {
   if (!value.length) return false;
   const first = value.join(' ').replace(/^ADDRESS\s*:?\s*/i, '');
   appendInlineLabel(segments, LABELS.address, first, false);
+  return true;
+}
+
+function addLabelFacts(segments, map, missing) {
+  const net = stripHeading(
+    linesOf(map.get('netContent')),
+    /^(?:NET\s+CONTENT|CONTENTS?)\s*:?\s*/i,
+  ).join(' ');
+  const origin = stripHeading(linesOf(map.get('origin')), /^ORIGIN\s*:?\s*/i).join(' ');
+  if (!net) missing.push(MISSING_LABELS.netContent);
+  if (!origin) missing.push(MISSING_LABELS.origin);
+  if (!net && !origin) return false;
+  if (net) addSegment(segments, net, true);
+  if (origin) {
+    if (net) addSegment(segments, '  ', false);
+    addSegment(segments, origin, true);
+  }
+  addSegment(segments, '\n', false);
   return true;
 }
 
@@ -337,11 +362,66 @@ function buildPage4Boxes(product) {
   };
 }
 
-function buildPage4Layout(product) {
-  const boxes = buildPage4Boxes(product);
+function buildLabelBoxes(product) {
+  const map = sectionMap(product && product.copywriting);
+  const missing = [];
+  const nameSegments = [];
+  const factsSegments = [];
+  const addressSegments = [];
+  if (!addLabelProductName(nameSegments, map.get('productName'))) {
+    missing.push(MISSING_LABELS.productName);
+  }
+  addLabelFacts(factsSegments, map, missing);
+  ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
+
+  const reps = REP_BOX_ORDER.map((key) => {
+    const bodySegments = [];
+    const complete = appendRepBody(bodySegments, map.get(key));
+    if (!complete) missing.push(MISSING_LABELS[key] || key);
+    const trimmed = trimSegments(bodySegments);
+    return {
+      key,
+      label: LABELS[key],
+      segments: trimmed,
+      text: trimmed.map((segment) => segment.text).join(''),
+      complete,
+    };
+  });
+
+  const labelName = layoutFromSegments(nameSegments);
+  const labelFacts = layoutFromSegments(factsSegments);
+  const address = layoutFromSegments(addressSegments);
+  const combinedSegments = [];
+  appendLayoutBlock(combinedSegments, labelName);
+  appendLayoutBlock(combinedSegments, labelFacts);
+  appendLayoutBlock(combinedSegments, address);
+  reps.forEach((rep) => {
+    if (!rep.complete) return;
+    if (combinedSegments.length) addSegment(combinedSegments, '\n', false);
+    addLine(combinedSegments, rep.label, true);
+    rep.segments.forEach((segment) => addSegment(combinedSegments, segment.text, segment.bold));
+  });
+  const combined = layoutFromSegments(combinedSegments);
+  return {
+    labelName,
+    labelFacts,
+    address,
+    reps,
+    missing,
+    segments: combined.segments,
+    text: combined.text,
+  };
+}
+
+function buildPage4Layout(product, options) {
+  const mode = options && options.mode ? String(options.mode) : 'box-portrait';
+  const boxes = mode === 'label' || mode === 'label-wide'
+    ? buildLabelBoxes(product)
+    : buildPage4Boxes(product);
   return {
     ...boxes,
     boxes,
+    mode,
     order: PAGE4_ORDER.slice(),
   };
 }
@@ -365,6 +445,7 @@ if (typeof module !== 'undefined') {
     REP_BOX_ORDER,
     buildPage4Layout,
     buildPage4Boxes,
+    buildLabelBoxes,
     rangeSegments,
   };
 }

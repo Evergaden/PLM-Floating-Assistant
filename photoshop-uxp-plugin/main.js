@@ -4,10 +4,11 @@ const { storage } = require('uxp');
 const { buildPage4Layout, rangeSegments } = require('./copywriting');
 const { matchProductByFilename } = require('./file-match');
 const { buildSelectionPlan } = require('./selection-layout');
+const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode');
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.14';
+const PLUGIN_VERSION = '0.1.15';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -29,6 +30,7 @@ const state = {
   selectedSku: '',
   documentSku: '',
   documentMatch: null,
+  layoutMode: 'box-portrait',
   currentLayout: null,
 };
 
@@ -46,6 +48,15 @@ function setStatus(message, tone) {
   if (!element) return;
   element.textContent = String(message || '');
   element.dataset.tone = tone || 'normal';
+}
+
+function renderLayoutMode(mode, bounds) {
+  const element = byId('layout-mode');
+  if (!element) return;
+  const ratio = selectionRatio(bounds);
+  const ratioText = Number.isFinite(ratio) ? ' · 选区比例 ' + ratio.toFixed(2) + ':1' : '';
+  element.textContent = '自动版式：' + modeLabel(mode) + ratioText;
+  element.dataset.mode = mode || '';
 }
 
 function setBusy(busy) {
@@ -291,7 +302,10 @@ function renderPreview() {
     if (missing) missing.textContent = '';
     return;
   }
-  state.currentLayout = buildPage4Layout(product);
+  const mode = detectArtworkMode(currentDocumentTitle(), null);
+  state.layoutMode = mode;
+  renderLayoutMode(mode);
+  state.currentLayout = buildPage4Layout(product, { mode });
   if (preview) preview.textContent = state.currentLayout.text || '当前 SKU 没有可生成的文案。';
   if (missing) {
     missing.textContent = state.currentLayout.missing.length
@@ -728,6 +742,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
       await replaceSelection(document, plan.selection, false);
       return {
         mode: 'selection',
+        layoutMode: layout.mode,
         size: plan.size,
         missing: layout.missing,
         text: layout.text,
@@ -768,7 +783,7 @@ async function writeLegacyPage4(product, layout, document, resolution) {
         steps += 1;
       }
       if (result.overflow) throw new Error('字号已缩小到 Photoshop 可接受的下限，但文字框仍然溢出。');
-      return { size, missing: layout.missing, text: layout.text };
+      return { mode: 'legacy', layoutMode: layout.mode, size, missing: layout.missing, text: layout.text };
     } catch (error) {
       try { await setTextKeyDescriptor(layerId, original); } catch (_) {}
       throw error;
@@ -777,12 +792,15 @@ async function writeLegacyPage4(product, layout, document, resolution) {
 }
 
 async function writePage4(product) {
-  const layout = buildPage4Layout(product);
-  if (!layout.text) throw new Error('当前 SKU 没有可生成的文案。');
   const document = app.activeDocument;
   if (!document) throw new Error('请先打开纸盒 PSD 文件。');
   const resolution = Number(document.resolution) || 72;
   const selection = await readSelectionBounds(document);
+  const mode = detectArtworkMode(currentDocumentTitle(), selection);
+  state.layoutMode = mode;
+  renderLayoutMode(mode, selection);
+  const layout = buildPage4Layout(product, { mode });
+  if (!layout.text) throw new Error('当前 SKU 没有可生成的文案。');
   if (selection) return writeSelectionBoxes(product, layout, document, selection, resolution);
   return writeLegacyPage4(product, layout, document, resolution);
 }
@@ -799,7 +817,7 @@ async function generate() {
     const result = await writePage4(product);
     const suffix = result.missing.length ? '；缺少 ' + result.missing.join('、') : '';
     const modeText = result.mode === 'selection' ? '已生成 ' + result.boxes + ' 个文案框' : '已写入当前文字层';
-    setStatus(modeText + '，字号 ' + result.size.toFixed(2) + ' pt' + suffix + '。', result.missing.length ? 'warning' : 'success');
+    setStatus(modeText + '（' + modeLabel(result.layoutMode) + '），字号 ' + result.size.toFixed(2) + ' pt' + suffix + '。', result.missing.length ? 'warning' : 'success');
   } catch (error) {
     setStatus(errorMessage(error), 'error');
   } finally {

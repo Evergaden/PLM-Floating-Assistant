@@ -158,6 +158,7 @@ button.primary:hover:not(:disabled), button.generate:hover:not(:disabled) { bord
 .section-head .tiny { max-width: 52%; color: #9aa3b1; text-align: right; white-space: normal; }
 .tiny { color: var(--muted); font-size: 10px; }
 .document-name { margin-bottom: 11px; overflow: hidden; color: #3e4a60; text-overflow: ellipsis; white-space: nowrap; }
+.layout-mode { margin: -5px 0 11px; color: var(--purple); font-size: 10px; font-weight: 700; }
 .hint { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .preview-card { padding-bottom: 12px; }
 .missing { min-height: 22px; margin: 2px 0 8px; padding: 3px 0; color: var(--green); font-size: 11px; line-height: 1.4; }

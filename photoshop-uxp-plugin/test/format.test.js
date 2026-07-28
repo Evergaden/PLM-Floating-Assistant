@@ -40,4 +40,11 @@ assert.equal(layout.boxes.address.text.includes('ADDRESS:'), true);
 assert.equal(layout.boxes.reps[0].text.includes('YKT EU REP SAS'), true);
 assert.equal(/^EU REP(?:\r?\n|$)/.test(layout.boxes.reps[0].text), false);
 
+const labelLayout = buildPage4Layout(product, { mode: 'label' });
+assert.equal(labelLayout.mode, 'label');
+assert.equal(labelLayout.boxes.labelName.text.includes('PRODUCT NAME:'), false);
+assert.equal(labelLayout.boxes.labelFacts.text.includes('MADE IN CHINA'), true);
+assert.equal(labelLayout.boxes.address.text.includes('DISTRIBUTED BY:'), true);
+assert.equal(labelLayout.boxes.reps.length, 3);
+
 console.log('copywriting formatter: ok');

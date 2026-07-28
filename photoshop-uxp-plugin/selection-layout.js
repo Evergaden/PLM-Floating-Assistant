@@ -54,11 +54,18 @@ function textMetrics(layout, width, size, resolution) {
 function createBlockSpecs(layout) {
   const boxes = layout && layout.boxes ? layout.boxes : {};
   const specs = [];
-  if (boxes.info && boxes.info.text) {
+  if (layout && (layout.mode === 'label' || layout.mode === 'label-wide')) {
+    if (boxes.labelName && boxes.labelName.text) {
+      specs.push({ type: 'text', key: 'labelName', name: 'PLM 文案助手｜标签名称', layout: boxes.labelName });
+    }
+    if (boxes.labelFacts && boxes.labelFacts.text) {
+      specs.push({ type: 'text', key: 'labelFacts', name: 'PLM 文案助手｜标签信息', layout: boxes.labelFacts });
+    }
+  } else if (boxes.info && boxes.info.text) {
     specs.push({ type: 'text', key: 'info', name: 'PLM 文案助手｜信息', layout: boxes.info });
   }
   if (boxes.address && boxes.address.text) {
-    specs.push({ type: 'text', key: 'address', name: 'PLM 文案助手｜地址', layout: boxes.address });
+    specs.push({ type: 'text', key: 'address', name: 'PLM 文案助手｜经销商地址', layout: boxes.address });
   }
   (boxes.reps || []).forEach((rep) => {
     if (!rep || !rep.complete || !rep.text) return;
@@ -73,7 +80,7 @@ function createBlockSpecs(layout) {
   return specs;
 }
 
-function buildSelectionPlan(layout, rawBounds, resolution, options) {
+function buildPortraitSelectionPlan(layout, rawBounds, resolution, options) {
   const bounds = normalizeBounds(rawBounds);
   if (!bounds) throw new Error('请先用矩形选框框住第四页右侧文案区域。');
   const width = bounds.right - bounds.left;
@@ -159,6 +166,117 @@ function buildSelectionPlan(layout, rawBounds, resolution, options) {
     size,
     blocks,
   };
+}
+
+function buildWideSelectionPlan(layout, rawBounds, resolution, options) {
+  const bounds = normalizeBounds(rawBounds);
+  if (!bounds) throw new Error('请先用矩形选框框住需要生成文案的区域。');
+  const width = bounds.right - bounds.left;
+  const height = bounds.bottom - bounds.top;
+  const marginX = Math.max(1, Math.round(width * 0.01));
+  const marginY = Math.max(1, Math.round(height * 0.01));
+  const left = bounds.left + marginX;
+  const right = bounds.right - marginX;
+  const top = bounds.top + marginY;
+  const bottom = bounds.bottom - marginY;
+  const contentWidth = Math.max(4, right - left);
+  const availableHeight = Math.max(4, bottom - top);
+  const specs = createBlockSpecs(layout);
+  if (!specs.length) throw new Error('当前 SKU 没有可生成的文案。');
+  const textSpecs = specs.filter((spec) => spec.type === 'text');
+  const repSpecs = specs.filter((spec) => spec.type === 'rep');
+  const columnGap = Math.max(1, Math.round(pointsToPixels(8, resolution)));
+  const columnWidth = Math.max(4, (contentWidth - columnGap * 2) / 3);
+  let size = Number(options && options.initialSize) || DEFAULT_FONT_SIZE_PT;
+  const minimumSize = Number(options && options.minimumSize) || MIN_FONT_SIZE_PT;
+  let measured;
+
+  for (;;) {
+    const fontPixels = fontPixelsFor(size, resolution);
+    const gap = Math.max(1, Math.round(fontPixels * 0.25));
+    const textMetricsList = textSpecs.map((spec) => textMetrics(spec.layout, contentWidth, size, resolution));
+    const headingHeight = Math.max(fontPixels + Math.max(2, Math.round(fontPixels * 0.2) * 2), 8);
+    const repMetrics = repSpecs.map((spec) => textMetrics(spec.layout, columnWidth, size, resolution));
+    const repHeight = repSpecs.length
+      ? headingHeight + gap + Math.max(...repMetrics.map((metric) => metric.height), 0)
+      : 0;
+    const textHeight = textMetricsList.reduce((total, metric) => total + metric.height, 0)
+      + Math.max(0, textMetricsList.length - 1) * gap;
+    const requiredHeight = textHeight
+      + (textSpecs.length && repSpecs.length ? gap : 0)
+      + repHeight;
+    measured = { gap, headingHeight, textMetricsList, repMetrics, repHeight, requiredHeight };
+    if (requiredHeight <= availableHeight || size <= minimumSize) break;
+    const next = Math.max(minimumSize, Math.round((size - 0.25) * 100) / 100);
+    if (next >= size) break;
+    size = next;
+  }
+  if (measured.requiredHeight > availableHeight + 1) {
+    throw new Error('选区高度不足，请把矩形选框向下扩大，或减少选区内的其他内容。');
+  }
+
+  const blocks = [];
+  let cursor = top;
+  textSpecs.forEach((spec, index) => {
+    const metric = measured.textMetricsList[index];
+    const blockBottom = Math.min(bottom, cursor + metric.height);
+    blocks.push({
+      ...spec,
+      bounds: { left, top: cursor, right, bottom: blockBottom },
+    });
+    cursor = blockBottom + (index === textSpecs.length - 1 && !repSpecs.length ? 0 : measured.gap);
+  });
+
+  if (repSpecs.length) {
+    const rowTop = cursor;
+    repSpecs.forEach((spec, index) => {
+      const columnLeft = left + index * (columnWidth + columnGap);
+      const headingWidth = Math.min(
+        columnWidth * 0.62,
+        Math.max(fontPixelsFor(size, resolution) * 5.5, columnWidth * 0.2),
+      );
+      const headingBounds = {
+        left: columnLeft,
+        top: rowTop,
+        right: columnLeft + headingWidth,
+        bottom: rowTop + measured.headingHeight,
+      };
+      const bodyTop = headingBounds.bottom + measured.gap;
+      blocks.push({
+        ...spec,
+        bounds: {
+          left: columnLeft,
+          top: rowTop,
+          right: columnLeft + columnWidth,
+          bottom: Math.min(bottom, rowTop + measured.repHeight),
+        },
+        headingBounds,
+        bodyBounds: {
+          left: columnLeft,
+          top: bodyTop,
+          right: columnLeft + columnWidth,
+          bottom: Math.min(bottom, rowTop + measured.repHeight),
+        },
+      });
+    });
+  }
+
+  return {
+    selection: bounds,
+    contentBounds: { left, top, right, bottom },
+    contentWidth,
+    size,
+    blocks,
+    orientation: 'wide',
+  };
+}
+
+function buildSelectionPlan(layout, rawBounds, resolution, options) {
+  const mode = layout && layout.mode;
+  if (mode === 'box-wide' || mode === 'label' || mode === 'label-wide') {
+    return buildWideSelectionPlan(layout, rawBounds, resolution, options);
+  }
+  return buildPortraitSelectionPlan(layout, rawBounds, resolution, options);
 }
 
 function fontPixelsFor(size, resolution) {

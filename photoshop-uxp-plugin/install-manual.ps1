@@ -6,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 
 $pluginRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pluginId = 'com.violet.plm.photoshop-copywriting'
-$pluginVersion = '0.1.14'
-$installFolderName = 'PLM-Photoshop-Copywriting-0.1.14'
+$pluginVersion = '0.1.15'
+$installFolderName = 'PLM-Photoshop-Copywriting-0.1.15'
 $manifestPath = Join-Path $pluginRoot 'manifest.json'
 $externalRoot = Join-Path $AppDataRoot 'Adobe\UXP\Plugins\External'
 $installRoot = Join-Path $externalRoot $installFolderName
@@ -27,7 +27,8 @@ $legacyInstallRoots = @(
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.10'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.11'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.12'),
-  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.13')
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.13'),
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.14')
 )
 $runtimeFiles = @(
   'manifest.json',
@@ -35,8 +36,13 @@ $runtimeFiles = @(
   'main.js',
   'copywriting.js',
   'selection-layout.js',
+  'artwork-mode.js',
   'file-match.js',
-  'styles.css'
+  'styles.css',
+  'icons/plugin-dark.png',
+  'icons/plugin-dark@2x.png',
+  'icons/plugin-light.png',
+  'icons/plugin-light@2x.png'
 )
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
@@ -55,7 +61,10 @@ foreach ($file in $runtimeFiles) {
   if (-not (Test-Path -LiteralPath $source)) {
     throw "Missing plugin file: $source"
   }
-  Copy-Item -LiteralPath $source -Destination (Join-Path $installRoot $file) -Force
+  $destination = Join-Path $installRoot $file
+  $destinationParent = Split-Path -Parent $destination
+  New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
+  Copy-Item -LiteralPath $source -Destination $destination -Force
 }
 foreach ($legacyInstallRoot in $legacyInstallRoots) {
   if (Test-Path -LiteralPath $legacyInstallRoot) {
