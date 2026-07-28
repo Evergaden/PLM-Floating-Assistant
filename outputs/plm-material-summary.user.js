@@ -5151,7 +5151,8 @@
 
   function getProjectIdForMaterialApi(data) {
     const candidates = [data && data.projectRowId, data && data.projectId];
-    const id = candidates.map((value) => String(value || '').trim()).find((value) => /^\d+$/.test(value));
+    const rowIdFromPage = data && data.sku ? findProjectRowIdBySku(data.sku) : '';
+    const id = candidates.concat(rowIdFromPage).map((value) => String(value || '').trim()).find((value) => /^\d+$/.test(value));
     return id || '';
   }
 
@@ -5218,12 +5219,23 @@
 
   async function fetchApiMaterialPackaging(data) {
     const projectId = getProjectIdForMaterialApi(data);
-    if (!projectId || !window.fetch) return emptyPackaging();
+    if (!projectId || !window.fetch) {
+      if (data && data.sku) addLog('warn', '详情自动读取物料接口跳过', data.sku + ' | 未找到项目 ID');
+      return emptyPackaging();
+    }
     if (!apiProjectMaterialCache[projectId]) {
+      addLog('info', '详情自动读取 PLM 物料接口', String(data && data.sku || '') + ' | projectId=' + projectId);
       apiProjectMaterialCache[projectId] = fetch('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(projectId), { credentials: 'same-origin' })
         .then((response) => response.ok ? response.json() : null)
-        .then((payload) => extractApiMaterialPackaging(payload))
-        .catch(() => emptyPackaging());
+        .then((payload) => {
+          const result = extractApiMaterialPackaging(payload);
+          if (!result.packageSizeText && !result.printSizeText) addLog('info', 'PLM 物料接口未返回可用尺寸', String(data && data.sku || '') + ' | 保留页面清洗结果');
+          return result;
+        })
+        .catch((error) => {
+          addLog('warn', 'PLM 物料接口读取失败', String(data && data.sku || '') + ' | ' + formatErrorMessage(error));
+          return emptyPackaging();
+        });
     }
     return apiProjectMaterialCache[projectId];
   }
