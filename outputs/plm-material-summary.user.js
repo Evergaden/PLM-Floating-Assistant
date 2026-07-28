@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.20
+// @version      2.6.21
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.20';
+  const SCRIPT_VERSION = '2.6.21';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -2597,6 +2597,7 @@
     const workbook = new window.ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    removeUnusedExcelTemplateRow(sheet);
     const excelImageSource = getExcelImageSource(excelData, extra);
     const imageInfo = excelImageSource.imageUrl
       ? await fetchImageForExcel(excelImageSource.imageUrl, excelImageSource.imageFallbackUrl).catch(() => null)
@@ -14959,6 +14960,17 @@
     };
   }
 
+  function removeUnusedExcelTemplateRow(sheet) {
+    if (!sheet || Number(sheet.rowCount) < 5 || typeof sheet.spliceRows !== 'function') return;
+    const row = sheet.getRow(5);
+    const payloadColumns = [1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+    const hasPayload = payloadColumns.some((column) => {
+      const value = row.getCell(column).value;
+      return value !== undefined && value !== null && compactText(value);
+    });
+    if (!hasPayload) sheet.spliceRows(5, 1);
+  }
+
   function applyExcelTemplateRow(sheet, rowNumber, template) {
     const row = sheet.getRow(rowNumber);
     (template && template.cells || []).forEach((source, index) => {
@@ -15044,6 +15056,7 @@
     const workbook = new window.ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    removeUnusedExcelTemplateRow(sheet);
     const imageInfo = await getExcelBatchImageInfo(item);
     writeExcelBatchRow(sheet, 4, item.data, item.extra, item.packQty, item.purchasePrice);
     applyExcelBatchSingleColumnLayout(sheet, item.data);
@@ -15056,6 +15069,7 @@
     const workbook = new window.ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    removeUnusedExcelTemplateRow(sheet);
     const template = captureExcelTemplateRow(sheet, 4);
     sheet.getRow(4).height = Math.max(Number(template.height) || 0, 96);
     for (let index = 0; index < items.length; index += 1) {
