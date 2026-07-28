@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.14
+// @version      2.6.15
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.14';
+  const SCRIPT_VERSION = '2.6.15';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4332,7 +4332,11 @@
     if (!hasProjectCache) tabs.push('\u9879\u76ee\u4fe1\u606f');
     const hasPackageDimensions = Boolean(cached.packageLength && cached.packageWidth && cached.packageHeight);
     const missingMaterialSize = !hasPackageDimensions && !cached.printSizeText;
-    if (!cached.seenMaterial || missingMaterialSize) tabs.push(L.materialTab);
+    const missingPackageSize = Boolean((cached.packageCode || cached.packageSizeLabel) && !cached.packageSizeText);
+    const missingPrintSize = Boolean((cached.printCode || cached.printSizeLabel) && !cached.printSizeText);
+    const missingPackageLabel = Boolean((cached.packageCode || cached.packageSizeText) && !cached.packageSizeLabel);
+    const missingPrintLabel = Boolean((cached.printCode || cached.printSizeText) && !cached.printSizeLabel);
+    if (!cached.seenMaterial || missingMaterialSize || missingPackageSize || missingPrintSize || missingPackageLabel || missingPrintLabel) tabs.push(L.materialTab);
     if (!cached.seenProduct || !cached.grossWeight || !hasCurrentCopywritingCache(cached)) tabs.push(L.productTab);
     return tabs;
   }
@@ -5060,8 +5064,16 @@
   }
 
   function extractMaterialName(row) {
-    const match = String(row || '').match(/(?:MTL\d+\s+){1,2}(.+?)\s+\u5305\u6750\s*-/);
-    return match ? match[1].trim() : '';
+    const source = compactText(row || '');
+    const match = source.match(/(?:MTL\d+\s+){1,2}(.+?)\s+\u5305\u6750\s*[-\uff0d\u2013\u2014\u2212]/i);
+    if (match) return match[1].trim();
+    const category = source.match(/\u5305\u6750\s*[-\uff0d\u2013\u2014\u2212]\s*/);
+    if (!category) return '';
+    const beforeCategory = source.slice(0, category.index).trim();
+    const codes = Array.from(beforeCategory.matchAll(/MTL\d+/gi));
+    if (!codes.length) return '';
+    const lastCode = codes[codes.length - 1];
+    return beforeCategory.slice((lastCode.index || 0) + lastCode[0].length).trim();
   }
 
   function extractNamedDimensionStrings(text) {
