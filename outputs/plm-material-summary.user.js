@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.24
+// @version      2.6.25
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.24';
+  const SCRIPT_VERSION = '2.6.25';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4631,7 +4631,9 @@
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
         });
-        if (apiPackagingFinal.packageSizeText) addLog('success', '已用 PLM 物料接口更新纸盒尺寸', sku + ' | ' + apiPackagingFinal.packageSizeText);
+        if (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText) {
+          addLog('success', '已用 PLM 物料接口更新包材尺寸', sku + ' | 纸盒 ' + (apiPackagingFinal.packageSizeText || '无') + ' | 标签/印刷 ' + (apiPackagingFinal.printSizeText || '无'));
+        }
       }
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
       saveData(sku, merged);
@@ -5190,7 +5192,8 @@
     const candidates = items.map((item, index) => {
       const name = compactText(item && item.name);
       const category = compactText(item && item.category_name);
-      const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
+      const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
+      const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
       const dimensions = getApiMaterialDimensions(item, 3);
       let score = 0;
       if (/纸盒|彩盒|纸箱|包装盒|外盒/.test(text)) score += 160;
@@ -5204,10 +5207,11 @@
     const printItems = items.map((item, index) => {
       const name = compactText(item && item.name);
       const category = compactText(item && item.category_name);
-      const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
+      const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
+      const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
       const dimensions = getApiMaterialDimensions(item, 2);
       return { item, index, name, category, text, dimensions };
-    }).filter((item) => /标签|印刷|贴纸|不干胶/.test(item.text) && item.dimensions && item.dimensions.length >= 2);
+    }).filter((item) => /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text) && item.dimensions && item.dimensions.length >= 2);
     const packageNums = packageItem ? packageItem.dimensions : null;
     return {
       packageSizeText: formatApiMaterialDimensions(packageNums),
@@ -5219,7 +5223,7 @@
       printSizeLabel: printItems.map((item) => item.name || item.category).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
       printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
       netContent: packageItem ? extractNetContentFromMaterial(packageItem.name + ' ' + compactText(packageItem.item.properties_value)) : '',
-      apiMaterialSource: packageItem ? 'plm-project-pms' : '',
+      apiMaterialSource: packageItem || printItems.length ? 'plm-project-pms' : '',
     };
   }
 
