@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.8
+// @version      2.6.10
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,14 +32,14 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.8';
+  const SCRIPT_VERSION = '2.6.10';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
-  const COPYWRITING_PARSER_VERSION = '8';
+  const COPYWRITING_PARSER_VERSION = '9';
   const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
   const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
   const SKU_LIST_PREFERENCE_VERSION = 1;
@@ -9827,8 +9827,30 @@
   }
 
   function copywritingCellLines(cell) {
+    const numbering = {};
+    let previousNumberingKey = '';
+    let previousWasNumbered = false;
     return Array.from(cell.getElementsByTagNameNS('*', 'p'))
-      .map((paragraph) => Array.from(paragraph.getElementsByTagNameNS('*', 't')).map((node) => node.textContent || '').join(''))
+      .map((paragraph) => {
+        const text = Array.from(paragraph.getElementsByTagNameNS('*', 't')).map((node) => node.textContent || '').join('');
+        const numPr = Array.from(paragraph.children || []).find((node) => node.localName === 'pPr')
+          && Array.from(Array.from(paragraph.children || []).find((node) => node.localName === 'pPr').children || [])
+            .find((node) => node.localName === 'numPr');
+        const numIdNode = numPr && Array.from(numPr.children || []).find((node) => node.localName === 'numId');
+        const ilvlNode = numPr && Array.from(numPr.children || []).find((node) => node.localName === 'ilvl');
+        const numId = numIdNode && numIdNode.getAttribute('w:val') || numIdNode && numIdNode.getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'val') || '';
+        const ilvl = ilvlNode && ilvlNode.getAttribute('w:val') || ilvlNode && ilvlNode.getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'val') || '0';
+        const numberingKey = numId && numId !== '0' ? numId + ':' + ilvl : '';
+        let marker = '';
+        if (numberingKey) {
+          if (numberingKey !== previousNumberingKey || !previousWasNumbered) numbering[numberingKey] = 0;
+          numbering[numberingKey] = (numbering[numberingKey] || 0) + 1;
+          marker = /^\s*\d+[.)、]\s*/.test(text) ? '' : numbering[numberingKey] + '. ';
+        }
+        previousNumberingKey = numberingKey;
+        previousWasNumbered = Boolean(numberingKey);
+        return marker + text;
+      })
       .map(cleanCopywritingLine)
       .filter(Boolean);
   }
