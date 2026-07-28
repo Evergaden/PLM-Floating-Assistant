@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.26
+// @version      2.6.27
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.26';
+  const SCRIPT_VERSION = '2.6.27';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4584,7 +4584,7 @@
     let merged = normalizeData(scanSeed || loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     try {
       const apiPackaging = await fetchApiMaterialPackaging(merged);
-      if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard)) {
+      if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard || apiPackaging.netContent || apiPackaging.grossWeight)) {
         merged = normalizeData({
           ...merged,
           ...apiPackaging,
@@ -4623,7 +4623,7 @@
         if (includeScanTabs) state.scanData = merged;
       }
       const apiPackagingFinal = await fetchApiMaterialPackaging(merged);
-      if (apiPackagingFinal && (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.hasInnerCard)) {
+      if (apiPackagingFinal && (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.hasInnerCard || apiPackagingFinal.netContent || apiPackagingFinal.grossWeight)) {
         merged = normalizeData({
           ...merged,
           ...apiPackagingFinal,
@@ -4631,8 +4631,8 @@
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
         });
-        if (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText) {
-          addLog('success', '已用 PLM 物料接口更新包材尺寸', sku + ' | 纸盒 ' + (apiPackagingFinal.packageSizeText || '无') + ' | 标签/印刷 ' + (apiPackagingFinal.printSizeText || '无'));
+        if (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.netContent || apiPackagingFinal.grossWeight) {
+          addLog('success', '已用 PLM 接口更新产品与包材数据', sku + ' | 纸盒 ' + (apiPackagingFinal.packageSizeText || '无') + ' | 标签/印刷 ' + (apiPackagingFinal.printSizeText || '无') + ' | 净含量 ' + (apiPackagingFinal.netContent || '无') + ' | 毛重 ' + (apiPackagingFinal.grossWeight || '无'));
         }
       }
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
@@ -5168,6 +5168,43 @@
     return [];
   }
 
+  function getApiProductMetricValue(payload, variableName) {
+    let result = '';
+    const visit = (value) => {
+      if (result || !value) return;
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+        return;
+      }
+      if (typeof value !== 'object') return;
+      if (value.variable_name === variableName) {
+        const languageValues = Array.isArray(value.attr_language_config_json) ? value.attr_language_config_json : [];
+        const preferred = languageValues.find((item) => Number(item && item.language_id) === 1 && item.value != null)
+          || languageValues.find((item) => item && item.value != null);
+        const raw = preferred ? preferred.value : '';
+        if (raw !== '' && raw != null) {
+          const unit = Number(value.attr_display_unit_id) === 3 ? 'g' : (Number(value.attr_display_unit_id) === 4 ? 'ml' : '');
+          const text = compactText(raw);
+          result = unit && /^\d+(?:\.\d+)?$/.test(text) ? text + unit : text;
+        }
+        return;
+      }
+      Object.keys(value).forEach((key) => visit(value[key]));
+    };
+    visit(payload);
+    return result;
+  }
+
+  function extractApiProductMetrics(payload) {
+    const netContent = getApiProductMetricValue(payload, 'suttle');
+    const grossWeight = getApiProductMetricValue(payload, 'rough_weight');
+    return {
+      ...(netContent ? { netContent } : {}),
+      ...(grossWeight ? { grossWeight } : {}),
+      ...(netContent || grossWeight ? { apiProductSource: 'plm-product-detail-content' } : {}),
+    };
+  }
+
   function getApiMaterialDimensions(item, count) {
     const values = [item && item.material_length, item && item.material_width, item && item.material_height]
       .map((value) => {
@@ -5240,8 +5277,24 @@
         .then((response) => response.ok ? response.json() : null)
         .then((payload) => {
           const result = extractApiMaterialPackaging(payload);
-          if (!result.packageSizeText && !result.printSizeText) addLog('info', 'PLM 物料接口未返回可用尺寸', String(data && data.sku || '') + ' | 保留页面清洗结果');
-          return result;
+          const project = payload && payload.data && payload.data.project || {};
+          const sku = String(data && data.sku || project.product_code || '');
+          const productId = project.product_id;
+          const productVersionId = project.product_main_id;
+          if (!productId || !productVersionId || !sku) return result;
+          return fetch('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(sku), { credentials: 'same-origin' })
+            .then((productResponse) => productResponse.ok ? productResponse.json() : null)
+            .then((productPayload) => {
+              const list = productPayload && productPayload.data && Array.isArray(productPayload.data.list) ? productPayload.data.list : [];
+              const product = list[0] || {};
+              const categoryId = product.category_id;
+              if (!categoryId) return result;
+              return fetch('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(product.product_id || productId) + '&product_version_id=' + encodeURIComponent(product.product_version_id || productVersionId) + '&category_id=' + encodeURIComponent(categoryId), { credentials: 'same-origin' })
+                .then((contentResponse) => contentResponse.ok ? contentResponse.json() : null)
+                .then((contentPayload) => ({ ...result, ...extractApiProductMetrics(contentPayload) }))
+                .catch(() => result);
+            })
+            .catch(() => result);
         })
         .catch((error) => {
           addLog('warn', 'PLM 物料接口读取失败', String(data && data.sku || '') + ' | ' + formatErrorMessage(error));
@@ -5255,7 +5308,7 @@
     if (!state.settings.collectionEnabled || !sku) return;
     const current = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     const packaging = await fetchApiMaterialPackaging(current, { force: true });
-    if (!packaging || (!packaging.packageSizeText && !packaging.printSizeText && !packaging.hasInnerCard)) return;
+    if (!packaging || (!packaging.packageSizeText && !packaging.printSizeText && !packaging.hasInnerCard && !packaging.netContent && !packaging.grossWeight)) return;
     const merged = normalizeData({
       ...current,
       ...packaging,
@@ -5266,7 +5319,7 @@
     saveData(sku, merged);
     if (state.selectedSku === sku) {
       state.data = merged;
-      renderShell('已后台刷新物料尺寸');
+      renderShell('已后台刷新 PLM 数据');
     }
   }
 
