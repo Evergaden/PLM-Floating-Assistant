@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.19
+// @version      2.6.20
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.19';
+  const SCRIPT_VERSION = '2.6.20';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -40,6 +40,7 @@
   const UI_ASSET_VERSION = '2.5.168';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '9';
+  const PLM_INGREDIENT_CACHE_VERSION = 2;
   const PLM_INGREDIENT_CHECK_WINDOW_MS = 6 * 60 * 60 * 1000;
   const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
   const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
@@ -4398,7 +4399,8 @@
     const missingPackageLabel = Boolean((cached.packageCode || cached.packageSizeText) && !cached.packageSizeLabel);
     const missingPrintLabel = Boolean((cached.printCode || cached.printSizeText) && !cached.printSizeLabel);
     const hasIngredientCache = Boolean(cached.ingredientChinese || cached.ingredientEnglish || cached.plmIngredientText);
-    const ingredientCheckFresh = Number(cached.plmIngredientCheckedAt || 0) > 0
+    const ingredientCheckFresh = Number(cached.plmIngredientParserVersion || 0) === PLM_INGREDIENT_CACHE_VERSION
+      && Number(cached.plmIngredientCheckedAt || 0) > 0
       && Date.now() - Number(cached.plmIngredientCheckedAt || 0) < PLM_INGREDIENT_CHECK_WINDOW_MS;
     if (!cached.seenMaterial || missingMaterialSize || missingPackageSize || missingPrintSize || missingPackageLabel || missingPrintLabel) tabs.push(L.materialTab);
     if (!cached.seenProduct || !cached.grossWeight || !hasCurrentCopywritingCache(cached) || (!hasIngredientCache && !ingredientCheckFresh)) tabs.push(L.productTab);
@@ -4814,6 +4816,7 @@
       englishName: seenProduct ? cleanEnglishProductName(extractLineAfter(text, 'PRODUCT NAME'), brand) : '',
       plmIngredientText,
       plmIngredientEnglishText,
+      plmIngredientParserVersion: PLM_INGREDIENT_CACHE_VERSION,
       plmIngredientCheckedAt: seenProduct ? Date.now() : 0,
       designType: getProjectLooseField(text, '\u8bbe\u8ba1\u7c7b\u578b'),
       artPriority: getProjectLooseField(text, '\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7') || extractArtPriority(text),
