@@ -21,6 +21,8 @@ use zip::ZipArchive;
 
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
+const MAX_UPLOAD_ZIP_BYTES: usize = 100 * 1024 * 1024;
+const UPLOAD_CHUNK_BYTES: usize = 512 * 1024;
 const DEFAULT_VIDEO_SOURCE: &str = r"E:\WXWork\1688857110932701\Cache\Video\7月";
 const PS_BATCH_SCRIPT: &str = r#"#target photoshop
 var inputPaths = __INPUT_PATHS__;
@@ -118,10 +120,31 @@ struct BridgeState {
 struct BridgeInner {
     token: String,
     snapshot_path: PathBuf,
-    sender: Mutex<Option<mpsc::UnboundedSender<Message>>>,
+    clients: Mutex<HashMap<String, BridgeClient>>,
     products: Mutex<Vec<FinalizedProduct>>,
     pending: Mutex<HashMap<String, PendingAssets>>,
-    script_version: Mutex<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BridgeRole {
+    Assistant,
+    Photoshop,
+}
+
+impl BridgeRole {
+    fn from_hello(value: Option<&str>) -> Self {
+        match value {
+            Some("photoshop") => Self::Photoshop,
+            _ => Self::Assistant,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct BridgeClient {
+    role: BridgeRole,
+    sender: mpsc::UnboundedSender<Message>,
+    script_version: String,
 }
 
 #[derive(Clone)]
@@ -183,6 +206,8 @@ struct FinalizedProduct {
     #[serde(default)]
     ingredients: String,
     #[serde(default)]
+    copywriting: Option<CopywritingSnapshot>,
+    #[serde(default)]
     reference_url: String,
     #[serde(default)]
     sku_image_url: String,
@@ -214,6 +239,34 @@ struct FinalizedProduct {
     image_pack_done: bool,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CopywritingSection {
+    #[serde(default)]
+    key: String,
+    #[serde(default)]
+    label: String,
+    #[serde(default)]
+    text: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CopywritingSnapshot {
+    #[serde(default)]
+    parser_version: String,
+    #[serde(default)]
+    file_name: String,
+    #[serde(default)]
+    updated_at: String,
+    #[serde(default)]
+    full_text: String,
+    #[serde(default)]
+    missing_sections: Vec<String>,
+    #[serde(default)]
+    sections: Vec<CopywritingSection>,
+}
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BridgeInfo {
@@ -221,6 +274,32 @@ struct BridgeInfo {
     token: String,
     connected: bool,
     script_version: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UploadPair {
+    sku: String,
+    xlsx_path: Option<String>,
+    zip_path: Option<String>,
+    xlsx_name: Option<String>,
+    zip_name: Option<String>,
+    xlsx_size: u64,
+    zip_size: u64,
+    xlsx_modified_ms: u128,
+    zip_modified_ms: u128,
+    status: String,
+    message: String,
+    signature: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UploadPairRequest {
+    sku: String,
+    xlsx_path: String,
+    zip_path: String,
+    signature: String,
 }
 
 #[derive(Serialize)]
@@ -314,7 +393,7 @@ fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
         inner: Arc::new(BridgeInner {
             token,
             snapshot_path: data_dir.join("finalized-products.json"),
-            sender: Mutex::new(None),
+            clients: Mutex::new(HashMap::new()),
             products: Mutex::new(
                 fs::read(data_dir.join("finalized-products.json"))
                     .ok()
@@ -322,17 +401,23 @@ fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
                     .unwrap_or_default(),
             ),
             pending: Mutex::new(HashMap::new()),
-            script_version: Mutex::new(String::new()),
         }),
     })
 }
 
 fn bridge_info_value(state: &BridgeState) -> BridgeInfo {
+    let (connected, script_version) = state.inner.clients.lock().map(|clients| {
+        clients
+            .values()
+            .find(|client| client.role == BridgeRole::Assistant)
+            .map(|client| (true, client.script_version.clone()))
+            .unwrap_or((false, String::new()))
+    }).unwrap_or((false, String::new()));
     BridgeInfo {
         url: format!("ws://{BRIDGE_ADDRESS}"),
         token: state.inner.token.clone(),
-        connected: state.inner.sender.lock().map(|sender| sender.is_some()).unwrap_or(false),
-        script_version: state.inner.script_version.lock().map(|value| value.clone()).unwrap_or_default(),
+        connected,
+        script_version,
     }
 }
 
@@ -371,16 +456,27 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
                 return;
             }
 
+            let role = BridgeRole::from_hello(hello.get("role").and_then(Value::as_str));
             let script_version = hello.get("version").and_then(Value::as_str).unwrap_or_default().to_string();
-            if let Ok(mut version) = state.inner.script_version.lock() {
-                *version = script_version;
-            }
+            let client_id = Uuid::new_v4().to_string();
             let (outgoing, mut outgoing_receiver) = mpsc::unbounded_channel::<Message>();
-            if let Ok(mut sender) = state.inner.sender.lock() {
-                *sender = Some(outgoing.clone());
+            if let Ok(mut clients) = state.inner.clients.lock() {
+                clients.insert(client_id.clone(), BridgeClient {
+                    role,
+                    sender: outgoing.clone(),
+                    script_version,
+                });
             }
             emit_bridge_status(&app, &state);
-            let _ = outgoing.send(Message::Text(json!({"type":"snapshot.request"}).to_string().into()));
+            match role {
+                BridgeRole::Assistant => {
+                    let _ = outgoing.send(Message::Text(json!({"type":"snapshot.request"}).to_string().into()));
+                }
+                BridgeRole::Photoshop => {
+                    let _ = outgoing.send(Message::Text(bridge_snapshot_value(&state).to_string().into()));
+                    let _ = request_assistant_snapshot(&state);
+                }
+            }
 
             let sink_task = tauri::async_runtime::spawn(async move {
                 while let Some(message) = outgoing_receiver.recv().await {
@@ -392,26 +488,64 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
 
             while let Some(Ok(message)) = source.next().await {
                 if let Message::Text(text) = message {
-                    handle_bridge_message(&app, &state, text.as_ref()).await;
+                    handle_bridge_message(&app, &state, text.as_ref(), &client_id, role).await;
                 }
             }
 
             sink_task.abort();
-            if let Ok(mut sender) = state.inner.sender.lock() {
-                *sender = None;
+            if let Ok(mut clients) = state.inner.clients.lock() {
+                clients.remove(&client_id);
             }
             emit_bridge_status(&app, &state);
         });
     }
 }
 
-async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str) {
+fn bridge_snapshot_value(state: &BridgeState) -> Value {
+    let products = state.inner.products.lock().map(|items| items.clone()).unwrap_or_default();
+    let version = state.inner.clients.lock().ok().and_then(|clients| {
+        clients
+            .values()
+            .find(|client| client.role == BridgeRole::Assistant)
+            .map(|client| client.script_version.clone())
+    }).unwrap_or_default();
+    json!({
+        "type": "snapshot.response",
+        "version": version,
+        "sentAt": bridge_timestamp(),
+        "products": products,
+    })
+}
+
+fn bridge_timestamp() -> String {
+    format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|value| value.as_secs()).unwrap_or_default())
+}
+
+fn send_json_to_client(state: &BridgeState, client_id: &str, value: &Value) -> bool {
+    let sender = state.inner.clients.lock().ok().and_then(|clients| clients.get(client_id).map(|client| client.sender.clone()));
+    sender.map(|sender| sender.send(Message::Text(value.to_string().into())).is_ok()).unwrap_or(false)
+}
+
+fn send_json_to_role(state: &BridgeState, role: BridgeRole, value: &Value) -> usize {
+    let senders = state.inner.clients.lock().map(|clients| {
+        clients.values().filter(|client| client.role == role).map(|client| client.sender.clone()).collect::<Vec<_>>()
+    }).unwrap_or_default();
+    let payload = value.to_string();
+    senders.into_iter().filter(|sender| sender.send(Message::Text(payload.clone().into())).is_ok()).count()
+}
+
+fn request_assistant_snapshot(state: &BridgeState) -> usize {
+    send_json_to_role(state, BridgeRole::Assistant, &json!({"type": "snapshot.request"}))
+}
+
+async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str, client_id: &str, role: BridgeRole) {
     let value: Value = match serde_json::from_str(text) {
         Ok(value) => value,
         Err(_) => return,
     };
     match value.get("type").and_then(Value::as_str).unwrap_or_default() {
         "snapshot.response" => {
+            if role != BridgeRole::Assistant { return; }
             let products: Vec<FinalizedProduct> = serde_json::from_value(value.get("products").cloned().unwrap_or_else(|| json!([]))).unwrap_or_default();
             if let Ok(serialized) = serde_json::to_vec_pretty(&products) {
                 let _ = fs::write(&state.inner.snapshot_path, serialized);
@@ -420,8 +554,16 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str)
                 *target = products;
             }
             let _ = app.emit("snapshot-updated", json!({"count": state.inner.products.lock().map(|items| items.len()).unwrap_or(0)}));
+            let _ = send_json_to_role(state, BridgeRole::Photoshop, &bridge_snapshot_value(state));
+        }
+        "snapshot.request" => {
+            if role == BridgeRole::Photoshop {
+                let _ = send_json_to_client(state, client_id, &bridge_snapshot_value(state));
+                let _ = request_assistant_snapshot(state);
+            }
         }
         "asset.bundle" => {
+            if role != BridgeRole::Assistant { return; }
             let job_id = value.get("jobId").and_then(Value::as_str).unwrap_or_default();
             let pending = state.inner.pending.lock().ok().and_then(|mut jobs| jobs.remove(job_id));
             let Some(pending) = pending else { return };
@@ -433,6 +575,7 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str)
             let _ = app.emit("asset-job", json!({"sku": pending.sku, "state": job_state, "message": message}));
         }
         "excel.error" => {
+            if role != BridgeRole::Assistant { return; }
             let job_id = value.get("jobId").and_then(Value::as_str).unwrap_or_default();
             let pending = state.inner.pending.lock().ok().and_then(|mut jobs| jobs.remove(job_id));
             if let Some(pending) = pending {
@@ -440,6 +583,7 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str)
                 let _ = app.emit("asset-job", json!({"sku": pending.sku, "state":"error", "message":message}));
             }
         }
+        "ping" => { let _ = send_json_to_client(state, client_id, &json!({"type": "pong", "at": bridge_timestamp()})); }
         "pong" => {}
         _ => {}
     }
@@ -507,6 +651,200 @@ fn persist_assets(value: &Value, pending: &PendingAssets) -> Result<String, Stri
     }
 }
 
+#[derive(Clone)]
+struct UploadCandidate {
+    path: PathBuf,
+    name: String,
+    size: u64,
+    modified_ms: u128,
+    valid: bool,
+    message: String,
+}
+
+fn upload_candidate_sku(name: &str) -> Option<String> {
+    Regex::new(r"(?i)SKU\d+")
+        .ok()?
+        .find(name)
+        .map(|value| value.as_str().to_uppercase())
+}
+
+fn file_modified_ms(path: &Path) -> u128 {
+    fs::metadata(path)
+        .ok()
+        .and_then(|meta| meta.modified().ok())
+        .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
+        .map(|value| value.as_millis())
+        .unwrap_or_default()
+}
+
+fn collect_upload_files(folder: &Path, depth: usize, output: &mut Vec<PathBuf>) {
+    if depth > 5 {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(folder) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+            if !name.starts_with('.') && !matches!(name.to_ascii_lowercase().as_str(), "node_modules" | "target") {
+                collect_upload_files(&path, depth + 1, output);
+            }
+        } else if path.is_file() {
+            let extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
+            if matches!(extension.as_str(), "xlsx" | "xls" | "zip") {
+                output.push(path);
+            }
+        }
+    }
+}
+
+fn inspect_upload_candidate(path: PathBuf) -> Option<(String, UploadCandidate)> {
+    let name = path.file_name().and_then(|value| value.to_str())?.to_string();
+    let sku = upload_candidate_sku(&name)?;
+    let extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
+    let size = fs::metadata(&path).ok()?.len();
+    let max_size = if extension == "zip" { MAX_UPLOAD_ZIP_BYTES as u64 } else { MAX_EXCEL_BYTES as u64 };
+    let mut valid = size > 1 && size <= max_size;
+    let mut message = if size == 0 { "文件为空".to_string() } else if size > max_size { "文件超过上传大小限制".to_string() } else { String::new() };
+    if valid {
+        let header = fs::File::open(&path)
+            .ok()
+            .and_then(|mut file| {
+                let mut bytes = [0_u8; 2];
+                std::io::Read::read_exact(&mut file, &mut bytes).ok().map(|_| bytes)
+            });
+        if header != Some([b'P', b'K']) {
+            valid = false;
+            message = "不是有效的 ZIP/XLSX 文件".to_string();
+        }
+    }
+    let modified_ms = file_modified_ms(&path);
+    Some((sku, UploadCandidate {
+        path,
+        name,
+        size,
+        modified_ms,
+        valid,
+        message,
+    }))
+}
+
+#[tauri::command]
+fn scan_upload_pairs(root: String) -> Result<Vec<UploadPair>, String> {
+    let root = PathBuf::from(root);
+    if !root.is_dir() {
+        return Err("产品文件夹根目录不存在".to_string());
+    }
+    let mut paths = Vec::new();
+    collect_upload_files(&root, 0, &mut paths);
+    let mut grouped: HashMap<String, (Vec<UploadCandidate>, Vec<UploadCandidate>)> = HashMap::new();
+    for path in paths {
+        let Some((sku, candidate)) = inspect_upload_candidate(path) else { continue };
+        let entry = grouped.entry(sku).or_default();
+        if candidate.name.to_ascii_lowercase().ends_with(".zip") {
+            entry.1.push(candidate);
+        } else {
+            entry.0.push(candidate);
+        }
+    }
+    let mut result = grouped.into_iter().map(|(sku, (mut excels, mut zips))| {
+        excels.sort_by_key(|item| std::cmp::Reverse(item.modified_ms));
+        zips.sort_by_key(|item| std::cmp::Reverse(item.modified_ms));
+        let excel = excels.into_iter().next();
+        let zip = zips.into_iter().next();
+        let mut messages = Vec::new();
+        if excel.is_none() { messages.push("缺少 XLSX".to_string()); }
+        if zip.is_none() { messages.push("缺少 ZIP".to_string()); }
+        if let Some(item) = excel.as_ref().filter(|item| !item.valid) { messages.push(format!("XLSX：{}", item.message)); }
+        if let Some(item) = zip.as_ref().filter(|item| !item.valid) { messages.push(format!("ZIP：{}", item.message)); }
+        let ready = excel.as_ref().map(|item| item.valid).unwrap_or(false) && zip.as_ref().map(|item| item.valid).unwrap_or(false);
+        let signature = if ready {
+            format!("{}:{}:{}:{}:{}", sku, excel.as_ref().map(|item| item.size).unwrap_or_default(), excel.as_ref().map(|item| item.modified_ms).unwrap_or_default(), zip.as_ref().map(|item| item.size).unwrap_or_default(), zip.as_ref().map(|item| item.modified_ms).unwrap_or_default())
+        } else { String::new() };
+        UploadPair {
+            sku,
+            xlsx_path: excel.as_ref().filter(|item| item.valid).map(|item| path_text(&item.path)),
+            zip_path: zip.as_ref().filter(|item| item.valid).map(|item| path_text(&item.path)),
+            xlsx_name: excel.as_ref().map(|item| item.name.clone()),
+            zip_name: zip.as_ref().map(|item| item.name.clone()),
+            xlsx_size: excel.as_ref().map(|item| item.size).unwrap_or_default(),
+            zip_size: zip.as_ref().map(|item| item.size).unwrap_or_default(),
+            xlsx_modified_ms: excel.as_ref().map(|item| item.modified_ms).unwrap_or_default(),
+            zip_modified_ms: zip.as_ref().map(|item| item.modified_ms).unwrap_or_default(),
+            status: if ready { "ready" } else if messages.iter().any(|item| item.contains("超过") || item.contains("有效")) { "invalid" } else { "missing" }.to_string(),
+            message: if messages.is_empty() { "已找到同一 SKU 的 XLSX 和 ZIP".to_string() } else { messages.join("；") },
+            signature,
+        }
+    }).collect::<Vec<_>>();
+    result.sort_by(|left, right| left.sku.cmp(&right.sku));
+    Ok(result)
+}
+
+fn read_upload_file(path: &Path, max_size: usize) -> Result<Vec<u8>, String> {
+    let bytes = fs::read(path).map_err(|error| format!("无法读取 {}：{error}", path_text(path)))?;
+    if bytes.len() < 2 || bytes.len() > max_size || !bytes.starts_with(b"PK") {
+        return Err(format!("文件无效或超过限制：{}", path_text(path)));
+    }
+    Ok(bytes)
+}
+
+#[tauri::command]
+fn queue_upload_pairs(state: State<'_, BridgeState>, pairs: Vec<UploadPairRequest>, auto_start: bool) -> Result<usize, String> {
+    if pairs.is_empty() { return Ok(0); }
+    if send_json_to_role(&state, BridgeRole::Assistant, &json!({"type":"ping"})) == 0 {
+        return Err("PLM 悬浮助手尚未连接".to_string());
+    }
+    let mut sent = 0;
+    for pair in pairs {
+        let sku = pair.sku.to_uppercase();
+        if !Regex::new(r"^SKU\d+$").map(|pattern| pattern.is_match(&sku)).unwrap_or(false) { continue; }
+        let xlsx_bytes = read_upload_file(Path::new(&pair.xlsx_path), MAX_EXCEL_BYTES)?;
+        let zip_bytes = read_upload_file(Path::new(&pair.zip_path), MAX_UPLOAD_ZIP_BYTES)?;
+        let request_id = Uuid::new_v4().to_string();
+        let xlsx_name = Path::new(&pair.xlsx_path).file_name().and_then(|value| value.to_str()).unwrap_or("product.xlsx");
+        let zip_name = Path::new(&pair.zip_path).file_name().and_then(|value| value.to_str()).unwrap_or("image-pack.zip");
+        let xlsx_total = (xlsx_bytes.len() + UPLOAD_CHUNK_BYTES - 1) / UPLOAD_CHUNK_BYTES;
+        let zip_total = (zip_bytes.len() + UPLOAD_CHUNK_BYTES - 1) / UPLOAD_CHUNK_BYTES;
+        let payload = json!({
+            "type": "upload.queue.begin",
+            "requestId": request_id,
+            "autoStart": auto_start,
+            "item": {
+                "sku": sku,
+                "signature": pair.signature,
+                "xlsxName": xlsx_name,
+                "zipName": zip_name,
+                "xlsxSize": xlsx_bytes.len(),
+                "zipSize": zip_bytes.len(),
+                "xlsxTotal": xlsx_total,
+                "zipTotal": zip_total,
+            }
+        });
+        if send_json_to_role(&state, BridgeRole::Assistant, &payload) == 0 {
+            return Err("悬浮助手连接已断开".to_string());
+        }
+        for (file_kind, bytes, total) in [("xlsx", xlsx_bytes, xlsx_total), ("zip", zip_bytes, zip_total)] {
+            for index in 0..total {
+                let start = index * UPLOAD_CHUNK_BYTES;
+                let end = (start + UPLOAD_CHUNK_BYTES).min(bytes.len());
+                let chunk = json!({
+                    "type": "upload.queue.chunk",
+                    "requestId": request_id,
+                    "file": file_kind,
+                    "index": index,
+                    "total": total,
+                    "data": BASE64.encode(&bytes[start..end]),
+                });
+                if send_json_to_role(&state, BridgeRole::Assistant, &chunk) == 0 {
+                    return Err("悬浮助手连接已断开".to_string());
+                }
+            }
+        }
+        sent += 1;
+    }
+    Ok(sent)
+}
+
 #[tauri::command]
 fn bridge_info(state: State<'_, BridgeState>) -> BridgeInfo {
     bridge_info_value(&state)
@@ -519,11 +857,10 @@ fn get_products(state: State<'_, BridgeState>) -> Vec<FinalizedProduct> {
 
 #[tauri::command]
 fn request_snapshot(state: State<'_, BridgeState>) -> Result<(), String> {
-    let sender = state.inner.sender.lock().map_err(|_| "无法访问桥接状态".to_string())?;
-    let sender = sender.as_ref().ok_or_else(|| "PLM 悬浮助手尚未连接".to_string())?;
-    sender
-        .send(Message::Text(json!({"type":"snapshot.request"}).to_string().into()))
-        .map_err(|_| "无法发送同步请求".to_string())
+    if request_assistant_snapshot(&state) == 0 {
+        return Err("PLM 悬浮助手尚未连接".to_string());
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -1188,17 +1525,10 @@ fn request_excel(app: AppHandle, state: State<'_, BridgeState>, product: Finaliz
         "fileName": excel_path.file_name().and_then(|value| value.to_str()).unwrap_or("PLM产品信息.xlsx"),
         "transparentImageDataUrl": transparent_image_data_url
     });
-    let send_result = state
-        .inner
-        .sender
-        .lock()
-        .map_err(|_| "无法访问桥接状态".to_string())?
-        .as_ref()
-        .ok_or_else(|| "PLM 悬浮助手尚未连接".to_string())?
-        .send(Message::Text(message.to_string().into()));
-    if send_result.is_err() {
+    let assistant_count = send_json_to_role(&state, BridgeRole::Assistant, &message);
+    if assistant_count == 0 {
         state.inner.pending.lock().ok().map(|mut jobs| jobs.remove(&job_id));
-        return Err("Excel 任务发送失败".to_string());
+        return Err("PLM 悬浮助手尚未连接".to_string());
     }
     let _ = app.emit("asset-job", json!({"sku":product.sku, "state":"queued", "message":"等待悬浮助手生成 Excel、英文参数图和尺寸图"}));
     Ok(job_id)
@@ -1345,6 +1675,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn keeps_legacy_bridge_clients_as_assistants() {
+        assert_eq!(BridgeRole::from_hello(None), BridgeRole::Assistant);
+        assert_eq!(BridgeRole::from_hello(Some("assistant")), BridgeRole::Assistant);
+        assert_eq!(BridgeRole::from_hello(Some("photoshop")), BridgeRole::Photoshop);
+    }
+
+    #[test]
+    fn round_trips_copywriting_sections_in_product_snapshot() {
+        let product = FinalizedProduct {
+            sku: "SKU00045440".into(),
+            copywriting: Some(CopywritingSnapshot {
+                sections: vec![CopywritingSection {
+                    key: "productName".into(),
+                    label: "产品名称".into(),
+                    text: "PRODUCT NAME:\nRose Nourishing Hand Cream".into(),
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let value = serde_json::to_value(&product).unwrap();
+        assert_eq!(value["copywriting"]["sections"][0]["key"], "productName");
+        assert_eq!(value["copywriting"]["sections"][0]["text"], "PRODUCT NAME:\nRose Nourishing Hand Cream");
+    }
+
+    #[test]
     fn sanitizes_windows_file_name() {
         assert_eq!(sanitize_component("West/Month: Cream SKU00000001"), "West Month Cream SKU00000001");
     }
@@ -1487,6 +1843,8 @@ pub fn run() {
             scan_video_files,
             process_video_files,
             request_excel,
+            scan_upload_pairs,
+            queue_upload_pairs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PLM product asset workbench");

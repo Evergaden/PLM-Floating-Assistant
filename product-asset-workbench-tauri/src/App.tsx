@@ -9,7 +9,7 @@ import {
   Eye, FolderOpen, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
   ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, X,
 } from "lucide-react";
-import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob } from "./types";
+import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
@@ -350,7 +350,7 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos">("assets");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -372,6 +372,10 @@ export default function App() {
   const [videoBusy, setVideoBusy] = useState(false);
   const [compactTop, setCompactTop] = useState(() => localStorage.getItem(COMPACT_TOP_KEY) === "1");
   const [packBusy, setPackBusy] = useState(false);
+  const [uploadPairs, setUploadPairs] = useState<UploadPair[]>([]);
+  const [selectedUploadSkus, setSelectedUploadSkus] = useState<Set<string>>(new Set());
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadAutoStart, setUploadAutoStart] = useState(true);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -683,6 +687,43 @@ export default function App() {
     }
   }
 
+  async function scanUploadPairs() {
+    if (!root) return notify("请先选择产品文件夹根目录");
+    setUploadBusy(true);
+    try {
+      const result = await invoke<UploadPair[]>("scan_upload_pairs", { root });
+      setUploadPairs(result);
+      setSelectedUploadSkus(new Set(result.filter((item) => item.status === "ready").map((item) => item.sku)));
+      notify(`检查完成：${result.filter((item) => item.status === "ready").length} 个可上传，${result.filter((item) => item.status !== "ready").length} 个需检查`);
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setUploadBusy(false);
+    }
+  }
+
+  async function queueUploadPairs() {
+    const targets = uploadPairs.filter((item) => item.status === "ready" && selectedUploadSkus.has(item.sku) && item.xlsxPath && item.zipPath);
+    if (!targets.length) return notify("请先勾选完整的 XLSX + ZIP");
+    if (!bridge.connected) {
+      setShowConnect(true);
+      return notify("请先连接 PLM 悬浮助手");
+    }
+    setUploadBusy(true);
+    try {
+      const count = await invoke<number>("queue_upload_pairs", {
+        pairs: targets.map((item) => ({ sku: item.sku, xlsxPath: item.xlsxPath, zipPath: item.zipPath, signature: item.signature })),
+        autoStart: uploadAutoStart,
+      });
+      setSelectedUploadSkus(new Set());
+      notify(`已提交 ${count} 个上传任务${uploadAutoStart ? "，已请求自动开始" : "，请在悬浮助手中开始"}`);
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setUploadBusy(false);
+    }
+  }
+
   async function emptyPackRecycle() {
     if (!root) return notify("请先选择产品文件夹根目录");
     if (!window.confirm("将永久删除各产品“套图/回收站”中的原图，且无法恢复。请确认已核对压缩图无误。")) return;
@@ -806,6 +847,7 @@ export default function App() {
         <nav className="workspace-tabs">
           <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
+          <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
           <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
             {compactTop ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
@@ -961,6 +1003,39 @@ export default function App() {
             <div className="pack-actions">
               <div><strong>输出目录</strong><span>{root ? `${root}/产品文件夹/套图` : "请先选择产品根目录"}</span></div>
               <button className="primary large" onClick={archivePacks} disabled={packBusy}>{packBusy ? <LoaderCircle size={17} className="spin" /> : <Play size={17} fill="currentColor" />}开始归档</button>
+            </div>
+          </section>
+        )}
+
+        {workspaceView === "upload" && (
+          <section className="upload-check-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">UPLOAD CHECK</span>
+                <h2>检查新做的图包和表格</h2>
+                <p>按 SKU 扫描本地 XLSX 与 ZIP，校验后直接加入悬浮助手上传队列，不删除源文件。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
+            </div>
+            <div className="upload-check-toolbar">
+              <button className="secondary" onClick={scanUploadPairs} disabled={uploadBusy}><ScanLine size={16} />{uploadBusy ? "检查中…" : "检查新文件"}</button>
+              <button className="primary" onClick={queueUploadPairs} disabled={uploadBusy || !selectedUploadSkus.size}><Upload size={16} />加入上传队列</button>
+              <label className="toggle"><input type="checkbox" checked={uploadAutoStart} onChange={(event) => setUploadAutoStart(event.target.checked)} /><span />加入后自动开始</label>
+              <button onClick={() => setSelectedUploadSkus(new Set(uploadPairs.filter((item) => item.status === "ready").map((item) => item.sku)))}>全选可上传</button>
+              <button onClick={() => setSelectedUploadSkus(new Set())}>取消选择</button>
+            </div>
+            <div className="upload-check-summary"><span>共 {uploadPairs.length} 个 SKU</span><span>可上传 {uploadPairs.filter((item) => item.status === "ready").length}</span><span>已选择 {selectedUploadSkus.size}</span></div>
+            <div className="upload-check-list">
+              {!uploadPairs.length && <div className="empty-state"><ScanLine size={28} /><strong>点击“检查新文件”开始扫描</strong><span>工作台会在产品根目录内寻找带 SKU 的 XLSX 和 ZIP。</span></div>}
+              {uploadPairs.map((item) => (
+                <div className={`upload-check-row ${item.status}`} key={item.sku}>
+                  <button className={`check-button ${selectedUploadSkus.has(item.sku) ? "checked" : ""}`} disabled={item.status !== "ready"} onClick={() => setSelectedUploadSkus((current) => { const next = new Set(current); if (next.has(item.sku)) next.delete(item.sku); else next.add(item.sku); return next; })}>{selectedUploadSkus.has(item.sku) && <Check size={14} />}</button>
+                  <strong>{item.sku}</strong>
+                  <div><span>{item.xlsxName || "缺少 XLSX"}</span><small>{item.xlsxPath || "未找到有效表格"}</small></div>
+                  <div><span>{item.zipName || "缺少 ZIP"}</span><small>{item.zipPath || "未找到有效图包"}</small></div>
+                  <span className={`status ${item.status === "ready" ? "success" : item.status === "invalid" ? "danger" : "warning"}`}>{item.status === "ready" ? "可上传" : item.message}</span>
+                </div>
+              ))}
             </div>
           </section>
         )}

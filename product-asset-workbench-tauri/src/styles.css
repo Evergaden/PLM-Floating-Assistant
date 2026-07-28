@@ -207,6 +207,23 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .video-log strong { font-size: 11px; }
 .video-log pre { max-height: 90px; margin: 7px 0 0; overflow: auto; white-space: pre-wrap; color: #8792a3; font: 10px/1.6 Consolas, monospace; }
 
+.upload-check-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(35,46,72,.07); }
+.upload-check-toolbar { min-height: 54px; padding: 9px 24px; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafbfe; }
+.upload-check-toolbar > button { height: 32px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #657187; background: white; font-size: 10px; font-weight: 700; }
+.upload-check-toolbar > button.primary { color: white; border-color: var(--purple); background: var(--purple); }
+.upload-check-toolbar .toggle { margin-left: auto; }
+.upload-check-summary { min-height: 35px; padding: 0 24px; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 10px; }
+.upload-check-list { max-height: 540px; overflow: auto; }
+.upload-check-row { min-height: 67px; padding: 8px 24px; display: grid; grid-template-columns: 28px 118px minmax(190px,1fr) minmax(190px,1fr) minmax(120px,.65fr); align-items: center; gap: 10px; border-top: 1px solid #edf0f5; }
+.upload-check-row > strong { color: var(--purple); font: 700 11px Consolas, monospace; }
+.upload-check-row > div { min-width: 0; display: grid; gap: 3px; }
+.upload-check-row > div span, .upload-check-row > div small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-check-row > div span { color: #4c586e; font-size: 10px; }
+.upload-check-row > div small { color: #929bad; font-size: 9px; }
+.upload-check-row .status { justify-self: end; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-check-row.ready { background: linear-gradient(90deg,#fff,#fbfaff); }
+.upload-check-row.invalid { background: #fffaf6; }
+.upload-check-row.missing { background: #fffdf8; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(18,24,38,.48); backdrop-filter: blur(6px); display: grid; place-items: center; }
 .modal { width: 480px; padding: 30px; border-radius: 22px; background: white; position: relative; box-shadow: 0 30px 80px rgba(12,18,31,.27); }
 .modal-close { position: absolute; right: 18px; top: 18px; border: 0; background: #f2f4f7; color: #697487; border-radius: 8px; width: 32px; height: 32px; display: grid; place-items: center; }

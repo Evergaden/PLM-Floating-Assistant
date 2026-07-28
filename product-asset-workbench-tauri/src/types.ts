@@ -1,3 +1,18 @@
+export interface CopywritingSection {
+  key: string;
+  label: string;
+  text: string;
+}
+
+export interface CopywritingSnapshot {
+  parserVersion: string;
+  fileName: string;
+  updatedAt: string;
+  fullText: string;
+  missingSections: string[];
+  sections: CopywritingSection[];
+}
+
 export interface FinalizedProduct {
   sku: string;
   brand: string;
@@ -22,6 +37,7 @@ export interface FinalizedProduct {
   netContent: string;
   grossWeight: string;
   ingredients: string;
+  copywriting?: CopywritingSnapshot | null;
   referenceUrl: string;
   skuImageUrl: string;
   skuImageFallbackUrl: string;
@@ -68,4 +84,19 @@ export type JobState = "idle" | "queued" | "running" | "done" | "skipped" | "err
 export interface RowJob {
   state: JobState;
   message: string;
+}
+
+export interface UploadPair {
+  sku: string;
+  xlsxPath: string | null;
+  zipPath: string | null;
+  xlsxName: string | null;
+  zipName: string | null;
+  xlsxSize: number;
+  zipSize: number;
+  xlsxModifiedMs: number;
+  zipModifiedMs: number;
+  status: "ready" | "missing" | "invalid" | string;
+  message: string;
+  signature: string;
 }

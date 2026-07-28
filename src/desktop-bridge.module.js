@@ -5,6 +5,7 @@
   let desktopBridgeSnapshotTimer = 0;
   let desktopBridgeStatus = '未配对';
   let desktopBridgeExcelQueue = Promise.resolve();
+  const desktopUploadTransfers = new Map();
 
   function getDesktopBridgeToken() {
     try {
@@ -85,6 +86,7 @@
         socket.send(JSON.stringify({
           type: 'hello',
           token,
+          role: 'assistant',
           version: SCRIPT_VERSION,
           userName: findCurrentPlmUserName() || '',
         }));
@@ -146,6 +148,36 @@
         });
       return;
     }
+    if (message.type === 'upload.queue.add') {
+      receiveDesktopUploadAssets(message).catch((error) => {
+        sendDesktopBridgeMessage({
+          type: 'upload.queue.ack',
+          requestId: String(message.requestId || ''),
+          added: 0,
+          skipped: 0,
+          error: formatErrorMessage(error),
+        });
+      });
+      return;
+    }
+    if (message.type === 'upload.queue.begin') {
+      const requestId = String(message.requestId || '');
+      const item = message.item && typeof message.item === 'object' ? message.item : null;
+      if (requestId && item) {
+        desktopUploadTransfers.set(requestId, {
+          requestId,
+          autoStart: Boolean(message.autoStart),
+          item,
+          files: { xlsx: new Array(Number(item.xlsxTotal) || 0), zip: new Array(Number(item.zipTotal) || 0) },
+          received: { xlsx: 0, zip: 0 },
+        });
+      }
+      return;
+    }
+    if (message.type === 'upload.queue.chunk') {
+      receiveDesktopUploadChunk(message);
+      return;
+    }
     if (message.type === 'ping') sendDesktopBridgeMessage({ type: 'pong', at: Date.now() });
   }
 
@@ -153,6 +185,144 @@
     if (!isDesktopBridgeConnected()) return false;
     desktopBridgeSocket.send(JSON.stringify(message));
     return true;
+  }
+
+  function decodeDesktopUploadFile(encoded, filename, mime, expectedSize) {
+    const value = String(encoded || '');
+    if (!value) throw new Error(filename + ' 数据为空');
+    const binary = atob(value);
+    if (Number(expectedSize) > 0 && total !== Number(expectedSize)) throw new Error(filename + ' invalid size');
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    if (bytes.length < 2 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error(filename + ' invalid archive');
+    return new File([bytes], filename, { type: mime || guessMime(filename), lastModified: Date.now() });
+  }
+
+  function decodeDesktopUploadChunks(chunks, filename, mime, expectedSize) {
+    const values = Array.isArray(chunks) ? chunks : [];
+    const decoded = values.map((chunk) => {
+      const binary = atob(String(chunk || ''));
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+      return bytes;
+    });
+    const total = decoded.reduce((sum, bytes) => sum + bytes.length, 0);
+    if (Number(expectedSize) > 0 && total !== Number(expectedSize)) throw new Error(filename + ' invalid size');
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    decoded.forEach((part) => { bytes.set(part, offset); offset += part.length; });
+    if (bytes.length < 2 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error(filename + ' invalid archive');
+    return new File([bytes], filename, { type: mime || guessMime(filename), lastModified: Date.now() });
+  }
+
+  function receiveDesktopUploadChunk(message) {
+    const requestId = String(message && message.requestId || '');
+    const file = String(message && message.file || '');
+    const transfer = desktopUploadTransfers.get(requestId);
+    if (!transfer || !transfer.files[file]) return;
+    const index = Number(message.index);
+    if (!Number.isInteger(index) || index < 0 || index >= transfer.files[file].length || transfer.files[file][index]) return;
+    transfer.files[file][index] = String(message.data || '');
+    transfer.received[file] += 1;
+    if (transfer.received.xlsx < transfer.files.xlsx.length || transfer.received.zip < transfer.files.zip.length) return;
+    desktopUploadTransfers.delete(requestId);
+    receiveDesktopUploadAssets({
+      requestId,
+      autoStart: transfer.autoStart,
+      items: [{ ...transfer.item, xlsxChunks: transfer.files.xlsx, zipChunks: transfer.files.zip }],
+    }).catch((error) => {
+      sendDesktopBridgeMessage({ type: 'upload.queue.ack', requestId, added: 0, skipped: 0, error: formatErrorMessage(error) });
+    });
+  }
+
+  async function receiveDesktopUploadAssets(message) {
+    const items = Array.isArray(message && message.items) ? message.items : [];
+    const queue = loadUploadQueue();
+    const history = loadUploadHistory();
+    let added = 0;
+    let skipped = 0;
+    const errors = [];
+    for (const item of items) {
+      const sku = String(item && item.sku || '').toUpperCase();
+      const signature = String(item && item.signature || '');
+      if (!/^SKU\d+$/.test(sku) || !signature) {
+        errors.push(sku || '未知 SKU');
+        continue;
+      }
+      const duplicate = queue.find((entry) => entry && entry.kind !== 'toy-label' && entry.sku === sku && entry.assetSignature === signature)
+        || history.find((entry) => entry && entry.kind !== 'toy-label' && entry.sku === sku && entry.assetSignature === signature);
+      if (duplicate) {
+        skipped += 1;
+        continue;
+      }
+      try {
+        const xlsxName = String(item.xlsxName || (sku + '.xlsx'));
+        const zipName = String(item.zipName || (sku + '.zip'));
+        const xlsx = Array.isArray(item.xlsxChunks)
+          ? decodeDesktopUploadChunks(item.xlsxChunks, xlsxName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', item.xlsxSize)
+          : decodeDesktopUploadFile(item.xlsxBase64, xlsxName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', item.xlsxSize);
+        const zip = Array.isArray(item.zipChunks)
+          ? decodeDesktopUploadChunks(item.zipChunks, zipName, 'application/zip', item.zipSize)
+          : decodeDesktopUploadFile(item.zipBase64, zipName, 'application/zip', item.zipSize);
+        state.uploadQueue = queue;
+        const target = ensureUploadQueueItem(sku, xlsxName);
+        const xlsxKey = 'desktop-upload:' + sku + ':' + signature + ':xlsx';
+        const zipKey = 'desktop-upload:' + sku + ':' + signature + ':zip';
+        await putUploadFile(xlsxKey, cloneUploadFile(xlsx));
+        await putUploadFile(zipKey, cloneUploadFile(zip));
+        target.xlsxName = xlsxName;
+        target.xlsxKey = xlsxKey;
+        target.zipName = zipName;
+        target.zipKey = zipKey;
+        target.assetSignature = signature;
+        target.status = '\u5f85\u4e0a\u4f20';
+        target.step = '\u684c\u9762\u5de5\u4f5c\u53f0\u5df2\u68c0\u67e5\u6587\u4ef6';
+        target.skipReason = '';
+        target.forceReplace = false;
+        target.updatedAt = new Date().toLocaleString();
+        added += 1;
+      } catch (error) {
+        errors.push(sku + '：' + formatErrorMessage(error));
+      }
+    }
+    state.uploadQueue = queue;
+    saveUploadQueue();
+    state.uploadExpanded = true;
+    state.uploadMode = 'standard';
+    state.uploadView = 'queue';
+    state.uploadPage = 1;
+    renderShell();
+    if (added) showToast('已检查并加入 ' + added + ' 个图包上传任务');
+    if (errors.length) showToast('上传文件检查失败：' + errors.slice(0, 2).join('；'));
+    sendDesktopBridgeMessage({
+      type: 'upload.queue.ack',
+      requestId: String(message.requestId || ''),
+      added,
+      skipped,
+      errors,
+    });
+    if (message.autoStart && (added || queue.some((entry) => entry && entry.kind === 'standard' && isUploadItemReady(entry) && !/成功|进行中/.test(entry.status || '')))) {
+      startUploadQueue();
+    }
+  }
+
+  function serializeDesktopCopywriting(record) {
+    const normalized = normalizeCopywritingRecord(record);
+    if (!normalized || !Array.isArray(normalized.sections) || !normalized.sections.length) return null;
+    return {
+      parserVersion: String(normalized.parserVersion || ''),
+      fileName: String(normalized.fileName || ''),
+      updatedAt: String(normalized.updatedAt || ''),
+      fullText: String(normalized.fullText || '').slice(0, 50000),
+      missingSections: Array.isArray(normalized.missingSections) ? normalized.missingSections.slice(0, 40).map((item) => String(item || '')) : [],
+      sections: normalized.sections
+        .filter((section) => section && section.key && String(section.text || '').trim())
+        .map((section) => ({
+          key: String(section.key || ''),
+          label: String(section.label || section.key || ''),
+          text: String(section.text || '').slice(0, 12000),
+        })),
+    };
   }
 
   function collectDesktopFinalizedProducts() {
@@ -190,6 +360,7 @@
         netContent: String(data.netContent || ''),
         grossWeight: String(data.grossWeight || ''),
         ingredients: String(getPreferredExcelIngredients(data) || ''),
+        copywriting: serializeDesktopCopywriting(data.copywriting),
         referenceUrl: String(data.referenceUrl || data.benchmarkLink || row.referenceUrl || ''),
         skuImageUrl: String(data.skuImageUrl || ''),
         skuImageFallbackUrl: String(data.skuImageFallbackUrl || data.skuImageUrl || ''),
