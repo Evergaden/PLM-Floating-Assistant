@@ -18,7 +18,7 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-manual.ps1
 ```
 
-也可以运行本目录的 `package.ps1` 生成 `dist/PLM-Photoshop-Copywriting-0.1.15.ccx`，再通过 Creative Cloud 安装。
+也可以运行本目录的 `package.ps1` 生成 `dist/PLM-Photoshop-Copywriting-0.1.16.ccx`，再通过 Creative Cloud 安装。
 
 由于部分 Photoshop/UXP 版本对本机 `ws://127.0.0.1` 的精确权限匹配存在兼容性问题，manifest 使用了 `network.domains: "all"` 作为本机 WebSocket 的兼容方案；插件代码仍只连接本机 `127.0.0.1:37191`。
 

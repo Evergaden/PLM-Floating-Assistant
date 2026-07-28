@@ -11,7 +11,7 @@
         <div>
           <div class="hero-meta">
           <div class="eyebrow">PLM · PHOTOSHOP</div>
-            <span id="version" class="version">v0.1.15</span>
+            <span id="version" class="version">v0.1.16</span>
           </div>
           <h1>文案助手</h1>
           <p>用矩形选区生成信息、地址和代理文字框，内容仍可编辑。</p>
@@ -58,6 +58,24 @@
       </section>
 
       <p class="selection-hint">先用 Photoshop 矩形选框框住文案区域，再点击生成。插件会按文件名和选区比例自动选择纸盒或标签排版；经销商/地址及 EU/UK/US REP 保持独立可编辑文字层。</p>
+      <section class="card color-card">
+        <div class="section-head">
+          <label>生成颜色</label>
+          <span class="tiny">文字与代理框同步</span>
+        </div>
+        <div class="color-choice" role="radiogroup" aria-label="生成颜色">
+          <label class="color-option" data-color="black" data-selected="true">
+            <input type="radio" name="text-color" value="black" checked />
+            <span class="color-swatch black"></span>
+            <span>黑色文字</span>
+          </label>
+          <label class="color-option" data-color="white" data-selected="false">
+            <input type="radio" name="text-color" value="white" />
+            <span class="color-swatch white"></span>
+            <span>白色文字</span>
+          </label>
+        </div>
+      </section>
       <button id="generate" class="generate">按矩形选区生成文案框</button>
       <p class="footer-note">生成失败会恢复原文字和样式；不会自动保存 PSD。</p>
     </main>

@@ -183,5 +183,27 @@ pre {
 }
 
 .generate { width: 100%; min-height: 42px; margin-top: 2px; border-radius: 11px; }
+.color-card { padding-bottom: 11px; }
+.color-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.color-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.color-option[data-selected="true"] { border-color: #aa9df8; background: var(--purple-soft); }
+.color-option input[type="radio"] { width: 14px; min-height: 14px; margin: 0; padding: 0; appearance: auto; -webkit-appearance: auto; }
+.color-swatch { width: 14px; height: 14px; flex: 0 0 14px; border: 1px solid #b9c1cf; border-radius: 50%; }
+.color-swatch.black { background: #111827; }
+.color-swatch.white { background: #fff; box-shadow: inset 0 0 0 2px #fff; }
 .selection-hint { margin: 8px 2px 0; color: var(--muted); line-height: 1.5; font-size: 10px; }
 .footer-note { margin: 8px 2px 0; color: #8993a4; line-height: 1.45; text-align: center; font-size: 10px; }

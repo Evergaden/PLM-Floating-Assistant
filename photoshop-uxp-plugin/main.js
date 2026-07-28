@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.15';
+const PLUGIN_VERSION = '0.1.16';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -32,6 +32,7 @@ const state = {
   documentMatch: null,
   layoutMode: 'box-portrait',
   currentLayout: null,
+  textColor: 'black',
 };
 
 function byId(id) {
@@ -374,7 +375,31 @@ function sizeDescriptor(original, points, resolution) {
   return result;
 }
 
-function styleFor(baseStyle, size, bold, resolution) {
+function normalizeTextColor(value) {
+  return String(value || '').toLowerCase() === 'white' ? 'white' : 'black';
+}
+
+function rgbFor(value) {
+  return normalizeTextColor(value) === 'white'
+    ? { red: 255, green: 255, blue: 255 }
+    : { red: 0, green: 0, blue: 0 };
+}
+
+function solidColor(value) {
+  const SolidColor = app.SolidColor;
+  const color = new SolidColor();
+  const rgb = rgbFor(value);
+  color.rgb.red = rgb.red;
+  color.rgb.green = rgb.green;
+  color.rgb.blue = rgb.blue;
+  return color;
+}
+
+function colorDescriptor(value) {
+  return { _obj: 'RGBColor', ...rgbFor(value) };
+}
+
+function styleFor(baseStyle, size, bold, resolution, textColor) {
   const style = { ...copyDescriptor(baseStyle), _obj: 'textStyle' };
   const font = bold ? BOLD_FONT : REGULAR_FONT;
   style.fontPostScriptName = font;
@@ -401,6 +426,7 @@ function styleFor(baseStyle, size, bold, resolution) {
   if (Object.prototype.hasOwnProperty.call(style, 'useAutoLeading')) {
     style.useAutoLeading = false;
   }
+  style.color = colorDescriptor(textColor);
   return style;
 }
 
@@ -486,15 +512,6 @@ function layerBounds(layer) {
   return Object.values(result).every(Number.isFinite) ? result : null;
 }
 
-function blackColor() {
-  const SolidColor = app.SolidColor;
-  const color = new SolidColor();
-  color.rgb.red = 0;
-  color.rgb.green = 0;
-  color.rgb.blue = 0;
-  return color;
-}
-
 function replaceSelection(document, bounds, antiAlias) {
   return document.selection.selectRectangle(
     bounds,
@@ -522,7 +539,7 @@ async function readSelectionBounds(document) {
   }
 }
 
-async function createParagraphTextLayer(document, spec, size, resolution, createdLayers) {
+async function createParagraphTextLayer(document, spec, size, resolution, createdLayers, textColor) {
   const fontPixels = pointsToPixels(size, resolution);
   const layer = await document.createTextLayer({
     name: spec.name,
@@ -530,14 +547,14 @@ async function createParagraphTextLayer(document, spec, size, resolution, create
     fontName: REGULAR_FONT,
     fontSize: fontPixels,
     position: { x: spec.bounds.left, y: spec.bounds.top + fontPixels },
-    textColor: blackColor(),
+    textColor: solidColor(textColor),
   });
   createdLayers.push(layer);
   if (!layer.textItem || !layer.textItem.isParagraphText) {
     await layer.textItem.convertToParagraphText();
   }
   const original = await getTextKey(layer.id);
-  const next = formattedTextKey(original, spec.layout, size, resolution);
+  const next = formattedTextKey(original, spec.layout, size, resolution, textColor);
   setTextBoxBounds(next, spec.bounds);
   await setTextKeyDescriptor(layer.id, next);
   if (!setTextLayerPosition(layer, spec.bounds.left, spec.bounds.top + fontPixels)) {
@@ -556,7 +573,7 @@ function setTextLayerPosition(layer, x, y) {
   }
 }
 
-async function createHeadingTextLayer(document, text, cellBounds, size, resolution, createdLayers, name) {
+async function createHeadingTextLayer(document, text, cellBounds, size, resolution, createdLayers, name, textColor) {
   const fontPixels = pointsToPixels(size, resolution);
   const layer = await document.createTextLayer({
     name,
@@ -564,7 +581,7 @@ async function createHeadingTextLayer(document, text, cellBounds, size, resoluti
     fontName: BOLD_FONT,
     fontSize: fontPixels,
     position: { x: cellBounds.left, y: cellBounds.bottom - Math.max(1, fontPixels * 0.2) },
-    textColor: blackColor(),
+    textColor: solidColor(textColor),
   });
   createdLayers.push(layer);
   const original = await getTextKey(layer.id);
@@ -572,7 +589,7 @@ async function createHeadingTextLayer(document, text, cellBounds, size, resoluti
     text,
     segments: [{ text, bold: true }],
   };
-  const next = formattedTextKey(original, headingLayout, size, resolution);
+  const next = formattedTextKey(original, headingLayout, size, resolution, textColor);
   await setTextKeyDescriptor(layer.id, next);
 
   const actual = layerBounds(layer);
@@ -635,22 +652,22 @@ async function moveLayerToTopLeft(layer, bounds) {
   await layer.translate(bounds.left - actual.left, bounds.top - actual.top);
 }
 
-function formattedTextKey(original, layout, size, resolution) {
+function formattedTextKey(original, layout, size, resolution, textColor) {
   const text = String(layout.text || '').replace(/\r?\n/g, '\r');
   const baseStyle = original.textStyleRange[0].textStyle || {};
   const ranges = rangeSegments(layout).map((range) => ({
     _obj: 'textStyleRange',
     from: range.from,
     to: range.to,
-    textStyle: styleFor(baseStyle, size, range.bold, resolution),
+    textStyle: styleFor(baseStyle, size, range.bold, resolution, textColor),
   }));
   const next = { ...copyDescriptor(original), _obj: 'textLayer', textKey: text, textStyleRange: ranges };
   paragraphRangesFor(next, text.length);
   return next;
 }
 
-async function applyLayout(layerId, original, layout, size, resolution) {
-  const next = formattedTextKey(original, layout, size, resolution);
+async function applyLayout(layerId, original, layout, size, resolution, textColor) {
+  const next = formattedTextKey(original, layout, size, resolution, textColor);
   await setTextKeyDescriptor(layerId, next);
   const after = await getTextKey(layerId);
   // Photoshop UXP does not expose a reliable paragraph-text overflow flag.
@@ -659,7 +676,7 @@ async function applyLayout(layerId, original, layout, size, resolution) {
   return { textKey: after, overflow: false };
 }
 
-async function writeSelectionBoxes(product, layout, document, rawSelection, resolution) {
+async function writeSelectionBoxes(product, layout, document, rawSelection, resolution, textColor) {
   const plan = buildSelectionPlan(layout, rawSelection, resolution, {
     initialSize: DEFAULT_FONT_SIZE_PT,
     minimumSize: MIN_FONT_SIZE_PT,
@@ -672,10 +689,10 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
 
   return core.executeAsModal(async () => {
     try {
-      app.foregroundColor = blackColor();
+      app.foregroundColor = solidColor(textColor);
       for (const block of plan.blocks) {
         if (block.type === 'text') {
-          await createParagraphTextLayer(document, block, plan.size, resolution, createdLayers);
+          await createParagraphTextLayer(document, block, plan.size, resolution, createdLayers, textColor);
           continue;
         }
         const fontPixels = pointsToPixels(plan.size, resolution);
@@ -712,6 +729,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
           resolution,
           createdLayers,
           block.name + ' | label 1',
+          textColor,
         );
         await createHeadingTextLayer(
           document,
@@ -721,6 +739,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
           resolution,
           createdLayers,
           block.name + ' | label 2',
+          textColor,
         );
         await createParagraphTextLayer(
           document,
@@ -728,6 +747,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
           plan.size,
           resolution,
           createdLayers,
+          textColor,
         );
       }
 
@@ -761,7 +781,7 @@ async function writeSelectionBoxes(product, layout, document, rawSelection, reso
   }, { commandName: '生成 PLM 文案框' });
 }
 
-async function writeLegacyPage4(product, layout, document, resolution) {
+async function writeLegacyPage4(product, layout, document, resolution, textColor) {
   const activeLayers = document.activeLayers ? Array.from(document.activeLayers) : [];
   if (activeLayers.length !== 1) throw new Error('请只选中一个文本层。');
   const layer = activeLayers[0];
@@ -773,13 +793,13 @@ async function writeLegacyPage4(product, layout, document, resolution) {
     const originalSize = DEFAULT_FONT_SIZE_PT;
     let size = originalSize;
     try {
-      let result = await applyLayout(layerId, original, layout, size, resolution);
+      let result = await applyLayout(layerId, original, layout, size, resolution, textColor);
       let steps = 0;
       while (result.overflow && size > MIN_FONT_SIZE_PT && steps < MAX_FIT_STEPS) {
         const nextSize = Math.max(MIN_FONT_SIZE_PT, size * 0.9);
         if (nextSize >= size) break;
         size = nextSize;
-        result = await applyLayout(layerId, original, layout, size, resolution);
+        result = await applyLayout(layerId, original, layout, size, resolution, textColor);
         steps += 1;
       }
       if (result.overflow) throw new Error('字号已缩小到 Photoshop 可接受的下限，但文字框仍然溢出。');
@@ -791,7 +811,7 @@ async function writeLegacyPage4(product, layout, document, resolution) {
   }, { commandName: '生成当前页面文案' });
 }
 
-async function writePage4(product) {
+async function writePage4(product, textColor) {
   const document = app.activeDocument;
   if (!document) throw new Error('请先打开纸盒 PSD 文件。');
   const resolution = Number(document.resolution) || 72;
@@ -801,8 +821,15 @@ async function writePage4(product) {
   renderLayoutMode(mode, selection);
   const layout = buildPage4Layout(product, { mode });
   if (!layout.text) throw new Error('当前 SKU 没有可生成的文案。');
-  if (selection) return writeSelectionBoxes(product, layout, document, selection, resolution);
-  return writeLegacyPage4(product, layout, document, resolution);
+  if (selection) return writeSelectionBoxes(product, layout, document, selection, resolution, textColor);
+  return writeLegacyPage4(product, layout, document, resolution, textColor);
+}
+
+function selectedTextColor() {
+  const input = document.querySelector('input[name="text-color"]:checked');
+  const value = input && input.value;
+  state.textColor = normalizeTextColor(value);
+  return state.textColor;
 }
 
 async function generate() {
@@ -814,7 +841,8 @@ async function generate() {
   setBusy(true);
   setStatus('正在读取矩形选区并生成可编辑文案框…', 'normal');
   try {
-    const result = await writePage4(product);
+    const textColor = selectedTextColor();
+    const result = await writePage4(product, textColor);
     const suffix = result.missing.length ? '；缺少 ' + result.missing.join('、') : '';
     const modeText = result.mode === 'selection' ? '已生成 ' + result.boxes + ' 个文案框' : '已写入当前文字层';
     setStatus(modeText + '（' + modeLabel(result.layoutMode) + '），字号 ' + result.size.toFixed(2) + ' pt' + suffix + '。', result.missing.length ? 'warning' : 'success');
@@ -835,6 +863,14 @@ function bindEvents() {
     if (!send({ type: 'snapshot.request' })) setStatus('请先连接悬浮助手。', 'error');
   });
   byId('generate').addEventListener('click', generate);
+  document.querySelectorAll('input[name="text-color"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      state.textColor = selectedTextColor();
+      document.querySelectorAll('.color-option').forEach((option) => {
+        option.dataset.selected = option.dataset.color === state.textColor ? 'true' : 'false';
+      });
+    });
+  });
   byId('clear-token').addEventListener('click', () => {
     disconnect();
     byId('token').value = '';
