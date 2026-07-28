@@ -3893,11 +3893,17 @@
         flex-wrap: nowrap !important;
         align-items: center !important;
         width: 100% !important;
-        gap: 8px 10px !important;
+        gap: 8px !important;
       }
       #plm-floating-helper .pfh-graphic-title h3 {
         flex: 1 1 auto !important;
         min-width: 0 !important;
+      }
+      #plm-floating-helper .pfh-graphic-title .pfh-toy-copywriting-button,
+      #plm-floating-helper .pfh-graphic-title .pfh-excel-controls > button {
+        min-width: 0 !important;
+        flex: 0 1 auto !important;
+        white-space: nowrap !important;
       }
       #plm-floating-helper .pfh-excel-options-row {
         display: block !important;
@@ -4000,6 +4006,7 @@
       #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title .pfh-excel-controls {
         flex: 0 0 auto !important;
         margin-left: auto !important;
+        gap: 5px !important;
       }
       #plm-floating-helper .pfh-graphic-section > .pfh-excel-options-row {
         display: block !important;
@@ -7663,6 +7670,13 @@
           min-height: 300px;
         }
       }
+      @container (max-width: 410px) {
+        #plm-floating-helper .pfh-size-image-hero {
+          flex-direction: row !important;
+          align-items: flex-start !important;
+          gap: 10px !important;
+        }
+      }
       #plm-floating-helper[data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type {
         width: 30px !important;
         min-width: 30px !important;
@@ -7901,6 +7915,7 @@
         justify-content: flex-start;
       }
       #plm-floating-helper .pfh-size-image-hero-copy {
+        flex: 1 1 auto;
         min-width: 0;
       }
       #plm-floating-helper .pfh-packaging-naming-card {
