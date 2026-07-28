@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PLM 文案助手</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div>
+          <div class="hero-meta">
+          <div class="eyebrow">PLM · PHOTOSHOP</div>
+            <span id="version" class="version">v0.1.13</span>
+          </div>
+          <h1>文案助手</h1>
+          <p>用矩形选区生成信息、地址和代理文字框，内容仍可编辑。</p>
+        </div>
+        <span class="badge">选区生成</span>
+      </header>
+
+      <section class="card">
+        <label for="token">悬浮助手连接码</label>
+        <div class="inline">
+          <input id="token" type="password" placeholder="从 PLM 悬浮助手设置中复制" autocomplete="off" />
+          <button id="connect" class="primary">连接</button>
+        </div>
+        <div class="inline compact">
+          <button id="disconnect">断开</button>
+          <button id="clear-token">清除连接码</button>
+        </div>
+        <div id="status" class="status">未连接。</div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <label>当前文档</label>
+            <div id="document-name" class="document-name">未打开 Photoshop 文档</div>
+          </div>
+          <button id="refresh">同步 / 刷新</button>
+        </div>
+        <label for="sku-select">产品编码 / SKU</label>
+        <div class="select-wrap">
+          <select id="sku-select" disabled></select>
+        </div>
+        <p class="hint">优先匹配 PSD 文件名中的纸盒编码/文件编码，例如 MTL00057740；没有匹配时可从已同步列表选择。</p>
+      </section>
+
+      <section class="card preview-card">
+        <div class="section-head">
+          <label>当前页面预览</label>
+          <span class="tiny">当前版本：第四页文字栏，不含 Safe use / 条码</span>
+        </div>
+        <div id="missing" class="missing"></div>
+        <pre id="preview">连接悬浮助手并同步 SKU 后预览。</pre>
+      </section>
+
+      <p class="selection-hint">先用 Photoshop 矩形选框框住第四页右侧文案区域，再点击生成。会创建信息、地址、EU/UK/US REP 独立文字层；没有选区时仍兼容写入当前段落文字层。</p>
+      <button id="generate" class="generate">按矩形选区生成文案框</button>
+      <p class="footer-note">生成失败会恢复原文字和样式；不会自动保存 PSD。</p>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>
