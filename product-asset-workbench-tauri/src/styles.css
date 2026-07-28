@@ -222,6 +222,7 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .upload-check-row > div small { color: #929bad; font-size: 9px; }
 .upload-check-row .status { justify-self: end; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-check-row.ready { background: linear-gradient(90deg,#fff,#fbfaff); }
+.upload-check-row.uploaded { background: linear-gradient(90deg,#f5fff9,#fff); }
 .upload-check-row.invalid { background: #fffaf6; }
 .upload-check-row.missing { background: #fffdf8; }
 .random-pack-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 10px 28px rgba(35,46,72,.07); }

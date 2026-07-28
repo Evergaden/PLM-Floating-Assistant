@@ -383,11 +383,16 @@
 
   function sendDesktopBridgeSnapshot() {
     const products = collectDesktopFinalizedProducts();
+    const successfulUploadSkus = Array.from(new Set(loadUploadHistory()
+      .filter((item) => (item && item.kind || 'standard') === 'standard' && isUploadHistorySuccess(item))
+      .map((item) => String(item && item.sku || '').toUpperCase())
+      .filter((sku) => /^SKU\d+$/.test(sku))));
     sendDesktopBridgeMessage({
       type: 'snapshot.response',
       version: SCRIPT_VERSION,
       sentAt: new Date().toISOString(),
       products,
+      successfulUploadSkus,
     });
     setDesktopBridgeStatus('已同步 ' + products.length + ' 个定稿 SKU');
     addLog('success', '桌面工作台同步完成', products.length + ' 个已定稿 SKU');

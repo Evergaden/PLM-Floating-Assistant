@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -123,6 +123,7 @@ struct BridgeInner {
     snapshot_path: PathBuf,
     clients: Mutex<HashMap<String, BridgeClient>>,
     products: Mutex<Vec<FinalizedProduct>>,
+    successful_upload_skus: Mutex<HashSet<String>>,
     pending: Mutex<HashMap<String, PendingAssets>>,
 }
 
@@ -411,6 +412,7 @@ fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
                     .and_then(|bytes| serde_json::from_slice(&bytes).ok())
                     .unwrap_or_default(),
             ),
+            successful_upload_skus: Mutex::new(HashSet::new()),
             pending: Mutex::new(HashMap::new()),
         }),
     })
@@ -514,6 +516,7 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
 
 fn bridge_snapshot_value(state: &BridgeState) -> Value {
     let products = state.inner.products.lock().map(|items| items.clone()).unwrap_or_default();
+    let successful_upload_skus = state.inner.successful_upload_skus.lock().map(|items| items.iter().cloned().collect::<Vec<_>>()).unwrap_or_default();
     let version = state.inner.clients.lock().ok().and_then(|clients| {
         clients
             .values()
@@ -525,6 +528,7 @@ fn bridge_snapshot_value(state: &BridgeState) -> Value {
         "version": version,
         "sentAt": bridge_timestamp(),
         "products": products,
+        "successfulUploadSkus": successful_upload_skus,
     })
 }
 
@@ -558,11 +562,18 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str,
         "snapshot.response" => {
             if role != BridgeRole::Assistant { return; }
             let products: Vec<FinalizedProduct> = serde_json::from_value(value.get("products").cloned().unwrap_or_else(|| json!([]))).unwrap_or_default();
+            let successful_upload_skus = value.get("successfulUploadSkus")
+                .and_then(Value::as_array)
+                .map(|items| items.iter().filter_map(Value::as_str).map(|sku| sku.to_uppercase()).collect::<HashSet<_>>())
+                .unwrap_or_default();
             if let Ok(serialized) = serde_json::to_vec_pretty(&products) {
                 let _ = fs::write(&state.inner.snapshot_path, serialized);
             }
             if let Ok(mut target) = state.inner.products.lock() {
                 *target = products;
+            }
+            if let Ok(mut target) = state.inner.successful_upload_skus.lock() {
+                *target = successful_upload_skus;
             }
             let _ = app.emit("snapshot-updated", json!({"count": state.inner.products.lock().map(|items| items.len()).unwrap_or(0)}));
             let _ = send_json_to_role(state, BridgeRole::Photoshop, &bridge_snapshot_value(state));
@@ -741,13 +752,14 @@ fn inspect_upload_candidate(path: PathBuf) -> Option<(String, UploadCandidate)> 
 }
 
 #[tauri::command]
-fn scan_upload_pairs(root: String) -> Result<Vec<UploadPair>, String> {
+fn scan_upload_pairs(state: State<'_, BridgeState>, root: String) -> Result<Vec<UploadPair>, String> {
     let root = PathBuf::from(root);
     if !root.is_dir() {
         return Err("产品文件夹根目录不存在".to_string());
     }
     let mut paths = Vec::new();
     collect_upload_files(&root, 0, &mut paths);
+    let successful_upload_skus = state.inner.successful_upload_skus.lock().map(|items| items.clone()).unwrap_or_default();
     let mut grouped: HashMap<String, (Vec<UploadCandidate>, Vec<UploadCandidate>)> = HashMap::new();
     for path in paths {
         let Some((sku, candidate)) = inspect_upload_candidate(path) else { continue };
@@ -772,6 +784,7 @@ fn scan_upload_pairs(root: String) -> Result<Vec<UploadPair>, String> {
         let signature = if ready {
             format!("{}:{}:{}:{}:{}", sku, excel.as_ref().map(|item| item.size).unwrap_or_default(), excel.as_ref().map(|item| item.modified_ms).unwrap_or_default(), zip.as_ref().map(|item| item.size).unwrap_or_default(), zip.as_ref().map(|item| item.modified_ms).unwrap_or_default())
         } else { String::new() };
+        let uploaded_before = successful_upload_skus.contains(&sku);
         UploadPair {
             sku,
             xlsx_path: excel.as_ref().filter(|item| item.valid).map(|item| path_text(&item.path)),
@@ -782,8 +795,8 @@ fn scan_upload_pairs(root: String) -> Result<Vec<UploadPair>, String> {
             zip_size: zip.as_ref().map(|item| item.size).unwrap_or_default(),
             xlsx_modified_ms: excel.as_ref().map(|item| item.modified_ms).unwrap_or_default(),
             zip_modified_ms: zip.as_ref().map(|item| item.modified_ms).unwrap_or_default(),
-            status: if ready { "ready" } else if messages.iter().any(|item| item.contains("超过") || item.contains("有效")) { "invalid" } else { "missing" }.to_string(),
-            message: if messages.is_empty() { "已找到同一 SKU 的 XLSX 和 ZIP".to_string() } else { messages.join("；") },
+            status: if uploaded_before { "uploaded" } else if ready { "ready" } else if messages.iter().any(|item| item.contains("超过") || item.contains("有效")) { "invalid" } else { "missing" }.to_string(),
+            message: if uploaded_before { "历史记录显示该产品已上传成功，已排除上传队列".to_string() } else if messages.is_empty() { "已找到同一 SKU 的 XLSX 和 ZIP".to_string() } else { messages.join("；") },
             signature,
         }
     }).collect::<Vec<_>>();

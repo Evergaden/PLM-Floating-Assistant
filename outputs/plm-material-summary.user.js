@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.16
+// @version      2.6.17
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.16';
+  const SCRIPT_VERSION = '2.6.17';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1509,6 +1509,7 @@
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
   const EXCEL_BATCH_QUEUE_KEY = 'plm-floating-helper:excel-batch-queue';
+  const EXCEL_BATCH_PREPARE_RETRIES = 3;
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const UPLOAD_WORKER_STATES_KEY = 'plm-floating-helper:upload-worker-states';
@@ -2445,11 +2446,16 @@
 
   function sendDesktopBridgeSnapshot() {
     const products = collectDesktopFinalizedProducts();
+    const successfulUploadSkus = Array.from(new Set(loadUploadHistory()
+      .filter((item) => (item && item.kind || 'standard') === 'standard' && isUploadHistorySuccess(item))
+      .map((item) => String(item && item.sku || '').toUpperCase())
+      .filter((sku) => /^SKU\d+$/.test(sku))));
     sendDesktopBridgeMessage({
       type: 'snapshot.response',
       version: SCRIPT_VERSION,
       sentAt: new Date().toISOString(),
       products,
+      successfulUploadSkus,
     });
     setDesktopBridgeStatus('已同步 ' + products.length + ' 个定稿 SKU');
     addLog('success', '桌面工作台同步完成', products.length + ' 个已定稿 SKU');
@@ -3970,12 +3976,14 @@
       });
       GM_addValueChangeListener(UPLOAD_HISTORY_KEY, () => {
         scheduleRefresh(true);
+        scheduleDesktopBridgeSnapshot();
       });
       GM_addValueChangeListener(UPLOAD_WORKER_KEY, () => scheduleRefresh(false));
       GM_addValueChangeListener(UPLOAD_WORKER_STATES_KEY, () => scheduleRefresh(false));
     }
     window.addEventListener('storage', (event) => {
       if (event.key === UPLOAD_QUEUE_KEY || event.key === UPLOAD_HISTORY_KEY || event.key === UPLOAD_WORKER_KEY || event.key === UPLOAD_WORKER_STATES_KEY) refresh();
+      if (event.key === UPLOAD_HISTORY_KEY) scheduleDesktopBridgeSnapshot();
     });
     window.setInterval(refresh, 5000);
   }
@@ -4743,8 +4751,8 @@
     const opts = options || {};
     const text = getVisibleText(drawer);
     const activeTabText = getActiveTabText(drawer);
-    const hasMaterialContent = /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0[\s\S]*\u89c4\u683c\u578b\u53f7/.test(text);
-    const hasProductContent = /PRODUCT\s*NAME|\u89c4\u683c\u4fe1\u606f[\s\S]{0,500}\u6bdb\u91cd|\u6548\u679c\u56fe\u4fe1\u606f/.test(text);
+    const hasMaterialContent = /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0[\s\S]*\u89c4\u683c\u578b\u53f7|\u5305\u88c5\u5c3a\u5bf8|\u5370\u5237\u5c3a\u5bf8|\u51c0\u542b\u91cf/.test(text);
+    const hasProductContent = /PRODUCT\s*NAME|\u5546\u54c1\u540d\u79f0|\u4ea7\u54c1\u540d\u79f0|\u89c4\u683c\u4fe1\u606f|\u6bdb\u91cd|\u51c0\u542b\u91cf|\u6548\u679c\u56fe\u4fe1\u606f/.test(text);
     const seenMaterial = activeTabText === L.materialTab && hasMaterialContent;
     const seenProduct = activeTabText === L.productTab && hasProductContent;
     const projectStatus = extractProjectStatus(text);
@@ -5613,7 +5621,10 @@
   function findTabButton(root, text) {
     const candidates = Array.from(root.querySelectorAll('[role="tab"], .ant-tabs-tab, .ant-tabs-tab-btn, button, div'))
       .filter(isVisibleElement)
-      .filter((el) => compactText(el.textContent) === text);
+      .filter((el) => {
+        const current = compactText(el.textContent);
+        return current === text || current.startsWith(text + ' ');
+      });
     return candidates.find((el) => el.getAttribute('role') === 'tab')
       || candidates.find((el) => String(el.className || '').includes('ant-tabs-tab-btn'))
       || candidates[0]
@@ -14297,8 +14308,7 @@
       .find((button) => compactText(button.innerText || button.textContent) === '\u8be6\u60c5');
     if (!detailButton) return false;
     detailButton.click();
-    await waitFor(() => isProjectDrawerOpenForSku(sku), 3000, 120);
-    return true;
+    return Boolean(await waitFor(() => isProjectDrawerOpenForSku(sku), 8000, 120));
   }
 
   function isProjectDrawerOpenForSku(sku) {
@@ -14325,17 +14335,29 @@
   async function ensureProjectDrawerForData(data) {
     const sku = data && data.sku;
     if (!sku) return false;
-    if (getProjectDrawerForSku(sku)) return true;
+    if (getProjectDrawerForSku(sku)) return Boolean(await waitForExcelProjectDrawerReady(sku, 12000));
     if (!(await ensureNewProductProjectPage())) return false;
     let rowId = data.projectRowId || data.projectId || '';
     if (rowId && await clickProjectDetailByRowId(rowId, sku)) {
-      return Boolean(await waitFor(() => getProjectDrawerForSku(sku), 5000, 150));
+      return Boolean(await waitForExcelProjectDrawerReady(sku, 12000));
     }
     rowId = await queryProjectRowIdBySku(sku);
     if (!rowId) return false;
     const clicked = await clickProjectDetailByRowId(rowId, sku);
-    if (clicked) cacheProjectRowId(sku, rowId);
-    return clicked && Boolean(await waitFor(() => getProjectDrawerForSku(sku), 5000, 150));
+    const ready = clicked && Boolean(await waitForExcelProjectDrawerReady(sku, 12000));
+    if (ready) cacheProjectRowId(sku, rowId);
+    return ready;
+  }
+
+  async function waitForExcelProjectDrawerReady(sku, timeout) {
+    const drawer = await waitFor(() => {
+      const current = getProjectDrawerForSku(sku);
+      if (!current) return '';
+      return findTabButton(current, L.productTab) || findTabButton(current, L.materialTab) ? current : '';
+    }, Number(timeout || 12000) || 12000, 150);
+    if (!drawer) return null;
+    const stable = await waitForStableProjectDrawerIdentity(drawer, sku, Math.min(Number(timeout || 12000) || 12000, 6000));
+    return stable ? (getProjectDrawerForSku(sku) || drawer) : null;
   }
 
   async function ensureProjectBomDrawerForData(data, options) {
@@ -14492,7 +14514,7 @@
   function cacheProjectRowId(sku, rowId) {
     if (!sku || !rowId) return;
     const data = normalizeData({ ...(loadData(sku) || state.data || {}), sku, projectRowId: String(rowId) });
-    saveData(sku, data);
+    saveData(sku, data, { suppressDataQuality: true });
   }
 
   function findInputByPlaceholder(placeholder) {
@@ -14778,7 +14800,23 @@
         updateExcelBatchQueueEntry(sku, { status: 'preparing', error: '' });
         renderShell();
         try {
-          const prepared = await prepareExcelBatchSku(sku);
+          let prepared = null;
+          let lastError = null;
+          for (let attempt = 1; attempt <= EXCEL_BATCH_PREPARE_RETRIES; attempt += 1) {
+            try {
+              prepared = await prepareExcelBatchSku(sku);
+              lastError = null;
+              break;
+            } catch (error) {
+              lastError = error;
+              if (attempt >= EXCEL_BATCH_PREPARE_RETRIES) break;
+              state.batchExcelStatus = sku + ' 页面仍在加载，等待重试 ' + attempt + '/' + EXCEL_BATCH_PREPARE_RETRIES;
+              addLog('warn', 'Excel 批量补全等待页面加载', sku + ' | 第 ' + attempt + ' 次失败：' + formatErrorMessage(error));
+              if (state.view === 'batchExcel') renderShell();
+              await wait(1200 * attempt);
+            }
+          }
+          if (!prepared) throw lastError || new Error('未取得完整页面数据');
           const patch = {
             status: prepared.missing.length ? 'pending' : 'ready',
             missing: prepared.missing,
@@ -15748,21 +15786,37 @@
   async function collectExcelExtraData(sku) {
     stopScan();
     cancelDrawerTabFlow();
-    const drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
+    let drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
     const cachedData = normalizeData((state.data && state.data.sku === sku ? state.data : null) || loadData(sku) || {});
     const extra = buildCachedExcelExtraData(cachedData);
     if (!drawer) return extra;
+    drawer = await waitForExcelProjectDrawerReady(sku, 12000) || drawer;
     const token = beginForegroundDrawerTabFlow(sku, drawer);
     try {
-      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 }))) throw new Error('\u4ea7\u54c1\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
-      extra.liveData = extractData(drawer, { forceSkuImage: true });
-      if (!extra.liveData.grossWeight) {
+      if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 12000 }))) throw new Error('\u4ea7\u54c1\u4fe1\u606f\u9875\u7b7e\u672a\u52a0\u8f7d\u5b8c\u6210');
+      let liveData = extractData(drawer, { forceSkuImage: true });
+      if (!liveData.grossWeight) {
         await waitFor(() => getGrossWeightValue(drawer), 2600, 120);
-        extra.liveData = extractData(drawer, { forceSkuImage: true });
+        liveData = extractData(drawer, { forceSkuImage: true });
       }
-      if (extra.liveData.sku === sku) {
-        const refreshed = mergeData(cachedData, extra.liveData);
-        saveData(sku, refreshed);
+      const packageReady = Boolean(liveData.packageSizeText || (liveData.packageLength && liveData.packageWidth && liveData.packageHeight));
+      const materialNeedsRead = !liveData.seenMaterial || (!liveData.singleBottle && !packageReady) || !liveData.printSizeText || !liveData.netContent;
+      if (materialNeedsRead) {
+        if (!(await switchDrawerTab(drawer, L.materialTab, { flowToken: token, timeout: 12000 }))) throw new Error('\u7269\u6599\u6e05\u5355\u9875\u7b7e\u672a\u52a0\u8f7d\u5b8c\u6210');
+        let materialData = extractData(drawer);
+        if (!materialData.seenMaterial) {
+          await waitFor(() => {
+            materialData = extractData(drawer);
+            return materialData.seenMaterial;
+          }, 3500, 120);
+        }
+        if (!materialData.seenMaterial) throw new Error('\u7269\u6599\u6e05\u5355\u5185\u5bb9\u672a\u52a0\u8f7d\u5b8c\u6210');
+        liveData = mergeData(liveData, materialData);
+      }
+      extra.liveData = liveData;
+      if (liveData.sku === sku) {
+        const refreshed = mergeData(cachedData, liveData);
+        saveData(sku, refreshed, { suppressDataQuality: true });
         if (state.selectedSku === sku) state.data = refreshed;
       }
       let ingredientData = normalizeData(loadData(sku) || cachedData);
@@ -15808,9 +15862,9 @@
         skuImageSource: previewImageInfo && previewImageInfo.isSkuDesignImage ? 'effectImage' : (resolvedImageInfo.skuImageSource || extra.skuImageSource || ''),
       });
 
-      if (!(await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f', { flowToken: token, timeout: 3500 }))) throw new Error('\u9879\u76ee\u4fe1\u606f\u8bfb\u53d6\u5df2\u53d6\u6d88');
+      if (!(await switchDrawerTab(drawer, '\u9879\u76ee\u4fe1\u606f', { flowToken: token, timeout: 9000 }))) throw new Error('\u9879\u76ee\u4fe1\u606f\u9875\u7b7e\u672a\u52a0\u8f7d\u5b8c\u6210');
       extra.benchmarkLink = extractBenchmarkLink(getVisibleText(drawer)) || extra.benchmarkLink;
-      await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
+      await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 9000 });
       return extra;
     } finally {
       finishForegroundDrawerTabFlow(token);
@@ -15843,21 +15897,24 @@
     const opts = options || {};
     if (!drawer) return false;
     if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
-    const button = findTabButton(drawer, label);
+    const timeout = Number(opts.timeout || 3500) || 3500;
+    const startedAt = Date.now();
+    const button = await waitFor(() => {
+      if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
+      return findTabButton(drawer, label);
+    }, timeout, 120);
     if (!button) return false;
     if (!isActiveTab(button)) {
       state.ignoreOutsideClickUntil = Date.now() + 1200;
       button.click();
     }
-    const timeout = Number(opts.timeout || 3500) || 3500;
-    const startedAt = Date.now();
     const active = await waitFor(() => {
       if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
       const current = findTabButton(drawer, label);
       return current && isActiveTab(current);
-    }, timeout, 100);
+    }, Math.max(500, timeout - (Date.now() - startedAt)), 100);
     if (!active) return false;
-    const readinessTimeout = Math.max(250, timeout - (Date.now() - startedAt));
+    const readinessTimeout = Math.max(500, timeout - (Date.now() - startedAt));
     const ready = await waitFor(() => {
       if (opts.flowToken && state.drawerTabFlowToken !== opts.flowToken) return false;
       return isDrawerTabContentReady(drawer, label);
@@ -15869,8 +15926,8 @@
   function isDrawerTabContentReady(drawer, label) {
     if (!drawer || getActiveTabText(drawer) !== label) return false;
     const text = getVisibleText(drawer);
-    if (label === L.materialTab) return /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0|\u89c4\u683c\u578b\u53f7/.test(text);
-    if (label === L.productTab) return /PRODUCT\s*NAME|\u89c4\u683c\u4fe1\u606f[\s\S]*\u6bdb\u91cd|\u6548\u679c\u56fe\u4fe1\u606f/.test(text);
+    if (label === L.materialTab) return /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0|\u89c4\u683c\u578b\u53f7|\u5305\u88c5\u5c3a\u5bf8|\u5370\u5237\u5c3a\u5bf8|\u51c0\u542b\u91cf/.test(text);
+    if (label === L.productTab) return /PRODUCT\s*NAME|\u5546\u54c1\u540d\u79f0|\u4ea7\u54c1\u540d\u79f0|\u89c4\u683c\u4fe1\u606f|\u6bdb\u91cd|\u51c0\u542b\u91cf|\u6548\u679c\u56fe\u4fe1\u606f/.test(text);
     if (label === '\u5907\u8d27\u4fe1\u606f') return /\u56fd\u5185\u4e09\u6863\u4ef7\u683c|\u91c7\u8d2d\u4ef7/.test(text);
     if (label === '\u9879\u76ee\u4fe1\u606f') return /\u9879\u76ee\u7f16\u7801|\u5bf9\u6807\u94fe\u63a5/.test(text);
     return true;
@@ -19976,7 +20033,7 @@
         state.selectedSku = sku;
       }
       upsertIndex(normalized);
-      recordDataQuality(normalized, 'saveData');
+      if (!opts.suppressDataQuality) recordDataQuality(normalized, 'saveData');
       queueCloudBackup();
       scheduleDesktopBridgeSnapshot();
       const previousPackKey = previousNormalized ? buildPackBoxKey(previousNormalized) : '';

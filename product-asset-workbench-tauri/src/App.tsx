@@ -728,7 +728,7 @@ export default function App() {
       const result = await invoke<UploadPair[]>("scan_upload_pairs", { root });
       setUploadPairs(result);
       setSelectedUploadSkus(new Set(result.filter((item) => item.status === "ready").map((item) => item.sku)));
-      notify(`检查完成：${result.filter((item) => item.status === "ready").length} 个可上传，${result.filter((item) => item.status !== "ready").length} 个需检查`);
+      notify(`检查完成：${result.filter((item) => item.status === "ready").length} 个可上传，${result.filter((item) => item.status === "uploaded").length} 个历史已上传`);
     } catch (error) {
       notify(String(error));
     } finally {
@@ -1103,7 +1103,7 @@ export default function App() {
               <div>
                 <span className="eyebrow">UPLOAD CHECK</span>
                 <h2>检查新做的图包和表格</h2>
-                <p>按 SKU 扫描本地 XLSX 与 ZIP，校验后直接加入悬浮助手上传队列，不删除源文件。</p>
+                <p>按 SKU 扫描本地 XLSX 与 ZIP，并匹配悬浮助手上传历史；已成功上传过的产品会自动排除队列。</p>
               </div>
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
             </div>
@@ -1114,7 +1114,7 @@ export default function App() {
               <button onClick={() => setSelectedUploadSkus(new Set(uploadPairs.filter((item) => item.status === "ready").map((item) => item.sku)))}>全选可上传</button>
               <button onClick={() => setSelectedUploadSkus(new Set())}>取消选择</button>
             </div>
-            <div className="upload-check-summary"><span>共 {uploadPairs.length} 个 SKU</span><span>可上传 {uploadPairs.filter((item) => item.status === "ready").length}</span><span>已选择 {selectedUploadSkus.size}</span></div>
+            <div className="upload-check-summary"><span>共 {uploadPairs.length} 个 SKU</span><span>可上传 {uploadPairs.filter((item) => item.status === "ready").length}</span><span>历史已上传 {uploadPairs.filter((item) => item.status === "uploaded").length}</span><span>已选择 {selectedUploadSkus.size}</span></div>
             <div className="upload-check-list">
               {!uploadPairs.length && <div className="empty-state"><ScanLine size={28} /><strong>点击“检查新文件”开始扫描</strong><span>工作台会在产品根目录内寻找带 SKU 的 XLSX 和 ZIP。</span></div>}
               {uploadPairs.map((item) => (
@@ -1123,7 +1123,7 @@ export default function App() {
                   <strong>{item.sku}</strong>
                   <div><span>{item.xlsxName || "缺少 XLSX"}</span><small>{item.xlsxPath || "未找到有效表格"}</small></div>
                   <div><span>{item.zipName || "缺少 ZIP"}</span><small>{item.zipPath || "未找到有效图包"}</small></div>
-                  <span className={`status ${item.status === "ready" ? "success" : item.status === "invalid" ? "danger" : "warning"}`}>{item.status === "ready" ? "可上传" : item.message}</span>
+                  <span className={`status ${item.status === "ready" || item.status === "uploaded" ? "success" : item.status === "invalid" ? "danger" : "warning"}`}>{item.status === "ready" ? "可上传" : item.status === "uploaded" ? "历史已上传" : item.message}</span>
                 </div>
               ))}
             </div>
