@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.22
+// @version      2.6.23
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.22';
+  const SCRIPT_VERSION = '2.6.23';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1530,6 +1530,87 @@
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const PRODUCT_REPLACE_UPLOAD_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe', '\u89c6\u9891', '\u52a8\u56fe', '\u63a8\u54c1\u8d44\u6599', '\u56fe\u5305\u7d20\u6750'];
   const PRODUCT_BATCH_IMAGE_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe'];
+  const PLM_API_MONITOR_STATE_KEY = 'plm-floating-helper:api-monitor:v1';
+  const PLM_API_MONITOR_MAX_ENTRIES = 160;
+  function loadPlmApiMonitorState() {
+    try {
+      const value = typeof GM_getValue === 'function' ? GM_getValue(PLM_API_MONITOR_STATE_KEY, null) : JSON.parse(localStorage.getItem(PLM_API_MONITOR_STATE_KEY) || 'null');
+      return { enabled: Boolean(value && value.enabled), entries: Array.isArray(value && value.entries) ? value.entries.slice(0, PLM_API_MONITOR_MAX_ENTRIES) : [] };
+    } catch (_) { return { enabled: false, entries: [] }; }
+  }
+  let plmApiMonitorState = loadPlmApiMonitorState();
+  function savePlmApiMonitorState() {
+    const value = { enabled: Boolean(plmApiMonitorState.enabled), entries: (plmApiMonitorState.entries || []).slice(0, PLM_API_MONITOR_MAX_ENTRIES) };
+    if (typeof GM_setValue === 'function') GM_setValue(PLM_API_MONITOR_STATE_KEY, value);
+    else localStorage.setItem(PLM_API_MONITOR_STATE_KEY, JSON.stringify(value));
+  }
+  function isPlmApiMonitorTarget(value) {
+    try {
+      const url = new URL(String(value || ''), location.href);
+      return url.origin === location.origin && !/\/assets\//i.test(url.pathname) && !/\.(css|js|png|jpg|svg|woff2?)$/i.test(url.pathname);
+    } catch (_) { return false; }
+  }
+  function sanitizePlmApiMonitorValue(value, depth) {
+    if (depth > 3 || value === null || value === undefined) return value;
+    if (typeof value === 'string') return value.length > 6000 ? value.slice(0, 6000) + '…[截断]' : value;
+    if (typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.slice(0, 40).map((item) => sanitizePlmApiMonitorValue(item, depth + 1));
+    return Object.keys(value).slice(0, 80).reduce((output, key) => {
+      output[key] = /token|password|passwd|secret|cookie|authorization|credential/i.test(key) ? '[已隐藏]' : sanitizePlmApiMonitorValue(value[key], depth + 1);
+      return output;
+    }, {});
+  }
+  function parsePlmApiMonitorBody(value) {
+    if (value === undefined || value === null || value === '') return '';
+    if (typeof value !== 'string') return sanitizePlmApiMonitorValue(value, 0);
+    try { return sanitizePlmApiMonitorValue(JSON.parse(value), 0); } catch (_) { return sanitizePlmApiMonitorValue(value, 0); }
+  }
+  function recordPlmApiMonitorRequest(entry) {
+    if (!plmApiMonitorState.enabled || !isPlmApiMonitorTarget(entry.url)) return;
+    let url = String(entry.url || '');
+    try {
+      const parsed = new URL(url, location.href);
+      parsed.searchParams.forEach((value, key) => { if (/token|secret|password|cookie|authorization/i.test(key)) parsed.searchParams.set(key, '[已隐藏]'); });
+      url = parsed.href;
+    } catch (_) { /* keep original */ }
+    plmApiMonitorState.entries.unshift({ time: new Date().toISOString(), method: String(entry.method || 'GET').toUpperCase(), url, status: Number(entry.status || 0), requestBody: parsePlmApiMonitorBody(entry.requestBody), response: parsePlmApiMonitorBody(entry.response) });
+    plmApiMonitorState.entries = plmApiMonitorState.entries.slice(0, PLM_API_MONITOR_MAX_ENTRIES);
+    savePlmApiMonitorState();
+  }
+  function installPlmApiMonitor() {
+    const root = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window;
+    if (!plmApiMonitorState.enabled || !root || root.__PLM_API_MONITOR_INSTALLED__) return;
+    root.__PLM_API_MONITOR_INSTALLED__ = true;
+    if (typeof root.fetch === 'function') {
+      const originalFetch = root.fetch;
+      root.fetch = function (input, init) {
+        const requestUrl = typeof input === 'string' ? input : (input && input.url) || '';
+        const method = (init && init.method) || (input && input.method) || 'GET';
+        const requestBody = init && init.body;
+        const result = originalFetch.apply(this, arguments);
+        result.then((response) => {
+          const contentType = response.headers && response.headers.get ? response.headers.get('content-type') || '' : '';
+          if (/json|text\//i.test(contentType)) response.clone().text().then((body) => recordPlmApiMonitorRequest({ url: response.url || requestUrl, method, requestBody, status: response.status, response: body })).catch(() => {});
+        }).catch(() => {});
+        return result;
+      };
+    }
+    const xhrProto = root.XMLHttpRequest && root.XMLHttpRequest.prototype;
+    if (xhrProto && xhrProto.open && xhrProto.send) {
+      const originalOpen = xhrProto.open;
+      const originalSend = xhrProto.send;
+      xhrProto.open = function (method, url) { this.__plmApiMonitor = { method, url }; return originalOpen.apply(this, arguments); };
+      xhrProto.send = function (body) {
+        const xhr = this;
+        xhr.addEventListener('load', () => {
+          const contentType = xhr.getResponseHeader ? xhr.getResponseHeader('content-type') || '' : '';
+          if (/json|text\//i.test(contentType)) recordPlmApiMonitorRequest({ ...(xhr.__plmApiMonitor || {}), requestBody: body, status: xhr.status, response: xhr.responseType === 'json' ? xhr.response : xhr.responseText });
+        }, { once: true });
+        return originalSend.apply(this, arguments);
+      };
+    }
+    root.PLMApiMonitor = { status: () => ({ enabled: Boolean(plmApiMonitorState.enabled), count: plmApiMonitorState.entries.length }), entries: () => plmApiMonitorState.entries.slice(), clear: () => { plmApiMonitorState.entries = []; savePlmApiMonitorState(); }, export: () => downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-api-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json') };
+  }
   // <cloud-assets-module>
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v1';
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
@@ -3441,6 +3522,20 @@
 
   const firstTutorial = !loadTutorialSeen();
   const initialNotificationCache = loadNotificationCache();
+  if (typeof GM_registerMenuCommand === 'function') {
+    GM_registerMenuCommand(plmApiMonitorState.enabled ? '关闭 PLM API 监听' : '开启 PLM API 监听', () => {
+      plmApiMonitorState.enabled = !plmApiMonitorState.enabled;
+      savePlmApiMonitorState();
+      showToast(plmApiMonitorState.enabled ? 'API 监听已开启，请刷新页面后操作 PLM' : 'API 监听已关闭');
+    });
+    GM_registerMenuCommand('导出 PLM API 监听结果', () => {
+      downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-api-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json');
+    });
+    GM_registerMenuCommand('清空 PLM API 监听结果', () => {
+      plmApiMonitorState.entries = [];
+      savePlmApiMonitorState();
+    });
+  }
   const state = {
     drawer: null,
     sku: '',
@@ -3595,6 +3690,7 @@
     notificationTab: 'new',
     notificationRefreshTimer: 0,
   };
+  installPlmApiMonitor();
   const parameterImageFeature = createParameterImageFeature({
     panelId: PANEL_ID,
     escapeHtml,
