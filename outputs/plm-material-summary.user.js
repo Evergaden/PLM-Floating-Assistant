@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.34
+// @version      2.6.35
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.34';
+  const SCRIPT_VERSION = '2.6.35';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3011,8 +3011,13 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-api-spinner{display:inline-block!important;flex:0 0 auto!important;width:12px!important;height:12px!important;border:2px solid var(--pfh-theme-primary-soft)!important;border-top-color:var(--pfh-theme-primary)!important;border-radius:50%!important;animation:pfh-api-status-spin .8s linear infinite!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-success .pfh-api-status-icon{color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-error .pfh-api-status-icon{color:#b42318!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note{flex-wrap:wrap!important;min-height:42px!important;height:auto!important;padding-top:6px!important;padding-bottom:6px!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note-source{min-width:0!important;flex:1 1 150px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-api-status{flex:1 1 190px!important;max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;line-height:1.35!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-api-status>span{min-width:0!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-note-toast{flex:1 1 220px!important;max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.35!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-note-toast.is-visible{flex:1 1 100%!important;order:4!important;margin-left:0!important;text-align:left!important;}
     @keyframes pfh-api-status-spin{to{transform:rotate(360deg)}}
-    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-api-spinner{animation:none!important;}}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-ledger-tabs button.is-active,.pfh-ledger-overflow-menu button.is-active,.pfh-tags .is-extension,.pfh-ledger-tags .is-extension,.pfh-ledger-tags .is-performance-group){background:var(--pfh-theme-primary-soft)!important;border-color:var(--pfh-theme-border-strong)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-parameter-drop,.pfh-size-image-drop,.pfh-upload-drop){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-item.is-clickable:hover,
