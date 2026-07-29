@@ -7440,7 +7440,7 @@
   }
 
   function magicUploadViewHtml() {
-    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-head"><button type="button" data-action="home-back">' + iconHtml('backArrow') + '</button><div><small>MAGIC UPLOAD · BETA</small><h2>魔法上传</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></section></div>';
+    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>魔法上传 <em class="pfh-magic-badge">BETA</em></h3></div><div class="pfh-magic-head"><div><small>MAGIC UPLOAD</small><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></section></div>';
     const queue = state.magicUploadQueue || [];
     const running = Boolean(state.magicUploadRunning);
     const rows = queue.length ? queue.map((task) => {
@@ -7448,7 +7448,7 @@
       const fileRows = task.files.map((entry, index) => '<div class="pfh-magic-file"><span>' + escapeHtml(entry.name.split('/').pop() || entry.name) + '</span><select data-magic-file-index="' + index + '"><option value="待确认">待确认</option>' + Object.keys(MAGIC_UPLOAD_CATEGORIES).filter((item) => item !== '图包素材').map((item) => '<option value="' + escapeHtml(item) + '"' + (entry.category === item ? ' selected' : '') + '>' + escapeHtml(item) + '</option>').join('') + '</select><i>' + escapeHtml(entry.status === 'success' ? '完成' : (entry.error || '待传')) + '</i></div>').join('');
       return '<article class="pfh-magic-task" data-magic-id="' + escapeHtml(task.id) + '"><header><div><input class="pfh-magic-sku" value="' + escapeHtml(task.sku) + '" placeholder="SKU 编码"><small>' + escapeHtml(task.zipName) + '</small></div><b class="' + (task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '')) + '">' + escapeHtml(magicUploadStatusLabel(task)) + '</b></header><div class="pfh-magic-files">' + fileRows + '</div><footer><span>' + task.files.length + ' 个文件' + (unknown ? ' · ' + unknown + ' 个待确认' : '') + '</span><div><button type="button" data-action="magic-upload-save-task" data-magic-id="' + escapeHtml(task.id) + '">保存修改</button><button type="button" data-action="magic-upload-replace" data-magic-id="' + escapeHtml(task.id) + '">替换 ZIP</button><button type="button" data-action="magic-upload-retry" data-magic-id="' + escapeHtml(task.id) + '">重试</button><button type="button" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button></div></footer></article>';
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包，自动识别 SKU 和素材区域</div>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><style>.pfh-magic-page{padding:22px 18px 80px;color:#26314d}.pfh-magic-head{display:flex;gap:12px;align-items:flex-start}.pfh-magic-head>button{border:0;background:transparent;color:#7c72a3;padding:4px}.pfh-magic-head small{color:#8e80bc;letter-spacing:.12em;font-size:10px}.pfh-magic-head h2{margin:4px 0;font-size:25px}.pfh-magic-head p{margin:0;color:#8891a9;font-size:12px}.pfh-magic-badge{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:99px;background:#efe9ff;color:#7457d5;font-size:9px;letter-spacing:.08em;vertical-align:middle}.pfh-magic-upload-drop{margin:22px 0 14px;min-height:130px;border:1px dashed #bdb2ed;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(244,241,255,.85));display:grid;place-items:center;text-align:center;color:#796da1;cursor:pointer;transition:.2s}.pfh-magic-upload-drop.is-drag-over{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}.pfh-magic-upload-drop strong{display:block;color:#4b3f79;font-size:15px}.pfh-magic-upload-drop span{display:block;margin-top:7px;color:#9490ab;font-size:11px}.pfh-magic-actions{display:flex;gap:8px;align-items:center;margin-bottom:14px}.pfh-magic-actions button,.pfh-magic-task button{border:1px solid #e3def6;background:#fff;color:#66579a;border-radius:10px;padding:7px 11px;font-size:11px;cursor:pointer}.pfh-magic-actions button.is-primary{background:#7357d8;color:#fff;border-color:#7357d8}.pfh-magic-actions button:disabled{opacity:.45;cursor:not-allowed}.pfh-magic-count{margin-left:auto;color:#9a94aa;font-size:11px}.pfh-magic-task{margin:10px 0;border:1px solid #e8e3f5;border-radius:18px;background:rgba(255,255,255,.78);box-shadow:0 8px 28px rgba(93,76,150,.07);overflow:hidden}.pfh-magic-task header,.pfh-magic-task footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}.pfh-magic-task header{border-bottom:1px solid #f0edf8}.pfh-magic-task header div{min-width:0}.pfh-magic-sku{width:150px;border:0;border-bottom:1px solid #dcd5f3;background:transparent;color:#32275b;font-weight:700;font-size:15px;outline:0}.pfh-magic-task header small{display:block;margin-top:5px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a09ab0;font-size:10px}.pfh-magic-task header b{font-size:11px;color:#8e86a5;font-weight:600}.pfh-magic-task header b.is-success{color:#1c9b76}.pfh-magic-task header b.is-error{color:#d15c74}.pfh-magic-files{padding:4px 14px}.pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 105px 55px;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2fa;font-size:11px}.pfh-magic-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#56617a}.pfh-magic-file select{border:1px solid #e7e2f3;border-radius:7px;padding:4px;color:#65598b;background:#fff;font-size:10px}.pfh-magic-file i{font-style:normal;text-align:right;color:#aaa4b5;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfh-magic-task footer{border-top:1px solid #f0edf8;color:#aaa4b5;font-size:10px}.pfh-magic-task footer div{display:flex;gap:5px}.pfh-magic-task footer button{padding:5px 8px;font-size:10px}.pfh-magic-empty{padding:45px 15px;text-align:center;color:#aaa4b5;border:1px dashed #e2ddf1;border-radius:18px}.pfh-magic-note{color:#a29bac;font-size:10px;line-height:1.5;margin:0 2px 10px}</style><div class="pfh-magic-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>MAGIC UPLOAD <em class="pfh-magic-badge">BETA</em></small><h2>魔法上传</h2><p>前端解包识别 · PLM API · OSS 分片</p></div></div><div class="pfh-magic-upload-drop" data-action="magic-upload-pick" tabindex="0"><div><strong>拖入 ZIP 图包</strong><span>支持多个 ZIP，自动识别 SKU、主图、详情图、视频和动图</span></div></div><input class="pfh-magic-upload-file" type="file" multiple accept=".zip,application/zip" hidden><p class="pfh-magic-note">最多同时上传 3 个任务；原始 ZIP 会作为“图包素材”保留，未识别文件可在任务中修改分类。</p><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !queue.some((task) => task.status === 'pending' || task.status === 'error') ? ' disabled' : '') + '>开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>暂停</button><span class="pfh-magic-count">' + queue.length + ' 个任务</span></div><div class="pfh-magic-task-list">' + rows + '</div></section></div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><style>.pfh-magic-page{padding:22px 18px 80px;color:#26314d}.pfh-magic-head{display:flex;gap:12px;align-items:flex-start}.pfh-magic-head small{color:#8e80bc;letter-spacing:.12em;font-size:10px}.pfh-magic-head h2{margin:4px 0;font-size:25px}.pfh-magic-head p{margin:0;color:#8891a9;font-size:12px}.pfh-magic-badge{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:99px;background:#efe9ff;color:#7457d5;font-size:9px;letter-spacing:.08em;vertical-align:middle}.pfh-magic-upload-drop{margin:22px 0 14px;min-height:130px;border:1px dashed #bdb2ed;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(244,241,255,.85));display:grid;place-items:center;text-align:center;color:#796da1;cursor:pointer;transition:.2s}.pfh-magic-upload-drop.is-drag-over{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}.pfh-magic-upload-drop strong{display:block;color:#4b3f79;font-size:15px}.pfh-magic-upload-drop span{display:block;margin-top:7px;color:#9490ab;font-size:11px}.pfh-magic-actions{display:flex;gap:8px;align-items:center;margin-bottom:14px}.pfh-magic-actions button,.pfh-magic-task button{border:1px solid #e3def6;background:#fff;color:#66579a;border-radius:10px;padding:7px 11px;font-size:11px;cursor:pointer}.pfh-magic-actions button.is-primary{background:#7357d8;color:#fff;border-color:#7357d8}.pfh-magic-actions button:disabled{opacity:.45;cursor:not-allowed}.pfh-magic-count{margin-left:auto;color:#9a94aa;font-size:11px}.pfh-magic-task{margin:10px 0;border:1px solid #e8e3f5;border-radius:18px;background:rgba(255,255,255,.78);box-shadow:0 8px 28px rgba(93,76,150,.07);overflow:hidden}.pfh-magic-task header,.pfh-magic-task footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}.pfh-magic-task header{border-bottom:1px solid #f0edf8}.pfh-magic-task header div{min-width:0}.pfh-magic-sku{width:150px;border:0;border-bottom:1px solid #dcd5f3;background:transparent;color:#32275b;font-weight:700;font-size:15px;outline:0}.pfh-magic-task header small{display:block;margin-top:5px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a09ab0;font-size:10px}.pfh-magic-task header b{font-size:11px;color:#8e86a5;font-weight:600}.pfh-magic-task header b.is-success{color:#1c9b76}.pfh-magic-task header b.is-error{color:#d15c74}.pfh-magic-files{padding:4px 14px}.pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 105px 55px;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2fa;font-size:11px}.pfh-magic-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#56617a}.pfh-magic-file select{border:1px solid #e7e2f3;border-radius:7px;padding:4px;color:#65598b;background:#fff;font-size:10px}.pfh-magic-file i{font-style:normal;text-align:right;color:#aaa4b5;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfh-magic-task footer{border-top:1px solid #f0edf8;color:#aaa4b5;font-size:10px}.pfh-magic-task footer div{display:flex;gap:5px}.pfh-magic-task footer button{padding:5px 8px;font-size:10px}.pfh-magic-empty{padding:45px 15px;text-align:center;color:#aaa4b5;border:1px dashed #e2ddf1;border-radius:18px}.pfh-magic-note{color:#a29bac;font-size:10px;line-height:1.5;margin:0 2px 10px}</style><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>魔法上传 <em class="pfh-magic-badge">BETA</em></h3></div><div class="pfh-magic-head"><div><small>MAGIC UPLOAD</small><h2>魔法上传</h2><p>前端解包识别 · PLM API · OSS 分片</p></div></div><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包"><div><strong>拖入 ZIP 图包</strong><span>支持多个 ZIP，自动识别 SKU、主图、详情图、视频和动图</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,application/zip" hidden><p class="pfh-magic-note">最多同时上传 3 个任务；原始 ZIP 会作为“图包素材”保留，未识别文件可在任务中修改分类。</p><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !queue.some((task) => task.status === 'pending' || task.status === 'error') ? ' disabled' : '') + '>开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>暂停</button><span class="pfh-magic-count">' + queue.length + ' 个任务</span></div><div class="pfh-magic-task-list">' + rows + '</div></section></div>';
   }
 
   function saveMagicUploadTaskEdits(id) {
@@ -13698,6 +13698,20 @@
 
   function handlePanelPaste(event) {
     if (event.defaultPrevented) return;
+    if (state.view === 'magicUpload') {
+      const panel = document.getElementById(PANEL_ID);
+      const drop = event.target && event.target.closest && event.target.closest('.pfh-magic-upload-drop')
+        || (panel && panel.querySelector('.pfh-magic-upload-drop:hover'));
+      const files = getClipboardUploadFiles(event).filter((file) => /\.zip$/i.test(file.name || ''));
+      if (drop && files.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        drop.classList.add('is-paste-received');
+        window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+        processMagicUploadZipFiles(files);
+        return;
+      }
+    }
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
@@ -13730,6 +13744,18 @@
   }
 
   function handleSizeImageHoverPaste(event) {
+    if (state.view === 'magicUpload') {
+      const panel = document.getElementById(PANEL_ID);
+      const drop = panel && panel.querySelector('.pfh-magic-upload-drop:hover, .pfh-magic-upload-drop:focus');
+      const files = getClipboardUploadFiles(event).filter((file) => /\.zip$/i.test(file.name || ''));
+      if (!drop || !files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      drop.classList.add('is-paste-received');
+      window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+      processMagicUploadZipFiles(files);
+      return;
+    }
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
@@ -13874,14 +13900,10 @@
       const files = Array.from(event.target.files || []);
       const kind = event.target.getAttribute('data-upload-kind') || '';
       event.target.value = '';
-      if (kind === 'copyright') stageCopyrightUploadFiles(files);
+      if (kind === 'magic') processMagicUploadZipFiles(files);
+      else if (kind === 'copyright') stageCopyrightUploadFiles(files);
       else if (kind === 'toy-effect') stageToyEffectUploadFiles(files);
       else processQueuedUploadFiles(files);
-    }
-    if (event.target && event.target.classList && event.target.classList.contains('pfh-magic-upload-file')) {
-      const files = Array.from(event.target.files || []);
-      event.target.value = '';
-      if (files.length) processMagicUploadZipFiles(files);
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-date')) {
       const month = normalizeLedgerMonth(event.target.value);
