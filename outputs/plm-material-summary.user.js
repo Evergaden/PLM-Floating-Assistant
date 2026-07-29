@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.56
+// @version      2.6.57
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.56';
+  const SCRIPT_VERSION = '2.6.57';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -7333,6 +7333,8 @@
       zipName: String(task.zipName || ''),
       sourceType: String(task.sourceType || (task.zipKey ? 'zip' : '')),
       sourceName: String(task.sourceName || task.zipName || ''),
+      sourceUploaded: Boolean(task.sourceUploaded),
+      submitted: Boolean(task.submitted),
       zipKey: String(task.zipKey || ''),
       projectId: String(task.projectId || ''),
       files,
@@ -7469,7 +7471,7 @@
 
   function magicUploadStatusLabel(task) {
     if (!task) return '';
-    if (task.status === 'success') return '上传完成';
+    if (task.status === 'success') return '上传并提审完成';
     if (task.status === 'processing') return task.step || '上传中';
     if (task.status === 'waiting') return task.step || '待确认';
     if (task.status === 'error') return task.error || '上传失败';
@@ -7601,14 +7603,30 @@
         throw error;
       }
     }
-    if (task.zipKey) {
+    if (task.zipKey && !task.sourceUploaded) {
       task.step = '保留原始 ZIP';
       const zipFile = await getUploadFile(task.zipKey);
       if (zipFile) {
         const zipEntry = { name: task.zipName, category: '图包素材', archiveTypeId: 7, status: 'processing', key: task.zipKey };
         await uploadMagicUploadFile(task, zipEntry, zipFile);
+        task.sourceUploaded = true;
       }
     }
+    if (!task.submitted) {
+      task.step = '素材上传完成，正在提审';
+      await submitMagicUploadTask(task);
+      task.submitted = true;
+    }
+  }
+
+  async function submitMagicUploadTask(task) {
+    const payload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(task.sku));
+    const list = payload && payload.data && Array.isArray(payload.data.list) ? payload.data.list : [];
+    const product = list.find((item) => String(item && (item.product_code || item.code || '')).toUpperCase() === String(task.sku || '').toUpperCase()) || list[0] || {};
+    const productId = product.product_id || product.id;
+    if (!productId) throw new Error('未找到商品 ID，无法提审');
+    await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(productId) || productId });
+    addLog('success', '魔法上传并提审成功', task.sku + ' | product_id=' + productId);
   }
 
   async function uploadMagicUploadFile(task, entry, file) {
