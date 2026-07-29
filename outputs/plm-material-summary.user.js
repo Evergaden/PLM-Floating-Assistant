@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.43
+// @version      2.6.44
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.43';
+  const SCRIPT_VERSION = '2.6.44';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -15879,46 +15879,15 @@
     return Boolean(await waitFor(() => isProjectDrawerOpenForSku(sku), 8000, 120));
   }
 
-  function findProjectEditNextButton(sku) {
-    const expected = compactText('下一步');
-    const scopes = Array.from(document.querySelectorAll('.ant-drawer-open, .ant-modal-root, .ant-modal'))
-      .filter(isVisibleElement)
-      .filter((scope) => !scope.closest('#' + PANEL_ID))
-      .reverse();
-    const findInScope = (scope) => Array.from(scope.querySelectorAll('button, a, [role="button"]'))
-      .filter(isVisibleElement)
-      .filter(isActionButtonReady)
-      .find((button) => compactText(button.innerText || button.textContent) === expected) || null;
-    for (const scope of scopes) {
-      if (sku && !getVisibleText(scope).includes(sku)) continue;
-      const button = findInScope(scope);
-      if (button) return button;
-    }
-    return Array.from(document.querySelectorAll('button, a, [role="button"]'))
-      .filter(isVisibleElement)
-      .filter((button) => !button.closest('#' + PANEL_ID))
-      .filter(isActionButtonReady)
-      .find((button) => compactText(button.innerText || button.textContent) === expected) || null;
-  }
-
   async function clickProjectEditByRowId(rowId, sku) {
     if (getToyCopywritingDrawerForSku(sku)) return true;
     const button = findOperationButtonByRowId(rowId, '编辑');
     if (!button) return false;
     clickElement(button);
-    let nextClicked = false;
-    return Boolean(await waitFor(() => {
-      const drawer = getToyCopywritingDrawerForSku(sku);
-      if (drawer) return drawer;
-      if (!nextClicked) {
-        const next = findProjectEditNextButton(sku);
-        if (next) {
-          nextClicked = true;
-          clickElement(next);
-        }
-      }
-      return '';
-    }, 20000, 150));
+    const editDrawer = await waitFor(() => getProductEditDrawerForSku(sku), 20000, 150);
+    if (!editDrawer) return false;
+    await enterProductEditSecondStep(sku);
+    return Boolean(await waitFor(() => getToyCopywritingDrawerForSku(sku), 30000, 150));
   }
 
   function isProjectDrawerOpenForSku(sku) {
