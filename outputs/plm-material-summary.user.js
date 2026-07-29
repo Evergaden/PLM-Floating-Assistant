@@ -1,13 +1,14 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.52
+// @version      2.6.53
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
 // @match        https://auth.westmonth.com/*
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+// @require      https://cdn.jsdelivr.net/npm/ali-oss@6.23.0/dist/aliyun-oss-sdk.min.js
 // @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js
 // @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js
 // @grant        GM_setClipboard
@@ -19,6 +20,8 @@
 // @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @connect      oss-pro.plm.westmonth.cn
+// @connect      xyplm-pro.oss-cn-shenzhen.aliyuncs.com
+// @connect      oss-cn-shenzhen.aliyuncs.com
 // @connect      ai-obj.westmonth.com
 // @connect      plm.westmonth.com
 // @connect      velvet.qzz.io
@@ -32,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.52';
+  const SCRIPT_VERSION = '2.6.53';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1545,6 +1548,19 @@
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
+  const MAGIC_UPLOAD_QUEUE_KEY = 'plm-floating-helper:magic-upload-queue:v1';
+  const MAGIC_UPLOAD_CONCURRENCY = 3;
+  const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
+  const MAGIC_UPLOAD_CATEGORIES = Object.freeze({
+    '主图': { rule: '主图', archiveTypeId: 1 },
+    '英文参数图': { rule: '英文参数图', archiveTypeId: 1 },
+    '详情图': { rule: '详情图', archiveTypeId: 1 },
+    'SKU图': { rule: 'SKU图', archiveTypeId: 1 },
+    '产品参数图': { rule: '产品参数图', archiveTypeId: 1 },
+    '视频': { rule: '视频', archiveTypeId: 3 },
+    '动图': { rule: '动图', archiveTypeId: 3 },
+    '图包素材': { rule: '图包素材', archiveTypeId: 7 },
+  });
   const TOY_EFFECT_MAX_FILES = 3;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
@@ -3745,6 +3761,14 @@
     uploadPage: 1,
     uploadHistoryPage: 1,
     uploadSelectedIds: [],
+    magicUploadAccessName: '',
+    magicUploadAccessEnabled: false,
+    magicUploadAccessLoading: true,
+    magicUploadAccessTimer: 0,
+    magicUploadQueue: loadMagicUploadQueue(),
+    magicUploadRunning: false,
+    magicUploadFileInputOpen: false,
+    magicUploadReplaceId: '',
     ledgerRecords: loadDailyLedger(),
     ledgerTrashRecords: loadDailyLedgerTrash(),
     ledgerDate: getTodayKey(),
@@ -5515,6 +5539,33 @@
     }
   }
 
+  async function fetchPlmApiJson(url, body) {
+    const request = {
+      method: 'POST',
+      url: new URL(url, window.location.origin).href,
+      withCredentials: true,
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'Content-Type': 'application/json;charset=UTF-8',
+        'x-app-code': 'PLM',
+        'x-tenant-code': 'xy',
+        'x-tenant-id': 'xy',
+        ...getPlmAuthHeaders(),
+      },
+      data: JSON.stringify(body || {}),
+      timeout: 30000,
+    };
+    const response = typeof GM_xmlhttpRequest === 'function'
+      ? await new Promise((resolve, reject) => GM_xmlhttpRequest({ ...request, onload: resolve, onerror: () => reject(new Error('网络请求失败')), ontimeout: () => reject(new Error('请求超时')) }))
+      : await fetch(request.url, { method: 'POST', credentials: 'include', headers: request.headers, body: request.data });
+    const status = Number(response && response.status || 0);
+    const text = response && typeof response.responseText === 'string' ? response.responseText : await response.text();
+    if (status < 200 || status >= 300) throw new Error('HTTP ' + status);
+    const payload = JSON.parse(text || '{}');
+    if (payload && payload.success === false) throw new Error(payload.msg || payload.message || 'PLM API 返回失败');
+    return payload;
+  }
+
   async function fetchApiMaterialPackaging(data, options) {
     const sku = String(data && data.sku || '');
     const projectId = getProjectIdForMaterialApi(data);
@@ -6577,7 +6628,7 @@
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'unitConverter' || state.view === 'tools' || state.view === 'batchExcel';
+    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'magicUpload' || state.view === 'unitConverter' || state.view === 'tools' || state.view === 'batchExcel';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -6595,11 +6646,11 @@
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
-    if (state.view === 'upload') {
+    if (state.view === 'upload' || state.view === 'magicUpload') {
       const list = panel.querySelector('.pfh-list');
       if (list) list.innerHTML = '';
     }
-    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools' && state.view !== 'batchExcel') renderSkuList(panel);
+    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools' && state.view !== 'batchExcel' && state.view !== 'magicUpload') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
       updateSettingsNotice(panel);
@@ -6613,6 +6664,11 @@
     }
     if (state.view === 'upload') {
       renderUpload(panel);
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
+    if (state.view === 'magicUpload') {
+      renderStandaloneTool(panel, magicUploadViewHtml());
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -7236,6 +7292,318 @@
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     detail.classList.remove('is-loading');
     detail.innerHTML = parameterImageFeature.viewHtml(data || {});
+  }
+
+  function loadMagicUploadQueue() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(MAGIC_UPLOAD_QUEUE_KEY, null) : JSON.parse(localStorage.getItem(MAGIC_UPLOAD_QUEUE_KEY) || 'null');
+      return Array.isArray(saved) ? saved.map(normalizeMagicUploadTask).filter(Boolean).slice(0, 300) : [];
+    } catch (_) { return []; }
+  }
+
+  function saveMagicUploadQueue(queue) {
+    const snapshot = (Array.isArray(queue) ? queue : []).map(normalizeMagicUploadTask).filter(Boolean).slice(0, 300);
+    state.magicUploadQueue = snapshot;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(MAGIC_UPLOAD_QUEUE_KEY, snapshot);
+      else localStorage.setItem(MAGIC_UPLOAD_QUEUE_KEY, JSON.stringify(snapshot));
+    } catch (error) { console.warn('PLM magic upload queue save failed:', error); }
+  }
+
+  function normalizeMagicUploadTask(task) {
+    if (!task || !task.id) return null;
+    const allowed = new Set(['pending', 'processing', 'success', 'error', 'waiting']);
+    const files = Array.isArray(task.files) ? task.files.map((entry, index) => ({
+      ...(entry || {}),
+      index,
+      name: String(entry && entry.name || ''),
+      key: String(entry && entry.key || ''),
+      category: MAGIC_UPLOAD_CATEGORIES[String(entry && entry.category || '')] ? String(entry.category) : '待确认',
+      archiveTypeId: Number(entry && entry.archiveTypeId) || 0,
+      status: String(entry && entry.status || 'pending'),
+      error: String(entry && entry.error || ''),
+      generatedName: String(entry && entry.generatedName || ''),
+    })).filter((entry) => entry.name && entry.key) : [];
+    const status = allowed.has(String(task.status || '')) ? String(task.status) : 'pending';
+    return {
+      ...(task || {}),
+      id: String(task.id),
+      sku: String(task.sku || '').toUpperCase(),
+      zipName: String(task.zipName || ''),
+      zipKey: String(task.zipKey || ''),
+      projectId: String(task.projectId || ''),
+      files,
+      status: status === 'processing' ? 'pending' : status,
+      step: String(task.step || ''),
+      error: String(task.error || ''),
+      updatedAt: Number(task.updatedAt) || Date.now(),
+      createdAt: Number(task.createdAt) || Date.now(),
+    };
+  }
+
+  function classifyMagicUploadName(name) {
+    const normalized = String(name || '').replace(/\\/g, '/');
+    const firstFolder = normalized.split('/').filter(Boolean)[0] || '';
+    const candidates = [firstFolder, normalized];
+    for (const candidate of candidates) {
+      for (const label of Object.keys(MAGIC_UPLOAD_CATEGORIES)) {
+        if (candidate === label || candidate.includes(label)) return label;
+      }
+    }
+    if (/\.(?:mp4|mov|avi|webm)$/i.test(normalized)) return '视频';
+    if (/\.gif$/i.test(normalized)) return '动图';
+    return '待确认';
+  }
+
+  function getMagicUploadFileExtension(name) {
+    const match = String(name || '').match(/(\.[^.\\/]+)$/);
+    return match ? match[1].toLowerCase() : '';
+  }
+
+  function getMagicUploadRule(category, extension) {
+    const item = MAGIC_UPLOAD_CATEGORIES[category];
+    return item || (extension === '.zip' ? MAGIC_UPLOAD_CATEGORIES['图包素材'] : null);
+  }
+
+  function createMagicUploadId() {
+    return 'magic-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+  }
+
+  async function processMagicUploadZipFiles(files) {
+    if (!state.magicUploadAccessEnabled) {
+      showToast('魔法上传暂未开放');
+      return;
+    }
+    const zipFiles = (files || []).filter((file) => file && /\.zip$/i.test(file.name || '') && Number(file.size || 0) <= MAGIC_UPLOAD_MAX_FILE_BYTES);
+    if (!zipFiles.length) {
+      showToast('请选择 ZIP 图包');
+      return;
+    }
+    const replacingId = state.magicUploadReplaceId;
+    state.magicUploadReplaceId = '';
+    if (replacingId && zipFiles[0]) {
+      const oldTask = (state.magicUploadQueue || []).find((item) => item.id === replacingId);
+      if (oldTask) {
+        state.magicUploadQueue = state.magicUploadQueue.filter((item) => item.id !== replacingId);
+        cleanupMagicUploadTaskFiles(oldTask, state.magicUploadQueue);
+      }
+    }
+    state.magicUploadFileInputOpen = true;
+    for (const zipFile of zipFiles) {
+      try {
+        const zip = await JSZip.loadAsync(zipFile);
+        const entries = Object.values(zip.files).filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name));
+        const fileSkus = getSkusFromFileName(zipFile.name);
+        const allSkus = new Set(fileSkus);
+        entries.forEach((entry) => getSkusFromFileName(entry.name).forEach((sku) => allSkus.add(sku)));
+        const skus = Array.from(allSkus);
+        const groups = new Map((skus.length ? skus : ['']).map((sku) => [sku, []]));
+        for (const entry of entries) {
+          const innerSkus = getSkusFromFileName(entry.name);
+          const targetSkus = innerSkus.length ? innerSkus : (skus.length ? skus : ['']);
+          const blob = await entry.async('blob');
+          const file = new File([blob], entry.name.split('/').pop() || 'asset', { type: guessMime(entry.name) });
+          const key = 'magic-upload:' + createMagicUploadId() + ':' + entry.name;
+          await putUploadFile(key, file);
+          targetSkus.forEach((sku) => {
+            if (!groups.has(sku)) groups.set(sku, []);
+            const category = classifyMagicUploadName(entry.name);
+            const rule = getMagicUploadRule(category, getMagicUploadFileExtension(entry.name));
+            groups.get(sku).push({ name: entry.name, key, category, archiveTypeId: rule ? rule.archiveTypeId : 0, status: 'pending', error: '' });
+          });
+        }
+        const zipKey = 'magic-upload:' + createMagicUploadId() + ':source.zip';
+        await putUploadFile(zipKey, cloneUploadFile(zipFile));
+        const additions = Array.from(groups.entries()).map(([sku, group]) => ({
+          id: createMagicUploadId(), sku, zipName: zipFile.name, zipKey, projectId: getProjectIdForMaterialApi(loadData(sku) || {}), files: group,
+          status: group.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending', step: group.some((entry) => entry.category === '待确认') ? '请确认文件分类' : '等待上传', error: '', createdAt: Date.now(), updatedAt: Date.now(),
+        }));
+        state.magicUploadQueue = (state.magicUploadQueue || []).concat(additions).slice(-300);
+        saveMagicUploadQueue(state.magicUploadQueue);
+        showToast(zipFile.name + ' 已识别 ' + additions.length + ' 个任务');
+      } catch (error) {
+        addLog('warn', '魔法上传图包识别失败', zipFile.name + ' | ' + formatErrorMessage(error));
+        showToast('图包识别失败：' + formatErrorMessage(error));
+      }
+    }
+    state.magicUploadFileInputOpen = false;
+    renderShell();
+  }
+
+  function magicUploadStatusLabel(task) {
+    if (!task) return '';
+    if (task.status === 'success') return '上传完成';
+    if (task.status === 'processing') return task.step || '上传中';
+    if (task.status === 'waiting') return task.step || '待确认';
+    if (task.status === 'error') return task.error || '上传失败';
+    return task.step || '等待上传';
+  }
+
+  function magicUploadViewHtml() {
+    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-head"><button type="button" data-action="home-back">' + iconHtml('backArrow') + '</button><div><small>MAGIC UPLOAD · BETA</small><h2>魔法上传</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></section></div>';
+    const queue = state.magicUploadQueue || [];
+    const running = Boolean(state.magicUploadRunning);
+    const rows = queue.length ? queue.map((task) => {
+      const unknown = task.files.filter((entry) => entry.category === '待确认').length;
+      const fileRows = task.files.map((entry, index) => '<div class="pfh-magic-file"><span>' + escapeHtml(entry.name.split('/').pop() || entry.name) + '</span><select data-magic-file-index="' + index + '"><option value="待确认">待确认</option>' + Object.keys(MAGIC_UPLOAD_CATEGORIES).filter((item) => item !== '图包素材').map((item) => '<option value="' + escapeHtml(item) + '"' + (entry.category === item ? ' selected' : '') + '>' + escapeHtml(item) + '</option>').join('') + '</select><i>' + escapeHtml(entry.status === 'success' ? '完成' : (entry.error || '待传')) + '</i></div>').join('');
+      return '<article class="pfh-magic-task" data-magic-id="' + escapeHtml(task.id) + '"><header><div><input class="pfh-magic-sku" value="' + escapeHtml(task.sku) + '" placeholder="SKU 编码"><small>' + escapeHtml(task.zipName) + '</small></div><b class="' + (task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '')) + '">' + escapeHtml(magicUploadStatusLabel(task)) + '</b></header><div class="pfh-magic-files">' + fileRows + '</div><footer><span>' + task.files.length + ' 个文件' + (unknown ? ' · ' + unknown + ' 个待确认' : '') + '</span><div><button type="button" data-action="magic-upload-save-task" data-magic-id="' + escapeHtml(task.id) + '">保存修改</button><button type="button" data-action="magic-upload-replace" data-magic-id="' + escapeHtml(task.id) + '">替换 ZIP</button><button type="button" data-action="magic-upload-retry" data-magic-id="' + escapeHtml(task.id) + '">重试</button><button type="button" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button></div></footer></article>';
+    }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包，自动识别 SKU 和素材区域</div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><style>.pfh-magic-page{padding:22px 18px 80px;color:#26314d}.pfh-magic-head{display:flex;gap:12px;align-items:flex-start}.pfh-magic-head>button{border:0;background:transparent;color:#7c72a3;padding:4px}.pfh-magic-head small{color:#8e80bc;letter-spacing:.12em;font-size:10px}.pfh-magic-head h2{margin:4px 0;font-size:25px}.pfh-magic-head p{margin:0;color:#8891a9;font-size:12px}.pfh-magic-badge{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:99px;background:#efe9ff;color:#7457d5;font-size:9px;letter-spacing:.08em;vertical-align:middle}.pfh-magic-upload-drop{margin:22px 0 14px;min-height:130px;border:1px dashed #bdb2ed;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(244,241,255,.85));display:grid;place-items:center;text-align:center;color:#796da1;cursor:pointer;transition:.2s}.pfh-magic-upload-drop.is-drag-over{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}.pfh-magic-upload-drop strong{display:block;color:#4b3f79;font-size:15px}.pfh-magic-upload-drop span{display:block;margin-top:7px;color:#9490ab;font-size:11px}.pfh-magic-actions{display:flex;gap:8px;align-items:center;margin-bottom:14px}.pfh-magic-actions button,.pfh-magic-task button{border:1px solid #e3def6;background:#fff;color:#66579a;border-radius:10px;padding:7px 11px;font-size:11px;cursor:pointer}.pfh-magic-actions button.is-primary{background:#7357d8;color:#fff;border-color:#7357d8}.pfh-magic-actions button:disabled{opacity:.45;cursor:not-allowed}.pfh-magic-count{margin-left:auto;color:#9a94aa;font-size:11px}.pfh-magic-task{margin:10px 0;border:1px solid #e8e3f5;border-radius:18px;background:rgba(255,255,255,.78);box-shadow:0 8px 28px rgba(93,76,150,.07);overflow:hidden}.pfh-magic-task header,.pfh-magic-task footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}.pfh-magic-task header{border-bottom:1px solid #f0edf8}.pfh-magic-task header div{min-width:0}.pfh-magic-sku{width:150px;border:0;border-bottom:1px solid #dcd5f3;background:transparent;color:#32275b;font-weight:700;font-size:15px;outline:0}.pfh-magic-task header small{display:block;margin-top:5px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a09ab0;font-size:10px}.pfh-magic-task header b{font-size:11px;color:#8e86a5;font-weight:600}.pfh-magic-task header b.is-success{color:#1c9b76}.pfh-magic-task header b.is-error{color:#d15c74}.pfh-magic-files{padding:4px 14px}.pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 105px 55px;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2fa;font-size:11px}.pfh-magic-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#56617a}.pfh-magic-file select{border:1px solid #e7e2f3;border-radius:7px;padding:4px;color:#65598b;background:#fff;font-size:10px}.pfh-magic-file i{font-style:normal;text-align:right;color:#aaa4b5;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfh-magic-task footer{border-top:1px solid #f0edf8;color:#aaa4b5;font-size:10px}.pfh-magic-task footer div{display:flex;gap:5px}.pfh-magic-task footer button{padding:5px 8px;font-size:10px}.pfh-magic-empty{padding:45px 15px;text-align:center;color:#aaa4b5;border:1px dashed #e2ddf1;border-radius:18px}.pfh-magic-note{color:#a29bac;font-size:10px;line-height:1.5;margin:0 2px 10px}</style><div class="pfh-magic-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>MAGIC UPLOAD <em class="pfh-magic-badge">BETA</em></small><h2>魔法上传</h2><p>前端解包识别 · PLM API · OSS 分片</p></div></div><div class="pfh-magic-upload-drop" data-action="magic-upload-pick" tabindex="0"><div><strong>拖入 ZIP 图包</strong><span>支持多个 ZIP，自动识别 SKU、主图、详情图、视频和动图</span></div></div><input class="pfh-magic-upload-file" type="file" multiple accept=".zip,application/zip" hidden><p class="pfh-magic-note">最多同时上传 3 个任务；原始 ZIP 会作为“图包素材”保留，未识别文件可在任务中修改分类。</p><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !queue.some((task) => task.status === 'pending' || task.status === 'error') ? ' disabled' : '') + '>开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>暂停</button><span class="pfh-magic-count">' + queue.length + ' 个任务</span></div><div class="pfh-magic-task-list">' + rows + '</div></section></div>';
+  }
+
+  function saveMagicUploadTaskEdits(id) {
+    const task = (state.magicUploadQueue || []).find((item) => item.id === id);
+    const root = ensurePanel().querySelector('.pfh-magic-task[data-magic-id="' + CSS.escape(id) + '"]');
+    if (!task || !root) return;
+    task.sku = String((root.querySelector('.pfh-magic-sku') || {}).value || '').trim().toUpperCase();
+    root.querySelectorAll('[data-magic-file-index]').forEach((select) => {
+      const index = Number(select.getAttribute('data-magic-file-index'));
+      const entry = task.files[index];
+      if (!entry) return;
+      entry.category = select.value;
+      const rule = getMagicUploadRule(entry.category, getMagicUploadFileExtension(entry.name));
+      entry.archiveTypeId = rule ? rule.archiveTypeId : 0;
+      entry.status = 'pending';
+      entry.error = '';
+    });
+    task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
+    task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
+    task.projectId = getProjectIdForMaterialApi(loadData(task.sku) || {});
+    task.updatedAt = Date.now();
+    saveMagicUploadQueue(state.magicUploadQueue);
+    renderShell();
+    showToast('任务修改已保存');
+  }
+
+  function removeMagicUploadTask(id) {
+    const task = (state.magicUploadQueue || []).find((item) => item.id === id);
+    if (!task) return;
+    state.magicUploadQueue = state.magicUploadQueue.filter((item) => item.id !== id);
+    cleanupMagicUploadTaskFiles(task, state.magicUploadQueue);
+    saveMagicUploadQueue(state.magicUploadQueue);
+    renderShell();
+  }
+
+  function cleanupMagicUploadTaskFiles(task, remainingTasks) {
+    const referenced = new Set((remainingTasks || []).flatMap((item) => [item.zipKey].concat((item.files || []).map((entry) => entry.key))).filter(Boolean));
+    [task.zipKey].concat((task.files || []).map((entry) => entry.key)).filter((key) => key && !referenced.has(key)).forEach((key) => deleteUploadFile(key).catch(() => {}));
+  }
+
+  function retryMagicUploadTask(id) {
+    const task = (state.magicUploadQueue || []).find((item) => item.id === id);
+    if (!task) return;
+    task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
+    task.error = '';
+    task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
+    task.files.forEach((entry) => { if (entry.status !== 'success') { entry.status = 'pending'; entry.error = ''; } });
+    saveMagicUploadQueue(state.magicUploadQueue);
+    renderShell();
+    if (state.magicUploadAccessEnabled) startMagicUploadQueue();
+  }
+
+  async function startMagicUploadQueue() {
+    if (state.magicUploadRunning) return;
+    if (!state.magicUploadAccessEnabled) return showToast('魔法上传暂未开放');
+    state.magicUploadRunning = true;
+    saveMagicUploadQueue(state.magicUploadQueue);
+    renderShell();
+    const workers = Array.from({ length: MAGIC_UPLOAD_CONCURRENCY }, () => (async () => {
+      while (state.magicUploadRunning) {
+        const task = (state.magicUploadQueue || []).find((item) => item.status === 'pending' || item.status === 'error');
+        if (!task) break;
+        task.status = 'processing';
+        task.error = '';
+        task.updatedAt = Date.now();
+        saveMagicUploadQueue(state.magicUploadQueue);
+        try {
+          await uploadMagicUploadTask(task);
+          task.status = 'success';
+          task.step = '上传完成';
+          task.updatedAt = Date.now();
+        } catch (error) {
+          task.status = /HTTP 401/.test(String(error && error.message || error)) ? 'error' : 'error';
+          task.error = formatErrorMessage(error);
+          task.step = '上传失败';
+          task.updatedAt = Date.now();
+          addLog('warn', '魔法上传任务失败', task.sku + ' | ' + task.error);
+        }
+        saveMagicUploadQueue(state.magicUploadQueue);
+        if (state.view === 'magicUpload') renderShell();
+      }
+    })());
+    await Promise.all(workers);
+    state.magicUploadRunning = false;
+    saveMagicUploadQueue(state.magicUploadQueue);
+    if (state.view === 'magicUpload') renderShell();
+    showToast('魔法上传队列已停止');
+  }
+
+  async function uploadMagicUploadTask(task) {
+    if (!task.sku) throw new Error('缺少 SKU 编码，请先编辑任务');
+    const data = normalizeData(loadData(task.sku) || {});
+    const projectId = getProjectIdForMaterialApi(data);
+    if (!projectId) throw new Error('未找到项目 ID，请先打开或读取该 SKU 详情');
+    task.projectId = String(projectId);
+    const entries = (task.files || []).filter((entry) => entry.status !== 'success');
+    if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
+    for (let index = 0; index < entries.length; index += 1) {
+      if (!state.magicUploadRunning) throw new Error('已暂停');
+      const entry = entries[index];
+      task.step = '上传素材 ' + (index + 1) + '/' + entries.length;
+      entry.status = 'processing';
+      saveMagicUploadQueue(state.magicUploadQueue);
+      try {
+        const file = await getUploadFile(entry.key);
+        if (!file) throw new Error('本地文件已丢失：' + entry.name);
+        await uploadMagicUploadFile(task, entry, file);
+        entry.status = 'success';
+        entry.error = '';
+      } catch (error) {
+        entry.status = 'error';
+        entry.error = formatErrorMessage(error);
+        throw error;
+      }
+    }
+    if (task.zipKey) {
+      task.step = '保留原始 ZIP';
+      const zipFile = await getUploadFile(task.zipKey);
+      if (zipFile) {
+        const zipEntry = { name: task.zipName, category: '图包素材', archiveTypeId: 7, status: 'processing', key: task.zipKey };
+        await uploadMagicUploadFile(task, zipEntry, zipFile);
+      }
+    }
+  }
+
+  async function uploadMagicUploadFile(task, entry, file) {
+    const extension = getMagicUploadFileExtension(file.name || entry.name);
+    const category = entry.category || (extension === '.zip' ? '图包素材' : '待确认');
+    const rule = getMagicUploadRule(category, extension);
+    if (!rule) throw new Error('无法确定上传区域：' + (entry.name || file.name));
+    const namePayload = await fetchPlmApiJson('/api/Product/GenerateFileNameByRule', {
+      source: 2,
+      source_id: Number(task.projectId) || task.projectId,
+      file_name_rules: [rule.rule, '_', '商品编码', '_', '品牌', '_', '商品名称', '_', '日期'],
+      file_extension_names: [extension],
+      product_code: null,
+    });
+    const generatedName = namePayload && Array.isArray(namePayload.data) ? namePayload.data[0] : '';
+    if (!generatedName) throw new Error('PLM 未返回生成文件名');
+    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 30 });
+    const secret = secretPayload && secretPayload.data;
+    if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
+    if (secret.max_file_size && file.size > Number(secret.max_file_size)) throw new Error('文件超过 PLM 限制：' + Math.round(Number(secret.max_file_size) / 1024 / 1024) + 'MB');
+    if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
+    const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
+    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
+    await client.multipartUpload(objectName, file, { partSize: 2 * 1024 * 1024, parallel: 2 });
+    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 30, oss_path: objectName, original_file_name: file.name || entry.name });
+    await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: file.name || entry.name, file_save_full_path: objectName }] });
+    entry.generatedName = generatedName;
+  }
+
+  function createMagicObjectName(extension) {
+    const random = (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Date.now().toString(16) + Math.random().toString(16).slice(2)).slice(0, 32);
+    return random + (extension || '');
   }
 
   function renderLedger(panel) {
@@ -8325,12 +8693,15 @@
     const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
     const sizeImageLocked = !state.sizeImageAccessEnabled;
     const sizeImageLockText = state.sizeImageAccessLoading ? '正在准备功能。' : '该功能暂未开放，敬请期待。';
+    const magicUploadLocked = !state.magicUploadAccessEnabled;
+    const magicUploadLockText = state.magicUploadAccessLoading ? '正在准备功能。' : '该功能暂未开放，敬请期待。';
     const cards = [
       ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-batch-excel', 'batchExcel', '规格成表', '批量生成 Excel', '输入多个 SKU，自动补全缓存并排队下载。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
+      ['home-magic-upload', 'upload', '图包实验室', '魔法上传', magicUploadLocked ? magicUploadLockText : '拖入多个 ZIP，自动识别 SKU 与素材区域并通过 API 上传。', magicUploadLocked, true],
       ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。', false, true],
       ['home-unit-converter', 'calculator', '单位换算', '厘米换算英寸', '输入一个或多个厘米尺寸，立即换算为英寸。'],
       ['home-tools', 'tools', '效率辅助', '小工具', '整理编码并输出可直接使用的搜索格式。'],
@@ -12615,6 +12986,51 @@
       }
       return;
     }
+    if (action === 'magic-upload-pick') {
+      const input = ensurePanel().querySelector('.pfh-magic-upload-file');
+      if (input) input.click();
+      return;
+    }
+    if (action === 'magic-upload-replace') {
+      state.magicUploadReplaceId = actionTarget.getAttribute('data-magic-id') || '';
+      const input = ensurePanel().querySelector('.pfh-magic-upload-file');
+      if (input) input.click();
+      return;
+    }
+    if (action === 'magic-upload-start') {
+      startMagicUploadQueue();
+      return;
+    }
+    if (action === 'magic-upload-pause') {
+      state.magicUploadRunning = false;
+      saveMagicUploadQueue(state.magicUploadQueue);
+      renderShell();
+      return;
+    }
+    if (action === 'magic-upload-remove') {
+      removeMagicUploadTask(actionTarget.getAttribute('data-magic-id') || '');
+      return;
+    }
+    if (action === 'magic-upload-retry') {
+      retryMagicUploadTask(actionTarget.getAttribute('data-magic-id') || '');
+      return;
+    }
+    if (action === 'magic-upload-save-task') {
+      saveMagicUploadTaskEdits(actionTarget.getAttribute('data-magic-id') || '');
+      return;
+    }
+    if (action === 'home-magic-upload') {
+      if (!state.magicUploadAccessEnabled) {
+        showToast(state.magicUploadAccessLoading ? '正在准备功能' : '魔法上传暂未开放，敬请期待');
+        scheduleMagicUploadAccessRefresh(0);
+        return;
+      }
+      state.view = 'magicUpload';
+      state.uploadReturnView = '';
+      expandPanel();
+      renderShell();
+      return;
+    }
     if (action === 'toy-copywriting-batch-clear-input') {
       state.toyCopywritingBatchInput = '';
       renderShell();
@@ -13465,6 +13881,11 @@
       else if (kind === 'toy-effect') stageToyEffectUploadFiles(files);
       else processQueuedUploadFiles(files);
     }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-magic-upload-file')) {
+      const files = Array.from(event.target.files || []);
+      event.target.value = '';
+      if (files.length) processMagicUploadZipFiles(files);
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-date')) {
       const month = normalizeLedgerMonth(event.target.value);
       state.ledgerDate = month + '-01';
@@ -13491,6 +13912,12 @@
   }
 
   function handlePanelDragOver(event) {
+    if (state.view === 'magicUpload' && event.target && event.target.closest && event.target.closest('.pfh-magic-upload-drop')) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      event.target.closest('.pfh-magic-upload-drop').classList.add('is-drag-over');
+      return;
+    }
     const skuDrop = event.target && event.target.closest && event.target.closest('[data-upload-sku-drop]');
     if (skuDrop && state.view === 'upload' && isUploadSkuPickerMode(state.uploadMode)) {
       event.preventDefault();
@@ -13515,6 +13942,15 @@
   }
 
   function handlePanelDrop(event) {
+    if (state.view === 'magicUpload' && event.target && event.target.closest && event.target.closest('.pfh-magic-upload-drop')) {
+      event.preventDefault();
+      const drop = event.target.closest('.pfh-magic-upload-drop');
+      drop.classList.remove('is-drag-over');
+      const files = Array.from(event.dataTransfer && event.dataTransfer.files || []).filter((file) => /\.zip$/i.test(file.name || ''));
+      if (files.length) processMagicUploadZipFiles(files);
+      else showToast('魔法上传只接受 ZIP 图包');
+      return;
+    }
     const skuDrop = event.target && event.target.closest && event.target.closest('[data-upload-sku-drop]');
     const draggedSku = event.dataTransfer && event.dataTransfer.getData('application/x-pfh-upload-sku');
     if (skuDrop && draggedSku && state.view === 'upload' && isUploadSkuPickerMode(state.uploadMode)) {
@@ -20479,8 +20915,12 @@
         state.sizeImageAccessName = name;
         state.sizeImageAccessEnabled = response.sizeImageEnabled;
         state.sizeImageAccessLoading = false;
+        state.magicUploadAccessName = name;
+        state.magicUploadAccessEnabled = Boolean(response.magicUploadEnabled);
+        state.magicUploadAccessLoading = false;
         if (state.view === 'home') renderShell();
       }
+      if (!response || typeof response.magicUploadEnabled !== 'boolean') refreshMagicUploadAccess();
       refreshLoadingTips(false);
     } catch (error) {
       addLog('warn', '使用状态同步失败', formatErrorMessage(error));
@@ -20892,6 +21332,38 @@
       data && data.aiCategory,
       Array.isArray(data && data.aiPackageTypes) ? data.aiPackageTypes.join(' ') : '',
     ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function scheduleMagicUploadAccessRefresh(delay) {
+    if (state.magicUploadAccessTimer) window.clearTimeout(state.magicUploadAccessTimer);
+    state.magicUploadAccessTimer = window.setTimeout(() => {
+      state.magicUploadAccessTimer = 0;
+      refreshMagicUploadAccess();
+    }, Math.max(0, Number(delay) || 0));
+  }
+
+  async function refreshMagicUploadAccess() {
+    const name = findCurrentPlmUserName();
+    if (!name) {
+      state.magicUploadAccessEnabled = false;
+      state.magicUploadAccessLoading = true;
+      scheduleMagicUploadAccessRefresh(1500);
+      return;
+    }
+    state.magicUploadAccessName = name;
+    state.magicUploadAccessLoading = true;
+    if (state.view === 'home' || state.view === 'magicUpload') renderShell();
+    try {
+      const response = await cloudRequest('/features/magic-upload?name=' + encodeURIComponent(name), { method: 'GET' });
+      if (state.magicUploadAccessName !== name) return;
+      state.magicUploadAccessEnabled = Boolean(response && response.enabled);
+    } catch (error) {
+      state.magicUploadAccessEnabled = false;
+      addLog('warn', '魔法上传权限检查失败', formatErrorMessage(error));
+    } finally {
+      state.magicUploadAccessLoading = false;
+      if (state.view === 'home' || state.view === 'magicUpload') renderShell();
+    }
   }
 
   function normalizeManualProductCategory(value) {

@@ -1033,8 +1033,20 @@ function handleAdminLogout() {
 }
 
 async function listFeatureAccess(env) {
-  const result = await env.DB.prepare('SELECT user_name, size_image_enabled, updated_at FROM feature_access ORDER BY updated_at DESC, user_name ASC LIMIT 300').all();
+  await ensureMagicUploadAccessColumn(env);
+  const result = await env.DB.prepare('SELECT user_name, size_image_enabled, magic_upload_enabled, updated_at FROM feature_access ORDER BY updated_at DESC, user_name ASC LIMIT 300').all();
   return result.results || [];
+}
+
+let magicUploadAccessColumnReady = false;
+async function ensureMagicUploadAccessColumn(env) {
+  if (magicUploadAccessColumnReady) return;
+  try {
+    await env.DB.prepare('ALTER TABLE feature_access ADD COLUMN magic_upload_enabled INTEGER NOT NULL DEFAULT 0').run();
+  } catch (_) {
+    // D1 returns an error when the migration has already been applied.
+  }
+  magicUploadAccessColumnReady = true;
 }
 
 async function handleSizeImageAccess(request, env) {
@@ -1045,14 +1057,29 @@ async function handleSizeImageAccess(request, env) {
   return json({ ok: true, name, enabled: Boolean(row && Number(row.size_image_enabled)) });
 }
 
+async function handleMagicUploadAccess(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  await ensureMagicUploadAccessColumn(env);
+  const name = normalizeAccessUserName(new URL(request.url).searchParams.get('name'));
+  if (!name) return json({ ok: true, name: '', enabled: false });
+  const row = await env.DB.prepare('SELECT magic_upload_enabled FROM feature_access WHERE user_name = ?').bind(name).first();
+  return json({ ok: true, name, enabled: Boolean(row && Number(row.magic_upload_enabled)) });
+}
+
 async function handleFeatureAccessSave(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureMagicUploadAccessColumn(env);
   const body = await parseBodyParams(request);
   const name = normalizeAccessUserName(body.userName);
   if (name) {
+    const feature = body.feature === 'magic-upload' ? 'magic-upload' : 'size-image';
     const enabled = body.enabled === '1' || body.enabled === 'on' ? 1 : 0;
-    await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET size_image_enabled = excluded.size_image_enabled, updated_at = CURRENT_TIMESTAMP').bind(name, enabled).run();
-    await env.DB.prepare('INSERT INTO feature_access_logs (user_name, feature_key, enabled) VALUES (?, ?, ?)').bind(name, 'size-image', enabled).run();
+    if (feature === 'magic-upload') {
+      await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, magic_upload_enabled, updated_at) VALUES (?, 0, ?, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET magic_upload_enabled = excluded.magic_upload_enabled, updated_at = CURRENT_TIMESTAMP').bind(name, enabled).run();
+    } else {
+      await env.DB.prepare('INSERT INTO feature_access (user_name, size_image_enabled, magic_upload_enabled, updated_at) VALUES (?, ?, 0, CURRENT_TIMESTAMP) ON CONFLICT(user_name) DO UPDATE SET size_image_enabled = excluded.size_image_enabled, updated_at = CURRENT_TIMESTAMP').bind(name, enabled).run();
+    }
+    await env.DB.prepare('INSERT INTO feature_access_logs (user_name, feature_key, enabled) VALUES (?, ?, ?)').bind(name, feature, enabled).run();
   }
   return adminRedirect('/admin');
 }
@@ -1075,8 +1102,9 @@ async function handleUserHeartbeat(request, env) {
       heartbeat_count=plm_users.heartbeat_count+1,
       last_seen_at=CURRENT_TIMESTAMP
   `).bind(name, instanceId, version, skuCount).run();
-  const row = await env.DB.prepare('SELECT size_image_enabled FROM feature_access WHERE user_name=?').bind(name).first();
-  return json({ ok: true, sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)) });
+  await ensureMagicUploadAccessColumn(env);
+  const row = await env.DB.prepare('SELECT size_image_enabled, magic_upload_enabled FROM feature_access WHERE user_name=?').bind(name).first();
+  return json({ ok: true, sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)), magicUploadEnabled: Boolean(row && Number(row.magic_upload_enabled)) });
 }
 
 async function ensureNotificationTables(env) {
@@ -2533,10 +2561,11 @@ async function handleAdminBrandComplianceDelete(request, env) {
 
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureMagicUploadAccessColumn(env);
   await ensureNotificationTables(env);
   await ensureBrandComplianceTables(env);
   const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads, brands] = await Promise.all([
-    env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
+    env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, COALESCE(a.magic_upload_enabled,0) AS magic_upload_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.magic_upload_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
       SUM(CASE WHEN last_seen_at>=datetime('now','-1 day') THEN 1 ELSE 0 END) AS active_today,
@@ -2635,7 +2664,7 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
       '<form class="form notification-edit" method="post" action="/admin/notifications/save"><input type="hidden" name="notificationId" value="' + htmlEscape(notice.notification_id) + '"><label class="wide"><span>标题</span><input name="title" maxlength="120" required value="' + htmlEscape(notice.title) + '"></label><label class="wide"><span>通知内容</span><textarea name="content" maxlength="4000" required>' + htmlEscape(notice.content) + '</textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1"' + (Number(notice.enabled) ? ' checked' : '') + '>启用</label><label class="checks"><input type="checkbox" name="resetRead" value="1">清空阅读记录</label><label class="checks"><input type="checkbox" name="republish" value="1">按当前时间重新发布</label></div><div class="sub">发布时间：' + htmlEscape(formatBeijingDateTime(notice.published_at) || notice.published_at) + '</div><div class="read-state"><b>已读：</b>' + htmlEscape(readDetail) + '</div><div class="read-state"><b>未读：</b>' + htmlEscape(unreadNames.join('、') || '暂无') + '</div><div class="actions"><button type="submit">保存修改</button></div></form>' +
       '<form method="post" action="/admin/notifications/delete" onsubmit="return confirm(\'确定删除这条通知吗？\')"><input type="hidden" name="notificationId" value="' + htmlEscape(notice.notification_id) + '"><button class="ghost danger" type="submit">删除通知</button></form></div></details>';
   }).join('');
-  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
+  const userRows = users.map((user) => '<tr><td><strong>' + htmlEscape(user.user_name) + '</strong></td><td>' + htmlEscape(user.script_version || '—') + '</td><td>' + htmlEscape(Number(user.sku_count || 0)) + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_seen_at) || '尚未上报') + '</td><td>' + htmlEscape(formatBeijingDateTime(user.last_backup_at) || '—') + '</td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.size_image_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td><td><form method="post" action="/admin/access/save"><input type="hidden" name="userName" value="' + htmlEscape(user.user_name) + '"><input type="hidden" name="feature" value="magic-upload"><input type="hidden" name="enabled" value="0"><label class="switch"><input type="checkbox" name="enabled" value="1"' + (Number(user.magic_upload_enabled) ? ' checked' : '') + ' onchange="this.form.submit()"><span></span></label></form></td></tr>').join('');
   const tipEditorRows = campaigns.map((tip, index) => {
     const prefix = 'tip_' + index + '_';
     const option = (value, label) => '<option value="' + value + '"' + (tip.access_mode === value ? ' selected' : '') + '>' + label + '</option>';
@@ -2664,7 +2693,7 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
     '<section class="metrics">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
     notificationAdminSection +
     brandAdminSection +
-    '<section class="card"><div class="cardhead"><h2>使用人与尺寸图权限</h2><div class="sub">其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="enabled" value="1"><button>添加并开通</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="6">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
+    '<section class="card"><div class="cardhead"><h2>使用人与功能权限</h2><div class="sub">尺寸图和魔法上传分别控制，其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="1"><button>添加并开通尺寸图</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th><th>魔法上传</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="7">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
     '<section class="card" id="tips"><div class="cardhead"><h2>新增轮播小提示</h2><div class="sub">每行一条，可同时设置本次新增提示的推送条件</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="在这里输入新提示，每行一条"></textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="1"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="3"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="60"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled">已开通</option><option value="disabled">未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames"></label><label><span>排除姓名</span><input name="excludeNames"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate"></label><label><span>结束日期</span><input type="date" name="endDate"></label><label><span>开始时间</span><input type="time" name="startTime"></label><label><span>结束时间</span><input type="time" name="endTime"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1">仅法定节假日前一天</label></div><div class="actions"><button type="submit">添加提示</button></div></form></section>' +
     '<section class="card" id="saved-tips"><div class="cardhead"><h2>已保存的小提示（' + campaigns.length + '）</h2><div class="sub">勾选可批量删除；展开任意一条可维护详细条件</div></div><form class="form tip-manage-form" method="post" action="/admin/tips/manage-save"><input type="hidden" name="tipCount" value="' + campaigns.length + '"><div class="actions"><button class="ghost" type="button" data-tip-select="all">全选</button><button class="ghost" type="button" data-tip-select="none">取消全选</button><button type="submit" data-delete-selected="1">删除选中</button></div><div class="tiplist">' + tipEditorRows + '</div><div class="actions"><button type="submit">保存全部修改</button></div></form></section>' +
     '<section class="card" id="parameter-features"><div class="cardhead"><h2>参数图 FEATURES 词典</h2><div class="sub">每行：品类|匹配关键词（逗号分隔）|英文短句|优先级</div></div><form class="form" method="post" action="/admin/parameter-features/save"><textarea name="rules" placeholder="精华|精华,serum|Anti-wrinkle & glow|100">' + htmlEscape(featureRuleTexts) + '</textarea><div class="actions"><button type="submit">保存 FEATURES 词典</button></div></form></section>' +
@@ -4246,6 +4275,7 @@ export default {
     if (url.pathname === '/admin/brand-compliance/delete' && request.method === 'POST') return handleAdminBrandComplianceDelete(request, env);
     if (url.pathname === '/brand-compliance' && request.method === 'GET') return handleBrandCompliance(request, env);
     if (url.pathname === '/features/size-image' && request.method === 'GET') return handleSizeImageAccess(request, env);
+    if (url.pathname === '/features/magic-upload' && request.method === 'GET') return handleMagicUploadAccess(request, env);
     if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
     if (url.pathname === '/notifications' && request.method === 'GET') return handleNotifications(request, env);
     if (url.pathname === '/notifications/read' && request.method === 'POST') return handleNotificationRead(request, env);

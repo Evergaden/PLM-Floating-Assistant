@@ -112,11 +112,19 @@ ON loading_tips(enabled, sort_order, updated_at);
 CREATE TABLE IF NOT EXISTS feature_access (
   user_name TEXT PRIMARY KEY,
   size_image_enabled INTEGER NOT NULL DEFAULT 0,
+  magic_upload_enabled INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Backward-compatible migration for databases created before Magic Upload.
+-- SQLite/D1 ignores this only when the column already exists; the Worker also
+-- applies the same guarded migration during requests.
+
 CREATE INDEX IF NOT EXISTS idx_feature_access_size_image
 ON feature_access(size_image_enabled, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_feature_access_magic_upload
+ON feature_access(magic_upload_enabled, updated_at);
 
 CREATE TABLE IF NOT EXISTS plm_users (
   user_name TEXT PRIMARY KEY,
