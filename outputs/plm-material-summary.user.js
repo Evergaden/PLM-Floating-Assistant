@@ -1535,6 +1535,7 @@
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const UPLOAD_WORKER_STATES_KEY = 'plm-floating-helper:upload-worker-states';
   const UPLOAD_MODES = Object.freeze(['standard', 'toy-label', 'toy-effect', 'copyright']);
+  const TOY_COPYWRITING_BATCH_KEY = 'plm-floating-helper:toy-copywriting-batch';
   const TOY_LABEL_EXPORT_MANIFEST_KEY = 'plm-floating-helper:toy-label-export-manifest';
   const LOG_KEY = 'plm-floating-helper:logs';
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
@@ -3162,6 +3163,30 @@
     #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-actions{display:flex;gap:7px;flex-wrap:wrap;}
     #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-actions button{flex:1 1 120px;min-width:0;}
     #${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-progress{margin:0;color:var(--pfh-theme-primary-hover,#5b21b6);font-size:10px;line-height:1.5;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-page{display:flex;flex-direction:column;gap:12px;padding:14px 16px 22px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-card{display:flex;flex-direction:column;gap:10px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-form{display:flex;flex-direction:column;gap:8px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-form label{font-size:11px;font-weight:800;letter-spacing:.02em;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-input{width:100%;min-height:92px;max-height:180px;resize:vertical;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-hint{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.55;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--pfh-theme-muted,#64748b);font-size:10px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-summary strong{color:var(--pfh-theme-text,#1f2937);font-size:12px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-queue{display:flex;flex-direction:column;gap:7px;max-height:310px;overflow:auto;padding-right:2px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-row{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:11px;background:var(--pfh-theme-surface-alt,#f7f8fc);}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-row-main{display:flex;flex:1 1 auto;min-width:0;flex-direction:column;gap:2px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-row-main b{overflow:hidden;color:var(--pfh-theme-text,#1f2937);font-size:11px;text-overflow:ellipsis;white-space:nowrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-row-main small{overflow:hidden;color:var(--pfh-theme-muted,#64748b);font-size:9px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-status{flex:0 0 auto;font-size:9px;font-weight:800;white-space:nowrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-status.is-done{color:#16803c;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-status.is-error{color:#c2410c;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-status.is-running{color:#5b21b6;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-status.is-pending{color:#9a6700;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-row button{flex:0 0 auto;width:24px;height:24px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--pfh-theme-muted,#64748b);cursor:pointer;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-row button:hover{background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary,#7c3aed);}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-empty{padding:18px 10px;border:1px dashed var(--pfh-theme-border,#d8deea);border-radius:11px;color:var(--pfh-theme-muted,#64748b);font-size:11px;text-align:center;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-actions{display:flex;gap:7px;flex-wrap:wrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-actions button{flex:1 1 120px;min-width:0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-progress{margin:0;color:var(--pfh-theme-primary-hover,#5b21b6);font-size:10px;line-height:1.5;}
     @media(max-width:430px){#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-page{padding-left:11px;padding-right:11px;}#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row{align-items:flex-start;}#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status{white-space:normal;text-align:right;}}
   `;
   const LOCAL_UI_FALLBACK_CSS = `
@@ -3688,6 +3713,11 @@
     toyCopywritingError: '',
     toyCopywritingErrorSku: '',
     toyCopywritingErrorKind: '',
+    toyCopywritingBatchInput: '',
+    toyCopywritingBatchQueue: loadToyCopywritingBatchQueue(),
+    toyCopywritingBatchRunning: false,
+    toyCopywritingBatchCurrentSku: '',
+    toyCopywritingBatchStatus: '',
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
@@ -4176,7 +4206,7 @@
   }
 
   function handleDrawerState() {
-    if (state.view === 'batchExcel') return;
+    if (state.view === 'batchExcel' || state.view === 'tools') return;
     const lockedSku = state.openingProjectDetailSku || '';
     const drawer = getProjectDrawer();
     if (!drawer) {
@@ -8233,6 +8263,7 @@
       if (!isToy) setToyCopywritingError(data.sku, message, isIngredientOnly ? 'ingredient' : 'general');
       addLog('error', label + '\u667a\u80fd\u8865\u5145\u5931\u8d25', data.sku + ' | ' + message);
       showToast(label + '\u8865\u5145\u5931\u8d25\uff1a' + message);
+      if (opts.throwOnError) throw error;
       return 0;
     } finally {
       if (originalLanguage && getToyCopywritingDrawerForSku(data.sku)) {
@@ -8299,7 +8330,26 @@
       '<div class="pfh-mini-tool-card"><label>编码格式化</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + escapeHtml(state.codeFormatterInput || '') + '</textarea>' +
       '<div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + escapeHtml(result || 'ext:zip|ext:xlsx 编码1|编码2') + '</strong></div>' +
       '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
+      toyCopywritingBatchCardHtml() +
       '</section></div>';
+  }
+
+  function toyCopywritingBatchCardHtml() {
+    const queue = state.toyCopywritingBatchRunning
+      ? (state.toyCopywritingBatchQueue || loadToyCopywritingBatchQueue())
+      : loadToyCopywritingBatchQueue();
+    state.toyCopywritingBatchQueue = queue;
+    const stats = getToyCopywritingBatchStats(queue);
+    const running = Boolean(state.toyCopywritingBatchRunning);
+    const canStart = !running && queue.some((entry) => entry.status === 'pending' || entry.status === 'error');
+    const progressText = state.toyCopywritingBatchStatus || (running
+      ? '正在逐个打开产品详情、补全文案并保存草稿，请保持 PLM 页面登录状态。'
+      : '输入 SKU 后，系统会自动识别玩具并只补全缺失的中英文文案字段。');
+    return '<section class="pfh-mini-tool-card pfh-toy-copywriting-batch-page">' +
+      '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
+      '<div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + escapeHtml(state.toyCopywritingBatchInput || '') + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div>' +
+      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, running) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done ? '' : ' disabled') + '>清除已完成</button></div></div>' +
+      '</section>';
   }
 
   function batchExcelViewHtml() {
@@ -8355,6 +8405,214 @@
     if (current === 'downloaded') return { kind: 'ready', text: '已下载' };
     if (!missing.length) return { kind: 'ready', text: '缓存完整' };
     return { kind: 'pending', text: '待补全' };
+  }
+
+  function getToyCopywritingBatchStats(queue) {
+    return (Array.isArray(queue) ? queue : []).reduce((stats, entry) => {
+      const status = String(entry && entry.status || 'pending');
+      stats.total += 1;
+      if (status === 'success' || status === 'noop') stats.done += 1;
+      else if (status === 'error') stats.error += 1;
+      else stats.pending += 1;
+      return stats;
+    }, { total: 0, done: 0, pending: 0, error: 0 });
+  }
+
+  function getToyCopywritingBatchEntryStatus(entry) {
+    const status = String(entry && entry.status || 'pending');
+    if (status === 'processing') return { kind: 'running', text: '补全中' };
+    if (status === 'success') return { kind: 'done', text: '已完成' };
+    if (status === 'noop') return { kind: 'done', text: '无需补充' };
+    if (status === 'error') return { kind: 'error', text: '补全失败' };
+    return { kind: 'pending', text: '待处理' };
+  }
+
+  function getToyCopywritingBatchRowsHtml(queue, locked) {
+    if (!Array.isArray(queue) || !queue.length) return '<div class="pfh-toy-copywriting-batch-empty">还没有编码。先粘贴 SKU，再加入文案队列。</div>';
+    return queue.map((entry) => {
+      const status = getToyCopywritingBatchEntryStatus(entry);
+      const data = normalizeData(loadData(entry.sku) || {});
+      const title = entry.name || data.name || '等待读取产品名称';
+      const detail = entry.status === 'success'
+        ? '已补充 ' + (Number(entry.filledCount) || 0) + ' 个字段并保存草稿'
+        : (entry.status === 'noop' ? '现有文案已完整' : (entry.error || entry.step || '等待处理'));
+      const retry = !locked && status.kind === 'error' ? '<button type="button" data-action="toy-copywriting-batch-retry" data-sku="' + escapeHtml(entry.sku) + '" title="重新补全">↻</button>' : '';
+      const remove = !locked ? '<button type="button" data-action="toy-copywriting-batch-remove" data-sku="' + escapeHtml(entry.sku) + '" title="移除">×</button>' : '';
+      return '<div class="pfh-toy-copywriting-batch-row"><div class="pfh-toy-copywriting-batch-row-main"><b>' + escapeHtml(entry.sku) + '</b><small title="' + escapeHtml(title + ' / ' + detail) + '">' + escapeHtml(title + ' · ' + detail) + '</small></div><span class="pfh-toy-copywriting-batch-status is-' + status.kind + '">' + escapeHtml(status.text) + '</span>' + retry + remove + '</div>';
+    }).join('');
+  }
+
+  function extractToyCopywritingBatchSkus(value) {
+    const seen = new Set();
+    return extractSearchCodes(value).filter((item) => /^SKU\d+$/i.test(item)).map((item) => String(item).toUpperCase()).filter((sku) => {
+      if (seen.has(sku)) return false;
+      seen.add(sku);
+      return true;
+    });
+  }
+
+  function addToyCopywritingBatchItems(value) {
+    const skus = extractToyCopywritingBatchSkus(value);
+    if (!skus.length) {
+      showToast('没有找到有效 SKU，请检查编码格式');
+      return;
+    }
+    const existing = new Map(loadToyCopywritingBatchQueue().map((entry) => [entry.sku, entry]));
+    const now = Date.now();
+    skus.forEach((sku, index) => {
+      const previous = existing.get(sku);
+      const data = normalizeData(loadData(sku) || {});
+      existing.set(sku, {
+        ...(previous || {}),
+        id: previous && previous.id || 'toy-copywriting-' + sku + '-' + now + '-' + index,
+        sku,
+        name: data.name || previous && previous.name || '',
+        status: 'pending',
+        step: '等待打开产品详情',
+        error: '',
+        filledCount: 0,
+        createdAt: previous && previous.createdAt || now,
+        updatedAt: now,
+      });
+    });
+    state.toyCopywritingBatchInput = '';
+    state.toyCopywritingBatchStatus = '已加入 ' + skus.length + ' 个 SKU，等待补全文案';
+    saveToyCopywritingBatchQueue(Array.from(existing.values()));
+    renderShell();
+    showToast(state.toyCopywritingBatchStatus);
+  }
+
+  function updateToyCopywritingBatchEntry(sku, patch) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const queue = Array.isArray(state.toyCopywritingBatchQueue) ? state.toyCopywritingBatchQueue : loadToyCopywritingBatchQueue();
+    const next = queue.map((entry) => entry.sku === normalizedSku ? { ...entry, ...(patch || {}), updatedAt: Date.now() } : entry);
+    saveToyCopywritingBatchQueue(next);
+    return next.find((entry) => entry.sku === normalizedSku) || null;
+  }
+
+  function removeToyCopywritingBatchItem(sku) {
+    if (state.toyCopywritingBatchRunning) {
+      showToast('当前队列正在处理，请先暂停后再移除');
+      return;
+    }
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    saveToyCopywritingBatchQueue(loadToyCopywritingBatchQueue().filter((entry) => entry.sku !== normalizedSku));
+    renderShell();
+  }
+
+  function retryToyCopywritingBatchItem(sku) {
+    if (state.toyCopywritingBatchRunning) return;
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!loadToyCopywritingBatchQueue().some((entry) => entry.sku === normalizedSku)) return;
+    updateToyCopywritingBatchEntry(normalizedSku, { status: 'pending', step: '等待重新补全', error: '', filledCount: 0 });
+    renderShell();
+  }
+
+  function clearCompletedToyCopywritingBatch() {
+    if (state.toyCopywritingBatchRunning) return;
+    saveToyCopywritingBatchQueue(loadToyCopywritingBatchQueue().filter((entry) => entry.status !== 'success' && entry.status !== 'noop'));
+    state.toyCopywritingBatchStatus = '已清除已完成项目';
+    renderShell();
+  }
+
+  function pauseToyCopywritingBatch() {
+    if (!state.toyCopywritingBatchRunning) return;
+    state.toyCopywritingBatchRunning = false;
+    const currentSku = state.toyCopywritingBatchCurrentSku;
+    if (currentSku) updateToyCopywritingBatchEntry(currentSku, { status: 'pending', step: '已暂停，等待继续', error: '' });
+    state.toyCopywritingBatchCurrentSku = '';
+    state.toyCopywritingBatchStatus = '已暂停，已完成项目保留在队列中';
+    saveToyCopywritingBatchQueue(state.toyCopywritingBatchQueue);
+    renderShell();
+  }
+
+  async function startToyCopywritingBatch() {
+    if (state.toyCopywritingBatchRunning) return;
+    state.toyCopywritingBatchQueue = loadToyCopywritingBatchQueue();
+    const pending = state.toyCopywritingBatchQueue.filter((entry) => entry.status === 'pending' || entry.status === 'error');
+    if (!pending.length) {
+      state.toyCopywritingBatchStatus = state.toyCopywritingBatchQueue.length ? '当前队列没有待处理项目' : '队列暂为空';
+      renderShell();
+      return;
+    }
+    state.toyCopywritingBatchRunning = true;
+    state.toyCopywritingBatchStatus = '开始批量补全文案';
+    saveToyCopywritingBatchQueue(state.toyCopywritingBatchQueue);
+    renderShell();
+    try {
+      await processToyCopywritingBatch();
+    } catch (error) {
+      state.toyCopywritingBatchRunning = false;
+      state.toyCopywritingBatchCurrentSku = '';
+      state.toyCopywritingBatchStatus = '批量处理异常：' + formatErrorMessage(error);
+      renderShell();
+    }
+  }
+
+  async function processToyCopywritingBatch() {
+    const queue = state.toyCopywritingBatchQueue || [];
+    for (const entry of queue) {
+      if (!state.toyCopywritingBatchRunning) break;
+      if (entry.status !== 'pending' && entry.status !== 'error') continue;
+      const sku = entry.sku;
+      state.toyCopywritingBatchCurrentSku = sku;
+      updateToyCopywritingBatchEntry(sku, { status: 'processing', step: '正在打开产品详情', error: '' });
+      let drawer = null;
+      try {
+        const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item.sku === sku) || { sku });
+        drawer = await openToyCopywritingBatchDrawer(sku, cached);
+        const data = getPageToyCopywritingData(drawer, sku);
+        if (!isToyCopywritingProduct(data)) throw new Error('当前编码未识别为玩具，已跳过');
+        updateToyCopywritingBatchEntry(sku, { name: data.name || cached.name || '', step: '正在补全中英文缺失字段' });
+        const filledCount = await fillToyCopywriting({ data, fromPage: true, throwOnError: true });
+        updateToyCopywritingBatchEntry(sku, {
+          status: filledCount ? 'success' : 'noop',
+          step: filledCount ? '已补充并保存草稿' : '现有玩具文案已完整，无需补充',
+          error: '',
+          filledCount: filledCount || 0,
+        });
+      } catch (error) {
+        const message = formatErrorMessage(error) || '文案补全失败';
+        updateToyCopywritingBatchEntry(sku, { status: 'error', step: '处理失败', error: message });
+        addLog('error', '批量玩具文案补充失败', sku + ' | ' + message);
+      } finally {
+        if (drawer || getProjectDrawerForSku(sku)) {
+          await closeProjectDetailDrawerForSku(sku).catch(() => {});
+        }
+        state.toyCopywritingBatchCurrentSku = '';
+        saveToyCopywritingBatchQueue(state.toyCopywritingBatchQueue);
+        if (state.toyCopywritingBatchRunning) {
+          state.toyCopywritingBatchStatus = '已处理 ' + sku + '，继续下一个编码';
+          renderShell();
+        }
+      }
+    }
+    if (state.toyCopywritingBatchRunning) {
+      state.toyCopywritingBatchRunning = false;
+      state.toyCopywritingBatchStatus = '批量文案补全完成';
+      state.toyCopywritingBatchCurrentSku = '';
+      saveToyCopywritingBatchQueue(state.toyCopywritingBatchQueue);
+      renderShell();
+      showToast('批量玩具文案补全完成');
+    }
+  }
+
+  async function openToyCopywritingBatchDrawer(sku, seed) {
+    const existingCopywritingDrawer = getToyCopywritingDrawerForSku(sku);
+    if (existingCopywritingDrawer) return existingCopywritingDrawer;
+    const currentDrawer = getProjectDrawer();
+    const currentSku = currentDrawer && getProjectDrawerHeaderSku(currentDrawer);
+    if (currentDrawer && currentSku !== sku) await closeProjectDetailDrawerForSku(currentSku).catch(() => {});
+    if (!(await ensureNewProductProjectPage())) throw new Error('未能进入新品开发页面');
+    if (!(await ensureDesignTaskTab())) throw new Error('未能进入设计任务页签');
+    let rowId = seed && (seed.projectRowId || seed.projectId) || '';
+    if (!rowId || !findOperationRowByRowId(rowId)) rowId = await queryDesignTaskRowIdBySku(sku);
+    if (!rowId || !(await clickProjectDetailByRowId(rowId, sku))) throw new Error('未找到对应 SKU 的产品详情');
+    cacheProjectRowId(sku, rowId);
+    adoptOpenedProjectDrawer(sku, { keepToolsView: true });
+    const drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
+    if (!drawer) throw new Error('产品详情未加载出玩具文案字段');
+    return drawer;
   }
 
   function convertCmInputToInches(value) {
@@ -12047,6 +12305,35 @@
       }
       return;
     }
+    if (action === 'toy-copywriting-batch-clear-input') {
+      state.toyCopywritingBatchInput = '';
+      renderShell();
+      return;
+    }
+    if (action === 'toy-copywriting-batch-add') {
+      addToyCopywritingBatchItems(state.toyCopywritingBatchInput);
+      return;
+    }
+    if (action === 'toy-copywriting-batch-start') {
+      startToyCopywritingBatch();
+      return;
+    }
+    if (action === 'toy-copywriting-batch-pause') {
+      pauseToyCopywritingBatch();
+      return;
+    }
+    if (action === 'toy-copywriting-batch-remove') {
+      removeToyCopywritingBatchItem(actionTarget.getAttribute('data-sku') || '');
+      return;
+    }
+    if (action === 'toy-copywriting-batch-retry') {
+      retryToyCopywritingBatchItem(actionTarget.getAttribute('data-sku') || '');
+      return;
+    }
+    if (action === 'toy-copywriting-batch-clear-completed') {
+      clearCompletedToyCopywritingBatch();
+      return;
+    }
     if (action === 'ledger-open') {
       state.view = 'ledger';
       state.ledgerDate = state.ledgerDate || getTodayKey();
@@ -12657,6 +12944,9 @@
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-batch-excel-input')) {
       state.batchExcelInput = event.target.value;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-toy-copywriting-batch-input')) {
+      state.toyCopywritingBatchInput = event.target.value;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cloud-backup-key')) {
       state.settings.cloudBackupKey = event.target.value.trim();
@@ -15405,7 +15695,8 @@
     renderShell();
   }
 
-  function adoptOpenedProjectDrawer(sku) {
+  function adoptOpenedProjectDrawer(sku, options) {
+    const opts = options || {};
     const drawer = getProjectDrawerForSku(sku);
     if (!drawer) return;
     const switchingSku = Boolean(state.selectedSku && state.selectedSku !== sku);
@@ -15415,7 +15706,7 @@
     const cached = loadData(sku);
     if (cached) state.data = normalizeData(cached);
     else if (!state.data || state.data.sku !== sku) state.data = normalizeData({ sku });
-    state.view = 'detail';
+    state.view = opts.keepToolsView ? 'tools' : 'detail';
     if (switchingSku) state.copywritingMode = false;
     resetExcelState();
     expandPanel();
@@ -20676,6 +20967,46 @@
       error: String(entry && entry.error || ''),
       updatedAt: Number(entry && entry.updatedAt) || Date.now(),
     };
+  }
+
+  function normalizeToyCopywritingBatchEntry(entry, resetProcessing) {
+    const sku = String(entry && entry.sku || '').trim().toUpperCase();
+    if (!/^SKU\d+$/.test(sku)) return null;
+    const validStatuses = new Set(['pending', 'processing', 'success', 'noop', 'error']);
+    let status = validStatuses.has(String(entry && entry.status || '')) ? String(entry.status) : 'pending';
+    if (resetProcessing && status === 'processing') status = 'pending';
+    return {
+      ...(entry || {}),
+      id: String(entry && entry.id || 'toy-copywriting-' + sku),
+      sku,
+      name: String(entry && entry.name || ''),
+      status,
+      step: String(entry && entry.step || ''),
+      error: String(entry && entry.error || ''),
+      filledCount: Math.max(0, Number(entry && entry.filledCount) || 0),
+      createdAt: Number(entry && entry.createdAt) || Date.now(),
+      updatedAt: Number(entry && entry.updatedAt) || Date.now(),
+    };
+  }
+
+  function loadToyCopywritingBatchQueue() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(TOY_COPYWRITING_BATCH_KEY, null) : JSON.parse(localStorage.getItem(TOY_COPYWRITING_BATCH_KEY) || 'null');
+      return (Array.isArray(saved) ? saved : []).map((entry) => normalizeToyCopywritingBatchEntry(entry, true)).filter(Boolean).slice(0, 300);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveToyCopywritingBatchQueue(queue) {
+    const snapshot = (Array.isArray(queue) ? queue : []).map((entry) => normalizeToyCopywritingBatchEntry(entry, false)).filter(Boolean).slice(0, 300);
+    state.toyCopywritingBatchQueue = snapshot;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(TOY_COPYWRITING_BATCH_KEY, snapshot);
+      else localStorage.setItem(TOY_COPYWRITING_BATCH_KEY, JSON.stringify(snapshot));
+    } catch (error) {
+      console.warn('PLM floating helper toy copywriting batch queue save failed:', error);
+    }
   }
 
   function saveUploadQueue() {
