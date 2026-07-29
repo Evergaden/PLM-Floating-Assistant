@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.53
+// @version      2.6.54
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.53';
+  const SCRIPT_VERSION = '2.6.54';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8691,8 +8691,6 @@
   function homeViewHtml(statusText) {
     const count = state.index.length;
     const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
-    const sizeImageLocked = !state.sizeImageAccessEnabled;
-    const sizeImageLockText = state.sizeImageAccessLoading ? '正在准备功能。' : '该功能暂未开放，敬请期待。';
     const magicUploadLocked = !state.magicUploadAccessEnabled;
     const magicUploadLockText = state.magicUploadAccessLoading ? '正在准备功能。' : '该功能暂未开放，敬请期待。';
     const cards = [
@@ -8700,7 +8698,6 @@
       ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
       ['home-batch-excel', 'batchExcel', '规格成表', '批量生成 Excel', '输入多个 SKU，自动补全缓存并排队下载。'],
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
-      ['home-size-image', 'image', '包装辅助', '生成尺寸图', sizeImageLocked ? sizeImageLockText : '选择 SKU 并拖入图片，自动识别纸盒或标签并生成 JPG。', sizeImageLocked],
       ['home-magic-upload', 'upload', '图包实验室', '魔法上传', magicUploadLocked ? magicUploadLockText : '拖入多个 ZIP，自动识别 SKU 与素材区域并通过 API 上传。', magicUploadLocked, true],
       ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。', false, true],
       ['home-unit-converter', 'calculator', '单位换算', '厘米换算英寸', '输入一个或多个厘米尺寸，立即换算为英寸。'],
