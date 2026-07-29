@@ -1540,6 +1540,29 @@
     } catch (_) { return { enabled: false, entries: [] }; }
   }
   let plmApiMonitorState = loadPlmApiMonitorState();
+  const plmAuthHeaders = Object.create(null);
+  function capturePlmAuthHeaders(headers) {
+    if (!headers) return;
+    const capture = (name, value) => {
+      const headerName = String(name || '').trim();
+      if (!headerName || /^x-oss-/i.test(headerName) || !/authorization|(?:^|[-_])(auth|token|session|jwt)(?:$|[-_])/i.test(headerName)) return;
+      const headerValue = String(value || '').trim();
+      if (headerValue && headerValue.length <= 4096) plmAuthHeaders[headerName] = headerValue;
+    };
+    if (typeof headers.forEach === 'function') {
+      headers.forEach((value, name) => capture(name, value));
+    } else if (Array.isArray(headers)) {
+      headers.forEach((item) => capture(item && item[0], item && item[1]));
+    } else if (typeof headers === 'object') {
+      Object.keys(headers).forEach((name) => capture(name, headers[name]));
+    }
+  }
+  function getPlmAuthHeaders() {
+    return Object.keys(plmAuthHeaders).reduce((headers, name) => {
+      headers[name] = plmAuthHeaders[name];
+      return headers;
+    }, {});
+  }
   function savePlmApiMonitorState() {
     const value = { enabled: Boolean(plmApiMonitorState.enabled), entries: (plmApiMonitorState.entries || []).slice(0, PLM_API_MONITOR_MAX_ENTRIES) };
     if (typeof GM_setValue === 'function') GM_setValue(PLM_API_MONITOR_STATE_KEY, value);
@@ -1580,7 +1603,7 @@
   }
   function installPlmApiMonitor() {
     const root = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window;
-    if (!plmApiMonitorState.enabled || !root || root.__PLM_API_MONITOR_INSTALLED__) return;
+    if (!root || root.__PLM_API_MONITOR_INSTALLED__) return;
     root.__PLM_API_MONITOR_INSTALLED__ = true;
     if (typeof root.fetch === 'function') {
       const originalFetch = root.fetch;
@@ -1588,6 +1611,8 @@
         const requestUrl = typeof input === 'string' ? input : (input && input.url) || '';
         const method = (init && init.method) || (input && input.method) || 'GET';
         const requestBody = init && init.body;
+        capturePlmAuthHeaders(init && init.headers);
+        capturePlmAuthHeaders(input && input.headers);
         const result = originalFetch.apply(this, arguments);
         result.then((response) => {
           const contentType = response.headers && response.headers.get ? response.headers.get('content-type') || '' : '';
@@ -1600,7 +1625,14 @@
     if (xhrProto && xhrProto.open && xhrProto.send) {
       const originalOpen = xhrProto.open;
       const originalSend = xhrProto.send;
+      const originalSetRequestHeader = xhrProto.setRequestHeader;
       xhrProto.open = function (method, url) { this.__plmApiMonitor = { method, url }; return originalOpen.apply(this, arguments); };
+      if (originalSetRequestHeader) {
+        xhrProto.setRequestHeader = function (name, value) {
+          capturePlmAuthHeaders({ [name]: value });
+          return originalSetRequestHeader.apply(this, arguments);
+        };
+      }
       xhrProto.send = function (body) {
         const xhr = this;
         xhr.addEventListener('load', () => {
@@ -5338,6 +5370,7 @@
               'x-app-code': 'PLM',
               'x-tenant-code': 'xy',
               'x-tenant-id': 'xy',
+              ...getPlmAuthHeaders(),
             },
             timeout: 15000,
             onload: (response) => finish(resolve, response),
@@ -5357,6 +5390,7 @@
           'x-app-code': 'PLM',
           'x-tenant-code': 'xy',
           'x-tenant-id': 'xy',
+          ...getPlmAuthHeaders(),
         },
         signal: controller ? controller.signal : undefined,
       });
