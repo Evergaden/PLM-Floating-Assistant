@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.51
+// @version      2.6.52
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.51';
+  const SCRIPT_VERSION = '2.6.52';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8484,7 +8484,9 @@
       const detail = submitted
         ? '主图/详情图已全部应用并提审'
         : (entry.status === 'success'
-          ? '已补充 ' + (Number(entry.filledCount) || 0) + ' 个字段并保存草稿' + (generatedImages ? '，主图/详情图请求已触发' : '') + (entry.applyError ? ' / ' + entry.applyError : '')
+          ? (/已生成/.test(entry.step || '')
+            ? entry.step
+            : '已补充 ' + (Number(entry.filledCount) || 0) + ' 个字段并保存草稿' + (generatedImages ? '，主图/详情图请求已触发' : '')) + (entry.applyError ? ' / ' + entry.applyError : '')
           : (entry.status === 'noop' ? '现有文案已完整' + (entry.applyError ? ' / ' + entry.applyError : '') : (entry.error || entry.step || '等待处理')));
       const retry = !locked && entry.status === 'error' ? '<button type="button" data-action="toy-copywriting-batch-retry" data-sku="' + escapeHtml(entry.sku) + '" title="重新补全">↻</button>' : '';
       const remove = !locked ? '<button type="button" data-action="toy-copywriting-batch-remove" data-sku="' + escapeHtml(entry.sku) + '" title="移除">×</button>' : '';
@@ -8618,10 +8620,16 @@
         if (!isToyCopywritingProduct(data)) throw new Error('当前编码未识别为玩具，已跳过');
         updateToyCopywritingBatchEntry(sku, { name: data.name || cached.name || '', step: '正在补全中英文缺失字段' });
         const filledCount = await fillToyCopywriting({ data, fromPage: true, throwOnError: true });
-        const generatedImages = await generateToyImagesForBatch(drawer, sku);
+        const imageResult = await generateToyImagesForBatch(drawer, sku);
+        const generatedImages = imageResult.completed;
+        const imageStep = imageResult.triggered === 2
+          ? '文案已保存，主图和详情图生成请求已触发'
+          : (imageResult.triggered
+            ? '已有图片保留，其余图片生成请求已触发'
+            : 'PLM 中主图和详情图均已生成');
         updateToyCopywritingBatchEntry(sku, {
           status: filledCount || generatedImages ? 'success' : 'noop',
-          step: generatedImages === 2 ? '文案已保存，主图和详情图生成请求已触发' : '现有玩具文案已完整，无需补充',
+          step: imageStep,
           error: '',
           filledCount: filledCount || 0,
           generatedImages,
@@ -8693,6 +8701,7 @@
 
   async function clickToyImageAiGenerate(drawer, sku, label) {
     const currentDrawer = getToyCopywritingDrawerForSku(sku) || drawer;
+    if (isToyImageAlreadyGenerated(currentDrawer, label)) return false;
     const before = getToyImageSectionState(currentDrawer, label);
     if (!before || !before.button) throw new Error('未找到' + label + '的 AI一键生成按钮');
     if (!isActionButtonReady(before.button)) throw new Error(label + ' AI一键生成按钮不可用');
@@ -8712,14 +8721,20 @@
   }
 
   async function generateToyImagesForBatch(drawer, sku) {
-    let generated = 0;
+    let triggered = 0;
+    let completed = 0;
     for (const label of ['主图', '详情图']) {
-      updateToyCopywritingBatchEntry(sku, { step: '正在点击' + label + ' AI一键生成' });
       const currentDrawer = getToyCopywritingDrawerForSku(sku) || drawer;
-      await clickToyImageAiGenerate(currentDrawer, sku, label);
-      generated += 1;
+      if (isToyImageAlreadyGenerated(currentDrawer, label)) {
+        updateToyCopywritingBatchEntry(sku, { step: label + '已生成，继续检查下一项' });
+        completed += 1;
+        continue;
+      }
+      updateToyCopywritingBatchEntry(sku, { step: '正在点击' + label + ' AI一键生成' });
+      if (await clickToyImageAiGenerate(currentDrawer, sku, label)) triggered += 1;
+      completed += 1;
     }
-    return generated;
+    return { triggered, completed };
   }
 
   function getToyGeneratedImageSection(drawer, label) {
@@ -8732,6 +8747,15 @@
         const text = compactText(labelNode && (labelNode.innerText || labelNode.textContent)).replace(/[*：:]/g, '');
         return text.startsWith(expected) && /已生成|点击查看|AI(?:一键|重新)生成/.test(getVisibleText(item));
       }) || null;
+  }
+
+  function isToyImageAlreadyGenerated(drawer, label) {
+    const section = getToyGeneratedImageSection(drawer, label);
+    return Boolean(
+      section
+      && getVisibleText(section).includes('已生成')
+      && findToyGeneratedImageAction(section, '点击查看')
+    );
   }
 
   function findToyGeneratedImageAction(scope, text) {
