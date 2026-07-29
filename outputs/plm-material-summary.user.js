@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.28
+// @version      2.6.29
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.28';
+  const SCRIPT_VERSION = '2.6.29';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5268,7 +5268,16 @@
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
     try {
-      const response = await fetch(url, { credentials: 'same-origin', signal: controller ? controller.signal : undefined });
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'x-app-code': 'PLM',
+          'x-tenant-code': 'xy',
+          'x-tenant-id': 'xy',
+        },
+        signal: controller ? controller.signal : undefined,
+      });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return await response.json();
     } finally {
@@ -5322,7 +5331,10 @@
           return result;
         })
         .catch((error) => {
-          addLog('warn', 'PLM 物料接口读取失败', String(data && data.sku || '') + ' | ' + formatErrorMessage(error));
+          const detail = /HTTP 401/.test(formatErrorMessage(error))
+            ? formatErrorMessage(error) + ' | 请刷新 PLM 页面后重试，或检查当前账号项目权限'
+            : formatErrorMessage(error);
+          addLog('warn', 'PLM 物料接口读取失败', String(data && data.sku || '') + ' | ' + detail);
           return emptyPackaging();
         });
     }
