@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.47
+// @version      2.6.48
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.47';
+  const SCRIPT_VERSION = '2.6.48';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8002,7 +8002,11 @@
       .filter(isVisibleElement)
       .filter((drawer) => {
         const text = getVisibleText(drawer);
-        return (!sku || text.includes(sku)) && text.includes('\u4e2d\u6587-\u7b80\u4f53') && text.includes('\u82f1\u8bed(\u7f8e\u56fd)') && text.includes('\u4fdd\u5b58\u8349\u7a3f');
+        return (!sku || text.includes(sku))
+          && text.includes('\u4e2d\u6587-\u7b80\u4f53')
+          && text.includes('\u82f1\u8bed(\u7f8e\u56fd)')
+          && text.includes('\u4fdd\u5b58\u8349\u7a3f')
+          && (text.includes('\u63a8\u54c1\u8d44\u6599') || hasToyCopywritingFields(drawer));
       });
     return drawers[drawers.length - 1] || null;
   }
@@ -8701,6 +8705,14 @@
   async function openToyCopywritingBatchDrawer(sku, seed) {
     const existingCopywritingDrawer = getToyCopywritingDrawerForSku(sku);
     if (existingCopywritingDrawer) return existingCopywritingDrawer;
+    const existingEditDrawer = getProductEditDrawerForSku(sku);
+    if (existingEditDrawer) {
+      updateToyCopywritingBatchEntry(sku, { step: '正在进入玩具文案编辑页' });
+      await enterProductEditSecondStep(sku);
+      const advancedDrawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
+      if (!advancedDrawer) throw new Error('已点击「下一步」，但玩具文案页未加载');
+      return advancedDrawer;
+    }
     const currentDrawer = getToyCopywritingDrawerForSku('') || getProjectDrawer();
     const currentSku = currentDrawer && getProjectDrawerHeaderSku(currentDrawer);
     if (currentDrawer && currentSku !== sku) await closeToyCopywritingDrawerForSku(currentSku).catch(() => {});
@@ -8708,7 +8720,8 @@
     if (!(await ensureDesignTaskTab())) throw new Error('未能进入设计任务页签');
     let rowId = seed && (seed.projectRowId || seed.projectId) || '';
     if (!rowId || !findOperationButtonByRowId(rowId, '编辑')) rowId = await queryDesignTaskRowIdBySku(sku);
-    if (!rowId || !(await clickProjectEditByRowId(rowId, sku))) throw new Error('未找到对应 SKU 的编辑入口');
+    if (!rowId) throw new Error('未找到对应 SKU 的编辑入口');
+    if (!(await clickProjectEditByRowId(rowId, sku))) throw new Error('已找到对应 SKU 的编辑入口，但编辑抽屉未打开');
     cacheProjectRowId(sku, rowId);
     const drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
     if (!drawer) throw new Error('编辑抽屉未加载');
@@ -14833,9 +14846,14 @@
   }
 
   function getProductEditDrawerForSku(sku) {
-    return Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer'))
+    return Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open, .ant-drawer'))
       .filter(isVisibleElement)
-      .find((drawer) => /\u7f16\u8f91\u5546\u54c1/.test(getVisibleText(drawer)) && (!sku || getVisibleText(drawer).includes(sku))) || null;
+      .find((drawer) => {
+        const text = getVisibleText(drawer);
+        const headerSku = getProjectDrawerHeaderSku(drawer);
+        return /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(text)
+          && (!sku || headerSku === String(sku).toUpperCase() || text.includes(sku));
+      }) || null;
   }
 
   async function enterProductEditSecondStep(sku) {
