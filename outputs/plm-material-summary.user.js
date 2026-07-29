@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.32
+// @version      2.6.33
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.32';
+  const SCRIPT_VERSION = '2.6.33';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5281,6 +5281,30 @@
       : '';
   }
 
+  function getApiMaterialDisplayName(value, keywordPattern) {
+    const name = compactText(value);
+    if (!name) return '';
+    const match = name.match(keywordPattern);
+    return match ? name.slice(match.index).trim() : name.trim();
+  }
+
+  function getApiPackageDisplayName(item) {
+    const pattern = /(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/;
+    return getApiMaterialDisplayName(item && item.name, pattern)
+      || getApiMaterialDisplayName(item && item.category_name, pattern)
+      || compactText(item && item.name)
+      || compactText(item && item.category_name);
+  }
+
+  function getApiPrintDisplayName(item) {
+    const pattern = /(标签|印刷软管|印刷尺寸|印刷管|印刷瓶|印刷乳液瓶|印刷)/;
+    const raw = getApiMaterialDisplayName(item && item.name, pattern)
+      || getApiMaterialDisplayName(item && item.category_name, pattern)
+      || compactText(item && item.name)
+      || compactText(item && item.category_name);
+    return cleanPrintLabel(raw);
+  }
+
   function extractApiMaterialPackaging(payload) {
     const items = getApiMaterialItems(payload);
     const candidates = items.map((item, index) => {
@@ -5296,7 +5320,7 @@
       if (/标签|印刷|贴纸|不干胶/.test(text)) score -= 100;
       if (dimensions && dimensions.length >= 3) score += 40;
       else if (unitIssue) score += 25;
-      return { item, index, name, category, text, dimensions, unitIssue, score };
+      return { item, index, name, category, text, dimensions, unitIssue, score, displayName: getApiPackageDisplayName(item) };
     }).filter((item) => item.score > 0 && ((item.dimensions && item.dimensions.length >= 3) || item.unitIssue))
       .sort((a, b) => b.score - a.score || a.index - b.index);
     const packageItem = candidates[0];
@@ -5309,7 +5333,7 @@
       const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
       const unitIssue = getApiMaterialUnitIssue(item);
       const dimensions = getApiMaterialDimensions(item, 2);
-      return { item, index, name, category, text, dimensions, unitIssue };
+      return { item, index, name, category, text, dimensions, unitIssue, displayName: getApiPrintDisplayName(item) };
     }).filter((item) => (!packageItem || item.index !== packageItem.index)
       && /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text)
       && ((item.dimensions && item.dimensions.length >= 2) || item.unitIssue));
@@ -5317,12 +5341,12 @@
     const packageUnitIssue = packageItem && packageItem.unitIssue ? packageItem.unitIssue : null;
     return {
       packageSizeText: packageUnitIssue ? packageUnitIssue.raw : formatApiMaterialDimensions(packageNums),
-      packageSizeLabel: packageItem ? (packageItem.name || packageItem.category) : '',
+      packageSizeLabel: packageItem ? packageItem.displayName : '',
       packageCode: packageItem ? String(packageItem.item.code || '') : '',
       packageNums,
       hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name))),
       printSizeText: printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
-      printSizeLabel: printItems.map((item) => item.name || item.category).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
+      printSizeLabel: printItems.map((item) => item.displayName).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
       printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
       materialDimensionUnitIssues: {
         package: packageUnitIssue,
