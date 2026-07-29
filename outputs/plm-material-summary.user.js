@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.49
+// @version      2.6.50
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.49';
+  const SCRIPT_VERSION = '2.6.50';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3718,6 +3718,8 @@
     toyCopywritingBatchRunning: false,
     toyCopywritingBatchCurrentSku: '',
     toyCopywritingBatchStatus: '',
+    toyCopywritingApplyRunning: false,
+    toyCopywritingApplyCurrentSku: '',
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
@@ -8376,14 +8378,19 @@
     state.toyCopywritingBatchQueue = queue;
     const stats = getToyCopywritingBatchStats(queue);
     const running = Boolean(state.toyCopywritingBatchRunning);
-    const canStart = !running && queue.some((entry) => entry.status === 'pending' || entry.status === 'error');
+    const applying = Boolean(state.toyCopywritingApplyRunning);
+    const locked = running || applying;
+    const canStart = !locked && queue.some((entry) => entry.status === 'pending' || entry.status === 'error');
+    const canApply = !locked && queue.some((entry) => {
+      return (entry.status === 'success' || entry.status === 'noop') && entry.applyStatus !== 'submitted';
+    });
     const progressText = state.toyCopywritingBatchStatus || (running
       ? '正在逐个打开编辑抽屉、补全文案、保存草稿并生成主图/详情图，请保持 PLM 页面登录状态。'
       : '输入 SKU 后，系统会自动识别玩具并只补全缺失的中英文文案字段。');
     return '<section class="pfh-mini-tool-card pfh-toy-copywriting-batch-page">' +
       '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
       '<div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + escapeHtml(state.toyCopywritingBatchInput || '') + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div>' +
-      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, running) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done ? '' : ' disabled') + '>清除已完成</button></div></div>' +
+      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, locked) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (canApply ? '' : ' disabled') + '>' + (applying ? '正在全部应用并提审…' : '批量全部应用并提审') + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done && !locked ? '' : ' disabled') + '>清除已完成</button></div></div>' +
       '</section>';
   }
 
@@ -8455,6 +8462,10 @@
 
   function getToyCopywritingBatchEntryStatus(entry) {
     const status = String(entry && entry.status || 'pending');
+    const applyStatus = String(entry && entry.applyStatus || '');
+    if (applyStatus === 'applying') return { kind: 'running', text: '应用中' };
+    if (applyStatus === 'submitted') return { kind: 'done', text: '已提审' };
+    if (applyStatus === 'error' && (status === 'success' || status === 'noop')) return { kind: 'error', text: '应用失败' };
     if (status === 'processing') return { kind: 'running', text: '补全中' };
     if (status === 'success') return { kind: 'done', text: '已完成' };
     if (status === 'noop') return { kind: 'done', text: '无需补充' };
@@ -8469,10 +8480,13 @@
       const data = normalizeData(loadData(entry.sku) || {});
       const title = entry.name || data.name || '等待读取产品名称';
       const generatedImages = Number(entry.generatedImages) || 0;
-      const detail = entry.status === 'success'
-        ? '已补充 ' + (Number(entry.filledCount) || 0) + ' 个字段并保存草稿' + (generatedImages ? '，主图/详情图请求已触发' : '')
-        : (entry.status === 'noop' ? '现有文案已完整' : (entry.error || entry.step || '等待处理'));
-      const retry = !locked && status.kind === 'error' ? '<button type="button" data-action="toy-copywriting-batch-retry" data-sku="' + escapeHtml(entry.sku) + '" title="重新补全">↻</button>' : '';
+      const submitted = entry.applyStatus === 'submitted';
+      const detail = submitted
+        ? '主图/详情图已全部应用并提审'
+        : (entry.status === 'success'
+          ? '已补充 ' + (Number(entry.filledCount) || 0) + ' 个字段并保存草稿' + (generatedImages ? '，主图/详情图请求已触发' : '') + (entry.applyError ? ' / ' + entry.applyError : '')
+          : (entry.status === 'noop' ? '现有文案已完整' + (entry.applyError ? ' / ' + entry.applyError : '') : (entry.error || entry.step || '等待处理')));
+      const retry = !locked && entry.status === 'error' ? '<button type="button" data-action="toy-copywriting-batch-retry" data-sku="' + escapeHtml(entry.sku) + '" title="重新补全">↻</button>' : '';
       const remove = !locked ? '<button type="button" data-action="toy-copywriting-batch-remove" data-sku="' + escapeHtml(entry.sku) + '" title="移除">×</button>' : '';
       return '<div class="pfh-toy-copywriting-batch-row"><div class="pfh-toy-copywriting-batch-row-main"><b>' + escapeHtml(entry.sku) + '</b><small title="' + escapeHtml(title + ' / ' + detail) + '">' + escapeHtml(title + ' · ' + detail) + '</small></div><span class="pfh-toy-copywriting-batch-status is-' + status.kind + '">' + escapeHtml(status.text) + '</span>' + retry + remove + '</div>';
     }).join('');
@@ -8508,6 +8522,8 @@
         error: '',
         filledCount: 0,
         generatedImages: 0,
+        applyStatus: '',
+        applyError: '',
         createdAt: previous && previous.createdAt || now,
         updatedAt: now,
       });
@@ -8564,7 +8580,7 @@
   }
 
   async function startToyCopywritingBatch() {
-    if (state.toyCopywritingBatchRunning) return;
+    if (state.toyCopywritingBatchRunning || state.toyCopywritingApplyRunning) return;
     state.toyCopywritingBatchQueue = loadToyCopywritingBatchQueue();
     const pending = state.toyCopywritingBatchQueue.filter((entry) => entry.status === 'pending' || entry.status === 'error');
     if (!pending.length) {
@@ -8704,6 +8720,158 @@
       generated += 1;
     }
     return generated;
+  }
+
+  function getToyGeneratedImageSection(drawer, label) {
+    if (!drawer) return null;
+    const expected = compactText(label);
+    return Array.from(drawer.querySelectorAll('.ant-form-item'))
+      .filter(isVisibleElement)
+      .find((item) => {
+        const labelNode = item.querySelector('.ant-form-item-label, label');
+        const text = compactText(labelNode && (labelNode.innerText || labelNode.textContent)).replace(/[*：:]/g, '');
+        return text.startsWith(expected) && /已生成|点击查看|AI(?:一键|重新)生成/.test(getVisibleText(item));
+      }) || null;
+  }
+
+  function findToyGeneratedImageAction(scope, text) {
+    if (!scope) return null;
+    const expected = compactText(text).replace(/\s+/g, '');
+    return Array.from(scope.querySelectorAll('button, a, [role="button"], span'))
+      .filter(isVisibleElement)
+      .filter(isActionButtonReady)
+      .find((element) => compactText(element.innerText || element.textContent).replace(/\s+/g, '') === expected) || null;
+  }
+
+  function getToyImagePreviewContainer() {
+    const applyActions = Array.from(document.querySelectorAll('button, a, [role="button"], span'))
+      .filter(isVisibleElement)
+      .filter((element) => compactText(element.innerText || element.textContent).replace(/\s+/g, '') === '全部应用');
+    for (const action of applyActions) {
+      const modal = action.closest('.ant-modal, .ant-drawer-open, [role="dialog"], .ant-image-preview-wrap');
+      if (modal && getVisibleText(modal).includes('下载图片')) return modal;
+      let fallback = null;
+      let current = action.parentElement;
+      for (let depth = 0; current && current !== document.body && depth < 14; depth += 1, current = current.parentElement) {
+        const text = getVisibleText(current);
+        if (!text.includes('下载图片') || !text.includes('全部应用')) continue;
+        fallback = current;
+        if (findDrawerCloseButton(current)) return current;
+      }
+      if (fallback) return fallback;
+    }
+    return null;
+  }
+
+  async function closeToyImagePreviewIfPresent() {
+    const preview = getToyImagePreviewContainer();
+    if (!preview) return true;
+    const close = findDrawerCloseButton(preview)
+      || findToyGeneratedImageAction(preview, '关闭');
+    if (!close) throw new Error('未找到生成图片预览关闭按钮');
+    clickElement(close);
+    return Boolean(await waitFor(() => {
+      return !document.body.contains(preview) || !isVisibleElement(preview) || !getToyImagePreviewContainer();
+    }, 10000, 100));
+  }
+
+  async function applyToyGeneratedImage(drawer, sku, label) {
+    const section = await waitFor(() => {
+      const liveDrawer = getToyCopywritingDrawerForSku(sku) || drawer;
+      const current = getToyGeneratedImageSection(liveDrawer, label);
+      return current && findToyGeneratedImageAction(current, '点击查看') ? current : null;
+    }, 300000, 1000);
+    if (!section) throw new Error(label + '等待生成完成超时');
+    const view = findToyGeneratedImageAction(section, '点击查看');
+    if (!view) throw new Error(label + '未找到「点击查看」');
+    clickElement(view);
+    const preview = await waitFor(() => getToyImagePreviewContainer(), 15000, 150);
+    if (!preview) throw new Error(label + '生成图片预览未打开');
+
+    const download = findToyGeneratedImageAction(preview, '下载图片');
+    if (!download) throw new Error(label + '未找到「下载图片」');
+    clickElement(download);
+    const directUse = await waitFor(() => findToyGeneratedImageAction(document.body, '直接使用'), 10000, 100);
+    if (!directUse) throw new Error(label + '未找到评价选项「直接使用」');
+    clickElement(directUse);
+    const submitDownload = await waitFor(() => findToyGeneratedImageAction(document.body, '提交并下载'), 10000, 100);
+    if (!submitDownload) throw new Error(label + '未找到「提交并下载」');
+    clickElement(submitDownload);
+    const downloadSubmitted = await waitFor(() => {
+      return !findToyGeneratedImageAction(document.body, '提交并下载');
+    }, 15000, 100);
+    if (!downloadSubmitted) throw new Error(label + '「提交并下载」未完成');
+
+    const livePreview = await waitFor(() => getToyImagePreviewContainer(), 10000, 100);
+    if (!livePreview) throw new Error(label + '下载后图片预览已意外关闭');
+    const applyAll = findToyGeneratedImageAction(livePreview, '全部应用');
+    if (!applyAll) throw new Error(label + '未找到「全部应用」');
+    await waitFor(() => !/应用成功/.test(getPlmNoticeText()), 5000, 100);
+    clickElement(applyAll);
+    const applied = await waitFor(() => /应用成功/.test(getPlmNoticeText()), 15000, 100);
+    if (!applied) throw new Error(label + '点击全部应用后未收到「应用成功」');
+    if (!(await closeToyImagePreviewIfPresent())) throw new Error(label + '图片预览未关闭');
+    return true;
+  }
+
+  async function startToyCopywritingApplyBatch() {
+    if (state.toyCopywritingBatchRunning || state.toyCopywritingApplyRunning) return;
+    state.toyCopywritingBatchQueue = loadToyCopywritingBatchQueue();
+    const eligible = state.toyCopywritingBatchQueue.filter((entry) => {
+      return (entry.status === 'success' || entry.status === 'noop') && entry.applyStatus !== 'submitted';
+    });
+    if (!eligible.length) {
+      state.toyCopywritingBatchStatus = '没有等待全部应用并提审的已完成产品';
+      renderShell();
+      return;
+    }
+    state.toyCopywritingApplyRunning = true;
+    state.toyCopywritingBatchStatus = '开始批量应用主图和详情图并提审';
+    renderShell();
+    for (const entry of eligible) {
+      const sku = entry.sku;
+      let drawer = null;
+      state.toyCopywritingApplyCurrentSku = sku;
+      updateToyCopywritingBatchEntry(sku, { applyStatus: 'applying', applyError: '', step: '正在打开设计资料' });
+      state.toyCopywritingBatchStatus = sku + '：正在打开设计资料';
+      renderShell();
+      try {
+        const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item.sku === sku) || { sku });
+        drawer = await openToyCopywritingBatchDrawer(sku, cached);
+        for (const label of ['主图', '详情图']) {
+          updateToyCopywritingBatchEntry(sku, { step: '正在处理' + label + '生成图片' });
+          state.toyCopywritingBatchStatus = sku + '：正在下载并全部应用' + label;
+          renderShell();
+          await applyToyGeneratedImage(drawer, sku, label);
+        }
+        updateToyCopywritingBatchEntry(sku, { applyStatus: 'applied', step: '主图和详情图已全部应用，正在提审' });
+        state.toyCopywritingBatchStatus = sku + '：正在提审';
+        renderShell();
+        await submitProductReview();
+        await closeTopProductDrawer({ skipDraftSave: true, allowReviewResultModal: true });
+        updateToyCopywritingBatchEntry(sku, {
+          applyStatus: 'submitted',
+          applyError: '',
+          step: '主图和详情图已全部应用并提审',
+        });
+        addLog('success', '玩具生成图片全部应用并提审成功', sku);
+      } catch (error) {
+        const message = formatErrorMessage(error) || '全部应用并提审失败';
+        updateToyCopywritingBatchEntry(sku, { applyStatus: 'error', applyError: message, step: '全部应用并提审失败' });
+        addLog('error', '玩具生成图片全部应用并提审失败', sku + ' | ' + message);
+        await closeToyImagePreviewIfPresent().catch(() => {});
+        await closeToyCopywritingDrawerForSku(sku).catch(() => {});
+      } finally {
+        state.toyCopywritingApplyCurrentSku = '';
+        state.toyCopywritingBatchStatus = '已处理 ' + sku + '，继续下一个编码';
+        renderShell();
+      }
+    }
+    state.toyCopywritingApplyRunning = false;
+    state.toyCopywritingApplyCurrentSku = '';
+    state.toyCopywritingBatchStatus = '批量全部应用并提审完成';
+    renderShell();
+    showToast('批量全部应用并提审完成');
   }
 
   async function openToyCopywritingBatchDrawer(sku, seed) {
@@ -12436,6 +12604,10 @@
       startToyCopywritingBatch();
       return;
     }
+    if (action === 'toy-copywriting-batch-apply') {
+      startToyCopywritingApplyBatch();
+      return;
+    }
     if (action === 'toy-copywriting-batch-pause') {
       pauseToyCopywritingBatch();
       return;
@@ -15383,7 +15555,7 @@
     if (bottomButton) return bottomButton;
     const drawers = Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .ant-drawer-open, .pdmDetailDrawer'))
       .filter(isVisibleElement)
-      .filter((drawer) => getNodeText(drawer).includes('\u7f16\u8f91\u5546\u54c1'));
+      .filter((drawer) => /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(getNodeText(drawer)));
     for (const drawer of drawers.reverse()) {
       const button = Array.from(drawer.querySelectorAll('button'))
         .filter(isVisibleElement)
@@ -15399,7 +15571,7 @@
     const normalizedText = compactText(text).replace(/\s+/g, '');
     const drawers = Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .ant-drawer-open, .pdmDetailDrawer'))
       .filter(isVisibleElement)
-      .filter((drawer) => getNodeText(drawer).includes('\u7f16\u8f91\u5546\u54c1'));
+      .filter((drawer) => /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(getNodeText(drawer)));
     const candidates = drawers.flatMap((drawer) => {
       const drawerRect = drawer.getBoundingClientRect();
       return Array.from(drawer.querySelectorAll('button'))
@@ -21133,6 +21305,9 @@
     const validStatuses = new Set(['pending', 'processing', 'success', 'noop', 'error']);
     let status = validStatuses.has(String(entry && entry.status || '')) ? String(entry.status) : 'pending';
     if (resetProcessing && status === 'processing') status = 'pending';
+    const validApplyStatuses = new Set(['applying', 'applied', 'submitted', 'error']);
+    let applyStatus = validApplyStatuses.has(String(entry && entry.applyStatus || '')) ? String(entry.applyStatus) : '';
+    if (resetProcessing && (applyStatus === 'applying' || applyStatus === 'applied')) applyStatus = 'error';
     return {
       ...(entry || {}),
       id: String(entry && entry.id || 'toy-copywriting-' + sku),
@@ -21143,6 +21318,8 @@
       error: String(entry && entry.error || ''),
       filledCount: Math.max(0, Number(entry && entry.filledCount) || 0),
       generatedImages: Math.max(0, Number(entry && entry.generatedImages) || 0),
+      applyStatus,
+      applyError: String(entry && entry.applyError || ''),
       createdAt: Number(entry && entry.createdAt) || Date.now(),
       updatedAt: Number(entry && entry.updatedAt) || Date.now(),
     };
