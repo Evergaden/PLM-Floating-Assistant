@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.57
+// @version      2.6.58
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.57';
+  const SCRIPT_VERSION = '2.6.58';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -13756,8 +13756,9 @@
     if (state.view === 'magicUpload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-magic-upload-drop')
-        || (panel && panel.querySelector('.pfh-magic-upload-drop:hover'));
-      const files = getClipboardUploadFiles(event).filter((file) => /\.(?:zip|xlsx)$/i.test(file.name || ''));
+        || (panel && panel.querySelector('.pfh-magic-upload-drop:hover'))
+        || (panel && panel.querySelector('.pfh-magic-upload-drop'));
+      const files = getClipboardMagicUploadFiles(event);
       if (drop && files.length) {
         event.preventDefault();
         event.stopPropagation();
@@ -13801,8 +13802,8 @@
   function handleSizeImageHoverPaste(event) {
     if (state.view === 'magicUpload') {
       const panel = document.getElementById(PANEL_ID);
-      const drop = panel && panel.querySelector('.pfh-magic-upload-drop:hover, .pfh-magic-upload-drop:focus');
-      const files = getClipboardUploadFiles(event).filter((file) => /\.(?:zip|xlsx)$/i.test(file.name || ''));
+      const drop = panel && panel.querySelector('.pfh-magic-upload-drop:hover, .pfh-magic-upload-drop:focus, .pfh-magic-upload-drop');
+      const files = getClipboardMagicUploadFiles(event);
       if (!drop || !files.length) return;
       event.preventDefault();
       event.stopPropagation();
@@ -13877,6 +13878,31 @@
       seen.add(key);
       return true;
     });
+  }
+
+  function getClipboardMagicUploadFiles(event) {
+    const clipboard = event && event.clipboardData;
+    const itemFiles = Array.from(clipboard && clipboard.items || [])
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    const directFiles = Array.from(clipboard && clipboard.files || []);
+    const seen = new Set();
+    return itemFiles.concat(directFiles).filter(Boolean).map((file, index) => {
+      const name = String(file.name || '');
+      const type = String(file.type || '').toLowerCase();
+      const isZip = /\.zip$/i.test(name) || /zip/i.test(type);
+      const isXlsx = /\.xlsx$/i.test(name) || /spreadsheet|excel/i.test(type);
+      if (!isZip && !isXlsx) return null;
+      const extension = isZip ? '.zip' : '.xlsx';
+      const normalized = /\.(?:zip|xlsx)$/i.test(name)
+        ? file
+        : new File([file], '粘贴图包-' + (index + 1) + extension, { type: file.type || (isZip ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'), lastModified: file.lastModified || Date.now() });
+      const key = [normalized.name, normalized.size, normalized.lastModified].join('|');
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return normalized;
+    }).filter(Boolean);
   }
 
   function getClipboardCopyrightFiles(event) {
