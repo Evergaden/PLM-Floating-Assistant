@@ -11,6 +11,13 @@
 - 常见请求头由网页自动补充：`x-app-code: PLM`、`x-tenant-code: xy`、`x-tenant-id: xy`。
 - 读取请求建议设置 15 秒超时，并对 HTTP 非 2xx 做错误处理。
 
+### 登录态和 HTTP 401 经验
+
+- 仅补充固定租户头不一定足够。PLM 页面可能通过自己的 fetch/XHR 请求封装追加动态认证头；清理后的 HAR 也可能看不出完整登录态。
+- 不要把 Authorization、Cookie、临时 token 写死。用户脚本应在当前页面内存中观察页面真实请求的认证头，并在同一会话内复用；脚本刷新或页面关闭后应失效。
+- 页面请求和用户脚本请求都返回 401 时，优先刷新 PLM 页面并确认账号仍有项目权限；不要把 401 当成物料为空。
+- 项目物料接口和产品接口应分开容错：`GetProjectDetail` 失败时仍可按 SKU 继续 `GetProductList` 和 `GetDetailContent`，这样净含量、毛重等产品字段不会被项目物料权限问题连带阻断。
+
 ## SKU、项目和产品
 
 ### 按 SKU 查询项目列表
@@ -36,6 +43,15 @@ GET /api/ChemicalNew/GetProjectDetail?id={project_id}
 `pms[]` 物料常用字段：`code`、`name`、`category_name`、`properties_value`、`material_length`、`material_width`、`material_height`、`material_type`、`pics`。
 
 纸盒、彩盒、纸箱通常从 `pms[]` 识别；标签、印刷、贴纸、不干胶等也从这里读取尺寸和物料编码。
+
+分类时优先使用物料 `name`、`category_name` 和 `properties_value`，不要把供应商名称作为主要分类条件。供应商名称可能包含“印刷”或“纸盒”，会把纸盒误归入标签/印刷。例如 SKU00046993 的物料清单中：
+
+| 物料编码 | 名称/类别 | 尺寸 | 归类 |
+|---|---|---|---|
+| `MTL00064165` | 紧致肌肤护理霜纸盒 / `包材 - 纸盒 - 白卡 - 白卡` | `6.6x6.6x5.8cm` | 纸盒 |
+| `MTL00064166` | 紧致肌肤护理霜标签 / `包材 - 标签 - 标签 - 标签` | `10x3cm` | 标签/印刷 |
+
+纸盒候选选定后，应按物料索引从标签/印刷候选中排除，避免同一个纸盒编码和尺寸重复出现在标签卡。
 
 ### SKU 产品列表
 

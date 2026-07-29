@@ -5303,12 +5303,15 @@
     const printItems = items.map((item, index) => {
       const name = compactText(item && item.name);
       const category = compactText(item && item.category_name);
-      const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
-      const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
+      // Suppliers often contain "印刷" or "纸盒" (for example, "印刷有限公司-纸盒").
+      // Use material name/category/properties for classification, otherwise a paper-box
+      // supplier can make the paper box appear again in the label/printing group.
+      const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
       const unitIssue = getApiMaterialUnitIssue(item);
       const dimensions = getApiMaterialDimensions(item, 2);
       return { item, index, name, category, text, dimensions, unitIssue };
-    }).filter((item) => /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text)
+    }).filter((item) => (!packageItem || item.index !== packageItem.index)
+      && /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text)
       && ((item.dimensions && item.dimensions.length >= 2) || item.unitIssue));
     const packageNums = packageItem && packageItem.dimensions ? packageItem.dimensions : null;
     const packageUnitIssue = packageItem && packageItem.unitIssue ? packageItem.unitIssue : null;
