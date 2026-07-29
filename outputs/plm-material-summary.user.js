@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.40
+// @version      2.6.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.40';
+  const SCRIPT_VERSION = '2.6.41';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -13639,8 +13639,8 @@
     return tied.length ? { ambiguous: [best].concat(tied).map((item) => item.candidate) } : { candidate: best.candidate };
   }
 
-  async function addToyEffectQueueFile(file, candidate) {
-    const queue = loadUploadQueue();
+  async function addToyEffectQueueFile(file, candidate, queueOverride) {
+    const queue = Array.isArray(queueOverride) ? queueOverride : loadUploadQueue();
     let item = queue.find((entry) => entry.kind === 'toy-effect' && entry.sku === candidate.sku && !/\u6210\u529f/.test(entry.status || ''));
     const key = 'toy-effect:' + candidate.sku + ':' + Date.now() + ':' + Math.random().toString(36).slice(2, 8);
     await putUploadFile(key, cloneUploadFile(file));
@@ -13693,6 +13693,7 @@
     }
     try {
       const candidates = await collectToyEffectMatchCandidates();
+      const queue = loadUploadQueue();
       const unmatched = [];
       let added = 0;
       for (const file of supported) {
@@ -13701,13 +13702,14 @@
           unmatched.push(file.name + (resolved.ambiguous ? '\uff08\u4ea7\u54c1\u540d\u91cd\u590d\uff09' : ''));
           continue;
         }
-        const queued = await addToyEffectQueueFile(file, resolved.candidate);
+        const queued = await addToyEffectQueueFile(file, resolved.candidate, queue);
         if (queued === true) added += 1;
         else if (queued === 'limit') unmatched.push(file.name + '（该 SKU 效果图已达 3 张上限）');
       }
       state.uploadMode = 'toy-effect';
       state.uploadView = 'queue';
       state.uploadPage = 1;
+      state.uploadQueue = queue;
       state.toyEffectMatchStatus = unmatched.length ? '\u672a\u5339\u914d\uff1a' + unmatched.slice(0, 4).join('\u3001') + (unmatched.length > 4 ? '\u2026' : '') : '';
       saveUploadQueue();
       renderShell();
