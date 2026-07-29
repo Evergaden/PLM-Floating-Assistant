@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.58
+// @version      2.6.59
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.58';
+  const SCRIPT_VERSION = '2.6.59';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -6669,6 +6669,7 @@
       return;
     }
     if (state.view === 'magicUpload') {
+      ensureMagicUploadStyles();
       renderStandaloneTool(panel, magicUploadViewHtml());
       restorePanelScroll(panel, scrollSnapshot);
       return;
@@ -7282,6 +7283,18 @@
     detail.innerHTML = html;
   }
 
+  function ensureMagicUploadStyles() {
+    const styleId = PANEL_ID + '-magic-upload-styles';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 12px;padding:8px 0;border-bottom:1px solid #e8e3f5}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin:0;padding:0;border:1px solid transparent;border-radius:10px;background:transparent;color:#7357d8;box-shadow:none;cursor:pointer}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back:hover{background:#f0ecff;color:#5e45bd}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-paste-received{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}';
+    document.head.appendChild(style);
+  }
+
   function renderSizeImage(panel) {
     const detail = panel.querySelector('.pfh-detail');
     detail.classList.remove('is-loading');
@@ -7374,16 +7387,23 @@
     return 'magic-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
   }
 
+  function magicUploadLog(level, message, detail) {
+    addLog(level || 'info', '魔法上传 ' + message, detail || '');
+  }
+
   async function processMagicUploadZipFiles(files) {
     if (!state.magicUploadAccessEnabled) {
+      magicUploadLog('warn', '文件处理被拦截', '当前账号没有魔法上传权限');
       showToast('魔法上传暂未开放');
       return;
     }
     const sourceFiles = (files || []).filter((file) => file && /\.(?:zip|xlsx)$/i.test(file.name || '') && Number(file.size || 0) <= MAGIC_UPLOAD_MAX_FILE_BYTES);
     if (!sourceFiles.length) {
+      magicUploadLog('warn', '没有识别到可处理文件', (files || []).map((file) => (file && ((file.name || '无文件名') + '|' + (file.type || '无类型'))) || '空').join('；'));
       showToast('请选择 ZIP 图包或 XLSX');
       return;
     }
+    magicUploadLog('info', '开始处理文件', sourceFiles.map((file) => file.name + '|' + Math.round(Number(file.size || 0) / 1024) + 'KB').join('；'));
     const replacingId = state.magicUploadReplaceId;
     state.magicUploadReplaceId = '';
     if (replacingId && sourceFiles[0]) {
@@ -7405,6 +7425,7 @@
             files: [{ name: zipFile.name, key, category: '推品资料', archiveTypeId: 4, status: 'pending', error: '' }], status: sku ? 'pending' : 'waiting', step: sku ? '等待上传' : '请确认 SKU', error: '', createdAt: Date.now(), updatedAt: Date.now(),
           }));
           mergeMagicUploadTasks(additions);
+          magicUploadLog('info', 'XLSX 已加入队列', zipFile.name + ' | SKU=' + (skus.join(',') || '待确认'));
           showToast(zipFile.name + ' 已加入推品资料');
           continue;
         }
@@ -7436,6 +7457,7 @@
           status: group.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending', step: group.some((entry) => entry.category === '待确认') ? '请确认文件分类' : '等待上传', error: '', createdAt: Date.now(), updatedAt: Date.now(),
         }));
         mergeMagicUploadTasks(additions);
+        magicUploadLog('info', 'ZIP 识别完成', zipFile.name + ' | 文件=' + entries.length + ' | SKU=' + (skus.join(',') || '待确认') + ' | 任务=' + additions.length);
         showToast(zipFile.name + ' 已识别 ' + additions.length + ' 个任务');
       } catch (error) {
         addLog('warn', '魔法上传图包识别失败', zipFile.name + ' | ' + formatErrorMessage(error));
@@ -7443,6 +7465,7 @@
       }
     }
     state.magicUploadFileInputOpen = false;
+    magicUploadLog('info', '文件处理结束', '当前队列=' + (state.magicUploadQueue || []).length);
     renderShell();
   }
 
@@ -7582,6 +7605,7 @@
     const data = normalizeData(loadData(task.sku) || {});
     const projectId = getProjectIdForMaterialApi(data);
     if (!projectId) throw new Error('未找到项目 ID，请先打开或读取该 SKU 详情');
+    magicUploadLog('info', '任务开始上传', task.sku + ' | projectId=' + projectId + ' | 文件=' + (task.files || []).length);
     task.projectId = String(projectId);
     const entries = (task.files || []).filter((entry) => entry.status !== 'success');
     if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
@@ -7614,17 +7638,20 @@
     }
     if (!task.submitted) {
       task.step = '素材上传完成，正在提审';
+      magicUploadLog('info', '素材上传完成，开始提审', task.sku);
       await submitMagicUploadTask(task);
       task.submitted = true;
     }
   }
 
   async function submitMagicUploadTask(task) {
+    magicUploadLog('info', '读取商品 ID', task.sku);
     const payload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(task.sku));
     const list = payload && payload.data && Array.isArray(payload.data.list) ? payload.data.list : [];
     const product = list.find((item) => String(item && (item.product_code || item.code || '')).toUpperCase() === String(task.sku || '').toUpperCase()) || list[0] || {};
     const productId = product.product_id || product.id;
     if (!productId) throw new Error('未找到商品 ID，无法提审');
+    magicUploadLog('info', '调用提审接口', task.sku + ' | product_id=' + productId);
     await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(productId) || productId });
     addLog('success', '魔法上传并提审成功', task.sku + ' | product_id=' + productId);
   }
@@ -7634,6 +7661,7 @@
     const category = entry.category || (extension === '.zip' ? '图包素材' : '待确认');
     const rule = getMagicUploadRule(category, extension);
     if (!rule) throw new Error('无法确定上传区域：' + (entry.name || file.name));
+    magicUploadLog('info', '开始上传文件', task.sku + ' | ' + category + ' | ' + (file.name || entry.name));
     const namePayload = await fetchPlmApiJson('/api/Product/GenerateFileNameByRule', {
       source: 2,
       source_id: Number(task.projectId) || task.projectId,
@@ -7654,6 +7682,7 @@
     await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 30, oss_path: objectName, original_file_name: file.name || entry.name });
     await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: file.name || entry.name, file_save_full_path: objectName }] });
     entry.generatedName = generatedName;
+    magicUploadLog('info', '文件绑定完成', task.sku + ' | ' + category + ' | ' + generatedName);
   }
 
   function createMagicObjectName(extension) {
@@ -13753,21 +13782,7 @@
 
   function handlePanelPaste(event) {
     if (event.defaultPrevented) return;
-    if (state.view === 'magicUpload') {
-      const panel = document.getElementById(PANEL_ID);
-      const drop = event.target && event.target.closest && event.target.closest('.pfh-magic-upload-drop')
-        || (panel && panel.querySelector('.pfh-magic-upload-drop:hover'))
-        || (panel && panel.querySelector('.pfh-magic-upload-drop'));
-      const files = getClipboardMagicUploadFiles(event);
-      if (drop && files.length) {
-        event.preventDefault();
-        event.stopPropagation();
-        drop.classList.add('is-paste-received');
-        window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
-        processMagicUploadZipFiles(files);
-        return;
-      }
-    }
+    if (state.view === 'magicUpload' && handleMagicUploadPaste(event)) return;
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
@@ -13800,18 +13815,7 @@
   }
 
   function handleSizeImageHoverPaste(event) {
-    if (state.view === 'magicUpload') {
-      const panel = document.getElementById(PANEL_ID);
-      const drop = panel && panel.querySelector('.pfh-magic-upload-drop:hover, .pfh-magic-upload-drop:focus, .pfh-magic-upload-drop');
-      const files = getClipboardMagicUploadFiles(event);
-      if (!drop || !files.length) return;
-      event.preventDefault();
-      event.stopPropagation();
-      drop.classList.add('is-paste-received');
-      window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
-      processMagicUploadZipFiles(files);
-      return;
-    }
+    if (state.view === 'magicUpload' && handleMagicUploadPaste(event)) return;
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
@@ -13905,6 +13909,84 @@
     }).filter(Boolean);
   }
 
+  function describeMagicClipboard(event) {
+    const clipboard = event && event.clipboardData;
+    const items = Array.from(clipboard && clipboard.items || []).map((item) => [item.kind || 'unknown', item.type || 'no-type'].join(':'));
+    const files = Array.from(clipboard && clipboard.files || []).map((file) => [file.name || 'no-name', file.type || 'no-type', file.size || 0].join('|'));
+    return 'types=' + Array.from(clipboard && clipboard.types || []).join(',') + ' | items=' + (items.join(',') || 'none') + ' | files=' + (files.join(',') || 'none');
+  }
+
+  async function readMagicClipboardFiles(event) {
+    const direct = getClipboardMagicUploadFiles(event);
+    if (direct.length) return direct;
+    if (!navigator.clipboard || typeof navigator.clipboard.read !== 'function') return [];
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      const files = [];
+      let index = 0;
+      for (const item of clipboardItems || []) {
+        for (const type of item.types || []) {
+          if (!/zip|spreadsheet|excel|octet-stream/i.test(type)) continue;
+          const blob = await item.getType(type);
+          const isZip = /zip/i.test(type);
+          const extension = isZip ? '.zip' : '.xlsx';
+          files.push(new File([blob], '粘贴图包-' + (++index) + extension, { type, lastModified: Date.now() }));
+        }
+      }
+      if (files.length) magicUploadLog('info', '通过 Clipboard API 读取到文件', files.map((file) => file.name + '|' + file.type).join('；'));
+      return files;
+    } catch (error) {
+      magicUploadLog('warn', 'Clipboard API 读取失败', formatErrorMessage(error));
+      return [];
+    }
+  }
+
+  function handleMagicUploadPaste(event) {
+    if (state.view !== 'magicUpload') return false;
+    const detail = describeMagicClipboard(event);
+    magicUploadLog('info', '收到粘贴事件', detail);
+    const direct = getClipboardMagicUploadFiles(event);
+    if (direct.length) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.__pfhMagicHandled = true;
+      const drop = document.querySelector('#' + PANEL_ID + ' .pfh-magic-upload-drop');
+      if (drop) {
+        drop.classList.add('is-paste-received');
+        window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+      }
+      magicUploadLog('info', '直接读取到粘贴文件', direct.map((file) => file.name + '|' + file.type).join('；'));
+      processMagicUploadZipFiles(direct);
+      return true;
+    }
+    const clipboard = event && event.clipboardData;
+    const hasFileHint = Boolean(Array.from(clipboard && clipboard.items || []).some((item) => item.kind === 'file') || Array.from(clipboard && clipboard.types || []).some((type) => /files|zip|spreadsheet|excel/i.test(type)));
+    if (!hasFileHint) {
+      magicUploadLog('warn', '粘贴内容中没有可读取的文件', detail);
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.__pfhMagicHandled = true;
+    const drop = document.querySelector('#' + PANEL_ID + ' .pfh-magic-upload-drop');
+    if (drop) {
+      drop.classList.add('is-paste-received');
+      window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
+    }
+    showToast('正在读取粘贴的图包…');
+    readMagicClipboardFiles(event).then((files) => {
+      if (files.length) processMagicUploadZipFiles(files);
+      else {
+        magicUploadLog('warn', '浏览器未提供 ZIP 文件内容', '请尝试点击选择文件，或从文件管理器重新复制后粘贴');
+        showToast('浏览器没有提供 ZIP 文件内容，请改用拖入或选择文件');
+      }
+    }).catch((error) => {
+      magicUploadLog('error', '粘贴文件处理异常', formatErrorMessage(error));
+      showToast('粘贴图包失败：' + formatErrorMessage(error));
+    });
+    return true;
+  }
+
   function getClipboardCopyrightFiles(event) {
     const clipboard = event && event.clipboardData;
     const itemFiles = Array.from(clipboard && clipboard.items || [])
@@ -13981,7 +14063,10 @@
       const files = Array.from(event.target.files || []);
       const kind = event.target.getAttribute('data-upload-kind') || '';
       event.target.value = '';
-      if (kind === 'magic') processMagicUploadZipFiles(files);
+      if (kind === 'magic') {
+        magicUploadLog('info', '通过文件选择器收到文件', files.map((file) => file.name + '|' + file.type + '|' + file.size).join('；') || '没有文件');
+        processMagicUploadZipFiles(files);
+      }
       else if (kind === 'copyright') stageCopyrightUploadFiles(files);
       else if (kind === 'toy-effect') stageToyEffectUploadFiles(files);
       else processQueuedUploadFiles(files);
@@ -14046,9 +14131,14 @@
       event.preventDefault();
       const drop = event.target.closest('.pfh-magic-upload-drop');
       drop.classList.remove('is-drag-over');
-      const files = Array.from(event.dataTransfer && event.dataTransfer.files || []).filter((file) => /\.(?:zip|xlsx)$/i.test(file.name || ''));
+      const rawFiles = Array.from(event.dataTransfer && event.dataTransfer.files || []);
+      const files = rawFiles.filter((file) => /\.(?:zip|xlsx)$/i.test(file.name || ''));
+      magicUploadLog('info', '收到拖拽文件', rawFiles.map((file) => [file.name || '无文件名', file.type || '无类型', file.size || 0].join('|')).join('；') || '没有文件');
       if (files.length) processMagicUploadZipFiles(files);
-      else showToast('魔法上传只接受 ZIP 图包或 XLSX');
+      else {
+        magicUploadLog('warn', '拖拽内容不是 ZIP/XLSX', rawFiles.map((file) => file.name || file.type || '未知').join('；') || '浏览器未提供文件');
+        showToast('魔法上传只接受 ZIP 图包或 XLSX');
+      }
       return;
     }
     const skuDrop = event.target && event.target.closest && event.target.closest('[data-upload-sku-drop]');
