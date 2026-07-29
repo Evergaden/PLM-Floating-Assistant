@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.29
+// @version      2.6.30
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.29';
+  const SCRIPT_VERSION = '2.6.30';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5294,35 +5294,38 @@
     if (options && options.force) delete apiProjectMaterialCache[projectId];
     if (!apiProjectMaterialCache[projectId]) {
       addLog('info', '详情自动读取 PLM 物料接口', String(data && data.sku || '') + ' | projectId=' + projectId);
+      const sku = String(data && data.sku || '');
       apiProjectMaterialCache[projectId] = fetchPlmJson('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(projectId))
-        .then((payload) => {
-          const result = extractApiMaterialPackaging(payload);
-          const project = payload && payload.data && payload.data.project || {};
-          const sku = String(data && data.sku || project.product_code || '');
+        .then((payload) => ({
+          result: extractApiMaterialPackaging(payload),
+          project: payload && payload.data && payload.data.project || {},
+        }))
+        .catch((error) => {
+          addLog('warn', 'PLM 项目物料读取失败，继续读取产品接口', sku + ' | ' + formatErrorMessage(error));
+          return { result: emptyPackaging(), project: {} };
+        })
+        .then(({ result, project }) => {
           const productId = project.product_id;
           const productVersionId = project.product_main_id;
-          if (!productId || !productVersionId || !sku) {
-            addLog('info', 'PLM 项目接口读取完成但缺少产品关联', sku + ' | product_id/product_version_id 不完整');
-            return result;
-          }
-          return fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(sku))
+          const productSku = sku || String(project.product_code || '');
+          return fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(productSku))
             .then((productPayload) => {
               const list = productPayload && productPayload.data && Array.isArray(productPayload.data.list) ? productPayload.data.list : [];
               const product = list[0] || {};
               const categoryId = product.category_id;
-              if (!categoryId) {
-                addLog('info', 'PLM 产品列表读取完成但缺少 category_id', sku + ' | 保留项目物料结果');
+              if (!categoryId || (!(product.product_id || productId)) || (!(product.product_version_id || productVersionId))) {
+                addLog('info', 'PLM 产品列表读取完成但缺少详情关联', productSku + ' | 保留已读取物料结果');
                 return result;
               }
               return fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(product.product_id || productId) + '&product_version_id=' + encodeURIComponent(product.product_version_id || productVersionId) + '&category_id=' + encodeURIComponent(categoryId))
                 .then((contentPayload) => ({ ...result, ...extractApiProductMetrics(contentPayload) }))
                 .catch((error) => {
-                  addLog('warn', 'PLM 产品详情字段读取失败', sku + ' | ' + formatErrorMessage(error));
+                  addLog('warn', 'PLM 产品详情字段读取失败', productSku + ' | ' + formatErrorMessage(error));
                   return result;
                 });
             })
             .catch((error) => {
-              addLog('warn', 'PLM 产品列表读取失败', sku + ' | ' + formatErrorMessage(error));
+              addLog('warn', 'PLM 产品列表读取失败', productSku + ' | ' + formatErrorMessage(error));
               return result;
             });
         })
