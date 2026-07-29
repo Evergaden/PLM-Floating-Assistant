@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.30
+// @version      2.6.31
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.30';
+  const SCRIPT_VERSION = '2.6.31';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4425,6 +4425,7 @@
           printSizeText: packaging.printSizeText || trackedData.printSizeText,
           printSizeLabel: packaging.printSizeLabel || trackedData.printSizeLabel,
           printCode: packaging.printCode || trackedData.printCode,
+          materialDimensionUnitIssues: packaging.materialDimensionUnitIssues,
           packageNums,
           productNums,
           packageSource: packaging.packageSizeText ? L.sourceMaterial : trackedData.packageSource,
@@ -4495,7 +4496,8 @@
     const hasProjectCache = Boolean(cached.name && cached.projectStatus);
     if (!hasProjectCache) tabs.push('\u9879\u76ee\u4fe1\u606f');
     const hasPackageDimensions = Boolean(cached.packageLength && cached.packageWidth && cached.packageHeight);
-    const missingMaterialSize = !hasPackageDimensions && !cached.printSizeText;
+    const hasMaterialUnitIssue = Boolean(getMaterialDimensionUnitIssue(cached, 'package') || getMaterialDimensionUnitIssue(cached, 'print'));
+    const missingMaterialSize = !hasPackageDimensions && !cached.printSizeText && !hasMaterialUnitIssue;
     const missingPackageSize = Boolean((cached.packageCode || cached.packageSizeLabel) && !cached.packageSizeText);
     const missingPrintSize = Boolean((cached.printCode || cached.printSizeLabel) && !cached.printSizeText);
     const missingPackageLabel = Boolean((cached.packageCode || cached.packageSizeText) && !cached.packageSizeLabel);
@@ -4586,8 +4588,7 @@
       const apiPackaging = await fetchApiMaterialPackaging(merged);
       if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard || apiPackaging.netContent || apiPackaging.grossWeight)) {
         merged = normalizeData({
-          ...merged,
-          ...apiPackaging,
+          ...mergeApiPackagingData(merged, apiPackaging),
           packageSource: apiPackaging.packageSizeText ? 'plm-project-pms' : merged.packageSource,
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
@@ -4625,8 +4626,7 @@
       const apiPackagingFinal = await fetchApiMaterialPackaging(merged);
       if (apiPackagingFinal && (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.hasInnerCard || apiPackagingFinal.netContent || apiPackagingFinal.grossWeight)) {
         merged = normalizeData({
-          ...merged,
-          ...apiPackagingFinal,
+          ...mergeApiPackagingData(merged, apiPackagingFinal),
           packageSource: apiPackagingFinal.packageSizeText ? 'plm-project-pms' : merged.packageSource,
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
@@ -4913,6 +4913,7 @@
     const productNums = singleBottle ? outer.packageNums : (packageNums ? productNumsFromPackage(packageNums, hasInnerCard) : food.productNums);
 
     const brand = getProjectField(text, '\u54c1\u724c') || getFormValueByLabel('\u54c1\u724c', drawer);
+    const developerText = extractDeveloperText(text);
     return {
       sku: getProjectDrawerHeaderSku(drawer),
       name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''),
@@ -4938,6 +4939,9 @@
       singleBottle,
       packageSource: packaging.packageSizeText || food.productNums || isTubePrint ? L.sourceMaterial : (outer.packageNums ? L.sourceOuter : ''),
       hasInnerCard,
+      materialDimensionUnitIssues: seenMaterial ? packaging.materialDimensionUnitIssues : undefined,
+      developerText,
+      developerName: extractDeveloperName(developerText),
       brand,
       englishName: seenProduct ? cleanEnglishProductName(extractLineAfter(text, 'PRODUCT NAME'), brand) : '',
       plmIngredientText,
@@ -5017,7 +5021,8 @@
     migrateLabelValue(safe, 'printSizeLabel', 'printSizeText');
     stripKnownLabelPrefix(safe, 'packageSizeLabel', 'packageSizeText');
     stripKnownLabelPrefix(safe, 'printSizeLabel', 'printSizeText');
-    const parsedPackageNums = parseDimension(safe.packageSizeText, 3);
+    const materialDimensionUnitIssues = normalizeMaterialDimensionUnitIssues(safe.materialDimensionUnitIssues, safe);
+    const parsedPackageNums = materialDimensionUnitIssues.package ? null : parseDimension(safe.packageSizeText, 3);
     // Keep the dimension array aligned with the displayed text. Older cached
     // records may still carry only the first three values of a multi-page box.
     const detectedPackageNums = Array.isArray(safe.packageNums) &&
@@ -5070,6 +5075,7 @@
       bottleNums,
       isTubePrint,
       isTubePrintMaterial: Boolean(safe.isTubePrintMaterial),
+      materialDimensionUnitIssues,
       packageNums,
       productNums,
       plmProductNums: hasPlmProductSize ? plmProductNums : null,
@@ -5205,7 +5211,26 @@
     };
   }
 
+  function getApiMaterialUnitIssue(item) {
+    const propertyText = compactText(item && item.properties_value);
+    const propertyIssue = detectMaterialDimensionUnitIssue(propertyText);
+    if (propertyIssue) return propertyIssue;
+    const unitText = [
+      item && item.material_unit,
+      item && item.material_unit_name,
+      item && item.dimension_unit,
+      item && item.unit,
+      item && item.unit_name,
+    ].map((value) => compactText(value)).find((value) => /^(?:m|米)$/i.test(value));
+    if (!unitText) return null;
+    const values = [item && item.material_length, item && item.material_width, item && item.material_height]
+      .map((value) => firstNumber(value))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    return { unit: 'm', raw: values.length >= 2 ? values.join('x') + 'm' : 'm' };
+  }
+
   function getApiMaterialDimensions(item, count) {
+    if (getApiMaterialUnitIssue(item)) return null;
     const values = [item && item.material_length, item && item.material_width, item && item.material_height]
       .map((value) => {
         const text = String(value == null ? '' : value);
@@ -5231,14 +5256,16 @@
       const category = compactText(item && item.category_name);
       const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
       const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
+      const unitIssue = getApiMaterialUnitIssue(item);
       const dimensions = getApiMaterialDimensions(item, 3);
       let score = 0;
       if (/纸盒|彩盒|纸箱|包装盒|外盒/.test(text)) score += 160;
       if (/包材/.test(category)) score += 20;
       if (/标签|印刷|贴纸|不干胶/.test(text)) score -= 100;
       if (dimensions && dimensions.length >= 3) score += 40;
-      return { item, index, name, category, text, dimensions, score };
-    }).filter((item) => item.score > 0 && item.dimensions && item.dimensions.length >= 3)
+      else if (unitIssue) score += 25;
+      return { item, index, name, category, text, dimensions, unitIssue, score };
+    }).filter((item) => item.score > 0 && ((item.dimensions && item.dimensions.length >= 3) || item.unitIssue))
       .sort((a, b) => b.score - a.score || a.index - b.index);
     const packageItem = candidates[0];
     const printItems = items.map((item, index) => {
@@ -5246,22 +5273,48 @@
       const category = compactText(item && item.category_name);
       const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
       const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
+      const unitIssue = getApiMaterialUnitIssue(item);
       const dimensions = getApiMaterialDimensions(item, 2);
-      return { item, index, name, category, text, dimensions };
-    }).filter((item) => /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text) && item.dimensions && item.dimensions.length >= 2);
-    const packageNums = packageItem ? packageItem.dimensions : null;
+      return { item, index, name, category, text, dimensions, unitIssue };
+    }).filter((item) => /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text)
+      && ((item.dimensions && item.dimensions.length >= 2) || item.unitIssue));
+    const packageNums = packageItem && packageItem.dimensions ? packageItem.dimensions : null;
+    const packageUnitIssue = packageItem && packageItem.unitIssue ? packageItem.unitIssue : null;
     return {
-      packageSizeText: formatApiMaterialDimensions(packageNums),
+      packageSizeText: packageUnitIssue ? packageUnitIssue.raw : formatApiMaterialDimensions(packageNums),
       packageSizeLabel: packageItem ? (packageItem.name || packageItem.category) : '',
       packageCode: packageItem ? String(packageItem.item.code || '') : '',
       packageNums,
       hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name))),
-      printSizeText: printItems.map((item) => formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
+      printSizeText: printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
       printSizeLabel: printItems.map((item) => item.name || item.category).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
       printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
+      materialDimensionUnitIssues: {
+        package: packageUnitIssue,
+        print: (printItems.find((item) => item.unitIssue) || {}).unitIssue || null,
+      },
       netContent: packageItem ? extractNetContentFromMaterial(packageItem.name + ' ' + compactText(packageItem.item.properties_value)) : '',
       apiMaterialSource: packageItem || printItems.length ? 'plm-project-pms' : '',
     };
+  }
+
+  function mergeApiPackagingData(base, packaging) {
+    const merged = { ...(base || {}) };
+    const source = packaging || {};
+    [
+      'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'hasInnerCard',
+      'printSizeText', 'printSizeLabel', 'printCode', 'printRawText', 'isTubePrintMaterial',
+      'netContent', 'grossWeight', 'apiMaterialSource',
+    ].forEach((key) => {
+      if (isUsefulValue(source[key])) merged[key] = source[key];
+    });
+    const currentIssues = normalizeMaterialDimensionUnitIssues(merged.materialDimensionUnitIssues, merged);
+    const incomingIssues = normalizeMaterialDimensionUnitIssues(source.materialDimensionUnitIssues, source);
+    merged.materialDimensionUnitIssues = {
+      package: incomingIssues.package || (source.packageSizeText ? null : currentIssues.package),
+      print: incomingIssues.print || (source.printSizeText ? null : currentIssues.print),
+    };
+    return merged;
   }
 
   async function fetchPlmJson(url) {
@@ -5350,8 +5403,7 @@
     const packaging = await fetchApiMaterialPackaging(current, { force: true });
     if (!packaging || (!packaging.packageSizeText && !packaging.printSizeText && !packaging.hasInnerCard && !packaging.netContent && !packaging.grossWeight)) return;
     const merged = normalizeData({
-      ...current,
-      ...packaging,
+      ...mergeApiPackagingData(current, packaging),
       packageSource: packaging.packageSizeText ? 'plm-project-pms' : current.packageSource,
       updatedAt: new Date().toLocaleString(),
       updatedAtMs: Date.now(),
@@ -5372,20 +5424,28 @@
       .map((item) => item.row);
     const printRows = rows.filter(isPrintMaterialRow);
     const packageRow = packageRows[0] || '';
-    const packageDim = extractDimensionString(packageRow);
-    const packageNums = parseDimension(packageDim, 3);
+    const packageUnitIssue = detectMaterialDimensionUnitIssue(packageRow);
+    const packageDim = packageUnitIssue ? '' : extractDimensionString(packageRow);
+    const packageRawDim = packageUnitIssue ? packageUnitIssue.raw : '';
+    const packageNums = packageUnitIssue ? null : parseDimension(packageDim, 3);
     let packageName = getMaterialDisplayName(packageRow, /(\u7eb8\u76d2|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/);
     if (packageNums && packageNums.length >= 5 && !/\u591a\u9875/.test(packageName + packageRow)) {
       packageName = appendChineseRemark(packageName, '\u591a\u9875');
     }
+    const printUnitIssues = [];
     const printItems = printRows.map((row) => {
+      const unitIssue = detectMaterialDimensionUnitIssue(row);
+      if (unitIssue) {
+        printUnitIssues.push(unitIssue);
+        return unitIssue.raw;
+      }
       const dims = extractNamedDimensionStrings(row);
       if (!dims.length) return '';
       return dims.join('\uff1b');
     }).filter(Boolean);
 
     return {
-      packageSizeText: packageDim,
+      packageSizeText: packageDim || packageRawDim,
       packageSizeLabel: packageName || '',
       packageCode: extractMaterialCode(packageRow),
       packageNums,
@@ -5393,6 +5453,10 @@
       printSizeText: printItems.join('\uff1b'),
       printSizeLabel: getCombinedPrintLabel(printRows),
       printCode: printRows.map(extractMaterialCode).filter(Boolean).join('\uff1b'),
+      materialDimensionUnitIssues: {
+        package: packageUnitIssue,
+        print: printUnitIssues[0] || null,
+      },
       isTubePrintMaterial: printRows.some(isTubePrintRow),
       printRawText: printRows.join('\uff1b').slice(0, 1000),
       netContent: extractNetContentFromMaterial(packageRow) || extractNetContentFromMaterial(printRows[0] || ''),
@@ -5425,6 +5489,27 @@
     const match = String(text || '').match(new RegExp(escaped + '\\s*[:\uff1a]?\\s*([\\s\\S]{0,120})'));
     if (!match) return '';
     return compactText(match[1]).split(stop)[0].trim();
+  }
+
+  function extractDeveloperText(text) {
+    const source = compactText(text || '');
+    const match = source.match(/\u5f00\u53d1\u4eba\u5458\s*[:\uff1a]?\s*([\s\S]{0,80})/);
+    if (!match) return '';
+    return compactText(match[1]).split(/\u5f00\u53d1\u4e3b\u7ba1|\u5f00\u53d1\u5efa\u8bae|\u5f00\u53d1\u5206\u914d|\u8bbe\u8ba1\u4eba\u5458|\u9879\u76ee\u8d1f\u8d23\u4eba|\u9879\u76ee\u72b6\u6001/)[0].trim();
+  }
+
+  function extractDeveloperName(value) {
+    const source = compactText(value || '').replace(/^(?:\u5f00\u53d1\u4eba\u5458|\u5f00\u53d1)\s*[:\uff1a]?\s*/, '').trim();
+    if (!source) return '';
+    const match = source.match(/^([\u4e00-\u9fa5A-Za-z ._-]+?)(?=\s+(?:\u5f00\u53d1|\u4e3b\u7ba1|\u7ecf\u7406|\u4e13\u5458)|\s*\||$)/);
+    return compactText(match ? match[1] : source.split(/[|｜/\\]/)[0]);
+  }
+
+  function getMaterialDimensionIssueDeveloper(data) {
+    return extractDeveloperName(data && data.developerName)
+      || extractDeveloperName(data && data.developerText)
+      || extractDeveloperName(data && data.projectOwnerName)
+      || '负责人';
   }
 
   function extractProjectStatus(text) {
@@ -5520,7 +5605,9 @@
 
   function hasPrintDimensionText(text) {
     const source = String(text || '');
-    return /\d+(?:\.\d+)?\s*[xX\u00d7*]\s*\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){0,4}\s*(?:cm|mm)/i.test(source) || !!extractAxisDimensionString(source);
+    return /\d+(?:\.\d+)?\s*[xX\u00d7*]\s*\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){0,4}\s*(?:cm|mm)/i.test(source)
+      || !!extractAxisDimensionString(source)
+      || !!detectMaterialDimensionUnitIssue(source);
   }
 
   function extractPrintDimensionString(text) {
@@ -5743,6 +5830,40 @@
     return nums.map((n) => trimNumber(Number(n) / divisor)).join('x') + 'cm';
   }
 
+  function detectMaterialDimensionUnitIssue(text) {
+    const source = String(text || '');
+    const match = source.match(/(\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){1,4}\s*m(?!m|l))/i);
+    if (match) return { unit: 'm', raw: compactText(match[1]) };
+    const meterMatches = Array.from(source.matchAll(/\d+(?:\.\d+)?\s*m(?!m|l)/ig));
+    if (meterMatches.length >= 2) {
+      const start = Number(meterMatches[0].index) || 0;
+      const end = (Number(meterMatches[meterMatches.length - 1].index) || start) + meterMatches[meterMatches.length - 1][0].length;
+      return { unit: 'm', raw: compactText(source.slice(start, end)) };
+    }
+    return null;
+  }
+
+  function normalizeMaterialDimensionUnitIssue(value) {
+    if (!value) return null;
+    if (typeof value === 'string') return detectMaterialDimensionUnitIssue(value);
+    if (String(value.unit || '').toLowerCase() !== 'm') return null;
+    const raw = compactText(value.raw || '');
+    return { unit: 'm', raw: raw || 'm' };
+  }
+
+  function normalizeMaterialDimensionUnitIssues(value, data) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      package: normalizeMaterialDimensionUnitIssue(source.package) || detectMaterialDimensionUnitIssue(data && data.packageSizeText),
+      print: normalizeMaterialDimensionUnitIssue(source.print) || detectMaterialDimensionUnitIssue(data && data.printSizeText),
+    };
+  }
+
+  function getMaterialDimensionUnitIssue(data, kind) {
+    const issues = normalizeMaterialDimensionUnitIssues(data && data.materialDimensionUnitIssues, data);
+    return issues[kind] || null;
+  }
+
   function extractOuterPackage(root) {
     const nums = [
       getFormValueByLabel('\u957f\uff08\u5916\u5305\u88c5\uff09', root),
@@ -5781,7 +5902,7 @@
   }
 
   function emptyPackaging() {
-    return { packageSizeText: '', packageSizeLabel: '', packageCode: '', packageNums: null, hasInnerCard: false, printSizeText: '', printSizeLabel: '', printCode: '', netContent: '' };
+    return { packageSizeText: '', packageSizeLabel: '', packageCode: '', packageNums: null, hasInnerCard: false, printSizeText: '', printSizeLabel: '', printCode: '', materialDimensionUnitIssues: { package: null, print: null }, netContent: '' };
   }
 
   function extractFoodSemiFinished(root) {
@@ -7145,6 +7266,14 @@
       '#' + PANEL_ID + ' .pfh-data-change-values del{color:#a15d63;text-decoration:none;overflow-wrap:anywhere;}' +
       '#' + PANEL_ID + ' .pfh-data-change-values i{color:#b28a57;font-style:normal;}' +
       '#' + PANEL_ID + ' .pfh-data-change-values ins{color:#5f32c6;font-weight:700;text-decoration:none;overflow-wrap:anywhere;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-alert{margin:0 0 11px;padding:12px 14px;border:1px solid rgba(220,38,38,.30);border-radius:14px;background:linear-gradient(135deg,rgba(255,245,245,.98),rgba(255,251,235,.96));box-shadow:0 10px 24px rgba(185,28,28,.10);}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;color:#a52a2a;font-size:12px;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-head strong{font-size:13px;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-head button{min-height:26px;padding:0 10px;border:1px solid rgba(185,28,28,.28);border-radius:999px;background:rgba(255,255,255,.82);color:#a52a2a;font-size:11px;cursor:pointer;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-head button:hover{border-color:rgba(185,28,28,.52);background:#fff1f2;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-list{display:grid;gap:7px;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-item{font-size:11px;line-height:1.55;color:#7f3030;}' +
+      '#' + PANEL_ID + ' .pfh-material-unit-item b{display:inline-block;margin-right:6px;color:#a52a2a;}' +
       '#' + PANEL_ID + ' .pfh-sparkle-entrance-icon{display:inline-block!important;flex:0 0 auto!important;width:17px!important;height:17px!important;vertical-align:-3px!important;margin-right:4px!important;}' +
       '@media(max-width:680px){#' + PANEL_ID + ' .pfh-data-change-item{grid-template-columns:1fr;}#' + PANEL_ID + ' .pfh-data-change-values{grid-template-columns:1fr;}#' + PANEL_ID + ' .pfh-data-change-values i{transform:rotate(90deg);justify-self:start;}}';
     document.documentElement.appendChild(style);
@@ -7155,6 +7284,30 @@
     if (!changes.length) return '';
     const rows = changes.map((change) => '<div class="pfh-data-change-item"><span>' + escapeHtml(change.label) + '</span><div class="pfh-data-change-values"><del>' + escapeHtml(change.before || '未识别') + '</del><i>→</i><ins>' + escapeHtml(change.after || '已清空') + '</ins></div></div>').join('');
     return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><button type="button" data-action="sku-changes-ack">已核对</button></div><div class="pfh-data-change-list">' + rows + '</div></div>';
+  }
+
+  function materialDimensionUnitAlertHtml(data) {
+    const issues = normalizeMaterialDimensionUnitIssues(data && data.materialDimensionUnitIssues, data);
+    const developer = getMaterialDimensionIssueDeveloper(data);
+    const messages = [];
+    if (issues.package) {
+      messages.push({
+        label: '纸盒',
+        text: '纸盒尺寸单位翻车，cm 打成 m，这纸盒能装下整间仓库，速找开发' + developer + '纠错。',
+        focusKey: 'packageSizeText',
+      });
+    }
+    if (issues.print) {
+      messages.push({
+        label: '标签',
+        text: '标签尺寸直接离谱，cm 打成 m，标签大到能当海报，赶紧揪开发' + developer + '改尺寸。',
+        focusKey: 'printSizeText',
+      });
+    }
+    if (!messages.length) return '';
+    const focusKey = messages[0].focusKey;
+    const rows = messages.map((item) => '<div class="pfh-material-unit-item"><b>' + escapeHtml(item.label) + '</b><span>' + escapeHtml(item.text) + '</span></div>').join('');
+    return '<div class="pfh-material-unit-alert" role="alert"><div class="pfh-material-unit-head"><strong>发现尺寸单位异常</strong><button type="button" data-action="sku-edit-open" data-focus-key="' + escapeHtml(focusKey) + '">点击纠错</button></div><div class="pfh-material-unit-list">' + rows + '</div></div>';
   }
 
   function renderDetail(panel, statusText) {
@@ -7201,6 +7354,7 @@
       renderStatusHtml(statusText),
       '<div class="pfh-detail-scroll">',
       detailViewTabsHtml('detail'),
+      materialDimensionUnitAlertHtml(state.data),
       productHeroSectionHtml(state.data, false),
       skuDataChangeAlertHtml(state.data),
       '<div class="pfh-info-grid">',
@@ -7929,6 +8083,7 @@
 
   function getLabelSizeImageSpecs(data) {
     if (!data || (!/(?:\u6807\u7b7e|\u5370\u5237)/.test(String(data.printSizeLabel || '')) && !data.isTubePrint)) return [];
+    if (getMaterialDimensionUnitIssue(data, 'print')) return [];
     const labels = String(data.printSizeLabel || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
     const codes = String(data.printCode || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
     const printedBag = isPrintedBagSizeImageData(data);
@@ -9278,6 +9433,16 @@
         next.tubeTailSealLengthValue = next.tailSealLengthValue;
       }
     }
+    const correctedUnitIssues = normalizeMaterialDimensionUnitIssues(data.materialDimensionUnitIssues, data);
+    if (Object.prototype.hasOwnProperty.call(values, 'packageSizeText')) {
+      correctedUnitIssues.package = detectMaterialDimensionUnitIssue(next.packageSizeText)
+        || (extractDimensionString(next.packageSizeText) ? null : correctedUnitIssues.package);
+    }
+    if (Object.prototype.hasOwnProperty.call(values, 'printSizeText')) {
+      correctedUnitIssues.print = detectMaterialDimensionUnitIssue(next.printSizeText)
+        || (extractDimensionString(next.printSizeText) ? null : correctedUnitIssues.print);
+    }
+    next.materialDimensionUnitIssues = correctedUnitIssues;
     next.updatedAt = new Date().toLocaleString();
     next.updatedAtMs = Date.now();
     const categoryChanged = compactText(next.manualCategory) !== compactText(data.manualCategory);
@@ -11284,7 +11449,11 @@
     if (action === 'sku-edit-open') {
       state.skuEditMode = true;
       renderShell();
-      const firstInput = ensurePanel().querySelector('[data-sku-edit-key="manualCategory"]') || ensurePanel().querySelector('[data-sku-edit-key]');
+      const focusKey = actionTarget.getAttribute('data-focus-key') || '';
+      const editInputs = Array.from(ensurePanel().querySelectorAll('[data-sku-edit-key]'));
+      const firstInput = editInputs.find((input) => input.getAttribute('data-sku-edit-key') === focusKey)
+        || editInputs.find((input) => input.getAttribute('data-sku-edit-key') === 'manualCategory')
+        || editInputs[0];
       if (firstInput) firstInput.focus();
       return;
     }
