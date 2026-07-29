@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.50
+// @version      2.6.51
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.50';
+  const SCRIPT_VERSION = '2.6.51';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -15036,11 +15036,16 @@
     const drawer = getProductEditDrawerForSku(sku);
     if (!drawer) throw new Error('\u672a\u6253\u5f00\u7f16\u8f91\u62bd\u5c49');
     if (getVisibleText(drawer).includes('\u63a8\u54c1\u8d44\u6599')) return;
-    await wait(5000);
-    const readyDrawer = getProductEditDrawerForSku(sku);
-    const button = readyDrawer && Array.from(readyDrawer.querySelectorAll('button')).filter(isVisibleElement).find((el) => compactText(el.innerText || el.textContent) === '\u4e0b\u4e00\u6b65');
-    if (!button) throw new Error('\u672a\u627e\u5230\u4e0b\u4e00\u6b65');
-    button.click();
+    const ready = await waitFor(() => {
+      const readyDrawer = getProductEditDrawerForSku(sku);
+      if (!readyDrawer || !isProductCategoryReady(readyDrawer)) return null;
+      const button = Array.from(readyDrawer.querySelectorAll('button'))
+        .filter(isVisibleElement)
+        .find((el) => compactText(el.innerText || el.textContent) === '\u4e0b\u4e00\u6b65' && isActionButtonReady(el));
+      return button ? { drawer: readyDrawer, button } : null;
+    }, 20000, 100);
+    if (!ready) throw new Error('\u7c7b\u76ee\u672a\u52a0\u8f7d\u5b8c\u6210\u6216\u672a\u627e\u5230\u53ef\u70b9\u51fb\u7684\u300c\u4e0b\u4e00\u6b65\u300d');
+    clickElement(ready.button);
     await waitUntil(() => {
       const nextDrawer = getProductEditDrawerForSku(sku);
       return nextDrawer && getVisibleText(nextDrawer).includes('\u63a8\u54c1\u8d44\u6599');
