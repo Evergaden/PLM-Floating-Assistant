@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.37
+// @version      2.6.38
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.37';
+  const SCRIPT_VERSION = '2.6.38';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1534,7 +1534,7 @@
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const UPLOAD_WORKER_STATES_KEY = 'plm-floating-helper:upload-worker-states';
-  const UPLOAD_MODES = Object.freeze(['standard', 'toy-label', 'copyright']);
+  const UPLOAD_MODES = Object.freeze(['standard', 'toy-label', 'toy-effect', 'copyright']);
   const TOY_LABEL_EXPORT_MANIFEST_KEY = 'plm-floating-helper:toy-label-export-manifest';
   const LOG_KEY = 'plm-floating-helper:logs';
   const INSIGHTS_KEY = 'plm-floating-helper:insights';
@@ -1544,6 +1544,7 @@
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
+  const TOY_EFFECT_MAX_FILES = 3;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
@@ -2880,10 +2881,11 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button::after{content:'';position:absolute;inset:0;border-radius:999px;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.18) 0%,transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button:hover::after{opacity:1;}
     #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs button.is-active::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.28) 0%,transparent 65%);}
-    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs .pfh-upload-mode-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;bottom:auto!important;width:calc((100% - 6px) / 3)!important;height:calc(100% - 6px)!important;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;transform:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-upload-mode-tabs .pfh-upload-mode-indicator{position:absolute!important;z-index:0!important;top:3px!important;left:3px!important;bottom:auto!important;width:calc((100% - 6px) / var(--pfh-upload-mode-count,4))!important;height:calc(100% - 6px)!important;border:0!important;border-radius:999px!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;transform:none!important;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title h3{color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title .pfh-upload-status{color:var(--pfh-theme-primary)!important;}
-    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"]{color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"],
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-history-toggle"]{color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-title-meta{color:var(--pfh-theme-text)!important;background:var(--pfh-theme-surface)!important;border-color:var(--pfh-theme-border)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 10px 28px var(--pfh-theme-shadow-soft)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-title-meta:hover{background:var(--pfh-theme-surface-alt)!important;border-color:var(--pfh-theme-border-strong)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-product-thumb img{background:var(--pfh-theme-surface)!important;}
@@ -2933,8 +2935,10 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-content::-webkit-scrollbar-thumb{background:var(--pfh-theme-border-strong)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-status{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"],
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-history-toggle"],
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-history-toggle"]:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-history-toggle"]:hover:not(:disabled),
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type{border-color:transparent!important;background:transparent!important;color:var(--pfh-theme-primary)!important;box-shadow:none!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type:hover{color:var(--pfh-theme-primary-hover)!important;}
@@ -3120,6 +3124,10 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body{display:flex!important;flex:1 1 auto!important;flex-direction:column!important;gap:10px!important;min-height:0!important;grid-template-rows:none!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body .pfh-toy-label-sku-input:not(.pfh-copyright-sku-input){height:64px!important;min-height:64px!important;max-height:96px!important;resize:vertical!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-body .pfh-upload-list{flex:1 1 auto!important;min-height:140px!important;overflow-y:auto!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-match-status{padding:7px 9px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;font-size:10px!important;line-height:1.45!important;word-break:break-all!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom{flex:0 0 auto!important;padding:8px 4px 0!important;border-top:1px solid var(--pfh-theme-border)!important;background:color-mix(in srgb,var(--pfh-theme-page) 92%,transparent)!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-line{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;flex-wrap:wrap!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;min-width:0!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{gap:7px!important;flex-wrap:wrap!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-clear-list"]{order:0!important;}
     @media(max-width:620px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
@@ -3697,6 +3705,7 @@
     toyLabelBatchFiles: [],
     toyLabelBatchPreparedSignature: '',
     toyLabelBatchRows: {},
+    toyEffectMatchStatus: '',
     projectListPrefetchTimer: 0,
     projectListPrefetchSignature: '',
     uploadGuideOpen: false,
@@ -11436,23 +11445,29 @@
     const rows = pageItems.length ? pageItems.map((item) => {
       const active = currentSku && item.sku === currentSku ? ' is-current' : '';
       const isToyLabel = item.kind === 'toy-label';
+      const isToyEffect = item.kind === 'toy-effect';
       const isCopyright = item.kind === 'copyright';
       const ready = isUploadItemReady(item);
       const historyStatus = isToyLabel && (!item.status || item.status === L.uploadSuccess)
         ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f'
-        : (isCopyright && (!item.status || item.status === L.uploadSuccess) ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess));
-      const defaultStatus = isToyLabel ? '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e' : '\u5f85\u4e0a\u4f20';
+        : (isToyEffect && (!item.status || item.status === L.uploadSuccess)
+          ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f'
+          : (isCopyright && (!item.status || item.status === L.uploadSuccess) ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : (item.status || L.uploadSuccess)));
+      const defaultStatus = isToyLabel ? '\u5f85\u751f\u6210\u73a9\u5177\u6807\u7b7e' : (isToyEffect ? '\u5f85\u4e0a\u4f20\u6548\u679c\u56fe' : '\u5f85\u4e0a\u4f20');
       const status = viewingHistory ? historyStatus : (ready ? (item.status || defaultStatus) : '\u7f3a\u6587\u4ef6');
       const statusClass = /\u6210\u529f/.test(status) ? 'is-success' : (!ready || /\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(status) ? 'is-missing' : 'is-ready');
       const copyrightFiles = getCopyrightUploadEntries(item);
+      const toyEffectFiles = getToyEffectUploadEntries(item);
       const files = isToyLabel
         ? '\u73a9\u5177\u6807\u7b7e\uff1a\u751f\u6210 / \u4e0a\u4f20 BOM / \u4e0b\u8f7d PSD \u4e0e\u56fe\u7247'
+        : (isToyEffect
+          ? '\u6548\u679c\u56fe\uff1a' + (toyEffectFiles.length ? toyEffectFiles.map((entry) => entry.name).join(' / ') : '\u7f3a\u5c11\u56fe\u7247')
         : (isCopyright
           ? '\u7248\u6743\u56fe\uff1a' + (copyrightFiles.length ? copyrightFiles.map((entry) => entry.name).join(' / ') : '\u7f3a\u5c11\u56fe\u7247')
           : [
             item.xlsxName ? 'XLSX \u5df2\u6709 ' + item.xlsxName : 'XLSX \u7f3a\u5c11',
             item.zipName ? 'ZIP \u5df2\u6709 ' + item.zipName : 'ZIP \u7f3a\u5c11',
-          ].join(' | '));
+          ].join(' | ')));
       const previousUpload = viewingHistory ? null : findPreviousSuccessfulUpload(item, successfulHistory);
       const previousUploadText = previousUpload ? '\u4e0a\u6b21\u4e0a\u4f20\uff1a' + (previousUpload.completedAt || previousUpload.updatedAt || '') : '';
       const progressText = viewingHistory ? (item.completedAt || item.updatedAt || '') : [previousUploadText, item.step || files].filter(Boolean).join(' \u00b7 ');
@@ -11472,11 +11487,10 @@
     const tableHead = '<div class="pfh-upload-table-head' + (viewingHistory ? ' is-history' : '') + '">' + historyHeadActions + '<span>\u72b6\u6001</span><span>' + escapeHtml(viewingHistory ? '\u65f6\u95f4' : '\u6587\u4ef6/\u8fdb\u5ea6') + '</span><span>\u9009\u62e9</span></div>';
     const pagerAction = viewingHistory ? 'upload-history-page' : 'upload-page';
     const pager = '<div class="pfh-upload-pager"><span>\u5171 ' + allItems.length + ' \u6761</span><div><button type="button" data-action="' + pagerAction + '-prev"' + (state[pageKey] <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager(pagerAction, state[pageKey], totalPages) + '<button type="button" data-action="' + pagerAction + '-next"' + (state[pageKey] >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
-    const selectedActionHtml = '<div class="pfh-upload-bottom-actions"><button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button></div>';
-    const modeButtonText = viewingHistory ? '\u8fd4\u56de\u961f\u5217' : '\u5386\u53f2\u8bb0\u5f55';
+    const selectedActionHtml = '<button type="button" data-action="upload-clear-list">' + escapeHtml(L.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (!selectedIds.size ? ' disabled' : '') + '>' + escapeHtml(L.uploadRetry) + '</button>';
     const backAction = viewingHistory ? 'upload-history-toggle' : 'home-back';
     const backLabel = viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u8fd4\u56de\u4e3b\u9875';
-    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-three' + (uploadMode === 'toy-label' ? ' is-toy-label' : '') + (uploadMode === 'copyright' ? ' is-copyright' : '') + '" data-active-mode="' + escapeHtml(uploadMode) + '" style="grid-template-columns:repeat(3,minmax(82px,1fr));width:min(100%,286px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
+    const uploadModeTabs = !viewingHistory ? '<div class="pfh-upload-mode-tabs is-four' + (uploadMode === 'toy-label' ? ' is-toy-label' : '') + (uploadMode === 'toy-effect' ? ' is-toy-effect' : '') + (uploadMode === 'copyright' ? ' is-copyright' : '') + '" data-active-mode="' + escapeHtml(uploadMode) + '" style="--pfh-upload-mode-count:4;grid-template-columns:repeat(4,minmax(68px,1fr));width:min(100%,360px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + (uploadMode === 'standard' ? 'is-active' : '') + '">\u56fe\u5305\u8868\u683c</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + (uploadMode === 'toy-label' ? 'is-active' : '') + '">\u73a9\u5177\u6807\u7b7e</button><button type="button" data-action="upload-mode" data-upload-mode="toy-effect" class="' + (uploadMode === 'toy-effect' ? 'is-active' : '') + '">\u73a9\u5177\u6548\u679c\u56fe</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + (uploadMode === 'copyright' ? 'is-active' : '') + '">\u7248\u6743\u56fe</button></div>' : '';
     const copyrightPendingFiles = Array.isArray(state.copyrightPendingFiles) ? state.copyrightPendingFiles : [];
     const queueControl = state.uploadRunning ? '<button type="button" data-action="upload-pause">' + escapeHtml(L.uploadPauseQueue) + '</button>' : '<button type="button" data-action="upload-start">' + escapeHtml(L.uploadStartQueue) + '</button>';
     const uploadSkuDropHtml = isUploadSkuPickerMode(uploadMode) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">\u62d6\u52a8\u4e0a\u65b9 SKU \u5361\u7247\u5230\u8fd9\u91cc\u6dfb\u52a0\u4efb\u52a1</div>' : '';
@@ -11485,22 +11499,26 @@
       '<div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe">\u7c98\u8d34\u6216\u62d6\u5165\u7248\u6743\u56fe\uff08JPG / PNG\uff09' + (copyrightPendingFiles.length ? '<small>\u5df2\u9009 ' + copyrightPendingFiles.length + ' \u5f20\uff1a' + escapeHtml(copyrightPendingFiles.slice(0, 6).map((file) => file.name).join(' / ') + (copyrightPendingFiles.length > 6 ? ' ...' : '')) + '</small>' : '') + '</div>' +
       '<input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png">' +
       '<div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + (!(state.copyrightSkuInput || '').trim() || !copyrightPendingFiles.length ? ' disabled' : '') + '>\u52a0\u5165\u7248\u6743\u56fe\u4efb\u52a1</button>' + (copyrightPendingFiles.length ? '<button type="button" data-action="copyright-pending-clear">\u6e05\u7a7a\u5df2\u9009</button>' : '') + queueControl + '</div>';
+    const toyEffectModeHtml = '<div class="pfh-upload-drop pfh-toy-effect-drop" data-action="upload-pick" data-upload-drop="toy-effect" tabindex="0" role="button" aria-label="\u62d6\u5165\u73a9\u5177\u6548\u679c\u56fe">\u62d6\u5165\u73a9\u5177\u6548\u679c\u56fe\uff08JPG / PNG\uff09<small>\u6309\u6587\u4ef6\u540d\u4e2d\u7684\u4ea7\u54c1\u540d\u5339\u914d SKU\uff0c\u4e0a\u4f20\u5230\u5bf9\u5e94 BOM \u7684\u6548\u679c\u56fe</small></div>' +
+      (state.toyEffectMatchStatus ? '<div class="pfh-upload-match-status is-error">' + escapeHtml(state.toyEffectMatchStatus) + '</div>' : '') +
+      '<input class="pfh-upload-file" data-upload-kind="toy-effect" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png">' +
+      '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="toy-effect">\u9009\u62e9\u6548\u679c\u56fe</button>' + queueControl + '</div>';
+    const historyBottomButton = '<button type="button" data-action="upload-history-toggle">' + escapeHtml(viewingHistory ? '\u8fd4\u56de\u63d0\u5ba1\u4e0a\u4f20' : '\u5386\u53f2\u8bb0\u5f55') + '</button>';
     return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (viewingHistory ? ' is-history-view' : '') + '">' +
       '<div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + backAction + '" aria-label="' + backLabel + '">' + iconHtml('backArrow') + '</button><h3>' + escapeHtml(L.uploadSection) + '</h3>' + uploadModeTabs +
       '<span class="pfh-upload-status">' + escapeHtml(statusText) + '</span>' +
       '<button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="\u4f7f\u7528\u8bf4\u660e" aria-label="\u4f7f\u7528\u8bf4\u660e">' + uploadGuideIconHtml() + '</button>' +
-      '<button type="button" data-action="upload-history-toggle">' + escapeHtml(modeButtonText) + '</button>' +
       '</div>' + uploadSkuPickerHtml +
       '<div class="pfh-upload-body">' +
         (viewingHistory ? '' : (uploadMode === 'toy-label'
           ? uploadSkuDropHtml + '<textarea class="pfh-toy-label-sku-input" placeholder="\u7c98\u8d34\u591a\u4e2a SKU \u7f16\u7801\uff0c\u6bcf\u884c\u4e00\u4e2a\u6216\u7528\u7a7a\u683c/\u9017\u53f7\u5206\u9694">' + escapeHtml(state.toyLabelSkuInput || '') + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">\u52a0\u5165\u73a9\u5177\u6807\u7b7e\u4efb\u52a1</button>' + queueControl + '</div>'
-          : (uploadMode === 'copyright' ? uploadSkuDropHtml + copyrightModeHtml : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
+          : (uploadMode === 'toy-effect' ? toyEffectModeHtml : (uploadMode === 'copyright' ? uploadSkuDropHtml + copyrightModeHtml : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + escapeHtml(L.uploadDropHint) + '">' + escapeHtml(L.uploadDropHint) + '</div>' +
         '<input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar">' +
-        '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + queueControl + '</div>'))) +
+        '<div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">\u9009\u62e9\u6587\u4ef6</button>' + queueControl + '</div>'))) ) +
         tableHead + '<div class="pfh-upload-list">' + rows + '</div>' +
       '</div>' +
       '</section></div>' +
-      '<div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + pager + selectedActionHtml + '</div></div>' +
+      '<div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + pager + '<div class="pfh-upload-bottom-actions">' + historyBottomButton + selectedActionHtml + '</div></div></div>' +
       uploadGuideModalHtml() + uploadClearConfirmModalHtml();
   }
 
@@ -12280,7 +12298,7 @@
     }
     if (action === 'upload-mode') {
       const mode = actionTarget.getAttribute('data-upload-mode');
-      state.uploadMode = /^(?:standard|toy-label|copyright)$/.test(mode || '') ? mode : 'standard';
+      state.uploadMode = /^(?:standard|toy-label|toy-effect|copyright)$/.test(mode || '') ? mode : 'standard';
       if (!renderUploadModeContent(ensurePanel())) renderShell();
       return;
     }
@@ -12665,13 +12683,16 @@
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
         || (panel && panel.querySelector('.pfh-upload-drop:hover'));
-      const files = state.uploadMode === 'copyright' ? getClipboardCopyrightFiles(event) : getClipboardUploadFiles(event);
+      const files = state.uploadMode === 'copyright'
+        ? getClipboardCopyrightFiles(event)
+        : (state.uploadMode === 'toy-effect' ? getClipboardToyEffectFiles(event) : getClipboardUploadFiles(event));
       if (drop && files.length) {
         event.preventDefault();
         event.stopPropagation();
         drop.classList.add('is-paste-received');
         window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
         if (state.uploadMode === 'copyright') stageCopyrightUploadFiles(files);
+        else if (state.uploadMode === 'toy-effect') stageToyEffectUploadFiles(files);
         else processQueuedUploadFiles(files);
         return;
       }
@@ -12693,13 +12714,16 @@
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
-      const files = state.uploadMode === 'copyright' ? getClipboardCopyrightFiles(event) : getClipboardUploadFiles(event);
+      const files = state.uploadMode === 'copyright'
+        ? getClipboardCopyrightFiles(event)
+        : (state.uploadMode === 'toy-effect' ? getClipboardToyEffectFiles(event) : getClipboardUploadFiles(event));
       if (!drop || !files.length) return;
       event.preventDefault();
       event.stopPropagation();
       drop.classList.add('is-paste-received');
       window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
       if (state.uploadMode === 'copyright') stageCopyrightUploadFiles(files);
+      else if (state.uploadMode === 'toy-effect') stageToyEffectUploadFiles(files);
       else processQueuedUploadFiles(files);
       return;
     }
@@ -12772,6 +12796,23 @@
     }).map((file, index) => normalizeCopyrightImageFile(file, index));
   }
 
+  function getClipboardToyEffectFiles(event) {
+    const clipboard = event && event.clipboardData;
+    const itemFiles = Array.from(clipboard && clipboard.items || [])
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    const directFiles = Array.from(clipboard && clipboard.files || []);
+    const seen = new Set();
+    return itemFiles.concat(directFiles).filter((file) => {
+      if (!isToyEffectImageFile(file)) return false;
+      const key = [file.name, file.size, file.lastModified].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   function handlePanelChange(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
     if (event.target && event.target.classList && event.target.classList.contains('pfh-copywriting-view-select')) {
@@ -12815,6 +12856,7 @@
       const kind = event.target.getAttribute('data-upload-kind') || '';
       event.target.value = '';
       if (kind === 'copyright') stageCopyrightUploadFiles(files);
+      else if (kind === 'toy-effect') stageToyEffectUploadFiles(files);
       else processQueuedUploadFiles(files);
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-date')) {
@@ -12890,6 +12932,7 @@
     event.preventDefault();
     const files = Array.from(event.dataTransfer && event.dataTransfer.files || []);
     if (state.uploadMode === 'copyright') stageCopyrightUploadFiles(files);
+    else if (state.uploadMode === 'toy-effect') stageToyEffectUploadFiles(files);
     else processQueuedUploadFiles(files);
   }
 
@@ -13217,6 +13260,173 @@
     return '';
   }
 
+  function isToyEffectImageFile(file) {
+    return Boolean(file && (/^image\/(?:jpeg|png)$/i.test(file.type || '') || /\.(?:png|jpe?g)$/i.test(file.name || '')));
+  }
+
+  function normalizeToyEffectMatchText(value) {
+    return String(value || '')
+      .replace(/\.[^.]+$/, '')
+      .replace(/(?:效果图|效果|商品图|SKU图)$/i, '')
+      .toLowerCase()
+      .replace(/[\s_\-—–·•,，。:：/\\()[\]{}【】（）]/g, '');
+  }
+
+  function collectProjectNameRows() {
+    const header = Array.from(document.querySelectorAll('table.vxe-table--header'))
+      .map((table) => Array.from(table.querySelectorAll('thead th')))
+      .find((cells) => {
+        const names = cells.map((cell) => compactText(cell.innerText || cell.textContent).replace(/^\*/, ''));
+        return names.includes('\u5546\u54c1\u7f16\u7801') && names.includes('\u5546\u54c1\u540d\u79f0');
+      }) || [];
+    const headerNames = header.map((cell) => compactText(cell.innerText || cell.textContent).replace(/^\*/, ''));
+    const skuIndex = headerNames.indexOf('\u5546\u54c1\u7f16\u7801');
+    const nameIndex = headerNames.indexOf('\u5546\u54c1\u540d\u79f0');
+    const brandIndex = headerNames.indexOf('\u54c1\u724c');
+    if (skuIndex < 0 || nameIndex < 0) return [];
+    const body = Array.from(document.querySelectorAll('table.vxe-table--body'))
+      .find((table) => Array.from(table.querySelectorAll('tbody tr')).some((row) => /SKU\d+/i.test(row.innerText || row.textContent || '')));
+    if (!body) return [];
+    return Array.from(body.querySelectorAll('tbody tr')).map((row) => {
+      const cells = Array.from(row.children);
+      const sku = (((compactText(cells[skuIndex] && (cells[skuIndex].innerText || cells[skuIndex].textContent)) || '').match(/SKU\d+/i) || [])[0] || '').toUpperCase();
+      return {
+        sku,
+        rowId: row.getAttribute('rowid') || '',
+        brand: brandIndex >= 0 ? compactText(cells[brandIndex] && (cells[brandIndex].innerText || cells[brandIndex].textContent)) : '',
+        name: nameIndex >= 0 ? compactText(cells[nameIndex] && (cells[nameIndex].innerText || cells[nameIndex].textContent)) : '',
+      };
+    }).filter((row) => row.sku && row.name && row.rowId);
+  }
+
+  async function collectToyEffectMatchCandidates() {
+    let rows = collectProjectNameRows();
+    if (!rows.length) {
+      const ready = await ensureNewProductProjectPage();
+      if (ready && await ensureDesignTaskTab()) {
+        await expandProjectResultPageSize(1000);
+        await wait(250);
+        rows = collectProjectNameRows();
+      }
+    } else {
+      await expandProjectResultPageSize(1000);
+      await wait(250);
+      rows = collectProjectNameRows();
+    }
+    const bySku = new Map();
+    (state.index || []).forEach((item) => {
+      const data = normalizeData(loadData(item.sku) || item);
+      if (data.sku && data.name) bySku.set(data.sku, { sku: data.sku, rowId: data.projectRowId || data.projectId || '', brand: data.brand || '', name: data.name });
+    });
+    rows.forEach((row) => {
+      const previous = bySku.get(row.sku) || {};
+      bySku.set(row.sku, { ...previous, ...row, rowId: row.rowId || previous.rowId || '' });
+    });
+    return Array.from(bySku.values()).filter((row) => row.sku && row.name);
+  }
+
+  function resolveToyEffectFile(file, candidates) {
+    const filename = String(file && file.name || '');
+    const normalizedFilename = normalizeToyEffectMatchText(filename);
+    const directSkus = getSkusFromFileName(filename);
+    const directMatches = directSkus.length ? candidates.filter((candidate) => directSkus.includes(candidate.sku)) : [];
+    if (directMatches.length === 1) return { candidate: directMatches[0] };
+    const exact = candidates.filter((candidate) => normalizeToyEffectMatchText(candidate.name) === normalizedFilename);
+    if (exact.length === 1) return { candidate: exact[0] };
+    if (exact.length > 1) return { ambiguous: exact };
+    const relaxed = candidates.map((candidate) => {
+      const candidateName = normalizeToyEffectMatchText(candidate.name);
+      if (!candidateName || candidateName.length < 6 || normalizedFilename.length < 6) return null;
+      if (normalizedFilename.includes(candidateName)) return { candidate, score: candidateName.length + 1000 };
+      if (candidateName.includes(normalizedFilename)) return { candidate, score: normalizedFilename.length };
+      return null;
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+    if (!relaxed.length) return { unmatched: true };
+    const best = relaxed[0];
+    const tied = relaxed.filter((item) => item.score === best.score && item.candidate.sku !== best.candidate.sku);
+    return tied.length ? { ambiguous: [best].concat(tied).map((item) => item.candidate) } : { candidate: best.candidate };
+  }
+
+  async function addToyEffectQueueFile(file, candidate) {
+    const queue = loadUploadQueue();
+    let item = queue.find((entry) => entry.kind === 'toy-effect' && entry.sku === candidate.sku && !/\u6210\u529f/.test(entry.status || ''));
+    const key = 'toy-effect:' + candidate.sku + ':' + Date.now() + ':' + Math.random().toString(36).slice(2, 8);
+    await putUploadFile(key, cloneUploadFile(file));
+    const effectFiles = getToyEffectUploadEntries(item);
+    if (effectFiles.length >= TOY_EFFECT_MAX_FILES) {
+      await deleteUploadFile(key);
+      return 'limit';
+    }
+    if (effectFiles.some((entry) => entry.name === file.name)) {
+      await deleteUploadFile(key);
+      return false;
+    }
+    const now = new Date().toLocaleString();
+    const nextFile = { name: file.name, key, size: file.size || 0, lastModified: file.lastModified || 0 };
+    if (!item) {
+      const cached = normalizeData(loadData(candidate.sku) || {});
+      const next = normalizeData({ ...cached, sku: candidate.sku, brand: candidate.brand || cached.brand || '', name: candidate.name || cached.name || '', projectRowId: candidate.rowId || cached.projectRowId || '' });
+      saveDataDirect(candidate.sku, next);
+      upsertIndex(next);
+      item = {
+        id: 'toy-effect-' + candidate.sku + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        kind: 'toy-effect',
+        sku: candidate.sku,
+        name: buildUploadDisplayName(next, file.name, candidate.sku),
+        projectRowId: candidate.rowId || '',
+        effectFiles: [nextFile],
+        status: '\u5f85\u4e0a\u4f20\u6548\u679c\u56fe',
+        step: '\u5f85\u4e0a\u4f20\u5230 BOM \u6548\u679c\u56fe',
+        createdAt: now,
+        updatedAt: now,
+      };
+      queue.unshift(item);
+    } else {
+      item.effectFiles = effectFiles.concat(nextFile);
+      item.projectRowId = item.projectRowId || candidate.rowId || '';
+      item.status = '\u5f85\u4e0a\u4f20\u6548\u679c\u56fe';
+      item.step = '\u5f85\u4e0a\u4f20\u5230 BOM \u6548\u679c\u56fe';
+      item.updatedAt = now;
+    }
+    state.uploadQueue = queue;
+    return true;
+  }
+
+  async function stageToyEffectUploadFiles(files) {
+    const candidatesFiles = Array.from(files || []).filter(isToyEffectImageFile);
+    const supported = candidatesFiles.filter((file) => file.size <= 50 * 1024 * 1024);
+    if (!supported.length) {
+      showToast(candidatesFiles.length ? '\u73a9\u5177\u6548\u679c\u56fe\u5355\u4e2a\u6587\u4ef6\u4e0d\u80fd\u8d85\u8fc7 50MB' : '\u8bf7\u62d6\u5165 JPG / PNG \u73a9\u5177\u6548\u679c\u56fe');
+      return;
+    }
+    try {
+      const candidates = await collectToyEffectMatchCandidates();
+      const unmatched = [];
+      let added = 0;
+      for (const file of supported) {
+        const resolved = resolveToyEffectFile(file, candidates);
+        if (!resolved.candidate) {
+          unmatched.push(file.name + (resolved.ambiguous ? '\uff08\u4ea7\u54c1\u540d\u91cd\u590d\uff09' : ''));
+          continue;
+        }
+        const queued = await addToyEffectQueueFile(file, resolved.candidate);
+        if (queued === true) added += 1;
+        else if (queued === 'limit') unmatched.push(file.name + '（该 SKU 效果图已达 3 张上限）');
+      }
+      state.uploadMode = 'toy-effect';
+      state.uploadView = 'queue';
+      state.uploadPage = 1;
+      state.toyEffectMatchStatus = unmatched.length ? '\u672a\u5339\u914d\uff1a' + unmatched.slice(0, 4).join('\u3001') + (unmatched.length > 4 ? '\u2026' : '') : '';
+      saveUploadQueue();
+      renderShell();
+      if (added) showToast('\u5df2\u8bc6\u522b\u5e76\u52a0\u5165 ' + added + ' \u5f20\u73a9\u5177\u6548\u679c\u56fe');
+      if (unmatched.length) showToast('\u6709 ' + unmatched.length + ' \u5f20\u6548\u679c\u56fe\u672a\u80fd\u552f\u4e00\u5339\u914d\uff0c\u8bf7\u68c0\u67e5\u6587\u4ef6\u540d');
+    } catch (error) {
+      console.warn('PLM floating helper toy effect image match failed:', error);
+      showToast('\u6548\u679c\u56fe\u5339\u914d\u5931\u8d25\uff1a' + (error && error.message ? error.message : '\u8bf7\u68c0\u67e5\u5f53\u524d\u9875\u9762'));
+    }
+  }
+
   function inferUploadNameFromFileName(filename, sku) {
     return compactText(String(filename || '').replace(/\.[^.]+$/, '').replace(sku, ''));
   }
@@ -13229,7 +13439,8 @@
   function getUploadDisplayName(item) {
     const cached = item && item.sku ? loadData(item.sku) : null;
     const copyrightEntry = getCopyrightUploadEntries(item)[0];
-    const filename = (item && (item.xlsxName || item.zipName)) || (copyrightEntry && copyrightEntry.name) || '';
+    const effectEntry = getToyEffectUploadEntries(item)[0];
+    const filename = (item && (item.xlsxName || item.zipName)) || (copyrightEntry && copyrightEntry.name) || (effectEntry && effectEntry.name) || '';
     const name = buildUploadDisplayName(cached, filename, item && item.sku);
     if (name && item && item.name !== name) {
       item.name = name;
@@ -13247,6 +13458,7 @@
 
   function getMissingUploadText(item) {
     if (item && item.kind === 'copyright') return getCopyrightUploadEntries(item).length ? '\u6587\u4ef6\u5df2\u9f50' : '\u7f3a\u7248\u6743\u56fe';
+    if (item && item.kind === 'toy-effect') return getToyEffectUploadEntries(item).length ? '\u6548\u679c\u56fe\u6587\u4ef6\u5df2\u9f50' : '\u7f3a\u6548\u679c\u56fe';
     const missing = [];
     if (!item.xlsxKey) missing.push('XLSX');
     if (!item.zipKey) missing.push('ZIP');
@@ -13259,9 +13471,19 @@
       : [];
   }
 
+  function getToyEffectUploadEntries(item) {
+    return Array.isArray(item && item.effectFiles)
+      ? item.effectFiles.filter((entry) => entry && entry.name)
+      : [];
+  }
+
   function isUploadItemReady(item) {
     if (!item) return false;
     if (item.kind === 'toy-label') return Boolean(item.xlsxKey && item.zipKey);
+    if (item.kind === 'toy-effect') {
+      const entries = getToyEffectUploadEntries(item);
+      return Boolean(entries.length && entries.every((entry) => entry.key));
+    }
     if (item.kind === 'copyright') {
       const entries = getCopyrightUploadEntries(item);
       return Boolean(entries.length && entries.every((entry) => entry.key));
@@ -13871,6 +14093,54 @@
     return blob ? { filename: entry.filename, blob } : null;
   }
 
+  async function runToyEffectQueueItem(item) {
+    const cached = loadData(item && item.sku) || (state.index || []).find((entry) => entry.sku === (item && item.sku)) || {};
+    const data = normalizeData({
+      ...cached,
+      sku: cached.sku || (item && item.sku) || '',
+      name: cached.name || (item && item.name) || '',
+      projectRowId: cached.projectRowId || (item && item.projectRowId) || '',
+    });
+    const entries = getToyEffectUploadEntries(item);
+    if (!data.sku || !entries.length) {
+      markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u73a9\u5177\u6548\u679c\u56fe\u6587\u4ef6');
+      return;
+    }
+    const files = [];
+    for (const entry of entries) {
+      const file = await getUploadFile(entry.key);
+      if (!file) {
+        markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u73a9\u5177\u6548\u679c\u56fe\uff1a' + entry.name);
+        return;
+      }
+      files.push({ entry, file });
+    }
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6253\u5f00\u8bbe\u8ba1\u4efb\u52a1\u5e76\u5b9a\u4f4d BOM');
+    state.selectedSku = data.sku;
+    state.sku = data.sku;
+    state.data = data;
+    state.view = 'detail';
+    resetExcelState();
+    const drawer = await ensureProjectBomDrawerForData(data);
+    if (!drawer) throw new Error('\u672a\u6253\u5f00\u5bf9\u5e94 SKU \u7684\u7ed1BOM');
+    const uploadItem = await waitFor(() => findBomEffectUploadItem(drawer), 12000, 250);
+    if (!uploadItem) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u4e2d\u6548\u679c\u56fe\u4e0a\u4f20\u52a0\u53f7');
+    uploadItem.scrollIntoView({ block: 'center', inline: 'nearest' });
+    for (let index = 0; index < files.length; index += 1) {
+      const current = files[index];
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u6548\u679c\u56fe ' + (index + 1) + '/' + files.length);
+      await putFileIntoUploadItem(uploadItem, current.file, current.entry.name || current.file.name);
+      await waitUploadItemDone(uploadItem, current.entry.name || current.file.name, 180000);
+    }
+    await wait(800);
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6279\u91cf\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
+    await saveProjectBomDrawer(drawer);
+    await closeProjectBomDrawer(drawer);
+    archiveUploadItem(item);
+    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f', data.sku);
+    showToast(data.sku + ' \u73a9\u5177\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f');
+  }
+
   async function runCopyrightUploadQueueItem(item) {
     addLog('info', '\u7248\u6743\u56fe\u63d0\u5ba1\u4e0a\u4f20\u5f00\u59cb', item && item.sku ? item.sku : '');
     const entries = getCopyrightUploadEntries(item);
@@ -13921,6 +14191,10 @@
   async function runUploadQueueItem(item) {
     if (item && item.kind === 'toy-label') {
       await runToyLabelQueueItem(item);
+      return;
+    }
+    if (item && item.kind === 'toy-effect') {
+      await runToyEffectQueueItem(item);
       return;
     }
     if (item && item.kind === 'copyright') {
@@ -14041,6 +14315,8 @@
     try {
       assertNoReviewConfirmModal();
       if (getVisibleModal() || getOpenProductDrawer()) await closeTopProductDrawer({ skipDraftSave: true });
+      const bomDrawer = getProjectBomDrawerForSku('');
+      if (bomDrawer) await closeProjectBomDrawer(bomDrawer);
       await waitForUploadPageIdle();
     } catch (error) {
       state.uploadRunning = false;
@@ -15371,6 +15647,20 @@
     return Array.from(drawer.querySelectorAll('.ant-collapse-item, .materialCardItemHeader'))
       .filter(isVisibleElement)
       .find(isLabelUploadScope) || null;
+  }
+
+  function findBomEffectUploadItem(drawer) {
+    if (!drawer) return null;
+    const labels = Array.from(drawer.querySelectorAll('span, div'))
+      .filter(isVisibleElement)
+      .filter((el) => compactText(el.innerText || el.textContent) === '\u6548\u679c\u56fe');
+    for (const label of labels) {
+      let current = label.parentElement;
+      for (let depth = 0; current && current !== drawer && depth < 4; depth += 1, current = current.parentElement) {
+        if (current.querySelector('input[type="file"]')) return current;
+      }
+    }
+    return null;
   }
 
   async function saveProjectBomDrawer(drawer) {
@@ -18949,6 +19239,7 @@
       xlsxKey: '',
       zipKey: '',
       copyrightFiles: getCopyrightUploadEntries(item).map((entry) => ({ ...entry, key: '' })),
+      effectFiles: getToyEffectUploadEntries(item).map((entry) => ({ ...entry, key: '' })),
       selected: false,
     }));
   }
@@ -20442,7 +20733,7 @@
     const additionsByProduct = new Map();
     completed.forEach((item) => {
       const uploadSucceeded = /\u6210\u529f/.test(item.status || '');
-      const successStatus = item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess);
+      const successStatus = item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'toy-effect' ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess));
       const archived = {
         ...item,
         status: uploadSucceeded ? successStatus : (item.status || L.uploadFailed),
@@ -20451,6 +20742,7 @@
         xlsxKey: '',
         zipKey: '',
         copyrightFiles: getCopyrightUploadEntries(item).map((entry) => ({ ...entry, key: '' })),
+        effectFiles: getToyEffectUploadEntries(item).map((entry) => ({ ...entry, key: '' })),
       };
       additionsByProduct.set(uploadHistoryProductKey(archived), archived);
     });
@@ -20468,8 +20760,8 @@
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
-    const successText = latestItem.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess);
-    const archived = { ...latestItem, status: successText, step: successText, completedAt, updatedAt: completedAt, xlsxKey: '', zipKey: '', copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: '' })) };
+    const successText = latestItem.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'toy-effect' ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess));
+    const archived = { ...latestItem, status: successText, step: successText, completedAt, updatedAt: completedAt, xlsxKey: '', zipKey: '', copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: '' })), effectFiles: getToyEffectUploadEntries(latestItem).map((entry) => ({ ...entry, key: '' })) };
     const archivedProductKey = uploadHistoryProductKey(archived);
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryProductKey(entry) !== archivedProductKey);
     state.uploadHistory = [archived].concat(latestHistory.filter((entry) => uploadHistoryProductKey(entry) !== archivedProductKey)).slice(0, 200);
@@ -20503,6 +20795,7 @@
       xlsxKey: keepFiles ? (latestItem.xlsxKey || '') : '',
       zipKey: keepFiles ? (latestItem.zipKey || '') : '',
       copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
+      effectFiles: getToyEffectUploadEntries(latestItem).map((entry) => ({ ...entry, key: keepFiles ? (entry.key || '') : '' })),
     };
     const archivedKey = uploadHistoryKey(archived);
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryKey(entry) !== archivedKey);
@@ -20535,7 +20828,8 @@
 
   function uploadHistoryKey(item) {
     const copyrightNames = getCopyrightUploadEntries(item).map((entry) => entry.name).join(',');
-    return [item && item.sku, item && item.xlsxName, item && item.zipName, copyrightNames].filter(Boolean).join('|') || (item && item.id) || '';
+    const effectNames = getToyEffectUploadEntries(item).map((entry) => entry.name).join(',');
+    return [item && item.sku, item && item.xlsxName, item && item.zipName, copyrightNames, effectNames].filter(Boolean).join('|') || (item && item.id) || '';
   }
 
   function uploadHistoryProductKey(item) {
@@ -20591,10 +20885,11 @@
       return {
         standard: Boolean(parsed && parsed.standard !== undefined ? parsed.standard : legacy),
         'toy-label': Boolean(parsed && parsed['toy-label']),
+        'toy-effect': Boolean(parsed && parsed['toy-effect']),
         copyright: Boolean(parsed && parsed.copyright),
       };
     } catch (error) {
-      return { standard: false, 'toy-label': false, copyright: false };
+      return { standard: false, 'toy-label': false, 'toy-effect': false, copyright: false };
     }
   }
 
@@ -20745,7 +21040,10 @@
 
   function cleanupUploadFiles(item) {
     if (!item) return;
-    [item.xlsxKey, item.zipKey].concat(getCopyrightUploadEntries(item).map((entry) => entry.key)).filter(Boolean).forEach((key) => {
+    [item.xlsxKey, item.zipKey]
+      .concat(getCopyrightUploadEntries(item).map((entry) => entry.key))
+      .concat(getToyEffectUploadEntries(item).map((entry) => entry.key))
+      .filter(Boolean).forEach((key) => {
       deleteUploadFile(key).catch((error) => console.warn('PLM floating helper upload file cleanup failed:', error));
     });
   }
