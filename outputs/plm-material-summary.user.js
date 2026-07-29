@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.44
+// @version      2.6.45
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.44';
+  const SCRIPT_VERSION = '2.6.45';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8026,6 +8026,37 @@
     return result;
   }
 
+  function hasToyCopywritingFields(drawer) {
+    return Boolean(
+      findToyCopywritingField(drawer, 'sellingPoints')
+      || findToyCopywritingField(drawer, 'advantages')
+      || findToyCopywritingField(drawer, 'efficacy')
+      || findToyCopywritingField(drawer, 'directions')
+    );
+  }
+
+  function findToyCopywritingNextButton(drawer) {
+    if (!drawer) return null;
+    const buttons = Array.from(drawer.querySelectorAll('button'))
+      .filter(isVisibleElement)
+      .filter(isActionButtonReady)
+      .filter((button) => compactText(button.innerText || button.textContent) === '\u4e0b\u4e00\u6b65');
+    return buttons.length === 1 ? buttons[0] : null;
+  }
+
+  async function advanceToyCopywritingDrawerToFields(drawer, sku) {
+    if (hasToyCopywritingFields(drawer)) return drawer;
+    const nextButton = findToyCopywritingNextButton(drawer);
+    if (!nextButton) throw new Error('\u7f16\u8f91\u62bd\u5c49\u672a\u8fdb\u5165\u6587\u6848\u9875\uff0c\u4e14\u672a\u627e\u5230\u552f\u4e00\u53ef\u7528\u7684\u300c\u4e0b\u4e00\u6b65\u300d');
+    clickElement(nextButton);
+    const readyDrawer = await waitFor(() => {
+      const liveDrawer = getToyCopywritingDrawerForSku(sku) || drawer;
+      return hasToyCopywritingFields(liveDrawer) ? liveDrawer : null;
+    }, 15000, 150);
+    if (!readyDrawer) throw new Error('\u5df2\u70b9\u51fb\u300c\u4e0b\u4e00\u6b65\u300d\uff0c\u4f46\u73a9\u5177\u6587\u6848\u5b57\u6bb5\u672a\u52a0\u8f7d');
+    return readyDrawer;
+  }
+
   function setNativeFormValue(field, value) {
     if (!field) return false;
     const next = String(value || '').trim();
@@ -8680,8 +8711,9 @@
     if (!rowId || !(await clickProjectEditByRowId(rowId, sku))) throw new Error('未找到对应 SKU 的编辑入口');
     cacheProjectRowId(sku, rowId);
     const drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
-    if (!drawer) throw new Error('编辑抽屉未加载出玩具文案字段');
-    return drawer;
+    if (!drawer) throw new Error('编辑抽屉未加载');
+    updateToyCopywritingBatchEntry(sku, { step: '正在进入玩具文案编辑页' });
+    return advanceToyCopywritingDrawerToFields(drawer, sku);
   }
 
   function convertCmInputToInches(value) {
