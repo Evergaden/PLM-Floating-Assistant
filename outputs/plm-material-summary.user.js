@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.33
+// @version      2.6.34
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.33';
+  const SCRIPT_VERSION = '2.6.34';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3006,6 +3006,13 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-parameter-editor-product-progress{background:var(--pfh-theme-secondary-soft)!important;color:var(--pfh-theme-secondary)!important;}
     #${PANEL_ID}[data-pfh-theme] :where([style*="#7c3aed"],[style*="#6d35e8"],[style*="#0891b2"],[style*="#6541ce"],[style*="#6030cf"]){color:var(--pfh-theme-primary)!important;border-color:var(--pfh-theme-border)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-toast,.pfh-note-toast,.pfh-notification-badge){background:var(--pfh-theme-primary)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-api-status{display:inline-flex!important;align-items:center!important;gap:6px!important;min-width:0!important;flex:0 1 auto!important;color:var(--pfh-theme-primary)!important;font-size:11px!important;font-weight:700!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-error{color:#b42318!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-api-spinner{display:inline-block!important;flex:0 0 auto!important;width:12px!important;height:12px!important;border:2px solid var(--pfh-theme-primary-soft)!important;border-top-color:var(--pfh-theme-primary)!important;border-radius:50%!important;animation:pfh-api-status-spin .8s linear infinite!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-success .pfh-api-status-icon{color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-error .pfh-api-status-icon{color:#b42318!important;}
+    @keyframes pfh-api-status-spin{to{transform:rotate(360deg)}}
+    @media(prefers-reduced-motion:reduce){#${PANEL_ID}[data-pfh-theme] .pfh-api-spinner{animation:none!important;}}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-ledger-tabs button.is-active,.pfh-ledger-overflow-menu button.is-active,.pfh-tags .is-extension,.pfh-ledger-tags .is-extension,.pfh-ledger-tags .is-performance-group){background:var(--pfh-theme-primary-soft)!important;border-color:var(--pfh-theme-border-strong)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-parameter-drop,.pfh-size-image-drop,.pfh-upload-drop){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-item.is-clickable:hover,
@@ -3596,6 +3603,10 @@
     drawerTabFlowDrawer: null,
     drawerTabFlowUserInterrupted: false,
     toastTimer: 0,
+    apiReadStatus: { sku: '', phase: 'idle', message: '' },
+    apiReadStatusTimer: 0,
+    apiLastNoticeKey: '',
+    apiLastNoticeAt: 0,
     materialWatchTimer: 0,
     materialWatchAttempts: 0,
     ignoreOutsideClickUntil: 0,
@@ -4616,6 +4627,8 @@
     state.drawerTabFlowDrawer = drawer;
     const scanSeed = includeScanTabs && state.scanData && state.scanData.sku === sku ? state.scanData : null;
     let merged = normalizeData(scanSeed || loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    const apiBaseline = normalizeData(merged);
+    let apiDataSaved = false;
     try {
       const apiPackaging = await fetchApiMaterialPackaging(merged);
       if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard || apiPackaging.netContent || apiPackaging.grossWeight)) {
@@ -4668,7 +4681,8 @@
         }
       }
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
-      saveData(sku, merged);
+      saveData(sku, merged, { changeSource: 'PLM 接口' });
+      apiDataSaved = true;
       if (state.selectedSku === sku) state.data = normalizeData(loadData(sku) || merged);
       if (includeScanTabs && !shouldSkipLedgerDrawer(drawer)) {
         upsertDailyLedgerFromData(merged, { status: '\u5f85\u5b9a\u7a3f', stage: '\u5f85\u5b9a\u7a3f', note: '\u6253\u5f00\u8be6\u60c5\u81ea\u52a8\u8bb0\u5f55', requireCurrentMonth: true });
@@ -4720,6 +4734,7 @@
         } else if (state.selectedSku === sku) {
           renderShell(L.cached);
         }
+        if (apiDataSaved && state.selectedSku === sku) showApiDataChangeNotice(sku, apiBaseline, merged);
         state.drawerTabFlowRunning = false;
         state.drawerTabFlowSku = '';
         state.drawerTabFlowDrawer = null;
@@ -5429,15 +5444,19 @@
   }
 
   async function fetchApiMaterialPackaging(data, options) {
+    const sku = String(data && data.sku || '');
     const projectId = getProjectIdForMaterialApi(data);
     if (!projectId || !window.fetch) {
-      if (data && data.sku) addLog('warn', '详情自动读取物料接口跳过', data.sku + ' | 未找到项目 ID');
+      if (sku) {
+        addLog('warn', '详情自动读取物料接口跳过', sku + ' | 未找到项目 ID');
+        setApiReadStatus(sku, 'error', '未找到项目 ID');
+      }
       return emptyPackaging();
     }
+    setApiReadStatus(sku, 'loading', '正在读取 PLM 数据');
     if (options && options.force) delete apiProjectMaterialCache[projectId];
     if (!apiProjectMaterialCache[projectId]) {
-      addLog('info', '详情自动读取 PLM 物料接口', String(data && data.sku || '') + ' | projectId=' + projectId);
-      const sku = String(data && data.sku || '');
+      addLog('info', '详情自动读取 PLM 物料接口', sku + ' | projectId=' + projectId);
       apiProjectMaterialCache[projectId] = fetchPlmJson('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(projectId))
         .then((payload) => ({
           result: extractApiMaterialPackaging(payload),
@@ -5473,35 +5492,46 @@
             });
         })
         .then((result) => {
-          addLog('info', 'PLM 接口读取完成', String(data && data.sku || '') + ' | 纸盒=' + (result.packageSizeText || '无') + ' | 标签/印刷=' + (result.printSizeText || '无') + ' | 净含量=' + (result.netContent || '无') + ' | 毛重=' + (result.grossWeight || '无'));
+          addLog('info', 'PLM 接口读取完成', sku + ' | 纸盒=' + (result.packageSizeText || '无') + ' | 标签/印刷=' + (result.printSizeText || '无') + ' | 净含量=' + (result.netContent || '无') + ' | 毛重=' + (result.grossWeight || '无'));
+          setApiReadStatus(sku, 'success', hasUsableApiData(result) ? 'PLM 数据读取完成' : 'PLM 读取完成，暂无可用字段');
           return result;
         })
         .catch((error) => {
           const detail = /HTTP 401/.test(formatErrorMessage(error))
             ? formatErrorMessage(error) + ' | 请刷新 PLM 页面后重试，或检查当前账号项目权限'
             : formatErrorMessage(error);
-          addLog('warn', 'PLM 物料接口读取失败', String(data && data.sku || '') + ' | ' + detail);
+          addLog('warn', 'PLM 物料接口读取失败', sku + ' | ' + detail);
+          setApiReadStatus(sku, 'error', 'PLM 读取失败');
           return emptyPackaging();
         });
     }
-    return apiProjectMaterialCache[projectId];
+    return apiProjectMaterialCache[projectId].then((result) => {
+      if (state.apiReadStatus && state.apiReadStatus.sku === sku && state.apiReadStatus.phase === 'loading') {
+        setApiReadStatus(sku, 'success', hasUsableApiData(result) ? 'PLM 数据读取完成' : 'PLM 读取完成，暂无可用字段');
+      }
+      return result;
+    });
   }
 
   async function refreshMaterialFromApiWithoutDrawer(sku) {
     if (!state.settings.collectionEnabled || !sku) return;
     const current = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     const packaging = await fetchApiMaterialPackaging(current, { force: true });
-    if (!packaging || (!packaging.packageSizeText && !packaging.printSizeText && !packaging.hasInnerCard && !packaging.netContent && !packaging.grossWeight)) return;
+    if (!hasUsableApiData(packaging)) {
+      if (state.selectedSku === sku) showToast('PLM 读取完成，暂无可更新数据', { quiet: true });
+      return;
+    }
     const merged = normalizeData({
       ...mergeApiPackagingData(current, packaging),
       packageSource: packaging.packageSizeText ? 'plm-project-pms' : current.packageSource,
       updatedAt: new Date().toLocaleString(),
       updatedAtMs: Date.now(),
     });
-    saveData(sku, merged);
+    saveData(sku, merged, { changeSource: 'PLM 接口' });
     if (state.selectedSku === sku) {
       state.data = merged;
       renderShell('已后台刷新 PLM 数据');
+      showApiDataChangeNotice(sku, current, merged);
     }
   }
 
@@ -7400,6 +7430,78 @@
     return '<div class="pfh-material-unit-alert" role="alert"><div class="pfh-material-unit-head"><strong>发现尺寸单位异常</strong><button type="button" data-action="sku-edit-open" data-focus-key="' + escapeHtml(focusKey) + '">点击纠错</button></div><div class="pfh-material-unit-list">' + rows + '</div></div>';
   }
 
+  function getActiveApiStatusSku() {
+    return String(state.selectedSku || (state.data && state.data.sku) || '');
+  }
+
+  function apiReadStatusHtml() {
+    const status = state.apiReadStatus || {};
+    if (!status.sku || status.sku !== getActiveApiStatusSku() || status.phase === 'idle') return '';
+    const phase = status.phase === 'error' ? 'error' : (status.phase === 'success' ? 'success' : 'loading');
+    const icon = phase === 'loading'
+      ? '<i class="pfh-api-spinner" aria-hidden="true"></i>'
+      : '<span class="pfh-api-status-icon" aria-hidden="true">' + (phase === 'error' ? '!' : '✓') + '</span>';
+    return '<span class="pfh-api-status is-' + phase + '" role="status" aria-live="polite">' + icon + '<span>' + escapeHtml(status.message || '正在读取 PLM 数据') + '</span></span>';
+  }
+
+  function updateApiReadStatusView() {
+    const panel = document.getElementById(PANEL_ID);
+    const note = panel && panel.querySelector('.pfh-note');
+    if (!note) return;
+    const current = note.querySelector('.pfh-api-status');
+    const html = apiReadStatusHtml();
+    if (current) {
+      if (html) current.outerHTML = html;
+      else current.remove();
+      return;
+    }
+    if (html) {
+      const button = note.querySelector('button');
+      if (button) button.insertAdjacentHTML('beforebegin', html);
+    }
+  }
+
+  function setApiReadStatus(sku, phase, message) {
+    const normalizedSku = String(sku || '');
+    if (!normalizedSku) return;
+    window.clearTimeout(state.apiReadStatusTimer);
+    state.apiReadStatus = { sku: normalizedSku, phase: phase || 'loading', message: message || '' };
+    updateApiReadStatusView();
+    if (phase === 'success' || phase === 'error') {
+      state.apiReadStatusTimer = window.setTimeout(() => {
+        if (state.apiReadStatus && state.apiReadStatus.sku === normalizedSku) {
+          state.apiReadStatus = { sku: '', phase: 'idle', message: '' };
+          updateApiReadStatusView();
+        }
+      }, 2600);
+    }
+  }
+
+  function hasUsableApiData(data) {
+    return Boolean(data && (data.packageSizeText || data.printSizeText || data.hasInnerCard || data.netContent || data.grossWeight));
+  }
+
+  function getDataChangeLabels(previous, next) {
+    return collectTrackedDataChanges(previous, next, { changeSource: 'PLM 接口' })
+      .map((item) => item.label)
+      .filter((label, index, labels) => label && labels.indexOf(label) === index);
+  }
+
+  function showApiDataChangeNotice(sku, previous, next) {
+    const labels = getDataChangeLabels(previous, next);
+    const key = String(sku || '') + '|' + labels.join('、') + '|' + ['packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'netContent', 'grossWeight'].map((field) => compactText(next && next[field])).join('|');
+    if (state.apiLastNoticeKey === key && Date.now() - state.apiLastNoticeAt < 5000) return labels;
+    state.apiLastNoticeKey = key;
+    state.apiLastNoticeAt = Date.now();
+    if (labels.length) {
+      const suffix = labels.length > 4 ? '等' : '';
+      showToast('PLM 已更新 ' + sku + '：' + labels.slice(0, 4).join('、') + suffix);
+    } else {
+      showToast('PLM 已读取 ' + sku + '，历史数据无变化', { quiet: true });
+    }
+    return labels;
+  }
+
   function renderDetail(panel, statusText) {
     ensureSkuDataInteractionStyles();
     const detail = panel.querySelector('.pfh-detail');
@@ -7466,7 +7568,7 @@
       rowHtml('grossWeight', L.grossWeight, state.data.grossWeight || L.unknown),
       '</div>' + insightRecommendationHtml(state.data) + '</section>',
       '</div>',
-      '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span><span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
+      '<div class="pfh-note"><span class="pfh-note-source">' + escapeHtml(state.data.updatedAt ? (L.updatedAt + ': ' + state.data.updatedAt) : '') + '</span>' + apiReadStatusHtml() + '<span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + escapeHtml(TOOLTIP.refresh) + '">' + iconHtml('refresh') + '</button></div>',
     ].join('');
   }
 
