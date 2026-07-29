@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.46
+// @version      2.6.47
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.46';
+  const SCRIPT_VERSION = '2.6.47';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -14842,7 +14842,6 @@
     const drawer = getProductEditDrawerForSku(sku);
     if (!drawer) throw new Error('\u672a\u6253\u5f00\u7f16\u8f91\u62bd\u5c49');
     if (getVisibleText(drawer).includes('\u63a8\u54c1\u8d44\u6599')) return;
-    await waitUntil(() => isProductCategoryReady(getProductEditDrawerForSku(sku)), 30000, 500);
     await wait(5000);
     const readyDrawer = getProductEditDrawerForSku(sku);
     const button = readyDrawer && Array.from(readyDrawer.querySelectorAll('button')).filter(isVisibleElement).find((el) => compactText(el.innerText || el.textContent) === '\u4e0b\u4e00\u6b65');
