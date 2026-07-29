@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.48
+// @version      2.6.49
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.48';
+  const SCRIPT_VERSION = '2.6.49';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8640,7 +8640,7 @@
     if (!drawer) return null;
     const expectedLabel = compactText(label);
     const expectedButton = compactText('AI一键生成');
-    const buttons = Array.from(drawer.querySelectorAll('button, a, [role="button"]'))
+    const buttons = Array.from(drawer.querySelectorAll('button, a, [role="button"], span.startBtn'))
       .filter(isVisibleElement)
       .filter((button) => compactText(button.innerText || button.textContent) === expectedButton);
     for (const button of buttons) {
@@ -8680,11 +8680,15 @@
     const before = getToyImageSectionState(currentDrawer, label);
     if (!before || !before.button) throw new Error('未找到' + label + '的 AI一键生成按钮');
     if (!isActionButtonReady(before.button)) throw new Error(label + ' AI一键生成按钮不可用');
+    const beforeText = compactText(before.button.innerText || before.button.textContent);
     clickElement(before.button);
     const started = await waitFor(() => {
       const liveDrawer = getToyCopywritingDrawerForSku(sku) || drawer;
       const current = getToyImageSectionState(liveDrawer, label);
-      if (!current) return '';
+      if (!current) {
+        const buttonText = compactText(before.button.innerText || before.button.textContent);
+        return !document.body.contains(before.button) || !isVisibleElement(before.button) || buttonText !== beforeText ? before : '';
+      }
       return isToyImageButtonBusy(current.button) || current.signature !== before.signature ? current : '';
     }, 5000, 100);
     if (!started) throw new Error(label + ' AI一键生成未进入加载态');
@@ -17902,8 +17906,20 @@
     const close = findDrawerCloseButton(drawer);
     if (!close) return false;
     clickElement(close);
-    await waitFor(() => !isVisibleElement(drawer) || !document.body.contains(drawer), 5000, 150);
-    return true;
+    const result = await waitFor(() => {
+      const modal = getVisibleModal();
+      if (modal && isCancelConfigModal(modal)) return { modal };
+      if (!isVisibleElement(drawer) || !document.body.contains(drawer)) return { closed: true };
+      return null;
+    }, 10000, 100);
+    if (!result) return false;
+    if (result.modal) {
+      confirmCancelConfigModal(result.modal);
+      return Boolean(await waitFor(() => {
+        return !getVisibleModal() && (!isVisibleElement(drawer) || !document.body.contains(drawer));
+      }, 10000, 100));
+    }
+    return Boolean(result.closed);
   }
 
   async function fillRecommendedPurchasePrice(data, extra) {
