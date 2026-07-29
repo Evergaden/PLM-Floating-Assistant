@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.41
+// @version      2.6.42
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.41';
+  const SCRIPT_VERSION = '2.6.42';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8576,8 +8576,8 @@
         updateToyCopywritingBatchEntry(sku, { status: 'error', step: '处理失败', error: message });
         addLog('error', '批量玩具文案补充失败', sku + ' | ' + message);
       } finally {
-        if (drawer || getProjectDrawerForSku(sku)) {
-          await closeProjectDetailDrawerForSku(sku).catch(() => {});
+        if (drawer || getToyCopywritingDrawerForSku(sku) || getProjectDrawerForSku(sku)) {
+          await closeToyCopywritingDrawerForSku(sku).catch(() => {});
         }
         state.toyCopywritingBatchCurrentSku = '';
         saveToyCopywritingBatchQueue(state.toyCopywritingBatchQueue);
@@ -8600,18 +8600,17 @@
   async function openToyCopywritingBatchDrawer(sku, seed) {
     const existingCopywritingDrawer = getToyCopywritingDrawerForSku(sku);
     if (existingCopywritingDrawer) return existingCopywritingDrawer;
-    const currentDrawer = getProjectDrawer();
+    const currentDrawer = getToyCopywritingDrawerForSku('') || getProjectDrawer();
     const currentSku = currentDrawer && getProjectDrawerHeaderSku(currentDrawer);
-    if (currentDrawer && currentSku !== sku) await closeProjectDetailDrawerForSku(currentSku).catch(() => {});
+    if (currentDrawer && currentSku !== sku) await closeToyCopywritingDrawerForSku(currentSku).catch(() => {});
     if (!(await ensureNewProductProjectPage())) throw new Error('未能进入新品开发页面');
     if (!(await ensureDesignTaskTab())) throw new Error('未能进入设计任务页签');
     let rowId = seed && (seed.projectRowId || seed.projectId) || '';
-    if (!rowId || !findOperationRowByRowId(rowId)) rowId = await queryDesignTaskRowIdBySku(sku);
-    if (!rowId || !(await clickProjectDetailByRowId(rowId, sku))) throw new Error('未找到对应 SKU 的产品详情');
+    if (!rowId || !findOperationButtonByRowId(rowId, '编辑')) rowId = await queryDesignTaskRowIdBySku(sku);
+    if (!rowId || !(await clickProjectEditByRowId(rowId, sku))) throw new Error('未找到对应 SKU 的编辑入口');
     cacheProjectRowId(sku, rowId);
-    adoptOpenedProjectDrawer(sku, { keepToolsView: true });
     const drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
-    if (!drawer) throw new Error('产品详情未加载出玩具文案字段');
+    if (!drawer) throw new Error('编辑抽屉未加载出玩具文案字段');
     return drawer;
   }
 
@@ -15810,6 +15809,14 @@
     return Boolean(await waitFor(() => isProjectDrawerOpenForSku(sku), 8000, 120));
   }
 
+  async function clickProjectEditByRowId(rowId, sku) {
+    if (getToyCopywritingDrawerForSku(sku)) return true;
+    const button = findOperationButtonByRowId(rowId, '编辑');
+    if (!button) return false;
+    clickElement(button);
+    return Boolean(await waitFor(() => getToyCopywritingDrawerForSku(sku), 12000, 150));
+  }
+
   function isProjectDrawerOpenForSku(sku) {
     return Boolean(getProjectDrawerForSku(sku));
   }
@@ -17763,6 +17770,16 @@
     state.excelStatus = L.excelPackRecommended + ': ' + count + '（' + sourceText + '）';
     cachePackRecommendation(data, boxKey, recommendation);
     addLog('success', '已补全装箱数', String(data && data.sku || '') + ' ' + boxKey + ' → ' + count + '（' + sourceText + '）');
+    return true;
+  }
+
+  async function closeToyCopywritingDrawerForSku(sku) {
+    const drawer = getToyCopywritingDrawerForSku(sku) || getProjectDrawerForSku(sku);
+    if (!drawer) return true;
+    const close = findDrawerCloseButton(drawer);
+    if (!close) return false;
+    clickElement(close);
+    await waitFor(() => !isVisibleElement(drawer) || !document.body.contains(drawer), 5000, 150);
     return true;
   }
 
