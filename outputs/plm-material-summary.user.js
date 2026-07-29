@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.35
+// @version      2.6.36
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.35';
+  const SCRIPT_VERSION = '2.6.36';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3657,6 +3657,8 @@
     copywritingError: '',
     copywritingStatus: '',
     toyCopywritingBusy: false,
+    pageToyCopywritingBusy: false,
+    pageToyCopywritingSku: '',
     toyCopywritingError: '',
     toyCopywritingErrorSku: '',
     toyCopywritingErrorKind: '',
@@ -3765,9 +3767,11 @@
   }
 
   injectStyle();
+  injectPageToyCopywritingStyle();
   ensurePanel();
   document.addEventListener('paste', handleSizeImageHoverPaste, true);
   document.addEventListener('click', handleUserDrawerTabClick, true);
+  document.addEventListener('click', handlePageToyCopywritingClick, true);
   ensureLauncher();
   renderShell(L.noDrawer);
   refreshLoadingTips(false);
@@ -3781,6 +3785,7 @@
   startDesktopBridge();
   startUploadQueueSync();
   handleDrawerState();
+  ensurePageToyCopywritingButton();
   scheduleProjectListPrefetch();
   if (shouldStartUploadWorkerOnLoad()) {
     window.setTimeout(() => processUploadQueue(), 1200);
@@ -3792,6 +3797,7 @@
       clearTimeout(timer);
       timer = setTimeout(() => {
         handleDrawerState();
+        ensurePageToyCopywritingButton();
         observeManualTabRead();
         scheduleProjectListPrefetch();
         positionLauncher(document.getElementById(LAUNCHER_ID));
@@ -7673,7 +7679,8 @@
   function isToyCopywritingProduct(data) {
     if (!data) return false;
     const productType = getProductTypeForInsight(data, null);
-    return productType === '\u73a9\u5177' || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test(getClassificationText(data));
+    const categoryText = [data.plmCategory, data.productType, data.category, data.departmentName].filter(Boolean).join(' ');
+    return productType === '\u73a9\u5177' || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test(getClassificationText(data) + ' ' + categoryText);
   }
 
   function isFoodEntryCopywritingProduct(data) {
@@ -7682,6 +7689,179 @@
     if (manualCategory) return manualCategory === '\u98df\u54c1';
     const text = [data.name, data.manualCategory, data.plmCategory, data.aiProductType, data.aiCategory, data.departmentName].filter(Boolean).join(' ');
     return /\u98df\u54c1|\u4fdd\u5065|\u6ecb\u8865|\u81b3\u98df|\u8425\u517b|\u80f6\u56ca|\u8f6f\u7cd6|\u56fa\u4f53\u996e\u6599|\u7c89/i.test(text);
+  }
+
+  function injectPageToyCopywritingStyle() {
+    const styleId = 'pfh-page-toy-copywriting-style';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      button[data-pfh-page-toy-copywriting]{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;box-sizing:border-box!important;height:28px!important;min-height:28px!important;margin:0 0 0 8px!important;padding:0 10px!important;border:1px solid #7c3aed!important;border-radius:5px!important;background:#fff!important;color:#6d28d9!important;font:inherit!important;font-size:13px!important;line-height:26px!important;white-space:nowrap!important;vertical-align:middle!important;cursor:pointer!important;transition:border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease!important;}
+      button[data-pfh-page-toy-copywriting]:hover:not(:disabled){border-color:#5b21b6!important;background:#f5f3ff!important;color:#5b21b6!important;box-shadow:0 2px 8px rgba(109,40,217,.16)!important;}
+      button[data-pfh-page-toy-copywriting]:disabled{cursor:wait!important;opacity:.78!important;}
+      button[data-pfh-page-toy-copywriting].is-error{border-color:#ef4444!important;color:#dc2626!important;background:#fff7f7!important;}
+      button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner{width:13px!important;height:13px!important;box-sizing:border-box!important;border:2px solid rgba(109,40,217,.22)!important;border-top-color:#6d28d9!important;border-radius:50%!important;animation:pfh-page-toy-copywriting-spin .8s linear infinite!important;}
+      @keyframes pfh-page-toy-copywriting-spin{to{transform:rotate(360deg)}}
+      @media(prefers-reduced-motion:reduce){button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner{animation:none!important;}}
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function findPageToyCopywritingListRow(sku) {
+    if (!sku) return null;
+    let rows = [];
+    try { rows = collectProjectAllListRows(); } catch (error) { rows = []; }
+    const collected = rows.find((row) => row && row.sku === sku);
+    if (collected) return collected;
+    const headerTable = Array.from(document.querySelectorAll('table.vxe-table--header')).find((table) => {
+      const headers = Array.from(table.querySelectorAll('thead th')).map((cell) => normalizeProjectListHeader(cell.innerText || cell.textContent));
+      return headers.includes('\u5546\u54c1\u7f16\u7801') && (headers.includes('\u7c7b\u76ee') || headers.includes('\u54c1\u7c7b'));
+    });
+    if (!headerTable) return null;
+    const headers = Array.from(headerTable.querySelectorAll('thead th')).map((cell) => normalizeProjectListHeader(cell.innerText || cell.textContent));
+    const headerIndex = (names) => names.map((name) => headers.indexOf(name)).find((index) => index >= 0);
+    const skuIndex = headerIndex(['\u5546\u54c1\u7f16\u7801']);
+    const categoryIndex = headerIndex(['\u7c7b\u76ee', '\u54c1\u7c7b']);
+    const nameIndex = headerIndex(['\u5546\u54c1\u540d\u79f0']);
+    if (skuIndex < 0) return null;
+    const bodyRow = Array.from(document.querySelectorAll('table.vxe-table--body tbody tr')).find((row) => {
+      const cell = row.children[skuIndex];
+      return cell && new RegExp(sku, 'i').test(cell.innerText || cell.textContent || '');
+    });
+    if (!bodyRow) return null;
+    const textAt = (index) => index >= 0 && bodyRow.children[index]
+      ? cleanProjectListCell(bodyRow.children[index].innerText || bodyRow.children[index].textContent)
+      : '';
+    return {
+      sku,
+      name: textAt(nameIndex),
+      plmCategory: textAt(categoryIndex),
+    };
+  }
+
+  function getPageToyCopywritingData(drawer, sku) {
+    const current = state.data && state.data.sku === sku ? state.data : null;
+    const cached = loadData(sku);
+    const indexed = (state.index || []).find((entry) => entry && entry.sku === sku) || null;
+    const listRow = findPageToyCopywritingListRow(sku);
+    const sources = [current, cached, indexed, listRow].filter(Boolean);
+    const pick = (key) => sources.map((source) => String(source[key] || '').trim()).find(Boolean) || '';
+    const drawerText = drawer ? getVisibleText(drawer) : '';
+    const nameFromDrawer = cleanName((drawerText.match(/\u5546\u54c1\u540d\u79f0\s*[:\uff1a]\s*([^\n]+)/) || [])[1] || '');
+    return normalizeData({
+      ...(listRow || {}),
+      ...(indexed || {}),
+      ...(cached || {}),
+      ...(current || {}),
+      sku,
+      name: pick('name') || nameFromDrawer,
+      plmCategory: pick('plmCategory') || pick('category'),
+      category: pick('category') || pick('plmCategory'),
+    });
+  }
+
+  function findPageToyCopywritingAnchor(drawer) {
+    if (!drawer) return null;
+    const labels = Array.from(drawer.querySelectorAll('.ant-form-item-label label')).filter(isVisibleElement);
+    const label = labels.find((item) => {
+      const title = Array.from(item.children).find((child) => child.tagName === 'SPAN' && !child.classList.contains('aiBox'));
+      const titleText = compactText(title ? title.textContent : item.textContent).replace(/[*\uff1a:]/g, '');
+      return titleText === '\u4e3b\u56fe' && item.querySelector('.aiBox');
+    }) || labels.find((item) => /^\u4e3b\u56fe/.test(compactText(item.textContent)) && item.querySelector('.aiBox'));
+    return label ? { label, aiBox: label.querySelector('.aiBox') } : null;
+  }
+
+  function pageToyCopywritingLabel(data) {
+    return isFoodEntryCopywritingProduct(data) ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848';
+  }
+
+  function updatePageToyCopywritingButton(button, data) {
+    if (!button || !data || !data.sku) return;
+    const label = pageToyCopywritingLabel(data);
+    const busy = Boolean((state.pageToyCopywritingBusy && state.pageToyCopywritingSku === data.sku) || (state.toyCopywritingBusy && state.selectedSku === data.sku));
+    const hasError = Boolean(state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
+    const content = busy
+      ? '<span class="pfh-page-toy-copywriting-spinner" aria-hidden="true"></span><span>\u667a\u80fd\u8865\u5145\u4e2d</span>'
+      : (hasError
+        ? '<span aria-hidden="true">\u26a0</span><span>' + escapeHtml(label + '\u5931\u8d25') + '</span>'
+        : '<span aria-hidden="true">\u2726</span><span>' + escapeHtml(label) + '</span>');
+    if (button.innerHTML !== content) button.innerHTML = content;
+    button.disabled = busy;
+    button.classList.toggle('is-busy', busy);
+    button.classList.toggle('is-error', !busy && hasError);
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
+    button.setAttribute('aria-label', busy ? '\u667a\u80fd\u8865\u5145\u4e2d' : label);
+    button.title = busy ? '\u6b63\u5728\u6574\u7406\u6587\u6848' : label;
+  }
+
+  function removePageToyCopywritingButtons() {
+    document.querySelectorAll('[data-pfh-page-toy-copywriting]').forEach((button) => button.remove());
+  }
+
+  function ensurePageToyCopywritingButton() {
+    if (!document.body || !/projectManagementChemicalNew/.test(location.pathname)) {
+      removePageToyCopywritingButtons();
+      return null;
+    }
+    const drawer = getToyCopywritingDrawerForSku('');
+    if (!drawer) {
+      removePageToyCopywritingButtons();
+      return null;
+    }
+    const sku = getProjectDrawerHeaderSku(drawer) || findSku(getVisibleText(drawer));
+    const data = getPageToyCopywritingData(drawer, sku);
+    const isToy = isToyCopywritingProduct(data);
+    const isFoodEntry = isFoodEntryCopywritingProduct(data);
+    const anchor = findPageToyCopywritingAnchor(drawer);
+    if (!sku || (!isToy && !isFoodEntry) || !anchor || !anchor.aiBox) {
+      removePageToyCopywritingButtons();
+      return null;
+    }
+    const targetLabel = anchor.label;
+    const existing = Array.from(document.querySelectorAll('[data-pfh-page-toy-copywriting]'));
+    let button = Array.from(targetLabel.querySelectorAll('[data-pfh-page-toy-copywriting]'))[0] || null;
+    existing.forEach((item) => { if (item !== button) item.remove(); });
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('data-pfh-page-toy-copywriting', 'true');
+      anchor.aiBox.insertAdjacentElement('afterend', button);
+    }
+    button.setAttribute('data-sku', sku);
+    button.setAttribute('data-kind', isFoodEntry ? 'food' : 'toy');
+    updatePageToyCopywritingButton(button, data);
+    return button;
+  }
+
+  function handlePageToyCopywritingClick(event) {
+    if (!event || !(event.target instanceof Element)) return;
+    const button = event.target.closest('[data-pfh-page-toy-copywriting]');
+    if (!button || button.disabled || !isVisibleElement(button)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    runPageToyCopywriting(button);
+  }
+
+  async function runPageToyCopywriting(button) {
+    const sku = button && button.getAttribute('data-sku');
+    if (!sku || state.pageToyCopywritingBusy || state.toyCopywritingBusy) return;
+    const drawer = getToyCopywritingDrawerForSku(sku);
+    const data = getPageToyCopywritingData(drawer, sku);
+    if (!isToyCopywritingProduct(data) && !isFoodEntryCopywritingProduct(data)) {
+      showToast('\u5f53\u524d\u7f16\u7801\u4e0d\u9002\u7528\u73a9\u5177\u6216\u98df\u54c1\u6587\u6848\u8865\u5168');
+      return;
+    }
+    state.pageToyCopywritingBusy = true;
+    state.pageToyCopywritingSku = sku;
+    updatePageToyCopywritingButton(button, data);
+    try {
+      await fillToyCopywriting({ data, fromPage: true });
+    } finally {
+      state.pageToyCopywritingBusy = false;
+      state.pageToyCopywritingSku = '';
+      ensurePageToyCopywritingButton();
+    }
   }
 
   function toyCopywritingButtonHtml(data) {
@@ -7893,15 +8073,17 @@
     return filledCount;
   }
 
-  async function fillToyCopywriting() {
-    if (state.toyCopywritingBusy) return;
-    const data = normalizeData(state.data || {});
+  async function fillToyCopywriting(options) {
+    const opts = options || {};
+    if (state.toyCopywritingBusy) return 0;
+    const renderPanel = () => { if (!opts.fromPage) renderShell(); };
+    const data = normalizeData(opts.data || state.data || {});
     const isToy = isToyCopywritingProduct(data);
     const isFoodEntry = isFoodEntryCopywritingProduct(data);
     const isIngredientOnly = !isToy && !isFoodEntry;
     if (!data.sku) {
       showToast('\u672a\u627e\u5230\u5f53\u524d SKU');
-      return;
+      return 0;
     }
     if (isFoodEntry) {
       const cached = normalizeData(loadData(data.sku) || data);
@@ -7909,9 +8091,9 @@
         const message = '\u672a\u627e\u5230\u5b8c\u6574\u7684\u6210\u5206\u8868\u7f13\u5b58\u3002\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684\u300c\u4ea7\u54c1\u4fe1\u606f\u300d\uff0c\u7b49\u5f85\u6210\u5206\u8868\u8bfb\u53d6\u5b8c\u6210\u540e\u518d\u8bd5\u3002';
         setToyCopywritingError(data.sku, message, 'ingredient-cache');
         addLog('warn', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u7f3a\u5c11\u6210\u5206\u8868\u7f13\u5b58', data.sku);
-        renderShell();
+        renderPanel();
         showToast('\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25\uff1a' + message);
-        return;
+        return 0;
       }
     }
     clearToyCopywritingError(data.sku);
@@ -7920,13 +8102,13 @@
       const message = '\u8bf7\u5148\u6253\u5f00\u5f53\u524d SKU \u7684 PLM \u8be6\u60c5';
       if (!isToy) {
         setToyCopywritingError(data.sku, message, isFoodEntry ? 'detail' : 'ingredient-detail');
-        renderShell();
+        renderPanel();
       }
       showToast(message);
-      return;
+      return 0;
     }
     state.toyCopywritingBusy = true;
-    renderShell();
+    renderPanel();
     const originalLanguage = getActiveToyCopywritingLanguage(drawer) || '\u4e2d\u6587-\u7b80\u4f53';
     let filledCount = 0;
     try {
@@ -7934,23 +8116,23 @@
         filledCount = await fillFoodEntryCopywriting(data, drawer);
         if (!filledCount) {
           showToast('\u98df\u54c1\u6587\u6848\u5df2\u5b8c\u6574\uff0c\u65e0\u9700\u8865\u5145');
-          return;
+          return 0;
         }
         addLog('success', '\u98df\u54c1\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
         syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'food-copywriting', copywritingType: 'food', filledCount });
         showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u98df\u54c1\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
-        return;
+        return filledCount;
       }
       if (isIngredientOnly) {
         filledCount = await fillOtherProductIngredients(data, drawer);
         if (!filledCount) {
           showToast('\u4e2d\u82f1\u6587\u6210\u5206\u5df2\u5b8c\u6574\uff0c\u65e0\u9700\u8865\u5145');
-          return;
+          return 0;
         }
         addLog('success', '\u4ea7\u54c1\u6210\u5206\u8865\u5168\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
         syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'product-ingredients', copywritingType: 'ingredients', filledCount });
         showToast('\u5df2\u8865\u5168 ' + filledCount + ' \u4e2a\u4e2d\u82f1\u6587\u6210\u5206\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
-        return;
+        return filledCount;
       }
       await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
       const chinese = readToyCopywritingFields(drawer);
@@ -8002,7 +8184,7 @@
       if (!english.directions) englishPatch.directions = String(generated.englishDirections || '').trim();
       if (!Object.keys(chinesePatch).length && !Object.keys(englishPatch).length) {
         showToast('\u73a9\u5177\u6587\u6848\u5df2\u5b8c\u6574\uff0c\u65e0\u9700\u8865\u5145');
-        return;
+        return 0;
       }
       if (englishPatch.ingredients === '' || englishPatch.directions === '') throw new Error('Gemini \u8fd4\u56de\u7684\u82f1\u6587\u6210\u5206\u6216\u4f7f\u7528\u65b9\u6cd5\u4e3a\u7a7a');
       await switchToyCopywritingLanguage(drawer, '\u4e2d\u6587-\u7b80\u4f53');
@@ -8015,18 +8197,20 @@
       addLog('success', '\u73a9\u5177\u6587\u6848\u667a\u80fd\u8865\u5145\u5b8c\u6210', data.sku + ' | ' + filledCount + '\u4e2a\u5b57\u6bb5');
       syncInsightEvent('toy_copywriting_supplement_success', { sku: data.sku, name: data.name || '', source: 'toy-copywriting', copywritingType: 'toy', filledCount });
       showToast('\u5df2\u8865\u5145 ' + filledCount + ' \u4e2a\u73a9\u5177\u6587\u6848\u5b57\u6bb5\u5e76\u4fdd\u5b58\u8349\u7a3f');
+      return filledCount;
     } catch (error) {
       const message = formatErrorMessage(error) || '\u667a\u80fd\u8865\u5145\u5931\u8d25';
       const label = isFoodEntry ? '\u98df\u54c1\u6587\u6848' : (isIngredientOnly ? '\u6210\u5206' : '\u73a9\u5177\u6587\u6848');
       if (!isToy) setToyCopywritingError(data.sku, message, isIngredientOnly ? 'ingredient' : 'general');
       addLog('error', label + '\u667a\u80fd\u8865\u5145\u5931\u8d25', data.sku + ' | ' + message);
       showToast(label + '\u8865\u5145\u5931\u8d25\uff1a' + message);
+      return 0;
     } finally {
       if (originalLanguage && getToyCopywritingDrawerForSku(data.sku)) {
         await switchToyCopywritingLanguage(drawer, originalLanguage).catch(() => {});
       }
       state.toyCopywritingBusy = false;
-      renderShell();
+      renderPanel();
     }
   }
 
