@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.38
+// @version      2.6.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.38';
+  const SCRIPT_VERSION = '2.6.40';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4002,14 +4002,16 @@
         });
         if (syncedLedger && syncedLedger !== existingLedger) ledgerChangedCount += 1;
       }
-      if (!hasMeaningfulDataChange(previous, candidate)) return;
-      const saved = normalizeData({
+      const dataChanged = hasMeaningfulDataChange(previous, candidate);
+      const indexMissing = !state.index.some((item) => item && item.sku === row.sku);
+      if (!dataChanged && !indexMissing) return;
+      const saved = dataChanged ? normalizeData({
         ...candidate,
         listPrefetchedAt: new Date().toLocaleString(),
         updatedAt: new Date().toLocaleString(),
         updatedAtMs: Date.now(),
-      });
-      saveDataDirect(row.sku, saved);
+      }) : candidate;
+      if (dataChanged) saveDataDirect(row.sku, saved);
       upsertIndex(saved);
       if (state.data && state.data.sku === row.sku) state.data = saved;
       changedCount += 1;
