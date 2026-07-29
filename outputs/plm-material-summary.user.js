@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.59
+// @version      2.6.60
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -35,7 +35,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.59';
+  const SCRIPT_VERSION = '2.6.60';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3769,6 +3769,8 @@
     magicUploadQueue: loadMagicUploadQueue(),
     magicUploadRunning: false,
     magicUploadFileInputOpen: false,
+    magicUploadProcessing: false,
+    magicUploadProcessingText: '',
     magicUploadReplaceId: '',
     ledgerRecords: loadDailyLedger(),
     ledgerTrashRecords: loadDailyLedgerTrash(),
@@ -7281,6 +7283,7 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = html;
+    if (state.view === 'magicUpload') updateMagicUploadProcessingNotice();
   }
 
   function ensureMagicUploadStyles() {
@@ -7291,8 +7294,34 @@
     style.textContent = '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 12px;padding:8px 0;border-bottom:1px solid #e8e3f5}' +
       '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin:0;padding:0;border:1px solid transparent;border-radius:10px;background:transparent;color:#7357d8;box-shadow:none;cursor:pointer}' +
       '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back:hover{background:#f0ecff;color:#5e45bd}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-paste-received{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}';
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-paste-received{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing{display:flex;align-items:center;gap:8px;margin:10px 0 12px;padding:9px 11px;border:1px solid #e4dcff;border-radius:12px;background:rgba(247,244,255,.92);color:#6d5ca5;font-size:11px;line-height:1.35}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing .pfh-magic-spinner{width:13px;height:13px;flex:0 0 13px;border:2px solid #dcd2ff;border-top-color:#7357d8;border-radius:50%;animation:pfhMagicUploadSpin .8s linear infinite}' +
+      '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}';
     document.head.appendChild(style);
+  }
+
+  function updateMagicUploadProcessingNotice() {
+    const panel = document.getElementById(PANEL_ID);
+    const detail = panel && panel.querySelector('.pfh-detail');
+    if (!detail) return;
+    let notice = detail.querySelector('.pfh-magic-processing');
+    if (!state.magicUploadProcessing) {
+      if (notice) notice.remove();
+      return;
+    }
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.className = 'pfh-magic-processing';
+      notice.setAttribute('role', 'status');
+      notice.setAttribute('aria-live', 'polite');
+      notice.innerHTML = '<span class="pfh-magic-spinner" aria-hidden="true"></span><span class="pfh-magic-processing-text"></span>';
+      const drop = detail.querySelector('.pfh-magic-upload-drop');
+      if (drop && drop.parentNode) drop.parentNode.insertBefore(notice, drop);
+      else detail.appendChild(notice);
+    }
+    const text = notice.querySelector('.pfh-magic-processing-text');
+    if (text) text.textContent = state.magicUploadProcessingText || '正在处理文件…';
   }
 
   function renderSizeImage(panel) {
@@ -7391,82 +7420,144 @@
     addLog(level || 'info', '魔法上传 ' + message, detail || '');
   }
 
+  function withMagicUploadTimeout(promise, timeoutMs, label) {
+    let timer = 0;
+    const timeout = new Promise((resolve, reject) => {
+      timer = window.setTimeout(() => reject(new Error(String(label || '操作') + '超时（' + Math.round(timeoutMs / 1000) + '秒）')), timeoutMs);
+    });
+    return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+  }
+
+  function readMagicUploadArrayBuffer(file) {
+    if (file && typeof file.arrayBuffer === 'function') return file.arrayBuffer();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('无法读取文件内容'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
   async function processMagicUploadZipFiles(files) {
     if (!state.magicUploadAccessEnabled) {
       magicUploadLog('warn', '文件处理被拦截', '当前账号没有魔法上传权限');
       showToast('魔法上传暂未开放');
       return;
     }
-    const sourceFiles = (files || []).filter((file) => file && /\.(?:zip|xlsx)$/i.test(file.name || '') && Number(file.size || 0) <= MAGIC_UPLOAD_MAX_FILE_BYTES);
+    const sourceFiles = (files || []).filter((file) => file && /\.(?:zip|xlsx)$/i.test(file.name || '') && Number(file.size || 0) <= MAGIC_UPLOAD_MAX_FILE_BYTES)
+      .sort((a, b) => Number(/\.xlsx$/i.test(b.name || '')) - Number(/\.xlsx$/i.test(a.name || '')));
     if (!sourceFiles.length) {
       magicUploadLog('warn', '没有识别到可处理文件', (files || []).map((file) => (file && ((file.name || '无文件名') + '|' + (file.type || '无类型'))) || '空').join('；'));
       showToast('请选择 ZIP 图包或 XLSX');
       return;
     }
+    if (state.magicUploadProcessing) {
+      magicUploadLog('warn', '忽略重复处理请求', '已有文件正在处理：' + (state.magicUploadProcessingText || '处理中'));
+      showToast('已有文件正在处理，请等待当前任务完成');
+      return;
+    }
     magicUploadLog('info', '开始处理文件', sourceFiles.map((file) => file.name + '|' + Math.round(Number(file.size || 0) / 1024) + 'KB').join('；'));
+    state.magicUploadProcessing = true;
+    state.magicUploadProcessingText = '正在准备读取 ' + sourceFiles.length + ' 个文件…';
+    showToast(state.magicUploadProcessingText);
     const replacingId = state.magicUploadReplaceId;
     state.magicUploadReplaceId = '';
-    if (replacingId && sourceFiles[0]) {
-      const oldTask = (state.magicUploadQueue || []).find((item) => item.id === replacingId);
-      if (oldTask) {
-        state.magicUploadQueue = state.magicUploadQueue.filter((item) => item.id !== replacingId);
-        cleanupMagicUploadTaskFiles(oldTask, state.magicUploadQueue);
-      }
-    }
     state.magicUploadFileInputOpen = true;
-    for (const zipFile of sourceFiles) {
-      try {
-        if (/\.xlsx$/i.test(zipFile.name || '')) {
-          const skus = getSkusFromFileName(zipFile.name);
-          const key = 'magic-upload:' + createMagicUploadId() + ':source.xlsx';
-          await putUploadFile(key, cloneUploadFile(zipFile));
-          const additions = (skus.length ? skus : ['']).map((sku) => ({
-            id: createMagicUploadId(), sku, sourceType: 'xlsx', sourceName: zipFile.name, zipName: '', zipKey: '', projectId: getProjectIdForMaterialApi(loadData(sku) || {}),
-            files: [{ name: zipFile.name, key, category: '推品资料', archiveTypeId: 4, status: 'pending', error: '' }], status: sku ? 'pending' : 'waiting', step: sku ? '等待上传' : '请确认 SKU', error: '', createdAt: Date.now(), updatedAt: Date.now(),
-          }));
-          mergeMagicUploadTasks(additions);
-          magicUploadLog('info', 'XLSX 已加入队列', zipFile.name + ' | SKU=' + (skus.join(',') || '待确认'));
-          showToast(zipFile.name + ' 已加入推品资料');
-          continue;
+    const setProcessingText = (text, notify) => {
+      state.magicUploadProcessingText = String(text || '正在处理文件…');
+      updateMagicUploadProcessingNotice();
+      if (notify) showToast(state.magicUploadProcessingText);
+    };
+    try {
+      if (replacingId && sourceFiles[0]) {
+        const oldTask = (state.magicUploadQueue || []).find((item) => item.id === replacingId);
+        if (oldTask) {
+          state.magicUploadQueue = state.magicUploadQueue.filter((item) => item.id !== replacingId);
+          cleanupMagicUploadTaskFiles(oldTask, state.magicUploadQueue);
         }
-        const zip = await JSZip.loadAsync(zipFile);
-        const entries = Object.values(zip.files).filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name));
-        const fileSkus = getSkusFromFileName(zipFile.name);
-        const allSkus = new Set(fileSkus);
-        entries.forEach((entry) => getSkusFromFileName(entry.name).forEach((sku) => allSkus.add(sku)));
-        const skus = Array.from(allSkus);
-        const groups = new Map((skus.length ? skus : ['']).map((sku) => [sku, []]));
-        for (const entry of entries) {
-          const innerSkus = getSkusFromFileName(entry.name);
-          const targetSkus = innerSkus.length ? innerSkus : (skus.length ? skus : ['']);
-          const blob = await entry.async('blob');
-          const file = new File([blob], entry.name.split('/').pop() || 'asset', { type: guessMime(entry.name) });
-          const key = 'magic-upload:' + createMagicUploadId() + ':' + entry.name;
-          await putUploadFile(key, file);
-          targetSkus.forEach((sku) => {
-            if (!groups.has(sku)) groups.set(sku, []);
+      }
+      renderShell();
+      for (const zipFile of sourceFiles) {
+        try {
+          if (/\.xlsx$/i.test(zipFile.name || '')) {
+            setProcessingText('正在缓存 XLSX：' + zipFile.name, true);
+            magicUploadLog('info', 'XLSX 开始本地缓存', zipFile.name + ' | bytes=' + Number(zipFile.size || 0));
+            const skus = getSkusFromFileName(zipFile.name);
+            const key = 'magic-upload:' + createMagicUploadId() + ':source.xlsx';
+            await withMagicUploadTimeout(putUploadFile(key, cloneUploadFile(zipFile)), 120000, 'XLSX 本地缓存');
+            magicUploadLog('info', 'XLSX 本地缓存完成', zipFile.name + ' | key=' + key);
+            const additions = (skus.length ? skus : ['']).map((sku) => ({
+              id: createMagicUploadId(), sku, sourceType: 'xlsx', sourceName: zipFile.name, zipName: '', zipKey: '', projectId: getProjectIdForMaterialApi(loadData(sku) || {}),
+              files: [{ name: zipFile.name, key, category: '推品资料', archiveTypeId: 4, status: 'pending', error: '' }], status: sku ? 'pending' : 'waiting', step: sku ? '等待上传' : '请确认 SKU', error: '', createdAt: Date.now(), updatedAt: Date.now(),
+            }));
+            mergeMagicUploadTasks(additions);
+            magicUploadLog('info', 'XLSX 已加入队列', zipFile.name + ' | SKU=' + (skus.join(',') || '待确认'));
+            showToast(zipFile.name + ' 已加入推品资料');
+            renderShell();
+            continue;
+          }
+
+          setProcessingText('正在读取 ZIP：' + zipFile.name, true);
+          magicUploadLog('info', 'ZIP 开始读取', zipFile.name + ' | bytes=' + Number(zipFile.size || 0) + ' | type=' + (zipFile.type || '无类型'));
+          const zipBuffer = await withMagicUploadTimeout(readMagicUploadArrayBuffer(zipFile), 120000, 'ZIP 文件读取');
+          magicUploadLog('info', 'ZIP 文件已读入内存', zipFile.name + ' | bytes=' + Number(zipBuffer && zipBuffer.byteLength || 0));
+          setProcessingText('正在解析 ZIP：' + zipFile.name, true);
+          const zip = await withMagicUploadTimeout(JSZip.loadAsync(zipBuffer), 120000, 'ZIP 解析');
+          magicUploadLog('info', 'ZIP 解析完成', zipFile.name + ' | 压缩包条目=' + Object.keys(zip.files || {}).length);
+          const entries = Object.values(zip.files).filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name));
+          magicUploadLog('info', 'ZIP 文件清单完成', zipFile.name + ' | 可处理文件=' + entries.length);
+          const fileSkus = getSkusFromFileName(zipFile.name);
+          const allSkus = new Set(fileSkus);
+          entries.forEach((entry) => getSkusFromFileName(entry.name).forEach((sku) => allSkus.add(sku)));
+          const skus = Array.from(allSkus);
+          const groups = new Map((skus.length ? skus : ['']).map((sku) => [sku, []]));
+          let entryIndex = 0;
+          for (const entry of entries) {
+            entryIndex += 1;
+            const innerSkus = getSkusFromFileName(entry.name);
+            const targetSkus = innerSkus.length ? innerSkus : (skus.length ? skus : ['']);
+            const entryName = entry.name.split('/').pop() || 'asset';
+            setProcessingText('正在解压 ZIP（' + entryIndex + '/' + entries.length + '）：' + entryName, false);
+            magicUploadLog('info', 'ZIP 开始解压文件', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name);
+            const buffer = await withMagicUploadTimeout(entry.async('arraybuffer'), 120000, 'ZIP 文件解压');
+            const file = new File([buffer], entryName, { type: guessMime(entry.name) });
+            const key = 'magic-upload:' + createMagicUploadId() + ':' + entry.name;
+            magicUploadLog('info', 'ZIP 开始缓存文件', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name + ' | bytes=' + Number(buffer && buffer.byteLength || 0));
+            await withMagicUploadTimeout(putUploadFile(key, file), 120000, '素材本地缓存');
             const category = classifyMagicUploadName(entry.name);
             const rule = getMagicUploadRule(category, getMagicUploadFileExtension(entry.name));
-            groups.get(sku).push({ name: entry.name, key, category, archiveTypeId: rule ? rule.archiveTypeId : 0, status: 'pending', error: '' });
-          });
+            targetSkus.forEach((sku) => {
+              if (!groups.has(sku)) groups.set(sku, []);
+              groups.get(sku).push({ name: entry.name, key, category, archiveTypeId: rule ? rule.archiveTypeId : 0, status: 'pending', error: '' });
+            });
+            magicUploadLog('info', 'ZIP 文件已缓存', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name + ' | 分类=' + category + ' | SKU=' + (targetSkus.join(',') || '待确认'));
+            updateMagicUploadProcessingNotice();
+          }
+          setProcessingText('正在保留原始 ZIP：' + zipFile.name, true);
+          const zipKey = 'magic-upload:' + createMagicUploadId() + ':source.zip';
+          await withMagicUploadTimeout(putUploadFile(zipKey, cloneUploadFile(zipFile)), 120000, '原始 ZIP 本地缓存');
+          magicUploadLog('info', '原始 ZIP 已缓存', zipFile.name + ' | key=' + zipKey + ' | 将上传到图包素材');
+          const additions = Array.from(groups.entries()).map(([sku, group]) => ({
+            id: createMagicUploadId(), sku, zipName: zipFile.name, zipKey, projectId: getProjectIdForMaterialApi(loadData(sku) || {}), files: group,
+            status: group.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending', step: group.some((entry) => entry.category === '待确认') ? '请确认文件分类' : '等待上传', error: '', createdAt: Date.now(), updatedAt: Date.now(),
+          }));
+          mergeMagicUploadTasks(additions);
+          magicUploadLog('info', 'ZIP 识别完成', zipFile.name + ' | 文件=' + entries.length + ' | SKU=' + (skus.join(',') || '待确认') + ' | 任务=' + additions.length);
+          showToast(zipFile.name + ' 已识别 ' + additions.length + ' 个任务');
+          renderShell();
+        } catch (error) {
+          const message = formatErrorMessage(error);
+          magicUploadLog('warn', '图包处理失败', zipFile.name + ' | ' + message);
+          showToast('图包处理失败：' + message);
         }
-        const zipKey = 'magic-upload:' + createMagicUploadId() + ':source.zip';
-        await putUploadFile(zipKey, cloneUploadFile(zipFile));
-        const additions = Array.from(groups.entries()).map(([sku, group]) => ({
-          id: createMagicUploadId(), sku, zipName: zipFile.name, zipKey, projectId: getProjectIdForMaterialApi(loadData(sku) || {}), files: group,
-          status: group.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending', step: group.some((entry) => entry.category === '待确认') ? '请确认文件分类' : '等待上传', error: '', createdAt: Date.now(), updatedAt: Date.now(),
-        }));
-        mergeMagicUploadTasks(additions);
-        magicUploadLog('info', 'ZIP 识别完成', zipFile.name + ' | 文件=' + entries.length + ' | SKU=' + (skus.join(',') || '待确认') + ' | 任务=' + additions.length);
-        showToast(zipFile.name + ' 已识别 ' + additions.length + ' 个任务');
-      } catch (error) {
-        addLog('warn', '魔法上传图包识别失败', zipFile.name + ' | ' + formatErrorMessage(error));
-        showToast('图包识别失败：' + formatErrorMessage(error));
       }
+    } finally {
+      state.magicUploadFileInputOpen = false;
+      state.magicUploadProcessing = false;
+      state.magicUploadProcessingText = '';
+      magicUploadLog('info', '文件处理结束', '当前队列=' + (state.magicUploadQueue || []).length);
+      renderShell();
     }
-    state.magicUploadFileInputOpen = false;
-    magicUploadLog('info', '文件处理结束', '当前队列=' + (state.magicUploadQueue || []).length);
-    renderShell();
   }
 
   function mergeMagicUploadTasks(additions) {
