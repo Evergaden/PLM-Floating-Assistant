@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.36
+// @version      2.6.37
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -32,7 +32,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.36';
+  const SCRIPT_VERSION = '2.6.37';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -80,6 +80,24 @@
       { category: '身体护理', keywords: ['身体乳', 'body lotion', 'body cream'], phrase: 'Softens & moisturizes', priority: 80 },
       { category: '洗护', keywords: ['洗发', 'shampoo', '护发', 'conditioner'], phrase: 'Cleanses & nourishes', priority: 70 },
       { category: '营养补充', keywords: ['胶囊', 'capsule', 'supplement'], phrase: 'Daily nutrition support', priority: 60 },
+      { category: '洁面', keywords: ['洁面', '洗面奶', 'cleanser', 'face wash'], phrase: 'Gently cleanses & refreshes', priority: 85 },
+      { category: '面膜', keywords: ['面膜', 'mask', 'sheet mask'], phrase: 'Deep hydration & renewal', priority: 85 },
+      { category: '唇部护理', keywords: ['润唇', '唇膏', 'lip balm', 'lip care'], phrase: 'Moisturizes & protects', priority: 80 },
+      { category: '香氛', keywords: ['香水', '香氛', 'perfume', 'fragrance'], phrase: 'Fresh scent & lasting comfort', priority: 75 },
+      { category: '手部护理', keywords: ['护手霜', 'hand cream', 'hand care'], phrase: 'Nourishes & softens hands', priority: 75 },
+      { category: '口腔护理', keywords: ['牙膏', '漱口', 'toothpaste', 'mouthwash'], phrase: 'Fresh breath & daily care', priority: 75 },
+      { category: '卫生护理', keywords: ['卫生巾', '湿巾', '纸巾', 'sanitary', 'wipes', 'tissue'], phrase: 'Gentle care & everyday comfort', priority: 65 },
+      { category: '食品', keywords: ['零食', '饼干', '糖果', '食品', 'snack', 'cookie', 'candy', 'food'], phrase: 'Delicious taste for every moment', priority: 65 },
+      { category: '饮品', keywords: ['饮料', '茶', '咖啡', 'juice', 'drink', 'tea', 'coffee'], phrase: 'Refreshing taste & daily enjoyment', priority: 65 },
+      { category: '玩具', keywords: ['玩具', 'toy', 'toys'], phrase: 'Fun play & happy moments', priority: 100 },
+      { category: '毛绒玩具', keywords: ['毛绒', '公仔', 'plush', 'stuffed toy', 'soft toy'], phrase: 'Soft touch & playful comfort', priority: 105 },
+      { category: '积木拼图', keywords: ['积木', '拼图', 'building blocks', 'puzzle'], phrase: 'Builds creativity & thinking skills', priority: 105 },
+      { category: '娃娃玩偶', keywords: ['娃娃', '玩偶', 'doll', 'dolls'], phrase: 'Imaginative play & joyful moments', priority: 105 },
+      { category: '益智玩具', keywords: ['益智', '早教', 'educational toy', 'learning toy'], phrase: 'Learning through fun play', priority: 105 },
+      { category: '遥控玩具', keywords: ['遥控', '遥控车', 'remote control', 'rc car'], phrase: 'Exciting play & easy control', priority: 105 },
+      { category: '户外玩具', keywords: ['户外玩具', '滑板车', '跳绳', 'outdoor toy', 'scooter'], phrase: 'Active play & outdoor fun', priority: 100 },
+      { category: '文具礼品', keywords: ['文具', '礼品', 'stationery', 'gift'], phrase: 'Useful design & everyday delight', priority: 55 },
+      { category: '家居用品', keywords: ['家居', '收纳', '厨房', 'home', 'storage', 'kitchen'], phrase: 'Smart design for everyday living', priority: 50 },
     ];
     let featureRules = defaultRules.slice();
     let rulesLoaded = false;
