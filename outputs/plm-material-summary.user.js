@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.79
+// @version      2.6.80
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.79';
+  const SCRIPT_VERSION = '2.6.80';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1555,6 +1555,7 @@
   const MAGIC_UPLOAD_QUEUE_KEY = 'plm-floating-helper:magic-upload-queue:v1';
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
+  const MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES = 150 * 1024 * 1024;
   let magicUploadQueueRunPromise = null;
   let magicUploadAuthPaused = false;
   const MAGIC_UPLOAD_CATEGORIES = Object.freeze({
@@ -7669,8 +7670,18 @@
       showToast('魔法上传暂未开放');
       return;
     }
-    const sourceFiles = (files || []).filter((file) => file && /\.(?:zip|xlsx)$/i.test(file.name || '') && Number(file.size || 0) <= MAGIC_UPLOAD_MAX_FILE_BYTES)
+    const sourceFiles = (files || []).filter((file) => {
+      if (!file || !/\.(?:zip|xlsx)$/i.test(file.name || '')) return false;
+      const maxBytes = /\.zip$/i.test(file.name || '') ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : MAGIC_UPLOAD_MAX_FILE_BYTES;
+      return Number(file.size || 0) <= maxBytes;
+    })
       .sort((a, b) => Number(/\.xlsx$/i.test(b.name || '')) - Number(/\.xlsx$/i.test(a.name || '')));
+    const oversizedFiles = (files || []).filter((file) => {
+      if (!file || !/\.(?:zip|xlsx)$/i.test(file.name || '')) return false;
+      const maxBytes = /\.zip$/i.test(file.name || '') ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : MAGIC_UPLOAD_MAX_FILE_BYTES;
+      return Number(file.size || 0) > maxBytes;
+    });
+    if (oversizedFiles.length) magicUploadLog('warn', '文件超过入口限制', oversizedFiles.map((file) => file.name + '|' + Math.round(Number(file.size || 0) / 1024 / 1024) + 'MB').join('；') + ' | ZIP 上限=150MB');
     if (!sourceFiles.length) {
       magicUploadLog('warn', '没有识别到可处理文件', (files || []).map((file) => (file && ((file.name || '无文件名') + '|' + (file.type || '无类型'))) || '空').join('；'));
       showToast('请选择 ZIP 图包或 XLSX');
@@ -8329,7 +8340,10 @@
     const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 30 });
     const secret = secretPayload && secretPayload.data;
     if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
-    if (secret.max_file_size && file.size > Number(secret.max_file_size)) throw new Error('文件超过 PLM 限制：' + Math.round(Number(secret.max_file_size) / 1024 / 1024) + 'MB');
+    const declaredMaxBytes = Number(secret.max_file_size) || 0;
+    const uploadMaxBytes = category === '图包素材' ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : (declaredMaxBytes || MAGIC_UPLOAD_MAX_FILE_BYTES);
+    if (file.size > uploadMaxBytes) throw new Error(category === '图包素材' ? '图包素材单个文件不能超过 150MB' : '文件超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
+    if (category === '图包素材' && declaredMaxBytes && declaredMaxBytes < uploadMaxBytes) magicUploadLog('info', '采用图包素材页面限制', '接口通用提示=' + Math.round(declaredMaxBytes / 1024 / 1024) + 'MB；页面规则=150MB');
     if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
     const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
     const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });

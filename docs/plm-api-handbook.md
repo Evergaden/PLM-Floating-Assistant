@@ -149,6 +149,8 @@ POST /api/Product/UploadArchiveFileFromExternal
 
 ### 文件名和已有文件信息
 
+页面“图包素材”区域的单个 ZIP 上限是 150MB；GetOssClientSecretKey(upload_file_type=30) 返回的 max_file_size=20MB 是通用授权提示，不能直接当作图包素材区域的页面限制。魔法上传对原始 ZIP 采用 150MB，图包内拆出的图片、视频和 XLSX 仍按各自普通文件限制处理。
+
 ```http
 POST /api/Product/GenerateFileNameByRule
 POST /api/Common/GetUploadFileInfo
