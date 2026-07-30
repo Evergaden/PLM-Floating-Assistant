@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.80
+// @version      2.6.81
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.80';
+  const SCRIPT_VERSION = '2.6.81';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1553,6 +1553,8 @@
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
   const MAGIC_UPLOAD_QUEUE_KEY = 'plm-floating-helper:magic-upload-queue:v1';
+  const MAGIC_UPLOAD_HISTORY_KEY = 'plm-floating-helper:magic-upload-history:v1';
+  const MAGIC_UPLOAD_METRICS_KEY = 'plm-floating-helper:magic-upload-metrics:v1';
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
   const MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES = 150 * 1024 * 1024;
@@ -1981,6 +1983,11 @@
     refresh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"></path><path d="M6.2 8a7 7 0 0 1 11.5-1L20 12M4 12l2.3 5a7 7 0 0 0 11.5-1"></path></svg>',
     back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6M10 12h9"></path></svg>',
     warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"></path><path d="M12 9v5M12 18h.01"></path></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"></path></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"></path></svg>',
+    history: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6"></path><path d="M12 8v4l2.7 1.7"></path></svg>',
+    clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>',
   });
   const DEFAULT_ICON_ASSET = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"></rect><circle cx="12" cy="12" r="2"></circle></svg>';
 
@@ -3800,6 +3807,9 @@
     magicUploadAccessLoading: true,
     magicUploadAccessTimer: 0,
     magicUploadQueue: loadMagicUploadQueue(),
+    magicUploadHistory: loadMagicUploadHistory(),
+    magicUploadMetrics: loadMagicUploadMetrics(),
+    magicUploadHistoryOpen: false,
     magicUploadRunning: false,
     magicUploadFileInputOpen: false,
     magicUploadProcessing: false,
@@ -7472,13 +7482,83 @@
     if (document.getElementById(styleId)) return;
     const style = document.createElement('style');
     style.id = styleId;
-    style.textContent = '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 12px;padding:8px 0;border-bottom:1px solid #e8e3f5}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin:0;padding:0;border:1px solid transparent;border-radius:10px;background:transparent;color:#7357d8;box-shadow:none;cursor:pointer}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back:hover{background:#f0ecff;color:#5e45bd}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-paste-received{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing{display:flex;align-items:center;gap:8px;margin:10px 0 12px;padding:9px 11px;border:1px solid #e4dcff;border-radius:12px;background:rgba(247,244,255,.92);color:#6d5ca5;font-size:11px;line-height:1.35}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing .pfh-magic-spinner{width:13px;height:13px;flex:0 0 13px;border:2px solid #dcd2ff;border-top-color:#7357d8;border-radius:50%;animation:pfhMagicUploadSpin .8s linear infinite}' +
-      '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}';
+    style.textContent = '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title{display:flex;align-items:center;gap:10px;min-height:42px;margin:0 0 10px;padding:4px 0;border:0}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title h3{color:#18294b;font-size:17px;letter-spacing:-.02em}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;margin:0;padding:0;border:1px solid rgba(132,151,205,.25);border-radius:12px;background:rgba(255,255,255,.5);color:#5368c7;box-shadow:0 6px 16px rgba(87,105,197,.1);cursor:pointer;transition:.2s}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-upload-title .pfh-upload-back:hover{transform:translateX(-2px);background:#fff;color:#4054ba}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-page{position:relative;isolation:isolate;min-height:100%;overflow:hidden;padding:14px 14px 70px;color:#1d2b4b;background:radial-gradient(circle at 8% 0%,rgba(148,223,255,.34),transparent 31%),radial-gradient(circle at 100% 8%,rgba(196,159,255,.34),transparent 34%),linear-gradient(145deg,#f9fcff 0%,#f5f2ff 48%,#effcff 100%)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-page:before{content:"";position:absolute;z-index:-1;left:18%;top:-90px;width:260px;height:220px;border-radius:50%;background:rgba(138,240,235,.2);filter:blur(34px);pointer-events:none}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 2px 12px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-head small{color:#7785bd;font-size:9px;font-weight:800;letter-spacing:.2em}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-head h2{margin:3px 0 2px;color:#18294b;font-size:25px;letter-spacing:-.055em}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-head p{margin:0;color:#7a89a6;font-size:11px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-badge{display:inline-flex;margin-left:6px;align-items:center;padding:3px 7px;border:1px solid rgba(116,132,222,.25);border-radius:99px;background:rgba(255,255,255,.55);color:#6574c3;font-size:8px;letter-spacing:.14em;vertical-align:middle;box-shadow:0 4px 12px rgba(94,113,190,.1)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:154px;margin:0 0 10px;overflow:hidden;border:1px solid rgba(132,164,218,.42);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(238,247,255,.62) 44%,rgba(243,235,255,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 18px 38px rgba(89,111,183,.12);color:#7180b1;text-align:center;cursor:pointer;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop:before{content:"";position:absolute;inset:1px;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.6) 46%,transparent 70%);transform:translateX(-100%);animation:pfhMagicAuroraSheen 5.8s ease-in-out infinite;pointer-events:none}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop:hover,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-drag-over{transform:translateY(-3px);border-color:#7a8ee5;box-shadow:inset 0 1px 0 #fff,0 22px 44px rgba(93,111,197,.2)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-paste-received{border-color:#5cdbd0;background:linear-gradient(135deg,rgba(231,255,252,.9),rgba(236,238,255,.9));transform:translateY(-3px)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-drop-icon{display:grid;place-items:center;width:40px;height:40px;margin:0 auto 8px;border:1px solid rgba(113,139,215,.24);border-radius:15px;background:rgba(255,255,255,.67);color:#5f76cf;box-shadow:0 8px 18px rgba(86,111,193,.13)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-drop-icon .pfh-icon{width:22px;height:22px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop strong{display:block;color:#314774;font-size:15px;font-weight:800;letter-spacing:-.025em}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop span{display:block;margin-top:6px;color:#8694b0;font-size:10px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:9px 11px;border:1px solid rgba(126,150,216,.25);border-radius:14px;background:rgba(255,255,255,.65);color:#65749f;font-size:10px;line-height:1.35;box-shadow:0 8px 18px rgba(93,111,183,.08)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing .pfh-magic-spinner{width:13px;height:13px;flex:0 0 13px;border:2px solid #d9e4fb;border-top-color:#6478d8;border-radius:50%;animation:pfhMagicUploadSpin .8s linear infinite}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:4px 2px;color:#7482a2;font-size:10px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task button,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history button{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid rgba(128,147,202,.25);border-radius:10px;background:rgba(255,255,255,.67);color:#5367ae;padding:7px 10px;font-size:10px;cursor:pointer;transition:.2s}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button:hover,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task button:hover,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history button:hover{transform:translateY(-1px);background:#fff;box-shadow:0 6px 14px rgba(83,105,181,.12)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button.is-primary{border-color:#6679d8;background:linear-gradient(135deg,#6679d8,#7f63d6);color:#fff;box-shadow:0 7px 16px rgba(96,105,203,.25)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button:disabled,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions .pfh-magic-history-toggle{margin-left:auto}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-queue{display:grid;gap:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task{overflow:hidden;border:1px solid rgba(128,150,207,.26);border-radius:18px;background:rgba(255,255,255,.64);box-shadow:0 12px 26px rgba(83,105,177,.1),inset 0 1px 0 rgba(255,255,255,.9);backdrop-filter:blur(16px);transition:border-color .2s,box-shadow .2s,transform .2s}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task:hover{border-color:rgba(111,132,218,.45);box-shadow:0 15px 30px rgba(83,105,177,.14),inset 0 1px 0 #fff}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task.is-success{border-color:rgba(71,190,169,.4)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task.is-error{border-color:rgba(224,119,139,.42)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-main{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 13px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-copy{min-width:0}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-title{display:flex;align-items:center;gap:7px;min-width:0}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-title .pfh-magic-sku{width:145px;min-width:0;border:0;border-bottom:1px solid rgba(114,134,196,.3);background:transparent;color:#20345e;font-size:14px;font-weight:800;outline:0}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-source{display:block;max-width:230px;overflow:hidden;color:#8793af;font-size:9px;text-overflow:ellipsis;white-space:nowrap}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-stage{display:block;margin-top:5px;overflow:hidden;color:#7382a2;font-size:10px;text-overflow:ellipsis;white-space:nowrap}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-line{display:flex;align-items:center;gap:8px;margin-top:8px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-track{position:relative;height:7px;overflow:hidden;flex:1;border-radius:99px;background:rgba(190,204,236,.45)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-track:after{content:"";position:absolute;inset:0;width:34%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);transform:translateX(-130%);animation:pfhMagicProgressSheen 1.65s ease-in-out infinite}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#61c9d9,#6b82e2 55%,#a575e0);box-shadow:0 0 12px rgba(94,155,226,.45);transition:width .35s ease}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-value{min-width:34px;color:#566bb8;font-size:10px;font-weight:800;text-align:right}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-meta{display:flex;align-items:center;gap:7px;margin-top:6px;color:#8a96b0;font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status{display:inline-flex;align-items:center;gap:5px;color:#7180a0;font-size:10px;font-weight:700;white-space:nowrap}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status:before{content:"";width:6px;height:6px;border-radius:50%;background:#9ba8c4;box-shadow:0 0 0 3px rgba(155,168,196,.12)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status.is-success{color:#249d88}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status.is-success:before{background:#45c6a7;box-shadow:0 0 0 3px rgba(69,198,167,.14)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status.is-error{color:#d46f84}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status.is-error:before{background:#e4839a;box-shadow:0 0 0 3px rgba(228,131,154,.14)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-actions{display:flex;align-items:center;gap:5px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-actions button{width:29px;height:29px;padding:0;border-radius:10px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-actions .pfh-magic-expand{width:32px;height:32px;border-color:transparent;background:rgba(108,128,211,.1);font-size:15px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-detail{display:none;padding:0 13px 12px;border-top:1px solid rgba(135,151,198,.16)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task.is-expanded .pfh-magic-task-detail{display:block}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-files{display:grid;gap:4px;padding-top:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 100px auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(135,151,198,.12);font-size:10px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file span{overflow:hidden;color:#5c6c8e;text-overflow:ellipsis;white-space:nowrap}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file select{width:100%;border:1px solid rgba(128,147,202,.25);border-radius:7px;padding:4px 5px;background:rgba(255,255,255,.7);color:#6071ae;font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file-actions{display:flex;gap:3px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file-actions button{width:23px;height:23px;padding:0;border-radius:7px;font-size:10px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file i{font-style:normal;color:#8e99b0;font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;color:#8995b0;font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-footer-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-footer button{height:25px;padding:4px 7px;font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history{margin-top:12px;padding:11px;border:1px solid rgba(128,150,207,.25);border-radius:16px;background:rgba(255,255,255,.48);box-shadow:0 10px 22px rgba(83,105,177,.08)}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-head{display:flex;align-items:center;justify-content:space-between;color:#4e619d;font-size:11px;font-weight:800}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-list{display:grid;gap:5px;margin-top:8px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgba(135,151,198,.13);font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-item strong{display:block;color:#53658f;font-size:10px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-item span{display:block;margin-top:2px;overflow:hidden;color:#8995b0;text-overflow:ellipsis;white-space:nowrap}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-empty,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-empty{padding:24px 12px;color:#8b98b2;font-size:10px;text-align:center}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-bottom-note{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:13px;padding:8px 2px;color:#8793ad;font-size:9px}' +
+      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-note{display:none}' +
+      '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicAuroraSheen{0%,18%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}@keyframes pfhMagicProgressSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}' +
+      '@media (max-width:520px){#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-main{grid-template-columns:minmax(0,1fr)}#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-actions{justify-content:flex-end}#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-title .pfh-magic-sku{width:125px}}' +
+      '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + '[data-view="magicUpload"] *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}';
     document.head.appendChild(style);
   }
 
@@ -7538,6 +7618,161 @@
     } catch (error) { console.warn('PLM magic upload queue save failed:', error); }
   }
 
+  function loadMagicUploadHistory() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(MAGIC_UPLOAD_HISTORY_KEY, null) : JSON.parse(localStorage.getItem(MAGIC_UPLOAD_HISTORY_KEY) || 'null');
+      return Array.isArray(saved) ? saved.slice(0, 300) : [];
+    } catch (_) { return []; }
+  }
+
+  function saveMagicUploadHistory(history) {
+    const snapshot = Array.isArray(history) ? history.slice(0, 300) : [];
+    state.magicUploadHistory = snapshot;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(MAGIC_UPLOAD_HISTORY_KEY, snapshot);
+      else localStorage.setItem(MAGIC_UPLOAD_HISTORY_KEY, JSON.stringify(snapshot));
+    } catch (error) { console.warn('PLM magic upload history save failed:', error); }
+  }
+
+  function loadMagicUploadMetrics() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(MAGIC_UPLOAD_METRICS_KEY, null) : JSON.parse(localStorage.getItem(MAGIC_UPLOAD_METRICS_KEY) || 'null');
+      const source = saved && typeof saved === 'object' ? saved : {};
+      return { samples: Array.isArray(source.samples) ? source.samples.slice(-120) : [] };
+    } catch (_) { return { samples: [] }; }
+  }
+
+  function saveMagicUploadMetrics(metrics) {
+    const source = metrics && typeof metrics === 'object' ? metrics : { samples: [] };
+    const snapshot = { samples: Array.isArray(source.samples) ? source.samples.slice(-120) : [] };
+    state.magicUploadMetrics = snapshot;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(MAGIC_UPLOAD_METRICS_KEY, snapshot);
+      else localStorage.setItem(MAGIC_UPLOAD_METRICS_KEY, JSON.stringify(snapshot));
+    } catch (error) { console.warn('PLM magic upload metrics save failed:', error); }
+  }
+
+  function formatMagicUploadBytes(bytes) {
+    const value = Math.max(0, Number(bytes) || 0);
+    if (value >= 1024 * 1024 * 1024) return (value / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+    if (value >= 1024 * 1024) return (value / 1024 / 1024).toFixed(1) + ' MB';
+    if (value >= 1024) return Math.round(value / 1024) + ' KB';
+    return value + ' B';
+  }
+
+  function formatMagicUploadDuration(seconds) {
+    const value = Math.max(0, Math.round(Number(seconds) || 0));
+    if (!value) return '—';
+    if (value < 60) return value + ' 秒';
+    const minutes = Math.floor(value / 60);
+    const rest = value % 60;
+    return minutes + ' 分' + (rest ? ' ' + rest + ' 秒' : '');
+  }
+
+  function getMagicUploadThroughput() {
+    const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];
+    let rate = 0;
+    samples.forEach((sample) => {
+      const bytes = Number(sample && sample.bytes) || 0;
+      const durationMs = Number(sample && sample.durationMs) || 0;
+      if (!bytes || !durationMs) return;
+      const nextRate = bytes / durationMs;
+      rate = rate ? rate * .75 + nextRate * .25 : nextRate;
+    });
+    return rate;
+  }
+
+  function updateMagicUploadTaskEstimate(task) {
+    if (!task) return 0;
+    const totalBytes = Math.max(0, Number(task.totalBytes) || 0);
+    const currentBytes = Math.max(0, Number(task.currentFileSize) || 0) * Math.min(1, Math.max(0, Number(task.currentFileProgress) || 0));
+    const remainingBytes = Math.max(0, totalBytes - (Number(task.uploadedBytes) || 0) - currentBytes);
+    const throughput = getMagicUploadThroughput();
+    task.etaSeconds = throughput > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
+    task.progress = totalBytes > 0 ? Math.min(1, Math.max(0, ((Number(task.uploadedBytes) || 0) + currentBytes) / totalBytes)) : 0;
+    return task.etaSeconds;
+  }
+
+  function recordMagicUploadMetric(task, entry, durationMs) {
+    const bytes = Math.max(0, Number(entry && entry.size) || 0);
+    const elapsed = Math.max(1, Number(durationMs) || 1);
+    if (!bytes) return;
+    const metrics = state.magicUploadMetrics || { samples: [] };
+    metrics.samples = (Array.isArray(metrics.samples) ? metrics.samples : []).concat({ bytes, durationMs: elapsed, category: String(entry.category || ''), recordedAt: Date.now() }).slice(-120);
+    saveMagicUploadMetrics(metrics);
+    magicUploadLog('info', '上传耗时已记录', task.sku + ' | ' + (entry.category || '文件') + ' | ' + formatMagicUploadBytes(bytes) + ' | ' + formatMagicUploadDuration(elapsed / 1000));
+  }
+
+  function updateMagicUploadProgress(task) {
+    if (!task || state.view !== 'magicUpload') return;
+    updateMagicUploadTaskEstimate(task);
+    const panel = document.getElementById(PANEL_ID);
+    const row = panel && panel.querySelector('.pfh-magic-task[data-magic-id="' + CSS.escape(String(task.id)) + '"]');
+    if (!row) return;
+    const progress = Math.round(Math.min(1, Math.max(0, Number(task.progress) || 0)) * 100);
+    const bar = row.querySelector('[data-magic-progress-bar]');
+    const value = row.querySelector('[data-magic-progress-value]');
+    const eta = row.querySelector('[data-magic-eta]');
+    const stage = row.querySelector('[data-magic-stage]');
+    if (bar) bar.style.width = progress + '%';
+    if (value) value.textContent = progress + '%';
+    if (eta) eta.textContent = task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : '正在建立估算');
+    if (stage) stage.textContent = task.currentFileName ? (task.step || '上传中') + ' · ' + (task.currentFileName.split('/').pop() || task.currentFileName) : (task.step || '等待上传');
+  }
+
+  async function hydrateMagicUploadTaskMetrics(task) {
+    if (!task) return;
+    let totalBytes = 0;
+    let uploadedBytes = 0;
+    for (const entry of task.files || []) {
+      if (!entry.size) {
+        const file = await getUploadFile(entry.key);
+        if (file) entry.size = Number(file.size) || 0;
+      }
+      totalBytes += Number(entry.size) || 0;
+      if (entry.status === 'success') uploadedBytes += Number(entry.size) || 0;
+    }
+    if (task.zipKey) {
+      if (!task.sourceSize) {
+        const sourceFile = await getUploadFile(task.zipKey);
+        if (sourceFile) task.sourceSize = Number(sourceFile.size) || 0;
+      }
+      totalBytes += Number(task.sourceSize) || 0;
+      if (task.sourceUploaded) uploadedBytes += Number(task.sourceSize) || 0;
+    }
+    task.totalBytes = totalBytes;
+    task.uploadedBytes = uploadedBytes;
+    updateMagicUploadTaskEstimate(task);
+  }
+
+  function recordMagicUploadHistory(task) {
+    if (!task || !task.id) return;
+    const files = Array.isArray(task.files) ? task.files : [];
+    const successCount = files.filter((entry) => entry.status === 'success').length;
+    const failedCount = files.filter((entry) => entry.status === 'error').length;
+    const snapshot = normalizeMagicUploadTask(task, { preserveProcessing: true });
+    const startedAt = Number(task.startedAt) || Number(task.createdAt) || Date.now();
+    const finishedAt = Number(task.finishedAt) || (task.status === 'success' || task.status === 'error' ? Date.now() : 0);
+    const entry = {
+      id: String(task.id),
+      sku: String(task.sku || ''),
+      sourceName: String(task.sourceName || task.zipName || ''),
+      sourceSize: Math.max(0, Number(task.sourceSize) || 0),
+      status: String(task.status || ''),
+      error: String(task.error || ''),
+      fileCount: files.length,
+      successCount,
+      failedCount,
+      startedAt,
+      finishedAt,
+      durationMs: Math.max(0, finishedAt ? finishedAt - startedAt : 0),
+      task: snapshot,
+      updatedAt: Date.now(),
+    };
+    const history = (state.magicUploadHistory || []).filter((item) => item && item.id !== entry.id);
+    saveMagicUploadHistory([entry].concat(history).slice(0, 300));
+  }
+
   function normalizeMagicUploadTask(task, options) {
     if (!task || !task.id) return null;
     const preserveProcessing = Boolean(options && options.preserveProcessing);
@@ -7547,6 +7782,7 @@
       index,
       name: String(entry && entry.name || ''),
       key: String(entry && entry.key || ''),
+      size: Math.max(0, Number(entry && entry.size) || 0),
       category: MAGIC_UPLOAD_CATEGORIES[String(entry && entry.category || '')] ? String(entry.category) : '待确认',
       archiveTypeId: Number(entry && entry.archiveTypeId) || 0,
       status: String(entry && entry.status || 'pending'),
@@ -7573,6 +7809,15 @@
       productId: String(task.productId || ''),
       productVersionId: String(task.productVersionId || ''),
       files,
+      totalBytes: Math.max(0, Number(task.totalBytes) || 0),
+      uploadedBytes: Math.max(0, Number(task.uploadedBytes) || 0),
+      currentFileName: String(task.currentFileName || ''),
+      currentFileSize: Math.max(0, Number(task.currentFileSize) || 0),
+      currentFileProgress: Math.min(1, Math.max(0, Number(task.currentFileProgress) || 0)),
+      progress: Math.min(1, Math.max(0, Number(task.progress) || 0)),
+      etaSeconds: Math.max(0, Number(task.etaSeconds) || 0),
+      startedAt: Number(task.startedAt) || 0,
+      finishedAt: Number(task.finishedAt) || 0,
       status: status === 'processing' && !preserveProcessing ? 'pending' : status,
       step: String(task.step || ''),
       error: String(task.error || ''),
@@ -7724,7 +7969,7 @@
             magicUploadLog('info', 'XLSX 本地缓存完成', zipFile.name + ' | key=' + key);
             const additions = (skus.length ? skus : ['']).map((sku) => ({
               id: createMagicUploadId(), sku, sourceType: 'xlsx', sourceName: zipFile.name, zipName: '', zipKey: '', projectId: getProjectIdForMaterialApi(loadData(sku) || {}),
-              files: [{ name: zipFile.name, key, category: '推品资料', archiveTypeId: 4, status: 'pending', error: '' }], status: sku ? 'pending' : 'waiting', step: sku ? '等待上传' : '请确认 SKU', error: '', createdAt: Date.now(), updatedAt: Date.now(),
+              files: [{ name: zipFile.name, key, size: Number(zipFile.size) || 0, category: '推品资料', archiveTypeId: 4, status: 'pending', error: '' }], status: sku ? 'pending' : 'waiting', step: sku ? '等待上传' : '请确认 SKU', error: '', totalBytes: Number(zipFile.size) || 0, createdAt: Date.now(), updatedAt: Date.now(),
             }));
             mergeMagicUploadTasks(additions);
             magicUploadLog('info', 'XLSX 已加入队列', zipFile.name + ' | SKU=' + (skus.join(',') || '待确认'));
@@ -7764,7 +8009,7 @@
             const rule = getMagicUploadRule(category, getMagicUploadFileExtension(entry.name));
             targetSkus.forEach((sku) => {
               if (!groups.has(sku)) groups.set(sku, []);
-              groups.get(sku).push({ name: entry.name, key, category, archiveTypeId: rule ? rule.archiveTypeId : 0, status: 'pending', error: '' });
+              groups.get(sku).push({ name: entry.name, key, size: Number(file.size) || 0, category, archiveTypeId: rule ? rule.archiveTypeId : 0, status: 'pending', error: '' });
             });
             magicUploadLog('info', 'ZIP 文件已缓存', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name + ' | 分类=' + category + ' | SKU=' + (targetSkus.join(',') || '待确认'));
             updateMagicUploadProcessingNotice();
@@ -7774,7 +8019,7 @@
           await withMagicUploadTimeout(putUploadFile(zipKey, cloneUploadFile(zipFile)), 120000, '原始 ZIP 本地缓存');
           magicUploadLog('info', '原始 ZIP 已缓存', zipFile.name + ' | key=' + zipKey + ' | 将上传到图包素材');
           const additions = Array.from(groups.entries()).map(([sku, group]) => ({
-            id: createMagicUploadId(), sku, zipName: zipFile.name, zipKey, projectId: getProjectIdForMaterialApi(loadData(sku) || {}), files: group,
+            id: createMagicUploadId(), sku, zipName: zipFile.name, zipKey, sourceSize: Number(zipFile.size) || 0, projectId: getProjectIdForMaterialApi(loadData(sku) || {}), files: group,
             status: group.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending', step: group.some((entry) => entry.category === '待确认') ? '请确认文件分类' : '等待上传', error: '', createdAt: Date.now(), updatedAt: Date.now(),
           }));
           mergeMagicUploadTasks(additions);
@@ -7805,6 +8050,7 @@
         if (addition.zipKey) {
           existing.zipKey = addition.zipKey;
           existing.zipName = addition.zipName;
+          existing.sourceSize = Number(addition.sourceSize) || existing.sourceSize || 0;
           existing.sourceType = 'zip';
           existing.sourceName = addition.zipName;
         }
@@ -7831,15 +8077,22 @@
   }
 
   function magicUploadViewHtml() {
-    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>魔法上传 <em class="pfh-magic-badge">BETA</em></h3></div><div class="pfh-magic-head"><div><small>MAGIC UPLOAD</small><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></section></div>';
+    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>魔法上传 <em class="pfh-magic-badge">BETA</em></h3></div><div class="pfh-magic-head"><div><small>MAGIC UPLOAD</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></section></div>';
     const queue = state.magicUploadQueue || [];
     const running = Boolean(state.magicUploadRunning);
+    const pendingCount = queue.filter((task) => task.status === 'pending' || task.status === 'error').length;
+    const history = Array.isArray(state.magicUploadHistory) ? state.magicUploadHistory : [];
+    const historyOpen = Boolean(state.magicUploadHistoryOpen);
     const rows = queue.length ? queue.map((task) => {
       const unknown = task.files.filter((entry) => entry.category === '待确认').length;
-      const fileRows = task.files.map((entry, index) => '<div class="pfh-magic-file"><span>' + escapeHtml(entry.name.split('/').pop() || entry.name) + '</span><select data-magic-file-index="' + index + '"><option value="待确认">待确认</option>' + Object.keys(MAGIC_UPLOAD_CATEGORIES).filter((item) => item !== '图包素材').map((item) => '<option value="' + escapeHtml(item) + '"' + (entry.category === item ? ' selected' : '') + '>' + escapeHtml(item) + '</option>').join('') + '</select><i>' + escapeHtml(entry.status === 'success' ? '完成' : (entry.error || '待传')) + '</i></div>').join('');
-      return '<article class="pfh-magic-task" data-magic-id="' + escapeHtml(task.id) + '"><header><div><input class="pfh-magic-sku" value="' + escapeHtml(task.sku) + '" placeholder="SKU 编码"><small>' + escapeHtml(task.sourceName || task.zipName) + '</small></div><b class="' + (task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '')) + '">' + escapeHtml(magicUploadStatusLabel(task)) + '</b></header><div class="pfh-magic-files">' + fileRows + '</div><footer><span>' + task.files.length + ' 个文件' + (unknown ? ' · ' + unknown + ' 个待确认' : '') + '</span><div><button type="button" data-action="magic-upload-save-task" data-magic-id="' + escapeHtml(task.id) + '">保存修改</button><button type="button" data-action="magic-upload-replace" data-magic-id="' + escapeHtml(task.id) + '">替换文件</button><button type="button" data-action="magic-upload-retry" data-magic-id="' + escapeHtml(task.id) + '">重试</button><button type="button" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button></div></footer></article>';
-    }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包，自动识别 SKU 和素材区域</div>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><style>.pfh-magic-page{padding:22px 18px 80px;color:#26314d}.pfh-magic-head{display:flex;gap:12px;align-items:flex-start}.pfh-magic-head small{color:#8e80bc;letter-spacing:.12em;font-size:10px}.pfh-magic-head h2{margin:4px 0;font-size:25px}.pfh-magic-head p{margin:0;color:#8891a9;font-size:12px}.pfh-magic-badge{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:99px;background:#efe9ff;color:#7457d5;font-size:9px;letter-spacing:.08em;vertical-align:middle}.pfh-magic-upload-drop{margin:22px 0 14px;min-height:130px;border:1px dashed #bdb2ed;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(244,241,255,.85));display:grid;place-items:center;text-align:center;color:#796da1;cursor:pointer;transition:.2s}.pfh-magic-upload-drop.is-drag-over{border-color:#7356df;background:#eee9ff;transform:translateY(-2px)}.pfh-magic-upload-drop strong{display:block;color:#4b3f79;font-size:15px}.pfh-magic-upload-drop span{display:block;margin-top:7px;color:#9490ab;font-size:11px}.pfh-magic-actions{display:flex;gap:8px;align-items:center;margin-bottom:14px}.pfh-magic-actions button,.pfh-magic-task button{border:1px solid #e3def6;background:#fff;color:#66579a;border-radius:10px;padding:7px 11px;font-size:11px;cursor:pointer}.pfh-magic-actions button.is-primary{background:#7357d8;color:#fff;border-color:#7357d8}.pfh-magic-actions button:disabled{opacity:.45;cursor:not-allowed}.pfh-magic-count{margin-left:auto;color:#9a94aa;font-size:11px}.pfh-magic-task{margin:10px 0;border:1px solid #e8e3f5;border-radius:18px;background:rgba(255,255,255,.78);box-shadow:0 8px 28px rgba(93,76,150,.07);overflow:hidden}.pfh-magic-task header,.pfh-magic-task footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}.pfh-magic-task header{border-bottom:1px solid #f0edf8}.pfh-magic-task header div{min-width:0}.pfh-magic-sku{width:150px;border:0;border-bottom:1px solid #dcd5f3;background:transparent;color:#32275b;font-weight:700;font-size:15px;outline:0}.pfh-magic-task header small{display:block;margin-top:5px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a09ab0;font-size:10px}.pfh-magic-task header b{font-size:11px;color:#8e86a5;font-weight:600}.pfh-magic-task header b.is-success{color:#1c9b76}.pfh-magic-task header b.is-error{color:#d15c74}.pfh-magic-files{padding:4px 14px}.pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 105px 55px;gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #f5f2fa;font-size:11px}.pfh-magic-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#56617a}.pfh-magic-file select{border:1px solid #e7e2f3;border-radius:7px;padding:4px;color:#65598b;background:#fff;font-size:10px}.pfh-magic-file i{font-style:normal;text-align:right;color:#aaa4b5;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfh-magic-task footer{border-top:1px solid #f0edf8;color:#aaa4b5;font-size:10px}.pfh-magic-task footer div{display:flex;gap:5px}.pfh-magic-task footer button{padding:5px 8px;font-size:10px}.pfh-magic-empty{padding:45px 15px;text-align:center;color:#aaa4b5;border:1px dashed #e2ddf1;border-radius:18px}.pfh-magic-note{color:#a29bac;font-size:10px;line-height:1.5;margin:0 2px 10px}</style><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>魔法上传 <em class="pfh-magic-badge">BETA</em></h3></div><div class="pfh-magic-head"><div><small>MAGIC UPLOAD</small><h2>魔法上传</h2><p>前端解包识别 · PLM API · OSS 分片</p></div></div><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><strong>拖入 ZIP 或 XLSX</strong><span>支持 ZIP 图包和推品资料，自动识别 SKU、主图、详情图、视频和动图</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><p class="pfh-magic-note">最多同时上传 3 个任务；原始 ZIP 会作为“图包素材”保留，XLSX 会作为“推品资料”上传。</p><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !queue.some((task) => task.status === 'pending' || task.status === 'error') ? ' disabled' : '') + '>开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>暂停</button><span class="pfh-magic-count">' + queue.length + ' 个任务</span></div><div class="pfh-magic-task-list">' + rows + '</div></section></div>';
+      const expanded = Boolean(task.expanded);
+      const progress = Math.round(Math.min(1, Math.max(0, Number(task.progress) || 0)) * 100);
+      const statusClass = task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '');
+      const fileRows = task.files.map((entry, index) => '<div class="pfh-magic-file"><span title="' + escapeHtml(entry.name) + '">' + escapeHtml(entry.name.split('/').pop() || entry.name) + '</span><select data-magic-file-index="' + index + '"><option value="待确认">待确认</option>' + Object.keys(MAGIC_UPLOAD_CATEGORIES).filter((item) => item !== '图包素材').map((item) => '<option value="' + escapeHtml(item) + '"' + (entry.category === item ? ' selected' : '') + '>' + escapeHtml(item) + '</option>').join('') + '</select><div class="pfh-magic-file-actions"><button type="button" data-action="magic-upload-file-up" data-magic-id="' + escapeHtml(task.id) + '" data-magic-file-index="' + index + '" title="上移">↑</button><button type="button" data-action="magic-upload-file-down" data-magic-id="' + escapeHtml(task.id) + '" data-magic-file-index="' + index + '" title="下移">↓</button><i>' + escapeHtml(entry.status === 'success' ? '完成' : (entry.error || '待传')) + '</i></div></div>').join('');
+      return '<article class="pfh-magic-task ' + statusClass + (expanded ? ' is-expanded' : '') + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><input class="pfh-magic-sku" value="' + escapeHtml(task.sku) + '" placeholder="SKU 编码"><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span></div><span class="pfh-magic-stage" data-magic-stage>' + escapeHtml(task.currentFileName ? (task.step || '上传中') + ' · ' + (task.currentFileName.split('/').pop() || task.currentFileName) : (task.step || '等待上传')) + '</span><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong></div><div class="pfh-magic-task-meta"><span>' + task.files.length + ' 个文件' + (unknown ? ' · ' + unknown + ' 个待确认' : '') + '</span><span>·</span><span data-magic-eta>' + (task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : '正在建立估算')) + '</span></div></div><div class="pfh-magic-task-actions"><span class="pfh-magic-status ' + statusClass + '">' + escapeHtml(magicUploadStatusLabel(task)) + '</span><button type="button" class="pfh-magic-expand" data-action="magic-upload-toggle-task" data-magic-id="' + escapeHtml(task.id) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '" title="展开详情">' + (expanded ? '⌃' : '⌄') + '</button></div></div><div class="pfh-magic-task-detail"><div class="pfh-magic-files">' + fileRows + '</div><div class="pfh-magic-task-footer"><span>' + escapeHtml(task.error || (task.draftSaved ? '草稿已保存，已进入提审' : '文件分类和顺序可在这里调整')) + '</span><div class="pfh-magic-task-footer-actions"><button type="button" data-action="magic-upload-save-task" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('edit') + '保存</button><button type="button" data-action="magic-upload-replace" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('upload') + '替换</button><button type="button" data-action="magic-upload-retry" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('refresh') + '重试</button><button type="button" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('close') + '删除</button></div></div></div></article>';
+    }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
+    const historyHtml = historyOpen ? '<section class="pfh-magic-history"><div class="pfh-magic-history-head"><span>' + iconHtml('history') + ' 上传历史</span><span>' + history.length + ' 条</span></div><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 30).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section>' : '';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><h3>魔法上传 <em class="pfh-magic-badge">BETA</em></h3></div><div class="pfh-magic-head"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>前端解包识别 · PLM API · OSS 分片 · 自动提审</p></div></div><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>支持拖入、粘贴和选择，自动识别 SKU 与素材区域</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + (historyOpen ? '收起历史' : '上传历史') + '</button></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></section></div>';
   }
 
   function saveMagicUploadTaskEdits(id) {
@@ -7869,6 +8122,57 @@
     saveMagicUploadQueue(state.magicUploadQueue);
     renderShell();
     showToast('任务修改已保存');
+  }
+
+  function toggleMagicUploadTask(id) {
+    const task = (state.magicUploadQueue || []).find((item) => item.id === id);
+    if (!task) return;
+    task.expanded = !task.expanded;
+    renderShell();
+  }
+
+  function moveMagicUploadFile(id, index, direction) {
+    const task = (state.magicUploadQueue || []).find((item) => item.id === id);
+    const currentIndex = Number(index);
+    if (!task || !Array.isArray(task.files) || !Number.isInteger(currentIndex)) return;
+    const targetIndex = currentIndex + Number(direction || 0);
+    if (targetIndex < 0 || targetIndex >= task.files.length) return;
+    const files = task.files.slice();
+    const current = files[currentIndex];
+    files[currentIndex] = files[targetIndex];
+    files[targetIndex] = current;
+    task.files = files;
+    task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
+    task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
+    task.submitted = false;
+    task.draftSaved = false;
+    task.updatedAt = Date.now();
+    saveMagicUploadQueue(state.magicUploadQueue);
+    renderShell();
+  }
+
+  async function retryMagicUploadHistory(id) {
+    const historyEntry = (state.magicUploadHistory || []).find((entry) => entry && entry.id === id);
+    const savedTask = historyEntry && historyEntry.task;
+    if (!savedTask) return;
+    const task = normalizeMagicUploadTask(savedTask, { preserveProcessing: false });
+    if (!task) return;
+    const references = [task.zipKey].concat((task.files || []).map((entry) => entry.key)).filter(Boolean);
+    const missing = [];
+    for (const key of references) {
+      if (!await getUploadFile(key)) missing.push(key);
+    }
+    if (missing.length) {
+      showToast('历史源文件已失效，请重新选择 ZIP/XLSX');
+      magicUploadLog('warn', '历史任务无法恢复', task.sku + ' | 本地文件已丢失=' + missing.length);
+      return;
+    }
+    const existing = (state.magicUploadQueue || []).find((item) => item.id === task.id);
+    if (!existing) state.magicUploadQueue = (state.magicUploadQueue || []).concat(task);
+    state.magicUploadHistoryOpen = false;
+    saveMagicUploadQueue(state.magicUploadQueue);
+    renderShell();
+    retryMagicUploadTask(task.id);
   }
 
   function removeMagicUploadTask(id) {
@@ -7944,13 +8248,24 @@
             attemptedTaskIds.add(task.id);
             task.status = 'processing';
             task.error = '';
+            task.startedAt = Date.now();
+            task.finishedAt = 0;
+            task.currentFileName = '';
+            task.currentFileSize = 0;
+            task.currentFileProgress = 0;
             task.updatedAt = Date.now();
             saveMagicUploadQueue(state.magicUploadQueue);
             try {
               await uploadMagicUploadTask(task);
               task.status = 'success';
               task.step = '上传完成';
+              task.progress = 1;
+              task.uploadedBytes = task.totalBytes || task.uploadedBytes;
+              task.currentFileName = '';
+              task.currentFileProgress = 0;
+              task.finishedAt = Date.now();
               task.updatedAt = Date.now();
+              recordMagicUploadHistory(task);
             } catch (error) {
               const message = formatErrorMessage(error);
               if (isMagicUploadAuthError(error)) {
@@ -7982,6 +8297,8 @@
                 task.updatedAt = Date.now();
                 addLog('warn', '魔法上传任务失败', task.sku + ' | ' + task.error);
               }
+              task.finishedAt = Date.now();
+              recordMagicUploadHistory(task);
             }
             saveMagicUploadQueue(state.magicUploadQueue);
             if (state.view === 'magicUpload') renderShell();
@@ -8254,14 +8571,20 @@
     if (!projectId) magicUploadLog('warn', '未找到项目 ID，仍按商品版本上传', task.sku + ' | product_version_id=' + productContext.productVersionId);
     magicUploadLog('info', '任务开始上传', task.sku + ' | projectId=' + (projectId || '无') + ' | product_version_id=' + productContext.productVersionId + ' | 文件=' + (task.files || []).length);
     task.projectId = String(projectId || '');
+    await hydrateMagicUploadTaskMetrics(task);
+    updateMagicUploadProgress(task);
     const entries = (task.files || []).filter((entry) => entry.status !== 'success');
     if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
     for (let index = 0; index < entries.length; index += 1) {
       if (!state.magicUploadRunning) throw new Error('已暂停');
       const entry = entries[index];
       task.step = '上传素材 ' + (index + 1) + '/' + entries.length;
+      task.currentFileName = entry.name;
+      task.currentFileSize = Number(entry.size) || 0;
+      task.currentFileProgress = 0;
       entry.status = 'processing';
       saveMagicUploadQueue(state.magicUploadQueue);
+      updateMagicUploadProgress(task);
       try {
         const file = await getUploadFile(entry.key);
         if (!file) throw new Error('本地文件已丢失：' + entry.name);
@@ -8275,17 +8598,25 @@
       }
     }
     if (!state.magicUploadRunning) throw new Error('已暂停');
-    if (task.zipKey && !task.sourceUploaded) {
+      if (task.zipKey && !task.sourceUploaded) {
       task.step = '保留原始 ZIP';
       const zipFile = await getUploadFile(task.zipKey);
       if (zipFile) {
         const zipEntry = { name: task.zipName, category: '图包素材', archiveTypeId: 7, status: 'processing', key: task.zipKey };
+        task.currentFileName = task.zipName;
+        task.currentFileSize = Number(zipFile.size) || Number(task.sourceSize) || 0;
+        task.currentFileProgress = 0;
+        updateMagicUploadProgress(task);
         await uploadMagicUploadFile(task, zipEntry, zipFile, productContext);
         task.sourceGeneratedName = zipEntry.generatedName || '';
         task.sourceFileVersionId = zipEntry.fileVersionId || '';
         task.sourceUploaded = true;
       }
     }
+    task.currentFileName = '';
+    task.currentFileSize = 0;
+    task.currentFileProgress = 0;
+    updateMagicUploadProgress(task);
     if (task.zipKey && !task.sourceUploaded) throw new Error('原始 ZIP 文件已丢失，无法保存图包素材');
     if (!task.draftSaved) {
       if (!state.magicUploadRunning) throw new Error('已暂停');
@@ -8318,6 +8649,12 @@
   }
 
   async function uploadMagicUploadFile(task, entry, file, productContext) {
+    const uploadStartedAt = Date.now();
+    entry.size = Number(entry.size) || Number(file && file.size) || 0;
+    task.currentFileName = entry.name || file.name || '';
+    task.currentFileSize = entry.size;
+    task.currentFileProgress = 0;
+    updateMagicUploadProgress(task);
     const extension = getMagicUploadFileExtension(file.name || entry.name);
     const category = entry.category || (extension === '.zip' ? '图包素材' : '待确认');
     const rule = getMagicUploadRule(category, extension);
@@ -8347,7 +8684,14 @@
     if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
     const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
     const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
-    await client.multipartUpload(objectName, file, { partSize: 2 * 1024 * 1024, parallel: 2 });
+    await client.multipartUpload(objectName, file, {
+      partSize: 2 * 1024 * 1024,
+      parallel: 2,
+      progress: (percent) => {
+        task.currentFileProgress = Math.min(1, Math.max(0, Number(percent) || 0));
+        updateMagicUploadProgress(task);
+      },
+    });
     await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 30, oss_path: objectName, original_file_name: file.name || entry.name });
     const bindPayload = await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: file.name || entry.name, file_save_full_path: objectName }] });
     const records = Array.isArray(bindPayload && bindPayload.data) ? bindPayload.data : (bindPayload && bindPayload.data ? [bindPayload.data] : []);
@@ -8357,6 +8701,10 @@
     entry.generatedName = generatedName;
     entry.fileVersionId = String(fileVersionId);
     entry.fileId = String(record.file_id || record.archive_file_id || '');
+    task.currentFileProgress = 1;
+    task.uploadedBytes = (Number(task.uploadedBytes) || 0) + entry.size;
+    recordMagicUploadMetric(task, entry, Date.now() - uploadStartedAt);
+    updateMagicUploadTaskEstimate(task);
     magicUploadLog('info', '文件归档完成，待保存商品草稿', task.sku + ' | ' + category + ' | file_version_id=' + entry.fileVersionId + ' | ' + generatedName);
     return entry.fileVersionId;
   }
@@ -14025,6 +14373,23 @@
       state.magicUploadReplaceId = actionTarget.getAttribute('data-magic-id') || '';
       const input = ensurePanel().querySelector('.pfh-magic-upload-file');
       if (input) input.click();
+      return;
+    }
+    if (action === 'magic-upload-toggle-task') {
+      toggleMagicUploadTask(actionTarget.getAttribute('data-magic-id') || '');
+      return;
+    }
+    if (action === 'magic-upload-file-up' || action === 'magic-upload-file-down') {
+      moveMagicUploadFile(actionTarget.getAttribute('data-magic-id') || '', actionTarget.getAttribute('data-magic-file-index') || '', action === 'magic-upload-file-up' ? -1 : 1);
+      return;
+    }
+    if (action === 'magic-upload-history-toggle') {
+      state.magicUploadHistoryOpen = !state.magicUploadHistoryOpen;
+      renderShell();
+      return;
+    }
+    if (action === 'magic-upload-history-retry') {
+      retryMagicUploadHistory(actionTarget.getAttribute('data-magic-history-id') || '');
       return;
     }
     if (action === 'magic-upload-start') {
