@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.64
+// @version      2.6.65
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.64';
+  const SCRIPT_VERSION = '2.6.65';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5495,6 +5495,25 @@
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
     try {
+      const requestHeaders = {
+        Accept: 'application/json, text/plain, */*',
+        'x-app-code': 'PLM',
+        'x-tenant-code': 'xy',
+        'x-tenant-id': 'xy',
+        ...getPlmAuthHeaders(),
+      };
+      let pageRequestError = null;
+      try {
+        const response = await fetch(url, {
+          credentials: 'include',
+          headers: requestHeaders,
+          signal: controller ? controller.signal : undefined,
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return await response.json();
+      } catch (error) {
+        pageRequestError = error;
+      }
       if (typeof GM_xmlhttpRequest === 'function' && /^\//.test(url)) {
         const gmResult = await new Promise((resolve, reject) => {
           let settled = false;
@@ -5507,13 +5526,7 @@
             method: 'GET',
             url: new URL(url, window.location.origin).href,
             withCredentials: true,
-            headers: {
-              Accept: 'application/json, text/plain, */*',
-              'x-app-code': 'PLM',
-              'x-tenant-code': 'xy',
-              'x-tenant-id': 'xy',
-              ...getPlmAuthHeaders(),
-            },
+            headers: requestHeaders,
             timeout: 15000,
             onload: (response) => finish(resolve, response),
             onerror: () => finish(reject, new Error('网络请求失败')),
@@ -5521,23 +5534,11 @@
           });
         });
         if (!gmResult || gmResult.status < 200 || gmResult.status >= 300) {
-          throw new Error('HTTP ' + (gmResult && gmResult.status || 0));
+          throw new Error('页面请求 ' + formatErrorMessage(pageRequestError) + '；扩展请求 HTTP ' + (gmResult && gmResult.status || 0));
         }
         return JSON.parse(gmResult.responseText || '{}');
       }
-      const response = await fetch(url, {
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json, text/plain, */*',
-          'x-app-code': 'PLM',
-          'x-tenant-code': 'xy',
-          'x-tenant-id': 'xy',
-          ...getPlmAuthHeaders(),
-        },
-        signal: controller ? controller.signal : undefined,
-      });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      return await response.json();
+      throw pageRequestError || new Error('PLM 页面请求失败');
     } finally {
       if (timer) window.clearTimeout(timer);
     }
