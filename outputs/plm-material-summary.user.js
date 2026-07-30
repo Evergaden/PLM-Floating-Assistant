@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.62
+// @version      2.6.63
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.62';
+  const SCRIPT_VERSION = '2.6.63';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -9392,16 +9392,17 @@
     const download = findToyGeneratedImageAction(preview, '下载图片');
     if (!download) throw new Error(label + '未找到「下载图片」');
     clickElement(download);
-    const directUse = await waitFor(() => findToyGeneratedImageAction(document.body, '直接使用'), 10000, 100);
-    if (!directUse) throw new Error(label + '未找到评价选项「直接使用」');
-    clickElement(directUse);
-    const submitDownload = await waitFor(() => findToyGeneratedImageAction(document.body, '提交并下载'), 10000, 100);
-    if (!submitDownload) throw new Error(label + '未找到「提交并下载」');
-    clickElement(submitDownload);
-    const downloadSubmitted = await waitFor(() => {
-      return !findToyGeneratedImageAction(document.body, '提交并下载');
-    }, 15000, 100);
-    if (!downloadSubmitted) throw new Error(label + '「提交并下载」未完成');
+    const directUse = await waitFor(() => findToyGeneratedImageAction(document.body, '直接使用'), 2500, 100);
+    if (directUse) {
+      clickElement(directUse);
+      const submitDownload = await waitFor(() => findToyGeneratedImageAction(document.body, '提交并下载'), 5000, 100);
+      if (!submitDownload) throw new Error(label + '评价后未找到「提交并下载」');
+      clickElement(submitDownload);
+      const downloadSubmitted = await waitFor(() => {
+        return !findToyGeneratedImageAction(document.body, '提交并下载');
+      }, 15000, 100);
+      if (!downloadSubmitted) throw new Error(label + '「提交并下载」未完成');
+    }
 
     const livePreview = await waitFor(() => getToyImagePreviewContainer(), 10000, 100);
     if (!livePreview) throw new Error(label + '下载后图片预览已意外关闭');
