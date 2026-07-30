@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.67
+// @version      2.6.68
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.67';
+  const SCRIPT_VERSION = '2.6.68';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -7970,11 +7970,13 @@
       '#' + PANEL_ID + ' .pfh-ledger-overflow-menu button.is-active{background:#eee8ff!important;color:#6030cf!important;font-weight:700!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance{display:grid!important;gap:8px!important;min-height:58px!important;padding:10px 16px!important;border:1px solid rgba(139,92,246,.20)!important;border-radius:14px!important;background:linear-gradient(135deg,rgba(248,245,255,.96),rgba(255,255,255,.94))!important;box-shadow:0 9px 24px rgba(91,62,180,.08)!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-performance-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance-scores{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance-summary.is-today{padding-right:9px!important;border-right:1px solid rgba(139,92,246,.16)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance-summary>div{display:grid!important;gap:3px!important;min-width:0!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance span{color:#5e36cc!important;font-size:12px!important;font-weight:700!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance small{color:#8a83a3!important;font-size:10px!important;line-height:1.35!important;white-space:normal!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-performance strong{flex:0 0 auto!important;color:#6d35e8!important;font-size:27px!important;font-weight:750!important;line-height:1!important;letter-spacing:-.03em!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-performance strong{flex:0 0 auto!important;color:#6d35e8!important;font-size:24px!important;font-weight:750!important;line-height:1!important;letter-spacing:-.03em!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-performance strong::after{content:" 分"!important;margin-left:3px!important;color:#9b87db!important;font-size:10px!important;font-weight:600!important;letter-spacing:0!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-groups{border-top:1px solid rgba(139,92,246,.13)!important;padding-top:7px!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-groups summary{color:#6b4bc2!important;font-size:10px!important;font-weight:700!important;cursor:pointer!important;}' +
@@ -8007,6 +8009,7 @@
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-item{min-width:0!important;min-height:104px!important;padding:9px!important;}' +
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-performance{padding:8px 13px!important;}' +
       '@media(max-width:940px){#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-hero-actions>span{display:none!important;}}' +
+      '@media(max-width:430px){#' + PANEL_ID + ' .pfh-ledger-performance-scores{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-performance-summary.is-today{padding:0 0 8px!important;border-right:0!important;border-bottom:1px solid rgba(139,92,246,.16)!important;}}' +
       '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
     document.documentElement.appendChild(style);
   }
@@ -10442,14 +10445,11 @@
     });
     const groups = [];
     bySeries.forEach((items, seriesKey) => {
-      if (items.length < 3) return;
+      if (items.length < 2) return;
       items.sort((a, b) => getLedgerSkuSortValue(a.sku) - getLedgerSkuSortValue(b.sku) || String(a.sku || '').localeCompare(String(b.sku || '')));
       for (let offset = 0, part = 1; offset < items.length; offset += 5, part += 1) {
         const members = items.slice(offset, offset + 5);
-        // A series needs at least three products to be a valid automatic
-        // group. Full groups of five remain valid; one or two final products
-        // stay as individual records and retain manual grouping behavior.
-        if (members.length < 3) continue;
+        if (members.length < 2) continue;
         groups.push({
           id: getLedgerSeriesGroupId(seriesKey, part),
           source: 'auto-series',
@@ -10512,8 +10512,16 @@
     return Number.isInteger(number) ? String(number) : number.toFixed(1);
   }
 
-  function ledgerPerformanceHtml(summary) {
+  function getLedgerTodayPerformanceSummary() {
+    const todayKey = getTodayKey();
+    const records = getLedgerRecordsForMonth('finalized', getMonthKeyFromDateKey(todayKey))
+      .filter((record) => getLedgerFinalizedDate(record) === todayKey);
+    return { summary: summarizeLedgerPerformance(records), count: records.length };
+  }
+
+  function ledgerPerformanceHtml(summary, todayValue) {
     const value = summary || summarizeLedgerPerformance([]);
+    const today = todayValue || getLedgerTodayPerformanceSummary();
     const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5 · 延伸 ' + value.extension + ' × 0.3 · 玩具系列 ' + value.series + ' × 1';
     const kindLabels = { design: '设计 1.4 分', logo: '换/无 Logo 1 分', void: '作废 0.5 分', extension: '延伸 0.3 分' };
     const groups = Array.isArray(value.groups) ? value.groups : [];
@@ -10522,7 +10530,7 @@
         groups.map((group) => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + escapeHtml(group.id) + '" title="高亮这一组的产品卡片"><b>' + escapeHtml(group.source === 'auto-series' ? getLedgerPerformanceGroupLabel(group, groups) + ' · 玩具 1 分 · ' + String((group.skus || []).length) + ' 个' : getLedgerPerformanceGroupLabel(group, groups) + ' · ' + (kindLabels[group.kind] || '')) + '</b><span>' + escapeHtml((group.seriesKey ? group.seriesKey + '：' : '') + (group.skus || []).join(' + ')) + '</span></button>').join('') +
         '</div></details>'
       : '';
-    return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>' + groupHtml + '</div>';
+    return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-scores"><div class="pfh-ledger-performance-summary is-today"><div><span>当天绩效</span><small>今天已定稿 ' + escapeHtml(String(today.count || 0)) + ' 条</small></div><strong>' + escapeHtml(formatLedgerPerformance(today.summary && today.summary.total)) + '</strong></div><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div></div>' + groupHtml + '</div>';
   }
 
   function refreshLedgerPerformanceSummary() {
@@ -10531,7 +10539,7 @@
     const current = panel && panel.querySelector('.pfh-ledger-performance');
     if (!current) return;
     const records = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth());
-    current.outerHTML = ledgerPerformanceHtml(summarizeLedgerPerformance(records));
+    current.outerHTML = ledgerPerformanceHtml(summarizeLedgerPerformance(records), getLedgerTodayPerformanceSummary());
   }
 
   function getLedgerPerformanceGroupLabel(group, groups) {
@@ -10594,7 +10602,7 @@
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const groups = groupLedgerRecordsByDate(records, mode === 'trash' ? 'design' : mode);
     const performanceSummary = mode === 'finalized' ? summarizeLedgerPerformance(records) : null;
-    const performanceHtml = performanceSummary ? ledgerPerformanceHtml(performanceSummary) : '';
+    const performanceHtml = performanceSummary ? ledgerPerformanceHtml(performanceSummary, getLedgerTodayPerformanceSummary()) : '';
     const performanceGroupMaps = getLedgerPerformanceGroupMaps(performanceSummary);
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
     const mergePerformanceHtml = mode === 'finalized' ? ledgerPerformanceMergeButtonHtml(records, selectedKeys) : '';
