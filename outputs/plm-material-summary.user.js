@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.75
+// @version      2.6.76
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.75';
+  const SCRIPT_VERSION = '2.6.76';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -9206,7 +9206,7 @@
       return (entry.status === 'success' || entry.status === 'noop') && entry.applyStatus !== 'submitted';
     });
     const progressText = state.toyCopywritingBatchStatus || (running
-      ? '正在逐个打开编辑抽屉、补全文案、保存草稿并生成主图/详情图，请保持 PLM 页面登录状态。'
+      ? '正在先读取新品开发全部项目状态，再按状态进入设计任务或商品管理补全文案并生成图片，请保持 PLM 页面登录状态。'
       : '输入 SKU 后，系统会自动识别玩具并只补全缺失的中英文文案字段。');
     return '<section class="pfh-mini-tool-card pfh-toy-copywriting-batch-page">' +
       '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
@@ -9347,6 +9347,8 @@
         generatedImages: 0,
         applyStatus: '',
         applyError: '',
+        projectStatus: data.projectStatus || previous && previous.projectStatus || '',
+        projectRowId: data.projectRowId || previous && previous.projectRowId || '',
         createdAt: previous && previous.createdAt || now,
         updatedAt: now,
       });
@@ -9427,16 +9429,17 @@
 
   async function processToyCopywritingBatch() {
     const queue = state.toyCopywritingBatchQueue || [];
+    const routeMap = await prepareToyCopywritingBatchRoutes(queue.filter((entry) => entry.status === 'pending' || entry.status === 'error'));
     for (const entry of queue) {
       if (!state.toyCopywritingBatchRunning) break;
       if (entry.status !== 'pending' && entry.status !== 'error') continue;
       const sku = entry.sku;
       state.toyCopywritingBatchCurrentSku = sku;
-      updateToyCopywritingBatchEntry(sku, { status: 'processing', step: '正在打开设计任务编辑入口', error: '' });
+      updateToyCopywritingBatchEntry(sku, { status: 'processing', step: '正在按项目状态打开对应编辑入口', error: '' });
       let drawer = null;
       try {
         const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item.sku === sku) || { sku });
-        drawer = await openToyCopywritingBatchDrawer(sku, cached);
+        drawer = await openToyCopywritingBatchDrawer(sku, cached, routeMap.get(sku));
         const data = getPageToyCopywritingData(drawer, sku);
         if (!isToyCopywritingProduct(data)) throw new Error('当前编码未识别为玩具，已跳过');
         updateToyCopywritingBatchEntry(sku, { name: data.name || cached.name || '', step: '正在补全中英文缺失字段' });
@@ -9479,6 +9482,46 @@
       renderShell();
       showToast('批量玩具文案补全完成');
     }
+  }
+
+  async function prepareToyCopywritingBatchRoutes(entries) {
+    const skus = Array.from(new Set((entries || []).map((entry) => String(entry && entry.sku || '').trim().toUpperCase()).filter(Boolean)));
+    const routes = new Map();
+    if (!skus.length) return routes;
+    if (!(await ensureNewProductProjectPage())) throw new Error('未能进入新品开发页面读取项目状态');
+    if (!(await ensureProjectAllTab())) throw new Error('未能切换到新品开发「全部」页签读取项目状态');
+    const input = findInputByPlaceholder('搜索商品编码');
+    const button = findButtonByText('查询');
+    if (!input || !button) throw new Error('未找到新品开发「全部」页签的商品编码搜索框');
+    updateToyCopywritingBatchEntry(skus[0], { step: '正在新品开发「全部」中批量读取项目状态' });
+    setNativeInputValue(input, skus.join(' '));
+    clickElement(button);
+    const loaded = await waitFor(() => {
+      if (isProjectResultLoading()) return '';
+      const rows = collectProjectAllListRows().filter((row) => skus.includes(row.sku));
+      return rows.length || hasProjectResultEmptyState() ? rows : '';
+    }, 20000, 180);
+    if (!loaded && !hasProjectResultEmptyState()) throw new Error('新品开发「全部」项目状态加载超时');
+    await expandProjectResultPageSize(skus.length);
+    await wait(350);
+    const rowMap = new Map(collectProjectAllListRows().filter((row) => skus.includes(row.sku)).map((row) => [row.sku, row]));
+    skus.forEach((sku) => {
+      const row = rowMap.get(sku);
+      const cached = normalizeData(loadData(sku) || {});
+      const projectStatus = compactText(row && row.projectStatus || cached.projectStatus || '');
+      const route = {
+        projectStatus,
+        projectRowId: row && row.rowId || cached.projectRowId || '',
+        completed: /已完成/.test(projectStatus),
+      };
+      routes.set(sku, route);
+      updateToyCopywritingBatchEntry(sku, {
+        projectStatus,
+        projectRowId: route.projectRowId || undefined,
+        step: route.completed ? '项目已完成，准备从商品管理打开' : '项目未完成，准备从设计任务打开',
+      });
+    });
+    return routes;
   }
 
   function getToyImageSectionState(drawer, label) {
@@ -9684,6 +9727,17 @@
     state.toyCopywritingApplyMode = applyMode;
     state.toyCopywritingBatchStatus = '开始' + actionLabel;
     renderShell();
+    let routeMap;
+    try {
+      routeMap = await prepareToyCopywritingBatchRoutes(eligible);
+    } catch (error) {
+      state.toyCopywritingApplyRunning = false;
+      state.toyCopywritingApplyMode = '';
+      state.toyCopywritingBatchStatus = actionLabel + '前读取项目状态失败：' + formatErrorMessage(error);
+      addLog('error', '玩具生成图片：读取项目状态失败', formatErrorMessage(error));
+      renderShell();
+      return;
+    }
     for (const entry of eligible) {
       const sku = entry.sku;
       let drawer = null;
@@ -9693,7 +9747,7 @@
       renderShell();
       try {
         const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item.sku === sku) || { sku });
-        drawer = await openToyCopywritingBatchDrawer(sku, cached);
+        drawer = await openToyCopywritingBatchDrawer(sku, cached, routeMap.get(sku));
         for (const label of ['主图', '详情图']) {
           updateToyCopywritingBatchEntry(sku, { step: '正在处理' + label + '生成图片' });
           state.toyCopywritingBatchStatus = sku + '：正在下载' + label + (skipApply ? '，跳过全部应用' : '并全部应用');
@@ -9732,23 +9786,27 @@
     showToast(actionLabel + '完成');
   }
 
-  async function openToyCopywritingBatchDrawer(sku, seed) {
+  async function openToyCopywritingBatchDrawer(sku, seed, route) {
     const existingCopywritingDrawer = getToyCopywritingDrawerForSku(sku);
     if (existingCopywritingDrawer) return existingCopywritingDrawer;
     const existingEditDrawer = getProductEditDrawerForSku(sku);
     if (existingEditDrawer) {
       updateToyCopywritingBatchEntry(sku, { step: '正在进入玩具文案编辑页' });
-      await enterProductEditSecondStep(sku);
-      const advancedDrawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
-      if (!advancedDrawer) throw new Error('已点击「下一步」，但玩具文案页未加载');
-      return advancedDrawer;
+      return ensureToyCopywritingDrawerFromProductEdit(sku);
     }
     const currentDrawer = getToyCopywritingDrawerForSku('') || getProjectDrawer();
     const currentSku = currentDrawer && getProjectDrawerHeaderSku(currentDrawer);
     if (currentDrawer && currentSku !== sku) await closeToyCopywritingDrawerForSku(currentSku).catch(() => {});
+    if (route && route.completed) {
+      updateToyCopywritingBatchEntry(sku, { step: '项目已完成，正在商品管理中搜索编码' });
+      await ensureProductManagementPage();
+      await searchProductManagementSku(sku);
+      await openProductEditDrawer(sku);
+      return ensureToyCopywritingDrawerFromProductEdit(sku);
+    }
     if (!(await ensureNewProductProjectPage())) throw new Error('未能进入新品开发页面');
     if (!(await ensureDesignTaskTab())) throw new Error('未能进入设计任务页签');
-    let rowId = seed && (seed.projectRowId || seed.projectId) || '';
+    let rowId = route && route.projectRowId || seed && (seed.projectRowId || seed.projectId) || '';
     if (!rowId || !findOperationButtonByRowId(rowId, '编辑')) rowId = await queryDesignTaskRowIdBySku(sku);
     if (!rowId) throw new Error('未找到对应 SKU 的编辑入口');
     if (!(await clickProjectEditByRowId(rowId, sku))) throw new Error('已找到对应 SKU 的编辑入口，但编辑抽屉未打开');
@@ -9756,6 +9814,16 @@
     const drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
     if (!drawer) throw new Error('编辑抽屉未加载');
     updateToyCopywritingBatchEntry(sku, { step: '正在进入玩具文案编辑页' });
+    return advanceToyCopywritingDrawerToFields(drawer, sku);
+  }
+
+  async function ensureToyCopywritingDrawerFromProductEdit(sku) {
+    let drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 8000, 150);
+    if (!drawer) {
+      await enterProductEditSecondStep(sku);
+      drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 30000, 150);
+    }
+    if (!drawer) throw new Error('商品管理编辑页未加载出玩具文案字段');
     return advanceToyCopywritingDrawerToFields(drawer, sku);
   }
 
@@ -17297,6 +17365,18 @@
     return Boolean(await waitFor(() => /^\u8bbe\u8ba1\u4efb\u52a1/.test(getActiveProjectWorkflowTabText()), 5000, 120));
   }
 
+  async function ensureProjectAllTab() {
+    const active = getActiveProjectWorkflowTabText();
+    if (/^\u5168\u90e8/.test(active)) return true;
+    const tab = findProjectWorkflowTabByText('\u5168\u90e8');
+    if (!tab) {
+      addLog('error', '玩具文案：未找到新品开发「全部」页签');
+      return false;
+    }
+    clickElement(tab);
+    return Boolean(await waitFor(() => /^\u5168\u90e8/.test(getActiveProjectWorkflowTabText()), 5000, 120));
+  }
+
   function getActiveProjectWorkflowTabText() {
     const tab = Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab-active, .ant-tabs-tab-active'))
       .filter(isVisibleElement)
@@ -22579,6 +22659,8 @@
       error: String(entry && entry.error || ''),
       filledCount: Math.max(0, Number(entry && entry.filledCount) || 0),
       generatedImages: Math.max(0, Number(entry && entry.generatedImages) || 0),
+      projectStatus: String(entry && entry.projectStatus || ''),
+      projectRowId: String(entry && entry.projectRowId || ''),
       applyStatus,
       applyMode,
       applyError: String(entry && entry.applyError || ''),
