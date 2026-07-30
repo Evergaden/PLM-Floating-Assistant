@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.72
+// @version      2.6.73
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.72';
+  const SCRIPT_VERSION = '2.6.73';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5505,6 +5505,12 @@
 
   function getApiMaterialDimensions(item, count) {
     if (getApiMaterialUnitIssue(item)) return null;
+    // PLM occasionally returns stale or shifted material_length/width/height
+    // values. The human-readable properties_value is the authoritative row
+    // specification when it contains a complete dimension string.
+    const propertyDimension = extractDimensionString(item && item.properties_value);
+    const propertyParsed = parseDimension(propertyDimension, count);
+    if (propertyParsed && propertyParsed.length >= count) return propertyParsed.slice(0, count);
     const values = [item && item.material_length, item && item.material_width, item && item.material_height]
       .map((value) => {
         const text = String(value == null ? '' : value);
@@ -5513,7 +5519,7 @@
         return /mm$/i.test(text.trim()) ? number / 10 : number;
       });
     if (values.slice(0, count).every((value) => value > 0)) return values.slice(0, count);
-    const parsed = parseDimension(extractDimensionString(item && item.properties_value), count);
+    const parsed = parseDimension(propertyDimension, count);
     return parsed && parsed.length >= count ? parsed.slice(0, count) : null;
   }
 
