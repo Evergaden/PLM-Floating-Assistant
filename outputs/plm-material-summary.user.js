@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.69
+// @version      2.6.70
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.69';
+  const SCRIPT_VERSION = '2.6.70';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10417,7 +10417,9 @@
     if (!record || record.status === '作废' || record.performanceGroupId || record.performanceType === 'extension') return '';
     const cached = normalizeData(loadData(record.sku) || {});
     const toyData = { ...cached, brand: record.brand || cached.brand || '', name: record.name || cached.name || '', isToy: record.isToy };
-    if (!record.isToy && !isToyDimensionProduct(toyData)) return '';
+    // Reuse the smart toy-copywriting classification as well: it includes PLM
+    // category fields that are not present in the dimension-only toy check.
+    if (!record.isToy && !isToyDimensionProduct(toyData) && !isToyCopywritingProduct(toyData)) return '';
     const name = cleanName(record.name || cached.name || '').replace(/\s+/g, ' ').trim();
     const match = name.match(/^(.+?)[\-－–—_](?:\s*.+)$/);
     const root = cleanName(match ? match[1] : '').replace(/\s+/g, ' ').trim();
