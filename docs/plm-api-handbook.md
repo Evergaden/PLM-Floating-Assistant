@@ -173,6 +173,66 @@ POST /api/Product/GetArchiveFileVersionListByFileVersionId
 
 脚本上传前应先按 SKU 精确读取 `Product/GetProductList`，取得 `product_id` 和 `product_version_id`；并校验返回文件名包含目标 SKU，再执行 OSS 上传和 `UploadArchiveFileFromExternal` 绑定。否则生成的文件名可能来自另一条商品记录，绑定接口会把文件归到错误产品。
 
+### BOM 效果图上传
+
+效果图不走 `Product/UploadArchiveFileFromExternal`，也不会返回 `file_version_id`。页面抓包确认的链路是：
+
+```text
+ChemicalNewDesignTask/GetProjectPMJoinList?id={project_id}
+ChemicalNew/GetProjectEffectPicture?id={project_id}
+→ Common/GetOssClientSecretKey(upload_file_type=40)
+→ OSS multipartUpload
+→ Common/SaveUploadFileInfo(upload_file_type=40)
+→ ChemicalNewBom/MaterialBatchSaveAndSyncToProduct
+```
+
+授权请求示例：
+
+```json
+{"upload_file_type":40}
+```
+
+返回的目录形如：
+
+```text
+/xy/upload/CredentialsProduct/{date}/{user}
+```
+
+保存上传记录：
+
+```json
+{
+  "upload_file_type": 40,
+  "oss_path": "xy/upload/CredentialsProduct/{date}/{user}/{random}.jpg",
+  "original_file_name": "SKU.jpg"
+}
+```
+
+最后保存 BOM：
+
+```json
+{
+  "project_id": 46291,
+  "materials": [
+    {
+      "id": 96910,
+      "pics": ["/xy/upload/Product/260427/74307/example.jpeg"],
+      "code": "2-A0299-00058",
+      "material_id": 234436,
+      "material_type": 3,
+      "usage_value": 1,
+      "product_main_id": null,
+      "type": 2
+    }
+  ],
+  "effect_picture_files": [
+    "xy/upload/CredentialsProduct/260731/74590/097596ac0d32173eaac64f302598c537.jpg"
+  ]
+}
+```
+
+注意：保存时要先读取现有 `effect_picture_files` 并追加新路径，避免覆盖已有效果图；`materials` 需要带当前 BOM 物料列表的最小字段，否则接口可能把物料状态写坏或保存失败。
+
 ### 产品文案 Word
 
 产品文案不是 `GetDetailContent` 直接返回的文本，而是产品详情字段里的归档附件引用。读取当前 SKU 的 Word 可以按下面的链路执行：

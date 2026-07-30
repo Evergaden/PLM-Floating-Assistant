@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.81
+// @version      2.6.88
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.81';
+  const SCRIPT_VERSION = '2.6.88';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1565,6 +1565,7 @@
     '英文参数图': { rule: '英文参数图', archiveTypeId: 1 },
     '详情图': { rule: '详情图', archiveTypeId: 1 },
     'SKU图': { rule: 'SKU图', archiveTypeId: 1 },
+    '效果图': { rule: '效果图', archiveTypeId: 0, uploadType: 'effectPicture' },
     '产品参数图': { rule: '产品参数图', archiveTypeId: 1 },
     '视频': { rule: '视频', archiveTypeId: 3 },
     '动图': { rule: '动图', archiveTypeId: 3 },
@@ -1974,26 +1975,53 @@
   }
   // </cloud-assets-module>
   // <icon-assets-module>
-  const CORE_ICON_ASSETS = Object.freeze({
-    home: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M453.037 86.017c33.826-29.356 84.099-29.356 117.926 0l374.262 324.79c16.676 14.472 18.461 39.72 3.988 56.393a39.982 39.982 0 0 1-30.194 13.773h-69.096v389.083c0 49.178-39.472 89.138-88.467 89.932l-1.488 0.012H263.904c-49.681 0-89.956-40.27-89.956-89.944V480.973H104.98c-21.86 0-39.622-17.541-39.98-39.314v-0.661a39.973 39.973 0 0 1 13.774-30.19z m78.617 45.285c-11.276-9.785-28.033-9.785-39.309 0L158.508 421.01h35.43c21.86 0 39.622 17.541 39.975 39.314l0.006 0.661v409.07c0 16.559 13.424 29.982 29.985 29.982h496.064c16.56 0 29.985-13.423 29.985-29.981v-409.07c0-22.078 17.9-39.976 39.98-39.976h35.557z m110.285 654.805c16.558 0 29.981 13.423 29.981 29.982 0 16.558-13.423 29.981-29.981 29.981H382.06c-16.559 0-29.982-13.423-29.982-29.981 0-16.559 13.423-29.982 29.982-29.982h259.878z\"></path></svg>",
-    settings: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M512.7 664.3c-82.9 0-150.4-67.4-150.4-150.4 0-82.9 67.4-150.4 150.4-150.4 82.9 0 150.4 67.4 150.4 150.4-0.1 83-67.5 150.4-150.4 150.4z m0-244.7c-52 0-94.4 42.3-94.4 94.4 0 52 42.3 94.4 94.4 94.4S607 566 607 514c0-52-42.3-94.4-94.3-94.4z\"></path><path d=\"M631.2 940.5c-15.2 0-30.1-6-41.2-17.3l-63.5-64.8c-4.1-4.2-9.5-6.5-15.4-6.5-5.8 0-11.3 2.3-15.3 6.4l-63.5 64.4c-17.4 17.6-44 22.2-66.2 11.4l-94.5-45.7c-22.2-10.8-35.2-34.5-32.2-59l11-90.1c0.7-5.8-0.9-11.5-4.5-16-3.6-4.6-8.8-7.4-14.6-8l-89.9-9.5c-24.6-2.6-44.8-20.5-50.2-44.6L67.7 558.8c-5.5-24.1 5-49 26-62l77.3-47.6c5-3.1 8.4-7.9 9.7-13.5 1.3-5.7 0.3-11.5-2.8-16.4L129.2 343c-13.3-20.8-11.9-47.8 3.5-67.1l65.5-82c15.4-19.3 41.4-26.7 64.7-18.3l85.4 30.7c5.5 2 11.4 1.7 16.6-0.9 5.2-2.5 9.2-7 11.1-12.5l29.2-85.6c8-23.4 29.9-39.1 54.6-39.1h105c24.7 0 46.7 15.7 54.6 39.1l29.6 86.8c1.9 5.5 5.8 9.9 11 12.5s11.1 2.8 16.6 0.9l86.1-30.6c23.3-8.3 49.2-0.8 64.6 18.5l65.2 82.3c15.3 19.4 16.7 46.3 3.3 67.1l-49.1 76.3c-3.2 4.9-4.2 10.7-2.9 16.4 1.3 5.7 4.7 10.5 9.7 13.6l76.8 47.7c21 13 31.4 38 25.8 62l-23.6 102.3a57.67 57.67 0 0 1-50.4 44.4l-90.3 9.2c-5.8 0.6-11 3.4-14.6 8-3.6 4.5-5.3 10.2-4.6 16l10.7 89.8c2.9 24.5-10.1 48.2-32.4 58.9l-94.7 45.4c-8.1 3.9-16.6 5.7-25 5.7zM511 795.9h0.1c21 0 40.6 8.3 55.3 23.3l63.5 64.8c0.5 0.5 1.3 0.7 2 0.4l94.7-45.4c0.7-0.3 1.1-1 1-1.8l-10.7-89.8c-2.5-20.8 3.4-41.3 16.5-57.6s31.8-26.5 52.7-28.7l90.3-9.2c0.7-0.1 1.3-0.6 1.5-1.3l23.6-102.3c0.2-0.7-0.1-1.5-0.8-1.9l-76.8-47.7c-17.8-11.1-30.2-28.4-34.8-48.8-4.6-20.4-0.9-41.4 10.5-59l49.1-76.3c0.4-0.6 0.4-1.4-0.1-2l-65.2-82.3c-0.5-0.6-1.2-0.8-1.9-0.6l-86.1 30.6c-19.7 7-40.9 5.9-59.7-3.2-18.8-9.1-32.9-25-39.7-44.8l-29.6-86.8c-0.2-0.7-0.9-1.2-1.6-1.2h-105c-0.7 0-1.4 0.5-1.6 1.2L429 211c-6.8 19.8-20.9 35.8-39.8 44.9-18.9 9.1-40.1 10.2-59.9 3.1l-85.4-30.7c-0.7-0.2-1.5 0-1.9 0.5l-65.5 82c-0.5 0.6-0.5 1.4-0.1 2l48.7 76.2c11.3 17.7 14.9 38.6 10.2 59.1-4.7 20.4-17.1 37.7-34.9 48.7l-77.3 47.6c-0.6 0.4-0.9 1.1-0.8 1.9l23.3 102.4c0.2 0.7 0.8 1.3 1.5 1.3l89.9 9.5c20.8 2.2 39.5 12.4 52.6 28.8 13 16.4 18.8 36.9 16.3 57.7l-11 90.1c-0.1 0.7 0.3 1.4 1 1.8l94.5 45.7c0.7 0.3 1.5 0.2 2-0.3l63.5-64.4c14.6-14.8 34.2-23 55.1-23z\"></path></svg>",
-    notification: "<svg viewBox=\"0 0 1024 1024\" aria-hidden=\"true\"><path d=\"M512 1024c-85.333333 0-159.288889-62.577778-159.288889-136.533333 0-17.066667 11.377778-28.444444 28.444445-28.444445s28.444444 11.377778 28.444444 28.444445c0 45.511111 45.511111 79.644444 102.4 79.644444s102.4-34.133333 102.4-79.644444c0-17.066667 11.377778-28.444444 28.444444-28.444445s28.444444 11.377778 28.444445 28.444445c0 73.955556-73.955556 136.533333-159.288889 136.533333zM853.333333 853.333333H170.666667c-39.822222 0-73.955556-34.133333-73.955556-73.955555 0-39.822222 28.444444-68.266667 68.266667-68.266667 11.377778-17.066667 17.066667-79.644444 17.066666-142.222222V449.422222c0-147.911111 85.333333-284.444444 216.177778-335.644444 0-62.577778 51.2-113.777778 113.777778-113.777778s113.777778 45.511111 113.777778 108.088889c130.844444 51.2 216.177778 187.733333 216.177778 335.644444V568.888889c0 62.577778 11.377778 125.155556 22.755555 142.222222 34.133333 0 68.266667 34.133333 68.266667 68.266667-5.688889 39.822222-39.822222 73.955556-79.644445 73.955555zM512 56.888889c-34.133333 0-56.888889 28.444444-56.888889 56.888889v11.377778c0 11.377778-5.688889 28.444444-17.066667 34.133333-113.777778 39.822222-199.111111 159.288889-199.111111 290.133333V568.888889c0 130.844444-22.755556 199.111111-68.266666 199.111111-11.377778 0-17.066667 5.688889-17.066667 17.066667 0 5.688889 5.688889 11.377778 17.066667 11.377777h682.666666c5.688889 0 17.066667-5.688889 17.066667-17.066666 0-5.688889-5.688889-17.066667-17.066667-17.066667-45.511111 0-73.955556-68.266667-73.955555-199.111111v-113.777778c0-130.844444-79.644444-250.311111-193.422222-290.133333-11.377778-5.688889-17.066667-22.755556-17.066667-34.133333V113.777778c0-28.444444-22.755556-56.888889-56.888889-56.888889z\"></path></svg>",
-    edit: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M343.291 560.334c-.585.776-1.168 1.577-1.434 2.543l-45.09 170.896c-2.615 9.952.073 20.683 7.194 28.238 5.326 5.376 12.352 8.334 19.834 8.334 2.467 0 4.934-.294 7.359-.974l164.117-46.28c.263 0 .386.246.58.246 1.887 0 3.755-.7 5.133-2.207l438.852-453.64C952.859 254.001 960 235.623 960 215.615c0-22.668-9.294-45.311-25.572-62.112l-41.432-42.911c-16.272-16.829-38.212-26.474-60.102-26.474-19.35 0-37.123 7.393-50.203 20.851L343.943 558.76c-.462.437-.341 1.07-.652 1.574m553.58-337.287-43.589 45.045-70.636-74.223 42.959-44.409c6.779-7.073 19.952-6.032 27.748 2.055l41.486 42.914c4.312 4.478 6.782 10.411 6.782 16.297-.026 4.822-1.675 9.201-4.75 12.321m-475.557 344.41 316.655-327.405 70.709 74.268L492.606 641.1l-71.292-73.643zm-57.685 132.752 22.884-86.838 61.051 63.109-83.935 23.729zm561.043-297.381c-16.614 0-30.223 13.976-30.293 31.388v422.941c0 22.181-17.412 40.198-38.893 40.198H163.482c-21.453 0-38.937-18.017-38.937-40.198V166.824c0-22.209 17.485-40.226 38.937-40.226h445.681c16.701 0 30.268-14.046 30.268-31.312 0-17.244-13.567-31.287-30.268-31.287H158.855C106.572 64 64 107.98 64 162.075V861.95C64 916.051 106.572 960 158.855 960h701.207c52.337 0 94.855-43.95 94.855-98.051V434c-.047-17.196-13.634-31.172-30.245-31.172"></path></svg>',
-    close: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 8 8 8M16 8l-8 8"></path></svg>',
-    refresh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"></path><path d="M6.2 8a7 7 0 0 1 11.5-1L20 12M4 12l2.3 5a7 7 0 0 0 11.5-1"></path></svg>',
-    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6M10 12h9"></path></svg>',
-    warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"></path><path d="M12 9v5M12 18h.01"></path></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"></path></svg>',
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"></path></svg>',
-    history: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6M4 4v4.6h4.6"></path><path d="M12 8v4l2.7 1.7"></path></svg>',
-    clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 7v5l3 2"></path></svg>',
-    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>',
+  const LUCIDE_ICON_PATHS = Object.freeze({
+    home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path>',
+    settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.52a2 2 0 0 1-1 1.72l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.52a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle>',
+    notification: '<path d="M10.27 21a2 2 0 0 0 3.46 0"></path><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>',
+    close: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+    refresh: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path>',
+    back: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
+    backArrow: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
+    warning: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
+    edit: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>',
+    pin: '<path d="M12 17v5"></path><path d="M5 17h14"></path><path d="M9 3h6l1 8 3 3v3H5v-3l3-3Z"></path>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path>',
+    pause: '<rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect>',
+    play: '<path d="m6 3 14 9-14 9Z"></path>',
+    clock: '<circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path>',
+    check: '<path d="M20 6 9 17l-5-5"></path>',
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>',
+    taskPlan: '<rect x="8" y="2" width="8" height="4" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="m9 14 2 2 4-4"></path>',
+    batchExcel: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M8 13h8"></path><path d="M8 17h8"></path><path d="M8 9h1"></path>',
+    calculator: '<rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path>',
+    tools: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.1 6.1a2.1 2.1 0 0 1-3-3l6.1-6.1a6 6 0 0 1 7.9-7.9Z"></path>',
+    box: '<path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path>',
+    tag: '<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.4 2.4 0 0 0 3.39 0l6.61-6.61a2.4 2.4 0 0 0 0-3.39Z"></path><path d="M7 7h.01"></path>',
+    lock: '<rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+    sparkle: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594Z"></path>',
+    default: '<circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path>',
   });
-  const DEFAULT_ICON_ASSET = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"></rect><circle cx="12" cy="12" r="2"></circle></svg>';
+  const LUCIDE_ICON_ALIASES = Object.freeze({ notificationBell: 'notification', backArrow: 'back', magic: 'sparkle' });
+
+  function lucideSvg(paths) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+  }
+
+  const CORE_ICON_ASSETS = Object.freeze(Object.keys(LUCIDE_ICON_PATHS).reduce((icons, key) => {
+    icons[key] = lucideSvg(LUCIDE_ICON_PATHS[key]);
+    return icons;
+  }, Object.create(null)));
+  const DEFAULT_ICON_ASSET = CORE_ICON_ASSETS.default;
 
   function iconHtml(name) {
-    const svg = ICON_ASSETS[name] || CORE_ICON_ASSETS[name] || DEFAULT_ICON_ASSET;
-    return '<span class="pfh-icon pfh-icon-' + escapeHtml(name) + '">' + svg + '</span>';
+    const iconName = LUCIDE_ICON_ALIASES[name] || name;
+    const svg = CORE_ICON_ASSETS[iconName] || DEFAULT_ICON_ASSET;
+    return '<span class="pfh-icon pfh-icon-' + escapeHtml(iconName) + '">' + svg + '</span>';
   }
   // </icon-assets-module>
   // <notifications-module>
@@ -2899,8 +2927,19 @@
     #${PANEL_ID}[data-pfh-theme] :where(a,.pfh-sku b,.pfh-home-card strong,.pfh-title-actions .is-primary,.pfh-ledger-link){color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(svg,.pfh-icon){color:inherit;}
     #${PANEL_ID}[data-pfh-theme] .pfh-icon{color:var(--pfh-theme-primary)!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-primary-soft)!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-icon svg,
-    #${PANEL_ID}[data-pfh-theme] .pfh-icon svg *{color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-icon svg{color:var(--pfh-theme-primary)!important;fill:none!important;stroke:currentColor!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-icon svg *{color:inherit!important;fill:none!important;stroke:currentColor!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+    #${PANEL_ID} .pfh-icon svg{fill:none!important;stroke:currentColor!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+    #${PANEL_ID} .pfh-icon svg *{fill:none!important;stroke:currentColor!important;stroke-width:inherit!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+    #${PANEL_ID} .pfh-home-card .pfh-icon svg,
+    #${PANEL_ID} .pfh-home-card .pfh-icon-tools svg{width:22px!important;height:22px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.9!important;}
+    #${PANEL_ID} .pfh-home-card .pfh-icon svg *,
+    #${PANEL_ID} .pfh-home-card .pfh-icon svg path,
+    #${PANEL_ID} .pfh-home-card .pfh-icon svg rect,
+    #${PANEL_ID} .pfh-home-card .pfh-icon svg circle,
+    #${PANEL_ID} .pfh-home-card .pfh-icon svg line,
+    #${PANEL_ID} .pfh-home-card .pfh-icon-tools svg *,
+    #${PANEL_ID} .pfh-home-card .pfh-icon-tools svg rect{fill:none!important;stroke:currentColor!important;stroke-width:inherit!important;}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-copywriting-copy-icon,.pfh-copywriting-copied-icon,.pfh-sparkle-entrance-icon,.pfh-ledger-finalize-check){color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs{position:relative!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;padding:4px!important;overflow:hidden!important;isolation:isolate!important;border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-ledger-tabs::before{content:"";position:absolute;z-index:0;top:4px;left:4px;width:calc((100% - 8px) / 3);height:calc(100% - 8px);border-radius:10px;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover));box-shadow:0 8px 18px var(--pfh-theme-primary-soft);pointer-events:none;transition:transform .72s cubic-bezier(.16,1.42,.3,1),background .28s ease,box-shadow .28s ease;}
@@ -7482,85 +7521,110 @@
     if (document.getElementById(styleId)) return;
     const style = document.createElement('style');
     style.id = styleId;
-    style.textContent = '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-detail-scroll{padding:0!important;background:#fff}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-page{min-height:100%;padding:0 0 14px;background:#fff;color:#687553}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-canvas{position:relative;isolation:isolate;min-height:650px;margin:0 12px;overflow:hidden;padding:22px 18px 70px;background:linear-gradient(112deg,#d2f0fa 0%,#e5f4fa 32%,#edf0ff 65%,#eadbff 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.95)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-canvas:before{content:"";position:absolute;z-index:-1;left:-22%;top:18%;width:75%;height:58%;border-radius:50%;background:rgba(117,232,224,.18);filter:blur(42px);pointer-events:none}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-canvas:after{content:"";position:absolute;z-index:-1;right:-20%;top:-12%;width:72%;height:64%;border-radius:50%;background:rgba(203,157,255,.18);filter:blur(38px);pointer-events:none}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-lab-head{display:flex;align-items:center;gap:12px;margin:0 0 14px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-back{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid #d8e5c2;border-radius:13px;background:#f3f9e9;color:#91a873;cursor:pointer;box-shadow:0 5px 12px rgba(121,147,89,.08);transition:.2s}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-back:hover{transform:translateX(-2px);background:#fbfff4}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-back .pfh-icon{width:19px;height:19px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-lab-title{color:#33402a;font-size:22px;font-weight:900;letter-spacing:-.06em}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-lab-title em{display:inline-flex;margin-left:7px;padding:3px 8px;border:1px solid #cdddc2;border-radius:99px;background:rgba(250,255,244,.72);color:#95aa80;font-size:9px;font-style:italic;letter-spacing:.06em;vertical-align:middle}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-hero{margin:0 2px 16px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-hero small{color:#829b81;font-size:10px;font-weight:800;letter-spacing:.09em}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-hero h2{margin:5px 0 5px;color:#607252;font-size:30px;line-height:1.05;letter-spacing:-.06em}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-hero p{max-width:610px;margin:0;color:#7e8daa;font-size:12px;font-weight:600}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:148px;margin:0 0 7px;overflow:hidden;border:1px dashed #bdca9d;border-radius:20px;background:rgba(249,253,241,.86);color:#819275;text-align:center;cursor:pointer;transition:.25s}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop:before{content:"";position:absolute;inset:-70%;background:conic-gradient(from 15deg,transparent,rgba(255,255,255,.72),transparent 34%);animation:pfhMagicAuroraSpin 13s linear infinite;pointer-events:none}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop:hover,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-drag-over{border-color:#8cae94;background:rgba(252,255,245,.95);transform:translateY(-2px);box-shadow:0 9px 22px rgba(130,151,102,.12)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop.is-paste-received{border-color:#73c9b6;background:#f3fff5}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop>div{position:relative;z-index:1}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing{display:flex;align-items:center;gap:8px;margin:0 0 9px;padding:8px 10px;border:1px solid #d9e7ca;border-radius:12px;background:rgba(250,255,245,.8);color:#809174;font-size:10px;line-height:1.35}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-processing .pfh-magic-spinner{width:13px;height:13px;flex:0 0 13px;border:2px solid #dce8ca;border-top-color:#97aa7e;border-radius:50%;animation:pfhMagicUploadSpin .8s linear infinite}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-drop-icon{display:grid;place-items:center;width:42px;height:42px;margin:0 auto 11px;border:1px solid #dbe7c8;border-radius:15px;background:#fbfff6;color:#9eaf82;box-shadow:0 7px 16px rgba(121,147,89,.12)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-drop-icon .pfh-icon{width:21px;height:21px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop strong{display:block;color:#607252;font-size:17px;font-weight:800}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-upload-drop span:not(.pfh-magic-drop-icon){display:block;margin-top:7px;color:#8a9ab8;font-size:11px;font-weight:600}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions{display:flex;align-items:center;gap:9px;margin:0 2px 20px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:39px;border:1px solid #dce8ca;border-radius:12px;background:rgba(248,253,242,.76);color:#9aaa8e;padding:8px 13px;font-size:11px;font-weight:700;cursor:pointer;transition:.2s}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button:hover,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history button:hover{transform:translateY(-1px);background:#fcfff8;box-shadow:0 6px 14px rgba(121,147,89,.1)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button.is-primary{color:#8fa37d}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions button:disabled{opacity:.44;cursor:not-allowed;transform:none;box-shadow:none}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions .pfh-magic-history-toggle{margin-left:auto}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-actions .pfh-icon,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history .pfh-icon{width:16px;height:16px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-queue{display:grid;gap:10px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task{overflow:hidden;border:1px solid #9bded9;border-radius:22px;background:rgba(255,255,255,.78);box-shadow:0 8px 18px rgba(77,152,153,.05);transition:.2s}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task:hover{border-color:#75cfc9;box-shadow:0 11px 24px rgba(77,152,153,.1)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task.is-success{border-color:#9bded9}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task.is-error{border-color:#e6b0b9}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-main{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:13px 16px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-copy{min-width:0}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-title{display:flex;align-items:center;gap:10px;min-width:0}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-title .pfh-magic-sku{width:180px;min-width:0;border:0;border-bottom:1px solid #dce5d2;background:transparent;color:#667452;font-size:18px;font-weight:800;outline:0}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-source{display:block;max-width:280px;overflow:hidden;color:#8292b3;font-size:11px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-stage{display:block;margin-top:6px;overflow:hidden;color:#8090b0;font-size:11px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-line{display:flex;align-items:center;gap:9px;margin-top:10px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-track{position:relative;height:6px;overflow:hidden;flex:1;border-radius:99px;background:#dfe3f0}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-track:after{content:"";position:absolute;inset:0;width:34%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8),transparent);transform:translateX(-130%);animation:pfhMagicProgressSheen 1.8s ease-in-out infinite}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#8acfd2,#a5b2e1);box-shadow:none;transition:width .35s ease}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-progress-value{min-width:30px;color:#6d795a;font-size:11px;font-weight:800;text-align:right}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-meta{display:flex;align-items:center;gap:7px;margin-top:8px;color:#8997b5;font-size:10px;font-weight:600}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-actions{display:flex;align-items:center;gap:8px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status{display:inline-flex;align-items:center;gap:6px;color:#4ab7aa;font-size:11px;font-weight:800;white-space:nowrap}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status:before{content:"";width:7px;height:7px;border-radius:50%;background:#50c9b7;box-shadow:0 0 0 4px rgba(80,201,183,.12)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status.is-error{color:#d37c8b}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-status.is-error:before{background:#e18b9b;box-shadow:0 0 0 4px rgba(225,139,155,.12)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-expand{display:inline-grid;place-items:center;width:34px;height:34px;border:1px solid #dce8ca;border-radius:12px;background:#f5fbe9;color:#94a77c;font-size:16px;cursor:pointer}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-detail{display:none;padding:0 16px 13px;border-top:1px solid #e5edf0}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task.is-expanded .pfh-magic-task-detail{display:block}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-files{display:grid;gap:4px;padding-top:8px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;gap:7px;align-items:center;padding:6px 0;border-bottom:1px solid #edf2f3;font-size:10px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file span{overflow:hidden;color:#657795;text-overflow:ellipsis;white-space:nowrap}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file select{width:100%;border:1px solid #dfe8d4;border-radius:8px;padding:4px 5px;background:#fbfff8;color:#7c936e;font-size:9px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file-actions{display:flex;align-items:center;gap:3px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file-actions button{width:23px;height:23px;padding:0;border:1px solid #e0ead3;border-radius:7px;background:#f8fdef;color:#9aab84;font-size:10px;cursor:pointer}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-file i{font-style:normal;color:#93a0b7;font-size:9px;white-space:nowrap}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;color:#8996ae;font-size:9px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-footer-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-footer button{display:inline-flex;align-items:center;gap:4px;height:26px;padding:4px 8px;border:1px solid #dce8ca;border-radius:8px;background:#f8fdf1;color:#849a75;font-size:9px;cursor:pointer}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history{margin-top:13px;padding:12px;border:1px solid #d9e7ca;border-radius:18px;background:rgba(249,254,243,.72)}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-head{display:flex;align-items:center;justify-content:space-between;color:#778b6d;font-size:11px;font-weight:800}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-list{display:grid;gap:5px;margin-top:8px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #e3edd8;font-size:9px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-item strong{display:block;color:#71836c;font-size:10px}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-item span{display:block;margin-top:2px;overflow:hidden;color:#8a98ae;text-overflow:ellipsis;white-space:nowrap}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-history-empty,#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-empty{padding:28px 12px;color:#8997ad;font-size:10px;text-align:center}' +
-      '#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-bottom-note{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 2px 0;color:#8997ae;font-size:10px;font-weight:700}' +
-      '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicAuroraSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicProgressSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}' +
-      '@media (max-width:520px){#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-canvas{margin:0;padding:18px 12px 60px}#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-main{grid-template-columns:minmax(0,1fr)}#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-actions{justify-content:flex-end}#' + PANEL_ID + '[data-view="magicUpload"] .pfh-magic-task-title .pfh-magic-sku{width:135px}}' +
-      '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + '[data-view="magicUpload"] *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}';
+    const root = '#' + PANEL_ID + '[data-view="magicUpload"] ';
+    style.textContent = [
+      root + '.pfh-detail-scroll{padding:0!important;background:#fff!important}',
+      root + '.pfh-magic-page{min-height:100%;padding:18px 18px 20px;background:#fff;color:#1d2232}',
+      root + '.pfh-magic-canvas{position:relative;isolation:isolate;min-height:650px;margin:0;padding:0 0 58px;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}',
+      root + '.pfh-magic-page .pfh-icon,' + root + '.pfh-magic-page .pfh-icon[class*="pfh-icon-"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:inherit!important;line-height:1!important}',
+      root + '.pfh-magic-page .pfh-icon svg,' + root + '.pfh-magic-page .pfh-icon svg *{color:inherit!important;fill:none!important;stroke:currentColor!important;stroke-linecap:round!important;stroke-linejoin:round!important}',
+      root + '.pfh-magic-lab-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}',
+      root + '.pfh-magic-head-left{display:flex;align-items:center;gap:12px;min-width:0}',
+      root + '.pfh-magic-back{display:inline-grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border:1px solid rgba(26,35,68,.1);border-radius:14px;background:rgba(255,255,255,.7);color:#7056e8;cursor:pointer;box-shadow:0 8px 20px rgba(45,37,100,.1);backdrop-filter:blur(18px);transition:transform .22s ease,box-shadow .22s ease,background .22s ease}',
+      root + '.pfh-magic-back:hover{transform:translateX(-2px);background:#fff;box-shadow:0 12px 26px rgba(45,37,100,.14)}',
+      root + '.pfh-magic-back .pfh-icon{width:18px;height:18px}',
+      root + '.pfh-magic-lab-title{margin:0;color:#1d2232;font-size:25px;font-weight:900;letter-spacing:0;line-height:1.1}',
+      root + '.pfh-magic-lab-title em{display:inline-flex;margin-left:7px;padding:3px 8px;border:1px solid rgba(112,86,232,.2);border-radius:999px;background:rgba(112,86,232,.09);color:#7056e8;font-size:9px;font-style:normal;font-weight:900;letter-spacing:.12em;vertical-align:middle}',
+      root + '.pfh-magic-pipeline{display:inline-flex;align-items:center;gap:6px;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.16em;white-space:nowrap}',
+      root + '.pfh-magic-pipeline:before{content:"";width:7px;height:7px;border-radius:50%;background:#49c7bc;box-shadow:0 0 0 5px rgba(73,199,188,.16)}',
+      root + '.pfh-magic-shell{display:grid;grid-template-columns:1fr;gap:0;align-items:start}',
+      root + '.pfh-magic-main-card,.pfh-magic-side,.pfh-magic-overview{border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}',
+      root + '.pfh-magic-main-card{padding:0;overflow:visible}',
+      root + '.pfh-magic-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 0 20px}',
+      root + '.pfh-magic-hero small{display:block;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.18em}',
+      root + '.pfh-magic-hero h2{margin:5px 0 7px;color:#1d2232;font-size:24px;line-height:1.08;font-weight:900;letter-spacing:0}',
+      root + '.pfh-magic-hero p{max-width:520px;margin:0;color:#8990a6;font-size:12px;font-weight:650}',
+      root + '.pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:174px;margin:0 0 44px;overflow:hidden;border:1px dashed rgba(217,147,168,.5);border-radius:24px;background:rgba(255,248,251,.68);color:#7657f2;text-align:center;cursor:pointer;transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease,background .24s ease}',
+      root + '.pfh-magic-upload-drop:before{display:none}',
+      root + '.pfh-magic-upload-drop:hover,' + root + '.pfh-magic-upload-drop.is-drag-over{border-color:#7056e8;transform:translateY(-2px);box-shadow:0 14px 34px rgba(76,60,150,.15)}',
+      root + '.pfh-magic-upload-drop.is-paste-received{border-color:#49c7bc;box-shadow:0 0 0 4px rgba(73,199,188,.13),0 14px 34px rgba(76,60,150,.12)}',
+      root + '.pfh-magic-upload-drop>div{position:relative;z-index:1}',
+      root + '.pfh-magic-drop-icon{display:grid;place-items:center;width:44px;height:44px;margin:0 auto 12px;border:0;border-radius:15px;background:#fff;color:#7056e8;box-shadow:0 8px 24px rgba(76,60,150,.15)}',
+      root + '.pfh-magic-drop-icon .pfh-icon,' + root + '.pfh-magic-drop-icon .pfh-icon-upload{width:21px!important;height:21px!important;min-width:21px!important}',
+      root + '.pfh-magic-drop-icon .pfh-icon svg,' + root + '.pfh-magic-drop-icon .pfh-icon svg *{width:21px!important;height:21px!important;color:inherit!important;fill:none!important;stroke:currentColor!important}',
+      root + '.pfh-magic-upload-drop strong{display:block;color:#1d2232;font-size:17px;font-weight:850}',
+      root + '.pfh-magic-upload-drop span:not(.pfh-magic-drop-icon){display:block;margin-top:6px;color:#8990a6;font-size:11px;font-weight:650}',
+      root + '.pfh-magic-processing{display:flex;align-items:center;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid rgba(26,35,68,.1);border-radius:14px;background:rgba(255,255,255,.78);color:#7056e8;font-size:10px;font-weight:750;line-height:1.35;box-shadow:0 8px 20px rgba(45,37,100,.08)}',
+      root + '.pfh-magic-processing .pfh-magic-spinner{width:14px;height:14px;flex:0 0 14px;border:2px solid rgba(112,86,232,.18);border-top-color:#7056e8;border-radius:50%;animation:pfhMagicUploadSpin .75s linear infinite}',
+      root + '.pfh-magic-queue-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;color:#1d2232}',
+      root + '.pfh-magic-queue-head b{font-size:14px;font-weight:900}',
+      root + '.pfh-magic-queue-head span{color:#8990a6;font-size:11px;font-weight:650}',
+      root + '.pfh-magic-actions{display:flex;align-items:center;gap:14px;margin:0 0 36px;padding:0 4px}',
+      root + '.pfh-magic-actions button,' + root + '.pfh-magic-history button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border:0;border-radius:13px;background:rgba(29,34,50,.07);color:#1d2232;padding:8px 13px;font-size:11px;font-weight:800;cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,background .22s ease}',
+      root + '.pfh-magic-actions button:hover,' + root + '.pfh-magic-history button:hover{transform:translateY(-1px);background:#fff;box-shadow:0 8px 20px rgba(45,37,100,.1)}',
+      root + '.pfh-magic-actions button.is-primary{color:#fff;background:linear-gradient(135deg,#7056e8,#4636a8);box-shadow:0 10px 22px rgba(112,86,232,.26)}',
+      root + '.pfh-magic-actions button:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}',
+      root + '.pfh-magic-actions .pfh-magic-history-toggle{margin-left:auto}',
+      root + '.pfh-magic-actions .pfh-icon,' + root + '.pfh-magic-history .pfh-icon,' + root + '.pfh-magic-back .pfh-icon{width:16px!important;height:16px!important}',
+      root + '.pfh-magic-queue{display:grid;gap:12px}',
+      root + '.pfh-magic-task{position:relative;overflow:hidden;border:1px solid rgba(151,158,188,.18);border-radius:21px;background:rgba(255,255,255,.92);box-shadow:0 12px 32px rgba(47,50,94,.08);transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease}',
+      root + '.pfh-magic-task:before{display:none}',
+      root + '.pfh-magic-task:hover{transform:translateY(-1px);border-color:rgba(112,86,232,.2);box-shadow:0 16px 38px rgba(47,50,94,.12)}',
+      root + '.pfh-magic-task-main{display:grid;grid-template-columns:46px minmax(0,1fr) 82px;gap:18px;align-items:center;padding:17px 17px}',
+      root + '.pfh-magic-task-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:16px;background:#eee9ff;color:#7056e8;font-weight:900;font-size:17px}',
+      root + '.pfh-magic-task-copy{min-width:0}',
+      root + '.pfh-magic-task-title{display:flex;align-items:center;gap:8px;min-width:0}',
+      root + '.pfh-magic-sku-text{display:block;flex:0 0 auto;max-width:132px;overflow:hidden;color:#151a2e;font-size:16px;font-weight:950;text-overflow:ellipsis;white-space:nowrap}',
+      root + '.pfh-magic-task-source{display:block;min-width:0;overflow:hidden;color:#151a2e;font-size:16px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}',
+      root + '.pfh-magic-file-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:22px;padding:0 10px;border-radius:999px;background:#efe9ff;color:#7056e8;font-size:11px;font-weight:850;white-space:nowrap}',
+      root + '.pfh-magic-stage{display:block;margin-top:7px;overflow:hidden;color:#78819c;font-size:12px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}',
+      root + '.pfh-magic-progress-line{display:flex;align-items:center;gap:9px;margin-top:11px}',
+      root + '.pfh-magic-progress-track{position:relative;height:5px;overflow:hidden;flex:1;border-radius:99px;background:rgba(29,34,50,.09)}',
+      root + '.pfh-magic-progress-track:after{content:"";position:absolute;inset:0;width:36%;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.78),transparent 75%);transform:translateX(-120%);animation:pfhMagicProgressSheen 1.8s ease-in-out infinite}',
+      root + '.pfh-magic-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#7657f2 0%,#5dcfc1 100%);box-shadow:0 0 12px rgba(112,86,232,.34);transition:width .35s ease}',
+      root + '.pfh-magic-task-side{display:grid;justify-items:end;gap:8px;color:#7056e8;text-align:right}',
+      root + '.pfh-magic-progress-value{min-width:34px;color:#7056e8;font-size:13px;font-weight:950;text-align:right}',
+      root + '.pfh-magic-task-meta{display:flex;align-items:center;gap:10px;margin-top:0;color:#78819c;font-size:12px;font-weight:650}',
+      root + '.pfh-magic-task-actions{display:flex;align-items:center;gap:8px}',
+      root + '.pfh-magic-status{display:block;max-width:82px;overflow:hidden;color:#78819c;font-size:10px;font-weight:650;white-space:nowrap;line-height:1.25;text-align:right;text-overflow:ellipsis}',
+      root + '.pfh-magic-status:before{display:none}',
+      root + '.pfh-magic-status.is-success{color:#22b77b}',
+      root + '.pfh-magic-status.is-error{color:#d95770}',
+      root + '.pfh-magic-status.is-error:before{background:#d95770;box-shadow:0 0 0 4px rgba(217,87,112,.13)}',
+      root + '.pfh-magic-expand{display:none!important}',
+      root + '.pfh-magic-task-detail{display:none;padding:0 16px 13px 17px;border-top:1px solid rgba(26,35,68,.08)}',
+      root + '.pfh-magic-task.is-expanded .pfh-magic-task-detail{display:block}',
+      root + '.pfh-magic-files{display:grid;gap:4px;padding-top:8px}',
+      root + '.pfh-magic-file{display:grid;grid-template-columns:minmax(0,1fr) 112px auto;gap:7px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(26,35,68,.07);font-size:10px}',
+      root + '.pfh-magic-file span{overflow:hidden;color:#596276;text-overflow:ellipsis;white-space:nowrap}',
+      root + '.pfh-magic-file select{width:100%;border:1px solid rgba(26,35,68,.1);border-radius:8px;padding:4px 5px;background:#fff;color:#596276;font-size:9px}',
+      root + '.pfh-magic-file-actions{display:flex;align-items:center;gap:3px}',
+      root + '.pfh-magic-file-actions button{width:23px;height:23px;padding:0;border:1px solid rgba(26,35,68,.1);border-radius:7px;background:#fff;color:#7056e8;font-size:10px;cursor:pointer}',
+      root + '.pfh-magic-file i{font-style:normal;color:#8990a6;font-size:9px;white-space:nowrap}',
+      root + '.pfh-magic-task-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;color:#8990a6;font-size:9px}',
+      root + '.pfh-magic-task-footer-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}',
+      root + '.pfh-magic-task-footer button{display:inline-flex;align-items:center;gap:4px;height:26px;padding:4px 8px;border:1px solid rgba(26,35,68,.1);border-radius:8px;background:#fff;color:#7056e8;font-size:9px;cursor:pointer}',
+      root + '.pfh-magic-side,.pfh-magic-overview{order:0;margin:0 0 24px;padding:0}',
+      root + '.pfh-magic-side h3,' + root + '.pfh-magic-overview h3{margin:0 0 12px;color:#1d2232;font-size:14px;font-weight:900}',
+      root + '.pfh-magic-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}',
+      root + '.pfh-magic-stat{display:block;min-width:0;padding:10px 11px;border:1px solid rgba(26,35,68,.08);border-radius:14px;background:rgba(255,255,255,.54)}',
+      root + '.pfh-magic-stat span{color:#8990a6;font-size:11px;font-weight:700}',
+      root + '.pfh-magic-stat strong{display:block;margin-top:4px;color:#1d2232;font-size:18px;font-weight:900;letter-spacing:0;white-space:nowrap}',
+      root + '.pfh-magic-activity{margin-top:12px;padding-top:12px;border-top:1px solid rgba(26,35,68,.1)}',
+      root + '.pfh-magic-activity p{display:inline-flex;gap:9px;align-items:flex-start;width:33.33%;margin:6px 0 0;color:#8990a6;font-size:11px;font-weight:650;line-height:1.4;vertical-align:top}',
+      root + '.pfh-magic-activity i{flex:0 0 auto;width:7px;height:7px;margin-top:5px;border-radius:50%;background:#49c7bc;box-shadow:0 0 0 4px rgba(73,199,188,.14)}',
+      root + '.pfh-magic-history{margin-top:13px;padding:12px;border:1px solid rgba(26,35,68,.1);border-radius:18px;background:rgba(255,255,255,.72)}',
+      root + '.pfh-magic-history-head{display:flex;align-items:center;justify-content:space-between;color:#1d2232;font-size:11px;font-weight:900}',
+      root + '.pfh-magic-history-list{display:grid;gap:5px;margin-top:8px}',
+      root + '.pfh-magic-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgba(26,35,68,.08);font-size:9px}',
+      root + '.pfh-magic-history-item strong{display:block;color:#1d2232;font-size:10px}',
+      root + '.pfh-magic-history-item span{display:block;margin-top:2px;overflow:hidden;color:#8990a6;text-overflow:ellipsis;white-space:nowrap}',
+      root + '.pfh-magic-history-empty,' + root + '.pfh-magic-empty{padding:28px 12px;border:1px dashed rgba(26,35,68,.12);border-radius:18px;background:rgba(255,255,255,.46);color:#8990a6;font-size:11px;text-align:center}',
+      root + '.pfh-magic-bottom-note{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 2px 0;color:#8990a6;font-size:10px;font-weight:750}',
+      '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicAuroraSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicProgressSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}@keyframes pfhMagicDropSweep{0%,100%{transform:translateX(-42%);opacity:.18}50%{transform:translateX(42%);opacity:.48}}',
+      '@media (max-width:720px){' + root + '.pfh-magic-stats{grid-template-columns:repeat(2,minmax(0,1fr))}' + root + '.pfh-magic-activity p{width:100%}' + root + '.pfh-magic-lab-head,' + root + '.pfh-magic-hero{align-items:flex-start;flex-direction:column}' + root + '.pfh-magic-task-main{grid-template-columns:46px minmax(0,1fr) 62px;gap:10px;padding:15px 14px}' + root + '.pfh-magic-sku-text{max-width:118px}' + root + '.pfh-magic-task-source{font-size:14px}' + root + '.pfh-magic-file-badge{display:none}}',
+      '@media (prefers-reduced-motion:reduce){' + root + '*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}'
+    ].join('');
     document.head.appendChild(style);
   }
 
@@ -7792,6 +7856,7 @@
       generatedName: String(entry && entry.generatedName || ''),
       fileVersionId: String(entry && (entry.fileVersionId || entry.file_version_id) || ''),
       fileId: String(entry && (entry.fileId || entry.file_id) || ''),
+      fileSavePath: String(entry && (entry.fileSavePath || entry.file_save_path) || ''),
     })).filter((entry) => entry.name && entry.key) : [];
     const status = allowed.has(String(task.status || '')) ? String(task.status) : 'pending';
     return {
@@ -7850,6 +7915,11 @@
   function getMagicUploadRule(category, extension) {
     const item = MAGIC_UPLOAD_CATEGORIES[category];
     return item || (extension === '.zip' ? MAGIC_UPLOAD_CATEGORIES['图包素材'] : null);
+  }
+
+  function isMagicUploadEffectPictureCategory(category) {
+    const rule = MAGIC_UPLOAD_CATEGORIES[String(category || '')];
+    return Boolean(rule && rule.uploadType === 'effectPicture');
   }
 
   function createMagicUploadId() {
@@ -8079,29 +8149,39 @@
   }
 
   function magicUploadViewHtml() {
-    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><div class="pfh-magic-hero"><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></section></div>';
+    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></div></div></section></div>';
     const queue = state.magicUploadQueue || [];
     const running = Boolean(state.magicUploadRunning);
     const pendingCount = queue.filter((task) => task.status === 'pending' || task.status === 'error').length;
     const history = Array.isArray(state.magicUploadHistory) ? state.magicUploadHistory : [];
     const historyOpen = Boolean(state.magicUploadHistoryOpen);
+    const totalFiles = queue.reduce((sum, task) => sum + (Array.isArray(task.files) ? task.files.length : 0), 0);
+    const doneFiles = queue.reduce((sum, task) => sum + (Array.isArray(task.files) ? task.files.filter((entry) => entry.status === 'success').length : 0), 0);
+    const activeCount = queue.filter((task) => task.status === 'processing').length;
+    const waitingCount = queue.filter((task) => task.status === 'waiting').length;
+    const errorCount = queue.filter((task) => task.status === 'error').length;
+    const successCount = queue.filter((task) => task.status === 'success').length;
+    const etaSeconds = queue.reduce((sum, task) => sum + Math.max(0, Number(task.etaSeconds) || 0), 0);
+    const recentTasks = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error' || task.status === 'waiting').slice(0, 3);
     const rows = queue.length ? queue.map((task) => {
       const unknown = task.files.filter((entry) => entry.category === '待确认').length;
-      const expanded = Boolean(task.expanded);
       const progress = Math.round((task.status === 'success' ? 1 : Math.min(1, Math.max(0, Number(task.progress) || 0))) * 100);
       const statusClass = task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '');
-      const fileRows = task.files.map((entry, index) => '<div class="pfh-magic-file"><span title="' + escapeHtml(entry.name) + '">' + escapeHtml(entry.name.split('/').pop() || entry.name) + '</span><select data-magic-file-index="' + index + '"><option value="待确认">待确认</option>' + Object.keys(MAGIC_UPLOAD_CATEGORIES).filter((item) => item !== '图包素材').map((item) => '<option value="' + escapeHtml(item) + '"' + (entry.category === item ? ' selected' : '') + '>' + escapeHtml(item) + '</option>').join('') + '</select><div class="pfh-magic-file-actions"><button type="button" data-action="magic-upload-file-up" data-magic-id="' + escapeHtml(task.id) + '" data-magic-file-index="' + index + '" title="上移">↑</button><button type="button" data-action="magic-upload-file-down" data-magic-id="' + escapeHtml(task.id) + '" data-magic-file-index="' + index + '" title="下移">↓</button><i>' + escapeHtml(entry.status === 'success' ? '完成' : (entry.error || '待传')) + '</i></div></div>').join('');
-      return '<article class="pfh-magic-task ' + statusClass + (expanded ? ' is-expanded' : '') + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><input class="pfh-magic-sku" value="' + escapeHtml(task.sku) + '" placeholder="SKU 编码"><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span></div><span class="pfh-magic-stage" data-magic-stage>' + escapeHtml(task.currentFileName ? (task.step || '上传中') + ' · ' + (task.currentFileName.split('/').pop() || task.currentFileName) : (task.step || '等待上传')) + '</span><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong></div><div class="pfh-magic-task-meta"><span>' + task.files.length + ' 个文件' + (unknown ? ' · ' + unknown + ' 个待确认' : '') + '</span><span>·</span><span data-magic-eta>' + (task.status === 'success' ? '上传完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : '正在建立估算')) + '</span></div></div><div class="pfh-magic-task-actions"><span class="pfh-magic-status ' + statusClass + '">' + escapeHtml(magicUploadStatusLabel(task)) + '</span><button type="button" class="pfh-magic-expand" data-action="magic-upload-toggle-task" data-magic-id="' + escapeHtml(task.id) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '" title="展开详情">' + (expanded ? '⌃' : '⌄') + '</button></div></div><div class="pfh-magic-task-detail"><div class="pfh-magic-files">' + fileRows + '</div><div class="pfh-magic-task-footer"><span>' + escapeHtml(task.error || (task.draftSaved ? '草稿已保存，已进入提审' : '文件分类和顺序可在这里调整')) + '</span><div class="pfh-magic-task-footer-actions"><button type="button" data-action="magic-upload-save-task" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('edit') + '保存</button><button type="button" data-action="magic-upload-replace" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('upload') + '替换</button><button type="button" data-action="magic-upload-retry" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('refresh') + '重试</button><button type="button" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">' + iconHtml('close') + '删除</button></div></div></div></article>';
+      const statusText = task.currentFileName ? (task.step || '上传中') : magicUploadStatusLabel(task);
+      const categoriesText = Array.from(new Set(task.files.map((entry) => entry.category).filter((category) => category && category !== '待确认'))).slice(0, 4).join(' · ') || '待确认';
+      return '<article class="pfh-magic-task ' + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge">' + task.files.length + ' 个文件</span></div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
     const historyHtml = historyOpen ? '<section class="pfh-magic-history"><div class="pfh-magic-history-head"><span>' + iconHtml('history') + ' 上传历史</span><span>' + history.length + ' 条</span></div><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 30).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section>' : '';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><div class="pfh-magic-hero"><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>前端解包识别 · PLM API · OSS 分片 · 自动提审</p></div><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>支持拖入、粘贴和选择，自动识别 SKU 与素材区域</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + (historyOpen ? '收起历史' : '上传历史') + '</button></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></div></section></div>';
+    const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + (historyOpen ? '收起历史' : '上传历史') + '</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></div></section></div>';
   }
 
   function saveMagicUploadTaskEdits(id) {
     const task = (state.magicUploadQueue || []).find((item) => item.id === id);
     const root = ensurePanel().querySelector('.pfh-magic-task[data-magic-id="' + CSS.escape(id) + '"]');
     if (!task || !root) return;
-    task.sku = String((root.querySelector('.pfh-magic-sku') || {}).value || '').trim().toUpperCase();
+    const skuInput = root.querySelector('.pfh-magic-sku');
+    if (skuInput) task.sku = String(skuInput.value || '').trim().toUpperCase();
     root.querySelectorAll('[data-magic-file-index]').forEach((select) => {
       const index = Number(select.getAttribute('data-magic-file-index'));
       const entry = task.files[index];
@@ -8424,6 +8504,7 @@
       if (!list.some((item) => String(item) === String(normalized))) list.push(normalized);
     };
     (task && task.files || []).forEach((entry) => {
+      if (entry && isMagicUploadEffectPictureCategory(entry.category)) return;
       if (!entry || entry.category === '待确认' || !entry.fileVersionId) return;
       add(entry.category, entry.fileVersionId);
     });
@@ -8543,7 +8624,7 @@
     const data = normalizeData(loadData(task.sku) || {});
     const projectId = getProjectIdForMaterialApi(data);
     const productContext = await resolveMagicUploadProductContext(task);
-    const staleEntries = (task.files || []).filter((entry) => entry.status === 'success'
+    const staleEntries = (task.files || []).filter((entry) => !isMagicUploadEffectPictureCategory(entry.category) && entry.status === 'success'
       && (!entry.fileVersionId || (entry.generatedName && !isMagicGeneratedNameForSku(entry.generatedName, task.sku))));
     if (staleEntries.length) {
       staleEntries.forEach((entry) => {
@@ -8576,7 +8657,7 @@
     await hydrateMagicUploadTaskMetrics(task);
     updateMagicUploadProgress(task);
     const entries = (task.files || []).filter((entry) => entry.status !== 'success');
-    if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
+    if (entries.some((entry) => entry.category === '待确认' || (!entry.archiveTypeId && !isMagicUploadEffectPictureCategory(entry.category)))) throw new Error('存在待确认文件分类');
     for (let index = 0; index < entries.length; index += 1) {
       if (!state.magicUploadRunning) throw new Error('已暂停');
       const entry = entries[index];
@@ -8650,6 +8731,84 @@
     addLog('success', '魔法上传并提审成功', task.sku + ' | product_id=' + context.productId);
   }
 
+  function normalizeMagicUploadEffectPath(path) {
+    return String(path || '').replace(/^\/+/, '');
+  }
+
+  function buildMagicUploadBomMaterialPayload(material) {
+    return {
+      id: material.id,
+      pics: Array.isArray(material.pics) ? material.pics : (material.pics || null),
+      code: material.code,
+      material_id: material.material_id,
+      material_type: material.material_type,
+      usage_value: material.usage_value,
+      product_main_id: material.product_main_id ? material.product_main_id : null,
+      type: material.type,
+    };
+  }
+
+  async function saveMagicUploadEffectPictureFiles(task, objectNames) {
+    const projectId = task.projectId || getProjectIdForMaterialApi(loadData(task.sku) || {});
+    if (!projectId) throw new Error('缺少项目 ID，无法保存效果图');
+    const paths = (Array.isArray(objectNames) ? objectNames : [objectNames]).map(normalizeMagicUploadEffectPath).filter(Boolean);
+    if (!paths.length) return;
+    const [materialsPayload, existingPayload] = await Promise.all([
+      fetchPlmJson('/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
+      fetchPlmJson('/api/ChemicalNew/GetProjectEffectPicture?id=' + encodeURIComponent(projectId)),
+    ]);
+    const materials = Array.isArray(materialsPayload && materialsPayload.data) ? materialsPayload.data : [];
+    if (!materials.length) throw new Error('未读取到 BOM 物料列表，无法保存效果图');
+    const effectPictureFiles = [];
+    const seen = new Set();
+    const addPath = (value) => {
+      const normalized = normalizeMagicUploadEffectPath(value);
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      effectPictureFiles.push(normalized);
+    };
+    (Array.isArray(existingPayload && existingPayload.data) ? existingPayload.data : []).forEach(addPath);
+    paths.forEach(addPath);
+    await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
+      project_id: Number(projectId) || projectId,
+      materials: materials.map(buildMagicUploadBomMaterialPayload),
+      effect_picture_files: effectPictureFiles,
+    });
+    magicUploadLog('info', '效果图保存到 BOM 完成', task.sku + ' | projectId=' + projectId + ' | 效果图=' + paths.length);
+  }
+
+  async function uploadMagicUploadEffectPictureFile(task, entry, file) {
+    const uploadStartedAt = Date.now();
+    const extension = getMagicUploadFileExtension(file.name || entry.name);
+    if (!/\.(?:jpe?g|png|bmp)$/i.test(extension)) throw new Error('效果图仅支持 JPG / PNG / BMP：' + (entry.name || file.name));
+    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 40 });
+    const secret = secretPayload && secretPayload.data;
+    if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到效果图 OSS 临时授权');
+    const uploadMaxBytes = Number(secret.max_file_size) || (20 * 1024 * 1024);
+    if (file.size > uploadMaxBytes) throw new Error('效果图超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
+    if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
+    const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
+    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
+    await client.multipartUpload(objectName, file, {
+      partSize: 2 * 1024 * 1024,
+      parallel: 2,
+      progress: (percent) => {
+        task.currentFileProgress = Math.min(1, Math.max(0, Number(percent) || 0));
+        updateMagicUploadProgress(task);
+      },
+    });
+    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 40, oss_path: objectName, original_file_name: file.name || entry.name });
+    await saveMagicUploadEffectPictureFiles(task, [objectName]);
+    entry.fileSavePath = objectName;
+    entry.generatedName = file.name || entry.name || '';
+    task.currentFileProgress = 1;
+    task.uploadedBytes = (Number(task.uploadedBytes) || 0) + entry.size;
+    recordMagicUploadMetric(task, entry, Date.now() - uploadStartedAt);
+    updateMagicUploadTaskEstimate(task);
+    magicUploadLog('info', '效果图上传并保存完成', task.sku + ' | ' + objectName);
+    return objectName;
+  }
+
   async function uploadMagicUploadFile(task, entry, file, productContext) {
     const uploadStartedAt = Date.now();
     entry.size = Number(entry.size) || Number(file && file.size) || 0;
@@ -8661,6 +8820,7 @@
     const category = entry.category || (extension === '.zip' ? '图包素材' : '待确认');
     const rule = getMagicUploadRule(category, extension);
     if (!rule) throw new Error('无法确定上传区域：' + (entry.name || file.name));
+    if (isMagicUploadEffectPictureCategory(category)) return uploadMagicUploadEffectPictureFile(task, entry, file);
     const context = productContext || await resolveMagicUploadProductContext(task);
     magicUploadLog('info', '开始上传文件', task.sku + ' | ' + category + ' | ' + (file.name || entry.name));
     const namePayload = await fetchPlmApiJson('/api/Product/GenerateFileNameByRule', {
@@ -15102,7 +15262,6 @@
 
   function handlePanelPaste(event) {
     if (event.defaultPrevented) return;
-    if (state.view === 'magicUpload' && handleMagicUploadPaste(event)) return;
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
@@ -15135,7 +15294,6 @@
   }
 
   function handleSizeImageHoverPaste(event) {
-    if (state.view === 'magicUpload' && handleMagicUploadPaste(event)) return;
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
@@ -15262,49 +15420,7 @@
   }
 
   function handleMagicUploadPaste(event) {
-    if (state.view !== 'magicUpload') return false;
-    const detail = describeMagicClipboard(event);
-    magicUploadLog('info', '收到粘贴事件', detail);
-    const direct = getClipboardMagicUploadFiles(event);
-    if (direct.length) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.__pfhMagicHandled = true;
-      const drop = document.querySelector('#' + PANEL_ID + ' .pfh-magic-upload-drop');
-      if (drop) {
-        drop.classList.add('is-paste-received');
-        window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
-      }
-      magicUploadLog('info', '直接读取到粘贴文件', direct.map((file) => file.name + '|' + file.type).join('；'));
-      processMagicUploadZipFiles(direct);
-      return true;
-    }
-    const clipboard = event && event.clipboardData;
-    const hasFileHint = Boolean(Array.from(clipboard && clipboard.items || []).some((item) => item.kind === 'file') || Array.from(clipboard && clipboard.types || []).some((type) => /files|zip|spreadsheet|excel/i.test(type)));
-    if (!hasFileHint) {
-      magicUploadLog('warn', '粘贴内容中没有可读取的文件', detail);
-      return false;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    event.__pfhMagicHandled = true;
-    const drop = document.querySelector('#' + PANEL_ID + ' .pfh-magic-upload-drop');
-    if (drop) {
-      drop.classList.add('is-paste-received');
-      window.setTimeout(() => drop.classList.remove('is-paste-received'), 360);
-    }
-    showToast('正在读取粘贴的图包…');
-    readMagicClipboardFiles(event).then((files) => {
-      if (files.length) processMagicUploadZipFiles(files);
-      else {
-        magicUploadLog('warn', '浏览器未提供 ZIP 文件内容', '请尝试点击选择文件，或从文件管理器重新复制后粘贴');
-        showToast('浏览器没有提供 ZIP 文件内容，请改用拖入或选择文件');
-      }
-    }).catch((error) => {
-      magicUploadLog('error', '粘贴文件处理异常', formatErrorMessage(error));
-      showToast('粘贴图包失败：' + formatErrorMessage(error));
-    });
-    return true;
+    return false;
   }
 
   function getClipboardCopyrightFiles(event) {
