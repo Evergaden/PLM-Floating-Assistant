@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.90
+// @version      2.6.91
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.90';
+  const SCRIPT_VERSION = '2.6.91';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -6941,30 +6941,12 @@
   }
 
   function renderUploadProgressOverlay(panel) {
-    if (!panel) return;
-    const queue = state.uploadQueue || loadUploadQueue();
-    const mode = isUploadWorkerPage() ? getUploadWorkerModeFromUrl() : normalizeUploadMode(state.uploadMode);
-    const currentUpload = getCurrentRunningUpload(queue, mode);
-    const oldInlineOverlay = panel.querySelector('.pfh-upload-progress-pop');
-    if (oldInlineOverlay) oldInlineOverlay.remove();
-    let overlay = document.getElementById(PANEL_ID + '-upload-progress');
-    if (!currentUpload) {
-      if (overlay) overlay.remove();
-      return;
+    if (panel) {
+      const oldInlineOverlay = panel.querySelector('.pfh-upload-progress-pop');
+      if (oldInlineOverlay) oldInlineOverlay.remove();
     }
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = PANEL_ID + '-upload-progress';
-      overlay.className = 'pfh-upload-progress-pop';
-      document.documentElement.appendChild(overlay);
-    }
-    const percent = getUploadStepProgress(currentUpload.step);
-    overlay.innerHTML = '<div class="pfh-upload-progress-icon">' + iconHtml('upload') + '</div>' +
-      '<div class="pfh-upload-progress-main"><strong>' + escapeHtml(currentUpload.sku + '-' + (currentUpload.step || '\u5904\u7406\u4e2d')) + '</strong>' +
-      '<div><span style="width:' + percent + '%"></span></div></div>' +
-      '<b>' + percent + '%</b>';
-    positionUploadProgressOverlay(panel, overlay);
-    applyThemeToView();
+    const overlay = document.getElementById(PANEL_ID + '-upload-progress');
+    if (overlay) overlay.remove();
   }
 
   function positionUploadProgressOverlay(panel, overlay) {
@@ -8170,8 +8152,9 @@
       const rows = queue.length ? queue.map((item) => {
         const files = getToyEffectUploadEntries(item);
         const statusText = item.step || item.status || '等待上传';
+        const progress = /成功/.test(item.status || '') ? 100 : (/进行中/.test(item.status || '') ? 45 : 0);
         const statusClass = /失败/.test(item.status || '') ? 'is-error' : (/成功/.test(item.status || '') ? 'is-success' : '');
-        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button><strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
       }).join('') : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>';
       const effectHistoryHtml = effectHistoryOpen ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + iconHtml('history') + ' 效果图历史 · ' + effectHistory.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (effectHistory.length ? effectHistory.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status || '已完成') + '</strong><span>' + escapeHtml(entry.name || entry.sourceName || '效果图任务') + ' · ' + getToyEffectUploadEntries(entry).length + ' 张 · ' + escapeHtml(entry.completedAt || entry.updatedAt || '') + '</span></div></div>').join('') : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + '</div></section></div>' : '';
       return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div><div class="pfh-magic-bottom-note"><span>使用 BOM 效果图 API，不走图包上传表格</span><span>不会写入商品主图/SKU图字段</span></div>' + effectHistoryHtml + '</div></section></div>';
@@ -8195,7 +8178,7 @@
       const statusClass = task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '');
       const statusText = task.currentFileName ? (task.step || '上传中') : magicUploadStatusLabel(task);
       const categoriesText = Array.from(new Set(task.files.map((entry) => entry.category).filter((category) => category && category !== '待确认'))).slice(0, 4).join(' · ') || '待确认';
-      return '<article class="pfh-magic-task ' + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge">' + task.files.length + ' 个文件</span></div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+      return '<article class="pfh-magic-task ' + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge">' + task.files.length + ' 个文件</span></div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + iconHtml('history') + ' 上传历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section></div>' : '';
     const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
