@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.76
+// @version      2.6.77
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.76';
+  const SCRIPT_VERSION = '2.6.77';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1548,6 +1548,7 @@
   const USER_INSTANCE_KEY = 'plm-floating-helper:user-instance';
   const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
   const DAILY_LEDGER_TRASH_KEY = 'plm-floating-helper:daily-ledger-trash';
+  const DAILY_LEDGER_SERIES_EXCLUDED_KEY = 'plm-floating-helper:daily-ledger-series-excluded';
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
@@ -3794,6 +3795,7 @@
     magicUploadReplaceId: '',
     ledgerRecords: loadDailyLedger(),
     ledgerTrashRecords: loadDailyLedgerTrash(),
+    ledgerSeriesExcludedSkus: loadLedgerSeriesExcludedSkus(),
     ledgerDate: getTodayKey(),
     ledgerView: 'design',
     ledgerTimeEditor: null,
@@ -8208,7 +8210,7 @@
       '#' + PANEL_ID + ' .pfh-ledger-merge-group b{flex:0 0 auto!important;color:#6336cd!important;font-size:9px!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-merge-group span{overflow:hidden!important;color:#756c88!important;font-size:9px!important;font-weight:500!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-group-highlighted{z-index:4!important;border-color:#7c3aed!important;background:linear-gradient(135deg,#f4efff,#fff)!important;box-shadow:0 0 0 3px rgba(124,58,237,.18),0 16px 34px rgba(91,62,180,.20)!important;transform:scale(1.012)!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-tags .is-extension,#' + PANEL_ID + ' .pfh-ledger-tags .is-performance-group{border-color:#cabcf7!important;background:#f3efff!important;color:#6537ce!important;font-weight:700!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-tags .is-extension,#' + PANEL_ID + ' .pfh-ledger-tags .is-performance-group,#' + PANEL_ID + ' .pfh-ledger-tags .is-series-excluded{border-color:#cabcf7!important;background:#f3efff!important;color:#6537ce!important;font-weight:700!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge{border-color:#a991f4!important;background:#f4f0ff!important;color:#6737d5!important;font-weight:650!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:hover{border-color:#7c3aed!important;background:#ebe4ff!important;color:#5525c4!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:disabled{border-color:#ded9ed!important;background:#f5f4f8!important;color:#aaa5b7!important;cursor:not-allowed!important;opacity:.72!important;}' +
@@ -10717,7 +10719,7 @@
   }
 
   function getLedgerToySeriesKey(record) {
-    if (!record || record.status === '作废' || record.performanceGroupId || record.performanceType === 'extension') return '';
+    if (!record || record.status === '作废' || record.performanceGroupId || record.performanceType === 'extension' || isLedgerSeriesExcluded(record)) return '';
     const cached = normalizeData(loadData(record.sku) || {});
     const toyData = { ...cached, brand: record.brand || cached.brand || '', name: record.name || cached.name || '', isToy: record.isToy };
     // Reuse the smart toy-copywriting classification as well: it includes PLM
@@ -10864,6 +10866,11 @@
     return { labels, recordGroupIds };
   }
 
+  function isLedgerSeriesExcluded(record) {
+    const sku = String(record && record.sku || '').trim().toUpperCase();
+    return Boolean(record && record.seriesExcluded) || Boolean(sku && state.ledgerSeriesExcludedSkus && state.ledgerSeriesExcludedSkus.has(sku));
+  }
+
   function highlightLedgerPerformanceGroup(groupId) {
     const id = String(groupId || '').trim();
     const panel = document.getElementById(PANEL_ID);
@@ -10980,6 +10987,7 @@
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
       (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
       (record.performanceType === 'extension' ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : '') +
+      (isLedgerSeriesExcluded(record) ? '<span class="is-series-excluded" title="已手动剔除自动系列">已剔除系列</span>' : '') +
       (performanceGroupLabels && performanceGroupLabels.get(effectivePerformanceGroupId) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + escapeHtml(performanceGroupLabels.get(effectivePerformanceGroupId)) + '</span>' : '') +
       '</div>';
     const assignmentHtml = '<div class="pfh-ledger-assignment">' + escapeHtml(dateText) +
@@ -11073,8 +11081,10 @@
       : record.finalizedAt
       ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回定稿</button>'
       : (imageGenerated ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回出图</button>' : '');
+    const seriesAction = isLedgerSeriesExcluded(record) ? '恢复自动系列' : '剔除自动系列';
     return '<div class="pfh-ledger-overflow-menu">' + rollback +
       '<button type="button" class="' + (record.performanceType === 'extension' ? 'is-active' : '') + '" data-action="ledger-extension" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + (record.performanceType === 'extension' ? '取消延伸（当前 0.3）' : '延伸（绩效 0.3）') + '</button>' +
+      '<button type="button" class="' + (isLedgerSeriesExcluded(record) ? 'is-active' : '') + '" data-action="ledger-series-exclude" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + seriesAction + '</button>' +
       '<button type="button" data-action="ledger-void" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">作废</button>' +
       '<button type="button" data-action="ledger-done" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">完成</button>' +
       '<button type="button" data-action="ledger-remove" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">移除</button>' +
@@ -13879,7 +13889,7 @@
       else renderShell();
       return;
     }
-    if (action === 'ledger-image-generated' || action === 'ledger-unmark-image-generated' || action === 'ledger-finalize' || action === 'ledger-unfinalize' || action === 'ledger-extension' || action === 'ledger-void' || action === 'ledger-done' || action === 'ledger-remove') {
+    if (action === 'ledger-image-generated' || action === 'ledger-unmark-image-generated' || action === 'ledger-finalize' || action === 'ledger-unfinalize' || action === 'ledger-extension' || action === 'ledger-series-exclude' || action === 'ledger-void' || action === 'ledger-done' || action === 'ledger-remove') {
       const options = {};
       if (action === 'ledger-finalize') {
         const card = actionTarget.closest('.pfh-ledger-item');
@@ -20411,6 +20421,27 @@
     }
   }
 
+  function loadLedgerSeriesExcludedSkus() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(DAILY_LEDGER_SERIES_EXCLUDED_KEY, null)
+        : JSON.parse(localStorage.getItem(DAILY_LEDGER_SERIES_EXCLUDED_KEY) || 'null');
+      return new Set((Array.isArray(saved) ? saved : []).map((sku) => String(sku || '').trim().toUpperCase()).filter(Boolean));
+    } catch (error) {
+      return new Set();
+    }
+  }
+
+  function saveLedgerSeriesExcludedSkus() {
+    const values = Array.from(state.ledgerSeriesExcludedSkus || []).map((sku) => String(sku || '').trim().toUpperCase()).filter(Boolean).slice(0, 1200);
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(DAILY_LEDGER_SERIES_EXCLUDED_KEY, values);
+      else localStorage.setItem(DAILY_LEDGER_SERIES_EXCLUDED_KEY, JSON.stringify(values));
+    } catch (error) {
+      console.warn('PLM floating helper ledger series exclusion save failed:', error);
+    }
+  }
+
   function startDailyLedgerSync() {
     if (typeof GM_addValueChangeListener === 'function') {
       GM_addValueChangeListener(DAILY_LEDGER_KEY, (_name, _oldValue, newValue, remote) => {
@@ -20424,11 +20455,23 @@
         state.ledgerRecords = filterLedgerRecordsNotInTrash(state.ledgerRecords);
         if (state.view === 'ledger') renderShell();
       });
+      GM_addValueChangeListener(DAILY_LEDGER_SERIES_EXCLUDED_KEY, (_name, _oldValue, newValue, remote) => {
+        if (!remote) return;
+        state.ledgerSeriesExcludedSkus = new Set((Array.isArray(newValue) ? newValue : []).map((sku) => String(sku || '').trim().toUpperCase()).filter(Boolean));
+        if (state.view === 'ledger') renderShell();
+      });
     }
     window.addEventListener('storage', (event) => {
-      if (event.key !== DAILY_LEDGER_KEY || typeof GM_getValue === 'function') return;
+      if (typeof GM_getValue === 'function') return;
       try {
-        state.ledgerRecords = filterLedgerRecordsNotInTrash(JSON.parse(event.newValue || '[]'));
+        if (event.key === DAILY_LEDGER_SERIES_EXCLUDED_KEY) {
+          const values = JSON.parse(event.newValue || '[]');
+          state.ledgerSeriesExcludedSkus = new Set((Array.isArray(values) ? values : []).map((sku) => String(sku || '').trim().toUpperCase()).filter(Boolean));
+        } else if (event.key === DAILY_LEDGER_KEY) {
+          state.ledgerRecords = filterLedgerRecordsNotInTrash(JSON.parse(event.newValue || '[]'));
+        } else {
+          return;
+        }
         if (state.view === 'ledger') renderShell();
       } catch (_) {}
     });
@@ -20497,6 +20540,7 @@
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
       performanceGroupId: String(item.performanceGroupId || '').slice(0, 80),
       performanceType: item.performanceType === 'extension' ? 'extension' : '',
+      seriesExcluded: Boolean(item.seriesExcluded),
       isToy: Boolean(item.isToy),
       packageCode: String(item.packageCode || '').slice(0, 120),
       printCode: String(item.printCode || '').slice(0, 180),
@@ -20668,6 +20712,7 @@
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
       filesAutoCompleted: opts.filesAutoCompleted !== undefined ? Boolean(opts.filesAutoCompleted) : Boolean(existing && existing.filesAutoCompleted),
       performanceType: opts.performanceType !== undefined ? (opts.performanceType === 'extension' ? 'extension' : '') : ((existing && existing.performanceType) || ''),
+      seriesExcluded: opts.seriesExcluded !== undefined ? Boolean(opts.seriesExcluded) : (Boolean(existing && existing.seriesExcluded) || Boolean(state.ledgerSeriesExcludedSkus && state.ledgerSeriesExcludedSkus.has(sku))),
       status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
       stage: opts.stage || (existing && existing.stage) || '待定稿',
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
@@ -20858,6 +20903,14 @@
     const todayKey = getTodayKey();
     const key = normalizeLedgerDate(dateKey) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
     const existing = (state.ledgerRecords || []).find((item) => item.date === key && item.sku === sku);
+    const nextSeriesExcluded = action === 'ledger-series-exclude' ? !isLedgerSeriesExcluded(existing || { sku }) : false;
+    if (action === 'ledger-series-exclude') {
+      const excluded = new Set(state.ledgerSeriesExcludedSkus || []);
+      if (nextSeriesExcluded) excluded.add(String(sku).trim().toUpperCase());
+      else excluded.delete(String(sku).trim().toUpperCase());
+      state.ledgerSeriesExcludedSkus = excluded;
+      saveLedgerSeriesExcludedSkus();
+    }
     const patch = action === 'ledger-image-generated'
       ? { status: '待定稿', stage: '待定稿', imageGeneratedAt: today, imageGeneratedAtMs: Date.now(), note: '已出图，等待定稿' }
       : action === 'ledger-unmark-image-generated'
@@ -20869,6 +20922,8 @@
             performanceType: existing && existing.performanceType === 'extension' ? '' : 'extension',
             note: existing && existing.performanceType === 'extension' ? '已取消延伸绩效' : '延伸绩效按 0.3 计算',
           }
+        : action === 'ledger-series-exclude'
+          ? { seriesExcluded: nextSeriesExcluded, note: nextSeriesExcluded ? '已手动剔除自动系列' : '已恢复自动系列' }
           : action === 'ledger-finalize'
             ? { status: '已定稿', stage: '已定稿', finalizedAt: today, finalizedDate: todayKey, finalizedAtMs: Date.now(), note: '手动定稿' }
             : action === 'ledger-void'
@@ -20895,6 +20950,7 @@
     refreshLedgerCard(updatedRecord);
     refreshLedgerPerformanceSummary();
     if (action === 'ledger-extension') showToast(updatedRecord && updatedRecord.performanceType === 'extension' ? '已设为延伸，绩效按 0.3 分计算' : '已取消延伸绩效');
+    if (action === 'ledger-series-exclude') showToast(nextSeriesExcluded ? '已剔除自动系列，按单独产品计算' : '已恢复自动系列匹配');
     if (action === 'ledger-finalize') scheduleDesktopBridgeSnapshot();
   }
 
