@@ -152,10 +152,51 @@ POST /api/Product/UploadArchiveFileFromExternal
 ```http
 POST /api/Product/GenerateFileNameByRule
 POST /api/Common/GetUploadFileInfo
-POST /api/ProjectFormData/GetArchiveFileVersionListByFileVersionId
+POST /api/Product/GetArchiveFileVersionListByFileVersionId
 ```
 
 `GenerateFileNameByRule` 用于生成 PLM 规范文件名；后两个接口用于根据 OSS 路径或文件版本 ID 获取文件信息。
+
+### 产品文案 Word
+
+产品文案不是 `GetDetailContent` 直接返回的文本，而是产品详情字段里的归档附件引用。读取当前 SKU 的 Word 可以按下面的链路执行：
+
+```text
+Product/GetProductList
+→ Product/GetDetailContent
+→ 找到 variable_name=product_description
+→ 读取 attr_language_config_json[language_id=1].value 中的附件 ID
+→ Product/GetArchiveFileVersionListByFileVersionId
+→ 取 file_format=docx 的 file_path
+→ https://oss-pro.plm.westmonth.cn/{file_path}
+→ 下载 DOCX 并解析 word/document.xml
+```
+
+详情字段示例：
+
+```json
+{
+  "variable_name": "product_description",
+  "attr_language_config_json": [
+    { "language_id": 1, "value": [1104246] }
+  ],
+  "archive_type_attr_data": {
+    "name": "产品文案",
+    "file_format": ["doc", "docx", "pdf"]
+  }
+}
+```
+
+根据附件 ID 获取文件信息：
+
+```http
+POST /api/Product/GetArchiveFileVersionListByFileVersionId
+Content-Type: application/json
+
+{"ids":[1104246]}
+```
+
+返回记录包含 `archive_file_version_id`、`file_name`、`file_path`、`file_format`、`create_at` 和 `is_invalid`。当前脚本优先选择匹配 SKU 的最新 `docx`，通过当前登录态读取接口和 OSS 文件，不保存 Cookie、Authorization 或临时密钥；API 失败时才回退到详情抽屉里的下载动作。
 
 ## 当前用户脚本的读取链路
 
@@ -166,6 +207,8 @@ POST /api/ProjectFormData/GetArchiveFileVersionListByFileVersionId
 → Product/GetProductList
 → Product/GetDetailContent
 → 读取 suttle / rough_weight
+→ Product/GetArchiveFileVersionListByFileVersionId
+→ 下载并解析产品文案 DOCX
 → 保存 SKU 缓存
 ```
 

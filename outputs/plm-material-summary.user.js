@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.70
+// @version      2.6.71
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.70';
+  const SCRIPT_VERSION = '2.6.71';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -50,6 +50,8 @@
   const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const apiProjectMaterialCache = Object.create(null);
+  const apiCopywritingFileCache = Object.create(null);
+  const PLM_ARCHIVE_OSS_ORIGIN = 'https://oss-pro.plm.westmonth.cn';
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
   // <parameter-logo-assets-module>
@@ -5356,6 +5358,129 @@
       ...(grossWeight ? { grossWeight } : {}),
       ...(netContent || grossWeight ? { apiProductSource: 'plm-product-detail-content' } : {}),
     };
+  }
+
+  function collectApiCopywritingFileIds(value, ids) {
+    if (value === null || value === undefined) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => collectApiCopywritingFileIds(item, ids));
+      return;
+    }
+    if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+      ids.push(String(value));
+      return;
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+      ids.push(value.trim());
+      return;
+    }
+    if (typeof value !== 'object') return;
+    ['archive_file_version_id', 'file_version_id', 'id'].forEach((key) => {
+      if (value[key] !== undefined && value[key] !== null) collectApiCopywritingFileIds(value[key], ids);
+    });
+  }
+
+  function extractApiCopywritingFileIds(payload) {
+    const ids = [];
+    const visit = (value) => {
+      if (!value || typeof value !== 'object') return;
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+        return;
+      }
+      const variableName = String(value.variable_name || '').trim();
+      const attrName = compactText(value.attr_name);
+      if (variableName === 'product_description' || attrName === '\u4ea7\u54c1\u6587\u6848') {
+        const languageValues = Array.isArray(value.attr_language_config_json) ? value.attr_language_config_json : [];
+        const preferred = languageValues.find((item) => Number(item && item.language_id) === 1 && item.value != null)
+          || languageValues.find((item) => item && item.value != null);
+        collectApiCopywritingFileIds(preferred && preferred.value, ids);
+        return;
+      }
+      Object.keys(value).forEach((key) => visit(value[key]));
+    };
+    visit(payload);
+    return ids.filter((id, index, list) => list.indexOf(id) === index);
+  }
+
+  function getApiArchiveFileRecords(payload) {
+    const data = payload && payload.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.list)) return data.list;
+    if (payload && Array.isArray(payload.list)) return payload.list;
+    return [];
+  }
+
+  function buildApiArchiveFileUrl(filePath) {
+    const text = String(filePath || '').trim().replace(/^\/+/, '');
+    if (!text) return '';
+    if (/^https?:\/\//i.test(text)) return text;
+    return PLM_ARCHIVE_OSS_ORIGIN + '/' + text;
+  }
+
+  async function fetchApiCopywritingFile(data, options) {
+    const sku = String(data && data.sku || '').trim();
+    if (!sku) return null;
+    if (options && options.force) delete apiCopywritingFileCache[sku];
+    if (!apiCopywritingFileCache[sku]) {
+      const request = (async () => {
+        addLog('info', '产品文案 API：开始读取产品关联', sku);
+        const productPayload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(sku));
+        const list = productPayload && productPayload.data && Array.isArray(productPayload.data.list) ? productPayload.data.list : [];
+        const product = list.find((item) => String(item && (item.product_code || item.code) || '').trim() === sku) || list[0] || {};
+        const productId = product.product_id;
+        const productVersionId = product.product_version_id;
+        const categoryId = product.category_id;
+        if (!productId || !productVersionId || !categoryId) {
+          throw new Error('产品列表缺少详情关联');
+        }
+        addLog('info', '产品文案 API：读取产品详情字段', sku + ' | product_id=' + productId + ' | category_id=' + categoryId);
+        const contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId));
+        const ids = extractApiCopywritingFileIds(contentPayload);
+        if (!ids.length) {
+          addLog('info', '产品文案 API：详情中没有关联 Word', sku);
+          return { found: false, reason: '产品文案字段没有附件 ID' };
+        }
+        addLog('info', '产品文案 API：找到文案附件 ID', sku + ' | ids=' + ids.join(','));
+        const filePayload = await fetchPlmApiJson('/api/Product/GetArchiveFileVersionListByFileVersionId', { ids: ids.map((id) => Number(id)) });
+        const records = getApiArchiveFileRecords(filePayload)
+          .filter((item) => item && !Number(item.is_invalid || 0))
+          .filter((item) => /\.docx$/i.test(String(item.file_name || '')) || String(item.file_format || '').toLowerCase() === 'docx');
+        const skuMatches = records.filter((item) => !sku || new RegExp(escapeRegExp(sku), 'i').test(String(item.file_name || '')));
+        const candidates = skuMatches.length ? skuMatches : records;
+        const file = candidates.sort((a, b) => {
+          const aStamp = extractCopywritingFileTimestamp(a.file_name) || String(a.create_at || '');
+          const bStamp = extractCopywritingFileTimestamp(b.file_name) || String(b.create_at || '');
+          return bStamp.localeCompare(aStamp);
+        })[0];
+        if (!file) {
+          addLog('info', '产品文案 API：附件列表中没有 docx', sku + ' | records=' + records.length);
+          return { found: false, reason: '附件列表中没有 docx' };
+        }
+        const url = buildApiArchiveFileUrl(file.file_path);
+        if (!url) throw new Error('文案附件缺少 file_path');
+        const fileName = String(file.file_name || '').trim();
+        addLog('info', '产品文案 API：命中文案 Word', sku + ' | ' + fileName + ' | ' + redactCopywritingUrl(url));
+        return {
+          found: true,
+          fileName,
+          filePath: String(file.file_path || ''),
+          fileFormat: String(file.file_format || 'docx'),
+          fileId: String(file.archive_file_version_id || ''),
+          fileTimestamp: extractCopywritingFileTimestamp(fileName),
+          createdAt: String(file.create_at || ''),
+          url,
+          source: 'plm-api',
+        };
+      })();
+      const task = request.finally(() => {
+        // Keep this cache only for concurrent callers.  A later 30-minute
+        // refresh must query the current attachment metadata again.
+        if (apiCopywritingFileCache[sku] === task) delete apiCopywritingFileCache[sku];
+      });
+      apiCopywritingFileCache[sku] = task;
+    }
+    return apiCopywritingFileCache[sku];
   }
 
   function getApiMaterialUnitIssue(item) {
@@ -11367,6 +11492,65 @@
     menu.style.top = Math.max(8, Math.min(event.clientY - panelRect.top, panelRect.height - menuRect.height - 8)) + 'px';
   }
 
+  async function tryHydrateCopywritingFromApi(sku, options) {
+    const opts = options || {};
+    const normalizedSku = String(sku || '').trim();
+    if (!normalizedSku) return { handled: false };
+    const updateStatus = (message) => {
+      if (typeof opts.onStatus === 'function') opts.onStatus(message);
+    };
+    const workingData = normalizeData(opts.data || loadData(normalizedSku) || { sku: normalizedSku });
+    const cached = normalizeCopywritingRecord(workingData.copywriting);
+    let file;
+    try {
+      updateStatus('正在通过 PLM API 定位产品文案 Word...');
+      file = await fetchApiCopywritingFile(workingData, { force: Boolean(opts.force) });
+    } catch (error) {
+      addLog('warn', '产品文案 API：定位失败，改用页面下载', normalizedSku + ' | ' + formatErrorMessage(error));
+      return { handled: false, error };
+    }
+    if (!file || !file.found) return { handled: false, noFile: true };
+    const fileName = file.fileName;
+    const fileTimestamp = file.fileTimestamp || '';
+    const sameFile = Boolean(cached && cached.fullText
+      && cached.parserVersion === COPYWRITING_PARSER_VERSION
+      && compactText(cached.fileName).toLowerCase() === compactText(fileName).toLowerCase());
+    if (!opts.force && sameFile) {
+      const next = markCopywritingCheckedAt(workingData, cached, Date.now());
+      addLog('info', '产品文案 API：命中历史缓存', normalizedSku + ' | ' + fileName);
+      return { handled: true, skipped: true, data: next, file };
+    }
+    if (!opts.force && cached && cached.fileTimestamp && fileTimestamp && fileTimestamp < cached.fileTimestamp) {
+      const next = markCopywritingCheckedAt(workingData, cached, Date.now());
+      addLog('warn', '产品文案 API：当前 Word 早于缓存，保留较新文案', normalizedSku + ' | ' + fileName + ' < ' + cached.fileName);
+      return { handled: true, skipped: true, older: true, data: next, file };
+    }
+    try {
+      updateStatus('正在通过 API 下载 Word ' + fileName);
+      const arrayBuffer = await withCopywritingTimeout(downloadCopywritingDocument(file.url), 18000, 'API Word 文件读取');
+      if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('API 返回内容不是有效 Word 文件');
+      updateStatus('正在解析 API Word 表格...');
+      addLog('info', '产品文案 API：开始解析 Word', normalizedSku + ' | ' + fileName + ' | ' + arrayBuffer.byteLength + 'B');
+      const fileHash = await hashCopywritingBuffer(arrayBuffer);
+      const parsedDocument = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, 'API Word 表格解析');
+      const built = buildMainstreamCopywriting(parsedDocument, workingData);
+      if (!built.sections.length) throw new Error('API Word 中未识别到主流版文案字段');
+      const nextRecord = buildCopywritingRecord(fileName, fileTimestamp, fileHash, built, cached);
+      const next = mergeCopywritingCacheIntoData(workingData, nextRecord);
+      saveData(normalizedSku, next);
+      const updated = Boolean(cached && cached.fullText && nextRecord.updatePending && (
+        nextRecord.fileHash !== cached.fileHash
+        || nextRecord.fileName !== cached.fileName
+        || nextRecord.fullText !== cached.fullText
+      ));
+      addLog('info', updated ? '产品文案 API：检测到更新' : '产品文案 API：读取成功', normalizedSku + ' | ' + fileName + ' | ' + built.sections.length + '段');
+      return { handled: true, data: next, updated, file };
+    } catch (error) {
+      addLog('warn', '产品文案 API：Word 读取失败，改用页面下载', normalizedSku + ' | ' + formatErrorMessage(error));
+      return { handled: false, error, file };
+    }
+  }
+
   async function openCopywritingFromCurrent(force) {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) {
@@ -11415,6 +11599,22 @@
     }
     addLog('info', '产品文案：开始读取', sku + (force ? ' 重新获取' : ''));
     try {
+      const apiResult = await tryHydrateCopywritingFromApi(sku, {
+        force: Boolean(force),
+        data: normalizeData(loadData(sku) || state.data || data),
+        onStatus: (message) => {
+          state.copywritingStatus = message;
+          renderShell();
+        },
+      });
+      if (apiResult && apiResult.handled) {
+        state.data = normalizeData(apiResult.data || loadData(sku) || data);
+        state.copywritingStatus = '';
+        state.copywritingError = '';
+        if (!apiResult.skipped) showToast(apiResult.updated ? '文案已更新，差异已高亮' : '文案读取成功');
+        renderShell();
+        return;
+      }
       let drawer = getProjectDrawerForSku(sku);
       if (!drawer) {
         await openSelectedProjectDetail({ preserveCopywriting: hasCachedCopywriting });
@@ -11603,12 +11803,26 @@
     const recentData = normalizeData(loadData(sku) || {});
     const recentRecord = normalizeCopywritingRecord(recentData.copywriting);
     if (!opts.force && isCopywritingCheckFresh(recentRecord)) return recentData;
-    if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
-    const drawer = opts.drawer || getProjectDrawerForSku(sku);
-    if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
     state.copywritingHydratingSkus.add(sku);
-    const originalTab = getActiveTabText(drawer);
+    let drawer = null;
+    let originalTab = '';
     try {
+      if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
+      const apiResult = await tryHydrateCopywritingFromApi(sku, {
+        force: Boolean(opts.force),
+        data: recentData,
+        onStatus: !opts.silent ? (message) => {
+          state.copywritingStatus = message;
+          renderShell();
+        } : null,
+      });
+      if (apiResult && apiResult.handled) {
+        delete state.copywritingHydrateFailedAt[sku];
+        return normalizeData(apiResult.data || loadData(sku) || recentData);
+      }
+      drawer = opts.drawer || getProjectDrawerForSku(sku);
+      if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
+      originalTab = getActiveTabText(drawer);
       if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab) return normalizeData(loadData(sku) || {});
       if (!opts.file) await switchDrawerTab(drawer, L.productTab);
       if (!opts.file) await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
