@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.88
+// @version      2.6.89
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.88';
+  const SCRIPT_VERSION = '2.6.89';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1565,7 +1565,6 @@
     '英文参数图': { rule: '英文参数图', archiveTypeId: 1 },
     '详情图': { rule: '详情图', archiveTypeId: 1 },
     'SKU图': { rule: 'SKU图', archiveTypeId: 1 },
-    '效果图': { rule: '效果图', archiveTypeId: 0, uploadType: 'effectPicture' },
     '产品参数图': { rule: '产品参数图', archiveTypeId: 1 },
     '视频': { rule: '视频', archiveTypeId: 3 },
     '动图': { rule: '动图', archiveTypeId: 3 },
@@ -7537,6 +7536,11 @@
       root + '.pfh-magic-lab-title em{display:inline-flex;margin-left:7px;padding:3px 8px;border:1px solid rgba(112,86,232,.2);border-radius:999px;background:rgba(112,86,232,.09);color:#7056e8;font-size:9px;font-style:normal;font-weight:900;letter-spacing:.12em;vertical-align:middle}',
       root + '.pfh-magic-pipeline{display:inline-flex;align-items:center;gap:6px;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.16em;white-space:nowrap}',
       root + '.pfh-magic-pipeline:before{content:"";width:7px;height:7px;border-radius:50%;background:#49c7bc;box-shadow:0 0 0 5px rgba(73,199,188,.16)}',
+      root + '.pfh-magic-mode-tabs{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:min(100%,260px);margin:0 0 18px;padding:4px;border:1px solid rgba(26,35,68,.08);border-radius:16px;background:rgba(29,34,50,.045);isolation:isolate}',
+      root + '.pfh-magic-mode-tabs:before{content:"";position:absolute;z-index:-1;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 2);border-radius:12px;background:#fff;box-shadow:0 8px 18px rgba(45,37,100,.1);transition:transform .28s ease}',
+      root + '.pfh-magic-mode-tabs.is-effect:before{transform:translateX(100%)}',
+      root + '.pfh-magic-mode-tabs button{position:relative;border:0;background:transparent;color:#8990a6;padding:8px 10px;border-radius:12px;font-size:11px;font-weight:900;cursor:pointer}',
+      root + '.pfh-magic-mode-tabs button.is-active{color:#7056e8}',
       root + '.pfh-magic-shell{display:grid;grid-template-columns:1fr;gap:0;align-items:start}',
       root + '.pfh-magic-main-card,.pfh-magic-side,.pfh-magic-overview{border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}',
       root + '.pfh-magic-main-card{padding:0;overflow:visible}',
@@ -7917,11 +7921,6 @@
     return item || (extension === '.zip' ? MAGIC_UPLOAD_CATEGORIES['图包素材'] : null);
   }
 
-  function isMagicUploadEffectPictureCategory(category) {
-    const rule = MAGIC_UPLOAD_CATEGORIES[String(category || '')];
-    return Boolean(rule && rule.uploadType === 'effectPicture');
-  }
-
   function createMagicUploadId() {
     return 'magic-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
   }
@@ -8150,6 +8149,25 @@
 
   function magicUploadViewHtml() {
     if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></div></div></section></div>';
+    const magicMode = state.magicUploadMode === 'effect' ? 'effect' : 'package';
+    const modeTabs = '<div class="pfh-magic-mode-tabs ' + (magicMode === 'effect' ? 'is-effect' : '') + '"><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + (magicMode === 'package' ? 'is-active' : '') + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + (magicMode === 'effect' ? 'is-active' : '') + '">效果图</button></div>';
+    if (magicMode === 'effect') {
+      const uploadQueue = loadUploadQueue();
+      const queue = uploadQueue.filter((item) => item.kind === 'toy-effect' && !/\u6210\u529f/.test(item.status || ''));
+      const running = loadUploadWorkerRunning('toy-effect');
+      const totalFiles = queue.reduce((sum, item) => sum + getToyEffectUploadEntries(item).length, 0);
+      const doneCount = queue.filter((item) => /成功/.test(item.status || '')).length;
+      const waitingCount = queue.filter((item) => !isUploadItemReady(item)).length;
+      const errorCount = queue.filter((item) => /失败/.test(item.status || '')).length;
+      const rows = queue.length ? queue.map((item) => {
+        const files = getToyEffectUploadEntries(item);
+        const statusText = item.step || item.status || '等待上传';
+        const progress = /成功/.test(item.status || '') ? 100 : (/进行中/.test(item.status || '') ? 45 : 0);
+        const statusClass = /失败/.test(item.status || '') ? 'is-error' : (/成功/.test(item.status || '') ? 'is-success' : '');
+        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+      }).join('') : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>';
+      return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div><div class="pfh-magic-bottom-note"><span>使用 BOM 效果图 API，不走图包上传表格</span><span>不会写入商品主图/SKU图字段</span></div></div></section></div>';
+    }
     const queue = state.magicUploadQueue || [];
     const running = Boolean(state.magicUploadRunning);
     const pendingCount = queue.filter((task) => task.status === 'pending' || task.status === 'error').length;
@@ -8173,7 +8191,7 @@
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
     const historyHtml = historyOpen ? '<section class="pfh-magic-history"><div class="pfh-magic-history-head"><span>' + iconHtml('history') + ' 上传历史</span><span>' + history.length + ' 条</span></div><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 30).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section>' : '';
     const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + (historyOpen ? '收起历史' : '上传历史') + '</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></div></section></div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + (historyOpen ? '收起历史' : '上传历史') + '</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></div></section></div>';
   }
 
   function saveMagicUploadTaskEdits(id) {
@@ -8504,7 +8522,6 @@
       if (!list.some((item) => String(item) === String(normalized))) list.push(normalized);
     };
     (task && task.files || []).forEach((entry) => {
-      if (entry && isMagicUploadEffectPictureCategory(entry.category)) return;
       if (!entry || entry.category === '待确认' || !entry.fileVersionId) return;
       add(entry.category, entry.fileVersionId);
     });
@@ -8624,7 +8641,7 @@
     const data = normalizeData(loadData(task.sku) || {});
     const projectId = getProjectIdForMaterialApi(data);
     const productContext = await resolveMagicUploadProductContext(task);
-    const staleEntries = (task.files || []).filter((entry) => !isMagicUploadEffectPictureCategory(entry.category) && entry.status === 'success'
+    const staleEntries = (task.files || []).filter((entry) => entry.status === 'success'
       && (!entry.fileVersionId || (entry.generatedName && !isMagicGeneratedNameForSku(entry.generatedName, task.sku))));
     if (staleEntries.length) {
       staleEntries.forEach((entry) => {
@@ -8657,7 +8674,7 @@
     await hydrateMagicUploadTaskMetrics(task);
     updateMagicUploadProgress(task);
     const entries = (task.files || []).filter((entry) => entry.status !== 'success');
-    if (entries.some((entry) => entry.category === '待确认' || (!entry.archiveTypeId && !isMagicUploadEffectPictureCategory(entry.category)))) throw new Error('存在待确认文件分类');
+    if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
     for (let index = 0; index < entries.length; index += 1) {
       if (!state.magicUploadRunning) throw new Error('已暂停');
       const entry = entries[index];
@@ -8748,67 +8765,6 @@
     };
   }
 
-  async function saveMagicUploadEffectPictureFiles(task, objectNames) {
-    const projectId = task.projectId || getProjectIdForMaterialApi(loadData(task.sku) || {});
-    if (!projectId) throw new Error('缺少项目 ID，无法保存效果图');
-    const paths = (Array.isArray(objectNames) ? objectNames : [objectNames]).map(normalizeMagicUploadEffectPath).filter(Boolean);
-    if (!paths.length) return;
-    const [materialsPayload, existingPayload] = await Promise.all([
-      fetchPlmJson('/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
-      fetchPlmJson('/api/ChemicalNew/GetProjectEffectPicture?id=' + encodeURIComponent(projectId)),
-    ]);
-    const materials = Array.isArray(materialsPayload && materialsPayload.data) ? materialsPayload.data : [];
-    if (!materials.length) throw new Error('未读取到 BOM 物料列表，无法保存效果图');
-    const effectPictureFiles = [];
-    const seen = new Set();
-    const addPath = (value) => {
-      const normalized = normalizeMagicUploadEffectPath(value);
-      if (!normalized || seen.has(normalized)) return;
-      seen.add(normalized);
-      effectPictureFiles.push(normalized);
-    };
-    (Array.isArray(existingPayload && existingPayload.data) ? existingPayload.data : []).forEach(addPath);
-    paths.forEach(addPath);
-    await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
-      project_id: Number(projectId) || projectId,
-      materials: materials.map(buildMagicUploadBomMaterialPayload),
-      effect_picture_files: effectPictureFiles,
-    });
-    magicUploadLog('info', '效果图保存到 BOM 完成', task.sku + ' | projectId=' + projectId + ' | 效果图=' + paths.length);
-  }
-
-  async function uploadMagicUploadEffectPictureFile(task, entry, file) {
-    const uploadStartedAt = Date.now();
-    const extension = getMagicUploadFileExtension(file.name || entry.name);
-    if (!/\.(?:jpe?g|png|bmp)$/i.test(extension)) throw new Error('效果图仅支持 JPG / PNG / BMP：' + (entry.name || file.name));
-    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 40 });
-    const secret = secretPayload && secretPayload.data;
-    if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到效果图 OSS 临时授权');
-    const uploadMaxBytes = Number(secret.max_file_size) || (20 * 1024 * 1024);
-    if (file.size > uploadMaxBytes) throw new Error('效果图超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
-    if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
-    const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
-    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
-    await client.multipartUpload(objectName, file, {
-      partSize: 2 * 1024 * 1024,
-      parallel: 2,
-      progress: (percent) => {
-        task.currentFileProgress = Math.min(1, Math.max(0, Number(percent) || 0));
-        updateMagicUploadProgress(task);
-      },
-    });
-    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 40, oss_path: objectName, original_file_name: file.name || entry.name });
-    await saveMagicUploadEffectPictureFiles(task, [objectName]);
-    entry.fileSavePath = objectName;
-    entry.generatedName = file.name || entry.name || '';
-    task.currentFileProgress = 1;
-    task.uploadedBytes = (Number(task.uploadedBytes) || 0) + entry.size;
-    recordMagicUploadMetric(task, entry, Date.now() - uploadStartedAt);
-    updateMagicUploadTaskEstimate(task);
-    magicUploadLog('info', '效果图上传并保存完成', task.sku + ' | ' + objectName);
-    return objectName;
-  }
-
   async function uploadMagicUploadFile(task, entry, file, productContext) {
     const uploadStartedAt = Date.now();
     entry.size = Number(entry.size) || Number(file && file.size) || 0;
@@ -8820,7 +8776,6 @@
     const category = entry.category || (extension === '.zip' ? '图包素材' : '待确认');
     const rule = getMagicUploadRule(category, extension);
     if (!rule) throw new Error('无法确定上传区域：' + (entry.name || file.name));
-    if (isMagicUploadEffectPictureCategory(category)) return uploadMagicUploadEffectPictureFile(task, entry, file);
     const context = productContext || await resolveMagicUploadProductContext(task);
     magicUploadLog('info', '开始上传文件', task.sku + ' | ' + category + ' | ' + (file.name || entry.name));
     const namePayload = await fetchPlmApiJson('/api/Product/GenerateFileNameByRule', {
@@ -14531,6 +14486,21 @@
       if (input) input.click();
       return;
     }
+    if (action === 'magic-upload-mode') {
+      state.magicUploadMode = actionTarget.getAttribute('data-magic-mode') === 'effect' ? 'effect' : 'package';
+      renderShell();
+      return;
+    }
+    if (action === 'magic-effect-start') {
+      state.uploadMode = 'toy-effect';
+      startUploadQueue();
+      return;
+    }
+    if (action === 'magic-effect-pause') {
+      state.uploadMode = 'toy-effect';
+      pauseUploadQueue();
+      return;
+    }
     if (action === 'magic-upload-replace') {
       state.magicUploadReplaceId = actionTarget.getAttribute('data-magic-id') || '';
       const input = ensurePanel().querySelector('.pfh-magic-upload-file');
@@ -14584,6 +14554,7 @@
       }
       state.view = 'magicUpload';
       state.uploadReturnView = '';
+      state.magicUploadMode = state.magicUploadMode === 'effect' ? 'effect' : 'package';
       expandPanel();
       renderShell();
       return;
@@ -15503,6 +15474,10 @@
         magicUploadLog('info', '通过文件选择器收到文件', files.map((file) => file.name + '|' + file.type + '|' + file.size).join('；') || '没有文件');
         processMagicUploadZipFiles(files);
       }
+      else if (kind === 'magic-effect') {
+        magicUploadLog('info', '效果图文件选择', files.map((file) => file.name + '|' + file.type + '|' + file.size).join('；') || '没有文件');
+        stageToyEffectUploadFiles(files, { stayInMagic: true });
+      }
       else if (kind === 'copyright') stageCopyrightUploadFiles(files);
       else if (kind === 'toy-effect') stageToyEffectUploadFiles(files);
       else processQueuedUploadFiles(files);
@@ -15568,12 +15543,14 @@
       const drop = event.target.closest('.pfh-magic-upload-drop');
       drop.classList.remove('is-drag-over');
       const rawFiles = Array.from(event.dataTransfer && event.dataTransfer.files || []);
-      const files = rawFiles.filter((file) => /\.(?:zip|xlsx)$/i.test(file.name || ''));
+      const isEffectDrop = drop.getAttribute('data-upload-drop') === 'magic-effect';
+      const files = isEffectDrop ? rawFiles.filter(isToyEffectImageFile) : rawFiles.filter((file) => /\.(?:zip|xlsx)$/i.test(file.name || ''));
       magicUploadLog('info', '收到拖拽文件', rawFiles.map((file) => [file.name || '无文件名', file.type || '无类型', file.size || 0].join('|')).join('；') || '没有文件');
-      if (files.length) processMagicUploadZipFiles(files);
+      if (files.length && isEffectDrop) stageToyEffectUploadFiles(files, { stayInMagic: true });
+      else if (files.length) processMagicUploadZipFiles(files);
       else {
-        magicUploadLog('warn', '拖拽内容不是 ZIP/XLSX', rawFiles.map((file) => file.name || file.type || '未知').join('；') || '浏览器未提供文件');
-        showToast('魔法上传只接受 ZIP 图包或 XLSX');
+        magicUploadLog('warn', isEffectDrop ? '拖拽内容不是效果图' : '拖拽内容不是 ZIP/XLSX', rawFiles.map((file) => file.name || file.type || '未知').join('；') || '浏览器未提供文件');
+        showToast(isEffectDrop ? '效果图只接受 JPG / PNG / BMP' : '魔法上传只接受 ZIP 图包或 XLSX');
       }
       return;
     }
@@ -16060,7 +16037,8 @@
     return true;
   }
 
-  async function stageToyEffectUploadFiles(files) {
+  async function stageToyEffectUploadFiles(files, options) {
+    const stayInMagic = Boolean(options && options.stayInMagic);
     const candidatesFiles = Array.from(files || []).filter(isToyEffectImageFile);
     const supported = candidatesFiles.filter((file) => file.size <= 50 * 1024 * 1024);
     if (!supported.length) {
@@ -16084,6 +16062,10 @@
       }
       state.uploadMode = 'toy-effect';
       state.uploadView = 'queue';
+      if (stayInMagic) {
+        state.view = 'magicUpload';
+        state.magicUploadMode = 'effect';
+      }
       state.uploadPage = 1;
       state.uploadQueue = queue;
       state.toyEffectMatchStatus = unmatched.length ? '\u672a\u5339\u914d\uff1a' + unmatched.slice(0, 4).join('\u3001') + (unmatched.length > 4 ? '\u2026' : '') : '';
@@ -16689,11 +16671,13 @@
           console.warn('PLM floating helper upload queue item failed, continue next:', error);
           markUploadQueueBlocked(item, L.uploadFailed, message);
           let closeFailure = null;
-          try {
-            await closeTopProductDrawer({ skipDraftSave: true });
-          } catch (closeError) {
-            closeFailure = closeError;
-            console.warn('PLM floating helper close failed after item error:', closeError);
+          if (workerMode !== 'toy-effect') {
+            try {
+              await closeTopProductDrawer({ skipDraftSave: true });
+            } catch (closeError) {
+              closeFailure = closeError;
+              console.warn('PLM floating helper close failed after item error:', closeError);
+            }
           }
           if (closeFailure || getVisibleModal() || getOpenProductDrawer()) {
             const closeMessage = closeFailure && closeFailure.message
@@ -16763,6 +16747,59 @@
     return blob ? { filename: entry.filename, blob } : null;
   }
 
+  function getToyEffectProjectId(data) {
+    return getProjectIdForMaterialApi(data) || String(data && (data.projectRowId || data.projectId || data.id) || '');
+  }
+
+  async function saveToyEffectPicturesByApi(data, objectNames) {
+    const projectId = getToyEffectProjectId(data);
+    if (!projectId) throw new Error('缺少项目 ID，无法保存 BOM 效果图');
+    const paths = (Array.isArray(objectNames) ? objectNames : [objectNames]).map(normalizeMagicUploadEffectPath).filter(Boolean);
+    if (!paths.length) return;
+    const [materialsPayload, existingPayload] = await Promise.all([
+      fetchPlmJson('/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
+      fetchPlmJson('/api/ChemicalNew/GetProjectEffectPicture?id=' + encodeURIComponent(projectId)),
+    ]);
+    const materials = Array.isArray(materialsPayload && materialsPayload.data) ? materialsPayload.data : [];
+    if (!materials.length) throw new Error('未读取到 BOM 物料列表，无法保存效果图');
+    const effectPictureFiles = [];
+    const seen = new Set();
+    const addPath = (value) => {
+      const normalized = normalizeMagicUploadEffectPath(value);
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      effectPictureFiles.push(normalized);
+    };
+    (Array.isArray(existingPayload && existingPayload.data) ? existingPayload.data : []).forEach(addPath);
+    paths.forEach(addPath);
+    await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
+      project_id: Number(projectId) || projectId,
+      materials: materials.map(buildMagicUploadBomMaterialPayload),
+      effect_picture_files: effectPictureFiles,
+    });
+  }
+
+  async function uploadToyEffectFileByApi(item, data, entry, file, index, total) {
+    const extension = getMagicUploadFileExtension(file.name || entry.name);
+    if (!/\.(?:jpe?g|png|bmp)$/i.test(extension)) throw new Error('效果图仅支持 JPG / PNG / BMP：' + (entry.name || file.name));
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u83b7\u53d6\u6548\u679c\u56fe OSS \u6388\u6743 ' + index + '/' + total);
+    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 40 });
+    const secret = secretPayload && secretPayload.data;
+    if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到效果图 OSS 临时授权');
+    const uploadMaxBytes = Number(secret.max_file_size) || (20 * 1024 * 1024);
+    if (file.size > uploadMaxBytes) throw new Error('效果图超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
+    if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
+    const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
+    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
+    await client.multipartUpload(objectName, file, {
+      partSize: 2 * 1024 * 1024,
+      parallel: 2,
+      progress: (percent) => updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u6548\u679c\u56fe ' + index + '/' + total + ' · ' + Math.round(Math.min(1, Math.max(0, Number(percent) || 0)) * 100) + '%'),
+    });
+    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 40, oss_path: objectName, original_file_name: file.name || entry.name });
+    return objectName;
+  }
+
   async function runToyEffectQueueItem(item) {
     const cached = loadData(item && item.sku) || (state.index || []).find((entry) => entry.sku === (item && item.sku)) || {};
     const data = normalizeData({
@@ -16785,30 +16822,20 @@
       }
       files.push({ entry, file });
     }
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6253\u5f00\u8bbe\u8ba1\u4efb\u52a1\u5e76\u5b9a\u4f4d BOM');
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u901a\u8fc7 API \u4e0a\u4f20 BOM \u6548\u679c\u56fe');
     state.selectedSku = data.sku;
     state.sku = data.sku;
     state.data = data;
-    state.view = 'detail';
-    resetExcelState();
-    const drawer = await ensureProjectBomDrawerForData(data);
-    if (!drawer) throw new Error('\u672a\u6253\u5f00\u5bf9\u5e94 SKU \u7684\u7ed1BOM');
-    const uploadItem = await waitFor(() => findBomEffectUploadItem(drawer), 12000, 250);
-    if (!uploadItem) throw new Error('\u672a\u627e\u5230\u7ed1BOM\u4e2d\u6548\u679c\u56fe\u4e0a\u4f20\u52a0\u53f7');
-    uploadItem.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const uploadedPaths = [];
     for (let index = 0; index < files.length; index += 1) {
       const current = files[index];
-      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u6548\u679c\u56fe ' + (index + 1) + '/' + files.length);
-      await putFileIntoUploadItem(uploadItem, current.file, current.entry.name || current.file.name);
-      await waitUploadItemDone(uploadItem, current.entry.name || current.file.name, 180000);
+      uploadedPaths.push(await uploadToyEffectFileByApi(item, data, current.entry, current.file, index + 1, files.length));
     }
-    await wait(800);
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6279\u91cf\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
-    await saveProjectBomDrawer(drawer);
-    await closeProjectBomDrawer(drawer);
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
+    await saveToyEffectPicturesByApi(data, uploadedPaths);
     archiveUploadItem(item);
-    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f', data.sku);
-    showToast(data.sku + ' \u73a9\u5177\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f');
+    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f', data.sku + ' | ' + uploadedPaths.length + ' 张');
+    showToast(data.sku + ' \u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f');
   }
 
   async function runCopyrightUploadQueueItem(item) {

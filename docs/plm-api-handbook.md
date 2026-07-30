@@ -175,7 +175,7 @@ POST /api/Product/GetArchiveFileVersionListByFileVersionId
 
 ### BOM 效果图上传
 
-效果图不走 `Product/UploadArchiveFileFromExternal`，也不会返回 `file_version_id`。页面抓包确认的链路是：
+效果图不走 `Product/UploadArchiveFileFromExternal`，也不会返回 `file_version_id`。它属于 BOM 效果图/玩具效果图上传链路，和图包 ZIP、商品主图、SKU 图、详情图等归档上传不是同一套接口。页面抓包确认的链路是：
 
 ```text
 ChemicalNewDesignTask/GetProjectPMJoinList?id={project_id}
