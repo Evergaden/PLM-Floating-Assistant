@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.63
+// @version      2.6.64
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.63';
+  const SCRIPT_VERSION = '2.6.64';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -9410,7 +9410,7 @@
     if (!applyAll) throw new Error(label + '未找到「全部应用」');
     await waitFor(() => !/应用成功/.test(getPlmNoticeText()), 5000, 100);
     clickElement(applyAll);
-    const applied = await waitFor(() => /应用成功/.test(getPlmNoticeText()), 15000, 100);
+    const applied = await waitFor(() => /应用成功/.test(getPlmNoticeText()), 45000, 100);
     if (!applied) throw new Error(label + '点击全部应用后未收到「应用成功」');
     if (!(await closeToyImagePreviewIfPresent())) throw new Error(label + '图片预览未关闭');
     return true;
