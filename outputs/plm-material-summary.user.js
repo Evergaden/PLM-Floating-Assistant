@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.65
+// @version      2.6.66
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.65';
+  const SCRIPT_VERSION = '2.6.66';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5495,24 +5495,41 @@
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
     try {
-      const requestHeaders = {
+      const baseRequestHeaders = {
         Accept: 'application/json, text/plain, */*',
         'x-app-code': 'PLM',
         'x-tenant-code': 'xy',
         'x-tenant-id': 'xy',
-        ...getPlmAuthHeaders(),
       };
-      let pageRequestError = null;
-      try {
+      const capturedAuthHeaders = getPlmAuthHeaders();
+      const requestFromPage = async (headers) => {
         const response = await fetch(url, {
           credentials: 'include',
-          headers: requestHeaders,
+          headers,
           signal: controller ? controller.signal : undefined,
         });
         if (!response.ok) throw new Error('HTTP ' + response.status);
-        return await response.json();
+        return response.json();
+      };
+
+      // PLM periodically rotates its page authorization header.  Prefer the
+      // browser's live cookie session so a stale captured header cannot turn a
+      // valid session into a 401.  The captured header remains a compatibility
+      // fallback for endpoints that explicitly require it.
+      let cookieRequestError = null;
+      try {
+        return await requestFromPage(baseRequestHeaders);
       } catch (error) {
-        pageRequestError = error;
+        cookieRequestError = error;
+      }
+
+      let pageRequestError = cookieRequestError;
+      if (Object.keys(capturedAuthHeaders).length) {
+        try {
+          return await requestFromPage({ ...baseRequestHeaders, ...capturedAuthHeaders });
+        } catch (error) {
+          pageRequestError = error;
+        }
       }
       if (typeof GM_xmlhttpRequest === 'function' && /^\//.test(url)) {
         const gmResult = await new Promise((resolve, reject) => {
@@ -5526,7 +5543,7 @@
             method: 'GET',
             url: new URL(url, window.location.origin).href,
             withCredentials: true,
-            headers: requestHeaders,
+            headers: { ...baseRequestHeaders, ...capturedAuthHeaders },
             timeout: 15000,
             onload: (response) => finish(resolve, response),
             onerror: () => finish(reject, new Error('网络请求失败')),
@@ -5534,7 +5551,7 @@
           });
         });
         if (!gmResult || gmResult.status < 200 || gmResult.status >= 300) {
-          throw new Error('页面请求 ' + formatErrorMessage(pageRequestError) + '；扩展请求 HTTP ' + (gmResult && gmResult.status || 0));
+          throw new Error('Cookie 会话 ' + formatErrorMessage(cookieRequestError) + '；页面授权 ' + formatErrorMessage(pageRequestError) + '；扩展请求 HTTP ' + (gmResult && gmResult.status || 0));
         }
         return JSON.parse(gmResult.responseText || '{}');
       }
