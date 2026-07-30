@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.71
+// @version      2.6.72
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.71';
+  const SCRIPT_VERSION = '2.6.72';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1554,6 +1554,8 @@
   const MAGIC_UPLOAD_QUEUE_KEY = 'plm-floating-helper:magic-upload-queue:v1';
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
+  let magicUploadQueueRunPromise = null;
+  let magicUploadAuthPaused = false;
   const MAGIC_UPLOAD_CATEGORIES = Object.freeze({
     '主图': { rule: '主图', archiveTypeId: 1 },
     '英文参数图': { rule: '英文参数图', archiveTypeId: 1 },
@@ -7489,16 +7491,21 @@
   }
 
   function saveMagicUploadQueue(queue) {
-    const snapshot = (Array.isArray(queue) ? queue : []).map(normalizeMagicUploadTask).filter(Boolean).slice(0, 300);
-    state.magicUploadQueue = snapshot;
+    // Keep runtime task/file references intact. Upload workers continue to
+    // update those objects after a save; only the persisted snapshot is cloned
+    // and normalized. The load path converts stale processing tasks to pending.
+    const runtimeQueue = (Array.isArray(queue) ? queue : []).filter((task) => task && task.id).slice(0, 300);
+    const snapshot = runtimeQueue.map((task) => normalizeMagicUploadTask(task, { preserveProcessing: true })).filter(Boolean);
+    state.magicUploadQueue = runtimeQueue;
     try {
       if (typeof GM_setValue === 'function') GM_setValue(MAGIC_UPLOAD_QUEUE_KEY, snapshot);
       else localStorage.setItem(MAGIC_UPLOAD_QUEUE_KEY, JSON.stringify(snapshot));
     } catch (error) { console.warn('PLM magic upload queue save failed:', error); }
   }
 
-  function normalizeMagicUploadTask(task) {
+  function normalizeMagicUploadTask(task, options) {
     if (!task || !task.id) return null;
+    const preserveProcessing = Boolean(options && options.preserveProcessing);
     const allowed = new Set(['pending', 'processing', 'success', 'error', 'waiting']);
     const files = Array.isArray(task.files) ? task.files.map((entry, index) => ({
       ...(entry || {}),
@@ -7524,7 +7531,7 @@
       zipKey: String(task.zipKey || ''),
       projectId: String(task.projectId || ''),
       files,
-      status: status === 'processing' ? 'pending' : status,
+      status: status === 'processing' && !preserveProcessing ? 'pending' : status,
       step: String(task.step || ''),
       error: String(task.error || ''),
       updatedAt: Number(task.updatedAt) || Date.now(),
@@ -7820,6 +7827,10 @@
   }
 
   function retryMagicUploadTask(id) {
+    if (magicUploadAuthPaused) {
+      showToast('请先刷新 PLM 页面，再重试魔法上传');
+      return;
+    }
     const task = (state.magicUploadQueue || []).find((item) => item.id === id);
     if (!task) return;
     task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
@@ -7828,44 +7839,107 @@
     task.files.forEach((entry) => { if (entry.status !== 'success') { entry.status = 'pending'; entry.error = ''; } });
     saveMagicUploadQueue(state.magicUploadQueue);
     renderShell();
-    if (state.magicUploadAccessEnabled) startMagicUploadQueue();
+    if (state.magicUploadAccessEnabled && task.status === 'pending') {
+      const restart = () => { if (state.magicUploadAccessEnabled) startMagicUploadQueue(); };
+      const activeRun = magicUploadQueueRunPromise;
+      if (activeRun) activeRun.then(() => { restart(); }, () => { restart(); });
+      else restart();
+    }
   }
 
-  async function startMagicUploadQueue() {
-    if (state.magicUploadRunning) return;
-    if (!state.magicUploadAccessEnabled) return showToast('魔法上传暂未开放');
+  function isMagicUploadAuthError(error) {
+    return /\b401\b/.test(String(error && error.message || error || ''));
+  }
+
+  function getMagicUploadAuthPauseMessage(error) {
+    const message = formatErrorMessage(error);
+    return /请刷新 PLM 页面后重试/.test(message) ? message : message + ' | 请刷新 PLM 页面后重试';
+  }
+
+  function startMagicUploadQueue() {
+    if (magicUploadQueueRunPromise) return magicUploadQueueRunPromise;
+    if (state.magicUploadRunning) return Promise.resolve();
+    if (!state.magicUploadAccessEnabled) {
+      showToast('魔法上传暂未开放');
+      return Promise.resolve();
+    }
+    if (magicUploadAuthPaused) {
+      showToast('PLM 登录态可能已失效，请刷新 PLM 页面后再重试');
+      return Promise.resolve();
+    }
+    magicUploadAuthPaused = false;
     state.magicUploadRunning = true;
-    saveMagicUploadQueue(state.magicUploadQueue);
-    renderShell();
-    const workers = Array.from({ length: MAGIC_UPLOAD_CONCURRENCY }, () => (async () => {
-      while (state.magicUploadRunning) {
-        const task = (state.magicUploadQueue || []).find((item) => item.status === 'pending' || item.status === 'error');
-        if (!task) break;
-        task.status = 'processing';
-        task.error = '';
-        task.updatedAt = Date.now();
+    const attemptedTaskIds = new Set();
+    const runner = async () => {
+      try {
         saveMagicUploadQueue(state.magicUploadQueue);
-        try {
-          await uploadMagicUploadTask(task);
-          task.status = 'success';
-          task.step = '上传完成';
-          task.updatedAt = Date.now();
-        } catch (error) {
-          task.status = /HTTP 401/.test(String(error && error.message || error)) ? 'error' : 'error';
-          task.error = formatErrorMessage(error);
-          task.step = '上传失败';
-          task.updatedAt = Date.now();
-          addLog('warn', '魔法上传任务失败', task.sku + ' | ' + task.error);
-        }
+        renderShell();
+        const workers = Array.from({ length: MAGIC_UPLOAD_CONCURRENCY }, () => (async () => {
+          while (state.magicUploadRunning && !magicUploadAuthPaused) {
+            const task = (state.magicUploadQueue || []).find((item) => (item.status === 'pending' || item.status === 'error') && !attemptedTaskIds.has(item.id));
+            if (!task) break;
+            // Each task may be claimed only once in a queue run. This also
+            // prevents a freshly failed task from being retried in a tight loop.
+            attemptedTaskIds.add(task.id);
+            task.status = 'processing';
+            task.error = '';
+            task.updatedAt = Date.now();
+            saveMagicUploadQueue(state.magicUploadQueue);
+            try {
+              await uploadMagicUploadTask(task);
+              task.status = 'success';
+              task.step = '上传完成';
+              task.updatedAt = Date.now();
+            } catch (error) {
+              const message = formatErrorMessage(error);
+              if (isMagicUploadAuthError(error)) {
+                const firstAuthPause = !magicUploadAuthPaused;
+                magicUploadAuthPaused = true;
+                state.magicUploadRunning = false;
+                task.status = 'waiting';
+                task.error = getMagicUploadAuthPauseMessage(error);
+                task.step = '已暂停：请刷新 PLM 页面后重试';
+                task.updatedAt = Date.now();
+                if (firstAuthPause) {
+                  addLog('warn', '魔法上传鉴权失败，队列已暂停', task.sku + ' | ' + task.error);
+                  showToast('PLM 登录态已失效，魔法上传队列已暂停，请刷新页面后重试');
+                }
+              } else if (magicUploadAuthPaused) {
+                task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
+                task.error = '队列因 HTTP 401 暂停，请刷新 PLM 页面后重试';
+                task.step = '已暂停：请刷新 PLM 页面后重试';
+                task.updatedAt = Date.now();
+              } else if (!state.magicUploadRunning && /已暂停/.test(message)) {
+                task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
+                task.error = '';
+                task.step = task.status === 'waiting' ? '请确认文件分类' : '已暂停，点击开始继续';
+                task.updatedAt = Date.now();
+              } else {
+                task.status = 'error';
+                task.error = message;
+                task.step = '上传失败';
+                task.updatedAt = Date.now();
+                addLog('warn', '魔法上传任务失败', task.sku + ' | ' + task.error);
+              }
+            }
+            saveMagicUploadQueue(state.magicUploadQueue);
+            if (state.view === 'magicUpload') renderShell();
+          }
+        })());
+        await Promise.all(workers);
+      } finally {
+        state.magicUploadRunning = false;
         saveMagicUploadQueue(state.magicUploadQueue);
         if (state.view === 'magicUpload') renderShell();
+        showToast(magicUploadAuthPaused ? '魔法上传队列已暂停，请刷新 PLM 页面后重试' : '魔法上传队列已停止');
       }
-    })());
-    await Promise.all(workers);
-    state.magicUploadRunning = false;
-    saveMagicUploadQueue(state.magicUploadQueue);
-    if (state.view === 'magicUpload') renderShell();
-    showToast('魔法上传队列已停止');
+    };
+    let runPromise;
+    runPromise = runner().finally(() => {
+      if (magicUploadQueueRunPromise === runPromise) magicUploadQueueRunPromise = null;
+    });
+    magicUploadQueueRunPromise = runPromise;
+    return runPromise;
   }
 
   async function uploadMagicUploadTask(task) {
@@ -7895,6 +7969,7 @@
         throw error;
       }
     }
+    if (!state.magicUploadRunning) throw new Error('已暂停');
     if (task.zipKey && !task.sourceUploaded) {
       task.step = '保留原始 ZIP';
       const zipFile = await getUploadFile(task.zipKey);
@@ -7905,6 +7980,7 @@
       }
     }
     if (!task.submitted) {
+      if (!state.magicUploadRunning) throw new Error('已暂停');
       task.step = '素材上传完成，正在提审';
       magicUploadLog('info', '素材上传完成，开始提审', task.sku);
       await submitMagicUploadTask(task);
