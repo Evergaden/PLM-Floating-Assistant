@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.68
+// @version      2.6.69
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.68';
+  const SCRIPT_VERSION = '2.6.69';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10449,7 +10449,6 @@
       items.sort((a, b) => getLedgerSkuSortValue(a.sku) - getLedgerSkuSortValue(b.sku) || String(a.sku || '').localeCompare(String(b.sku || '')));
       for (let offset = 0, part = 1; offset < items.length; offset += 5, part += 1) {
         const members = items.slice(offset, offset + 5);
-        if (members.length < 2) continue;
         groups.push({
           id: getLedgerSeriesGroupId(seriesKey, part),
           source: 'auto-series',
