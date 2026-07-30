@@ -1,13 +1,14 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.60
+// @version      2.6.61
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
 // @match        https://auth.westmonth.com/*
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
+// @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js
 // @require      https://cdn.jsdelivr.net/npm/ali-oss@6.23.0/dist/aliyun-oss-sdk.min.js
 // @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js
 // @require      https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js
@@ -35,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.60';
+  const SCRIPT_VERSION = '2.6.61';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -7438,6 +7439,39 @@
     });
   }
 
+  async function decodeMagicUploadZipEntries(zipBuffer, sourceName) {
+    const decoder = typeof fflate !== 'undefined' && fflate && typeof fflate.unzip === 'function' ? fflate : null;
+    if (decoder) {
+      magicUploadLog('info', 'ZIP 开始批量解压', sourceName + ' | 解码器=fflate');
+      try {
+        const decoded = await withMagicUploadTimeout(new Promise((resolve, reject) => {
+          decoder.unzip(new Uint8Array(zipBuffer), (error, files) => error ? reject(error) : resolve(files || {}));
+        }), 120000, 'ZIP 批量解压');
+        const entries = Object.keys(decoded).map((name) => ({
+          name,
+          dir: /\/$/.test(name),
+          bytes: decoded[name],
+        }));
+        magicUploadLog('info', 'ZIP 批量解压完成', sourceName + ' | 解码文件=' + entries.filter((entry) => !entry.dir).length + ' | 条目=' + entries.length);
+        return entries;
+      } catch (error) {
+        const message = formatErrorMessage(error);
+        if (/超时/.test(message)) throw error;
+        magicUploadLog('warn', 'fflate 解压失败，回退 JSZip', sourceName + ' | ' + message);
+      }
+    } else {
+      magicUploadLog('warn', '未找到 fflate，回退 JSZip', sourceName);
+    }
+    const zip = await withMagicUploadTimeout(JSZip.loadAsync(zipBuffer), 120000, 'ZIP 解析');
+    const entries = Object.values(zip.files).map((entry) => ({
+      name: entry.name,
+      dir: Boolean(entry.dir),
+      zipEntry: entry,
+    }));
+    magicUploadLog('info', 'ZIP JSZip 解析完成', sourceName + ' | 条目=' + entries.length);
+    return entries;
+  }
+
   async function processMagicUploadZipFiles(files) {
     if (!state.magicUploadAccessEnabled) {
       magicUploadLog('warn', '文件处理被拦截', '当前账号没有魔法上传权限');
@@ -7502,9 +7536,8 @@
           const zipBuffer = await withMagicUploadTimeout(readMagicUploadArrayBuffer(zipFile), 120000, 'ZIP 文件读取');
           magicUploadLog('info', 'ZIP 文件已读入内存', zipFile.name + ' | bytes=' + Number(zipBuffer && zipBuffer.byteLength || 0));
           setProcessingText('正在解析 ZIP：' + zipFile.name, true);
-          const zip = await withMagicUploadTimeout(JSZip.loadAsync(zipBuffer), 120000, 'ZIP 解析');
-          magicUploadLog('info', 'ZIP 解析完成', zipFile.name + ' | 压缩包条目=' + Object.keys(zip.files || {}).length);
-          const entries = Object.values(zip.files).filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name));
+          const decodedEntries = await decodeMagicUploadZipEntries(zipBuffer, zipFile.name);
+          const entries = decodedEntries.filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name));
           magicUploadLog('info', 'ZIP 文件清单完成', zipFile.name + ' | 可处理文件=' + entries.length);
           const fileSkus = getSkusFromFileName(zipFile.name);
           const allSkus = new Set(fileSkus);
@@ -7518,8 +7551,9 @@
             const targetSkus = innerSkus.length ? innerSkus : (skus.length ? skus : ['']);
             const entryName = entry.name.split('/').pop() || 'asset';
             setProcessingText('正在解压 ZIP（' + entryIndex + '/' + entries.length + '）：' + entryName, false);
-            magicUploadLog('info', 'ZIP 开始解压文件', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name);
-            const buffer = await withMagicUploadTimeout(entry.async('arraybuffer'), 120000, 'ZIP 文件解压');
+            magicUploadLog('info', 'ZIP 开始处理文件', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name);
+            const buffer = entry.bytes || await withMagicUploadTimeout(entry.zipEntry.async('arraybuffer'), 120000, 'ZIP 文件解压');
+            magicUploadLog('info', 'ZIP 文件已完成解压', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name + ' | bytes=' + Number(buffer && buffer.byteLength || buffer && buffer.length || 0));
             const file = new File([buffer], entryName, { type: guessMime(entry.name) });
             const key = 'magic-upload:' + createMagicUploadId() + ':' + entry.name;
             magicUploadLog('info', 'ZIP 开始缓存文件', zipFile.name + ' | ' + entryIndex + '/' + entries.length + ' | ' + entry.name + ' | bytes=' + Number(buffer && buffer.byteLength || 0));
