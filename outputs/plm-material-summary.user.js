@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.73
+// @version      2.6.74
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.73';
+  const SCRIPT_VERSION = '2.6.74';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3742,6 +3742,7 @@
     toyCopywritingBatchStatus: '',
     toyCopywritingApplyRunning: false,
     toyCopywritingApplyCurrentSku: '',
+    toyCopywritingApplyMode: '',
     openingProjectDetail: false,
     openingProjectDetailSku: '',
     uploadExpanded: false,
@@ -9184,6 +9185,7 @@
     const stats = getToyCopywritingBatchStats(queue);
     const running = Boolean(state.toyCopywritingBatchRunning);
     const applying = Boolean(state.toyCopywritingApplyRunning);
+    const downloadReviewing = applying && state.toyCopywritingApplyMode === 'download-review';
     const locked = running || applying;
     const canStart = !locked && queue.some((entry) => entry.status === 'pending' || entry.status === 'error');
     const canApply = !locked && queue.some((entry) => {
@@ -9195,7 +9197,7 @@
     return '<section class="pfh-mini-tool-card pfh-toy-copywriting-batch-page">' +
       '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
       '<div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + escapeHtml(state.toyCopywritingBatchInput || '') + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div>' +
-      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, locked) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (canApply ? '' : ' disabled') + '>' + (applying ? '正在全部应用并提审…' : '批量全部应用并提审') + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done && !locked ? '' : ' disabled') + '>清除已完成</button></div></div>' +
+      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, locked) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (canApply ? '' : ' disabled') + '>' + (applying && !downloadReviewing ? '正在全部应用并提审…' : '批量全部应用并提审') + '</button><button type="button" data-action="toy-copywriting-batch-download-review" title="下载主图和详情图后直接提交审批，不点击全部应用"' + (canApply ? '' : ' disabled') + '>' + (downloadReviewing ? '正在下载并提审…' : '下载后直接提审') + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done && !locked ? '' : ' disabled') + '>清除已完成</button></div></div>' +
       '</section>';
   }
 
@@ -9268,7 +9270,7 @@
   function getToyCopywritingBatchEntryStatus(entry) {
     const status = String(entry && entry.status || 'pending');
     const applyStatus = String(entry && entry.applyStatus || '');
-    if (applyStatus === 'applying') return { kind: 'running', text: '应用中' };
+    if (applyStatus === 'applying') return { kind: 'running', text: entry.applyMode === 'download-review' ? '下载并提审中' : '应用中' };
     if (applyStatus === 'submitted') return { kind: 'done', text: '已提审' };
     if (applyStatus === 'error' && (status === 'success' || status === 'noop')) return { kind: 'error', text: '应用失败' };
     if (status === 'processing') return { kind: 'running', text: '补全中' };
@@ -9287,7 +9289,7 @@
       const generatedImages = Number(entry.generatedImages) || 0;
       const submitted = entry.applyStatus === 'submitted';
       const detail = submitted
-        ? '主图/详情图已全部应用并提审'
+        ? (entry.applyMode === 'download-review' ? '主图/详情图已下载并提审（未全部应用）' : '主图/详情图已全部应用并提审')
         : (entry.status === 'success'
           ? (/已生成/.test(entry.step || '')
             ? entry.step
@@ -9604,7 +9606,8 @@
     }, 10000, 100));
   }
 
-  async function applyToyGeneratedImage(drawer, sku, label) {
+  async function applyToyGeneratedImage(drawer, sku, label, options) {
+    const opts = options || {};
     const section = await waitFor(() => {
       const liveDrawer = getToyCopywritingDrawerForSku(sku) || drawer;
       const current = getToyGeneratedImageSection(liveDrawer, label);
@@ -9634,6 +9637,10 @@
 
     const livePreview = await waitFor(() => getToyImagePreviewContainer(), 10000, 100);
     if (!livePreview) throw new Error(label + '下载后图片预览已意外关闭');
+    if (opts.skipApply) {
+      if (!(await closeToyImagePreviewIfPresent())) throw new Error(label + '图片预览未关闭');
+      return true;
+    }
     const applyAll = findToyGeneratedImageAction(livePreview, '全部应用');
     if (!applyAll) throw new Error(label + '未找到「全部应用」');
     await waitFor(() => !/应用成功/.test(getPlmNoticeText()), 5000, 100);
@@ -9644,25 +9651,30 @@
     return true;
   }
 
-  async function startToyCopywritingApplyBatch() {
+  async function startToyCopywritingApplyBatch(options) {
+    const opts = options || {};
+    const skipApply = Boolean(opts.skipApply);
+    const actionLabel = skipApply ? '批量下载后直接提审' : '批量全部应用并提审';
+    const applyMode = skipApply ? 'download-review' : 'apply';
     if (state.toyCopywritingBatchRunning || state.toyCopywritingApplyRunning) return;
     state.toyCopywritingBatchQueue = loadToyCopywritingBatchQueue();
     const eligible = state.toyCopywritingBatchQueue.filter((entry) => {
       return (entry.status === 'success' || entry.status === 'noop') && entry.applyStatus !== 'submitted';
     });
     if (!eligible.length) {
-      state.toyCopywritingBatchStatus = '没有等待全部应用并提审的已完成产品';
+      state.toyCopywritingBatchStatus = '没有等待' + actionLabel + '的已完成产品';
       renderShell();
       return;
     }
     state.toyCopywritingApplyRunning = true;
-    state.toyCopywritingBatchStatus = '开始批量应用主图和详情图并提审';
+    state.toyCopywritingApplyMode = applyMode;
+    state.toyCopywritingBatchStatus = '开始' + actionLabel;
     renderShell();
     for (const entry of eligible) {
       const sku = entry.sku;
       let drawer = null;
       state.toyCopywritingApplyCurrentSku = sku;
-      updateToyCopywritingBatchEntry(sku, { applyStatus: 'applying', applyError: '', step: '正在打开设计资料' });
+      updateToyCopywritingBatchEntry(sku, { applyStatus: 'applying', applyMode, applyError: '', step: '正在打开设计资料' });
       state.toyCopywritingBatchStatus = sku + '：正在打开设计资料';
       renderShell();
       try {
@@ -9670,25 +9682,26 @@
         drawer = await openToyCopywritingBatchDrawer(sku, cached);
         for (const label of ['主图', '详情图']) {
           updateToyCopywritingBatchEntry(sku, { step: '正在处理' + label + '生成图片' });
-          state.toyCopywritingBatchStatus = sku + '：正在下载并全部应用' + label;
+          state.toyCopywritingBatchStatus = sku + '：正在下载' + label + (skipApply ? '，跳过全部应用' : '并全部应用');
           renderShell();
-          await applyToyGeneratedImage(drawer, sku, label);
+          await applyToyGeneratedImage(drawer, sku, label, { skipApply });
         }
-        updateToyCopywritingBatchEntry(sku, { applyStatus: 'applied', step: '主图和详情图已全部应用，正在提审' });
+        updateToyCopywritingBatchEntry(sku, { applyStatus: 'applied', applyMode, step: skipApply ? '主图和详情图已下载，正在提审' : '主图和详情图已全部应用，正在提审' });
         state.toyCopywritingBatchStatus = sku + '：正在提审';
         renderShell();
         await submitProductReview();
         await closeTopProductDrawer({ skipDraftSave: true, allowReviewResultModal: true });
         updateToyCopywritingBatchEntry(sku, {
           applyStatus: 'submitted',
+          applyMode,
           applyError: '',
-          step: '主图和详情图已全部应用并提审',
+          step: skipApply ? '主图和详情图已下载并提审（未全部应用）' : '主图和详情图已全部应用并提审',
         });
-        addLog('success', '玩具生成图片全部应用并提审成功', sku);
+        addLog('success', '玩具生成图片' + actionLabel + '成功', sku);
       } catch (error) {
-        const message = formatErrorMessage(error) || '全部应用并提审失败';
-        updateToyCopywritingBatchEntry(sku, { applyStatus: 'error', applyError: message, step: '全部应用并提审失败' });
-        addLog('error', '玩具生成图片全部应用并提审失败', sku + ' | ' + message);
+        const message = formatErrorMessage(error) || actionLabel + '失败';
+        updateToyCopywritingBatchEntry(sku, { applyStatus: 'error', applyMode, applyError: message, step: actionLabel + '失败' });
+        addLog('error', '玩具生成图片' + actionLabel + '失败', sku + ' | ' + message);
         await closeToyImagePreviewIfPresent().catch(() => {});
         await closeToyCopywritingDrawerForSku(sku).catch(() => {});
       } finally {
@@ -9699,9 +9712,10 @@
     }
     state.toyCopywritingApplyRunning = false;
     state.toyCopywritingApplyCurrentSku = '';
-    state.toyCopywritingBatchStatus = '批量全部应用并提审完成';
+    state.toyCopywritingApplyMode = '';
+    state.toyCopywritingBatchStatus = actionLabel + '完成';
     renderShell();
-    showToast('批量全部应用并提审完成');
+    showToast(actionLabel + '完成');
   }
 
   async function openToyCopywritingBatchDrawer(sku, seed) {
@@ -13661,6 +13675,10 @@
     }
     if (action === 'toy-copywriting-batch-apply') {
       startToyCopywritingApplyBatch();
+      return;
+    }
+    if (action === 'toy-copywriting-batch-download-review') {
+      startToyCopywritingApplyBatch({ skipApply: true });
       return;
     }
     if (action === 'toy-copywriting-batch-pause') {
@@ -22534,6 +22552,8 @@
     if (resetProcessing && status === 'processing') status = 'pending';
     const validApplyStatuses = new Set(['applying', 'applied', 'submitted', 'error']);
     let applyStatus = validApplyStatuses.has(String(entry && entry.applyStatus || '')) ? String(entry.applyStatus) : '';
+    const validApplyModes = new Set(['apply', 'download-review']);
+    const applyMode = validApplyModes.has(String(entry && entry.applyMode || '')) ? String(entry.applyMode) : '';
     if (resetProcessing && (applyStatus === 'applying' || applyStatus === 'applied')) applyStatus = 'error';
     return {
       ...(entry || {}),
@@ -22546,6 +22566,7 @@
       filledCount: Math.max(0, Number(entry && entry.filledCount) || 0),
       generatedImages: Math.max(0, Number(entry && entry.generatedImages) || 0),
       applyStatus,
+      applyMode,
       applyError: String(entry && entry.applyError || ''),
       createdAt: Number(entry && entry.createdAt) || Date.now(),
       updatedAt: Number(entry && entry.updatedAt) || Date.now(),
