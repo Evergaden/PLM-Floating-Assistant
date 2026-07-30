@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.61
+// @version      2.6.62
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.61';
+  const SCRIPT_VERSION = '2.6.62';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10391,11 +10391,65 @@
     return /(?:换|无)(?:logo|标识|商标)/i.test(designType) ? 'logo' : 'design';
   }
 
+  function getLedgerToySeriesKey(record) {
+    if (!record || record.status === '作废' || record.performanceGroupId || record.performanceType === 'extension') return '';
+    const cached = normalizeData(loadData(record.sku) || {});
+    const toyData = { ...cached, brand: record.brand || cached.brand || '', name: record.name || cached.name || '', isToy: record.isToy };
+    if (!record.isToy && !isToyDimensionProduct(toyData)) return '';
+    const name = cleanName(record.name || cached.name || '').replace(/\s+/g, ' ').trim();
+    const match = name.match(/^(.+?)[\-－–—_](?:\s*.+)$/);
+    const root = cleanName(match ? match[1] : '').replace(/\s+/g, ' ').trim();
+    return root.length >= 3 ? root : '';
+  }
+
+  function getLedgerSkuSortValue(sku) {
+    const match = String(sku || '').match(/(\d+)/);
+    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+  }
+
+  function getLedgerSeriesGroupId(seriesKey, part) {
+    let hash = 0;
+    for (let index = 0; index < seriesKey.length; index += 1) hash = ((hash * 31) + seriesKey.charCodeAt(index)) >>> 0;
+    return 'auto-series-' + hash.toString(36) + '-' + String(part);
+  }
+
+  function getLedgerAutomaticSeriesGroups(records) {
+    const bySeries = new Map();
+    (records || []).forEach((record) => {
+      const seriesKey = getLedgerToySeriesKey(record);
+      if (!seriesKey) return;
+      if (!bySeries.has(seriesKey)) bySeries.set(seriesKey, []);
+      bySeries.get(seriesKey).push(record);
+    });
+    const groups = [];
+    bySeries.forEach((items, seriesKey) => {
+      if (items.length < 2) return;
+      items.sort((a, b) => getLedgerSkuSortValue(a.sku) - getLedgerSkuSortValue(b.sku) || String(a.sku || '').localeCompare(String(b.sku || '')));
+      for (let offset = 0, part = 1; offset < items.length; offset += 5, part += 1) {
+        const members = items.slice(offset, offset + 5);
+        groups.push({
+          id: getLedgerSeriesGroupId(seriesKey, part),
+          source: 'auto-series',
+          seriesKey,
+          kind: 'series',
+          points: 1,
+          records: members,
+          recordKeys: members.map(getLedgerSelectionKey),
+          skus: members.map((record) => String(record.sku || '')).filter(Boolean),
+        });
+      }
+    });
+    return groups;
+  }
+
   function summarizeLedgerPerformance(records) {
-    const summary = { design: 0, logo: 0, void: 0, extension: 0, mergedGroups: 0, groups: [], total: 0 };
+    const summary = { design: 0, logo: 0, void: 0, extension: 0, series: 0, mergedGroups: 0, autoSeriesGroups: 0, groups: [], total: 0 };
     const units = new Map();
     const weight = { extension: 3, void: 5, logo: 10, design: 14 };
+    const automaticGroups = getLedgerAutomaticSeriesGroups(records);
+    const automaticRecordKeys = new Set(automaticGroups.flatMap((group) => group.recordKeys));
     (records || []).forEach((record, index) => {
+      if (automaticRecordKeys.has(getLedgerSelectionKey(record))) return;
       const groupId = String(record && record.performanceGroupId || '').trim();
       const unitKey = groupId ? 'group:' + groupId : 'record:' + getLedgerSelectionKey(record) + ':' + index;
       const kind = getLedgerPerformanceKind(record);
@@ -10413,12 +10467,20 @@
         summary.mergedGroups += 1;
         summary.groups.push({
           id: unit.groupId,
+          source: 'manual',
           kind: unit.kind,
+          points: weight[unit.kind] / 10,
+          recordKeys: unit.records.map(getLedgerSelectionKey),
           skus: unit.records.map((record) => String(record && record.sku || '')).filter(Boolean),
         });
       }
     });
-    summary.total = (summary.design * 14 + summary.logo * 10 + summary.void * 5 + summary.extension * 3) / 10;
+    automaticGroups.forEach((group) => {
+      summary.series += 1;
+      summary.autoSeriesGroups += 1;
+      summary.groups.push(group);
+    });
+    summary.total = (summary.design * 14 + summary.logo * 10 + summary.void * 5 + summary.extension * 3) / 10 + summary.series;
     return summary;
   }
 
@@ -10429,12 +10491,12 @@
 
   function ledgerPerformanceHtml(summary) {
     const value = summary || summarizeLedgerPerformance([]);
-    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5 · 延伸 ' + value.extension + ' × 0.3';
+    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5 · 延伸 ' + value.extension + ' × 0.3 · 玩具系列 ' + value.series + ' × 1';
     const kindLabels = { design: '设计 1.4 分', logo: '换/无 Logo 1 分', void: '作废 0.5 分', extension: '延伸 0.3 分' };
     const groups = Array.isArray(value.groups) ? value.groups : [];
     const groupHtml = groups.length
-      ? '<details class="pfh-ledger-merge-groups"><summary>已合并 ' + escapeHtml(String(groups.length)) + ' 组，点击展开组合明细</summary><div class="pfh-ledger-merge-list">' +
-        groups.map((group, index) => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + escapeHtml(group.id) + '" title="高亮这一组的产品卡片"><b>合并组 ' + escapeHtml(String(index + 1)) + ' · ' + escapeHtml(kindLabels[group.kind] || '') + '</b><span>' + escapeHtml((group.skus || []).join(' + ')) + '</span></button>').join('') +
+      ? '<details class="pfh-ledger-merge-groups"><summary>绩效分组 ' + escapeHtml(String(groups.length)) + ' 组，点击展开组合明细</summary><div class="pfh-ledger-merge-list">' +
+        groups.map((group) => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + escapeHtml(group.id) + '" title="高亮这一组的产品卡片"><b>' + escapeHtml(group.source === 'auto-series' ? getLedgerPerformanceGroupLabel(group, groups) + ' · 玩具 1 分 · ' + String((group.skus || []).length) + ' 个' : getLedgerPerformanceGroupLabel(group, groups) + ' · ' + (kindLabels[group.kind] || '')) + '</b><span>' + escapeHtml((group.seriesKey ? group.seriesKey + '：' : '') + (group.skus || []).join(' + ')) + '</span></button>').join('') +
         '</div></details>'
       : '';
     return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div>' + groupHtml + '</div>';
@@ -10447,6 +10509,24 @@
     if (!current) return;
     const records = getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth());
     current.outerHTML = ledgerPerformanceHtml(summarizeLedgerPerformance(records));
+  }
+
+  function getLedgerPerformanceGroupLabel(group, groups) {
+    const source = group && group.source === 'auto-series' ? 'auto-series' : 'manual';
+    const position = (groups || []).filter((item) => (item && item.source === 'auto-series' ? 'auto-series' : 'manual') === source).indexOf(group) + 1;
+    return source === 'auto-series' ? '自动系列 ' + position : '合并组 ' + position;
+  }
+
+  function getLedgerPerformanceGroupMaps(summary) {
+    const labels = new Map();
+    const recordGroupIds = new Map();
+    const groups = summary && summary.groups || [];
+    groups.forEach((group) => {
+      const label = getLedgerPerformanceGroupLabel(group, groups);
+      labels.set(group.id, label);
+      (group.recordKeys || []).forEach((key) => recordGroupIds.set(key, group.id));
+    });
+    return { labels, recordGroupIds };
   }
 
   function highlightLedgerPerformanceGroup(groupId) {
@@ -10492,13 +10572,13 @@
     const groups = groupLedgerRecordsByDate(records, mode === 'trash' ? 'design' : mode);
     const performanceSummary = mode === 'finalized' ? summarizeLedgerPerformance(records) : null;
     const performanceHtml = performanceSummary ? ledgerPerformanceHtml(performanceSummary) : '';
-    const performanceGroupLabels = new Map((performanceSummary && performanceSummary.groups || []).map((group, index) => [group.id, '合并组 ' + (index + 1)]));
+    const performanceGroupMaps = getLedgerPerformanceGroupMaps(performanceSummary);
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
     const mergePerformanceHtml = mode === 'finalized' ? ledgerPerformanceMergeButtonHtml(records, selectedKeys) : '';
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
-      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupLabels)).join('') + '</section>';
+      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds)).join('') + '</section>';
     }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。')) + '</div>';
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
@@ -10535,7 +10615,7 @@
       '</section></div>';
   }
 
-  function ledgerRowHtml(record, mode, performanceGroupLabels) {
+  function ledgerRowHtml(record, mode, performanceGroupLabels, performanceRecordGroupIds) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
     const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : (record.skuImageUrl || record.benchmarkImageUrl);
@@ -10552,6 +10632,7 @@
     const purchasePrice = String(record.purchasePrice || '').trim();
     const dateAttr = escapeHtml(record.date || workDate);
     const selected = (state.ledgerSelectedKeys || []).includes(getLedgerSelectionKey(record));
+    const effectivePerformanceGroupId = (performanceRecordGroupIds && performanceRecordGroupIds.get(getLedgerSelectionKey(record))) || record.performanceGroupId || '';
     const referenceButton = record.referenceUrl
       ? '<button type="button" class="pfh-ledger-link" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="打开参考链接">' + iconHtml('link') + '</button>'
       : '<button type="button" class="pfh-ledger-link is-disabled" disabled title="没有参考链接">' + iconHtml('link') + '</button>';
@@ -10564,7 +10645,7 @@
       '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
       (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
       (record.performanceType === 'extension' ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : '') +
-      (performanceGroupLabels && performanceGroupLabels.get(record.performanceGroupId) ? '<span class="is-performance-group" title="此编码已合并绩效">' + escapeHtml(performanceGroupLabels.get(record.performanceGroupId)) + '</span>' : '') +
+      (performanceGroupLabels && performanceGroupLabels.get(effectivePerformanceGroupId) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + escapeHtml(performanceGroupLabels.get(effectivePerformanceGroupId)) + '</span>' : '') +
       '</div>';
     const assignmentHtml = '<div class="pfh-ledger-assignment">' + escapeHtml(dateText) +
       (mode === 'finalized' ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">改时间</button>' : '') +
@@ -10587,7 +10668,7 @@
         moreButton +
       '</div>';
     const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
-    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" data-performance-group-id="' + escapeHtml(record.performanceGroupId || '') + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
+    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" data-performance-group-id="' + escapeHtml(effectivePerformanceGroupId) + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
       selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
@@ -10617,10 +10698,10 @@
       renderShell();
       return;
     }
-    const performanceGroupLabels = mode === 'finalized'
-      ? new Map(summarizeLedgerPerformance(getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())).groups.map((group, index) => [group.id, '合并组 ' + (index + 1)]))
-      : null;
-    card.outerHTML = ledgerRowHtml(record, mode, performanceGroupLabels);
+    const performanceGroupMaps = mode === 'finalized'
+      ? getLedgerPerformanceGroupMaps(summarizeLedgerPerformance(getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())))
+      : { labels: null, recordGroupIds: null };
+    card.outerHTML = ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds);
   }
 
   function ledgerTrashRowHtml(record) {
@@ -19976,6 +20057,7 @@
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
       performanceGroupId: String(item.performanceGroupId || '').slice(0, 80),
       performanceType: item.performanceType === 'extension' ? 'extension' : '',
+      isToy: Boolean(item.isToy),
       packageCode: String(item.packageCode || '').slice(0, 120),
       printCode: String(item.printCode || '').slice(0, 180),
       purchasePrice: normalizeLedgerPurchasePrice(item.purchasePrice),
@@ -20133,6 +20215,7 @@
       developerName: cleanName(data.developerName || (existing && existing.developerName) || ''),
       designAssignedAt: String(data.designAssignedAt || (existing && existing.designAssignedAt) || ''),
       developmentAssignedAt: String(data.developmentAssignedAt || (existing && existing.developmentAssignedAt) || ''),
+      isToy: opts.isToy !== undefined ? Boolean(opts.isToy) : (Boolean(existing && existing.isToy) || isToyDimensionProduct(data)),
       packageCode: String(data.packageCode || (existing && existing.packageCode) || ''),
       printCode: String(data.printCode || (existing && existing.printCode) || ''),
       purchasePrice: normalizeLedgerPurchasePrice(opts.purchasePrice !== undefined ? opts.purchasePrice : (data.purchasePrice || (existing && existing.purchasePrice) || '')),
