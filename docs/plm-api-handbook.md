@@ -157,6 +157,20 @@ POST /api/Product/GetArchiveFileVersionListByFileVersionId
 
 `GenerateFileNameByRule` 用于生成 PLM 规范文件名；后两个接口用于根据 OSS 路径或文件版本 ID 获取文件信息。
 
+注意：`GenerateFileNameByRule` 的 `source_id` 不是新品项目列表的行 ID，也不是 `ChemicalNew/GetProjectDetail?id=...` 的项目 ID；当 `source: 2`（商品资料）时，应传目标商品的 `product_version_id`。例如原网页上传 SKU 时使用的是：
+
+```json
+{
+  "source": 2,
+  "source_id": 360089,
+  "file_name_rules": ["主图", "_", "商品编码", "_", "品牌", "_", "商品名称", "_", "日期"],
+  "file_extension_names": [".jpg"],
+  "product_code": null
+}
+```
+
+脚本上传前应先按 SKU 精确读取 `Product/GetProductList`，取得 `product_id` 和 `product_version_id`；并校验返回文件名包含目标 SKU，再执行 OSS 上传和 `UploadArchiveFileFromExternal` 绑定。否则生成的文件名可能来自另一条商品记录，绑定接口会把文件归到错误产品。
+
 ### 产品文案 Word
 
 产品文案不是 `GetDetailContent` 直接返回的文本，而是产品详情字段里的归档附件引用。读取当前 SKU 的 Word 可以按下面的链路执行：

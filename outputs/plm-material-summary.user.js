@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.77
+// @version      2.6.78
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.77';
+  const SCRIPT_VERSION = '2.6.78';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -7550,9 +7550,12 @@
       sourceType: String(task.sourceType || (task.zipKey ? 'zip' : '')),
       sourceName: String(task.sourceName || task.zipName || ''),
       sourceUploaded: Boolean(task.sourceUploaded),
+      sourceGeneratedName: String(task.sourceGeneratedName || ''),
       submitted: Boolean(task.submitted),
       zipKey: String(task.zipKey || ''),
       projectId: String(task.projectId || ''),
+      productId: String(task.productId || ''),
+      productVersionId: String(task.productVersionId || ''),
       files,
       status: status === 'processing' && !preserveProcessing ? 'pending' : status,
       step: String(task.step || ''),
@@ -7828,6 +7831,7 @@
     });
     task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
     task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
+    task.submitted = false;
     task.projectId = getProjectIdForMaterialApi(loadData(task.sku) || {});
     task.updatedAt = Date.now();
     saveMagicUploadQueue(state.magicUploadQueue);
@@ -7859,6 +7863,7 @@
     task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
     task.error = '';
     task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
+    task.submitted = false;
     task.files.forEach((entry) => { if (entry.status !== 'success') { entry.status = 'pending'; entry.error = ''; } });
     saveMagicUploadQueue(state.magicUploadQueue);
     renderShell();
@@ -7965,13 +7970,64 @@
     return runPromise;
   }
 
+  async function resolveMagicUploadProductContext(task) {
+    const sku = String(task && task.sku || '').trim().toUpperCase();
+    if (!sku) throw new Error('缺少 SKU 编码，请先编辑任务');
+    magicUploadLog('info', '确认商品版本', sku);
+    const payload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(sku));
+    const list = payload && payload.data && Array.isArray(payload.data.list) ? payload.data.list : [];
+    const product = list.find((item) => String(item && (item.product_code || item.code || '')).trim().toUpperCase() === sku);
+    if (!product) throw new Error('产品列表未找到目标 SKU：' + sku);
+    const productId = product.product_id || product.id;
+    const productVersionId = product.product_version_id;
+    if (!productId || !productVersionId) throw new Error('目标 SKU 缺少 product_id 或 product_version_id：' + sku);
+    const context = {
+      sku,
+      productId: String(productId),
+      productVersionId: String(productVersionId),
+      productCode: String(product.product_code || product.code || sku).trim().toUpperCase(),
+    };
+    task.productId = context.productId;
+    task.productVersionId = context.productVersionId;
+    task.updatedAt = Date.now();
+    magicUploadLog('info', '商品版本已确认', sku + ' | product_id=' + context.productId + ' | product_version_id=' + context.productVersionId);
+    return context;
+  }
+
+  function isMagicGeneratedNameForSku(name, sku) {
+    const filename = String(name || '').trim();
+    const code = String(sku || '').trim().toUpperCase();
+    return Boolean(filename && code && new RegExp('(?:^|[^A-Z0-9])' + escapeRegExp(code) + '(?:[^A-Z0-9]|$)', 'i').test(filename));
+  }
+
   async function uploadMagicUploadTask(task) {
     if (!task.sku) throw new Error('缺少 SKU 编码，请先编辑任务');
     const data = normalizeData(loadData(task.sku) || {});
     const projectId = getProjectIdForMaterialApi(data);
-    if (!projectId) throw new Error('未找到项目 ID，请先打开或读取该 SKU 详情');
-    magicUploadLog('info', '任务开始上传', task.sku + ' | projectId=' + projectId + ' | 文件=' + (task.files || []).length);
-    task.projectId = String(projectId);
+    const productContext = await resolveMagicUploadProductContext(task);
+    const staleEntries = (task.files || []).filter((entry) => entry.status === 'success' && entry.generatedName && !isMagicGeneratedNameForSku(entry.generatedName, task.sku));
+    if (staleEntries.length) {
+      staleEntries.forEach((entry) => {
+        entry.status = 'pending';
+        entry.error = '历史文件名与目标 SKU 不一致，已准备重新上传';
+        entry.generatedName = '';
+      });
+      task.submitted = false;
+      magicUploadLog('warn', '发现历史错误商品绑定，准备重新上传', task.sku + ' | 文件=' + staleEntries.length);
+      if (task.sourceUploaded && task.zipKey && !task.sourceGeneratedName) {
+        task.sourceUploaded = false;
+        magicUploadLog('warn', '历史图包绑定无法校验，准备重新上传原始 ZIP', task.sku);
+      }
+    }
+    if (task.sourceUploaded && task.sourceGeneratedName && !isMagicGeneratedNameForSku(task.sourceGeneratedName, task.sku)) {
+      task.sourceUploaded = false;
+      task.sourceGeneratedName = '';
+      task.submitted = false;
+      magicUploadLog('warn', '发现历史错误图包绑定，准备重新上传原始 ZIP', task.sku);
+    }
+    if (!projectId) magicUploadLog('warn', '未找到项目 ID，仍按商品版本上传', task.sku + ' | product_version_id=' + productContext.productVersionId);
+    magicUploadLog('info', '任务开始上传', task.sku + ' | projectId=' + (projectId || '无') + ' | product_version_id=' + productContext.productVersionId + ' | 文件=' + (task.files || []).length);
+    task.projectId = String(projectId || '');
     const entries = (task.files || []).filter((entry) => entry.status !== 'success');
     if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
     for (let index = 0; index < entries.length; index += 1) {
@@ -7983,7 +8039,7 @@
       try {
         const file = await getUploadFile(entry.key);
         if (!file) throw new Error('本地文件已丢失：' + entry.name);
-        await uploadMagicUploadFile(task, entry, file);
+        await uploadMagicUploadFile(task, entry, file, productContext);
         entry.status = 'success';
         entry.error = '';
       } catch (error) {
@@ -7998,7 +8054,8 @@
       const zipFile = await getUploadFile(task.zipKey);
       if (zipFile) {
         const zipEntry = { name: task.zipName, category: '图包素材', archiveTypeId: 7, status: 'processing', key: task.zipKey };
-        await uploadMagicUploadFile(task, zipEntry, zipFile);
+        await uploadMagicUploadFile(task, zipEntry, zipFile, productContext);
+        task.sourceGeneratedName = zipEntry.generatedName || '';
         task.sourceUploaded = true;
       }
     }
@@ -8006,38 +8063,38 @@
       if (!state.magicUploadRunning) throw new Error('已暂停');
       task.step = '素材上传完成，正在提审';
       magicUploadLog('info', '素材上传完成，开始提审', task.sku);
-      await submitMagicUploadTask(task);
+      await submitMagicUploadTask(task, productContext);
       task.submitted = true;
     }
   }
 
-  async function submitMagicUploadTask(task) {
-    magicUploadLog('info', '读取商品 ID', task.sku);
-    const payload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(task.sku));
-    const list = payload && payload.data && Array.isArray(payload.data.list) ? payload.data.list : [];
-    const product = list.find((item) => String(item && (item.product_code || item.code || '')).toUpperCase() === String(task.sku || '').toUpperCase()) || list[0] || {};
-    const productId = product.product_id || product.id;
-    if (!productId) throw new Error('未找到商品 ID，无法提审');
-    magicUploadLog('info', '调用提审接口', task.sku + ' | product_id=' + productId);
-    await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(productId) || productId });
-    addLog('success', '魔法上传并提审成功', task.sku + ' | product_id=' + productId);
+  async function submitMagicUploadTask(task, productContext) {
+    const context = productContext || await resolveMagicUploadProductContext(task);
+    magicUploadLog('info', '调用提审接口', task.sku + ' | product_id=' + context.productId);
+    await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(context.productId) || context.productId });
+    addLog('success', '魔法上传并提审成功', task.sku + ' | product_id=' + context.productId);
   }
 
-  async function uploadMagicUploadFile(task, entry, file) {
+  async function uploadMagicUploadFile(task, entry, file, productContext) {
     const extension = getMagicUploadFileExtension(file.name || entry.name);
     const category = entry.category || (extension === '.zip' ? '图包素材' : '待确认');
     const rule = getMagicUploadRule(category, extension);
     if (!rule) throw new Error('无法确定上传区域：' + (entry.name || file.name));
+    const context = productContext || await resolveMagicUploadProductContext(task);
     magicUploadLog('info', '开始上传文件', task.sku + ' | ' + category + ' | ' + (file.name || entry.name));
     const namePayload = await fetchPlmApiJson('/api/Product/GenerateFileNameByRule', {
       source: 2,
-      source_id: Number(task.projectId) || task.projectId,
+      source_id: Number(context.productVersionId) || context.productVersionId,
       file_name_rules: [rule.rule, '_', '商品编码', '_', '品牌', '_', '商品名称', '_', '日期'],
       file_extension_names: [extension],
       product_code: null,
     });
     const generatedName = namePayload && Array.isArray(namePayload.data) ? namePayload.data[0] : '';
     if (!generatedName) throw new Error('PLM 未返回生成文件名');
+    if (!isMagicGeneratedNameForSku(generatedName, task.sku)) {
+      magicUploadLog('error', 'PLM 商品上下文校验失败', task.sku + ' | product_version_id=' + context.productVersionId + ' | 返回文件名=' + generatedName);
+      throw new Error('PLM 生成文件名与目标 SKU 不一致，已阻止上传：' + generatedName);
+    }
     const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 30 });
     const secret = secretPayload && secretPayload.data;
     if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
