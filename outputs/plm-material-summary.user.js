@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.78
+// @version      2.6.79
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.78';
+  const SCRIPT_VERSION = '2.6.79';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1567,6 +1567,17 @@
     '动图': { rule: '动图', archiveTypeId: 3 },
     '图包素材': { rule: '图包素材', archiveTypeId: 7 },
     '推品资料': { rule: '推品资料', archiveTypeId: 4 },
+  });
+  const MAGIC_UPLOAD_ATTRIBUTE_VARIABLES = Object.freeze({
+    '主图': 'main_image',
+    '英文参数图': 'english_specification_diagram',
+    '详情图': 'detail_image',
+    'SKU图': 'sku_pic',
+    '产品参数图': 'product_parameter_diagram',
+    '视频': 'video',
+    '动图': 'animated_image',
+    '图包素材': 'image_package_materials',
+    '推品资料': 'promotion_materials',
   });
   const TOY_EFFECT_MAX_FILES = 3;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
@@ -7540,6 +7551,8 @@
       status: String(entry && entry.status || 'pending'),
       error: String(entry && entry.error || ''),
       generatedName: String(entry && entry.generatedName || ''),
+      fileVersionId: String(entry && (entry.fileVersionId || entry.file_version_id) || ''),
+      fileId: String(entry && (entry.fileId || entry.file_id) || ''),
     })).filter((entry) => entry.name && entry.key) : [];
     const status = allowed.has(String(task.status || '')) ? String(task.status) : 'pending';
     return {
@@ -7551,7 +7564,9 @@
       sourceName: String(task.sourceName || task.zipName || ''),
       sourceUploaded: Boolean(task.sourceUploaded),
       sourceGeneratedName: String(task.sourceGeneratedName || ''),
+      sourceFileVersionId: String(task.sourceFileVersionId || ''),
       submitted: Boolean(task.submitted),
+      draftSaved: Boolean(task.draftSaved),
       zipKey: String(task.zipKey || ''),
       projectId: String(task.projectId || ''),
       productId: String(task.productId || ''),
@@ -7784,6 +7799,8 @@
         }
         existing.status = existing.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
         existing.step = existing.status === 'waiting' ? '请确认文件分类' : '等待上传';
+        existing.submitted = false;
+        existing.draftSaved = false;
         existing.updatedAt = Date.now();
       } else {
         queue.push(addition);
@@ -7828,10 +7845,14 @@
       entry.archiveTypeId = rule ? rule.archiveTypeId : 0;
       entry.status = 'pending';
       entry.error = '';
+      entry.fileVersionId = '';
+      entry.fileId = '';
+      entry.generatedName = '';
     });
     task.status = task.files.some((entry) => entry.category === '待确认') ? 'waiting' : 'pending';
     task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
     task.submitted = false;
+    task.draftSaved = false;
     task.projectId = getProjectIdForMaterialApi(loadData(task.sku) || {});
     task.updatedAt = Date.now();
     saveMagicUploadQueue(state.magicUploadQueue);
@@ -7864,6 +7885,7 @@
     task.error = '';
     task.step = task.status === 'waiting' ? '请确认文件分类' : '等待上传';
     task.submitted = false;
+    task.draftSaved = false;
     task.files.forEach((entry) => { if (entry.status !== 'success') { entry.status = 'pending'; entry.error = ''; } });
     saveMagicUploadQueue(state.magicUploadQueue);
     renderShell();
@@ -8000,29 +8022,222 @@
     return Boolean(filename && code && new RegExp('(?:^|[^A-Z0-9])' + escapeRegExp(code) + '(?:[^A-Z0-9]|$)', 'i').test(filename));
   }
 
+  function cloneMagicUploadDraftValue(value) {
+    if (Array.isArray(value)) return value.map((item) => cloneMagicUploadDraftValue(item));
+    if (!value || typeof value !== 'object') return value;
+    return Object.keys(value).reduce((result, key) => {
+      result[key] = cloneMagicUploadDraftValue(value[key]);
+      return result;
+    }, {});
+  }
+
+  function normalizeMagicUploadFileVersionValue(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim();
+    if (!text) return null;
+    return /^\d+$/.test(text) ? Number(text) : text;
+  }
+
+  function magicUploadDraftValueList(value) {
+    if (Array.isArray(value)) return value.map((item) => cloneMagicUploadDraftValue(item));
+    if (value === null || value === undefined || value === '') return [];
+    return [cloneMagicUploadDraftValue(value)];
+  }
+
+  function flattenMagicUploadProductAttributes(contentPayload) {
+    const groups = contentPayload && Array.isArray(contentPayload.data) ? contentPayload.data : [];
+    const values = [];
+    groups.forEach((group) => {
+      const attrs = group && Array.isArray(group.category_template_attrs) ? group.category_template_attrs : [];
+      attrs.forEach((attr) => {
+        if (!attr || attr.attr_id === undefined || attr.attr_id === null) return;
+        const languages = Array.isArray(attr.attr_language_config_json) ? attr.attr_language_config_json : [];
+        if (!languages.length) {
+          values.push({
+            attr_id: attr.attr_id,
+            language_id: attr.language_id === undefined || attr.language_id === null ? 1 : attr.language_id,
+            value: cloneMagicUploadDraftValue(attr.value),
+            attr_name: attr.attr_name,
+            variable_name: attr.variable_name,
+          });
+          return;
+        }
+        languages.forEach((language) => {
+          if (!language) return;
+          values.push({
+            attr_id: attr.attr_id,
+            language_id: language.language_id === undefined || language.language_id === null ? (attr.language_id || 1) : language.language_id,
+            value: cloneMagicUploadDraftValue(language.value),
+            attr_name: attr.attr_name,
+            variable_name: attr.variable_name,
+          });
+        });
+      });
+    });
+    return values;
+  }
+
+  function findMagicUploadProductAttribute(values, category) {
+    const variable = MAGIC_UPLOAD_ATTRIBUTE_VARIABLES[category] || '';
+    const exactVariable = values.find((item) => String(item && item.variable_name || '') === variable);
+    if (exactVariable) return exactVariable;
+    const exactName = values.find((item) => compactText(item && item.attr_name) === compactText(category));
+    if (exactName) return exactName;
+    return values.find((item) => compactText(item && item.attr_name).includes(compactText(category))) || null;
+  }
+
+  function collectMagicUploadFileVersionIds(task) {
+    const byCategory = Object.create(null);
+    const add = (category, value) => {
+      const normalized = normalizeMagicUploadFileVersionValue(value);
+      if (normalized === null) return;
+      const list = byCategory[category] || (byCategory[category] = []);
+      if (!list.some((item) => String(item) === String(normalized))) list.push(normalized);
+    };
+    (task && task.files || []).forEach((entry) => {
+      if (!entry || entry.category === '待确认' || !entry.fileVersionId) return;
+      add(entry.category, entry.fileVersionId);
+    });
+    if (task && task.sourceFileVersionId) add('图包素材', task.sourceFileVersionId);
+    return byCategory;
+  }
+
+  function getMagicUploadPayloadData(payload) {
+    return payload && payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data) ? payload.data : {};
+  }
+
+  function getMagicUploadProcureList(payload, fallback) {
+    const data = payload && payload.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.list)) return data.list;
+    return Array.isArray(fallback) ? fallback : [];
+  }
+
+  function sanitizeMagicUploadProcureInfos(list) {
+    return (Array.isArray(list) ? list : []).map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      const copy = cloneMagicUploadDraftValue(item);
+      delete copy.company_supplier_name;
+      return copy;
+    });
+  }
+
+  function buildMagicUploadProductDraft(task, productContext, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload) {
+    const info = getMagicUploadPayloadData(infoPayload);
+    const price = getMagicUploadPayloadData(pricePayload);
+    const invoice = getMagicUploadPayloadData(invoicePayload);
+    const values = flattenMagicUploadProductAttributes(contentPayload);
+    if (!values.length) throw new Error('未读取到商品模板字段，已停止保存商品草稿');
+    const additions = collectMagicUploadFileVersionIds(task);
+    const categories = Object.keys(additions);
+    if (!categories.length) throw new Error('未获取到上传文件版本 ID，已停止保存商品草稿');
+    const changed = [];
+    categories.forEach((category) => {
+      const target = findMagicUploadProductAttribute(values, category);
+      if (!target) throw new Error('商品模板中未找到“' + category + '”字段，已停止保存商品草稿');
+      const language = values.find((item) => String(item.attr_id) === String(target.attr_id) && Number(item.language_id) === 1);
+      if (!language) throw new Error('商品模板中“' + category + '”缺少中文字段，已停止保存商品草稿');
+      const existing = magicUploadDraftValueList(language.value);
+      const existingIds = new Set(existing.map((item) => String(item)));
+      additions[category].forEach((fileVersionId) => {
+        if (existingIds.has(String(fileVersionId))) return;
+        existing.push(fileVersionId);
+        existingIds.add(String(fileVersionId));
+      });
+      language.value = existing;
+      changed.push(category + ':' + additions[category].length);
+    });
+    const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
+    const procurementPrice = price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price;
+    const invoiceItemName = invoice.invoice_item_name === undefined ? field('invoice_item_name', null) : invoice.invoice_item_name;
+    const invoiceCategory = invoice.invoice_category === undefined ? field('invoice_category', null) : invoice.invoice_category;
+    const procureFallback = Array.isArray(info.product_procure_infos) ? info.product_procure_infos : [];
+    return {
+      procurement_price: procurementPrice,
+      invoice_item_name: invoiceItemName,
+      invoice_category: invoiceCategory,
+      product_procure_infos: sanitizeMagicUploadProcureInfos(getMagicUploadProcureList(procurePayload, procureFallback)),
+      is_need_to_process_product_procure_infos: true,
+      product_id: Number(productContext.productId) || productContext.productId,
+      code: field('code', productContext.productCode),
+      language_config: field('language_config', []),
+      product_type: field('product_type', 1),
+      same_style_code: field('same_style_code', null),
+      style_code: field('style_code', productContext.productCode),
+      is_AMZ: field('is_AMZ', false),
+      brand_id: field('brand_id', null),
+      category_id: field('category_id', null),
+      product_group_id: field('product_group_id', null),
+      virtual_classification: field('virtual_classification', null),
+      financial_settlement_classification: field('financial_settlement_classification', null),
+      jst_old_code: field('jst_old_code', null),
+      basic_unit_id: field('basic_unit_id', null),
+      purchase_unit_id: field('purchase_unit_id', null),
+      sale_unit_id: field('sale_unit_id', null),
+      purchase_conversion: field('purchase_conversion', null),
+      sale_conversion: field('sale_conversion', null),
+      is_SRS: field('is_SRS', false),
+      srs_code: field('srs_code', null),
+      data_source: field('data_source', null),
+      srs_product_code: field('srs_product_code', null),
+      srs_store_information: field('srs_store_information', null),
+      srs_store_supplier: field('srs_store_supplier', null),
+      attr_values: values.map((item) => ({ attr_id: item.attr_id, language_id: item.language_id, value: cloneMagicUploadDraftValue(item.value) })),
+      _magicUploadChangedFields: changed,
+    };
+  }
+
+  async function saveMagicUploadProductDraft(task, productContext) {
+    const context = productContext || await resolveMagicUploadProductContext(task);
+    const base = '/api/Product/GetDetailInfoByEdit?product_id=' + encodeURIComponent(context.productId) + '&product_version_id=' + encodeURIComponent(context.productVersionId);
+    const infoPayload = await fetchPlmJson(base);
+    const info = getMagicUploadPayloadData(infoPayload);
+    const categoryId = info.category_id;
+    if (!info.product_id || !categoryId) throw new Error('商品草稿基础信息不完整，缺少 product_id 或 category_id');
+    magicUploadLog('info', '读取商品草稿字段', task.sku + ' | product_id=' + context.productId + ' | product_version_id=' + context.productVersionId + ' | category_id=' + categoryId);
+    const query = (path) => path + '&product_version_id=' + encodeURIComponent(context.productVersionId);
+    const [contentPayload, pricePayload, invoicePayload, procurePayload] = await Promise.all([
+      fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(context.productId) + '&category_id=' + encodeURIComponent(categoryId) + '&product_version_id=' + encodeURIComponent(context.productVersionId)),
+      fetchPlmJson(query('/api/Product/GetProductPriceInfo?type=1')),
+      fetchPlmJson(query('/api/Product/GetProductInvoiceInfo?type=1')),
+      fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(task.sku)),
+    ]);
+    const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload);
+    const changedFields = draft._magicUploadChangedFields || [];
+    delete draft._magicUploadChangedFields;
+    magicUploadLog('info', '准备保存商品草稿', task.sku + ' | attr_values=' + draft.attr_values.length + ' | 文件字段=' + changedFields.join('；'));
+    return fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
+  }
+
   async function uploadMagicUploadTask(task) {
     if (!task.sku) throw new Error('缺少 SKU 编码，请先编辑任务');
     const data = normalizeData(loadData(task.sku) || {});
     const projectId = getProjectIdForMaterialApi(data);
     const productContext = await resolveMagicUploadProductContext(task);
-    const staleEntries = (task.files || []).filter((entry) => entry.status === 'success' && entry.generatedName && !isMagicGeneratedNameForSku(entry.generatedName, task.sku));
+    const staleEntries = (task.files || []).filter((entry) => entry.status === 'success'
+      && (!entry.fileVersionId || (entry.generatedName && !isMagicGeneratedNameForSku(entry.generatedName, task.sku))));
     if (staleEntries.length) {
       staleEntries.forEach((entry) => {
         entry.status = 'pending';
         entry.error = '历史文件名与目标 SKU 不一致，已准备重新上传';
         entry.generatedName = '';
+        entry.fileVersionId = '';
+        entry.fileId = '';
       });
       task.submitted = false;
+      task.draftSaved = false;
       magicUploadLog('warn', '发现历史错误商品绑定，准备重新上传', task.sku + ' | 文件=' + staleEntries.length);
       if (task.sourceUploaded && task.zipKey && !task.sourceGeneratedName) {
         task.sourceUploaded = false;
+        task.sourceFileVersionId = '';
         magicUploadLog('warn', '历史图包绑定无法校验，准备重新上传原始 ZIP', task.sku);
       }
     }
-    if (task.sourceUploaded && task.sourceGeneratedName && !isMagicGeneratedNameForSku(task.sourceGeneratedName, task.sku)) {
+    if (task.sourceUploaded && (!task.sourceFileVersionId || (task.sourceGeneratedName && !isMagicGeneratedNameForSku(task.sourceGeneratedName, task.sku)))) {
       task.sourceUploaded = false;
       task.sourceGeneratedName = '';
+      task.sourceFileVersionId = '';
       task.submitted = false;
+      task.draftSaved = false;
       magicUploadLog('warn', '发现历史错误图包绑定，准备重新上传原始 ZIP', task.sku);
     }
     if (!projectId) magicUploadLog('warn', '未找到项目 ID，仍按商品版本上传', task.sku + ' | product_version_id=' + productContext.productVersionId);
@@ -8056,13 +8271,29 @@
         const zipEntry = { name: task.zipName, category: '图包素材', archiveTypeId: 7, status: 'processing', key: task.zipKey };
         await uploadMagicUploadFile(task, zipEntry, zipFile, productContext);
         task.sourceGeneratedName = zipEntry.generatedName || '';
+        task.sourceFileVersionId = zipEntry.fileVersionId || '';
         task.sourceUploaded = true;
       }
     }
+    if (task.zipKey && !task.sourceUploaded) throw new Error('原始 ZIP 文件已丢失，无法保存图包素材');
+    if (!task.draftSaved) {
+      if (!state.magicUploadRunning) throw new Error('已暂停');
+      task.step = '素材上传完成，正在保存商品草稿';
+      magicUploadLog('info', '开始保存商品草稿', task.sku + ' | product_id=' + productContext.productId + ' | product_version_id=' + productContext.productVersionId);
+      const savedDraft = await saveMagicUploadProductDraft(task, productContext);
+      task.draftSaved = true;
+      if (savedDraft && savedDraft.data && savedDraft.data.product_version_id) {
+        task.productVersionId = String(savedDraft.data.product_version_id);
+        productContext.productVersionId = task.productVersionId;
+      }
+      task.updatedAt = Date.now();
+      saveMagicUploadQueue(state.magicUploadQueue);
+      magicUploadLog('success', '商品草稿保存完成', task.sku + ' | 文件已写入商品字段；下一步提审');
+    }
     if (!task.submitted) {
       if (!state.magicUploadRunning) throw new Error('已暂停');
-      task.step = '素材上传完成，正在提审';
-      magicUploadLog('info', '素材上传完成，开始提审', task.sku);
+      task.step = '商品草稿已保存，正在提审';
+      magicUploadLog('info', '商品草稿已保存，开始提审', task.sku);
       await submitMagicUploadTask(task, productContext);
       task.submitted = true;
     }
@@ -8104,9 +8335,16 @@
     const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
     await client.multipartUpload(objectName, file, { partSize: 2 * 1024 * 1024, parallel: 2 });
     await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 30, oss_path: objectName, original_file_name: file.name || entry.name });
-    await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: file.name || entry.name, file_save_full_path: objectName }] });
+    const bindPayload = await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: file.name || entry.name, file_save_full_path: objectName }] });
+    const records = Array.isArray(bindPayload && bindPayload.data) ? bindPayload.data : (bindPayload && bindPayload.data ? [bindPayload.data] : []);
+    const record = records[0] || {};
+    const fileVersionId = record.file_version_id || record.archive_file_version_id || record.id;
+    if (!fileVersionId) throw new Error('PLM 未返回 file_version_id，已停止保存商品草稿');
     entry.generatedName = generatedName;
-    magicUploadLog('info', '文件绑定完成', task.sku + ' | ' + category + ' | ' + generatedName);
+    entry.fileVersionId = String(fileVersionId);
+    entry.fileId = String(record.file_id || record.archive_file_id || '');
+    magicUploadLog('info', '文件归档完成，待保存商品草稿', task.sku + ' | ' + category + ' | file_version_id=' + entry.fileVersionId + ' | ' + generatedName);
+    return entry.fileVersionId;
   }
 
   function createMagicObjectName(extension) {

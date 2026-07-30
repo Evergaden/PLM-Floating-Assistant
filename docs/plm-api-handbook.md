@@ -228,6 +228,22 @@ Content-Type: application/json
 
 如果某一步失败，日志应明确显示项目接口、产品列表或产品详情字段阶段；项目物料结果仍可单独保留。
 
+## 图包上传后的商品草稿保存
+
+`UploadArchiveFileFromExternal` 只会把 OSS 文件登记为 PLM 归档文件，返回的 `file_version_id` 还没有写入商品的主图、详情图、SKU 图等字段。因此上传日志不能在这一步写“文件绑定完成”。完整的商品字段绑定必须继续执行：
+
+```text
+UploadArchiveFileFromExternal
+→ 取得 data[].file_version_id
+→ GetDetailInfoByEdit
+→ GetDetailContent?is_edit=true，读取全部 attr_values
+→ 将新 file_version_id 合并到对应 variable_name 的中文字段
+→ SaveProductDraftByEdit
+→ Product/Arraign
+```
+
+当前魔法上传按 `variable_name` 映射分类：`main_image`、`english_specification_diagram`、`detail_image`、`sku_pic`、`product_parameter_diagram`、`video`、`animated_image`、`image_package_materials` 和 `promotion_materials`。保存草稿时会保留原有文件 ID，只追加本次上传的 ID；任一模板字段或文件版本 ID 缺失都会阻止提审。`SaveProductDraftByEdit` 返回的新 `product_version_id` 需要写回队列，后续重试重新读取最新版本。
+
 ## 风险和注意事项
 
 - 上传接口会产生外部写入，必须由用户明确触发；读取接口可以后台自动执行。
