@@ -1,6 +1,6 @@
 # PLM API 手册
 
-更新日期：2026-07-29
+更新日期：2026-07-31
 
 站点：`https://plm.westmonth.com`
 
@@ -273,6 +273,229 @@ Content-Type: application/json
 ```
 
 返回记录包含 `archive_file_version_id`、`file_name`、`file_path`、`file_format`、`create_at` 和 `is_invalid`。当前脚本优先选择匹配 SKU 的最新 `docx`，通过当前登录态读取接口和 OSS 文件，不保存 Cookie、Authorization 或临时密钥；API 失败时才回退到详情抽屉里的下载动作。
+
+## 2026-07-30 图包生成抓包实录
+
+本节根据 `plm.westmonth.com图包生成.har` 和同日 API JSON 整理。HAR 共 532 条记录，其中 234 条为 PLM `/api` 请求；API JSON 共 160 条，按最新时间在前排列。重放或分析时要按 `time` 升序还原步骤，并排除 APM、Sentry、静态资源和图片预览请求。
+
+这次实际链路以一个商品 SKU 为例：先加载商品编辑态，保存一次商品草稿取得新版本，再生成 AI 图片，最后将 6 张主图和 10 张详情图逐张上传、归档并再次保存商品草稿。
+
+### 1. 编辑页初始化和前置读取
+
+打开商品编辑页时，页面会并行读取下面几类数据。它们主要用于拼装编辑表单和判断 AI 功能状态，不应误判成“图生成已经开始”：
+
+| 目的 | 接口 |
+|---|---|
+| 当前商品和版本 | `GET /api/Product/GetProductList?page=1&pageSize=20&codes={SKU}`、`GET /api/Product/GetDetailInfoByEdit?product_id={product_id}&product_version_id={product_version_id}` |
+| 可编辑字段和现值 | `GET /api/Product/GetDetailContent?is_edit=true&product_id={product_id}&category_id={category_id}&product_version_id={product_version_id}` |
+| 模板/分类辅助数据 | `GetFixedAttrNameList`、`GetFileTypeSelectOption`、`GetUserSelectOption`、`GetLanguageSelectOption`、`GetFieldLanguageJoins?type=1`、`GetCategorySelectOptionNew`、`GetCategoryTempId`、`IsBottomCategory` |
+| 商品下拉选项 | `GetAllBrandSelectOption`、`GetMeteringUnitSelectOption`、`GetProductGroupSelectOption`、`GetMaterialGroupSelectOption` |
+| 编辑校验 | `GET /api/Product/CheckJstOldCodeForProduct?jstOldCode={SKU}&id={product_id}` |
+| 原有附件和图片文件名 | `POST /api/Product/GetArchiveFileVersionListByFileVersionId`、`POST /api/Common/GetUploadFileInfo` |
+| AI 能力和任务状态 | `AccessAiCapabilities`、`CheckGetAiTextCheckTaskExists`、`CheckAiProductTextResultExists`、`CheckGenPicTaskExists` |
+| 文案、标题检查和采购信息 | `GetProductTextAiResult`、`GetAiTitleCheckResult`、`ProductProcureInfo/GetTaxRate`、`GetProductPriceInfo`、`GetProductInvoiceInfo`、`ProductProcureInfo/GetProductProcureInfo`、`ProductProcureInfo/GetProductReferencePrice` |
+
+供应商/人员下拉会分别调用 `GetManufactureDataSourceList`、`GetSrmSupplierDataSourceList`、`GetJdCustomerDataSourceList`、`GetDevUserDataSourceList` 和 `GetDesignUserDataSourceList`。页面通常先取分页列表，再用 `ids_ext` 取当前已选项；这些请求可按需懒加载。
+
+商品展示读取和商品编辑保存的详情接口参数不同：展示字段可用 `is_edit=false`，要保存草稿必须先用 `is_edit=true` 读取完整的可编辑值。`GetDetailContent` 返回的模板属性要展开成：
+
+```json
+{
+  "attr_id": 123,
+  "language_id": 1,
+  "value": "原值或新值"
+}
+```
+
+不要只提交本次变化的一个字段。原始 HAR 中保存请求的 `attr_values` 有 210 项（每项只有 `attr_id`、`language_id`、`value`）；配套 API JSON 对同一类请求只记录了 40 项，说明该 JSON 不是原始请求体的完整替代品，字段数量不能硬编码。
+
+### 2. 先保存商品草稿，推进版本号
+
+图像归档使用的是商品资料来源 `source: 2`，所以必须先取得当前商品的最新 `product_version_id`。保存接口的请求体由编辑页完整表单组成，至少要保留以下结构：
+
+```http
+POST /api/Product/SaveProductDraftByEdit
+Content-Type: application/json
+```
+
+```json
+{
+  "product_id": 259926,
+  "product_version_id": 386352,
+  "code": "SKU00046982",
+  "language_config": [
+    { "language_id": 1, "product_name": "中文品名", "product_remark": null },
+    { "language_id": 2, "product_name": "English name", "product_remark": null }
+  ],
+  "product_type": 1,
+  "style_code": "SKU00046982",
+  "category_id": 362,
+  "product_group_id": 3,
+  "product_procure_infos": [],
+  "is_need_to_process_product_procure_infos": true,
+  "attr_values": [
+    { "attr_id": 123, "language_id": 1, "value": "..." }
+  ]
+}
+```
+
+实际保存还会带品牌、分类、结算、单位换算、JST 旧编码、SRS 和采购字段。应从 `GetDetailInfoByEdit` 和 `GetDetailContent?is_edit=true` 保留原表单字段，只合并需要改变的值。返回值至少检查 `id`、`code` 和 `product_version_id`。
+
+抓包确认的版本变化是：首次保存使用旧版本 `386352`，返回新版本 `388565`；后续保存使用 `388565` 并继续返回 `388565`。因此保存响应一到，就要把队列、命名和后续归档的当前版本全部更新为响应中的版本号。
+
+### 3. AI 文案输入和图片生成
+
+页面先用下面的接口准备生成输入：
+
+```http
+GET  /api/Product/GetProductTextAiResult?code={SKU}
+POST /api/Product/GetAiTitleCheckResult   {"code":"{SKU}","language":1}
+POST /api/Product/GetAiTitleCheckResult   {"code":"{SKU}","language":2}
+```
+
+`GetProductTextAiResult` 的 `data.textList` 是文案字段列表；抓包中有 14 个字段。`GetGenPicAiResult` 的首次提交请求除了 `code`，还会带 `copywrite`（文案对象数组，抓包中 12 个字段）以及四个成分字段：
+
+```json
+{
+  "code": "SKU00046982",
+  "copywrite": [
+    {
+      "id": 1,
+      "type": "product_name",
+      "title": "Product Name",
+      "title_cn": "产品名",
+      "value": "...",
+      "value_cn": "..."
+    }
+  ],
+  "product_ingredients_efficacy_ch": "...",
+  "product_ingredients_summary_ch": "...",
+  "product_ingredients_efficacy_en": "...",
+  "product_ingredients_summary_en": "..."
+}
+```
+
+接口是“提交和查询”复用同一路径：
+
+```http
+POST /api/Product/GetGenPicAiResult
+{"code":"{SKU}","copywrite":[...],"product_ingredients_summary_ch":"..."}
+```
+
+提交后不要重复提交完整文案；后续轮询只发送：
+
+```json
+{"code":"SKU00046982"}
+```
+
+返回状态按 `data.status` 判断：
+
+| `status` | 含义 | 处理 |
+|---|---|---|
+| `1` | 任务执行中，`job_id` 可能为 `null` | 延时轮询，不上传图片 |
+| `2` | 执行成功 | 读取 `job_id`、`mainImages`、`detailImages` |
+| 其他/HTTP 非 2xx | 失败或异常 | 记录 `message`，停止该 SKU 的上传 |
+
+成功结果的图片对象形如 `{"url":"https://ai-obj.westmonth.com/...png","filename":"input-main-prompt-1.png"}`。本次抓包得到 `mainImages` 6 项、`detailImages` 10 项。`CheckGenPicTaskExists?code={SKU}` 可用于提交前防重复；拿到 `job_id` 后页面还会调用 `CheckReGenPicTaskExists?code={SKU}&job_id={job_id}`，但它不能替代 `GetGenPicAiResult` 的结果轮询。文案任务的 `CheckGetAiTextCheckTaskExists?code={SKU}&language=1|2` 是另一条状态链。
+
+### 4. AI 图片反馈
+
+生成结果展示前，页面分别按主图和详情图查询用户反馈：
+
+```http
+POST /api/Ai/GetCurrentUserFeedback
+{
+  "product_code": "SKU00046982",
+  "module": "主图",
+  "image_urls": ["*"]
+}
+```
+
+`module` 实际使用 `主图` 或 `详情图`；响应是包含 `image_url`、`has_feedback`、`feedback_type` 的数组。用户提交反馈时调用：
+
+```http
+POST /api/Ai/SubmitFeedback
+{
+  "product_code": "SKU00046982",
+  "module": "主图",
+  "feedback_content": "...",
+  "image_url": "*"
+}
+```
+
+抓包中 `feedback_content` 出现过 `"[object Object]"`，这是前端序列化结果，不应当被当作可靠的业务格式；重放或实现时应先确认服务端期望的是纯文本还是 JSON 字符串。
+
+### 5. 每张图片的 OSS 和 PLM 归档链路
+
+AI 结果不是 ZIP，而是多张独立 PNG。每个图片文件都要完成下面的依赖链，16 张图片可以并发，但每一张都要独立登记：
+
+```text
+GetGenPicAiResult 成功
+→ GenerateFileNameByRule
+→ GetOssClientSecretKey(upload_file_type=30)
+→ Aliyun OSS multipartUpload
+→ SaveUploadFileInfo(upload_file_type=30)
+→ UploadArchiveFileFromExternal
+```
+
+主图和详情图的规范命名规则分别是：
+
+```json
+["主图","_","商品编码","_","品牌","_","商品名称","_","日期"]
+["详情图","_","商品编码","_","品牌","_","商品名称","_","日期"]
+```
+
+命名请求必须使用最新商品版本：
+
+```json
+{
+  "source": 2,
+  "source_id": "{current_product_version_id}",
+  "file_name_rules": ["主图","_","商品编码","_","品牌","_","商品名称","_","日期"],
+  "file_extension_names": [".png"],
+  "product_code": null
+}
+```
+
+`GenerateFileNameByRule` 返回一个规范文件名数组。它与 AI 结果的 `filename` 角色不同：前者写入 `file_display_names`，后者写入 `file_url_list[].file_original_name`。OSS 随机对象路径写入 `file_url_list[].file_save_full_path`。
+
+本次图片上传使用 `upload_file_type: 30`，临时目录形如 `/xy/upload/Product/{date}/{user}`，返回的单文件 `max_file_size` 为 20 MiB。STS 只用于当前短时上传；不要缓存密钥到文件、日志或代码。SDK 的实际传输是 `?uploads=` 创建 multipart upload，随后 `partNumber`/`uploadId` 分片 PUT，最后以 `uploadId` 完成；OPTIONS 是 CORS 预检，不是业务步骤。
+
+登记 OSS 文件：
+
+```json
+{
+  "upload_file_type": 30,
+  "oss_path": "xy/upload/Product/{date}/{user}/{random}.png",
+  "original_file_name": "AI 结果中的原始 filename"
+}
+```
+
+登记接口成功时通常只有 `code/success/message`，没有可供后续绑定的文件版本 ID。随后绑定 PLM 归档：
+
+```json
+{
+  "archive_type_id": 1,
+  "source": 2,
+  "file_display_names": ["GenerateFileNameByRule 返回值"],
+  "file_url_list": [
+    {
+      "file_original_name": "input-main-prompt-1.png",
+      "file_save_full_path": "xy/upload/Product/{date}/{user}/{random}.png"
+    }
+  ]
+}
+```
+
+AI 生成的主图和详情图在本次抓包中使用 `archive_type_id: 1`，每次请求返回 `data[]`，应保存其中的 `file_version_id`。这与图包素材 ZIP 的 `archive_type_id: 7` 不是同一类归档，不能混用。
+
+### 6. 上传完成后的保存和结果确认
+
+16 张图片全部完成 `UploadArchiveFileFromExternal` 后，页面再次调用 `SaveProductDraftByEdit`，将新增的文件版本 ID 合并进相应模板字段，同时保留原有文件 ID。抓包中保存请求成功后又调用 `GetProductList` 刷新列表，并在短时间内重复保存一次；这说明前端可能有自动保存/手动保存的双触发，脚本应使用幂等或去重保护。
+
+文件字段仍按 `GetDetailContent?is_edit=true` 返回的 `variable_name` 映射，不要按图片 URL 或显示名称猜字段。当前已确认的候选字段包括 `main_image`、`detail_image`、`sku_pic`、`english_specification_diagram`、`product_parameter_diagram`、`video`、`animated_image`、`image_package_materials` 和 `promotion_materials`。
+
+本次抓包只确认了“保存草稿”，没有出现 `Product/Arraign` 提审请求；因此日志只能写“文件已上传并保存草稿”，不能据此写“已提审”。
 
 ## 当前用户脚本的读取链路
 
