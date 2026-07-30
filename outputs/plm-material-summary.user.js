@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.74
+// @version      2.6.75
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.74';
+  const SCRIPT_VERSION = '2.6.75';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1583,12 +1583,25 @@
   }
   let plmApiMonitorState = loadPlmApiMonitorState();
   const plmAuthHeaders = Object.create(null);
-  function capturePlmAuthHeaders(headers) {
-    if (!headers) return;
+  function isPlmAuthCaptureTarget(value) {
+    if (!value) return false;
+    try {
+      const url = new URL(String(value || ''), location.href);
+      return url.origin === location.origin && !/\/assets\//i.test(url.pathname) && !/\.(css|js|png|jpg|svg|woff2?)$/i.test(url.pathname);
+    } catch (_) { return false; }
+  }
+  function isOssAuthorizationHeader(name, value) {
+    return /^authorization$/i.test(String(name || '').trim()) && /^(?:OSS|AWS4-HMAC-SHA256)\s/i.test(String(value || '').trim());
+  }
+  function capturePlmAuthHeaders(headers, requestUrl) {
+    // The OSS SDK also sends an Authorization header, but its value is an OSS
+    // signature and must never replace the PLM page session header.
+    if (!headers || !isPlmAuthCaptureTarget(requestUrl)) return;
     const capture = (name, value) => {
       const headerName = String(name || '').trim();
       if (!headerName || /^x-oss-/i.test(headerName) || !/authorization|(?:^|[-_])(auth|token|session|jwt)(?:$|[-_])/i.test(headerName)) return;
       const headerValue = String(value || '').trim();
+      if (isOssAuthorizationHeader(headerName, headerValue)) return;
       if (headerValue && headerValue.length <= 4096) plmAuthHeaders[headerName] = headerValue;
     };
     if (typeof headers.forEach === 'function') {
@@ -1601,7 +1614,7 @@
   }
   function getPlmAuthHeaders() {
     return Object.keys(plmAuthHeaders).reduce((headers, name) => {
-      headers[name] = plmAuthHeaders[name];
+      if (!isOssAuthorizationHeader(name, plmAuthHeaders[name])) headers[name] = plmAuthHeaders[name];
       return headers;
     }, {});
   }
@@ -1653,8 +1666,8 @@
         const requestUrl = typeof input === 'string' ? input : (input && input.url) || '';
         const method = (init && init.method) || (input && input.method) || 'GET';
         const requestBody = init && init.body;
-        capturePlmAuthHeaders(init && init.headers);
-        capturePlmAuthHeaders(input && input.headers);
+        capturePlmAuthHeaders(init && init.headers, requestUrl);
+        capturePlmAuthHeaders(input && input.headers, requestUrl);
         const result = originalFetch.apply(this, arguments);
         result.then((response) => {
           const contentType = response.headers && response.headers.get ? response.headers.get('content-type') || '' : '';
@@ -1671,7 +1684,8 @@
       xhrProto.open = function (method, url) { this.__plmApiMonitor = { method, url }; return originalOpen.apply(this, arguments); };
       if (originalSetRequestHeader) {
         xhrProto.setRequestHeader = function (name, value) {
-          capturePlmAuthHeaders({ [name]: value });
+          const requestUrl = this.__plmApiMonitor && this.__plmApiMonitor.url;
+          capturePlmAuthHeaders({ [name]: value }, requestUrl);
           return originalSetRequestHeader.apply(this, arguments);
         };
       }
