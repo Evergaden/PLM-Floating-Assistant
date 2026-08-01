@@ -1,0 +1,93 @@
+import { StrictMode } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { MotionConfig } from 'motion/react'
+import App, { type AppHostActions } from './App'
+import { configureLedgerBridge, type LedgerBridgeHost } from './dataBridge'
+import { ThemeProvider } from './theme/ThemeProvider'
+import { ToastProvider } from './components/ToastProvider'
+import tokensCss from './theme/tokens.css?inline'
+import stylesCss from './styles.css?inline'
+
+export type FrontendV2MountOptions = AppHostActions & {
+  storage?: LedgerBridgeHost | null
+  shadow?: boolean
+}
+
+type FrontendV2Runtime = {
+  mount: (container: HTMLElement, options?: FrontendV2MountOptions) => () => void
+}
+
+type RuntimeGlobal = typeof globalThis & {
+  PLMWorkbenchV2?: FrontendV2Runtime
+}
+
+const activeMounts = new WeakMap<HTMLElement, () => void>()
+
+const HOST_OVERRIDES = `
+:host{display:block!important;width:100%;height:100%;min-width:0;overflow:hidden;border-radius:inherit;background:transparent;color:var(--pfh-ink);}
+.plm-v2-shadow-root{width:100%;height:100%;min-width:0;overflow:hidden;}
+.preview-stage{width:100%;min-width:0;min-height:100%;height:100%;padding:14px;overflow:auto;}
+.workbench-shell{width:100%;min-width:0;min-height:calc(100% - 28px);height:auto;margin:0;}
+.app-sidebar{width:170px;flex-basis:170px;padding:22px 12px 14px;}
+.brand-lockup{padding-left:9px;padding-right:9px;padding-bottom:27px;}
+.sidebar-label{padding-left:9px;padding-right:9px;}
+.app-header{min-height:64px;padding:0 18px;}
+.global-search{width:154px;}
+.page-stack{padding:22px 20px 30px;}
+.preview-caption{display:none;}
+`
+
+function shadowCss() {
+  return `${tokensCss.replace(/:root/g, ':host')}\n${stylesCss}\n${HOST_OVERRIDES}`
+}
+
+function renderApp(mountNode: HTMLElement, options: FrontendV2MountOptions) {
+  const root: Root = createRoot(mountNode)
+  root.render(
+    <StrictMode>
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider>
+          <ToastProvider>
+            <App host={options} />
+          </ToastProvider>
+        </ThemeProvider>
+      </MotionConfig>
+    </StrictMode>,
+  )
+  return root
+}
+
+export function mount(container: HTMLElement, options: FrontendV2MountOptions = {}) {
+  activeMounts.get(container)?.()
+  configureLedgerBridge(options.storage ?? null)
+
+  if (options.shadow) {
+    container.setAttribute('data-plm-v2-theme-host', '')
+    const shadow = container.shadowRoot ?? container.attachShadow({ mode: 'open' })
+    shadow.innerHTML = `<style>${shadowCss()}</style><div class="plm-v2-shadow-root"></div>`
+    const mountNode = shadow.querySelector<HTMLElement>('.plm-v2-shadow-root')
+    if (!mountNode) throw new Error('PLM v2 mount root was not created')
+    const root = renderApp(mountNode, options)
+    const unmount = () => {
+      root.unmount()
+      shadow.innerHTML = ''
+      container.removeAttribute('data-plm-v2-theme-host')
+      activeMounts.delete(container)
+      configureLedgerBridge(null)
+    }
+    activeMounts.set(container, unmount)
+    return unmount
+  }
+
+  const root = renderApp(container, options)
+  const unmount = () => {
+    root.unmount()
+    activeMounts.delete(container)
+    configureLedgerBridge(null)
+  }
+  activeMounts.set(container, unmount)
+  return unmount
+}
+
+const runtime = globalThis as RuntimeGlobal
+runtime.PLMWorkbenchV2 = { mount }

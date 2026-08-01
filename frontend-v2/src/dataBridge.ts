@@ -23,6 +23,16 @@ type UserscriptApi = {
   GM_removeValueChangeListener?: (listenerId: number) => void
 }
 
+export type LedgerBridgeHost = {
+  storage: LedgerBridgeStorage
+  getValue: (key: string, defaultValue?: unknown) => unknown
+  setValue: (key: string, value: unknown) => void
+  addValueChangeListener?: (key: string, listener: GMListener) => number
+  removeValueChangeListener?: (listenerId: number) => void
+}
+
+let configuredHost: LedgerBridgeHost | null = null
+
 const STAGE_PENDING_IMAGE = '\u5f85\u51fa\u56fe' as LedgerStage
 const STAGE_PENDING_FINAL = '\u5f85\u5b9a\u7a3f' as LedgerStage
 const STAGE_FINALIZED = '\u5df2\u5b9a\u7a3f' as LedgerStage
@@ -31,7 +41,20 @@ const STATUS_COMPLETED = '\u5df2\u5b8c\u6210'
 const STATUS_VOID = '\u4f5c\u5e9f'
 const DEFAULT_DESIGN_TYPE = '\u4ea7\u54c1\u8d44\u6599'
 
-function userscriptApi() {
+export function configureLedgerBridge(host: LedgerBridgeHost | null = null) {
+  configuredHost = host
+}
+
+function userscriptApi(): UserscriptApi {
+  if (configuredHost?.storage === 'gm') {
+    return {
+      GM_getValue: configuredHost.getValue,
+      GM_setValue: configuredHost.setValue,
+      GM_addValueChangeListener: configuredHost.addValueChangeListener,
+      GM_removeValueChangeListener: configuredHost.removeValueChangeListener,
+    }
+  }
+  if (configuredHost) return {}
   return globalThis as unknown as UserscriptApi
 }
 
@@ -135,9 +158,9 @@ function toLedgerRecord(item: LegacyRecord, trash: boolean): LedgerRecord | null
   }
 }
 
-function readStoredValue(key: string) {
+function readStoredValue(key: string, preferredStorage?: LedgerBridgeStorage) {
   const api = userscriptApi()
-  if (typeof api.GM_getValue === 'function') {
+  if (preferredStorage !== 'local' && typeof api.GM_getValue === 'function') {
     try {
       const value = api.GM_getValue(key, null)
       return { value, storage: 'gm' as LedgerBridgeStorage, exists: value !== null && value !== undefined }
@@ -213,7 +236,7 @@ export function readLedgerSnapshot(fallback: LedgerRecord[] = defaultLedgerRecor
     }
   }
 
-  const frontendStored = readStoredValue(FRONTEND_LEDGER_KEY)
+  const frontendStored = readStoredValue(FRONTEND_LEDGER_KEY, 'local')
   const frontendRecords = parseArray(frontendStored.value)
     .filter((item) => text(item.id) && text(item.sku) && text(item.date)) as unknown as LedgerRecord[]
   if (frontendRecords.length || frontendStored.exists) {

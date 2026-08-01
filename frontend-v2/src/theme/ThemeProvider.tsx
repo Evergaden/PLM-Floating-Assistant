@@ -39,6 +39,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+    document.querySelector<HTMLElement>('[data-plm-v2-theme-host]')?.setAttribute('data-theme', theme)
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme)
     } catch {

@@ -15,7 +15,12 @@ const navIcons = {
   queue: UploadCloud,
 } satisfies Record<ViewId, typeof LayoutDashboard>
 
-function App() {
+export type AppHostActions = {
+  onClose?: () => void
+  onOpen?: () => void
+}
+
+function App({ host }: { host?: AppHostActions } = {}) {
   const [activeView, setActiveView] = useState<ViewId>('today')
   const [selectedProductSku, setSelectedProductSku] = useState<string | null>(null)
   const [productTab, setProductTab] = useState<ProductDetailTab>('详情')
@@ -50,10 +55,20 @@ function App() {
     }
   }
 
+  const openPanel = () => {
+    if (host?.onOpen) host.onOpen()
+    else setPanelOpen(true)
+  }
+
+  const closePanel = () => {
+    if (host?.onClose) host.onClose()
+    else setPanelOpen(false)
+  }
+
   if (!panelOpen) {
     return (
       <main className="preview-stage is-collapsed">
-        <motion.button type="button" className="reopen-button" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.95 }} onClick={() => setPanelOpen(true)}>
+        <motion.button type="button" className="reopen-button" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.95 }} onClick={openPanel}>
           <Sparkles size={17} /> 打开工作台
         </motion.button>
       </main>
@@ -96,7 +111,7 @@ function App() {
               <label className="global-search"><Search size={15} /><input placeholder="搜索 SKU 或功能" /><kbd><Command size={11} /> K</kbd></label>
               <ThemeSwitcher />
               <button type="button" className="icon-button header-icon-button" aria-label="通知" onClick={() => setShowNotifications((value) => !value)}><Bell size={17} /><span className="notification-dot" /></button>
-              <button type="button" className="icon-button header-icon-button" aria-label="关闭工作台" onClick={() => setPanelOpen(false)}><PanelLeftClose size={17} /></button>
+              <button type="button" className="icon-button header-icon-button" aria-label="关闭工作台" onClick={closePanel}><PanelLeftClose size={17} /></button>
             </div>
             <AnimatePresence>
               {showNotifications && (
