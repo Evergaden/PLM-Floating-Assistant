@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Copy, Download, FileImage, Info, MoreHorizontal, RefreshCw, ScanLine, Sparkles } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, FileImage, Info, MoreHorizontal, Pencil, RefreshCw, ScanLine, Sparkles } from 'lucide-react'
 import { type ReactNode } from 'react'
 import { products } from '../data'
 import { ProductArtwork } from '../components/ProductArtwork'
@@ -18,6 +18,16 @@ export function ProductPage({
   onSelectProduct,
   onOpenFullLibrary,
   onBackToQueue,
+  onCopySku,
+  onExport,
+  onMore,
+  onOpenDetail,
+  onEdit,
+  onCopyTitle,
+  onRefresh,
+  detailData,
+  showSkuRail = true,
+  embedded = false,
 }: {
   product?: ProductRecord
   productCatalog?: ProductRecord[]
@@ -26,31 +36,48 @@ export function ProductPage({
   onSelectProduct: (sku: string, tab?: ProductDetailTab) => void
   onOpenFullLibrary: () => void
   onBackToQueue: () => void
+  onCopySku?: () => void
+  onExport?: () => void
+  onMore?: () => void
+  onOpenDetail?: () => void
+  onEdit?: () => void
+  onCopyTitle?: () => void
+  onRefresh?: () => void
+  detailData?: Record<string, unknown> | null
+  showSkuRail?: boolean
+  embedded?: boolean
 }) {
   const improvementCount = Math.max(1, Math.ceil((100 - product.completion) / 10))
+  const pageClassName = 'page-stack product-detail-page' + (embedded ? ' is-embedded' : '')
+  const workspaceClassName = 'product-detail-workspace' + (!showSkuRail ? ' is-legacy-detail' : '')
 
   return (
     <motion.div
       key="product-page"
-      className="page-stack product-detail-page"
+      className={pageClassName}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="product-detail-workspace">
-        <ProductSkuRail productCatalog={productCatalog} selectedSku={product.sku} activeTab={activeTab} onSelectProduct={onSelectProduct} onOpenFullLibrary={onOpenFullLibrary} />
+      <div className={workspaceClassName}>
+        {showSkuRail && <ProductSkuRail productCatalog={productCatalog} selectedSku={product.sku} activeTab={activeTab} onSelectProduct={onSelectProduct} onOpenFullLibrary={onOpenFullLibrary} />}
         <div className="product-detail-main">
           <motion.section key={product.sku} className="product-hero" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.22 }}>
             <ProductArtwork variant={product.variant} imageUrl={product.imageUrl} />
             <div className="product-hero-copy">
               <div className="product-meta-line"><StatusBadge status={product.status} /><span>最近同步 · {product.updated}</span></div>
-              <h1>{product.title}</h1>
+              <button type="button" className="product-title-button" onClick={onCopyTitle} title="复制产品名称">
+                <h1>{product.title}</h1>
+              </button>
               <p>{product.sku} · {product.brand} · {product.category}</p>
               <div className="product-actions">
-                <button type="button" className="button button-primary"><Download size={16} /> 导出资料</button>
-                <button type="button" className="icon-button icon-button-light" aria-label="复制 SKU"><Copy size={17} /></button>
-                <button type="button" className="icon-button icon-button-light" aria-label="更多操作"><MoreHorizontal size={17} /></button>
+                <button type="button" className="button button-primary" onClick={onExport}><Download size={16} /> 导出资料</button>
+                <button type="button" className="button button-ghost" onClick={onOpenDetail}><ExternalLink size={15} /> 打开详情</button>
+                <button type="button" className="icon-button icon-button-light" aria-label="复制 SKU" onClick={onCopySku}><Copy size={17} /></button>
+                <button type="button" className="icon-button icon-button-light" aria-label="编辑资料" onClick={onEdit}><Pencil size={16} /></button>
+                <button type="button" className="icon-button icon-button-light" aria-label="刷新资料" onClick={onRefresh}><RefreshCw size={16} /></button>
+                <button type="button" className="icon-button icon-button-light" aria-label="更多操作" onClick={onMore}><MoreHorizontal size={17} /></button>
               </div>
             </div>
             <div className="product-readiness">
@@ -70,7 +97,7 @@ export function ProductPage({
           </nav>
 
           <AnimatePresence mode="wait">
-            {activeTab === '详情' && <DetailOverview key="overview" product={product} onOpenQueue={onBackToQueue} />}
+            {activeTab === '详情' && <DetailOverview key="overview" product={product} detailData={detailData} onOpenQueue={onBackToQueue} />}
             {activeTab === '文案' && <CopywritingView key="copywriting" />}
             {activeTab === '参数图' && <AssetView key="parameter" title="英文参数图" icon={<FileImage size={20} />} onAction={onBackToQueue} />}
             {activeTab === '尺寸图' && <AssetView key="size" title="产品尺寸图" icon={<ScanLine size={20} />} onAction={onBackToQueue} />}
@@ -81,15 +108,26 @@ export function ProductPage({
   )
 }
 
-function DetailOverview({ product, onOpenQueue }: { product: ProductRecord; onOpenQueue: () => void }) {
+function DetailOverview({ product, detailData, onOpenQueue }: { product: ProductRecord; detailData?: Record<string, unknown> | null; onOpenQueue: () => void }) {
+  const readValue = (key: string, fallback: string) => {
+    const value = detailData?.[key]
+    const text = value === null || value === undefined ? '' : String(value).trim()
+    return text || fallback
+  }
+
   return (
     <motion.div className="product-content-grid" initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -7 }} transition={{ duration: 0.2 }}>
       <section className="surface-panel">
         <SectionHeading eyebrow="PRODUCT SNAPSHOT" title="产品信息" note="来自 PLM 的标准化数据。" />
         <div className="detail-table">
           {[
-            ['品牌', product.brand],
-            ['产品类型', product.category],
+            ['品牌', readValue('brand', product.brand)],
+            ['产品名称', readValue('name', product.title)],
+            ['产品类型', readValue('manualCategory', readValue('category', product.category))],
+            ['包装编码', readValue('packageCode', '未填写')],
+            ['印刷编码', readValue('printCode', '未填写')],
+            ['包装尺寸', readValue('packageSizeText', '未读取')],
+            ['印刷尺寸', readValue('printSizeText', '未读取')],
             ['素材数量', product.assetCount + ' 项'],
             ['资料完整度', product.completion + '%'],
             ['最近更新', product.updated],

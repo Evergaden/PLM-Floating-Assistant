@@ -58,6 +58,10 @@ export type LegacyHostAdapter = {
   getProductData?: (sku: string) => Record<string, unknown> | null
   /** Route an action through the existing data-action/event-delegation path. */
   dispatchAction?: (action: string, payload?: LegacyActionPayload) => void
+  /** Reuse the userscript clipboard implementation and its permission fallback. */
+  copyText?: (text: string) => void
+  /** Switch the detail body while keeping the legacy tab/data flow in charge. */
+  setDetailTab?: (tab: ProductDetailTab) => void
   /** Use the existing PLM detail/scan boundary. */
   openProduct?: (sku: string, options?: LegacyOpenProductOptions) => void
   /** Reuse the legacy notification surface. */

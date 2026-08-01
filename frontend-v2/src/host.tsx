@@ -5,8 +5,9 @@ import { MotionConfig } from 'motion/react'
 import App, { type AppHostActions } from './App'
 import { ProductSkuRail } from './components/ProductSkuRail'
 import { TodayWorkbench } from './components/TodayWorkbench'
+import { ProductPage } from './pages/ProductPage'
 import { configureLedgerBridge, type LedgerBridgeHost } from './dataBridge'
-import type { LedgerView } from './types'
+import type { LedgerView, ProductDetailTab } from './types'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { ToastProvider } from './components/ToastProvider'
 import tokensCss from './theme/tokens.css?inline'
@@ -15,7 +16,7 @@ import stylesCss from './styles.css?inline'
 export type FrontendV2MountOptions = AppHostActions & {
   storage?: LedgerBridgeHost | null
   shadow?: boolean
-  mode?: 'full' | 'legacy-today' | 'legacy-sku-rail'
+  mode?: 'full' | 'legacy-today' | 'legacy-sku-rail' | 'legacy-detail'
 }
 
 type FrontendV2Runtime = {
@@ -97,6 +98,8 @@ function renderApp(mountNode: HTMLElement, options: FrontendV2MountOptions) {
                   ? <LegacyTodaySurface host={options} />
                   : options.mode === 'legacy-sku-rail'
                     ? <LegacySkuRailSurface host={options} />
+                    : options.mode === 'legacy-detail'
+                      ? <LegacyDetailSurface host={options} />
                     : <App host={options} />}
               </ToastProvider>
             </ThemeProvider>
@@ -173,36 +176,145 @@ function LegacySkuRailSurface({ host }: { host: FrontendV2MountOptions }) {
   )
 }
 
+function LegacyDetailSurface({ host }: { host: FrontendV2MountOptions }) {
+  const catalogReader = host.getCatalog ?? host.legacy?.getCatalog
+  const [liveCatalog, setLiveCatalog] = useState(() => host.catalog ?? catalogReader?.() ?? [])
+  const selectedSku = host.legacy?.getSelectedSku?.() ?? ''
+
+  useEffect(() => {
+    if (!catalogReader) return
+    const refreshCatalog = () => setLiveCatalog(catalogReader() ?? [])
+    window.addEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
+    refreshCatalog()
+    return () => window.removeEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
+  }, [catalogReader])
+
+  const product = liveCatalog.find((entry) => entry.sku.toUpperCase() === selectedSku.toUpperCase()) ?? liveCatalog[0]
+  if (!product) {
+    return (
+      <div className="plm-v2-legacy-detail-empty">
+        <strong>正在准备产品资料</strong>
+        <span>从左侧选择一个 SKU 后，详情会在这里展开。</span>
+      </div>
+    )
+  }
+
+  const changeTab = (tab: ProductDetailTab) => {
+    if (host.legacy?.setDetailTab) {
+      host.legacy.setDetailTab(tab)
+      return
+    }
+    host.legacy?.openProduct?.(product.sku, { tab, preserveView: true })
+  }
+
+  const openProduct = (sku: string, tab: ProductDetailTab = '详情') => {
+    if (host.legacy?.openProduct) {
+      host.legacy.openProduct(sku, { tab, preserveView: true })
+      return
+    }
+    host.onOpenProduct?.(sku)
+  }
+
+  const copySku = () => {
+    host.legacy?.copyText?.(product.sku)
+    host.legacy?.showToast?.('SKU 已复制', { tone: 'success' })
+  }
+
+  const exportData = () => {
+    if (host.legacy?.dispatchAction) {
+      host.legacy.dispatchAction('excel-prepare')
+      return
+    }
+    host.legacy?.showToast?.('导出入口仍由旧版 Excel 工具提供')
+  }
+
+  const dispatchAction = (action: string) => {
+    if (host.legacy?.dispatchAction) {
+      host.legacy.dispatchAction(action)
+      return
+    }
+    host.legacy?.showToast?.('该操作仍由旧版工具提供')
+  }
+
+  const openHome = () => host.legacy?.setView?.('home')
+
+  return (
+    <div className="plm-v2-legacy-detail-root">
+      <ProductPage
+        product={product}
+        productCatalog={liveCatalog}
+        detailData={host.legacy?.getProductData?.(product.sku)}
+        activeTab="详情"
+        showSkuRail={false}
+        embedded
+        onChangeTab={changeTab}
+        onSelectProduct={openProduct}
+        onOpenFullLibrary={openHome}
+        onBackToQueue={openHome}
+        onCopySku={copySku}
+        onExport={exportData}
+        onOpenDetail={() => dispatchAction('open-detail')}
+        onEdit={() => dispatchAction('sku-edit-open')}
+        onCopyTitle={() => dispatchAction('copy-title-meta')}
+        onRefresh={() => dispatchAction('refresh')}
+        onMore={() => host.legacy?.showToast?.('更多操作请使用详情页右上角的旧版工具按钮')}
+      />
+    </div>
+  )
+}
+
+let ledgerBridgeMountCount = 0
+
+function acquireLedgerBridge(host: LedgerBridgeHost | null | undefined) {
+  configureLedgerBridge(host ?? null)
+  ledgerBridgeMountCount += 1
+}
+
+function releaseLedgerBridge() {
+  ledgerBridgeMountCount = Math.max(0, ledgerBridgeMountCount - 1)
+  if (!ledgerBridgeMountCount) configureLedgerBridge(null)
+}
+
 export function mount(container: HTMLElement, options: FrontendV2MountOptions = {}) {
   activeMounts.get(container)?.()
-  configureLedgerBridge(options.storage ?? null)
+  acquireLedgerBridge(options.storage)
+  try {
+    if (options.shadow) {
+      container.setAttribute('data-plm-v2-theme-host', '')
+      const shadow = container.shadowRoot ?? container.attachShadow({ mode: 'open' })
+      shadow.innerHTML = `<style>${shadowCss()}</style><div class="plm-v2-shadow-root"></div>`
+      const mountNode = shadow.querySelector<HTMLElement>('.plm-v2-shadow-root')
+      if (!mountNode) throw new Error('PLM v2 mount root was not created')
+      const root = renderApp(mountNode, options)
+      let released = false
+      const unmount = () => {
+        if (released) return
+        released = true
+        root.unmount()
+        shadow.innerHTML = ''
+        container.removeAttribute('data-plm-v2-theme-host')
+        activeMounts.delete(container)
+        releaseLedgerBridge()
+      }
+      activeMounts.set(container, unmount)
+      return unmount
+    }
 
-  if (options.shadow) {
-    container.setAttribute('data-plm-v2-theme-host', '')
-    const shadow = container.shadowRoot ?? container.attachShadow({ mode: 'open' })
-    shadow.innerHTML = `<style>${shadowCss()}</style><div class="plm-v2-shadow-root"></div>`
-    const mountNode = shadow.querySelector<HTMLElement>('.plm-v2-shadow-root')
-    if (!mountNode) throw new Error('PLM v2 mount root was not created')
-    const root = renderApp(mountNode, options)
+    const root = renderApp(container, options)
+    let released = false
     const unmount = () => {
+      if (released) return
+      released = true
       root.unmount()
-      shadow.innerHTML = ''
-      container.removeAttribute('data-plm-v2-theme-host')
       activeMounts.delete(container)
-      configureLedgerBridge(null)
+      releaseLedgerBridge()
     }
     activeMounts.set(container, unmount)
     return unmount
+  } catch (error) {
+    releaseLedgerBridge()
+    throw error
   }
-
-  const root = renderApp(container, options)
-  const unmount = () => {
-    root.unmount()
-    activeMounts.delete(container)
-    configureLedgerBridge(null)
-  }
-  activeMounts.set(container, unmount)
-  return unmount
 }
 
 const runtime = globalThis as RuntimeGlobal
