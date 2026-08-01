@@ -3,6 +3,7 @@ import { Bell, Command, Home, LayoutDashboard, PackageOpen, PanelLeftClose, Sear
 import { useEffect, useMemo, useState } from 'react'
 import { navItems, products } from './data'
 import type { ProductDetailTab, ProductRecord, ViewId } from './types'
+import { openLegacyProduct, type LegacyHostAdapter } from './legacyAdapter'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { TodayPage } from './pages/TodayPage'
 import { ProductPage } from './pages/ProductPage'
@@ -19,6 +20,7 @@ export type AppHostActions = {
   onClose?: () => void
   onOpen?: () => void
   onRenderError?: (error: Error) => void
+  legacy?: LegacyHostAdapter
   catalog?: ProductRecord[]
   getCatalog?: () => ProductRecord[]
   live?: boolean
@@ -31,19 +33,20 @@ function App({ host }: { host?: AppHostActions } = {}) {
   const [productTab, setProductTab] = useState<ProductDetailTab>('详情')
   const [panelOpen, setPanelOpen] = useState(true)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [liveCatalog, setLiveCatalog] = useState<ProductRecord[]>(() => host?.catalog ?? [])
+  const catalogReader = host?.getCatalog ?? host?.legacy?.getCatalog
+  const [liveCatalog, setLiveCatalog] = useState<ProductRecord[]>(() => host?.catalog ?? catalogReader?.() ?? [])
   const productCatalog = host?.live ? liveCatalog : (host?.catalog?.length ? host.catalog : products)
   const activeNav = useMemo(() => navItems.find((item) => item.id === activeView) ?? navItems[0], [activeView])
   const firstProduct = productCatalog[0] ?? products[0]
   const selectedProduct = productCatalog.find((product) => product.sku === selectedProductSku) ?? firstProduct
 
   useEffect(() => {
-    if (!host?.getCatalog) return
-    const refreshCatalog = () => setLiveCatalog(host.getCatalog?.() ?? [])
+    if (!catalogReader) return
+    const refreshCatalog = () => setLiveCatalog(catalogReader() ?? [])
     window.addEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
     refreshCatalog()
     return () => window.removeEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
-  }, [host])
+  }, [catalogReader])
 
   useEffect(() => {
     if (host?.live && selectedProductSku && !productCatalog.some((product) => product.sku === selectedProductSku)) {
@@ -56,7 +59,7 @@ function App({ host }: { host?: AppHostActions } = {}) {
     setSelectedProductSku(targetSku)
     setProductTab('详情')
     setActiveView('product')
-    if (targetSku) host?.onOpenProduct?.(targetSku)
+    if (targetSku && !openLegacyProduct(host?.legacy, targetSku, { tab: '详情' })) host?.onOpenProduct?.(targetSku)
   }
 
   const openFullProductLibrary = () => {
@@ -70,7 +73,7 @@ function App({ host }: { host?: AppHostActions } = {}) {
     setSelectedProductSku(targetSku)
     setProductTab(tab)
     setActiveView('product')
-    if (targetSku) host?.onOpenProduct?.(targetSku)
+    if (targetSku && !openLegacyProduct(host?.legacy, targetSku, { tab })) host?.onOpenProduct?.(targetSku)
   }
 
   const handleNavChange = (view: ViewId) => {
