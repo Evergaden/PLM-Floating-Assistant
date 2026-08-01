@@ -10,6 +10,13 @@ export type LedgerView = 'design' | 'finalized' | 'trash'
 
 export type LedgerStage = '待出图' | '待定稿' | '已定稿' | '垃圾篓'
 
+export type LedgerRecordBridgeMeta = {
+  raw?: Record<string, unknown>
+  isTrash?: boolean
+  removedAt?: string
+  removedAtMs?: number
+}
+
 export type ArtworkVariant = 'lavender' | 'peach' | 'mint'
 
 export type NavItem = {
@@ -60,4 +67,5 @@ export type LedgerRecord = {
   performanceType?: 'standard' | 'extension'
   variant: ArtworkVariant
   mediaSize: 'short' | 'medium' | 'tall'
+  bridge?: LedgerRecordBridgeMeta
 }

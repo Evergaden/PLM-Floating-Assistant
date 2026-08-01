@@ -1,13 +1,13 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, FileImage, Maximize2, Minimize2, MoreHorizontal, RotateCcw, Search, Sparkles, Trash2, X } from 'lucide-react'
+import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, FileImage, Maximize2, Minimize2, MoreHorizontal, RefreshCw, RotateCcw, Search, Sparkles, Trash2, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ledgerRecords as defaultLedgerRecords } from '../data'
+import { persistLedgerSnapshot, readLedgerSnapshot, sourceLabel, subscribeLedgerSnapshot, type LedgerBridgeSnapshot } from '../dataBridge'
 import { ProductArtwork } from './ProductArtwork'
 import { ElasticButton } from './ElasticButton'
 import { useToast } from './ToastProvider'
 import type { LedgerRecord, LedgerView } from '../types'
 
-const LEDGER_STORAGE_KEY = 'plm-frontend-v2-ledger-records'
 const DEFAULT_LEDGER_MONTH = '2026-08'
 
 const ledgerTabs: Array<{ id: LedgerView; label: string }> = [
@@ -15,18 +15,6 @@ const ledgerTabs: Array<{ id: LedgerView; label: string }> = [
   { id: 'finalized', label: '已定稿' },
   { id: 'trash', label: '垃圾篓' },
 ]
-
-function readLedgerRecords() {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(LEDGER_STORAGE_KEY) || 'null')
-    if (Array.isArray(stored) && stored.every((item) => item && typeof item.id === 'string' && typeof item.sku === 'string' && typeof item.date === 'string')) {
-      return stored as LedgerRecord[]
-    }
-  } catch {
-    // Keep the preview usable when browser storage is unavailable or invalid.
-  }
-  return defaultLedgerRecords
-}
 
 function monthKey(date: string) {
   return date.slice(0, 7)
@@ -75,7 +63,8 @@ type ConfirmState = {
 
 export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string) => void }) {
   const { pushToast } = useToast()
-  const [records, setRecords] = useState<LedgerRecord[]>(readLedgerRecords)
+  const [ledgerState, setLedgerState] = useState<LedgerBridgeSnapshot>(() => readLedgerSnapshot(defaultLedgerRecords))
+  const records = ledgerState.records
   const [view, setView] = useState<LedgerView>('design')
   const [month, setMonth] = useState(DEFAULT_LEDGER_MONTH)
   const [query, setQuery] = useState('')
@@ -85,15 +74,28 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   const tabRefs = useRef<Partial<Record<LedgerView, HTMLButtonElement | null>>>({})
   const tabsRef = useRef<HTMLDivElement | null>(null)
+  const hasMounted = useRef(false)
   const [indicator, setIndicator] = useState({ left: 4, width: 0 })
 
+  const setRecords = (update: LedgerRecord[] | ((current: LedgerRecord[]) => LedgerRecord[])) => {
+    setLedgerState((current) => ({
+      ...current,
+      source: current.source === 'demo' ? 'frontend-local' : current.source,
+      records: typeof update === 'function' ? update(current.records) : update,
+    }))
+  }
+
   useEffect(() => {
-    try {
-      window.localStorage.setItem(LEDGER_STORAGE_KEY, JSON.stringify(records))
-    } catch {
-      // The workbench remains interactive for the current session.
+    if (!hasMounted.current) {
+      hasMounted.current = true
+      return
     }
-  }, [records])
+    persistLedgerSnapshot(ledgerState)
+  }, [ledgerState])
+
+  useEffect(() => subscribeLedgerSnapshot(defaultLedgerRecords, (snapshot) => {
+    setLedgerState(snapshot)
+  }), [])
 
   useEffect(() => {
     if (!menuId) return
@@ -150,6 +152,16 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
 
   const updateRecord = (id: string, update: Partial<LedgerRecord>) => {
     setRecords((current) => current.map((record) => record.id === id ? { ...record, ...update } : record))
+  }
+
+  const refreshFromBridge = () => {
+    const snapshot = readLedgerSnapshot(defaultLedgerRecords)
+    setLedgerState(snapshot)
+    pushToast({
+      title: snapshot.source === 'demo' ? '已载入演示数据' : '工作台已同步',
+      message: sourceLabel(snapshot.source),
+      tone: 'info',
+    })
   }
 
   const notifyCopy = async (text: string, title: string, message: string) => {
@@ -265,7 +277,12 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
           <p>{view === 'trash' ? '移除的记录会暂时留在垃圾篓，恢复后重新回到工作节奏。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。'}</p>
         </div>
         <div className="ledger-hero-actions">
+          <span className={'ledger-data-source source-' + ledgerState.source} title={sourceLabel(ledgerState.source)}><i />{sourceLabel(ledgerState.source)}</span>
           <span>{visibleRecords.length} 条 / {monthLabel(month)}</span>
+          <ElasticButton type="button" className="button button-ghost ledger-refresh-button" aria-label="刷新工作台数据" onClick={refreshFromBridge}>
+            <RefreshCw size={13} />
+            刷新
+          </ElasticButton>
           <ElasticButton type="button" className="button button-ghost ledger-fullscreen-button" onClick={() => setIsFullscreen((current) => !current)}>
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             {isFullscreen ? '退出全屏' : '全屏'}

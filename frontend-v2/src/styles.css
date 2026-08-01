@@ -382,8 +382,14 @@ h1 { margin-bottom: 8px; color: var(--pfh-ink); font-size: 30px; font-weight: 82
 .ledger-hero-copy { min-width: 0; }
 .ledger-hero-copy h2 { margin: 5px 0 4px; font-size: 19px; font-weight: 830; letter-spacing: -.04em; }
 .ledger-hero-copy p { margin: 0; overflow: hidden; color: var(--pfh-muted); font-size: 10px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
-.ledger-hero-actions { display: flex; align-items: center; gap: 10px; }
+.ledger-hero-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .ledger-hero-actions > span { color: var(--pfh-purple-deep); font-size: 9px; font-weight: 800; white-space: nowrap; }
+.ledger-data-source { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border: 1px solid rgb(var(--pfh-accent-rgb) / .12); border-radius: 999px; background: color-mix(in srgb, var(--pfh-panel) 68%, transparent); color: var(--pfh-muted) !important; font-size: 8px !important; font-weight: 760 !important; }
+.ledger-data-source i { width: 6px; height: 6px; border-radius: 50%; background: var(--pfh-muted); box-shadow: 0 0 0 3px rgb(var(--pfh-accent-rgb) / .08); }
+.ledger-data-source.source-legacy-gm i { background: var(--pfh-mint-deep); box-shadow: 0 0 0 3px var(--pfh-mint-soft); }
+.ledger-data-source.source-legacy-local i { background: #be7048; box-shadow: 0 0 0 3px var(--pfh-peach-soft); }
+.ledger-data-source.source-frontend-local i { background: var(--pfh-purple); }
+.ledger-refresh-button { min-height: 31px; padding: 0 9px; font-size: 9px; }
 .ledger-fullscreen-button { min-height: 31px; padding: 0 10px; font-size: 9px; }
 .pfh-ledger-tabs { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0; margin: 14px 21px 12px; padding: 4px; overflow: hidden; isolation: isolate; border: 1px solid var(--pfh-line); border-radius: 14px; background: var(--pfh-panel-soft); }
 .pfh-ledger-tab-indicator { position: absolute; z-index: 0; top: 4px; left: 4px; width: 0; height: calc(100% - 8px); border-radius: 10px; background: linear-gradient(135deg, var(--pfh-purple), var(--pfh-purple-deep)); box-shadow: 0 8px 18px rgb(var(--pfh-accent-rgb) / .23); pointer-events: none; will-change: left, width; transition: left .6s cubic-bezier(.25,1.2,.35,1), width .6s cubic-bezier(.25,1.2,.35,1); }
