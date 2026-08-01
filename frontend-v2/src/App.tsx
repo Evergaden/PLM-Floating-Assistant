@@ -1,8 +1,8 @@
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { Bell, Command, Home, LayoutDashboard, PackageOpen, PanelLeftClose, Search, Settings2, Sparkles, UploadCloud, Wrench } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { navItems, products } from './data'
-import type { ProductDetailTab, ViewId } from './types'
+import type { ProductDetailTab, ProductRecord, ViewId } from './types'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { TodayPage } from './pages/TodayPage'
 import { ProductPage } from './pages/ProductPage'
@@ -18,6 +18,10 @@ const navIcons = {
 export type AppHostActions = {
   onClose?: () => void
   onOpen?: () => void
+  catalog?: ProductRecord[]
+  getCatalog?: () => ProductRecord[]
+  live?: boolean
+  onOpenProduct?: (sku: string) => void
 }
 
 function App({ host }: { host?: AppHostActions } = {}) {
@@ -26,13 +30,32 @@ function App({ host }: { host?: AppHostActions } = {}) {
   const [productTab, setProductTab] = useState<ProductDetailTab>('详情')
   const [panelOpen, setPanelOpen] = useState(true)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [liveCatalog, setLiveCatalog] = useState<ProductRecord[]>(() => host?.catalog ?? [])
+  const productCatalog = host?.live ? liveCatalog : (host?.catalog?.length ? host.catalog : products)
   const activeNav = useMemo(() => navItems.find((item) => item.id === activeView) ?? navItems[0], [activeView])
-  const selectedProduct = products.find((product) => product.sku === selectedProductSku) ?? products[0]
+  const firstProduct = productCatalog[0] ?? products[0]
+  const selectedProduct = productCatalog.find((product) => product.sku === selectedProductSku) ?? firstProduct
+
+  useEffect(() => {
+    if (!host?.getCatalog) return
+    const refreshCatalog = () => setLiveCatalog(host.getCatalog?.() ?? [])
+    window.addEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
+    refreshCatalog()
+    return () => window.removeEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
+  }, [host])
+
+  useEffect(() => {
+    if (host?.live && selectedProductSku && !productCatalog.some((product) => product.sku === selectedProductSku)) {
+      setSelectedProductSku(productCatalog[0]?.sku ?? null)
+    }
+  }, [host?.live, productCatalog, selectedProductSku])
 
   const openProductBrowser = (sku?: string) => {
-    setSelectedProductSku(sku ?? products[0].sku)
+    const targetSku = sku ?? productCatalog[0]?.sku ?? null
+    setSelectedProductSku(targetSku)
     setProductTab('详情')
     setActiveView('product')
+    if (targetSku) host?.onOpenProduct?.(targetSku)
   }
 
   const openFullProductLibrary = () => {
@@ -42,15 +65,17 @@ function App({ host }: { host?: AppHostActions } = {}) {
   }
 
   const openProduct = (sku?: string, tab: ProductDetailTab = '详情') => {
-    setSelectedProductSku(sku ?? products[0].sku)
+    const targetSku = sku ?? productCatalog[0]?.sku ?? null
+    setSelectedProductSku(targetSku)
     setProductTab(tab)
     setActiveView('product')
+    if (targetSku) host?.onOpenProduct?.(targetSku)
   }
 
   const handleNavChange = (view: ViewId) => {
     setActiveView(view)
     if (view === 'product') {
-      setSelectedProductSku(products[0].sku)
+      setSelectedProductSku(productCatalog[0]?.sku ?? null)
       setProductTab('详情')
     }
   }
@@ -125,8 +150,8 @@ function App({ host }: { host?: AppHostActions } = {}) {
           <div className="page-viewport">
             <AnimatePresence mode="wait" initial={false}>
               {activeView === 'today' && <TodayPage key="today" onOpenProduct={openProductBrowser} onOpenQueue={() => setActiveView('queue')} />}
-              {activeView === 'product' && !selectedProductSku && <ProductLibraryPage key="product-library" onOpenProduct={openProduct} />}
-              {activeView === 'product' && selectedProductSku && <ProductPage key="product-detail" product={selectedProduct} productCatalog={products} activeTab={productTab} onChangeTab={setProductTab} onSelectProduct={openProduct} onOpenFullLibrary={openFullProductLibrary} onBackToQueue={() => setActiveView('queue')} />}
+              {activeView === 'product' && !selectedProductSku && <ProductLibraryPage key="product-library" productCatalog={productCatalog} onOpenProduct={openProduct} />}
+              {activeView === 'product' && selectedProductSku && selectedProduct && <ProductPage key="product-detail" product={selectedProduct} productCatalog={productCatalog} activeTab={productTab} onChangeTab={setProductTab} onSelectProduct={openProduct} onOpenFullLibrary={openFullProductLibrary} onBackToQueue={() => setActiveView('queue')} />}
               {activeView === 'queue' && <QueuePage key="queue" onOpenProduct={openProduct} />}
             </AnimatePresence>
           </div>

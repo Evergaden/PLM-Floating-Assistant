@@ -19,20 +19,20 @@ function readProductViewMode(): ProductViewMode {
   return 'waterfall'
 }
 
-export function ProductLibraryPage({ onOpenProduct }: { onOpenProduct: (sku: string) => void }) {
+export function ProductLibraryPage({ productCatalog = products, onOpenProduct }: { productCatalog?: ProductRecord[]; onOpenProduct: (sku: string) => void }) {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<ProductViewMode>(readProductViewMode)
 
   const visibleProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
-    if (!normalizedQuery) return products
-    return products.filter((product) =>
+    if (!normalizedQuery) return productCatalog
+    return productCatalog.filter((product) =>
       [product.sku, product.title, product.brand, product.category]
         .join(' ')
         .toLowerCase()
         .includes(normalizedQuery),
     )
-  }, [query])
+  }, [productCatalog, query])
 
   const updateViewMode = (nextMode: ProductViewMode) => {
     setViewMode(nextMode)
@@ -59,7 +59,7 @@ export function ProductLibraryPage({ onOpenProduct }: { onOpenProduct: (sku: str
           <p className="welcome-note">所有 SKU 的素材状态都在这里，继续沿用你熟悉的瀑布流浏览。</p>
         </div>
         <div className="library-summary">
-          <strong>{products.length}</strong>
+            <strong>{productCatalog.length}</strong>
           <span>个产品已同步</span>
         </div>
       </section>
@@ -137,7 +137,7 @@ function ProductCard({
       aria-label={'打开 ' + product.title + ' ' + product.sku}
     >
       <div className={'product-card-media media-' + product.mediaSize}>
-        <ProductArtwork variant={product.variant} className="is-library" />
+        <ProductArtwork variant={product.variant} imageUrl={product.imageUrl} className="is-library" />
         <span className="product-card-status"><StatusBadge status={product.status} /></span>
         {product.pinned && <span className="product-card-pin" title="已置顶"><Pin size={13} fill="currentColor" /></span>}
       </div>

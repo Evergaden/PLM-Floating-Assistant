@@ -50,6 +50,7 @@ export type ProductRecord = {
   status: QueueStatus
   variant: ArtworkVariant
   mediaSize: 'short' | 'medium' | 'tall'
+  imageUrl?: string
   pinned?: boolean
 }
 

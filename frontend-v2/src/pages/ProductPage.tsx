@@ -42,7 +42,7 @@ export function ProductPage({
         <ProductSkuRail productCatalog={productCatalog} selectedSku={product.sku} activeTab={activeTab} onSelectProduct={onSelectProduct} onOpenFullLibrary={onOpenFullLibrary} />
         <div className="product-detail-main">
           <motion.section key={product.sku} className="product-hero" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.22 }}>
-            <ProductArtwork variant={product.variant} />
+            <ProductArtwork variant={product.variant} imageUrl={product.imageUrl} />
             <div className="product-hero-copy">
               <div className="product-meta-line"><StatusBadge status={product.status} /><span>最近同步 · {product.updated}</span></div>
               <h1>{product.title}</h1>

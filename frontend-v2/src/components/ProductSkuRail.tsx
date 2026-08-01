@@ -263,7 +263,7 @@ function SkuRailCard({
     >
       <button type="button" className="product-sku-card-main" onClick={() => { onCloseMenu(); onSelectProduct(product.sku, activeTab) }} aria-current={selected ? 'true' : undefined}>
         <div className={'product-sku-thumb media-' + product.mediaSize}>
-          <ProductArtwork variant={product.variant} className="is-rail" />
+          <ProductArtwork variant={product.variant} imageUrl={product.imageUrl} className="is-rail" />
           <span className="product-sku-status"><StatusBadge status={product.status} /></span>
         </div>
         <span className="product-sku-card-meta">
