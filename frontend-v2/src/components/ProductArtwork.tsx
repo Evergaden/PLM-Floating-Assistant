@@ -1,8 +1,8 @@
 import { Box } from 'lucide-react'
 
-export function ProductArtwork({ variant = 'lavender', compact = false }: { variant?: string; compact?: boolean }) {
+export function ProductArtwork({ variant = 'lavender', compact = false, className = '' }: { variant?: string; compact?: boolean; className?: string }) {
   return (
-    <div className={'product-artwork product-artwork-' + variant + (compact ? ' is-compact' : '')}>
+    <div className={('product-artwork product-artwork-' + variant + (compact ? ' is-compact' : '') + ' ' + className).trim()}>
       <div className="artwork-glow" />
       <div className="artwork-pack">
         <div className="artwork-pack-top" />

@@ -1,10 +1,12 @@
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { Bell, Command, Home, LayoutDashboard, PackageOpen, PanelLeftClose, Search, Settings2, Sparkles, UploadCloud, Wrench } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { navItems } from './data'
+import { navItems, products } from './data'
 import type { ViewId } from './types'
+import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { TodayPage } from './pages/TodayPage'
 import { ProductPage } from './pages/ProductPage'
+import { ProductLibraryPage } from './pages/ProductLibraryPage'
 import { QueuePage } from './pages/QueuePage'
 
 const navIcons = {
@@ -15,9 +17,26 @@ const navIcons = {
 
 function App() {
   const [activeView, setActiveView] = useState<ViewId>('today')
+  const [selectedProductSku, setSelectedProductSku] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(true)
   const [showNotifications, setShowNotifications] = useState(false)
   const activeNav = useMemo(() => navItems.find((item) => item.id === activeView) ?? navItems[0], [activeView])
+  const selectedProduct = products.find((product) => product.sku === selectedProductSku) ?? products[0]
+
+  const openProductLibrary = () => {
+    setSelectedProductSku(null)
+    setActiveView('product')
+  }
+
+  const openProduct = (sku?: string) => {
+    setSelectedProductSku(sku ?? products[0].sku)
+    setActiveView('product')
+  }
+
+  const handleNavChange = (view: ViewId) => {
+    setActiveView(view)
+    if (view === 'product') setSelectedProductSku(null)
+  }
 
   if (!panelOpen) {
     return (
@@ -41,7 +60,7 @@ function App() {
                 const Icon = navIcons[item.id]
                 const isActive = item.id === activeView
                 return (
-                  <button type="button" key={item.id} className={'nav-item' + (isActive ? ' is-active' : '')} onClick={() => setActiveView(item.id)}>
+                  <button type="button" key={item.id} className={'nav-item' + (isActive ? ' is-active' : '')} onClick={() => handleNavChange(item.id)}>
                     {isActive && <motion.span layoutId="active-nav" className="nav-active-indicator" transition={{ type: 'spring', stiffness: 450, damping: 34 }} />}
                     <Icon size={17} strokeWidth={isActive ? 2.25 : 1.8} />
                     <span>{item.label}</span>
@@ -63,6 +82,7 @@ function App() {
             <div className="breadcrumb"><Home size={14} /><span>/</span><strong>{activeNav.label}</strong></div>
             <div className="header-actions">
               <label className="global-search"><Search size={15} /><input placeholder="搜索 SKU 或功能" /><kbd><Command size={11} /> K</kbd></label>
+              <ThemeSwitcher />
               <button type="button" className="icon-button header-icon-button" aria-label="通知" onClick={() => setShowNotifications((value) => !value)}><Bell size={17} /><span className="notification-dot" /></button>
               <button type="button" className="icon-button header-icon-button" aria-label="关闭工作台" onClick={() => setPanelOpen(false)}><PanelLeftClose size={17} /></button>
             </div>
@@ -77,9 +97,10 @@ function App() {
 
           <div className="page-viewport">
             <AnimatePresence mode="wait" initial={false}>
-              {activeView === 'today' && <TodayPage key="today" onOpenProduct={() => setActiveView('product')} onOpenQueue={() => setActiveView('queue')} />}
-              {activeView === 'product' && <ProductPage key="product" onBackToQueue={() => setActiveView('queue')} />}
-              {activeView === 'queue' && <QueuePage key="queue" onOpenProduct={() => setActiveView('product')} />}
+              {activeView === 'today' && <TodayPage key="today" onOpenProduct={openProductLibrary} onOpenQueue={() => setActiveView('queue')} />}
+              {activeView === 'product' && !selectedProductSku && <ProductLibraryPage key="product-library" onOpenProduct={openProduct} />}
+              {activeView === 'product' && selectedProductSku && <ProductPage key={'product-detail-' + selectedProduct.sku} product={selectedProduct} onBackToLibrary={openProductLibrary} onBackToQueue={() => setActiveView('queue')} />}
+              {activeView === 'queue' && <QueuePage key="queue" onOpenProduct={openProduct} />}
             </AnimatePresence>
           </div>
         </div>

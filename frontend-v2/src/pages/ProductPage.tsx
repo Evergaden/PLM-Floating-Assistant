@@ -1,12 +1,22 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Copy, Download, FileImage, Info, MoreHorizontal, RefreshCw, ScanLine, Sparkles } from 'lucide-react'
+import { ArrowLeft, Check, Copy, Download, FileImage, Info, MoreHorizontal, RefreshCw, ScanLine, Sparkles } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { products } from '../data'
 import { ProductArtwork } from '../components/ProductArtwork'
 import { SectionHeading } from '../components/SectionHeading'
+import type { ProductRecord } from '../types'
 
 const detailTabs = ['详情', '文案', '参数图', '尺寸图']
 
-export function ProductPage({ onBackToQueue }: { onBackToQueue: () => void }) {
+export function ProductPage({
+  product = products[0],
+  onBackToLibrary,
+  onBackToQueue,
+}: {
+  product?: ProductRecord
+  onBackToLibrary: () => void
+  onBackToQueue: () => void
+}) {
   const [activeTab, setActiveTab] = useState('详情')
 
   return (
@@ -18,12 +28,13 @@ export function ProductPage({ onBackToQueue }: { onBackToQueue: () => void }) {
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
+      <button type="button" className="back-link" onClick={onBackToLibrary}><ArrowLeft size={15} /> 返回产品库</button>
       <section className="product-hero">
-        <ProductArtwork />
+        <ProductArtwork variant={product.variant} />
         <div className="product-hero-copy">
           <div className="product-meta-line"><span className="status-badge status-ready"><Check size={14} /> 已定稿</span><span>最近同步 · 12 分钟前</span></div>
-          <h1>焕亮修护精华套装</h1>
-          <p>SKU00044974 · Westmonth · 护肤系列</p>
+          <h1>{product.title}</h1>
+          <p>{product.sku} · {product.brand} · {product.category}</p>
           <div className="product-actions">
             <button type="button" className="button button-primary"><Download size={16} /> 导出资料</button>
             <button type="button" className="icon-button icon-button-light" aria-label="复制 SKU"><Copy size={17} /></button>

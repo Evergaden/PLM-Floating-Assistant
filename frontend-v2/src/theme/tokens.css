@@ -1,6 +1,11 @@
-:root {
+:root,
+:root[data-theme="violet"] {
   --pfh-canvas: #e9e5de;
+  --pfh-stage-start: #e9e5de;
+  --pfh-stage-mid: #f4f1ec;
+  --pfh-stage-end: #e5e1dc;
   --pfh-shell: #fbfaf8;
+  --pfh-app-main: #f9f8f6;
   --pfh-panel: #ffffff;
   --pfh-panel-soft: #f6f4f1;
   --pfh-ink: #202230;
@@ -11,12 +16,21 @@
   --pfh-purple: #7056e8;
   --pfh-purple-deep: #4d3ca9;
   --pfh-purple-soft: #eeeaff;
+  --pfh-accent-rgb: 112 86 232;
+  --pfh-accent-light: #8c77ef;
   --pfh-mint: #56c5b6;
+  --pfh-mint-deep: #329786;
   --pfh-mint-soft: #e5f6f2;
   --pfh-peach: #e8a077;
   --pfh-peach-soft: #fff0e6;
   --pfh-danger: #d66d69;
   --pfh-danger-soft: #fff0ef;
+  --pfh-sidebar: #252433;
+  --pfh-sidebar-active-start: #7056e8;
+  --pfh-sidebar-active-end: #5140ae;
+  --pfh-hero-start: #3f356e;
+  --pfh-hero-mid: #6153bf;
+  --pfh-hero-end: #7868d9;
   --pfh-shadow-lg: 0 34px 90px rgba(45, 39, 66, 0.2);
   --pfh-shadow-md: 0 15px 35px rgba(45, 39, 66, 0.1);
   --pfh-shadow-sm: 0 7px 18px rgba(45, 39, 66, 0.07);
@@ -25,6 +39,107 @@
   --pfh-radius-md: 14px;
   --pfh-radius-sm: 10px;
   --pfh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme="ocean"] {
+  --pfh-canvas: #e5eaf1;
+  --pfh-stage-start: #e5eaf1;
+  --pfh-stage-mid: #f2f6fa;
+  --pfh-stage-end: #dce4ee;
+  --pfh-shell: #fbfcff;
+  --pfh-app-main: #f7faff;
+  --pfh-panel-soft: #f1f5fa;
+  --pfh-ink: #1f2938;
+  --pfh-ink-soft: #58667a;
+  --pfh-muted: #8995a7;
+  --pfh-line: rgba(28, 55, 88, 0.11);
+  --pfh-line-strong: rgba(28, 55, 88, 0.18);
+  --pfh-purple: #3778d8;
+  --pfh-purple-deep: #2553a8;
+  --pfh-purple-soft: #e7f0ff;
+  --pfh-accent-rgb: 55 120 216;
+  --pfh-accent-light: #6b9dec;
+  --pfh-mint: #52bfae;
+  --pfh-mint-deep: #2c8d80;
+  --pfh-mint-soft: #e2f5f1;
+  --pfh-sidebar: #1f2d45;
+  --pfh-sidebar-active-start: #3778d8;
+  --pfh-sidebar-active-end: #2553a8;
+  --pfh-hero-start: #243c6f;
+  --pfh-hero-mid: #3566ad;
+  --pfh-hero-end: #4c86d7;
+  --pfh-shadow-lg: 0 34px 90px rgba(35, 59, 91, 0.2);
+  --pfh-shadow-md: 0 15px 35px rgba(35, 59, 91, 0.1);
+  --pfh-shadow-sm: 0 7px 18px rgba(35, 59, 91, 0.07);
+}
+
+:root[data-theme="mint"] {
+  --pfh-canvas: #e4ebe7;
+  --pfh-stage-start: #e4ebe7;
+  --pfh-stage-mid: #f2f7f4;
+  --pfh-stage-end: #dce8e2;
+  --pfh-shell: #fbfdfa;
+  --pfh-app-main: #f7fbf9;
+  --pfh-panel-soft: #f0f7f3;
+  --pfh-ink: #20302f;
+  --pfh-ink-soft: #5c6c6a;
+  --pfh-muted: #8a9995;
+  --pfh-line: rgba(31, 60, 55, 0.11);
+  --pfh-line-strong: rgba(31, 60, 55, 0.18);
+  --pfh-purple: #2fae9d;
+  --pfh-purple-deep: #19786f;
+  --pfh-purple-soft: #e2f7f2;
+  --pfh-accent-rgb: 47 174 157;
+  --pfh-accent-light: #6dcfbe;
+  --pfh-mint: #55bda7;
+  --pfh-mint-deep: #2d8e7d;
+  --pfh-mint-soft: #e1f5ef;
+  --pfh-sidebar: #203733;
+  --pfh-sidebar-active-start: #2fae9d;
+  --pfh-sidebar-active-end: #19786f;
+  --pfh-hero-start: #275c58;
+  --pfh-hero-mid: #348c82;
+  --pfh-hero-end: #58b9a8;
+  --pfh-shadow-lg: 0 34px 90px rgba(35, 77, 70, 0.18);
+  --pfh-shadow-md: 0 15px 35px rgba(35, 77, 70, 0.09);
+  --pfh-shadow-sm: 0 7px 18px rgba(35, 77, 70, 0.07);
+}
+
+:root[data-theme="rose"] {
+  --pfh-canvas: #efe5e6;
+  --pfh-stage-start: #efe5e6;
+  --pfh-stage-mid: #fbf2f1;
+  --pfh-stage-end: #eadcde;
+  --pfh-shell: #fffafa;
+  --pfh-app-main: #fcf8f8;
+  --pfh-panel-soft: #faf0f1;
+  --pfh-ink: #30212a;
+  --pfh-ink-soft: #6e5963;
+  --pfh-muted: #9b8790;
+  --pfh-line: rgba(75, 39, 55, 0.1);
+  --pfh-line-strong: rgba(75, 39, 55, 0.17);
+  --pfh-purple: #d66b91;
+  --pfh-purple-deep: #a94067;
+  --pfh-purple-soft: #fdebf2;
+  --pfh-accent-rgb: 214 107 145;
+  --pfh-accent-light: #e790ac;
+  --pfh-mint: #62bfae;
+  --pfh-mint-deep: #348f81;
+  --pfh-mint-soft: #e4f6f1;
+  --pfh-peach: #e3a16d;
+  --pfh-peach-soft: #fff0e4;
+  --pfh-sidebar: #3b2834;
+  --pfh-sidebar-active-start: #d66b91;
+  --pfh-sidebar-active-end: #a94067;
+  --pfh-hero-start: #6d3955;
+  --pfh-hero-mid: #a14d70;
+  --pfh-hero-end: #d16f93;
+  --pfh-shadow-lg: 0 34px 90px rgba(90, 46, 65, 0.18);
+  --pfh-shadow-md: 0 15px 35px rgba(90, 46, 65, 0.09);
+  --pfh-shadow-sm: 0 7px 18px rgba(90, 46, 65, 0.07);
+}
+
+:root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   color: var(--pfh-ink);
   background: var(--pfh-canvas);

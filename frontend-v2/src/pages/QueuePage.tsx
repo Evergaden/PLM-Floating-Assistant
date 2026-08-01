@@ -5,7 +5,7 @@ import { SectionHeading } from '../components/SectionHeading'
 import { StatusBadge } from '../components/StatusBadge'
 import { ProductArtwork } from '../components/ProductArtwork'
 
-export function QueuePage({ onOpenProduct }: { onOpenProduct: () => void }) {
+export function QueuePage({ onOpenProduct }: { onOpenProduct: (sku?: string) => void }) {
   return (
     <motion.div
       key="queue-page"
@@ -43,7 +43,7 @@ export function QueuePage({ onOpenProduct }: { onOpenProduct: () => void }) {
                   <div className="queue-card-head"><div><strong>{task.title}</strong><span>{task.sku} · {task.category}</span></div><StatusBadge status={task.status} /></div>
                   <p>{task.detail}</p>
                   <div className="queue-progress-row"><span className="progress-track"><span style={{ width: task.progress + '%' }} /></span><b>{task.progress}%</b></div>
-                  <div className="queue-card-foot"><span>{task.eta || '已准备好'}</span><div><button type="button" className="queue-inline-button" onClick={onOpenProduct}>查看详情 <ChevronRight size={14} /></button><button type="button" className="icon-button icon-button-mini"><MoreHorizontal size={15} /></button></div></div>
+                  <div className="queue-card-foot"><span>{task.eta || '已准备好'}</span><div><button type="button" className="queue-inline-button" onClick={() => onOpenProduct(task.sku)}>查看详情 <ChevronRight size={14} /></button><button type="button" className="icon-button icon-button-mini"><MoreHorizontal size={15} /></button></div></div>
                 </div>
               </motion.article>
             ))}
@@ -63,7 +63,7 @@ export function QueuePage({ onOpenProduct }: { onOpenProduct: () => void }) {
       <section className="surface-panel history-strip">
         <div className="history-title"><span className="icon-box icon-box-green"><CheckCircle2 size={17} /></span><div><strong>最近完成</strong><small>过去 24 小时完成 8 个任务</small></div></div>
         <div className="history-products">
-          {['SKU00044721', 'SKU00044602', 'SKU00044573'].map((sku, index) => <button type="button" key={sku} onClick={onOpenProduct}><ProductArtwork variant={index === 1 ? 'peach' : 'mint'} compact /><span>{sku}</span><CheckCircle2 size={14} /></button>)}
+          {['SKU00044721', 'SKU00044602', 'SKU00044573'].map((sku, index) => <button type="button" key={sku} onClick={() => onOpenProduct(sku)}><ProductArtwork variant={index === 1 ? 'peach' : 'mint'} compact /><span>{sku}</span><CheckCircle2 size={14} /></button>)}
         </div>
         <button type="button" className="text-button">查看历史 <ArrowDownToLine size={15} /></button>
       </section>
