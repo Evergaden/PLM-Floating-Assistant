@@ -18,6 +18,7 @@ const navIcons = {
 export type AppHostActions = {
   onClose?: () => void
   onOpen?: () => void
+  onRenderError?: (error: Error) => void
   catalog?: ProductRecord[]
   getCatalog?: () => ProductRecord[]
   live?: boolean

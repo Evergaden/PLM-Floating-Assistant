@@ -1,4 +1,5 @@
-import { StrictMode } from 'react'
+import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { MotionConfig } from 'motion/react'
 import App, { type AppHostActions } from './App'
@@ -26,6 +27,9 @@ const activeMounts = new WeakMap<HTMLElement, () => void>()
 const HOST_OVERRIDES = `
 :host{display:block!important;width:100%;height:100%;min-width:0;overflow:hidden;border-radius:inherit;background:transparent;color:var(--pfh-ink);}
 .plm-v2-shadow-root{width:100%;height:100%;min-width:0;overflow:hidden;}
+.plm-v2-render-error{display:grid;place-items:center;width:100%;height:100%;padding:24px;color:#344054;background:linear-gradient(145deg,#f7f5ff,#ffffff 58%,#eef8ff);font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;text-align:center;}
+.plm-v2-render-error strong{display:block;color:#372b63;font-size:16px;}
+.plm-v2-render-error span{display:block;margin-top:6px;color:#667085;}
 .preview-stage{width:100%;min-width:0;min-height:100%;height:100%;padding:14px;overflow:auto;}
 .workbench-shell{width:100%;min-width:0;min-height:calc(100% - 28px);height:auto;margin:0;}
 .app-sidebar{width:170px;flex-basis:170px;padding:22px 12px 14px;}
@@ -37,23 +41,62 @@ const HOST_OVERRIDES = `
 .preview-caption{display:none;}
 `
 
+type RenderErrorBoundaryProps = {
+  children: ReactNode
+  onError?: (error: Error) => void
+}
+
+type RenderErrorBoundaryState = {
+  error: Error | null
+}
+
+class RenderErrorBoundary extends Component<RenderErrorBoundaryProps, RenderErrorBoundaryState> {
+  state: RenderErrorBoundaryState = { error: null }
+
+  static getDerivedStateFromError(error: unknown): RenderErrorBoundaryState {
+    return { error: error instanceof Error ? error : new Error(String(error)) }
+  }
+
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    this.props.onError?.(error)
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="plm-v2-render-error" role="alert">
+          <div>
+            <strong>新版界面加载失败</strong>
+            <span>正在恢复旧版界面，请稍候。</span>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function shadowCss() {
   return `${tokensCss.replace(/:root/g, ':host')}\n${stylesCss}\n${HOST_OVERRIDES}`
 }
 
 function renderApp(mountNode: HTMLElement, options: FrontendV2MountOptions) {
   const root: Root = createRoot(mountNode)
-  root.render(
-    <StrictMode>
-      <MotionConfig reducedMotion="user">
-        <ThemeProvider>
-          <ToastProvider>
-            <App host={options} />
-          </ToastProvider>
-        </ThemeProvider>
-      </MotionConfig>
-    </StrictMode>,
-  )
+  flushSync(() => {
+    root.render(
+      <StrictMode>
+        <RenderErrorBoundary onError={options.onRenderError}>
+          <MotionConfig reducedMotion="user">
+            <ThemeProvider>
+              <ToastProvider>
+                <App host={options} />
+              </ToastProvider>
+            </ThemeProvider>
+          </MotionConfig>
+        </RenderErrorBoundary>
+      </StrictMode>,
+    )
+  })
   return root
 }
 
