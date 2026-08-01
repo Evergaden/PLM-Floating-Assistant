@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.91
+// @version      2.6.92
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.91';
+  const SCRIPT_VERSION = '2.6.92';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -51,6 +51,9 @@
   const SKU_LIST_PREFERENCE_VERSION = 1;
   const apiProjectMaterialCache = Object.create(null);
   const apiCopywritingFileCache = Object.create(null);
+  const apiProductSnapshotCache = Object.create(null);
+  const apiProjectSnapshotCache = Object.create(null);
+  const apiIngredientFileCache = Object.create(null);
   const PLM_ARCHIVE_OSS_ORIGIN = 'https://oss-pro.plm.westmonth.cn';
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -1558,7 +1561,13 @@
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
   const MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES = 150 * 1024 * 1024;
+  const OSS_UPLOAD_SDK_RETRY_MAX = 2;
+  const OSS_UPLOAD_RETRY_MAX = 4;
+  const OSS_UPLOAD_RETRY_DELAY_MS = 1200;
+  const OSS_UPLOAD_TIMEOUT_MS = 120000;
   let magicUploadQueueRunPromise = null;
+  let magicUploadEtaTimer = 0;
+  const magicUploadSharedOssCache = new Map();
   let magicUploadAuthPaused = false;
   const MAGIC_UPLOAD_CATEGORIES = Object.freeze({
     '主图': { rule: '主图', archiveTypeId: 1 },
@@ -1983,7 +1992,7 @@
     back: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
     backArrow: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
     warning: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
-    edit: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path>',
+    edit: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>',
     upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>',
@@ -3076,7 +3085,7 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"] svg *,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] .pfh-icon,
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg,
-    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg *{color:var(--pfh-theme-primary)!important;fill:currentColor!important;stroke:currentColor!important;background:transparent!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] svg *{color:var(--pfh-theme-primary)!important;fill:none!important;stroke:currentColor!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;background:transparent!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-generate"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-form.is-open > button[data-action="excel-generate"],
     #${PANEL_ID}[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-generate"],
@@ -4885,22 +4894,22 @@
         const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
         if (!attachmentFiles) return;
         if (attachmentFiles.copywritingFile) {
-          const cached = await hydrateCopywritingForSku(sku, {
+          await hydrateCopywritingForSku(sku, {
             silent: true,
             drawer,
             file: attachmentFiles.copywritingFile,
           });
-          if (attachmentFiles.ingredientFile && (
-            cached.ingredientPdfFileName !== attachmentFiles.ingredientFile.fileName
-            || cached.ingredientNormalizerVersion !== INGREDIENT_NORMALIZER_VERSION
-          )) {
-            await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile });
-          }
         } else {
           addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
-          if (attachmentFiles.ingredientFile) await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: attachmentFiles.ingredientFile });
         }
-        if (!attachmentFiles.ingredientFile) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
+        const ingredientData = await hydrateIngredientPdfForSku(sku, {
+          silent: true,
+          drawer,
+          file: attachmentFiles.ingredientFile || undefined,
+        });
+        if (!ingredientData.ingredientEnglish && !ingredientData.ingredientChinese) {
+          addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
+        }
       }
     } finally {
       if (includeScanTabs && isDrawerProductFlowCurrent(sku, token, drawer)) {
@@ -5402,6 +5411,427 @@
     return [];
   }
 
+  function getApiListItems(payload) {
+    const data = payload && payload.data !== undefined ? payload.data : payload && payload.response && payload.response.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.list)) return data.list;
+    if (data && Array.isArray(data.rows)) return data.rows;
+    if (data && Array.isArray(data.data)) return data.data;
+    if (data && data.data && Array.isArray(data.data.list)) return data.data.list;
+    if (payload && Array.isArray(payload.list)) return payload.list;
+    if (payload && Array.isArray(payload.rows)) return payload.rows;
+    return [];
+  }
+
+  function getApiProductListItems(payload) {
+    const items = getApiListItems(payload);
+    return items.length ? items : getApiMaterialItems(payload);
+  }
+
+  function getApiDetailAttributes(payload) {
+    const root = payload && payload.data !== undefined ? payload.data : payload && payload.response && payload.response.data;
+    const groups = Array.isArray(root)
+      ? root
+      : (root && Array.isArray(root.data) ? root.data
+        : (root && root.data && Array.isArray(root.data.list) ? root.data.list
+          : (root && Array.isArray(root.list) ? root.list : [])));
+    const attrs = [];
+    const addGroup = (group) => {
+      if (!group || typeof group !== 'object') return;
+      const candidates = [group.category_template_attrs, group.categoryTemplateAttrs, group.attrs];
+      candidates.forEach((value) => {
+        if (Array.isArray(value)) value.forEach((attr) => { if (attr && typeof attr === 'object') attrs.push(attr); });
+      });
+    };
+    groups.forEach(addGroup);
+    if (root && !Array.isArray(root)) addGroup(root);
+    if (root && root.data && typeof root.data === 'object' && !Array.isArray(root.data)) addGroup(root.data);
+    return attrs;
+  }
+
+  function getApiAttributeLanguages(attr) {
+    if (!attr || typeof attr !== 'object') return [];
+    if (Array.isArray(attr.attr_language_config_json)) return attr.attr_language_config_json;
+    if (Array.isArray(attr.language_config)) return attr.language_config;
+    if (Object.prototype.hasOwnProperty.call(attr, 'value')) return [{ language_id: attr.language_id || 1, value: attr.value }];
+    return [];
+  }
+
+  function getApiAttributeValue(attr, languageId) {
+    const languages = getApiAttributeLanguages(attr);
+    const preferred = languages.find((item) => Number(item && item.language_id) === Number(languageId) && item.value !== undefined && item.value !== null)
+      || languages.find((item) => item && item.value !== undefined && item.value !== null);
+    return preferred ? preferred.value : '';
+  }
+
+  function getApiScalarText(value, depth) {
+    if (value === null || value === undefined || depth > 4) return '';
+    if (typeof value === 'string' || typeof value === 'number') return compactText(value);
+    if (Array.isArray(value)) return value.map((item) => getApiScalarText(item, (depth || 0) + 1)).filter(Boolean).join('；');
+    if (typeof value !== 'object') return '';
+    for (const key of ['text', 'label', 'name', 'value', 'product_name', 'url', 'file_url', 'download_url', 'oss_url', 'path', 'file_path', 'file_save_full_path']) {
+      if (value[key] !== undefined && value[key] !== null) {
+        const text = getApiScalarText(value[key], (depth || 0) + 1);
+        if (text) return text;
+      }
+    }
+    return '';
+  }
+
+  function getApiAttributeLabel(attr) {
+    if (!attr) return '';
+    const archive = attr.archive_type_attr_data || attr.archiveTypeAttrData || {};
+    return [attr.variable_name, attr.attr_name, attr.name, attr.title, attr.display_name, archive.name]
+      .map((value) => compactText(value)).filter(Boolean).join(' ');
+  }
+
+  function getApiAttributeText(attrs, pattern, languageId) {
+    const candidates = (Array.isArray(attrs) ? attrs : []).map((attr, index) => {
+      const label = getApiAttributeLabel(attr);
+      const match = label.match(pattern);
+      return match ? { attr, index, score: match[0].length + (String(attr.variable_name || '').toLowerCase().includes('product_name') ? 20 : 0) } : null;
+    }).filter(Boolean).sort((a, b) => b.score - a.score || a.index - b.index);
+    for (const candidate of candidates) {
+      const value = getApiScalarText(getApiAttributeValue(candidate.attr, languageId || 1), 0);
+      if (value && !/^\d+(?:[.,;]\d+)*$/.test(value)) return value;
+    }
+    return '';
+  }
+
+  function getApiObjectFieldValue(objects, keys) {
+    for (const object of objects || []) {
+      if (!object || typeof object !== 'object') continue;
+      for (const key of keys || []) {
+        if (object[key] === undefined || object[key] === null || object[key] === '') continue;
+        const value = getApiScalarText(object[key], 0);
+        if (value) return value;
+      }
+    }
+    return '';
+  }
+
+  function getApiObjectAssetUrl(objects, keys) {
+    for (const object of objects || []) {
+      if (!object || typeof object !== 'object') continue;
+      for (const key of keys || []) {
+        const url = getApiAssetUrl(object[key], 0);
+        if (url) return url;
+      }
+    }
+    return '';
+  }
+
+  function getApiPayloadDataObject(payload) {
+    const data = payload && payload.data !== undefined ? payload.data : payload && payload.response && payload.response.data;
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  }
+
+  function getApiProductLanguageName(product, languageId) {
+    const configs = product && (product.language_config || product.languageConfig);
+    if (!Array.isArray(configs)) return '';
+    const item = configs.find((entry) => Number(entry && entry.language_id) === Number(languageId))
+      || configs.find((entry) => entry && entry.product_name);
+    return compactText(item && (item.product_name || item.name || item.value));
+  }
+
+  function getApiLanguageConfigName(object, languageId) {
+    const configs = object && (object.language_config || object.languageConfig);
+    if (!Array.isArray(configs)) return '';
+    const item = configs.find((entry) => Number(entry && entry.language_id) === Number(languageId))
+      || configs.find((entry) => entry && entry.product_name);
+    return compactText(item && (item.product_name || item.name || item.value));
+  }
+
+  function getApiEnglishProductName(values, brand) {
+    for (const value of values || []) {
+      const text = cleanEnglishProductName(value, brand);
+      if (text && /[A-Za-z]/.test(text) && !/[\u3400-\u9fff]/.test(text)) return text;
+    }
+    return '';
+  }
+
+  function normalizeApiAssetUrl(value) {
+    const text = compactText(value).replace(/&amp;/g, '&').replace(/\\\//g, '/');
+    if (!text || /^(?:data:|javascript:)/i.test(text)) return '';
+    if (/^https?:\/\//i.test(text)) return stripOssResizeParams(text);
+    if (/^\/\//.test(text)) return stripOssResizeParams(location.protocol + text);
+    if (/^(?:\/|[a-z0-9_-]+\/)/i.test(text) && !/^(?:filePic|assets)\//i.test(text)) return buildApiArchiveFileUrl(text);
+    return '';
+  }
+
+  function getApiAssetUrl(value, depth) {
+    if (value === null || value === undefined || depth > 4) return '';
+    if (typeof value === 'string') return normalizeApiAssetUrl(value);
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const url = getApiAssetUrl(item, (depth || 0) + 1);
+        if (url) return url;
+      }
+      return '';
+    }
+    if (typeof value !== 'object') return '';
+    for (const key of ['url', 'src', 'pic', 'image', 'file_url', 'download_url', 'oss_url', 'path', 'file_path', 'file_save_full_path', 'value']) {
+      const url = getApiAssetUrl(value[key], (depth || 0) + 1);
+      if (url) return url;
+    }
+    return '';
+  }
+
+  function getApiAttributeFileIds(attrs, pattern) {
+    const ids = [];
+    (Array.isArray(attrs) ? attrs : []).forEach((attr) => {
+      if (!pattern.test(getApiAttributeLabel(attr))) return;
+      getApiAttributeLanguages(attr).forEach((language) => collectApiCopywritingFileIds(language && language.value, ids));
+      if (attr && attr.value !== undefined) collectApiCopywritingFileIds(attr.value, ids);
+    });
+    return ids.filter((id, index, list) => list.indexOf(id) === index);
+  }
+
+  async function fetchApiArchiveFileRecordsByIds(ids) {
+    const normalizedIds = Array.from(new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)));
+    if (!normalizedIds.length) return [];
+    let lastError = null;
+    for (const endpoint of ['/api/ProjectFormData/GetArchiveFileVersionListByFileVersionId', '/api/Product/GetArchiveFileVersionListByFileVersionId']) {
+      try {
+        const payload = await fetchPlmApiJson(endpoint, { ids: normalizedIds });
+        const records = getApiArchiveFileRecords(payload);
+        if (records.length || endpoint.indexOf('/Product/') >= 0) return records;
+      } catch (error) {
+        lastError = error;
+        if (/\b401\b|\b403\b/.test(formatErrorMessage(error))) throw error;
+      }
+    }
+    if (lastError) throw lastError;
+    return [];
+  }
+
+  function buildApiArchiveFileInfo(record) {
+    const fileName = compactText(record && (record.file_name || record.file_original_name || record.original_file_name));
+    const filePath = compactText(record && (record.file_path || record.file_save_full_path || record.oss_path || record.file_url || record.url));
+    const fileId = String(record && (record.archive_file_version_id || record.file_version_id || record.id) || '');
+    return {
+      fileName,
+      filePath,
+      fileId,
+      fileFormat: compactText(record && (record.file_format || record.format)),
+      createdAt: compactText(record && (record.create_at || record.created_at || record.updated_at)),
+      url: buildApiArchiveFileUrl(filePath),
+    };
+  }
+
+  function getApiProductArchiveImageIds(attrs) {
+    return getApiAttributeFileIds(attrs, /sku[_\s-]*pic|main[_\s-]*image|picture|产品图|主图/i);
+  }
+
+  function extractApiProductSnapshot(product, infoPayload, contentPayload) {
+    const info = getApiPayloadDataObject(infoPayload);
+    const attrs = getApiDetailAttributes(contentPayload);
+    const objects = [product, info];
+    const configs = product && (product.language_config || product.languageConfig);
+    const brandValue = getApiObjectFieldValue(objects, ['brand_name', 'brandName', 'brand', 'brand_name_cn'])
+      || getApiScalarText(product && product.brand, 0);
+    const chineseName = getApiObjectFieldValue(objects, ['product_name', 'productName', 'name', 'name_cn', 'product_name_cn'])
+      || getApiProductLanguageName(product, 1)
+      || getApiLanguageConfigName(info, 1)
+      || getApiAttributeText(attrs, /product[_\s-]*name|商品名称|产品名称|中文品名/i, 1);
+    const englishName = getApiEnglishProductName([
+      getApiObjectFieldValue(objects, ['product_name_en', 'productNameEn', 'english_name', 'name_en', 'productNameEnglish']),
+      getApiProductLanguageName(product, 2),
+      getApiLanguageConfigName(info, 2),
+      getApiAttributeText(attrs, /product[_\s-]*name|product name|英文品名|英文名称/i, 2),
+    ], brandValue);
+    const productSizeText = getApiObjectFieldValue(objects, ['product_size', 'productSize', 'product_size_text', 'size_text'])
+      || getApiAttributeText(attrs, /product[_\s-]*size|产品尺寸|成品尺寸/i, 1);
+    const productNums = parseDimension(productSizeText, 3);
+    const directImage = getApiObjectAssetUrl(objects, ['sku_image_url', 'skuImageUrl', 'product_image_url', 'productImageUrl', 'pic', 'image', 'picture'])
+      || getApiObjectFieldValue(objects, ['sku_image_url', 'skuImageUrl', 'product_image_url', 'productImageUrl', 'pic', 'image', 'picture'])
+      || getApiAssetUrl(getApiAttributeValue((attrs || []).find((attr) => /sku[_\s-]*pic|main[_\s-]*image|picture|产品图|主图/i.test(getApiAttributeLabel(attr))), 1), 0);
+    const referenceUrl = [
+      getApiObjectFieldValue(objects, ['benchmark_link', 'benchmarkLink', 'benchmark_url', 'benchmarkUrl', 'reference_url', 'referenceUrl', 'alibaba_link', 'alibabaLink']),
+      getApiAttributeText(attrs, /benchmark|reference|对标链接|参考链接|1688|阿里链接/i, 1),
+    ].map((value) => String(value || '').match(/https?:\/\/[^\s]+/i)?.[0] || '').find(Boolean) || '';
+    const packQty = getApiObjectFieldValue(objects, ['pack_qty', 'packQty', 'pack_count', 'packCount', 'carton_qty', 'cartonQty'])
+      || getApiAttributeText(attrs, /pack[_\s-]*qty|pack[_\s-]*count|装箱数|装箱数量/i, 1);
+    const purchasePrice = getApiObjectFieldValue(objects, ['purchase_price', 'purchasePrice', 'procurement_price', 'procurementPrice'])
+      || getApiAttributeText(attrs, /purchase[_\s-]*price|procurement[_\s-]*price|采购价|采购价格/i, 1);
+    const optional = {
+      cartonSpec: getApiObjectFieldValue(objects, ['carton_spec', 'cartonSpec', 'outer_carton_spec', 'outerCartonSpec', 'carton_size', 'cartonSize'])
+        || getApiAttributeText(attrs, /carton[_\s-]*(?:spec|size)|外箱规格|外箱尺寸/i, 1),
+      packageMaterial: getApiObjectFieldValue(objects, ['package_material', 'packageMaterial', 'packaging_material', 'packagingMaterial'])
+        || getApiAttributeText(attrs, /package[_\s-]*material|packaging[_\s-]*material|包装材质|包装材料/i, 1),
+      leadTimeText: getApiObjectFieldValue(objects, ['lead_time', 'leadTime', 'delivery_text', 'deliveryText', 'delivery_note', 'deliveryNote'])
+        || getApiAttributeText(attrs, /lead[_\s-]*time|delivery[_\s-]*(?:text|note)|交期|交货期/i, 1),
+      alibabaLink: getApiObjectFieldValue(objects, ['alibaba_link', 'alibabaLink', '1688_link', '1688Link', 'alibaba_url', 'alibabaUrl'])
+        || getApiAttributeText(attrs, /alibaba|1688|阿里链接/i, 1),
+    };
+    return {
+      product,
+      info,
+      attrs,
+      chineseName: cleanExcelFieldValue(chineseName),
+      englishName,
+      brand: compactText(brandValue),
+      productType: getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType', 'category_name', 'categoryName']),
+      productNums: productNums && productNums.length >= 3 ? productNums.slice(0, 3) : null,
+      productSizeText: cleanExcelFieldValue(productSizeText),
+      referenceUrl,
+      packQty: normalizePackQty(packQty),
+      purchasePrice: normalizeLedgerPurchasePrice(purchasePrice),
+      productListImageUrl: normalizeApiAssetUrl(directImage),
+      optional,
+      imageFileIds: getApiProductArchiveImageIds(attrs),
+      categoryId: String(product && product.category_id || info.category_id || ''),
+      productId: String(product && (product.product_id || product.id) || info.product_id || ''),
+      productVersionId: String(product && (product.product_version_id || product.product_main_id) || info.product_version_id || info.product_main_id || ''),
+      languageConfig: Array.isArray(configs) ? configs : [],
+    };
+  }
+
+  async function fetchApiProductSnapshot(data, options) {
+    const sku = String(data && data.sku || '').trim().toUpperCase();
+    if (!sku) return { found: false, sku };
+    if (options && options.force) delete apiProductSnapshotCache[sku];
+    if (!apiProductSnapshotCache[sku]) {
+      const request = (async () => {
+        const productPayload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(sku));
+        const list = getApiProductListItems(productPayload);
+        const product = list.find((item) => String(item && (item.product_code || item.productCode || item.code || '')).trim().toUpperCase() === sku) || list[0];
+        if (!product) return { found: false, sku, reason: '产品列表未找到 SKU' };
+        const productId = product.product_id || product.id;
+        const productVersionId = product.product_version_id || product.product_main_id;
+        const categoryId = product.category_id;
+        let contentPayload = null;
+        let infoPayload = null;
+        if (productId && productVersionId && categoryId) {
+          try {
+            contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId));
+          } catch (error) {
+            addLog('warn', 'Excel 产品详情 API 读取失败', sku + ' | ' + formatErrorMessage(error));
+          }
+          try {
+            infoPayload = await fetchPlmJson('/api/Product/GetDetailInfo?product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId));
+          } catch (error) {
+            addLog('info', 'Excel 产品基础信息 API 不可用，继续使用产品列表', sku + ' | ' + formatErrorMessage(error));
+          }
+        }
+        return {
+          found: true,
+          sku,
+          productId: String(productId || ''),
+          productVersionId: String(productVersionId || ''),
+          categoryId: String(categoryId || ''),
+          contentPayload,
+          infoPayload,
+          ...extractApiProductSnapshot(product, infoPayload, contentPayload),
+        };
+      })();
+      const task = request.finally(() => {
+        if (apiProductSnapshotCache[sku] === task) delete apiProductSnapshotCache[sku];
+      });
+      apiProductSnapshotCache[sku] = task;
+    }
+    return apiProductSnapshotCache[sku];
+  }
+
+  async function fetchApiProjectSnapshot(data, options) {
+    const sku = String(data && data.sku || '').trim().toUpperCase();
+    if (!sku) return null;
+    const existingId = [data && data.projectRowId, data && data.projectId].map((value) => String(value || '').trim()).find((value) => /^\d+$/.test(value));
+    if (existingId) return { found: true, sku, projectId: existingId };
+    if (options && options.force) delete apiProjectSnapshotCache[sku];
+    if (!apiProjectSnapshotCache[sku]) {
+      const request = (async () => {
+        let lastError = null;
+        for (const endpoint of [
+          '/api/ChemicalNewAll/GetList?page=1&pageSize=20&product_codes=' + encodeURIComponent(sku),
+          '/api/ChemicalNewDesignTask/GetList?page=1&pageSize=20&product_codes=' + encodeURIComponent(sku),
+        ]) {
+          try {
+            const payload = await fetchPlmJson(endpoint);
+            const list = getApiListItems(payload);
+            const row = list.find((item) => String(item && (item.product_code || item.productCode || item.code || '')).trim().toUpperCase() === sku);
+            if (!row) continue;
+            return {
+              found: true,
+              sku,
+              projectId: String(row.id || row.project_id || row.chemical_id || row.project_row_id || row.projectRowId || ''),
+              productId: String(row.product_id || ''),
+              productVersionId: String(row.product_main_id || row.product_version_id || ''),
+              categoryId: String(row.category_id || ''),
+              name: compactText(row.product_name || row.productName || row.name),
+              brand: compactText(row.brand_name || row.brandName || row.brand),
+              referenceUrl: String(row.reference_url || row.referenceUrl || row.benchmark_url || row.benchmarkUrl || '').match(/https?:\/\/[^\s]+/i)?.[0] || '',
+              raw: row,
+            };
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (lastError) addLog('info', 'Excel 项目列表 API 未命中，继续使用产品/页面数据', sku + ' | ' + formatErrorMessage(lastError));
+        return null;
+      })();
+      const task = request.finally(() => {
+        if (apiProjectSnapshotCache[sku] === task) delete apiProjectSnapshotCache[sku];
+      });
+      apiProjectSnapshotCache[sku] = task;
+    }
+    return apiProjectSnapshotCache[sku];
+  }
+
+  async function findApiIngredientPdfFromContent(contentPayload, sku) {
+    const attrs = getApiDetailAttributes(contentPayload);
+    const candidates = (Array.isArray(attrs) ? attrs : []).map((attr, index) => {
+      const label = getApiAttributeLabel(attr);
+      if (!/(?:成份|成分|ingredient|supplement\s*facts|material\s*list)/i.test(label)) return null;
+      if (/(?:产品文案|product[_\s-]*description|copywriting|description)/i.test(label)) return null;
+      const formats = getApiScalarText(attr && (attr.archive_type_attr_data || attr.archiveTypeAttrData), 0);
+      const score = (/(?:成份|成分|supplement\s*facts)/i.test(label) ? 100 : 70) + (/(?:pdf)/i.test(formats) ? 30 : 0);
+      return { attr, index, label, score };
+    }).filter(Boolean).sort((a, b) => b.score - a.score || a.index - b.index);
+    if (!candidates.length) return null;
+    for (const candidate of candidates) {
+      const direct = getApiAssetUrl(getApiAttributeValue(candidate.attr, 1), 0);
+      if (direct && /(?:\.pdf(?:\?|$)|download|attachment)/i.test(direct)) {
+        return { found: true, fileName: ((direct.match(/[^/?#]+\.pdf(?:[?#]|$)/i) || [])[0] || 'ingredient-' + sku + '.pdf').split(/[?#]/)[0], url: direct, source: 'plm-api' };
+      }
+      const ids = [];
+      getApiAttributeLanguages(candidate.attr).forEach((language) => collectApiCopywritingFileIds(language && language.value, ids));
+      if (candidate.attr && candidate.attr.value !== undefined) collectApiCopywritingFileIds(candidate.attr.value, ids);
+      const records = await fetchApiArchiveFileRecordsByIds(ids);
+      const files = records
+        .filter((record) => record && !Number(record.is_invalid || 0))
+        .map(buildApiArchiveFileInfo)
+        .filter((file) => file.url && (/\.pdf$/i.test(file.fileName) || /pdf/i.test(file.fileFormat)));
+      if (!files.length) continue;
+      files.sort((a, b) => {
+        const aSku = sku && new RegExp(escapeRegExp(sku), 'i').test(a.fileName) ? 1 : 0;
+        const bSku = sku && new RegExp(escapeRegExp(sku), 'i').test(b.fileName) ? 1 : 0;
+        return bSku - aSku || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+      });
+      return { found: true, ...files[0], source: 'plm-api' };
+    }
+    return null;
+  }
+
+  async function fetchApiIngredientPdfFile(data, options) {
+    const sku = String(data && data.sku || '').trim().toUpperCase();
+    if (!sku) return { found: false, reason: '缺少 SKU' };
+    if (options && options.force) delete apiIngredientFileCache[sku];
+    if (!apiIngredientFileCache[sku]) {
+      const request = (async () => {
+        const snapshot = await fetchApiProductSnapshot({ sku }, options);
+        if (!snapshot || !snapshot.found || !snapshot.contentPayload) return { found: false, reason: '产品详情没有可读内容' };
+        const file = await findApiIngredientPdfFromContent(snapshot.contentPayload, sku);
+        return file || { found: false, reason: '产品详情没有成分表 PDF 附件' };
+      })();
+      const task = request.finally(() => {
+        if (apiIngredientFileCache[sku] === task) delete apiIngredientFileCache[sku];
+      });
+      apiIngredientFileCache[sku] = task;
+    }
+    return apiIngredientFileCache[sku];
+  }
+
   function getApiProductMetricValue(payload, variableName) {
     let result = '';
     const visit = (value) => {
@@ -5437,6 +5867,20 @@
       ...(grossWeight ? { grossWeight } : {}),
       ...(netContent || grossWeight ? { apiProductSource: 'plm-product-detail-content' } : {}),
     };
+  }
+
+  function extractApiPurchasePrice(payloads) {
+    const objects = [];
+    (payloads || []).forEach((payload) => {
+      const data = payload && payload.data;
+      if (data && typeof data === 'object' && !Array.isArray(data)) objects.push(data);
+      objects.push(...getApiListItems(payload));
+    });
+    const raw = getApiObjectFieldValue(objects, [
+      'procurement_price', 'procurementPrice', 'purchase_price', 'purchasePrice',
+      'domestic_three_price', 'domesticThreePrice',
+    ]);
+    return normalizeLedgerPurchasePrice(raw);
   }
 
   function collectApiCopywritingFileIds(value, ids) {
@@ -5483,7 +5927,7 @@
   }
 
   function getApiArchiveFileRecords(payload) {
-    const data = payload && payload.data;
+    const data = payload && payload.data !== undefined ? payload.data : payload && payload.response && payload.response.data;
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.list)) return data.list;
     if (payload && Array.isArray(payload.list)) return payload.list;
@@ -5825,25 +6269,26 @@
           const productId = project.product_id;
           const productVersionId = project.product_main_id;
           const productSku = sku || String(project.product_code || '');
+          const projectResult = { ...result, apiProject: project };
           return fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(productSku))
             .then((productPayload) => {
-              const list = productPayload && productPayload.data && Array.isArray(productPayload.data.list) ? productPayload.data.list : [];
-              const product = list[0] || {};
+              const list = getApiProductListItems(productPayload);
+              const product = list.find((item) => String(item && (item.product_code || item.productCode || item.code || '')).trim().toUpperCase() === String(productSku || '').trim().toUpperCase()) || list[0] || {};
               const categoryId = product.category_id;
               if (!categoryId || (!(product.product_id || productId)) || (!(product.product_version_id || productVersionId))) {
                 addLog('info', 'PLM 产品列表读取完成但缺少详情关联', productSku + ' | 保留已读取物料结果');
-                return result;
+                return projectResult;
               }
               return fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(product.product_id || productId) + '&product_version_id=' + encodeURIComponent(product.product_version_id || productVersionId) + '&category_id=' + encodeURIComponent(categoryId))
-                .then((contentPayload) => ({ ...result, ...extractApiProductMetrics(contentPayload) }))
+                .then((contentPayload) => ({ ...projectResult, ...extractApiProductMetrics(contentPayload) }))
                 .catch((error) => {
                   addLog('warn', 'PLM 产品详情字段读取失败', productSku + ' | ' + formatErrorMessage(error));
-                  return result;
+                  return projectResult;
                 });
             })
             .catch((error) => {
               addLog('warn', 'PLM 产品列表读取失败', productSku + ' | ' + formatErrorMessage(error));
-              return result;
+              return projectResult;
             });
         })
         .then((result) => {
@@ -5888,6 +6333,146 @@
       renderShell('已后台刷新 PLM 数据');
       showApiDataChangeNotice(sku, current, merged);
     }
+  }
+
+  async function fetchApiExcelData(data, options) {
+    const current = normalizeData(data || {});
+    const sku = String(current.sku || '').trim().toUpperCase();
+    if (!sku) return null;
+    const opts = options || {};
+    let product = null;
+    let project = null;
+    try {
+      product = await fetchApiProductSnapshot({ sku }, opts);
+    } catch (error) {
+      addLog('warn', 'Excel 产品 API 补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
+    }
+    try {
+      project = await fetchApiProjectSnapshot(current, opts);
+    } catch (error) {
+      addLog('info', 'Excel 项目 API 补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
+    }
+    const productId = String(product && (product.productId || product.product && (product.product.product_id || product.product.id)) || '');
+    const productVersionId = String(product && (product.productVersionId || product.product && (product.product.product_version_id || product.product.product_main_id)) || '');
+    const categoryId = String(product && (product.categoryId || product.category_id) || project && project.categoryId || '');
+    const projectId = String(project && project.projectId || current.projectRowId || current.projectId || '').trim();
+    let apiPurchasePrice = product && product.purchasePrice || '';
+    if (!apiPurchasePrice && productVersionId) {
+      const pricePayloadPromise = fetchPlmJson('/api/Product/GetProductPriceInfo?type=1&product_version_id=' + encodeURIComponent(productVersionId)).catch((error) => {
+        addLog('info', 'Excel 产品价格 API 不可用，继续使用推荐或页面价格', sku + ' | ' + formatErrorMessage(error));
+        return null;
+      });
+      const procurePayloadPromise = fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(productVersionId) + '&code=' + encodeURIComponent(sku)).catch((error) => {
+        addLog('info', 'Excel 产品采购 API 不可用，继续使用推荐或页面价格', sku + ' | ' + formatErrorMessage(error));
+        return null;
+      });
+      const [pricePayload, procurePayload] = await Promise.all([pricePayloadPromise, procurePayloadPromise]);
+      apiPurchasePrice = extractApiPurchasePrice([pricePayload, procurePayload]);
+    }
+    const optional = product && product.optional || {};
+    const optionalSeed = Object.keys(optional).reduce((result, key) => {
+      if (isUsefulValue(optional[key])) result[key] = optional[key];
+      return result;
+    }, {});
+    const productMetrics = product && product.contentPayload ? extractApiProductMetrics(product.contentPayload) : {};
+    let imageUrl = product && product.productListImageUrl || '';
+    let imageFallbackUrl = imageUrl;
+    if (!imageUrl && product && product.imageFileIds && product.imageFileIds.length) {
+      try {
+        const records = await fetchApiArchiveFileRecordsByIds(product.imageFileIds);
+        const image = records.map(buildApiArchiveFileInfo)
+          .filter((file) => file.url && (/\.(?:jpe?g|png|webp|bmp|gif)$/i.test(file.fileName) || /(?:jpe?g|png|webp|bmp|gif)/i.test(file.fileFormat)))
+          .sort((a, b) => {
+            const aSku = sku && new RegExp(escapeRegExp(sku), 'i').test(a.fileName) ? 1 : 0;
+            const bSku = sku && new RegExp(escapeRegExp(sku), 'i').test(b.fileName) ? 1 : 0;
+            return bSku - aSku || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+          })[0];
+        if (image) {
+          imageUrl = image.url;
+          imageFallbackUrl = image.url;
+        }
+      } catch (error) {
+        addLog('info', 'Excel 产品图片附件 API 读取失败，继续使用页面图片', sku + ' | ' + formatErrorMessage(error));
+      }
+    }
+    const seed = normalizeData({
+      ...current,
+      sku,
+      projectRowId: projectId || current.projectRowId || '',
+      projectId: projectId || current.projectId || '',
+      projectProductId: productId || current.projectProductId || '',
+      productVersionId: productVersionId || current.productVersionId || '',
+      name: product && product.chineseName || project && project.name || current.name || '',
+      brand: product && product.brand || project && project.brand || current.brand || '',
+      englishName: product && product.englishName || current.englishName || '',
+      productType: product && product.productType || current.productType || '',
+      referenceUrl: product && product.referenceUrl || project && project.referenceUrl || current.referenceUrl || '',
+      benchmarkLink: product && product.referenceUrl || project && project.referenceUrl || current.benchmarkLink || '',
+      packQty: product && product.packQty || current.packQty || '',
+      purchasePrice: apiPurchasePrice || current.purchasePrice || '',
+      netContent: productMetrics.netContent || current.netContent || '',
+      grossWeight: productMetrics.grossWeight || current.grossWeight || '',
+      plmProductNums: product && product.productNums || current.plmProductNums || null,
+      productListImageUrl: imageUrl || current.productListImageUrl || '',
+      productListImageFallbackUrl: imageFallbackUrl || current.productListImageFallbackUrl || '',
+      skuImageUrl: imageUrl || current.skuImageUrl || '',
+      skuImageFallbackUrl: imageFallbackUrl || current.skuImageFallbackUrl || '',
+      skuImageSource: imageUrl ? 'productListImage' : current.skuImageSource || '',
+      ...optionalSeed,
+    });
+    let material = emptyPackaging();
+    if (getProjectIdForMaterialApi(seed)) {
+      try {
+        material = await fetchApiMaterialPackaging(seed, { force: Boolean(opts.force) });
+      } catch (error) {
+        addLog('warn', 'Excel 物料 API 补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
+      }
+    }
+    const projectDetail = material && material.apiProject || {};
+    const projectObjects = [project, project && project.raw, projectDetail];
+    const projectReferenceUrl = getApiObjectFieldValue(projectObjects, ['reference_url', 'referenceUrl', 'benchmark_url', 'benchmarkUrl', 'benchmark_link', 'benchmarkLink', 'alibaba_link', 'alibabaLink'])
+      .match(/https?:\/\/[^\s]+/i)?.[0] || '';
+    const projectPackQty = normalizePackQty(getApiObjectFieldValue(projectObjects, ['pack_qty', 'packQty', 'pack_count', 'packCount', 'carton_qty', 'cartonQty']));
+    const projectPurchasePrice = normalizeLedgerPurchasePrice(getApiObjectFieldValue(projectObjects, ['purchase_price', 'purchasePrice', 'procurement_price', 'procurementPrice']));
+    const merged = normalizeData({
+      ...mergeApiPackagingData(seed, material),
+      packageSource: material && material.packageSizeText ? 'plm-project-pms' : seed.packageSource,
+      referenceUrl: seed.referenceUrl || projectReferenceUrl || current.referenceUrl || '',
+      benchmarkLink: seed.benchmarkLink || projectReferenceUrl || current.benchmarkLink || '',
+      packQty: seed.packQty || projectPackQty || current.packQty || '',
+      purchasePrice: seed.purchasePrice || projectPurchasePrice || current.purchasePrice || '',
+      updatedAt: new Date().toLocaleString(),
+      updatedAtMs: Date.now(),
+    });
+    let ingredientFile = null;
+    if (product && product.contentPayload) {
+      try {
+        ingredientFile = await findApiIngredientPdfFromContent(product.contentPayload, sku);
+      } catch (error) {
+        addLog('info', 'Excel 成分表附件 API 读取失败，继续使用页面附件', sku + ' | ' + formatErrorMessage(error));
+      }
+    }
+    const apiDataAvailable = Boolean(product && product.found || project && project.found || hasUsableApiData(material));
+    return {
+      found: apiDataAvailable,
+      data: merged,
+      product,
+      project,
+      ingredientFile,
+      englishName: product && product.englishName || merged.englishName || '',
+      chineseName: product && product.chineseName || merged.name || '',
+      benchmarkLink: merged.benchmarkLink || merged.referenceUrl || '',
+      imageUrl,
+      imageFallbackUrl,
+      isSkuDesignImage: Boolean(imageUrl && isStrictDesignImageUrl(imageUrl)),
+      skuImageUrl: imageUrl,
+      skuImageFallbackUrl: imageFallbackUrl,
+      skuImageSource: imageUrl ? 'productListImage' : '',
+      productId,
+      productVersionId,
+      categoryId,
+      projectId,
+    };
   }
 
   function extractPackaging(root) {
@@ -6902,6 +7487,7 @@
     if (state.view === 'magicUpload') {
       ensureMagicUploadStyles();
       renderStandaloneTool(panel, magicUploadViewHtml());
+      setupMagicUploadModeFusion(panel.querySelector('.pfh-detail'));
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -7255,6 +7841,75 @@
     });
   }
 
+  function setupMagicUploadModeFusion(root) {
+    const tabs = root && root.querySelector('.pfh-magic-mode-tabs');
+    const indicator = tabs && tabs.querySelector('.pfh-magic-mode-indicator');
+    if (!tabs || !indicator) return;
+    const indicatorTransition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+    const buttons = Array.from(tabs.querySelectorAll('button[data-action="magic-upload-mode"]'));
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    };
+    buttons.forEach((button) => {
+      button.addEventListener('mousemove', (event) => {
+        const rect = button.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        button.style.setProperty('--mx', ((event.clientX - rect.left) / rect.width * 100) + '%');
+        button.style.setProperty('--my', ((event.clientY - rect.top) / rect.height * 100) + '%');
+      });
+      button.addEventListener('click', () => {
+        buttons.forEach((item) => item.classList.remove('is-active'));
+        button.classList.add('is-active');
+        tabs.setAttribute('data-active-mode', button.getAttribute('data-magic-mode') || 'package');
+        indicator.style.setProperty('transition', indicatorTransition, 'important');
+        moveIndicator(button);
+      });
+    });
+    const activeButton = tabs.querySelector('button.is-active') || buttons[0];
+    if (!activeButton) return;
+    tabs.setAttribute('data-active-mode', activeButton.getAttribute('data-magic-mode') || 'package');
+    indicator.style.setProperty('transition', 'none', 'important');
+    moveIndicator(activeButton);
+    window.requestAnimationFrame(() => {
+      if (indicator.isConnected) indicator.style.setProperty('transition', indicatorTransition, 'important');
+    });
+  }
+
+  function renderMagicUploadModeContent(panel) {
+    if (!panel || state.view !== 'magicUpload') return false;
+    const detail = panel.querySelector('.pfh-detail');
+    const currentContent = detail && detail.querySelector('.pfh-magic-mode-content');
+    const currentTabs = detail && detail.querySelector('.pfh-magic-mode-tabs');
+    if (!currentContent || !currentTabs) return false;
+    const template = document.createElement('template');
+    template.innerHTML = magicUploadViewHtml();
+    mountMagicUploadLayout(template.content);
+    const nextContent = template.content.querySelector('.pfh-magic-mode-content');
+    const nextTabs = template.content.querySelector('.pfh-magic-mode-tabs');
+    if (!nextContent || !nextTabs) return false;
+    currentTabs.className = nextTabs.className;
+    currentTabs.style.cssText = nextTabs.style.cssText;
+    currentTabs.setAttribute('data-active-mode', state.magicUploadMode || 'package');
+    currentTabs.querySelectorAll('button[data-action="magic-upload-mode"]').forEach((button) => {
+      button.classList.toggle('is-active', button.getAttribute('data-magic-mode') === state.magicUploadMode);
+    });
+    currentContent.replaceWith(nextContent);
+    const indicator = currentTabs.querySelector('.pfh-magic-mode-indicator');
+    const activeButton = currentTabs.querySelector('button.is-active');
+    if (indicator && activeButton) {
+      indicator.style.setProperty('transition', 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)', 'important');
+      window.requestAnimationFrame(() => {
+        if (!indicator.isConnected) return;
+        indicator.style.setProperty('left', activeButton.offsetLeft + 'px', 'important');
+        indicator.style.setProperty('width', activeButton.offsetWidth + 'px', 'important');
+      });
+    }
+    updateMagicUploadProcessingNotice();
+    return true;
+  }
+
   function renderUploadModeContent(panel) {
     const detail = panel && panel.querySelector('.pfh-detail');
     const currentBody = detail && detail.querySelector('.pfh-upload-body');
@@ -7494,7 +8149,39 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = html;
-    if (state.view === 'magicUpload') updateMagicUploadProcessingNotice();
+    if (state.view === 'magicUpload') {
+      mountMagicUploadLayout(detail);
+      updateMagicUploadProcessingNotice();
+    }
+  }
+
+  function mountMagicUploadLayout(root) {
+    if (!root || typeof root.querySelector !== 'function') return;
+    const canvas = root.querySelector('.pfh-magic-canvas');
+    const labHead = canvas && canvas.querySelector('.pfh-magic-lab-head');
+    if (!canvas || !labHead) return;
+    const directChildren = Array.from(canvas.children);
+    const modeTabs = directChildren.find((element) => element.classList.contains('pfh-magic-mode-tabs'));
+    const currentContent = directChildren.find((element) => element.classList.contains('pfh-magic-mode-content'));
+    if (modeTabs && !currentContent) {
+      const modeIndex = directChildren.indexOf(modeTabs);
+      const modeContent = document.createElement('div');
+      modeContent.className = 'pfh-magic-mode-content';
+      directChildren.slice(modeIndex + 1).forEach((element) => modeContent.appendChild(element));
+      canvas.appendChild(modeContent);
+    }
+    if (modeTabs && !labHead.contains(modeTabs)) {
+      let headRight = labHead.querySelector('.pfh-magic-head-right');
+      if (!headRight) {
+        headRight = document.createElement('div');
+        headRight.className = 'pfh-magic-head-right';
+        labHead.appendChild(headRight);
+      }
+      const pipeline = labHead.querySelector('.pfh-magic-pipeline');
+      if (pipeline && pipeline.parentNode !== headRight) headRight.appendChild(pipeline);
+      headRight.insertBefore(modeTabs, pipeline || null);
+    }
+    root.querySelectorAll('.pfh-magic-drop-icon').forEach((element) => element.remove());
   }
 
   function ensureMagicUploadStyles() {
@@ -7509,8 +8196,9 @@
       root + '.pfh-magic-canvas{position:relative;isolation:isolate;min-height:650px;margin:0;padding:0 0 58px;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}',
       root + '.pfh-magic-page .pfh-icon,' + root + '.pfh-magic-page .pfh-icon[class*="pfh-icon-"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:inherit!important;line-height:1!important}',
       root + '.pfh-magic-page .pfh-icon svg,' + root + '.pfh-magic-page .pfh-icon svg *{color:inherit!important;fill:none!important;stroke:currentColor!important;stroke-linecap:round!important;stroke-linejoin:round!important}',
-      root + '.pfh-magic-lab-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px}',
+      root + '.pfh-magic-lab-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 18px}',
       root + '.pfh-magic-head-left{display:flex;align-items:center;gap:12px;min-width:0}',
+      root + '.pfh-magic-head-right{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-width:0;margin-left:auto}',
       root + '.pfh-magic-back{display:inline-grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border:1px solid rgba(26,35,68,.1);border-radius:14px;background:rgba(255,255,255,.7);color:#7056e8;cursor:pointer;box-shadow:0 8px 20px rgba(45,37,100,.1);backdrop-filter:blur(18px);transition:transform .22s ease,box-shadow .22s ease,background .22s ease}',
       root + '.pfh-magic-back:hover{transform:translateX(-2px);background:#fff;box-shadow:0 12px 26px rgba(45,37,100,.14)}',
       root + '.pfh-magic-back .pfh-icon{width:18px;height:18px}',
@@ -7518,11 +8206,13 @@
       root + '.pfh-magic-lab-title em{display:inline-flex;margin-left:7px;padding:3px 8px;border:1px solid rgba(112,86,232,.2);border-radius:999px;background:rgba(112,86,232,.09);color:#7056e8;font-size:9px;font-style:normal;font-weight:900;letter-spacing:.12em;vertical-align:middle}',
       root + '.pfh-magic-pipeline{display:inline-flex;align-items:center;gap:6px;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.16em;white-space:nowrap}',
       root + '.pfh-magic-pipeline:before{content:"";width:7px;height:7px;border-radius:50%;background:#49c7bc;box-shadow:0 0 0 5px rgba(73,199,188,.16)}',
-      root + '.pfh-magic-mode-tabs{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;width:min(100%,260px);margin:0 0 18px;padding:4px;border:1px solid rgba(26,35,68,.08);border-radius:16px;background:rgba(29,34,50,.045);isolation:isolate}',
-      root + '.pfh-magic-mode-tabs:before{content:"";position:absolute;z-index:-1;top:4px;bottom:4px;left:4px;width:calc((100% - 8px) / 2);border-radius:12px;background:#fff;box-shadow:0 8px 18px rgba(45,37,100,.1);transition:transform .28s ease}',
-      root + '.pfh-magic-mode-tabs.is-effect:before{transform:translateX(100%)}',
-      root + '.pfh-magic-mode-tabs button{position:relative;border:0;background:transparent;color:#8990a6;padding:8px 10px;border-radius:12px;font-size:11px;font-weight:900;cursor:pointer}',
-      root + '.pfh-magic-mode-tabs button.is-active{color:#7056e8}',
+      root + '.pfh-magic-mode-tabs{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;box-sizing:border-box;width:min(100%,260px);min-height:36px;margin:0;padding:3px;overflow:hidden;border:1px solid rgba(26,35,68,.1);border-radius:999px;background:rgba(244,241,255,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 7px 16px rgba(45,37,100,.1);isolation:isolate}',
+      root + '.pfh-magic-mode-indicator{position:absolute;z-index:0;top:3px;left:3px;width:calc((100% - 6px) / 2);height:calc(100% - 6px);box-sizing:border-box;border:0;border-radius:999px;background:linear-gradient(135deg,#8b5cf6,#6d35e8);box-shadow:0 8px 18px rgba(109,53,232,.28);pointer-events:none;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease}',
+      root + '.pfh-magic-mode-tabs button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:28px;padding:0 12px!important;border:0!important;border-radius:999px!important;background:transparent!important;color:#69728f!important;font-size:11px;font-weight:800;line-height:1;cursor:pointer;transition:color .28s ease,transform .12s ease}',
+      root + '.pfh-magic-mode-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important}',
+      root + '.pfh-magic-mode-tabs button:hover:not(:disabled):not(.is-active){background:transparent!important;color:#5d4bd4!important}',
+      root + '.pfh-magic-mode-tabs button:active{transform:scale(.94)}',
+      root + '.pfh-magic-mode-tabs button:focus-visible{outline:2px solid rgba(112,86,232,.32);outline-offset:-2px}',
       root + '.pfh-magic-shell{display:grid;grid-template-columns:1fr;gap:0;align-items:start}',
       root + '.pfh-magic-main-card,.pfh-magic-side,.pfh-magic-overview{border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}',
       root + '.pfh-magic-main-card{padding:0;overflow:visible}',
@@ -7535,11 +8225,8 @@
       root + '.pfh-magic-upload-drop:hover,' + root + '.pfh-magic-upload-drop.is-drag-over{border-color:#7056e8;transform:translateY(-2px);box-shadow:0 14px 34px rgba(76,60,150,.15)}',
       root + '.pfh-magic-upload-drop.is-paste-received{border-color:#49c7bc;box-shadow:0 0 0 4px rgba(73,199,188,.13),0 14px 34px rgba(76,60,150,.12)}',
       root + '.pfh-magic-upload-drop>div{position:relative;z-index:1}',
-      root + '.pfh-magic-drop-icon{display:grid;place-items:center;width:44px;height:44px;margin:0 auto 12px;border:0;border-radius:15px;background:#fff;color:#7056e8;box-shadow:0 8px 24px rgba(76,60,150,.15)}',
-      root + '.pfh-magic-drop-icon .pfh-icon,' + root + '.pfh-magic-drop-icon .pfh-icon-upload{width:21px!important;height:21px!important;min-width:21px!important}',
-      root + '.pfh-magic-drop-icon .pfh-icon svg,' + root + '.pfh-magic-drop-icon .pfh-icon svg *{width:21px!important;height:21px!important;color:inherit!important;fill:none!important;stroke:currentColor!important}',
       root + '.pfh-magic-upload-drop strong{display:block;color:#1d2232;font-size:17px;font-weight:850}',
-      root + '.pfh-magic-upload-drop span:not(.pfh-magic-drop-icon){display:block;margin-top:6px;color:#8990a6;font-size:11px;font-weight:650}',
+      root + '.pfh-magic-upload-drop>div>span{display:block;margin-top:6px;color:#8990a6;font-size:11px;font-weight:650}',
       root + '.pfh-magic-processing{display:flex;align-items:center;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid rgba(26,35,68,.1);border-radius:14px;background:rgba(255,255,255,.78);color:#7056e8;font-size:10px;font-weight:750;line-height:1.35;box-shadow:0 8px 20px rgba(45,37,100,.08)}',
       root + '.pfh-magic-processing .pfh-magic-spinner{width:14px;height:14px;flex:0 0 14px;border:2px solid rgba(112,86,232,.18);border-top-color:#7056e8;border-radius:50%;animation:pfhMagicUploadSpin .75s linear infinite}',
       root + '.pfh-magic-queue-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;color:#1d2232}',
@@ -7563,6 +8250,9 @@
       root + '.pfh-magic-sku-text{display:block;flex:0 0 auto;max-width:132px;overflow:hidden;color:#151a2e;font-size:16px;font-weight:950;text-overflow:ellipsis;white-space:nowrap}',
       root + '.pfh-magic-task-source{display:block;min-width:0;overflow:hidden;color:#151a2e;font-size:16px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}',
       root + '.pfh-magic-file-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:22px;padding:0 10px;border-radius:999px;background:#efe9ff;color:#7056e8;font-size:11px;font-weight:850;white-space:nowrap}',
+      root + '.pfh-magic-file-badge.is-replace{background:#fff0e7;color:#d46b34}',
+      root + '.pfh-magic-file-badge.is-checking{background:#eef5ff;color:#4f83c2}',
+      root + '.pfh-magic-task.is-replace{border-color:rgba(212,107,52,.28)}',
       root + '.pfh-magic-stage{display:block;margin-top:7px;overflow:hidden;color:#78819c;font-size:12px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}',
       root + '.pfh-magic-progress-line{display:flex;align-items:center;gap:9px;margin-top:11px}',
       root + '.pfh-magic-progress-track{position:relative;height:5px;overflow:hidden;flex:1;border-radius:99px;background:rgba(29,34,50,.09)}',
@@ -7570,6 +8260,7 @@
       root + '.pfh-magic-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#7657f2 0%,#5dcfc1 100%);box-shadow:0 0 12px rgba(112,86,232,.34);transition:width .35s ease}',
       root + '.pfh-magic-task-side{display:grid;justify-items:end;gap:8px;color:#7056e8;text-align:right}',
       root + '.pfh-magic-progress-value{min-width:34px;color:#7056e8;font-size:13px;font-weight:950;text-align:right}',
+      root + '.pfh-magic-eta{color:#8990a6;font-size:10px;font-weight:650;white-space:nowrap}',
       root + '.pfh-magic-task-meta{display:flex;align-items:center;gap:10px;margin-top:0;color:#78819c;font-size:12px;font-weight:650}',
       root + '.pfh-magic-task-actions{display:flex;align-items:center;gap:8px}',
       root + '.pfh-magic-status{display:block;max-width:82px;overflow:hidden;color:#78819c;font-size:10px;font-weight:650;white-space:nowrap;line-height:1.25;text-align:right;text-overflow:ellipsis}',
@@ -7614,7 +8305,7 @@
       root + '.pfh-magic-history-empty,' + root + '.pfh-magic-empty{padding:28px 12px;border:1px dashed rgba(26,35,68,.12);border-radius:18px;background:rgba(255,255,255,.46);color:#8990a6;font-size:11px;text-align:center}',
       root + '.pfh-magic-bottom-note{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 2px 0;color:#8990a6;font-size:10px;font-weight:750}',
       '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicAuroraSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicProgressSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}@keyframes pfhMagicDropSweep{0%,100%{transform:translateX(-42%);opacity:.18}50%{transform:translateX(42%);opacity:.48}}',
-      '@media (max-width:720px){' + root + '.pfh-magic-stats{grid-template-columns:repeat(2,minmax(0,1fr))}' + root + '.pfh-magic-activity p{width:100%}' + root + '.pfh-magic-lab-head,' + root + '.pfh-magic-hero{align-items:flex-start;flex-direction:column}' + root + '.pfh-magic-task-main{grid-template-columns:46px minmax(0,1fr) 62px;gap:10px;padding:15px 14px}' + root + '.pfh-magic-sku-text{max-width:118px}' + root + '.pfh-magic-task-source{font-size:14px}' + root + '.pfh-magic-file-badge{display:none}}',
+      '@media (max-width:720px){' + root + '.pfh-magic-stats{grid-template-columns:repeat(2,minmax(0,1fr))}' + root + '.pfh-magic-activity p{width:100%}' + root + '.pfh-magic-lab-head{align-items:center;flex-direction:row;flex-wrap:wrap}' + root + '.pfh-magic-hero{align-items:flex-start;flex-direction:column}' + root + '.pfh-magic-head-right{width:auto;justify-content:flex-end;margin-left:auto}' + root + '.pfh-magic-pipeline{display:none}' + root + '.pfh-magic-task-main{grid-template-columns:46px minmax(0,1fr) 62px;gap:10px;padding:15px 14px}' + root + '.pfh-magic-sku-text{max-width:118px}' + root + '.pfh-magic-task-source{font-size:14px}' + root + '.pfh-magic-file-badge:not(.is-replace):not(.is-checking){display:none}}',
       '@media (prefers-reduced-motion:reduce){' + root + '*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}'
     ].join('');
     document.head.appendChild(style);
@@ -7742,13 +8433,43 @@
 
   function updateMagicUploadTaskEstimate(task) {
     if (!task) return 0;
-    const totalBytes = Math.max(0, Number(task.totalBytes) || 0);
+    const fallbackTotalBytes = (task.files || []).reduce((sum, entry) => sum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
+    const totalBytes = Math.max(0, Number(task.totalBytes) || fallbackTotalBytes);
     const currentBytes = Math.max(0, Number(task.currentFileSize) || 0) * Math.min(1, Math.max(0, Number(task.currentFileProgress) || 0));
     const remainingBytes = Math.max(0, totalBytes - (Number(task.uploadedBytes) || 0) - currentBytes);
     const throughput = getMagicUploadThroughput();
     task.etaSeconds = throughput > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
     task.progress = totalBytes > 0 ? Math.min(1, Math.max(0, ((Number(task.uploadedBytes) || 0) + currentBytes) / totalBytes)) : 0;
     return task.etaSeconds;
+  }
+
+  function getMagicUploadQueueEtaSeconds() {
+    const throughput = getMagicUploadThroughput();
+    if (throughput <= 0) return 0;
+    const remainingBytes = (state.magicUploadQueue || []).reduce((sum, task) => {
+      if (!task || task.status === 'success' || task.status === 'waiting') return sum;
+      const fallbackTotalBytes = (task.files || []).reduce((fileSum, entry) => fileSum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
+      const totalBytes = Math.max(0, Number(task.totalBytes) || fallbackTotalBytes);
+      const currentBytes = Math.max(0, Number(task.currentFileSize) || 0) * Math.min(1, Math.max(0, Number(task.currentFileProgress) || 0));
+      return sum + Math.max(0, totalBytes - (Number(task.uploadedBytes) || 0) - currentBytes);
+    }, 0);
+    return remainingBytes > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
+  }
+
+  function updateMagicUploadOverviewEta() {
+    if (state.view !== 'magicUpload') return;
+    const panel = document.getElementById(PANEL_ID);
+    const eta = panel && panel.querySelector('[data-magic-overall-eta]');
+    if (!eta) return;
+    const seconds = getMagicUploadQueueEtaSeconds();
+    const hasWork = (state.magicUploadQueue || []).some((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
+    eta.textContent = seconds ? formatMagicUploadDuration(seconds) : (state.magicUploadRunning && hasWork ? '正在建立估算' : '--');
+  }
+
+  function updateMagicUploadEtaDisplay() {
+    if (state.view !== 'magicUpload') return;
+    (state.magicUploadQueue || []).filter((task) => task && task.status === 'processing').forEach((task) => updateMagicUploadProgress(task));
+    updateMagicUploadOverviewEta();
   }
 
   function recordMagicUploadMetric(task, entry, durationMs) {
@@ -7776,6 +8497,7 @@
     if (value) value.textContent = progress + '%';
     if (eta) eta.textContent = task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : '正在建立估算');
     if (stage) stage.textContent = task.currentFileName ? (task.step || '上传中') + ' · ' + (task.currentFileName.split('/').pop() || task.currentFileName) : (task.step || '等待上传');
+    updateMagicUploadOverviewEta();
   }
 
   async function hydrateMagicUploadTaskMetrics(task) {
@@ -7861,6 +8583,19 @@
       sourceUploaded: Boolean(task.sourceUploaded),
       sourceGeneratedName: String(task.sourceGeneratedName || ''),
       sourceFileVersionId: String(task.sourceFileVersionId || ''),
+      replaceCategories: Array.isArray(task.replaceCategories) ? Array.from(new Set(task.replaceCategories.map((category) => String(category || '')).filter((category) => MAGIC_UPLOAD_ATTRIBUTE_VARIABLES[category]))) : [],
+      existingFileVersionIds: task.existingFileVersionIds && typeof task.existingFileVersionIds === 'object' ? Object.keys(task.existingFileVersionIds).reduce((result, category) => {
+        result[category] = Array.from(new Set((Array.isArray(task.existingFileVersionIds[category]) ? task.existingFileVersionIds[category] : []).map((id) => String(id || '')).filter(Boolean)));
+        return result;
+      }, {}) : {},
+      existingFiles: task.existingFiles && typeof task.existingFiles === 'object' ? Object.keys(task.existingFiles).reduce((result, category) => {
+        result[category] = (Array.isArray(task.existingFiles[category]) ? task.existingFiles[category] : []).map((file) => ({ id: String(file && file.id || ''), name: String(file && file.name || ''), path: String(file && file.path || '') })).filter((file) => file.id);
+        return result;
+      }, {}) : {},
+      replacementCheckStatus: String(task.replacementCheckStatus || 'idle'),
+      replacementCheckError: String(task.replacementCheckError || ''),
+      replacementCheckToken: String(task.replacementCheckToken || ''),
+      replacementCheckedAt: Number(task.replacementCheckedAt) || 0,
       submitted: Boolean(task.submitted),
       draftSaved: Boolean(task.draftSaved),
       zipKey: String(task.zipKey || ''),
@@ -7923,6 +8658,40 @@
       timer = window.setTimeout(() => reject(new Error(String(label || '操作') + '超时（' + Math.round(timeoutMs / 1000) + '秒）')), timeoutMs);
     });
     return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+  }
+
+  function isRetryableOssUploadError(error) {
+    const status = Number(error && error.status);
+    const message = String(error && (error.message || error.name || error.code) || error || '');
+    return status === -1 || status === -2 || /ConnectionTimeoutError|ResponseTimeoutError|NetworkError|Network request failed|Failed to upload some parts|ECONNRESET|ETIMEDOUT|timeout/i.test(message);
+  }
+
+  async function multipartUploadWithRetry(client, objectName, file, options, onRetry) {
+    const sourceOptions = options && typeof options === 'object' ? options : {};
+    let checkpoint = null;
+    let retryCount = 0;
+    let parallel = Math.max(1, Number(sourceOptions.parallel) || 1);
+    while (true) {
+      try {
+        const uploadOptions = { ...sourceOptions, parallel, timeout: Number(sourceOptions.timeout) || OSS_UPLOAD_TIMEOUT_MS };
+        if (checkpoint && checkpoint.uploadId) uploadOptions.checkpoint = checkpoint;
+        const progress = sourceOptions.progress;
+        uploadOptions.progress = (percent, nextCheckpoint, response) => {
+          if (nextCheckpoint && nextCheckpoint.uploadId) checkpoint = nextCheckpoint;
+          if (typeof progress === 'function') return progress(percent, nextCheckpoint, response);
+        };
+        return await client.multipartUpload(objectName, file, uploadOptions);
+      } catch (error) {
+        if (!isRetryableOssUploadError(error) || retryCount >= OSS_UPLOAD_RETRY_MAX) throw error;
+        retryCount += 1;
+        // A single in-flight part is safer after a connection failure. The checkpoint
+        // keeps already completed parts out of the next attempt.
+        parallel = 1;
+        const delay = Math.min(10000, OSS_UPLOAD_RETRY_DELAY_MS * Math.pow(2, retryCount - 1)) + Math.floor(Math.random() * 400);
+        if (typeof onRetry === 'function') onRetry(error, retryCount, delay, checkpoint);
+        await wait(delay);
+      }
+    }
   }
 
   function readMagicUploadArrayBuffer(file) {
@@ -8102,6 +8871,7 @@
 
   function mergeMagicUploadTasks(additions) {
     const queue = state.magicUploadQueue || [];
+    const affectedTasks = [];
     (additions || []).forEach((addition) => {
       const existing = addition.sku && queue.find((task) => task.sku === addition.sku && task.status !== 'success');
       if (existing) {
@@ -8118,12 +8888,19 @@
         existing.submitted = false;
         existing.draftSaved = false;
         existing.updatedAt = Date.now();
+        affectedTasks.push(existing);
       } else {
+        addition.replacementCheckStatus = addition.sku ? 'checking' : 'idle';
+        addition.replaceCategories = [];
+        addition.existingFileVersionIds = {};
+        addition.existingFiles = {};
         queue.push(addition);
+        affectedTasks.push(addition);
       }
     });
     state.magicUploadQueue = queue.slice(-300);
     saveMagicUploadQueue(state.magicUploadQueue);
+    scheduleMagicUploadReplacementChecks(affectedTasks);
   }
 
   function magicUploadStatusLabel(task) {
@@ -8135,10 +8912,144 @@
     return task.step || '等待上传';
   }
 
+  function getMagicUploadTaskCategories(task) {
+    const categories = (task && task.files || [])
+      .map((entry) => String(entry && entry.category || ''))
+      .filter((category) => category && category !== '待确认' && MAGIC_UPLOAD_ATTRIBUTE_VARIABLES[category]);
+    if (task && task.zipKey) categories.push('图包素材');
+    return Array.from(new Set(categories));
+  }
+
+  function getMagicUploadReplacementSnapshot(task, contentPayload) {
+    const values = flattenMagicUploadProductAttributes(contentPayload);
+    const existingFileVersionIds = Object.create(null);
+    const categories = [];
+    getMagicUploadTaskCategories(task).forEach((category) => {
+      const target = findMagicUploadProductAttribute(values, category);
+      if (!target) return;
+      const ids = magicUploadDraftValueList(target.value)
+        .map((value) => normalizeMagicUploadFileVersionValue(value))
+        .filter((value) => value !== null);
+      if (!ids.length) return;
+      existingFileVersionIds[category] = Array.from(new Set(ids.map((value) => String(value))));
+      categories.push(category);
+    });
+    return { categories, existingFileVersionIds, existingFiles: Object.create(null) };
+  }
+
+  async function fetchMagicUploadArchiveFiles(ids) {
+    const normalizedIds = Array.from(new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)));
+    if (!normalizedIds.length) return [];
+    let lastError = null;
+    for (const endpoint of ['/api/ProjectFormData/GetArchiveFileVersionListByFileVersionId', '/api/Product/GetArchiveFileVersionListByFileVersionId']) {
+      try {
+        const payload = await fetchPlmApiJson(endpoint, { ids: normalizedIds });
+        const data = payload && payload.data;
+        return Array.isArray(data) ? data : (data && Array.isArray(data.list) ? data.list : []);
+      } catch (error) {
+        lastError = error;
+        if (/\b401\b|\b403\b/.test(formatErrorMessage(error))) throw error;
+      }
+    }
+    throw lastError || new Error('无法读取现有归档文件信息');
+  }
+
+  function attachMagicUploadArchiveFiles(snapshot, records) {
+    const byId = Object.create(null);
+    (records || []).forEach((record) => {
+      const id = record && (record.archive_file_version_id || record.file_version_id || record.id);
+      if (id !== undefined && id !== null) byId[String(id)] = {
+        id: String(id),
+        name: String(record.file_name || record.file_original_name || ''),
+        path: String(record.file_path || record.file_save_full_path || ''),
+      };
+    });
+    Object.keys(snapshot.existingFileVersionIds || {}).forEach((category) => {
+      snapshot.existingFiles[category] = (snapshot.existingFileVersionIds[category] || []).map((id) => byId[String(id)] || { id: String(id), name: '', path: '' });
+    });
+    return snapshot;
+  }
+
+  function applyMagicUploadReplacementSnapshot(task, snapshot, status, errorMessage) {
+    if (!task) return;
+    task.replaceCategories = Array.isArray(snapshot && snapshot.categories) ? snapshot.categories.slice() : [];
+    task.existingFileVersionIds = snapshot && snapshot.existingFileVersionIds || {};
+    task.existingFiles = snapshot && snapshot.existingFiles || {};
+    task.replacementCheckStatus = status || 'ready';
+    task.replacementCheckError = String(errorMessage || '');
+    task.replacementCheckedAt = status === 'ready' ? Date.now() : (Number(task.replacementCheckedAt) || 0);
+    task.updatedAt = Date.now();
+  }
+
+  async function refreshMagicUploadTaskReplacement(task, token) {
+    if (!task || !task.sku) return;
+    const context = await resolveMagicUploadProductContext(task);
+    const categoryId = context.categoryId;
+    if (!categoryId) throw new Error('商品缺少 category_id，无法查询现有图片');
+    const contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(context.productId) + '&product_version_id=' + encodeURIComponent(context.productVersionId) + '&category_id=' + encodeURIComponent(categoryId));
+    const snapshot = getMagicUploadReplacementSnapshot(task, contentPayload);
+    const ids = Object.keys(snapshot.existingFileVersionIds || {}).flatMap((category) => snapshot.existingFileVersionIds[category] || []);
+    if (ids.length) {
+      try {
+        const records = await fetchMagicUploadArchiveFiles(ids);
+        attachMagicUploadArchiveFiles(snapshot, records);
+      } catch (error) {
+        magicUploadLog('warn', '现有图片名称读取失败，仍保留替换判断', task.sku + ' | ' + formatErrorMessage(error));
+      }
+    }
+    const liveTask = (state.magicUploadQueue || []).find((item) => item && item.id === task.id);
+    if (!liveTask || (token && liveTask.replacementCheckToken !== token)) return;
+    applyMagicUploadReplacementSnapshot(liveTask, snapshot, 'ready', '');
+    saveMagicUploadQueue(state.magicUploadQueue);
+    if (state.view === 'magicUpload') renderShell();
+    magicUploadLog('info', '现有图片检查完成', task.sku + ' | ' + (snapshot.categories.length ? '替换=' + snapshot.categories.join('、') : '没有同分类旧文件'));
+  }
+
+  function scheduleMagicUploadReplacementChecks(tasks) {
+    const uniqueTasks = Array.from(new Map((tasks || []).filter((task) => task && task.id).map((task) => [task.id, task])).values());
+    let changed = false;
+    uniqueTasks.forEach((task) => {
+      if (!task.sku) {
+        task.replacementCheckStatus = 'idle';
+        task.replaceCategories = [];
+        return;
+      }
+      const token = createMagicUploadId();
+      task.replacementCheckToken = token;
+      task.replacementCheckStatus = 'checking';
+      task.replacementCheckError = '';
+      task.updatedAt = Date.now();
+      changed = true;
+      Promise.resolve().then(() => refreshMagicUploadTaskReplacement(task, token)).catch((error) => {
+        const liveTask = (state.magicUploadQueue || []).find((item) => item && item.id === task.id);
+        if (!liveTask || liveTask.replacementCheckToken !== token) return;
+        liveTask.replacementCheckStatus = 'error';
+        liveTask.replacementCheckError = formatErrorMessage(error);
+        liveTask.updatedAt = Date.now();
+        saveMagicUploadQueue(state.magicUploadQueue);
+        if (state.view === 'magicUpload') renderShell();
+        magicUploadLog('warn', '现有图片检查失败', task.sku + ' | ' + liveTask.replacementCheckError);
+      });
+    });
+    if (changed) saveMagicUploadQueue(state.magicUploadQueue);
+  }
+
+  function magicUploadReplacementSummary(task) {
+    const status = String(task && task.replacementCheckStatus || '');
+    if (status === 'checking') return '正在查询当前图片…';
+    if (status === 'error') return '开始时会重新查询当前图片';
+    const categories = Array.isArray(task && task.replaceCategories) ? task.replaceCategories : [];
+    if (!categories.length) return '新增任务';
+    const count = categories.reduce((sum, category) => sum + ((task.existingFileVersionIds && task.existingFileVersionIds[category]) || []).length, 0);
+    const names = categories.flatMap((category) => (task.existingFiles && task.existingFiles[category] || []).map((file) => file && file.name || '')).filter(Boolean);
+    const nameText = names.length ? '：' + names.slice(0, 2).join('、') + (names.length > 2 ? '…' : '') : '';
+    return '替换 ' + categories.join('、') + (count ? ' · 现有 ' + count + ' 个文件' : '') + nameText;
+  }
+
   function magicUploadViewHtml() {
     if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></div></div></section></div>';
     const magicMode = state.magicUploadMode === 'effect' ? 'effect' : 'package';
-    const modeTabs = '<div class="pfh-magic-mode-tabs ' + (magicMode === 'effect' ? 'is-effect' : '') + '"><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + (magicMode === 'package' ? 'is-active' : '') + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + (magicMode === 'effect' ? 'is-active' : '') + '">效果图</button></div>';
+    const modeTabs = '<div class="pfh-magic-mode-tabs ' + (magicMode === 'effect' ? 'is-effect' : '') + '" data-active-mode="' + magicMode + '"><i class="pfh-magic-mode-indicator" aria-hidden="true"></i><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + (magicMode === 'package' ? 'is-active' : '') + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + (magicMode === 'effect' ? 'is-active' : '') + '">效果图</button></div>';
     if (magicMode === 'effect') {
       const uploadQueue = loadUploadQueue();
       const queue = uploadQueue.filter((item) => item.kind === 'toy-effect' && !/\u6210\u529f/.test(item.status || ''));
@@ -8178,11 +9089,16 @@
       const statusClass = task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '');
       const statusText = task.currentFileName ? (task.step || '上传中') : magicUploadStatusLabel(task);
       const categoriesText = Array.from(new Set(task.files.map((entry) => entry.category).filter((category) => category && category !== '待确认'))).slice(0, 4).join(' · ') || '待确认';
-      return '<article class="pfh-magic-task ' + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge">' + task.files.length + ' 个文件</span></div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+      const replacementStatus = String(task.replacementCheckStatus || 'idle');
+      const replacementCategories = Array.isArray(task.replaceCategories) ? task.replaceCategories : [];
+      const replacementBadge = replacementStatus === 'checking' ? '<span class="pfh-magic-file-badge is-checking">检查现有图</span>' : (replacementCategories.length ? '<span class="pfh-magic-file-badge is-replace">替换任务</span>' : '');
+      const replacementSummary = magicUploadReplacementSummary(task);
+      const taskEta = task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : (running ? '正在建立估算' : '--'));
+      return '<article class="pfh-magic-task ' + (replacementCategories.length ? 'is-replace ' : '') + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge">' + task.files.length + ' 个文件</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(replacementSummary) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + escapeHtml(taskEta) + '</span><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + iconHtml('history') + ' 上传历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section></div>' : '';
     const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-upload-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></div></section></div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong data-magic-overall-eta>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : (running && pendingCount ? '正在建立估算' : '--')) + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX，悬浮后可按 Ctrl+V 粘贴"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>悬浮此框后按 Ctrl+V，可直接粘贴文件 · ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-upload-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '<div class="pfh-magic-bottom-note"><span>最多同时运行 3 个商品任务</span><span>原始 ZIP 会保留到图包素材</span></div></div></section></div>';
   }
 
   function saveMagicUploadTaskEdits(id) {
@@ -8209,8 +9125,13 @@
     task.submitted = false;
     task.draftSaved = false;
     task.projectId = getProjectIdForMaterialApi(loadData(task.sku) || {});
+    task.replaceCategories = [];
+    task.existingFileVersionIds = {};
+    task.existingFiles = {};
+    task.replacementCheckStatus = task.sku ? 'checking' : 'idle';
     task.updatedAt = Date.now();
     saveMagicUploadQueue(state.magicUploadQueue);
+    scheduleMagicUploadReplacementChecks([task]);
     renderShell();
     showToast('任务修改已保存');
   }
@@ -8280,6 +9201,10 @@
     removed.forEach((task) => cleanupMagicUploadTaskFiles(task, []));
     state.magicUploadQueue = [];
     state.magicUploadRunning = false;
+    if (magicUploadEtaTimer) {
+      window.clearInterval(magicUploadEtaTimer);
+      magicUploadEtaTimer = 0;
+    }
     saveMagicUploadQueue(state.magicUploadQueue);
     renderShell();
     showToast('魔法上传队列已清空');
@@ -8335,6 +9260,7 @@
     }
     magicUploadAuthPaused = false;
     state.magicUploadRunning = true;
+    if (!magicUploadEtaTimer) magicUploadEtaTimer = window.setInterval(updateMagicUploadEtaDisplay, 1000);
     const attemptedTaskIds = new Set();
     const runner = async () => {
       try {
@@ -8408,6 +9334,10 @@
         await Promise.all(workers);
       } finally {
         state.magicUploadRunning = false;
+        if (magicUploadEtaTimer) {
+          window.clearInterval(magicUploadEtaTimer);
+          magicUploadEtaTimer = 0;
+        }
         saveMagicUploadQueue(state.magicUploadQueue);
         if (state.view === 'magicUpload') renderShell();
         showToast(magicUploadAuthPaused ? '魔法上传队列已暂停，请刷新 PLM 页面后重试' : '魔法上传队列已停止');
@@ -8419,6 +9349,19 @@
     });
     magicUploadQueueRunPromise = runPromise;
     return runPromise;
+  }
+
+  function hasApiUploadAccess() {
+    return Boolean(state.magicUploadAccessEnabled);
+  }
+
+  function notifyApiUploadAccessDenied() {
+    if (state.magicUploadAccessLoading) {
+      showToast('正在检查 API 权限，请稍后再试');
+      scheduleMagicUploadAccessRefresh(0);
+    } else {
+      showToast('当前账号没有 API 上传权限，普通图包表格仍可使用');
+    }
   }
 
   async function resolveMagicUploadProductContext(task) {
@@ -8436,6 +9379,7 @@
       sku,
       productId: String(productId),
       productVersionId: String(productVersionId),
+      categoryId: String(product.category_id || ''),
       productCode: String(product.product_code || product.code || sku).trim().toUpperCase(),
     };
     task.productId = context.productId;
@@ -8559,13 +9503,14 @@
     const additions = collectMagicUploadFileVersionIds(task);
     const categories = Object.keys(additions);
     if (!categories.length) throw new Error('未获取到上传文件版本 ID，已停止保存商品草稿');
+    const replaceCategories = new Set(Array.isArray(task && task.replaceCategories) ? task.replaceCategories : []);
     const changed = [];
     categories.forEach((category) => {
       const target = findMagicUploadProductAttribute(values, category);
       if (!target) throw new Error('商品模板中未找到“' + category + '”字段，已停止保存商品草稿');
       const language = values.find((item) => String(item.attr_id) === String(target.attr_id) && Number(item.language_id) === 1);
       if (!language) throw new Error('商品模板中“' + category + '”缺少中文字段，已停止保存商品草稿');
-      const existing = magicUploadDraftValueList(language.value);
+      const existing = replaceCategories.has(category) ? [] : magicUploadDraftValueList(language.value);
       const existingIds = new Set(existing.map((item) => String(item)));
       additions[category].forEach((fileVersionId) => {
         if (existingIds.has(String(fileVersionId))) return;
@@ -8573,7 +9518,7 @@
         existingIds.add(String(fileVersionId));
       });
       language.value = existing;
-      changed.push(category + ':' + additions[category].length);
+      changed.push(category + ':' + additions[category].length + (replaceCategories.has(category) ? '(replace)' : ''));
     });
     const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
     const procurementPrice = price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price;
@@ -8630,6 +9575,8 @@
       fetchPlmJson(query('/api/Product/GetProductInvoiceInfo?type=1')),
       fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(task.sku)),
     ]);
+    const latestReplacement = getMagicUploadReplacementSnapshot(task, contentPayload);
+    applyMagicUploadReplacementSnapshot(task, latestReplacement, 'ready', '');
     const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload);
     const changedFields = draft._magicUploadChangedFields || [];
     delete draft._magicUploadChangedFields;
@@ -8792,26 +9739,9 @@
       magicUploadLog('error', 'PLM 商品上下文校验失败', task.sku + ' | product_version_id=' + context.productVersionId + ' | 返回文件名=' + generatedName);
       throw new Error('PLM 生成文件名与目标 SKU 不一致，已阻止上传：' + generatedName);
     }
-    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 30 });
-    const secret = secretPayload && secretPayload.data;
-    if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
-    const declaredMaxBytes = Number(secret.max_file_size) || 0;
-    const uploadMaxBytes = category === '图包素材' ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : (declaredMaxBytes || MAGIC_UPLOAD_MAX_FILE_BYTES);
-    if (file.size > uploadMaxBytes) throw new Error(category === '图包素材' ? '图包素材单个文件不能超过 150MB' : '文件超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
-    if (category === '图包素材' && declaredMaxBytes && declaredMaxBytes < uploadMaxBytes) magicUploadLog('info', '采用图包素材页面限制', '接口通用提示=' + Math.round(declaredMaxBytes / 1024 / 1024) + 'MB；页面规则=150MB');
-    if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
-    const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
-    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
-    await client.multipartUpload(objectName, file, {
-      partSize: 2 * 1024 * 1024,
-      parallel: 2,
-      progress: (percent) => {
-        task.currentFileProgress = Math.min(1, Math.max(0, Number(percent) || 0));
-        updateMagicUploadProgress(task);
-      },
-    });
-    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 30, oss_path: objectName, original_file_name: file.name || entry.name });
-    const bindPayload = await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: file.name || entry.name, file_save_full_path: objectName }] });
+    const sharedOssKey = [entry.key || '', category, extension, file.name || entry.name || '', Number(file.size) || 0].join('|');
+    const sharedOss = await getMagicUploadSharedOssFile(sharedOssKey, file, entry, category, task);
+    const bindPayload = await fetchPlmApiJson('/api/Product/UploadArchiveFileFromExternal', { archive_type_id: rule.archiveTypeId, source: 2, file_display_names: [generatedName], file_url_list: [{ file_original_name: sharedOss.originalFileName, file_save_full_path: sharedOss.objectName }] });
     const records = Array.isArray(bindPayload && bindPayload.data) ? bindPayload.data : (bindPayload && bindPayload.data ? [bindPayload.data] : []);
     const record = records[0] || {};
     const fileVersionId = record.file_version_id || record.archive_file_version_id || record.id;
@@ -8825,6 +9755,53 @@
     updateMagicUploadTaskEstimate(task);
     magicUploadLog('info', '文件归档完成，待保存商品草稿', task.sku + ' | ' + category + ' | file_version_id=' + entry.fileVersionId + ' | ' + generatedName);
     return entry.fileVersionId;
+  }
+
+  async function getMagicUploadSharedOssFile(cacheKey, file, entry, category, task) {
+    const existing = magicUploadSharedOssCache.get(cacheKey);
+    if (existing) {
+      existing.listeners.add((percent) => {
+        task.currentFileProgress = Math.min(1, Math.max(0, Number(percent) || 0));
+        updateMagicUploadProgress(task);
+      });
+      magicUploadLog('info', '复用同一源文件的 OSS 上传', task.sku + ' | 分类=' + category + ' | 源文件=' + (file.name || entry.name));
+      return existing.promise;
+    }
+
+    const shared = { listeners: new Set(), promise: null };
+    shared.listeners.add((percent) => {
+      task.currentFileProgress = Math.min(1, Math.max(0, Number(percent) || 0));
+      updateMagicUploadProgress(task);
+    });
+    shared.promise = (async () => {
+      const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 30 });
+      const secret = secretPayload && secretPayload.data;
+      if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
+      const declaredMaxBytes = Number(secret.max_file_size) || 0;
+      const uploadMaxBytes = category === '图包素材' ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : (declaredMaxBytes || MAGIC_UPLOAD_MAX_FILE_BYTES);
+      if (file.size > uploadMaxBytes) throw new Error(category === '图包素材' ? '图包素材单个文件不能超过 150MB' : '文件超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
+      if (category === '图包素材' && declaredMaxBytes && declaredMaxBytes < uploadMaxBytes) magicUploadLog('info', '采用图包素材页面限制', '接口通用提示=' + Math.round(declaredMaxBytes / 1024 / 1024) + 'MB；页面规则=150MB');
+      if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
+      const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(getMagicUploadFileExtension(file.name || entry.name));
+      const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true, retryMax: OSS_UPLOAD_SDK_RETRY_MAX, timeout: OSS_UPLOAD_TIMEOUT_MS });
+      await multipartUploadWithRetry(client, objectName, file, {
+        partSize: 2 * 1024 * 1024,
+        parallel: 2,
+        progress: (percent) => shared.listeners.forEach((listener) => listener(percent)),
+      }, (error, retryCount, delay, checkpoint) => {
+        const completedParts = checkpoint && Array.isArray(checkpoint.doneParts) ? checkpoint.doneParts.length : 0;
+        magicUploadLog('warn', 'OSS 分片上传失败，自动重试', (file.name || entry.name) + ' | 第' + retryCount + '/' + OSS_UPLOAD_RETRY_MAX + '次 | ' + Math.round(delay / 1000) + '秒后继续 | 已完成分片=' + completedParts + ' | ' + formatErrorMessage(error));
+      });
+      const originalFileName = file.name || entry.name;
+      await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 30, oss_path: objectName, original_file_name: originalFileName });
+      magicUploadLog('info', '源文件 OSS 上传完成，可供多个 SKU 绑定', originalFileName + ' | oss_path=' + objectName);
+      return { objectName, originalFileName };
+    })().catch((error) => {
+      magicUploadSharedOssCache.delete(cacheKey);
+      throw error;
+    });
+    magicUploadSharedOssCache.set(cacheKey, shared);
+    return shared.promise;
   }
 
   function createMagicObjectName(extension) {
@@ -9035,7 +10012,7 @@
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;height:16px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;line-height:1!important;box-sizing:content-box!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg{display:block!important;width:16px!important;height:16px!important;}' +
-      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon path{fill:currentColor!important;stroke:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg *{fill:none!important;stroke:currentColor!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}' +
       '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-graphic-table{grid-row:3!important;order:3!important;}' +
       '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-smart-recommend{grid-row:4!important;grid-column:1/-1!important;order:4!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;outline:none!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;font:inherit!important;box-shadow:0 0 0 0 transparent!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
@@ -10000,13 +10977,13 @@
     const running = Boolean(state.batchExcelWorkerRunning);
     const downloading = Boolean(state.batchExcelDownloadRunning);
     const modeDisabled = running || downloading ? ' disabled' : '';
-    const canDownload = stats.ready > 0 && !running && !downloading;
-    const progressText = state.batchExcelStatus || (running ? '正在按顺序补全缓存，请保持 PLM 页面登录状态。' : '缓存完整的编码会进入下载候选，缺失项会留在队列中。');
+    const canDownload = stats.generatable > 0 && !running && !downloading;
+    const progressText = state.batchExcelStatus || (running ? '正在按顺序补全缓存，请保持 PLM 页面登录状态。' : '数据不完整也可生成；缺失字段会留空，缺少产品图时不插入图片。');
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-batch-excel-page">' +
       '<div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，自动查找缺失资料、补全本地缓存，再按队列下载。</p></div></div>' +
       '<div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-form"><label>SKU 编码</label><textarea class="pfh-batch-excel-input" placeholder="例如：SKU00046398\nSKU00046397\nSKU00046396\nSKU00046395">' + escapeHtml(state.batchExcelInput || '') + '</textarea><p class="pfh-batch-excel-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="batch-excel-clear-input">清空</button><button type="button" data-action="batch-excel-add">加入补全队列</button></div></div>' +
       '<div class="pfh-batch-excel-mode"><button type="button" data-action="batch-excel-mode" data-mode="separate" class="' + (mode === 'separate' ? 'is-active' : '') + '"' + modeDisabled + '>分别下载 Excel</button><button type="button" data-action="batch-excel-mode" data-mode="merge" class="' + (mode === 'merge' ? 'is-active' : '') + '"' + modeDisabled + '>合并成一个 Excel</button></div>' +
-      '<div class="pfh-mini-tool-card pfh-batch-excel-card"><div class="pfh-batch-excel-summary"><strong>补全与下载队列</strong><span>共 ' + stats.total + ' 个 · 完整 ' + stats.ready + ' 个 · 待补全 ' + stats.pending + ' 个</span></div><div class="pfh-batch-excel-queue">' + getExcelBatchQueueRowsHtml(queue, running || downloading) + '</div><p class="pfh-batch-excel-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" data-action="batch-excel-prepare"' + (running || downloading || !queue.length ? ' disabled' : '') + '>' + (running ? '正在补全…' : '自动补全缓存') + '</button><button type="button" data-action="batch-excel-download"' + (canDownload ? '' : ' disabled') + '>' + (mode === 'merge' ? '下载合并 Excel' : '按队列下载 Excel') + '</button><button type="button" data-action="batch-excel-clear-completed"' + (stats.downloaded ? '' : ' disabled') + '>清除已下载</button></div></div>' +
+      '<div class="pfh-mini-tool-card pfh-batch-excel-card"><div class="pfh-batch-excel-summary"><strong>补全与下载队列</strong><span>共 ' + stats.total + ' 个 · 完整 ' + stats.ready + ' 个 · 不完整可生成 ' + stats.partial + ' 个</span></div><div class="pfh-batch-excel-queue">' + getExcelBatchQueueRowsHtml(queue, running || downloading) + '</div><p class="pfh-batch-excel-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" data-action="batch-excel-prepare"' + (running || downloading || !queue.length ? ' disabled' : '') + '>' + (running ? '正在补全…' : '自动补全缓存') + '</button><button type="button" data-action="batch-excel-download"' + (canDownload ? '' : ' disabled') + '>' + (mode === 'merge' ? '下载合并 Excel' : '按队列下载 Excel') + '</button><button type="button" data-action="batch-excel-clear-completed"' + (stats.downloaded ? '' : ' disabled') + '>清除已下载</button></div></div>' +
       '</section></div>';
   }
 
@@ -10015,11 +10992,14 @@
     return items.reduce((stats, entry) => {
       const snapshot = getExcelBatchCacheSnapshot(entry.sku);
       if (entry.status === 'downloaded') stats.downloaded += 1;
-      if (!snapshot.missing.length && entry.status !== 'preparing' && entry.status !== 'error') stats.ready += 1;
+      const generatable = entry.status !== 'preparing';
+      if (generatable) stats.generatable += 1;
+      if (!snapshot.missing.length && generatable && entry.status !== 'error') stats.ready += 1;
+      else if (generatable) stats.partial += 1;
       else stats.pending += 1;
       stats.total += 1;
       return stats;
-    }, { total: 0, ready: 0, pending: 0, downloaded: 0 });
+    }, { total: 0, ready: 0, partial: 0, pending: 0, generatable: 0, downloaded: 0 });
   }
 
   function getExcelBatchQueueRowsHtml(queue, locked) {
@@ -10041,10 +11021,11 @@
   function getExcelBatchEntryStatus(entry, missing) {
     const current = String(entry && entry.status || 'pending');
     if (current === 'preparing') return { kind: 'pending', text: '补全中' };
-    if (current === 'error') return { kind: 'error', text: '补全失败' };
+    if (current === 'error') return { kind: 'error', text: '补全失败，可生成' };
     if (current === 'downloaded') return { kind: 'ready', text: '已下载' };
     if (!missing.length) return { kind: 'ready', text: '缓存完整' };
-    return { kind: 'pending', text: '待补全' };
+    if (current === 'partial') return { kind: 'pending', text: '数据不完整，可生成' };
+    return { kind: 'pending', text: '待补全，可生成' };
   }
 
   function getToyCopywritingBatchStats(queue) {
@@ -12839,6 +13820,78 @@
     }
   }
 
+  async function hydrateIngredientPdfFromApi(sku, options) {
+    const opts = options || {};
+    let file = opts.apiFile || null;
+    try {
+      if (!file) file = await fetchApiIngredientPdfFile({ sku }, { force: Boolean(opts.force) });
+    } catch (error) {
+      addLog('warn', '成分表 API：定位失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
+      return { handled: false, error };
+    }
+    if (!file || !file.found || !file.url) return { handled: false, noFile: true };
+    const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
+    const fileName = String(file.fileName || ('ingredient-' + sku + '.pdf')).trim();
+    if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfFileName === fileName && cached.ingredientEnglish && cached.ingredientChinese) {
+      addLog('info', '成分表 API：命中历史缓存', sku + ' | ' + fileName);
+      return { handled: true, skipped: true, data: cached, file };
+    }
+    try {
+      const arrayBuffer = await withCopywritingTimeout(downloadCopywritingDocument(file.url), 18000, 'API 成分表 PDF 读取');
+      if (!isPdfBuffer(arrayBuffer)) throw new Error('API 返回内容不是有效 PDF');
+      const fileHash = await hashCopywritingBuffer(arrayBuffer);
+      if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfHash === fileHash && cached.ingredientEnglish && cached.ingredientChinese) {
+        const next = cached.ingredientPdfFileName === fileName ? cached : normalizeData({ ...cached, ingredientPdfFileName: fileName, ingredientSource: 'ingredientPdfApi' });
+        saveData(sku, next, { suppressDataQuality: true });
+        return { handled: true, skipped: true, data: next, file };
+      }
+      let rawText = '';
+      try {
+        rawText = await withCopywritingTimeout(extractIngredientPdfText(arrayBuffer), 20000, 'API 成分表 PDF 解析');
+      } catch (error) {
+        addLog('warn', '成分表 API：PDF 文本层不可用', sku + ' | 将转为图片交给 AI | ' + formatErrorMessage(error));
+      }
+      const requestBody = { sku, fileName, rawText };
+      if (!rawText || rawText.length < 20) {
+        try {
+          requestBody.pageImages = await withCopywritingTimeout(renderIngredientPdfImages(arrayBuffer), 25000, 'API 成分表 PDF 转图片');
+        } catch (error) {
+          addLog('warn', '成分表 API：PDF 转图片失败，改用 AI 直接读取 PDF', sku + ' | ' + formatErrorMessage(error));
+        }
+        requestBody.pdfBase64 = arrayBufferToBase64(arrayBuffer);
+      }
+      const response = await cloudRequest('/ingredients/normalize', { method: 'POST', timeoutMs: 90000, body: requestBody });
+      if (!response || !response.ok || !response.english || !response.chinese) throw new Error(response && response.error ? response.error : 'AI 未返回有效成分');
+      const next = normalizeData({
+        ...cached,
+        ingredientEnglish: String(response.english || '').slice(0, 8000),
+        ingredientChinese: String(response.chinese || '').slice(0, 8000),
+        ingredientItems: Array.isArray(response.items) ? response.items.slice(0, 100) : [],
+        ingredientPdfFileName: fileName,
+        ingredientPdfHash: fileHash,
+        ingredientPdfModel: String(response.model || ''),
+        ingredientPdfUpdatedAt: new Date().toLocaleString(),
+        ingredientNormalizerVersion: String(response.normalizerVersion || INGREDIENT_NORMALIZER_VERSION),
+        ingredientSource: 'ingredientPdfApi',
+      });
+      const drawer = opts.drawer || getProjectDrawerForSku(sku);
+      if (opts.drawer && (drawer !== getProjectDrawerForSku(sku) || Number(state.skuResultGeneration[sku] || 0) !== Number(opts.resultGeneration || state.skuResultGeneration[sku] || 0))) return { handled: true, data: normalizeData(loadData(sku) || {}) };
+      saveData(sku, next, { suppressDataQuality: true });
+      const clearedCopywritingError = state.toyCopywritingErrorSku === sku && state.toyCopywritingErrorKind === 'ingredient-cache' && Boolean(state.toyCopywritingError);
+      if (clearedCopywritingError) {
+        clearToyCopywritingError(sku);
+        if (state.selectedSku === sku) renderShell();
+        showToast('成分表缓存已获取，现在可以重试智能补充食品文案');
+      }
+      delete state.ingredientHydrateFailedAt[sku];
+      addLog('success', '成分表 API 缓存完成', sku + ' | ' + next.ingredientEnglish);
+      return { handled: true, data: next, file };
+    } catch (error) {
+      addLog('warn', '成分表 API：读取失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
+      return { handled: false, error, file };
+    }
+  }
+
   async function hydrateIngredientPdfForSku(sku, options) {
     const opts = options || {};
     const resultGeneration = Number(state.skuResultGeneration[sku] || 0);
@@ -12846,10 +13899,16 @@
     const failedAt = Number(state.ingredientHydrateFailedAt[sku] || 0);
     if (!opts.force && failedAt && Date.now() - failedAt < 10 * 60 * 1000) return normalizeData(loadData(sku) || {});
     const drawer = opts.drawer || getProjectDrawerForSku(sku);
-    if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
+    if (!drawer && opts.preferApi === false) return normalizeData(loadData(sku) || {});
+    if (drawer && drawer !== getProjectDrawerForSku(sku) && opts.preferApi === false) return normalizeData(loadData(sku) || {});
     state.ingredientHydratingSkus.add(sku);
-    const originalTab = getActiveTabText(drawer);
+    const originalTab = drawer ? getActiveTabText(drawer) : '';
     try {
+      if (opts.preferApi !== false) {
+        const apiResult = await hydrateIngredientPdfFromApi(sku, { ...opts, drawer, resultGeneration, apiFile: opts.apiFile || null });
+        if (apiResult && apiResult.handled) return apiResult.data || normalizeData(loadData(sku) || {});
+      }
+      if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
       if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab) return normalizeData(loadData(sku) || {});
       if (!opts.file) await switchDrawerTab(drawer, L.productTab);
       if (!opts.file) await waitFor(() => findIngredientPdfItem(drawer), 3500, 140);
@@ -14489,7 +15548,7 @@
     }
     if (action === 'magic-upload-mode') {
       state.magicUploadMode = actionTarget.getAttribute('data-magic-mode') === 'effect' ? 'effect' : 'package';
-      renderShell();
+      if (!renderMagicUploadModeContent(ensurePanel())) renderShell();
       return;
     }
     if (action === 'magic-effect-start') {
@@ -15258,6 +16317,7 @@
 
   function handlePanelPaste(event) {
     if (event.defaultPrevented) return;
+    if (state.view === 'magicUpload' && handleMagicUploadPaste(event)) return;
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = event.target && event.target.closest && event.target.closest('.pfh-upload-drop')
@@ -15290,6 +16350,7 @@
   }
 
   function handleSizeImageHoverPaste(event) {
+    if (state.view === 'magicUpload' && handleMagicUploadPaste(event)) return;
     if (state.view === 'upload') {
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-upload-drop:hover, .pfh-upload-drop:focus');
@@ -15416,7 +16477,40 @@
   }
 
   function handleMagicUploadPaste(event) {
-    return false;
+    if (event.defaultPrevented || state.view !== 'magicUpload' || state.magicUploadMode === 'effect') return false;
+    const panel = document.getElementById(PANEL_ID);
+    const target = event.target;
+    const targetDrop = target && typeof target.closest === 'function'
+      ? target.closest('.pfh-magic-upload-drop[data-upload-drop="magic"]')
+      : null;
+    const drop = targetDrop || (panel && panel.querySelector('.pfh-magic-upload-drop[data-upload-drop="magic"]:hover, .pfh-magic-upload-drop[data-upload-drop="magic"]:focus'));
+    if (!drop) return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const flashDrop = () => {
+      drop.classList.add('is-paste-received');
+      window.setTimeout(() => drop.classList.remove('is-paste-received'), 520);
+    };
+    const acceptFiles = (files, source) => {
+      if (!files || !files.length) return false;
+      flashDrop();
+      magicUploadLog('info', '通过悬浮区域粘贴文件', source + ' | ' + files.map((file) => file.name + '|' + Number(file.size || 0)).join('；'));
+      processMagicUploadZipFiles(files);
+      return true;
+    };
+    const directFiles = getClipboardMagicUploadFiles(event);
+    if (acceptFiles(directFiles, 'clipboardData')) return true;
+
+    readMagicClipboardFiles(event).then((files) => {
+      if (acceptFiles(files, 'Clipboard API')) return;
+      magicUploadLog('warn', '悬浮粘贴未找到可处理文件', describeMagicClipboard(event));
+      showToast('剪贴板里没有 ZIP 或 XLSX 文件');
+    }).catch((error) => {
+      magicUploadLog('warn', '悬浮粘贴读取失败', formatErrorMessage(error));
+      showToast('读取剪贴板文件失败，请重试');
+    });
+    return true;
   }
 
   function getClipboardCopyrightFiles(event) {
@@ -16308,6 +17402,10 @@
 
   function startUploadQueue() {
     const mode = normalizeUploadMode(state.uploadMode);
+    if (mode === 'toy-effect' && !hasApiUploadAccess()) {
+      notifyApiUploadAccessDenied();
+      return;
+    }
     state.uploadWorkerMode = mode;
     state.uploadRunning = true;
     saveUploadWorkerRunning(mode, true);
@@ -16322,6 +17420,10 @@
 
   function startMagicEffectQueueInline() {
     const mode = 'toy-effect';
+    if (!hasApiUploadAccess()) {
+      notifyApiUploadAccessDenied();
+      return;
+    }
     state.uploadMode = mode;
     state.uploadWorkerMode = mode;
     state.uploadRunning = true;
@@ -16678,6 +17780,17 @@
     state.uploadProcessing = true;
     const attemptedTaskKeys = new Set();
     try {
+      if (workerMode === 'toy-effect') {
+        const accessReady = await waitFor(() => !state.magicUploadAccessLoading, 8000, 100);
+        if (!accessReady || !hasApiUploadAccess()) {
+          state.uploadRunning = false;
+          saveUploadWorkerRunning(workerMode, false);
+          addLog('warn', 'API 效果图队列已拦截', '当前账号没有 API 上传权限；普通图包表格仍可使用旧脚本流程');
+          showToast('当前账号没有 API 上传权限，已停止效果图 API 队列');
+          renderShell();
+          return;
+        }
+      }
       if (workerMode === 'toy-label') {
         const prepared = await prepareToyLabelBatchQueue(state.uploadQueue.filter((entry) => getUploadItemMode(entry) === workerMode));
         if (!prepared) {
@@ -16842,17 +17955,21 @@
     if (file.size > uploadMaxBytes) throw new Error('效果图超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
     if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
     const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(extension);
-    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true });
-    await client.multipartUpload(objectName, file, {
+    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true, retryMax: OSS_UPLOAD_SDK_RETRY_MAX, timeout: OSS_UPLOAD_TIMEOUT_MS });
+    await multipartUploadWithRetry(client, objectName, file, {
       partSize: 2 * 1024 * 1024,
       parallel: 2,
       progress: (percent) => updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u6548\u679c\u56fe ' + index + '/' + total + ' · ' + Math.round(Math.min(1, Math.max(0, Number(percent) || 0)) * 100) + '%'),
+    }, (error, retryCount, delay, checkpoint) => {
+      const completedParts = checkpoint && Array.isArray(checkpoint.doneParts) ? checkpoint.doneParts.length : 0;
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u7f51\u7edc\u6ce2\u52a8\uff0c\u81ea\u52a8\u91cd\u8bd5 ' + retryCount + '/' + OSS_UPLOAD_RETRY_MAX + ' · \u5df2\u5b8c\u6210\u5206\u7247 ' + completedParts + ' · ' + Math.round(delay / 1000) + '\u79d2\u540e\u7ee7\u7eed');
     });
     await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 40, oss_path: objectName, original_file_name: file.name || entry.name });
     return objectName;
   }
 
   async function runToyEffectQueueItem(item) {
+    if (!hasApiUploadAccess()) throw new Error('当前账号没有 API 上传权限，效果图 API 队列已停止');
     const cached = loadData(item && item.sku) || (state.index || []).find((entry) => entry.sku === (item && item.sku)) || {};
     const data = normalizeData({
       ...cached,
@@ -18630,12 +19747,18 @@
     }
     try {
       addLog('info', 'Excel 开始补全实时数据', data.sku + ' | 需要补全：' + cachedMissing.join('、'));
-      if (!(await ensureProjectDrawerForData(data))) throw new Error('未能打开目标项目详情抽屉');
-      const extra = await collectExcelExtraData(data.sku);
-      const excelData = normalizeData(mergeData(data, extra.liveData || {}));
+      let extra = await collectExcelExtraData(data.sku);
+      let excelData = normalizeData(mergeData(data, extra.liveData || {}));
+      let remaining = getExcelMissingFields(excelData, extra);
+      if (remaining.length) {
+        if (!(await ensureProjectDrawerForData(excelData))) throw new Error('未能打开目标项目详情抽屉');
+        extra = await collectExcelExtraData(data.sku);
+        excelData = normalizeData(mergeData(excelData, extra.liveData || {}));
+        remaining = getExcelMissingFields(excelData, extra);
+      }
       cacheProductThumb(excelData, extra);
       state.excelExtra = { extra, excelData };
-      state.excelMissing = getExcelMissingFields(excelData, extra);
+      state.excelMissing = remaining;
       state.excelStatus = formatExcelMissingStatus(state.excelMissing);
       addLog(state.excelMissing.length ? 'warn' : 'success', 'Excel 信息补全结果', data.sku + ' | ' + formatExcelCacheDiagnostic(excelData, extra, state.excelMissing));
       await fillRecommendedPackQty(excelData);
@@ -18819,7 +19942,7 @@
           }
           if (!prepared) throw lastError || new Error('未取得完整页面数据');
           const patch = {
-            status: prepared.missing.length ? 'pending' : 'ready',
+            status: prepared.missing.length ? 'partial' : 'ready',
             missing: prepared.missing,
             packQty: prepared.packQty,
             purchasePrice: prepared.purchasePrice,
@@ -18827,7 +19950,7 @@
           };
           updateExcelBatchQueueEntry(sku, patch);
           state.batchExcelStatus = prepared.missing.length
-            ? sku + ' \u8fd8\u7f3a\uff1a' + prepared.missing.join('\u3001')
+            ? sku + ' \u8fd8\u7f3a\uff1a' + prepared.missing.join('\u3001') + '\uff0c\u4ecd\u53ef\u751f\u6210 Excel'
             : sku + ' \u7f13\u5b58\u5df2\u5b8c\u6574\uff0c\u7b49\u5f85\u4e0b\u8f7d';
         } catch (error) {
           const message = formatErrorMessage(error) || '\u672a\u77e5\u9519\u8bef';
@@ -18857,16 +19980,20 @@
     state.data = data;
     try {
       if (getExcelMissingFields(data, extra).length) {
-        const currentDrawer = getProjectDrawer();
-        const currentSku = currentDrawer ? getProjectDrawerHeaderSku(currentDrawer) : '';
-        if (currentDrawer && currentSku && currentSku !== sku) await closeProjectDetailDrawerForSku(currentSku).catch(() => false);
-        if (!(await ensureProjectDrawerForData(data))) throw new Error('\u672a\u80fd\u6253\u5f00 ' + sku + ' \u9879\u76ee\u8be6\u60c5\u62bd\u5c49');
-        try {
-          extra = await collectExcelExtraData(sku);
-        } finally {
-          await closeProjectDetailDrawerForSku(sku).catch(() => false);
-        }
+        extra = await collectExcelExtraData(sku);
         data = normalizeData(mergeData(data, extra.liveData || {}));
+        if (getExcelMissingFields(data, extra).length) {
+          const currentDrawer = getProjectDrawer();
+          const currentSku = currentDrawer ? getProjectDrawerHeaderSku(currentDrawer) : '';
+          if (currentDrawer && currentSku && currentSku !== sku) await closeProjectDetailDrawerForSku(currentSku).catch(() => false);
+          if (!(await ensureProjectDrawerForData(data))) throw new Error('\u672a\u80fd\u6253\u5f00 ' + sku + ' \u9879\u76ee\u8be6\u60c5\u62bd\u5c49');
+          try {
+            extra = await collectExcelExtraData(sku);
+          } finally {
+            await closeProjectDetailDrawerForSku(sku).catch(() => false);
+          }
+          data = normalizeData(mergeData(data, extra.liveData || {}));
+        }
         const ingredientValue = extra.ingredients || extra.ingredientChinese || extra.ingredientEnglish || data.ingredientChinese || data.ingredientEnglish || '';
         const enriched = {
           ...data,
@@ -18975,7 +20102,7 @@
     cell('C', '');
     if (cartonSpec) cell('D', cartonSpec);
     cell('E', compactText(packQty));
-    cell('F', { formula: 'TEXT(VALUE(LEFT(E' + rowNumber + ',LEN(E' + rowNumber + ')-3))*(VALUE(LEFT(N' + rowNumber + ',LEN(N' + rowNumber + ')-1))/1000)+0.75,"0.00")&"KG"' });
+    cell('F', buildExcelBatchWeightFormula(rowNumber, 'N'));
     cell('G', data.sku || '');
     if (data.singleBottle) cell('H', '\u74f6\u88c5');
     else cell('H', { formula: 'IF(LEN(J' + rowNumber + ')-LEN(SUBSTITUTE(J' + rowNumber + ',"*",""))=2,"\u76d2\u88c5",IF(LEN(J' + rowNumber + ')-LEN(SUBSTITUTE(J' + rowNumber + ',"*",""))=1,"\u888b\u88c5",""))' });
@@ -18992,16 +20119,22 @@
     cell('S', extra.benchmarkLink || data.benchmarkLink || data.referenceUrl || '');
   }
 
+  function buildExcelBatchWeightFormula(rowNumber, grossWeightColumn) {
+    const grossCell = grossWeightColumn + rowNumber;
+    const packCell = 'E' + rowNumber;
+    return { formula: 'IF(OR(' + packCell + '="",' + grossCell + '=""),"",IFERROR(TEXT(VALUE(LEFT(' + packCell + ',LEN(' + packCell + ')-3))*(VALUE(LEFT(' + grossCell + ',LEN(' + grossCell + ')-1))/1000)+0.75,"0.00")&"KG",""))' };
+  }
+
   function applyExcelBatchSingleColumnLayout(sheet, data) {
     if (shouldOmitToyProductSize(data)) {
       sheet.spliceColumns(9, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
     } else if (shouldRemoveExcelPackageSizeColumn(data)) {
       sheet.spliceColumns(10, 1);
       sheet.getCell('H4').value = { formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"\u76d2\u88c5",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"\u888b\u88c5",""))' };
-      sheet.getCell('F4').value = { formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"' };
+      sheet.getCell('F4').value = buildExcelBatchWeightFormula(4, 'M');
       sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
     }
   }
@@ -19019,7 +20152,7 @@
       sheet.getCell('H' + rowNumber).value = rows[rowNumber - 4].data.singleBottle
         ? '\u74f6\u88c5'
         : { formula: 'IF(LEN(I' + rowNumber + ')-LEN(SUBSTITUTE(I' + rowNumber + ',"*",""))=2,"\u76d2\u88c5",IF(LEN(I' + rowNumber + ')-LEN(SUBSTITUTE(I' + rowNumber + ',"*",""))=1,"\u888b\u88c5",""))' };
-      sheet.getCell('F' + rowNumber).value = { formula: 'TEXT(VALUE(LEFT(E' + rowNumber + ',LEN(E' + rowNumber + ')-3))*(VALUE(LEFT(M' + rowNumber + ',LEN(M' + rowNumber + ')-1))/1000)+0.75,"0.00")&"KG"' };
+      sheet.getCell('F' + rowNumber).value = buildExcelBatchWeightFormula(rowNumber, 'M');
     }
     sheet.getCell('L3').value = { formula: 'IF(RIGHT(L4,1)="G","\u51c0\u91cd",IF(RIGHT(L4,2)="ML","\u5bb9\u91cf","\u89c4\u683c"))' };
   }
@@ -19028,8 +20161,8 @@
     const source = getExcelImageSource(item.data, item.extra);
     const target = source.imageUrl || source.imageFallbackUrl;
     const imageInfo = target ? await fetchImageForExcel(target, source.imageFallbackUrl).catch(() => null) : null;
-    if (!imageInfo || !imageInfo.dataUrl) throw new Error(item.data.sku + ' \u672a\u80fd\u8bfb\u53d6\u771f\u5b9e SKU \u4ea7\u54c1\u56fe');
-    if (await isPlaceholderSkuImage(imageInfo.dataUrl)) throw new Error(item.data.sku + ' \u5f53\u524d\u4ecd\u662f JPG/\u900f\u660e\u5360\u4f4d\u56fe');
+    if (!imageInfo || !imageInfo.dataUrl) return null;
+    if (await isPlaceholderSkuImage(imageInfo.dataUrl)) return null;
     return imageInfo;
   }
 
@@ -19041,8 +20174,10 @@
     const imageInfo = await getExcelBatchImageInfo(item);
     writeExcelBatchRow(sheet, 4, item.data, item.extra, item.packQty, item.purchasePrice);
     applyExcelBatchSingleColumnLayout(sheet, item.data);
-    const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
-    sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
+    if (imageInfo) {
+      const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
+      sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
+    }
     return workbook.xlsx.writeBuffer();
   }
 
@@ -19059,8 +20194,10 @@
       if (index > 0) applyExcelTemplateRow(sheet, rowNumber, template);
       const imageInfo = await getExcelBatchImageInfo(item);
       writeExcelBatchRow(sheet, rowNumber, item.data, item.extra, item.packQty, item.purchasePrice);
-      const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
-      sheet.addImage(imageId, getExcelImageAnchor(imageInfo, rowNumber - 4));
+      if (imageInfo) {
+        const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
+        sheet.addImage(imageId, getExcelImageAnchor(imageInfo, rowNumber - 4));
+      }
     }
     applyExcelBatchMergedColumnLayout(sheet, items);
     return workbook.xlsx.writeBuffer();
@@ -19077,7 +20214,7 @@
         packQty: normalizePackQty(entry.packQty || snapshot.packQty),
         purchasePrice: String(entry.purchasePrice || snapshot.purchasePrice || '6'),
       };
-    }).filter((item) => item.missing.length === 0 && item.entry.status !== 'preparing' && item.entry.status !== 'error');
+    }).filter((item) => item.entry.status !== 'preparing');
   }
 
   function buildExcelBatchFileName(items) {
@@ -19117,7 +20254,7 @@
     }
     const items = getExcelBatchDownloadItems();
     if (!items.length) {
-      showToast('\u961f\u5217\u4e2d\u6ca1\u6709\u7f13\u5b58\u5b8c\u6574\u7684 SKU');
+      showToast('\u961f\u5217\u4e2d\u6ca1\u6709\u53ef\u751f\u6210\u7684 SKU');
       return;
     }
     state.batchExcelDownloadRunning = true;
@@ -19797,21 +20934,62 @@
       || '';
   }
 
+  function buildExcelExtraFromApi(data, apiResult, previous) {
+    const cached = buildCachedExcelExtraData(data);
+    const result = apiResult || {};
+    const imageUrl = result.imageUrl || cached.imageUrl || '';
+    const imageFallbackUrl = result.imageFallbackUrl || cached.imageFallbackUrl || imageUrl;
+    return {
+      ...cached,
+      englishName: result.englishName || cached.englishName || '',
+      chineseName: result.chineseName || cached.chineseName || '',
+      ingredients: getPreferredExcelIngredients(data) || (previous && previous.ingredients) || '',
+      benchmarkLink: result.benchmarkLink || cached.benchmarkLink || '',
+      imageUrl,
+      imageFallbackUrl,
+      skuImageUrl: result.skuImageUrl || cached.skuImageUrl || imageUrl,
+      skuImageFallbackUrl: result.skuImageFallbackUrl || cached.skuImageFallbackUrl || imageFallbackUrl,
+      skuImageSource: result.skuImageSource || cached.skuImageSource || '',
+      isSkuDesignImage: Boolean(result.isSkuDesignImage || cached.isSkuDesignImage || imageUrl),
+      liveData: data,
+    };
+  }
+
   async function collectExcelExtraData(sku) {
     stopScan();
     cancelDrawerTabFlow();
     let drawer = sku ? getProjectDrawerForSku(sku) : getProjectDrawer();
     const cachedData = normalizeData((state.data && state.data.sku === sku ? state.data : null) || loadData(sku) || {});
-    const extra = buildCachedExcelExtraData(cachedData);
+    let apiLiveData = cachedData;
+    let extra = buildCachedExcelExtraData(cachedData);
+    try {
+      const apiResult = await fetchApiExcelData(cachedData, { force: false });
+      if (apiResult && apiResult.found) {
+        apiLiveData = normalizeData(apiResult.data || cachedData);
+        if (apiResult.ingredientFile && (!apiLiveData.ingredientEnglish || !apiLiveData.ingredientChinese || apiLiveData.ingredientPdfFileName !== apiResult.ingredientFile.fileName)) {
+          await hydrateIngredientPdfForSku(sku, { silent: true, drawer, apiFile: apiResult.ingredientFile });
+          apiLiveData = normalizeData(loadData(sku) || apiLiveData);
+        }
+        extra = buildExcelExtraFromApi(apiLiveData, apiResult, extra);
+        extra.liveData = apiLiveData;
+        saveData(sku, apiLiveData, { suppressDataQuality: true, changeSource: 'Excel PLM API' });
+        if (state.selectedSku === sku) state.data = apiLiveData;
+        const apiMissing = getExcelMissingFields(apiLiveData, extra);
+        addLog(apiMissing.length ? 'info' : 'success', 'Excel PLM API 补全结果', sku + ' | ' + (apiMissing.length ? '仍缺：' + apiMissing.join('、') : '已取得生成所需字段'));
+        if (!apiMissing.length) return extra;
+      }
+    } catch (error) {
+      addLog('warn', 'Excel PLM API 补全异常，改用现有页面读取', sku + ' | ' + formatErrorMessage(error));
+    }
     if (!drawer) return extra;
     drawer = await waitForExcelProjectDrawerReady(sku, 12000) || drawer;
     const token = beginForegroundDrawerTabFlow(sku, drawer);
     try {
       if (!(await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 12000 }))) throw new Error('\u4ea7\u54c1\u4fe1\u606f\u9875\u7b7e\u672a\u52a0\u8f7d\u5b8c\u6210');
-      let liveData = extractData(drawer, { forceSkuImage: true });
+      let liveData = mergeData(apiLiveData, extractData(drawer, { forceSkuImage: true }));
       if (!liveData.grossWeight) {
         await waitFor(() => getGrossWeightValue(drawer), 2600, 120);
-        liveData = extractData(drawer, { forceSkuImage: true });
+        liveData = mergeData(liveData, extractData(drawer, { forceSkuImage: true }));
       }
       const packageReady = Boolean(liveData.packageSizeText || (liveData.packageLength && liveData.packageWidth && liveData.packageHeight));
       const materialNeedsRead = !liveData.seenMaterial || (!liveData.singleBottle && !packageReady) || !liveData.printSizeText || !liveData.netContent;
@@ -19847,10 +21025,10 @@
       }
       const ingredientItem = findIngredientPdfItem(drawer);
       const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
-      if (ingredientFile && (
+      if (ingredientFile && ingredientData.ingredientSource !== 'ingredientPdfApi' && (!ingredientData.ingredientEnglish || !ingredientData.ingredientChinese || (
         ingredientData.ingredientPdfFileName !== ingredientFile.fileName
         || ingredientData.ingredientNormalizerVersion !== INGREDIENT_NORMALIZER_VERSION
-      )) {
+      ))) {
         if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
         else ingredientData = await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile });
         ingredientData = normalizeData(loadData(sku) || ingredientData);
@@ -19871,7 +21049,7 @@
       Object.assign(extra, {
         englishName: cleanEnglishProductName(extractLineAfter(productText, 'PRODUCT NAME'), cachedData.brand) || extra.englishName,
         chineseName: extractLineAfter(productText, '\u5546\u54c1\u540d\u79f0') || extra.chineseName,
-        ingredients: getPreferredExcelIngredients(ingredientData) || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
+        ingredients: getPreferredExcelIngredients(ingredientData) || extra.ingredients || extractNamedField(productText, '\u6210\u5206') || extractNamedField(productText, '\u6210\u4efd') || '',
         ...resolvedImageInfo,
         skuImageSource: previewImageInfo && previewImageInfo.isSkuDesignImage ? 'effectImage' : (resolvedImageInfo.skuImageSource || extra.skuImageSource || ''),
       });
@@ -20752,7 +21930,7 @@
       version: SCRIPT_VERSION,
       exportedAt: new Date().toLocaleString(),
       insights: state.insights || emptyInsights(),
-      promptHint: '\u8bf7\u6574\u7406\u4ef7\u683c\u5386\u53f2\u3001\u5546\u54c1\u7c7b\u578b\u89c4\u5f8b\u548c\u5b57\u6bb5\u7f3a\u5931\u539f\u56e0\uff0c\u8f93\u51fa\u9002\u5408\u5bfc\u5165\u98de\u4e66\u8868\u683c\u7684\u7ed3\u6784\u5316\u8868\u683c\u3002',
+      promptHint: '\u8bf7\u6574\u7406\u4ef7\u683c\u5386\u53f2\u3001\u5546\u54c1\u7c7b\u578b\u89c4\u5f8b\u548c\u5b57\u6bb5\u7f3a\u5931\u539f\u56e0\uff0c\u8f93\u51fa\u9002\u5408\u5bfc\u5165\u8868\u683c\u7684\u7ed3\u6784\u5316\u8868\u683c\u3002',
     };
   }
 
@@ -20826,7 +22004,7 @@
       const report = response && response.report ? response.report : '';
       if (!report) throw new Error('empty report');
       state.insightCloudReport = report;
-      state.insightCloudStatus = '\u4e91\u7aef\u603b\u7ed3\u5df2\u590d\u5236\uff0c\u53ef\u76f4\u63a5\u8d34\u5230 AI \u6216\u98de\u4e66\u8868\u683c';
+      state.insightCloudStatus = '\u4e91\u7aef\u603b\u7ed3\u5df2\u590d\u5236\uff0c\u53ef\u76f4\u63a5\u8d34\u5230 AI \u6216\u8868\u683c';
       copyText(report);
       addLog('success', '\u5df2\u590d\u5236\u4e91\u7aef\u6d1e\u5bdf\u603b\u7ed3');
       showToast(L.copied);
@@ -20835,118 +22013,6 @@
       addLog('warn', '\u4e91\u7aef\u6d1e\u5bdf\u603b\u7ed3\u5931\u8d25', formatErrorMessage(error));
     }
     renderShell();
-  }
-
-  async function syncCloudInsightToFeishu() {
-    state.insightCloudStatus = '\u6b63\u5728\u540c\u6b65\u5230\u98de\u4e66\uff08\u542b AI \u6574\u7406\uff09...';
-    renderShell();
-    try {
-      const response = await syncInsightFeishu();
-      if (!response || response.ok === false) throw buildCloudError(response || { error: 'feishu sync failed' }, 200);
-      state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5b8c\u6210\uff1a' + (response.inserted || 0) + '\u6761' + (response.skipped ? '\uff0c\u8df3\u8fc7\u5df2\u540c\u6b65 ' + response.skipped + '\u6761' : '') + formatFeishuPreviewSuffix(response.preview);
-      addLog('success', '\u98de\u4e66\u540c\u6b65\u5b8c\u6210', String(response.inserted || 0) + '\u6761' + (response.skipped ? ' / skipped ' + response.skipped : ''));
-      showToast(state.insightCloudStatus);
-    } catch (error) {
-      if (isRecoverableFeishuSyncError(error)) {
-        addLog('warn', '\u98de\u4e66\u76f4\u5199\u4e0d\u53ef\u7528\uff0c\u5df2\u56de\u9000\u590d\u5236\u8868\u683c', formatFeishuSyncErrorDetail(error));
-        await copyCloudInsightFeishuTable({ fallbackFromSync: true, reason: formatFeishuSyncErrorDetail(error) });
-      } else {
-        state.insightCloudStatus = '\u98de\u4e66\u540c\u6b65\u5931\u8d25\uff1a' + formatErrorMessage(error);
-        addLog('warn', '\u98de\u4e66\u540c\u6b65\u5931\u8d25', formatErrorMessage(error));
-        showToast(state.insightCloudStatus);
-      }
-    }
-    renderShell();
-  }
-
-  async function checkCloudInsightFeishuStatus() {
-    state.insightCloudStatus = '\u6b63\u5728\u68c0\u67e5\u98de\u4e66\u914d\u7f6e...';
-    renderShell();
-    try {
-      const response = await fetchInsightFeishuStatus();
-      if (response && response.configured) {
-        const preview = await fetchInsightFeishuPreview().catch(() => null);
-        state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u5df2\u5b8c\u6574\uff0c\u5b57\u6bb5\uff1a' + (response.requiredFields || []).join(' / ') + formatFeishuPreviewSuffix(preview);
-        addLog('success', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u901a\u8fc7');
-      } else {
-        const preview = await fetchInsightFeishuPreview().catch(() => null);
-        state.insightCloudStatus = formatFeishuSetupStatus(response);
-        if (preview) state.insightCloudStatus += '\n\n\u5f85\u5199\u5165\u9884\u89c8\uff1a' + formatFeishuPreviewText(preview);
-        copyText(state.insightCloudStatus);
-        addLog('warn', '\u98de\u4e66\u914d\u7f6e\u4e0d\u5b8c\u6574', state.insightCloudStatus);
-        showToast('\u98de\u4e66\u914d\u7f6e\u547d\u4ee4\u5df2\u590d\u5236');
-      }
-      showToast(state.insightCloudStatus);
-    } catch (error) {
-      state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25\uff1a' + formatErrorMessage(error);
-      addLog('warn', '\u98de\u4e66\u914d\u7f6e\u68c0\u67e5\u5931\u8d25', formatErrorMessage(error));
-    }
-    renderShell();
-  }
-
-  async function copyCloudInsightFeishuSetup() {
-    state.insightCloudStatus = '\u6b63\u5728\u751f\u6210\u98de\u4e66\u5efa\u8868\u914d\u7f6e...';
-    renderShell();
-    try {
-      const response = await fetchInsightFeishuStatus();
-      const text = formatFeishuSetupStatus(response);
-      if (!text) throw new Error('empty feishu setup');
-      state.insightCloudStatus = '\u98de\u4e66\u5efa\u8868\u5b57\u6bb5\u548c Worker secrets \u547d\u4ee4\u5df2\u590d\u5236';
-      copyText(text);
-      addLog('success', '\u5df2\u590d\u5236\u98de\u4e66\u914d\u7f6e\u6307\u5357');
-      showToast(L.copied);
-    } catch (error) {
-      state.insightCloudStatus = '\u98de\u4e66\u914d\u7f6e\u751f\u6210\u5931\u8d25\uff1a' + formatErrorMessage(error);
-      addLog('warn', '\u98de\u4e66\u914d\u7f6e\u751f\u6210\u5931\u8d25', formatErrorMessage(error));
-    }
-    renderShell();
-  }
-
-  function formatFeishuSetupStatus(response) {
-    if (response && response.setupGuide) return response.setupGuide;
-    const missing = (response && response.missing || []).join(' / ') || '\u672a\u77e5';
-    const tableMissing = (response && response.tableMissingFields || []).join(' / ');
-    const checkError = response && response.checkError ? String(response.checkError) : '';
-    const fields = (response && response.requiredFields || []).join(' / ');
-    const schema = Array.isArray(response && response.requiredFieldSchema)
-      ? response.requiredFieldSchema.map((field) => [field.name || '', field.type || '', field.note || ''].join('\t')).join('\n')
-      : '';
-    const commands = (response && response.setupCommands || []).join('\n');
-    return [
-      '\u98de\u4e66\u7f3a\u914d\u7f6e\uff1a' + missing,
-      tableMissing ? '\u98de\u4e66\u8868\u7f3a\u5b57\u6bb5\uff1a' + tableMissing : '',
-      checkError ? '\u98de\u4e66\u68c0\u67e5\u9519\u8bef\uff1a' + checkError : '',
-      fields ? '\u9700\u8981\u5efa\u8868\u5b57\u6bb5\uff1a' + fields : '',
-      schema ? '\u5b57\u6bb5\u6a21\u677f\uff1a\n\u5b57\u6bb5\u540d\t\u5efa\u8bae\u7c7b\u578b\t\u7528\u9014\n' + schema : '',
-      commands ? '\u914d\u7f6e\u547d\u4ee4\uff1a\n' + commands : '',
-    ].filter(Boolean).join('\n');
-  }
-
-  function formatFeishuPreviewSuffix(preview) {
-    const text = formatFeishuPreviewText(preview);
-    return text ? '\uff1b' + text : '';
-  }
-
-  function formatFeishuPreviewText(preview) {
-    if (!preview || typeof preview !== 'object') return '';
-    const total = Number(preview.totalRecords || 0);
-    const unsynced = Number(preview.unsyncedRecords || 0);
-    const skipped = Number(preview.skippedRecords || 0);
-    const types = preview.unsyncedRecordTypes || preview.recordTypes || {};
-    const typeText = Object.keys(types).map((key) => key + ' ' + types[key]).join(' / ');
-    const sampleText = formatFeishuPreviewSamples(preview.samplesByType);
-    return '\u5171 ' + total + '\u6761\uff0c\u5f85\u5199\u5165 ' + unsynced + '\u6761' + (skipped ? '\uff0c\u5df2\u8df3\u8fc7 ' + skipped + '\u6761' : '') + (typeText ? '\uff0c' + typeText : '') + (sampleText ? '\n' + sampleText : '');
-  }
-
-  function formatFeishuPreviewSamples(samplesByType) {
-    if (!samplesByType || typeof samplesByType !== 'object') return '';
-    return Object.keys(samplesByType).slice(0, 6).map((type) => {
-      const group = samplesByType[type] || {};
-      const samples = Array.isArray(group.samples) ? group.samples : [];
-      const sample = samples[0] || {};
-      const brief = [sample.sku || '', sample.summary || ''].filter(Boolean).join(' ');
-      return type + '\uff1a' + (group.count || samples.length || 0) + '\u6761' + (brief ? '\uff0c\u4f8b\uff1a' + brief : '');
-    }).join('\n');
   }
 
   async function checkCloudInsightAiStatus() {
@@ -21136,27 +22202,6 @@
       addLog('warn', '\u6e05\u6d17\u89c4\u5219\u72b6\u6001\u66f4\u65b0\u5931\u8d25', ruleId + ' ' + formatErrorMessage(error));
       renderShell();
     }
-  }
-
-  async function copyCloudInsightFeishuTable(options) {
-    const opts = options || {};
-    state.insightCloudStatus = opts.fallbackFromSync ? '\u98de\u4e66\u76f4\u5199\u672a\u914d\u7f6e\uff0c\u6b63\u5728\u590d\u5236\u53ef\u7c98\u8d34\u8868\u683c...' : '\u6b63\u5728\u751f\u6210\u98de\u4e66\u8868\u683c\u6570\u636e...';
-    renderShell();
-    try {
-      const response = await fetchInsightFeishuTsv();
-      const tsv = response && response.tsv ? response.tsv : '';
-      if (!tsv) throw new Error('empty tsv');
-      state.insightCloudStatus = opts.fallbackFromSync
-        ? '\u98de\u4e66\u76f4\u5199\u4e0d\u53ef\u7528\uff0c\u5df2\u6539\u4e3a\u590d\u5236\u8868\u683c\u6570\u636e\uff0c\u76f4\u63a5\u7c98\u8d34\u5230\u8868\u683c\u5373\u53ef' + (opts.reason ? '\uff1b\u539f\u56e0\uff1a' + opts.reason : '')
-        : '\u98de\u4e66\u8868\u683c\u6570\u636e\u5df2\u590d\u5236\uff0c\u76f4\u63a5\u7c98\u8d34\u5230\u8868\u683c\u5373\u53ef\u5206\u5217';
-      copyText(tsv);
-      addLog('success', opts.fallbackFromSync ? '\u98de\u4e66\u540c\u6b65\u56de\u9000\u4e3a\u590d\u5236\u8868\u683c' : '\u5df2\u590d\u5236\u98de\u4e66\u8868\u683c\u6570\u636e');
-      showToast(L.copied);
-    } catch (error) {
-      state.insightCloudStatus = '\u98de\u4e66\u8868\u683c\u6570\u636e\u751f\u6210\u5931\u8d25\uff1a' + formatErrorMessage(error);
-      addLog('warn', '\u98de\u4e66\u8868\u683c\u6570\u636e\u751f\u6210\u5931\u8d25', formatErrorMessage(error));
-    }
-    renderShell();
   }
 
   function formatCloudInsightTotals(totals) {
@@ -22048,6 +23093,65 @@
     };
   }
 
+  function buildCompactCopywritingBackup(record) {
+    const source = normalizeCopywritingRecord(record);
+    if (!source) return null;
+    return {
+      ...source,
+      fullText: String(source.fullText || '').slice(0, 12000),
+      sections: (source.sections || []).slice(0, 40).map((section) => ({
+        ...section,
+        text: String(section.text || '').slice(0, 2200),
+      })),
+      previousSections: [],
+      changedSectionKeys: [],
+      removedSections: [],
+    };
+  }
+
+  function buildCompactCachePayload(fullPayload) {
+    const source = fullPayload || buildCachePayload();
+    const compactIndex = Array.isArray(source.index) ? source.index.slice(0, 2000) : [];
+    const indexedSkus = new Set(compactIndex.map((item) => String(item && (item.sku || item.code) || item || '').trim()).filter(Boolean));
+    const items = {};
+    let itemCount = 0;
+    Object.keys(source.items || {}).forEach((sku) => {
+      if (indexedSkus.size && !indexedSkus.has(String(sku))) return;
+      if (itemCount >= 2000) return;
+      const item = source.items[sku];
+      if (!item || typeof item !== 'object') return;
+      const compact = { ...item };
+      if (compact.copywriting) compact.copywriting = buildCompactCopywritingBackup(compact.copywriting);
+      if (Array.isArray(compact.ingredientItems)) compact.ingredientItems = compact.ingredientItems.slice(0, 40);
+      delete compact.lastMissingDiagnostic;
+      delete compact.recentFieldChanges;
+      items[sku] = compact;
+      itemCount += 1;
+    });
+    const uploadRecords = source.uploadRecords || {};
+    const compactUploadRecords = {
+      queue: sanitizeUploadRecords(uploadRecords.queue).slice(0, 120),
+      history: sanitizeUploadRecords(uploadRecords.history).slice(0, 120),
+    };
+    const insights = sanitizeInsights(source.insights || emptyInsights());
+    insights.priceHistory = insights.priceHistory.slice(0, 400);
+    insights.dataIssues = insights.dataIssues.slice(0, 400);
+    return {
+      plugin: source.plugin || L.title,
+      version: source.version || SCRIPT_VERSION,
+      exportedAt: source.exportedAt || new Date().toLocaleString(),
+      backupOwnerName: source.backupOwnerName || '',
+      backupMode: 'compact-v1',
+      includesImageLinks: true,
+      index: compactIndex,
+      items,
+      uploadRecords: compactUploadRecords,
+      dailyLedger: sanitizeLedgerRecords(source.dailyLedger).slice(0, 600),
+      dailyLedgerTrash: sanitizeLedgerTrashRecords(source.dailyLedgerTrash).slice(0, 600),
+      insights,
+    };
+  }
+
   async function encodeCloudBackupPayload(payload) {
     const serialized = JSON.stringify(payload);
     if (serialized.length < 400000 || typeof CompressionStream !== 'function') return payload;
@@ -22269,18 +23373,28 @@
     try {
       const payload = buildCachePayload();
       if (!payload.backupOwnerName) throw new Error(L.cloudBackupOwnerMissing);
-      const cloudPayload = await encodeCloudBackupPayload(payload);
-      const response = await cloudRequest('/backup/save', {
+      const uploadPayload = async (value) => cloudRequest('/backup/save', {
         method: 'POST',
         body: {
           backupKey,
           version: SCRIPT_VERSION,
-          payload: cloudPayload,
+          payload: await encodeCloudBackupPayload(value),
         },
       });
+      let compactRetry = false;
+      let response;
+      try {
+        response = await uploadPayload(payload);
+      } catch (error) {
+        const cloudData = error && error.cloudData ? error.cloudData : {};
+        if (cloudData.error !== 'payload too large' && !(error && error.message === 'payload too large')) throw error;
+        compactRetry = true;
+        addLog('warn', '\u4e91\u5907\u4efd\u5b8c\u6574\u5feb\u7167\u8d85\u9650\uff0c\u6539\u7528\u7cbe\u7b80\u5feb\u7167\u91cd\u8bd5', state.index.length + ' \u4e2a\u7f16\u7801');
+        response = await uploadPayload(buildCompactCachePayload(payload));
+      }
       if (!response || !response.ok) throw new Error(response && response.error ? response.error : 'save failed');
-      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801');
-      addLog('success', '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');
+      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + (compactRetry ? '\uff08\u7cbe\u7b80\uff09' : ''));
+      addLog('success', compactRetry ? '\u4e91\u5907\u4efd\u7cbe\u7b80\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {
@@ -22827,25 +23941,6 @@
     return error && error.message ? error.message : String(error || '\u672a\u77e5\u9519\u8bef');
   }
 
-  function isRecoverableFeishuSyncError(error) {
-    const data = error && error.cloudData || {};
-    const message = formatErrorMessage(error);
-    return /FEISHU_.*not configured|not configured|feishu table missing required fields|missing required fields|missing fields|fields check failed/i.test(message) ||
-      Array.isArray(data.missingFields) ||
-      Array.isArray(data.tableMissingFields);
-  }
-
-  function formatFeishuSyncErrorDetail(error) {
-    const data = error && error.cloudData || {};
-    const fields = []
-      .concat(Array.isArray(data.missingFields) ? data.missingFields : [])
-      .concat(Array.isArray(data.tableMissingFields) ? data.tableMissingFields : []);
-    const uniqueFields = fields.filter((field, index) => field && fields.indexOf(field) === index);
-    const parts = [formatErrorMessage(error)];
-    if (uniqueFields.length) parts.push('\u7f3a\u5b57\u6bb5 ' + uniqueFields.join('/'));
-    return parts.filter(Boolean).join(' / ');
-  }
-
   function formatCopyAll(data) {
     if (!data) return '';
     return [
@@ -22973,7 +24068,7 @@
   function shouldSkipCloudLogSync(level, message) {
     const text = String(message || '');
     if (/\u4e91\u7aef\u6d1e\u5bdf\u540c\u6b65\u5931\u8d25|\u4e91\u5907\u4efd/.test(text)) return true;
-    if (level === 'success' && !/(\u63d0\u5ba1|\u4e0a\u4f20|\u751f\u6210|Excel|\u6807\u7b7e|\u590d\u5236|AI|\u98de\u4e66|\u6e05\u6d17|\u667a\u80fd|\u4ef7\u683c|\u7c7b\u578b|\u6570\u636e|\u56fe\u7247)/i.test(text)) return true;
+    if (level === 'success' && !/(\u63d0\u5ba1|\u4e0a\u4f20|\u751f\u6210|Excel|\u6807\u7b7e|\u590d\u5236|AI|\u8868\u683c|\u6e05\u6d17|\u667a\u80fd|\u4ef7\u683c|\u7c7b\u578b|\u6570\u636e|\u56fe\u7247)/i.test(text)) return true;
     if (/^\u56fe\u7247\u4e0b\u8f7d\u6210\u529f/.test(text)) return true;
     if (/^\u6279\u91cf\u4e0b\u8f7d\u56fe\u7247\uff1aURL \u515c\u5e95\u4e0b\u8f7d/.test(text)) return true;
     return false;
@@ -23465,6 +24560,7 @@
     } catch (error) {
       console.warn('PLM floating helper index save failed:', error);
     }
+    notifyFrontendV2CatalogChanged();
   }
 
   function loadSettings() {
