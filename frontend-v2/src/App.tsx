@@ -24,8 +24,8 @@ function App() {
   const activeNav = useMemo(() => navItems.find((item) => item.id === activeView) ?? navItems[0], [activeView])
   const selectedProduct = products.find((product) => product.sku === selectedProductSku) ?? products[0]
 
-  const openProductBrowser = () => {
-    setSelectedProductSku(products[0].sku)
+  const openProductBrowser = (sku?: string) => {
+    setSelectedProductSku(sku ?? products[0].sku)
     setProductTab('详情')
     setActiveView('product')
   }

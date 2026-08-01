@@ -4,8 +4,9 @@ import { activityItems, productMetrics, queueTasks } from '../data'
 import { ProductArtwork } from '../components/ProductArtwork'
 import { SectionHeading } from '../components/SectionHeading'
 import { StatusBadge } from '../components/StatusBadge'
+import { TodayWorkbench } from '../components/TodayWorkbench'
 
-export function TodayPage({ onOpenProduct, onOpenQueue }: { onOpenProduct: () => void; onOpenQueue: () => void }) {
+export function TodayPage({ onOpenProduct, onOpenQueue }: { onOpenProduct: (sku?: string) => void; onOpenQueue: () => void }) {
   return (
     <motion.div
       key="today-page"
@@ -17,7 +18,7 @@ export function TodayPage({ onOpenProduct, onOpenQueue }: { onOpenProduct: () =>
     >
       <section className="welcome-row">
         <div>
-          <span className="eyebrow">WEDNESDAY · 06 AUGUST 2026</span>
+          <span className="eyebrow">SATURDAY · 01 AUGUST 2026</span>
           <h1>早上好，Violet</h1>
           <p className="welcome-note">今天有 3 个任务等待你的确认，整体进度保持在舒适区。</p>
         </div>
@@ -51,7 +52,7 @@ export function TodayPage({ onOpenProduct, onOpenQueue }: { onOpenProduct: () =>
           <span className="eyebrow hero-eyebrow"><Sparkles size={13} /> WORKFLOW PULSE</span>
           <h2>把今天的交付，<br /><span>留在节奏里。</span></h2>
           <p>素材、参数和提审状态都在这里汇合。只处理真正需要你判断的事情。</p>
-          <button type="button" className="button button-light" onClick={onOpenProduct}>
+          <button type="button" className="button button-light" onClick={() => onOpenProduct()}>
             查看产品库
             <ArrowUpRight size={16} />
           </button>
@@ -116,6 +117,8 @@ export function TodayPage({ onOpenProduct, onOpenQueue }: { onOpenProduct: () =>
           <div className="activity-footer"><CheckCircle2 size={15} /> 所有系统运行正常</div>
         </section>
       </div>
+
+      <TodayWorkbench onOpenProduct={(sku) => onOpenProduct(sku)} />
     </motion.div>
   )
 }
