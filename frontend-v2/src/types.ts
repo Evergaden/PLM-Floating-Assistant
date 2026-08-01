@@ -4,6 +4,8 @@ export type ThemeId = 'violet' | 'ocean' | 'mint' | 'rose'
 
 export type ProductViewMode = 'waterfall' | 'list'
 
+export type ProductDetailTab = '详情' | '文案' | '参数图' | '尺寸图'
+
 export type ArtworkVariant = 'lavender' | 'peach' | 'mint'
 
 export type NavItem = {

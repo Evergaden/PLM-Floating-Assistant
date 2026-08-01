@@ -1,84 +1,98 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, Check, Copy, Download, FileImage, Info, MoreHorizontal, RefreshCw, ScanLine, Sparkles } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { Check, Copy, Download, FileImage, Info, MoreHorizontal, RefreshCw, ScanLine, Sparkles } from 'lucide-react'
+import { type ReactNode } from 'react'
 import { products } from '../data'
 import { ProductArtwork } from '../components/ProductArtwork'
+import { ProductSkuRail } from '../components/ProductSkuRail'
 import { SectionHeading } from '../components/SectionHeading'
-import type { ProductRecord } from '../types'
+import { StatusBadge } from '../components/StatusBadge'
+import type { ProductDetailTab, ProductRecord } from '../types'
 
-const detailTabs = ['详情', '文案', '参数图', '尺寸图']
+const detailTabs: ProductDetailTab[] = ['详情', '文案', '参数图', '尺寸图']
 
 export function ProductPage({
   product = products[0],
-  onBackToLibrary,
+  productCatalog = products,
+  activeTab = '详情',
+  onChangeTab,
+  onSelectProduct,
+  onOpenFullLibrary,
   onBackToQueue,
 }: {
   product?: ProductRecord
-  onBackToLibrary: () => void
+  productCatalog?: ProductRecord[]
+  activeTab?: ProductDetailTab
+  onChangeTab: (tab: ProductDetailTab) => void
+  onSelectProduct: (sku: string, tab?: ProductDetailTab) => void
+  onOpenFullLibrary: () => void
   onBackToQueue: () => void
 }) {
-  const [activeTab, setActiveTab] = useState('详情')
+  const improvementCount = Math.max(1, Math.ceil((100 - product.completion) / 10))
 
   return (
     <motion.div
       key="product-page"
-      className="page-stack"
+      className="page-stack product-detail-page"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
-      <button type="button" className="back-link" onClick={onBackToLibrary}><ArrowLeft size={15} /> 返回产品库</button>
-      <section className="product-hero">
-        <ProductArtwork variant={product.variant} />
-        <div className="product-hero-copy">
-          <div className="product-meta-line"><span className="status-badge status-ready"><Check size={14} /> 已定稿</span><span>最近同步 · 12 分钟前</span></div>
-          <h1>{product.title}</h1>
-          <p>{product.sku} · {product.brand} · {product.category}</p>
-          <div className="product-actions">
-            <button type="button" className="button button-primary"><Download size={16} /> 导出资料</button>
-            <button type="button" className="icon-button icon-button-light" aria-label="复制 SKU"><Copy size={17} /></button>
-            <button type="button" className="icon-button icon-button-light" aria-label="更多操作"><MoreHorizontal size={17} /></button>
-          </div>
-        </div>
-        <div className="product-readiness">
-          <div className="readiness-ring"><span>92<small>%</small></span></div>
-          <span>资料完整度</span>
-          <small>还有 2 项可优化</small>
-        </div>
-      </section>
+      <div className="product-detail-workspace">
+        <ProductSkuRail productCatalog={productCatalog} selectedSku={product.sku} activeTab={activeTab} onSelectProduct={onSelectProduct} onOpenFullLibrary={onOpenFullLibrary} />
+        <div className="product-detail-main">
+          <motion.section key={product.sku} className="product-hero" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.22 }}>
+            <ProductArtwork variant={product.variant} />
+            <div className="product-hero-copy">
+              <div className="product-meta-line"><StatusBadge status={product.status} /><span>最近同步 · {product.updated}</span></div>
+              <h1>{product.title}</h1>
+              <p>{product.sku} · {product.brand} · {product.category}</p>
+              <div className="product-actions">
+                <button type="button" className="button button-primary"><Download size={16} /> 导出资料</button>
+                <button type="button" className="icon-button icon-button-light" aria-label="复制 SKU"><Copy size={17} /></button>
+                <button type="button" className="icon-button icon-button-light" aria-label="更多操作"><MoreHorizontal size={17} /></button>
+              </div>
+            </div>
+            <div className="product-readiness">
+              <div className="readiness-ring"><span>{product.completion}<small>%</small></span></div>
+              <span>资料完整度</span>
+              <small>还有 {improvementCount} 项可优化</small>
+            </div>
+          </motion.section>
 
-      <nav className="detail-tabs" aria-label="产品详情视图">
-        {detailTabs.map((tab) => (
-          <button type="button" key={tab} className={activeTab === tab ? 'is-active' : ''} onClick={() => setActiveTab(tab)}>
-            {activeTab === tab && <motion.span layoutId="product-tab-indicator" className="detail-tab-indicator" transition={{ type: 'spring', stiffness: 430, damping: 32 }} />}
-            <span>{tab}</span>
-          </button>
-        ))}
-      </nav>
+          <nav className="detail-tabs" aria-label="产品详情视图">
+            {detailTabs.map((tab) => (
+              <button type="button" key={tab} className={activeTab === tab ? 'is-active' : ''} onClick={() => onChangeTab(tab)}>
+                {activeTab === tab && <motion.span layoutId="product-tab-indicator" className="detail-tab-indicator" transition={{ type: 'spring', stiffness: 430, damping: 32 }} />}
+                <span>{tab}</span>
+              </button>
+            ))}
+          </nav>
 
-      <AnimatePresence mode="wait">
-        {activeTab === '详情' && <DetailOverview key="overview" onOpenQueue={onBackToQueue} />}
-        {activeTab === '文案' && <CopywritingView key="copywriting" />}
-        {activeTab === '参数图' && <AssetView key="parameter" title="英文参数图" icon={<FileImage size={20} />} onAction={onBackToQueue} />}
-        {activeTab === '尺寸图' && <AssetView key="size" title="产品尺寸图" icon={<ScanLine size={20} />} onAction={onBackToQueue} />}
-      </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {activeTab === '详情' && <DetailOverview key="overview" product={product} onOpenQueue={onBackToQueue} />}
+            {activeTab === '文案' && <CopywritingView key="copywriting" />}
+            {activeTab === '参数图' && <AssetView key="parameter" title="英文参数图" icon={<FileImage size={20} />} onAction={onBackToQueue} />}
+            {activeTab === '尺寸图' && <AssetView key="size" title="产品尺寸图" icon={<ScanLine size={20} />} onAction={onBackToQueue} />}
+          </AnimatePresence>
+        </div>
+      </div>
     </motion.div>
   )
 }
 
-function DetailOverview({ onOpenQueue }: { onOpenQueue: () => void }) {
+function DetailOverview({ product, onOpenQueue }: { product: ProductRecord; onOpenQueue: () => void }) {
   return (
     <motion.div className="product-content-grid" initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -7 }} transition={{ duration: 0.2 }}>
       <section className="surface-panel">
         <SectionHeading eyebrow="PRODUCT SNAPSHOT" title="产品信息" note="来自 PLM 的标准化数据。" />
         <div className="detail-table">
           {[
-            ['品牌', 'Westmonth'],
-            ['产品类型', '精华液 / 护肤套装'],
-            ['净含量', '30ml × 2'],
-            ['包材尺寸', '12.4 × 5.8 × 3.1cm'],
-            ['毛重', '286g'],
+            ['品牌', product.brand],
+            ['产品类型', product.category],
+            ['素材数量', product.assetCount + ' 项'],
+            ['资料完整度', product.completion + '%'],
+            ['最近更新', product.updated],
           ].map(([label, value]) => (
             <div key={label}><span>{label}</span><strong>{value}</strong></div>
           ))}
@@ -88,11 +102,11 @@ function DetailOverview({ onOpenQueue }: { onOpenQueue: () => void }) {
         <div className="insight-mark"><Sparkles size={18} /></div>
         <span className="eyebrow">WORKBENCH INSIGHT</span>
         <h3>这件产品已经接近可以交付的状态。</h3>
-        <p>透明底产品图和英文参数图已准备完成。建议先检查净含量格式，再加入提审队列。</p>
+        <p>透明底产品图和英文参数图已准备完成。建议先检查资料完整度，再加入提审队列。</p>
         <button type="button" className="button button-secondary" onClick={onOpenQueue}>加入提审队列 <RefreshCw size={15} /></button>
       </section>
       <section className="surface-panel asset-summary">
-        <SectionHeading eyebrow="ASSETS" title="资产概览" note="4 类核心素材已同步。" action="打开资产中心" />
+        <SectionHeading eyebrow="ASSETS" title="资产概览" note={product.assetCount + ' 类核心素材已同步。'} action="打开资产中心" />
         <div className="asset-chips">
           {['主图', '详情图', '英文参数图', '透明 PNG'].map((asset) => <span key={asset}><Check size={14} />{asset}</span>)}
         </div>

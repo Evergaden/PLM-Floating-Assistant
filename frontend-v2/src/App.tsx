@@ -2,7 +2,7 @@ import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { Bell, Command, Home, LayoutDashboard, PackageOpen, PanelLeftClose, Search, Settings2, Sparkles, UploadCloud, Wrench } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { navItems, products } from './data'
-import type { ViewId } from './types'
+import type { ProductDetailTab, ViewId } from './types'
 import { ThemeSwitcher } from './components/ThemeSwitcher'
 import { TodayPage } from './pages/TodayPage'
 import { ProductPage } from './pages/ProductPage'
@@ -18,24 +18,36 @@ const navIcons = {
 function App() {
   const [activeView, setActiveView] = useState<ViewId>('today')
   const [selectedProductSku, setSelectedProductSku] = useState<string | null>(null)
+  const [productTab, setProductTab] = useState<ProductDetailTab>('详情')
   const [panelOpen, setPanelOpen] = useState(true)
   const [showNotifications, setShowNotifications] = useState(false)
   const activeNav = useMemo(() => navItems.find((item) => item.id === activeView) ?? navItems[0], [activeView])
   const selectedProduct = products.find((product) => product.sku === selectedProductSku) ?? products[0]
 
-  const openProductLibrary = () => {
-    setSelectedProductSku(null)
+  const openProductBrowser = () => {
+    setSelectedProductSku(products[0].sku)
+    setProductTab('详情')
     setActiveView('product')
   }
 
-  const openProduct = (sku?: string) => {
+  const openFullProductLibrary = () => {
+    setSelectedProductSku(null)
+    setProductTab('详情')
+    setActiveView('product')
+  }
+
+  const openProduct = (sku?: string, tab: ProductDetailTab = '详情') => {
     setSelectedProductSku(sku ?? products[0].sku)
+    setProductTab(tab)
     setActiveView('product')
   }
 
   const handleNavChange = (view: ViewId) => {
     setActiveView(view)
-    if (view === 'product') setSelectedProductSku(null)
+    if (view === 'product') {
+      setSelectedProductSku(products[0].sku)
+      setProductTab('详情')
+    }
   }
 
   if (!panelOpen) {
@@ -97,9 +109,9 @@ function App() {
 
           <div className="page-viewport">
             <AnimatePresence mode="wait" initial={false}>
-              {activeView === 'today' && <TodayPage key="today" onOpenProduct={openProductLibrary} onOpenQueue={() => setActiveView('queue')} />}
+              {activeView === 'today' && <TodayPage key="today" onOpenProduct={openProductBrowser} onOpenQueue={() => setActiveView('queue')} />}
               {activeView === 'product' && !selectedProductSku && <ProductLibraryPage key="product-library" onOpenProduct={openProduct} />}
-              {activeView === 'product' && selectedProductSku && <ProductPage key={'product-detail-' + selectedProduct.sku} product={selectedProduct} onBackToLibrary={openProductLibrary} onBackToQueue={() => setActiveView('queue')} />}
+              {activeView === 'product' && selectedProductSku && <ProductPage key="product-detail" product={selectedProduct} productCatalog={products} activeTab={productTab} onChangeTab={setProductTab} onSelectProduct={openProduct} onOpenFullLibrary={openFullProductLibrary} onBackToQueue={() => setActiveView('queue')} />}
               {activeView === 'queue' && <QueuePage key="queue" onOpenProduct={openProduct} />}
             </AnimatePresence>
           </div>
