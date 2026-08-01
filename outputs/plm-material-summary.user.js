@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.100
+// @version      2.6.102
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -40,7 +40,7 @@
   const FRONTEND_V2_ENABLED_KEY = 'plm-floating-helper:frontend-v2-enabled';
   const FRONTEND_V2_HOST_STYLE_ID = 'plm-floating-helper-v2-host-style';
   let frontendV2Unmount = null;
-  const SCRIPT_VERSION = '2.6.100';
+  const SCRIPT_VERSION = '2.6.102';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5586,14 +5586,17 @@
     return { unit: 'm', raw: values.length >= 2 ? values.join('x') + 'm' : 'm' };
   }
 
-  function getApiMaterialDimensions(item, count) {
+  function getApiMaterialDimensions(item, count, options) {
+    const preserveAdditional = Boolean(options && options.preserveAdditional);
     if (getApiMaterialUnitIssue(item)) return null;
     // PLM occasionally returns stale or shifted material_length/width/height
     // values. The human-readable properties_value is the authoritative row
     // specification when it contains a complete dimension string.
     const propertyDimension = extractDimensionString(item && item.properties_value);
     const propertyParsed = parseDimension(propertyDimension, count);
-    if (propertyParsed && propertyParsed.length >= count) return propertyParsed.slice(0, count);
+    if (propertyParsed && propertyParsed.length >= count) {
+      return preserveAdditional ? propertyParsed : propertyParsed.slice(0, count);
+    }
     const values = [item && item.material_length, item && item.material_width, item && item.material_height]
       .map((value) => {
         const text = String(value == null ? '' : value);
@@ -5603,7 +5606,8 @@
       });
     if (values.slice(0, count).every((value) => value > 0)) return values.slice(0, count);
     const parsed = parseDimension(propertyDimension, count);
-    return parsed && parsed.length >= count ? parsed.slice(0, count) : null;
+    if (!parsed || parsed.length < count) return null;
+    return preserveAdditional ? parsed : parsed.slice(0, count);
   }
 
   function formatApiMaterialDimensions(values) {
@@ -5644,7 +5648,10 @@
       const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
       const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
       const unitIssue = getApiMaterialUnitIssue(item);
-      const dimensions = getApiMaterialDimensions(item, 3);
+      // A paper box can encode multiple connected page/panel sizes, for
+      // example 10x2.2x20.3x1x10cm. Keep every value from the authoritative
+      // properties string so the displayed API result matches the PLM row.
+      const dimensions = getApiMaterialDimensions(item, 3, { preserveAdditional: true });
       let score = 0;
       if (/纸盒|彩盒|纸箱|包装盒|外盒/.test(text)) score += 160;
       if (/包材/.test(category)) score += 20;
