@@ -1,8 +1,9 @@
-import { Component, StrictMode, type ErrorInfo, type ReactNode, useEffect, useState } from 'react'
+import { Component, StrictMode, type ErrorInfo, type ReactNode, useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { MotionConfig } from 'motion/react'
 import App, { type AppHostActions } from './App'
+import { ProductSkuRail } from './components/ProductSkuRail'
 import { TodayWorkbench } from './components/TodayWorkbench'
 import { configureLedgerBridge, type LedgerBridgeHost } from './dataBridge'
 import type { LedgerView } from './types'
@@ -14,7 +15,7 @@ import stylesCss from './styles.css?inline'
 export type FrontendV2MountOptions = AppHostActions & {
   storage?: LedgerBridgeHost | null
   shadow?: boolean
-  mode?: 'full' | 'legacy-today'
+  mode?: 'full' | 'legacy-today' | 'legacy-sku-rail'
 }
 
 type FrontendV2Runtime = {
@@ -92,7 +93,11 @@ function renderApp(mountNode: HTMLElement, options: FrontendV2MountOptions) {
           <MotionConfig reducedMotion="user">
             <ThemeProvider>
               <ToastProvider>
-                {options.mode === 'legacy-today' ? <LegacyTodaySurface host={options} /> : <App host={options} />}
+                {options.mode === 'legacy-today'
+                  ? <LegacyTodaySurface host={options} />
+                  : options.mode === 'legacy-sku-rail'
+                    ? <LegacySkuRailSurface host={options} />
+                    : <App host={options} />}
               </ToastProvider>
             </ThemeProvider>
           </MotionConfig>
@@ -122,6 +127,48 @@ function LegacyTodaySurface({ host }: { host: FrontendV2MountOptions }) {
   return (
     <div className="plm-v2-legacy-today-root">
       <TodayWorkbench onOpenProduct={openProduct} contentOnly externalView={ledgerView} />
+    </div>
+  )
+}
+
+function LegacySkuRailSurface({ host }: { host: FrontendV2MountOptions }) {
+  const catalogReader = host.getCatalog ?? host.legacy?.getCatalog
+  const [liveCatalog, setLiveCatalog] = useState(() => host.catalog ?? catalogReader?.() ?? [])
+  const selectedSku = host.legacy?.getSelectedSku?.() ?? ''
+  const preferences = host.legacy?.getProductListPreferences?.()
+  const pinnedSkus = useMemo(() => liveCatalog.filter((product) => product.pinned).map((product) => product.sku), [liveCatalog])
+
+  useEffect(() => {
+    if (!catalogReader) return
+    const refreshCatalog = () => setLiveCatalog(catalogReader() ?? [])
+    window.addEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
+    refreshCatalog()
+    return () => window.removeEventListener('plm-frontend-v2-catalog-change', refreshCatalog)
+  }, [catalogReader])
+
+  const openProduct = (sku: string, tab: '详情' | '文案' | '参数图' | '尺寸图' = '详情') => {
+    if (host.legacy?.openProduct) {
+      host.legacy.openProduct(sku, { tab, preserveView: true })
+      return
+    }
+    host.onOpenProduct?.(sku)
+  }
+
+  return (
+    <div className="plm-v2-legacy-sku-root">
+      <ProductSkuRail
+        productCatalog={liveCatalog}
+        selectedSku={selectedSku}
+        activeTab="详情"
+        initialViewMode={preferences?.viewMode}
+        initialSort={preferences?.sort}
+        initialPinnedSkus={pinnedSkus}
+        onChangePreferences={(next) => host.legacy?.setProductListPreferences?.(next)}
+        onTogglePin={(sku) => host.legacy?.toggleProductPin?.(sku)}
+        onRemoveProduct={(sku) => host.legacy?.removeProduct?.(sku)}
+        onSelectProduct={openProduct}
+        onOpenFullLibrary={() => host.legacy?.setView?.('home')}
+      />
     </div>
   )
 }

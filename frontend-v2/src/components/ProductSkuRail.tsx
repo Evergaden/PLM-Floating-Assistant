@@ -6,7 +6,12 @@ import { ProductArtwork } from './ProductArtwork'
 import { StatusBadge } from './StatusBadge'
 import type { ProductDetailTab, ProductRecord, ProductViewMode } from '../types'
 
-type ProductListSort = 'assigned' | 'acquired'
+export type ProductListSort = 'assigned' | 'acquired'
+
+export type ProductListPreferences = {
+  viewMode: ProductViewMode
+  sort: ProductListSort
+}
 
 const PRODUCT_VIEW_STORAGE_KEY = 'plm-frontend-v2-product-view'
 const PRODUCT_SORT_STORAGE_KEY = 'plm-frontend-v2-product-sort'
@@ -23,22 +28,24 @@ function readStoredSkuSet(key: string, fallback: string[] = []) {
   return new Set(fallback)
 }
 
-function readProductListSort(): ProductListSort {
+function readProductListSort(fallback: ProductListSort = 'assigned'): ProductListSort {
+  if (fallback === 'assigned' || fallback === 'acquired') return fallback
   try {
     return window.localStorage.getItem(PRODUCT_SORT_STORAGE_KEY) === 'acquired' ? 'acquired' : 'assigned'
   } catch {
-    return 'assigned'
+    return fallback
   }
 }
 
-function readProductViewMode(): ProductViewMode {
+function readProductViewMode(fallback: ProductViewMode = 'waterfall'): ProductViewMode {
+  if (fallback === 'list' || fallback === 'waterfall') return fallback
   try {
     const stored = window.localStorage.getItem(PRODUCT_VIEW_STORAGE_KEY)
     if (stored === 'list' || stored === 'waterfall') return stored
   } catch {
     // Keep the visual default when browser storage is unavailable.
   }
-  return 'waterfall'
+  return fallback
 }
 
 export function ProductSkuRail({
@@ -47,19 +54,31 @@ export function ProductSkuRail({
   activeTab,
   onOpenFullLibrary,
   onSelectProduct,
+  initialViewMode,
+  initialSort,
+  onChangePreferences,
+  onTogglePin,
+  onRemoveProduct,
+  initialPinnedSkus,
 }: {
   productCatalog?: ProductRecord[]
   selectedSku: string
   activeTab: ProductDetailTab
   onOpenFullLibrary?: () => void
   onSelectProduct: (sku: string, tab?: ProductDetailTab) => void
+  initialViewMode?: ProductViewMode
+  initialSort?: ProductListSort
+  onChangePreferences?: (preferences: ProductListPreferences) => void
+  onTogglePin?: (sku: string) => void
+  onRemoveProduct?: (sku: string) => void
+  initialPinnedSkus?: string[]
 }) {
   const [query, setQuery] = useState('')
-  const [viewMode, setViewMode] = useState<ProductViewMode>(readProductViewMode)
-  const [sort, setSort] = useState<ProductListSort>(readProductListSort)
+  const [viewMode, setViewMode] = useState<ProductViewMode>(() => readProductViewMode(initialViewMode))
+  const [sort, setSort] = useState<ProductListSort>(() => readProductListSort(initialSort))
   const [page, setPage] = useState(1)
   const [menuSku, setMenuSku] = useState<string | null>(null)
-  const [pinnedSkus, setPinnedSkus] = useState<Set<string>>(() => readStoredSkuSet(PRODUCT_PIN_STORAGE_KEY, productCatalog.filter((product) => product.pinned).map((product) => product.sku)))
+  const [pinnedSkus, setPinnedSkus] = useState<Set<string>>(() => initialPinnedSkus ? new Set(initialPinnedSkus) : readStoredSkuSet(PRODUCT_PIN_STORAGE_KEY, productCatalog.filter((product) => product.pinned).map((product) => product.sku)))
   const [hiddenSkus, setHiddenSkus] = useState<Set<string>>(() => readStoredSkuSet(PRODUCT_HIDDEN_STORAGE_KEY))
 
   const visibleProducts = useMemo(() => {
@@ -77,7 +96,14 @@ export function ProductSkuRail({
         const leftPinned = pinnedSkus.has(left.product.sku)
         const rightPinned = pinnedSkus.has(right.product.sku)
         if (leftPinned !== rightPinned) return leftPinned ? -1 : 1
-        if (sort === 'acquired') return right.index - left.index
+        if (leftPinned && rightPinned) {
+          const leftPinOrder = left.product.pinOrder ?? left.index
+          const rightPinOrder = right.product.pinOrder ?? right.index
+          if (leftPinOrder !== rightPinOrder) return leftPinOrder - rightPinOrder
+        }
+        const leftTime = sort === 'acquired' ? left.product.acquiredAt : left.product.assignedAt
+        const rightTime = sort === 'acquired' ? right.product.acquiredAt : right.product.assignedAt
+        if (leftTime || rightTime) return (rightTime ?? 0) - (leftTime ?? 0)
         return left.index - right.index
       })
       .map(({ product }) => product)
@@ -91,6 +117,10 @@ export function ProductSkuRail({
   useEffect(() => {
     setPage(1)
   }, [hiddenSkus, query, sort, viewMode])
+
+  useEffect(() => {
+    if (initialPinnedSkus) setPinnedSkus(new Set(initialPinnedSkus))
+  }, [initialPinnedSkus?.join('|')])
 
   useEffect(() => {
     try {
@@ -119,11 +149,17 @@ export function ProductSkuRail({
 
   const updateViewMode = (nextMode: ProductViewMode) => {
     setViewMode(nextMode)
+    onChangePreferences?.({ viewMode: nextMode, sort })
     try {
       window.localStorage.setItem(PRODUCT_VIEW_STORAGE_KEY, nextMode)
     } catch {
       // The view still changes for the current session.
     }
+  }
+
+  const updateSort = (nextSort: ProductListSort) => {
+    setSort(nextSort)
+    onChangePreferences?.({ viewMode, sort: nextSort })
   }
 
   const togglePin = (sku: string) => {
@@ -133,6 +169,7 @@ export function ProductSkuRail({
       else next.add(sku)
       return next
     })
+    onTogglePin?.(sku)
     setMenuSku(null)
   }
 
@@ -142,6 +179,7 @@ export function ProductSkuRail({
     setHiddenSkus((current) => new Set([...current, sku]))
     setMenuSku(null)
     setPage(1)
+    onRemoveProduct?.(sku)
     if (sku === selectedSku) onSelectProduct(nextVisibleProduct.sku, activeTab)
   }
 
@@ -175,7 +213,7 @@ export function ProductSkuRail({
               </button>
             </div>
           </LayoutGroup>
-          <select value={sort} onChange={(event) => setSort(event.target.value as ProductListSort)} aria-label="SKU 排序">
+          <select value={sort} onChange={(event) => updateSort(event.target.value as ProductListSort)} aria-label="SKU 排序">
             <option value="assigned">分配时间</option>
             <option value="acquired">获取时间</option>
           </select>

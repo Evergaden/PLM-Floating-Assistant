@@ -1,4 +1,4 @@
-import type { LedgerView, ProductDetailTab, ProductRecord, ViewId } from './types'
+import type { LedgerView, ProductDetailTab, ProductRecord, ProductViewMode, ViewId } from './types'
 
 export const LEGACY_SELECTORS = {
   panel: '#plm-floating-helper',
@@ -27,6 +27,13 @@ export type LegacyOpenProductOptions = {
   preserveView?: boolean
 }
 
+export type LegacyProductListSort = 'assigned' | 'acquired'
+
+export type LegacyProductListPreferences = {
+  viewMode?: ProductViewMode
+  sort?: LegacyProductListSort
+}
+
 export type LegacyHostAdapter = {
   /** Read the view that the legacy shell currently owns. */
   getView?: () => LegacyViewId
@@ -40,6 +47,13 @@ export type LegacyHostAdapter = {
   subscribeLedgerView?: (listener: (view: LedgerView) => void) => () => void
   /** Return the normalized catalog already maintained by the userscript. */
   getCatalog?: () => ProductRecord[]
+  /** Read the legacy side-list view and sort choices before the rail mounts. */
+  getProductListPreferences?: () => LegacyProductListPreferences
+  /** Persist side-list choices through the legacy settings contract. */
+  setProductListPreferences?: (preferences: LegacyProductListPreferences) => void
+  /** Reuse the legacy pin/delete actions for cards rendered by React. */
+  toggleProductPin?: (sku: string) => void
+  removeProduct?: (sku: string) => void
   /** Return one legacy cached record without changing its fields. */
   getProductData?: (sku: string) => Record<string, unknown> | null
   /** Route an action through the existing data-action/event-delegation path. */

@@ -52,6 +52,9 @@ export type ProductRecord = {
   mediaSize: 'short' | 'medium' | 'tall'
   imageUrl?: string
   pinned?: boolean
+  pinOrder?: number
+  assignedAt?: number
+  acquiredAt?: number
 }
 
 export type LedgerRecord = {
