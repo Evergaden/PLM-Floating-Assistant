@@ -1,4 +1,4 @@
-import type { ProductDetailTab, ProductRecord, ViewId } from './types'
+import type { LedgerView, ProductDetailTab, ProductRecord, ViewId } from './types'
 
 export const LEGACY_SELECTORS = {
   panel: '#plm-floating-helper',
@@ -34,6 +34,10 @@ export type LegacyHostAdapter = {
   setView?: (view: LegacyViewId) => void
   /** Read the selected SKU from the legacy state object. */
   getSelectedSku?: () => string | null
+  /** Read the active legacy Today Workbench tab. */
+  getLedgerView?: () => LedgerView
+  /** Subscribe to legacy tab changes without replacing the tab DOM nodes. */
+  subscribeLedgerView?: (listener: (view: LedgerView) => void) => () => void
   /** Return the normalized catalog already maintained by the userscript. */
   getCatalog?: () => ProductRecord[]
   /** Return one legacy cached record without changing its fields. */

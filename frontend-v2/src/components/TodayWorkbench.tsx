@@ -61,11 +61,19 @@ type ConfirmState = {
   onConfirm: () => void
 }
 
-export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string) => void }) {
+export type TodayWorkbenchProps = {
+  onOpenProduct: (sku: string) => void
+  /** Render only the content below the legacy tab bar. */
+  contentOnly?: boolean
+  /** Keep the content in sync with tabs owned by the legacy shell. */
+  externalView?: LedgerView
+}
+
+export function TodayWorkbench({ onOpenProduct, contentOnly = false, externalView }: TodayWorkbenchProps) {
   const { pushToast } = useToast()
   const [ledgerState, setLedgerState] = useState<LedgerBridgeSnapshot>(() => readLedgerSnapshot(defaultLedgerRecords))
   const records = ledgerState.records
-  const [view, setView] = useState<LedgerView>('design')
+  const [view, setView] = useState<LedgerView>(() => externalView ?? 'design')
   const [month, setMonth] = useState(DEFAULT_LEDGER_MONTH)
   const [query, setQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -76,6 +84,13 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
   const tabsRef = useRef<HTMLDivElement | null>(null)
   const hasMounted = useRef(false)
   const [indicator, setIndicator] = useState({ left: 4, width: 0 })
+
+  useEffect(() => {
+    if (!externalView || externalView === view) return
+    setView(externalView)
+    setSelectedIds(new Set())
+    setMenuId(null)
+  }, [externalView, view])
 
   const setRecords = (update: LedgerRecord[] | ((current: LedgerRecord[]) => LedgerRecord[])) => {
     setLedgerState((current) => ({
@@ -268,8 +283,8 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
   }
 
   return (
-    <section className={'ledger-board surface-panel' + (isFullscreen ? ' is-fullscreen' : '')}>
-      <div className="ledger-hero">
+    <section className={'ledger-board surface-panel' + (contentOnly ? ' is-legacy-content' : '') + (isFullscreen ? ' is-fullscreen' : '')}>
+      {!contentOnly && <div className="ledger-hero">
         <div className="ledger-hero-icon"><Sparkles size={19} /></div>
         <div className="ledger-hero-copy">
           <span className="eyebrow">TODAY WORKBENCH</span>
@@ -288,9 +303,9 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
             {isFullscreen ? '退出全屏' : '全屏'}
           </ElasticButton>
         </div>
-      </div>
+      </div>}
 
-      <div className="pfh-ledger-tabs" ref={tabsRef} data-active-tab={view} role="tablist" aria-label="工作台状态">
+      {!contentOnly && <div className="pfh-ledger-tabs" ref={tabsRef} data-active-tab={view} role="tablist" aria-label="工作台状态">
         <span className="pfh-ledger-tab-indicator" aria-hidden="true" style={{ left: indicator.left, width: indicator.width }} />
         {ledgerTabs.map((tab) => (
           <button
@@ -306,7 +321,7 @@ export function TodayWorkbench({ onOpenProduct }: { onOpenProduct: (sku: string)
             <em>{counts[tab.id]}</em>
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="ledger-toolbar">
         <div className="ledger-month-controls">

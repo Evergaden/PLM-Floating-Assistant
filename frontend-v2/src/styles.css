@@ -379,6 +379,10 @@ h1 { margin-bottom: 8px; color: var(--pfh-ink); font-size: 30px; font-weight: 82
 .button-danger:hover { box-shadow: 0 12px 24px rgba(190, 79, 91, .3); }
 
 .ledger-board { position: relative; margin-top: 14px; overflow: hidden; background: rgba(255,255,255,.74); }
+.plm-v2-legacy-today-root { width: 100%; height: 100%; min-height: 0; overflow: auto; }
+.ledger-board.is-legacy-content { min-height: 100%; margin: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.ledger-board.is-legacy-content .ledger-toolbar { padding-right: 0; padding-left: 0; }
+.ledger-board.is-legacy-content .ledger-list-scroll { max-height: none; padding-right: 0; padding-left: 0; }
 .ledger-board.is-fullscreen { position: fixed; z-index: 80; inset: 22px; display: flex; flex-direction: column; margin: 0; border-color: rgba(255,255,255,.9); border-radius: 23px; box-shadow: 0 35px 100px rgba(45,39,66,.28); }
 .ledger-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 13px; padding: 19px 21px 17px; background: radial-gradient(circle at 85% 15%, rgb(var(--pfh-accent-rgb) / .12), transparent 32%), linear-gradient(135deg, var(--pfh-panel), var(--pfh-purple-soft)); }
 .ledger-hero-icon { display: grid; width: 39px; height: 39px; place-items: center; border: 1px solid rgb(var(--pfh-accent-rgb) / .12); border-radius: 13px; background: rgb(var(--pfh-accent-rgb) / .12); color: var(--pfh-purple); }

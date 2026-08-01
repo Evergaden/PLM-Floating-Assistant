@@ -1,9 +1,11 @@
-import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react'
+import { Component, StrictMode, type ErrorInfo, type ReactNode, useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { MotionConfig } from 'motion/react'
 import App, { type AppHostActions } from './App'
+import { TodayWorkbench } from './components/TodayWorkbench'
 import { configureLedgerBridge, type LedgerBridgeHost } from './dataBridge'
+import type { LedgerView } from './types'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { ToastProvider } from './components/ToastProvider'
 import tokensCss from './theme/tokens.css?inline'
@@ -12,6 +14,7 @@ import stylesCss from './styles.css?inline'
 export type FrontendV2MountOptions = AppHostActions & {
   storage?: LedgerBridgeHost | null
   shadow?: boolean
+  mode?: 'full' | 'legacy-today'
 }
 
 type FrontendV2Runtime = {
@@ -89,7 +92,7 @@ function renderApp(mountNode: HTMLElement, options: FrontendV2MountOptions) {
           <MotionConfig reducedMotion="user">
             <ThemeProvider>
               <ToastProvider>
-                <App host={options} />
+                {options.mode === 'legacy-today' ? <LegacyTodaySurface host={options} /> : <App host={options} />}
               </ToastProvider>
             </ThemeProvider>
           </MotionConfig>
@@ -98,6 +101,29 @@ function renderApp(mountNode: HTMLElement, options: FrontendV2MountOptions) {
     )
   })
   return root
+}
+
+function LegacyTodaySurface({ host }: { host: FrontendV2MountOptions }) {
+  const [ledgerView, setLedgerView] = useState<LedgerView>(() => host.legacy?.getLedgerView?.() ?? 'design')
+
+  useEffect(() => {
+    const unsubscribe = host.legacy?.subscribeLedgerView?.((nextView) => setLedgerView(nextView))
+    return unsubscribe
+  }, [host.legacy])
+
+  const openProduct = (sku: string) => {
+    if (host.legacy?.openProduct) {
+      host.legacy.openProduct(sku, { tab: '详情', preserveView: true })
+      return
+    }
+    host.onOpenProduct?.(sku)
+  }
+
+  return (
+    <div className="plm-v2-legacy-today-root">
+      <TodayWorkbench onOpenProduct={openProduct} contentOnly externalView={ledgerView} />
+    </div>
+  )
 }
 
 export function mount(container: HTMLElement, options: FrontendV2MountOptions = {}) {
