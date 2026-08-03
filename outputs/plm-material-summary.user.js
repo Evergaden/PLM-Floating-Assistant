@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.105
+// @version      2.6.106
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.105';
+  const SCRIPT_VERSION = '2.6.106';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -22692,7 +22692,7 @@
   }
 
   function sanitizeLedgerRecords(records) {
-    return (Array.isArray(records) ? records : []).slice(0, 1200).map((item) => ({
+    const normalized = (Array.isArray(records) ? records : []).slice(0, 1200).map((item) => ({
       date: normalizeLedgerDate(item.date) || getTodayKey(),
       sku: String(item.sku || '').slice(0, 80),
       brand: cleanName(item.brand || '').slice(0, 120),
@@ -22733,6 +22733,7 @@
       updatedAt: String(item.updatedAt || new Date().toLocaleString()).slice(0, 80),
       updatedAtMs: Number(item.updatedAtMs || 0) || Date.now(),
     })).map(reconcileLedgerFileCompletion).filter((item) => item.sku);
+    return dedupeLedgerRecords(normalized);
   }
 
   function normalizeLedgerFileState(value, doneFallback) {
@@ -22779,6 +22780,137 @@
       return { ...record, status: '已定稿', stage: '已定稿', filesAutoCompleted: false };
     }
     return record;
+  }
+
+  function getLedgerSkuKey(value) {
+    return String(value || '').trim().toUpperCase();
+  }
+
+  function hasLedgerRecordValue(value) {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+    return String(value).trim() !== '';
+  }
+
+  function getLedgerRecordActivityMs(record) {
+    const candidates = [
+      record && record.updatedAtMs,
+      record && record.updatedAt,
+      record && record.finalizedAtMs,
+      record && record.finalizedAt,
+      record && record.createdAtMs,
+      record && record.createdAt,
+      record && record.date,
+    ];
+    for (const candidate of candidates) {
+      const numeric = Number(candidate);
+      if (Number.isFinite(numeric) && numeric > 0) return numeric;
+      const parsed = parseLedgerDateTimeMs(candidate);
+      if (parsed > 0) return parsed;
+    }
+    return 0;
+  }
+
+  function getLedgerRecordFinalizedMs(record) {
+    const numeric = Number(record && record.finalizedAtMs);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    const parsed = parseLedgerDateTimeMs(record && record.finalizedAt);
+    return parsed || getLedgerRecordActivityMs(record);
+  }
+
+  function getLedgerRecordCreatedMs(record) {
+    const numeric = Number(record && record.createdAtMs);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    return parseLedgerDateTimeMs(record && record.createdAt) || getLedgerRecordActivityMs(record);
+  }
+
+  function mergeLedgerFileStates(records, field) {
+    const states = records.map((item) => normalizeLedgerFileState(item && item[field]));
+    if (states.includes('done')) return 'done';
+    if (states.includes('skip')) return 'skip';
+    return 'pending';
+  }
+
+  function mergeLedgerArtworkStates(records) {
+    const states = records.map((item) => normalizeLedgerArtworkState(item && item.artworkState));
+    if (states.includes('done')) return 'done';
+    if (states.includes('doing')) return 'doing';
+    return 'pending';
+  }
+
+  function mergeLedgerRecordGroup(records) {
+    const items = (Array.isArray(records) ? records : []).filter((item) => item && item.sku);
+    if (!items.length) return null;
+    const finalizedItems = items.filter(isLedgerFinalizedRecord);
+    const candidates = (finalizedItems.length ? finalizedItems : items).slice().sort((a, b) => {
+      const timeA = finalizedItems.length ? getLedgerRecordFinalizedMs(a) : getLedgerRecordActivityMs(a);
+      const timeB = finalizedItems.length ? getLedgerRecordFinalizedMs(b) : getLedgerRecordActivityMs(b);
+      return timeB - timeA;
+    });
+    const winner = candidates[0] || items[0];
+    const recentItems = items.slice().sort((a, b) => getLedgerRecordActivityMs(b) - getLedgerRecordActivityMs(a));
+    const merged = { ...winner };
+    [
+      'brand', 'name', 'skuImageUrl', 'benchmarkImageUrl', 'designType', 'artPriority',
+      'referenceUrl', 'developerName', 'developmentAssignedAt', 'performanceGroupId',
+      'packageCode', 'printCode', 'purchasePrice', 'imageGeneratedAt', 'imageGeneratedAtMs',
+    ].forEach((field) => {
+      const source = recentItems.find((item) => hasLedgerRecordValue(item[field]));
+      if (source) merged[field] = source[field];
+    });
+    if (!merged.performanceType) {
+      const extension = recentItems.find((item) => item.performanceType === 'extension');
+      if (extension) merged.performanceType = 'extension';
+    }
+    merged.seriesExcluded = items.some((item) => Boolean(item.seriesExcluded));
+    merged.isToy = items.some((item) => Boolean(item.isToy));
+    merged.boxFileState = mergeLedgerFileStates(items, 'boxFileState');
+    merged.labelFileState = mergeLedgerFileStates(items, 'labelFileState');
+    merged.imagePackState = mergeLedgerFileStates(items, 'imagePackState');
+    merged.artworkState = mergeLedgerArtworkStates(items);
+    merged.boxFileDone = merged.boxFileState === 'done';
+    merged.labelFileDone = merged.labelFileState === 'done';
+    merged.imagePackDone = merged.imagePackState === 'done';
+    if (!hasLedgerRecordValue(merged.note)) {
+      const noteSource = recentItems.find((item) => hasLedgerRecordValue(item.note));
+      if (noteSource) merged.note = noteSource.note;
+    }
+    const oldest = items.slice().sort((a, b) => getLedgerRecordCreatedMs(a) - getLedgerRecordCreatedMs(b))[0];
+    const latest = recentItems[0];
+    if (oldest && hasLedgerRecordValue(oldest.createdAt)) merged.createdAt = oldest.createdAt;
+    if (oldest && hasLedgerRecordValue(oldest.createdAtMs)) merged.createdAtMs = oldest.createdAtMs;
+    if (latest && hasLedgerRecordValue(latest.updatedAt)) merged.updatedAt = latest.updatedAt;
+    if (latest && hasLedgerRecordValue(latest.updatedAtMs)) merged.updatedAtMs = latest.updatedAtMs;
+    return reconcileLedgerFileCompletion(merged);
+  }
+
+  function dedupeLedgerRecords(records) {
+    const groups = new Map();
+    (Array.isArray(records) ? records : []).forEach((record) => {
+      const key = getLedgerSkuKey(record && record.sku);
+      if (!key) return;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(record);
+    });
+    const output = [];
+    groups.forEach((items) => {
+      if (items.some(isLedgerFinalizedRecord)) {
+        const merged = mergeLedgerRecordGroup(items);
+        if (merged) output.push(merged);
+        return;
+      }
+      const months = new Map();
+      items.forEach((item) => {
+        const month = getMonthKeyFromDateKey(item.date);
+        if (!months.has(month)) months.set(month, []);
+        months.get(month).push(item);
+      });
+      months.forEach((monthItems) => {
+        const merged = mergeLedgerRecordGroup(monthItems);
+        if (merged) output.push(merged);
+      });
+    });
+    return output.sort((a, b) => getLedgerRecordActivityMs(b) - getLedgerRecordActivityMs(a)).slice(0, 1200);
   }
 
   function normalizeLedgerStatus(value) {
@@ -22850,7 +22982,12 @@
     const sku = data.sku;
     const dateMonth = getMonthKeyFromDateKey(dateKey);
     if (!opts.allowTrashRestore && isLedgerRecordTrashed(sku, dateKey)) return null;
-    const existing = (state.ledgerRecords || []).find((item) => item.sku === sku && getMonthKeyFromDateKey(item.date) === dateMonth);
+    const existingInMonth = (state.ledgerRecords || []).find((item) => getLedgerSkuKey(item.sku) === getLedgerSkuKey(sku) && getMonthKeyFromDateKey(item.date) === dateMonth);
+    const finalizedExisting = (opts.status === '待定稿' || opts.status === undefined)
+      ? (state.ledgerRecords || []).filter((item) => getLedgerSkuKey(item.sku) === getLedgerSkuKey(sku) && isLedgerFinalizedRecord(item)).sort((a, b) => getLedgerRecordFinalizedMs(b) - getLedgerRecordFinalizedMs(a))[0]
+      : null;
+    const existing = finalizedExisting || existingInMonth;
+    const preserveFinalizedState = Boolean(existing && isLedgerFinalizedRecord(existing) && (opts.status === '待定稿' || opts.status === undefined) && opts.finalizedAt === undefined);
     const imageUrl = getProductThumbUrl(data) || data.skuImageUrl || data.skuImageFallbackUrl || '';
     const next = {
       ...(existing || {}),
@@ -22880,8 +23017,8 @@
       filesAutoCompleted: opts.filesAutoCompleted !== undefined ? Boolean(opts.filesAutoCompleted) : Boolean(existing && existing.filesAutoCompleted),
       performanceType: opts.performanceType !== undefined ? (opts.performanceType === 'extension' ? 'extension' : '') : ((existing && existing.performanceType) || ''),
       seriesExcluded: opts.seriesExcluded !== undefined ? Boolean(opts.seriesExcluded) : (Boolean(existing && existing.seriesExcluded) || Boolean(state.ledgerSeriesExcludedSkus && state.ledgerSeriesExcludedSkus.has(sku))),
-      status: normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
-      stage: opts.stage || (existing && existing.stage) || '待定稿',
+      status: preserveFinalizedState ? normalizeLedgerStatus(existing.status || '已定稿') : normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
+      stage: preserveFinalizedState ? (existing.stage || '已定稿') : (opts.stage || (existing && existing.stage) || '待定稿'),
       note: opts.note !== undefined ? String(opts.note || '') : ((existing && existing.note) || ''),
       imageGeneratedAt: opts.imageGeneratedAt !== undefined ? String(opts.imageGeneratedAt || '') : ((existing && existing.imageGeneratedAt) || ''),
       imageGeneratedAtMs: opts.imageGeneratedAtMs !== undefined ? (Number(opts.imageGeneratedAtMs || 0) || 0) : (Number(existing && existing.imageGeneratedAtMs) || 0),
@@ -22895,7 +23032,7 @@
     };
     const reconciled = reconcileLedgerFileCompletion(next);
     if (opts.skipUnchanged && existing && !hasMeaningfulLedgerRecordChange(existing, reconciled)) return existing;
-    state.ledgerRecords = [reconciled].concat((state.ledgerRecords || []).filter((item) => !(item.sku === sku && getMonthKeyFromDateKey(item.date) === dateMonth))).slice(0, 1200);
+    state.ledgerRecords = [reconciled].concat((state.ledgerRecords || []).filter((item) => !(getLedgerSkuKey(item.sku) === getLedgerSkuKey(sku) && getMonthKeyFromDateKey(item.date) === dateMonth))).slice(0, 1200);
     if (!opts.deferSave) saveDailyLedger();
     return reconciled;
   }
