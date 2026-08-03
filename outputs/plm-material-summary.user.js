@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.99
+// @version      2.6.100
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.99';
+  const SCRIPT_VERSION = '2.6.100';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1569,6 +1569,7 @@
   let magicUploadEtaTimer = 0;
   const magicUploadSharedOssCache = new Map();
   let magicUploadAuthPaused = false;
+  let toyEffectCandidateCache = null;
   const MAGIC_UPLOAD_CATEGORIES = Object.freeze({
     '主图': { rule: '主图', archiveTypeId: 1 },
     '英文参数图': { rule: '英文参数图', archiveTypeId: 1 },
@@ -1592,6 +1593,9 @@
     '推品资料': 'promotion_materials',
   });
   const TOY_EFFECT_MAX_FILES = 3;
+  const TOY_EFFECT_CANDIDATE_CACHE_KEY = 'plm-floating-helper:toy-effect-candidates:v1';
+  const TOY_EFFECT_CANDIDATE_CACHE_TTL_MS = 30 * 60 * 1000;
+  const TOY_EFFECT_CANDIDATE_CACHE_MAX = 3000;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
@@ -17108,7 +17112,90 @@
     }).filter((row) => row.sku && row.name && row.rowId);
   }
 
-  async function collectToyEffectMatchCandidates() {
+  function normalizeToyEffectCandidate(value) {
+    if (!value) return null;
+    const sku = String(value.sku || '').trim().toUpperCase();
+    const name = compactText(value.name || '');
+    if (!sku || !name) return null;
+    return {
+      sku,
+      rowId: String(value.rowId || value.projectRowId || value.projectId || '').trim(),
+      brand: compactText(value.brand || ''),
+      name,
+    };
+  }
+
+  function mergeToyEffectCandidates(...lists) {
+    const bySku = new Map();
+    lists.forEach((list) => {
+      (Array.isArray(list) ? list : []).forEach((value) => {
+        const candidate = normalizeToyEffectCandidate(value);
+        if (!candidate) return;
+        const previous = bySku.get(candidate.sku) || {};
+        bySku.set(candidate.sku, {
+          sku: candidate.sku,
+          rowId: candidate.rowId || previous.rowId || '',
+          brand: candidate.brand || previous.brand || '',
+          name: candidate.name || previous.name || '',
+        });
+      });
+    });
+    return Array.from(bySku.values());
+  }
+
+  function readToyEffectCandidateCache() {
+    if (toyEffectCandidateCache) return toyEffectCandidateCache;
+    let saved = null;
+    try {
+      saved = typeof GM_getValue === 'function'
+        ? GM_getValue(TOY_EFFECT_CANDIDATE_CACHE_KEY, null)
+        : JSON.parse(localStorage.getItem(TOY_EFFECT_CANDIDATE_CACHE_KEY) || 'null');
+    } catch (_) {
+      saved = null;
+    }
+    const updatedAt = Number(saved && saved.updatedAt) || 0;
+    const fresh = updatedAt > 0 && Date.now() - updatedAt <= TOY_EFFECT_CANDIDATE_CACHE_TTL_MS;
+    toyEffectCandidateCache = {
+      updatedAt,
+      candidates: fresh ? mergeToyEffectCandidates(saved && saved.candidates).slice(0, TOY_EFFECT_CANDIDATE_CACHE_MAX) : [],
+    };
+    return toyEffectCandidateCache;
+  }
+
+  function saveToyEffectCandidateCache(candidates) {
+    const payload = {
+      updatedAt: Date.now(),
+      candidates: mergeToyEffectCandidates(candidates).slice(0, TOY_EFFECT_CANDIDATE_CACHE_MAX),
+    };
+    toyEffectCandidateCache = payload;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(TOY_EFFECT_CANDIDATE_CACHE_KEY, payload);
+      else localStorage.setItem(TOY_EFFECT_CANDIDATE_CACHE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('PLM floating helper effect candidate cache save failed:', error);
+    }
+  }
+
+  function getCachedToyEffectCandidates() {
+    const saved = readToyEffectCandidateCache();
+    const indexed = (state.index || []).map(normalizeToyEffectCandidate).filter(Boolean);
+    return mergeToyEffectCandidates(saved.candidates, indexed);
+  }
+
+  function canResolveToyEffectFiles(files, candidates) {
+    if (!Array.isArray(files) || !files.length || !Array.isArray(candidates) || !candidates.length) return false;
+    return files.every((file) => {
+      const resolved = resolveToyEffectFile(file, candidates);
+      return Boolean(resolved && resolved.candidate && !resolved.ambiguous);
+    });
+  }
+
+  async function collectToyEffectMatchCandidates(files) {
+    const cachedCandidates = getCachedToyEffectCandidates();
+    if (canResolveToyEffectFiles(files, cachedCandidates)) {
+      magicUploadLog('info', '效果图使用商品候选缓存', cachedCandidates.length + ' 个候选');
+      return cachedCandidates;
+    }
     let rows = collectProjectNameRows();
     if (!rows.length) {
       const ready = await ensureNewProductProjectPage();
@@ -17122,16 +17209,14 @@
       await wait(250);
       rows = collectProjectNameRows();
     }
-    const bySku = new Map();
+    const indexedCandidates = [];
     (state.index || []).forEach((item) => {
       const data = normalizeData(loadData(item.sku) || item);
-      if (data.sku && data.name) bySku.set(data.sku, { sku: data.sku, rowId: data.projectRowId || data.projectId || '', brand: data.brand || '', name: data.name });
+      if (data.sku && data.name) indexedCandidates.push({ sku: data.sku, rowId: data.projectRowId || data.projectId || '', brand: data.brand || '', name: data.name });
     });
-    rows.forEach((row) => {
-      const previous = bySku.get(row.sku) || {};
-      bySku.set(row.sku, { ...previous, ...row, rowId: row.rowId || previous.rowId || '' });
-    });
-    return Array.from(bySku.values()).filter((row) => row.sku && row.name);
+    const candidates = mergeToyEffectCandidates(cachedCandidates, indexedCandidates, rows).filter((row) => row.sku && row.name);
+    if (rows.length) saveToyEffectCandidateCache(candidates);
+    return candidates;
   }
 
   function resolveToyEffectFile(file, candidates) {
@@ -17210,7 +17295,7 @@
       return;
     }
     try {
-      const candidates = await collectToyEffectMatchCandidates();
+      const candidates = await collectToyEffectMatchCandidates(supported);
       const queue = loadUploadQueue();
       const unmatched = [];
       let added = 0;
