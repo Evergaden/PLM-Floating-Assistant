@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.107
+// @version      2.6.108
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.107';
+  const SCRIPT_VERSION = '2.6.108';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10198,9 +10198,9 @@
         grid-template-columns:132px minmax(0,1fr) 148px!important;
         grid-template-areas:"image content actions"!important;
         align-items:stretch!important;
-        gap:16px!important;
-        min-height:220px!important;
-        padding:18px 20px!important;
+        gap:14px!important;
+        min-height:180px!important;
+        padding:14px 16px!important;
         overflow:visible!important;
         border:1px solid rgba(218,210,245,.82)!important;
         border-radius:20px!important;
@@ -10220,9 +10220,9 @@
         align-self:center!important;
         justify-self:start!important;
         width:132px!important;
-        height:164px!important;
+        height:132px!important;
         min-width:132px!important;
-        min-height:164px!important;
+        min-height:132px!important;
         box-sizing:border-box!important;
         padding:0!important;
         border:0!important;
@@ -10233,7 +10233,7 @@
       #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-frame,
       #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview{
         width:132px!important;
-        height:164px!important;
+        height:132px!important;
         box-sizing:border-box!important;
         border-radius:14px!important;
       }
@@ -10255,7 +10255,7 @@
       }
       #${PANEL_ID} .pfh-sku-detail-card .pfh-product-thumb:hover .pfh-thumb-preview{
         width:220px!important;
-        height:274px!important;
+        height:220px!important;
         opacity:1!important;
         transform:translate3d(0,0,0) scale(1)!important;
       }
@@ -10481,7 +10481,7 @@
         #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb,
         #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb.is-empty,
         #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-frame,
-        #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview{width:100%!important;max-width:180px!important;height:150px!important;min-height:150px!important;}
+        #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview{width:min(100%,180px)!important;max-width:180px!important;height:auto!important;min-height:0!important;aspect-ratio:1 / 1!important;}
         #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb{justify-self:center!important;}
         #${PANEL_ID} .pfh-sku-detail-card > .pfh-detail-card-actions{display:flex!important;align-items:center!important;gap:9px!important;padding:11px 0 0!important;border-top:1px solid rgba(226,219,247,.86)!important;border-left:0!important;}
         #${PANEL_ID} .pfh-detail-view-button{flex:1 1 auto!important;height:40px!important;min-height:40px!important;border-radius:12px!important;font-size:13px!important;}
@@ -10496,6 +10496,98 @@
         #${PANEL_ID} .pfh-detail-card-info{padding-top:9px!important;}
         #${PANEL_ID} .pfh-detail-developer-value,#${PANEL_ID} .pfh-detail-link-value{height:30px!important;min-height:30px!important;font-size:10px!important;line-height:28px!important;}
         #${PANEL_ID} .pfh-detail-link-value{flex-basis:100%!important;}
+      }
+      @media(min-width:761px){
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card{
+        grid-template-columns:94px minmax(0,1fr) 108px!important;
+        grid-template-areas:"image content actions"!important;
+        gap:10px!important;
+        min-height:0!important;
+        padding:12px!important;
+        border-radius:16px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card > .pfh-product-thumb,
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card > .pfh-product-thumb.is-empty{
+        width:94px!important;
+        height:94px!important;
+        min-width:94px!important;
+        min-height:94px!important;
+        border-radius:12px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card .pfh-thumb-frame,
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card .pfh-thumb-preview{
+        width:94px!important;
+        height:94px!important;
+        border-radius:12px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card .pfh-product-thumb:hover .pfh-thumb-preview{
+        width:180px!important;
+        height:180px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card > .pfh-detail-card-content{gap:7px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-heading{gap:5px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-sku-badge{
+        height:27px!important;
+        min-height:27px!important;
+        padding:0 8px!important;
+        gap:5px!important;
+        font-size:11px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-sku-badge .pfh-icon{width:15px!important;height:15px!important;min-width:15px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-sku-badge .pfh-icon svg{width:15px!important;height:15px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-product-title{font-size:18px!important;line-height:1.12!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta{gap:5px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta > span{
+        height:27px!important;
+        min-height:27px!important;
+        padding:0 8px!important;
+        font-size:11px!important;
+        line-height:25px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta .pfh-icon{width:14px!important;height:14px!important;min-width:14px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta .pfh-icon svg{width:14px!important;height:14px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-info{gap:5px!important;padding-top:7px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-developer-value,
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value{
+        height:29px!important;
+        min-height:29px!important;
+        padding:0 8px!important;
+        gap:5px!important;
+        border-radius:9px!important;
+        font-size:11px!important;
+        line-height:27px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value{flex-basis:100%!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value .pfh-icon{width:14px!important;height:14px!important;min-width:14px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value .pfh-icon svg{width:14px!important;height:14px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card > .pfh-detail-card-actions{
+        grid-template-rows:40px auto!important;
+        gap:8px!important;
+        padding-left:10px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-view-button{
+        height:40px!important;
+        min-height:40px!important;
+        padding:0 8px!important;
+        gap:6px!important;
+        border-radius:12px!important;
+        font-size:13px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-view-button > span:last-child{font-size:21px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-secondary-actions{grid-template-columns:minmax(0,1fr) 34px!important;gap:6px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-edit-button,
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-more-button{
+        height:34px!important;
+        min-height:34px!important;
+        padding:0 8px!important;
+        border-radius:10px!important;
+        font-size:11px!important;
+      }
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-edit-button .pfh-icon{width:15px!important;height:15px!important;min-width:15px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-edit-button .pfh-icon svg{width:15px!important;height:15px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-more-button{width:34px!important;min-width:34px!important;padding:0!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-more-dots{gap:2px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-more-dots i{width:3px!important;height:3px!important;}
       }
     `;
     document.documentElement.appendChild(style);
