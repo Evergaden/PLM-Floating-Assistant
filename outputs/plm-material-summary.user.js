@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.114
+// @version      2.6.115
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.114';
+  const SCRIPT_VERSION = '2.6.115';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4004,6 +4004,7 @@
     magicUploadMetrics: loadMagicUploadMetrics(),
     magicUploadHistoryOpen: false,
     magicUploadRunning: false,
+    magicUploadEtaDisplaySeconds: 0,
     magicUploadFileInputOpen: false,
     magicUploadProcessing: false,
     magicUploadProcessingText: '',
@@ -8401,7 +8402,7 @@
       root + '.pfh-magic-progress-line{display:flex;align-items:center;gap:9px;margin-top:11px}',
       root + '.pfh-magic-progress-track{position:relative;height:5px;overflow:hidden;flex:1;border-radius:99px;background:rgba(29,34,50,.09)}',
       root + '.pfh-magic-progress-track:after{content:"";position:absolute;inset:0;width:36%;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.78),transparent 75%);transform:translateX(-120%);animation:pfhMagicProgressSheen 1.8s ease-in-out infinite}',
-      root + '.pfh-magic-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#7657f2 0%,#5dcfc1 100%);box-shadow:0 0 12px rgba(112,86,232,.34);transition:width .35s ease}',
+      root + '.pfh-magic-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#7657f2 0%,#5dcfc1 100%);box-shadow:0 0 12px rgba(112,86,232,.34);transition:width .5s cubic-bezier(.25,.8,.35,1)}',
       root + '.pfh-magic-task-side{display:grid;justify-items:end;gap:8px;color:#7056e8;text-align:right}',
       root + '.pfh-magic-progress-value{min-width:34px;color:#7056e8;font-size:13px;font-weight:950;text-align:right}',
       root + '.pfh-magic-eta{color:#8990a6;font-size:10px;font-weight:650;white-space:nowrap}',
@@ -8563,26 +8564,63 @@
 
   function getMagicUploadThroughput() {
     const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];
-    let rate = 0;
-    samples.forEach((sample) => {
+    const rates = samples.map((sample) => {
       const bytes = Number(sample && sample.bytes) || 0;
       const durationMs = Number(sample && sample.durationMs) || 0;
-      if (!bytes || !durationMs) return;
-      const nextRate = bytes / durationMs;
-      rate = rate ? rate * .75 + nextRate * .25 : nextRate;
-    });
-    return rate;
+      return bytes && durationMs ? bytes / durationMs : 0;
+    }).filter((rate) => Number.isFinite(rate) && rate > 0);
+    if (!rates.length) return 0;
+    const median = (values) => {
+      const sorted = values.slice().sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    };
+    const recent = rates.slice(-12);
+    return median(rates) * .7 + median(recent) * .3;
+  }
+
+  function getMagicUploadTaskByteTotals(task) {
+    const fallbackTotalBytes = (task && task.files || []).reduce((sum, entry) => sum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task && task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
+    const totalBytes = Math.max(0, Number(task && task.totalBytes) || fallbackTotalBytes);
+    const uploadedBytes = Math.min(totalBytes, Math.max(0, Number(task && task.uploadedBytes) || 0));
+    const currentFileSize = Math.max(0, Number(task && task.currentFileSize) || 0);
+    const currentFileProgress = Math.min(1, Math.max(0, Number(task && task.currentFileProgress) || 0));
+    const currentBytes = Math.min(currentFileSize, currentFileSize * currentFileProgress);
+    return { totalBytes, uploadedBytes, currentBytes };
+  }
+
+  function getMagicUploadTaskRemainingBytes(task) {
+    const totals = getMagicUploadTaskByteTotals(task);
+    return Math.max(0, totals.totalBytes - totals.uploadedBytes - totals.currentBytes);
+  }
+
+  function getMagicUploadTaskFileCount(task) {
+    return (task && Array.isArray(task.files) ? task.files.length : 0) + (task && task.zipKey ? 1 : 0);
+  }
+
+  function getMagicUploadTaskDoneFileCount(task) {
+    return (task && Array.isArray(task.files) ? task.files.filter((entry) => entry && entry.status === 'success').length : 0) + (task && task.sourceUploaded ? 1 : 0);
+  }
+
+  function smoothMagicUploadEtaSeconds(previous, target) {
+    const targetSeconds = Math.max(0, Math.round(Number(target) || 0));
+    const previousSeconds = Math.max(0, Math.round(Number(previous) || 0));
+    if (!targetSeconds) return 0;
+    if (!previousSeconds) return targetSeconds;
+    const maxStep = previousSeconds >= 120 ? 8 : (previousSeconds >= 60 ? 6 : 4);
+    const boundedTarget = Math.max(previousSeconds - maxStep, Math.min(previousSeconds + maxStep, targetSeconds));
+    return Math.max(1, Math.round(previousSeconds * .72 + boundedTarget * .28));
   }
 
   function updateMagicUploadTaskEstimate(task) {
     if (!task) return 0;
-    const fallbackTotalBytes = (task.files || []).reduce((sum, entry) => sum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
-    const totalBytes = Math.max(0, Number(task.totalBytes) || fallbackTotalBytes);
-    const currentBytes = Math.max(0, Number(task.currentFileSize) || 0) * Math.min(1, Math.max(0, Number(task.currentFileProgress) || 0));
-    const remainingBytes = Math.max(0, totalBytes - (Number(task.uploadedBytes) || 0) - currentBytes);
+    const totals = getMagicUploadTaskByteTotals(task);
+    const remainingBytes = Math.max(0, totals.totalBytes - totals.uploadedBytes - totals.currentBytes);
     const throughput = getMagicUploadThroughput();
-    task.etaSeconds = throughput > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
-    task.progress = totalBytes > 0 ? Math.min(1, Math.max(0, ((Number(task.uploadedBytes) || 0) + currentBytes) / totalBytes)) : 0;
+    const targetEtaSeconds = throughput > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
+    task.etaTargetSeconds = targetEtaSeconds;
+    task.etaSeconds = smoothMagicUploadEtaSeconds(task.etaSeconds, targetEtaSeconds);
+    task.progress = totals.totalBytes > 0 ? Math.min(1, Math.max(0, (totals.uploadedBytes + totals.currentBytes) / totals.totalBytes)) : 0;
     return task.etaSeconds;
   }
 
@@ -8591,10 +8629,7 @@
     if (throughput <= 0) return 0;
     const remainingBytes = (state.magicUploadQueue || []).reduce((sum, task) => {
       if (!task || task.status === 'success' || task.status === 'waiting') return sum;
-      const fallbackTotalBytes = (task.files || []).reduce((fileSum, entry) => fileSum + Math.max(0, Number(entry && entry.size) || 0), 0) + (task.zipKey ? Math.max(0, Number(task.sourceSize) || 0) : 0);
-      const totalBytes = Math.max(0, Number(task.totalBytes) || fallbackTotalBytes);
-      const currentBytes = Math.max(0, Number(task.currentFileSize) || 0) * Math.min(1, Math.max(0, Number(task.currentFileProgress) || 0));
-      return sum + Math.max(0, totalBytes - (Number(task.uploadedBytes) || 0) - currentBytes);
+      return sum + getMagicUploadTaskRemainingBytes(task);
     }, 0);
     return remainingBytes > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
   }
@@ -8604,8 +8639,11 @@
     const panel = document.getElementById(PANEL_ID);
     const eta = panel && panel.querySelector('[data-magic-overall-eta]');
     if (!eta) return;
-    const seconds = getMagicUploadQueueEtaSeconds();
     const hasWork = (state.magicUploadQueue || []).some((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
+    const targetSeconds = getMagicUploadQueueEtaSeconds();
+    if (targetSeconds > 0) state.magicUploadEtaDisplaySeconds = smoothMagicUploadEtaSeconds(state.magicUploadEtaDisplaySeconds, targetSeconds);
+    else if (!hasWork || !state.magicUploadRunning) state.magicUploadEtaDisplaySeconds = 0;
+    const seconds = Math.max(0, Number(state.magicUploadEtaDisplaySeconds) || 0);
     eta.textContent = seconds ? formatMagicUploadDuration(seconds) : (state.magicUploadRunning && hasWork ? '正在建立估算' : '--');
   }
 
@@ -9218,13 +9256,15 @@
     const pendingCount = queue.filter((task) => task.status === 'pending' || task.status === 'error').length;
     const history = Array.isArray(state.magicUploadHistory) ? state.magicUploadHistory : [];
     const historyOpen = Boolean(state.magicUploadHistoryOpen);
-    const totalFiles = queue.reduce((sum, task) => sum + (Array.isArray(task.files) ? task.files.length : 0), 0);
-    const doneFiles = queue.reduce((sum, task) => sum + (Array.isArray(task.files) ? task.files.filter((entry) => entry.status === 'success').length : 0), 0);
+    const totalFiles = queue.reduce((sum, task) => sum + getMagicUploadTaskFileCount(task), 0);
+    const doneFiles = queue.reduce((sum, task) => sum + getMagicUploadTaskDoneFileCount(task), 0);
     const activeCount = queue.filter((task) => task.status === 'processing').length;
     const waitingCount = queue.filter((task) => task.status === 'waiting').length;
     const errorCount = queue.filter((task) => task.status === 'error').length;
     const successCount = queue.filter((task) => task.status === 'success').length;
-    const etaSeconds = queue.reduce((sum, task) => sum + Math.max(0, Number(task.etaSeconds) || 0), 0);
+    const etaWork = queue.filter((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
+    const queuedEtaSeconds = etaWork.reduce((sum, task) => sum + Math.max(0, Number(task.etaSeconds) || 0), 0);
+    const etaSeconds = Math.max(0, Number(state.magicUploadEtaDisplaySeconds) || 0) || queuedEtaSeconds;
     const recentTasks = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error' || task.status === 'waiting').slice(0, 3);
     const rows = queue.length ? queue.map((task) => {
       const unknown = task.files.filter((entry) => entry.category === '待确认').length;
@@ -9237,7 +9277,9 @@
       const replacementBadge = replacementStatus === 'checking' ? '<span class="pfh-magic-file-badge is-checking">检查现有图</span>' : (replacementCategories.length ? '<span class="pfh-magic-file-badge is-replace">替换任务</span>' : '');
       const replacementSummary = magicUploadReplacementSummary(task);
       const taskEta = task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : (running ? '正在建立估算' : '--'));
-      return '<article class="pfh-magic-task ' + (replacementCategories.length ? 'is-replace ' : '') + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge">' + task.files.length + ' 个文件</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(replacementSummary) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + escapeHtml(taskEta) + '</span><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+      const taskFileCount = getMagicUploadTaskFileCount(task);
+      const taskFileTitle = task.zipKey ? '含待上传的原始 ZIP' : '';
+      return '<article class="pfh-magic-task ' + (replacementCategories.length ? 'is-replace ' : '') + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge" title="' + escapeHtml(taskFileTitle) + '">' + taskFileCount + ' 个文件</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(replacementSummary) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + escapeHtml(taskEta) + '</span><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + iconHtml('history') + ' 上传历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section></div>' : '';
     const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
@@ -9403,6 +9445,7 @@
     }
     magicUploadAuthPaused = false;
     state.magicUploadRunning = true;
+    state.magicUploadEtaDisplaySeconds = 0;
     if (!magicUploadEtaTimer) magicUploadEtaTimer = window.setInterval(updateMagicUploadEtaDisplay, 1000);
     const attemptedTaskIds = new Set();
     const runner = async () => {
@@ -9477,6 +9520,7 @@
         await Promise.all(workers);
       } finally {
         state.magicUploadRunning = false;
+        state.magicUploadEtaDisplaySeconds = 0;
         if (magicUploadEtaTimer) {
           window.clearInterval(magicUploadEtaTimer);
           magicUploadEtaTimer = 0;
@@ -9766,10 +9810,12 @@
     updateMagicUploadProgress(task);
     const entries = (task.files || []).filter((entry) => entry.status !== 'success');
     if (entries.some((entry) => entry.category === '待确认' || !entry.archiveTypeId)) throw new Error('存在待确认文件分类');
+    const totalUploadItems = (task.files || []).length + (task.zipKey ? 1 : 0);
+    let completedUploadItems = (task.files || []).filter((entry) => entry.status === 'success').length + (task.sourceUploaded ? 1 : 0);
     for (let index = 0; index < entries.length; index += 1) {
       if (!state.magicUploadRunning) throw new Error('已暂停');
       const entry = entries[index];
-      task.step = '上传素材 ' + (index + 1) + '/' + entries.length;
+      task.step = '上传文件 ' + (completedUploadItems + 1) + '/' + totalUploadItems;
       task.currentFileName = entry.name;
       task.currentFileSize = Number(entry.size) || 0;
       task.currentFileProgress = 0;
@@ -9782,6 +9828,12 @@
         await uploadMagicUploadFile(task, entry, file, productContext);
         entry.status = 'success';
         entry.error = '';
+        task.uploadedBytes = (Number(task.uploadedBytes) || 0) + Math.max(0, Number(entry.size) || 0);
+        completedUploadItems += 1;
+        task.currentFileName = '';
+        task.currentFileSize = 0;
+        task.currentFileProgress = 0;
+        updateMagicUploadProgress(task);
       } catch (error) {
         entry.status = 'error';
         entry.error = formatErrorMessage(error);
@@ -9789,8 +9841,8 @@
       }
     }
     if (!state.magicUploadRunning) throw new Error('已暂停');
-      if (task.zipKey && !task.sourceUploaded) {
-      task.step = '保留原始 ZIP';
+    if (task.zipKey && !task.sourceUploaded) {
+      task.step = '上传原始 ZIP（' + (completedUploadItems + 1) + '/' + totalUploadItems + '）';
       const zipFile = await getUploadFile(task.zipKey);
       if (zipFile) {
         const zipEntry = { name: task.zipName, category: '图包素材', archiveTypeId: 7, status: 'processing', key: task.zipKey };
@@ -9802,6 +9854,8 @@
         task.sourceGeneratedName = zipEntry.generatedName || '';
         task.sourceFileVersionId = zipEntry.fileVersionId || '';
         task.sourceUploaded = true;
+        task.uploadedBytes = (Number(task.uploadedBytes) || 0) + Math.max(0, Number(zipFile.size) || Number(task.sourceSize) || 0);
+        completedUploadItems += 1;
       }
     }
     task.currentFileName = '';
@@ -9893,7 +9947,6 @@
     entry.fileVersionId = String(fileVersionId);
     entry.fileId = String(record.file_id || record.archive_file_id || '');
     task.currentFileProgress = 1;
-    task.uploadedBytes = (Number(task.uploadedBytes) || 0) + entry.size;
     recordMagicUploadMetric(task, entry, Date.now() - uploadStartedAt);
     updateMagicUploadTaskEstimate(task);
     magicUploadLog('info', '文件归档完成，待保存商品草稿', task.sku + ' | ' + category + ' | file_version_id=' + entry.fileVersionId + ' | ' + generatedName);
