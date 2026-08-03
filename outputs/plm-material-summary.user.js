@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.94
+// @version      2.6.95
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.94';
+  const SCRIPT_VERSION = '2.6.95';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4913,15 +4913,13 @@
 
         const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
         if (!attachmentFiles) return;
-        if (attachmentFiles.copywritingFile) {
-          await hydrateCopywritingForSku(sku, {
-            silent: true,
-            drawer,
-            file: attachmentFiles.copywritingFile,
-          });
-        } else {
-          addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
-        }
+        const copywritingData = await hydrateCopywritingForSku(sku, {
+          silent: true,
+          drawer,
+          file: attachmentFiles.copywritingFile || undefined,
+        });
+        const copywritingRecord = normalizeCopywritingRecord(copywritingData && copywritingData.copywriting);
+        if (!copywritingRecord || !copywritingRecord.fullText) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
         const ingredientData = await hydrateIngredientPdfForSku(sku, {
           silent: true,
           drawer,
@@ -23174,6 +23172,219 @@
     };
   }
 
+  function compactBackupText(value, limit) {
+    const maxLength = Number(limit) > 0 ? Number(limit) : 240;
+    return String(value === undefined || value === null ? '' : value).slice(0, maxLength);
+  }
+
+  function buildCompactBackupIndex(index) {
+    return (Array.isArray(index) ? index : []).slice(0, 2000).map((item) => {
+      const source = item && typeof item === 'object' ? item : { sku: item };
+      return {
+        sku: compactBackupText(source.sku || source.code, 80),
+        brand: compactBackupText(source.brand, 120),
+        name: compactBackupText(source.name || source.productName, 220),
+        packageCode: compactBackupText(source.packageCode, 120),
+        printCode: compactBackupText(source.printCode, 180),
+        designAssignedAt: compactBackupText(source.designAssignedAt, 80),
+        pinned: Boolean(source.pinned),
+        pinOrder: Number(source.pinOrder || 0) || 0,
+        updatedAt: compactBackupText(source.updatedAt, 80),
+        updatedAtMs: Number(source.updatedAtMs || 0) || 0,
+      };
+    }).filter((item) => item.sku);
+  }
+
+  function buildMinimalCopywritingBackup(record) {
+    const source = normalizeCopywritingRecord(record);
+    if (!source) return null;
+    return {
+      fileName: compactBackupText(source.fileName, 180),
+      parserVersion: compactBackupText(source.parserVersion, 30),
+      fileTimestamp: compactBackupText(source.fileTimestamp, 24),
+      fileHash: compactBackupText(source.fileHash, 80),
+      fetchedAt: compactBackupText(source.fetchedAt, 60),
+      lastCheckedAtMs: Number(source.lastCheckedAtMs || 0) || 0,
+      fullText: compactBackupText(source.fullText, 2400),
+      sections: (source.sections || []).slice(0, 8).map((section) => ({
+        key: compactBackupText(section.key, 60),
+        label: compactBackupText(section.label, 100),
+        text: compactBackupText(section.text, 450),
+      })).filter((section) => section.key && section.text),
+      ingredientEnglish: compactBackupText(source.ingredientEnglish, 1600),
+      ingredientChinese: compactBackupText(source.ingredientChinese, 1600),
+      cleanedIngredientEnglish: compactBackupText(source.cleanedIngredientEnglish, 1600),
+      cleanedIngredientChinese: compactBackupText(source.cleanedIngredientChinese, 1600),
+      ingredientSplit: Boolean(source.ingredientSplit),
+      missingSections: (source.missingSections || []).slice(0, 12).map((item) => compactBackupText(item, 80)).filter(Boolean),
+      updatePending: Boolean(source.updatePending),
+      changedSectionKeys: (source.changedSectionKeys || []).slice(0, 12).map((item) => compactBackupText(item, 60)).filter(Boolean),
+      removedSections: (source.removedSections || []).slice(0, 12).map((item) => compactBackupText(item, 80)).filter(Boolean),
+      previousSections: [],
+      copiedSectionKeys: (source.copiedSectionKeys || []).slice(0, 20).map((item) => compactBackupText(item, 60)).filter(Boolean),
+      copiedFullText: Boolean(source.copiedFullText),
+    };
+  }
+
+  const MINIMAL_BACKUP_ITEM_FIELDS = [
+    'sku', 'brand', 'name', 'englishName', 'manualCategory', 'category', 'productType', 'aiCategory', 'aiProductType',
+    'developerText', 'developerName', 'projectStatus', 'projectId', 'projectRowId', 'projectVersionId', 'apiMaterialSource',
+    'designType', 'artPriority', 'designAssignedAt', 'developmentAssignedAt', 'referenceUrl',
+    'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums',
+    'printSizeText', 'printSizeLabel', 'printCode',
+    'tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey', 'isTubePrintMaterial',
+    'productNums', 'plmProductNums', 'bottleNums', 'singleBottle', 'hasInnerCard', 'productSizeSource', 'omitEstimatedProductSize',
+    'netContent', 'grossWeight', 'purchasePrice', 'packageSource', 'materialDimensionUnitIssues',
+    'plmIngredientText', 'plmIngredientEnglishText', 'plmIngredientParserVersion', 'plmIngredientCheckedAt',
+    'ingredientEnglish', 'ingredientChinese', 'copywritingIngredientEnglish', 'copywritingIngredientChinese', 'copywritingIngredientSplit',
+    'ingredientWordFileName', 'ingredientWordHash', 'ingredientWordUpdatedAt',
+    'ingredientPdfFileName', 'ingredientPdfHash', 'ingredientPdfModel', 'ingredientPdfUpdatedAt', 'ingredientNormalizerVersion', 'ingredientSource',
+    'seenProject', 'seenMaterial', 'seenProduct', 'seenDesign', 'isToy', 'seriesExcluded', 'updatedAt', 'updatedAtMs',
+  ];
+
+  function buildMinimalCacheItem(item, sku) {
+    const source = item && typeof item === 'object' ? item : {};
+    const compact = {};
+    MINIMAL_BACKUP_ITEM_FIELDS.forEach((key) => {
+      const value = source[key];
+      if (value === undefined || value === null || value === '') return;
+      if (key === 'materialDimensionUnitIssues') {
+        const issues = value && typeof value === 'object' ? value : {};
+        compact[key] = {
+          package: issues.package ? { unit: 'm', raw: compactBackupText(issues.package.raw, 120) } : null,
+          print: issues.print ? { unit: 'm', raw: compactBackupText(issues.print.raw, 120) } : null,
+        };
+      } else if (Array.isArray(value)) {
+        compact[key] = value.slice(0, 12).map((entry) => typeof entry === 'number' ? entry : compactBackupText(entry, 120));
+      } else if (typeof value === 'string') {
+        compact[key] = compactBackupText(value, /ingredient/i.test(key) ? 1800 : (key === 'referenceUrl' ? 600 : 400));
+      } else {
+        compact[key] = value;
+      }
+    });
+    compact.sku = compactBackupText(source.sku || sku, 80);
+    if (source.copywriting) compact.copywriting = buildMinimalCopywritingBackup(source.copywriting);
+    if (Array.isArray(source.ingredientItems)) {
+      compact.ingredientItems = source.ingredientItems.slice(0, 20).map((itemValue) => {
+        const entry = itemValue && typeof itemValue === 'object' ? itemValue : { value: itemValue };
+        return {
+          name: compactBackupText(entry.name || entry.label || entry.ingredient || entry.ingredientName, 120),
+          english: compactBackupText(entry.english || entry.en || entry.englishName, 300),
+          chinese: compactBackupText(entry.chinese || entry.zh || entry.chineseName, 300),
+          amount: compactBackupText(entry.amount || entry.content || entry.quantity, 120),
+          value: compactBackupText(entry.value || entry.text, 400),
+        };
+      }).filter((itemValue) => Object.values(itemValue).some(Boolean));
+    }
+    return compact;
+  }
+
+  function buildMinimalUploadRecords(records) {
+    const fields = [
+      ['id', 120], ['sku', 80], ['name', 180], ['kind', 40], ['mode', 40], ['sourceName', 180],
+      ['xlsxName', 180], ['zipName', 180], ['status', 80], ['step', 160], ['error', 220],
+      ['createdAt', 80], ['updatedAt', 80], ['finishedAt', 80],
+    ];
+    return (Array.isArray(records) ? records : []).slice(0, 60).map((record) => {
+      const source = record && typeof record === 'object' ? record : {};
+      const compact = {};
+      fields.forEach(([key, limit]) => {
+        const value = source[key];
+        if (value === undefined || value === null || value === '') return;
+        compact[key] = typeof value === 'number' || typeof value === 'boolean' ? value : compactBackupText(value, limit);
+      });
+      ['fileCount', 'successCount', 'failedCount'].forEach((key) => {
+        if (source[key] !== undefined && source[key] !== null) compact[key] = Number(source[key]) || 0;
+      });
+      return compact;
+    }).filter((record) => record.id || record.sku);
+  }
+
+  function stripMinimalBackupLedgerLinks(record) {
+    const compact = { ...record };
+    delete compact.skuImageUrl;
+    delete compact.benchmarkImageUrl;
+    delete compact.referenceUrl;
+    return compact;
+  }
+
+  function buildMinimalLedgerRecords(records) {
+    return sanitizeLedgerRecords(records).slice(0, 360).map(stripMinimalBackupLedgerLinks);
+  }
+
+  function buildMinimalLedgerTrashRecords(records) {
+    return sanitizeLedgerTrashRecords(records).slice(0, 360).map(stripMinimalBackupLedgerLinks);
+  }
+
+  function buildMinimalCachePayload(fullPayload) {
+    const source = fullPayload || buildCachePayload();
+    const compactIndex = buildCompactBackupIndex(source.index);
+    const indexedSkus = new Set(compactIndex.map((item) => item.sku));
+    const items = {};
+    let itemCount = 0;
+    Object.keys(source.items || {}).forEach((sku) => {
+      if (indexedSkus.size && !indexedSkus.has(String(sku))) return;
+      if (itemCount >= 2000) return;
+      const item = source.items[sku];
+      if (!item || typeof item !== 'object') return;
+      items[sku] = buildMinimalCacheItem(item, sku);
+      itemCount += 1;
+    });
+    const uploadRecords = source.uploadRecords || {};
+    const insights = sanitizeInsights(source.insights || emptyInsights());
+    insights.priceHistory = insights.priceHistory.slice(0, 120);
+    insights.dataIssues = insights.dataIssues.slice(0, 120);
+    return {
+      plugin: source.plugin || L.title,
+      version: source.version || SCRIPT_VERSION,
+      exportedAt: source.exportedAt || new Date().toLocaleString(),
+      backupOwnerName: source.backupOwnerName || '',
+      backupMode: 'minimal-v1',
+      includesImageLinks: false,
+      index: compactIndex,
+      items,
+      uploadRecords: {
+        queue: buildMinimalUploadRecords(uploadRecords.queue),
+        history: buildMinimalUploadRecords(uploadRecords.history),
+      },
+      dailyLedger: buildMinimalLedgerRecords(source.dailyLedger),
+      dailyLedgerTrash: buildMinimalLedgerTrashRecords(source.dailyLedgerTrash),
+      insights,
+    };
+  }
+
+  function buildIndexOnlyCachePayload(fullPayload) {
+    const source = fullPayload || buildCachePayload();
+    const compactIndex = buildCompactBackupIndex(source.index);
+    const items = {};
+    compactIndex.forEach((item) => {
+      items[item.sku] = {
+        sku: item.sku,
+        brand: item.brand,
+        name: item.name,
+        packageCode: item.packageCode,
+        printCode: item.printCode,
+        designAssignedAt: item.designAssignedAt,
+        updatedAt: item.updatedAt,
+        updatedAtMs: item.updatedAtMs,
+      };
+    });
+    return {
+      plugin: source.plugin || L.title,
+      version: source.version || SCRIPT_VERSION,
+      exportedAt: source.exportedAt || new Date().toLocaleString(),
+      backupOwnerName: source.backupOwnerName || '',
+      backupMode: 'index-only-v1',
+      includesImageLinks: false,
+      index: compactIndex,
+      items,
+      uploadRecords: { queue: [], history: [] },
+      dailyLedger: [],
+      dailyLedgerTrash: [],
+      insights: emptyInsights(),
+    };
+  }
+
   async function encodeCloudBackupPayload(payload) {
     const serialized = JSON.stringify(payload);
     if (serialized.length < 400000 || typeof CompressionStream !== 'function') return payload;
@@ -23403,20 +23614,33 @@
           payload: await encodeCloudBackupPayload(value),
         },
       });
-      let compactRetry = false;
+      const backupAttempts = [
+        { label: '\u5b8c\u6574', build: () => payload },
+        { label: '\u7cbe\u7b80', build: () => buildCompactCachePayload(payload) },
+        { label: '\u8d85\u7cbe\u7b80', build: () => buildMinimalCachePayload(payload) },
+        { label: '\u7d22\u5f15', build: () => buildIndexOnlyCachePayload(payload) },
+      ];
       let response;
-      try {
-        response = await uploadPayload(payload);
-      } catch (error) {
-        const cloudData = error && error.cloudData ? error.cloudData : {};
-        if (cloudData.error !== 'payload too large' && !(error && error.message === 'payload too large')) throw error;
-        compactRetry = true;
-        addLog('warn', '\u4e91\u5907\u4efd\u5b8c\u6574\u5feb\u7167\u8d85\u9650\uff0c\u6539\u7528\u7cbe\u7b80\u5feb\u7167\u91cd\u8bd5', state.index.length + ' \u4e2a\u7f16\u7801');
-        response = await uploadPayload(buildCompactCachePayload(payload));
+      let uploadedMode = '';
+      for (let attemptIndex = 0; attemptIndex < backupAttempts.length; attemptIndex += 1) {
+        const attempt = backupAttempts[attemptIndex];
+        if (attemptIndex > 0) {
+          addLog('warn', '\u4e91\u5907\u4efd' + backupAttempts[attemptIndex - 1].label + '\u5feb\u7167\u8d85\u9650\uff0c\u6539\u7528' + attempt.label + '\u5feb\u7167\u91cd\u8bd5', state.index.length + ' \u4e2a\u7f16\u7801');
+        }
+        try {
+          response = await uploadPayload(attempt.build());
+          uploadedMode = attempt.label;
+          break;
+        } catch (error) {
+          const cloudData = error && error.cloudData ? error.cloudData : {};
+          const tooLarge = cloudData.error === 'payload too large' || (error && error.message === 'payload too large');
+          if (!tooLarge || attemptIndex === backupAttempts.length - 1) throw error;
+        }
       }
       if (!response || !response.ok) throw new Error(response && response.error ? response.error : 'save failed');
-      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + (compactRetry ? '\uff08\u7cbe\u7b80\uff09' : ''));
-      addLog('success', compactRetry ? '\u4e91\u5907\u4efd\u7cbe\u7b80\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');
+      const downgraded = uploadedMode && uploadedMode !== '\u5b8c\u6574';
+      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + (downgraded ? '\uff08' + uploadedMode + '\uff09' : ''));
+      addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {
@@ -23439,7 +23663,7 @@
       return '\u8be5\u5907\u4efd\u5bc6\u94a5\u5df2\u7ed1\u5b9a\u300c' + ownerName + '\u300d' + (currentName ? '\uff0c\u5f53\u524d PLM \u7528\u6237\u4e3a\u300c' + currentName + '\u300d' : '') + '\uff0c\u5df2\u963b\u6b62\u8986\u76d6';
     }
     if (cloudData.error === 'payload too large' || (error && error.message === 'payload too large')) {
-      return '\u4e91\u5907\u4efd\u538b\u7f29\u540e\u4ecd\u8d85\u8fc7\u4e0a\u9650';
+      return '\u4e91\u5907\u4efd\u5206\u7ea7\u5feb\u7167\u5747\u8d85\u8fc7\u4e0a\u9650';
     }
     return error && error.message ? error.message : '\u672a\u77e5\u9519\u8bef';
   }
@@ -24582,7 +24806,14 @@
     } catch (error) {
       console.warn('PLM floating helper index save failed:', error);
     }
-    notifyFrontendV2CatalogChanged();
+    const notifyFrontendCatalogChanged = typeof window !== 'undefined' && window.notifyFrontendV2CatalogChanged;
+    if (typeof notifyFrontendCatalogChanged === 'function') {
+      try {
+        notifyFrontendCatalogChanged();
+      } catch (error) {
+        console.warn('PLM floating helper frontend catalog notification failed:', error);
+      }
+    }
   }
 
   function loadSettings() {
