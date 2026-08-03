@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.96
+// @version      2.6.97
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.96';
+  const SCRIPT_VERSION = '2.6.97';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8290,7 +8290,7 @@
       root + '.pfh-magic-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgba(26,35,68,.08);font-size:9px}',
       root + '.pfh-magic-history-item strong{display:block;color:#1d2232;font-size:10px}',
       root + '.pfh-magic-history-item span{display:block;margin-top:2px;overflow:hidden;color:#8990a6;text-overflow:ellipsis;white-space:nowrap}',
-      root + '.pfh-magic-history-modal{position:absolute;z-index:30;inset:0;display:grid;place-items:center;padding:18px;background:rgba(21,26,46,.18);backdrop-filter:blur(10px)}',
+      root + '.pfh-magic-history-modal{position:absolute;z-index:30;inset:6px;display:grid;place-items:center;padding:18px;border:1px solid rgba(255,255,255,.48);border-radius:28px;overflow:hidden;background:rgba(21,26,46,.14);backdrop-filter:blur(13px) saturate(1.08);-webkit-backdrop-filter:blur(13px) saturate(1.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(21,26,46,.06)}',
       root + '.pfh-magic-history-dialog{width:min(100%,520px);max-height:76%;overflow:hidden;border:1px solid rgba(26,35,68,.1);border-radius:24px;background:rgba(255,255,255,.96);box-shadow:0 24px 70px rgba(45,37,100,.22)}',
       root + '.pfh-magic-history-dialog header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 17px;border-bottom:1px solid rgba(26,35,68,.08);color:#1d2232;font-size:13px;font-weight:900}',
       root + '.pfh-magic-history-dialog header button{width:30px;height:30px;border:0;border-radius:11px;background:rgba(29,34,50,.07);color:#7056e8;cursor:pointer}',
