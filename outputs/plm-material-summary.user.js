@@ -9954,7 +9954,6 @@
   function renderLedger(panel) {
     ensureContinuousListScrollStyles();
     ensureLedgerInteractionStyles();
-    ensureLedgerCardStyles();
     const list = panel.querySelector('.pfh-list');
     const detail = panel.querySelector('.pfh-detail');
     const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
@@ -9965,7 +9964,6 @@
   }
 
   function renderLedgerTabContent(panel) {
-    ensureLedgerCardStyles();
     const detail = panel && panel.querySelector('.pfh-detail');
     const page = detail && detail.querySelector('.pfh-ledger-page');
     const tabs = page && page.querySelector('.pfh-ledger-tabs');
@@ -10134,445 +10132,6 @@
     document.documentElement.appendChild(style);
   }
 
-  function ensureLedgerCardStyles() {
-    const styleId = PANEL_ID + '-ledger-card-styles';
-    if (document.getElementById(styleId)) return;
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash),
-      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash){
-        display:grid!important;
-        grid-template-columns:112px minmax(0,1fr) minmax(150px,180px)!important;
-        grid-template-areas:"thumb main side"!important;
-        align-items:stretch!important;
-        gap:18px!important;
-        min-height:188px!important;
-        padding:18px 20px!important;
-        overflow:visible!important;
-        border:1px solid rgba(218,210,245,.82)!important;
-        border-radius:20px!important;
-        background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(250,248,255,.88))!important;
-        box-shadow:0 14px 34px rgba(69,52,130,.08),inset 0 1px 0 rgba(255,255,255,.96)!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash):hover{
-        border-color:rgba(139,92,246,.34)!important;
-        background:linear-gradient(135deg,#fff,#faf7ff)!important;
-        box-shadow:0 18px 38px rgba(87,64,160,.13),inset 0 1px 0 #fff!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb,
-      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb{
-        grid-area:thumb!important;
-        align-self:center!important;
-        justify-self:start!important;
-        width:112px!important;
-        height:132px!important;
-        min-width:112px!important;
-        min-height:132px!important;
-        box-sizing:border-box!important;
-        padding:0!important;
-        overflow:hidden!important;
-        border:1px solid rgba(211,204,255,.54)!important;
-        border-radius:14px!important;
-        background:#fff!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb img{
-        display:block!important;
-        width:100%!important;
-        height:100%!important;
-        margin:0!important;
-        object-fit:contain!important;
-        object-position:center center!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb-empty{
-        display:grid!important;
-        place-items:center!important;
-        width:100%!important;
-        height:100%!important;
-        color:#8b5cf6!important;
-        background:#fff!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb-empty .pfh-icon{
-        width:28px!important;
-        height:28px!important;
-        color:currentColor!important;
-        opacity:.72!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-main,
-      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-main{
-        grid-area:main!important;
-        display:grid!important;
-        grid-template-columns:minmax(0,1fr)!important;
-        grid-template-rows:auto auto auto auto minmax(0,1fr)!important;
-        align-content:start!important;
-        gap:10px!important;
-        min-width:0!important;
-        overflow:visible!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-title-row{
-        display:flex!important;
-        align-items:flex-start!important;
-        justify-content:space-between!important;
-        gap:12px!important;
-        min-width:0!important;
-      }
-      #${PANEL_ID} .pfh-ledger-title-stack{
-        display:grid!important;
-        gap:8px!important;
-        min-width:0!important;
-      }
-      #${PANEL_ID} .pfh-ledger-sku-badge{
-        display:inline-flex!important;
-        align-items:center!important;
-        gap:7px!important;
-        width:max-content!important;
-        max-width:100%!important;
-        min-width:0!important;
-        height:32px!important;
-        min-height:32px!important;
-        box-sizing:border-box!important;
-        padding:0 12px!important;
-        overflow:hidden!important;
-        border:1px solid rgba(139,92,246,.18)!important;
-        border-radius:999px!important;
-        background:linear-gradient(135deg,rgba(250,246,255,.98),rgba(246,240,255,.88))!important;
-        color:#7650c8!important;
-        font-size:13px!important;
-        font-weight:750!important;
-        line-height:1!important;
-        text-overflow:ellipsis!important;
-        white-space:nowrap!important;
-        cursor:copy!important;
-      }
-      #${PANEL_ID} .pfh-ledger-sku-badge:hover{
-        border-color:rgba(124,58,237,.42)!important;
-        background:#f2ecff!important;
-        color:#6030cf!important;
-      }
-      #${PANEL_ID} .pfh-ledger-sku-badge .pfh-icon{
-        display:inline-flex!important;
-        flex:0 0 17px!important;
-        width:17px!important;
-        height:17px!important;
-        min-width:17px!important;
-        min-height:17px!important;
-        padding:0!important;
-        border:0!important;
-        background:transparent!important;
-        color:currentColor!important;
-      }
-      #${PANEL_ID} .pfh-ledger-sku-badge .pfh-icon svg{width:17px!important;height:17px!important;}
-      #${PANEL_ID} .pfh-ledger-title-stack .pfh-ledger-title{
-        display:block!important;
-        min-width:0!important;
-        padding:0!important;
-        border:0!important;
-        background:transparent!important;
-        color:inherit!important;
-        text-align:left!important;
-        cursor:pointer!important;
-      }
-      #${PANEL_ID} .pfh-ledger-title-stack .pfh-ledger-title b{
-        display:-webkit-box!important;
-        max-width:100%!important;
-        overflow:hidden!important;
-        color:#17153f!important;
-        font-size:22px!important;
-        font-weight:720!important;
-        line-height:1.18!important;
-        letter-spacing:-.02em!important;
-        text-overflow:ellipsis!important;
-        -webkit-line-clamp:2!important;
-        -webkit-box-orient:vertical!important;
-        white-space:normal!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-status,
-      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-status{
-        flex:0 0 auto!important;
-        align-self:flex-start!important;
-        height:30px!important;
-        min-height:30px!important;
-        box-sizing:border-box!important;
-        padding:0 11px!important;
-        border:1px solid rgba(139,92,246,.18)!important;
-        border-radius:999px!important;
-        background:#f3efff!important;
-        color:#6d35e8!important;
-        font-size:11px!important;
-        font-weight:650!important;
-        line-height:28px!important;
-        white-space:nowrap!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-status.is-done{background:#ecfdf3!important;color:#15803d!important;border-color:#b7ebc9!important;}
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-status.is-error{background:#fff1f2!important;color:#b42318!important;border-color:#fecdd3!important;}
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-status.is-void{background:#f1f3f6!important;color:#64748b!important;border-color:#d6dae3!important;}
-      #${PANEL_ID} .pfh-ledger-meta{
-        display:flex!important;
-        align-items:center!important;
-        flex-wrap:wrap!important;
-        gap:8px!important;
-        min-width:0!important;
-      }
-      #${PANEL_ID} .pfh-ledger-meta > span{
-        display:inline-flex!important;
-        align-items:center!important;
-        gap:6px!important;
-        min-width:0!important;
-        max-width:100%!important;
-        height:32px!important;
-        min-height:32px!important;
-        box-sizing:border-box!important;
-        padding:0 11px!important;
-        overflow:hidden!important;
-        border:1px solid rgba(211,204,255,.40)!important;
-        border-radius:999px!important;
-        background:rgba(250,248,255,.88)!important;
-        color:#6d638c!important;
-        font-size:12px!important;
-        line-height:30px!important;
-        white-space:nowrap!important;
-      }
-      #${PANEL_ID} .pfh-ledger-meta > span > span:last-child{
-        min-width:0!important;
-        overflow:hidden!important;
-        text-overflow:ellipsis!important;
-        white-space:nowrap!important;
-      }
-      #${PANEL_ID} .pfh-ledger-meta .pfh-icon{
-        display:inline-flex!important;
-        flex:0 0 16px!important;
-        width:16px!important;
-        height:16px!important;
-        min-width:16px!important;
-        min-height:16px!important;
-        padding:0!important;
-        border:0!important;
-        background:transparent!important;
-        color:#8165ce!important;
-      }
-      #${PANEL_ID} .pfh-ledger-meta .pfh-icon svg{width:16px!important;height:16px!important;}
-      #${PANEL_ID} .pfh-ledger-meta .is-design-type{color:#7752bd!important;border-color:rgba(167,139,250,.34)!important;background:#f6f1ff!important;}
-      #${PANEL_ID} .pfh-ledger-meta .is-priority.is-p0-urgent{color:#b42318!important;border-color:rgba(248,113,113,.34)!important;background:#fff1f2!important;}
-      #${PANEL_ID} .pfh-ledger-meta .is-priority.is-p0-today{color:#c24172!important;border-color:rgba(244,114,182,.34)!important;background:#fff1f7!important;}
-      #${PANEL_ID} .pfh-ledger-meta .is-priority.is-p1{color:#92400e!important;border-color:rgba(251,191,36,.34)!important;background:#fff9df!important;}
-      #${PANEL_ID} .pfh-ledger-meta .is-updated{color:#6b6382!important;background:#faf9ff!important;}
-      #${PANEL_ID} .pfh-ledger-info{
-        display:flex!important;
-        align-items:center!important;
-        flex-wrap:wrap!important;
-        gap:8px!important;
-        min-width:0!important;
-        padding-top:12px!important;
-        border-top:1px dashed rgba(211,204,255,.66)!important;
-      }
-      #${PANEL_ID} .pfh-ledger-developer-value,
-      #${PANEL_ID} .pfh-ledger-link-value{
-        display:inline-flex!important;
-        align-items:center!important;
-        gap:7px!important;
-        min-width:0!important;
-        max-width:100%!important;
-        height:34px!important;
-        min-height:34px!important;
-        box-sizing:border-box!important;
-        padding:0 11px!important;
-        border:1px solid rgba(211,204,255,.42)!important;
-        border-radius:11px!important;
-        background:rgba(250,248,255,.92)!important;
-        color:#6a6084!important;
-        font-size:12px!important;
-        line-height:32px!important;
-      }
-      #${PANEL_ID} .pfh-ledger-developer-value{font-weight:650!important;color:#5d4b84!important;}
-      #${PANEL_ID} .pfh-ledger-link-value{
-        flex:1 1 220px!important;
-        overflow:hidden!important;
-        cursor:pointer!important;
-        text-align:left!important;
-      }
-      #${PANEL_ID} .pfh-ledger-link-value:hover{border-color:rgba(124,58,237,.40)!important;background:#f3efff!important;color:#6030cf!important;}
-      #${PANEL_ID} .pfh-ledger-link-value .pfh-icon,
-      #${PANEL_ID} .pfh-ledger-developer-value .pfh-icon{
-        display:inline-flex!important;
-        flex:0 0 16px!important;
-        width:16px!important;
-        height:16px!important;
-        min-width:16px!important;
-        min-height:16px!important;
-        padding:0!important;
-        border:0!important;
-        background:transparent!important;
-        color:#8165ce!important;
-      }
-      #${PANEL_ID} .pfh-ledger-link-value .pfh-icon svg,
-      #${PANEL_ID} .pfh-ledger-developer-value .pfh-icon svg{width:16px!important;height:16px!important;}
-      #${PANEL_ID} .pfh-ledger-link-text{
-        min-width:0!important;
-        overflow:hidden!important;
-        text-overflow:ellipsis!important;
-        white-space:nowrap!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-bottom{
-        display:flex!important;
-        align-items:center!important;
-        justify-content:space-between!important;
-        gap:12px!important;
-        min-width:0!important;
-        min-height:34px!important;
-        margin-top:auto!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-flow{
-        flex:1 1 auto!important;
-        min-width:145px!important;
-        max-width:310px!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-actions,
-      #${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-actions{
-        display:flex!important;
-        flex:0 0 auto!important;
-        align-items:center!important;
-        justify-content:flex-end!important;
-        flex-wrap:wrap!important;
-        gap:7px!important;
-        margin:0!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-file-actions{
-        display:flex!important;
-        flex:0 0 auto!important;
-        align-items:center!important;
-        justify-content:flex-end!important;
-        flex-wrap:wrap!important;
-        gap:7px!important;
-        max-width:100%!important;
-        margin:0!important;
-      }
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-actions button.is-primary,
-      #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-file-actions button{
-        height:32px!important;
-        min-height:32px!important;
-        min-width:60px!important;
-        box-sizing:border-box!important;
-        padding:0 11px!important;
-        border-radius:10px!important;
-        font-size:11px!important;
-      }
-      #${PANEL_ID} .pfh-ledger-side-actions{
-        grid-area:side!important;
-        display:grid!important;
-        grid-template-rows:minmax(44px,auto) auto!important;
-        align-content:center!important;
-        gap:14px!important;
-        min-width:0!important;
-        padding-left:18px!important;
-        border-left:1px solid rgba(226,219,247,.86)!important;
-      }
-      #${PANEL_ID} .pfh-ledger-view-button{
-        display:flex!important;
-        align-items:center!important;
-        justify-content:center!important;
-        gap:10px!important;
-        width:100%!important;
-        min-width:0!important;
-        height:48px!important;
-        min-height:48px!important;
-        padding:0 14px!important;
-        border:0!important;
-        border-radius:15px!important;
-        background:linear-gradient(135deg,#8b5cf6,#7043d6)!important;
-        color:#fff!important;
-        box-shadow:0 12px 24px rgba(112,68,235,.22)!important;
-        font-size:15px!important;
-        font-weight:750!important;
-        cursor:pointer!important;
-      }
-      #${PANEL_ID} .pfh-ledger-view-button:hover{background:linear-gradient(135deg,#7c3aed,#6030cf)!important;color:#fff!important;transform:translateY(-1px)!important;}
-      #${PANEL_ID} .pfh-ledger-view-button span{font-size:25px!important;font-weight:400!important;line-height:16px!important;}
-      #${PANEL_ID} .pfh-ledger-side-tools{
-        display:grid!important;
-        grid-template-columns:minmax(0,1fr) 44px!important;
-        gap:10px!important;
-        min-width:0!important;
-      }
-      #${PANEL_ID} .pfh-ledger-edit-button{
-        display:inline-flex!important;
-        align-items:center!important;
-        justify-content:center!important;
-        gap:7px!important;
-        min-width:0!important;
-        height:42px!important;
-        min-height:42px!important;
-        padding:0 12px!important;
-        border:1px solid rgba(211,204,255,.68)!important;
-        border-radius:13px!important;
-        background:rgba(255,255,255,.88)!important;
-        color:#7650c8!important;
-        font-size:13px!important;
-        font-weight:700!important;
-        cursor:pointer!important;
-      }
-      #${PANEL_ID} .pfh-ledger-edit-button:hover{border-color:rgba(124,58,237,.42)!important;background:#f4efff!important;color:#6030cf!important;}
-      #${PANEL_ID} .pfh-ledger-edit-button .pfh-icon{display:inline-flex!important;width:17px!important;height:17px!important;min-width:17px!important;padding:0!important;border:0!important;background:transparent!important;color:currentColor!important;}
-      #${PANEL_ID} .pfh-ledger-edit-button .pfh-icon svg{width:17px!important;height:17px!important;}
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-more,
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-more > button{
-        width:44px!important;
-        min-width:44px!important;
-        height:42px!important;
-        min-height:42px!important;
-      }
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-more > button{
-        display:inline-flex!important;
-        align-items:center!important;
-        justify-content:center!important;
-        padding:0!important;
-        border:1px solid rgba(211,204,255,.68)!important;
-        border-radius:13px!important;
-        background:rgba(255,255,255,.88)!important;
-        color:#7650c8!important;
-        cursor:pointer!important;
-      }
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-more-dots{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:100%!important;height:100%!important;}
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-more-dots i{display:block!important;width:4px!important;height:4px!important;border-radius:50%!important;background:currentColor!important;}
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-more > button:hover{border-color:rgba(124,58,237,.42)!important;background:#f4efff!important;color:#6030cf!important;}
-      #${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-overflow-menu{top:calc(100% + 8px)!important;right:0!important;bottom:auto!important;}
-      @media(max-width:900px){
-        #${PANEL_ID} .pfh-ledger-item:not(.is-trash),#${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash){grid-template-columns:96px minmax(0,1fr) 132px!important;gap:14px!important;padding:15px!important;}
-        #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb,#${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb{width:96px!important;min-width:96px!important;height:116px!important;min-height:116px!important;}
-        #${PANEL_ID} .pfh-ledger-title-stack .pfh-ledger-title b{font-size:19px!important;}
-        #${PANEL_ID} .pfh-ledger-side-actions{padding-left:12px!important;}
-      }
-      @media(max-width:720px){
-        #${PANEL_ID} .pfh-ledger-item:not(.is-trash),#${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash){grid-template-columns:78px minmax(0,1fr)!important;grid-template-areas:"thumb main" "thumb side"!important;align-items:start!important;gap:12px!important;min-height:0!important;padding:13px!important;}
-        #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb,#${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb{width:78px!important;min-width:78px!important;height:100px!important;min-height:100px!important;}
-        #${PANEL_ID} .pfh-ledger-side-actions{display:flex!important;align-items:center!important;gap:9px!important;padding:11px 0 0!important;border-top:1px solid rgba(226,219,247,.86)!important;border-left:0!important;}
-        #${PANEL_ID} .pfh-ledger-side-actions .pfh-ledger-view-button{flex:1 1 auto!important;height:38px!important;min-height:38px!important;border-radius:12px!important;font-size:13px!important;}
-        #${PANEL_ID} .pfh-ledger-side-tools{flex:0 0 auto!important;grid-template-columns:42px 42px!important;gap:7px!important;}
-        #${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-more,#${PANEL_ID} .pfh-ledger-side-tools .pfh-ledger-more > button,#${PANEL_ID} .pfh-ledger-edit-button{width:42px!important;min-width:42px!important;height:38px!important;min-height:38px!important;padding:0!important;}
-        #${PANEL_ID} .pfh-ledger-edit-button{font-size:0!important;}
-        #${PANEL_ID} .pfh-ledger-title-stack .pfh-ledger-title b{font-size:17px!important;}
-        #${PANEL_ID} .pfh-ledger-meta > span{height:28px!important;min-height:28px!important;padding:0 9px!important;font-size:10px!important;line-height:26px!important;}
-        #${PANEL_ID} .pfh-ledger-info{padding-top:9px!important;}
-        #${PANEL_ID} .pfh-ledger-developer-value,#${PANEL_ID} .pfh-ledger-link-value{height:30px!important;min-height:30px!important;font-size:10px!important;line-height:28px!important;}
-         #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-bottom{align-items:flex-end!important;flex-wrap:wrap!important;}
-         #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-flow{display:none!important;}
-      }
-      @media(max-width:460px){
-        #${PANEL_ID} .pfh-ledger-item:not(.is-trash),#${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash){grid-template-columns:66px minmax(0,1fr)!important;gap:10px!important;padding:11px!important;}
-        #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb,#${PANEL_ID}.is-narrow-panel .pfh-ledger-item:not(.is-trash) .pfh-ledger-thumb{width:66px!important;min-width:66px!important;height:88px!important;min-height:88px!important;}
-        #${PANEL_ID} .pfh-ledger-sku-badge{height:27px!important;min-height:27px!important;padding:0 9px!important;font-size:11px!important;}
-        #${PANEL_ID} .pfh-ledger-sku-badge .pfh-icon{width:14px!important;height:14px!important;min-width:14px!important;min-height:14px!important;}
-        #${PANEL_ID} .pfh-ledger-sku-badge .pfh-icon svg{width:14px!important;height:14px!important;}
-        #${PANEL_ID} .pfh-ledger-title-stack .pfh-ledger-title b{font-size:15px!important;}
-         #${PANEL_ID} .pfh-ledger-item:not(.is-trash) .pfh-ledger-status{height:27px!important;min-height:27px!important;padding:0 8px!important;font-size:10px!important;line-height:25px!important;}
-        #${PANEL_ID} .pfh-ledger-meta{gap:5px!important;}
-        #${PANEL_ID} .pfh-ledger-meta > span{max-width:100%!important;}
-        #${PANEL_ID} .pfh-ledger-link-value{flex-basis:100%!important;}
-        #${PANEL_ID} .pfh-ledger-actions button.is-primary,#${PANEL_ID} .pfh-ledger-file-actions button{height:29px!important;min-height:29px!important;padding:0 8px!important;font-size:10px!important;}
-      }
-    `;
-    document.documentElement.appendChild(style);
-  }
-
   function ensureSkuDataInteractionStyles() {
     const styleId = PANEL_ID + '-sku-data-interaction-styles';
     if (document.getElementById(styleId)) return;
@@ -10625,6 +10184,320 @@
       '#' + PANEL_ID + ' .pfh-material-unit-item b{display:inline-block;margin-right:6px;color:#a52a2a;}' +
       '#' + PANEL_ID + ' .pfh-sparkle-entrance-icon{display:inline-block!important;flex:0 0 auto!important;width:17px!important;height:17px!important;vertical-align:-3px!important;margin-right:4px!important;}' +
       '@media(max-width:680px){#' + PANEL_ID + ' .pfh-data-change-item{grid-template-columns:1fr;}#' + PANEL_ID + ' .pfh-data-change-values{grid-template-columns:1fr;}#' + PANEL_ID + ' .pfh-data-change-values i{transform:rotate(90deg);justify-self:start;}}';
+    document.documentElement.appendChild(style);
+  }
+
+  function ensureSkuDetailCardStyles() {
+    const styleId = PANEL_ID + '-sku-detail-card-styles';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      #${PANEL_ID} .pfh-sku-detail-card{
+        display:grid!important;
+        grid-template-columns:132px minmax(0,1fr) 148px!important;
+        grid-template-areas:"image content actions"!important;
+        align-items:stretch!important;
+        gap:16px!important;
+        min-height:220px!important;
+        padding:18px 20px!important;
+        overflow:visible!important;
+        border:1px solid rgba(218,210,245,.82)!important;
+        border-radius:20px!important;
+        background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(250,248,255,.90))!important;
+        box-shadow:0 14px 34px rgba(69,52,130,.08),inset 0 1px 0 rgba(255,255,255,.96)!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card:hover{
+        border-color:rgba(139,92,246,.34)!important;
+        background:linear-gradient(135deg,#fff,#faf7ff)!important;
+        box-shadow:0 18px 38px rgba(87,64,160,.13),inset 0 1px 0 #fff!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb,
+      #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb.is-empty{
+        grid-area:image!important;
+        display:grid!important;
+        place-items:center!important;
+        align-self:center!important;
+        justify-self:start!important;
+        width:132px!important;
+        height:164px!important;
+        min-width:132px!important;
+        min-height:164px!important;
+        box-sizing:border-box!important;
+        padding:0!important;
+        border:0!important;
+        border-radius:14px!important;
+        background:transparent!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb.is-empty{color:#8165ce!important;font-size:18px!important;}
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-frame,
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview{
+        width:132px!important;
+        height:164px!important;
+        box-sizing:border-box!important;
+        border-radius:14px!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-frame{
+        display:grid!important;
+        place-items:center!important;
+        overflow:hidden!important;
+        border:1px solid rgba(211,204,255,.54)!important;
+        background:#fff!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview{
+        left:0!important;
+        top:0!important;
+        opacity:0!important;
+        pointer-events:none!important;
+        transform:translate3d(0,0,0) scale(.96)!important;
+        background:#fff!important;
+        border:1px solid rgba(167,139,250,.42)!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-product-thumb:hover .pfh-thumb-preview{
+        width:220px!important;
+        height:274px!important;
+        opacity:1!important;
+        transform:translate3d(0,0,0) scale(1)!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-frame img,
+      #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview img{
+        display:block!important;
+        width:100%!important;
+        height:100%!important;
+        object-fit:contain!important;
+        object-position:center center!important;
+      }
+      #${PANEL_ID} .pfh-sku-detail-card > .pfh-detail-card-content{
+        grid-area:content!important;
+        display:grid!important;
+        grid-template-rows:auto auto minmax(0,1fr)!important;
+        align-content:start!important;
+        gap:11px!important;
+        min-width:0!important;
+        overflow:visible!important;
+      }
+      #${PANEL_ID} .pfh-detail-card-heading{
+        display:grid!important;
+        gap:8px!important;
+        min-width:0!important;
+      }
+      #${PANEL_ID} .pfh-detail-sku-badge{
+        display:inline-flex!important;
+        align-items:center!important;
+        gap:7px!important;
+        width:max-content!important;
+        max-width:100%!important;
+        min-width:0!important;
+        height:32px!important;
+        min-height:32px!important;
+        box-sizing:border-box!important;
+        padding:0 12px!important;
+        overflow:hidden!important;
+        border:1px solid rgba(139,92,246,.18)!important;
+        border-radius:999px!important;
+        background:linear-gradient(135deg,rgba(250,246,255,.98),rgba(246,240,255,.88))!important;
+        color:#7650c8!important;
+        font-size:13px!important;
+        font-weight:750!important;
+        line-height:1!important;
+        text-overflow:ellipsis!important;
+        white-space:nowrap!important;
+        cursor:copy!important;
+      }
+      #${PANEL_ID} .pfh-detail-sku-badge:hover{border-color:rgba(124,58,237,.42)!important;background:#f2ecff!important;color:#6030cf!important;}
+      #${PANEL_ID} .pfh-detail-sku-badge .pfh-icon{
+        display:inline-flex!important;
+        flex:0 0 17px!important;
+        width:17px!important;
+        height:17px!important;
+        min-width:17px!important;
+        min-height:17px!important;
+        padding:0!important;
+        border:0!important;
+        background:transparent!important;
+        color:currentColor!important;
+      }
+      #${PANEL_ID} .pfh-detail-sku-badge .pfh-icon svg{width:17px!important;height:17px!important;}
+      #${PANEL_ID} .pfh-detail-product-title{
+        display:-webkit-box!important;
+        max-width:100%!important;
+        overflow:hidden!important;
+        color:#17153f!important;
+        font-size:22px!important;
+        font-weight:720!important;
+        line-height:1.18!important;
+        letter-spacing:-.02em!important;
+        text-align:left!important;
+        text-overflow:ellipsis!important;
+        -webkit-line-clamp:2!important;
+        -webkit-box-orient:vertical!important;
+        white-space:normal!important;
+        cursor:pointer!important;
+      }
+      #${PANEL_ID} .pfh-detail-card-meta{
+        display:flex!important;
+        align-items:center!important;
+        flex-wrap:wrap!important;
+        gap:8px!important;
+        min-width:0!important;
+      }
+      #${PANEL_ID} .pfh-detail-card-meta > span{
+        display:inline-flex!important;
+        align-items:center!important;
+        gap:6px!important;
+        min-width:0!important;
+        max-width:100%!important;
+        height:32px!important;
+        min-height:32px!important;
+        box-sizing:border-box!important;
+        padding:0 11px!important;
+        overflow:hidden!important;
+        border:1px solid rgba(211,204,255,.40)!important;
+        border-radius:999px!important;
+        background:rgba(250,248,255,.88)!important;
+        color:#6d638c!important;
+        font-size:12px!important;
+        line-height:30px!important;
+        white-space:nowrap!important;
+      }
+      #${PANEL_ID} .pfh-detail-card-meta > span > span:last-child{
+        min-width:0!important;
+        overflow:hidden!important;
+        text-overflow:ellipsis!important;
+        white-space:nowrap!important;
+      }
+      #${PANEL_ID} .pfh-detail-card-meta .pfh-icon{
+        display:inline-flex!important;
+        flex:0 0 16px!important;
+        width:16px!important;
+        height:16px!important;
+        min-width:16px!important;
+        min-height:16px!important;
+        padding:0!important;
+        border:0!important;
+        background:transparent!important;
+        color:#8165ce!important;
+      }
+      #${PANEL_ID} .pfh-detail-card-meta .pfh-icon svg{width:16px!important;height:16px!important;}
+      #${PANEL_ID} .pfh-detail-card-meta .is-design-type{color:#7752bd!important;border-color:rgba(167,139,250,.34)!important;background:#f6f1ff!important;}
+      #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p0-urgent{color:#b42318!important;border-color:rgba(248,113,113,.34)!important;background:#fff1f2!important;}
+      #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p0-today{color:#c24172!important;border-color:rgba(244,114,182,.34)!important;background:#fff1f7!important;}
+      #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p1{color:#92400e!important;border-color:rgba(251,191,36,.34)!important;background:#fff9df!important;}
+      #${PANEL_ID} .pfh-detail-card-meta .is-updated{color:#6b6382!important;background:#faf9ff!important;}
+      #${PANEL_ID} .pfh-detail-card-info{
+        display:flex!important;
+        align-items:center!important;
+        flex-wrap:wrap!important;
+        gap:8px!important;
+        min-width:0!important;
+        padding-top:12px!important;
+        border-top:1px dashed rgba(211,204,255,.66)!important;
+      }
+      #${PANEL_ID} .pfh-detail-developer-value,
+      #${PANEL_ID} .pfh-detail-link-value{
+        display:inline-flex!important;
+        align-items:center!important;
+        gap:7px!important;
+        min-width:0!important;
+        max-width:100%!important;
+        height:34px!important;
+        min-height:34px!important;
+        box-sizing:border-box!important;
+        padding:0 11px!important;
+        border:1px solid rgba(211,204,255,.42)!important;
+        border-radius:11px!important;
+        background:rgba(250,248,255,.92)!important;
+        color:#5d4b84!important;
+        font-size:12px!important;
+        line-height:32px!important;
+        text-decoration:none!important;
+      }
+      #${PANEL_ID} .pfh-detail-developer-value{font-weight:650!important;}
+      #${PANEL_ID} .pfh-detail-link-value{flex:1 1 220px!important;overflow:hidden!important;text-align:left!important;cursor:pointer!important;}
+      #${PANEL_ID} .pfh-detail-link-value:hover{border-color:rgba(124,58,237,.40)!important;background:#f3efff!important;color:#6030cf!important;}
+      #${PANEL_ID} .pfh-detail-link-value .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;height:16px!important;min-width:16px!important;padding:0!important;border:0!important;background:transparent!important;color:#8165ce!important;}
+      #${PANEL_ID} .pfh-detail-link-value .pfh-icon svg{width:16px!important;height:16px!important;}
+      #${PANEL_ID} .pfh-detail-link-text{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+      #${PANEL_ID} .pfh-sku-detail-card > .pfh-detail-card-actions{
+        grid-area:actions!important;
+        display:grid!important;
+        grid-template-rows:minmax(44px,auto) auto!important;
+        align-content:center!important;
+        gap:14px!important;
+        min-width:0!important;
+        padding-left:18px!important;
+        border-left:1px solid rgba(226,219,247,.86)!important;
+      }
+      #${PANEL_ID} .pfh-detail-view-button{
+        display:flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        gap:10px!important;
+        width:100%!important;
+        min-width:0!important;
+        height:48px!important;
+        min-height:48px!important;
+        padding:0 14px!important;
+        border:0!important;
+        border-radius:15px!important;
+        background:linear-gradient(135deg,#8b5cf6,#7043d6)!important;
+        color:#fff!important;
+        box-shadow:0 12px 24px rgba(112,68,235,.22)!important;
+        font-size:15px!important;
+        font-weight:750!important;
+        cursor:pointer!important;
+      }
+      #${PANEL_ID} .pfh-detail-view-button:hover{background:linear-gradient(135deg,#7c3aed,#6030cf)!important;color:#fff!important;transform:translateY(-1px)!important;}
+      #${PANEL_ID} .pfh-detail-view-button > span:last-child{font-size:25px!important;font-weight:400!important;line-height:16px!important;}
+      #${PANEL_ID} .pfh-detail-secondary-actions{display:grid!important;grid-template-columns:minmax(0,1fr) 44px!important;gap:10px!important;min-width:0!important;}
+      #${PANEL_ID} .pfh-detail-edit-button,
+      #${PANEL_ID} .pfh-detail-more-button{
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+        gap:7px!important;
+        min-width:0!important;
+        height:42px!important;
+        min-height:42px!important;
+        padding:0 12px!important;
+        border:1px solid rgba(211,204,255,.68)!important;
+        border-radius:13px!important;
+        background:rgba(255,255,255,.88)!important;
+        color:#7650c8!important;
+        font-size:13px!important;
+        font-weight:700!important;
+        cursor:pointer!important;
+      }
+      #${PANEL_ID} .pfh-detail-edit-button:hover,
+      #${PANEL_ID} .pfh-detail-more-button:hover{border-color:rgba(124,58,237,.42)!important;background:#f4efff!important;color:#6030cf!important;}
+      #${PANEL_ID} .pfh-detail-edit-button .pfh-icon{display:inline-flex!important;width:17px!important;height:17px!important;min-width:17px!important;padding:0!important;border:0!important;background:transparent!important;color:currentColor!important;}
+      #${PANEL_ID} .pfh-detail-edit-button .pfh-icon svg{width:17px!important;height:17px!important;}
+      #${PANEL_ID} .pfh-detail-more-button{width:44px!important;min-width:44px!important;padding:0!important;}
+      #${PANEL_ID} .pfh-detail-more-dots{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:100%!important;height:100%!important;}
+      #${PANEL_ID} .pfh-detail-more-dots i{display:block!important;width:4px!important;height:4px!important;border-radius:50%!important;background:currentColor!important;}
+      #${PANEL_ID} .pfh-detail-card-actions .pfh-title-open-detail{margin:0!important;}
+      @media(max-width:760px){
+        #${PANEL_ID} .pfh-sku-detail-card{grid-template-columns:1fr!important;grid-template-areas:"image" "content" "actions"!important;gap:12px!important;padding:14px!important;}
+        #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb,
+        #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb.is-empty,
+        #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-frame,
+        #${PANEL_ID} .pfh-sku-detail-card .pfh-thumb-preview{width:100%!important;max-width:180px!important;height:150px!important;min-height:150px!important;}
+        #${PANEL_ID} .pfh-sku-detail-card > .pfh-product-thumb{justify-self:center!important;}
+        #${PANEL_ID} .pfh-sku-detail-card > .pfh-detail-card-actions{display:flex!important;align-items:center!important;gap:9px!important;padding:11px 0 0!important;border-top:1px solid rgba(226,219,247,.86)!important;border-left:0!important;}
+        #${PANEL_ID} .pfh-detail-view-button{flex:1 1 auto!important;height:40px!important;min-height:40px!important;border-radius:12px!important;font-size:13px!important;}
+        #${PANEL_ID} .pfh-detail-secondary-actions{flex:0 0 auto!important;grid-template-columns:42px 42px!important;gap:7px!important;}
+        #${PANEL_ID} .pfh-detail-edit-button,#${PANEL_ID} .pfh-detail-more-button{width:42px!important;min-width:42px!important;height:38px!important;min-height:38px!important;padding:0!important;}
+        #${PANEL_ID} .pfh-detail-edit-button{font-size:0!important;}
+        #${PANEL_ID} .pfh-detail-product-title{font-size:19px!important;}
+      }
+      @media(max-width:430px){
+        #${PANEL_ID} .pfh-detail-card-meta{gap:5px!important;}
+        #${PANEL_ID} .pfh-detail-card-meta > span{height:28px!important;min-height:28px!important;padding:0 9px!important;font-size:10px!important;line-height:26px!important;}
+        #${PANEL_ID} .pfh-detail-card-info{padding-top:9px!important;}
+        #${PANEL_ID} .pfh-detail-developer-value,#${PANEL_ID} .pfh-detail-link-value{height:30px!important;min-height:30px!important;font-size:10px!important;line-height:28px!important;}
+        #${PANEL_ID} .pfh-detail-link-value{flex-basis:100%!important;}
+      }
+    `;
     document.documentElement.appendChild(style);
   }
 
@@ -10733,6 +10606,7 @@
 
   function renderDetail(panel, statusText) {
     ensureSkuDataInteractionStyles();
+    ensureSkuDetailCardStyles();
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
     const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
@@ -10803,15 +10677,43 @@
 
   function productHeroSectionHtml(data, copywritingMode) {
     if (copywritingMode) return copywritingHeroSectionHtml(data);
+    const sku = String(data && data.sku || L.sku);
     const title = [data && data.brand, data && data.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
-    const actions = '<div class="pfh-title-actions"><button type="button" class="pfh-title-open-detail" data-action="open-detail">打开详情</button>' +
-          (state.skuEditMode
-            ? '<button type="button" class="pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-title-open-detail" data-action="sku-edit-cancel">取消</button>'
-            : '<button type="button" class="pfh-title-open-detail pfh-title-edit-data" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '</button>') +
-        '</div>';
-    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta" title="' + escapeHtml(L.copyHint) + '">' +
+    const priorityText = formatSkuDetailPriority(data && data.artPriority);
+    const priorityClass = /^P0.*(?:紧急|urgent)/i.test(priorityText) ? ' is-p0-urgent' : (/^P0.*(?:当日|当天|today)/i.test(priorityText) ? ' is-p0-today' : (/^P0/i.test(priorityText) ? ' is-p0-urgent' : (/^P1/i.test(priorityText) ? ' is-p1' : '')));
+    const designType = String(data && data.designType || '').trim() || '未分类';
+    const updatedText = formatSkuDetailUpdatedDate(data && (data.updatedAtMs || data.updatedAt));
+    const developerName = extractDeveloperName(data && (data.developerName || data.developerText || ''));
+    const referenceUrl = String(data && (data.referenceUrl || data.benchmarkLink) || '').trim();
+    const referenceLink = referenceUrl
+      ? (/^https?:\/\//i.test(referenceUrl)
+        ? '<a class="pfh-detail-link-value" href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceUrl) + '</span></a>'
+        : '<span class="pfh-detail-link-value" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceUrl) + '</span></span>')
+      : '';
+    const metaHtml = '<div class="pfh-detail-card-meta">' +
+      (priorityText ? '<span class="is-priority' + priorityClass + '" title="' + escapeHtml(priorityText) + '">' + iconHtml('warning') + '<span>' + escapeHtml(priorityText) + '</span></span>' : '') +
+      '<span class="is-design-type" title="' + escapeHtml(designType) + '">' + iconHtml('tag') + '<span>' + escapeHtml(designType) + '</span></span>' +
+      '<span class="is-updated" title="' + escapeHtml(updatedText) + '">' + iconHtml('clock') + '<span>最近更新：' + escapeHtml(updatedText) + '</span></span>' +
+      '</div>';
+    const infoHtml = developerName || referenceLink
+      ? '<div class="pfh-detail-card-info">' +
+        (developerName ? '<span class="pfh-detail-developer-value" title="' + escapeHtml(developerName) + '">' + escapeHtml(developerName) + '</span>' : '') +
+        referenceLink +
+        '</div>'
+      : '';
+    const actions = '<div class="pfh-title-actions pfh-detail-card-actions">' +
+      '<button type="button" class="pfh-detail-view-button pfh-title-open-detail" data-action="open-detail"><span>查看详情</span><span aria-hidden="true">›</span></button>' +
+      '<div class="pfh-detail-secondary-actions">' +
+        (state.skuEditMode
+          ? '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-detail-more-button" data-action="sku-edit-cancel" aria-label="取消编辑">取消</button>'
+          : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + escapeHtml(sku) + '" aria-label="更多操作"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') +
+      '</div>' +
+      '</div>';
+    return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card" title="' + escapeHtml(L.copyHint) + '">' +
       productThumbHtml(data) +
-      '<div class="pfh-product-title-copy"><span data-action="copy-sku">' + escapeHtml((data && data.sku) || L.sku) + '</span><strong data-action="copy-title-meta">' + escapeHtml(title) + '</strong>' + actions + '</div>' +
+      '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" data-action="copy-sku" title="点击复制 SKU">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></span><strong class="pfh-detail-product-title" data-action="copy-title-meta">' + escapeHtml(title) + '</strong></div>' +
+      metaHtml + infoHtml + '</div>' +
+      actions +
       '</div></div></section>';
   }
 
@@ -13307,7 +13209,6 @@
     const workDate = mode === 'finalized' ? getLedgerFinalizedDate(record) : getLedgerDesignDate(record);
     const designType = record.designType || '未分类';
     const artPriority = record.artPriority || '';
-    const priorityText = formatLedgerPriority(artPriority);
     const priorityClass = /^P0.*(?:紧急|urgent)/i.test(artPriority) ? ' is-p0-urgent' : (/^P0.*(?:当日|当天|today)/i.test(artPriority) ? ' is-p0-today' : (/^P0/i.test(artPriority) ? ' is-p0-urgent' : (/^P1/i.test(artPriority) ? ' is-p1' : '')));
     const packageCode = record.packageCode || '';
     const printCode = record.printCode || '';
@@ -13315,32 +13216,21 @@
     const dateAttr = escapeHtml(record.date || workDate);
     const selected = (state.ledgerSelectedKeys || []).includes(getLedgerSelectionKey(record));
     const effectivePerformanceGroupId = (performanceRecordGroupIds && performanceRecordGroupIds.get(getLedgerSelectionKey(record))) || record.performanceGroupId || '';
+    const referenceButton = record.referenceUrl
+      ? '<button type="button" class="pfh-ledger-link" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="打开参考链接">' + iconHtml('link') + '</button>'
+      : '<button type="button" class="pfh-ledger-link is-disabled" disabled title="没有参考链接">' + iconHtml('link') + '</button>';
     const statusPill = '<span class="pfh-ledger-status is-' + escapeHtml(getLedgerStatusClass(workflowStatus)) + '">' + escapeHtml(workflowStatus) + '</span>';
-    const developerName = String(record.developerName || '').trim();
-    const updatedText = formatLedgerUpdatedDate(record.updatedAt || record.updatedAtMs || workDate, workDate);
     const dateText = mode === 'finalized'
       ? ((record.status === '作废' ? '作废 ' : '定稿 ') + (record.finalizedAt ? formatLedgerMinuteLabel(record.finalizedAt, workDate) : formatLedgerDateLabel(workDate)))
       : ('分配 ' + formatLedgerMinuteLabel(record.designAssignedAt || workDate, workDate));
-    const secondaryMetaHtml =
+    const tagHtml = '<div class="pfh-ledger-tags">' +
+      '<button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + escapeHtml(sku) + '" title="点击复制产品编码">' + escapeHtml(sku) + '</button>' +
+      '<span class="is-design-type" title="设计类型">' + escapeHtml(designType) + '</span>' +
+      (artPriority ? '<span class="is-priority' + priorityClass + '" title="美工处理优先级">' + escapeHtml(artPriority) + '</span>' : '') +
       (record.performanceType === 'extension' ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : '') +
       (isLedgerSeriesExcluded(record) ? '<span class="is-series-excluded" title="已手动剔除自动系列">已剔除系列</span>' : '') +
-      (performanceGroupLabels && performanceGroupLabels.get(effectivePerformanceGroupId) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + escapeHtml(performanceGroupLabels.get(effectivePerformanceGroupId)) + '</span>' : '');
-    const metaHtml = '<div class="pfh-ledger-meta">' +
-      (priorityText ? '<span class="is-priority' + priorityClass + '" title="' + escapeHtml(priorityText) + '">' + iconHtml('warning') + '<span>' + escapeHtml(priorityText) + '</span></span>' : '') +
-      '<span class="is-design-type" title="' + escapeHtml(designType) + '">' + iconHtml('tag') + '<span>' + escapeHtml(designType) + '</span></span>' +
-      '<span class="is-updated" title="' + escapeHtml(updatedText) + '">' + iconHtml('clock') + '<span>最近更新：' + escapeHtml(updatedText) + '</span></span>' +
-      secondaryMetaHtml +
+      (performanceGroupLabels && performanceGroupLabels.get(effectivePerformanceGroupId) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + escapeHtml(performanceGroupLabels.get(effectivePerformanceGroupId)) + '</span>' : '') +
       '</div>';
-    const referenceButton = record.referenceUrl
-      ? '<button type="button" class="pfh-ledger-link pfh-ledger-link-value" data-action="ledger-open-reference" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(record.referenceUrl) + '" aria-label="打开参考链接">' + iconHtml('link') + '<span class="pfh-ledger-link-text">' + escapeHtml(record.referenceUrl) + '</span></button>'
-      : '';
-    const infoHtml = developerName || referenceButton
-      ? '<div class="pfh-ledger-info">' +
-        (developerName ? '<span class="pfh-ledger-developer-value" title="' + escapeHtml(developerName) + '">' + escapeHtml(developerName) + '</span>' : '') +
-        referenceButton +
-        '</div>'
-      : '';
-    const skuBadge = '<button type="button" class="pfh-ledger-sku-badge" data-action="ledger-copy-sku" data-sku="' + escapeHtml(sku) + '" title="点击复制产品编码">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></button>';
     const assignmentHtml = '<div class="pfh-ledger-assignment">' + escapeHtml(dateText) +
       (mode === 'finalized' ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">改时间</button>' : '') +
       '</div>';
@@ -13355,27 +13245,23 @@
         ledgerFileButtonHtml('ledger-toggle-box-file', sku, dateAttr, '纸盒', packageCode, record.boxFileState, record.boxFileDone) +
         ledgerFileButtonHtml('ledger-toggle-label-file', sku, dateAttr, '标签', printCode, record.labelFileState, record.labelFileDone) +
         ledgerFileButtonHtml('ledger-toggle-image-pack', sku, dateAttr, '图包', '', record.imagePackState, record.imagePackDone) +
+        moreButton +
       '</div>'
       : '<div class="pfh-ledger-actions">' +
-         (!imageGenerated ? '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '"><span>出图</span></button>' : (record.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (state.ledgerFlowTransitionSku === sku ? ' is-flow-transition' : '') + '"><span>¥</span><input type="text" inputmode="decimal" value="' + escapeHtml(purchasePrice) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (state.ledgerFlowTransitionSku === sku ? ' is-flow-transition' : '') + '" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + ledgerFinalizeCheckIconHtml() + '<span>定稿</span><em>已出图</em></button>')) +
+        (!imageGenerated ? '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '"><span>出图</span></button>' : (record.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (state.ledgerFlowTransitionSku === sku ? ' is-flow-transition' : '') + '"><span>¥</span><input type="text" inputmode="decimal" value="' + escapeHtml(purchasePrice) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (state.ledgerFlowTransitionSku === sku ? ' is-flow-transition' : '') + '" data-action="ledger-finalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + ledgerFinalizeCheckIconHtml() + '<span>定稿</span><em>已出图</em></button>')) +
+        moreButton +
       '</div>';
-    const sideActions = '<aside class="pfh-ledger-side-actions">' +
-      '<button type="button" class="pfh-ledger-view-button" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><span>查看详情</span><span aria-hidden="true">›</span></button>' +
-      '<div class="pfh-ledger-side-tools"><button type="button" class="pfh-ledger-edit-button" data-action="ledger-edit-sku" data-sku="' + escapeHtml(sku) + '" title="编辑 SKU 数据">' + iconHtml('edit') + '<span>编辑</span></button>' + moreButton + '</div>' +
-      '</aside>';
     const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
     return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" data-performance-group-id="' + escapeHtml(effectivePerformanceGroupId) + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
       selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
-       '<div class="pfh-ledger-main">' +
-         '<div class="pfh-ledger-title-row"><div class="pfh-ledger-title-stack">' + skuBadge + '<button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><b>' + escapeHtml(title) + '</b></button></div>' + statusPill + '</div>' +
-         metaHtml +
-         infoHtml +
-         assignmentHtml +
-         '<div class="pfh-ledger-bottom">' + workflowHtml + actions + '</div>' +
-       '</div>' +
-       sideActions +
-     '</article>';
+      '<div class="pfh-ledger-main">' +
+        '<div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><b>' + escapeHtml(title) + '</b></button>' + referenceButton + statusPill + '</div>' +
+        tagHtml +
+        assignmentHtml +
+        '<div class="pfh-ledger-bottom">' + workflowHtml + actions + '</div>' +
+      '</div>' +
+    '</article>';
   }
 
   function refreshLedgerCard(record) {
@@ -13484,6 +13370,25 @@
       '<span class="pfh-thumb-frame"><img src="' + escapeHtml(src) + '" alt=""></span>' +
       '<span class="pfh-thumb-preview"><img src="' + escapeHtml(src) + '" alt=""></span>' +
       '</button>';
+  }
+
+  function formatSkuDetailPriority(value) {
+    const text = cleanName(value || '').replace(/\s+/g, '');
+    if (!text) return '';
+    const match = text.match(/^(P\d+)[\-\uFF0D\u2013\u2014·•|/:：]?(.*)$/i);
+    if (!match) return text;
+    const level = match[1].toUpperCase();
+    const detail = String(match[2] || '').replace(/^[\-\uFF0D\u2013\u2014·•|/:：]+/, '');
+    return detail ? level + '-' + detail : level;
+  }
+
+  function formatSkuDetailUpdatedDate(value) {
+    const ms = parseLedgerDateTimeMs(value);
+    if (ms) {
+      const date = new Date(ms);
+      return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    }
+    return parseLedgerDateFromText(value) || '--';
   }
 
   function updateProductThumbInPlace(data) {
@@ -15906,6 +15811,13 @@
       showToast(L.copied);
       return;
     }
+    if (action === 'sku-detail-more') {
+      const sku = actionTarget.getAttribute('data-sku') || state.selectedSku || '';
+      if (!sku) return;
+      const rect = actionTarget.getBoundingClientRect();
+      showSkuWaterfallContextMenu(sku, { clientX: rect.right - 4, clientY: rect.bottom - 4 });
+      return;
+    }
     if (action === 'pin-search-results') {
       pinCurrentSearchResults();
       return;
@@ -16450,11 +16362,6 @@
       return;
     }
     if (action === 'ledger-open-sku') {
-      openLedgerSku(actionTarget.getAttribute('data-sku'), actionTarget.closest('.pfh-ledger-item'));
-      return;
-    }
-    if (action === 'ledger-edit-sku') {
-      state.skuEditMode = true;
       openLedgerSku(actionTarget.getAttribute('data-sku'), actionTarget.closest('.pfh-ledger-item'));
       return;
     }
@@ -22965,25 +22872,6 @@
       return (date.getMonth() + 1) + '\u6708' + date.getDate() + '\u65e5 ' + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
     }
     return formatLedgerDateLabel(fallbackDate || value);
-  }
-
-  function formatLedgerUpdatedDate(value, fallbackDate) {
-    const ms = parseLedgerDateTimeMs(value);
-    if (ms) {
-      const date = new Date(ms);
-      return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
-    }
-    return parseLedgerDateFromText(value) || normalizeLedgerDate(fallbackDate) || '--';
-  }
-
-  function formatLedgerPriority(value) {
-    const text = cleanName(value || '').replace(/\s+/g, '');
-    if (!text) return '';
-    const match = text.match(/^(P\d+)[\-\uFF0D\u2013\u2014·•|/:：]?(.*)$/i);
-    if (!match) return text;
-    const level = match[1].toUpperCase();
-    const detail = String(match[2] || '').replace(/^[\-\uFF0D\u2013\u2014·•|/:：]+/, '');
-    return detail ? level + '-' + detail : level;
   }
 
   function getNowLedgerMinuteLabel() {
