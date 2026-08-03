@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.117
+// @version      2.6.118
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.117';
+  const SCRIPT_VERSION = '2.6.118';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3711,6 +3711,7 @@
   const INNER_CARD_DELTA_CM = 0.5;
   const SCAN_INTERVAL_MS = 650;
   const MATERIAL_WATCH_ATTEMPTS = 4;
+  const SCAN_FOREGROUND_LOADING_TIMEOUT_MS = 10000;
 
 
 
@@ -3934,6 +3935,7 @@
     index: loadIndex(),
     expanded: false,
     scanTimer: 0,
+    scanLoadingTipTimer: 0,
     scanRunning: false,
     scanTargetSku: '',
     scanData: null,
@@ -4243,6 +4245,7 @@
 
   function cancelDrawerTabFlow(options) {
     const preserveUserInterrupted = Boolean(options && options.preserveUserInterrupted);
+    clearScanLoadingTipTimer();
     if (state.drawerTabFlowTimer) window.clearTimeout(state.drawerTabFlowTimer);
     state.drawerTabFlowTimer = 0;
     state.drawerTabFlowToken += 1;
@@ -4754,11 +4757,36 @@
   }
 
   function stopScan() {
+    clearScanLoadingTipTimer();
     if (state.scanTimer) {
       window.clearTimeout(state.scanTimer);
       state.scanTimer = 0;
     }
     state.scanRunning = false;
+  }
+
+  function clearScanLoadingTipTimer() {
+    if (!state.scanLoadingTipTimer) return;
+    window.clearTimeout(state.scanLoadingTipTimer);
+    state.scanLoadingTipTimer = 0;
+  }
+
+  function armScanLoadingTipTimeout(sku, token) {
+    clearScanLoadingTipTimer();
+    state.scanLoadingTipTimer = window.setTimeout(() => {
+      state.scanLoadingTipTimer = 0;
+      if (
+        !state.scanRunning
+        || state.drawerTabFlowToken !== token
+        || state.drawerTabFlowSku !== sku
+      ) return;
+      state.scanRunning = false;
+      if (state.apiReadStatus && state.apiReadStatus.sku === sku && state.apiReadStatus.phase === 'loading') {
+        setApiReadStatus(sku, 'loading', '正在后台读取 PLM 数据');
+      }
+      if (state.selectedSku === sku && state.view === 'detail') renderShell();
+      addLog('info', '详情前台提示超时，已切换为后台读取', sku + ' | ' + SCAN_FOREGROUND_LOADING_TIMEOUT_MS + 'ms');
+    }, SCAN_FOREGROUND_LOADING_TIMEOUT_MS);
   }
 
   function stopManualTabRead() {
@@ -4895,6 +4923,7 @@
       state.scanRunning = true;
       state.scanTargetSku = sku;
       state.scanData = normalizeData(data);
+      armScanLoadingTipTimeout(sku, token);
     }
     state.drawerTabFlowTimer = window.setTimeout(() => {
       state.drawerTabFlowTimer = 0;
