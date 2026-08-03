@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.102
+// @version      2.6.103
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.102';
+  const SCRIPT_VERSION = '2.6.103';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8248,9 +8248,11 @@
     style.id = styleId;
     const root = '#' + PANEL_ID + '[data-view="magicUpload"] ';
     style.textContent = [
-      root + '.pfh-detail-scroll{padding:0!important;background:#fff!important}',
-      root + '.pfh-magic-page{min-height:100%;padding:18px 18px 20px;background:#fff;color:#1d2232}',
-      root + '.pfh-magic-canvas{position:relative;isolation:isolate;min-height:650px;margin:0;padding:0 0 58px;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}',
+      root + '.pfh-detail-scroll{height:100%!important;min-height:0!important;overflow:hidden!important;overscroll-behavior:contain!important;padding:0!important;background:#fff!important}',
+      root + '.pfh-magic-page{height:100%;min-height:0;box-sizing:border-box;overflow:hidden;padding:18px 18px 20px;background:#fff;color:#1d2232}',
+      root + '.pfh-magic-canvas{position:relative;isolation:isolate;display:flex;flex-direction:column;height:100%;min-height:0;box-sizing:border-box;margin:0;padding:0 0 58px;overflow:hidden;border:0;border-radius:0;background:transparent;box-shadow:none}',
+      root + '.pfh-magic-mode-content{display:flex;flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}',
+      root + '.pfh-magic-mode-content>.pfh-magic-overview,' + root + '.pfh-magic-mode-content>.pfh-magic-upload-drop,' + root + '.pfh-magic-mode-content>.pfh-magic-actions,' + root + '.pfh-magic-mode-content>.pfh-magic-queue-head,' + root + '.pfh-magic-mode-content>.pfh-magic-bottom-note{flex:0 0 auto}',
       root + '.pfh-magic-page .pfh-icon,' + root + '.pfh-magic-page .pfh-icon[class*="pfh-icon-"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:inherit!important;line-height:1!important}',
       root + '.pfh-magic-page .pfh-icon svg,' + root + '.pfh-magic-page .pfh-icon svg *{color:inherit!important;fill:none!important;stroke:currentColor!important;stroke-linecap:round!important;stroke-linejoin:round!important}',
       root + '.pfh-magic-lab-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 18px}',
@@ -8279,7 +8281,7 @@
       root + '.pfh-magic-hero small{display:block;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.18em}',
       root + '.pfh-magic-hero h2{margin:5px 0 7px;color:#1d2232;font-size:24px;line-height:1.08;font-weight:900;letter-spacing:0}',
       root + '.pfh-magic-hero p{max-width:520px;margin:0;color:#8990a6;font-size:12px;font-weight:650}',
-      root + '.pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:174px;margin:0 0 58px!important;overflow:hidden;border:1px dashed rgba(217,147,168,.5);border-radius:24px;background:rgba(255,248,251,.68);color:#7657f2;text-align:center;cursor:pointer;transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease,background .24s ease}',
+      root + '.pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:174px;margin:0 0 24px!important;overflow:hidden;border:1px dashed rgba(217,147,168,.5);border-radius:24px;background:rgba(255,248,251,.68);color:#7657f2;text-align:center;cursor:pointer;transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease,background .24s ease}',
       root + '.pfh-magic-upload-drop:before{display:none}',
       root + '.pfh-magic-upload-drop:hover,' + root + '.pfh-magic-upload-drop.is-drag-over{border-color:#7056e8;transform:translateY(-2px);box-shadow:0 14px 34px rgba(76,60,150,.15)}',
       root + '.pfh-magic-upload-drop.is-paste-received{border-color:#49c7bc;box-shadow:0 0 0 4px rgba(73,199,188,.13),0 14px 34px rgba(76,60,150,.12)}',
@@ -8291,14 +8293,14 @@
       root + '.pfh-magic-queue-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;color:#1d2232}',
       root + '.pfh-magic-queue-head b{font-size:14px;font-weight:900}',
       root + '.pfh-magic-queue-head span{color:#8990a6;font-size:11px;font-weight:650}',
-      root + '.pfh-magic-actions{display:flex;align-items:center;gap:14px;margin:0 0 36px;padding:0 4px}',
+      root + '.pfh-magic-actions{display:flex;align-items:center;gap:14px;margin:0 0 24px;padding:0 4px}',
       root + '.pfh-magic-actions button,' + root + '.pfh-magic-history button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;border:0;border-radius:13px;background:rgba(29,34,50,.07);color:#1d2232;padding:8px 13px;font-size:11px;font-weight:800;cursor:pointer;transition:transform .22s ease,box-shadow .22s ease,background .22s ease}',
       root + '.pfh-magic-actions button:hover,' + root + '.pfh-magic-history button:hover{transform:translateY(-1px);background:#fff;box-shadow:0 8px 20px rgba(45,37,100,.1)}',
       root + '.pfh-magic-actions button.is-primary{color:#fff;background:linear-gradient(135deg,#7056e8,#4636a8);box-shadow:0 10px 22px rgba(112,86,232,.26)}',
       root + '.pfh-magic-actions button:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}',
       root + '.pfh-magic-actions .pfh-magic-history-toggle{margin-left:auto}',
       root + '.pfh-magic-actions .pfh-icon,' + root + '.pfh-magic-history .pfh-icon,' + root + '.pfh-magic-back .pfh-icon{width:16px!important;height:16px!important}',
-      root + '.pfh-magic-queue{display:grid;gap:12px}',
+      root + '.pfh-magic-queue{display:grid;flex:1 1 auto;min-height:0;gap:12px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:2px 4px 10px 2px}',
       root + '.pfh-magic-task{position:relative;overflow:hidden;border:1px solid rgba(151,158,188,.18);border-radius:21px;background:rgba(255,255,255,.92);box-shadow:0 12px 32px rgba(47,50,94,.08);transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease}',
       root + '.pfh-magic-task:before{display:none}',
       root + '.pfh-magic-task:hover{transform:translateY(-1px);border-color:rgba(112,86,232,.2);box-shadow:0 16px 38px rgba(47,50,94,.12)}',
