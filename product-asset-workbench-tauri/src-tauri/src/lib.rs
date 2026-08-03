@@ -29,6 +29,7 @@ const PS_BATCH_SCRIPT: &str = r#"#target photoshop
 var inputPaths = __INPUT_PATHS__;
 var categories = __CATEGORIES__;
 var moveOriginalsToRecycle = __MOVE_ORIGINALS__;
+var recyclePaths = __RECYCLE_PATHS__;
 var maxWidth = 1600;
 var maxHeight = 1600;
 var jpegQuality = 12;
@@ -37,7 +38,6 @@ app.displayDialogs = DialogModes.NO;
 var MAIN_FOLDER = String.fromCharCode(0x4E3B, 0x56FE);
 var DETAIL_FOLDER = String.fromCharCode(0x8BE6, 0x60C5, 0x56FE);
 var OTHER_FOLDER = String.fromCharCode(0x5176, 0x4ED6);
-var RECYCLE_FOLDER = String.fromCharCode(0x56DE, 0x6536, 0x7AD9);
 
 function uniqueRecycleFile(folder, sourceFile) {
     var candidate = File(folder.fsName + "\\" + sourceFile.name);
@@ -90,8 +90,8 @@ for (var i = 0; i < inputPaths.length; i++) {
         doc.saveAs(outputFile, options, true, Extension.LOWERCASE);
         doc.close(SaveOptions.DONOTSAVECHANGES);
         doc = null;
-        if (moveOriginalsToRecycle) {
-            var recycleFolder = Folder(inputFile.parent.fsName + "\\" + RECYCLE_FOLDER);
+        if (moveOriginalsToRecycle && recyclePaths[i]) {
+            var recycleFolder = Folder(recyclePaths[i]);
             if (!recycleFolder.exists && !recycleFolder.create()) {
                 throw new Error("Unable to create recycle folder: " + recycleFolder.fsName);
             }
@@ -350,6 +350,43 @@ struct ComposePackResult {
 struct EmptyRecycleResult {
     deleted_files: usize,
     deleted_folders: usize,
+    recycle_root: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileOrganizeItem {
+    kind: String,
+    source_path: String,
+    target_path: String,
+    source_name: String,
+    target_name: String,
+    sku: String,
+    status: String,
+    message: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileOrganizeOperation {
+    source_path: String,
+    target_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileOrganizeScanResult {
+    root: String,
+    items: Vec<FileOrganizeItem>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileOrganizeResult {
+    logs: Vec<String>,
+    renamed: usize,
+    skipped: usize,
+    failed: usize,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -831,6 +868,7 @@ fn queue_upload_pairs(state: State<'_, BridgeState>, pairs: Vec<UploadPairReques
         let zip_total = (zip_bytes.len() + UPLOAD_CHUNK_BYTES - 1) / UPLOAD_CHUNK_BYTES;
         let payload = json!({
             "type": "upload.queue.begin",
+            "mode": "magic-package",
             "requestId": request_id,
             "autoStart": auto_start,
             "item": {
@@ -985,6 +1023,38 @@ fn photoshop_image_category(path: &Path) -> u8 {
     }
 }
 
+fn external_recycle_root() -> PathBuf {
+    let base = std::env::var_os("LOCALAPPDATA")
+        .or_else(|| std::env::var_os("APPDATA"))
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("Product Asset Workbench").join("图包回收站")
+}
+
+fn image_recycle_path(path: &Path) -> PathBuf {
+    let mut cursor = path.parent();
+    let mut product_name = "未识别产品".to_string();
+    while let Some(directory) = cursor {
+        let directory_name = directory.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+        if directory_name == "套图" {
+            if let Some(parent) = directory.parent() {
+                product_name = parent.file_name().and_then(|value| value.to_str()).unwrap_or("未识别产品").to_string();
+            }
+            break;
+        }
+        cursor = directory.parent();
+    }
+    let category = path.parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|value| value.to_str())
+        .unwrap_or("其他");
+    let file_name = path.file_name().and_then(|value| value.to_str()).unwrap_or("原图");
+    external_recycle_root()
+        .join(sanitize_component(&product_name))
+        .join(sanitize_component(category))
+        .join(file_name)
+}
+
 fn start_photoshop_compression(photoshop_path: &Path, image_paths: &[PathBuf], move_originals_to_recycle: bool) -> Result<PathBuf, String> {
     if !photoshop_path.is_file() {
         return Err("Photoshop.exe 路径无效".to_string());
@@ -994,13 +1064,19 @@ fn start_photoshop_compression(photoshop_path: &Path, image_paths: &[PathBuf], m
     }
     let input_paths = image_paths.iter().map(|path| path_text(path)).collect::<Vec<_>>();
     let categories = image_paths.iter().map(|path| photoshop_image_category(path)).collect::<Vec<_>>();
+    let recycle_paths = if move_originals_to_recycle {
+        image_paths.iter().map(|path| path_text(&image_recycle_path(path))).collect::<Vec<_>>()
+    } else {
+        image_paths.iter().map(|_| String::new()).collect::<Vec<_>>()
+    };
     let script = PS_BATCH_SCRIPT
         .replace(
             "__INPUT_PATHS__",
             &serde_json::to_string(&input_paths).map_err(|error| format!("无法生成 Photoshop 图片清单：{error}"))?,
         )
         .replace("__CATEGORIES__", &serde_json::to_string(&categories).map_err(|error| format!("无法生成 Photoshop 分类清单：{error}"))?)
-        .replace("__MOVE_ORIGINALS__", if move_originals_to_recycle { "true" } else { "false" });
+        .replace("__MOVE_ORIGINALS__", if move_originals_to_recycle { "true" } else { "false" })
+        .replace("__RECYCLE_PATHS__", &serde_json::to_string(&recycle_paths).map_err(|error| format!("无法生成原图回收路径：{error}"))?);
     let script_path = std::env::temp_dir().join(format!("plm-ps-batch-resize-1600-{}.jsx", Uuid::new_v4()));
     let mut encoded = vec![0xef, 0xbb, 0xbf];
     encoded.extend_from_slice(script.as_bytes());
@@ -1202,7 +1278,10 @@ fn archive_image_packs(
                 extracted_images.len()
             ));
             if move_originals_to_recycle {
-                result.logs.push("每张 JPG 保存成功后，原图将移到该产品的“套图\\回收站”".to_string());
+                result.logs.push(format!(
+                    "每张 JPG 保存成功后，原图将移到电脑其他位置的回收站：{}",
+                    path_text(&external_recycle_root())
+                ));
             }
         }
     }
@@ -1387,27 +1466,42 @@ fn count_recycle_files(folder: &Path) -> Result<usize, String> {
     Ok(count)
 }
 
+fn empty_recycle_at(recycle: &Path) -> Result<EmptyRecycleResult, String> {
+    let recycle_root = path_text(recycle);
+    let mut result = EmptyRecycleResult { deleted_files: 0, deleted_folders: 0, recycle_root };
+    if !recycle.exists() {
+        return Ok(result);
+    }
+    let metadata = fs::symlink_metadata(recycle).map_err(|error| format!("无法检查回收站 {}：{error}", path_text(recycle)))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(format!("为安全起见，未清空非普通回收站目录：{}", path_text(recycle)));
+    }
+    for entry in fs::read_dir(recycle).map_err(|error| format!("无法读取回收站 {}：{error}", path_text(recycle)))? {
+        let entry = entry.map_err(|error| format!("无法读取回收站项目：{error}"))?;
+        let path = entry.path();
+        let item_metadata = fs::symlink_metadata(&path).map_err(|error| format!("无法检查回收站项目 {}：{error}", path_text(&path)))?;
+        if item_metadata.file_type().is_symlink() {
+            return Err(format!("为安全起见，未删除回收站中的符号链接：{}", path_text(&path)));
+        }
+        if item_metadata.is_dir() {
+            result.deleted_files += count_recycle_files(&path)?;
+            fs::remove_dir_all(&path).map_err(|error| format!("无法清空回收站 {}：{error}", path_text(&path)))?;
+            result.deleted_folders += 1;
+        } else {
+            fs::remove_file(&path).map_err(|error| format!("无法删除回收站文件 {}：{error}", path_text(&path)))?;
+            result.deleted_files += 1;
+        }
+    }
+    Ok(result)
+}
+
 #[tauri::command]
 fn empty_pack_recycle(root: String) -> Result<EmptyRecycleResult, String> {
     let root = PathBuf::from(root);
     if !root.is_dir() {
         return Err(format!("产品根目录不存在：{}", path_text(&root)));
     }
-    let mut result = EmptyRecycleResult { deleted_files: 0, deleted_folders: 0 };
-    for product_folder in direct_product_directories(&root) {
-        let recycle = product_folder.join("套图").join("回收站");
-        if !recycle.exists() {
-            continue;
-        }
-        let metadata = fs::symlink_metadata(&recycle).map_err(|error| format!("无法检查回收站 {}：{error}", path_text(&recycle)))?;
-        if metadata.file_type().is_symlink() || !metadata.is_dir() {
-            return Err(format!("为安全起见，未删除非普通目录：{}", path_text(&recycle)));
-        }
-        result.deleted_files += count_recycle_files(&recycle)?;
-        fs::remove_dir_all(&recycle).map_err(|error| format!("无法清空回收站 {}：{error}", path_text(&recycle)))?;
-        result.deleted_folders += 1;
-    }
-    Ok(result)
+    empty_recycle_at(&external_recycle_root())
 }
 
 fn is_video_file(path: &Path) -> bool {
@@ -1722,6 +1816,147 @@ fn request_excel(app: AppHandle, state: State<'_, BridgeState>, product: Finaliz
     Ok(job_id)
 }
 
+fn organizer_sku(value: &str) -> Option<String> {
+    Regex::new(r"(?i)SKU\d+")
+        .ok()?
+        .find(value)
+        .map(|matched| matched.as_str().to_uppercase())
+}
+
+fn folder_organizer_target(path: &Path) -> Option<(String, PathBuf)> {
+    let source_name = path.file_name().and_then(|value| value.to_str())?;
+    let pattern = Regex::new(r"(?i)SKU\d+").ok()?;
+    let matched = pattern.find(source_name)?;
+    let sku = matched.as_str().to_uppercase();
+    let prefix = source_name[..matched.start()]
+        .trim()
+        .trim_matches(|character: char| matches!(character, '_' | '-' | '—' | '–'))
+        .trim();
+    if prefix.is_empty() {
+        return None;
+    }
+    let target_name = format!("{prefix}-{sku}");
+    Some((sku, path.with_file_name(target_name)))
+}
+
+fn file_organize_item(kind: &str, source: &Path, target: &Path, sku: &str) -> FileOrganizeItem {
+    let source_name = source.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+    let target_name = target.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+    let status = if source == target {
+        "skipped"
+    } else if target.exists() {
+        "conflict"
+    } else {
+        "ready"
+    };
+    let message = match status {
+        "skipped" => "名称已经符合规则".to_string(),
+        "conflict" => "目标名称已存在，未加入执行队列".to_string(),
+        _ => "等待批量整理".to_string(),
+    };
+    FileOrganizeItem {
+        kind: kind.to_string(),
+        source_path: path_text(source),
+        target_path: path_text(target),
+        source_name,
+        target_name,
+        sku: sku.to_string(),
+        status: status.to_string(),
+        message,
+    }
+}
+
+fn scan_file_organizer_plan(root: &Path, rename_sku_images: bool, rename_product_folders: bool) -> Result<FileOrganizeScanResult, String> {
+    if !root.is_dir() {
+        return Err(format!("工作目录不存在：{}", path_text(root)));
+    }
+    let mut items = Vec::new();
+    for product_folder in direct_product_directories(root) {
+        let Some(folder_name) = product_folder.file_name().and_then(|value| value.to_str()) else { continue };
+        let Some(folder_sku) = organizer_sku(folder_name) else { continue };
+        if rename_sku_images {
+            let source = product_folder.join("SKU.jpg");
+            if source.is_file() {
+                items.push(file_organize_item("sku-image", &source, &product_folder.join(format!("{folder_sku}.jpg")), &folder_sku));
+            }
+        }
+        if rename_product_folders {
+            if let Some((sku, target)) = folder_organizer_target(&product_folder) {
+                items.push(file_organize_item("product-folder", &product_folder, &target, &sku));
+            }
+        }
+    }
+    items.sort_by(|left, right| left.source_path.to_lowercase().cmp(&right.source_path.to_lowercase()));
+    Ok(FileOrganizeScanResult { root: path_text(root), items })
+}
+
+#[tauri::command]
+fn scan_file_organizer(root: String, rename_sku_images: bool, rename_product_folders: bool) -> Result<FileOrganizeScanResult, String> {
+    scan_file_organizer_plan(&PathBuf::from(root), rename_sku_images, rename_product_folders)
+}
+
+#[tauri::command]
+fn organize_files(root: String, operations: Vec<FileOrganizeOperation>) -> Result<FileOrganizeResult, String> {
+    let root = PathBuf::from(root);
+    if !root.is_dir() {
+        return Err(format!("工作目录不存在：{}", path_text(&root)));
+    }
+    let mut operations = operations;
+    operations.sort_by(|left, right| {
+        let left_depth = Path::new(&left.source_path).components().count();
+        let right_depth = Path::new(&right.source_path).components().count();
+        right_depth.cmp(&left_depth).then_with(|| left.source_path.cmp(&right.source_path))
+    });
+    let mut result = FileOrganizeResult { logs: Vec::new(), renamed: 0, skipped: 0, failed: 0 };
+    for operation in operations {
+        let source = PathBuf::from(&operation.source_path);
+        let target = PathBuf::from(&operation.target_path);
+        if !source.starts_with(&root) || !target.starts_with(&root) {
+            result.failed += 1;
+            result.logs.push(format!("拒绝路径：整理目标必须位于工作目录内（{}）", path_text(&source)));
+            continue;
+        }
+        if source == target {
+            result.skipped += 1;
+            continue;
+        }
+        let source_metadata = match fs::symlink_metadata(&source) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                result.failed += 1;
+                result.logs.push(format!("跳过 {}：源文件不存在或无法读取（{error}）", path_text(&source)));
+                continue;
+            }
+        };
+        if source_metadata.file_type().is_symlink() {
+            result.failed += 1;
+            result.logs.push(format!("跳过 {}：不处理符号链接", path_text(&source)));
+            continue;
+        }
+        if target.exists() {
+            result.failed += 1;
+            result.logs.push(format!("跳过 {}：目标已存在 {}", path_text(&source), path_text(&target)));
+            continue;
+        }
+        if target.parent().map(|parent| parent.is_dir()).unwrap_or(false) == false {
+            result.failed += 1;
+            result.logs.push(format!("跳过 {}：目标目录不存在", path_text(&target)));
+            continue;
+        }
+        match fs::rename(&source, &target) {
+            Ok(()) => {
+                result.renamed += 1;
+                result.logs.push(format!("{} → {}", path_text(&source), path_text(&target)));
+            }
+            Err(error) => {
+                result.failed += 1;
+                result.logs.push(format!("重命名失败 {}：{error}", path_text(&source)));
+            }
+        }
+    }
+    Ok(result)
+}
+
 fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
     let mut items = fs::read_dir(root)
         .ok()
@@ -1978,21 +2213,43 @@ mod tests {
     }
 
     #[test]
-    fn empties_only_product_pack_recycle_folders() {
+    fn empties_external_recycle_without_touching_product_folders() {
         let root = std::env::temp_dir().join(format!("plm-recycle-test-{}", Uuid::new_v4()));
-        let recycle = root.join("AMZ 产品 SKU00044974").join("套图").join("回收站");
+        let recycle = root.join("图包回收站").join("AMZ 产品 SKU00044974").join("主图");
         let keep = root.join("AMZ 产品 SKU00044974").join("套图").join("主图");
         fs::create_dir_all(&recycle).unwrap();
         fs::create_dir_all(&keep).unwrap();
         fs::write(recycle.join("主图1.png"), b"original").unwrap();
         fs::write(keep.join("主图1.jpg"), b"compressed").unwrap();
 
-        let result = empty_pack_recycle(path_text(&root)).unwrap();
+        let result = empty_recycle_at(&root.join("图包回收站")).unwrap();
 
         assert_eq!(result.deleted_files, 1);
         assert_eq!(result.deleted_folders, 1);
-        assert!(!recycle.exists());
+        assert!(!recycle.parent().unwrap().exists());
         assert!(keep.join("主图1.jpg").is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn plans_and_applies_file_organizer_names() {
+        let root = std::env::temp_dir().join(format!("plm-organizer-test-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 亮白牙膏 SKU00047688");
+        fs::create_dir_all(&product).unwrap();
+        fs::write(product.join("SKU.jpg"), b"sku").unwrap();
+
+        let scan = scan_file_organizer_plan(&root, true, true).unwrap();
+        assert_eq!(scan.items.len(), 2);
+        assert!(scan.items.iter().any(|item| item.target_name == "SKU00047688.jpg"));
+        assert!(scan.items.iter().any(|item| item.target_name == "AMZ 亮白牙膏-SKU00047688"));
+        let operations = scan.items.iter().filter(|item| item.status == "ready").map(|item| FileOrganizeOperation {
+            source_path: item.source_path.clone(),
+            target_path: item.target_path.clone(),
+        }).collect();
+        let result = organize_files(path_text(&root), operations).unwrap();
+        assert_eq!(result.renamed, 2);
+        let renamed = root.join("AMZ 亮白牙膏-SKU00047688");
+        assert!(renamed.join("SKU00047688.jpg").is_file());
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -2034,6 +2291,8 @@ pub fn run() {
             request_excel,
             scan_upload_pairs,
             queue_upload_pairs,
+            scan_file_organizer,
+            organize_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PLM product asset workbench");

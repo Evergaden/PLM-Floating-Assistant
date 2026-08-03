@@ -47,7 +47,7 @@ button.primary:hover { background: var(--purple-dark); }
 button.primary:disabled { opacity: .6; cursor: default; }
 button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(10px); }
 .path-chip { position: absolute; bottom: 24px; right: 34px; z-index: 2; max-width: 510px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; color: #cdd6e7; background: rgba(0,0,0,.16); border-radius: 8px; padding: 7px 11px; font-size: 11px; display: flex; align-items: center; gap: 7px; }
-.workspace-tabs { display: flex; gap: 5px; margin: 16px 0 0; padding: 5px; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.86); }
+.workspace-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin: 16px 0 0; padding: 5px; width: 100%; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.86); }
 .workspace-tabs button { min-width: 124px; height: 36px; padding: 0 14px; border: 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #6f7a8d; background: transparent; font-size: 12px; font-weight: 700; }
 .workspace-tabs button.active { color: var(--purple); background: var(--purple-soft); box-shadow: inset 0 0 0 1px rgba(101,71,245,.1); }
 .workspace-tabs .collapse-top { margin-left: auto; min-width: 108px; color: #687487; }
@@ -231,6 +231,10 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .random-pack-toolbar > button.primary { margin-left: auto; color: white; border-color: var(--purple); background: var(--purple); }
 .random-pack-toolbar label:not(.toggle) { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .random-pack-toolbar input[type=number] { width: 55px; height: 30px; padding: 0 7px; border: 1px solid var(--line); border-radius: 7px; color: #38445a; background: white; }
+.random-pack-drop { min-height: 102px; margin: 12px 24px 0; padding: 13px; display: grid; place-items: center; align-content: center; gap: 5px; border: 1.5px dashed #cfd4e9; border-radius: 13px; color: #9888f9; background: #f8f7ff; cursor: pointer; text-align: center; }
+.random-pack-drop:hover { border-color: var(--purple); background: #f4f1ff; }
+.random-pack-drop strong { color: #465169; font-size: 12px; }
+.random-pack-drop span { color: #8993a4; font-size: 10px; }
 .random-pack-photoshop { min-height: 45px; padding: 8px 24px; display: flex; align-items: center; gap: 8px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 10px; }
 .random-pack-photoshop > span { font-weight: 700; }
 .random-pack-photoshop > input { width: 280px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; color: #38445a; background: white; font-size: 10px; }
@@ -244,6 +248,30 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .random-pack-console > div { min-height: 34px; padding: 0 11px; display: flex; align-items: center; color: #dce4f0; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 10px; }
 .random-pack-console > div span { margin-left: auto; color: #8fa0b8; }
 .random-pack-console pre { max-height: 190px; margin: 0; padding: 10px 12px; overflow: auto; white-space: pre-wrap; color: #aebbd0; font: 10px/1.55 Consolas, monospace; }
+.organize-panel { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: white; box-shadow: 0 9px 32px rgba(27,39,69,.055); }
+.organize-toolbar { min-height: 58px; padding: 9px 24px; display: flex; align-items: center; gap: 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafbfe; }
+.organize-toolbar > button { height: 34px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #657187; background: white; font-size: 10px; font-weight: 700; }
+.organize-toolbar > button.secondary { color: #657187; border-color: var(--line); background: white; }
+.organize-toolbar > button.primary { margin-left: auto; color: white; border-color: var(--purple); background: var(--purple); }
+.organize-examples { padding: 13px 24px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); background: #fbfcfe; }
+.organize-examples > div { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.organize-examples strong { width: 72px; flex: 0 0 72px; color: #536075; font-size: 11px; }
+.organize-examples span { min-width: 0; overflow: hidden; color: #7b8698; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.organize-examples code { color: var(--purple); font: 10px Consolas, monospace; }
+.organize-summary { min-height: 35px; padding: 0 24px; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 10px; }
+.organize-list { max-height: 480px; overflow: auto; }
+.organize-row { min-height: 67px; padding: 8px 24px; display: grid; grid-template-columns: 82px minmax(210px,1fr) minmax(210px,1fr) 100px; align-items: center; gap: 12px; border-top: 1px solid #edf0f5; }
+.organize-row.ready { background: linear-gradient(90deg,#fff,#fbfaff); }
+.organize-row.conflict { background: #fffaf6; }
+.organize-kind { color: #6b58d9; font-size: 10px; font-weight: 800; }
+.organize-row > div { min-width: 0; display: grid; gap: 3px; }
+.organize-row > div strong, .organize-row > div small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.organize-row > div strong { color: #4c586e; font-size: 10px; }
+.organize-row > div small { color: #929bad; font-size: 9px; }
+.organize-row > .status { justify-self: end; }
+.organize-console { margin: 0 24px 18px; padding: 11px 13px; color: #647084; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfe; }
+.organize-console strong { font-size: 11px; }
+.organize-console pre { max-height: 110px; margin: 7px 0 0; overflow: auto; white-space: pre-wrap; color: #8792a3; font: 10px/1.6 Consolas, monospace; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(18,24,38,.48); backdrop-filter: blur(6px); display: grid; place-items: center; }
 .modal { width: 480px; padding: 30px; border-radius: 22px; background: white; position: relative; box-shadow: 0 30px 80px rgba(12,18,31,.27); }
 .modal-close { position: absolute; right: 18px; top: 18px; border: 0; background: #f2f4f7; color: #697487; border-radius: 8px; width: 32px; height: 32px; display: grid; place-items: center; }

@@ -59,6 +59,30 @@ interface ArchivePacksResult {
 interface EmptyRecycleResult {
   deletedFiles: number;
   deletedFolders: number;
+  recycleRoot: string;
+}
+
+interface FileOrganizeItem {
+  kind: "sku-image" | "product-folder" | string;
+  sourcePath: string;
+  targetPath: string;
+  sourceName: string;
+  targetName: string;
+  sku: string;
+  status: "ready" | "conflict" | "skipped" | string;
+  message: string;
+}
+
+interface FileOrganizeScanResult {
+  root: string;
+  items: FileOrganizeItem[];
+}
+
+interface FileOrganizeResult {
+  logs: string[];
+  renamed: number;
+  skipped: number;
+  failed: number;
 }
 
 interface ComposePackResult {
@@ -359,7 +383,7 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random">("assets");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random" | "organize">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -392,6 +416,11 @@ export default function App() {
   const [randomCompress, setRandomCompress] = useState(true);
   const [randomBusy, setRandomBusy] = useState(false);
   const [randomLogs, setRandomLogs] = useState<string[]>(["等待导入主图或详情图 ZIP。"]);
+  const [organizeItems, setOrganizeItems] = useState<FileOrganizeItem[]>([]);
+  const [organizeRenameImages, setOrganizeRenameImages] = useState(true);
+  const [organizeRenameFolders, setOrganizeRenameFolders] = useState(true);
+  const [organizeBusy, setOrganizeBusy] = useState(false);
+  const [organizeLogs, setOrganizeLogs] = useState<string[]>(["请选择工作目录并扫描待整理文件。"]);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -405,6 +434,10 @@ export default function App() {
 
   const addZipPaths = useCallback((paths: string[]) => {
     setZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
+  }, []);
+
+  const addRandomZipPaths = useCallback((paths: string[]) => {
+    setRandomZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
   }, []);
 
   const refreshPreview = useCallback(async (
@@ -513,10 +546,12 @@ export default function App() {
   useEffect(() => {
     let clean: (() => void) | undefined;
     getCurrentWebview().onDragDropEvent((event) => {
-      if (event.payload.type === "drop") addZipPaths(event.payload.paths);
+      if (event.payload.type !== "drop") return;
+      if (workspaceView === "random") addRandomZipPaths(event.payload.paths);
+      else if (workspaceView === "packs") addZipPaths(event.payload.paths);
     }).then((unlisten) => { clean = unlisten; });
     return () => clean?.();
-  }, [addZipPaths]);
+  }, [addRandomZipPaths, addZipPaths, workspaceView]);
 
   useEffect(() => {
     refreshPreview(products, root, mappings).catch(console.error);
@@ -564,7 +599,7 @@ export default function App() {
       filters: [{ name: "ZIP 图包", extensions: ["zip"] }],
     });
     const paths = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
-    setRandomZipPaths((current) => [...new Set([...current, ...paths.filter((path) => path.toLowerCase().endsWith(".zip"))])]);
+    addRandomZipPaths(paths);
   }
 
   async function chooseRandomOutputDir() {
@@ -779,7 +814,7 @@ export default function App() {
         autoStart: uploadAutoStart,
       });
       setSelectedUploadSkus(new Set());
-      notify(`已提交 ${count} 个上传任务${uploadAutoStart ? "，已请求自动开始" : "，请在悬浮助手中开始"}`);
+      notify(`已提交 ${count} 个魔法上传图包任务${uploadAutoStart ? "，已请求自动开始" : "，请在悬浮助手中开始"}`);
     } catch (error) {
       notify(String(error));
     } finally {
@@ -794,14 +829,65 @@ export default function App() {
     try {
       const result = await invoke<EmptyRecycleResult>("empty_pack_recycle", { root });
       const message = result.deletedFolders
-        ? `已清空 ${result.deletedFolders} 个回收站，永久删除 ${result.deletedFiles} 个文件`
-        : "没有找到需要清空的“套图/回收站”";
+        ? `已清空外部回收站，永久删除 ${result.deletedFiles} 个文件（位置：${result.recycleRoot}）`
+        : `外部回收站没有待清理文件（位置：${result.recycleRoot}）`;
       setPackLogs((current) => [...current, message]);
       notify(message);
     } catch (error) {
       notify(String(error));
     } finally {
       setPackBusy(false);
+    }
+  }
+
+  async function scanOrganizer() {
+    if (!root) return notify("请先选择工作目录");
+    if (!organizeRenameImages && !organizeRenameFolders) return notify("请至少选择一种整理规则");
+    setOrganizeBusy(true);
+    try {
+      const result = await invoke<FileOrganizeScanResult>("scan_file_organizer", {
+        root,
+        renameSkuImages: organizeRenameImages,
+        renameProductFolders: organizeRenameFolders,
+      });
+      setOrganizeItems(result.items);
+      setOrganizeLogs([
+        `扫描完成：发现 ${result.items.length} 项；可执行 ${result.items.filter((item) => item.status === "ready").length} 项`,
+        ...result.items.filter((item) => item.status !== "ready").map((item) => `${item.status === "conflict" ? "冲突" : "跳过"}：${item.sourcePath} · ${item.message}`),
+      ]);
+      notify(`扫描完成：${result.items.filter((item) => item.status === "ready").length} 项可整理`);
+    } catch (error) {
+      setOrganizeLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setOrganizeBusy(false);
+    }
+  }
+
+  async function applyOrganizer() {
+    if (!root) return notify("请先选择工作目录");
+    const targets = organizeItems.filter((item) => item.status === "ready");
+    if (!targets.length) return notify("请先扫描出可整理项目");
+    if (!window.confirm(`将批量重命名 ${targets.length} 项文件/目录，目标已存在的项目会跳过。是否继续？`)) return;
+    setOrganizeBusy(true);
+    try {
+      const result = await invoke<FileOrganizeResult>("organize_files", {
+        root,
+        operations: targets.map((item) => ({ sourcePath: item.sourcePath, targetPath: item.targetPath })),
+      });
+      setOrganizeLogs(result.logs);
+      notify(`文件整理完成：成功 ${result.renamed}，跳过 ${result.skipped}，失败 ${result.failed}`);
+      const refreshed = await invoke<FileOrganizeScanResult>("scan_file_organizer", {
+        root,
+        renameSkuImages: organizeRenameImages,
+        renameProductFolders: organizeRenameFolders,
+      });
+      setOrganizeItems(refreshed.items);
+    } catch (error) {
+      setOrganizeLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setOrganizeBusy(false);
     }
   }
 
@@ -911,6 +997,7 @@ export default function App() {
           <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
           <button className={workspaceView === "random" ? "active" : ""} onClick={() => setWorkspaceView("random")}><RotateCw size={16} />随机组合</button>
+          <button className={workspaceView === "organize" ? "active" : ""} onClick={() => setWorkspaceView("organize")}><Pencil size={16} />文件整理</button>
           <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
           <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
@@ -1025,12 +1112,53 @@ export default function App() {
               <label className="toggle"><input type="checkbox" checked={randomCompress} onChange={(event) => setRandomCompress(event.target.checked)} /><span />组合后用 Photoshop 压缩</label>
               <button className="primary" onClick={composeRandomPack} disabled={randomBusy || !randomZipPaths.length}>{randomBusy ? <LoaderCircle size={16} className="spin" /> : <RotateCw size={16} />}开始随机组合</button>
             </div>
+            <div className="random-pack-drop" onClick={chooseRandomZipPacks} role="button" tabIndex={0}>
+              <Archive size={25} />
+              <strong>{randomZipPaths.length ? `已添加 ${randomZipPaths.length} 个 ZIP，可继续拖入` : "拖入主图或详情图 ZIP"}</strong>
+              <span>支持从资源管理器直接拖入；文件名或 ZIP 内部文件名需要能识别主图/详情图编号</span>
+            </div>
             {randomCompress && <div className="random-pack-photoshop"><span>Photoshop</span><input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} placeholder="Photoshop.exe 路径" /><button onClick={choosePhotoshop}>选择 Photoshop</button><small>压缩后直接写入主图、详情图文件夹，原始 ZIP 不会删除。</small></div>}
             <div className="random-pack-list">
               {!randomZipPaths.length && <div className="empty-state"><Archive size={28} /><strong>还没有导入 ZIP</strong><span>主图 ZIP 和详情图 ZIP 可以混合导入。</span></div>}
               {randomZipPaths.map((path) => <div key={path}><Archive size={15} /><span title={path}>{path}</span><button onClick={() => setRandomZipPaths((current) => current.filter((item) => item !== path))}><X size={14} /></button></div>)}
             </div>
             <div className="random-pack-console"><div><strong>抽取日志</strong><span>{randomLogs.length} 条</span></div><pre>{randomLogs.join("\n")}</pre></div>
+          </section>
+        )}
+
+        {workspaceView === "organize" && (
+          <section className="organize-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">FILE ORGANIZER</span>
+                <h2>文件整理</h2>
+                <p>扫描工作目录下的产品文件夹，预览并批量规范 SKU 图片与产品目录名称。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
+            </div>
+            <div className="organize-toolbar">
+              <label className="toggle"><input type="checkbox" checked={organizeRenameImages} onChange={(event) => setOrganizeRenameImages(event.target.checked)} /><span />SKU.jpg → 编码.jpg</label>
+              <label className="toggle"><input type="checkbox" checked={organizeRenameFolders} onChange={(event) => setOrganizeRenameFolders(event.target.checked)} /><span />品牌 产品名 SKU → 品牌 产品名-SKU</label>
+              <button className="secondary" onClick={scanOrganizer} disabled={organizeBusy}><ScanLine size={16} />{organizeBusy ? "处理中…" : "扫描预览"}</button>
+              <button className="primary" onClick={applyOrganizer} disabled={organizeBusy || !organizeItems.some((item) => item.status === "ready")}><Pencil size={16} />执行批量整理</button>
+            </div>
+            <div className="organize-examples">
+              <div><strong>SKU 图片</strong><span><code>Feimuko 舒适义齿套装 SKU00047352\SKU.jpg</code> → <code>SKU00047352.jpg</code></span></div>
+              <div><strong>产品目录</strong><span><code>AMZ 亮白牙膏 SKU00047688</code> → <code>AMZ 亮白牙膏-SKU00047688</code></span></div>
+            </div>
+            <div className="organize-summary"><span>扫描到 {organizeItems.length} 项</span><span>可执行 {organizeItems.filter((item) => item.status === "ready").length} 项</span><span>冲突/跳过 {organizeItems.filter((item) => item.status !== "ready").length} 项</span></div>
+            <div className="organize-list">
+              {!organizeItems.length && <div className="empty-state"><Pencil size={28} /><strong>点击“扫描预览”开始</strong><span>工作台只会在当前工作目录内操作，不覆盖已存在的目标名称。</span></div>}
+              {organizeItems.map((item) => (
+                <div className={`organize-row ${item.status}`} key={`${item.kind}:${item.sourcePath}`}>
+                  <span className="organize-kind">{item.kind === "sku-image" ? "SKU 图片" : "产品目录"}</span>
+                  <div><strong title={item.sourcePath}>{item.sourceName}</strong><small title={item.sourcePath}>{item.sourcePath}</small></div>
+                  <div><strong title={item.targetPath}>{item.targetName}</strong><small title={item.targetPath}>{item.targetPath}</small></div>
+                  <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "neutral"}`}>{item.status === "ready" ? "待整理" : item.status === "conflict" ? "目标冲突" : "已符合"}</span>
+                </div>
+              ))}
+            </div>
+            <div className="organize-console"><strong>整理日志</strong><pre>{organizeLogs.join("\n")}</pre></div>
           </section>
         )}
 
@@ -1072,8 +1200,8 @@ export default function App() {
                   <label className="toggle recycle-toggle"><input type="checkbox" checked={moveOriginalsToRecycle} disabled={!compressImages} onChange={(event) => {
                     setMoveOriginalsToRecycle(event.target.checked);
                     localStorage.setItem(PHOTOSHOP_RECYCLE_KEY, event.target.checked ? "1" : "0");
-                  }} /><span />压缩成功后将原图移到“套图/回收站”</label>
-                  <small>只在对应 JPG 保存成功后移动；核对完成再永久清空</small>
+                  }} /><span />压缩成功后将原图移到外部回收站</label>
+                  <small>只在对应 JPG 保存成功后移动；回收站位于电脑应用数据目录，不写入原产品目录</small>
                   <div>
                     <input value={photoshopPath} onChange={(event) => setPhotoshopPath(event.target.value)} disabled={!compressImages} placeholder="Photoshop.exe 路径" />
                     <button onClick={choosePhotoshop} disabled={!compressImages}>选择 Photoshop</button>
@@ -1102,21 +1230,21 @@ export default function App() {
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">UPLOAD CHECK</span>
-                <h2>检查新做的图包和表格</h2>
-                <p>按 SKU 扫描本地 XLSX 与 ZIP，并匹配悬浮助手上传历史；已成功上传过的产品会自动排除队列。</p>
+                <h2>检查并提交魔法上传图包</h2>
+                <p>按 SKU 扫描本地 XLSX 与 ZIP，检查后交给悬浮助手的魔法上传 API；不再点击旧的脚本上传页面。</p>
               </div>
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
             </div>
             <div className="upload-check-toolbar">
               <button className="secondary" onClick={scanUploadPairs} disabled={uploadBusy}><ScanLine size={16} />{uploadBusy ? "检查中…" : "检查新文件"}</button>
-              <button className="primary" onClick={queueUploadPairs} disabled={uploadBusy || !selectedUploadSkus.size}><Upload size={16} />加入上传队列</button>
-              <label className="toggle"><input type="checkbox" checked={uploadAutoStart} onChange={(event) => setUploadAutoStart(event.target.checked)} /><span />加入后自动开始</label>
+              <button className="primary" onClick={queueUploadPairs} disabled={uploadBusy || !selectedUploadSkus.size}><Upload size={16} />加入魔法上传队列</button>
+              <label className="toggle"><input type="checkbox" checked={uploadAutoStart} onChange={(event) => setUploadAutoStart(event.target.checked)} /><span />加入后自动开始魔法上传</label>
               <button onClick={() => setSelectedUploadSkus(new Set(uploadPairs.filter((item) => item.status === "ready").map((item) => item.sku)))}>全选可上传</button>
               <button onClick={() => setSelectedUploadSkus(new Set())}>取消选择</button>
             </div>
             <div className="upload-check-summary"><span>共 {uploadPairs.length} 个 SKU</span><span>可上传 {uploadPairs.filter((item) => item.status === "ready").length}</span><span>历史已上传 {uploadPairs.filter((item) => item.status === "uploaded").length}</span><span>已选择 {selectedUploadSkus.size}</span></div>
             <div className="upload-check-list">
-              {!uploadPairs.length && <div className="empty-state"><ScanLine size={28} /><strong>点击“检查新文件”开始扫描</strong><span>工作台会在产品根目录内寻找带 SKU 的 XLSX 和 ZIP。</span></div>}
+              {!uploadPairs.length && <div className="empty-state"><ScanLine size={28} /><strong>点击“检查新文件”开始扫描</strong><span>工作台会在产品根目录内寻找带 SKU 的 XLSX 和 ZIP，提交后由魔法上传处理。</span></div>}
               {uploadPairs.map((item) => (
                 <div className={`upload-check-row ${item.status}`} key={item.sku}>
                   <button className={`check-button ${selectedUploadSkus.has(item.sku) ? "checked" : ""}`} disabled={item.status !== "ready"} onClick={() => setSelectedUploadSkus((current) => { const next = new Set(current); if (next.has(item.sku)) next.delete(item.sku); else next.add(item.sku); return next; })}>{selectedUploadSkus.has(item.sku) && <Check size={14} />}</button>
