@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.95
+// @version      2.6.96
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.95';
+  const SCRIPT_VERSION = '2.6.96';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4789,32 +4789,6 @@
     return false;
   }
 
-  function getProductAttachmentFiles(drawer, sku) {
-    const ingredientItem = findIngredientPdfItem(drawer);
-    const copywritingItem = findProductCopywritingItem(drawer);
-    return {
-      ingredientFile: ingredientItem ? findIngredientPdfFile(ingredientItem) : null,
-      copywritingFile: copywritingItem ? findProductCopywritingFile(copywritingItem, sku) : null,
-    };
-  }
-
-  async function waitForProductAttachmentFiles(drawer, sku, token) {
-    let files = getProductAttachmentFiles(drawer, sku);
-    const copywritingDeadline = Date.now() + 2600;
-    while (!files.copywritingFile && Date.now() < copywritingDeadline) {
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
-      await wait(140);
-      files = getProductAttachmentFiles(drawer, sku);
-    }
-    const ingredientDeadline = Date.now() + 800;
-    while (!files.ingredientFile && Date.now() < ingredientDeadline) {
-      if (!isDrawerProductFlowCurrent(sku, token, drawer)) return null;
-      await wait(140);
-      files = getProductAttachmentFiles(drawer, sku);
-    }
-    return isDrawerProductFlowCurrent(sku, token, drawer) ? files : null;
-  }
-
   async function runDrawerProductFlow(sku, token, options) {
     const includeScanTabs = Boolean(options && options.includeScanTabs);
     const drawer = getProjectDrawerForSku(sku);
@@ -4911,19 +4885,15 @@
         await switchDrawerTab(drawer, L.productTab, { flowToken: token, timeout: 4500 });
         if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
 
-        const attachmentFiles = await waitForProductAttachmentFiles(drawer, sku, token);
-        if (!attachmentFiles) return;
         const copywritingData = await hydrateCopywritingForSku(sku, {
           silent: true,
           drawer,
-          file: attachmentFiles.copywritingFile || undefined,
         });
         const copywritingRecord = normalizeCopywritingRecord(copywritingData && copywritingData.copywriting);
         if (!copywritingRecord || !copywritingRecord.fullText) addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u4ea7\u54c1\u6587\u6848 Word', sku);
         const ingredientData = await hydrateIngredientPdfForSku(sku, {
           silent: true,
           drawer,
-          file: attachmentFiles.ingredientFile || undefined,
         });
         if (!ingredientData.ingredientEnglish && !ingredientData.ingredientChinese) {
           addLog('info', '\u4ea7\u54c1\u4fe1\u606f\u672a\u627e\u5230\u6210\u5206\u8868 PDF', sku);
@@ -5719,11 +5689,13 @@
         const productVersionId = product.product_version_id || product.product_main_id;
         const categoryId = product.category_id;
         let contentPayload = null;
+        let contentError = '';
         let infoPayload = null;
         if (productId && productVersionId && categoryId) {
           try {
             contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId));
           } catch (error) {
+            contentError = formatErrorMessage(error);
             addLog('warn', 'Excel 产品详情 API 读取失败', sku + ' | ' + formatErrorMessage(error));
           }
           try {
@@ -5739,6 +5711,7 @@
           productVersionId: String(productVersionId || ''),
           categoryId: String(categoryId || ''),
           contentPayload,
+          contentError,
           infoPayload,
           ...extractApiProductSnapshot(product, infoPayload, contentPayload),
         };
@@ -5838,6 +5811,7 @@
     if (!apiIngredientFileCache[sku]) {
       const request = (async () => {
         const snapshot = await fetchApiProductSnapshot({ sku }, options);
+        if (snapshot && snapshot.contentError) throw new Error(snapshot.contentError);
         if (!snapshot || !snapshot.found || !snapshot.contentPayload) return { found: false, reason: '产品详情没有可读内容' };
         const file = await findApiIngredientPdfFromContent(snapshot.contentPayload, sku);
         return file || { found: false, reason: '产品详情没有成分表 PDF 附件' };
@@ -13579,6 +13553,16 @@
         renderShell();
         return;
       }
+      if (apiResult && apiResult.noFile) {
+        state.data = normalizeData(loadData(sku) || state.data || data);
+        state.copywritingLoading = false;
+        state.copywritingChecking = false;
+        state.copywritingStatus = '';
+        state.copywritingError = '';
+        addLog('info', '产品文案：API 未找到 Word，不再读取页面附件', sku);
+        renderShell();
+        return;
+      }
       let drawer = getProjectDrawerForSku(sku);
       if (!drawer) {
         await openSelectedProjectDetail({ preserveCopywriting: hasCachedCopywriting });
@@ -13784,10 +13768,11 @@
         delete state.copywritingHydrateFailedAt[sku];
         return normalizeData(apiResult.data || loadData(sku) || recentData);
       }
+      if (apiResult && apiResult.noFile) return recentData;
       drawer = opts.drawer || getProjectDrawerForSku(sku);
       if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
       originalTab = getActiveTabText(drawer);
-      if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab) return normalizeData(loadData(sku) || {});
+      if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab && !(apiResult && apiResult.error)) return normalizeData(loadData(sku) || {});
       if (!opts.file) await switchDrawerTab(drawer, L.productTab);
       if (!opts.file) await waitFor(() => findProductCopywritingItem(drawer), 5000, 160);
       const item = opts.file ? null : findProductCopywritingItem(drawer);
@@ -13849,7 +13834,8 @@
       addLog('warn', '成分表 API：定位失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
       return { handled: false, error };
     }
-    if (!file || !file.found || !file.url) return { handled: false, noFile: true };
+    if (!file || !file.found) return { handled: false, noFile: true };
+    if (!file.url) throw new Error('成分表 API 附件缺少下载地址');
     const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     const fileName = String(file.fileName || ('ingredient-' + sku + '.pdf')).trim();
     if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfFileName === fileName && cached.ingredientEnglish && cached.ingredientChinese) {
@@ -13924,12 +13910,14 @@
     state.ingredientHydratingSkus.add(sku);
     const originalTab = drawer ? getActiveTabText(drawer) : '';
     try {
+      let apiResult = null;
       if (opts.preferApi !== false) {
-        const apiResult = await hydrateIngredientPdfFromApi(sku, { ...opts, drawer, resultGeneration, apiFile: opts.apiFile || null });
+        apiResult = await hydrateIngredientPdfFromApi(sku, { ...opts, drawer, resultGeneration, apiFile: opts.apiFile || null });
         if (apiResult && apiResult.handled) return apiResult.data || normalizeData(loadData(sku) || {});
+        if (apiResult && apiResult.noFile) return normalizeData(loadData(sku) || {});
       }
       if (!drawer || drawer !== getProjectDrawerForSku(sku)) return normalizeData(loadData(sku) || {});
-      if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab) return normalizeData(loadData(sku) || {});
+      if (opts.silent && !opts.file && getActiveTabText(drawer) !== L.productTab && !(apiResult && apiResult.error)) return normalizeData(loadData(sku) || {});
       if (!opts.file) await switchDrawerTab(drawer, L.productTab);
       if (!opts.file) await waitFor(() => findIngredientPdfItem(drawer), 3500, 140);
       const item = opts.file ? null : findIngredientPdfItem(drawer);
@@ -21038,19 +21026,12 @@
         ingredientData = normalizeData(loadData(sku) || ingredientData);
         copywritingRecord = normalizeCopywritingRecord(ingredientData.copywriting);
         if (!copywritingRecord || copywritingRecord.parserVersion !== COPYWRITING_PARSER_VERSION) {
-          const copywritingItem = findProductCopywritingItem(drawer);
-          const copywritingFile = copywritingItem ? findProductCopywritingFile(copywritingItem, sku) : null;
-          if (copywritingFile) ingredientData = await hydrateCopywritingForSku(sku, { silent: true, drawer, file: copywritingFile });
+          ingredientData = await hydrateCopywritingForSku(sku, { silent: true, drawer });
         }
       }
-      const ingredientItem = findIngredientPdfItem(drawer);
-      const ingredientFile = ingredientItem ? findIngredientPdfFile(ingredientItem) : null;
-      if (ingredientFile && ingredientData.ingredientSource !== 'ingredientPdfApi' && (!ingredientData.ingredientEnglish || !ingredientData.ingredientChinese || (
-        ingredientData.ingredientPdfFileName !== ingredientFile.fileName
-        || ingredientData.ingredientNormalizerVersion !== INGREDIENT_NORMALIZER_VERSION
-      ))) {
+      if (!ingredientData.ingredientEnglish || !ingredientData.ingredientChinese) {
         if (state.ingredientHydratingSkus.has(sku)) await waitFor(() => !state.ingredientHydratingSkus.has(sku), 65000, 250);
-        else ingredientData = await hydrateIngredientPdfForSku(sku, { silent: true, drawer, file: ingredientFile });
+        else ingredientData = await hydrateIngredientPdfForSku(sku, { silent: true, drawer });
         ingredientData = normalizeData(loadData(sku) || ingredientData);
       }
       extra.ingredientEnglish = ingredientData.ingredientEnglish || extra.ingredientEnglish;
