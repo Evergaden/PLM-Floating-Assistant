@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.98
+// @version      2.6.99
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.98';
+  const SCRIPT_VERSION = '2.6.99';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8190,6 +8190,12 @@
       headRight.insertBefore(modeTabs, pipeline || null);
     }
     root.querySelectorAll('.pfh-magic-drop-icon').forEach((element) => element.remove());
+    const effectDrop = root.querySelector('.pfh-magic-upload-drop[data-upload-drop="magic-effect"]');
+    if (effectDrop) {
+      effectDrop.setAttribute('aria-label', '拖入 JPG 或 PNG 效果图，悬浮后可按 Ctrl+V 粘贴');
+      const hint = effectDrop.querySelector('div > span:last-child');
+      if (hint) hint.textContent = '悬浮此框后按 Ctrl+V，可直接粘贴图片 · JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图';
+    }
   }
 
   function ensureMagicUploadStyles() {
@@ -8230,7 +8236,7 @@
       root + '.pfh-magic-hero small{display:block;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.18em}',
       root + '.pfh-magic-hero h2{margin:5px 0 7px;color:#1d2232;font-size:24px;line-height:1.08;font-weight:900;letter-spacing:0}',
       root + '.pfh-magic-hero p{max-width:520px;margin:0;color:#8990a6;font-size:12px;font-weight:650}',
-      root + '.pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:174px;margin:0 0 44px;overflow:hidden;border:1px dashed rgba(217,147,168,.5);border-radius:24px;background:rgba(255,248,251,.68);color:#7657f2;text-align:center;cursor:pointer;transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease,background .24s ease}',
+      root + '.pfh-magic-upload-drop{position:relative;display:grid;place-items:center;min-height:174px;margin:0 0 58px!important;overflow:hidden;border:1px dashed rgba(217,147,168,.5);border-radius:24px;background:rgba(255,248,251,.68);color:#7657f2;text-align:center;cursor:pointer;transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease,background .24s ease}',
       root + '.pfh-magic-upload-drop:before{display:none}',
       root + '.pfh-magic-upload-drop:hover,' + root + '.pfh-magic-upload-drop.is-drag-over{border-color:#7056e8;transform:translateY(-2px);box-shadow:0 14px 34px rgba(76,60,150,.15)}',
       root + '.pfh-magic-upload-drop.is-paste-received{border-color:#49c7bc;box-shadow:0 0 0 4px rgba(73,199,188,.13),0 14px 34px rgba(76,60,150,.12)}',
@@ -16501,21 +16507,36 @@
   }
 
   function handleMagicUploadPaste(event) {
-    if (event.defaultPrevented || state.view !== 'magicUpload' || state.magicUploadMode === 'effect') return false;
+    if (event.defaultPrevented || state.view !== 'magicUpload') return false;
     const panel = document.getElementById(PANEL_ID);
     const target = event.target;
+    const effectMode = state.magicUploadMode === 'effect';
+    const dropSelector = effectMode
+      ? '.pfh-magic-upload-drop[data-upload-drop="magic-effect"]'
+      : '.pfh-magic-upload-drop[data-upload-drop="magic"]';
     const targetDrop = target && typeof target.closest === 'function'
-      ? target.closest('.pfh-magic-upload-drop[data-upload-drop="magic"]')
+      ? target.closest(dropSelector)
       : null;
-    const drop = targetDrop || (panel && panel.querySelector('.pfh-magic-upload-drop[data-upload-drop="magic"]:hover, .pfh-magic-upload-drop[data-upload-drop="magic"]:focus'));
+    const drop = targetDrop || (panel && panel.querySelector(dropSelector + ':hover, ' + dropSelector + ':focus'));
     if (!drop) return false;
 
-    event.preventDefault();
-    event.stopPropagation();
     const flashDrop = () => {
       drop.classList.add('is-paste-received');
       window.setTimeout(() => drop.classList.remove('is-paste-received'), 520);
     };
+    if (effectMode) {
+      const files = getClipboardToyEffectFiles(event);
+      if (!files.length) return false;
+      event.preventDefault();
+      event.stopPropagation();
+      flashDrop();
+      magicUploadLog('info', '通过悬浮区域粘贴效果图', files.map((file) => file.name + '|' + Number(file.size || 0)).join('；'));
+      stageToyEffectUploadFiles(files, { stayInMagic: true });
+      return true;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
     const acceptFiles = (files, source) => {
       if (!files || !files.length) return false;
       flashDrop();
@@ -17049,7 +17070,7 @@
   }
 
   function isToyEffectImageFile(file) {
-    return Boolean(file && (/^image\/(?:jpeg|png)$/i.test(file.type || '') || /\.(?:png|jpe?g)$/i.test(file.name || '')));
+    return Boolean(file && (/^image\/(?:jpeg|png|bmp)$/i.test(file.type || '') || /\.(?:png|jpe?g|bmp)$/i.test(file.name || '')));
   }
 
   function normalizeToyEffectMatchText(value) {
