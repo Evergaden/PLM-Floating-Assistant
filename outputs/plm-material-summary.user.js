@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.110
+// @version      2.6.111
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.110';
+  const SCRIPT_VERSION = '2.6.111';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -8332,7 +8332,7 @@
       root + '.pfh-detail-scroll{height:100%!important;min-height:0!important;overflow:hidden!important;overscroll-behavior:contain!important;padding:0!important;background:#fff!important}',
       root + '.pfh-magic-page{height:100%;min-height:0;box-sizing:border-box;overflow:hidden;padding:18px 18px 20px;background:#fff;color:#1d2232}',
       root + '.pfh-magic-canvas{position:relative;isolation:isolate;display:flex;flex-direction:column;height:100%;min-height:0;box-sizing:border-box;margin:0;padding:0 0 58px;overflow:hidden;border:0;border-radius:0;background:transparent;box-shadow:none}',
-      root + '.pfh-magic-mode-content{display:flex;flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}',
+      root + '.pfh-magic-mode-content{display:flex;flex:1 1 0;min-height:0;flex-direction:column;overflow:hidden}',
       root + '.pfh-magic-mode-content>.pfh-magic-overview,' + root + '.pfh-magic-mode-content>.pfh-magic-upload-drop,' + root + '.pfh-magic-mode-content>.pfh-magic-actions,' + root + '.pfh-magic-mode-content>.pfh-magic-queue-head,' + root + '.pfh-magic-mode-content>.pfh-magic-bottom-note{flex:0 0 auto}',
       root + '.pfh-magic-page .pfh-icon,' + root + '.pfh-magic-page .pfh-icon[class*="pfh-icon-"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:inherit!important;line-height:1!important}',
       root + '.pfh-magic-page .pfh-icon svg,' + root + '.pfh-magic-page .pfh-icon svg *{color:inherit!important;fill:none!important;stroke:currentColor!important;stroke-linecap:round!important;stroke-linejoin:round!important}',
@@ -8381,11 +8381,11 @@
       root + '.pfh-magic-actions button:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}',
       root + '.pfh-magic-actions .pfh-magic-history-toggle{margin-left:auto}',
       root + '.pfh-magic-actions .pfh-icon,' + root + '.pfh-magic-history .pfh-icon,' + root + '.pfh-magic-back .pfh-icon{width:16px!important;height:16px!important}',
-      root + '.pfh-magic-queue{display:grid;flex:1 1 auto;min-height:0;gap:12px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:2px 4px 10px 2px}',
-      root + '.pfh-magic-task{position:relative;overflow:hidden;border:1px solid rgba(151,158,188,.18);border-radius:21px;background:rgba(255,255,255,.92);box-shadow:0 12px 32px rgba(47,50,94,.08);transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease}',
+      root + '.pfh-magic-queue{display:grid;grid-auto-rows:max-content;align-content:start;flex:1 1 0;min-height:0;gap:12px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:2px 4px 10px 2px}',
+      root + '.pfh-magic-task{display:block;position:relative;min-height:max-content;overflow:visible;border:1px solid rgba(151,158,188,.18);border-radius:21px;background:rgba(255,255,255,.92);box-shadow:0 12px 32px rgba(47,50,94,.08);transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease}',
       root + '.pfh-magic-task:before{display:none}',
       root + '.pfh-magic-task:hover{transform:translateY(-1px);border-color:rgba(112,86,232,.2);box-shadow:0 16px 38px rgba(47,50,94,.12)}',
-      root + '.pfh-magic-task-main{display:grid;grid-template-columns:46px minmax(0,1fr) 82px;gap:18px;align-items:center;padding:17px 17px}',
+      root + '.pfh-magic-task-main{display:grid;grid-template-columns:46px minmax(0,1fr) 82px;gap:18px;align-items:center;min-height:max-content;box-sizing:border-box;padding:17px 17px}',
       root + '.pfh-magic-task-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:16px;background:#eee9ff;color:#7056e8;font-weight:900;font-size:17px}',
       root + '.pfh-magic-task-copy{min-width:0}',
       root + '.pfh-magic-task-title{display:flex;align-items:center;gap:8px;min-width:0}',
