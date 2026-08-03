@@ -137,6 +137,8 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 ```
 
 ## Endpoints
+Backups written by userscript 2.6.105 and later use browser-side AES-GCM encryption. The Worker stores the encrypted envelope and, when necessary, stores its compressed ciphertext in `user_backup_chunks`. The client can still read legacy plaintext/compressed backups and rewrites them in the encrypted format on the next save. Run `schema.sql` once after upgrading the Worker so the chunk table exists.
+
 
 - `GET /health`
 - `GET /assets/manifest.json`
@@ -145,7 +147,9 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 - `GET /assets/v1/icons.json`
 - `GET /assets/v1/ui-2.5.136.css`
 - `POST /backup/save`
-- `GET /backup/load?backupKey=...`
+- `GET /backup/load?backupId=...` (legacy `backupKey` is still accepted)
+- `POST /backup/chunk`
+- `GET /backup/load-chunk?backupId=...&snapshotId=...&chunkIndex=...`
 - `POST /pack/record`
 - `GET /pack/recommend?boxKey=...`
 - `POST /pack/ai-estimate`

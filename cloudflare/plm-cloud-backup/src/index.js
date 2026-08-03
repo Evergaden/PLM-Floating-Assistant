@@ -7,6 +7,10 @@ const CORS_HEADERS = {
   'access-control-allow-headers': 'content-type,x-api-key',
 };
 
+const MAX_BACKUP_INLINE_CHARS = 900000;
+const MAX_BACKUP_CHUNK_CHARS = 500000;
+const MAX_BACKUP_CHUNKS = 64;
+
 const DEFAULT_LOADING_TIPS = [
   '多个编码可以一行一个粘进搜索框，脚本会自动拆开。',
   '双击紫色 SKU 可以直接复制编码，核对文件名时最省手。',
@@ -400,27 +404,88 @@ async function parseJson(request) {
   return request.json().catch(() => null);
 }
 
+function parseStoredBackupPayload(serialized) {
+  if (!serialized) return null;
+  try {
+    return typeof serialized === 'string' ? JSON.parse(serialized) : serialized;
+  } catch (error) {
+    return null;
+  }
+}
+
+function isEncryptedBackupPayload(payload) {
+  return Boolean(payload && typeof payload === 'object' && payload.format === 'plm-backup-v2' && payload.encryption === 'aes-256-gcm');
+}
+
+function normalizeBackupId(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : '';
+}
+
+function normalizeBackupSnapshotId(value) {
+  const normalized = String(value || '').trim();
+  return /^[A-Za-z0-9_-]{8,80}$/.test(normalized) ? normalized : '';
+}
+
+async function resolveBackupUserId(input) {
+  const backupIdText = String(input && input.backupId || '').trim();
+  if (backupIdText) {
+    const backupId = normalizeBackupId(backupIdText);
+    return backupId ? { userId: backupId, legacyIdentity: false } : { error: 'backupId invalid' };
+  }
+  const backupKey = String(input && input.backupKey || '');
+  if (backupKey.length < 4) return { error: 'backupKey too short' };
+  return { userId: await sha256Hex(backupKey), legacyIdentity: true };
+}
+
 async function handleBackupSave(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request);
-  const backupKey = String((body && body.backupKey) || '');
+  const identity = await resolveBackupUserId(body);
+  if (identity.error) return json({ error: identity.error }, 400);
   const payload = body && body.payload;
   const version = String((body && body.version) || '').slice(0, 40);
   const backupOwnerName = normalizeBackupOwnerName(payload && payload.backupOwnerName);
 
-  if (backupKey.length < 4) return json({ error: 'backupKey too short' }, 400);
   if (!payload || typeof payload !== 'object') return json({ error: 'payload required' }, 400);
   if (!backupOwnerName) return json({ error: 'backup owner name required' }, 400);
 
   const serialized = JSON.stringify(payload);
-  if (serialized.length > 900000) return json({ error: 'payload too large' }, 413);
+  if (serialized.length > MAX_BACKUP_INLINE_CHARS && !payload.chunked) return json({ error: 'payload too large' }, 413);
 
-  const userId = await sha256Hex(backupKey);
+  const chunked = Boolean(payload.chunked);
+  let snapshotId = '';
+  let chunkCount = 0;
+  if (chunked) {
+    snapshotId = normalizeBackupSnapshotId(payload.snapshotId);
+    chunkCount = Number(payload.chunkCount || 0);
+    if (!isEncryptedBackupPayload(payload) || !snapshotId || !Number.isInteger(chunkCount) || chunkCount <= 0 || chunkCount > MAX_BACKUP_CHUNKS) {
+      return json({ error: 'backup chunk manifest invalid' }, 400);
+    }
+    const chunkSummary = await env.DB.prepare(`
+      SELECT COUNT(*) AS count, MIN(chunk_index) AS first_index, MAX(chunk_index) AS last_index, MAX(chunk_count) AS expected_count
+      FROM user_backup_chunks
+      WHERE user_id = ? AND snapshot_id = ?
+    `).bind(identity.userId, snapshotId).first();
+    if (
+      Number(chunkSummary && chunkSummary.count || 0) !== chunkCount
+      || Number(chunkSummary && chunkSummary.first_index) !== 0
+      || Number(chunkSummary && chunkSummary.last_index) !== chunkCount - 1
+      || Number(chunkSummary && chunkSummary.expected_count) !== chunkCount
+    ) {
+      return json({ error: 'backup chunks incomplete' }, 409);
+    }
+  }
+
   const existing = await env.DB.prepare(`
     SELECT payload
     FROM user_backups
     WHERE user_id = ?
-  `).bind(userId).first();
+  `).bind(identity.userId).first();
+  const existingPayload = parseStoredBackupPayload(existing && existing.payload);
+  if (isEncryptedBackupPayload(existingPayload) && !isEncryptedBackupPayload(payload)) {
+    return json({ error: 'encrypted backup requires updated client' }, 409);
+  }
   const existingOwnerName = getBackupOwnerNameFromPayload(existing && existing.payload);
   if (existingOwnerName && existingOwnerName !== backupOwnerName) {
     return json({
@@ -436,7 +501,15 @@ async function handleBackupSave(request, env) {
       payload = excluded.payload,
       version = excluded.version,
       updated_at = CURRENT_TIMESTAMP
-  `).bind(userId, serialized, version).run();
+  `).bind(identity.userId, serialized, version).run();
+  if (chunked) {
+    await env.DB.prepare(`
+      DELETE FROM user_backup_chunks
+      WHERE user_id = ? AND snapshot_id != ?
+    `).bind(identity.userId, snapshotId).run();
+  } else {
+    await env.DB.prepare('DELETE FROM user_backup_chunks WHERE user_id = ?').bind(identity.userId).run();
+  }
   await env.DB.prepare(`
     INSERT INTO plm_users (user_name, script_version, last_backup_at, last_seen_at)
     VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -446,7 +519,31 @@ async function handleBackupSave(request, env) {
       last_seen_at=CURRENT_TIMESTAMP
   `).bind(backupOwnerName, version).run();
 
-  return json({ ok: true, userId, bytes: serialized.length });
+  return json({ ok: true, userId: identity.userId, bytes: serialized.length, chunked });
+}
+
+async function handleBackupChunkSave(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const identity = await resolveBackupUserId(body);
+  if (identity.error) return json({ error: identity.error }, 400);
+  const snapshotId = normalizeBackupSnapshotId(body && body.snapshotId);
+  const chunkIndex = Number(body && body.chunkIndex);
+  const chunkCount = Number(body && body.chunkCount);
+  const data = String(body && body.data || '');
+  if (!snapshotId || !Number.isInteger(chunkIndex) || !Number.isInteger(chunkCount) || chunkCount <= 0 || chunkCount > MAX_BACKUP_CHUNKS || chunkIndex < 0 || chunkIndex >= chunkCount) {
+    return json({ error: 'backup chunk metadata invalid' }, 400);
+  }
+  if (!data || data.length > MAX_BACKUP_CHUNK_CHARS) return json({ error: 'backup chunk too large' }, 413);
+  await env.DB.prepare(`
+    INSERT INTO user_backup_chunks (user_id, snapshot_id, chunk_index, chunk_count, chunk_data, created_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id, snapshot_id, chunk_index) DO UPDATE SET
+      chunk_count = excluded.chunk_count,
+      chunk_data = excluded.chunk_data,
+      created_at = CURRENT_TIMESTAMP
+  `).bind(identity.userId, snapshotId, chunkIndex, chunkCount, data).run();
+  return json({ ok: true, userId: identity.userId, snapshotId, chunkIndex, chunkCount, bytes: data.length });
 }
 
 function handleParameterLogo(request, env) {
@@ -458,23 +555,53 @@ function handleParameterLogo(request, env) {
 
 async function handleBackupLoad(request, env) {
   const url = new URL(request.url);
-  const backupKey = String(url.searchParams.get('backupKey') || '');
-  if (backupKey.length < 4) return json({ error: 'backupKey too short' }, 400);
+  const identity = await resolveBackupUserId({
+    backupId: url.searchParams.get('backupId'),
+    backupKey: url.searchParams.get('backupKey'),
+  });
+  if (identity.error) return json({ error: identity.error }, 400);
 
-  const userId = await sha256Hex(backupKey);
   const row = await env.DB.prepare(`
     SELECT payload, version, updated_at
     FROM user_backups
     WHERE user_id = ?
-  `).bind(userId).first();
+  `).bind(identity.userId).first();
 
-  if (!row) return json({ found: false, userId });
+  if (!row) return json({ found: false, userId: identity.userId });
+  const payload = parseStoredBackupPayload(row.payload);
+  if (!payload) return json({ error: 'stored backup invalid' }, 500);
   return json({
     found: true,
-    userId,
+    userId: identity.userId,
     version: row.version,
     updatedAt: row.updated_at,
-    payload: JSON.parse(row.payload),
+    payload,
+  });
+}
+
+async function handleBackupChunkLoad(request, env) {
+  const url = new URL(request.url);
+  const identity = await resolveBackupUserId({
+    backupId: url.searchParams.get('backupId'),
+    backupKey: url.searchParams.get('backupKey'),
+  });
+  if (identity.error) return json({ error: identity.error }, 400);
+  const snapshotId = normalizeBackupSnapshotId(url.searchParams.get('snapshotId'));
+  const chunkIndex = Number(url.searchParams.get('chunkIndex'));
+  if (!snapshotId || !Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= MAX_BACKUP_CHUNKS) return json({ error: 'backup chunk metadata invalid' }, 400);
+  const row = await env.DB.prepare(`
+    SELECT chunk_data, chunk_count
+    FROM user_backup_chunks
+    WHERE user_id = ? AND snapshot_id = ? AND chunk_index = ?
+  `).bind(identity.userId, snapshotId, chunkIndex).first();
+  if (!row) return json({ found: false }, 404);
+  return json({
+    found: true,
+    userId: identity.userId,
+    snapshotId,
+    chunkIndex,
+    chunkCount: row.chunk_count,
+    data: row.chunk_data,
   });
 }
 
@@ -4287,6 +4414,8 @@ export default {
     if (url.pathname === '/tips/manage' && request.method === 'GET') return handleLoadingTipsManage(request, env);
     if (url.pathname === '/tips/save' && request.method === 'POST') return handleLoadingTipSave(request, env);
     if (url.pathname === '/tips/delete' && request.method === 'POST') return handleLoadingTipDelete(request, env);
+    if (url.pathname === '/backup/chunk' && request.method === 'POST') return handleBackupChunkSave(request, env);
+    if (url.pathname === '/backup/load-chunk' && request.method === 'GET') return handleBackupChunkLoad(request, env);
     if (url.pathname === '/backup/save' && request.method === 'POST') return handleBackupSave(request, env);
     if (url.pathname === '/backup/load' && request.method === 'GET') return handleBackupLoad(request, env);
     if (url.pathname === '/pack/record' && request.method === 'POST') return handlePackRecord(request, env);

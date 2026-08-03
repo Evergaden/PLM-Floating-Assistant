@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.104
+// @version      2.6.105
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.104';
+  const SCRIPT_VERSION = '2.6.105';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1713,6 +1713,10 @@
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
+  const CLOUD_BACKUP_KDF_ITERATIONS = 180000;
+  const CLOUD_BACKUP_INLINE_LIMIT = 760000;
+  const CLOUD_BACKUP_CHUNK_SIZE = 500000;
+  const CLOUD_BACKUP_MAX_CHUNKS = 64;
   const PRODUCT_REPLACE_UPLOAD_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe', '\u89c6\u9891', '\u52a8\u56fe', '\u63a8\u54c1\u8d44\u6599', '\u56fe\u5305\u7d20\u6750'];
   const PRODUCT_BATCH_IMAGE_LABELS = ['\u4e3b\u56fe', '\u82f1\u6587\u53c2\u6570\u56fe', '\u8be6\u60c5\u56fe', 'SKU\u56fe'];
   const PLM_API_MONITOR_STATE_KEY = 'plm-floating-helper:api-monitor:v1';
@@ -23612,33 +23616,136 @@
     };
   }
 
-  async function encodeCloudBackupPayload(payload) {
-    const serialized = JSON.stringify(payload);
-    if (serialized.length < 400000 || typeof CompressionStream !== 'function') return payload;
-    const stream = new Blob([serialized], { type: 'application/json' })
+  function getCloudBackupCryptoApi() {
+    const cryptoApi = typeof window !== 'undefined' && window.crypto
+      ? window.crypto
+      : (typeof crypto !== 'undefined' ? crypto : null);
+    if (!cryptoApi || !cryptoApi.subtle || typeof cryptoApi.getRandomValues !== 'function') {
+      throw new Error('\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u4e91\u5907\u4efd\u52a0\u5bc6');
+    }
+    return cryptoApi;
+  }
+
+  function createCloudBackupRandomBytes(length) {
+    const bytes = new Uint8Array(length);
+    getCloudBackupCryptoApi().getRandomValues(bytes);
+    return bytes;
+  }
+
+  function createCloudBackupSnapshotId() {
+    return Array.from(createCloudBackupRandomBytes(18))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  async function getCloudBackupId(backupKey) {
+    const digest = await getCloudBackupCryptoApi().subtle.digest('SHA-256', new TextEncoder().encode(String(backupKey || '')));
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  async function deriveCloudBackupCryptoKey(backupKey, salt, iterations) {
+    const cryptoApi = getCloudBackupCryptoApi();
+    const requestedIterations = Number(iterations);
+    const kdfIterations = Number.isInteger(requestedIterations) && requestedIterations >= 100000 && requestedIterations <= 500000
+      ? requestedIterations
+      : CLOUD_BACKUP_KDF_ITERATIONS;
+    const passwordKey = await cryptoApi.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(String(backupKey || '')),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    return cryptoApi.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: kdfIterations,
+        hash: 'SHA-256',
+      },
+      passwordKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  async function compressCloudBackupText(serialized) {
+    const raw = new TextEncoder().encode(serialized);
+    if (typeof CompressionStream !== 'function') return { bytes: raw, compression: 'none' };
+    const stream = new Blob([raw], { type: 'application/json' })
       .stream()
       .pipeThrough(new CompressionStream('gzip'));
     const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+    return compressed.byteLength < raw.byteLength
+      ? { bytes: compressed, compression: 'gzip' }
+      : { bytes: raw, compression: 'none' };
+  }
+
+  async function encodeCloudBackupPayload(payload, backupKey) {
+    const serialized = JSON.stringify(payload);
+    const prepared = await compressCloudBackupText(serialized);
+    const salt = createCloudBackupRandomBytes(16);
+    const iv = createCloudBackupRandomBytes(12);
+    const key = await deriveCloudBackupCryptoKey(backupKey, salt, payload.kdfIterations);
+    const encrypted = await getCloudBackupCryptoApi().subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      prepared.bytes
+    );
     return {
+      format: 'plm-backup-v2',
+      encryption: 'aes-256-gcm',
+      compression: prepared.compression,
+      kdf: 'pbkdf2-sha256',
+      kdfIterations: CLOUD_BACKUP_KDF_ITERATIONS,
+      salt: bytesToBase64(salt),
+      iv: bytesToBase64(iv),
+      uncompressedLength: new TextEncoder().encode(serialized).byteLength,
       plugin: payload.plugin || L.title,
       version: payload.version || SCRIPT_VERSION,
       exportedAt: payload.exportedAt || new Date().toLocaleString(),
       backupOwnerName: payload.backupOwnerName || '',
-      compression: 'gzip-base64',
-      uncompressedLength: serialized.length,
-      data: bytesToBase64(compressed),
+      backupMode: payload.backupMode || 'full',
+      data: bytesToBase64(new Uint8Array(encrypted)),
     };
   }
 
-  async function decodeCloudBackupPayload(payload) {
-    if (!payload || payload.compression !== 'gzip-base64' || !payload.data) return payload;
-    if (typeof DecompressionStream !== 'function') throw new Error('\u5f53\u524d\u6d4f\u89c8\u5668\u65e0\u6cd5\u89e3\u538b\u4e91\u5907\u4efd\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
-    const compressed = base64ToArrayBuffer(payload.data);
-    const stream = new Blob([compressed])
-      .stream()
-      .pipeThrough(new DecompressionStream('gzip'));
-    const serialized = await new Response(stream).text();
-    return JSON.parse(serialized);
+  async function decodeCloudBackupPayload(payload, backupKey) {
+    if (!payload || payload.format !== 'plm-backup-v2') {
+      if (!payload || payload.compression !== 'gzip-base64' || !payload.data) return payload;
+      if (typeof DecompressionStream !== 'function') throw new Error('\u5f53\u524d\u6d4f\u89c8\u5668\u65e0\u6cd5\u89e3\u538b\u4e91\u5907\u4efd\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
+      const compressed = base64ToArrayBuffer(payload.data);
+      const stream = new Blob([compressed])
+        .stream()
+        .pipeThrough(new DecompressionStream('gzip'));
+      const serialized = await new Response(stream).text();
+      return JSON.parse(serialized);
+    }
+    if (!payload.data) throw new Error('\u4e91\u5907\u4efd\u5206\u7247\u4e0d\u5b8c\u6574');
+    const salt = new Uint8Array(base64ToArrayBuffer(payload.salt || ''));
+    const iv = new Uint8Array(base64ToArrayBuffer(payload.iv || ''));
+    const key = await deriveCloudBackupCryptoKey(backupKey, salt);
+    let decrypted;
+    try {
+      decrypted = new Uint8Array(await getCloudBackupCryptoApi().subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        base64ToArrayBuffer(payload.data)
+      ));
+    } catch (_) {
+      throw new Error('\u4e91\u5907\u4efd\u5bc6\u94a5\u4e0d\u6b63\u786e\u6216\u6570\u636e\u5df2\u635f\u574f');
+    }
+    if (payload.compression === 'gzip') {
+      if (typeof DecompressionStream !== 'function') throw new Error('\u5f53\u524d\u6d4f\u89c8\u5668\u65e0\u6cd5\u89e3\u538b\u4e91\u5907\u4efd\uff0c\u8bf7\u4f7f\u7528\u6700\u65b0\u7248 Chrome');
+      const stream = new Blob([decrypted])
+        .stream()
+        .pipeThrough(new DecompressionStream('gzip'));
+      decrypted = new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    return JSON.parse(new TextDecoder('utf-8').decode(decrypted));
   }
 
   function bytesToBase64(bytes) {
@@ -23648,6 +23755,86 @@
       binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
     }
     return btoa(binary);
+  }
+
+  function isCloudBackupIdentityCompatibilityError(error) {
+    const cloudData = error && error.cloudData ? error.cloudData : {};
+    return Boolean(error && error.status === 400 && cloudData.error === 'backupKey too short');
+  }
+
+  function createCloudBackupTooLargeError() {
+    const error = new Error('payload too large');
+    error.cloudData = { error: 'payload too large' };
+    error.status = 413;
+    return error;
+  }
+
+  async function uploadCloudBackupEnvelope(backupId, backupKey, version, envelope) {
+    const inlineBody = { backupId, version, payload: envelope };
+    if (JSON.stringify(envelope).length <= CLOUD_BACKUP_INLINE_LIMIT) {
+      try {
+        return { ...(await cloudRequest('/backup/save', { method: 'POST', body: inlineBody })), chunked: false };
+      } catch (error) {
+        if (!isCloudBackupIdentityCompatibilityError(error)) throw error;
+        return { ...(await cloudRequest('/backup/save', { method: 'POST', body: { backupKey, version, payload: envelope } })), chunked: false, legacyIdentity: true };
+      }
+    }
+    const data = String(envelope.data || '');
+    const chunkCount = Math.ceil(data.length / CLOUD_BACKUP_CHUNK_SIZE);
+    if (!data || chunkCount > CLOUD_BACKUP_MAX_CHUNKS) throw createCloudBackupTooLargeError();
+    const snapshotId = createCloudBackupSnapshotId();
+    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+      const chunk = data.slice(chunkIndex * CLOUD_BACKUP_CHUNK_SIZE, (chunkIndex + 1) * CLOUD_BACKUP_CHUNK_SIZE);
+      try {
+        await cloudRequest('/backup/chunk', {
+          method: 'POST',
+          body: { backupId, version, snapshotId, chunkIndex, chunkCount, data: chunk },
+        });
+      } catch (error) {
+        if (error && error.status === 404) throw createCloudBackupTooLargeError();
+        throw error;
+      }
+    }
+    const manifest = { ...envelope, chunked: true, snapshotId, chunkCount, chunkSize: CLOUD_BACKUP_CHUNK_SIZE };
+    delete manifest.data;
+    const response = await cloudRequest('/backup/save', {
+      method: 'POST',
+      body: { backupId, version, payload: manifest },
+    });
+    return { ...(response || {}), chunked: true, bytes: data.length };
+  }
+
+  async function loadCloudBackupRecord(backupKey) {
+    const backupId = await getCloudBackupId(backupKey);
+    let response;
+    try {
+      response = await cloudRequest('/backup/load?backupId=' + encodeURIComponent(backupId), { method: 'GET' });
+    } catch (error) {
+      if (!isCloudBackupIdentityCompatibilityError(error)) throw error;
+      response = await cloudRequest('/backup/load?backupKey=' + encodeURIComponent(backupKey), { method: 'GET' });
+    }
+    if (!response || !response.found || !response.payload || !response.payload.chunked) return response;
+    const manifest = response.payload;
+    const snapshotId = String(manifest.snapshotId || '');
+    const chunkCount = Number(manifest.chunkCount || 0);
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(snapshotId) || !Number.isInteger(chunkCount) || chunkCount <= 0 || chunkCount > CLOUD_BACKUP_MAX_CHUNKS) {
+      throw new Error('\u4e91\u5907\u4efd\u5206\u7247\u4fe1\u606f\u65e0\u6548');
+    }
+    const chunks = [];
+    for (let start = 0; start < chunkCount; start += 4) {
+      const group = await Promise.all(Array.from({ length: Math.min(4, chunkCount - start) }, (_, offset) => {
+        const chunkIndex = start + offset;
+        return cloudRequest('/backup/load-chunk?backupId=' + encodeURIComponent(backupId) + '&snapshotId=' + encodeURIComponent(snapshotId) + '&chunkIndex=' + chunkIndex, { method: 'GET' });
+      }));
+      group.forEach((chunk) => chunks.push(String(chunk && chunk.data || '')));
+    }
+    if (chunks.length !== chunkCount || chunks.some((chunk) => !chunk)) throw new Error('\u4e91\u5907\u4efd\u5206\u7247\u4e0d\u5b8c\u6574');
+    response.payload = { ...manifest, data: chunks.join('') };
+    delete response.payload.chunked;
+    delete response.payload.snapshotId;
+    delete response.payload.chunkCount;
+    delete response.payload.chunkSize;
+    return response;
   }
 
   function sanitizeUploadRecords(records) {
@@ -23833,14 +24020,7 @@
     try {
       const payload = buildCachePayload();
       if (!payload.backupOwnerName) throw new Error(L.cloudBackupOwnerMissing);
-      const uploadPayload = async (value) => cloudRequest('/backup/save', {
-        method: 'POST',
-        body: {
-          backupKey,
-          version: SCRIPT_VERSION,
-          payload: await encodeCloudBackupPayload(value),
-        },
-      });
+      const backupId = await getCloudBackupId(backupKey);
       const backupAttempts = [
         { label: '\u5b8c\u6574', build: () => payload },
         { label: '\u7cbe\u7b80', build: () => buildCompactCachePayload(payload) },
@@ -23855,7 +24035,7 @@
           addLog('warn', '\u4e91\u5907\u4efd' + backupAttempts[attemptIndex - 1].label + '\u5feb\u7167\u8d85\u9650\uff0c\u6539\u7528' + attempt.label + '\u5feb\u7167\u91cd\u8bd5', state.index.length + ' \u4e2a\u7f16\u7801');
         }
         try {
-          response = await uploadPayload(attempt.build());
+          response = await uploadCloudBackupEnvelope(backupId, backupKey, SCRIPT_VERSION, await encodeCloudBackupPayload(attempt.build(), backupKey));
           uploadedMode = attempt.label;
           break;
         } catch (error) {
@@ -23866,8 +24046,10 @@
       }
       if (!response || !response.ok) throw new Error(response && response.error ? response.error : 'save failed');
       const downgraded = uploadedMode && uploadedMode !== '\u5b8c\u6574';
-      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + (downgraded ? '\uff08' + uploadedMode + '\uff09' : ''));
-      addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');
+      const chunked = Boolean(response.chunked);
+      const backupModeText = downgraded ? '\uff08' + uploadedMode + (chunked ? '\u00b7\u5206\u7247' : '') + '\uff09' : (chunked ? '\uff08\u5206\u7247\uff09' : '');
+      setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + backupModeText);
+      addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801' + (chunked ? '\u00b7\u5206\u7247' : ''));
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {
@@ -23914,13 +24096,13 @@
     setCloudBackupStatus(L.cloudBackupRestoring);
     showToast(L.cloudBackupRestoring);
     try {
-      const response = await cloudRequest('/backup/load?backupKey=' + encodeURIComponent(backupKey), { method: 'GET' });
+      const response = await loadCloudBackupRecord(backupKey);
       if (!response || !response.found) {
         setCloudBackupStatus(L.cloudBackupNotFound);
         showToast(L.cloudBackupNotFound);
         return;
       }
-      importCachePayload(await decodeCloudBackupPayload(response.payload));
+      importCachePayload(await decodeCloudBackupPayload(response.payload, backupKey));
       saveSettings(state.settings);
       setCloudBackupStatus(L.cloudBackupRestored + '\uff1a' + state.index.length + '\u4e2a\u7f16\u7801');
       addLog('success', '\u4e91\u5907\u4efd\u6062\u590d\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801');

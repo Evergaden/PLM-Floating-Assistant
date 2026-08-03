@@ -5,6 +5,19 @@ CREATE TABLE IF NOT EXISTS user_backups (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS user_backup_chunks (
+  user_id TEXT NOT NULL,
+  snapshot_id TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  chunk_count INTEGER NOT NULL,
+  chunk_data TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, snapshot_id, chunk_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_backup_chunks_snapshot
+ON user_backup_chunks(user_id, snapshot_id);
+
 CREATE TABLE IF NOT EXISTS pack_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   box_key TEXT NOT NULL,
