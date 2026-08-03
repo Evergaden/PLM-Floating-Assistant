@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "dataVersion": "2026-07-26.2",
+  "dataVersion": "2026-08-03.1",
   "minimumClientVersion": "2.5.105",
   "assets": {
     "runtimeData": {
@@ -20,8 +20,8 @@
     },
     "uiStyles": {
       "path": "v1/ui-2.5.168.css",
-      "bytes": 324598,
-      "sha256": "04ea5fce1320e1e47c20e3c4b51c6ba6b9fb1608c59b10fecd4e36129bca20bb"
+      "bytes": 325012,
+      "sha256": "5f7912e186e45bf35a80d62a9153a1063b6f20efa43976ae2a74bbc80b12edaf"
     }
   }
 }
