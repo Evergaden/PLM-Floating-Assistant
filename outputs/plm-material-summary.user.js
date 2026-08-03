@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.93
+// @version      2.6.94
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.93';
+  const SCRIPT_VERSION = '2.6.94';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -3046,6 +3046,26 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button[data-action="upload-clear-list"]:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type{border-color:transparent!important;background:transparent!important;color:var(--pfh-theme-primary)!important;box-shadow:none!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-title > button.pfh-upload-back:first-of-type:hover{color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID} .pfh-upload-back,
+    #${PANEL_ID} .pfh-list-head > button[data-action="home-back"],
+    #${PANEL_ID} .pfh-mini-tool-head > button[data-action="home-back"],
+    #${PANEL_ID} .pfh-ledger-hero > button.pfh-ledger-back{display:grid!important;place-items:center!important;box-sizing:border-box!important;width:30px!important;min-width:30px!important;height:30px!important;min-height:30px!important;margin:0!important;padding:0!important;flex:0 0 30px!important;border:0!important;border-radius:0!important;background:transparent!important;color:var(--pfh-theme-primary,#6d35e8)!important;box-shadow:none!important;transform:none!important;cursor:pointer!important;transition:color .18s ease,transform .18s ease!important;}
+    #${PANEL_ID} .pfh-upload-back:hover:not(:disabled),
+    #${PANEL_ID} .pfh-list-head > button[data-action="home-back"]:hover:not(:disabled),
+    #${PANEL_ID} .pfh-mini-tool-head > button[data-action="home-back"]:hover:not(:disabled),
+    #${PANEL_ID} .pfh-ledger-hero > button.pfh-ledger-back:hover:not(:disabled){border-color:transparent!important;background:transparent!important;color:var(--pfh-theme-primary-hover,#5422c9)!important;box-shadow:none!important;transform:translateX(-2px)!important;}
+    #${PANEL_ID} .pfh-upload-back:focus-visible,
+    #${PANEL_ID} .pfh-list-head > button[data-action="home-back"]:focus-visible,
+    #${PANEL_ID} .pfh-mini-tool-head > button[data-action="home-back"]:focus-visible,
+    #${PANEL_ID} .pfh-ledger-hero > button.pfh-ledger-back:focus-visible{outline:2px solid var(--pfh-theme-primary-soft,rgba(109,53,232,.22))!important;outline-offset:3px!important;}
+    #${PANEL_ID} .pfh-upload-back .pfh-icon,
+    #${PANEL_ID} .pfh-list-head > button[data-action="home-back"] .pfh-icon,
+    #${PANEL_ID} .pfh-mini-tool-head > button[data-action="home-back"] .pfh-icon,
+    #${PANEL_ID} .pfh-ledger-hero > button.pfh-ledger-back .pfh-icon{display:grid!important;place-items:center!important;width:24px!important;min-width:24px!important;height:24px!important;min-height:24px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;box-shadow:none!important;}
+    #${PANEL_ID} .pfh-upload-back .pfh-icon svg,
+    #${PANEL_ID} .pfh-list-head > button[data-action="home-back"] .pfh-icon svg,
+    #${PANEL_ID} .pfh-mini-tool-head > button[data-action="home-back"] .pfh-icon svg,
+    #${PANEL_ID} .pfh-ledger-hero > button.pfh-ledger-back .pfh-icon svg{display:block!important;width:22px!important;height:22px!important;color:inherit!important;fill:currentColor!important;stroke:currentColor!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-guide-button,
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-guide-button:hover,
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-guide-button:focus-visible{color:var(--pfh-theme-primary)!important;}
@@ -8037,7 +8057,7 @@
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">\u5217\u8868</button>' +
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
-    const listHead = '<div class="pfh-list-head"><button type="button" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager + '</div>';
@@ -10929,7 +10949,7 @@
   function unitConverterViewHtml() {
     const result = convertCmInputToInches(state.cmConverterInput);
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page">' +
-      '<div class="pfh-mini-tool-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>UNIT CONVERTER</small><h2>厘米换算英寸</h2><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div></div>' +
+      '<div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>UNIT CONVERTER</small><h2>厘米换算英寸</h2><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div></div>' +
       '<div class="pfh-mini-tool-card"><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + escapeHtml(state.cmConverterInput || '') + '</textarea>' +
       '<div class="pfh-mini-tool-result"><span>英寸（inch）</span><strong class="pfh-unit-converter-result">' + escapeHtml(result || '等待输入') + '</strong></div>' +
       '<div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
@@ -10939,7 +10959,7 @@
   function toolsViewHtml() {
     const result = formatSearchCodes(state.codeFormatterInput);
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page">' +
-      '<div class="pfh-mini-tool-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>把多个编码整理为文件搜索格式。</p></div></div>' +
+      '<div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>把多个编码整理为文件搜索格式。</p></div></div>' +
       '<div class="pfh-mini-tool-card"><label>编码格式化</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + escapeHtml(state.codeFormatterInput || '') + '</textarea>' +
       '<div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + escapeHtml(result || 'ext:zip|ext:xlsx 编码1|编码2') + '</strong></div>' +
       '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
@@ -10982,7 +11002,7 @@
     const canDownload = stats.generatable > 0 && !running && !downloading;
     const progressText = state.batchExcelStatus || (running ? '正在按顺序补全缓存，请保持 PLM 页面登录状态。' : '数据不完整也可生成；缺失字段会留空，缺少产品图时不插入图片。');
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-batch-excel-page">' +
-      '<div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，自动查找缺失资料、补全本地缓存，再按队列下载。</p></div></div>' +
+      '<div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，自动查找缺失资料、补全本地缓存，再按队列下载。</p></div></div>' +
       '<div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-form"><label>SKU 编码</label><textarea class="pfh-batch-excel-input" placeholder="例如：SKU00046398\nSKU00046397\nSKU00046396\nSKU00046395">' + escapeHtml(state.batchExcelInput || '') + '</textarea><p class="pfh-batch-excel-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="batch-excel-clear-input">清空</button><button type="button" data-action="batch-excel-add">加入补全队列</button></div></div>' +
       '<div class="pfh-batch-excel-mode"><button type="button" data-action="batch-excel-mode" data-mode="separate" class="' + (mode === 'separate' ? 'is-active' : '') + '"' + modeDisabled + '>分别下载 Excel</button><button type="button" data-action="batch-excel-mode" data-mode="merge" class="' + (mode === 'merge' ? 'is-active' : '') + '"' + modeDisabled + '>合并成一个 Excel</button></div>' +
       '<div class="pfh-mini-tool-card pfh-batch-excel-card"><div class="pfh-batch-excel-summary"><strong>补全与下载队列</strong><span>共 ' + stats.total + ' 个 · 完整 ' + stats.ready + ' 个 · 不完整可生成 ' + stats.partial + ' 个</span></div><div class="pfh-batch-excel-queue">' + getExcelBatchQueueRowsHtml(queue, running || downloading) + '</div><p class="pfh-batch-excel-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" data-action="batch-excel-prepare"' + (running || downloading || !queue.length ? ' disabled' : '') + '>' + (running ? '正在补全…' : '自动补全缓存') + '</button><button type="button" data-action="batch-excel-download"' + (canDownload ? '' : ' disabled') + '>' + (mode === 'merge' ? '下载合并 Excel' : '按队列下载 Excel') + '</button><button type="button" data-action="batch-excel-clear-completed"' + (stats.downloaded ? '' : ' disabled') + '>清除已下载</button></div></div>' +
@@ -12704,7 +12724,7 @@
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
         '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
