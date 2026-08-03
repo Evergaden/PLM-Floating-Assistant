@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.116
+// @version      2.6.115
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.116';
+  const SCRIPT_VERSION = '2.6.115';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -4942,7 +4942,7 @@
     let apiDataSaved = false;
     try {
       const apiPackaging = await fetchApiMaterialPackaging(merged);
-      if (hasUsableApiData(apiPackaging)) {
+      if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard || apiPackaging.netContent || apiPackaging.grossWeight)) {
         merged = normalizeData({
           ...mergeApiPackagingData(merged, apiPackaging),
           packageSource: apiPackaging.packageSizeText ? 'plm-project-pms' : merged.packageSource,
@@ -4980,7 +4980,7 @@
         if (includeScanTabs) state.scanData = merged;
       }
       const apiPackagingFinal = await fetchApiMaterialPackaging(merged);
-      if (hasUsableApiData(apiPackagingFinal)) {
+      if (apiPackagingFinal && (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.hasInnerCard || apiPackagingFinal.netContent || apiPackagingFinal.grossWeight)) {
         merged = normalizeData({
           ...mergeApiPackagingData(merged, apiPackagingFinal),
           packageSource: apiPackagingFinal.packageSizeText ? 'plm-project-pms' : merged.packageSource,
@@ -5546,157 +5546,38 @@
 
   function getApiDetailAttributes(payload) {
     const root = payload && payload.data !== undefined ? payload.data : payload && payload.response && payload.response.data;
+    const groups = Array.isArray(root)
+      ? root
+      : (root && Array.isArray(root.data) ? root.data
+        : (root && root.data && Array.isArray(root.data.list) ? root.data.list
+          : (root && Array.isArray(root.list) ? root.list : [])));
     const attrs = [];
-    const visited = new Set();
-    const visit = (value) => {
-      if (!value || typeof value !== 'object' || visited.has(value)) return;
-      visited.add(value);
-      if (Array.isArray(value)) {
-        value.forEach(visit);
-        return;
-      }
-      const variableName = value.variable_name || value.variableName;
-      const attrName = value.attr_name || value.attrName || value.name;
-      const attrId = value.attr_id || value.attrId;
-      const hasValue = Object.prototype.hasOwnProperty.call(value, 'value')
-        || Array.isArray(value.attr_language_config_json)
-        || Array.isArray(value.attr_values)
-        || Array.isArray(value.attrValues)
-        || Array.isArray(value.language_config)
-        || Object.prototype.hasOwnProperty.call(value, 'language_id');
-      if (variableName || attrId || (attrName && hasValue)) attrs.push(value);
-      Object.keys(value).forEach((key) => visit(value[key]));
+    const addGroup = (group) => {
+      if (!group || typeof group !== 'object') return;
+      const candidates = [group.category_template_attrs, group.categoryTemplateAttrs, group.attrs];
+      candidates.forEach((value) => {
+        if (Array.isArray(value)) value.forEach((attr) => { if (attr && typeof attr === 'object') attrs.push(attr); });
+      });
     };
-    visit(root);
+    groups.forEach(addGroup);
+    if (root && !Array.isArray(root)) addGroup(root);
+    if (root && root.data && typeof root.data === 'object' && !Array.isArray(root.data)) addGroup(root.data);
     return attrs;
   }
 
   function getApiAttributeLanguages(attr) {
     if (!attr || typeof attr !== 'object') return [];
     if (Array.isArray(attr.attr_language_config_json)) return attr.attr_language_config_json;
-    if (Array.isArray(attr.attr_values)) return attr.attr_values;
-    if (Array.isArray(attr.attrValues)) return attr.attrValues;
     if (Array.isArray(attr.language_config)) return attr.language_config;
-    if (Array.isArray(attr.values)) return attr.values;
-    if (Object.prototype.hasOwnProperty.call(attr, 'attr_value')) return [{ language_id: attr.language_id || attr.languageId || 1, value: attr.attr_value }];
-    if (Object.prototype.hasOwnProperty.call(attr, 'value')) return [{ language_id: attr.language_id || attr.languageId || 1, value: attr.value }];
+    if (Object.prototype.hasOwnProperty.call(attr, 'value')) return [{ language_id: attr.language_id || 1, value: attr.value }];
     return [];
   }
 
   function getApiAttributeValue(attr, languageId) {
     const languages = getApiAttributeLanguages(attr);
-    const preferred = languages.find((item) => Number(item && (item.language_id || item.languageId)) === Number(languageId) && item.value !== undefined && item.value !== null)
+    const preferred = languages.find((item) => Number(item && item.language_id) === Number(languageId) && item.value !== undefined && item.value !== null)
       || languages.find((item) => item && item.value !== undefined && item.value !== null);
     return preferred ? preferred.value : '';
-  }
-
-  function normalizeApiDetailFieldKey(value, fallback) {
-    const text = compactText(value)
-      .replace(/[^\w\u3400-\u9fff-]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 100);
-    return text || fallback;
-  }
-
-  function buildApiDetailFieldEntries(attrs) {
-    const entries = [];
-    const byKey = new Map();
-    const byAttrId = new Map();
-    (Array.isArray(attrs) ? attrs : []).forEach((attr, index) => {
-      const variableName = compactText(attr && (attr.variable_name || attr.variableName));
-      const attrId = String(attr && (attr.attr_id || attr.attrId || attr.id) || '').trim();
-      const label = getApiAttributeLabel(attr);
-      const key = normalizeApiDetailFieldKey(variableName, attrId ? 'attr_' + attrId : 'field_' + index);
-      const languages = getApiAttributeLanguages(attr).map((item) => ({
-        languageId: Number(item && (item.language_id || item.languageId) || 0) || 0,
-        value: getApiScalarText(item && item.value, 0),
-      })).filter((item) => item.value);
-      const directValue = Object.prototype.hasOwnProperty.call(attr || {}, 'value') ? attr.value : '';
-      const directText = getApiScalarText(directValue, 0);
-      const fileIds = [];
-      getApiAttributeLanguages(attr).forEach((item) => collectApiCopywritingFileIds(item && item.value, fileIds));
-      if (attr && attr.value !== undefined) collectApiCopywritingFileIds(attr.value, fileIds);
-      const entry = {
-        key,
-        variableName,
-        attrId,
-        label: compactText(label),
-        value: languages.find((item) => item.languageId === 1)?.value || languages[0]?.value || directText,
-        languages,
-        fileIds: Array.from(new Set(fileIds)),
-      };
-      const existing = byKey.get(key) || (attrId && byAttrId.get(attrId));
-      if (!existing) {
-        byKey.set(key, entry);
-        if (attrId) byAttrId.set(attrId, entry);
-        entries.push(entry);
-        return;
-      }
-      if (variableName && existing.key !== key && !existing.variableName) {
-        byKey.delete(existing.key);
-        existing.key = key;
-        byKey.set(key, existing);
-      }
-      if (attrId && !byAttrId.has(attrId)) byAttrId.set(attrId, existing);
-      if (!existing.label && entry.label) existing.label = entry.label;
-      if (!existing.variableName && entry.variableName) existing.variableName = entry.variableName;
-      if (!existing.attrId && entry.attrId) existing.attrId = entry.attrId;
-      if (!existing.value && entry.value) existing.value = entry.value;
-      entry.languages.forEach((language) => {
-        const duplicate = existing.languages.find((item) => item.languageId === language.languageId);
-        if (!duplicate) existing.languages.push(language);
-        else if (!duplicate.value && language.value) duplicate.value = language.value;
-      });
-      existing.fileIds = Array.from(new Set(existing.fileIds.concat(entry.fileIds)));
-    });
-    return entries;
-  }
-
-  function buildApiDetailFieldMap(entries) {
-    return (Array.isArray(entries) ? entries : []).reduce((result, entry) => {
-      result[entry.key] = {
-        variableName: entry.variableName,
-        attrId: entry.attrId,
-        label: entry.label,
-        value: entry.value,
-        languages: entry.languages,
-        fileIds: entry.fileIds,
-      };
-      return result;
-    }, {});
-  }
-
-  function getApiDetailFieldText(entries, pattern, languageId) {
-    const candidates = (Array.isArray(entries) ? entries : []).filter((entry) => {
-      const signature = [entry.variableName, entry.label].filter(Boolean).join(' ');
-      return pattern.test(signature);
-    });
-    for (const entry of candidates) {
-      const preferred = entry.languages.find((item) => item.languageId === Number(languageId || 1) && item.value)
-        || entry.languages.find((item) => item.value);
-      if (preferred && preferred.value && !/^\d+(?:[.,;]\d+)*$/.test(preferred.value)) return preferred.value;
-      if (entry.value && !/^\d+(?:[.,;]\d+)*$/.test(entry.value)) return entry.value;
-    }
-    return '';
-  }
-
-  function getApiDetailFileIds(entries, pattern) {
-    return Array.from(new Set((Array.isArray(entries) ? entries : [])
-      .filter((entry) => pattern.test([entry.variableName, entry.label].filter(Boolean).join(' ')))
-      .flatMap((entry) => entry.fileIds || [])));
-  }
-
-  function extractApiDetailFieldSnapshot(payloads) {
-    const attrs = (Array.isArray(payloads) ? payloads : [payloads])
-      .filter(Boolean)
-      .flatMap((payload) => getApiDetailAttributes(payload));
-    const entries = buildApiDetailFieldEntries(attrs);
-    return {
-      attrs,
-      entries,
-      fields: buildApiDetailFieldMap(entries),
-      fieldCount: entries.length,
-    };
   }
 
   function getApiScalarText(value, depth) {
@@ -5855,185 +5736,70 @@
   }
 
   function getApiProductArchiveImageIds(attrs) {
-    return getApiAttributeFileIds(attrs, /sku[_\s-]*pic|main[_\s-]*image|detail[_\s-]*image|picture|产品图|主图|详情图|english[_\s-]*specification|product[_\s-]*parameter|image[_\s-]*package|promotion[_\s-]*materials/i);
+    return getApiAttributeFileIds(attrs, /sku[_\s-]*pic|main[_\s-]*image|picture|产品图|主图/i);
   }
 
-  function extractApiProductSnapshot(product, infoPayload, contentPayload, options) {
-    const opts = options || {};
-    const infoPayloads = [opts.editInfoPayload, infoPayload].filter(Boolean);
-    const contentPayloads = [opts.editContentPayload, contentPayload].filter(Boolean);
-    const infos = infoPayloads.map((payload) => getApiPayloadDataObject(payload));
-    const info = infos[0] || {};
-    const detail = extractApiDetailFieldSnapshot(contentPayloads);
-    const attrs = detail.attrs;
-    const objects = [product].concat(infos);
+  function extractApiProductSnapshot(product, infoPayload, contentPayload) {
+    const info = getApiPayloadDataObject(infoPayload);
+    const attrs = getApiDetailAttributes(contentPayload);
+    const objects = [product, info];
     const configs = product && (product.language_config || product.languageConfig);
-    const detailText = (pattern, languageId) => getApiDetailFieldText(detail.entries, pattern, languageId) || getApiAttributeText(attrs, pattern, languageId);
     const brandValue = getApiObjectFieldValue(objects, ['brand_name', 'brandName', 'brand', 'brand_name_cn'])
       || getApiScalarText(product && product.brand, 0);
     const chineseName = getApiObjectFieldValue(objects, ['product_name', 'productName', 'name', 'name_cn', 'product_name_cn'])
       || getApiProductLanguageName(product, 1)
       || getApiLanguageConfigName(info, 1)
-      || detailText(/product[_\s-]*name|商品名称|产品名称|中文品名/i, 1);
+      || getApiAttributeText(attrs, /product[_\s-]*name|商品名称|产品名称|中文品名/i, 1);
     const englishName = getApiEnglishProductName([
       getApiObjectFieldValue(objects, ['product_name_en', 'productNameEn', 'english_name', 'name_en', 'productNameEnglish']),
       getApiProductLanguageName(product, 2),
       getApiLanguageConfigName(info, 2),
-      detailText(/product[_\s-]*name|product name|英文品名|英文名称/i, 2),
+      getApiAttributeText(attrs, /product[_\s-]*name|product name|英文品名|英文名称/i, 2),
     ], brandValue);
     const productSizeText = getApiObjectFieldValue(objects, ['product_size', 'productSize', 'product_size_text', 'size_text'])
-      || detailText(/product[_\s-]*size|产品尺寸|成品尺寸/i, 1);
+      || getApiAttributeText(attrs, /product[_\s-]*size|产品尺寸|成品尺寸/i, 1);
     const productNums = parseDimension(productSizeText, 3);
     const directImage = getApiObjectAssetUrl(objects, ['sku_image_url', 'skuImageUrl', 'product_image_url', 'productImageUrl', 'pic', 'image', 'picture'])
       || getApiObjectFieldValue(objects, ['sku_image_url', 'skuImageUrl', 'product_image_url', 'productImageUrl', 'pic', 'image', 'picture'])
       || getApiAssetUrl(getApiAttributeValue((attrs || []).find((attr) => /sku[_\s-]*pic|main[_\s-]*image|picture|产品图|主图/i.test(getApiAttributeLabel(attr))), 1), 0);
     const referenceUrl = [
       getApiObjectFieldValue(objects, ['benchmark_link', 'benchmarkLink', 'benchmark_url', 'benchmarkUrl', 'reference_url', 'referenceUrl', 'alibaba_link', 'alibabaLink']),
-      detailText(/benchmark|reference|对标链接|参考链接|1688|阿里链接/i, 1),
+      getApiAttributeText(attrs, /benchmark|reference|对标链接|参考链接|1688|阿里链接/i, 1),
     ].map((value) => String(value || '').match(/https?:\/\/[^\s]+/i)?.[0] || '').find(Boolean) || '';
     const packQty = getApiObjectFieldValue(objects, ['pack_qty', 'packQty', 'pack_count', 'packCount', 'carton_qty', 'cartonQty'])
       || getApiAttributeText(attrs, /pack[_\s-]*qty|pack[_\s-]*count|装箱数|装箱数量/i, 1);
     const purchasePrice = getApiObjectFieldValue(objects, ['purchase_price', 'purchasePrice', 'procurement_price', 'procurementPrice'])
       || getApiAttributeText(attrs, /purchase[_\s-]*price|procurement[_\s-]*price|采购价|采购价格/i, 1);
-    const productType = getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType', 'category_name', 'categoryName'])
-      || detailText(/product[_\s-]*type|category|商品类型|产品类型|品类|分类/i, 1);
     const optional = {
       cartonSpec: getApiObjectFieldValue(objects, ['carton_spec', 'cartonSpec', 'outer_carton_spec', 'outerCartonSpec', 'carton_size', 'cartonSize'])
-        || detailText(/carton[_\s-]*(?:spec|size)|外箱规格|外箱尺寸/i, 1),
+        || getApiAttributeText(attrs, /carton[_\s-]*(?:spec|size)|外箱规格|外箱尺寸/i, 1),
       packageMaterial: getApiObjectFieldValue(objects, ['package_material', 'packageMaterial', 'packaging_material', 'packagingMaterial'])
-        || detailText(/package[_\s-]*material|packaging[_\s-]*material|包装材质|包装材料/i, 1),
+        || getApiAttributeText(attrs, /package[_\s-]*material|packaging[_\s-]*material|包装材质|包装材料/i, 1),
       leadTimeText: getApiObjectFieldValue(objects, ['lead_time', 'leadTime', 'delivery_text', 'deliveryText', 'delivery_note', 'deliveryNote'])
-        || detailText(/lead[_\s-]*time|delivery[_\s-]*(?:text|note)|交期|交货期/i, 1),
+        || getApiAttributeText(attrs, /lead[_\s-]*time|delivery[_\s-]*(?:text|note)|交期|交货期/i, 1),
       alibabaLink: getApiObjectFieldValue(objects, ['alibaba_link', 'alibabaLink', '1688_link', '1688Link', 'alibaba_url', 'alibabaUrl'])
-        || detailText(/alibaba|1688|阿里链接/i, 1),
+        || getApiAttributeText(attrs, /alibaba|1688|阿里链接/i, 1),
     };
-    const productMetrics = contentPayloads.reduce((result, payload) => {
-      const next = extractApiProductMetrics(payload);
-      return { ...next, ...result };
-    }, {});
-    const detailFileIds = detail.entries.reduce((result, entry) => {
-      if (entry.fileIds && entry.fileIds.length) result[entry.key] = entry.fileIds.slice();
-      return result;
-    }, {});
     return {
       product,
       info,
-      infos,
       attrs,
-      editInfoPayload: opts.editInfoPayload || null,
-      editContentPayload: opts.editContentPayload || null,
-      apiDetailFields: detail.fields,
-      apiDetailFieldCount: detail.fieldCount,
-      apiDetailFileIds: detailFileIds,
       chineseName: cleanExcelFieldValue(chineseName),
       englishName,
       brand: compactText(brandValue),
-      productType,
-      manualCategory: detailText(/manual[_\s-]*category|手工分类|人工分类/i, 1),
-      category: detailText(/category|品类|分类/i, 1),
-      departmentName: detailText(/department|部门/i, 1),
+      productType: getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType', 'category_name', 'categoryName']),
       productNums: productNums && productNums.length >= 3 ? productNums.slice(0, 3) : null,
       productSizeText: cleanExcelFieldValue(productSizeText),
       referenceUrl,
       packQty: normalizePackQty(packQty),
       purchasePrice: normalizeLedgerPurchasePrice(purchasePrice),
-      netContent: productMetrics.netContent || '',
-      grossWeight: productMetrics.grossWeight || '',
-      apiProductSource: productMetrics.apiProductSource || (detail.fieldCount ? 'plm-product-detail-content' : ''),
-      plmIngredientText: detailText(/ingredient|成分|成份/i, 1),
-      plmIngredientEnglishText: detailText(/ingredient|配料|成分|成份/i, 2),
       productListImageUrl: normalizeApiAssetUrl(directImage),
       optional,
-      imageFileIds: Array.from(new Set(getApiProductArchiveImageIds(attrs).concat(getApiDetailFileIds(detail.entries, /sku[_\s-]*pic|main[_\s-]*image|detail[_\s-]*image|picture|产品图|主图|详情图|english[_\s-]*specification|product[_\s-]*parameter|image[_\s-]*package|promotion[_\s-]*materials/i)))),
-      skuImageFileIds: Array.from(new Set(getApiAttributeFileIds(attrs, /sku[_\s-]*pic|picture|产品图|主图/i).concat(getApiDetailFileIds(detail.entries, /sku[_\s-]*pic|picture|产品图|主图/i)))),
+      imageFileIds: getApiProductArchiveImageIds(attrs),
       categoryId: String(product && product.category_id || info.category_id || ''),
       productId: String(product && (product.product_id || product.id) || info.product_id || ''),
       productVersionId: String(product && (product.product_version_id || product.product_main_id) || info.product_version_id || info.product_main_id || ''),
       languageConfig: Array.isArray(configs) ? configs : [],
-    };
-  }
-
-  function extractApiProjectData(project, fallback) {
-    const objects = [project, fallback].filter((value) => value && typeof value === 'object');
-    const projectId = String(getApiObjectFieldValue(objects, ['id', 'project_id', 'projectId', 'chemical_id', 'project_row_id', 'projectRowId']) || '').trim();
-    const productId = String(getApiObjectFieldValue(objects, ['product_id', 'productId']) || '').trim();
-    const productVersionId = String(getApiObjectFieldValue(objects, ['product_main_id', 'product_version_id', 'productVersionId']) || '').trim();
-    const categoryId = String(getApiObjectFieldValue(objects, ['category_id', 'categoryId']) || '').trim();
-    const name = getApiObjectFieldValue(objects, ['product_name', 'productName', 'project_name', 'projectName', 'name']);
-    const brand = getApiObjectFieldValue(objects, ['brand_name', 'brandName', 'brand']);
-    const statusRaw = getApiObjectFieldValue(objects, ['project_status_name', 'projectStatusName', 'project_status', 'projectStatus', 'status_name', 'statusName', 'status', 'state_name', 'state']);
-    const developerText = getApiObjectFieldValue(objects, ['developer_text', 'developerText', 'developer_name', 'developerName', 'dev_user_name', 'devUserName', 'development_user_name', 'developmentUserName', 'project_owner_name', 'projectOwnerName', 'developer']);
-    const projectOwnerName = getApiObjectFieldValue(objects, ['project_owner_name', 'projectOwnerName', 'project_manager_name', 'projectManagerName', 'owner_name', 'ownerName']);
-    const referenceUrl = getApiObjectFieldValue(objects, ['reference_url', 'referenceUrl', 'benchmark_url', 'benchmarkUrl', 'benchmark_link', 'benchmarkLink', 'alibaba_link', 'alibabaLink'])
-      .match(/https?:\/\/[^\s]+/i)?.[0] || '';
-    const fields = {
-      projectRowId: projectId,
-      projectId,
-      projectProductId: productId,
-      productVersionId,
-      categoryId,
-      name,
-      brand,
-      projectStatus: extractProjectStatus(statusRaw) || statusRaw,
-      developerText,
-      developerName: extractDeveloperName(developerText),
-      projectOwnerName: extractDeveloperName(projectOwnerName || developerText),
-      designType: getApiObjectFieldValue(objects, ['design_type', 'designType', 'design_type_name', 'designTypeName']),
-      artPriority: getApiObjectFieldValue(objects, ['art_priority', 'artPriority', 'art_priority_name', 'artPriorityName', 'design_priority', 'designPriority']),
-      designAssignedAt: getApiObjectFieldValue(objects, ['design_assigned_at', 'designAssignedAt', 'design_assign_time', 'designAssignTime', 'design_allocation_time', 'designAllocationTime']),
-      developmentAssignedAt: getApiObjectFieldValue(objects, ['development_assigned_at', 'developmentAssignedAt', 'development_assign_time', 'developmentAssignTime', 'dev_assign_time', 'devAssignTime']),
-      referenceUrl,
-      benchmarkLink: referenceUrl,
-      packQty: normalizePackQty(getApiObjectFieldValue(objects, ['pack_qty', 'packQty', 'pack_count', 'packCount', 'carton_qty', 'cartonQty'])),
-      purchasePrice: normalizeLedgerPurchasePrice(getApiObjectFieldValue(objects, ['purchase_price', 'purchasePrice', 'procurement_price', 'procurementPrice'])),
-      manualCategory: getApiObjectFieldValue(objects, ['manual_category', 'manualCategory', 'category_name', 'categoryName']),
-      category: getApiObjectFieldValue(objects, ['category_name', 'categoryName', 'category']),
-      productType: getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType']),
-      departmentName: getApiObjectFieldValue(objects, ['department_name', 'departmentName', 'department']),
-      seenProject: Boolean(projectId || name || brand || statusRaw || developerText || referenceUrl),
-    };
-    return Object.keys(fields).reduce((result, key) => {
-      if (isUsefulValue(fields[key])) result[key] = fields[key];
-      return result;
-    }, { seenProject: fields.seenProject });
-  }
-
-  function buildApiProductData(snapshot) {
-    if (!snapshot || !snapshot.found) return {};
-    const optional = snapshot.optional || {};
-    const hasDetail = Boolean(snapshot.contentPayload || snapshot.editContentPayload || snapshot.infoPayload || snapshot.editInfoPayload);
-    const imageUrl = snapshot.productListImageUrl || '';
-    return {
-      name: snapshot.chineseName || '',
-      brand: snapshot.brand || '',
-      englishName: snapshot.englishName || '',
-      productType: snapshot.productType || '',
-      manualCategory: snapshot.manualCategory || '',
-      category: snapshot.category || '',
-      departmentName: snapshot.departmentName || '',
-      plmProductNums: Array.isArray(snapshot.productNums) ? snapshot.productNums : null,
-      referenceUrl: snapshot.referenceUrl || '',
-      benchmarkLink: snapshot.referenceUrl || '',
-      packQty: snapshot.packQty || '',
-      purchasePrice: snapshot.purchasePrice || '',
-      netContent: snapshot.netContent || '',
-      grossWeight: snapshot.grossWeight || '',
-      cartonSpec: optional.cartonSpec || '',
-      packageMaterial: optional.packageMaterial || '',
-      leadTimeText: optional.leadTimeText || '',
-      alibabaLink: optional.alibabaLink || '',
-      productListImageUrl: imageUrl,
-      productListImageFallbackUrl: imageUrl,
-      skuImageUrl: imageUrl,
-      skuImageFallbackUrl: imageUrl,
-      skuImageSource: imageUrl ? 'productListImage' : '',
-      plmIngredientText: snapshot.plmIngredientText || '',
-      plmIngredientEnglishText: snapshot.plmIngredientEnglishText || '',
-      apiProductSource: snapshot.apiProductSource || (hasDetail ? 'plm-product-detail' : 'plm-product-list'),
-      apiDetailFields: snapshot.apiDetailFields || {},
-      apiDetailFieldCount: snapshot.apiDetailFieldCount || 0,
-      apiDetailFileIds: snapshot.apiDetailFileIds || {},
-      seenProduct: hasDetail,
     };
   }
 
@@ -6052,42 +5818,30 @@
         const categoryId = product.category_id;
         let contentPayload = null;
         let contentError = '';
-        let editContentPayload = null;
         let infoPayload = null;
-        let editInfoPayload = null;
         if (productId && productVersionId && categoryId) {
-          const contentBase = '/api/Product/GetDetailContent?product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId);
-          const infoBase = '/api/Product/GetDetailInfo?product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId);
-          const editInfoUrl = '/api/Product/GetDetailInfoByEdit?product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId);
-          const readOptional = (url, label, level) => fetchPlmJson(url).catch((error) => {
-            const message = formatErrorMessage(error);
-            addLog(level === 'warn' ? 'warn' : 'info', label, sku + ' | ' + message);
-            return null;
-          });
-          [contentPayload, editContentPayload, infoPayload, editInfoPayload] = await Promise.all([
-            readOptional(contentBase + '&is_edit=false', 'Excel 产品展示详情 API 读取失败，继续尝试完整字段', 'warn'),
-            readOptional(contentBase + '&is_edit=true', 'Excel 产品编辑详情 API 不可用，继续使用展示字段', 'info'),
-            readOptional(infoBase, 'Excel 产品基础信息 API 不可用，继续使用产品列表', 'info'),
-            readOptional(editInfoUrl, 'Excel 产品编辑基础信息 API 不可用，继续使用其他详情字段', 'info'),
-          ]);
-          if (!contentPayload && !editContentPayload) contentError = '产品展示详情和完整详情 API 均读取失败';
+          try {
+            contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId));
+          } catch (error) {
+            contentError = formatErrorMessage(error);
+            addLog('warn', 'Excel 产品详情 API 读取失败', sku + ' | ' + formatErrorMessage(error));
+          }
+          try {
+            infoPayload = await fetchPlmJson('/api/Product/GetDetailInfo?product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId));
+          } catch (error) {
+            addLog('info', 'Excel 产品基础信息 API 不可用，继续使用产品列表', sku + ' | ' + formatErrorMessage(error));
+          }
         }
-        const effectiveContentPayload = contentPayload || editContentPayload;
-        const effectiveInfoPayload = infoPayload || editInfoPayload;
         return {
           found: true,
           sku,
           productId: String(productId || ''),
           productVersionId: String(productVersionId || ''),
           categoryId: String(categoryId || ''),
-          contentPayload: effectiveContentPayload,
-          displayContentPayload: contentPayload,
-          editContentPayload,
+          contentPayload,
           contentError,
-          infoPayload: effectiveInfoPayload,
-          displayInfoPayload: infoPayload,
-          editInfoPayload,
-          ...extractApiProductSnapshot(product, effectiveInfoPayload, effectiveContentPayload, { editInfoPayload, editContentPayload }),
+          infoPayload,
+          ...extractApiProductSnapshot(product, infoPayload, contentPayload),
         };
       })();
       const task = request.finally(() => {
@@ -6102,7 +5856,7 @@
     const sku = String(data && data.sku || '').trim().toUpperCase();
     if (!sku) return null;
     const existingId = [data && data.projectRowId, data && data.projectId].map((value) => String(value || '').trim()).find((value) => /^\d+$/.test(value));
-    if (existingId) return { found: true, sku, ...extractApiProjectData(data, { projectId: existingId }) };
+    if (existingId) return { found: true, sku, projectId: existingId };
     if (options && options.force) delete apiProjectSnapshotCache[sku];
     if (!apiProjectSnapshotCache[sku]) {
       const request = (async () => {
@@ -6119,7 +5873,13 @@
             return {
               found: true,
               sku,
-              ...extractApiProjectData(row),
+              projectId: String(row.id || row.project_id || row.chemical_id || row.project_row_id || row.projectRowId || ''),
+              productId: String(row.product_id || ''),
+              productVersionId: String(row.product_main_id || row.product_version_id || ''),
+              categoryId: String(row.category_id || ''),
+              name: compactText(row.product_name || row.productName || row.name),
+              brand: compactText(row.brand_name || row.brandName || row.brand),
+              referenceUrl: String(row.reference_url || row.referenceUrl || row.benchmark_url || row.benchmarkUrl || '').match(/https?:\/\/[^\s]+/i)?.[0] || '',
               raw: row,
             };
           } catch (error) {
@@ -6201,15 +5961,14 @@
         return;
       }
       if (typeof value !== 'object') return;
-      if ((value.variable_name || value.variableName) === variableName) {
-        const languageValues = getApiAttributeLanguages(value);
-        const preferred = languageValues.find((item) => Number(item && (item.language_id || item.languageId)) === 1 && item.value != null)
+      if (value.variable_name === variableName) {
+        const languageValues = Array.isArray(value.attr_language_config_json) ? value.attr_language_config_json : [];
+        const preferred = languageValues.find((item) => Number(item && item.language_id) === 1 && item.value != null)
           || languageValues.find((item) => item && item.value != null);
-        const raw = preferred ? preferred.value : value.value;
+        const raw = preferred ? preferred.value : '';
         if (raw !== '' && raw != null) {
-          const unitId = value.attr_display_unit_id || value.attrDisplayUnitId;
-          const unit = Number(unitId) === 3 ? 'g' : (Number(unitId) === 4 ? 'ml' : '');
-          const text = getApiScalarText(raw, 0);
+          const unit = Number(value.attr_display_unit_id) === 3 ? 'g' : (Number(value.attr_display_unit_id) === 4 ? 'ml' : '');
+          const text = compactText(raw);
           result = unit && /^\d+(?:\.\d+)?$/.test(text) ? text + unit : text;
         }
         return;
@@ -6385,17 +6144,14 @@
     return { unit: 'm', raw: values.length >= 2 ? values.join('x') + 'm' : 'm' };
   }
 
-  function getApiMaterialDimensions(item, count, options) {
-    const preserveAdditional = Boolean(options && options.preserveAdditional);
+  function getApiMaterialDimensions(item, count) {
     if (getApiMaterialUnitIssue(item)) return null;
     // PLM occasionally returns stale or shifted material_length/width/height
     // values. The human-readable properties_value is the authoritative row
     // specification when it contains a complete dimension string.
     const propertyDimension = extractDimensionString(item && item.properties_value);
     const propertyParsed = parseDimension(propertyDimension, count);
-    if (propertyParsed && propertyParsed.length >= count) {
-      return preserveAdditional ? propertyParsed : propertyParsed.slice(0, count);
-    }
+    if (propertyParsed && propertyParsed.length >= count) return propertyParsed.slice(0, count);
     const values = [item && item.material_length, item && item.material_width, item && item.material_height]
       .map((value) => {
         const text = String(value == null ? '' : value);
@@ -6405,8 +6161,7 @@
       });
     if (values.slice(0, count).every((value) => value > 0)) return values.slice(0, count);
     const parsed = parseDimension(propertyDimension, count);
-    if (!parsed || parsed.length < count) return null;
-    return preserveAdditional ? parsed : parsed.slice(0, count);
+    return parsed && parsed.length >= count ? parsed.slice(0, count) : null;
   }
 
   function formatApiMaterialDimensions(values) {
@@ -6446,10 +6201,7 @@
       const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
       const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
       const unitIssue = getApiMaterialUnitIssue(item);
-      // A paper box can encode multiple connected page/panel sizes, for
-      // example 10x2.2x20.3x1x10cm. Keep every value from the authoritative
-      // properties string so the API result matches the PLM detail row.
-      const dimensions = getApiMaterialDimensions(item, 3, { preserveAdditional: true });
+      const dimensions = getApiMaterialDimensions(item, 3);
       let score = 0;
       if (/纸盒|彩盒|纸箱|包装盒|外盒/.test(text)) score += 160;
       if (/包材/.test(category)) score += 20;
@@ -6480,7 +6232,7 @@
       packageSizeLabel: packageItem ? packageItem.displayName : '',
       packageCode: packageItem ? String(packageItem.item.code || '') : '',
       packageNums,
-      hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name) + ' ' + compactText(item && item.properties_value))),
+      hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name))),
       printSizeText: printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
       printSizeLabel: printItems.map((item) => item.displayName).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
       printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
@@ -6489,9 +6241,6 @@
         print: (printItems.find((item) => item.unitIssue) || {}).unitIssue || null,
       },
       netContent: packageItem ? extractNetContentFromMaterial(packageItem.name + ' ' + compactText(packageItem.item.properties_value)) : '',
-      apiMaterialRows: items.map((item, index) => ({ ...item, index })),
-      apiMaterialCount: items.length,
-      seenMaterial: Boolean(items.length),
       apiMaterialSource: packageItem || printItems.length ? 'plm-project-pms' : '',
     };
   }
@@ -6502,28 +6251,9 @@
     [
       'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'hasInnerCard',
       'printSizeText', 'printSizeLabel', 'printCode', 'printRawText', 'isTubePrintMaterial',
-      'netContent', 'grossWeight', 'apiMaterialSource', 'apiMaterialRows', 'apiMaterialCount', 'seenMaterial', 'apiProject',
-      'seenProject', 'seenProduct', 'projectRowId', 'projectId', 'projectProductId', 'productVersionId', 'categoryId',
-      'name', 'brand', 'englishName', 'productType', 'manualCategory', 'category', 'departmentName',
-      'developerText', 'developerName', 'projectOwnerName', 'projectStatus', 'designType', 'artPriority',
-      'designAssignedAt', 'developmentAssignedAt', 'referenceUrl', 'benchmarkLink', 'packQty', 'purchasePrice',
-      'cartonSpec', 'packageMaterial', 'leadTimeText', 'alibabaLink', 'productNums', 'plmProductNums',
-      'productListImageUrl', 'productListImageFallbackUrl', 'skuImageUrl', 'skuImageFallbackUrl', 'skuImageSource',
-      'apiProductSource', 'plmIngredientText', 'plmIngredientEnglishText',
-      'apiDetailFields', 'apiDetailFieldCount', 'apiDetailFileIds',
+      'netContent', 'grossWeight', 'apiMaterialSource',
     ].forEach((key) => {
-      if (key === 'hasInnerCard' && Object.prototype.hasOwnProperty.call(source, key)) merged[key] = Boolean(source[key]);
-      else if (key === 'apiProject') {
-        if (source[key] && typeof source[key] === 'object' && Object.keys(source[key]).length) merged[key] = source[key];
-      }
-      else if (key === 'apiDetailFields' || key === 'apiDetailFileIds') {
-        if (source[key] && typeof source[key] === 'object' && Object.keys(source[key]).length) merged[key] = source[key];
-      }
-      else if (key === 'apiDetailFieldCount' && !Number(source[key] || 0)) {
-        // Keep a previously captured full template snapshot when a later
-        // optional detail request returns no attributes.
-      }
-      else if (isUsefulValue(source[key])) merged[key] = source[key];
+      if (isUsefulValue(source[key])) merged[key] = source[key];
     });
     const currentIssues = normalizeMaterialDimensionUnitIssues(merged.materialDimensionUnitIssues, merged);
     const incomingIssues = normalizeMaterialDimensionUnitIssues(source.materialDimensionUnitIssues, source);
@@ -6646,26 +6376,37 @@
     if (!apiProjectMaterialCache[projectId]) {
       addLog('info', '详情自动读取 PLM 物料接口', sku + ' | projectId=' + projectId);
       apiProjectMaterialCache[projectId] = fetchPlmJson('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(projectId))
-        .then((payload) => {
-          const dataObject = getApiPayloadDataObject(payload);
-          const project = dataObject.project || {};
-          return {
-            result: { ...extractApiMaterialPackaging(payload), ...extractApiProjectData(project, data) },
-            project,
-          };
-        })
+        .then((payload) => ({
+          result: extractApiMaterialPackaging(payload),
+          project: payload && payload.data && payload.data.project || {},
+        }))
         .catch((error) => {
           addLog('warn', 'PLM 项目物料读取失败，继续读取产品接口', sku + ' | ' + formatErrorMessage(error));
           return { result: emptyPackaging(), project: {} };
         })
         .then(({ result, project }) => {
+          const productId = project.product_id;
+          const productVersionId = project.product_main_id;
           const productSku = sku || String(project.product_code || '');
           const projectResult = { ...result, apiProject: project };
-          if (!productSku) return projectResult;
-          return fetchApiProductSnapshot({ sku: productSku }, { force: Boolean(options && options.force) })
-            .then((snapshot) => ({ ...projectResult, ...buildApiProductData(snapshot) }))
+          return fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(productSku))
+            .then((productPayload) => {
+              const list = getApiProductListItems(productPayload);
+              const product = list.find((item) => String(item && (item.product_code || item.productCode || item.code || '')).trim().toUpperCase() === String(productSku || '').trim().toUpperCase()) || list[0] || {};
+              const categoryId = product.category_id;
+              if (!categoryId || (!(product.product_id || productId)) || (!(product.product_version_id || productVersionId))) {
+                addLog('info', 'PLM 产品列表读取完成但缺少详情关联', productSku + ' | 保留已读取物料结果');
+                return projectResult;
+              }
+              return fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(product.product_id || productId) + '&product_version_id=' + encodeURIComponent(product.product_version_id || productVersionId) + '&category_id=' + encodeURIComponent(categoryId))
+                .then((contentPayload) => ({ ...projectResult, ...extractApiProductMetrics(contentPayload) }))
+                .catch((error) => {
+                  addLog('warn', 'PLM 产品详情字段读取失败', productSku + ' | ' + formatErrorMessage(error));
+                  return projectResult;
+                });
+            })
             .catch((error) => {
-              addLog('warn', 'PLM 产品详情 API 读取失败，保留项目和物料结果', productSku + ' | ' + formatErrorMessage(error));
+              addLog('warn', 'PLM 产品列表读取失败', productSku + ' | ' + formatErrorMessage(error));
               return projectResult;
             });
         })
@@ -6753,8 +6494,6 @@
       return result;
     }, {});
     const productMetrics = product && product.contentPayload ? extractApiProductMetrics(product.contentPayload) : {};
-    const productApiData = buildApiProductData(product);
-    const projectApiData = project ? extractApiProjectData(project.raw || project, project) : {};
     let imageUrl = product && product.productListImageUrl || '';
     let imageFallbackUrl = imageUrl;
     if (!imageUrl && product && product.imageFileIds && product.imageFileIds.length) {
@@ -6777,8 +6516,6 @@
     }
     const seed = normalizeData({
       ...current,
-      ...projectApiData,
-      ...productApiData,
       sku,
       projectRowId: projectId || current.projectRowId || '',
       projectId: projectId || current.projectId || '',
@@ -6792,16 +6529,14 @@
       benchmarkLink: product && product.referenceUrl || project && project.referenceUrl || current.benchmarkLink || '',
       packQty: product && product.packQty || current.packQty || '',
       purchasePrice: apiPurchasePrice || current.purchasePrice || '',
-      netContent: product && product.netContent || productMetrics.netContent || current.netContent || '',
-      grossWeight: product && product.grossWeight || productMetrics.grossWeight || current.grossWeight || '',
+      netContent: productMetrics.netContent || current.netContent || '',
+      grossWeight: productMetrics.grossWeight || current.grossWeight || '',
       plmProductNums: product && product.productNums || current.plmProductNums || null,
       productListImageUrl: imageUrl || current.productListImageUrl || '',
       productListImageFallbackUrl: imageFallbackUrl || current.productListImageFallbackUrl || '',
       skuImageUrl: imageUrl || current.skuImageUrl || '',
       skuImageFallbackUrl: imageFallbackUrl || current.skuImageFallbackUrl || '',
       skuImageSource: imageUrl ? 'productListImage' : current.skuImageSource || '',
-      seenProject: projectApiData.seenProject || current.seenProject,
-      seenProduct: productApiData.seenProduct || current.seenProduct,
       ...optionalSeed,
     });
     let material = emptyPackaging();
@@ -10991,11 +10726,7 @@
   }
 
   function hasUsableApiData(data) {
-    return Boolean(data && (
-      data.packageSizeText || data.printSizeText || data.hasInnerCard || data.netContent || data.grossWeight
-      || data.seenProject || data.seenMaterial || data.seenProduct || data.apiMaterialCount || data.apiDetailFieldCount
-      || (data.apiProject && typeof data.apiProject === 'object' && Object.keys(data.apiProject).length)
-    ));
+    return Boolean(data && (data.packageSizeText || data.printSizeText || data.hasInnerCard || data.netContent || data.grossWeight));
   }
 
   function getDataChangeLabels(previous, next) {
