@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.101
+// @version      2.6.102
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.101';
+  const SCRIPT_VERSION = '2.6.102';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -208,6 +208,7 @@
           featuresDirty: false,
           editorOpen: false,
           manualTarget: Boolean(data && data.singleBottle) ? 'product' : 'box',
+          manualTargetMode: 'auto',
           manualPoints: { box: [], product: [] },
           manualLineTypes: { box: [], product: [] },
           manualPointHistory: [],
@@ -242,6 +243,7 @@
       const session = sessions[sku];
       if (!session.manualPoints) session.manualPoints = { box: [], product: [] };
       if (!session.manualLineTypes) session.manualLineTypes = { box: [], product: [] };
+      if (!['auto', 'box', 'product'].includes(session.manualTargetMode)) session.manualTargetMode = 'auto';
       if (!Array.isArray(session.manualLineTypes.box)) session.manualLineTypes.box = [];
       if (!Array.isArray(session.manualLineTypes.product)) session.manualLineTypes.product = [];
       if (!Array.isArray(session.manualPointHistory)) session.manualPointHistory = [];
@@ -265,7 +267,7 @@
     }
 
     function manualDimensionTypes(target) {
-      return ['length', 'height'];
+      return target === 'box' ? ['length', 'width', 'height'] : ['length', 'height'];
     }
 
     function manualDimensionLabel(type) {
@@ -276,6 +278,10 @@
       return manualDimensionTypes(target).length * 2;
     }
 
+    function minimumManualLines(target) {
+      return target === 'box' ? 2 : manualDimensionTypes(target).length;
+    }
+
     function completedManualLines(session, target) {
       const points = session.manualPoints && session.manualPoints[target] || [];
       return Math.min(manualDimensionTypes(target).length, Math.floor(points.length / 2));
@@ -283,7 +289,7 @@
 
     function completeManualPath(session, target) {
       const points = session.manualPoints && session.manualPoints[target];
-      return Array.isArray(points) && points.length >= requiredManualPoints(target);
+      return Array.isArray(points) && points.length % 2 === 0 && completedManualLines(session, target) >= minimumManualLines(target);
     }
 
     function manualDimensionValue(session, target, type) {
@@ -359,14 +365,14 @@
       const box = completedManualLines(session, 'box');
       const product = completedManualLines(session, 'product');
       const pending = ['box', 'product'].find((target) => (session.manualPoints[target] || []).length % 2 === 1);
-      return '纸盒 ' + box + '/2 · 产品 ' + product + '/2' + (pending ? ' · 正在画' + (pending === 'box' ? '纸盒' : '产品') + '终点' : '');
+      return '纸盒 ' + box + '/2-3 · 产品 ' + product + '/2' + (pending ? ' · 正在画' + (pending === 'box' ? '纸盒' : '产品') + '终点' : '');
     }
 
     function manualCalibrationHtml(session, target) {
       const lineCount = completedManualLines(session, target);
       const effective = autoAssignedManualTypes(session, target);
       const overrides = session.manualLineTypes[target] || [];
-      if (!lineCount) return '<span style="color:' + getActiveTheme().muted + ';font-size:12px">每条尺寸边分别点击起点和终点，画完后可在这里校准长/高。</span>';
+      if (!lineCount) return '<span style="color:' + getActiveTheme().muted + ';font-size:12px">每条尺寸边分别点击起点和终点，纸盒可标长/宽/高（完成 2 或 3 条），产品标长/高。</span>';
       return Array.from({ length: lineCount }, (_, index) => {
         const override = overrides[index] || '';
         const buttons = ['auto'].concat(manualDimensionTypes(target)).map((type) => {
@@ -408,18 +414,25 @@
       const boxCount = completedManualLines(session, 'box');
       const productCount = completedManualLines(session, 'product');
       const statusClass = session.editorLoadError ? ' is-error' : '';
+      const targetMode = ['auto', 'box', 'product'].includes(session.manualTargetMode) ? session.manualTargetMode : 'auto';
+      const targetButtons = [
+        ['auto', '自动判断'],
+        ['box', '纸盒'],
+        ['product', '产品'],
+      ].map(([mode, label]) => '<button type="button" class="pfh-parameter-editor-target-button' + (targetMode === mode ? ' is-active' : '') + '" data-action="parameter-editor-target-mode" data-target-mode="' + mode + '" aria-pressed="' + (targetMode === mode ? 'true' : 'false') + '">' + label + '</button>').join('');
       return '<section class="pfh-parameter-editor">' +
-        '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，自动判断纸盒/产品 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+        '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，可自动判断纸盒/产品；判断不准时先选择对象 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
-          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2 边</span>' +
+          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2-3 边</span>' +
           '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().secondarySoft + ';color:' + getActiveTheme().secondary + ';font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
+          '<span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + getActiveTheme().border + ';border-radius:10px"><b style="padding:0 4px;color:' + getActiveTheme().muted + ';font-size:12px">下条线：</b>' + targetButtons + '</span>' +
           '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
           '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
           '<div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + manualAllCalibrationHtml(session) + '</div>' +
         '</div>' +
         '<div class="pfh-parameter-editor-stage' + (!session.editorImage && !session.editorLoadError ? ' is-loading' : '') + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
-        '<footer class="pfh-parameter-editor-foot"><span>无需选择对象，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualOverallProgressText(session) + '</span></footer>' +
+        '<footer class="pfh-parameter-editor-foot"><span>默认自动判断；也可先选纸盒/产品，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualOverallProgressText(session) + '</span></footer>' +
         '<details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + context.escapeHtml(editorLogText(session)) + '</pre></details>' +
       '</section>';
     }
@@ -538,6 +551,7 @@
       const available = ['box', 'product'].filter((target) => (session.manualPoints[target] || []).length < requiredManualPoints(target));
       if (available.length === 1) return available[0];
       if (!available.length) return '';
+      if (session.manualTargetMode && session.manualTargetMode !== 'auto' && available.includes(session.manualTargetMode)) return session.manualTargetMode;
       const analysis = session.analysis || {};
       const boxScore = manualPointRectScore(point, analysis.box);
       const productScore = manualPointRectScore(point, analysis.product);
@@ -590,10 +604,16 @@
       const calibration = root && root.querySelector('.pfh-parameter-editor-calibration');
       const boxProgress = root && root.querySelector('.pfh-parameter-editor-box-progress');
       const productProgress = root && root.querySelector('.pfh-parameter-editor-product-progress');
+      const targetButtons = root && root.querySelectorAll('.pfh-parameter-editor-target-button');
       if (progress) progress.textContent = manualOverallProgressText(session);
       if (calibration) calibration.innerHTML = manualAllCalibrationHtml(session);
-      if (boxProgress) boxProgress.textContent = '纸盒 ' + completedManualLines(session, 'box') + '/2 边';
+      if (boxProgress) boxProgress.textContent = '纸盒 ' + completedManualLines(session, 'box') + '/2-3 边';
       if (productProgress) productProgress.textContent = '产品 ' + completedManualLines(session, 'product') + '/2 边';
+      targetButtons && targetButtons.forEach((button) => {
+        const active = button.getAttribute('data-target-mode') === session.manualTargetMode;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
     }
 
     function refreshEditorDiagnostics(session) {
@@ -786,9 +806,14 @@
           if (points.length % 2 === 0) {
             const lineIndex = points.length / 2 - 1;
             const assigned = autoAssignedManualTypes(session, target);
-            session.editorStatus = (target === 'box' ? '纸盒' : '产品') + '第' + (lineIndex + 1) + '条边智能识别为“' + manualDimensionLabel(assigned[lineIndex]) + '”，可在上方校准';
+            const targetLabel = target === 'box' ? '纸盒' : '产品';
+            const targetSource = session.manualTargetMode === target ? '已按手动选择归入' : '已自动判断为';
+            session.editorStatus = targetLabel + '第' + (lineIndex + 1) + '条边' + targetSource + '“' + targetLabel + '”，尺寸智能识别为“' + manualDimensionLabel(assigned[lineIndex]) + '”，可在上方校准';
             editorLog(session, '智能识别尺寸边', { target, line: lineIndex + 1, dimension: assigned[lineIndex] || '' });
-          } else session.editorStatus = '已自动判断为“' + (target === 'box' ? '纸盒' : '产品') + '”，请点击这条边的终点';
+          } else {
+            const targetLabel = target === 'box' ? '纸盒' : '产品';
+            session.editorStatus = (session.manualTargetMode === target ? '已手动选择' : '已自动判断为') + '“' + targetLabel + '”，请点击这条边的终点';
+          }
         }
         if (index < 0) return;
         session.editorDragging = { target, index, snapAxis };
@@ -1379,6 +1404,17 @@
       const session = ensureSession(data);
       if (action === 'parameter-editor-close') {
         closeManualEditor(session, 'button');
+        return true;
+      }
+      if (action === 'parameter-editor-target-mode') {
+        const requested = String(target && target.getAttribute('data-target-mode') || 'auto');
+        if (!['auto', 'box', 'product'].includes(requested)) return true;
+        session.manualTargetMode = requested;
+        session.editorStatus = requested === 'auto'
+          ? '已恢复自动判断纸盒/产品'
+          : '下一条尺寸边将手动归入“' + (requested === 'box' ? '纸盒' : '产品') + '”';
+        editorLog(session, '切换标注对象模式', { mode: requested });
+        renderManualEditor(data);
         return true;
       }
       if (action === 'parameter-editor-line-type') {
@@ -3181,6 +3217,8 @@
     #${PANEL_ID}-upload-progress[data-pfh-theme] :where(.pfh-upload-progress-main span,.pfh-upload-progress-icon){background:var(--pfh-theme-primary)!important;color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme]{color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor{background:var(--pfh-theme-surface)!important;border-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor-target-button.is-active{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;font-weight:800!important;box-shadow:0 4px 10px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor-target-button:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${LAUNCHER_ID}[data-pfh-theme]{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-primary)!important;box-shadow:0 8px 24px var(--pfh-theme-shadow)!important;}
     #${LAUNCHER_ID}[data-pfh-theme]:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px;}
