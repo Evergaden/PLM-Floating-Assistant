@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.103
+// @version      2.6.104
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.103';
+  const SCRIPT_VERSION = '2.6.104';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1226,6 +1226,81 @@
       do { ctx.font = (weight || '400') + ' ' + size + 'px Arial'; size -= 1; } while (size >= minSize && ctx.measureText(text).width > maxWidth);
     }
 
+    function wrapCanvasText(ctx, text, maxWidth) {
+      const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!normalized) return [''];
+      const lines = [];
+      let current = '';
+      const breakWord = (word) => {
+        const pieces = [];
+        let piece = '';
+        Array.from(word).forEach((character) => {
+          const candidate = piece + character;
+          if (piece && ctx.measureText(candidate).width > maxWidth) {
+            pieces.push(piece);
+            piece = character;
+          } else piece = candidate;
+        });
+        if (piece) pieces.push(piece);
+        return pieces;
+      };
+      normalized.split(' ').forEach((word) => {
+        if (ctx.measureText(word).width > maxWidth) {
+          if (current) { lines.push(current); current = ''; }
+          const pieces = breakWord(word);
+          if (pieces.length > 1) lines.push(...pieces.slice(0, -1));
+          current = pieces[pieces.length - 1] || '';
+          return;
+        }
+        const candidate = current ? current + ' ' + word : word;
+        if (current && ctx.measureText(candidate).width > maxWidth) {
+          lines.push(current);
+          current = word;
+        } else current = candidate;
+      });
+      if (current) lines.push(current);
+      return lines.length ? lines : [''];
+    }
+
+    function drawFittedMultilineText(ctx, text, options) {
+      const config = options || {};
+      ctx.save();
+      const maxWidth = Math.max(1, Number(config.maxWidth) || 1);
+      const maxHeight = Math.max(1, Number(config.maxHeight) || 1);
+      const startSize = Math.max(1, Number(config.startSize) || 24);
+      const minSize = Math.max(1, Math.min(startSize, Number(config.minSize) || 16));
+      const maxLines = Math.max(1, Number(config.maxLines) || 2);
+      const lineHeightRatio = Number(config.lineHeight) || 1.06;
+      const weight = config.weight || '400';
+      let chosen = null;
+      for (let size = startSize; size >= minSize; size -= 1) {
+        ctx.font = weight + ' ' + size + 'px Arial';
+        const lines = wrapCanvasText(ctx, text, maxWidth);
+        const lineHeight = size * lineHeightRatio;
+        if (lines.length <= maxLines && lines.length * lineHeight <= maxHeight) {
+          chosen = { font: ctx.font, lines, lineHeight };
+          break;
+        }
+      }
+      if (!chosen) {
+        ctx.font = weight + ' ' + minSize + 'px Arial';
+        const lines = wrapCanvasText(ctx, text, maxWidth);
+        chosen = {
+          font: ctx.font,
+          lines,
+          lineHeight: Math.min(minSize * lineHeightRatio, maxHeight / Math.max(1, lines.length)),
+        };
+      }
+      ctx.font = chosen.font;
+      ctx.textAlign = config.align || 'center';
+      ctx.textBaseline = 'middle';
+      const centerY = Number(config.y) || 0;
+      const startY = centerY - (chosen.lines.length - 1) * chosen.lineHeight / 2;
+      chosen.lines.forEach((lineText, index) => ctx.fillText(lineText, Number(config.x) || 0, startY + index * chosen.lineHeight));
+      ctx.restore();
+      return chosen;
+    }
+
     async function loadBrandLogo(brand) {
       const key = typeof getParameterLogoKey === 'function' ? getParameterLogoKey(brand) : '';
       if (!key) return null;
@@ -1258,7 +1333,7 @@
       const title = String(session.fields.englishName || '').toUpperCase();
       ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.strokeRect(75, 393, 736, 144);
       ctx.fillStyle = '#080808'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      fitText(ctx, title, 680, 52, 26, '400'); ctx.fillText(title, 443, 465);
+      drawFittedMultilineText(ctx, title, { x: 443, y: 465, maxWidth: 680, maxHeight: 120, startSize: 52, minSize: 30, maxLines: 2, lineHeight: 1.06, weight: '400' });
       const rows = [
         ['NAME', session.fields.englishName || ''], ['NET CONTENT', session.fields.netContent], ['SHELF LIFE', session.fields.shelfLife],
         ['STORE', session.fields.store], ['FEATURES', session.fields.features], ['WEIGHT', session.fields.grossWeight],
@@ -1269,7 +1344,9 @@
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         fitText(ctx, row[0], 205, 32, 20, '400'); ctx.fillText(row[0], 185, y + 34);
         ctx.fillStyle = '#111'; ctx.textAlign = 'left';
-        fitText(ctx, String(row[1] || ''), 455, 34, 20, '400'); ctx.fillText(String(row[1] || ''), 326, y + 34);
+        const rowValue = String(row[1] || '');
+        if (row[0] === 'NAME') drawFittedMultilineText(ctx, rowValue, { x: 326, y: y + 34, maxWidth: 455, maxHeight: 60, startSize: 34, minSize: 22, maxLines: 2, lineHeight: 1.04, weight: '400', align: 'left' });
+        else { fitText(ctx, rowValue, 455, 34, 20, '400'); ctx.fillText(rowValue, 326, y + 34); }
         ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
       const rightArea = { x: 960, y: 300, width: 470, height: 1040, clipLeft: 815 };
