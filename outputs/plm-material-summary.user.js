@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.97
+// @version      2.6.98
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.97';
+  const SCRIPT_VERSION = '2.6.98';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5246,6 +5246,7 @@
     migrateLabelValue(safe, 'printSizeLabel', 'printSizeText');
     stripKnownLabelPrefix(safe, 'packageSizeLabel', 'packageSizeText');
     stripKnownLabelPrefix(safe, 'printSizeLabel', 'printSizeText');
+    safe.packageSizeLabel = cleanPackageDisplayLabel(safe.packageSizeLabel);
     const materialDimensionUnitIssues = normalizeMaterialDimensionUnitIssues(safe.materialDimensionUnitIssues, safe);
     const parsedPackageNums = materialDimensionUnitIssues.package ? null : parseDimension(safe.packageSizeText, 3);
     // Keep the dimension array aligned with the displayed text. Older cached
@@ -6050,9 +6051,8 @@
   }
 
   function getApiPackageDisplayName(item) {
-    const pattern = /(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/;
-    return getApiMaterialDisplayName(item && item.name, pattern)
-      || getApiMaterialDisplayName(item && item.category_name, pattern)
+    return getPackageMaterialKind(item && item.name)
+      || getPackageMaterialKind(item && item.category_name)
       || compactText(item && item.name)
       || compactText(item && item.category_name);
   }
@@ -6480,7 +6480,7 @@
     const packageDim = packageUnitIssue ? '' : extractDimensionString(packageRow);
     const packageRawDim = packageUnitIssue ? packageUnitIssue.raw : '';
     const packageNums = packageUnitIssue ? null : parseDimension(packageDim, 3);
-    let packageName = getMaterialDisplayName(packageRow, /(\u7eb8\u76d2|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/);
+    let packageName = getPackageMaterialKind(extractMaterialName(packageRow)) || getMaterialDisplayName(packageRow, /(\u7eb8\u76d2|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/);
     if (packageNums && packageNums.length >= 5 && !/\u591a\u9875/.test(packageName + packageRow)) {
       packageName = appendChineseRemark(packageName, '\u591a\u9875');
     }
@@ -6588,6 +6588,22 @@
     if (!name) return '';
     const match = name.match(keywordPattern);
     return match ? name.slice(match.index).trim() : name.trim();
+  }
+
+  // Material names often append the product name after the packaging type.
+  // Keep only the recognized packaging kind so unrelated text is not shown as a box remark.
+  function getPackageMaterialKind(value) {
+    const text = compactText(value);
+    const match = text.match(/(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/);
+    return match ? match[1] : '';
+  }
+
+  function cleanPackageDisplayLabel(value) {
+    const text = compactText(value);
+    if (!text) return '';
+    const kind = getPackageMaterialKind(text);
+    if (!kind) return text;
+    return kind + (/多页/.test(text) ? '（多页）' : '');
   }
 
   function extractMaterialCode(row) {
