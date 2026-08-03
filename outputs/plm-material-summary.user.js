@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.108
+// @version      2.6.109
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.108';
+  const SCRIPT_VERSION = '2.6.109';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10383,7 +10383,6 @@
       #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p0-urgent{color:#b42318!important;border-color:rgba(248,113,113,.34)!important;background:#fff1f2!important;}
       #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p0-today{color:#c24172!important;border-color:rgba(244,114,182,.34)!important;background:#fff1f7!important;}
       #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p1{color:#92400e!important;border-color:rgba(251,191,36,.34)!important;background:#fff9df!important;}
-      #${PANEL_ID} .pfh-detail-card-meta .is-updated{color:#6b6382!important;background:#faf9ff!important;}
       #${PANEL_ID} .pfh-detail-card-info{
         display:flex!important;
         align-items:center!important;
@@ -10495,7 +10494,6 @@
         #${PANEL_ID} .pfh-detail-card-meta > span{height:28px!important;min-height:28px!important;padding:0 9px!important;font-size:10px!important;line-height:26px!important;}
         #${PANEL_ID} .pfh-detail-card-info{padding-top:9px!important;}
         #${PANEL_ID} .pfh-detail-developer-value,#${PANEL_ID} .pfh-detail-link-value{height:30px!important;min-height:30px!important;font-size:10px!important;line-height:28px!important;}
-        #${PANEL_ID} .pfh-detail-link-value{flex-basis:100%!important;}
       }
       @media(min-width:761px){
       #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card{
@@ -10557,7 +10555,6 @@
         font-size:11px!important;
         line-height:27px!important;
       }
-      #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value{flex-basis:100%!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value .pfh-icon{width:14px!important;height:14px!important;min-width:14px!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value .pfh-icon svg{width:14px!important;height:14px!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-sku-detail-card > .pfh-detail-card-actions{
@@ -10774,18 +10771,17 @@
     const priorityText = formatSkuDetailPriority(data && data.artPriority);
     const priorityClass = /^P0.*(?:紧急|urgent)/i.test(priorityText) ? ' is-p0-urgent' : (/^P0.*(?:当日|当天|today)/i.test(priorityText) ? ' is-p0-today' : (/^P0/i.test(priorityText) ? ' is-p0-urgent' : (/^P1/i.test(priorityText) ? ' is-p1' : '')));
     const designType = String(data && data.designType || '').trim() || '未分类';
-    const updatedText = formatSkuDetailUpdatedDate(data && (data.updatedAtMs || data.updatedAt));
     const developerName = extractDeveloperName(data && (data.developerName || data.developerText || ''));
     const referenceUrl = String(data && (data.referenceUrl || data.benchmarkLink) || '').trim();
+    const referenceLabel = formatSkuDetailLinkLabel(referenceUrl);
     const referenceLink = referenceUrl
       ? (/^https?:\/\//i.test(referenceUrl)
-        ? '<a class="pfh-detail-link-value" href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceUrl) + '</span></a>'
-        : '<span class="pfh-detail-link-value" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceUrl) + '</span></span>')
+        ? '<a class="pfh-detail-link-value" href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceLabel) + '</span></a>'
+        : '<span class="pfh-detail-link-value" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceLabel) + '</span></span>')
       : '';
     const metaHtml = '<div class="pfh-detail-card-meta">' +
       (priorityText ? '<span class="is-priority' + priorityClass + '" title="' + escapeHtml(priorityText) + '">' + iconHtml('warning') + '<span>' + escapeHtml(priorityText) + '</span></span>' : '') +
       '<span class="is-design-type" title="' + escapeHtml(designType) + '">' + iconHtml('tag') + '<span>' + escapeHtml(designType) + '</span></span>' +
-      '<span class="is-updated" title="' + escapeHtml(updatedText) + '">' + iconHtml('clock') + '<span>最近更新：' + escapeHtml(updatedText) + '</span></span>' +
       '</div>';
     const infoHtml = developerName || referenceLink
       ? '<div class="pfh-detail-card-info">' +
@@ -13474,13 +13470,19 @@
     return detail ? level + '-' + detail : level;
   }
 
-  function formatSkuDetailUpdatedDate(value) {
-    const ms = parseLedgerDateTimeMs(value);
-    if (ms) {
-      const date = new Date(ms);
-      return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  function formatSkuDetailLinkLabel(value) {
+    const source = String(value || '').trim();
+    if (!source) return '';
+    let label = source;
+    try {
+      if (/^https?:\/\//i.test(source)) {
+        const url = new URL(source);
+        label = url.hostname + (url.pathname || '').replace(/\/$/, '');
+      }
+    } catch (error) {
+      label = source;
     }
-    return parseLedgerDateFromText(value) || '--';
+    return label.length > 30 ? label.slice(0, 29) + '\u2026' : label;
   }
 
   function updateProductThumbInPlace(data) {
