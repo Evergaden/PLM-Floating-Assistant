@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.109
+// @version      2.6.110
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.109';
+  const SCRIPT_VERSION = '2.6.110';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10344,20 +10344,20 @@
       #${PANEL_ID} .pfh-detail-card-meta > span{
         display:inline-flex!important;
         align-items:center!important;
-        gap:6px!important;
+        gap:5px!important;
         min-width:0!important;
         max-width:100%!important;
-        height:32px!important;
-        min-height:32px!important;
+        height:28px!important;
+        min-height:28px!important;
         box-sizing:border-box!important;
-        padding:0 11px!important;
+        padding:0 8px!important;
         overflow:hidden!important;
         border:1px solid rgba(211,204,255,.40)!important;
         border-radius:999px!important;
         background:rgba(250,248,255,.88)!important;
         color:#6d638c!important;
-        font-size:12px!important;
-        line-height:30px!important;
+        font-size:11px!important;
+        line-height:26px!important;
         white-space:nowrap!important;
       }
       #${PANEL_ID} .pfh-detail-card-meta > span > span:last-child{
@@ -10368,17 +10368,17 @@
       }
       #${PANEL_ID} .pfh-detail-card-meta .pfh-icon{
         display:inline-flex!important;
-        flex:0 0 16px!important;
-        width:16px!important;
-        height:16px!important;
-        min-width:16px!important;
-        min-height:16px!important;
+        flex:0 0 14px!important;
+        width:14px!important;
+        height:14px!important;
+        min-width:14px!important;
+        min-height:14px!important;
         padding:0!important;
         border:0!important;
         background:transparent!important;
         color:#8165ce!important;
       }
-      #${PANEL_ID} .pfh-detail-card-meta .pfh-icon svg{width:16px!important;height:16px!important;}
+      #${PANEL_ID} .pfh-detail-card-meta .pfh-icon svg{width:14px!important;height:14px!important;}
       #${PANEL_ID} .pfh-detail-card-meta .is-design-type{color:#7752bd!important;border-color:rgba(167,139,250,.34)!important;background:#f6f1ff!important;}
       #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p0-urgent{color:#b42318!important;border-color:rgba(248,113,113,.34)!important;background:#fff1f2!important;}
       #${PANEL_ID} .pfh-detail-card-meta .is-priority.is-p0-today{color:#c24172!important;border-color:rgba(244,114,182,.34)!important;background:#fff1f7!important;}
@@ -10491,7 +10491,9 @@
       }
       @media(max-width:430px){
         #${PANEL_ID} .pfh-detail-card-meta{gap:5px!important;}
-        #${PANEL_ID} .pfh-detail-card-meta > span{height:28px!important;min-height:28px!important;padding:0 9px!important;font-size:10px!important;line-height:26px!important;}
+        #${PANEL_ID} .pfh-detail-card-meta > span{height:24px!important;min-height:24px!important;padding:0 6px!important;font-size:10px!important;line-height:22px!important;}
+        #${PANEL_ID} .pfh-detail-card-meta .pfh-icon{width:13px!important;height:13px!important;min-width:13px!important;}
+        #${PANEL_ID} .pfh-detail-card-meta .pfh-icon svg{width:13px!important;height:13px!important;}
         #${PANEL_ID} .pfh-detail-card-info{padding-top:9px!important;}
         #${PANEL_ID} .pfh-detail-developer-value,#${PANEL_ID} .pfh-detail-link-value{height:30px!important;min-height:30px!important;font-size:10px!important;line-height:28px!important;}
       }
@@ -10536,14 +10538,15 @@
       #${PANEL_ID}.is-narrow-panel .pfh-detail-product-title{font-size:18px!important;line-height:1.12!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta{gap:5px!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta > span{
-        height:27px!important;
-        min-height:27px!important;
-        padding:0 8px!important;
-        font-size:11px!important;
-        line-height:25px!important;
+        height:24px!important;
+        min-height:24px!important;
+        padding:0 6px!important;
+        gap:4px!important;
+        font-size:10px!important;
+        line-height:22px!important;
       }
-      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta .pfh-icon{width:14px!important;height:14px!important;min-width:14px!important;}
-      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta .pfh-icon svg{width:14px!important;height:14px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta .pfh-icon{width:13px!important;height:13px!important;min-width:13px!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-detail-card-meta .pfh-icon svg{width:13px!important;height:13px!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-detail-card-info{gap:5px!important;padding-top:7px!important;}
       #${PANEL_ID}.is-narrow-panel .pfh-detail-developer-value,
       #${PANEL_ID}.is-narrow-panel .pfh-detail-link-value{
