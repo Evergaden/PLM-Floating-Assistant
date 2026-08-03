@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.112
+// @version      2.6.113
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.112';
+  const SCRIPT_VERSION = '2.6.113';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -49,6 +49,8 @@
   const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
   const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
   const SKU_LIST_PREFERENCE_VERSION = 1;
+  // Code 128 patterns, represented as alternating bar/space module widths.
+  const CODE128_PATTERNS = ['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
   const apiProjectMaterialCache = Object.create(null);
   const apiCopywritingFileCache = Object.create(null);
   const apiProductSnapshotCache = Object.create(null);
@@ -10769,6 +10771,7 @@
   function productHeroSectionHtml(data, copywritingMode) {
     if (copywritingMode) return copywritingHeroSectionHtml(data);
     const sku = String(data && data.sku || L.sku);
+    const menuOpen = state.skuContextMenuSku === sku;
     const title = [data && data.brand, data && data.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
     const priorityText = formatSkuDetailPriority(data && data.artPriority);
     const priorityClass = /^P0.*(?:紧急|urgent)/i.test(priorityText) ? ' is-p0-urgent' : (/^P0.*(?:当日|当天|today)/i.test(priorityText) ? ' is-p0-today' : (/^P0/i.test(priorityText) ? ' is-p0-urgent' : (/^P1/i.test(priorityText) ? ' is-p1' : '')));
@@ -10796,7 +10799,7 @@
       '<div class="pfh-detail-secondary-actions">' +
         (state.skuEditMode
           ? '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-detail-more-button" data-action="sku-edit-cancel" aria-label="取消编辑">取消</button>'
-          : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + escapeHtml(sku) + '" aria-label="更多操作"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') +
+          : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + iconHtml('edit') + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + escapeHtml(sku) + '" aria-label="更多操作" aria-expanded="' + (menuOpen ? 'true' : 'false') + '"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') +
       '</div>' +
       '</div>';
     return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card" title="' + escapeHtml(L.copyHint) + '">' +
@@ -14009,27 +14012,79 @@
     showPackagingNamingCard(row, row.getAttribute('data-key'), event);
   }
 
+  function encodeSkuCode128B(value) {
+    const text = String(value || '').trim();
+    if (!text) throw new Error('SKU 不能为空');
+    if (!/^[\x20-\x7e]+$/.test(text)) throw new Error('SKU 含有 Code 128 不支持的字符');
+    const values = [104];
+    let checksum = 104;
+    for (let index = 0; index < text.length; index += 1) {
+      const code = text.charCodeAt(index) - 32;
+      values.push(code);
+      checksum += code * (index + 1);
+    }
+    values.push(checksum % 103);
+    return { value: text, pattern: values.map((code) => CODE128_PATTERNS[code]).concat(CODE128_PATTERNS[106]).join('') };
+  }
+
+  function buildSkuBarcodeSvg(value) {
+    const encoded = encodeSkuCode128B(value);
+    const format = (number) => Number(number.toFixed(4));
+    const moduleWidth = 1.13;
+    const barReduction = 0.13;
+    const barStartX = 11.268;
+    const barY = 9.8218;
+    const barHeight = 36.01;
+    let moduleOffset = 0;
+    let isBar = true;
+    const bars = [];
+    for (const token of encoded.pattern) {
+      const modules = Number(token);
+      if (isBar) {
+        bars.push('<rect x="' + format(barStartX + moduleOffset * moduleWidth) + '" y="' + barY + '" width="' + format(modules * moduleWidth - barReduction) + '" height="' + barHeight + '"></rect>');
+      }
+      moduleOffset += modules;
+      isBar = !isBar;
+    }
+    return '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="198.463pt" height="60.4398pt" viewBox="0 0 198.463 60.4398">' +
+      '<rect width="198.463" height="60.4398" fill="#fff"></rect>' +
+      '<rect x="11.203" y="9.8218" width="176.28" height="45.01" fill="#fff"></rect>' +
+      '<g fill="#000">' + bars.join('') + '</g>' +
+      '<rect x="77.343" y="46.8318" width="44" height="8" fill="#fff"></rect>' +
+      '<text x="77.3433" y="54.0306" fill="#000" font-family="SimSun, Songti SC, serif" font-size="8pt" font-weight="400" textLength="44" lengthAdjust="spacingAndGlyphs">' + escapeHtml(encoded.value) + '</text>' +
+      '</svg>';
+  }
+
+  function downloadSkuBarcode(sku) {
+    const value = String(sku || '').trim();
+    const svg = buildSkuBarcodeSvg(value);
+    downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), value + '-条码.svg');
+    addLog('success', '已生成 SKU 条码', value + ' / Code 128-B');
+    showToast(value + ' 条码已下载');
+  }
+
   function closeSkuWaterfallContextMenu(panel) {
     const menu = panel && panel.querySelector('.pfh-sku-context-menu');
     if (menu) menu.remove();
+    if (panel) panel.querySelectorAll('[data-action="sku-detail-more"]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
     state.skuContextMenuSku = '';
   }
 
   function showSkuWaterfallContextMenu(sku, event) {
     const panel = ensurePanel();
     closeSkuWaterfallContextMenu(panel);
-    const item = state.index.find((entry) => entry.sku === sku);
+    const item = state.index.find((entry) => entry.sku === sku) || (state.data && state.data.sku === sku ? state.data : null);
     if (!item) return;
     const menu = document.createElement('div');
     menu.className = 'pfh-sku-context-menu';
     menu.setAttribute('role', 'menu');
-    menu.innerHTML =
-      '<button type="button" data-action="sku-context-pin" data-sku="' + escapeHtml(sku) + '">' + (item.pinned ? '取消置顶' : '置顶') + '</button>' +
-      '<button type="button" data-action="sku-context-parameter" data-sku="' + escapeHtml(sku) + '">生成参数图</button>' +
-      '<button type="button" data-action="sku-context-size" data-sku="' + escapeHtml(sku) + '"' + (!state.sizeImageAccessEnabled ? ' disabled title="当前账号暂无权限"' : '') + '>生成尺寸图</button>' +
-      '<button type="button" class="is-danger" data-action="sku-context-delete" data-sku="' + escapeHtml(sku) + '">删除</button>';
+    menu.innerHTML = '<button type="button" data-action="sku-context-barcode" data-sku="' + escapeHtml(sku) + '">生成条码</button>';
     panel.appendChild(menu);
     state.skuContextMenuSku = sku;
+    panel.querySelectorAll('[data-action="sku-detail-more"]').forEach((button) => {
+      if (button.getAttribute('data-sku') === sku) button.setAttribute('aria-expanded', 'true');
+    });
     const panelRect = panel.getBoundingClientRect();
     const menuRect = menu.getBoundingClientRect();
     menu.style.left = Math.max(8, Math.min(event.clientX - panelRect.left, panelRect.width - menuRect.width - 8)) + 'px';
@@ -15680,7 +15735,8 @@
 
   function handlePanelClick(event) {
     const skuContextMenu = event.target && event.target.closest && event.target.closest('.pfh-sku-context-menu');
-    if (!skuContextMenu) closeSkuWaterfallContextMenu(ensurePanel());
+    const skuDetailMore = event.target && event.target.closest && event.target.closest('[data-action="sku-detail-more"]');
+    if (!skuContextMenu && !skuDetailMore) closeSkuWaterfallContextMenu(ensurePanel());
     const namingCard = event.target && event.target.closest && event.target.closest('.pfh-packaging-naming-card');
     const namingCopy = event.target && event.target.closest && event.target.closest('[data-naming-copy]');
     if (namingCopy) {
@@ -15742,36 +15798,11 @@
       return;
     }
     if (state.view === 'parameterImage' && action && parameterImageFeature.handleAction(action, actionTarget, state.data || {})) return;
-    if (action === 'sku-context-pin' || action === 'sku-context-parameter' || action === 'sku-context-size' || action === 'sku-context-delete') {
+    if (action === 'sku-context-barcode') {
       const sku = actionTarget.getAttribute('data-sku') || '';
       if (!sku) return;
-      if (action === 'sku-context-delete') {
-        deleteSkuFromList(sku);
-        closeSkuWaterfallContextMenu(ensurePanel());
-        renderShell();
-        return;
-      }
-      if (action === 'sku-context-pin') {
-        togglePin(sku);
-        closeSkuWaterfallContextMenu(ensurePanel());
-        renderShell();
-        return;
-      }
-      if (action === 'sku-context-size' && !state.sizeImageAccessEnabled) {
-        closeSkuWaterfallContextMenu(ensurePanel());
-        showToast(state.sizeImageAccessLoading ? '正在准备功能' : '该功能暂未开放，敬请期待');
-        return;
-      }
-      state.selectedSku = sku;
-      state.data = normalizeData(loadData(sku) || { sku });
-      state.view = action === 'sku-context-size' ? 'sizeImage' : 'parameterImage';
-      state.copywritingMode = false;
-      state.skuEditMode = false;
-      state.skuPage = 1;
       closeSkuWaterfallContextMenu(ensurePanel());
-      if (state.view === 'parameterImage') parameterImageFeature.loadRules();
-      expandPanel();
-      renderShell();
+      try { downloadSkuBarcode(sku); } catch (error) { showToast(formatErrorMessage(error)); }
       return;
     }
     if (state.exportMenuOpen && !(event.target && event.target.closest && event.target.closest('.pfh-export-menu'))) {
@@ -15910,6 +15941,11 @@
     if (action === 'sku-detail-more') {
       const sku = actionTarget.getAttribute('data-sku') || state.selectedSku || '';
       if (!sku) return;
+      const panel = ensurePanel();
+      if (state.skuContextMenuSku === sku && panel.querySelector('.pfh-sku-context-menu')) {
+        closeSkuWaterfallContextMenu(panel);
+        return;
+      }
       const rect = actionTarget.getBoundingClientRect();
       showSkuWaterfallContextMenu(sku, { clientX: rect.right - 4, clientY: rect.bottom - 4 });
       return;
