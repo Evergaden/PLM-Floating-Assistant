@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.100
+// @version      2.6.101
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.100';
+  const SCRIPT_VERSION = '2.6.101';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1593,9 +1593,10 @@
     '推品资料': 'promotion_materials',
   });
   const TOY_EFFECT_MAX_FILES = 3;
+  const PROJECT_RESULT_MAX_PAGE_SIZE = 250;
   const TOY_EFFECT_CANDIDATE_CACHE_KEY = 'plm-floating-helper:toy-effect-candidates:v1';
   const TOY_EFFECT_CANDIDATE_CACHE_TTL_MS = 30 * 60 * 1000;
-  const TOY_EFFECT_CANDIDATE_CACHE_MAX = 3000;
+  const TOY_EFFECT_CANDIDATE_CACHE_MAX = PROJECT_RESULT_MAX_PAGE_SIZE;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
@@ -17200,12 +17201,12 @@
     if (!rows.length) {
       const ready = await ensureNewProductProjectPage();
       if (ready && await ensureDesignTaskTab()) {
-        await expandProjectResultPageSize(1000);
+        await expandProjectResultPageSize(PROJECT_RESULT_MAX_PAGE_SIZE);
         await wait(250);
         rows = collectProjectNameRows();
       }
     } else {
-      await expandProjectResultPageSize(1000);
+      await expandProjectResultPageSize(PROJECT_RESULT_MAX_PAGE_SIZE);
       await wait(250);
       rows = collectProjectNameRows();
     }
@@ -17874,13 +17875,17 @@
   }
 
   async function expandProjectResultPageSize(minimum) {
-    if (Number(minimum) <= 20) return;
+    const requestedSize = Number(minimum) || 20;
     const selector = Array.from(document.querySelectorAll('.ant-select-selector'))
       .filter(isVisibleElement)
       .find((el) => /\d+\s*\u6761\s*\/\s*\u9875/.test(compactText(el.innerText || el.textContent)));
     if (!selector) return;
     const current = Number((compactText(selector.innerText || selector.textContent).match(/\d+/) || [])[0]) || 20;
-    if (current >= minimum) return;
+    if (requestedSize <= 20 && current <= PROJECT_RESULT_MAX_PAGE_SIZE) return;
+    const targetSize = current > PROJECT_RESULT_MAX_PAGE_SIZE
+      ? PROJECT_RESULT_MAX_PAGE_SIZE
+      : Math.min(Math.max(requestedSize, 20), PROJECT_RESULT_MAX_PAGE_SIZE);
+    if (current === targetSize) return;
     clickElement(selector);
     let options = [];
     try {
@@ -17888,7 +17893,7 @@
         const found = Array.from(document.querySelectorAll('.ant-select-item-option, [role="option"]'))
           .filter(isVisibleElement)
           .map((el) => ({ el, size: Number((compactText(el.innerText || el.textContent).match(/\d+/) || [])[0]) || 0 }))
-          .filter((item) => item.size > current);
+          .filter((item) => item.size && item.size !== current);
         return found.length ? found : null;
       }, 2500, 100);
     } catch (error) {
@@ -17896,7 +17901,9 @@
     }
     if (!options.length) return;
     options.sort((a, b) => a.size - b.size);
-    const target = options.find((item) => item.size >= minimum) || options[options.length - 1];
+    const target = current > targetSize
+      ? options.filter((item) => item.size <= targetSize).pop() || options[0]
+      : options.find((item) => item.size >= targetSize) || options[options.length - 1];
     clickElement(target.el);
     await waitFor(() => !isProjectResultLoading(), 8000, 180);
   }
