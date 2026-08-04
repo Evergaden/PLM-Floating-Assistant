@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.121
+// @version      2.6.122
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.121';
+  const SCRIPT_VERSION = '2.6.122';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2304,7 +2304,7 @@
     if (!document.getElementById(PANEL_ID + '-notification-action-styles')) {
       const style = document.createElement('style');
       style.id = PANEL_ID + '-notification-action-styles';
-      style.textContent = '#' + PANEL_ID + ' .pfh-notification-action{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 12px;border:1px solid rgba(124,58,237,.28);border-radius:9px;background:#7c3aed;color:#fff;font-size:12px;font-weight:650;text-decoration:none;}';
+      style.textContent = '#' + PANEL_ID + ' .pfh-notification-action{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 12px;border:1px solid var(--pfh-theme-border-strong,#b9a8ed);border-radius:9px;background:linear-gradient(135deg,var(--pfh-theme-primary,#7c3aed),var(--pfh-theme-primary-hover,#5b21b6));color:#fff;font-size:12px;font-weight:650;text-decoration:none;}';
       document.documentElement.appendChild(style);
     }
     let layer = panel.querySelector('.pfh-notification-layer');
@@ -3439,6 +3439,34 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;min-width:0!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{gap:7px!important;flex-wrap:wrap!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-clear-list"]{order:0!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-layer{background:color-mix(in srgb,var(--pfh-theme-text) 20%,transparent)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;box-shadow:0 24px 70px var(--pfh-theme-shadow)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > header{border-color:var(--pfh-theme-border)!important;background:linear-gradient(135deg,var(--pfh-theme-header),var(--pfh-theme-surface))!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog h3{color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-status{color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-close{color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-close:hover{background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > nav{border-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > nav button{border-color:transparent!important;background:transparent!important;color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > nav button:hover:not(:disabled){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > nav button.is-active{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > nav em,
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-badge{border-color:var(--pfh-theme-surface)!important;background:var(--pfh-theme-primary)!important;color:#fff!important;box-shadow:0 2px 7px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-list{background:var(--pfh-theme-page)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-item{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-item.is-unread{border-color:var(--pfh-theme-border-strong)!important;box-shadow:0 7px 20px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-item-head h4{color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-item-head span{background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-content{color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-foot time,
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-foot > span{color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-foot button,
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > footer button{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-foot button:hover:not(:disabled),
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-dialog > footer button:hover:not(:disabled){border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-action{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;box-shadow:0 7px 16px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-action:hover{border-color:var(--pfh-theme-primary-hover)!important;background:var(--pfh-theme-primary-hover)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-notification-empty{color:var(--pfh-theme-muted)!important;}
     #${PANEL_ID}[data-pfh-theme] :where([data-action="size-image-save-all"],[data-action="parameter-image-save"]).is-generated-save-focus,
     #${PANEL_ID}[data-pfh-theme] :where([data-action="size-image-save-all"],[data-action="parameter-image-save"]).is-generated-save-focus:focus{
       position:relative!important;
