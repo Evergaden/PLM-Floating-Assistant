@@ -2491,8 +2491,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "uuid",
- "windows",
- "windows-core 0.61.2",
  "zip",
 ]
 

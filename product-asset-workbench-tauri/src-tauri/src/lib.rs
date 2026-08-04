@@ -2388,108 +2388,6 @@ fn confirm_label_check(root: String, target_folder_name: String, source_path: St
     confirm_label_check_at(&PathBuf::from(root), &target_folder_name, &PathBuf::from(source_path), &sku, &label_check_history_path())
 }
 
-#[tauri::command]
-fn start_folder_drag(path: String) -> Result<(), String> {
-    let folder = PathBuf::from(&path);
-    let metadata = fs::symlink_metadata(&folder).map_err(|error| format!("无法拖动产品文件夹：{error}"))?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return Err("拖动目标必须是实际存在的产品文件夹".to_string());
-    }
-    #[cfg(windows)]
-    {
-        return std::thread::Builder::new()
-            .name("plm-folder-drag".to_string())
-            .spawn(move || windows_drag::start(&[path]))
-            .map_err(|error| format!("无法启动 Windows 拖拽线程：{error}"))?
-            .join()
-            .map_err(|_| "Windows 拖拽线程异常退出".to_string())?;
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = path;
-        Err("当前平台暂不支持把本地文件夹拖出到网盘应用".to_string())
-    }
-}
-
-#[cfg(windows)]
-mod windows_drag {
-    use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
-
-    use windows::{
-        core::{implement, BOOL, HRESULT, PCWSTR},
-        Win32::{
-            Foundation::{DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, S_OK},
-            System::{
-                Com::{CoTaskMemFree, IDataObject},
-                Ole::{DoDragDrop, IDropSource, IDropSource_Impl, OleInitialize, OleUninitialize, DROPEFFECT, DROPEFFECT_COPY},
-                SystemServices::{MODIFIERKEYS_FLAGS, MK_LBUTTON},
-            },
-            UI::Shell::{Common::ITEMIDLIST, SHCreateDataObject, SHParseDisplayName},
-        },
-    };
-
-    #[implement(IDropSource)]
-    struct FileDropSource;
-
-    impl IDropSource_Impl for FileDropSource_Impl {
-        fn QueryContinueDrag(&self, escape_pressed: BOOL, key_state: MODIFIERKEYS_FLAGS) -> HRESULT {
-            if escape_pressed.as_bool() {
-                DRAGDROP_S_CANCEL
-            } else if (key_state.0 & MK_LBUTTON.0) == 0 {
-                DRAGDROP_S_DROP
-            } else {
-                S_OK
-            }
-        }
-
-        fn GiveFeedback(&self, _effect: DROPEFFECT) -> HRESULT {
-            DRAGDROP_S_USEDEFAULTCURSORS
-        }
-    }
-
-    fn wide(value: &str) -> Vec<u16> {
-        OsStr::new(value).encode_wide().chain(std::iter::once(0)).collect()
-    }
-
-    pub fn start(paths: &[String]) -> Result<(), String> {
-        if paths.is_empty() {
-            return Err("没有可拖动的产品文件夹".to_string());
-        }
-        if let Err(error) = unsafe { OleInitialize(None) } {
-            return Err(format!("无法初始化 Windows OLE 拖拽：0x{:08X}", error.code().0 as u32));
-        }
-        let mut pidls: Vec<*mut ITEMIDLIST> = Vec::with_capacity(paths.len());
-        let result = (|| {
-            for path in paths {
-                let value = wide(path);
-                let mut pidl = ptr::null_mut();
-                unsafe {
-                    SHParseDisplayName(PCWSTR::from_raw(value.as_ptr()), None, &mut pidl, 0, None)
-                }
-                .map_err(|error| format!("无法准备拖拽文件夹 {}：{error}", path))?;
-                pidls.push(pidl);
-            }
-            let pidl_refs = pidls.iter().map(|pidl| *pidl as *const ITEMIDLIST).collect::<Vec<_>>();
-            let data_object: IDataObject = unsafe { SHCreateDataObject(None, Some(&pidl_refs), None) }
-                .map_err(|error| format!("无法创建 Windows 文件拖拽数据：{error}"))?;
-            let drop_source: IDropSource = FileDropSource.into();
-            let mut effect = DROPEFFECT_COPY;
-            let result = unsafe { DoDragDrop(&data_object, &drop_source, DROPEFFECT_COPY, &mut effect) };
-            if result.is_err() {
-                return Err(format!("Windows 文件夹拖拽失败：0x{:08X}", result.0 as u32));
-            }
-            Ok(())
-        })();
-        // SHParseDisplayName allocates PIDLs with the COM task allocator.
-        // They must be released even if preparing a later path fails.
-        for pidl in pidls {
-            unsafe { CoTaskMemFree(Some(pidl as *const _)); }
-        }
-        unsafe { OleUninitialize(); }
-        result
-    }
-}
-
 fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
     let mut items = fs::read_dir(root)
         .ok()
@@ -2893,7 +2791,6 @@ pub fn run() {
             organize_files,
             scan_label_check,
             confirm_label_check,
-            start_folder_drag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PLM product asset workbench");

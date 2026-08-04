@@ -443,7 +443,9 @@ function labelPreviewGroups(item: LabelCheckItem) {
 
 function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: string }) {
   const [scale, setScale] = useState(1);
+  const [maxScale, setMaxScale] = useState(8);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
 
   function reset() {
@@ -453,8 +455,17 @@ function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: 
 
   function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
+    event.stopPropagation();
     const factor = event.deltaY < 0 ? 1.16 : 1 / 1.16;
-    setScale((current) => Math.min(6, Math.max(1, current * factor)));
+    setScale((current) => Math.min(maxScale, Math.max(1, current * factor)));
+  }
+
+  function handleImageLoad(event: React.SyntheticEvent<HTMLImageElement>) {
+    const viewport = viewportRef.current?.getBoundingClientRect();
+    const image = event.currentTarget;
+    if (!viewport || !image.naturalWidth || !image.naturalHeight) return;
+    const fitScale = Math.min(viewport.width / image.naturalWidth, viewport.height / image.naturalHeight);
+    setMaxScale(Math.max(1, Math.min(12, 1 / fitScale)));
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -478,6 +489,7 @@ function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: 
 
   return (
     <div
+      ref={viewportRef}
       className={`label-check-zoom-viewport ${scale > 1 ? "is-zoomed" : ""}`}
       onWheel={handleWheel}
       onPointerDown={handlePointerDown}
@@ -491,7 +503,13 @@ function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: 
         src={dataUrl}
         alt={fileName}
         draggable={false}
-        style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})` }}
+        onLoad={handleImageLoad}
+        style={{
+          width: `${scale * 100}%`,
+          height: `${scale * 100}%`,
+          left: `calc(50% + ${offset.x}px)`,
+          top: `calc(50% + ${offset.y}px)`,
+        }}
       />
       <span>{scale > 1 ? `${Math.round(scale * 100)}% · 抓手移动 · 双击复位` : "滚轮放大 · 抓手移动"}</span>
     </div>
@@ -1441,7 +1459,7 @@ export default function App() {
                 <button className={labelCheckFilter === "confirmed" ? "active" : ""} onClick={() => setLabelCheckFilter("confirmed")}>已确定 ({labelCheckConfirmedItems.length})</button>
                 <button className={labelCheckFilter === "all" ? "active" : ""} onClick={() => setLabelCheckFilter("all")}>全部 ({labelCheckItems.length + labelCheckConfirmedItems.length})</button>
               </div>
-              <span className="label-check-drag-note">拖动整张卡片 = 拖动产品文件夹到网盘应用；本工作台不调用云盘 API。</span>
+              <span className="label-check-drag-note">跨应用拖拽已关闭，避免锁住 Windows；点击卡片的“打开产品文件夹”，再从资源管理器拖入网盘。</span>
             </div>
             <div className="label-check-list">
               {!visibleLabelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>{labelCheckFilter === "confirmed" ? "还没有已确定卡片" : "点击“扫描待检查产品”开始"}</strong><span>{labelCheckFilter === "confirmed" ? "确认并移动后，卡片会保留在“已确定”筛选中。" : "工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。"}</span></div>}
@@ -1451,12 +1469,6 @@ export default function App() {
                 <article
                   className={`label-check-card ${item.status}`}
                   key={`${item.status}:${item.sku}:${item.sourcePath}`}
-                  draggable
-                  title="拖动整张卡片，把本地产品文件夹交给网盘应用"
-                  onDragStart={(event) => {
-                    event.preventDefault();
-                    void invoke("start_folder_drag", { path: item.productPath }).catch((error) => notify(String(error)));
-                  }}
                 >
                   <header>
                     <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>品牌：{item.brand || "未识别"} · {item.sourceName}</small></div>
@@ -1484,7 +1496,7 @@ export default function App() {
                     {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
                   </div>
                   <p className="label-check-message">{item.message}</p>
-                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => openPath(item.productPath)}><FolderOpen size={15} />打开产品文件夹</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
                 </article>
                 );
               })}
