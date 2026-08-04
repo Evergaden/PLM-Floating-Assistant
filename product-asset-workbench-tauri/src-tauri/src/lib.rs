@@ -14,7 +14,6 @@ use rand::{Rng, RngCore};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
@@ -25,8 +24,6 @@ const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
 const MAX_UPLOAD_ZIP_BYTES: usize = 100 * 1024 * 1024;
 const UPLOAD_CHUNK_BYTES: usize = 512 * 1024;
-const CLOUD_PRODUCT_ROOT_FOLDER: &str = "00 产品开发文件夹";
-const CLOUD_PRODUCT_DATA_FOLDER: &str = "00 新版产品资料";
 const DEFAULT_VIDEO_SOURCE: &str = r"E:\WXWork\1688857110932701\Cache\Video\7月";
 const PS_BATCH_SCRIPT: &str = r#"#target photoshop
 var inputPaths = __INPUT_PATHS__;
@@ -128,7 +125,6 @@ struct BridgeInner {
     products: Mutex<Vec<FinalizedProduct>>,
     successful_upload_skus: Mutex<HashSet<String>>,
     pending: Mutex<HashMap<String, PendingAssets>>,
-    cloud_profile: Mutex<Option<CloudProfile>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -424,6 +420,8 @@ struct LabelCheckItem {
 #[serde(rename_all = "camelCase")]
 struct LabelCheckRecord {
     sku: String,
+    #[serde(default)]
+    brand: String,
     product_name: String,
     product_path: String,
     source_path: String,
@@ -441,6 +439,7 @@ struct LabelCheckScanResult {
     history_path: String,
     pending: Vec<LabelCheckItem>,
     confirmed: Vec<LabelCheckRecord>,
+    confirmed_items: Vec<LabelCheckItem>,
     logs: Vec<String>,
 }
 
@@ -448,75 +447,6 @@ struct LabelCheckScanResult {
 #[serde(rename_all = "camelCase")]
 struct LabelCheckConfirmResult {
     record: LabelCheckRecord,
-    logs: Vec<String>,
-}
-
-#[derive(Clone, Debug)]
-struct CloudProfile {
-    base_url: String,
-    token: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudHarImportResult {
-    base_url: String,
-    token_length: usize,
-    upload_endpoint_detected: bool,
-    read_endpoints_detected: Vec<String>,
-    write_endpoints_detected: Vec<String>,
-    message: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudUploadSelection {
-    sku: String,
-    brand: String,
-    product_name: String,
-    product_path: String,
-    source_path: String,
-    files: Vec<LabelCheckFile>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudLabelPlan {
-    sku: String,
-    brand: String,
-    product_name: String,
-    product_path: String,
-    source_path: String,
-    brand_folder_id: String,
-    brand_folder_name: String,
-    product_folder_name: String,
-    target_folder_name: String,
-    product_folder_id: String,
-    target_folder_id: String,
-    cloud_path: String,
-    create_product_folder: bool,
-    create_target_folder: bool,
-    files: Vec<LabelCheckFile>,
-    conflicts: Vec<String>,
-    status: String,
-    message: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudLabelPlanResult {
-    base_url: String,
-    target_folder_name: String,
-    plans: Vec<CloudLabelPlan>,
-    logs: Vec<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CloudLabelUploadResult {
-    plans: Vec<CloudLabelPlan>,
-    uploaded_files: Vec<String>,
-    failed_files: Vec<String>,
     logs: Vec<String>,
 }
 
@@ -582,7 +512,6 @@ fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
             ),
             successful_upload_skus: Mutex::new(HashSet::new()),
             pending: Mutex::new(HashMap::new()),
-            cloud_profile: Mutex::new(None),
         }),
     })
 }
@@ -2146,6 +2075,39 @@ fn is_label_named_file(name: &str) -> bool {
     ["标签", "印刷", "纸盒"].iter().any(|keyword| name.contains(keyword))
 }
 
+fn collect_label_check_files(folder: &Path) -> Result<(Vec<LabelCheckFile>, Vec<LabelCheckFile>, Vec<LabelCheckFile>, Vec<LabelCheckFile>), String> {
+    let mut preview_images = Vec::new();
+    let mut upload_files = Vec::new();
+    let mut psd_files = Vec::new();
+    let mut other_files = Vec::new();
+    let entries = fs::read_dir(folder).map_err(|error| format!("无法读取纸盒标签目录 {}：{error}", path_text(folder)))?;
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let Some(file) = label_check_file(&path) else { continue };
+        // Only files whose names explicitly identify 标签、印刷或纸盒 are part of
+        // this workflow. Generic layer exports such as 图层1.png are ignored.
+        if !is_label_named_file(&file.name) {
+            continue;
+        }
+        if file.extension == "psd" && file.name.contains("印刷") {
+            psd_files.push(file);
+        } else if is_label_upload_extension(&file.extension) {
+            if is_label_preview_extension(&file.extension) {
+                preview_images.push(file.clone());
+            }
+            upload_files.push(file);
+        } else {
+            other_files.push(file);
+        }
+    }
+    let file_sort = |left: &LabelCheckFile, right: &LabelCheckFile| left.name.to_lowercase().cmp(&right.name.to_lowercase());
+    preview_images.sort_by(file_sort);
+    upload_files.sort_by(file_sort);
+    psd_files.sort_by(file_sort);
+    other_files.sort_by(file_sort);
+    Ok((preview_images, upload_files, psd_files, other_files))
+}
+
 fn label_staging_folder(product_folder: &Path, sku: &str, target_folder_name: &str) -> Option<PathBuf> {
     let expected_name = folder_organizer_target(product_folder)
         .and_then(|(_, path)| path.file_name().and_then(|value| value.to_str()).map(str::to_string));
@@ -2176,33 +2138,7 @@ fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_na
     let product_name = product_folder.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
     let source_name = source.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
     let target = product_folder.join(target_folder_name);
-    let mut preview_images = Vec::new();
-    let mut upload_files = Vec::new();
-    let mut psd_files = Vec::new();
-    let mut other_files = Vec::new();
-    let entries = fs::read_dir(source).map_err(|error| format!("无法读取纸盒标签暂存目录 {}：{error}", path_text(source)))?;
-    for entry in entries.filter_map(Result::ok) {
-        let path = entry.path();
-        let Some(file) = label_check_file(&path) else { continue };
-        if !is_label_named_file(&file.name) {
-            continue;
-        }
-        if file.extension == "psd" && file.name.contains("印刷") {
-            psd_files.push(file);
-        } else if is_label_upload_extension(&file.extension) {
-            if is_label_preview_extension(&file.extension) {
-                preview_images.push(file.clone());
-            }
-            upload_files.push(file);
-        } else {
-            other_files.push(file);
-        }
-    }
-    let file_sort = |left: &LabelCheckFile, right: &LabelCheckFile| left.name.to_lowercase().cmp(&right.name.to_lowercase());
-    preview_images.sort_by(file_sort);
-    upload_files.sort_by(file_sort);
-    psd_files.sort_by(file_sort);
-    other_files.sort_by(file_sort);
+    let (preview_images, upload_files, psd_files, other_files) = collect_label_check_files(source)?;
     let upload_conflict = upload_files.iter().any(|file| target.join(&file.name).exists());
     let psd_conflict = psd_files.iter().any(|file| product_folder.join(&file.name).exists());
     let status = if upload_files.is_empty() {
@@ -2235,6 +2171,39 @@ fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_na
         other_files,
         status: status.to_string(),
         message,
+    })
+}
+
+fn build_confirmed_label_check_item(record: &LabelCheckRecord) -> Option<LabelCheckItem> {
+    let product_folder = PathBuf::from(&record.product_path);
+    let target = PathBuf::from(&record.target_path);
+    if !product_folder.is_dir() || !target.is_dir() {
+        return None;
+    }
+    let (preview_images, upload_files, mut psd_files, other_files) = collect_label_check_files(&target).ok()?;
+    for file_name in &record.moved_psd_files {
+        let path = product_folder.join(file_name);
+        if let Some(file) = label_check_file(&path) {
+            psd_files.push(file);
+        }
+    }
+    psd_files.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
+    let product_name = record.product_name.clone();
+    let source_name = target.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+    Some(LabelCheckItem {
+        sku: record.sku.clone(),
+        brand: if record.brand.trim().is_empty() { product_brand_from_name(&product_name) } else { record.brand.clone() },
+        product_name,
+        product_path: path_text(&product_folder),
+        source_path: path_text(&target),
+        source_name,
+        target_path: path_text(&target),
+        preview_images,
+        upload_files,
+        psd_files,
+        other_files,
+        status: "confirmed".to_string(),
+        message: format!("已确认并归档于 {}；拖动卡片可直接把产品文件夹交给网盘应用", path_text(&target)),
     })
 }
 
@@ -2290,6 +2259,7 @@ fn scan_label_check_plan(root: &Path, target_folder_name: &str, history_path: &P
     pending.sort_by(|left, right| left.sku.cmp(&right.sku).then_with(|| left.product_path.cmp(&right.product_path)));
     let root_text = path_text(root);
     history.retain(|record| Path::new(&record.product_path).starts_with(root));
+    let confirmed_items = history.iter().filter_map(build_confirmed_label_check_item).collect::<Vec<_>>();
     let mut logs = vec![format!("扫描完成：待检查 {} 个，已确认 {} 个", pending.len(), history.len())];
     logs.push(format!("确认记录保存位置：{}", path_text(history_path)));
     Ok(LabelCheckScanResult {
@@ -2298,6 +2268,7 @@ fn scan_label_check_plan(root: &Path, target_folder_name: &str, history_path: &P
         history_path: path_text(history_path),
         pending,
         confirmed: history,
+        confirmed_items,
         logs,
     })
 }
@@ -2362,6 +2333,7 @@ fn confirm_label_check_at(root: &Path, target_folder_name: &str, source: &Path, 
     }
     let record = LabelCheckRecord {
         sku: expected_sku,
+        brand: item.brand,
         product_name: item.product_name,
         product_path: item.product_path,
         source_path: item.source_path,
@@ -2406,511 +2378,107 @@ fn confirm_label_check(root: String, target_folder_name: String, source_path: St
     confirm_label_check_at(&PathBuf::from(root), &target_folder_name, &PathBuf::from(source_path), &sku, &label_check_history_path())
 }
 
-fn cloud_profile_from_state(state: &BridgeState) -> Result<CloudProfile, String> {
-    state
-        .inner
-        .cloud_profile
-        .lock()
-        .map_err(|_| "优米云盘连接配置暂时不可用".to_string())?
-        .clone()
-        .ok_or_else(|| "请先导入优米云盘 HAR 文件".to_string())
-}
-
-fn cloud_base_url(value: &str) -> Result<String, String> {
-    let parsed = reqwest::Url::parse(value).map_err(|error| format!("HAR 中的云盘地址无效：{error}"))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
-        return Err("云盘地址只支持 HTTP 或 HTTPS".to_string());
-    }
-    let Some(host) = parsed.host_str() else { return Err("HAR 中没有云盘主机名".to_string()) };
-    let mut result = format!("{}://{}", parsed.scheme(), host);
-    if let Some(port) = parsed.port() {
-        result.push(':');
-        result.push_str(&port.to_string());
-    }
-    Ok(result)
-}
-
-fn cloud_request_url(profile: &CloudProfile, path: &str) -> String {
-    format!("{}{}", profile.base_url.trim_end_matches('/'), path)
-}
-
-fn cloud_endpoint_label(path: &str) -> Option<&'static str> {
-    if path.starts_with("/app/file/list-dir") { Some("list-dir") }
-    else if path.starts_with("/app/file/fullsearch") { Some("fullsearch") }
-    else if path.starts_with("/app/file/add-folder") { Some("add-folder") }
-    else if path.starts_with("/app/file/upload-file") { Some("upload-file") }
-    else { None }
-}
-
 #[tauri::command]
-fn import_cloud_har(state: State<'_, BridgeState>, path: String) -> Result<CloudHarImportResult, String> {
-    let bytes = fs::read(&path).map_err(|error| format!("无法读取 HAR 文件：{error}"))?;
-    let document: Value = serde_json::from_slice(&bytes).map_err(|error| format!("HAR 文件格式无效：{error}"))?;
-    let entries = document
-        .pointer("/log/entries")
-        .and_then(Value::as_array)
-        .ok_or_else(|| "HAR 中没有 log.entries 请求记录".to_string())?;
-    let mut base_url: Option<String> = None;
-    let mut token: Option<String> = None;
-    let mut upload_endpoint_detected = false;
-    let mut read_endpoints_detected = Vec::new();
-    let mut write_endpoints_detected = Vec::new();
-    for entry in entries {
-        let request = entry.get("request").ok_or_else(|| "HAR 请求记录缺少 request".to_string())?;
-        let url = request.get("url").and_then(Value::as_str).unwrap_or_default();
-        let parsed = reqwest::Url::parse(url).map_err(|error| format!("HAR 请求地址无效：{error}"))?;
-        let Some(label) = cloud_endpoint_label(parsed.path()) else { continue };
-        let current_base = cloud_base_url(url)?;
-        if let Some(previous) = base_url.as_ref() {
-            if previous != &current_base {
-                return Err("HAR 中包含多个不同云盘地址，无法安全确定上传目标".to_string());
-            }
-        } else {
-            base_url = Some(current_base);
-        }
-        if label == "upload-file" {
-            upload_endpoint_detected = true;
-            if !write_endpoints_detected.iter().any(|item| item == label) { write_endpoints_detected.push(label.to_string()); }
-        } else if label == "add-folder" {
-            if !write_endpoints_detected.iter().any(|item| item == label) { write_endpoints_detected.push(label.to_string()); }
-        } else if !read_endpoints_detected.iter().any(|item| item == label) {
-            read_endpoints_detected.push(label.to_string());
-        }
-        if let Some(params) = request.pointer("/postData/params").and_then(Value::as_array) {
-            for param in params {
-                if param.get("name").and_then(Value::as_str) == Some("token") {
-                    let candidate = param.get("value").and_then(Value::as_str).unwrap_or_default().trim();
-                    if !candidate.is_empty() {
-                        if let Some(previous) = token.as_ref() {
-                            if previous != candidate {
-                                return Err("HAR 中包含多个不同云盘令牌，请导出同一登录会话的 HAR".to_string());
-                            }
-                        } else {
-                            token = Some(candidate.to_string());
-                        }
-                    }
-                }
-            }
-        }
+fn start_folder_drag(path: String) -> Result<(), String> {
+    let folder = PathBuf::from(&path);
+    let metadata = fs::symlink_metadata(&folder).map_err(|error| format!("无法拖动产品文件夹：{error}"))?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err("拖动目标必须是实际存在的产品文件夹".to_string());
     }
-    let base_url = base_url.ok_or_else(|| "HAR 中没有识别到优米云盘文件接口".to_string())?;
-    let token = token.ok_or_else(|| "HAR 中没有找到云盘 token，请重新导出包含请求参数的 HAR".to_string())?;
-    if !upload_endpoint_detected || !read_endpoints_detected.iter().any(|item| item == "list-dir") || !read_endpoints_detected.iter().any(|item| item == "fullsearch") {
-        return Err("HAR 缺少完整的列目录、搜索或上传请求，不能安全接入".to_string());
+    #[cfg(windows)]
+    {
+        return std::thread::Builder::new()
+            .name("plm-folder-drag".to_string())
+            .spawn(move || windows_drag::start(&[path]))
+            .map_err(|error| format!("无法启动 Windows 拖拽线程：{error}"))?
+            .join()
+            .map_err(|_| "Windows 拖拽线程异常退出".to_string())?;
     }
-    let profile = CloudProfile { base_url: base_url.clone(), token: token.clone() };
-    *state.inner.cloud_profile.lock().map_err(|_| "无法保存优米云盘连接配置".to_string())? = Some(profile);
-    Ok(CloudHarImportResult {
-        base_url,
-        token_length: token.len(),
-        upload_endpoint_detected,
-        read_endpoints_detected,
-        write_endpoints_detected,
-        message: "已导入云盘连接信息；后续定位只读，只有明确授权上传按钮会发送上传请求".to_string(),
-    })
-}
-
-fn cloud_value_text(value: &Value, key: &str) -> String {
-    value.get(key).and_then(|item| item.as_str().map(str::to_string).or_else(|| item.as_i64().map(|number| number.to_string()))).unwrap_or_default()
-}
-
-fn cloud_is_folder(value: &Value) -> bool {
-    cloud_value_text(value, "fileType") == "1"
-}
-
-fn strip_html_name(value: &str) -> String {
-    Regex::new(r"<[^>]*>").map(|pattern| pattern.replace_all(value, "").to_string()).unwrap_or_else(|_| value.to_string()).replace("&nbsp;", " ").trim().to_string()
-}
-
-fn normalize_cloud_name(value: &str) -> String {
-    strip_html_name(value)
-        .chars()
-        .filter(|character| !character.is_whitespace() && !matches!(character, '-' | '_' | '—' | '–'))
-        .flat_map(char::to_lowercase)
-        .collect()
-}
-
-fn cloud_id(value: &Value) -> String {
-    let file_id = cloud_value_text(value, "fileId");
-    if !file_id.is_empty() { file_id } else { cloud_value_text(value, "id") }
-}
-
-fn cloud_file_name(value: &Value) -> String {
-    let file_name = cloud_value_text(value, "fileName");
-    if !file_name.is_empty() { strip_html_name(&file_name) } else { strip_html_name(&cloud_value_text(value, "name")) }
-}
-
-fn cloud_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder().no_proxy().build().map_err(|error| format!("无法创建云盘连接：{error}"))
-}
-
-async fn cloud_post_form(profile: &CloudProfile, path: &str, form: Vec<(&str, String)>) -> Result<Value, String> {
-    let response = cloud_client()?
-        .post(cloud_request_url(profile, path))
-        .header("Origin", profile.base_url.as_str())
-        .header("Referer", format!("{}/webapp/", profile.base_url.trim_end_matches('/')))
-        .form(&form)
-        .send()
-        .await
-        .map_err(|error| format!("云盘只读请求失败：{error}"))?;
-    let status = response.status();
-    let body = response.text().await.map_err(|error| format!("读取云盘响应失败：{error}"))?;
-    if !status.is_success() {
-        return Err(format!("云盘返回 HTTP {}", status.as_u16()));
-    }
-    serde_json::from_str(&body).map_err(|error| format!("云盘响应不是有效 JSON：{error}"))
-}
-
-async fn cloud_list_dir(profile: &CloudProfile, parent_id: &str) -> Result<Vec<Value>, String> {
-    let response = cloud_post_form(profile, "/app/file/list-dir", vec![
-        ("token", profile.token.clone()),
-        ("parentId", parent_id.to_string()),
-        ("needFolder", "1".to_string()),
-        ("syncFileId", "-1".to_string()),
-        ("onlyFileId", "0".to_string()),
-    ]).await?;
-    Ok(response.get("data").and_then(Value::as_array).cloned().unwrap_or_default())
-}
-
-fn cloud_exact_folders(entries: &[Value], name: &str) -> Vec<Value> {
-    entries
-        .iter()
-        .filter(|item| cloud_is_folder(item) && normalize_cloud_name(&cloud_file_name(item)) == normalize_cloud_name(name))
-        .cloned()
-        .collect()
-}
-
-fn cloud_brand_matches(folder_name: &str, brand: &str) -> bool {
-    let prefix = folder_name.split_once("--").map(|(value, _)| value).unwrap_or(folder_name);
-    normalize_cloud_name(prefix) == normalize_cloud_name(brand)
-}
-
-fn cloud_selection_brand(selection: &CloudUploadSelection) -> String {
-    let explicit = selection.brand.trim();
-    if explicit.is_empty() {
-        product_brand_from_name(&selection.product_name)
-    } else {
-        explicit.to_string()
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        Err("当前平台暂不支持把本地文件夹拖出到网盘应用".to_string())
     }
 }
 
-fn cloud_product_folder_name(selection: &CloudUploadSelection) -> String {
-    folder_organizer_target(Path::new(&selection.product_path))
-        .and_then(|(_, target)| target.file_name().and_then(|value| value.to_str()).map(str::to_string))
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| selection.product_name.trim().to_string())
-}
+#[cfg(windows)]
+mod windows_drag {
+    use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
 
-fn cloud_label_plan_base(selection: &CloudUploadSelection, target_folder_name: &str, files: Vec<LabelCheckFile>) -> CloudLabelPlan {
-    CloudLabelPlan {
-        sku: selection.sku.clone(),
-        brand: cloud_selection_brand(selection),
-        product_name: selection.product_name.clone(),
-        product_path: selection.product_path.clone(),
-        source_path: selection.source_path.clone(),
-        brand_folder_id: String::new(),
-        brand_folder_name: String::new(),
-        product_folder_name: cloud_product_folder_name(selection),
-        target_folder_name: target_folder_name.to_string(),
-        product_folder_id: String::new(),
-        target_folder_id: String::new(),
-        cloud_path: String::new(),
-        create_product_folder: false,
-        create_target_folder: false,
-        files,
-        conflicts: Vec::new(),
-        status: "error".to_string(),
-        message: String::new(),
-    }
-}
-
-fn cloud_plan_error(selection: &CloudUploadSelection, target_folder_name: &str, message: String) -> CloudLabelPlan {
-    let mut plan = cloud_label_plan_base(selection, target_folder_name, selection.files.clone());
-    plan.message = message;
-    plan
-}
-
-fn validate_cloud_file(selection: &CloudUploadSelection, file: &LabelCheckFile) -> Result<PathBuf, String> {
-    let source = PathBuf::from(&selection.source_path);
-    let path = PathBuf::from(&file.path);
-    if path.parent() != Some(source.as_path()) || path.file_name().and_then(|value| value.to_str()) != Some(file.name.as_str()) {
-        return Err(format!("文件路径不在产品标签暂存目录中：{}", file.name));
-    }
-    let actual_extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
-    if actual_extension != file.extension || !is_label_named_file(&file.name) || !is_label_upload_extension(&actual_extension) || (actual_extension == "psd" && file.name.contains("印刷")) {
-        return Err(format!("文件命名或类型不属于纸盒标签上传文件：{}", file.name));
-    }
-    let metadata = fs::symlink_metadata(&path).map_err(|error| format!("无法读取 {}：{error}", file.name))?;
-    if !metadata.is_file() || metadata.file_type().is_symlink() {
-        return Err(format!("文件不是普通文件：{}", file.name));
-    }
-    Ok(path)
-}
-
-async fn resolve_cloud_label_plan(profile: &CloudProfile, selection: &CloudUploadSelection, target_folder_name: &str) -> Result<CloudLabelPlan, String> {
-    if !Regex::new(r"(?i)^SKU\d+$").map(|pattern| pattern.is_match(&selection.sku)).unwrap_or(false) {
-        return Err(format!("SKU 格式无效：{}", selection.sku));
-    }
-    if selection.files.is_empty() {
-        return Err(format!("{} 没有可上传的正确文件", selection.sku));
-    }
-    let mut files = Vec::new();
-    for file in &selection.files {
-        let path = validate_cloud_file(selection, file)?;
-        let metadata = fs::metadata(&path).map_err(|error| format!("无法读取 {}：{error}", file.name))?;
-        let mut item = file.clone();
-        item.size = metadata.len();
-        files.push(item);
-    }
-    let mut plan = cloud_label_plan_base(selection, target_folder_name, files);
-    if plan.brand.is_empty() {
-        plan.message = "无法从产品目录名识别品牌；未选择云盘公司目录".to_string();
-        return Ok(plan);
-    }
-
-    let root_entries = cloud_list_dir(profile, "0").await?;
-    let root_matches = cloud_exact_folders(&root_entries, CLOUD_PRODUCT_ROOT_FOLDER);
-    if root_matches.is_empty() {
-        plan.status = "missing-root".to_string();
-        plan.message = format!("云盘根目录中没有“{}”；未创建任何目录", CLOUD_PRODUCT_ROOT_FOLDER);
-        return Ok(plan);
-    }
-    if root_matches.len() > 1 {
-        plan.status = "ambiguous-root".to_string();
-        plan.message = format!("云盘根目录中有 {} 个“{}”；未选择目标", root_matches.len(), CLOUD_PRODUCT_ROOT_FOLDER);
-        return Ok(plan);
-    }
-    let root_id = cloud_id(&root_matches[0]);
-    let data_entries = cloud_list_dir(profile, &root_id).await?;
-    let data_matches = cloud_exact_folders(&data_entries, CLOUD_PRODUCT_DATA_FOLDER);
-    if data_matches.is_empty() {
-        plan.status = "missing-data-root".to_string();
-        plan.message = format!("“{}”下没有“{}”；未创建任何目录", CLOUD_PRODUCT_ROOT_FOLDER, CLOUD_PRODUCT_DATA_FOLDER);
-        return Ok(plan);
-    }
-    if data_matches.len() > 1 {
-        plan.status = "ambiguous-data-root".to_string();
-        plan.message = format!("“{}”下有 {} 个“{}”；未选择目标", CLOUD_PRODUCT_ROOT_FOLDER, data_matches.len(), CLOUD_PRODUCT_DATA_FOLDER);
-        return Ok(plan);
-    }
-    let data_id = cloud_id(&data_matches[0]);
-    let company_entries = cloud_list_dir(profile, &data_id).await?;
-    let brand_matches = company_entries
-        .iter()
-        .filter(|item| cloud_is_folder(item) && cloud_brand_matches(&cloud_file_name(item), &plan.brand))
-        .cloned()
-        .collect::<Vec<_>>();
-    if brand_matches.is_empty() {
-        plan.status = "missing-brand".to_string();
-        plan.message = format!("“{} / {}”下没有品牌 {} 对应的公司目录；未自动创建公司目录", CLOUD_PRODUCT_ROOT_FOLDER, CLOUD_PRODUCT_DATA_FOLDER, plan.brand);
-        return Ok(plan);
-    }
-    if brand_matches.len() > 1 {
-        plan.status = "ambiguous-brand".to_string();
-        plan.message = format!("品牌 {} 对应 {} 个公司目录；未选择目标", plan.brand, brand_matches.len());
-        return Ok(plan);
-    }
-    let brand_folder = &brand_matches[0];
-    plan.brand_folder_id = cloud_id(brand_folder);
-    plan.brand_folder_name = cloud_file_name(brand_folder);
-    plan.cloud_path = format!("{} / {} / {} / {} / {}", CLOUD_PRODUCT_ROOT_FOLDER, CLOUD_PRODUCT_DATA_FOLDER, plan.brand_folder_name, plan.product_folder_name, plan.target_folder_name);
-
-    let brand_children = cloud_list_dir(profile, &plan.brand_folder_id).await?;
-    let expected_product_key = normalize_cloud_name(&plan.product_folder_name);
-    let sku_key = plan.sku.to_uppercase();
-    let product_matches = brand_children
-        .iter()
-        .filter(|item| cloud_is_folder(item) && normalize_cloud_name(&cloud_file_name(item)) == expected_product_key)
-        .cloned()
-        .collect::<Vec<_>>();
-    let sku_matches = brand_children
-        .iter()
-        .filter(|item| cloud_is_folder(item) && cloud_file_name(item).to_uppercase().contains(&sku_key))
-        .cloned()
-        .collect::<Vec<_>>();
-    if product_matches.len() > 1 || (product_matches.is_empty() && sku_matches.len() > 1) {
-        plan.status = "ambiguous-product".to_string();
-        plan.message = format!("品牌公司目录中找到多个同 SKU 产品目录；未创建或上传");
-        return Ok(plan);
-    }
-    if product_matches.is_empty() && sku_matches.is_empty() {
-        plan.create_product_folder = true;
-        plan.create_target_folder = true;
-        plan.status = "ready-create".to_string();
-        plan.message = format!("将授权后创建产品目录“{}”和分类目录“{}”，然后上传 {} 个文件", plan.product_folder_name, plan.target_folder_name, plan.files.len());
-        return Ok(plan);
-    }
-    if product_matches.is_empty() {
-        plan.status = "product-name-conflict".to_string();
-        plan.message = format!("云盘中已有同 SKU 但名称不同的产品目录“{}”；未自动创建新目录", cloud_file_name(&sku_matches[0]));
-        return Ok(plan);
-    }
-
-    let product_folder = &product_matches[0];
-    plan.product_folder_id = cloud_id(product_folder);
-    let product_children = cloud_list_dir(profile, &plan.product_folder_id).await?;
-    let target_matches = cloud_exact_folders(&product_children, target_folder_name);
-    if target_matches.len() > 1 {
-        plan.status = "ambiguous-target".to_string();
-        plan.message = format!("产品目录中有多个“{}”分类目录；未选择目标", target_folder_name);
-        return Ok(plan);
-    }
-    if target_matches.is_empty() {
-        plan.create_target_folder = true;
-        plan.status = "ready-create".to_string();
-        plan.message = format!("产品目录已定位；将授权后创建分类目录“{}”，然后上传 {} 个文件", target_folder_name, plan.files.len());
-        return Ok(plan);
-    }
-
-    plan.target_folder_id = cloud_id(&target_matches[0]);
-    let existing = cloud_list_dir(profile, &plan.target_folder_id).await?;
-    let existing_names = existing.iter().map(|item| normalize_cloud_name(&cloud_file_name(item))).collect::<HashSet<_>>();
-    plan.conflicts = plan.files.iter().filter(|file| existing_names.contains(&normalize_cloud_name(&file.name))).map(|file| file.name.clone()).collect::<Vec<_>>();
-    plan.status = if plan.conflicts.is_empty() { "ready".to_string() } else { "conflict".to_string() };
-    plan.message = if plan.conflicts.is_empty() {
-        format!("已定位到 {}；不会创建、删除或覆盖已有文件", plan.cloud_path)
-    } else {
-        format!("云盘目标已有同名文件：{}；未上传", plan.conflicts.join("、"))
+    use windows::{
+        core::{implement, BOOL, HRESULT, PCWSTR},
+        Win32::{
+            Foundation::{DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, S_OK},
+            System::{
+                Com::{CoInitializeEx, CoTaskMemFree, CoUninitialize, IDataObject, COINIT_APARTMENTTHREADED},
+                Ole::{DoDragDrop, IDropSource, IDropSource_Impl, DROPEFFECT, DROPEFFECT_COPY},
+                SystemServices::{MODIFIERKEYS_FLAGS, MK_LBUTTON},
+            },
+            UI::Shell::{Common::ITEMIDLIST, SHCreateDataObject, SHParseDisplayName},
+        },
     };
-    Ok(plan)
-}
 
-#[tauri::command]
-async fn prepare_cloud_label_upload(state: State<'_, BridgeState>, items: Vec<CloudUploadSelection>, target_folder_name: String) -> Result<CloudLabelPlanResult, String> {
-    let profile = cloud_profile_from_state(&state)?;
-    let target_folder_name = target_folder_name.trim().to_string();
-    if target_folder_name.is_empty() || target_folder_name.contains('/') || target_folder_name.contains('\\') {
-        return Err("云盘分类文件夹名称必须是单层目录名".to_string());
-    }
-    let mut plans = Vec::new();
-    let mut logs = Vec::new();
-    for item in items {
-        match resolve_cloud_label_plan(&profile, &item, &target_folder_name).await {
-            Ok(plan) => {
-                logs.push(format!("{}：{}", plan.sku, plan.message));
-                plans.push(plan);
-            }
-            Err(error) => {
-                logs.push(format!("{}：预检失败：{}", item.sku, error));
-                plans.push(cloud_plan_error(&item, &target_folder_name, error));
-            }
-        }
-    }
-    Ok(CloudLabelPlanResult { base_url: profile.base_url, target_folder_name, plans, logs })
-}
+    #[implement(IDropSource)]
+    struct FileDropSource;
 
-async fn cloud_create_folder(profile: &CloudProfile, parent_id: &str, name: &str) -> Result<String, String> {
-    let response = cloud_post_form(profile, "/app/file/add-folder", vec![
-        ("token", profile.token.clone()),
-        ("parentId", parent_id.to_string()),
-        ("name", name.to_string()),
-    ]).await?;
-    if cloud_value_text(&response, "code") != "0" {
-        return Err(format!("云盘拒绝创建文件夹“{}”", name));
-    }
-    let direct_folder_id = cloud_value_text(&response, "fileId");
-    let folder_id = if direct_folder_id.is_empty() {
-        response.pointer("/folderInfos/0/fileId").map(|value| value.as_i64().map(|number| number.to_string()).unwrap_or_default()).unwrap_or_default()
-    } else {
-        direct_folder_id
-    };
-    if folder_id.is_empty() {
-        return Err(format!("云盘创建文件夹“{}”后没有返回文件夹 ID", name));
-    }
-    Ok(folder_id)
-}
+    impl IDropSource_Impl for FileDropSource_Impl {
+        fn QueryContinueDrag(&self, escape_pressed: BOOL, key_state: MODIFIERKEYS_FLAGS) -> HRESULT {
+            if escape_pressed.as_bool() {
+                DRAGDROP_S_CANCEL
+            } else if (key_state.0 & MK_LBUTTON.0) == 0 {
+                DRAGDROP_S_DROP
+            } else {
+                S_OK
+            }
+        }
 
-async fn cloud_upload_file(profile: &CloudProfile, target_folder_id: &str, file: &LabelCheckFile) -> Result<String, String> {
-    let path = PathBuf::from(&file.path);
-    let bytes = fs::read(&path).map_err(|error| format!("读取 {} 失败：{}", file.name, error))?;
-    let size = bytes.len();
-    if size == 0 { return Err(format!("{} 是空文件", file.name)); }
-    let digest = Sha256::digest(&bytes);
-    let hash = format!("{digest:x}");
-    let endpoint = format!("/app/file/upload-file/{target_folder_id}/{hash}/mobile_sha256/{size}/");
-    let part = reqwest::multipart::Part::bytes(bytes).file_name(file.name.clone());
-    let form = reqwest::multipart::Form::new()
-        .text("fileName", file.name.clone())
-        .text("size", size.to_string())
-        .part("file", part);
-    let response = cloud_client()?
-        .post(cloud_request_url(profile, &endpoint))
-        .header("Origin", profile.base_url.as_str())
-        .header("Referer", format!("{}/webapp/", profile.base_url.trim_end_matches('/')))
-        .multipart(form)
-        .send()
-        .await
-        .map_err(|error| format!("上传 {} 失败：{}", file.name, error))?;
-    let status = response.status();
-    let body = response.text().await.map_err(|error| format!("读取 {} 上传响应失败：{}", file.name, error))?;
-    if !status.is_success() { return Err(format!("上传 {} 返回 HTTP {}", file.name, status.as_u16())); }
-    let json: Value = serde_json::from_str(&body).map_err(|error| format!("上传 {} 返回格式无效：{}", file.name, error))?;
-    if cloud_value_text(&json, "code") != "0" { return Err(format!("云盘拒绝上传 {}", file.name)); }
-    Ok(cloud_value_text(&json, "fileId"))
-}
+        fn GiveFeedback(&self, _effect: DROPEFFECT) -> HRESULT {
+            DRAGDROP_S_USEDEFAULTCURSORS
+        }
+    }
 
-#[tauri::command]
-async fn upload_cloud_label_files(state: State<'_, BridgeState>, items: Vec<CloudUploadSelection>, target_folder_name: String, approval_phrase: String) -> Result<CloudLabelUploadResult, String> {
-    if approval_phrase != "允许创建目录并上传" {
-        return Err("未获得明确的“允许创建目录并上传”授权，未发送任何云盘写入请求".to_string());
+    fn wide(value: &str) -> Vec<u16> {
+        OsStr::new(value).encode_wide().chain(std::iter::once(0)).collect()
     }
-    let profile = cloud_profile_from_state(&state)?;
-    let target_folder_name = target_folder_name.trim().to_string();
-    let mut plans = Vec::new();
-    for item in &items {
-        let plan = resolve_cloud_label_plan(&profile, item, &target_folder_name).await.map_err(|error| format!("{} 预检失败：{}", item.sku, error))?;
-        if !matches!(plan.status.as_str(), "ready" | "ready-create") {
-            return Err(format!("{} 未通过上传前只读预检：{}；未发送任何云盘写入请求", plan.sku, plan.message));
+
+    pub fn start(paths: &[String]) -> Result<(), String> {
+        if paths.is_empty() {
+            return Err("没有可拖动的产品文件夹".to_string());
         }
-        plans.push(plan);
+        let init_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        if init_result.is_err() {
+            return Err(format!("无法初始化 Windows 拖拽：0x{:08X}", init_result.0 as u32));
+        }
+        let mut pidls: Vec<*mut ITEMIDLIST> = Vec::with_capacity(paths.len());
+        let result = (|| {
+            for path in paths {
+                let value = wide(path);
+                let mut pidl = ptr::null_mut();
+                unsafe {
+                    SHParseDisplayName(PCWSTR::from_raw(value.as_ptr()), None, &mut pidl, 0, None)
+                }
+                .map_err(|error| format!("无法准备拖拽文件夹 {}：{error}", path))?;
+                pidls.push(pidl);
+            }
+            let pidl_refs = pidls.iter().map(|pidl| *pidl as *const ITEMIDLIST).collect::<Vec<_>>();
+            let data_object: IDataObject = unsafe { SHCreateDataObject(None, Some(&pidl_refs), None) }
+                .map_err(|error| format!("无法创建 Windows 文件拖拽数据：{error}"))?;
+            let drop_source: IDropSource = FileDropSource.into();
+            let mut effect = DROPEFFECT_COPY;
+            let result = unsafe { DoDragDrop(&data_object, &drop_source, DROPEFFECT_COPY, &mut effect) };
+            if result.is_err() {
+                return Err(format!("Windows 文件夹拖拽失败：0x{:08X}", result.0 as u32));
+            }
+            Ok(())
+        })();
+        // SHParseDisplayName allocates PIDLs with the COM task allocator.
+        // They must be released even if preparing a later path fails.
+        for pidl in pidls {
+            unsafe { CoTaskMemFree(Some(pidl as *const _)); }
+        }
+        unsafe { CoUninitialize(); }
+        result
     }
-    let mut uploaded_files = Vec::new();
-    let mut failed_files = Vec::new();
-    let mut logs = vec![format!("已获得明确授权，开始处理 {} 个产品；不会删除或覆盖云盘文件", plans.len())];
-    for plan in &mut plans {
-        if plan.create_product_folder {
-            match cloud_create_folder(&profile, &plan.brand_folder_id, &plan.product_folder_name).await {
-                Ok(folder_id) => {
-                    plan.product_folder_id = folder_id;
-                    logs.push(format!("已创建产品目录：{} / {}", plan.brand_folder_name, plan.product_folder_name));
-                }
-                Err(error) => {
-                    failed_files.push(format!("{}：创建产品目录失败", plan.sku));
-                    logs.push(error);
-                    return Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs });
-                }
-            }
-        }
-        if plan.create_target_folder {
-            match cloud_create_folder(&profile, &plan.product_folder_id, &plan.target_folder_name).await {
-                Ok(folder_id) => {
-                    plan.target_folder_id = folder_id;
-                    logs.push(format!("已创建分类目录：{}", plan.target_folder_name));
-                }
-                Err(error) => {
-                    failed_files.push(format!("{}：创建分类目录失败", plan.sku));
-                    logs.push(error);
-                    return Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs });
-                }
-            }
-        }
-        plan.status = "ready".to_string();
-        for file in &plan.files {
-            match cloud_upload_file(&profile, &plan.target_folder_id, file).await {
-                Ok(file_id) => {
-                    uploaded_files.push(format!("{}：{}", plan.sku, file.name));
-                    logs.push(format!("{} 上传成功{}", file.name, if file_id.is_empty() { String::new() } else { format!("（fileId {}）", file_id) }));
-                }
-                Err(error) => {
-                    failed_files.push(format!("{}：{}", plan.sku, file.name));
-                    logs.push(error);
-                    return Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs });
-                }
-            }
-        }
-    }
-    logs.push(format!("处理完成：成功上传 {} 个文件；创建目录不会自动回滚", uploaded_files.len()));
-    Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs })
 }
 
 fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
@@ -3210,23 +2778,6 @@ mod tests {
     }
 
     #[test]
-    fn identifies_brand_and_canonical_cloud_product_folder_name() {
-        assert_eq!(product_brand_from_name("GleamXi 控油蓬松洗发皂液 SKU00042567"), "GleamXi");
-        assert_eq!(product_brand_from_name("GleamXi 控油蓬松洗发皂液-SKU00042567"), "GleamXi");
-        assert!(cloud_brand_matches("GleamXi--香港格嵐昕供應鏈有限公司", "GleamXi"));
-        assert!(!cloud_brand_matches("AMZ--海口维木康跨境电商有限公司", "GleamXi"));
-        let selection = CloudUploadSelection {
-            sku: "SKU00042567".into(),
-            brand: "GleamXi".into(),
-            product_name: "GleamXi 控油蓬松洗发皂液 SKU00042567".into(),
-            product_path: r"D:\工作\7月\GleamXi 控油蓬松洗发皂液 SKU00042567".into(),
-            source_path: String::new(),
-            files: Vec::new(),
-        };
-        assert_eq!(cloud_product_folder_name(&selection), "GleamXi 控油蓬松洗发皂液-SKU00042567");
-    }
-
-    #[test]
     fn scans_and_confirms_label_check_files_with_print_psd_as_byproduct() {
         let root = std::env::temp_dir().join(format!("plm-label-check-test-{}", Uuid::new_v4()));
         let product = root.join("AMZ 强健清新牙膏 SKU00047381");
@@ -3266,6 +2817,9 @@ mod tests {
         let rescanned = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
         assert!(rescanned.pending.is_empty());
         assert_eq!(rescanned.confirmed.len(), 1);
+        assert_eq!(rescanned.confirmed_items.len(), 1);
+        assert!(rescanned.confirmed_items[0].preview_images.iter().any(|file| file.name == "印刷MTL00064836.jpg"));
+        assert!(rescanned.confirmed_items[0].preview_images.iter().all(|file| file.name != "图层1.png"));
         assert!(history.is_file());
         fs::remove_dir_all(&root).unwrap();
     }
@@ -3312,9 +2866,7 @@ pub fn run() {
             organize_files,
             scan_label_check,
             confirm_label_check,
-            import_cloud_har,
-            prepare_cloud_label_upload,
-            upload_cloud_label_files,
+            start_folder_drag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PLM product asset workbench");

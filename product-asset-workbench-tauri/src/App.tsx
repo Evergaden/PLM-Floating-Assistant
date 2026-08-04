@@ -28,9 +28,7 @@ const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
-const CLOUD_LABEL_TARGET_KEY = "plm-workbench.cloud-label-target-folder";
 const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
-const DEFAULT_CLOUD_LABEL_TARGET = "03 纸盒标签";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -114,6 +112,7 @@ interface LabelCheckItem {
 
 interface LabelCheckRecord {
   sku: string;
+  brand: string;
   productName: string;
   productPath: string;
   sourcePath: string;
@@ -129,55 +128,12 @@ interface LabelCheckScanResult {
   historyPath: string;
   pending: LabelCheckItem[];
   confirmed: LabelCheckRecord[];
+  confirmedItems: LabelCheckItem[];
   logs: string[];
 }
 
 interface LabelCheckConfirmResult {
   record: LabelCheckRecord;
-  logs: string[];
-}
-
-interface CloudHarImportResult {
-  baseUrl: string;
-  tokenLength: number;
-  uploadEndpointDetected: boolean;
-  readEndpointsDetected: string[];
-  writeEndpointsDetected: string[];
-  message: string;
-}
-
-interface CloudLabelPlan {
-  sku: string;
-  brand: string;
-  productName: string;
-  productPath: string;
-  sourcePath: string;
-  brandFolderId: string;
-  brandFolderName: string;
-  productFolderName: string;
-  targetFolderName: string;
-  productFolderId: string;
-  targetFolderId: string;
-  cloudPath: string;
-  createProductFolder: boolean;
-  createTargetFolder: boolean;
-  files: LabelCheckFile[];
-  conflicts: string[];
-  status: "ready" | "missing-product" | "ambiguous-product" | "missing-target" | "conflict" | "error" | string;
-  message: string;
-}
-
-interface CloudLabelPlanResult {
-  baseUrl: string;
-  targetFolderName: string;
-  plans: CloudLabelPlan[];
-  logs: string[];
-}
-
-interface CloudLabelUploadResult {
-  plans: CloudLabelPlan[];
-  uploadedFiles: string[];
-  failedFiles: string[];
   logs: string[];
 }
 
@@ -254,23 +210,6 @@ function labelCheckStatusLabel(status: string) {
 function formatLabelCheckTime(value: number) {
   if (!value) return "未知时间";
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
-}
-
-function cloudPlanStatusLabel(status: string) {
-  if (status === "ready") return "只读预检通过";
-  if (status === "ready-create") return "授权后创建目录并上传";
-  if (status === "missing-root") return "缺少产品开发根目录";
-  if (status === "missing-data-root") return "缺少新版产品资料目录";
-  if (status === "missing-brand") return "未找到品牌公司目录";
-  if (status === "ambiguous-root" || status === "ambiguous-data-root") return "云盘层级不唯一";
-  if (status === "ambiguous-brand") return "品牌公司目录不唯一";
-  if (status === "ambiguous-product") return "同 SKU 目录不唯一";
-  if (status === "product-name-conflict") return "同 SKU 名称不一致";
-  if (status === "ambiguous-target") return "分类文件夹不唯一";
-  if (status === "missing-product" || status === "missing-target") return "云盘缺少目录";
-  if (status === "conflict") return "已有同名文件";
-  if (status === "error") return "预检失败";
-  return status;
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -496,29 +435,70 @@ function AssetPreviewModal({ initialKind, row, onClose, notify }: {
   );
 }
 
-function LabelCheckPreviewModal({ path, onClose }: { path: string; onClose: () => void }) {
-  const [dataUrl, setDataUrl] = useState("");
+function labelPreviewGroups(item: LabelCheckItem) {
+  const box = item.previewImages.filter((file) => file.name.includes("纸盒"));
+  const label = item.previewImages.filter((file) => !file.name.includes("纸盒") && (file.name.includes("标签") || file.name.includes("印刷")));
+  return { box, label };
+}
+
+function LabelCheckPreviewModal({ item, onClose }: { item: LabelCheckItem; onClose: () => void }) {
+  const groups = useMemo(() => labelPreviewGroups(item), [item]);
+  const files = useMemo(() => [...groups.box, ...groups.label], [groups]);
+  const [dataUrls, setDataUrls] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
-  const fileName = path.split(/[\\/]/).pop() || path;
+  const [focusPath, setFocusPath] = useState("");
 
   useEffect(() => {
-    setDataUrl("");
+    let active = true;
+    setDataUrls({});
     setError("");
-    invoke<string>("read_image_data_url", { path }).then(setDataUrl).catch((reason) => setError(String(reason)));
-  }, [path]);
+    setFocusPath("");
+    Promise.all(files.map(async (file) => [file.path, await invoke<string>("read_image_data_url", { path: file.path })] as const))
+      .then((entries) => {
+        if (!active) return;
+        setDataUrls(Object.fromEntries(entries));
+      })
+      .catch((reason) => {
+        if (active) setError(String(reason));
+      });
+    return () => { active = false; };
+  }, [files]);
+
+  function renderSide(title: string, sideFiles: LabelCheckFile[]) {
+    return (
+      <section className="label-check-preview-pane">
+        <header><strong>{title}</strong><span>{sideFiles.length} 张预览</span></header>
+        <div className="label-check-preview-grid">
+          {sideFiles.map((file) => (
+            <button className="label-check-preview-item" key={file.path} onClick={() => setFocusPath(file.path)} title="点击放大查看细节">
+              {dataUrls[file.path] ? <img src={dataUrls[file.path]} alt={file.name} /> : <LoaderCircle size={22} className="spin" />}
+              <span title={file.name}>{file.name}</span>
+            </button>
+          ))}
+          {!sideFiles.length && <div className="label-check-preview-empty"><FileImage size={22} /><span>没有识别到此类 JPG/PNG</span></div>}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="modal-backdrop asset-preview-backdrop" onMouseDown={onClose}>
       <section className="asset-preview-modal label-check-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
         <header>
-          <div><strong>纸盒标签印刷预览</strong><span title={path}>{fileName}</span></div>
+          <div><strong>纸盒 / 标签 / 印刷并列核对</strong><span title={item.productPath}>{item.sku} · {item.productName}</span></div>
           <button className="modal-close" onClick={onClose}><X size={19} /></button>
         </header>
-        <div className="asset-preview-body">
-          {error && <div className="preview-error"><CircleAlert size={28} /><strong>{error}</strong></div>}
-          {!error && !dataUrl && <LoaderCircle size={28} className="spin preview-loader" />}
-          {dataUrl && <img src={dataUrl} alt={fileName} />}
+        {error && <div className="preview-error label-check-preview-error"><CircleAlert size={22} /><strong>{error}</strong></div>}
+        <div className="label-check-preview-split">
+          {renderSide("纸盒", groups.box)}
+          {renderSide("标签 / 印刷", groups.label)}
         </div>
+        {focusPath && dataUrls[focusPath] && (
+          <div className="label-check-focus" onMouseDown={() => setFocusPath("")}>
+            <img src={dataUrls[focusPath]} alt={focusPath.split(/[\\/]/).pop() || "预览细节"} onMouseDown={(event) => event.stopPropagation()} />
+            <span>点击空白处返回左右核对</span>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -577,18 +557,13 @@ export default function App() {
   const [organizeLogs, setOrganizeLogs] = useState<string[]>(["请选择工作目录并扫描待整理文件。"]);
   const [labelCheckItems, setLabelCheckItems] = useState<LabelCheckItem[]>([]);
   const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
+  const [labelCheckConfirmedItems, setLabelCheckConfirmedItems] = useState<LabelCheckItem[]>([]);
+  const [labelCheckFilter, setLabelCheckFilter] = useState<"pending" | "confirmed" | "all">("pending");
   const [labelCheckTargetFolder, setLabelCheckTargetFolder] = useState(() => localStorage.getItem(LABEL_CHECK_TARGET_KEY) || DEFAULT_LABEL_CHECK_TARGET);
   const [labelCheckHistoryPath, setLabelCheckHistoryPath] = useState("");
   const [labelCheckBusy, setLabelCheckBusy] = useState(false);
   const [labelCheckLogs, setLabelCheckLogs] = useState<string[]>(["请选择工作目录并扫描待检查的纸盒标签文件。"]);
-  const [labelCheckPreviewPath, setLabelCheckPreviewPath] = useState("");
-  const [selectedLabelCheckSkus, setSelectedLabelCheckSkus] = useState<Set<string>>(new Set());
-  const [cloudHarPath, setCloudHarPath] = useState("");
-  const [cloudHarInfo, setCloudHarInfo] = useState<CloudHarImportResult | null>(null);
-  const [cloudTargetFolder, setCloudTargetFolder] = useState(() => localStorage.getItem(CLOUD_LABEL_TARGET_KEY) || DEFAULT_CLOUD_LABEL_TARGET);
-  const [cloudPlans, setCloudPlans] = useState<CloudLabelPlan[]>([]);
-  const [cloudBusy, setCloudBusy] = useState(false);
-  const [cloudLogs, setCloudLogs] = useState<string[]>(["未导入优米云盘 HAR；云盘写入需要单独授权。"]);
+  const [labelCheckPreviewItem, setLabelCheckPreviewItem] = useState<LabelCheckItem | null>(null);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -741,6 +716,12 @@ export default function App() {
     complete: rows.filter(isWorktableComplete).length,
   }), [rows]);
 
+  const visibleLabelCheckItems = useMemo(() => {
+    if (labelCheckFilter === "confirmed") return labelCheckConfirmedItems;
+    if (labelCheckFilter === "all") return [...labelCheckItems, ...labelCheckConfirmedItems];
+    return labelCheckItems;
+  }, [labelCheckConfirmedItems, labelCheckFilter, labelCheckItems]);
+
   async function chooseRoot() {
     const value = await open({ directory: true, multiple: false, title: "选择产品文件夹根目录" });
     if (typeof value !== "string") return;
@@ -788,31 +769,6 @@ export default function App() {
     if (typeof value !== "string") return;
     setPhotoshopPath(value);
     localStorage.setItem(PHOTOSHOP_PATH_KEY, value);
-  }
-
-  async function chooseCloudHar() {
-    const value = await open({
-      multiple: false,
-      directory: false,
-      title: "选择优米云盘 HAR",
-      filters: [{ name: "HTTP Archive", extensions: ["har"] }],
-    });
-    if (typeof value !== "string") return;
-    setCloudBusy(true);
-    try {
-      const result = await invoke<CloudHarImportResult>("import_cloud_har", { path: value });
-      setCloudHarPath(value);
-      setCloudHarInfo(result);
-      setCloudPlans([]);
-      setCloudLogs([result.message, `已识别读取接口：${result.readEndpointsDetected.join("、")}`, `已识别写入接口：${result.writeEndpointsDetected.join("、")}`]);
-      notify(`已导入 HAR：${result.baseUrl}`);
-    } catch (error) {
-      setCloudHarInfo(null);
-      setCloudLogs((current) => [...current, `HAR 导入失败：${String(error)}`]);
-      notify(String(error));
-    } finally {
-      setCloudBusy(false);
-    }
   }
 
   async function chooseVideoSource() {
@@ -1095,8 +1051,7 @@ export default function App() {
       const result = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
       setLabelCheckItems(result.pending);
       setLabelCheckRecords(result.confirmed);
-      setSelectedLabelCheckSkus(new Set());
-      setCloudPlans([]);
+      setLabelCheckConfirmedItems(result.confirmedItems);
       setLabelCheckHistoryPath(result.historyPath);
       setLabelCheckLogs(result.logs);
       notify(`扫描完成：待检查 ${result.pending.length} 个，已确认 ${result.confirmed.length} 个`);
@@ -1105,93 +1060,6 @@ export default function App() {
       notify(String(error));
     } finally {
       setLabelCheckBusy(false);
-    }
-  }
-
-  function toggleLabelCheckSelection(sku: string) {
-    setSelectedLabelCheckSkus((current) => {
-      const next = new Set(current);
-      if (next.has(sku)) next.delete(sku);
-      else next.add(sku);
-      return next;
-    });
-  }
-
-  function cloudSelectionItems() {
-    return labelCheckItems
-      .filter((item) => item.status === "ready" && selectedLabelCheckSkus.has(item.sku))
-      .map((item) => ({
-        sku: item.sku,
-        brand: item.brand,
-        productName: item.productName,
-        productPath: item.productPath,
-        sourcePath: item.sourcePath,
-        files: item.uploadFiles,
-      }));
-  }
-
-  async function prepareCloudUpload(items = cloudSelectionItems()) {
-    if (!cloudHarInfo) return notify("请先导入优米云盘 HAR 文件");
-    if (!items.length) return notify("请先勾选可确认的产品");
-    const targetFolderName = cloudTargetFolder.trim();
-    if (!targetFolderName) return notify("请输入云盘分类文件夹名称");
-    localStorage.setItem(CLOUD_LABEL_TARGET_KEY, targetFolderName);
-    setCloudTargetFolder(targetFolderName);
-    setCloudBusy(true);
-    try {
-      const result = await invoke<CloudLabelPlanResult>("prepare_cloud_label_upload", { items, targetFolderName });
-      setCloudPlans(result.plans);
-      setCloudLogs(result.logs);
-      const ready = result.plans.filter((plan) => plan.status === "ready" || plan.status === "ready-create").length;
-      notify(`云盘只读预检完成：${ready}/${result.plans.length} 个产品可上传或创建后上传`);
-      return result;
-    } catch (error) {
-      setCloudLogs((current) => [...current, `云盘预检失败：${String(error)}`]);
-      notify(String(error));
-      return null;
-    } finally {
-      setCloudBusy(false);
-    }
-  }
-
-  async function uploadSelectedToCloud() {
-    if (!cloudHarInfo) return notify("请先导入优米云盘 HAR 文件");
-    const items = cloudSelectionItems();
-    if (!items.length) return notify("请先勾选可确认的产品");
-    const targetFolderName = cloudTargetFolder.trim();
-    if (!targetFolderName) return notify("请输入云盘分类文件夹名称");
-    setCloudBusy(true);
-    try {
-      const preflight = await invoke<CloudLabelPlanResult>("prepare_cloud_label_upload", { items, targetFolderName });
-      setCloudPlans(preflight.plans);
-      setCloudLogs(preflight.logs);
-      const blocked = preflight.plans.filter((plan) => plan.status !== "ready" && plan.status !== "ready-create");
-      if (blocked.length) {
-        notify(`有 ${blocked.length} 个产品未通过只读预检，未上传任何文件`);
-        return;
-      }
-      const fileCount = preflight.plans.reduce((total, plan) => total + plan.files.length, 0);
-      const summary = preflight.plans.map((plan) => `${plan.sku}（${plan.brand}）→ ${plan.cloudPath || `${plan.brandFolderName} / ${plan.productFolderName} / ${plan.targetFolderName}`}（${plan.files.length} 个文件）`).join("\n");
-      const creates = preflight.plans.flatMap((plan) => [
-        plan.createProductFolder ? `${plan.brandFolderName} / ${plan.productFolderName}` : "",
-        plan.createTargetFolder ? `${plan.productFolderName} / ${plan.targetFolderName}` : "",
-      ].filter(Boolean));
-      const createText = creates.length ? `\n\n授权后将新建以下缺失目录：\n${creates.join("\n")}` : "";
-      if (!window.confirm(`即将处理 ${fileCount} 个文件到优米云盘。\n\n${summary}${createText}\n\n本次不会删除或覆盖云盘文件；只有你确认后才会新建缺失目录并上传。确认授权吗？`)) return;
-      const result = await invoke<CloudLabelUploadResult>("upload_cloud_label_files", {
-        items,
-        targetFolderName,
-        approvalPhrase: "允许创建目录并上传",
-      });
-      setCloudPlans(result.plans);
-      setCloudLogs(result.logs);
-      if (!result.failedFiles.length) setSelectedLabelCheckSkus(new Set());
-      notify(`优米云盘上传完成：成功 ${result.uploadedFiles.length} 个，失败 ${result.failedFiles.length} 个`);
-    } catch (error) {
-      setCloudLogs((current) => [...current, `云盘上传未执行或已中止：${String(error)}`]);
-      notify(String(error));
-    } finally {
-      setCloudBusy(false);
     }
   }
 
@@ -1211,7 +1079,7 @@ export default function App() {
       const refreshed = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
       setLabelCheckItems(refreshed.pending);
       setLabelCheckRecords(refreshed.confirmed);
-      setSelectedLabelCheckSkus((current) => { const next = new Set(current); next.delete(result.record.sku); return next; });
+      setLabelCheckConfirmedItems(refreshed.confirmedItems);
       setLabelCheckHistoryPath(refreshed.historyPath);
       setLabelCheckLogs([...result.logs, ...refreshed.logs]);
       notify(`已确认 ${result.record.sku}，正确文件已移入 ${targetFolderName}`);
@@ -1516,41 +1384,50 @@ export default function App() {
               <button className="secondary" onClick={scanLabelCheck} disabled={labelCheckBusy}><ScanLine size={16} />{labelCheckBusy ? "处理中…" : "扫描待检查产品"}</button>
               <button className="primary" onClick={copyLabelCheckCodes} disabled={labelCheckBusy || !labelCheckRecords.length}><Copy size={16} />复制全部已确认编码</button>
             </div>
-            <div className="label-check-summary"><span>待检查 {labelCheckItems.length} 个</span><span>已确认 {labelCheckRecords.length} 个</span><span>每列展示 JPG/PNG 印刷预览</span><span>印刷 PSD 为副产品；纸盒 PSD 是正确文件</span></div>
-            <div className="cloud-upload-box">
-              <div className="cloud-upload-heading">
-                <div><strong>优米云盘上传（需单独授权）</strong><span>{cloudHarInfo ? `已导入 ${cloudHarInfo.baseUrl} · token 已在本机内存中${cloudHarPath ? ` · ${cloudHarPath}` : ""}` : "未导入 HAR；勾选和预检不会修改云盘"}</span></div>
-                <button className="secondary" onClick={chooseCloudHar} disabled={cloudBusy}><FolderOpen size={15} />导入 HAR</button>
+            <div className="label-check-summary"><span>待检查 {labelCheckItems.length} 个</span><span>已确认 {labelCheckRecords.length} 个</span><span>左右展示纸盒与标签/印刷 JPG/PNG</span><span>印刷 PSD 为副产品；纸盒 PSD 是正确文件</span></div>
+            <div className="label-check-filter-bar">
+              <span className="label-check-filter-title">显示卡片</span>
+              <div className="label-check-filter-buttons">
+                <button className={labelCheckFilter === "pending" ? "active" : ""} onClick={() => setLabelCheckFilter("pending")}>待检查 ({labelCheckItems.length})</button>
+                <button className={labelCheckFilter === "confirmed" ? "active" : ""} onClick={() => setLabelCheckFilter("confirmed")}>已确定 ({labelCheckConfirmedItems.length})</button>
+                <button className={labelCheckFilter === "all" ? "active" : ""} onClick={() => setLabelCheckFilter("all")}>全部 ({labelCheckItems.length + labelCheckConfirmedItems.length})</button>
               </div>
-              <div className="cloud-upload-toolbar">
-                <label><span>云盘分类文件夹</span><input value={cloudTargetFolder} onChange={(event) => setCloudTargetFolder(event.target.value)} onBlur={() => localStorage.setItem(CLOUD_LABEL_TARGET_KEY, cloudTargetFolder.trim() || DEFAULT_CLOUD_LABEL_TARGET)} /></label>
-                <button onClick={() => setSelectedLabelCheckSkus(new Set(labelCheckItems.filter((item) => item.status === "ready").map((item) => item.sku)))} disabled={!labelCheckItems.some((item) => item.status === "ready")}>全选可上传</button>
-                <button className="secondary" onClick={() => prepareCloudUpload()} disabled={cloudBusy || !selectedLabelCheckSkus.size}><ScanLine size={15} />只读预检</button>
-                <button className="primary" onClick={uploadSelectedToCloud} disabled={cloudBusy || !selectedLabelCheckSkus.size || !cloudHarInfo}><Upload size={15} />授权并上传</button>
-              </div>
-              <p className="cloud-upload-safety">勾选只加入清单；只读预检会沿着“00 产品开发文件夹 / 00 新版产品资料 / 品牌公司目录”定位目标。只有点击“授权并上传”并确认后，才会新建缺失的产品/分类目录并上传；不会删除或覆盖云盘文件。云盘上传成功后，本地文件仍保留，需再点击卡片的“确认并移动”完成本地归档。</p>
-              {cloudPlans.length > 0 && <div className="cloud-plan-list">
-                {cloudPlans.map((plan) => <div className={`cloud-plan-row ${plan.status}`} key={plan.sku}><strong>{plan.sku}</strong><span>{cloudPlanStatusLabel(plan.status)}</span><small>{plan.brand ? `品牌 ${plan.brand} · ` : ""}{plan.message}{plan.conflicts.length ? ` · 冲突：${plan.conflicts.join("、")}` : ` · ${plan.files.length} 个文件`}</small>{plan.cloudPath && <small className="cloud-plan-path">目标：{plan.cloudPath}</small>}</div>)}
-              </div>}
-              <pre className="cloud-upload-console">{cloudLogs.join("\n")}</pre>
+              <span className="label-check-drag-note">拖动整张卡片 = 拖动产品文件夹到网盘应用；本工作台不调用云盘 API。</span>
             </div>
             <div className="label-check-list">
-              {!labelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>点击“扫描待检查产品”开始</strong><span>工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。</span></div>}
-              {labelCheckItems.map((item) => (
-                <article className={`label-check-card ${item.status}`} key={`${item.sku}:${item.sourcePath}`}>
+              {!visibleLabelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>{labelCheckFilter === "confirmed" ? "还没有已确定卡片" : "点击“扫描待检查产品”开始"}</strong><span>{labelCheckFilter === "confirmed" ? "确认并移动后，卡片会保留在“已确定”筛选中。" : "工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。"}</span></div>}
+              {visibleLabelCheckItems.map((item) => {
+                const previewGroups = labelPreviewGroups(item);
+                return (
+                <article
+                  className={`label-check-card ${item.status}`}
+                  key={`${item.status}:${item.sku}:${item.sourcePath}`}
+                  draggable
+                  title="拖动整张卡片，把本地产品文件夹交给网盘应用"
+                  onDragStart={(event) => {
+                    event.preventDefault();
+                    void invoke("start_folder_drag", { path: item.productPath }).catch((error) => notify(String(error)));
+                  }}
+                >
                   <header>
-                    <label className="label-check-select" title="勾选后加入优米云盘上传清单"><input type="checkbox" checked={selectedLabelCheckSkus.has(item.sku)} disabled={labelCheckBusy || cloudBusy || item.status !== "ready"} onChange={() => toggleLabelCheckSelection(item.sku)} /><span /></label>
                     <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>品牌：{item.brand || "未识别"} · {item.sourceName}</small></div>
-                    <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "warning"}`}>{labelCheckStatusLabel(item.status)}</span>
+                    <span className={`status ${item.status === "ready" ? "success" : item.status === "confirmed" ? "success" : item.status === "conflict" ? "danger" : "warning"}`}>{item.status === "confirmed" ? "已确定" : labelCheckStatusLabel(item.status)}</span>
                   </header>
-                  <div className="label-check-images">
-                    {item.previewImages.map((file) => (
-                      <button className="label-check-image" key={file.path} onClick={() => setLabelCheckPreviewPath(file.path)} title="点击放大查看">
-                        <img src={convertFileSrc(file.path)} alt={file.name} />
-                        <span title={file.name}>{file.name}</span>
-                      </button>
+                  <div className="label-check-sides">
+                    {[{ title: "纸盒", files: previewGroups.box }, { title: "标签 / 印刷", files: previewGroups.label }].map((side) => (
+                      <div className="label-check-side" key={side.title}>
+                        <strong>{side.title}</strong>
+                        <div className="label-check-side-images">
+                          {side.files.map((file) => (
+                            <button className="label-check-image" key={file.path} onClick={() => setLabelCheckPreviewItem(item)} title="点击打开左右视图并放大查看细节">
+                              <img src={convertFileSrc(file.path)} alt={file.name} />
+                              <span title={file.name}>{file.name}</span>
+                            </button>
+                          ))}
+                          {!side.files.length && <div className="label-check-no-image"><FileImage size={19} /><span>无 JPG/PNG</span></div>}
+                        </div>
+                      </div>
                     ))}
-                    {!item.previewImages.length && <div className="label-check-no-image"><FileImage size={22} /><span>没有 JPG/PNG 预览图</span></div>}
                   </div>
                   <div className="label-check-file-groups">
                     <div><strong>正确文件 → {labelCheckTargetFolder}</strong><span>{item.uploadFiles.length ? item.uploadFiles.map((file) => file.name).join(" · ") : "没有识别到可归档文件"}</span></div>
@@ -1558,9 +1435,10 @@ export default function App() {
                     {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
                   </div>
                   <p className="label-check-message">{item.message}</p>
-                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />打开暂存目录</button><button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button></div>
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
                 </article>
-              ))}
+                );
+              })}
             </div>
             <section className="label-check-history">
               <div className="label-check-history-heading"><div><strong>已确认记录</strong><span>记录会保存在本机应用数据中，重新扫描或重启后仍会保留。</span></div><button className="secondary" onClick={copyLabelCheckCodes} disabled={!labelCheckRecords.length}><Copy size={15} />复制编码</button></div>
@@ -1573,7 +1451,7 @@ export default function App() {
             <div className="label-check-console"><strong>检查日志</strong><pre>{labelCheckLogs.join("\n")}</pre></div>
           </section>
         )}
-        {labelCheckPreviewPath && <LabelCheckPreviewModal path={labelCheckPreviewPath} onClose={() => setLabelCheckPreviewPath("")} />}
+        {labelCheckPreviewItem && <LabelCheckPreviewModal item={labelCheckPreviewItem} onClose={() => setLabelCheckPreviewItem(null)} />}
 
         {workspaceView === "packs" && (
           <section className="pack-panel">
