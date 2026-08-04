@@ -29,7 +29,8 @@ const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
-const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
+const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签";
+const LEGACY_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -633,7 +634,10 @@ export default function App() {
   const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
   const [labelCheckConfirmedItems, setLabelCheckConfirmedItems] = useState<LabelCheckItem[]>([]);
   const [labelCheckFilter, setLabelCheckFilter] = useState<"pending" | "confirmed" | "all">("pending");
-  const [labelCheckTargetFolder, setLabelCheckTargetFolder] = useState(() => localStorage.getItem(LABEL_CHECK_TARGET_KEY) || DEFAULT_LABEL_CHECK_TARGET);
+  const [labelCheckTargetFolder, setLabelCheckTargetFolder] = useState(() => {
+    const saved = localStorage.getItem(LABEL_CHECK_TARGET_KEY);
+    return !saved || saved === LEGACY_LABEL_CHECK_TARGET ? DEFAULT_LABEL_CHECK_TARGET : saved;
+  });
   const [labelCheckHistoryPath, setLabelCheckHistoryPath] = useState("");
   const [labelCheckBusy, setLabelCheckBusy] = useState(false);
   const [labelCheckDraggingSku, setLabelCheckDraggingSku] = useState("");
@@ -1118,7 +1122,7 @@ export default function App() {
   async function scanLabelCheck() {
     if (!root) return notify("请先选择工作目录");
     const targetFolderName = labelCheckTargetFolder.trim();
-    if (!targetFolderName) return notify("请输入 03 纸盒标签文件夹名称");
+    if (!targetFolderName) return notify("请输入 03 纸盒标签名称");
     localStorage.setItem(LABEL_CHECK_TARGET_KEY, targetFolderName);
     setLabelCheckTargetFolder(targetFolderName);
     setLabelCheckBusy(true);
@@ -1141,7 +1145,7 @@ export default function App() {
   async function confirmLabelCheck(item: LabelCheckItem) {
     if (item.status !== "ready") return notify(item.message);
     const targetFolderName = labelCheckTargetFolder.trim();
-    if (!targetFolderName) return notify("请输入 03 纸盒标签文件夹名称");
+    if (!targetFolderName) return notify("请输入 03 纸盒标签名称");
     if (!window.confirm(`确认 ${item.sku} 的纸盒标签文件？\n\nJPG/PNG 仅用于检查预览；印刷 PSD 会移到产品根目录，其余正确文件会移入“${targetFolderName}”。`)) return;
     setLabelCheckBusy(true);
     try {
@@ -1531,7 +1535,7 @@ export default function App() {
                     ))}
                   </div>
                   <div className="label-check-file-groups">
-                    <div><strong>正确文件 → {labelCheckTargetFolder}</strong><span>{item.uploadFiles.length ? item.uploadFiles.map((file) => file.name).join(" · ") : "没有识别到可归档文件"}</span></div>
+                    <div><strong>正确文件 → {item.targetPath}</strong><span>{item.uploadFiles.length ? item.uploadFiles.map((file) => file.name).join(" · ") : "没有识别到可归档文件"}</span></div>
                     <div><strong>印刷 PSD 副产品 → 产品根目录</strong><span>{item.psdFiles.length ? item.psdFiles.map((file) => file.name).join(" · ") : "无印刷 PSD"}</span></div>
                     {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
                   </div>

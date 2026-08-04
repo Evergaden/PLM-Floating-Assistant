@@ -2138,10 +2138,34 @@ fn label_staging_folder(product_folder: &Path, sku: &str, target_folder_name: &s
     fallback.into_iter().next()
 }
 
+fn is_label_archive_folder_name(name: &str, requested: &str) -> bool {
+    name.eq_ignore_ascii_case(requested)
+        || (name.starts_with("03") && name.contains("纸盒") && name.contains("标签"))
+}
+
+fn label_archive_folder(source: &Path, requested: &str) -> PathBuf {
+    let Ok(entries) = fs::read_dir(source) else { return source.join(requested) };
+    let mut candidates = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_dir() || file_type.is_symlink() { return None; }
+            let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+            is_label_archive_folder_name(name, requested).then_some(path)
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|path| {
+        let name = path.file_name().map(|value| value.to_string_lossy().to_lowercase()).unwrap_or_default();
+        (if name.eq_ignore_ascii_case(requested) { 0 } else { 1 }, name)
+    });
+    candidates.into_iter().next().unwrap_or_else(|| source.join(requested))
+}
+
 fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_name: &str, sku: &str) -> Result<LabelCheckItem, String> {
     let product_name = product_folder.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
     let source_name = source.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
-    let target = product_folder.join(target_folder_name);
+    let target = label_archive_folder(source, target_folder_name);
     let (preview_images, upload_files, psd_files, other_files) = collect_label_check_files(source)?;
     let upload_conflict = upload_files.iter().any(|file| target.join(&file.name).exists());
     let psd_conflict = psd_files.iter().any(|file| product_folder.join(&file.name).exists());
@@ -2317,7 +2341,7 @@ fn confirm_label_check_at(root: &Path, target_folder_name: &str, source: &Path, 
     if item.status != "ready" {
         return Err(item.message);
     }
-    let target = product_folder.join(&target_folder_name);
+    let target = label_archive_folder(source, &target_folder_name);
     let target_was_present = target.exists();
     if target_was_present && !target.is_dir() {
         return Err(format!("目标路径不是文件夹：{}", path_text(&target)));
@@ -2725,7 +2749,7 @@ mod tests {
         fs::write(staging.join("图层1.png"), b"ignore").unwrap();
 
         let history = root.join("state").join("label-check.json");
-        let scan = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
+        let scan = scan_label_check_plan(&root, "03 纸盒标签", &history).unwrap();
         assert_eq!(scan.pending.len(), 1);
         let item = &scan.pending[0];
         assert_eq!(item.preview_images.len(), 2);
@@ -2736,9 +2760,9 @@ mod tests {
         assert!(!item.preview_images.iter().any(|file| file.name == "图层1.png"));
         assert_eq!(item.status, "ready");
 
-        let confirmed = confirm_label_check_at(&root, "03 纸盒标签文件夹", &staging, "SKU00047381", &history).unwrap();
+        let confirmed = confirm_label_check_at(&root, "03 纸盒标签", &staging, "SKU00047381", &history).unwrap();
         assert_eq!(confirmed.record.sku, "SKU00047381");
-        let target = product.join("03 纸盒标签文件夹");
+        let target = staging.join("03 纸盒标签");
         assert!(target.join("印刷MTL00064836.jpg").is_file());
         assert!(target.join("纸盒MTL00065155.jpg").is_file());
         assert!(target.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai").is_file());
@@ -2747,7 +2771,7 @@ mod tests {
         assert!(staging.join("标签说明.txt").is_file());
         assert!(staging.join("图层1.png").is_file());
 
-        let rescanned = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
+        let rescanned = scan_label_check_plan(&root, "03 纸盒标签", &history).unwrap();
         assert!(rescanned.pending.is_empty());
         assert_eq!(rescanned.confirmed.len(), 1);
         assert_eq!(rescanned.confirmed_items.len(), 1);
@@ -2769,7 +2793,7 @@ mod tests {
         fs::write(staging.join("印刷MTL00064837.ai"), b"ai").unwrap();
         let history = root.join("state").join("label-check.json");
 
-        let scan = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
+        let scan = scan_label_check_plan(&root, "03 纸盒标签", &history).unwrap();
         assert!(scan.pending.is_empty());
         assert!(scan.confirmed_items.is_empty());
         fs::remove_dir_all(&root).unwrap();
