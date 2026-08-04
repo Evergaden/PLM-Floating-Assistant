@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.120
+// @version      2.6.121
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,22 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.120';
+  const SCRIPT_VERSION = '2.6.121';
+
+  function focusGeneratedAssetSaveButton(action, expectedView) {
+    window.setTimeout(() => {
+      const panel = document.getElementById(PANEL_ID);
+      if (!panel || (expectedView && panel.dataset.view !== expectedView)) return;
+      const button = Array.from(panel.querySelectorAll('button[data-action]'))
+        .find((element) => element.getAttribute('data-action') === action);
+      if (!button || button.disabled) return;
+      button.classList.remove('is-generated-save-focus');
+      button.classList.add('is-generated-save-focus');
+      button.addEventListener('blur', () => button.classList.remove('is-generated-save-focus'), { once: true });
+      try { button.focus({ preventScroll: true }); } catch (_) { button.focus(); }
+    }, 0);
+  }
+
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -1364,8 +1379,9 @@
       };
     }
 
-    async function regenerate(data) {
+    async function regenerate(data, options) {
       const session = ensureSession(data);
+      let generated = false;
       if (!session.file) return;
       const hasManualPath = completeManualPath(session, 'box') || completeManualPath(session, 'product');
       if (hasManualPath) editorLog(session, '开始生成参数图', {
@@ -1391,6 +1407,7 @@
         }
         session.productResult = generateProductImage(image, session.analysis, session);
         session.englishResult = generateEnglishImage(image, session.analysis, session, data, logo);
+        generated = true;
         if (hasManualPath) editorLog(session, '两张参数图生成成功', {
           productResultLength: session.productResult.length,
           englishResultLength: session.englishResult.length,
@@ -1401,10 +1418,11 @@
         if (hasManualPath) editorLog(session, '参数图生成失败', { message: session.error }, 'error');
       } finally {
         URL.revokeObjectURL(url); session.busy = false; context.render();
+        if (generated && options && options.focusSave) context.focusSaveButton();
       }
     }
 
-    async function processFile(file, data) {
+    async function processFile(file, data, options) {
       const session = ensureSession(data);
       if (!file || !/\.png$/i.test(file.name || '')) { session.error = '请选择透明 PNG 图片。'; context.render(); return; }
       session.file = file; session.fileName = file.name; session.showSide = null;
@@ -1435,7 +1453,7 @@
         try { await applyExtraData(data, session); } catch (_) {}
         finally { session.busy = false; }
       }
-      await regenerate(data);
+      await regenerate(data, options);
     }
 
     async function applyExtraData(data, session) {
@@ -1586,9 +1604,9 @@
       return false;
     }
 
-    function handleDrop(files, data) {
+    function handleDrop(files, data, options) {
       const file = Array.from(files || []).find((item) => /\.png$/i.test(item.name || '') || item.type === 'image/png');
-      if (file) processFile(file, data);
+      if (file) processFile(file, data, options);
     }
 
     async function generateBridgeAssets(data, imageDataUrl) {
@@ -3421,6 +3439,22 @@
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;min-width:0!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions{gap:7px!important;flex-wrap:wrap!important;}
     #${PANEL_ID}[data-pfh-theme][data-view="upload"] .pfh-upload-bottom-actions > button[data-action="upload-clear-list"]{order:0!important;}
+    #${PANEL_ID}[data-pfh-theme] :where([data-action="size-image-save-all"],[data-action="parameter-image-save"]).is-generated-save-focus,
+    #${PANEL_ID}[data-pfh-theme] :where([data-action="size-image-save-all"],[data-action="parameter-image-save"]).is-generated-save-focus:focus{
+      position:relative!important;
+      z-index:1!important;
+      outline:3px solid var(--pfh-theme-primary)!important;
+      outline-offset:3px!important;
+      box-shadow:0 0 0 6px var(--pfh-theme-primary-soft),0 12px 28px var(--pfh-theme-shadow)!important;
+      animation:pfh-generated-save-focus 1.15s ease-in-out 2!important;
+    }
+    @keyframes pfh-generated-save-focus{
+      0%,100%{box-shadow:0 0 0 3px var(--pfh-theme-primary-soft),0 8px 18px var(--pfh-theme-shadow-soft)}
+      50%{box-shadow:0 0 0 7px var(--pfh-theme-primary-soft),0 14px 30px var(--pfh-theme-shadow)}
+    }
+    @media(prefers-reduced-motion:reduce){
+      #${PANEL_ID}[data-pfh-theme] :where([data-action="size-image-save-all"],[data-action="parameter-image-save"]).is-generated-save-focus{animation:none!important;}
+    }
     @media(max-width:620px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
     @media(max-width:430px){#${PANEL_ID}[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
   `;
@@ -4125,6 +4159,7 @@
     showToast,
     applyTheme: applyThemeToView,
     render: () => { if (state.view === 'parameterImage') renderShell(); },
+    focusSaveButton: () => focusGeneratedAssetSaveButton('parameter-image-save', 'parameterImage'),
   });
   state.expanded = firstTutorial;
 
@@ -12627,9 +12662,11 @@
       }
       recordSizeImageUsage(true);
       if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : (matchedLabelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e')) + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
+      return true;
     } catch (error) {
       session.error = formatSizeImageError(error);
       recordSizeImageUsage(false);
+      return false;
     } finally {
       URL.revokeObjectURL(sourceUrl);
       if (!silent) {
@@ -12649,7 +12686,7 @@
     });
   }
 
-  async function processSizeImageFiles(files) {
+  async function processSizeImageFiles(files, options) {
     const items = Array.from(files || []).filter(Boolean);
     if (!items.length) return;
     const sku = state.selectedSku || (state.data && state.data.sku) || '';
@@ -12662,7 +12699,8 @@
       if (state.view === 'sizeImage') renderShell();
       await yieldSizeImageUi();
     }
-    for (const file of items) await processSizeImageFile(file, '', true);
+    let generated = false;
+    for (const file of items) generated = (await processSizeImageFile(file, '', true)) === true || generated;
     if (state.sizeImageBusySku === sku) state.sizeImageBusySku = '';
     if (session) session.processingStep = '';
     if (session && !session.error) {
@@ -12672,6 +12710,7 @@
       else if (session.pendingLabelMatches.length) showToast('\u8bf7\u624b\u52a8\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u6807\u7b7e\u5c3a\u5bf8');
     }
     if (state.view === 'sizeImage') renderShell();
+    if (generated && options && options.focusSave) focusGeneratedAssetSaveButton('size-image-save-all', 'sizeImage');
   }
 
   function analyzeSizeImageGeometry(image, spec) {
@@ -17514,13 +17553,13 @@
     }
     if (event.target && event.target.closest && event.target.closest('.pfh-parameter-page')) {
       event.preventDefault();
-      parameterImageFeature.handleDrop(Array.from(event.dataTransfer && event.dataTransfer.files || []), state.data || {});
+      parameterImageFeature.handleDrop(Array.from(event.dataTransfer && event.dataTransfer.files || []), state.data || {}, { focusSave: true });
       return;
     }
     if (event.target && event.target.closest && event.target.closest('.pfh-size-image-page')) {
       event.preventDefault();
       const files = Array.from(event.dataTransfer && event.dataTransfer.files || []);
-      if (files.length) processSizeImageFiles(files);
+      if (files.length) processSizeImageFiles(files, { focusSave: true });
       return;
     }
     if (!(event.target && event.target.closest && event.target.closest('.pfh-upload-section'))) return;
