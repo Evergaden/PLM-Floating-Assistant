@@ -441,18 +441,73 @@ function labelPreviewGroups(item: LabelCheckItem) {
   return { box, label };
 }
 
+function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: string }) {
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+
+  function reset() {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }
+
+  function handleWheel(event: React.WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const factor = event.deltaY < 0 ? 1.16 : 1 / 1.16;
+    setScale((current) => Math.min(6, Math.max(1, current * factor)));
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setOffset((current) => ({ x: current.x + event.clientX - drag.x, y: current.y + event.clientY - drag.y }));
+    dragRef.current = { ...drag, x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  return (
+    <div
+      className={`label-check-zoom-viewport ${scale > 1 ? "is-zoomed" : ""}`}
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onDoubleClick={reset}
+      title="滚轮放大/缩小；按住鼠标抓手移动；双击复位"
+    >
+      <img
+        src={dataUrl}
+        alt={fileName}
+        draggable={false}
+        style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})` }}
+      />
+      <span>{scale > 1 ? `${Math.round(scale * 100)}% · 抓手移动 · 双击复位` : "滚轮放大 · 抓手移动"}</span>
+    </div>
+  );
+}
+
 function LabelCheckPreviewModal({ item, onClose }: { item: LabelCheckItem; onClose: () => void }) {
   const groups = useMemo(() => labelPreviewGroups(item), [item]);
   const files = useMemo(() => [...groups.box, ...groups.label], [groups]);
   const [dataUrls, setDataUrls] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
-  const [focusPath, setFocusPath] = useState("");
 
   useEffect(() => {
     let active = true;
     setDataUrls({});
     setError("");
-    setFocusPath("");
     Promise.all(files.map(async (file) => [file.path, await invoke<string>("read_image_data_url", { path: file.path })] as const))
       .then((entries) => {
         if (!active) return;
@@ -470,10 +525,10 @@ function LabelCheckPreviewModal({ item, onClose }: { item: LabelCheckItem; onClo
         <header><strong>{title}</strong><span>{sideFiles.length} 张预览</span></header>
         <div className="label-check-preview-grid">
           {sideFiles.map((file) => (
-            <button className="label-check-preview-item" key={file.path} onClick={() => setFocusPath(file.path)} title="点击放大查看细节">
-              {dataUrls[file.path] ? <img src={dataUrls[file.path]} alt={file.name} /> : <LoaderCircle size={22} className="spin" />}
+            <div className="label-check-preview-item" key={file.path}>
+              {dataUrls[file.path] ? <ZoomableLabelImage dataUrl={dataUrls[file.path]} fileName={file.name} /> : <div className="label-check-image-loading"><LoaderCircle size={22} className="spin" /></div>}
               <span title={file.name}>{file.name}</span>
-            </button>
+            </div>
           ))}
           {!sideFiles.length && <div className="label-check-preview-empty"><FileImage size={22} /><span>没有识别到此类 JPG/PNG</span></div>}
         </div>
@@ -493,12 +548,6 @@ function LabelCheckPreviewModal({ item, onClose }: { item: LabelCheckItem; onClo
           {renderSide("纸盒", groups.box)}
           {renderSide("标签 / 印刷", groups.label)}
         </div>
-        {focusPath && dataUrls[focusPath] && (
-          <div className="label-check-focus" onMouseDown={() => setFocusPath("")}>
-            <img src={dataUrls[focusPath]} alt={focusPath.split(/[\\/]/).pop() || "预览细节"} onMouseDown={(event) => event.stopPropagation()} />
-            <span>点击空白处返回左右核对</span>
-          </div>
-        )}
       </section>
     </div>
   );

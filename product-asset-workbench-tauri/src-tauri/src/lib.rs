@@ -2075,6 +2075,10 @@ fn is_label_named_file(name: &str) -> bool {
     ["标签", "印刷", "纸盒"].iter().any(|keyword| name.contains(keyword))
 }
 
+fn has_paper_box_preview(files: &[LabelCheckFile]) -> bool {
+    files.iter().any(|file| file.name.contains("纸盒") && is_label_preview_extension(&file.extension))
+}
+
 fn collect_label_check_files(folder: &Path) -> Result<(Vec<LabelCheckFile>, Vec<LabelCheckFile>, Vec<LabelCheckFile>, Vec<LabelCheckFile>), String> {
     let mut preview_images = Vec::new();
     let mut upload_files = Vec::new();
@@ -2143,7 +2147,7 @@ fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_na
     let psd_conflict = psd_files.iter().any(|file| product_folder.join(&file.name).exists());
     let status = if upload_files.is_empty() {
         "missing-upload"
-    } else if preview_images.is_empty() {
+    } else if !has_paper_box_preview(&preview_images) {
         "missing-preview"
     } else if upload_conflict || psd_conflict {
         "conflict"
@@ -2152,7 +2156,7 @@ fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_na
     };
     let message = match status {
         "missing-upload" => "没有识别到可上传文件（AI/JPG/PNG/纸盒 PSD 等）".to_string(),
-        "missing-preview" => "缺少 JPG/PNG 预览图，暂不允许确认".to_string(),
+        "missing-preview" => "缺少纸盒 JPG/PNG 预览图，暂不展示或确认".to_string(),
         "conflict" => "目标位置已有同名文件，确认前请先处理冲突".to_string(),
         _ if !other_files.is_empty() => format!("可确认；有 {} 个未识别文件会留在暂存目录", other_files.len()),
         _ => "等待查看预览后确认".to_string(),
@@ -2181,6 +2185,9 @@ fn build_confirmed_label_check_item(record: &LabelCheckRecord) -> Option<LabelCh
         return None;
     }
     let (preview_images, upload_files, mut psd_files, other_files) = collect_label_check_files(&target).ok()?;
+    if !has_paper_box_preview(&preview_images) {
+        return None;
+    }
     for file_name in &record.moved_psd_files {
         let path = product_folder.join(file_name);
         if let Some(file) = label_check_file(&path) {
@@ -2247,6 +2254,9 @@ fn scan_label_check_plan(root: &Path, target_folder_name: &str, history_path: &P
         let Some(sku) = organizer_sku(folder_name) else { continue };
         let Some(source) = label_staging_folder(&product_folder, &sku, &target_folder_name) else { continue };
         let item = build_label_check_item(&product_folder, &source, &target_folder_name, &sku)?;
+        if !has_paper_box_preview(&item.preview_images) {
+            continue;
+        }
         let already_confirmed = history.iter().any(|record| record.product_path == path_text(&product_folder) && record.sku == sku);
         if already_confirmed && item.upload_files.is_empty() && item.psd_files.is_empty() {
             continue;
@@ -2410,8 +2420,8 @@ mod windows_drag {
         Win32::{
             Foundation::{DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, S_OK},
             System::{
-                Com::{CoInitializeEx, CoTaskMemFree, CoUninitialize, IDataObject, COINIT_APARTMENTTHREADED},
-                Ole::{DoDragDrop, IDropSource, IDropSource_Impl, DROPEFFECT, DROPEFFECT_COPY},
+                Com::{CoTaskMemFree, IDataObject},
+                Ole::{DoDragDrop, IDropSource, IDropSource_Impl, OleInitialize, OleUninitialize, DROPEFFECT, DROPEFFECT_COPY},
                 SystemServices::{MODIFIERKEYS_FLAGS, MK_LBUTTON},
             },
             UI::Shell::{Common::ITEMIDLIST, SHCreateDataObject, SHParseDisplayName},
@@ -2445,9 +2455,8 @@ mod windows_drag {
         if paths.is_empty() {
             return Err("没有可拖动的产品文件夹".to_string());
         }
-        let init_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
-        if init_result.is_err() {
-            return Err(format!("无法初始化 Windows 拖拽：0x{:08X}", init_result.0 as u32));
+        if let Err(error) = unsafe { OleInitialize(None) } {
+            return Err(format!("无法初始化 Windows OLE 拖拽：0x{:08X}", error.code().0 as u32));
         }
         let mut pidls: Vec<*mut ITEMIDLIST> = Vec::with_capacity(paths.len());
         let result = (|| {
@@ -2476,7 +2485,7 @@ mod windows_drag {
         for pidl in pidls {
             unsafe { CoTaskMemFree(Some(pidl as *const _)); }
         }
-        unsafe { CoUninitialize(); }
+        unsafe { OleUninitialize(); }
         result
     }
 }
@@ -2786,6 +2795,7 @@ mod tests {
         let box_psd = "纸盒（4x4x18.2cm）MTL00065155 AMZ强健清新牙膏.psd";
         fs::create_dir_all(&staging).unwrap();
         fs::write(staging.join("印刷MTL00064836.jpg"), b"preview").unwrap();
+        fs::write(staging.join("纸盒MTL00065155.jpg"), b"box-preview").unwrap();
         fs::write(staging.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai"), b"ai").unwrap();
         fs::write(staging.join(print_psd), b"print-psd").unwrap();
         fs::write(staging.join(box_psd), b"box-psd").unwrap();
@@ -2796,8 +2806,8 @@ mod tests {
         let scan = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
         assert_eq!(scan.pending.len(), 1);
         let item = &scan.pending[0];
-        assert_eq!(item.preview_images.len(), 1);
-        assert_eq!(item.upload_files.len(), 3);
+        assert_eq!(item.preview_images.len(), 2);
+        assert_eq!(item.upload_files.len(), 4);
         assert_eq!(item.psd_files.len(), 1);
         assert_eq!(item.other_files.len(), 1);
         assert_eq!(item.other_files[0].name, "标签说明.txt");
@@ -2808,6 +2818,7 @@ mod tests {
         assert_eq!(confirmed.record.sku, "SKU00047381");
         let target = product.join("03 纸盒标签文件夹");
         assert!(target.join("印刷MTL00064836.jpg").is_file());
+        assert!(target.join("纸盒MTL00065155.jpg").is_file());
         assert!(target.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai").is_file());
         assert!(target.join(box_psd).is_file());
         assert!(product.join(print_psd).is_file());
@@ -2821,6 +2832,22 @@ mod tests {
         assert!(rescanned.confirmed_items[0].preview_images.iter().any(|file| file.name == "印刷MTL00064836.jpg"));
         assert!(rescanned.confirmed_items[0].preview_images.iter().all(|file| file.name != "图层1.png"));
         assert!(history.is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn skips_label_check_products_without_paper_box_preview() {
+        let root = std::env::temp_dir().join(format!("plm-label-check-no-box-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 无纸盒预览 SKU00047382");
+        let staging = product.join("AMZ 无纸盒预览-SKU00047382");
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("印刷MTL00064837.jpg"), b"preview").unwrap();
+        fs::write(staging.join("印刷MTL00064837.ai"), b"ai").unwrap();
+        let history = root.join("state").join("label-check.json");
+
+        let scan = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
+        assert!(scan.pending.is_empty());
+        assert!(scan.confirmed_items.is_empty());
         fs::remove_dir_all(&root).unwrap();
     }
 
