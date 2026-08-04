@@ -1536,7 +1536,7 @@ export default function App() {
                     {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
                   </div>
                   <p className="label-check-message">{item.message}</p>
-                  <div className="label-check-card-actions"><button className="secondary" onClick={() => void openLabelCheckFolder(item.sourcePath, item.status === "confirmed" ? " 03 文件夹" : "暂存目录")}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => void openLabelCheckFolder(labelCheckProductFolder(item), "完整产品文件夹")}><FolderOpen size={15} />打开完整产品文件夹</button><button
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => void openLabelCheckFolder(item.status === "confirmed" ? item.targetPath : item.sourcePath, item.status === "confirmed" ? " 03 文件夹" : "暂存目录")}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => void openLabelCheckFolder(labelCheckProductFolder(item), "完整产品文件夹")}><FolderOpen size={15} />打开完整产品文件夹</button><button
                     className={`label-check-drag-handle ${labelCheckDraggingSku === item.sku ? "dragging" : ""}`}
                     onPointerDown={(event) => {
                       if (event.button !== 0) return;

@@ -2184,6 +2184,13 @@ fn build_confirmed_label_check_item(record: &LabelCheckRecord) -> Option<LabelCh
     if !product_folder.is_dir() || !target.is_dir() {
         return None;
     }
+    // The 03 folder is the archive/preview source.  The folder handed to the
+    // cloud-drive app must remain the original entry/staging folder so its
+    // sibling files and subdirectories travel with it.
+    let upload_folder = {
+        let recorded_source = PathBuf::from(&record.source_path);
+        if recorded_source.is_dir() { recorded_source } else { target.clone() }
+    };
     let (preview_images, upload_files, mut psd_files, other_files) = collect_label_check_files(&target).ok()?;
     if !has_paper_box_preview(&preview_images) {
         return None;
@@ -2196,13 +2203,13 @@ fn build_confirmed_label_check_item(record: &LabelCheckRecord) -> Option<LabelCh
     }
     psd_files.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
     let product_name = record.product_name.clone();
-    let source_name = target.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+    let source_name = upload_folder.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
     Some(LabelCheckItem {
         sku: record.sku.clone(),
         brand: if record.brand.trim().is_empty() { product_brand_from_name(&product_name) } else { record.brand.clone() },
         product_name,
         product_path: path_text(&product_folder),
-        source_path: path_text(&target),
+        source_path: path_text(&upload_folder),
         source_name,
         target_path: path_text(&target),
         preview_images,
@@ -2210,7 +2217,7 @@ fn build_confirmed_label_check_item(record: &LabelCheckRecord) -> Option<LabelCh
         psd_files,
         other_files,
         status: "confirmed".to_string(),
-        message: format!("已确认并归档于 {}；拖动卡片可直接把当前纸盒标签文件夹交给网盘应用", path_text(&target)),
+        message: format!("已确认并归档于 {}；拖动卡片可直接把入口文件夹及其内部文件交给网盘应用", path_text(&target)),
     })
 }
 
@@ -2744,6 +2751,8 @@ mod tests {
         assert!(rescanned.pending.is_empty());
         assert_eq!(rescanned.confirmed.len(), 1);
         assert_eq!(rescanned.confirmed_items.len(), 1);
+        assert_eq!(rescanned.confirmed_items[0].source_path, path_text(&staging));
+        assert_eq!(rescanned.confirmed_items[0].source_name, "AMZ 强健清新牙膏-SKU00047381");
         assert!(rescanned.confirmed_items[0].preview_images.iter().any(|file| file.name == "印刷MTL00064836.jpg"));
         assert!(rescanned.confirmed_items[0].preview_images.iter().all(|file| file.name != "图层1.png"));
         assert!(history.is_file());
