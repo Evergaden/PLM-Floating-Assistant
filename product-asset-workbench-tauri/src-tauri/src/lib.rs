@@ -2388,6 +2388,23 @@ fn confirm_label_check(root: String, target_folder_name: String, source_path: St
     confirm_label_check_at(&PathBuf::from(root), &target_folder_name, &PathBuf::from(source_path), &sku, &label_check_history_path())
 }
 
+#[tauri::command]
+fn open_local_folder(path: String) -> Result<(), String> {
+    let folder = PathBuf::from(path);
+    if !folder.is_dir() {
+        return Err(format!("文件夹不存在：{}", path_text(&folder)));
+    }
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("explorer.exe").arg(&folder).spawn();
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(&folder).spawn();
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(&folder).spawn();
+    result
+        .map(|_| ())
+        .map_err(|error| format!("无法打开文件夹 {}：{error}", path_text(&folder)))
+}
+
 fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
     let mut items = fs::read_dir(root)
         .ok()
@@ -2792,6 +2809,7 @@ pub fn run() {
             organize_files,
             scan_label_check,
             confirm_label_check,
+            open_local_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PLM product asset workbench");

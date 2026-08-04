@@ -442,6 +442,12 @@ function labelPreviewGroups(item: LabelCheckItem) {
   return { box, label };
 }
 
+function labelCheckProductFolder(item: LabelCheckItem) {
+  const sourcePath = item.sourcePath.replace(/[\\/]+$/, "");
+  const separatorIndex = Math.max(sourcePath.lastIndexOf("\\"), sourcePath.lastIndexOf("/"));
+  return separatorIndex > 0 ? sourcePath.slice(0, separatorIndex) : item.productPath;
+}
+
 function ZoomableLabelImage({ dataUrl, fileName }: { dataUrl: string; fileName: string }) {
   const [scale, setScale] = useState(1);
   const [maxScale, setMaxScale] = useState(8);
@@ -1162,10 +1168,11 @@ export default function App() {
 
   async function dragLabelCheckProduct(item: LabelCheckItem, iconPath: string) {
     if (labelCheckDraggingSku) return;
+    const productFolder = labelCheckProductFolder(item);
     setLabelCheckDraggingSku(item.sku);
-    setLabelCheckLogs((current) => [...current, `开始拖动产品文件夹：${item.productPath}`]);
+    setLabelCheckLogs((current) => [...current, `开始拖动完整产品文件夹：${productFolder}`]);
     try {
-      await startDrag({ item: [item.productPath], icon: iconPath, mode: "copy" }, (payload) => {
+      await startDrag({ item: [productFolder], icon: iconPath, mode: "copy" }, (payload) => {
         const message = payload.result === "Dropped"
           ? `已把 ${item.sku} 交给目标应用`
           : `已取消拖动 ${item.sku}`;
@@ -1177,6 +1184,17 @@ export default function App() {
       notify(message);
     } finally {
       setLabelCheckDraggingSku("");
+    }
+  }
+
+  async function openLabelCheckFolder(path: string, label: string) {
+    try {
+      await invoke("open_local_folder", { path });
+      setLabelCheckLogs((current) => [...current, `已打开${label}：${path}`]);
+    } catch (error) {
+      const message = `无法打开${label}：${String(error)}`;
+      setLabelCheckLogs((current) => [...current, message]);
+      notify(message);
     }
   }
 
@@ -1518,7 +1536,7 @@ export default function App() {
                     {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
                   </div>
                   <p className="label-check-message">{item.message}</p>
-                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => openPath(item.productPath)}><FolderOpen size={15} />打开产品文件夹</button><button
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => void openLabelCheckFolder(item.sourcePath, item.status === "confirmed" ? " 03 文件夹" : "暂存目录")}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => void openLabelCheckFolder(labelCheckProductFolder(item), "完整产品文件夹")}><FolderOpen size={15} />打开完整产品文件夹</button><button
                     className={`label-check-drag-handle ${labelCheckDraggingSku === item.sku ? "dragging" : ""}`}
                     onPointerDown={(event) => {
                       if (event.button !== 0) return;
