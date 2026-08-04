@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.118
+// @version      2.6.119
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.118';
+  const SCRIPT_VERSION = '2.6.119';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -10286,6 +10286,10 @@
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex!important;flex:0 0 16px!important;width:16px!important;min-width:16px!important;height:16px!important;margin:0!important;padding:0!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:0!important;background:transparent!important;color:inherit!important;line-height:1!important;box-sizing:content-box!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg{display:block!important;width:16px!important;height:16px!important;}' +
       '#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,#' + PANEL_ID + ' .pfh-title-actions .pfh-title-edit-data .pfh-icon svg *{fill:none!important;stroke:currentColor!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}' +
+      '#' + PANEL_ID + ' .pfh-graphic-section{margin-top:0!important;padding-top:12px!important;}' +
+      '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-section-title.pfh-graphic-title{margin-top:0!important;min-height:34px!important;gap:10px!important;}' +
+      '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-section-title.pfh-graphic-title .pfh-toy-copywriting-button,' +
+      '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-section-title.pfh-graphic-title .pfh-excel-controls > button[data-action="excel-prepare"]{display:inline-flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;height:34px!important;min-height:34px!important;min-width:0!important;flex:0 1 auto!important;padding:0 12px!important;border-radius:12px!important;line-height:1!important;white-space:nowrap!important;}' +
       '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-graphic-table{grid-row:3!important;order:3!important;}' +
       '#' + PANEL_ID + ' .pfh-graphic-section > .pfh-smart-recommend{grid-row:4!important;grid-column:1/-1!important;order:4!important;}' +
       '#' + PANEL_ID + ' .pfh-sku-edit-input{grid-column:1/-1!important;width:100%!important;min-width:0!important;height:31px!important;box-sizing:border-box!important;padding:0 9px!important;border:1px solid var(--pfh-theme-border)!important;border-radius:9px!important;outline:none!important;background:var(--pfh-theme-surface)!important;color:var(--pfh-theme-text)!important;font:inherit!important;box-shadow:0 0 0 0 transparent!important;transition:border-color .18s ease,box-shadow .18s ease!important;}' +
