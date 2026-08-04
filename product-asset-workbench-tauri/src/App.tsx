@@ -1369,6 +1369,7 @@ export default function App() {
             <div className="label-check-console"><strong>检查日志</strong><pre>{labelCheckLogs.join("\n")}</pre></div>
           </section>
         )}
+        {labelCheckPreviewPath && <LabelCheckPreviewModal path={labelCheckPreviewPath} onClose={() => setLabelCheckPreviewPath("")} />}
 
         {workspaceView === "packs" && (
           <section className="pack-panel">

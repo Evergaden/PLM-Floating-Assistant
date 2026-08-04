@@ -2056,6 +2056,10 @@ fn is_label_upload_extension(extension: &str) -> bool {
     matches!(extension, "ai" | "jpg" | "jpeg" | "png" | "psd" | "pdf" | "cdr" | "eps" | "svg" | "webp" | "tif" | "tiff")
 }
 
+fn is_label_named_file(name: &str) -> bool {
+    ["标签", "印刷", "纸盒"].iter().any(|keyword| name.contains(keyword))
+}
+
 fn label_staging_folder(product_folder: &Path, sku: &str, target_folder_name: &str) -> Option<PathBuf> {
     let expected_name = folder_organizer_target(product_folder)
         .and_then(|(_, path)| path.file_name().and_then(|value| value.to_str()).map(str::to_string));
@@ -2094,6 +2098,9 @@ fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_na
     for entry in entries.filter_map(Result::ok) {
         let path = entry.path();
         let Some(file) = label_check_file(&path) else { continue };
+        if !is_label_named_file(&file.name) {
+            continue;
+        }
         if file.extension == "psd" && file.name.contains("印刷") {
             psd_files.push(file);
         } else if is_label_upload_extension(&file.extension) {
@@ -2620,7 +2627,8 @@ mod tests {
         fs::write(staging.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai"), b"ai").unwrap();
         fs::write(staging.join(print_psd), b"print-psd").unwrap();
         fs::write(staging.join(box_psd), b"box-psd").unwrap();
-        fs::write(staging.join("待确认说明.txt"), b"keep").unwrap();
+        fs::write(staging.join("标签说明.txt"), b"keep").unwrap();
+        fs::write(staging.join("图层1.png"), b"ignore").unwrap();
 
         let history = root.join("state").join("label-check.json");
         let scan = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
@@ -2630,6 +2638,8 @@ mod tests {
         assert_eq!(item.upload_files.len(), 3);
         assert_eq!(item.psd_files.len(), 1);
         assert_eq!(item.other_files.len(), 1);
+        assert_eq!(item.other_files[0].name, "标签说明.txt");
+        assert!(!item.preview_images.iter().any(|file| file.name == "图层1.png"));
         assert_eq!(item.status, "ready");
 
         let confirmed = confirm_label_check_at(&root, "03 纸盒标签文件夹", &staging, "SKU00047381", &history).unwrap();
@@ -2639,7 +2649,8 @@ mod tests {
         assert!(target.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai").is_file());
         assert!(target.join(box_psd).is_file());
         assert!(product.join(print_psd).is_file());
-        assert!(staging.join("待确认说明.txt").is_file());
+        assert!(staging.join("标签说明.txt").is_file());
+        assert!(staging.join("图层1.png").is_file());
 
         let rescanned = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
         assert!(rescanned.pending.is_empty());
