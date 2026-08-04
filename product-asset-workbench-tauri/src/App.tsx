@@ -27,6 +27,8 @@ const VIDEO_LOSSY_KEY = "plm-workbench.video-lossy";
 const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
+const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
+const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -83,6 +85,53 @@ interface FileOrganizeResult {
   renamed: number;
   skipped: number;
   failed: number;
+}
+
+interface LabelCheckFile {
+  name: string;
+  path: string;
+  extension: string;
+  size: number;
+}
+
+interface LabelCheckItem {
+  sku: string;
+  productName: string;
+  productPath: string;
+  sourcePath: string;
+  sourceName: string;
+  targetPath: string;
+  previewImages: LabelCheckFile[];
+  uploadFiles: LabelCheckFile[];
+  psdFiles: LabelCheckFile[];
+  otherFiles: LabelCheckFile[];
+  status: "ready" | "missing-upload" | "missing-preview" | "conflict" | string;
+  message: string;
+}
+
+interface LabelCheckRecord {
+  sku: string;
+  productName: string;
+  productPath: string;
+  sourcePath: string;
+  targetPath: string;
+  confirmedAtMs: number;
+  movedFiles: string[];
+  movedPsdFiles: string[];
+}
+
+interface LabelCheckScanResult {
+  root: string;
+  targetFolderName: string;
+  historyPath: string;
+  pending: LabelCheckItem[];
+  confirmed: LabelCheckRecord[];
+  logs: string[];
+}
+
+interface LabelCheckConfirmResult {
+  record: LabelCheckRecord;
+  logs: string[];
 }
 
 interface ComposePackResult {
@@ -145,6 +194,19 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   if (row.missing.length) return { label: `缺少 ${row.missing.join("、")}`, tone: "warning" };
   if (isWorktableComplete(row)) return { label: "三项操作完成，已收纳", tone: "neutral" };
   return { label: "可以生成", tone: "success" };
+}
+
+function labelCheckStatusLabel(status: string) {
+  if (status === "ready") return "可确认";
+  if (status === "missing-upload") return "缺少可上传文件";
+  if (status === "missing-preview") return "缺少 JPG/PNG 预览";
+  if (status === "conflict") return "目标文件冲突";
+  return status;
+}
+
+function formatLabelCheckTime(value: number) {
+  if (!value) return "未知时间";
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -370,6 +432,34 @@ function AssetPreviewModal({ initialKind, row, onClose, notify }: {
   );
 }
 
+function LabelCheckPreviewModal({ path, onClose }: { path: string; onClose: () => void }) {
+  const [dataUrl, setDataUrl] = useState("");
+  const [error, setError] = useState("");
+  const fileName = path.split(/[\\/]/).pop() || path;
+
+  useEffect(() => {
+    setDataUrl("");
+    setError("");
+    invoke<string>("read_image_data_url", { path }).then(setDataUrl).catch((reason) => setError(String(reason)));
+  }, [path]);
+
+  return (
+    <div className="modal-backdrop asset-preview-backdrop" onMouseDown={onClose}>
+      <section className="asset-preview-modal label-check-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <div><strong>纸盒标签印刷预览</strong><span title={path}>{fileName}</span></div>
+          <button className="modal-close" onClick={onClose}><X size={19} /></button>
+        </header>
+        <div className="asset-preview-body">
+          {error && <div className="preview-error"><CircleAlert size={28} /><strong>{error}</strong></div>}
+          {!error && !dataUrl && <LoaderCircle size={28} className="spin preview-loader" />}
+          {dataUrl && <img src={dataUrl} alt={fileName} />}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function App() {
   const [bridge, setBridge] = useState<BridgeInfo>({ url: "ws://127.0.0.1:37191", token: "", connected: false, scriptVersion: "" });
   const [products, setProducts] = useState<FinalizedProduct[]>([]);
@@ -383,7 +473,7 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random" | "organize">("assets");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random" | "organize" | "label-check">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -421,6 +511,13 @@ export default function App() {
   const [organizeRenameFolders, setOrganizeRenameFolders] = useState(true);
   const [organizeBusy, setOrganizeBusy] = useState(false);
   const [organizeLogs, setOrganizeLogs] = useState<string[]>(["请选择工作目录并扫描待整理文件。"]);
+  const [labelCheckItems, setLabelCheckItems] = useState<LabelCheckItem[]>([]);
+  const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
+  const [labelCheckTargetFolder, setLabelCheckTargetFolder] = useState(() => localStorage.getItem(LABEL_CHECK_TARGET_KEY) || DEFAULT_LABEL_CHECK_TARGET);
+  const [labelCheckHistoryPath, setLabelCheckHistoryPath] = useState("");
+  const [labelCheckBusy, setLabelCheckBusy] = useState(false);
+  const [labelCheckLogs, setLabelCheckLogs] = useState<string[]>(["请选择工作目录并扫描待检查的纸盒标签文件。"]);
+  const [labelCheckPreviewPath, setLabelCheckPreviewPath] = useState("");
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -891,6 +988,61 @@ export default function App() {
     }
   }
 
+  async function scanLabelCheck() {
+    if (!root) return notify("请先选择工作目录");
+    const targetFolderName = labelCheckTargetFolder.trim();
+    if (!targetFolderName) return notify("请输入 03 纸盒标签文件夹名称");
+    localStorage.setItem(LABEL_CHECK_TARGET_KEY, targetFolderName);
+    setLabelCheckTargetFolder(targetFolderName);
+    setLabelCheckBusy(true);
+    try {
+      const result = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
+      setLabelCheckItems(result.pending);
+      setLabelCheckRecords(result.confirmed);
+      setLabelCheckHistoryPath(result.historyPath);
+      setLabelCheckLogs(result.logs);
+      notify(`扫描完成：待检查 ${result.pending.length} 个，已确认 ${result.confirmed.length} 个`);
+    } catch (error) {
+      setLabelCheckLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setLabelCheckBusy(false);
+    }
+  }
+
+  async function confirmLabelCheck(item: LabelCheckItem) {
+    if (item.status !== "ready") return notify(item.message);
+    const targetFolderName = labelCheckTargetFolder.trim();
+    if (!targetFolderName) return notify("请输入 03 纸盒标签文件夹名称");
+    if (!window.confirm(`确认 ${item.sku} 的纸盒标签文件？\n\nJPG/PNG 仅用于检查预览；印刷 PSD 会移到产品根目录，其余正确文件会移入“${targetFolderName}”。`)) return;
+    setLabelCheckBusy(true);
+    try {
+      const result = await invoke<LabelCheckConfirmResult>("confirm_label_check", {
+        root,
+        targetFolderName,
+        sourcePath: item.sourcePath,
+        sku: item.sku,
+      });
+      const refreshed = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
+      setLabelCheckItems(refreshed.pending);
+      setLabelCheckRecords(refreshed.confirmed);
+      setLabelCheckHistoryPath(refreshed.historyPath);
+      setLabelCheckLogs([...result.logs, ...refreshed.logs]);
+      notify(`已确认 ${result.record.sku}，正确文件已移入 ${targetFolderName}`);
+    } catch (error) {
+      setLabelCheckLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setLabelCheckBusy(false);
+    }
+  }
+
+  async function copyLabelCheckCodes() {
+    if (!labelCheckRecords.length) return notify("还没有已确认的产品编码");
+    await navigator.clipboard.writeText(labelCheckRecords.map((record) => record.sku).join("\n"));
+    notify(`已复制 ${labelCheckRecords.length} 个已确认编码`);
+  }
+
   async function assignFolder(row: ProductPreview) {
     const value = await open({ directory: true, multiple: false, defaultPath: root || undefined, title: `为 ${row.product.sku} 指定产品目录` });
     if (typeof value !== "string") return;
@@ -998,6 +1150,7 @@ export default function App() {
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
           <button className={workspaceView === "random" ? "active" : ""} onClick={() => setWorkspaceView("random")}><RotateCw size={16} />随机组合</button>
           <button className={workspaceView === "organize" ? "active" : ""} onClick={() => setWorkspaceView("organize")}><Pencil size={16} />文件整理</button>
+          <button className={workspaceView === "label-check" ? "active" : ""} onClick={() => setWorkspaceView("label-check")}><Eye size={16} />纸盒标签检查</button>
           <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
           <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
@@ -1159,6 +1312,61 @@ export default function App() {
               ))}
             </div>
             <div className="organize-console"><strong>整理日志</strong><pre>{organizeLogs.join("\n")}</pre></div>
+          </section>
+        )}
+
+        {workspaceView === "label-check" && (
+          <section className="label-check-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">BOX LABEL CHECK</span>
+                <h2>纸盒标签文件检查</h2>
+                <p>逐个查看暂存目录里的印刷预览图，确认后将正确文件归档到 03 文件夹，并把印刷 PSD 单独移回产品根目录。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
+            </div>
+            <div className="label-check-toolbar">
+              <label className="label-check-target"><span>归档目标文件夹</span><input value={labelCheckTargetFolder} onChange={(event) => setLabelCheckTargetFolder(event.target.value)} onBlur={() => localStorage.setItem(LABEL_CHECK_TARGET_KEY, labelCheckTargetFolder.trim() || DEFAULT_LABEL_CHECK_TARGET)} /></label>
+              <button className="secondary" onClick={scanLabelCheck} disabled={labelCheckBusy}><ScanLine size={16} />{labelCheckBusy ? "处理中…" : "扫描待检查产品"}</button>
+              <button className="primary" onClick={copyLabelCheckCodes} disabled={labelCheckBusy || !labelCheckRecords.length}><Copy size={16} />复制全部已确认编码</button>
+            </div>
+            <div className="label-check-summary"><span>待检查 {labelCheckItems.length} 个</span><span>已确认 {labelCheckRecords.length} 个</span><span>每列展示 JPG/PNG 印刷预览</span><span>印刷 PSD 为副产品；纸盒 PSD 是正确文件</span></div>
+            <div className="label-check-list">
+              {!labelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>点击“扫描待检查产品”开始</strong><span>工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。</span></div>}
+              {labelCheckItems.map((item) => (
+                <article className={`label-check-card ${item.status}`} key={`${item.sku}:${item.sourcePath}`}>
+                  <header>
+                    <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>{item.sourceName}</small></div>
+                    <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "warning"}`}>{labelCheckStatusLabel(item.status)}</span>
+                  </header>
+                  <div className="label-check-images">
+                    {item.previewImages.map((file) => (
+                      <button className="label-check-image" key={file.path} onClick={() => setLabelCheckPreviewPath(file.path)} title="点击放大查看">
+                        <img src={convertFileSrc(file.path)} alt={file.name} />
+                        <span title={file.name}>{file.name}</span>
+                      </button>
+                    ))}
+                    {!item.previewImages.length && <div className="label-check-no-image"><FileImage size={22} /><span>没有 JPG/PNG 预览图</span></div>}
+                  </div>
+                  <div className="label-check-file-groups">
+                    <div><strong>正确文件 → {labelCheckTargetFolder}</strong><span>{item.uploadFiles.length ? item.uploadFiles.map((file) => file.name).join(" · ") : "没有识别到可归档文件"}</span></div>
+                    <div><strong>印刷 PSD 副产品 → 产品根目录</strong><span>{item.psdFiles.length ? item.psdFiles.map((file) => file.name).join(" · ") : "无印刷 PSD"}</span></div>
+                    {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
+                  </div>
+                  <p className="label-check-message">{item.message}</p>
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />打开暂存目录</button><button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button></div>
+                </article>
+              ))}
+            </div>
+            <section className="label-check-history">
+              <div className="label-check-history-heading"><div><strong>已确认记录</strong><span>记录会保存在本机应用数据中，重新扫描或重启后仍会保留。</span></div><button className="secondary" onClick={copyLabelCheckCodes} disabled={!labelCheckRecords.length}><Copy size={15} />复制编码</button></div>
+              <textarea readOnly value={labelCheckRecords.map((record) => record.sku).join("\n")} onFocus={(event) => event.currentTarget.select()} placeholder="扫描并确认产品后，这里会生成可全选复制的编码列表" />
+              <small>记录文件：{labelCheckHistoryPath || "扫描后显示"}</small>
+              <div className="label-check-history-list">
+                {labelCheckRecords.map((record) => <div key={`${record.sku}:${record.productPath}`}><strong>{record.sku}</strong><span>{record.productName}</span><small>{formatLabelCheckTime(record.confirmedAtMs)} · 归档 {record.movedFiles.length} 个 · 印刷 PSD {record.movedPsdFiles.length} 个</small></div>)}
+              </div>
+            </section>
+            <div className="label-check-console"><strong>检查日志</strong><pre>{labelCheckLogs.join("\n")}</pre></div>
           </section>
         )}
 

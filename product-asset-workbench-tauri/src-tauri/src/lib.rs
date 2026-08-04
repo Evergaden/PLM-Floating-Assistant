@@ -389,6 +389,63 @@ struct FileOrganizeResult {
     failed: usize,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelCheckFile {
+    name: String,
+    path: String,
+    extension: String,
+    size: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelCheckItem {
+    sku: String,
+    product_name: String,
+    product_path: String,
+    source_path: String,
+    source_name: String,
+    target_path: String,
+    preview_images: Vec<LabelCheckFile>,
+    upload_files: Vec<LabelCheckFile>,
+    psd_files: Vec<LabelCheckFile>,
+    other_files: Vec<LabelCheckFile>,
+    status: String,
+    message: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelCheckRecord {
+    sku: String,
+    product_name: String,
+    product_path: String,
+    source_path: String,
+    target_path: String,
+    confirmed_at_ms: u64,
+    moved_files: Vec<String>,
+    moved_psd_files: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelCheckScanResult {
+    root: String,
+    target_folder_name: String,
+    history_path: String,
+    pending: Vec<LabelCheckItem>,
+    confirmed: Vec<LabelCheckRecord>,
+    logs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelCheckConfirmResult {
+    record: LabelCheckRecord,
+    logs: Vec<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct VideoMatch {
@@ -1023,12 +1080,20 @@ fn photoshop_image_category(path: &Path) -> u8 {
     }
 }
 
-fn external_recycle_root() -> PathBuf {
+fn application_data_root() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
         .or_else(|| std::env::var_os("APPDATA"))
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    base.join("Product Asset Workbench").join("图包回收站")
+    base.join("Product Asset Workbench")
+}
+
+fn external_recycle_root() -> PathBuf {
+    application_data_root().join("图包回收站")
+}
+
+fn label_check_history_path() -> PathBuf {
+    application_data_root().join("纸盒标签确认记录.json")
 }
 
 fn image_recycle_path(path: &Path) -> PathBuf {
@@ -1957,6 +2022,296 @@ fn organize_files(root: String, operations: Vec<FileOrganizeOperation>) -> Resul
     Ok(result)
 }
 
+fn label_check_target_folder_name(value: &str) -> Result<String, String> {
+    let name = value.trim();
+    if name.is_empty() || name == "." || name == ".." || name.chars().any(|character| character == '\\' || character == '/') {
+        return Err("目标文件夹名称必须是单层目录名，不能包含路径分隔符".to_string());
+    }
+    Ok(name.to_string())
+}
+
+fn label_check_extension(path: &Path) -> String {
+    path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase()
+}
+
+fn label_check_file(path: &Path) -> Option<LabelCheckFile> {
+    let metadata = fs::symlink_metadata(path).ok()?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return None;
+    }
+    let name = path.file_name().and_then(|value| value.to_str())?.to_string();
+    Some(LabelCheckFile {
+        name,
+        path: path_text(path),
+        extension: label_check_extension(path),
+        size: metadata.len(),
+    })
+}
+
+fn is_label_preview_extension(extension: &str) -> bool {
+    matches!(extension, "jpg" | "jpeg" | "png")
+}
+
+fn is_label_upload_extension(extension: &str) -> bool {
+    matches!(extension, "ai" | "jpg" | "jpeg" | "png" | "psd" | "pdf" | "cdr" | "eps" | "svg" | "webp" | "tif" | "tiff")
+}
+
+fn label_staging_folder(product_folder: &Path, sku: &str, target_folder_name: &str) -> Option<PathBuf> {
+    let expected_name = folder_organizer_target(product_folder)
+        .and_then(|(_, path)| path.file_name().and_then(|value| value.to_str()).map(str::to_string));
+    let mut fallback = Vec::new();
+    let entries = fs::read_dir(product_folder).ok()?;
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else { continue };
+        if !file_type.is_dir() || file_type.is_symlink() {
+            continue;
+        }
+        let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+        if name.eq_ignore_ascii_case(target_folder_name) {
+            continue;
+        }
+        if expected_name.as_deref().is_some_and(|expected| name.eq_ignore_ascii_case(expected)) {
+            return Some(path);
+        }
+        if organizer_sku(name).as_deref() == Some(sku) {
+            fallback.push(path);
+        }
+    }
+    fallback.sort_by_key(|path| path.file_name().map(|value| value.to_string_lossy().to_lowercase()).unwrap_or_default());
+    fallback.into_iter().next()
+}
+
+fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_name: &str, sku: &str) -> Result<LabelCheckItem, String> {
+    let product_name = product_folder.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+    let source_name = source.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+    let target = product_folder.join(target_folder_name);
+    let mut preview_images = Vec::new();
+    let mut upload_files = Vec::new();
+    let mut psd_files = Vec::new();
+    let mut other_files = Vec::new();
+    let entries = fs::read_dir(source).map_err(|error| format!("无法读取纸盒标签暂存目录 {}：{error}", path_text(source)))?;
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let Some(file) = label_check_file(&path) else { continue };
+        if file.extension == "psd" && file.name.contains("印刷") {
+            psd_files.push(file);
+        } else if is_label_upload_extension(&file.extension) {
+            if is_label_preview_extension(&file.extension) {
+                preview_images.push(file.clone());
+            }
+            upload_files.push(file);
+        } else {
+            other_files.push(file);
+        }
+    }
+    let file_sort = |left: &LabelCheckFile, right: &LabelCheckFile| left.name.to_lowercase().cmp(&right.name.to_lowercase());
+    preview_images.sort_by(file_sort);
+    upload_files.sort_by(file_sort);
+    psd_files.sort_by(file_sort);
+    other_files.sort_by(file_sort);
+    let upload_conflict = upload_files.iter().any(|file| target.join(&file.name).exists());
+    let psd_conflict = psd_files.iter().any(|file| product_folder.join(&file.name).exists());
+    let status = if upload_files.is_empty() {
+        "missing-upload"
+    } else if preview_images.is_empty() {
+        "missing-preview"
+    } else if upload_conflict || psd_conflict {
+        "conflict"
+    } else {
+        "ready"
+    };
+    let message = match status {
+        "missing-upload" => "没有识别到可上传文件（AI/JPG/PNG/纸盒 PSD 等）".to_string(),
+        "missing-preview" => "缺少 JPG/PNG 预览图，暂不允许确认".to_string(),
+        "conflict" => "目标位置已有同名文件，确认前请先处理冲突".to_string(),
+        _ if !other_files.is_empty() => format!("可确认；有 {} 个未识别文件会留在暂存目录", other_files.len()),
+        _ => "等待查看预览后确认".to_string(),
+    };
+    Ok(LabelCheckItem {
+        sku: sku.to_string(),
+        product_name,
+        product_path: path_text(product_folder),
+        source_path: path_text(source),
+        source_name,
+        target_path: path_text(&target),
+        preview_images,
+        upload_files,
+        psd_files,
+        other_files,
+        status: status.to_string(),
+        message,
+    })
+}
+
+fn read_label_check_history(path: &Path) -> Result<Vec<LabelCheckRecord>, String> {
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let bytes = fs::read(path).map_err(|error| format!("无法读取纸盒标签确认记录：{error}"))?;
+    serde_json::from_slice(&bytes).map_err(|error| format!("纸盒标签确认记录格式无效：{error}"))
+}
+
+fn write_label_check_history(path: &Path, records: &[LabelCheckRecord]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("无法创建确认记录目录：{error}"))?;
+    }
+    let text = serde_json::to_string_pretty(records).map_err(|error| format!("无法生成确认记录：{error}"))?;
+    fs::write(path, text).map_err(|error| format!("无法保存纸盒标签确认记录：{error}"))
+}
+
+fn label_check_now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_millis() as u64)
+        .unwrap_or_default()
+}
+
+fn sort_label_check_records(records: &mut [LabelCheckRecord]) {
+    records.sort_by(|left, right| right.confirmed_at_ms.cmp(&left.confirmed_at_ms).then_with(|| left.sku.cmp(&right.sku)));
+}
+
+fn scan_label_check_plan(root: &Path, target_folder_name: &str, history_path: &Path) -> Result<LabelCheckScanResult, String> {
+    let target_folder_name = label_check_target_folder_name(target_folder_name)?;
+    if !root.is_dir() {
+        return Err(format!("工作目录不存在：{}", path_text(root)));
+    }
+    let mut history = read_label_check_history(history_path)?;
+    sort_label_check_records(&mut history);
+    let mut pending = Vec::new();
+    for product_folder in direct_product_directories(root) {
+        let Some(folder_name) = product_folder.file_name().and_then(|value| value.to_str()) else { continue };
+        let Some(sku) = organizer_sku(folder_name) else { continue };
+        let Some(source) = label_staging_folder(&product_folder, &sku, &target_folder_name) else { continue };
+        let item = build_label_check_item(&product_folder, &source, &target_folder_name, &sku)?;
+        let already_confirmed = history.iter().any(|record| record.product_path == path_text(&product_folder) && record.sku == sku);
+        if already_confirmed && item.upload_files.is_empty() && item.psd_files.is_empty() {
+            continue;
+        }
+        if item.upload_files.is_empty() && item.psd_files.is_empty() && item.other_files.is_empty() {
+            continue;
+        }
+        pending.push(item);
+    }
+    pending.sort_by(|left, right| left.sku.cmp(&right.sku).then_with(|| left.product_path.cmp(&right.product_path)));
+    let root_text = path_text(root);
+    history.retain(|record| Path::new(&record.product_path).starts_with(root));
+    let mut logs = vec![format!("扫描完成：待检查 {} 个，已确认 {} 个", pending.len(), history.len())];
+    logs.push(format!("确认记录保存位置：{}", path_text(history_path)));
+    Ok(LabelCheckScanResult {
+        root: root_text,
+        target_folder_name,
+        history_path: path_text(history_path),
+        pending,
+        confirmed: history,
+        logs,
+    })
+}
+
+fn rollback_label_moves(moves: &[(PathBuf, PathBuf)]) {
+    for (source, target) in moves.iter().rev() {
+        let _ = fs::rename(target, source);
+    }
+}
+
+fn confirm_label_check_at(root: &Path, target_folder_name: &str, source: &Path, sku: &str, history_path: &Path) -> Result<LabelCheckConfirmResult, String> {
+    let target_folder_name = label_check_target_folder_name(target_folder_name)?;
+    if !root.is_dir() {
+        return Err(format!("工作目录不存在：{}", path_text(root)));
+    }
+    if !source.is_dir() {
+        return Err("纸盒标签暂存目录不存在或不是文件夹".to_string());
+    }
+    let Some(product_folder) = source.parent() else { return Err("无法识别产品目录".to_string()) };
+    if product_folder.parent() != Some(root) || !product_folder.is_dir() {
+        return Err("纸盒标签暂存目录必须位于工作目录下的直接产品目录中".to_string());
+    }
+    let source_name = source.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+    let expected_sku = sku.to_uppercase();
+    if source_name.eq_ignore_ascii_case(&target_folder_name) || organizer_sku(source_name).as_deref() != Some(expected_sku.as_str()) {
+        return Err("确认请求中的产品目录与 SKU 不匹配".to_string());
+    }
+    let item = build_label_check_item(product_folder, source, &target_folder_name, &expected_sku)?;
+    if item.status != "ready" {
+        return Err(item.message);
+    }
+    let target = product_folder.join(&target_folder_name);
+    let target_was_present = target.exists();
+    if target_was_present && !target.is_dir() {
+        return Err(format!("目标路径不是文件夹：{}", path_text(&target)));
+    }
+    fs::create_dir_all(&target).map_err(|error| format!("无法创建目标文件夹 {}：{error}", path_text(&target)))?;
+    let mut moves = Vec::new();
+    let mut moved_files = Vec::new();
+    let mut moved_psd_files = Vec::new();
+    for file in &item.upload_files {
+        let source_file = PathBuf::from(&file.path);
+        let target_file = target.join(&file.name);
+        if let Err(error) = fs::rename(&source_file, &target_file) {
+            rollback_label_moves(&moves);
+            if !target_was_present { let _ = fs::remove_dir(&target); }
+            return Err(format!("移动 {} 失败：{error}", file.name));
+        }
+        moves.push((source_file, target_file));
+        moved_files.push(file.name.clone());
+    }
+    for file in &item.psd_files {
+        let source_file = PathBuf::from(&file.path);
+        let target_file = product_folder.join(&file.name);
+        if let Err(error) = fs::rename(&source_file, &target_file) {
+            rollback_label_moves(&moves);
+            if !target_was_present { let _ = fs::remove_dir(&target); }
+            return Err(format!("移动 PSD 副产品 {} 失败：{error}", file.name));
+        }
+        moves.push((source_file, target_file));
+        moved_psd_files.push(file.name.clone());
+    }
+    let record = LabelCheckRecord {
+        sku: expected_sku,
+        product_name: item.product_name,
+        product_path: item.product_path,
+        source_path: item.source_path,
+        target_path: item.target_path,
+        confirmed_at_ms: label_check_now_ms(),
+        moved_files,
+        moved_psd_files,
+    };
+    let mut history = match read_label_check_history(history_path) {
+        Ok(history) => history,
+        Err(error) => {
+            rollback_label_moves(&moves);
+            if !target_was_present { let _ = fs::remove_dir(&target); }
+            return Err(error);
+        }
+    };
+    history.retain(|old| !(old.product_path == record.product_path && old.sku == record.sku));
+    history.push(record.clone());
+    sort_label_check_records(&mut history);
+    if let Err(error) = write_label_check_history(history_path, &history) {
+        rollback_label_moves(&moves);
+        if !target_was_present { let _ = fs::remove_dir(&target); }
+        return Err(error);
+    }
+    let mut logs = vec![format!("已确认 {}：{} 个文件已移入 {}", record.sku, record.moved_files.len(), path_text(&target))];
+    if !record.moved_psd_files.is_empty() {
+        logs.push(format!("{} 个 PSD 副产品已移回产品根目录", record.moved_psd_files.len()));
+    }
+    if !item.other_files.is_empty() {
+        logs.push(format!("有 {} 个未识别文件留在暂存目录", item.other_files.len()));
+    }
+    Ok(LabelCheckConfirmResult { record, logs })
+}
+
+#[tauri::command]
+fn scan_label_check(root: String, target_folder_name: String) -> Result<LabelCheckScanResult, String> {
+    scan_label_check_plan(&PathBuf::from(root), &target_folder_name, &label_check_history_path())
+}
+
+#[tauri::command]
+fn confirm_label_check(root: String, target_folder_name: String, source_path: String, sku: String) -> Result<LabelCheckConfirmResult, String> {
+    confirm_label_check_at(&PathBuf::from(root), &target_folder_name, &PathBuf::from(source_path), &sku, &label_check_history_path())
+}
+
 fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
     let mut items = fs::read_dir(root)
         .ok()
@@ -2254,6 +2609,46 @@ mod tests {
     }
 
     #[test]
+    fn scans_and_confirms_label_check_files_with_print_psd_as_byproduct() {
+        let root = std::env::temp_dir().join(format!("plm-label-check-test-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 强健清新牙膏 SKU00047381");
+        let staging = product.join("AMZ 强健清新牙膏-SKU00047381");
+        let print_psd = "印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.psd";
+        let box_psd = "纸盒（4x4x18.2cm）MTL00065155 AMZ强健清新牙膏.psd";
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("印刷MTL00064836.jpg"), b"preview").unwrap();
+        fs::write(staging.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai"), b"ai").unwrap();
+        fs::write(staging.join(print_psd), b"print-psd").unwrap();
+        fs::write(staging.join(box_psd), b"box-psd").unwrap();
+        fs::write(staging.join("待确认说明.txt"), b"keep").unwrap();
+
+        let history = root.join("state").join("label-check.json");
+        let scan = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
+        assert_eq!(scan.pending.len(), 1);
+        let item = &scan.pending[0];
+        assert_eq!(item.preview_images.len(), 1);
+        assert_eq!(item.upload_files.len(), 3);
+        assert_eq!(item.psd_files.len(), 1);
+        assert_eq!(item.other_files.len(), 1);
+        assert_eq!(item.status, "ready");
+
+        let confirmed = confirm_label_check_at(&root, "03 纸盒标签文件夹", &staging, "SKU00047381", &history).unwrap();
+        assert_eq!(confirmed.record.sku, "SKU00047381");
+        let target = product.join("03 纸盒标签文件夹");
+        assert!(target.join("印刷MTL00064836.jpg").is_file());
+        assert!(target.join("印刷（11.5x15.4cm）MTL00064836 AMZ强健清新牙膏.ai").is_file());
+        assert!(target.join(box_psd).is_file());
+        assert!(product.join(print_psd).is_file());
+        assert!(staging.join("待确认说明.txt").is_file());
+
+        let rescanned = scan_label_check_plan(&root, "03 纸盒标签文件夹", &history).unwrap();
+        assert!(rescanned.pending.is_empty());
+        assert_eq!(rescanned.confirmed.len(), 1);
+        assert!(history.is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn matches_video_by_sku_before_product_name() {
         let directories = vec![PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045826"), PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045827")];
         let (matches, source) = video_product_candidates("检测视频_惊喜_SKU00045827.mp4", &directories);
@@ -2293,6 +2688,8 @@ pub fn run() {
             queue_upload_pairs,
             scan_file_organizer,
             organize_files,
+            scan_label_check,
+            confirm_label_check,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PLM product asset workbench");
