@@ -25,6 +25,8 @@ const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
 const MAX_UPLOAD_ZIP_BYTES: usize = 100 * 1024 * 1024;
 const UPLOAD_CHUNK_BYTES: usize = 512 * 1024;
+const CLOUD_PRODUCT_ROOT_FOLDER: &str = "00 产品开发文件夹";
+const CLOUD_PRODUCT_DATA_FOLDER: &str = "00 新版产品资料";
 const DEFAULT_VIDEO_SOURCE: &str = r"E:\WXWork\1688857110932701\Cache\Video\7月";
 const PS_BATCH_SCRIPT: &str = r#"#target photoshop
 var inputPaths = __INPUT_PATHS__;
@@ -404,6 +406,7 @@ struct LabelCheckFile {
 #[serde(rename_all = "camelCase")]
 struct LabelCheckItem {
     sku: String,
+    brand: String,
     product_name: String,
     product_path: String,
     source_path: String,
@@ -469,6 +472,7 @@ struct CloudHarImportResult {
 #[serde(rename_all = "camelCase")]
 struct CloudUploadSelection {
     sku: String,
+    brand: String,
     product_name: String,
     product_path: String,
     source_path: String,
@@ -479,12 +483,19 @@ struct CloudUploadSelection {
 #[serde(rename_all = "camelCase")]
 struct CloudLabelPlan {
     sku: String,
+    brand: String,
     product_name: String,
     product_path: String,
     source_path: String,
+    brand_folder_id: String,
+    brand_folder_name: String,
+    product_folder_name: String,
     target_folder_name: String,
     product_folder_id: String,
     target_folder_id: String,
+    cloud_path: String,
+    create_product_folder: bool,
+    create_target_folder: bool,
     files: Vec<LabelCheckFile>,
     conflicts: Vec<String>,
     status: String,
@@ -1952,6 +1963,17 @@ fn organizer_sku(value: &str) -> Option<String> {
         .map(|matched| matched.as_str().to_uppercase())
 }
 
+fn product_brand_from_name(value: &str) -> String {
+    let prefix = Regex::new(r"(?i)SKU\d+")
+        .ok()
+        .and_then(|pattern| pattern.find(value).map(|matched| &value[..matched.start()]))
+        .unwrap_or(value)
+        .trim()
+        .trim_matches(|character: char| matches!(character, '_' | '-' | '—' | '–'))
+        .trim();
+    prefix.split_whitespace().next().unwrap_or_default().to_string()
+}
+
 fn folder_organizer_target(path: &Path) -> Option<(String, PathBuf)> {
     let source_name = path.file_name().and_then(|value| value.to_str())?;
     let pattern = Regex::new(r"(?i)SKU\d+").ok()?;
@@ -2201,6 +2223,7 @@ fn build_label_check_item(product_folder: &Path, source: &Path, target_folder_na
     };
     Ok(LabelCheckItem {
         sku: sku.to_string(),
+        brand: product_brand_from_name(&product_name),
         product_name,
         product_path: path_text(product_folder),
         source_path: path_text(source),
@@ -2549,28 +2572,62 @@ async fn cloud_list_dir(profile: &CloudProfile, parent_id: &str) -> Result<Vec<V
     Ok(response.get("data").and_then(Value::as_array).cloned().unwrap_or_default())
 }
 
-async fn cloud_search_product(profile: &CloudProfile, sku: &str, product_name: &str) -> Result<Vec<Value>, String> {
-    let mut results = Vec::new();
-    for word in [sku.to_string(), format!("\t {sku}")] {
-        let response = cloud_post_form(profile, "/app/file/fullsearch", vec![
-            ("token", profile.token.clone()),
-            ("word", word),
-            ("fileId", "0".to_string()),
-            ("fileExtend", String::new()),
-            ("searchType", "0".to_string()),
-            ("timeType", "0".to_string()),
-        ]).await?;
-        results = response.get("files").and_then(Value::as_array).cloned().unwrap_or_default();
-        if !results.is_empty() { break; }
+fn cloud_exact_folders(entries: &[Value], name: &str) -> Vec<Value> {
+    entries
+        .iter()
+        .filter(|item| cloud_is_folder(item) && normalize_cloud_name(&cloud_file_name(item)) == normalize_cloud_name(name))
+        .cloned()
+        .collect()
+}
+
+fn cloud_brand_matches(folder_name: &str, brand: &str) -> bool {
+    let prefix = folder_name.split_once("--").map(|(value, _)| value).unwrap_or(folder_name);
+    normalize_cloud_name(prefix) == normalize_cloud_name(brand)
+}
+
+fn cloud_selection_brand(selection: &CloudUploadSelection) -> String {
+    let explicit = selection.brand.trim();
+    if explicit.is_empty() {
+        product_brand_from_name(&selection.product_name)
+    } else {
+        explicit.to_string()
     }
-    let product_key = normalize_cloud_name(product_name);
-    let sku_key = sku.to_uppercase();
-    let mut candidates = results.into_iter().filter(|item| cloud_is_folder(item) && cloud_file_name(item).to_uppercase().contains(&sku_key)).collect::<Vec<_>>();
-    if candidates.len() > 1 {
-        let matching_name = candidates.iter().filter(|item| normalize_cloud_name(&cloud_file_name(item)).contains(&product_key) || product_key.contains(&normalize_cloud_name(&cloud_file_name(item)))).cloned().collect::<Vec<_>>();
-        if !matching_name.is_empty() { candidates = matching_name; }
+}
+
+fn cloud_product_folder_name(selection: &CloudUploadSelection) -> String {
+    folder_organizer_target(Path::new(&selection.product_path))
+        .and_then(|(_, target)| target.file_name().and_then(|value| value.to_str()).map(str::to_string))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| selection.product_name.trim().to_string())
+}
+
+fn cloud_label_plan_base(selection: &CloudUploadSelection, target_folder_name: &str, files: Vec<LabelCheckFile>) -> CloudLabelPlan {
+    CloudLabelPlan {
+        sku: selection.sku.clone(),
+        brand: cloud_selection_brand(selection),
+        product_name: selection.product_name.clone(),
+        product_path: selection.product_path.clone(),
+        source_path: selection.source_path.clone(),
+        brand_folder_id: String::new(),
+        brand_folder_name: String::new(),
+        product_folder_name: cloud_product_folder_name(selection),
+        target_folder_name: target_folder_name.to_string(),
+        product_folder_id: String::new(),
+        target_folder_id: String::new(),
+        cloud_path: String::new(),
+        create_product_folder: false,
+        create_target_folder: false,
+        files,
+        conflicts: Vec::new(),
+        status: "error".to_string(),
+        message: String::new(),
     }
-    Ok(candidates)
+}
+
+fn cloud_plan_error(selection: &CloudUploadSelection, target_folder_name: &str, message: String) -> CloudLabelPlan {
+    let mut plan = cloud_label_plan_base(selection, target_folder_name, selection.files.clone());
+    plan.message = message;
+    plan
 }
 
 fn validate_cloud_file(selection: &CloudUploadSelection, file: &LabelCheckFile) -> Result<PathBuf, String> {
@@ -2605,26 +2662,117 @@ async fn resolve_cloud_label_plan(profile: &CloudProfile, selection: &CloudUploa
         item.size = metadata.len();
         files.push(item);
     }
-    let candidates = cloud_search_product(profile, &selection.sku, &selection.product_name).await?;
-    if candidates.is_empty() {
-        return Ok(CloudLabelPlan { sku: selection.sku.clone(), product_name: selection.product_name.clone(), product_path: selection.product_path.clone(), source_path: selection.source_path.clone(), target_folder_name: target_folder_name.to_string(), product_folder_id: String::new(), target_folder_id: String::new(), files, conflicts: Vec::new(), status: "missing-product".to_string(), message: "云盘中没有找到同 SKU 产品目录；未创建目录".to_string() });
+    let mut plan = cloud_label_plan_base(selection, target_folder_name, files);
+    if plan.brand.is_empty() {
+        plan.message = "无法从产品目录名识别品牌；未选择云盘公司目录".to_string();
+        return Ok(plan);
     }
-    if candidates.len() > 1 {
-        return Ok(CloudLabelPlan { sku: selection.sku.clone(), product_name: selection.product_name.clone(), product_path: selection.product_path.clone(), source_path: selection.source_path.clone(), target_folder_name: target_folder_name.to_string(), product_folder_id: String::new(), target_folder_id: String::new(), files, conflicts: Vec::new(), status: "ambiguous-product".to_string(), message: format!("云盘中找到 {} 个同 SKU 产品目录，未选择目标", candidates.len()) });
+
+    let root_entries = cloud_list_dir(profile, "0").await?;
+    let root_matches = cloud_exact_folders(&root_entries, CLOUD_PRODUCT_ROOT_FOLDER);
+    if root_matches.is_empty() {
+        plan.status = "missing-root".to_string();
+        plan.message = format!("云盘根目录中没有“{}”；未创建任何目录", CLOUD_PRODUCT_ROOT_FOLDER);
+        return Ok(plan);
     }
-    let product_folder_id = cloud_id(&candidates[0]);
-    let product_children = cloud_list_dir(profile, &product_folder_id).await?;
-    let target = product_children.iter().find(|item| cloud_is_folder(item) && cloud_file_name(item).eq_ignore_ascii_case(target_folder_name));
-    let Some(target) = target else {
-        return Ok(CloudLabelPlan { sku: selection.sku.clone(), product_name: selection.product_name.clone(), product_path: selection.product_path.clone(), source_path: selection.source_path.clone(), target_folder_name: target_folder_name.to_string(), product_folder_id, target_folder_id: String::new(), files, conflicts: Vec::new(), status: "missing-target".to_string(), message: format!("云盘产品目录中没有“{}”，未自动创建", target_folder_name) });
+    if root_matches.len() > 1 {
+        plan.status = "ambiguous-root".to_string();
+        plan.message = format!("云盘根目录中有 {} 个“{}”；未选择目标", root_matches.len(), CLOUD_PRODUCT_ROOT_FOLDER);
+        return Ok(plan);
+    }
+    let root_id = cloud_id(&root_matches[0]);
+    let data_entries = cloud_list_dir(profile, &root_id).await?;
+    let data_matches = cloud_exact_folders(&data_entries, CLOUD_PRODUCT_DATA_FOLDER);
+    if data_matches.is_empty() {
+        plan.status = "missing-data-root".to_string();
+        plan.message = format!("“{}”下没有“{}”；未创建任何目录", CLOUD_PRODUCT_ROOT_FOLDER, CLOUD_PRODUCT_DATA_FOLDER);
+        return Ok(plan);
+    }
+    if data_matches.len() > 1 {
+        plan.status = "ambiguous-data-root".to_string();
+        plan.message = format!("“{}”下有 {} 个“{}”；未选择目标", CLOUD_PRODUCT_ROOT_FOLDER, data_matches.len(), CLOUD_PRODUCT_DATA_FOLDER);
+        return Ok(plan);
+    }
+    let data_id = cloud_id(&data_matches[0]);
+    let company_entries = cloud_list_dir(profile, &data_id).await?;
+    let brand_matches = company_entries
+        .iter()
+        .filter(|item| cloud_is_folder(item) && cloud_brand_matches(&cloud_file_name(item), &plan.brand))
+        .cloned()
+        .collect::<Vec<_>>();
+    if brand_matches.is_empty() {
+        plan.status = "missing-brand".to_string();
+        plan.message = format!("“{} / {}”下没有品牌 {} 对应的公司目录；未自动创建公司目录", CLOUD_PRODUCT_ROOT_FOLDER, CLOUD_PRODUCT_DATA_FOLDER, plan.brand);
+        return Ok(plan);
+    }
+    if brand_matches.len() > 1 {
+        plan.status = "ambiguous-brand".to_string();
+        plan.message = format!("品牌 {} 对应 {} 个公司目录；未选择目标", plan.brand, brand_matches.len());
+        return Ok(plan);
+    }
+    let brand_folder = &brand_matches[0];
+    plan.brand_folder_id = cloud_id(brand_folder);
+    plan.brand_folder_name = cloud_file_name(brand_folder);
+    plan.cloud_path = format!("{} / {} / {} / {} / {}", CLOUD_PRODUCT_ROOT_FOLDER, CLOUD_PRODUCT_DATA_FOLDER, plan.brand_folder_name, plan.product_folder_name, plan.target_folder_name);
+
+    let brand_children = cloud_list_dir(profile, &plan.brand_folder_id).await?;
+    let expected_product_key = normalize_cloud_name(&plan.product_folder_name);
+    let sku_key = plan.sku.to_uppercase();
+    let product_matches = brand_children
+        .iter()
+        .filter(|item| cloud_is_folder(item) && normalize_cloud_name(&cloud_file_name(item)) == expected_product_key)
+        .cloned()
+        .collect::<Vec<_>>();
+    let sku_matches = brand_children
+        .iter()
+        .filter(|item| cloud_is_folder(item) && cloud_file_name(item).to_uppercase().contains(&sku_key))
+        .cloned()
+        .collect::<Vec<_>>();
+    if product_matches.len() > 1 || (product_matches.is_empty() && sku_matches.len() > 1) {
+        plan.status = "ambiguous-product".to_string();
+        plan.message = format!("品牌公司目录中找到多个同 SKU 产品目录；未创建或上传");
+        return Ok(plan);
+    }
+    if product_matches.is_empty() && sku_matches.is_empty() {
+        plan.create_product_folder = true;
+        plan.create_target_folder = true;
+        plan.status = "ready-create".to_string();
+        plan.message = format!("将授权后创建产品目录“{}”和分类目录“{}”，然后上传 {} 个文件", plan.product_folder_name, plan.target_folder_name, plan.files.len());
+        return Ok(plan);
+    }
+    if product_matches.is_empty() {
+        plan.status = "product-name-conflict".to_string();
+        plan.message = format!("云盘中已有同 SKU 但名称不同的产品目录“{}”；未自动创建新目录", cloud_file_name(&sku_matches[0]));
+        return Ok(plan);
+    }
+
+    let product_folder = &product_matches[0];
+    plan.product_folder_id = cloud_id(product_folder);
+    let product_children = cloud_list_dir(profile, &plan.product_folder_id).await?;
+    let target_matches = cloud_exact_folders(&product_children, target_folder_name);
+    if target_matches.len() > 1 {
+        plan.status = "ambiguous-target".to_string();
+        plan.message = format!("产品目录中有多个“{}”分类目录；未选择目标", target_folder_name);
+        return Ok(plan);
+    }
+    if target_matches.is_empty() {
+        plan.create_target_folder = true;
+        plan.status = "ready-create".to_string();
+        plan.message = format!("产品目录已定位；将授权后创建分类目录“{}”，然后上传 {} 个文件", target_folder_name, plan.files.len());
+        return Ok(plan);
+    }
+
+    plan.target_folder_id = cloud_id(&target_matches[0]);
+    let existing = cloud_list_dir(profile, &plan.target_folder_id).await?;
+    let existing_names = existing.iter().map(|item| normalize_cloud_name(&cloud_file_name(item))).collect::<HashSet<_>>();
+    plan.conflicts = plan.files.iter().filter(|file| existing_names.contains(&normalize_cloud_name(&file.name))).map(|file| file.name.clone()).collect::<Vec<_>>();
+    plan.status = if plan.conflicts.is_empty() { "ready".to_string() } else { "conflict".to_string() };
+    plan.message = if plan.conflicts.is_empty() {
+        format!("已定位到 {}；不会创建、删除或覆盖已有文件", plan.cloud_path)
+    } else {
+        format!("云盘目标已有同名文件：{}；未上传", plan.conflicts.join("、"))
     };
-    let target_folder_id = cloud_id(target);
-    let existing = cloud_list_dir(profile, &target_folder_id).await?;
-    let existing_names = existing.iter().map(cloud_file_name).collect::<HashSet<_>>();
-    let conflicts = files.iter().filter(|file| existing_names.contains(&file.name)).map(|file| file.name.clone()).collect::<Vec<_>>();
-    let status = if conflicts.is_empty() { "ready" } else { "conflict" };
-    let message = if conflicts.is_empty() { format!("已定位到云盘产品目录/{}，不会创建或覆盖文件", target_folder_name) } else { format!("云盘目标已有同名文件：{}；未上传", conflicts.join("、")) };
-    Ok(CloudLabelPlan { sku: selection.sku.clone(), product_name: selection.product_name.clone(), product_path: selection.product_path.clone(), source_path: selection.source_path.clone(), target_folder_name: target_folder_name.to_string(), product_folder_id, target_folder_id, files, conflicts, status: status.to_string(), message })
+    Ok(plan)
 }
 
 #[tauri::command]
@@ -2644,11 +2792,32 @@ async fn prepare_cloud_label_upload(state: State<'_, BridgeState>, items: Vec<Cl
             }
             Err(error) => {
                 logs.push(format!("{}：预检失败：{}", item.sku, error));
-                plans.push(CloudLabelPlan { sku: item.sku, product_name: item.product_name, product_path: item.product_path, source_path: item.source_path, target_folder_name: target_folder_name.clone(), product_folder_id: String::new(), target_folder_id: String::new(), files: item.files, conflicts: Vec::new(), status: "error".to_string(), message: error });
+                plans.push(cloud_plan_error(&item, &target_folder_name, error));
             }
         }
     }
     Ok(CloudLabelPlanResult { base_url: profile.base_url, target_folder_name, plans, logs })
+}
+
+async fn cloud_create_folder(profile: &CloudProfile, parent_id: &str, name: &str) -> Result<String, String> {
+    let response = cloud_post_form(profile, "/app/file/add-folder", vec![
+        ("token", profile.token.clone()),
+        ("parentId", parent_id.to_string()),
+        ("name", name.to_string()),
+    ]).await?;
+    if cloud_value_text(&response, "code") != "0" {
+        return Err(format!("云盘拒绝创建文件夹“{}”", name));
+    }
+    let direct_folder_id = cloud_value_text(&response, "fileId");
+    let folder_id = if direct_folder_id.is_empty() {
+        response.pointer("/folderInfos/0/fileId").map(|value| value.as_i64().map(|number| number.to_string()).unwrap_or_default()).unwrap_or_default()
+    } else {
+        direct_folder_id
+    };
+    if folder_id.is_empty() {
+        return Err(format!("云盘创建文件夹“{}”后没有返回文件夹 ID", name));
+    }
+    Ok(folder_id)
 }
 
 async fn cloud_upload_file(profile: &CloudProfile, target_folder_id: &str, file: &LabelCheckFile) -> Result<String, String> {
@@ -2682,23 +2851,50 @@ async fn cloud_upload_file(profile: &CloudProfile, target_folder_id: &str, file:
 
 #[tauri::command]
 async fn upload_cloud_label_files(state: State<'_, BridgeState>, items: Vec<CloudUploadSelection>, target_folder_name: String, approval_phrase: String) -> Result<CloudLabelUploadResult, String> {
-    if approval_phrase != "允许上传" {
-        return Err("未获得明确的“允许上传”授权，未发送任何云盘写入请求".to_string());
+    if approval_phrase != "允许创建目录并上传" {
+        return Err("未获得明确的“允许创建目录并上传”授权，未发送任何云盘写入请求".to_string());
     }
     let profile = cloud_profile_from_state(&state)?;
     let target_folder_name = target_folder_name.trim().to_string();
     let mut plans = Vec::new();
     for item in &items {
         let plan = resolve_cloud_label_plan(&profile, item, &target_folder_name).await.map_err(|error| format!("{} 预检失败：{}", item.sku, error))?;
-        if plan.status != "ready" {
-            return Err(format!("{} 未通过上传前只读预检：{}；未发送任何上传请求", plan.sku, plan.message));
+        if !matches!(plan.status.as_str(), "ready" | "ready-create") {
+            return Err(format!("{} 未通过上传前只读预检：{}；未发送任何云盘写入请求", plan.sku, plan.message));
         }
         plans.push(plan);
     }
     let mut uploaded_files = Vec::new();
     let mut failed_files = Vec::new();
-    let mut logs = vec![format!("已获得明确授权，开始上传 {} 个产品；不会创建、删除或覆盖云盘文件", plans.len())];
-    for plan in &plans {
+    let mut logs = vec![format!("已获得明确授权，开始处理 {} 个产品；不会删除或覆盖云盘文件", plans.len())];
+    for plan in &mut plans {
+        if plan.create_product_folder {
+            match cloud_create_folder(&profile, &plan.brand_folder_id, &plan.product_folder_name).await {
+                Ok(folder_id) => {
+                    plan.product_folder_id = folder_id;
+                    logs.push(format!("已创建产品目录：{} / {}", plan.brand_folder_name, plan.product_folder_name));
+                }
+                Err(error) => {
+                    failed_files.push(format!("{}：创建产品目录失败", plan.sku));
+                    logs.push(error);
+                    return Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs });
+                }
+            }
+        }
+        if plan.create_target_folder {
+            match cloud_create_folder(&profile, &plan.product_folder_id, &plan.target_folder_name).await {
+                Ok(folder_id) => {
+                    plan.target_folder_id = folder_id;
+                    logs.push(format!("已创建分类目录：{}", plan.target_folder_name));
+                }
+                Err(error) => {
+                    failed_files.push(format!("{}：创建分类目录失败", plan.sku));
+                    logs.push(error);
+                    return Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs });
+                }
+            }
+        }
+        plan.status = "ready".to_string();
         for file in &plan.files {
             match cloud_upload_file(&profile, &plan.target_folder_id, file).await {
                 Ok(file_id) => {
@@ -2713,7 +2909,7 @@ async fn upload_cloud_label_files(state: State<'_, BridgeState>, items: Vec<Clou
             }
         }
     }
-    logs.push(format!("上传完成：成功 {} 个文件", uploaded_files.len()));
+    logs.push(format!("处理完成：成功上传 {} 个文件；创建目录不会自动回滚", uploaded_files.len()));
     Ok(CloudLabelUploadResult { plans, uploaded_files, failed_files, logs })
 }
 
@@ -3011,6 +3207,23 @@ mod tests {
         let renamed = root.join("AMZ 亮白牙膏-SKU00047688");
         assert!(renamed.join("SKU00047688.jpg").is_file());
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn identifies_brand_and_canonical_cloud_product_folder_name() {
+        assert_eq!(product_brand_from_name("GleamXi 控油蓬松洗发皂液 SKU00042567"), "GleamXi");
+        assert_eq!(product_brand_from_name("GleamXi 控油蓬松洗发皂液-SKU00042567"), "GleamXi");
+        assert!(cloud_brand_matches("GleamXi--香港格嵐昕供應鏈有限公司", "GleamXi"));
+        assert!(!cloud_brand_matches("AMZ--海口维木康跨境电商有限公司", "GleamXi"));
+        let selection = CloudUploadSelection {
+            sku: "SKU00042567".into(),
+            brand: "GleamXi".into(),
+            product_name: "GleamXi 控油蓬松洗发皂液 SKU00042567".into(),
+            product_path: r"D:\工作\7月\GleamXi 控油蓬松洗发皂液 SKU00042567".into(),
+            source_path: String::new(),
+            files: Vec::new(),
+        };
+        assert_eq!(cloud_product_folder_name(&selection), "GleamXi 控油蓬松洗发皂液-SKU00042567");
     }
 
     #[test]

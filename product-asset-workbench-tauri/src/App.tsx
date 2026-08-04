@@ -98,6 +98,7 @@ interface LabelCheckFile {
 
 interface LabelCheckItem {
   sku: string;
+  brand: string;
   productName: string;
   productPath: string;
   sourcePath: string;
@@ -147,12 +148,19 @@ interface CloudHarImportResult {
 
 interface CloudLabelPlan {
   sku: string;
+  brand: string;
   productName: string;
   productPath: string;
   sourcePath: string;
+  brandFolderId: string;
+  brandFolderName: string;
+  productFolderName: string;
   targetFolderName: string;
   productFolderId: string;
   targetFolderId: string;
+  cloudPath: string;
+  createProductFolder: boolean;
+  createTargetFolder: boolean;
   files: LabelCheckFile[];
   conflicts: string[];
   status: "ready" | "missing-product" | "ambiguous-product" | "missing-target" | "conflict" | "error" | string;
@@ -250,9 +258,16 @@ function formatLabelCheckTime(value: number) {
 
 function cloudPlanStatusLabel(status: string) {
   if (status === "ready") return "只读预检通过";
-  if (status === "missing-product") return "云盘缺少产品目录";
+  if (status === "ready-create") return "授权后创建目录并上传";
+  if (status === "missing-root") return "缺少产品开发根目录";
+  if (status === "missing-data-root") return "缺少新版产品资料目录";
+  if (status === "missing-brand") return "未找到品牌公司目录";
+  if (status === "ambiguous-root" || status === "ambiguous-data-root") return "云盘层级不唯一";
+  if (status === "ambiguous-brand") return "品牌公司目录不唯一";
   if (status === "ambiguous-product") return "同 SKU 目录不唯一";
-  if (status === "missing-target") return "缺少分类文件夹";
+  if (status === "product-name-conflict") return "同 SKU 名称不一致";
+  if (status === "ambiguous-target") return "分类文件夹不唯一";
+  if (status === "missing-product" || status === "missing-target") return "云盘缺少目录";
   if (status === "conflict") return "已有同名文件";
   if (status === "error") return "预检失败";
   return status;
@@ -1107,6 +1122,7 @@ export default function App() {
       .filter((item) => item.status === "ready" && selectedLabelCheckSkus.has(item.sku))
       .map((item) => ({
         sku: item.sku,
+        brand: item.brand,
         productName: item.productName,
         productPath: item.productPath,
         sourcePath: item.sourcePath,
@@ -1126,8 +1142,8 @@ export default function App() {
       const result = await invoke<CloudLabelPlanResult>("prepare_cloud_label_upload", { items, targetFolderName });
       setCloudPlans(result.plans);
       setCloudLogs(result.logs);
-      const ready = result.plans.filter((plan) => plan.status === "ready").length;
-      notify(`云盘只读预检完成：${ready}/${result.plans.length} 个产品可上传`);
+      const ready = result.plans.filter((plan) => plan.status === "ready" || plan.status === "ready-create").length;
+      notify(`云盘只读预检完成：${ready}/${result.plans.length} 个产品可上传或创建后上传`);
       return result;
     } catch (error) {
       setCloudLogs((current) => [...current, `云盘预检失败：${String(error)}`]);
@@ -1149,18 +1165,23 @@ export default function App() {
       const preflight = await invoke<CloudLabelPlanResult>("prepare_cloud_label_upload", { items, targetFolderName });
       setCloudPlans(preflight.plans);
       setCloudLogs(preflight.logs);
-      const blocked = preflight.plans.filter((plan) => plan.status !== "ready");
+      const blocked = preflight.plans.filter((plan) => plan.status !== "ready" && plan.status !== "ready-create");
       if (blocked.length) {
         notify(`有 ${blocked.length} 个产品未通过只读预检，未上传任何文件`);
         return;
       }
       const fileCount = preflight.plans.reduce((total, plan) => total + plan.files.length, 0);
-      const summary = preflight.plans.map((plan) => `${plan.sku} → ${plan.targetFolderName}（${plan.files.length} 个文件）`).join("\n");
-      if (!window.confirm(`即将上传 ${fileCount} 个文件到优米云盘。\n\n${summary}\n\n本次只会上传，不会创建、删除或覆盖云盘文件。确认授权上传吗？`)) return;
+      const summary = preflight.plans.map((plan) => `${plan.sku}（${plan.brand}）→ ${plan.cloudPath || `${plan.brandFolderName} / ${plan.productFolderName} / ${plan.targetFolderName}`}（${plan.files.length} 个文件）`).join("\n");
+      const creates = preflight.plans.flatMap((plan) => [
+        plan.createProductFolder ? `${plan.brandFolderName} / ${plan.productFolderName}` : "",
+        plan.createTargetFolder ? `${plan.productFolderName} / ${plan.targetFolderName}` : "",
+      ].filter(Boolean));
+      const createText = creates.length ? `\n\n授权后将新建以下缺失目录：\n${creates.join("\n")}` : "";
+      if (!window.confirm(`即将处理 ${fileCount} 个文件到优米云盘。\n\n${summary}${createText}\n\n本次不会删除或覆盖云盘文件；只有你确认后才会新建缺失目录并上传。确认授权吗？`)) return;
       const result = await invoke<CloudLabelUploadResult>("upload_cloud_label_files", {
         items,
         targetFolderName,
-        approvalPhrase: "允许上传",
+        approvalPhrase: "允许创建目录并上传",
       });
       setCloudPlans(result.plans);
       setCloudLogs(result.logs);
@@ -1507,9 +1528,9 @@ export default function App() {
                 <button className="secondary" onClick={() => prepareCloudUpload()} disabled={cloudBusy || !selectedLabelCheckSkus.size}><ScanLine size={15} />只读预检</button>
                 <button className="primary" onClick={uploadSelectedToCloud} disabled={cloudBusy || !selectedLabelCheckSkus.size || !cloudHarInfo}><Upload size={15} />授权并上传</button>
               </div>
-              <p className="cloud-upload-safety">勾选只加入清单；只读预检只搜索产品目录和检查同名文件。只有点击“授权并上传”并确认后，才会发送上传请求；不会自动创建、删除或覆盖云盘文件。云盘上传成功后，本地文件仍保留，需再点击卡片的“确认并移动”完成本地归档。</p>
+              <p className="cloud-upload-safety">勾选只加入清单；只读预检会沿着“00 产品开发文件夹 / 00 新版产品资料 / 品牌公司目录”定位目标。只有点击“授权并上传”并确认后，才会新建缺失的产品/分类目录并上传；不会删除或覆盖云盘文件。云盘上传成功后，本地文件仍保留，需再点击卡片的“确认并移动”完成本地归档。</p>
               {cloudPlans.length > 0 && <div className="cloud-plan-list">
-                {cloudPlans.map((plan) => <div className={`cloud-plan-row ${plan.status}`} key={plan.sku}><strong>{plan.sku}</strong><span>{cloudPlanStatusLabel(plan.status)}</span><small>{plan.message}{plan.conflicts.length ? ` · 冲突：${plan.conflicts.join("、")}` : ` · ${plan.files.length} 个文件`}</small></div>)}
+                {cloudPlans.map((plan) => <div className={`cloud-plan-row ${plan.status}`} key={plan.sku}><strong>{plan.sku}</strong><span>{cloudPlanStatusLabel(plan.status)}</span><small>{plan.brand ? `品牌 ${plan.brand} · ` : ""}{plan.message}{plan.conflicts.length ? ` · 冲突：${plan.conflicts.join("、")}` : ` · ${plan.files.length} 个文件`}</small>{plan.cloudPath && <small className="cloud-plan-path">目标：{plan.cloudPath}</small>}</div>)}
               </div>}
               <pre className="cloud-upload-console">{cloudLogs.join("\n")}</pre>
             </div>
@@ -1519,7 +1540,7 @@ export default function App() {
                 <article className={`label-check-card ${item.status}`} key={`${item.sku}:${item.sourcePath}`}>
                   <header>
                     <label className="label-check-select" title="勾选后加入优米云盘上传清单"><input type="checkbox" checked={selectedLabelCheckSkus.has(item.sku)} disabled={labelCheckBusy || cloudBusy || item.status !== "ready"} onChange={() => toggleLabelCheckSelection(item.sku)} /><span /></label>
-                    <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>{item.sourceName}</small></div>
+                    <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>品牌：{item.brand || "未识别"} · {item.sourceName}</small></div>
                     <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "warning"}`}>{labelCheckStatusLabel(item.status)}</span>
                   </header>
                   <div className="label-check-images">

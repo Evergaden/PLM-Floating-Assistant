@@ -298,6 +298,7 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .cloud-plan-row strong { color: var(--purple); font: 10px Consolas, monospace; }
 .cloud-plan-row > span { color: #8a95a6; font-size: 9px; }
 .cloud-plan-row > small { min-width: 0; overflow: hidden; color: #7c8799; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-plan-row > small.cloud-plan-path { grid-column: 3; color: #5f51bf; }
 .cloud-plan-row.ready { border-color: #d7f0e3; background: #fbfffd; }
 .cloud-plan-row.ready > span { color: #299b68; }
 .cloud-plan-row.conflict, .cloud-plan-row.missing-target { background: #fffaf4; }

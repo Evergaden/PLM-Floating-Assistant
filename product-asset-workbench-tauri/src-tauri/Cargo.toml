@@ -1,6 +1,6 @@
 [package]
 name = "plm-product-asset-workbench"
-version = "0.1.2"
+version = "0.1.3"
 description = "PLM finalized product asset production workbench"
 authors = ["Violet"]
 edition = "2024"
