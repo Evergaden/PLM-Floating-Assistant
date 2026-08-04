@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.122
+// @version      2.6.124
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.122';
+  const SCRIPT_VERSION = '2.6.124';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -12416,6 +12416,12 @@
     const labelSpec = labelSpecs[0] || null;
     const session = ensureSizeImageSession(data.sku);
     migrateLegacySizeImageResult(session, labelSpec);
+    const transparentLabel = hasTransparentSizeImageLabel(data, labelSpecs);
+    if (transparentLabel) {
+      session.includeRoundArc = false;
+      session.includeBatchNumber = false;
+    }
+    const transparentOptionAttrs = transparentLabel ? ' disabled title="\u900f\u660e\u6807\u7b7e\u5df2\u81ea\u52a8\u53d6\u6d88\u8be5\u9009\u9879"' : '';
     const busy = state.sizeImageBusySku === data.sku;
     const cartonDimension = cartonSpec ? [cartonSpec.length, cartonSpec.width, cartonSpec.height].concat(cartonSpec.extraWidths || []).map(formatSizeImageNumber).join(' \u00d7 ') + ' cm' : '';
     const labelDimensions = labelSpecs.map((spec) => (spec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e') + ' ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm');
@@ -12461,7 +12467,7 @@
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u548c\u5370\u5237\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<div class="pfh-size-image-remark-editor"><span>\u6807\u9898\u5907\u6ce8</span><div>' + remarkInputs + '</div></div>' +
-        '<div class="pfh-size-image-options">' + (labelSpecs.some((spec) => spec.kind === 'label') ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + '><span>\u6807\u7b7e\u5706\u5f27</span></label>' : '') + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + '><span>\u6279\u6b21\u53f7</span></label></div>' +
+        '<div class="pfh-size-image-options">' + (labelSpecs.some((spec) => spec.kind === 'label') ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + transparentOptionAttrs + '><span>\u6807\u7b7e\u5706\u5f27</span></label>' : '') + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + transparentOptionAttrs + '><span>\u6279\u6b21\u53f7</span></label></div>' +
         '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e/\u5370\u5237\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
         '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (canRegenerate && !busy ? '' : ' disabled') + '>' + iconHtml('refresh') + '\u91cd\u65b0\u751f\u6210</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
@@ -12575,6 +12581,22 @@
     };
   }
 
+  function isTransparentSizeImageLabel(data, spec) {
+    if (!spec || spec.kind !== 'label') return false;
+    const source = [
+      data && data.printSizeLabel,
+      data && data.printRawText,
+      data && data.printSizeText,
+      spec.labelText,
+      spec.remark,
+    ].filter(Boolean).join(' ');
+    return /\u900f\u660e/.test(source) && !/(?:\u4e0d\u900f\u660e|\u975e\u900f\u660e)/.test(source);
+  }
+
+  function hasTransparentSizeImageLabel(data, specs) {
+    return (Array.isArray(specs) ? specs : []).some((spec) => isTransparentSizeImageLabel(data, spec));
+  }
+
   function formatSizeImageNumber(value) {
     return trimNumber(Number(value));
   }
@@ -12667,6 +12689,10 @@
         detectedType = 'label';
       }
       await setSizeImageProcessingStep(session, '\u8bc6\u522b\u5b8c\u6210\uff0c\u6b63\u5728\u7ed8\u5236 3000 \u00d7 3000 JPG...');
+      if (detectedType === 'label' && isTransparentSizeImageLabel(data, matchedLabelSpec)) {
+        session.includeRoundArc = false;
+        session.includeBatchNumber = false;
+      }
       if (detectedType === 'carton') {
         session.cartonResultDataUrl = generateSizeImageJpeg(image, geometry, cartonSpec, data, session.includeRemark, session.includeRoundArc, session.cartonRemarkText);
         session.cartonFile = file;
