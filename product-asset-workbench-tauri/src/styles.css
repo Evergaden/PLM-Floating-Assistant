@@ -315,6 +315,9 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .label-check-card-actions { display: flex; gap: 8px; }
 .label-check-card-actions button { height: 31px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #68758b; background: white; font-size: 10px; font-weight: 700; }
 .label-check-card-actions button.primary { margin-left: auto; color: white; border-color: var(--purple); background: var(--purple); }
+.label-check-card-actions button.label-check-drag-handle { color: #6556d9; border-color: #d9d3ff; background: #f7f5ff; cursor: grab; user-select: none; touch-action: none; }
+.label-check-card-actions button.label-check-drag-handle:hover { border-color: var(--purple); background: #f0edff; box-shadow: 0 0 0 2px rgba(121,102,231,.1); }
+.label-check-card-actions button.label-check-drag-handle:active, .label-check-card-actions button.label-check-drag-handle.dragging { cursor: grabbing; color: white; border-color: var(--purple); background: var(--purple); }
 .label-check-card-actions button:disabled { opacity: .45; cursor: default; }
 .label-check-confirmed-note { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--green); font-size: 10px; font-weight: 700; }
 .label-check-history { margin: 0 24px 18px; padding: 14px; display: grid; gap: 9px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcfe; }

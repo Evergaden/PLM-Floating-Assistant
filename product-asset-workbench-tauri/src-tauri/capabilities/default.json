@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "dialog:allow-open",
+    "drag:default",
     "opener:allow-open-path"
   ]
 }

@@ -4,9 +4,10 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import {
   Archive, Check, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Copy, FileArchive, FileImage, FileSpreadsheet, Film,
-  Eye, FolderOpen, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
+  Eye, FolderOpen, GripVertical, Link2, LoaderCircle, Pencil, Play, RefreshCw, RotateCcw, Save, Search, Settings2,
   ScanLine, Sparkles, Trash2, Undo2, Unplug, Upload, RotateCw, X,
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
@@ -629,6 +630,7 @@ export default function App() {
   const [labelCheckTargetFolder, setLabelCheckTargetFolder] = useState(() => localStorage.getItem(LABEL_CHECK_TARGET_KEY) || DEFAULT_LABEL_CHECK_TARGET);
   const [labelCheckHistoryPath, setLabelCheckHistoryPath] = useState("");
   const [labelCheckBusy, setLabelCheckBusy] = useState(false);
+  const [labelCheckDraggingSku, setLabelCheckDraggingSku] = useState("");
   const [labelCheckLogs, setLabelCheckLogs] = useState<string[]>(["请选择工作目录并扫描待检查的纸盒标签文件。"]);
   const [labelCheckPreviewItem, setLabelCheckPreviewItem] = useState<LabelCheckItem | null>(null);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
@@ -1158,6 +1160,26 @@ export default function App() {
     }
   }
 
+  async function dragLabelCheckProduct(item: LabelCheckItem, iconPath: string) {
+    if (labelCheckDraggingSku) return;
+    setLabelCheckDraggingSku(item.sku);
+    setLabelCheckLogs((current) => [...current, `开始拖动产品文件夹：${item.productPath}`]);
+    try {
+      await startDrag({ item: [item.productPath], icon: iconPath, mode: "copy" }, (payload) => {
+        const message = payload.result === "Dropped"
+          ? `已把 ${item.sku} 交给目标应用`
+          : `已取消拖动 ${item.sku}`;
+        setLabelCheckLogs((current) => [...current, message]);
+      });
+    } catch (error) {
+      const message = `拖动失败：${String(error)}`;
+      setLabelCheckLogs((current) => [...current, message]);
+      notify(message);
+    } finally {
+      setLabelCheckDraggingSku("");
+    }
+  }
+
   async function copyLabelCheckCodes() {
     if (!labelCheckRecords.length) return notify("还没有已确认的产品编码");
     await navigator.clipboard.writeText(labelCheckRecords.map((record) => record.sku).join("\n"));
@@ -1459,7 +1481,7 @@ export default function App() {
                 <button className={labelCheckFilter === "confirmed" ? "active" : ""} onClick={() => setLabelCheckFilter("confirmed")}>已确定 ({labelCheckConfirmedItems.length})</button>
                 <button className={labelCheckFilter === "all" ? "active" : ""} onClick={() => setLabelCheckFilter("all")}>全部 ({labelCheckItems.length + labelCheckConfirmedItems.length})</button>
               </div>
-              <span className="label-check-drag-note">跨应用拖拽已关闭，避免锁住 Windows；点击卡片的“打开产品文件夹”，再从资源管理器拖入网盘。</span>
+              <span className="label-check-drag-note">按住卡片底部的“拖到网盘”把手，直接把整个产品文件夹拖入网盘应用；普通卡片区域不会触发拖动。</span>
             </div>
             <div className="label-check-list">
               {!visibleLabelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>{labelCheckFilter === "confirmed" ? "还没有已确定卡片" : "点击“扫描待检查产品”开始"}</strong><span>{labelCheckFilter === "confirmed" ? "确认并移动后，卡片会保留在“已确定”筛选中。" : "工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。"}</span></div>}
@@ -1496,7 +1518,19 @@ export default function App() {
                     {item.otherFiles.length > 0 && <div className="label-check-warning"><strong>未识别文件（确认后会留在暂存目录）</strong><span>{item.otherFiles.map((file) => file.name).join(" · ")}</span></div>}
                   </div>
                   <p className="label-check-message">{item.message}</p>
-                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => openPath(item.productPath)}><FolderOpen size={15} />打开产品文件夹</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
+                  <div className="label-check-card-actions"><button className="secondary" onClick={() => openPath(item.sourcePath)}><FolderOpen size={15} />{item.status === "confirmed" ? "打开 03 文件夹" : "打开暂存目录"}</button><button className="secondary" onClick={() => openPath(item.productPath)}><FolderOpen size={15} />打开产品文件夹</button><button
+                    className={`label-check-drag-handle ${labelCheckDraggingSku === item.sku ? "dragging" : ""}`}
+                    onPointerDown={(event) => {
+                      if (event.button !== 0) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const iconPath = previewGroups.box[0]?.path || previewGroups.label[0]?.path;
+                      if (!iconPath) return notify("没有可用的拖动预览图");
+                      void dragLabelCheckProduct(item, iconPath);
+                    }}
+                    disabled={Boolean(labelCheckDraggingSku)}
+                    title="按住并拖到网盘应用，传递整个产品文件夹"
+                  ><GripVertical size={15} />{labelCheckDraggingSku === item.sku ? "拖动中…" : "拖到网盘"}</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
                 </article>
                 );
               })}
