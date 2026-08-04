@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.119
+// @version      2.6.120
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.119';
+  const SCRIPT_VERSION = '2.6.120';
   const REVIEW_CONFIRM_WAIT_MS = 30000;
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
@@ -5429,12 +5429,30 @@
     const before = {};
     const after = {};
     Object.keys(previous || {}).forEach((key) => {
-      if (!ignored.has(key)) before[key] = previous[key];
+      if (!ignored.has(key)) before[key] = getComparableDataFieldValue(key, previous[key]);
     });
     Object.keys(next || {}).forEach((key) => {
-      if (!ignored.has(key)) after[key] = next[key];
+      if (!ignored.has(key)) after[key] = getComparableDataFieldValue(key, next[key]);
     });
     return JSON.stringify(before) !== JSON.stringify(after);
+  }
+
+  function isOrderInsensitiveTrackedField(key) {
+    return key === 'printCode' || key === 'printSizeText';
+  }
+
+  function normalizeTrackedDataValue(key, value) {
+    const text = compactText(value);
+    if (!isOrderInsensitiveTrackedField(key) || !text) return text;
+    return text.split(/\s*[;；]\s*/).map((item) => item.trim()).filter(Boolean).sort().join(';');
+  }
+
+  function getComparableDataFieldValue(key, value) {
+    return isOrderInsensitiveTrackedField(key) ? normalizeTrackedDataValue(key, value) : value;
+  }
+
+  function trackedDataValuesEqual(key, before, after) {
+    return normalizeTrackedDataValue(key, before) === normalizeTrackedDataValue(key, after);
   }
 
   function normalizeData(data) {
@@ -13857,7 +13875,7 @@
 
   function getStoredDataChanges(data) {
     return Array.isArray(data && data.recentFieldChanges)
-      ? data.recentFieldChanges.filter((item) => item && item.key && item.before !== item.after).slice(0, 20)
+      ? data.recentFieldChanges.filter((item) => item && item.key && !trackedDataValuesEqual(item.key, item.before, item.after)).slice(0, 20)
       : [];
   }
 
@@ -26715,7 +26733,7 @@
     return tracked.reduce((changes, key) => {
       const before = compactText(previous[key]);
       const after = compactText(next[key]);
-      if (before === after || (!before && !opts.trackEmptyChanges)) return changes;
+      if (trackedDataValuesEqual(key, before, after) || (!before && !opts.trackEmptyChanges)) return changes;
       changes.push({ key, label: getSkuDataFieldLabel(key), before, after, source, changedAt });
       return changes;
     }, []);
@@ -26727,8 +26745,9 @@
     const previous = loadData(sku);
     const previousNormalized = previous ? normalizeData(previous) : null;
     const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || new Date().toLocaleString(), updatedAtMs: data.updatedAtMs || Date.now() });
-    if (!opts.suppressChangeTracking && !Object.prototype.hasOwnProperty.call(data, 'recentFieldChanges') && previousNormalized) {
-      normalized.recentFieldChanges = getStoredDataChanges(previousNormalized);
+    if (!opts.suppressChangeTracking && previousNormalized) {
+      const storedChangesSource = Object.prototype.hasOwnProperty.call(data, 'recentFieldChanges') ? normalized : previousNormalized;
+      normalized.recentFieldChanges = getStoredDataChanges(storedChangesSource);
     }
     const detectedChanges = opts.suppressChangeTracking ? [] : collectTrackedDataChanges(previousNormalized, normalized, opts);
     if (detectedChanges.length) {
