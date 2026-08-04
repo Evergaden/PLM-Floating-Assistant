@@ -28,7 +28,9 @@ const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
+const CLOUD_LABEL_TARGET_KEY = "plm-workbench.cloud-label-target-folder";
 const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
+const DEFAULT_CLOUD_LABEL_TARGET = "03 纸盒标签";
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -134,6 +136,43 @@ interface LabelCheckConfirmResult {
   logs: string[];
 }
 
+interface CloudHarImportResult {
+  baseUrl: string;
+  tokenLength: number;
+  uploadEndpointDetected: boolean;
+  readEndpointsDetected: string[];
+  writeEndpointsDetected: string[];
+  message: string;
+}
+
+interface CloudLabelPlan {
+  sku: string;
+  productName: string;
+  productPath: string;
+  sourcePath: string;
+  targetFolderName: string;
+  productFolderId: string;
+  targetFolderId: string;
+  files: LabelCheckFile[];
+  conflicts: string[];
+  status: "ready" | "missing-product" | "ambiguous-product" | "missing-target" | "conflict" | "error" | string;
+  message: string;
+}
+
+interface CloudLabelPlanResult {
+  baseUrl: string;
+  targetFolderName: string;
+  plans: CloudLabelPlan[];
+  logs: string[];
+}
+
+interface CloudLabelUploadResult {
+  plans: CloudLabelPlan[];
+  uploadedFiles: string[];
+  failedFiles: string[];
+  logs: string[];
+}
+
 interface ComposePackResult {
   logs: string[];
   outputPath: string;
@@ -207,6 +246,16 @@ function labelCheckStatusLabel(status: string) {
 function formatLabelCheckTime(value: number) {
   if (!value) return "未知时间";
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function cloudPlanStatusLabel(status: string) {
+  if (status === "ready") return "只读预检通过";
+  if (status === "missing-product") return "云盘缺少产品目录";
+  if (status === "ambiguous-product") return "同 SKU 目录不唯一";
+  if (status === "missing-target") return "缺少分类文件夹";
+  if (status === "conflict") return "已有同名文件";
+  if (status === "error") return "预检失败";
+  return status;
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -518,6 +567,13 @@ export default function App() {
   const [labelCheckBusy, setLabelCheckBusy] = useState(false);
   const [labelCheckLogs, setLabelCheckLogs] = useState<string[]>(["请选择工作目录并扫描待检查的纸盒标签文件。"]);
   const [labelCheckPreviewPath, setLabelCheckPreviewPath] = useState("");
+  const [selectedLabelCheckSkus, setSelectedLabelCheckSkus] = useState<Set<string>>(new Set());
+  const [cloudHarPath, setCloudHarPath] = useState("");
+  const [cloudHarInfo, setCloudHarInfo] = useState<CloudHarImportResult | null>(null);
+  const [cloudTargetFolder, setCloudTargetFolder] = useState(() => localStorage.getItem(CLOUD_LABEL_TARGET_KEY) || DEFAULT_CLOUD_LABEL_TARGET);
+  const [cloudPlans, setCloudPlans] = useState<CloudLabelPlan[]>([]);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudLogs, setCloudLogs] = useState<string[]>(["未导入优米云盘 HAR；云盘写入需要单独授权。"]);
   const [assetPreview, setAssetPreview] = useState<{ row: ProductPreview; kind: PreviewKind } | null>(null);
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
@@ -717,6 +773,31 @@ export default function App() {
     if (typeof value !== "string") return;
     setPhotoshopPath(value);
     localStorage.setItem(PHOTOSHOP_PATH_KEY, value);
+  }
+
+  async function chooseCloudHar() {
+    const value = await open({
+      multiple: false,
+      directory: false,
+      title: "选择优米云盘 HAR",
+      filters: [{ name: "HTTP Archive", extensions: ["har"] }],
+    });
+    if (typeof value !== "string") return;
+    setCloudBusy(true);
+    try {
+      const result = await invoke<CloudHarImportResult>("import_cloud_har", { path: value });
+      setCloudHarPath(value);
+      setCloudHarInfo(result);
+      setCloudPlans([]);
+      setCloudLogs([result.message, `已识别读取接口：${result.readEndpointsDetected.join("、")}`, `已识别写入接口：${result.writeEndpointsDetected.join("、")}`]);
+      notify(`已导入 HAR：${result.baseUrl}`);
+    } catch (error) {
+      setCloudHarInfo(null);
+      setCloudLogs((current) => [...current, `HAR 导入失败：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setCloudBusy(false);
+    }
   }
 
   async function chooseVideoSource() {
@@ -999,6 +1080,8 @@ export default function App() {
       const result = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
       setLabelCheckItems(result.pending);
       setLabelCheckRecords(result.confirmed);
+      setSelectedLabelCheckSkus(new Set());
+      setCloudPlans([]);
       setLabelCheckHistoryPath(result.historyPath);
       setLabelCheckLogs(result.logs);
       notify(`扫描完成：待检查 ${result.pending.length} 个，已确认 ${result.confirmed.length} 个`);
@@ -1007,6 +1090,87 @@ export default function App() {
       notify(String(error));
     } finally {
       setLabelCheckBusy(false);
+    }
+  }
+
+  function toggleLabelCheckSelection(sku: string) {
+    setSelectedLabelCheckSkus((current) => {
+      const next = new Set(current);
+      if (next.has(sku)) next.delete(sku);
+      else next.add(sku);
+      return next;
+    });
+  }
+
+  function cloudSelectionItems() {
+    return labelCheckItems
+      .filter((item) => item.status === "ready" && selectedLabelCheckSkus.has(item.sku))
+      .map((item) => ({
+        sku: item.sku,
+        productName: item.productName,
+        productPath: item.productPath,
+        sourcePath: item.sourcePath,
+        files: item.uploadFiles,
+      }));
+  }
+
+  async function prepareCloudUpload(items = cloudSelectionItems()) {
+    if (!cloudHarInfo) return notify("请先导入优米云盘 HAR 文件");
+    if (!items.length) return notify("请先勾选可确认的产品");
+    const targetFolderName = cloudTargetFolder.trim();
+    if (!targetFolderName) return notify("请输入云盘分类文件夹名称");
+    localStorage.setItem(CLOUD_LABEL_TARGET_KEY, targetFolderName);
+    setCloudTargetFolder(targetFolderName);
+    setCloudBusy(true);
+    try {
+      const result = await invoke<CloudLabelPlanResult>("prepare_cloud_label_upload", { items, targetFolderName });
+      setCloudPlans(result.plans);
+      setCloudLogs(result.logs);
+      const ready = result.plans.filter((plan) => plan.status === "ready").length;
+      notify(`云盘只读预检完成：${ready}/${result.plans.length} 个产品可上传`);
+      return result;
+    } catch (error) {
+      setCloudLogs((current) => [...current, `云盘预检失败：${String(error)}`]);
+      notify(String(error));
+      return null;
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function uploadSelectedToCloud() {
+    if (!cloudHarInfo) return notify("请先导入优米云盘 HAR 文件");
+    const items = cloudSelectionItems();
+    if (!items.length) return notify("请先勾选可确认的产品");
+    const targetFolderName = cloudTargetFolder.trim();
+    if (!targetFolderName) return notify("请输入云盘分类文件夹名称");
+    setCloudBusy(true);
+    try {
+      const preflight = await invoke<CloudLabelPlanResult>("prepare_cloud_label_upload", { items, targetFolderName });
+      setCloudPlans(preflight.plans);
+      setCloudLogs(preflight.logs);
+      const blocked = preflight.plans.filter((plan) => plan.status !== "ready");
+      if (blocked.length) {
+        notify(`有 ${blocked.length} 个产品未通过只读预检，未上传任何文件`);
+        return;
+      }
+      const fileCount = preflight.plans.reduce((total, plan) => total + plan.files.length, 0);
+      const summary = preflight.plans.map((plan) => `${plan.sku} → ${plan.targetFolderName}（${plan.files.length} 个文件）`).join("\n");
+      if (!window.confirm(`即将上传 ${fileCount} 个文件到优米云盘。\n\n${summary}\n\n本次只会上传，不会创建、删除或覆盖云盘文件。确认授权上传吗？`)) return;
+      const result = await invoke<CloudLabelUploadResult>("upload_cloud_label_files", {
+        items,
+        targetFolderName,
+        approvalPhrase: "允许上传",
+      });
+      setCloudPlans(result.plans);
+      setCloudLogs(result.logs);
+      if (!result.failedFiles.length) setSelectedLabelCheckSkus(new Set());
+      notify(`优米云盘上传完成：成功 ${result.uploadedFiles.length} 个，失败 ${result.failedFiles.length} 个`);
+    } catch (error) {
+      setCloudLogs((current) => [...current, `云盘上传未执行或已中止：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setCloudBusy(false);
     }
   }
 
@@ -1026,6 +1190,7 @@ export default function App() {
       const refreshed = await invoke<LabelCheckScanResult>("scan_label_check", { root, targetFolderName });
       setLabelCheckItems(refreshed.pending);
       setLabelCheckRecords(refreshed.confirmed);
+      setSelectedLabelCheckSkus((current) => { const next = new Set(current); next.delete(result.record.sku); return next; });
       setLabelCheckHistoryPath(refreshed.historyPath);
       setLabelCheckLogs([...result.logs, ...refreshed.logs]);
       notify(`已确认 ${result.record.sku}，正确文件已移入 ${targetFolderName}`);
@@ -1331,11 +1496,29 @@ export default function App() {
               <button className="primary" onClick={copyLabelCheckCodes} disabled={labelCheckBusy || !labelCheckRecords.length}><Copy size={16} />复制全部已确认编码</button>
             </div>
             <div className="label-check-summary"><span>待检查 {labelCheckItems.length} 个</span><span>已确认 {labelCheckRecords.length} 个</span><span>每列展示 JPG/PNG 印刷预览</span><span>印刷 PSD 为副产品；纸盒 PSD 是正确文件</span></div>
+            <div className="cloud-upload-box">
+              <div className="cloud-upload-heading">
+                <div><strong>优米云盘上传（需单独授权）</strong><span>{cloudHarInfo ? `已导入 ${cloudHarInfo.baseUrl} · token 已在本机内存中${cloudHarPath ? ` · ${cloudHarPath}` : ""}` : "未导入 HAR；勾选和预检不会修改云盘"}</span></div>
+                <button className="secondary" onClick={chooseCloudHar} disabled={cloudBusy}><FolderOpen size={15} />导入 HAR</button>
+              </div>
+              <div className="cloud-upload-toolbar">
+                <label><span>云盘分类文件夹</span><input value={cloudTargetFolder} onChange={(event) => setCloudTargetFolder(event.target.value)} onBlur={() => localStorage.setItem(CLOUD_LABEL_TARGET_KEY, cloudTargetFolder.trim() || DEFAULT_CLOUD_LABEL_TARGET)} /></label>
+                <button onClick={() => setSelectedLabelCheckSkus(new Set(labelCheckItems.filter((item) => item.status === "ready").map((item) => item.sku)))} disabled={!labelCheckItems.some((item) => item.status === "ready")}>全选可上传</button>
+                <button className="secondary" onClick={() => prepareCloudUpload()} disabled={cloudBusy || !selectedLabelCheckSkus.size}><ScanLine size={15} />只读预检</button>
+                <button className="primary" onClick={uploadSelectedToCloud} disabled={cloudBusy || !selectedLabelCheckSkus.size || !cloudHarInfo}><Upload size={15} />授权并上传</button>
+              </div>
+              <p className="cloud-upload-safety">勾选只加入清单；只读预检只搜索产品目录和检查同名文件。只有点击“授权并上传”并确认后，才会发送上传请求；不会自动创建、删除或覆盖云盘文件。云盘上传成功后，本地文件仍保留，需再点击卡片的“确认并移动”完成本地归档。</p>
+              {cloudPlans.length > 0 && <div className="cloud-plan-list">
+                {cloudPlans.map((plan) => <div className={`cloud-plan-row ${plan.status}`} key={plan.sku}><strong>{plan.sku}</strong><span>{cloudPlanStatusLabel(plan.status)}</span><small>{plan.message}{plan.conflicts.length ? ` · 冲突：${plan.conflicts.join("、")}` : ` · ${plan.files.length} 个文件`}</small></div>)}
+              </div>}
+              <pre className="cloud-upload-console">{cloudLogs.join("\n")}</pre>
+            </div>
             <div className="label-check-list">
               {!labelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>点击“扫描待检查产品”开始</strong><span>工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。</span></div>}
               {labelCheckItems.map((item) => (
                 <article className={`label-check-card ${item.status}`} key={`${item.sku}:${item.sourcePath}`}>
                   <header>
+                    <label className="label-check-select" title="勾选后加入优米云盘上传清单"><input type="checkbox" checked={selectedLabelCheckSkus.has(item.sku)} disabled={labelCheckBusy || cloudBusy || item.status !== "ready"} onChange={() => toggleLabelCheckSelection(item.sku)} /><span /></label>
                     <div><span className="eyebrow">{item.sku}</span><strong>{item.productName}</strong><small title={item.sourcePath}>{item.sourceName}</small></div>
                     <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "warning"}`}>{labelCheckStatusLabel(item.status)}</span>
                   </header>

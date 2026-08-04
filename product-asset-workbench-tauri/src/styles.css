@@ -279,12 +279,41 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .label-check-toolbar > button { height: 34px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #657187; background: white; font-size: 10px; font-weight: 700; }
 .label-check-toolbar > button.primary { margin-left: auto; color: white; border-color: var(--purple); background: var(--purple); }
 .label-check-summary { min-height: 39px; padding: 0 24px; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 10px; border-bottom: 1px solid var(--line); }
+.cloud-upload-box { margin: 14px 24px 0; padding: 13px; display: grid; gap: 10px; border: 1px solid #dfe3f0; border-radius: 12px; background: linear-gradient(135deg,#fbfaff,#f9fbff); }
+.cloud-upload-heading { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.cloud-upload-heading > div { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.cloud-upload-heading strong { color: #4d5870; font-size: 11px; }
+.cloud-upload-heading span { overflow: hidden; color: #8c96a8; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-upload-heading button { height: 30px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #68758b; background: white; font-size: 10px; font-weight: 700; }
+.cloud-upload-toolbar { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.cloud-upload-toolbar > label { display: grid; gap: 4px; color: #758095; font-size: 9px; font-weight: 700; }
+.cloud-upload-toolbar > label input { width: 190px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; color: #38445a; background: white; font-size: 10px; }
+.cloud-upload-toolbar > button { height: 30px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #68758b; background: white; font-size: 10px; font-weight: 700; }
+.cloud-upload-toolbar > button.secondary { color: #68758b; background: white; }
+.cloud-upload-toolbar > button.primary { margin-left: auto; color: white; border-color: var(--purple); background: var(--purple); }
+.cloud-upload-toolbar > button:disabled { opacity: .45; cursor: default; }
+.cloud-upload-safety { margin: 0; color: #8a95a6; font-size: 9px; line-height: 1.5; }
+.cloud-plan-list { max-height: 150px; overflow: auto; display: grid; gap: 5px; }
+.cloud-plan-row { min-width: 0; padding: 7px 9px; display: grid; grid-template-columns: 100px 112px minmax(0,1fr); gap: 8px; align-items: center; border: 1px solid #e9ecf3; border-radius: 8px; background: white; }
+.cloud-plan-row strong { color: var(--purple); font: 10px Consolas, monospace; }
+.cloud-plan-row > span { color: #8a95a6; font-size: 9px; }
+.cloud-plan-row > small { min-width: 0; overflow: hidden; color: #7c8799; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-plan-row.ready { border-color: #d7f0e3; background: #fbfffd; }
+.cloud-plan-row.ready > span { color: #299b68; }
+.cloud-plan-row.conflict, .cloud-plan-row.missing-target { background: #fffaf4; }
+.cloud-plan-row.conflict > span, .cloud-plan-row.missing-target > span, .cloud-plan-row.missing-product > span, .cloud-plan-row.ambiguous-product > span, .cloud-plan-row.error > span { color: #a06a16; }
+.cloud-upload-console { max-height: 90px; margin: 0; padding: 7px 9px; overflow: auto; white-space: pre-wrap; color: #8792a3; border-top: 1px solid #e8ebf2; font: 9px/1.5 Consolas, monospace; }
 .label-check-list { padding: 16px 24px 20px; display: grid; grid-template-columns: repeat(auto-fill,minmax(360px,1fr)); gap: 14px; background: #fbfcfe; }
 .label-check-card { min-width: 0; overflow: hidden; display: grid; gap: 11px; padding: 14px; border: 1px solid #e7eaf1; border-radius: 14px; background: white; box-shadow: 0 5px 16px rgba(35,46,72,.045); }
 .label-check-card.ready { border-color: #ded9ff; background: linear-gradient(145deg,#fff,#fbfaff); }
 .label-check-card.conflict { background: #fffaf6; }
 .label-check-card > header { min-width: 0; display: flex; align-items: start; gap: 9px; }
 .label-check-card > header > div { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.label-check-select { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; border-radius: 7px; background: #f3f4fa; cursor: pointer; }
+.label-check-select input { position: absolute; opacity: 0; pointer-events: none; }
+.label-check-select span { width: 15px; height: 15px; display: block; border: 1px solid #c7ccda; border-radius: 5px; background: white; }
+.label-check-select input:checked + span { border-color: var(--purple); background: var(--purple); box-shadow: inset 0 0 0 3px white; }
+.label-check-select input:disabled + span { opacity: .45; }
 .label-check-card > header .eyebrow { color: var(--purple); font-size: 9px; }
 .label-check-card > header strong { overflow: hidden; color: #3d4960; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .label-check-card > header small { overflow: hidden; color: #929bad; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
