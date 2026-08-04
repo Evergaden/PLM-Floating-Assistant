@@ -1168,11 +1168,11 @@ export default function App() {
 
   async function dragLabelCheckProduct(item: LabelCheckItem, iconPath: string) {
     if (labelCheckDraggingSku) return;
-    const productFolder = labelCheckProductFolder(item);
+    const uploadFolder = item.sourcePath;
     setLabelCheckDraggingSku(item.sku);
-    setLabelCheckLogs((current) => [...current, `开始拖动完整产品文件夹：${productFolder}`]);
+    setLabelCheckLogs((current) => [...current, `开始拖动待上传文件夹：${uploadFolder}`]);
     try {
-      await startDrag({ item: [productFolder], icon: iconPath, mode: "copy" }, (payload) => {
+      await startDrag({ item: [uploadFolder], icon: iconPath, mode: "copy" }, (payload) => {
         const message = payload.result === "Dropped"
           ? `已把 ${item.sku} 交给目标应用`
           : `已取消拖动 ${item.sku}`;
@@ -1499,7 +1499,7 @@ export default function App() {
                 <button className={labelCheckFilter === "confirmed" ? "active" : ""} onClick={() => setLabelCheckFilter("confirmed")}>已确定 ({labelCheckConfirmedItems.length})</button>
                 <button className={labelCheckFilter === "all" ? "active" : ""} onClick={() => setLabelCheckFilter("all")}>全部 ({labelCheckItems.length + labelCheckConfirmedItems.length})</button>
               </div>
-              <span className="label-check-drag-note">按住卡片底部的“拖到网盘”把手，直接把整个产品文件夹拖入网盘应用；普通卡片区域不会触发拖动。</span>
+              <span className="label-check-drag-note">按住卡片底部的“拖到网盘”把手，拖动当前暂存/入口文件夹；普通卡片区域不会触发拖动。</span>
             </div>
             <div className="label-check-list">
               {!visibleLabelCheckItems.length && <div className="empty-state"><Eye size={28} /><strong>{labelCheckFilter === "confirmed" ? "还没有已确定卡片" : "点击“扫描待检查产品”开始"}</strong><span>{labelCheckFilter === "confirmed" ? "确认并移动后，卡片会保留在“已确定”筛选中。" : "工作台会查找产品目录中尚未归档的纸盒标签暂存文件，并保留历史确认记录。"}</span></div>}
@@ -1547,7 +1547,7 @@ export default function App() {
                       void dragLabelCheckProduct(item, iconPath);
                     }}
                     disabled={Boolean(labelCheckDraggingSku)}
-                    title="按住并拖到网盘应用，传递整个产品文件夹"
+                    title="按住并拖到网盘应用，传递当前暂存/入口文件夹"
                   ><GripVertical size={15} />{labelCheckDraggingSku === item.sku ? "拖动中…" : "拖到网盘"}</button>{item.status === "confirmed" ? <span className="label-check-confirmed-note"><Check size={14} />正确文件已归档</span> : <button className="primary" onClick={() => confirmLabelCheck(item)} disabled={labelCheckBusy || item.status !== "ready"}><Check size={15} />确认并移动</button>}</div>
                 </article>
                 );

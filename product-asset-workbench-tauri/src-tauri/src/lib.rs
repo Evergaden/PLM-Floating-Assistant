@@ -2210,7 +2210,7 @@ fn build_confirmed_label_check_item(record: &LabelCheckRecord) -> Option<LabelCh
         psd_files,
         other_files,
         status: "confirmed".to_string(),
-        message: format!("已确认并归档于 {}；拖动卡片可直接把产品文件夹交给网盘应用", path_text(&target)),
+        message: format!("已确认并归档于 {}；拖动卡片可直接把当前纸盒标签文件夹交给网盘应用", path_text(&target)),
     })
 }
 
