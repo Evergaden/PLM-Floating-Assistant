@@ -4,7 +4,10 @@ const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..');
 const sourcePath = path.join(root, 'outputs', 'plm-material-summary.user.js');
-const outputPath = path.join(root, 'outputs', 'plm-material-summary.min.user.js');
+const preview = process.argv.includes('--preview');
+const outputPath = path.join(root, 'outputs', preview
+  ? 'plm-material-summary.min.preview.user.js'
+  : 'plm-material-summary.min.user.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const metadataEndMarker = '// ==/UserScript==';
 const metadataEnd = source.indexOf(metadataEndMarker);
@@ -22,16 +25,22 @@ const npxArgs = [
   '--mangle',
   '--comments',
   'false',
+  ...(preview ? ['--format', 'beautify=true,semicolons=false,max_line_len=2000'] : []),
 ];
 const result = spawnSync(npx, process.platform === 'win32' && fs.existsSync(npxCli) ? [npxCli, ...npxArgs] : npxArgs, {
   encoding: 'utf8',
+  maxBuffer: 16 * 1024 * 1024,
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 
 if (result.error) throw result.error;
 if (result.status !== 0) throw new Error(`Terser failed with exit code ${result.status}`);
 
-const minified = String(result.stdout || '').trim();
+const minified = String(result.stdout || '')
+  .trim()
+  .split(/\r?\n/)
+  .map((line) => line.trimEnd())
+  .join('\n');
 if (!minified) throw new Error('Terser returned an empty output');
 
 fs.writeFileSync(outputPath, `${metadata}\n\n${minified}\n`, 'utf8');
