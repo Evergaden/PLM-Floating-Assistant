@@ -145,7 +145,7 @@ Backups written by userscript 2.6.105 and later use browser-side AES-GCM encrypt
 - `GET /assets/v1/runtime-data.json`
 - `GET /assets/v1/excel-template.xlsx`
 - `GET /assets/v1/icons.json`
-- `GET /assets/v1/ui-2.5.136.css`
+- `GET /assets/v1/ui-2.5.169.css`
 - `POST /backup/save`
 - `GET /backup/load?backupId=...` (legacy `backupKey` is still accepted)
 - `POST /backup/chunk`
