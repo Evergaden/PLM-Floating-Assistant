@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.6.124
+// @version      2.7.0
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.6.124';
+  const SCRIPT_VERSION = '2.7.0';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1691,6 +1691,8 @@
   const MAGIC_UPLOAD_QUEUE_KEY = 'plm-floating-helper:magic-upload-queue:v1';
   const MAGIC_UPLOAD_HISTORY_KEY = 'plm-floating-helper:magic-upload-history:v1';
   const MAGIC_UPLOAD_METRICS_KEY = 'plm-floating-helper:magic-upload-metrics:v1';
+  const MAGIC_TOY_LABEL_QUEUE_KEY = 'plm-floating-helper:magic-toy-label-queue:v1';
+  const MAGIC_TOY_LABEL_HISTORY_KEY = 'plm-floating-helper:magic-toy-label-history:v1';
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
   const MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES = 150 * 1024 * 1024;
@@ -1699,6 +1701,7 @@
   const OSS_UPLOAD_RETRY_DELAY_MS = 1200;
   const OSS_UPLOAD_TIMEOUT_MS = 120000;
   let magicUploadQueueRunPromise = null;
+  let magicToyLabelQueueRunPromise = null;
   let magicUploadEtaTimer = 0;
   const magicUploadSharedOssCache = new Map();
   let magicUploadAuthPaused = false;
@@ -2129,6 +2132,7 @@
     home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path>',
     settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.52a2 2 0 0 1-1 1.72l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.52a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle>',
     notification: '<path d="M10.27 21a2 2 0 0 0 3.46 0"></path><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>',
+    messageCircle: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"></path><path d="M8 12h.01"></path><path d="M12 12h.01"></path><path d="M16 12h.01"></path>',
     close: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
     refresh: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path>',
     back: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
@@ -3179,6 +3183,29 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-product-title-copy span[data-action="copy-sku"]{background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-product-title-copy strong{color:var(--pfh-theme-text)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-product-title-copy em{color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-detail-card{border-color:var(--pfh-theme-border)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 14px 34px var(--pfh-theme-shadow-soft)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-detail-card:hover{border-color:var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-surface-alt),var(--pfh-theme-primary-soft))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 18px 38px var(--pfh-theme-shadow)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-detail-card .pfh-thumb-frame,
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-detail-card .pfh-thumb-preview{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-detail-card > .pfh-product-thumb.is-empty{color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-sku-badge{border-color:var(--pfh-theme-border-strong)!important;background:linear-gradient(135deg,var(--pfh-theme-primary-soft),var(--pfh-theme-surface-alt))!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-sku-badge:hover{border-color:var(--pfh-theme-primary)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-product-title{color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-card-meta > span:not(.is-priority){border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-muted)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-card-meta .is-design-type{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-card-meta .pfh-icon{color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-card-info{border-top-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-developer-value,
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-link-value{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-text)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-link-value:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-link-value .pfh-icon{color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-sku-detail-card > .pfh-detail-card-actions{border-left-color:var(--pfh-theme-border)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-view-button{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;box-shadow:0 12px 24px var(--pfh-theme-shadow-soft)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-view-button:hover{border-color:var(--pfh-theme-primary-hover)!important;background:var(--pfh-theme-primary-hover)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-edit-button,
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-more-button{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-edit-button:hover,
+    #${PANEL_ID}[data-pfh-theme] .pfh-detail-more-button:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-hero-actions button{border-color:var(--pfh-theme-border)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 5px 12px var(--pfh-theme-shadow-soft)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-hero-actions button:hover{border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-primary-soft)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-copywriting-hero-actions button.is-primary{border-color:var(--pfh-theme-primary)!important;background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover))!important;color:#fff!important;box-shadow:0 8px 18px var(--pfh-theme-shadow-soft)!important;}
@@ -3340,12 +3367,13 @@
     #${PANEL_ID}[data-pfh-theme] .pfh-api-spinner{display:inline-block!important;flex:0 0 auto!important;width:12px!important;height:12px!important;border:2px solid var(--pfh-theme-primary-soft)!important;border-top-color:var(--pfh-theme-primary)!important;border-radius:50%!important;animation:pfh-api-status-spin .8s linear infinite!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-success .pfh-api-status-icon{color:var(--pfh-theme-primary)!important;}
     #${PANEL_ID}[data-pfh-theme] .pfh-api-status.is-error .pfh-api-status-icon{color:#b42318!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-note{flex-wrap:wrap!important;min-height:42px!important;height:auto!important;padding-top:6px!important;padding-bottom:6px!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-note-source{min-width:0!important;flex:1 1 150px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-api-status{flex:1 1 190px!important;max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;line-height:1.35!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-api-status>span{min-width:0!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-note-toast{flex:1 1 220px!important;max-width:none!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.35!important;}
-    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-note-toast.is-visible{flex:1 1 100%!important;order:4!important;margin-left:0!important;text-align:left!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:8px!important;min-height:42px!important;height:42px!important;padding-top:6px!important;padding-bottom:6px!important;overflow:hidden!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note-source{min-width:0!important;flex:1 1 auto!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-api-status{flex:0 1 190px!important;max-width:32%!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1.2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-api-status>span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-note-toast{flex:0 1 230px!important;max-width:36%!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1.2!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-note .pfh-note-toast.is-visible{flex:0 1 230px!important;max-width:36%!important;order:initial!important;margin-left:auto!important;text-align:left!important;}
+    #${PANEL_ID}[data-pfh-theme] .pfh-excel-status{min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
     @keyframes pfh-api-status-spin{to{transform:rotate(360deg)}}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-ledger-tabs button.is-active,.pfh-ledger-overflow-menu button.is-active,.pfh-tags .is-extension,.pfh-ledger-tags .is-extension,.pfh-ledger-tags .is-performance-group){background:var(--pfh-theme-primary-soft)!important;border-color:var(--pfh-theme-border-strong)!important;color:var(--pfh-theme-primary-hover)!important;}
     #${PANEL_ID}[data-pfh-theme] :where(.pfh-parameter-drop,.pfh-size-image-drop,.pfh-upload-drop){border-color:var(--pfh-theme-border-strong)!important;background:var(--pfh-theme-surface-alt)!important;color:var(--pfh-theme-primary)!important;}
@@ -3539,7 +3567,51 @@
     #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-actions{display:flex;gap:7px;flex-wrap:wrap;}
     #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-actions button{flex:1 1 120px;min-width:0;}
     #${PANEL_ID}[data-view="tools"] .pfh-toy-copywriting-batch-progress{margin:0;color:var(--pfh-theme-primary-hover,#5b21b6);font-size:10px;line-height:1.5;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-page{display:flex;flex-direction:column;gap:12px;min-height:100%;padding:14px 16px 22px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-head{display:flex;align-items:flex-start;gap:10px;flex:0 0 auto;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-head>div:last-child{min-width:0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-head small{display:block;color:var(--pfh-theme-muted,#64748b);font-size:9px;font-weight:800;letter-spacing:.12em;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-head h2{margin:3px 0 2px;color:var(--pfh-theme-text,#1f2937);font-size:21px;line-height:1.2;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-head p{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.5;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-workbench{display:grid;grid-template-columns:166px minmax(0,1fr);align-items:start;gap:12px;min-height:0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-sidebar{position:sticky;top:0;display:flex;flex-direction:column;gap:9px;min-width:0;padding:10px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:14px;background:var(--pfh-theme-surface-alt,#f7f8fc);box-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 8px 20px var(--pfh-theme-shadow-soft,rgba(124,58,237,.08));}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-sidebar-head{display:flex;flex-direction:column;gap:2px;padding:2px 3px 4px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-sidebar-head small{color:var(--pfh-theme-muted,#64748b);font-size:9px;font-weight:800;letter-spacing:.1em;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-sidebar-head strong{color:var(--pfh-theme-text,#1f2937);font-size:12px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav{display:flex;flex-direction:column;gap:6px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;margin:0;padding:7px 8px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--pfh-theme-muted,#64748b);text-align:left;cursor:pointer;transition:background .18s ease,border-color .18s ease,color .18s ease,transform .12s ease;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button:hover:not(:disabled){border-color:var(--pfh-theme-border,#d8deea);background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-primary,#7c3aed);}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button:active{transform:scale(.98);}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button.is-active{border-color:var(--pfh-theme-border-strong,#c9b9f3);background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary-hover,#5b21b6);box-shadow:inset 3px 0 0 var(--pfh-theme-primary,#7c3aed);}
+    #${PANEL_ID}[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active{border-color:var(--pfh-theme-border-strong,#c9b9f3)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#5b21b6)!important;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button .pfh-icon{display:grid;place-items:center;flex:0 0 26px;width:26px;min-width:26px;height:26px;min-height:26px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:8px;background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-primary,#7c3aed);}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button .pfh-icon svg{width:15px;height:15px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon{border-color:var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-primary,#7c3aed);color:#fff;}
+    #${PANEL_ID}[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon{border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+    #${PANEL_ID}[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon svg,
+    #${PANEL_ID}[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon svg *{color:#fff!important;stroke:#fff!important;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-nav button>span:last-child{min-width:0;overflow:hidden;font-size:11px;font-weight:800;line-height:1.35;text-overflow:ellipsis;white-space:nowrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-content{display:flex;flex-direction:column;gap:12px;min-width:0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel{display:flex;flex-direction:column;gap:10px;min-width:0;margin:0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel-head{display:flex;flex-direction:column;gap:2px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel-head small{color:var(--pfh-theme-muted,#64748b);font-size:9px;font-weight:800;letter-spacing:.1em;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel-head h3{margin:2px 0 0;color:var(--pfh-theme-text,#1f2937);font-size:15px;line-height:1.25;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel-head p{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.5;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel>label{font-size:11px;font-weight:800;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel textarea{width:100%;min-height:112px;resize:vertical;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-result{display:flex;flex-direction:column;gap:4px;min-width:0;padding:10px 11px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:10px;background:var(--pfh-theme-surface-alt,#f7f8fc);}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-result span{color:var(--pfh-theme-muted,#64748b);font-size:10px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-result strong{display:block;overflow:auto;max-height:86px;color:var(--pfh-theme-text,#1f2937);font-size:12px;line-height:1.5;word-break:break-word;white-space:pre-wrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-actions{display:flex;gap:7px;flex-wrap:wrap;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-actions button{flex:1 1 110px;min-width:0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-toy-copywriting-batch-head{display:flex;flex-direction:column;gap:2px;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-toy-copywriting-batch-head h3{margin:2px 0 0;}
+    #${PANEL_ID}[data-view="tools"] .pfh-tools-panel .pfh-toy-copywriting-batch-head p{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.5;}
+    #${PANEL_ID}[data-view="feedback"] .pfh-feedback-page{display:flex;flex-direction:column;gap:12px;min-height:100%;padding:14px 16px 22px;}
+    #${PANEL_ID}[data-view="feedback"] .pfh-feedback-submit-card{order:0;margin-top:0;}
+    #${PANEL_ID}[data-view="feedback"] .pfh-feedback-history-card{order:1;}
     @media(max-width:430px){#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-page{padding-left:11px;padding-right:11px;}#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-row{align-items:flex-start;}#${PANEL_ID}[data-view="batchExcel"] .pfh-batch-excel-status{white-space:normal;text-align:right;}}
+    @media(max-width:560px){#${PANEL_ID}[data-view="tools"] .pfh-tools-page{padding-left:11px;padding-right:11px;}#${PANEL_ID}[data-view="tools"] .pfh-tools-workbench{grid-template-columns:1fr;}#${PANEL_ID}[data-view="tools"] .pfh-tools-sidebar{position:static;}#${PANEL_ID}[data-view="tools"] .pfh-tools-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));}#${PANEL_ID}[data-view="tools"] .pfh-tools-nav button{justify-content:flex-start;min-height:38px;padding:6px;}#${PANEL_ID}[data-view="tools"] .pfh-tools-nav button>span:last-child{font-size:10px;white-space:normal;}}
   `;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
@@ -3581,9 +3653,9 @@
     html.pfh-ui-fallback #${PANEL_ID}[data-view="about"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="ledger"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="upload"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="unitConverter"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="batchExcel"] .pfh-full::before{
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="batchExcel"] .pfh-full::before,
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="feedback"] .pfh-full::before{
       background:
         linear-gradient(#B9BDC6,#B9BDC6) 18px 17px/38px 38px no-repeat,
         linear-gradient(#E2E4EA,#E2E4EA) 68px 22px/118px 14px no-repeat,
@@ -4114,6 +4186,12 @@
     magicUploadProcessing: false,
     magicUploadProcessingText: '',
     magicUploadReplaceId: '',
+    magicToyLabelQueue: loadMagicToyLabelQueue(),
+    magicToyLabelHistory: loadMagicToyLabelHistory(),
+    magicToyLabelInput: '',
+    magicToyLabelRunning: false,
+    magicToyLabelHistoryOpen: false,
+    magicToyLabelStatus: '',
     ledgerRecords: loadDailyLedger(),
     ledgerTrashRecords: loadDailyLedgerTrash(),
     ledgerSeriesExcludedSkus: loadLedgerSeriesExcludedSkus(),
@@ -4145,6 +4223,7 @@
     sizeImageAccessTimer: 0,
     cmConverterInput: '',
     codeFormatterInput: '',
+    toolsActiveTool: 'unit',
     cloudBackupRunning: false,
     cloudBackupQueued: false,
     cloudBackupStatus: '',
@@ -4173,6 +4252,13 @@
     notificationModalOpen: false,
     notificationTab: 'new',
     notificationRefreshTimer: 0,
+    feedbackType: 'feature',
+    feedbackContent: '',
+    feedbackItems: [],
+    feedbackLoading: false,
+    feedbackSubmitting: false,
+    feedbackError: '',
+    feedbackLoadedName: '',
   };
   installPlmApiMonitor();
   const parameterImageFeature = createParameterImageFeature({
@@ -6583,25 +6669,35 @@
     });
   }
 
-  async function refreshMaterialFromApiWithoutDrawer(sku) {
+  async function refreshMaterialFromApiWithoutDrawer(sku, seedData) {
     if (!state.settings.collectionEnabled || !sku) return;
-    const current = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
-    const packaging = await fetchApiMaterialPackaging(current, { force: true });
-    if (!hasUsableApiData(packaging)) {
-      if (state.selectedSku === sku) showToast('PLM 读取完成，暂无可更新数据', { quiet: true });
-      return;
-    }
-    const merged = normalizeData({
-      ...mergeApiPackagingData(current, packaging),
-      packageSource: packaging.packageSizeText ? 'plm-project-pms' : current.packageSource,
-      updatedAt: new Date().toLocaleString(),
-      updatedAtMs: Date.now(),
-    });
-    saveData(sku, merged, { changeSource: 'PLM 接口' });
-    if (state.selectedSku === sku) {
-      state.data = merged;
-      renderShell('已后台刷新 PLM 数据');
-      showApiDataChangeNotice(sku, current, merged);
+    const indexed = state.index.find((entry) => entry && entry.sku === sku);
+    const current = normalizeData(seedData || loadData(sku) || (state.data && state.data.sku === sku ? state.data : null) || indexed || { sku });
+    setApiReadStatus(sku, 'loading', '正在读取 PLM 数据');
+    try {
+      const apiResult = await fetchApiExcelData(current, { force: true });
+      if (!apiResult || !apiResult.found || !apiResult.data) {
+        setApiReadStatus(sku, 'error', '未找到 PLM 数据');
+        if (state.selectedSku === sku) showToast('PLM 未找到可更新数据', { quiet: true });
+        return;
+      }
+      const merged = normalizeData({
+        ...current,
+        ...apiResult.data,
+        updatedAt: new Date().toLocaleString(),
+        updatedAtMs: Date.now(),
+      });
+      saveData(sku, merged, { changeSource: 'PLM 接口' });
+      setApiReadStatus(sku, 'success', 'PLM 数据读取完成');
+      if (state.selectedSku === sku) {
+        state.data = merged;
+        renderShell('已刷新 PLM 数据');
+        showApiDataChangeNotice(sku, current, merged);
+      }
+    } catch (error) {
+      setApiReadStatus(sku, 'error', 'PLM 读取失败');
+      addLog('warn', '搜索 SKU 自动 API 刷新失败', sku + ' | ' + formatErrorMessage(error));
+      if (state.selectedSku === sku) showToast('PLM 刷新失败，请稍后重试', { quiet: true });
     }
   }
 
@@ -7727,11 +7823,15 @@
   function renderShell(statusText) {
     const panel = ensurePanel();
     ensureDetailViewTabsStyles();
+    if (state.view === 'unitConverter') {
+      state.view = 'tools';
+      state.toolsActiveTool = 'unit';
+    }
     panel.dataset.view = state.view || 'home';
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
-    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'magicUpload' || state.view === 'unitConverter' || state.view === 'tools' || state.view === 'batchExcel';
+    const isFullView = state.view === 'home' || state.view === 'about' || state.view === 'ledger' || state.view === 'upload' || state.view === 'magicUpload' || state.view === 'tools' || state.view === 'batchExcel' || state.view === 'feedback';
     if (main) {
       main.classList.toggle('is-home', state.view === 'home');
       main.classList.toggle('is-full', isFullView);
@@ -7753,7 +7853,7 @@
       const list = panel.querySelector('.pfh-list');
       if (list) list.innerHTML = '';
     }
-    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'unitConverter' && state.view !== 'tools' && state.view !== 'batchExcel' && state.view !== 'magicUpload') renderSkuList(panel);
+    else if (state.view !== 'about' && state.view !== 'ledger' && state.view !== 'tools' && state.view !== 'batchExcel' && state.view !== 'magicUpload' && state.view !== 'feedback') renderSkuList(panel);
     if (state.view === 'about') {
       renderAbout(panel);
       updateSettingsNotice(panel);
@@ -7777,11 +7877,6 @@
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
-    if (state.view === 'unitConverter') {
-      renderStandaloneTool(panel, unitConverterViewHtml());
-      restorePanelScroll(panel, scrollSnapshot);
-      return;
-    }
     if (state.view === 'tools') {
       renderStandaloneTool(panel, toolsViewHtml());
       restorePanelScroll(panel, scrollSnapshot);
@@ -7789,6 +7884,11 @@
     }
     if (state.view === 'batchExcel') {
       renderStandaloneTool(panel, batchExcelViewHtml());
+      restorePanelScroll(panel, scrollSnapshot);
+      return;
+    }
+    if (state.view === 'feedback') {
+      renderFeedback(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -8441,6 +8541,185 @@
     }
   }
 
+  const FEEDBACK_TYPE_LABELS = Object.freeze({ feature: '功能建议', usage: '使用问题', data: '数据错误', other: '其他' });
+  const FEEDBACK_STATUS_LABELS = Object.freeze({ pending: '待处理', processing: '处理中', resolved: '已解决' });
+  const FEEDBACK_TYPE_ALIASES = Object.freeze({ '功能建议': 'feature', '使用问题': 'usage', '数据错误': 'data', '其他': 'other' });
+  const FEEDBACK_STATUS_ALIASES = Object.freeze({ '待处理': 'pending', '处理中': 'processing', '已解决': 'resolved' });
+
+  function normalizeFeedbackTypeClient(value) {
+    const raw = String(value || '').trim();
+    const type = FEEDBACK_TYPE_ALIASES[raw] || raw.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(FEEDBACK_TYPE_LABELS, type) ? type : 'other';
+  }
+
+  function normalizeFeedbackStatusClient(value) {
+    const raw = String(value || '').trim();
+    const status = FEEDBACK_STATUS_ALIASES[raw] || raw.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(FEEDBACK_STATUS_LABELS, status) ? status : 'pending';
+  }
+
+  function getFeedbackContext() {
+    const data = state.data || {};
+    return {
+      name: findCurrentPlmUserName(),
+      instanceId: getClientInstanceId(),
+      version: SCRIPT_VERSION,
+      pagePath: String(location.pathname || '').slice(0, 200),
+      sku: String(data.sku || state.selectedSku || state.observedSku || '').trim().slice(0, 80),
+    };
+  }
+
+  function normalizeFeedbackItem(item) {
+    const source = item && typeof item === 'object' ? item : {};
+    const type = normalizeFeedbackTypeClient(source.type || source.feedbackType);
+    const status = normalizeFeedbackStatusClient(source.status);
+    return {
+      feedbackId: String(source.feedbackId || source.feedback_id || '').slice(0, 120),
+      userName: String(source.userName || source.user_name || '').slice(0, 40),
+      type,
+      content: String(source.content || '').slice(0, 2000),
+      version: String(source.version || source.scriptVersion || source.script_version || '').slice(0, 30),
+      pagePath: String(source.pagePath || source.page_path || '').slice(0, 200),
+      sku: String(source.sku || '').slice(0, 80),
+      status,
+      adminReply: String(source.adminReply || source.admin_reply || '').slice(0, 4000),
+      createdAt: String(source.createdAt || source.created_at || '').slice(0, 80),
+      updatedAt: String(source.updatedAt || source.updated_at || '').slice(0, 80),
+    };
+  }
+
+  function feedbackErrorText(error) {
+    const message = formatErrorMessage(error);
+    if (Number(error && error.status) === 404 || /(?:not found|\b404\b)/i.test(message)) return '反馈接口尚未部署，请更新 Worker 后再试。';
+    if (/name required/i.test(message)) return '未识别当前 PLM 用户，请先登录后再提交反馈。';
+    if (/invalid feedback type/i.test(message)) return '反馈类型无效，请重新选择。';
+    if (/content required/i.test(message)) return '请填写反馈内容。';
+    if (/content too long/i.test(message)) return '反馈内容不能超过 2000 字。';
+    if (/too many submissions/i.test(message)) return '提交过于频繁，请稍后再试。';
+    return message;
+  }
+
+  async function loadFeedbackHistory(showState = true) {
+    if (state.feedbackLoading) return;
+    const name = findCurrentPlmUserName();
+    if (!name) {
+      state.feedbackItems = [];
+      state.feedbackLoadedName = '';
+      state.feedbackError = '未识别当前 PLM 用户，请先登录后再提交反馈。';
+      if (showState && state.view === 'feedback') renderShell();
+      return;
+    }
+    state.feedbackLoading = true;
+    state.feedbackError = '';
+    if (state.feedbackLoadedName !== name) state.feedbackItems = [];
+    if (showState && state.view === 'feedback') renderShell();
+    try {
+      const response = await cloudRequest('/feedback/mine?name=' + encodeURIComponent(name), { method: 'GET' });
+      if (findCurrentPlmUserName() !== name) return;
+      const items = Array.isArray(response && response.feedback) ? response.feedback : [];
+      state.feedbackItems = items.map(normalizeFeedbackItem).filter((item) => item.feedbackId || item.content);
+      state.feedbackLoadedName = name;
+    } catch (error) {
+      state.feedbackError = '反馈历史加载失败：' + feedbackErrorText(error);
+    } finally {
+      state.feedbackLoading = false;
+      if (state.view === 'feedback') renderShell();
+    }
+  }
+
+  async function submitFeedback() {
+    if (state.feedbackSubmitting) return;
+    const context = getFeedbackContext();
+    if (!context.name) {
+      state.feedbackError = '未识别当前 PLM 用户，请先登录后再提交反馈。';
+      showToast(state.feedbackError);
+      renderShell();
+      return;
+    }
+    const content = String(state.feedbackContent || '').trim();
+    if (!content) {
+      state.feedbackError = '请填写反馈内容。';
+      showToast(state.feedbackError);
+      const textarea = ensurePanel().querySelector('.pfh-feedback-content');
+      if (textarea) textarea.focus();
+      renderShell();
+      return;
+    }
+    if (Array.from(content).length > 2000) {
+      state.feedbackError = '反馈内容不能超过 2000 字。';
+      showToast(state.feedbackError);
+      renderShell();
+      return;
+    }
+    state.feedbackSubmitting = true;
+    state.feedbackError = '';
+    renderShell();
+    try {
+      const response = await cloudRequest('/feedback/submit', {
+        method: 'POST',
+        body: {
+          name: context.name,
+          instanceId: context.instanceId,
+          type: normalizeFeedbackTypeClient(state.feedbackType),
+          content,
+          version: context.version,
+          pagePath: context.pagePath,
+          sku: context.sku,
+        },
+      });
+      const item = response && response.feedback ? normalizeFeedbackItem(response.feedback) : null;
+      if (item && (item.feedbackId || item.content)) {
+        state.feedbackItems = [item].concat((state.feedbackItems || []).filter((entry) => entry.feedbackId !== item.feedbackId)).slice(0, 50);
+      } else {
+        await loadFeedbackHistory(false);
+      }
+      state.feedbackLoadedName = context.name;
+      state.feedbackContent = '';
+      state.feedbackError = '';
+      showToast('反馈已提交，感谢你的建议。');
+    } catch (error) {
+      state.feedbackError = '反馈提交失败：' + feedbackErrorText(error);
+      showToast(state.feedbackError);
+    } finally {
+      state.feedbackSubmitting = false;
+      if (state.view === 'feedback') renderShell();
+    }
+  }
+
+  function feedbackViewHtml() {
+    const context = getFeedbackContext();
+    const currentName = context.name || '';
+    const type = normalizeFeedbackTypeClient(state.feedbackType);
+    const content = String(state.feedbackContent || '');
+    const typeOptions = Object.entries(FEEDBACK_TYPE_LABELS).map(([value, label]) => '<option value="' + value + '"' + (value === type ? ' selected' : '') + '>' + label + '</option>').join('');
+    const items = (state.feedbackItems || []).map((item) => {
+      const itemContext = [
+        item.version ? '版本 ' + item.version : '',
+        item.pagePath ? '页面 ' + item.pagePath : '',
+        item.sku ? 'SKU ' + item.sku : '',
+      ].filter(Boolean).join(' · ');
+      const reply = item.adminReply
+        ? '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--pfh-theme-soft,#f7f3ff);color:var(--pfh-theme-text,#34284d);line-height:1.6"><b>管理员回复：</b>' + escapeHtml(item.adminReply).replace(/\r?\n/g, '<br>') + '</div>'
+        : '';
+      return '<article class="pfh-feedback-item" style="padding:13px 14px;border:1px solid var(--pfh-theme-border,#e7e1fb);border-radius:12px;background:var(--pfh-theme-card,rgba(255,255,255,.72));margin-top:10px"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><strong>' + escapeHtml(FEEDBACK_TYPE_LABELS[item.type]) + '</strong><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">' + escapeHtml(FEEDBACK_STATUS_LABELS[item.status]) + '</span></div><p style="margin:9px 0 0;line-height:1.6;white-space:normal;word-break:break-word">' + escapeHtml(item.content).replace(/\r?\n/g, '<br>') + '</p><small style="display:block;margin-top:9px;color:var(--pfh-theme-muted,#7d728f)">' + escapeHtml(formatNotificationTime(item.createdAt) || item.createdAt || '') + (itemContext ? ' · ' + escapeHtml(itemContext) : '') + '</small>' + reply + '</article>';
+    }).join('');
+    const count = Array.from(content).length;
+    const meta = ['脚本 v' + SCRIPT_VERSION, '页面 ' + (context.pagePath || '当前页面'), 'SKU ' + (context.sku || '未选择')].join(' · ');
+    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-feedback-page">' +
+      '<div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>FEEDBACK</small><h2>意见反馈</h2><p>告诉我们你遇到的问题或希望改进的地方。</p></div></div>' +
+      '<div class="pfh-mini-tool-card pfh-feedback-submit-card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><label style="margin:0">当前 PLM 姓名</label><strong>' + escapeHtml(currentName || '未识别，请先登录') + '</strong></div><label>反馈类型</label><select class="pfh-feedback-type">' + typeOptions + '</select><label>反馈内容</label><textarea class="pfh-feedback-content" maxlength="2000" placeholder="请描述你的建议、问题或数据错误，最多 2000 字">' + escapeHtml(content) + '</textarea><div class="pfh-feedback-meta" style="margin-top:8px;font-size:12px;color:var(--pfh-theme-muted,#7d728f);line-height:1.5">提交时自动附带：' + escapeHtml(meta) + '</div><div class="pfh-mini-tool-actions"><span class="pfh-feedback-count" style="margin-right:auto;color:var(--pfh-theme-muted,#7d728f)">' + count + '/2000</span><button type="button" data-action="feedback-refresh"' + (state.feedbackLoading ? ' disabled' : '') + '>' + (state.feedbackLoading ? '刷新中…' : '刷新历史') + '</button><button type="button" data-action="feedback-submit"' + (!currentName || state.feedbackSubmitting ? ' disabled' : '') + '>' + (state.feedbackSubmitting ? '提交中…' : '提交反馈') + '</button></div>' + (state.feedbackError ? '<p class="pfh-feedback-error" role="alert" style="margin:10px 0 0;color:#b42318;line-height:1.5">' + escapeHtml(state.feedbackError) + '</p>' : '') + '</div>' +
+      '<div class="pfh-mini-tool-card pfh-feedback-history-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><small>HISTORY</small><h3 style="margin:4px 0 0">我的反馈</h3></div><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">最近 50 条</span></div><div class="pfh-feedback-list">' + (items || '<div style="padding:18px 0;color:var(--pfh-theme-muted,#7d728f)">' + (state.feedbackLoading ? '正在加载反馈历史…' : (currentName ? '暂无反馈记录' : '登录后可查看反馈记录')) + '</div>') + '</div></div>' +
+      '</section></div>';
+  }
+
+  function renderFeedback(panel) {
+    const list = panel.querySelector('.pfh-list');
+    const detail = panel.querySelector('.pfh-detail');
+    if (list) list.innerHTML = '';
+    detail.classList.remove('is-loading');
+    detail.innerHTML = feedbackViewHtml();
+  }
+
   function mountMagicUploadLayout(root) {
     if (!root || typeof root.querySelector !== 'function') return;
     const canvas = root.querySelector('.pfh-magic-canvas');
@@ -8466,6 +8745,15 @@
       const pipeline = labHead.querySelector('.pfh-magic-pipeline');
       if (pipeline && pipeline.parentNode !== headRight) headRight.appendChild(pipeline);
       headRight.insertBefore(modeTabs, pipeline || null);
+    }
+    const modeContent = canvas.querySelector('.pfh-magic-mode-content');
+    const overview = canvas.querySelector('.pfh-magic-overview');
+    const activity = overview && overview.querySelector('.pfh-magic-activity');
+    if (modeContent && activity && !activity.closest('.pfh-magic-activity-card')) {
+      const activityCard = document.createElement('section');
+      activityCard.className = 'pfh-magic-activity-card';
+      activityCard.appendChild(activity);
+      modeContent.appendChild(activityCard);
     }
     root.querySelectorAll('.pfh-magic-drop-icon').forEach((element) => element.remove());
     const effectDrop = root.querySelector('.pfh-magic-upload-drop[data-upload-drop="magic-effect"]');
@@ -8502,8 +8790,8 @@
       root + '.pfh-magic-lab-title em{display:inline-flex;margin-left:7px;padding:3px 8px;border:1px solid rgba(112,86,232,.2);border-radius:999px;background:rgba(112,86,232,.09);color:#7056e8;font-size:9px;font-style:normal;font-weight:900;letter-spacing:.12em;vertical-align:middle}',
       root + '.pfh-magic-pipeline{display:inline-flex;align-items:center;gap:6px;color:#7056e8;font-size:10px;font-weight:900;letter-spacing:.16em;white-space:nowrap}',
       root + '.pfh-magic-pipeline:before{content:"";width:7px;height:7px;border-radius:50%;background:#49c7bc;box-shadow:0 0 0 5px rgba(73,199,188,.16)}',
-      root + '.pfh-magic-mode-tabs{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;box-sizing:border-box;width:min(100%,260px);min-height:36px;margin:0;padding:3px;overflow:hidden;border:1px solid var(--pfh-theme-border,rgba(26,35,68,.1));border-radius:999px;background:var(--pfh-theme-surface-alt,rgba(244,241,255,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 7px 16px var(--pfh-theme-shadow-soft,rgba(45,37,100,.1));isolation:isolate}',
-      root + '.pfh-magic-mode-indicator{position:absolute;z-index:0;top:3px;left:3px;width:calc((100% - 6px) / 2);height:calc(100% - 6px);box-sizing:border-box;border:0;border-radius:999px;background:linear-gradient(135deg,var(--pfh-theme-primary,#8b5cf6),var(--pfh-theme-primary-hover,#6d35e8));box-shadow:0 8px 18px var(--pfh-theme-shadow-soft,rgba(109,53,232,.28));pointer-events:none;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease}',
+      root + '.pfh-magic-mode-tabs{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;box-sizing:border-box;width:min(100%,360px);min-height:36px;margin:0;padding:3px;overflow:hidden;border:1px solid var(--pfh-theme-border,rgba(26,35,68,.1));border-radius:999px;background:var(--pfh-theme-surface-alt,rgba(244,241,255,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 7px 16px var(--pfh-theme-shadow-soft,rgba(45,37,100,.1));isolation:isolate}',
+      root + '.pfh-magic-mode-indicator{position:absolute;z-index:0;top:3px;left:3px;width:calc((100% - 6px) / 3);height:calc(100% - 6px);box-sizing:border-box;border:0;border-radius:999px;background:linear-gradient(135deg,var(--pfh-theme-primary,#8b5cf6),var(--pfh-theme-primary-hover,#6d35e8));box-shadow:0 8px 18px var(--pfh-theme-shadow-soft,rgba(109,53,232,.28));pointer-events:none;will-change:left,width;transition:left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1),box-shadow .28s ease}',
       root + '.pfh-magic-mode-tabs button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:28px;padding:0 12px!important;border:0!important;border-radius:999px!important;background:transparent!important;color:var(--pfh-theme-muted,#69728f)!important;font-size:11px;font-weight:800;line-height:1;cursor:pointer;transition:color .28s ease,transform .12s ease}',
       root + '.pfh-magic-mode-tabs button.is-active{background:transparent!important;color:#fff!important;box-shadow:none!important}',
       root + '.pfh-magic-mode-tabs button:hover:not(:disabled):not(.is-active){background:transparent!important;color:var(--pfh-theme-primary-hover,#5d4bd4)!important}',
@@ -8535,6 +8823,14 @@
       root + '.pfh-magic-actions button:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}',
       root + '.pfh-magic-actions .pfh-magic-history-toggle{margin-left:auto}',
       root + '.pfh-magic-actions .pfh-icon,' + root + '.pfh-magic-history .pfh-icon,' + root + '.pfh-magic-back .pfh-icon{width:16px!important;height:16px!important}',
+      root + '.pfh-magic-toy-label-form{flex:0 0 auto;margin:0 0 18px;padding:16px 17px;border:1px solid rgba(151,158,188,.18);border-radius:21px;background:rgba(255,255,255,.78);box-shadow:0 10px 28px rgba(47,50,94,.06)}',
+      root + '.pfh-magic-toy-label-form-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}',
+      root + '.pfh-magic-toy-label-form-head b{display:block;color:#1d2232;font-size:13px;font-weight:900}',
+      root + '.pfh-magic-toy-label-form-head span{display:block;margin-top:4px;color:#8990a6;font-size:10px;font-weight:650}',
+      root + '.pfh-magic-toy-label-form-head>strong{color:#7056e8;font-size:10px;font-weight:900;white-space:nowrap}',
+      root + '.pfh-magic-toy-label-input{display:block;width:100%;min-height:92px;box-sizing:border-box;resize:vertical;border:1px solid rgba(112,86,232,.18);border-radius:14px;background:#fff;color:#1d2232;padding:11px 12px;font:700 12px/1.55 Arial,"Microsoft YaHei",sans-serif;outline:none}',
+      root + '.pfh-magic-toy-label-input:focus{border-color:#7056e8;box-shadow:0 0 0 3px rgba(112,86,232,.12)}',
+      root + '.pfh-magic-toy-label-hint{margin:9px 0 0;color:#8990a6;font-size:10px;font-weight:650;line-height:1.5}',
       root + '.pfh-magic-queue{display:grid;grid-auto-rows:max-content;align-content:start;flex:1 1 0;min-height:0;gap:12px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding:2px 4px 10px 2px}',
       root + '.pfh-magic-task{display:block;position:relative;min-height:max-content;overflow:visible;border:1px solid rgba(151,158,188,.18);border-radius:21px;background:rgba(255,255,255,.92);box-shadow:0 12px 32px rgba(47,50,94,.08);transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease}',
       root + '.pfh-magic-task:before{display:none}',
@@ -8599,8 +8895,28 @@
       root + '.pfh-magic-history-dialog .pfh-magic-history-list{max-height:360px;overflow:auto;padding:6px 17px 15px}',
       root + '.pfh-magic-task-delete{border:0;border-radius:10px;background:rgba(217,87,112,.09);color:#d95770;padding:6px 8px;font-size:10px;font-weight:850;cursor:pointer}',
       root + '.pfh-magic-history-empty,' + root + '.pfh-magic-empty{padding:28px 12px;border:1px dashed rgba(26,35,68,.12);border-radius:18px;background:rgba(255,255,255,.46);color:#8990a6;font-size:11px;text-align:center}',
+      root + '.pfh-magic-mode-content{position:relative;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(260px,.92fr);grid-template-rows:minmax(180px,1fr) minmax(104px,.58fr) auto auto auto minmax(0,1.08fr);gap:12px;align-items:stretch;overflow:hidden}',
+      root + '.pfh-magic-overview{grid-column:1;grid-row:1 / span 2;display:flex;flex:none;flex-direction:column;min-width:0;min-height:0;margin:0!important;padding:16px!important;overflow:hidden;border:1px solid var(--pfh-theme-border,rgba(26,35,68,.1));border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(248,251,249,.86));box-shadow:0 14px 32px rgba(45,73,54,.08)}',
+      root + '.pfh-magic-overview h3{margin:0 0 12px;color:#1d2232;font-size:15px;font-weight:900}',
+      root + '.pfh-magic-overview .pfh-magic-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;flex:0 0 auto}',
+      root + '.pfh-magic-overview .pfh-magic-stat{padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.72)}',
+      root + '.pfh-magic-overview .pfh-magic-stat:last-child{grid-column:1 / -1}',
+      root + '.pfh-magic-upload-drop{grid-column:2;grid-row:1;display:grid;min-width:0;min-height:0!important;height:auto;margin:0!important;padding:20px;border:1px dashed rgba(102,167,126,.5);border-radius:22px;background:linear-gradient(145deg,rgba(248,253,249,.98),rgba(241,249,243,.82));box-shadow:0 14px 30px rgba(53,100,67,.07)}',
+      root + '.pfh-magic-upload-drop:hover,' + root + '.pfh-magic-upload-drop.is-drag-over{border-color:#6fae7d;background:linear-gradient(145deg,rgba(244,252,246,1),rgba(235,247,238,.92));box-shadow:0 16px 34px rgba(53,100,67,.14)}',
+      root + '.pfh-magic-upload-drop strong{font-size:20px;color:#497b59}',
+      root + '.pfh-magic-upload-drop>div>span{max-width:280px;margin-right:auto;margin-left:auto;line-height:1.55}',
+      root + '.pfh-magic-activity-card{grid-column:2;grid-row:2;display:flex;min-width:0;min-height:0;overflow:hidden;padding:15px 16px;border:1px solid rgba(111,174,125,.28);border-radius:22px;background:linear-gradient(145deg,rgba(250,255,251,.94),rgba(240,249,242,.78));box-shadow:0 12px 28px rgba(53,100,67,.06)}',
+      root + '.pfh-magic-activity-card .pfh-magic-activity{display:flex;flex:1 1 auto;flex-direction:column;min-width:0;min-height:0;margin:0;padding:0;border:0;overflow:auto}',
+      root + '.pfh-magic-activity-card .pfh-magic-activity h3{margin:0;color:#4f8b5d;font-size:14px;font-weight:900}',
+      root + '.pfh-magic-activity-card .pfh-magic-activity p{display:flex;width:100%;gap:8px;align-items:flex-start;margin:8px 0 0;color:#76927d;font-size:10px;line-height:1.4}',
+      root + '.pfh-magic-activity-card .pfh-magic-activity i{margin-top:4px;background:#69b77a;box-shadow:0 0 0 4px rgba(105,183,122,.14)}',
+      root + '.pfh-magic-toy-label-form{grid-column:2;grid-row:1;min-width:0;min-height:0;margin:0!important;overflow:auto}',
+      root + '.pfh-magic-processing{grid-column:1 / -1;grid-row:3;margin:0!important}',
+      root + '.pfh-magic-actions{grid-column:1 / -1;grid-row:4;margin:0!important;padding:0 4px!important}',
+      root + '.pfh-magic-queue-head{grid-column:1 / -1;grid-row:5;margin:0!important}',
+      root + '.pfh-magic-queue{grid-column:1 / -1;grid-row:6;min-height:0!important;max-height:none}',
       '@keyframes pfhMagicUploadSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicAuroraSpin{to{transform:rotate(360deg)}}@keyframes pfhMagicProgressSheen{0%{transform:translateX(-130%)}55%,100%{transform:translateX(360%)}}@keyframes pfhMagicDropSweep{0%,100%{transform:translateX(-42%);opacity:.18}50%{transform:translateX(42%);opacity:.48}}',
-      '@media (max-width:720px){' + root + '.pfh-magic-stats{grid-template-columns:repeat(2,minmax(0,1fr))}' + root + '.pfh-magic-activity p{width:100%}' + root + '.pfh-magic-lab-head{align-items:center;flex-direction:row;flex-wrap:wrap}' + root + '.pfh-magic-hero{align-items:flex-start;flex-direction:column}' + root + '.pfh-magic-head-right{width:auto;justify-content:flex-end;margin-left:auto}' + root + '.pfh-magic-pipeline{display:none}' + root + '.pfh-magic-task-main{grid-template-columns:46px minmax(0,1fr) 62px;gap:10px;padding:15px 14px}' + root + '.pfh-magic-sku-text{max-width:118px}' + root + '.pfh-magic-task-source{font-size:14px}' + root + '.pfh-magic-file-badge:not(.is-replace):not(.is-checking){display:none}}',
+      '@media (max-width:720px){' + root + '.pfh-magic-mode-content{grid-template-columns:1fr;grid-template-rows:auto auto auto auto auto auto minmax(0,1fr);overflow:auto}' + root + '.pfh-magic-overview{grid-column:1;grid-row:1}' + root + '.pfh-magic-upload-drop,' + root + '.pfh-magic-toy-label-form{grid-column:1;grid-row:2}' + root + '.pfh-magic-activity-card{grid-column:1;grid-row:3}' + root + '.pfh-magic-processing{grid-column:1;grid-row:4}' + root + '.pfh-magic-actions{grid-column:1;grid-row:5}' + root + '.pfh-magic-queue-head{grid-column:1;grid-row:6}' + root + '.pfh-magic-queue{grid-column:1;grid-row:7}' + root + '.pfh-magic-stats{grid-template-columns:repeat(2,minmax(0,1fr))}' + root + '.pfh-magic-activity p{width:100%}' + root + '.pfh-magic-lab-head{align-items:center;flex-direction:row;flex-wrap:wrap}' + root + '.pfh-magic-hero{align-items:flex-start;flex-direction:column}' + root + '.pfh-magic-head-right{width:auto;justify-content:flex-end;margin-left:auto}' + root + '.pfh-magic-pipeline{display:none}' + root + '.pfh-magic-task-main{grid-template-columns:46px minmax(0,1fr) 62px;gap:10px;padding:15px 14px}' + root + '.pfh-magic-sku-text{max-width:118px}' + root + '.pfh-magic-task-source{font-size:14px}' + root + '.pfh-magic-file-badge:not(.is-replace):not(.is-checking){display:none}}',
       '@media (prefers-reduced-motion:reduce){' + root + '*{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}'
     ].join('');
     document.head.appendChild(style);
@@ -8676,6 +8992,171 @@
       if (typeof GM_setValue === 'function') GM_setValue(MAGIC_UPLOAD_HISTORY_KEY, snapshot);
       else localStorage.setItem(MAGIC_UPLOAD_HISTORY_KEY, JSON.stringify(snapshot));
     } catch (error) { console.warn('PLM magic upload history save failed:', error); }
+  }
+
+  function normalizeMagicToyLabelTask(task, options) {
+    if (!task || typeof task !== 'object') return null;
+    const sku = String(task.sku || '').trim().toUpperCase();
+    if (!sku) return null;
+    const opts = options || {};
+    const allowedStatuses = new Set(['pending', 'processing', 'success', 'error', 'waiting']);
+    let status = allowedStatuses.has(task.status) ? task.status : 'pending';
+    if (status === 'processing' && !opts.preserveProcessing) status = 'pending';
+    const progress = Math.min(1, Math.max(0, Number(task.progress) || 0));
+    return {
+      ...task,
+      id: String(task.id || createMagicUploadId()),
+      sku,
+      name: String(task.name || '').trim(),
+      status,
+      progress: status === 'success' ? 1 : progress,
+      step: String(task.step || '').trim(),
+      error: String(task.error || '').trim(),
+      projectId: String(task.projectId || '').trim(),
+      materialId: task.materialId === undefined || task.materialId === null ? '' : String(task.materialId),
+      materialCode: String(task.materialCode || '').trim(),
+      materialName: String(task.materialName || '').trim(),
+      objectPath: String(task.objectPath || '').trim(),
+      generatedFilename: String(task.generatedFilename || '').trim(),
+      widthCm: Number(task.widthCm) || 0,
+      heightCm: Number(task.heightCm) || 0,
+      updatedAt: Number(task.updatedAt) || Date.now(),
+    };
+  }
+
+  function loadMagicToyLabelQueue() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(MAGIC_TOY_LABEL_QUEUE_KEY, null) : JSON.parse(localStorage.getItem(MAGIC_TOY_LABEL_QUEUE_KEY) || 'null');
+      return Array.isArray(saved) ? saved.map((task) => normalizeMagicToyLabelTask(task)).filter(Boolean).slice(0, 300) : [];
+    } catch (_) { return []; }
+  }
+
+  function saveMagicToyLabelQueue(queue) {
+    const runtimeQueue = (Array.isArray(queue) ? queue : []).filter((task) => task && task.id).slice(0, 300);
+    const snapshot = runtimeQueue.map((task) => normalizeMagicToyLabelTask(task, { preserveProcessing: true })).filter(Boolean);
+    state.magicToyLabelQueue = runtimeQueue;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(MAGIC_TOY_LABEL_QUEUE_KEY, snapshot);
+      else localStorage.setItem(MAGIC_TOY_LABEL_QUEUE_KEY, JSON.stringify(snapshot));
+    } catch (error) { console.warn('PLM magic toy label queue save failed:', error); }
+  }
+
+  function loadMagicToyLabelHistory() {
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(MAGIC_TOY_LABEL_HISTORY_KEY, null) : JSON.parse(localStorage.getItem(MAGIC_TOY_LABEL_HISTORY_KEY) || 'null');
+      return Array.isArray(saved) ? saved.slice(0, 300) : [];
+    } catch (_) { return []; }
+  }
+
+  function saveMagicToyLabelHistory(history) {
+    const snapshot = Array.isArray(history) ? history.slice(0, 300) : [];
+    state.magicToyLabelHistory = snapshot;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(MAGIC_TOY_LABEL_HISTORY_KEY, snapshot);
+      else localStorage.setItem(MAGIC_TOY_LABEL_HISTORY_KEY, JSON.stringify(snapshot));
+    } catch (error) { console.warn('PLM magic toy label history save failed:', error); }
+  }
+
+  function magicToyLabelStatusLabel(task) {
+    if (!task) return '等待生成';
+    if (task.status === 'success') return '已写入 BOM 标签';
+    if (task.status === 'error') return task.error || '生成或上传失败';
+    if (task.status === 'waiting') return '已暂停';
+    return task.step || '等待生成';
+  }
+
+  function refreshMagicToyLabelPage() {
+    if (state.view !== 'magicUpload' || state.magicUploadMode !== 'toy-label') return;
+    if (!renderMagicUploadModeContent(ensurePanel())) renderShell();
+  }
+
+  function updateMagicToyLabelTask(task, patch, options) {
+    if (!task) return;
+    Object.assign(task, patch || {});
+    task.updatedAt = Date.now();
+    saveMagicToyLabelQueue(state.magicToyLabelQueue);
+    const opts = options || {};
+    if (opts.render !== false) refreshMagicToyLabelPage();
+  }
+
+  function parseMagicToyLabelSkus(value) {
+    const matches = String(value || '').match(/\bSKU[A-Z0-9_-]+\b/gi) || [];
+    const seen = new Set();
+    return matches.map((item) => String(item).trim().toUpperCase()).filter((sku) => {
+      if (!sku || seen.has(sku)) return false;
+      seen.add(sku);
+      return true;
+    });
+  }
+
+  function addMagicToyLabelTasks(value) {
+    if (!hasApiUploadAccess()) {
+      notifyApiUploadAccessDenied();
+      return;
+    }
+    const skus = parseMagicToyLabelSkus(value);
+    if (!skus.length) {
+      showToast('请粘贴 SKU 编码，例如 SKU12345678');
+      return;
+    }
+    const queue = Array.isArray(state.magicToyLabelQueue) ? state.magicToyLabelQueue : [];
+    const existing = new Set(queue.map((task) => String(task && task.sku || '').toUpperCase()));
+    let added = 0;
+    skus.forEach((sku) => {
+      if (existing.has(sku)) return;
+      const cached = loadData(sku) || (state.index || []).find((item) => item && item.sku === sku) || {};
+      queue.push(normalizeMagicToyLabelTask({
+        id: createMagicUploadId(),
+        sku,
+        name: cached.name || '',
+        status: 'pending',
+        progress: 0,
+        step: '等待生成',
+        createdAt: Date.now(),
+      }, { preserveProcessing: true }));
+      existing.add(sku);
+      added += 1;
+    });
+    state.magicToyLabelInput = '';
+    state.magicToyLabelStatus = added ? '已加入 ' + added + ' 个玩具标签任务' : '这些 SKU 已在队列中';
+    saveMagicToyLabelQueue(queue);
+    refreshMagicToyLabelPage();
+  }
+
+  function removeMagicToyLabelTask(id) {
+    const taskId = String(id || '');
+    state.magicToyLabelQueue = (state.magicToyLabelQueue || []).filter((task) => task.id !== taskId);
+    saveMagicToyLabelQueue(state.magicToyLabelQueue);
+    refreshMagicToyLabelPage();
+  }
+
+  function retryMagicToyLabelTask(id) {
+    const task = (state.magicToyLabelQueue || []).find((item) => item && item.id === String(id || ''));
+    if (!task) return;
+    updateMagicToyLabelTask(task, { status: 'pending', progress: 0, step: '等待重试', error: '', objectPath: '' });
+  }
+
+  function clearMagicToyLabelQueue() {
+    state.magicToyLabelRunning = false;
+    state.magicToyLabelQueue = [];
+    state.magicToyLabelStatus = '队列已清空';
+    saveMagicToyLabelQueue([]);
+    refreshMagicToyLabelPage();
+  }
+
+  function retryMagicToyLabelHistory(id) {
+    const entry = (state.magicToyLabelHistory || []).find((item) => item && item.id === String(id || ''));
+    if (!entry || !entry.sku) return;
+    const queue = Array.isArray(state.magicToyLabelQueue) ? state.magicToyLabelQueue : [];
+    if (queue.some((task) => task && task.sku === entry.sku && task.status !== 'success')) {
+      showToast(entry.sku + ' 已在玩具标签队列中');
+      return;
+    }
+    queue.push(normalizeMagicToyLabelTask({ ...entry, id: createMagicUploadId(), status: 'pending', progress: 0, step: '等待重试', error: '', objectPath: '' }, { preserveProcessing: true }));
+    state.magicToyLabelStatus = entry.sku + ' 已恢复到队列';
+    saveMagicToyLabelQueue(queue);
+    state.magicToyLabelHistoryOpen = false;
+    refreshMagicToyLabelPage();
   }
 
   function loadMagicUploadMetrics() {
@@ -9385,10 +9866,34 @@
     return '替换 ' + categories.join('、') + (count ? ' · 现有 ' + count + ' 个文件' : '') + nameText;
   }
 
+  function magicToyLabelViewHtml(modeTabs) {
+    const queue = Array.isArray(state.magicToyLabelQueue) ? state.magicToyLabelQueue : [];
+    const running = Boolean(state.magicToyLabelRunning);
+    const pendingCount = queue.filter((task) => task.status === 'pending' || task.status === 'error').length;
+    const errorCount = queue.filter((task) => task.status === 'error').length;
+    const successCount = queue.filter((task) => task.status === 'success').length;
+    const activeCount = queue.filter((task) => task.status === 'processing').length;
+    const history = Array.isArray(state.magicToyLabelHistory) ? state.magicToyLabelHistory : [];
+    const historyOpen = Boolean(state.magicToyLabelHistoryOpen);
+    const rows = queue.length ? queue.map((task) => {
+      const progress = Math.round((task.status === 'success' ? 1 : Math.min(1, Math.max(0, Number(task.progress) || 0))) * 100);
+      const statusClass = task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '');
+      const statusText = magicToyLabelStatusLabel(task);
+      const title = task.name || '标签尺寸说明图';
+      const dimension = task.widthCm && task.heightCm ? trimCm(task.widthCm) + ' × ' + trimCm(task.heightCm) + ' cm' : '尺寸读取中';
+      return '<article class="pfh-magic-task ' + statusClass + '" data-magic-toy-label-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku) + '">' + escapeHtml(task.sku) + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</span><span class="pfh-magic-file-badge">PNG</span></div><div class="pfh-magic-task-meta"><span>' + escapeHtml(task.materialCode || '标签物料待匹配') + '</span><span>' + escapeHtml(dimension) + '</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(task.step || statusText) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-remove" data-magic-toy-label-id="' + escapeHtml(task.id) + '">删除</button>' + (task.status === 'error' ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-retry" data-magic-toy-label-id="' + escapeHtml(task.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+    }).join('') : '<div class="pfh-magic-empty">在上方粘贴 SKU，生成带产品图、条码和尺寸标注的标签说明图</div>';
+    const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + iconHtml('history') + ' 玩具标签历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : '失败') + '</strong><span>' + escapeHtml(entry.name || '标签尺寸说明图') + ' · ' + escapeHtml(entry.materialCode || '标签物料') + ' · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + '</div></section></div>' : '';
+    const activity = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error').slice(0, 3);
+    const activityHtml = activity.length ? activity.map((task) => '<p><i></i><span>' + escapeHtml(task.sku + ' · ' + magicToyLabelStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>' + escapeHtml(state.magicToyLabelStatus || '等待 SKU 进入队列') + '</span></p>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + successCount + '/' + queue.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + pendingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM API</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + escapeHtml(state.magicToyLabelInput || '') + '</textarea><p class="pfh-magic-toy-label-hint">尺寸优先读取项目 BOM 标签物料的长宽；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-toy-label-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + iconHtml('history') + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + queue.length + ' 个 SKU · API 写入标签物料</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
+  }
+
   function magicUploadViewHtml() {
     if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></div></div></section></div>';
-    const magicMode = state.magicUploadMode === 'effect' ? 'effect' : 'package';
-    const modeTabs = '<div class="pfh-magic-mode-tabs ' + (magicMode === 'effect' ? 'is-effect' : '') + '" data-active-mode="' + magicMode + '"><i class="pfh-magic-mode-indicator" aria-hidden="true"></i><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + (magicMode === 'package' ? 'is-active' : '') + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + (magicMode === 'effect' ? 'is-active' : '') + '">效果图</button></div>';
+    const magicMode = state.magicUploadMode === 'effect' ? 'effect' : (state.magicUploadMode === 'toy-label' ? 'toy-label' : 'package');
+    const modeTabs = '<div class="pfh-magic-mode-tabs ' + (magicMode === 'effect' ? 'is-effect' : (magicMode === 'toy-label' ? 'is-toy-label' : '')) + '" data-active-mode="' + magicMode + '"><i class="pfh-magic-mode-indicator" aria-hidden="true"></i><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + (magicMode === 'package' ? 'is-active' : '') + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + (magicMode === 'effect' ? 'is-active' : '') + '">效果图</button><button type="button" data-action="magic-upload-mode" data-magic-mode="toy-label" class="' + (magicMode === 'toy-label' ? 'is-active' : '') + '">玩具标签</button></div>';
+    if (magicMode === 'toy-label') return magicToyLabelViewHtml(modeTabs);
     if (magicMode === 'effect') {
       const uploadQueue = loadUploadQueue();
       const queue = uploadQueue.filter((item) => item.kind === 'toy-effect' && !/\u6210\u529f/.test(item.status || ''));
@@ -9707,6 +10212,226 @@
     } else {
       showToast('当前账号没有 API 上传权限，普通图包表格仍可使用');
     }
+  }
+
+  function ensureMagicToyLabelRunning() {
+    if (!state.magicToyLabelRunning) throw new Error('已暂停');
+  }
+
+  function startMagicToyLabelQueue() {
+    if (!hasApiUploadAccess()) {
+      notifyApiUploadAccessDenied();
+      return;
+    }
+    if (magicToyLabelQueueRunPromise) return magicToyLabelQueueRunPromise;
+    const runner = async () => {
+      state.magicToyLabelRunning = true;
+      state.magicToyLabelStatus = '正在准备玩具标签队列';
+      refreshMagicToyLabelPage();
+      try {
+        while (state.magicToyLabelRunning) {
+          const task = (state.magicToyLabelQueue || []).find((item) => item && (item.status === 'pending' || item.status === 'error'));
+          if (!task) break;
+          updateMagicToyLabelTask(task, { status: 'processing', progress: Math.max(.01, Number(task.progress) || 0), step: '读取项目 BOM 和效果图', error: '' });
+          try {
+            const result = await processMagicToyLabelTask(task);
+            updateMagicToyLabelTask(task, { status: 'success', progress: 1, step: '已写入 BOM 标签物料', error: '', objectPath: result.objectPath || task.objectPath, finishedAt: Date.now() });
+            state.magicToyLabelHistory = [{ ...normalizeMagicToyLabelTask(task, { preserveProcessing: true }), status: 'success', finishedAt: Date.now() }, ...(state.magicToyLabelHistory || [])].slice(0, 300);
+            saveMagicToyLabelHistory(state.magicToyLabelHistory);
+            addLog('success', '魔法上传玩具标签 API 成功', task.sku + ' | ' + (task.objectPath || result.objectPath || ''));
+          } catch (error) {
+            const paused = !state.magicToyLabelRunning || String(error && error.message || error) === '已暂停';
+            if (paused) {
+              updateMagicToyLabelTask(task, { status: 'pending', step: '已暂停，等待继续', error: '' });
+              break;
+            }
+            const message = formatErrorMessage(error);
+            updateMagicToyLabelTask(task, { status: 'error', step: '处理失败', error: message });
+            state.magicToyLabelHistory = [{ ...normalizeMagicToyLabelTask(task, { preserveProcessing: true }), status: 'error', error: message, finishedAt: Date.now() }, ...(state.magicToyLabelHistory || [])].slice(0, 300);
+            saveMagicToyLabelHistory(state.magicToyLabelHistory);
+            addLog('error', '魔法上传玩具标签 API 失败', task.sku + ' | ' + message);
+          }
+          if (state.magicToyLabelRunning) refreshMagicToyLabelPage();
+        }
+      } finally {
+        state.magicToyLabelRunning = false;
+        state.magicToyLabelStatus = (state.magicToyLabelQueue || []).some((task) => task.status === 'pending' || task.status === 'error')
+          ? '队列等待继续'
+          : '玩具标签队列已完成';
+        saveMagicToyLabelQueue(state.magicToyLabelQueue);
+        refreshMagicToyLabelPage();
+      }
+    };
+    let runPromise;
+    runPromise = runner().finally(() => {
+      if (magicToyLabelQueueRunPromise === runPromise) magicToyLabelQueueRunPromise = null;
+    });
+    magicToyLabelQueueRunPromise = runPromise;
+    return runPromise;
+  }
+
+  async function processMagicToyLabelTask(task) {
+    ensureMagicToyLabelRunning();
+    if (!task || !task.sku) throw new Error('缺少 SKU 编码');
+    const context = await resolveMagicToyLabelContext(task);
+    ensureMagicToyLabelRunning();
+    updateMagicToyLabelTask(task, {
+      projectId: context.projectId,
+      name: task.name || context.data.name || '',
+      materialId: context.labelMaterial.id,
+      materialCode: context.labelMaterial.code || '',
+      materialName: context.labelMaterial.name || context.labelMaterial.category_name || '',
+      step: '生成标签尺寸图',
+      progress: .2,
+    });
+    const generated = await generateMagicToyLabelSizeImage(task, context);
+    ensureMagicToyLabelRunning();
+    updateMagicToyLabelTask(task, {
+      generatedFilename: generated.filename,
+      widthCm: generated.widthCm,
+      heightCm: generated.heightCm,
+      step: '上传标签尺寸图到 OSS',
+      progress: .42,
+    });
+    const objectPath = await uploadMagicToyLabelSizeImage(task, generated);
+    ensureMagicToyLabelRunning();
+    task.objectPath = objectPath;
+    updateMagicToyLabelTask(task, { objectPath, step: '调用 BOM API 保存标签', progress: .82 });
+    await saveMagicToyLabelToBom(task, context, objectPath);
+    return { objectPath };
+  }
+
+  function getMagicToyLabelEffectPicturePaths(payload) {
+    const raw = payload && payload.data;
+    const values = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.list) ? raw.list : []);
+    return values.map((value) => {
+      if (typeof value === 'string') return normalizeMagicUploadEffectPath(value);
+      if (!value || typeof value !== 'object') return '';
+      return normalizeMagicUploadEffectPath(value.path || value.file_path || value.filePath || value.oss_path || value.ossPath || value.url || value.src || '');
+    }).filter(Boolean).filter((value, index, list) => list.indexOf(value) === index);
+  }
+
+  function getMagicToyLabelImageUrl(path) {
+    const text = String(path || '').trim();
+    if (!text) return '';
+    return /^https?:\/\//i.test(text) ? stripOssResizeParams(text) : buildApiArchiveFileUrl(text);
+  }
+
+  async function resolveMagicToyLabelContext(task) {
+    const sku = String(task && task.sku || '').trim().toUpperCase();
+    if (!sku) throw new Error('缺少 SKU 编码');
+    ensureMagicToyLabelRunning();
+    const cached = loadData(sku) || (state.index || []).find((item) => item && item.sku === sku) || {};
+    let data = normalizeData({ ...cached, sku });
+    const projectSnapshot = await fetchApiProjectSnapshot(data, { force: true }).catch((error) => {
+      magicUploadLog('info', '玩具标签项目查询失败，继续使用缓存项目', sku + ' | ' + formatErrorMessage(error));
+      return null;
+    });
+    const projectId = getProjectIdForMaterialApi(data) || String(projectSnapshot && projectSnapshot.projectId || '').trim();
+    if (!projectId || !/^\d+$/.test(projectId)) throw new Error('未找到 ' + sku + ' 对应的项目 ID');
+    data = normalizeData({
+      ...data,
+      projectRowId: data.projectRowId || projectId,
+      projectId: data.projectId || projectId,
+      name: data.name || projectSnapshot && projectSnapshot.name || '',
+      brand: data.brand || projectSnapshot && projectSnapshot.brand || '',
+    });
+    const [materialsPayload, effectPayload] = await Promise.all([
+      fetchPlmJson('/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
+      fetchPlmJson('/api/ChemicalNew/GetProjectEffectPicture?id=' + encodeURIComponent(projectId)),
+    ]);
+    const materials = getApiMaterialItems(materialsPayload);
+    if (!materials.length) throw new Error('项目 BOM 没有物料：' + sku);
+    const labelMaterials = materials.filter((material) => /标签/.test([material && material.category_name, material && material.categoryName].filter(Boolean).join(' ')));
+    const namedLabelMaterials = materials.filter((material) => /标签/.test([material && material.name, material && material.material_name].filter(Boolean).join(' ')));
+    const labelMaterial = labelMaterials[0] || namedLabelMaterials[0] || (materials.length === 1 ? materials[0] : null);
+    if (!labelMaterial) throw new Error('项目 BOM 未找到标签物料：' + sku);
+    const effectPictureFiles = getMagicToyLabelEffectPicturePaths(effectPayload);
+    const cachedImageSource = getToyLabelImageSource(data, {});
+    let imageUrl = effectPictureFiles.map(getMagicToyLabelImageUrl).find(Boolean) || cachedImageSource.imageUrl || cachedImageSource.imageFallbackUrl || '';
+    let imageFallbackUrl = cachedImageSource.imageFallbackUrl || imageUrl;
+    if (!imageUrl) {
+      const productSnapshot = await fetchApiProductSnapshot(data).catch(() => null);
+      imageUrl = productSnapshot && (productSnapshot.productListImageUrl || productSnapshot.productListImageFallbackUrl) || '';
+      imageFallbackUrl = productSnapshot && (productSnapshot.productListImageFallbackUrl || productSnapshot.productListImageUrl) || imageUrl;
+    }
+    if (!imageUrl) throw new Error('未找到 ' + sku + ' 的效果图或产品图片');
+    return { projectId, data, materials, labelMaterial, effectPictureFiles, imageUrl, imageFallbackUrl };
+  }
+
+  function getMagicToyLabelSizeCm(material, data) {
+    const source = material || {};
+    const readDimension = (value) => {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric > 0) return numeric;
+      const extracted = Number(extractCmValue(value));
+      return Number.isFinite(extracted) && extracted > 0 ? extracted : 0;
+    };
+    const width = readDimension(source.material_length || source.materialLength || source.length);
+    const height = readDimension(source.material_width || source.materialWidth || source.width);
+    if (width > 0 && height > 0) return { width, height };
+    const printNums = parseDimension(data && (data.printSizeText || data.printSizeLabel), 2);
+    if (printNums && printNums[0] > 0 && printNums[1] > 0) return { width: printNums[0], height: printNums[1] };
+    return getToyLabelSizeCm(data);
+  }
+
+  async function generateMagicToyLabelSizeImage(task, context) {
+    ensureMagicToyLabelRunning();
+    const data = normalizeData({
+      ...(context.data || {}),
+      sku: task.sku,
+      toyLabelProductImageUrl: context.imageUrl,
+      toyLabelProductImageFallbackUrl: context.imageFallbackUrl || context.imageUrl,
+    });
+    const productImage = await fetchImageForExcel(context.imageUrl, context.imageFallbackUrl || context.imageUrl).catch((error) => {
+      throw new Error('产品图读取失败：' + formatErrorMessage(error));
+    });
+    if (!productImage || !productImage.dataUrl) throw new Error('产品图为空，已停止生成');
+    const size = getMagicToyLabelSizeCm(context.labelMaterial, data);
+    const barcodeImage = await getBarcodeForToyLabel(task.sku);
+    const printCanvas = await renderToyLabelPrintCanvas({ sku: task.sku, widthCm: size.width, heightCm: size.height, productImage, barcodeImage });
+    const previewCanvas = await renderToyLabelPreviewCanvas({ sku: task.sku, widthCm: size.width, heightCm: size.height, printCanvas });
+    const blob = await canvasToBlob(previewCanvas, 'image/png');
+    const filename = (cleanFileNamePart([data.brand, data.name, task.sku].filter(Boolean).join(' ')) || task.sku) + '.png';
+    return { blob, filename, widthCm: size.width, heightCm: size.height };
+  }
+
+  async function uploadMagicToyLabelSizeImage(task, generated) {
+    ensureMagicToyLabelRunning();
+    const blob = generated && generated.blob;
+    if (!blob || !blob.size) throw new Error('标签尺寸图生成结果为空');
+    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 40 });
+    const secret = secretPayload && secretPayload.data;
+    if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到标签尺寸图 OSS 临时授权');
+    const uploadMaxBytes = Number(secret.max_file_size) || (20 * 1024 * 1024);
+    if (blob.size > uploadMaxBytes) throw new Error('标签尺寸图超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
+    if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
+    const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName('.png');
+    const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true, retryMax: OSS_UPLOAD_SDK_RETRY_MAX, timeout: OSS_UPLOAD_TIMEOUT_MS });
+    await multipartUploadWithRetry(client, objectName, blob, {
+      partSize: 2 * 1024 * 1024,
+      parallel: 2,
+      progress: (percent) => updateMagicToyLabelTask(task, { progress: .42 + .3 * Math.min(1, Math.max(0, Number(percent) || 0)), step: '上传标签尺寸图到 OSS · ' + Math.round(Math.min(1, Math.max(0, Number(percent) || 0)) * 100) + '%' }, { render: false }),
+    }, (error, retryCount, delay, checkpoint) => {
+      const completedParts = checkpoint && Array.isArray(checkpoint.doneParts) ? checkpoint.doneParts.length : 0;
+      updateMagicToyLabelTask(task, { step: '网络波动，自动重试 ' + retryCount + '/' + OSS_UPLOAD_RETRY_MAX + ' · 已完成分片 ' + completedParts }, { render: false });
+    });
+    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 40, oss_path: objectName, original_file_name: generated.filename || task.sku + '.png' });
+    return objectName;
+  }
+
+  async function saveMagicToyLabelToBom(task, context, objectPath) {
+    ensureMagicToyLabelRunning();
+    const materials = (context.materials || []).map(buildMagicUploadBomMaterialPayload);
+    const target = materials.find((material) => String(material && material.id || '') === String(context.labelMaterial && context.labelMaterial.id || ''));
+    if (!target) throw new Error('BOM 标签物料已变化，无法定位保存行');
+    target.pics = [normalizeMagicUploadEffectPath(objectPath)];
+    await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
+      project_id: Number(context.projectId) || context.projectId,
+      materials,
+      effect_picture_files: context.effectPictureFiles || [],
+    });
+    updateMagicToyLabelTask(task, { progress: 1, step: 'BOM 标签物料已保存' });
   }
 
   async function resolveMagicUploadProductContext(task) {
@@ -11699,8 +12424,8 @@
       ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
       ['home-magic-upload', 'upload', '图包实验室', '魔法上传', magicUploadLocked ? magicUploadLockText : '拖入多个 ZIP，自动识别 SKU 与素材区域并通过 API 上传。', magicUploadLocked, true],
       ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。', false, true],
-      ['home-unit-converter', 'calculator', '单位换算', '厘米换算英寸', '输入一个或多个厘米尺寸，立即换算为英寸。'],
-      ['home-tools', 'tools', '效率辅助', '小工具', '整理编码并输出可直接使用的搜索格式。'],
+      ['home-tools', 'tools', '效率辅助', '小工具', '厘米换算、编码格式化和批量玩具文案补全集中管理。'],
+      ['home-feedback', 'messageCircle', '意见反馈', '提交反馈', '告诉我们哪里需要改进，提交后可查看处理状态和管理员回复。'],
     ];
     return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
       '<div class="pfh-home-orbit"><i class="wave"></i><i class="wave"></i><i class="wave"></i><span></span></div>' +
@@ -11717,29 +12442,46 @@
       '</section></div>';
   }
 
-  function unitConverterViewHtml() {
+  function normalizeToolsActiveTool(value) {
+    const tool = String(value || '').trim().toLowerCase();
+    return tool === 'code' || tool === 'copywriting' ? tool : 'unit';
+  }
+
+  function unitConverterToolPanelHtml() {
     const result = convertCmInputToInches(state.cmConverterInput);
-    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page">' +
-      '<div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>UNIT CONVERTER</small><h2>厘米换算英寸</h2><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div></div>' +
-      '<div class="pfh-mini-tool-card"><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + escapeHtml(state.cmConverterInput || '') + '</textarea>' +
+    return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>UNIT CONVERTER</small><h3>厘米换算英寸</h3><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + escapeHtml(state.cmConverterInput || '') + '</textarea>' +
       '<div class="pfh-mini-tool-result"><span>英寸（inch）</span><strong class="pfh-unit-converter-result">' + escapeHtml(result || '等待输入') + '</strong></div>' +
-      '<div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
-      '</section></div>';
+      '<div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></section>';
+  }
+
+  function codeFormatterToolPanelHtml() {
+    const result = formatSearchCodes(state.codeFormatterInput);
+    return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>CODE FORMATTER</small><h3>编码格式化</h3><p>把多个编码整理为文件搜索格式，支持空格、换行或逗号分隔。</p></div><label>编码</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + escapeHtml(state.codeFormatterInput || '') + '</textarea>' +
+      '<div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + escapeHtml(result || 'ext:zip|ext:xlsx 编码1|编码2') + '</strong></div>' +
+      '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></section>';
   }
 
   function toolsViewHtml() {
-    const result = formatSearchCodes(state.codeFormatterInput);
-    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page">' +
-      '<div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>把多个编码整理为文件搜索格式。</p></div></div>' +
-      '<div class="pfh-mini-tool-card"><label>编码格式化</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + escapeHtml(state.codeFormatterInput || '') + '</textarea>' +
-      '<div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + escapeHtml(result || 'ext:zip|ext:xlsx 编码1|编码2') + '</strong></div>' +
-      '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></div>' +
-      toyCopywritingBatchCardHtml() +
+    const activeTool = normalizeToolsActiveTool(state.toolsActiveTool);
+    state.toolsActiveTool = activeTool;
+    const navItems = [
+      ['unit', 'calculator', '厘米换算英寸'],
+      ['code', 'tag', '编码格式化'],
+      ['copywriting', 'sparkle', '批量文案补全'],
+    ];
+    const content = activeTool === 'unit'
+      ? unitConverterToolPanelHtml()
+      : (activeTool === 'code' ? codeFormatterToolPanelHtml() : toyCopywritingBatchCardHtml());
+    const nav = navItems.map((item) => '<button type="button" data-action="tools-select" data-tool="' + item[0] + '" class="' + (item[0] === activeTool ? 'is-active' : '') + '" aria-current="' + (item[0] === activeTool ? 'page' : 'false') + '">' + iconHtml(item[1]) + '<span>' + item[2] + '</span></button>').join('');
+    return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-tools-page">' +
+      '<div class="pfh-mini-tool-head pfh-tools-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>厘米换算、编码格式化和批量玩具文案补全，统一在这里切换。</p></div></div>' +
+      '<div class="pfh-tools-workbench"><aside class="pfh-tools-sidebar"><div class="pfh-tools-sidebar-head"><small>TOOLS</small><strong>工具列表</strong></div><nav class="pfh-tools-nav" aria-label="小工具列表">' + nav + '</nav></aside><main class="pfh-tools-content">' + content + '</main></div>' +
       '</section></div>';
   }
 
   function toyCopywritingBatchCardHtml() {
-    const queue = state.toyCopywritingBatchRunning
+    const queueIsActive = state.toyCopywritingBatchRunning || state.toyCopywritingApplyRunning;
+    const queue = queueIsActive
       ? (state.toyCopywritingBatchQueue || loadToyCopywritingBatchQueue())
       : loadToyCopywritingBatchQueue();
     state.toyCopywritingBatchQueue = queue;
@@ -11755,7 +12497,7 @@
     const progressText = state.toyCopywritingBatchStatus || (running
       ? '正在先读取新品开发全部项目状态，再按状态进入设计任务或商品管理补全文案并生成图片，请保持 PLM 页面登录状态。'
       : '输入 SKU 后，系统会自动识别玩具并只补全缺失的中英文文案字段。');
-    return '<section class="pfh-mini-tool-card pfh-toy-copywriting-batch-page">' +
+    return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-toy-copywriting-batch-page">' +
       '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
       '<div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + escapeHtml(state.toyCopywritingBatchInput || '') + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div>' +
       '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, locked) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (canApply ? '' : ' disabled') + '>' + (applying && !downloadReviewing ? '正在全部应用并提审…' : '批量全部应用并提审') + '</button><button type="button" data-action="toy-copywriting-batch-download-review" title="下载主图和详情图后直接提交审批，不点击全部应用"' + (canApply ? '' : ' disabled') + '>' + (downloadReviewing ? '正在下载并提审…' : '下载后直接提审') + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done && !locked ? '' : ' disabled') + '>清除已完成</button></div></div>' +
@@ -11836,8 +12578,11 @@
     const status = String(entry && entry.status || 'pending');
     const applyStatus = String(entry && entry.applyStatus || '');
     if (applyStatus === 'applying') return { kind: 'running', text: entry.applyMode === 'download-review' ? '下载并提审中' : '应用中' };
+    if (applyStatus === 'applied') return { kind: 'running', text: entry.applyMode === 'download-review' ? '下载完成，提审中' : '应用完成，提审中' };
     if (applyStatus === 'submitted') return { kind: 'done', text: '已提审' };
-    if (applyStatus === 'error' && (status === 'success' || status === 'noop')) return { kind: 'error', text: '应用失败' };
+    if (applyStatus === 'error' && (status === 'success' || status === 'noop')) {
+      return { kind: 'error', text: entry.applyMode === 'download-review' ? '下载/提审失败' : '应用失败' };
+    }
     if (status === 'processing') return { kind: 'running', text: '补全中' };
     if (status === 'success') return { kind: 'done', text: '已完成' };
     if (status === 'noop') return { kind: 'done', text: '无需补充' };
@@ -16264,6 +17009,25 @@
       renderShell();
       return;
     }
+    if (action === 'home-feedback') {
+      state.view = 'feedback';
+      state.copywritingMode = false;
+      state.detailReturnView = '';
+      state.detailReturnScroll = null;
+      expandPanel();
+      renderShell();
+      const name = findCurrentPlmUserName();
+      if (!name || state.feedbackLoadedName !== name) loadFeedbackHistory();
+      return;
+    }
+    if (action === 'feedback-submit') {
+      submitFeedback();
+      return;
+    }
+    if (action === 'feedback-refresh') {
+      loadFeedbackHistory();
+      return;
+    }
     if (action === 'open-detail') {
       openSelectedProjectDetail();
       return;
@@ -16413,13 +17177,22 @@
       return;
     }
     if (action === 'home-unit-converter') {
-      state.view = 'unitConverter';
+      state.view = 'tools';
+      state.toolsActiveTool = 'unit';
       expandPanel();
       renderShell();
       return;
     }
     if (action === 'home-tools') {
       state.view = 'tools';
+      expandPanel();
+      renderShell();
+      return;
+    }
+    if (action === 'tools-select') {
+      state.toolsActiveTool = normalizeToolsActiveTool(actionTarget.getAttribute('data-tool'));
+      state.view = 'tools';
+      state.copywritingMode = false;
       expandPanel();
       renderShell();
       return;
@@ -16456,8 +17229,51 @@
       return;
     }
     if (action === 'magic-upload-mode') {
-      state.magicUploadMode = actionTarget.getAttribute('data-magic-mode') === 'effect' ? 'effect' : 'package';
+      const nextMagicMode = actionTarget.getAttribute('data-magic-mode');
+      state.magicUploadMode = nextMagicMode === 'effect' || nextMagicMode === 'toy-label' ? nextMagicMode : 'package';
       if (!renderMagicUploadModeContent(ensurePanel())) renderShell();
+      return;
+    }
+    if (action === 'magic-toy-label-add') {
+      addMagicToyLabelTasks(state.magicToyLabelInput);
+      return;
+    }
+    if (action === 'magic-toy-label-start') {
+      startMagicToyLabelQueue();
+      return;
+    }
+    if (action === 'magic-toy-label-pause') {
+      state.magicToyLabelRunning = false;
+      state.magicToyLabelStatus = '队列已暂停';
+      saveMagicToyLabelQueue(state.magicToyLabelQueue);
+      refreshMagicToyLabelPage();
+      return;
+    }
+    if (action === 'magic-toy-label-remove') {
+      removeMagicToyLabelTask(actionTarget.getAttribute('data-magic-toy-label-id') || '');
+      return;
+    }
+    if (action === 'magic-toy-label-retry') {
+      retryMagicToyLabelTask(actionTarget.getAttribute('data-magic-toy-label-id') || '');
+      return;
+    }
+    if (action === 'magic-toy-label-clear') {
+      clearMagicToyLabelQueue();
+      return;
+    }
+    if (action === 'magic-toy-label-history-toggle') {
+      state.magicToyLabelHistoryOpen = !state.magicToyLabelHistoryOpen;
+      refreshMagicToyLabelPage();
+      return;
+    }
+    if (action === 'magic-toy-label-history-close') {
+      if (actionTarget.classList && actionTarget.classList.contains('pfh-magic-history-modal') && event.target !== actionTarget) return;
+      state.magicToyLabelHistoryOpen = false;
+      refreshMagicToyLabelPage();
+      return;
+    }
+    if (action === 'magic-toy-label-history-retry') {
+      retryMagicToyLabelHistory(actionTarget.getAttribute('data-magic-toy-label-history-id') || '');
       return;
     }
     if (action === 'magic-effect-start') {
@@ -16547,7 +17363,7 @@
       }
       state.view = 'magicUpload';
       state.uploadReturnView = '';
-      state.magicUploadMode = state.magicUploadMode === 'effect' ? 'effect' : 'package';
+      state.magicUploadMode = state.magicUploadMode === 'effect' || state.magicUploadMode === 'toy-label' ? state.magicUploadMode : 'package';
       expandPanel();
       renderShell();
       return;
@@ -17073,10 +17889,10 @@
     if (skuButton) {
       const currentTab = getCurrentDetailViewTab();
       const sku = skuButton.getAttribute('data-sku');
-      const data = loadData(sku);
+      const data = loadData(sku) || state.index.find((entry) => entry && entry.sku === sku) || null;
       state.selectedSku = sku;
       state.data = data ? normalizeData(data) : (currentTab === 'sizeImage' || currentTab === 'parameterImage' ? normalizeData({ sku }) : null);
-      window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku).catch((error) => {
+      window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku, data).catch((error) => {
         addLog('warn', '悬浮窗后台刷新物料失败', sku + ' | ' + formatErrorMessage(error));
       }), 0);
       state.detailViewPreviousTab = '';
@@ -17161,6 +17977,13 @@
 
   function handlePanelInput(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleInput(event, state.data || {})) return;
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-feedback-content')) {
+      state.feedbackContent = event.target.value;
+      state.feedbackError = '';
+      const counter = ensurePanel().querySelector('.pfh-feedback-count');
+      if (counter) counter.textContent = Array.from(state.feedbackContent).length + '/2000';
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-unit-converter-input')) {
       state.cmConverterInput = event.target.value;
       const result = convertCmInputToInches(state.cmConverterInput);
@@ -17202,6 +18025,9 @@
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-toy-copywriting-batch-input')) {
       state.toyCopywritingBatchInput = event.target.value;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-magic-toy-label-input')) {
+      state.magicToyLabelInput = event.target.value;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cloud-backup-key')) {
       state.settings.cloudBackupKey = event.target.value.trim();
@@ -17387,6 +18213,7 @@
 
   function handleMagicUploadPaste(event) {
     if (event.defaultPrevented || state.view !== 'magicUpload') return false;
+    if (state.magicUploadMode === 'toy-label') return false;
     const panel = document.getElementById(PANEL_ID);
     const target = event.target;
     const effectMode = state.magicUploadMode === 'effect';
@@ -17473,6 +18300,10 @@
 
   function handlePanelChange(event) {
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-feedback-type')) {
+      state.feedbackType = normalizeFeedbackTypeClient(event.target.value);
+      return;
+    }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-copywriting-view-select')) {
       state.copywritingView = event.target.value === 'full' ? 'full' : 'file';
       renderShell();
@@ -22403,6 +23234,19 @@
     return /pcs$/i.test(text) ? text.toUpperCase() : text + 'PCS';
   }
 
+  function formatPackSourceLabel(source) {
+    const text = compactText(source);
+    if (!text) return '';
+    if (/local-calc|本地计算/i.test(text)) return '本地';
+    if (/cache|缓存/i.test(text)) return '缓存';
+    return text.length > 10 ? text.slice(0, 10) + '…' : text;
+  }
+
+  function formatPackQtyStatus(count, source, verb) {
+    const sourceLabel = formatPackSourceLabel(source);
+    return '装箱数' + (verb ? verb : '') + ' ' + String(count || '') + (sourceLabel ? ' · ' + sourceLabel : '');
+  }
+
   async function fillRecommendedPackQty(data) {
     if (state.excelPackQty) return false;
     const boxKey = buildPackBoxKey(data);
@@ -22411,7 +23255,7 @@
     const cachedBoxKey = String(data && data.packQtyBoxKey || '');
     if (cachedCount && (!cachedBoxKey || cachedBoxKey === boxKey)) {
       state.excelPackQty = cachedCount;
-      state.excelStatus = L.excelPackRecommended + ': ' + cachedCount + '（缓存）';
+      state.excelStatus = formatPackQtyStatus(cachedCount, '缓存');
       return true;
     }
     let recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
@@ -22427,10 +23271,8 @@
     const count = recommendation && recommendation.packCount ? String(recommendation.packCount) : '';
     if (!count) return false;
     state.excelPackQty = count;
-    const sourceText = recommendation.source === 'local-calc'
-      ? '本地计算 56x36x21cm'
-      : (recommendation.source || '历史推荐');
-    state.excelStatus = L.excelPackRecommended + ': ' + count + '（' + sourceText + '）';
+    const sourceText = recommendation.source || '历史推荐';
+    state.excelStatus = formatPackQtyStatus(count, sourceText);
     cachePackRecommendation(data, boxKey, recommendation);
     addLog('success', '已补全装箱数', String(data && data.sku || '') + ' ' + boxKey + ' → ' + count + '（' + sourceText + '）');
     return true;
@@ -25103,22 +25945,22 @@
   function schedulePackAiEstimate(data) {
     const boxKey = buildPackBoxKey(data);
     if (!boxKey) {
-      if (hasPackDimensionInput(data)) showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u7eb8\u76d2\u5c3a\u5bf8\u4e0d\u5b8c\u6574\uff0c\u65e0\u6cd5\u8ba1\u7b97');
+      if (hasPackDimensionInput(data)) showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5c3a\u5bf8\u4e0d\u5b8c\u6574');
       return;
     }
     if (state.packAiEstimatingKeys.has(boxKey)) {
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a' + boxKey + ' \u6b63\u5728\u8ba1\u7b97\u4e2d');
+      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u8ba1\u7b97\u4e2d');
       return;
     }
     const failedAt = state.packAiFailedAt && state.packAiFailedAt[boxKey] || 0;
     if (failedAt && Date.now() - failedAt < 10 * 60 * 1000) {
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a' + boxKey + ' \u521a\u521a\u5931\u8d25\u8fc7\uff0c10\u5206\u949f\u540e\u91cd\u8bd5');
+      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u521a\u5931\u8d25\uff0c10\u5206\u949f\u540e\u91cd\u8bd5');
       return;
     }
     state.packAiEstimatingKeys.add(boxKey);
     window.setTimeout(() => runPackAiEstimate(data, boxKey).catch((error) => {
       console.warn('PLM floating helper pack AI estimate failed:', error);
-      showPackAiToast('\u88c5\u7bb1\u6570\u8ba1\u7b97\u5931\u8d25\uff1a' + formatErrorMessage(error));
+      showPackAiToast('\u88c5\u7bb1\u6570\u8ba1\u7b97\u5931\u8d25');
       state.packAiFailedAt[boxKey] = Date.now();
     }).finally(() => {
       state.packAiEstimatingKeys.delete(boxKey);
@@ -25128,23 +25970,24 @@
   async function runPackAiEstimate(data, boxKey) {
     const recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
     if (recommendation && recommendation.found && recommendation.packCount) {
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5df2\u5b58\u5728\u5386\u53f2 ' + recommendation.packCount);
+      showPackAiToast(formatPackQtyStatus(recommendation.packCount, '\u5386\u53f2', '\u5df2\u53d6\u7528'));
       cachePackRecommendation(data, boxKey, recommendation);
       return recommendation;
     }
-    showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u672a\u67e5\u5230\u5386\u53f2\uff0c\u540e\u53f0\u8ba1\u7b97\u4e2d ' + boxKey);
+    showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u540e\u53f0\u8ba1\u7b97\u4e2d');
     let estimated = await requestPackAiEstimate(boxKey, data && data.sku).catch((error) => {
       addLog('warn', '在线装箱推荐不可用，改用本地计算', String(data && data.sku || '') + ' ' + formatErrorMessage(error));
       return null;
     });
     if (!estimated || !estimated.packCount) estimated = calculateLocalPackRecommendation(boxKey);
     if (estimated && estimated.packCount) {
-      const sourceText = estimated.source === 'local-calc' ? '本地计算 56x36x21cm' : estimated.source;
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5df2\u5199\u5165 ' + estimated.packCount + (sourceText ? '\uff08' + sourceText + '\uff09' : ''));
+      const sourceText = estimated.source || '';
+      const shortStatus = formatPackQtyStatus(estimated.packCount, sourceText, '\u5df2\u5199\u5165');
+      showPackAiToast(shortStatus);
       cachePackRecommendation(data, boxKey, estimated);
       if (state.excelPanelOpen && state.data && data && state.data.sku === data.sku && !state.excelPackQty) {
         state.excelPackQty = String(estimated.packCount);
-        state.excelStatus = L.excelPackRecommended + ': ' + estimated.packCount + (sourceText ? '（' + sourceText + '）' : '');
+        state.excelStatus = shortStatus;
         renderShell();
       }
       return estimated;
