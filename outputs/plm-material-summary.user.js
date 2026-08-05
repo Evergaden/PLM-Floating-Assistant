@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.5
+// @version      2.7.6
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.5';
+  const SCRIPT_VERSION = '2.7.6';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -124,6 +124,16 @@
       { category: '户外玩具', keywords: ['户外玩具', '滑板车', '跳绳', 'outdoor toy', 'scooter'], phrase: 'Active play & outdoor fun', priority: 100 },
       { category: '文具礼品', keywords: ['文具', '礼品', 'stationery', 'gift'], phrase: 'Useful design & everyday delight', priority: 55 },
       { category: '家居用品', keywords: ['家居', '收纳', '厨房', 'home', 'storage', 'kitchen'], phrase: 'Smart design for everyday living', priority: 50 },
+      { category: '膳食营养', keywords: ['膳食营养', '入口', '软糖', '胶囊', '缓释粉', 'dietary nutrition', 'gummy', 'gummies', 'capsule', 'extended-release powder'], phrase: 'Daily dietary nutrition', priority: 109 },
+      { category: '钻石艺术套装', keywords: ['钻石艺术套装', '珍珠钻石画', '钻石挂饰', 'diamond art', 'diamond painting', 'diamond craft', 'diamond pendant'], phrase: 'Creative craft & sparkling display', priority: 120 },
+      { category: '面霜', keywords: ['面霜', '膏', '乳霜', 'face cream', 'facial cream', 'moisturizing cream'], phrase: 'Hydrates & smooths skin', priority: 95 },
+      { category: '营养补充', keywords: ['营养补充', '胶囊', '软糖', '滴剂', '粉', 'nutritional supplement', 'dietary supplement', 'gummy', 'gummies', 'drops', 'powder'], phrase: 'Daily nutritional support', priority: 111 },
+      { category: '牙科护理', keywords: ['牙科护理', '牙套', '牙贴', '牙膏', '假牙', 'dental care', 'dental aligner', 'teeth strips', 'toothpaste', 'denture'], phrase: 'Daily dental care', priority: 114 },
+      { category: '创意玩具', keywords: ['捏捏乐', 'DIY套装', '毛绒', 'stress toy', 'diy kit', 'plush toy'], phrase: 'Fun play & hands-on creativity', priority: 104 },
+      { category: '护肤品', keywords: ['护肤品', 'skincare', 'skin care', 'face care'], phrase: 'Daily skin care & radiance', priority: 78 },
+      { category: '口服营养', keywords: ['口服营养', '胶囊', '软糖', '滴剂', 'oral nutrition', 'oral supplement', 'gummy', 'gummies', 'drops'], phrase: 'Everyday wellness support', priority: 110 },
+      { category: '口腔护理', keywords: ['口腔护理', '牙膏', '牙贴', '牙套', 'oral care', 'toothpaste', 'teeth strips', 'dental aligner'], phrase: 'Fresh breath & daily care', priority: 113 },
+      { category: '口服营养品', keywords: ['口服营养品', '胶囊', '软糖', '含片', 'oral nutritional product', 'oral supplement', 'gummy', 'gummies', 'lozenge'], phrase: 'Everyday nutritional support', priority: 112 },
     ];
     let featureRules = defaultRules.slice();
     let rulesLoaded = false;
@@ -183,7 +193,12 @@
     function matchFeature(data, englishName) {
       const category = context.productType(data) || '';
       const haystack = [category, data && data.name, englishName].filter(Boolean).join(' ').toLowerCase();
-      const matched = featureRules.slice().sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0)).find((rule) =>
+      const sortedRules = featureRules.slice().sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+      const categoryText = String(category).toLowerCase();
+      const categoryMatched = categoryText && sortedRules.find((rule) =>
+        (rule.keywords || []).some((keyword) => categoryText.includes(String(keyword).toLowerCase()))
+      );
+      const matched = categoryMatched || sortedRules.find((rule) =>
         (rule.keywords || []).some((keyword) => haystack.includes(String(keyword).toLowerCase()))
       );
       return matched ? matched.phrase : 'Everyday care & comfort';

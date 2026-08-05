@@ -62,6 +62,16 @@ const DEFAULT_PARAMETER_FEATURE_RULES = [
   ['outdoor-toy', '户外玩具,滑板车,跳绳,outdoor toy,scooter', 'Active Play & Outdoor Fun', 100],
   ['stationery-gift', '文具,礼品,stationery,gift', 'Useful Design & Everyday Delight', 55],
   ['home', '家居,收纳,厨房,home,storage,kitchen', 'Smart Design for Everyday Living', 50],
+  ['dietary-nutrition', '膳食营养,入口,软糖,胶囊,缓释粉,dietary nutrition,gummy,gummies,capsule,extended-release powder', 'Daily Dietary Nutrition', 109],
+  ['diamond-art', '钻石艺术套装,珍珠钻石画,钻石挂饰,diamond art,diamond painting,diamond craft,diamond pendant', 'Creative Craft & Sparkling Display', 120],
+  ['face-cream', '面霜,膏,乳霜,face cream,facial cream,moisturizing cream', 'Hydrates & Smooths Skin', 95],
+  ['nutrition-supplement', '营养补充,胶囊,软糖,滴剂,粉,nutritional supplement,dietary supplement,gummy,gummies,drops,powder', 'Daily Nutritional Support', 111],
+  ['dental-care', '牙科护理,牙套,牙贴,牙膏,假牙,dental care,dental aligner,teeth strips,toothpaste,denture', 'Daily Dental Care', 114],
+  ['sensory-diy-toy', '捏捏乐,DIY套装,毛绒,stress toy,diy kit,plush toy', 'Fun Play & Hands-on Creativity', 104],
+  ['skincare', '护肤品,skincare,skin care,face care', 'Daily Skin Care & Radiance', 78],
+  ['oral-nutrition', '口服营养,胶囊,软糖,滴剂,oral nutrition,oral supplement,gummy,gummies,drops', 'Everyday Wellness Support', 110],
+  ['oral-hygiene', '口腔护理,牙膏,牙贴,牙套,oral care,toothpaste,teeth strips,dental aligner', 'Fresh Breath & Daily Care', 113],
+  ['oral-nutrition-product', '口服营养品,胶囊,软糖,含片,oral nutritional product,oral supplement,gummy,gummies,lozenge', 'Everyday Nutritional Support', 112],
 ];
 
 function json(data, status = 200) {
