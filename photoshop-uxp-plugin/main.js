@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.20';
+const PLUGIN_VERSION = '0.1.21';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -519,17 +519,21 @@ function setTextBoxBounds(textKey, bounds, resolution) {
   }
   const shape = textKey.textShape[0] = copyDescriptor(textKey.textShape[0]);
   const current = shape.bounds && typeof shape.bounds === 'object' ? shape.bounds : {};
-  const horizontalUnit = unitName(current.left) || unitName(current.right) || 'pixelsUnit';
-  const verticalUnit = unitName(current.top) || unitName(current.bottom) || 'pixelsUnit';
+  // Photoshop often returns textShape.bounds as plain numbers, unlike the
+  // document/layer bounds descriptors. Those numbers are interpreted as
+  // points by the text engine. Treating an untagged value as pixels makes a
+  // 4 cm selection in a high-resolution document become tens of centimetres
+  // wide when the paragraph frame is written back.
+  const horizontalUnit = unitName(current.left) || unitName(current.right) || 'pointsUnit';
+  const verticalUnit = unitName(current.top) || unitName(current.bottom) || 'pointsUnit';
   const currentLeft = Number.isFinite(numberValue(current.left)) ? numberValue(current.left) : 0;
   const currentTop = Number.isFinite(numberValue(current.top)) ? numberValue(current.top) : 0;
   const width = Math.max(1, Number(bounds.right) - Number(bounds.left));
   const height = Math.max(1, Number(bounds.bottom) - Number(bounds.top));
   shape.bounds = {
     ...current,
-    // Keep Photoshop's native unit for textShape.bounds. Some Photoshop
-    // versions return points here; writing pixel values into that descriptor
-    // makes the paragraph frame several times wider than the marquee.
+    // textShape.bounds are local to the insertion point. Preserve an explicit
+    // unit returned by Photoshop, but use points for the common untagged form.
     top: unitDescriptor(currentTop, verticalUnit),
     left: unitDescriptor(currentLeft, horizontalUnit),
     bottom: unitDescriptor(currentTop + lengthInUnit(height, verticalUnit, resolution), verticalUnit),
