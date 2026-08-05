@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.6
+// @version      2.7.7
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.6';
+  const SCRIPT_VERSION = '2.7.7';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -287,7 +287,7 @@
       if (rulesLoaded) return false;
       rulesLoaded = true;
       try {
-        const response = await context.cloudRequest('/parameter-features', { method: 'GET' });
+        const response = await context.cloudRequest('/parameter-features?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
         const rows = response && Array.isArray(response.rules) ? response.rules : [];
         if (rows.length) { featureRules = rows; return true; }
       } catch (_) {}

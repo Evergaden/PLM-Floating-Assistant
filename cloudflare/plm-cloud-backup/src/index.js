@@ -79,6 +79,7 @@ function json(data, status = 200) {
     status,
     headers: {
       ...CORS_HEADERS,
+      'cache-control': 'no-store',
       'content-type': 'application/json; charset=utf-8',
     },
   });
