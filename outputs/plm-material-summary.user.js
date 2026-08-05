@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.10
+// @version      2.7.11
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.10';
+  const SCRIPT_VERSION = '2.7.11';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5002,6 +5002,7 @@
       aiCategory: cached.aiCategory || '',
       productType: cached.productType || '',
       category: cached.category || '',
+      plmCategory: cached.plmCategory || '',
       departmentName: cached.departmentName || '',
       projectRowId: cached.projectRowId || '',
       projectId: cached.projectId || '',
@@ -5828,6 +5829,7 @@
     const text = [
       data && data.name,
       data && data.manualCategory,
+      data && data.plmCategory,
       data && data.aiProductType,
       data && data.aiCategory,
       data && data.productType,
@@ -5994,6 +5996,42 @@
     return '';
   }
 
+  function getApiAttributeRawValue(attrs, field) {
+    const variableName = String(field && field.variableName || '').trim().toLowerCase();
+    const labelPattern = field && field.labelPattern;
+    const attr = (Array.isArray(attrs) ? attrs : []).find((item) => {
+      const variable = String(item && item.variable_name || '').trim().toLowerCase();
+      if (variableName && variable === variableName) return true;
+      return Boolean(labelPattern && labelPattern.test(getApiAttributeLabel(item)));
+    });
+    return attr ? getApiScalarText(getApiAttributeValue(attr, 1), 0) : '';
+  }
+
+  function normalizeApiDimensionNumber(value, unit) {
+    const text = compactText(value);
+    if (!text || text === '--') return NaN;
+    const number = Number(text) || firstNumber(text);
+    if (!Number.isFinite(number) || number <= 0) return NaN;
+    const unitText = String(unit || '') + ' ' + text;
+    return /mm|毫米/i.test(unitText) ? number / 10 : number;
+  }
+
+  function getApiProductDimensionNums(objects, attrs, fields) {
+    const nums = (fields || []).map((field) => {
+      const objectValue = getApiObjectFieldValue(objects, [field.valueKey]);
+      const objectUnit = getApiObjectFieldValue(objects, [field.unitKey]);
+      const raw = objectValue || getApiAttributeRawValue(attrs, field);
+      return normalizeApiDimensionNumber(raw, objectUnit);
+    });
+    return nums.length && nums.every((value) => Number.isFinite(value) && value > 0) ? nums : null;
+  }
+
+  function formatApiDimensionText(nums) {
+    return Array.isArray(nums) && nums.length >= 3
+      ? nums.slice(0, 3).map((value) => trimNumber(Number(value))).join('x') + 'cm'
+      : '';
+  }
+
   function getApiObjectAssetUrl(objects, keys) {
     for (const object of objects || []) {
       if (!object || typeof object !== 'object') continue;
@@ -6112,6 +6150,21 @@
     const attrs = getApiDetailAttributes(contentPayload);
     const objects = [product, info];
     const configs = product && (product.language_config || product.languageConfig);
+    const outerDimensionFields = [
+      { valueKey: 'long_outer_packaging', unitKey: 'long_outer_packaging_unit_name', variableName: 'long_outer_packaging', labelPattern: /长.*外包装/ },
+      { valueKey: 'wide_outer_packaging', unitKey: 'wide_outer_packaging_unit_name', variableName: 'wide_outer_packaging', labelPattern: /宽.*外包装/ },
+      { valueKey: 'high_outer_packaging', unitKey: 'high_outer_packaging_unit_name', variableName: 'high_outer_packaging', labelPattern: /高.*外包装/ },
+    ];
+    const innerDimensionFields = [
+      { valueKey: 'long_inner_packing_materials', unitKey: 'long_inner_packing_materials_unit_name', variableName: 'long_inner_packing_materials', labelPattern: /长.*(?:内包材|内包装|产品)/ },
+      { valueKey: 'wide_inner_packing_materials', unitKey: 'wide_inner_packing_materials_unit_name', variableName: 'wide_inner_packing_materials', labelPattern: /宽.*(?:内包材|内包装|产品)/ },
+      { valueKey: 'high_inner_packing_materials', unitKey: 'high_inner_packing_materials_unit_name', variableName: 'high_inner_packing_materials', labelPattern: /高.*(?:内包材|内包装|产品)/ },
+    ];
+    const outerPackageNums = getApiProductDimensionNums(objects, attrs, outerDimensionFields);
+    const innerPackageNums = getApiProductDimensionNums(objects, attrs, innerDimensionFields);
+    const productCategory = getApiObjectFieldValue(objects, ['category_name', 'categoryName', 'product_category_name', 'productCategoryName'])
+      || getApiAttributeText(attrs, /category|类目|品类/i, 1);
+    const isToyProduct = isToyDimensionProduct({ plmCategory: productCategory, productType: productCategory });
     const brandValue = getApiObjectFieldValue(objects, ['brand_name', 'brandName', 'brand', 'brand_name_cn'])
       || getApiScalarText(product && product.brand, 0);
     const chineseName = getApiObjectFieldValue(objects, ['product_name', 'productName', 'name', 'name_cn', 'product_name_cn'])
@@ -6124,9 +6177,13 @@
       getApiLanguageConfigName(info, 2),
       getApiAttributeText(attrs, /product[_\s-]*name|product name|英文品名|英文名称/i, 2),
     ], brandValue);
-    const productSizeText = getApiObjectFieldValue(objects, ['product_size', 'productSize', 'product_size_text', 'size_text'])
+    const rawProductSizeText = getApiObjectFieldValue(objects, ['product_size', 'productSize', 'product_size_text', 'size_text'])
       || getApiAttributeText(attrs, /product[_\s-]*size|产品尺寸|成品尺寸/i, 1);
-    const productNums = parseDimension(productSizeText, 3);
+    const parsedProductNums = parseDimension(rawProductSizeText, 3);
+    const productNums = isToyProduct
+      ? innerPackageNums
+      : (innerPackageNums || parsedProductNums);
+    const productSizeText = isToyProduct ? formatApiDimensionText(productNums) : rawProductSizeText;
     const directImage = getApiObjectAssetUrl(objects, ['sku_image_url', 'skuImageUrl', 'product_image_url', 'productImageUrl', 'pic', 'image', 'picture'])
       || getApiObjectFieldValue(objects, ['sku_image_url', 'skuImageUrl', 'product_image_url', 'productImageUrl', 'pic', 'image', 'picture'])
       || getApiAssetUrl(getApiAttributeValue((attrs || []).find((attr) => /sku[_\s-]*pic|main[_\s-]*image|picture|产品图|主图/i.test(getApiAttributeLabel(attr))), 1), 0);
@@ -6155,7 +6212,12 @@
       chineseName: cleanExcelFieldValue(chineseName),
       englishName,
       brand: compactText(brandValue),
-      productType: getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType', 'category_name', 'categoryName']),
+      productType: productCategory || getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType']),
+      plmCategory: productCategory,
+      packageNums: outerPackageNums,
+      outerPackageNums,
+      outerPackageSizeText: formatApiDimensionText(outerPackageNums),
+      innerPackageNums,
       productNums: productNums && productNums.length >= 3 ? productNums.slice(0, 3) : null,
       productSizeText: cleanExcelFieldValue(productSizeText),
       referenceUrl,
@@ -6932,6 +6994,15 @@
         addLog('info', 'Excel 产品图片附件 API 读取失败，继续使用页面图片', sku + ' | ' + formatErrorMessage(error));
       }
     }
+    const apiProductFound = Boolean(product && product.found);
+    const apiProductCategoryData = {
+      ...current,
+      plmCategory: product && product.plmCategory || current.plmCategory || '',
+      productType: product && product.productType || current.productType || '',
+    };
+    const toyApiPackageNums = apiProductFound && isToyDimensionProduct(apiProductCategoryData) && product.outerPackageNums
+      ? product.outerPackageNums
+      : null;
     const seed = normalizeData({
       ...current,
       sku,
@@ -6943,13 +7014,18 @@
       brand: product && product.brand || project && project.brand || current.brand || '',
       englishName: product && product.englishName || current.englishName || '',
       productType: product && product.productType || current.productType || '',
+      plmCategory: product && product.plmCategory || current.plmCategory || '',
+      packageNums: toyApiPackageNums || current.packageNums || null,
+      packageSizeText: product && product.outerPackageSizeText && toyApiPackageNums
+        ? product.outerPackageSizeText
+        : current.packageSizeText || '',
       referenceUrl: product && product.referenceUrl || project && project.referenceUrl || current.referenceUrl || '',
       benchmarkLink: product && product.referenceUrl || project && project.referenceUrl || current.benchmarkLink || '',
       packQty: product && product.packQty || current.packQty || '',
       purchasePrice: apiPurchasePrice || current.purchasePrice || '',
       netContent: productMetrics.netContent || current.netContent || '',
       grossWeight: productMetrics.grossWeight || current.grossWeight || '',
-      plmProductNums: product && product.productNums || current.plmProductNums || null,
+      plmProductNums: apiProductFound ? (product.productNums || null) : (current.plmProductNums || null),
       productListImageUrl: imageUrl || current.productListImageUrl || '',
       productListImageFallbackUrl: imageFallbackUrl || current.productListImageFallbackUrl || '',
       skuImageUrl: imageUrl || current.skuImageUrl || '',
@@ -6973,7 +7049,11 @@
     const projectPurchasePrice = normalizeLedgerPurchasePrice(getApiObjectFieldValue(projectObjects, ['purchase_price', 'purchasePrice', 'procurement_price', 'procurementPrice']));
     const merged = normalizeData({
       ...mergeApiPackagingData(seed, material),
-      packageSource: material && material.packageSizeText ? 'plm-project-pms' : seed.packageSource,
+      ...(toyApiPackageNums ? {
+        packageNums: toyApiPackageNums,
+        packageSizeText: product.outerPackageSizeText || formatApiDimensionText(toyApiPackageNums),
+      } : {}),
+      packageSource: toyApiPackageNums ? 'plm-product-detail' : (material && material.packageSizeText ? 'plm-project-pms' : seed.packageSource),
       referenceUrl: seed.referenceUrl || projectReferenceUrl || current.referenceUrl || '',
       benchmarkLink: seed.benchmarkLink || projectReferenceUrl || current.benchmarkLink || '',
       packQty: seed.packQty || projectPackQty || current.packQty || '',
@@ -26614,7 +26694,7 @@
   }
 
   const MINIMAL_BACKUP_ITEM_FIELDS = [
-    'sku', 'brand', 'name', 'englishName', 'manualCategory', 'category', 'productType', 'aiCategory', 'aiProductType',
+    'sku', 'brand', 'name', 'englishName', 'manualCategory', 'plmCategory', 'category', 'productType', 'aiCategory', 'aiProductType',
     'developerText', 'developerName', 'projectStatus', 'projectId', 'projectRowId', 'projectVersionId', 'apiMaterialSource',
     'designType', 'artPriority', 'designAssignedAt', 'developmentAssignedAt', 'referenceUrl',
     'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums',
@@ -28005,6 +28085,7 @@
       data && data.packageSizeText,
       data && data.printSizeLabel,
       data && data.printSizeText,
+      data && data.plmCategory,
       data && data.logoText,
       data && data.aiProductType,
       data && data.aiCategory,
