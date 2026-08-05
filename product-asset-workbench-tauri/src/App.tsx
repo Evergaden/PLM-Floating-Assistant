@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
+const APP_VERSION = "0.1.10";
+
 const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
 const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
@@ -1282,6 +1284,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand-mark"><Sparkles size={20} /></div>
         <div className="brand-copy">
+          <small className="app-version">v{APP_VERSION}</small>
           <strong>PLM 产品资产工作台</strong>
           <span>定稿资料一站式生成与归档</span>
         </div>

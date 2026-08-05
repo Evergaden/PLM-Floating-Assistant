@@ -27,6 +27,7 @@ button { cursor: pointer; }
 .brand-copy { display: grid; gap: 2px; }
 .brand-copy strong { font-size: 16px; }
 .brand-copy span { font-size: 11px; color: var(--muted); }
+.app-version { color: var(--purple); font-size: 10px; font-weight: 800; letter-spacing: .3px; }
 .top-actions { margin-left: auto; display: flex; gap: 10px; }
 .connection-pill, .icon-button { border: 1px solid var(--line); background: white; color: #596579; display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 13px; border-radius: 11px; }
 .connection-pill.online { color: var(--green); border-color: #bfe8d4; background: var(--green-soft); }
