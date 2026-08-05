@@ -613,7 +613,7 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
 }
 
 fn bridge_snapshot_value(state: &BridgeState) -> Value {
-    let products = state.inner.products.lock().map(|items| items.clone()).unwrap_or_default();
+    let products = state.inner.products.lock().map(|items| items.iter().map(photoshop_product_value).collect::<Vec<_>>()).unwrap_or_default();
     let successful_upload_skus = state.inner.successful_upload_skus.lock().map(|items| items.iter().cloned().collect::<Vec<_>>()).unwrap_or_default();
     let version = state.inner.clients.lock().ok().and_then(|clients| {
         clients
@@ -627,6 +627,24 @@ fn bridge_snapshot_value(state: &BridgeState) -> Value {
         "sentAt": bridge_timestamp(),
         "products": products,
         "successfulUploadSkus": successful_upload_skus,
+    })
+}
+
+fn photoshop_product_value(product: &FinalizedProduct) -> Value {
+    let copywriting = product.copywriting.as_ref().map(|value| json!({
+        "parserVersion": &value.parser_version,
+        "fileName": &value.file_name,
+        "updatedAt": &value.updated_at,
+        "missingSections": &value.missing_sections,
+        "sections": &value.sections,
+    }));
+    json!({
+        "sku": &product.sku,
+        "brand": &product.brand,
+        "name": &product.name,
+        "englishName": &product.english_name,
+        "packageCode": &product.package_code,
+        "copywriting": copywriting,
     })
 }
 

@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.18';
+const PLUGIN_VERSION = '0.1.19';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -182,7 +182,6 @@ async function connect() {
       }
       setBusy(false);
       setStatus('已连接，正在同步 SKU…', 'success');
-      window.setTimeout(() => send({ type: 'snapshot.request' }), 250);
     };
     socket.onmessage = (event) => {
       if (isCurrent()) handleMessage(event && event.data);
