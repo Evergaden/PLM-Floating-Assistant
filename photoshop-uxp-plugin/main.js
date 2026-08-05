@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.19';
+const PLUGIN_VERSION = '0.1.20';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -239,11 +239,25 @@ function handleMessage(raw) {
     return;
   }
   if (message.type === 'snapshot.response') {
-    state.products = Array.isArray(message.products) ? message.products : [];
+    state.products = (Array.isArray(message.products) ? message.products : []).map((product) => ({ ...product, detailLoaded: false }));
     updateDocumentSku();
     renderProductSelect();
     renderPreview();
+    requestSelectedProduct();
+    setStatus('已载入 ' + state.products.length + ' 个 SKU，当前产品文案按需读取。', 'success');
     setStatus('已同步 ' + state.products.length + ' 个定稿 SKU。', 'success');
+    return;
+  }
+  if (message.type === 'product.response') {
+    const product = message.product;
+    const sku = String(message.sku || product && product.sku || '').toUpperCase();
+    const index = state.products.findIndex((item) => String(item && item.sku || '').toUpperCase() === sku);
+    if (index < 0) return;
+    state.products[index] = { ...state.products[index], ...(product || {}), detailLoaded: true };
+    if (state.selectedSku === sku) {
+      renderPreview();
+      setStatus('已读取当前产品文案: ' + sku, 'success');
+    }
     return;
   }
   if (message.type === 'ping') send({ type: 'pong', at: Date.now() });
@@ -295,6 +309,12 @@ function selectedProduct() {
   return state.products.find((product) => product.sku === state.selectedSku) || null;
 }
 
+function requestSelectedProduct() {
+  const product = selectedProduct();
+  if (!product || product.detailLoaded) return;
+  if (!send({ type: 'product.request', sku: product.sku })) setStatus('请先连接悬浮助手。', 'error');
+}
+
 function renderPreview() {
   const product = selectedProduct();
   const preview = byId('preview');
@@ -302,6 +322,12 @@ function renderPreview() {
   if (!product) {
     state.currentLayout = null;
     if (preview) preview.textContent = '连接悬浮助手并同步 SKU 后预览。';
+    if (missing) missing.textContent = '';
+    return;
+  }
+  if (!product.detailLoaded) {
+    state.currentLayout = null;
+    if (preview) preview.textContent = '正在读取当前 SKU 文案…';
     if (missing) missing.textContent = '';
     return;
   }
@@ -893,6 +919,7 @@ function bindEvents() {
   byId('sku-select').addEventListener('change', (event) => {
     state.selectedSku = event.target.value;
     renderPreview();
+    requestSelectedProduct();
   });
 }
 
@@ -912,6 +939,7 @@ async function init() {
     if (previous !== state.documentSku) {
       renderProductSelect();
       renderPreview();
+      requestSelectedProduct();
     }
   }, 1000);
 }

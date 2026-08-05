@@ -631,6 +631,17 @@ fn bridge_snapshot_value(state: &BridgeState) -> Value {
 }
 
 fn photoshop_product_value(product: &FinalizedProduct) -> Value {
+    json!({
+        "sku": &product.sku,
+        "brand": &product.brand,
+        "name": &product.name,
+        "englishName": &product.english_name,
+        "packageCode": &product.package_code,
+    })
+}
+
+fn photoshop_product_detail_value(product: &FinalizedProduct) -> Value {
+    let mut result = photoshop_product_value(product);
     let copywriting = product.copywriting.as_ref().map(|value| json!({
         "parserVersion": &value.parser_version,
         "fileName": &value.file_name,
@@ -638,14 +649,10 @@ fn photoshop_product_value(product: &FinalizedProduct) -> Value {
         "missingSections": &value.missing_sections,
         "sections": &value.sections,
     }));
-    json!({
-        "sku": &product.sku,
-        "brand": &product.brand,
-        "name": &product.name,
-        "englishName": &product.english_name,
-        "packageCode": &product.package_code,
-        "copywriting": copywriting,
-    })
+    if let Some(object) = result.as_object_mut() {
+        object.insert("copywriting".to_string(), copywriting.unwrap_or(Value::Null));
+    }
+    result
 }
 
 fn bridge_timestamp() -> String {
@@ -699,6 +706,17 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str,
                 let _ = send_json_to_client(state, client_id, &bridge_snapshot_value(state));
                 let _ = request_assistant_snapshot(state);
             }
+        }
+        "product.request" => {
+            if role != BridgeRole::Photoshop { return; }
+            let sku = value.get("sku").and_then(Value::as_str).unwrap_or_default().to_uppercase();
+            let product = state.inner.products.lock().ok()
+                .and_then(|items| items.iter().find(|item| item.sku.eq_ignore_ascii_case(&sku)).map(photoshop_product_detail_value));
+            let _ = send_json_to_client(state, client_id, &json!({
+                "type": "product.response",
+                "sku": sku,
+                "product": product,
+            }));
         }
         "asset.bundle" => {
             if role != BridgeRole::Assistant { return; }
