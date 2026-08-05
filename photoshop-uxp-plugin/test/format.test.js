@@ -5,7 +5,7 @@ const product = {
   copywriting: {
     sections: [
       { key: 'productName', text: 'PRODUCT NAME:\nRose Nourishing Hand Cream' },
-      { key: 'functionsHeading', text: 'Functions|Funktionen|Fonctions:' },
+      { key: 'functionsHeading', text: 'Functions|Funktionen|Fonctions：' },
       { key: 'functions', text: 'Rose Nourishing Hand Cream;Creme nourrissante pour les mains' },
       { key: 'ingredients', text: 'INGREDIENTS:\nAQUA\u3001GLYCERIN\u3001MINERAL OIL' },
       { key: 'directions', text: 'DIRECTIONS OF SAFE USE:\n1. Clean and dry your hands.' },
@@ -30,6 +30,7 @@ assert.ok(layout.text.includes('MADE IN CHINA'));
 assert.ok(layout.text.indexOf('PRODUCT NAME:') < layout.text.indexOf('INGREDIENTS:'));
 assert.ok(layout.text.indexOf('Functions|Funktionen|Fonctions:') > layout.text.indexOf('PRODUCT NAME:'));
 assert.ok(layout.text.indexOf('Functions|Funktionen|Fonctions:') < layout.text.indexOf('INGREDIENTS:'));
+assert.equal(layout.text.includes('Functions|Funktionen|Fonctions：'), false);
 assert.equal(layout.segments.find((segment) => segment.text.includes('Functions|Funktionen|Fonctions:')).bold, false);
 assert.ok(layout.text.indexOf('US REP') > layout.text.indexOf('UK REP'));
 assert.ok(!/barcode/i.test(layout.text));

@@ -6,7 +6,7 @@ const product = {
   copywriting: {
     sections: [
       { key: 'productName', text: 'PRODUCT NAME:\nRose Nourishing Hand Cream' },
-      { key: 'functionsHeading', text: 'Functions|Funktionen|Fonctions:' },
+      { key: 'functionsHeading', text: 'Functions|Funktionen|Fonctions：' },
       { key: 'functions', text: 'Rose Nourishing Hand Cream;Creme nourrissante pour les mains' },
       { key: 'ingredients', text: 'INGREDIENTS:\nAQUA, GLYCERIN, MINERAL OIL' },
       { key: 'directions', text: 'DIRECTIONS OF SAFE USE:\n1. Clean and dry your hands.' },

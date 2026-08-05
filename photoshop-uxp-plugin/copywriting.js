@@ -164,10 +164,16 @@ function addProductName(segments, raw) {
   return true;
 }
 
+function normalizeFunctionsHeading(value) {
+  return String(value == null ? '' : value)
+    .trim()
+    .replace(/[：:]\s*$/, ':');
+}
+
 function addFunctions(segments, map) {
   const body = linesOf(map && map.get('functions'));
   if (!body.length) return false;
-  const heading = linesOf(map && map.get('functionsHeading')).join(' ') || LABELS.functions;
+  const heading = normalizeFunctionsHeading(linesOf(map && map.get('functionsHeading')).join(' ')) || LABELS.functions;
   addLine(segments, heading, false);
   body.forEach((line) => addLine(segments, line, false));
   return true;
