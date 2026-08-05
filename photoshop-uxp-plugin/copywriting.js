@@ -1,5 +1,6 @@
 const PAGE4_ORDER = [
   'productName',
+  'functions',
   'ingredients',
   'directions',
   'warning',
@@ -16,6 +17,7 @@ const PAGE4_ORDER = [
 
 const INFO_BOX_ORDER = [
   'productName',
+  'functions',
   'ingredients',
   'directions',
   'warning',
@@ -31,6 +33,7 @@ const REP_BOX_ORDER = ['euRep', 'ukRep', 'usRep'];
 
 const LABELS = {
   productName: 'PRODUCT NAME:',
+  functions: 'FUNCTIONS:',
   ingredients: 'INGREDIENTS:',
   directions: 'DIRECTIONS OF SAFE USE:',
   warning: 'WARNING:',
@@ -45,6 +48,7 @@ const LABELS = {
 
 const MISSING_LABELS = {
   productName: 'PRODUCT NAME',
+  functions: 'FUNCTIONS',
   ingredients: 'INGREDIENTS',
   directions: 'DIRECTIONS OF SAFE USE',
   warning: 'WARNING',
@@ -160,6 +164,14 @@ function addProductName(segments, raw) {
   return true;
 }
 
+function addFunctions(segments, map) {
+  const body = linesOf(map && map.get('functions'));
+  if (!body.length) return false;
+  const heading = linesOf(map && map.get('functionsHeading')).join(' ') || LABELS.functions;
+  appendHeadingBody(segments, heading, body, false);
+  return true;
+}
+
 function addLabelProductName(segments, raw) {
   const body = stripHeading(linesOf(raw), /^PRODUCT\s+NAME\s*:?\s*/i);
   if (!body.length) return false;
@@ -262,6 +274,9 @@ function appendSection(segments, key, map, missing) {
     case 'productName':
       complete = addProductName(segments, map.get('productName'));
       break;
+    case 'functions':
+      complete = addFunctions(segments, map);
+      break;
     case 'ingredients':
       complete = addIngredients(segments, map);
       break;
@@ -320,12 +335,13 @@ function appendLayoutBlock(target, layout) {
 function buildPage4Boxes(product) {
   const map = sectionMap(product && product.copywriting);
   const missing = [];
+  const has24LanguageFunctions = Boolean(linesOf(map.get('functions')).length);
   const infoSegments = [];
   const addressSegments = [];
   INFO_BOX_ORDER.forEach((key) => appendSection(infoSegments, key, map, missing));
   ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
 
-  const reps = REP_BOX_ORDER.map((key) => {
+  const reps = has24LanguageFunctions ? REP_BOX_ORDER.map((key) => {
     const bodySegments = [];
     const complete = appendRepBody(bodySegments, map.get(key));
     if (!complete) missing.push(MISSING_LABELS[key] || key);
@@ -337,7 +353,7 @@ function buildPage4Boxes(product) {
       text: trimmed.map((segment) => segment.text).join(''),
       complete,
     };
-  });
+  }) : [];
 
   const info = layoutFromSegments(infoSegments);
   const address = layoutFromSegments(addressSegments);
@@ -365,6 +381,7 @@ function buildPage4Boxes(product) {
 function buildLabelBoxes(product) {
   const map = sectionMap(product && product.copywriting);
   const missing = [];
+  const has24LanguageFunctions = Boolean(linesOf(map.get('functions')).length);
   const nameSegments = [];
   const factsSegments = [];
   const addressSegments = [];
@@ -374,7 +391,7 @@ function buildLabelBoxes(product) {
   addLabelFacts(factsSegments, map, missing);
   ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
 
-  const reps = REP_BOX_ORDER.map((key) => {
+  const reps = has24LanguageFunctions ? REP_BOX_ORDER.map((key) => {
     const bodySegments = [];
     const complete = appendRepBody(bodySegments, map.get(key));
     if (!complete) missing.push(MISSING_LABELS[key] || key);
@@ -386,7 +403,7 @@ function buildLabelBoxes(product) {
       text: trimmed.map((segment) => segment.text).join(''),
       complete,
     };
-  });
+  }) : [];
 
   const labelName = layoutFromSegments(nameSegments);
   const labelFacts = layoutFromSegments(factsSegments);

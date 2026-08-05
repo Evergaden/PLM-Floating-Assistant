@@ -5,6 +5,8 @@ const product = {
   copywriting: {
     sections: [
       { key: 'productName', text: 'PRODUCT NAME:\nRose Nourishing Hand Cream' },
+      { key: 'functionsHeading', text: 'Functions|Funktionen|Fonctions:' },
+      { key: 'functions', text: 'Rose Nourishing Hand Cream;Creme nourrissante pour les mains' },
       { key: 'ingredients', text: 'INGREDIENTS:\nAQUA\u3001GLYCERIN\u3001MINERAL OIL' },
       { key: 'directions', text: 'DIRECTIONS OF SAFE USE:\n1. Clean and dry your hands.' },
       { key: 'warning', text: 'WARNING:\nKeep out of reach of children.' },
@@ -26,6 +28,8 @@ assert.equal(layout.missing.length, 0);
 assert.ok(layout.text.includes('INGREDIENTS:\nAQUA, GLYCERIN, MINERAL OIL'));
 assert.ok(layout.text.includes('MADE IN CHINA'));
 assert.ok(layout.text.indexOf('PRODUCT NAME:') < layout.text.indexOf('INGREDIENTS:'));
+assert.ok(layout.text.indexOf('Functions|Funktionen|Fonctions:') > layout.text.indexOf('PRODUCT NAME:'));
+assert.ok(layout.text.indexOf('Functions|Funktionen|Fonctions:') < layout.text.indexOf('INGREDIENTS:'));
 assert.ok(layout.text.indexOf('US REP') > layout.text.indexOf('UK REP'));
 assert.ok(!/barcode/i.test(layout.text));
 
@@ -39,6 +43,16 @@ assert.equal(layout.boxes.address.text.includes('DISTRIBUTED BY:'), true);
 assert.equal(layout.boxes.address.text.includes('ADDRESS:'), true);
 assert.equal(layout.boxes.reps[0].text.includes('YKT EU REP SAS'), true);
 assert.equal(/^EU REP(?:\r?\n|$)/.test(layout.boxes.reps[0].text), false);
+
+const withoutFunctions = buildPage4Layout({
+  copywriting: {
+    sections: product.copywriting.sections.filter((section) => !/^functions/i.test(section.key)),
+  },
+});
+assert.equal(withoutFunctions.boxes.reps.length, 0);
+assert.equal(withoutFunctions.boxes.address.text.includes('DISTRIBUTED BY:'), true);
+assert.equal(withoutFunctions.boxes.address.text.includes('ADDRESS:'), true);
+assert.equal(withoutFunctions.text.includes('EU REP'), false);
 
 const labelLayout = buildPage4Layout(product, { mode: 'label' });
 assert.equal(labelLayout.mode, 'label');
