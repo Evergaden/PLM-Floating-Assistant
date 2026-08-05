@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.8
+// @version      2.7.10
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.8';
+  const SCRIPT_VERSION = '2.7.10';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1700,27 +1700,36 @@
   const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
   const DAILY_LEDGER_TRASH_KEY = 'plm-floating-helper:daily-ledger-trash';
   const DAILY_LEDGER_SERIES_EXCLUDED_KEY = 'plm-floating-helper:daily-ledger-series-excluded';
+  // PLM reuses GetGenPicAiResult for both initial submission and polling:
+  // the first request needs copywrite, while later requests only need code.
+  // Keep the initial read path separate from the explicit generation action.
+  const LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT = '/api/ProjectFormData/GetProductTextAiResult';
+  const LEDGER_AI_IMAGE_TASK_ENDPOINT = '/api/ProjectFormData/CheckGenPicTaskExists';
   const LEDGER_AI_IMAGE_RESULT_ENDPOINT = '/api/ProjectFormData/GetGenPicAiResult';
+  const LEDGER_AI_IMAGE_RETOUCH_ENDPOINT = '/api/ProjectFormData/GetRetouchAiResult';
   const LEDGER_AI_IMAGE_POLL_DELAY_MS = 5000;
   const LEDGER_AI_IMAGE_MAX_POLLS = 60;
+  const LEDGER_AI_IMAGE_RETOUCH_TIMEOUT_MS = 120000;
+  const LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS = 60;
+  const LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS = 20;
   const LEDGER_AI_IMAGE_RENAME_RULES = Object.freeze([
-    Object.freeze({ pattern: /^input-main-prompt-1-[a-zA-Z0-9]{8}$/, name: '主图1' }),
-    Object.freeze({ pattern: /^input-main-prompt-2-[a-zA-Z0-9]{8}$/, name: '主图2' }),
-    Object.freeze({ pattern: /^input-main-prompt-3-[a-zA-Z0-9]{8}$/, name: '主图3' }),
-    Object.freeze({ pattern: /^input-main-prompt-4-[a-zA-Z0-9]{8}$/, name: '主图4' }),
-    Object.freeze({ pattern: /^input-main-prompt-5-[a-zA-Z0-9]{8}$/, name: '主图5' }),
-    Object.freeze({ pattern: /^input-main-prompt-6-[a-zA-Z0-9]{8}$/, name: '主图6' }),
-    Object.freeze({ pattern: /^input-main-prompt-7-[a-zA-Z0-9]{8}$/, name: '主图7' }),
-    Object.freeze({ pattern: /^input-detail-sale-prompt-1-.+$/, name: '详情图1' }),
-    Object.freeze({ pattern: /^input-detail-sale-prompt-2-.+$/, name: '详情图2' }),
-    Object.freeze({ pattern: /^input-detail-component-prompt-.+$/, name: '详情图3' }),
-    Object.freeze({ pattern: /^input-detail-advantage-prompt-1-.+$/, name: '详情图4' }),
-    Object.freeze({ pattern: /^input-detail-advantage-prompt-2-.+$/, name: '详情图5' }),
-    Object.freeze({ pattern: /^input-detail-details-prompt-1-.+$/, name: '详情图6' }),
-    Object.freeze({ pattern: /^input-detail-details-prompt-2-.+$/, name: '详情图7' }),
-    Object.freeze({ pattern: /^input-detail-efficacy-prompt-.+$/, name: '详情图8' }),
-    Object.freeze({ pattern: /^input-detail-use-step-prompt-.+$/, name: '详情图9' }),
-    Object.freeze({ pattern: /^input-detail-scene-prompt-.+$/, name: '详情图10' }),
+    Object.freeze({ pattern: /^input-main-prompt-1(?:-[a-zA-Z0-9]{8})?$/, name: '主图1' }),
+    Object.freeze({ pattern: /^input-main-prompt-2(?:-[a-zA-Z0-9]{8})?$/, name: '主图2' }),
+    Object.freeze({ pattern: /^input-main-prompt-3(?:-[a-zA-Z0-9]{8})?$/, name: '主图3' }),
+    Object.freeze({ pattern: /^input-main-prompt-4(?:-[a-zA-Z0-9]{8})?$/, name: '主图4' }),
+    Object.freeze({ pattern: /^input-main-prompt-5(?:-[a-zA-Z0-9]{8})?$/, name: '主图5' }),
+    Object.freeze({ pattern: /^input-main-prompt-6(?:-[a-zA-Z0-9]{8})?$/, name: '主图6' }),
+    Object.freeze({ pattern: /^input-main-prompt-7(?:-[a-zA-Z0-9]{8})?$/, name: '主图7' }),
+    Object.freeze({ pattern: /^input-detail-sale-prompt-1(?:-.+)?$/, name: '详情图1' }),
+    Object.freeze({ pattern: /^input-detail-sale-prompt-2(?:-.+)?$/, name: '详情图2' }),
+    Object.freeze({ pattern: /^input-detail-component-prompt(?:-.+)?$/, name: '详情图3' }),
+    Object.freeze({ pattern: /^input-detail-advantage-prompt-1(?:-.+)?$/, name: '详情图4' }),
+    Object.freeze({ pattern: /^input-detail-advantage-prompt-2(?:-.+)?$/, name: '详情图5' }),
+    Object.freeze({ pattern: /^input-detail-details-prompt-1(?:-.+)?$/, name: '详情图6' }),
+    Object.freeze({ pattern: /^input-detail-details-prompt-2(?:-.+)?$/, name: '详情图7' }),
+    Object.freeze({ pattern: /^input-detail-efficacy-prompt(?:-.+)?$/, name: '详情图8' }),
+    Object.freeze({ pattern: /^input-detail-use-step-prompt(?:-.+)?$/, name: '详情图9' }),
+    Object.freeze({ pattern: /^input-detail-scene-prompt(?:-.+)?$/, name: '详情图10' }),
   ]);
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
@@ -4321,6 +4330,7 @@
     ledgerAiImageRequests: Object.create(null),
     ledgerAiImagePollTimers: Object.create(null),
     ledgerAiImagePollCounts: Object.create(null),
+    ledgerAiImageRetouchRequests: Object.create(null),
     ledgerAiImageViewer: null,
     ledgerAiImageDownloadKey: '',
     ledgerAiImageDownloadProgress: '',
@@ -6609,6 +6619,7 @@
       const dimensions = getApiMaterialDimensions(item, 2);
       return { item, index, name, category, text, dimensions, unitIssue, displayName: getApiPrintDisplayName(item) };
     }).filter((item) => (!packageItem || item.index !== packageItem.index)
+      && !/说明书|使用说明/.test(item.text)
       && /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text)
       && ((item.dimensions && item.dimensions.length >= 2) || item.unitIssue));
     const packageNums = packageItem && packageItem.dimensions ? packageItem.dimensions : null;
@@ -6720,7 +6731,18 @@
     }
   }
 
-  async function fetchPlmApiJson(url, body) {
+  function formatPlmApiMessage(value) {
+    const scalar = getApiScalarText(value, 0);
+    if (scalar) return scalar;
+    if (value && typeof value === 'object') {
+      try { return JSON.stringify(value); } catch (_) { return ''; }
+    }
+    return String(value || '').trim();
+  }
+
+  async function fetchPlmApiJson(url, body, options) {
+    const opts = options || {};
+    const timeout = Math.max(1000, Number(opts.timeout) || 30000);
     const request = {
       method: 'POST',
       url: new URL(url, window.location.origin).href,
@@ -6734,16 +6756,16 @@
         ...getPlmAuthHeaders(),
       },
       data: JSON.stringify(body || {}),
-      timeout: 30000,
+      timeout,
     };
     const response = typeof GM_xmlhttpRequest === 'function'
       ? await new Promise((resolve, reject) => GM_xmlhttpRequest({ ...request, onload: resolve, onerror: () => reject(new Error('网络请求失败')), ontimeout: () => reject(new Error('请求超时')) }))
-      : await fetch(request.url, { method: 'POST', credentials: 'include', headers: request.headers, body: request.data });
+      : await fetchWithTimeout(request.url, timeout, { method: 'POST', credentials: 'include', headers: request.headers, body: request.data });
     const status = Number(response && response.status || 0);
     const text = response && typeof response.responseText === 'string' ? response.responseText : await response.text();
     if (status < 200 || status >= 300) throw new Error('HTTP ' + status);
     const payload = JSON.parse(text || '{}');
-    if (payload && payload.success === false) throw new Error(payload.msg || payload.message || 'PLM API 返回失败');
+    if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM API 返回失败');
     return payload;
   }
 
@@ -7040,6 +7062,7 @@
 
   function isPrintMaterialRow(row) {
     const text = String(row || '');
+    if (/说明书|使用说明/.test(text)) return false;
     const excludedPackaging = /(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(text);
     const hasExplicitPrintSize = /\u5370\u5237\u5c3a\u5bf8\s*[:\uff1a]?\s*\d/i.test(text) && hasPrintDimensionText(text);
     // PLM categories are sometimes entered as "printed bag" even when the material description clearly identifies a tube.
@@ -11208,6 +11231,9 @@
       '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-loading{cursor:wait!important;opacity:.72!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-success{border-color:#b8dfc2!important;background:#f0fbf2!important;color:#2e8750!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-error{border-color:#efbcc5!important;background:#fff2f4!important;color:#b34a5d!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-needs-copywriting{border-color:#efc98d!important;background:#fff8e8!important;color:#9a6b12!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-task-error{border-color:#efbcc5!important;background:#fff2f4!important;color:#b34a5d!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-result-missing{border-color:#efbcc5!important;background:#fff2f4!important;color:#b34a5d!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{position:absolute!important;inset:0!important;z-index:160!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;background:rgba(34,26,66,.30)!important;backdrop-filter:blur(6px)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog{display:flex!important;flex-direction:column!important;width:min(900px,100%)!important;max-height:calc(100% - 4px)!important;overflow:hidden!important;border:1px solid rgba(143,121,220,.42)!important;border-radius:18px!important;background:rgba(255,255,255,.98)!important;box-shadow:0 24px 70px rgba(42,24,93,.28)!important;color:#3d3552!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;padding:15px 18px 12px!important;border-bottom:1px solid #eee9fb!important;}' +
@@ -11220,12 +11246,62 @@
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav button{min-height:30px!important;padding:0 13px!important;border:1px solid #e0d9f4!important;border-radius:9px!important;background:#fff!important;color:#7d7290!important;font:inherit!important;font-size:11px!important;font-weight:700!important;cursor:pointer!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav button.is-active{border-color:#b5a1f3!important;background:#f0ebff!important;color:#6232cf!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav em{margin-left:3px!important;font-style:normal!important;opacity:.72!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-ai-image-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;gap:10px!important;min-height:130px!important;overflow:auto!important;padding:14px 18px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-workspace{display:grid!important;grid-template-columns:minmax(136px,176px) minmax(0,1fr)!important;gap:14px!important;min-height:360px!important;overflow:hidden!important;padding:14px 18px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-sidebar{display:flex!important;min-width:0!important;min-height:0!important;flex-direction:column!important;gap:8px!important;padding-right:12px!important;border-right:1px solid #eee9fb!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-sidebar-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:6px!important;padding:0 2px 2px!important;color:#665b78!important;font-size:11px!important;line-height:1.3!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-sidebar-head strong{color:#514366!important;font-size:12px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-sidebar-head span{color:#a298ae!important;font-size:10px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumbs{display:flex!important;min-height:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:7px!important;overflow:auto!important;padding:2px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb{display:flex!important;width:100%!important;min-width:0!important;min-height:70px!important;align-items:center!important;gap:7px!important;padding:5px!important;border:1px solid #ebe6f8!important;border-radius:10px!important;background:#fff!important;color:#756b89!important;font:inherit!important;text-align:left!important;cursor:pointer!important;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,transform .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb:hover{border-color:#b39cf0!important;background:#fbf9ff!important;box-shadow:0 5px 14px rgba(91,62,180,.1)!important;transform:translateX(1px)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb.is-selected{border-color:#8e6ce4!important;background:#f3efff!important;box-shadow:inset 0 0 0 1px #c9b9f6,0 5px 14px rgba(91,62,180,.12)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb.is-retouched{border-color:#cdbcf9!important;background:linear-gradient(145deg,#fbf9ff,#fff)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb.is-retouch-task{border-color:#ecd8a5!important;background:#fffdf5!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-media{display:flex!important;width:58px!important;height:58px!important;flex:0 0 58px!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;border-radius:7px!important;background:#f6f3fc!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-media img{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-missing{color:#a18d65!important;font-size:9px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-copy{display:flex!important;min-width:0!important;flex:1 1 auto!important;flex-direction:column!important;gap:4px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-copy strong{display:block!important;overflow:hidden!important;color:#645879!important;font-size:10px!important;font-weight:750!important;line-height:1.25!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-copy small{display:block!important;overflow:hidden!important;color:#9b91ab!important;font-size:9px!important;line-height:1.25!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb.is-selected .pfh-ledger-ai-image-thumb-copy small{color:#7449d2!important;font-weight:750!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview{display:flex!important;min-width:0!important;min-height:0!important;flex-direction:column!important;gap:10px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-stage{display:flex!important;min-width:0!important;min-height:270px!important;flex:1 1 auto!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;padding:14px!important;border:1px solid #eee9fb!important;border-radius:14px!important;background:linear-gradient(145deg,#faf8ff,#f7f3fd)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-link{display:flex!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;align-items:center!important;justify-content:center!important;text-decoration:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-link img{display:block!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;border-radius:9px!important;box-shadow:0 10px 28px rgba(58,38,115,.12)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-missing,#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-empty{display:flex!important;min-height:220px!important;align-items:center!important;justify-content:center!important;color:#9b91ab!important;font-size:12px!important;text-align:center!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-info{display:flex!important;min-width:0!important;flex-direction:column!important;gap:8px!important;padding:10px 2px 0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-heading>div{display:flex!important;min-width:0!important;align-items:center!important;gap:6px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-heading strong{overflow:hidden!important;color:#514366!important;font-size:14px!important;line-height:1.3!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-heading>small{max-width:48%!important;overflow:hidden!important;color:#a298ae!important;font-size:9px!important;line-height:1.3!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-actions button{min-height:30px!important;padding:0 12px!important;border:1px solid #b8a4f3!important;border-radius:9px!important;background:#f1ecff!important;color:#6232cf!important;font:inherit!important;font-size:11px!important;font-weight:750!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-actions button:hover:not(:disabled){border-color:#9c82eb!important;background:#eee8ff!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-actions button:disabled{cursor:wait!important;opacity:.58!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-item{display:flex!important;min-width:0!important;flex-direction:column!important;gap:6px!important;padding:7px!important;border:1px solid #ebe6f8!important;border-radius:11px!important;background:#fff!important;color:#756b89!important;text-decoration:none!important;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-item:hover{transform:translateY(-2px)!important;border-color:#b39cf0!important;box-shadow:0 8px 20px rgba(91,62,180,.12)!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-item img{display:block!important;width:100%!important;aspect-ratio:1/1!important;object-fit:contain!important;border-radius:7px!important;background:#f6f3fc!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-item span{overflow:hidden!important;font-size:10px!important;line-height:1.3!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item.is-retouched{border-color:#cdbcf9!important;background:linear-gradient(145deg,#fbf9ff,#fff)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item.is-retouch-task{border-color:#ecd8a5!important;background:#fffdf5!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-link{display:block!important;min-width:0!important;text-decoration:none!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-meta{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:6px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-meta>div{display:flex!important;align-items:center!important;gap:4px!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-name{display:block!important;min-width:0!important;overflow:hidden!important;color:#645879!important;font-size:10px!important;font-weight:750!important;line-height:1.3!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-variant{flex:0 0 auto!important;padding:2px 4px!important;border-radius:5px!important;background:#f0ebff!important;color:#7449d2!important;font-size:9px!important;font-style:normal!important;line-height:1.2!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item.is-retouch-task .pfh-ledger-ai-image-variant{background:#fff2ce!important;color:#9b701b!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:4px!important;flex:0 0 auto!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-meta button{flex:0 0 auto!important;min-height:24px!important;padding:0 7px!important;border:1px solid #c7b4f7!important;border-radius:7px!important;background:#f7f3ff!important;color:#6737d2!important;font:inherit!important;font-size:9px!important;font-weight:750!important;line-height:1!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-meta button:hover{border-color:#9c82eb!important;background:#eee8ff!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-meta button:disabled{cursor:wait!important;opacity:.6!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-prompt{display:block!important;overflow:hidden!important;color:#9b91ab!important;font-size:9px!important;line-height:1.35!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-missing{display:flex!important;aspect-ratio:1/1!important;align-items:center!important;justify-content:center!important;border-radius:7px!important;background:#f8f4e9!important;color:#a18d65!important;font-size:10px!important;text-align:center!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-empty{display:flex!important;grid-column:1/-1!important;min-height:150px!important;align-items:center!important;justify-content:center!important;color:#9389a8!important;font-size:12px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-empty-state{display:flex!important;min-height:150px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;padding:16px!important;color:#9389a8!important;font-size:12px!important;line-height:1.5!important;text-align:center!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-empty-state>span{max-width:320px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-generate{min-height:32px!important;padding:0 15px!important;border:1px solid #b8a4f3!important;border-radius:9px!important;background:#f1ecff!important;color:#6232cf!important;font:inherit!important;font-size:11px!important;font-weight:750!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-generate:hover:not(:disabled){border-color:#9c82eb!important;background:#eee8ff!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-generate:disabled{cursor:wait!important;opacity:.58!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;padding:10px 18px 14px!important;border-top:1px solid #eee9fb!important;color:#9389a8!important;font-size:10px!important;line-height:1.4!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer>span{flex:1 1 auto!important;min-width:0!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;flex:0 0 auto!important;flex-wrap:wrap!important;}' +
@@ -11249,7 +11325,7 @@
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-item{min-width:0!important;min-height:104px!important;padding:9px!important;}' +
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-performance{padding:8px 13px!important;}' +
       '@media(max-width:940px){#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-hero-actions>span{display:none!important;}}' +
-      '@media(max-width:560px){#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{padding:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{padding:12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:10px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{align-items:stretch!important;flex-direction:column!important;padding:9px 12px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions{width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions button{width:100%!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions button:last-child{grid-column:1/-1!important;}' +
+      '@media(max-width:560px){#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{padding:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{padding:12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-workspace{grid-template-columns:96px minmax(0,1fr)!important;gap:8px!important;min-height:300px!important;padding:10px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-sidebar{padding-right:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb{min-height:62px!important;padding:4px!important;gap:4px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-media{width:44px!important;height:44px!important;flex-basis:44px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-copy strong{font-size:9px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-thumb-copy small{font-size:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-stage{min-height:220px!important;padding:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-heading{align-items:flex-start!important;flex-direction:column!important;gap:4px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-heading>small{max-width:100%!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-actions{justify-content:stretch!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-preview-actions button{flex:1 1 0!important;padding:0 8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{align-items:stretch!important;flex-direction:column!important;padding:9px 12px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions{width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions button{width:100%!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions button:last-child{grid-column:1/-1!important;}' +
       '}' +
       '@media(max-width:430px){#' + PANEL_ID + ' .pfh-ledger-performance-scores{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-performance-summary.is-today{padding:0 0 8px!important;border-right:0!important;border-bottom:1px solid rgba(139,92,246,.16)!important;}}' +
       '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
@@ -16981,11 +17057,51 @@
       closeLedgerAiImageViewer();
       return;
     }
+    if (action === 'ledger-ai-image-select') {
+      if (state.ledgerAiImageViewer) {
+        const tab = actionTarget.getAttribute('data-kind') === 'detail' ? 'detail' : 'main';
+        const selected = String(actionTarget.getAttribute('data-entry-key') || '');
+        state.ledgerAiImageViewer.tab = tab;
+        state.ledgerAiImageViewer.selected = {
+          ...(state.ledgerAiImageViewer.selected || {}),
+          [tab]: selected,
+        };
+        renderLedgerAiImageViewer(ensurePanel());
+      }
+      return;
+    }
     if (action === 'ledger-ai-image-tab') {
       if (state.ledgerAiImageViewer) {
         state.ledgerAiImageViewer.tab = actionTarget.getAttribute('data-tab') === 'detail' ? 'detail' : 'main';
         renderLedgerAiImageViewer(ensurePanel());
       }
+      return;
+    }
+    if (action === 'ledger-ai-image-retouch') {
+      promptLedgerAiImageRetouch(
+        actionTarget.getAttribute('data-sku'),
+        actionTarget.getAttribute('data-date'),
+        actionTarget.getAttribute('data-kind'),
+        actionTarget.getAttribute('data-image-url')
+      );
+      return;
+    }
+    if (action === 'ledger-ai-image-generate') {
+      handleLedgerAiImageGenerate(
+        actionTarget.getAttribute('data-sku'),
+        actionTarget.getAttribute('data-date'),
+        actionTarget.getAttribute('data-kind')
+      );
+      return;
+    }
+    if (action === 'ledger-ai-image-download-item') {
+      downloadLedgerAiImageItem(
+        actionTarget.getAttribute('data-sku'),
+        actionTarget.getAttribute('data-date'),
+        actionTarget.getAttribute('data-kind'),
+        actionTarget.getAttribute('data-image-url'),
+        actionTarget.getAttribute('data-image-name')
+      );
       return;
     }
     if (action === 'ledger-ai-image-download') {
@@ -23782,10 +23898,10 @@
     });
   }
 
-  function fetchWithTimeout(url, timeout) {
+  function fetchWithTimeout(url, timeout, options) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
-    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+    return fetch(url, { ...(options || {}), signal: controller.signal }).finally(() => clearTimeout(timer));
   }
 
   function getImageSize(dataUrl) {
@@ -24589,12 +24705,16 @@
       labelFileState: normalizeLedgerFileState(item.labelFileState, item.labelFileDone),
       imagePackState: normalizeLedgerFileState(item.imagePackState, item.imagePackDone),
       artworkState: normalizeLedgerArtworkState(item.artworkState),
-      aiImageStatus: normalizeLedgerAiImageStatus(item.aiImageStatus),
+      aiImageStatus: normalizeLedgerAiImageStatus(item.aiImageStatus, item.aiImageMessage),
       aiImageMessage: String(item.aiImageMessage || '').slice(0, 180),
       aiImageJobId: String(item.aiImageJobId || '').slice(0, 120),
       aiImageCheckedAtMs: Number(item.aiImageCheckedAtMs || 0) || 0,
       aiMainImages: normalizeLedgerAiImageItems(item.aiMainImages, 12),
       aiDetailImages: normalizeLedgerAiImageItems(item.aiDetailImages, 20),
+      aiMainRetouchedImages: normalizeLedgerAiImageItems(item.aiMainRetouchedImages || item.aiMainEditedImages, LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS),
+      aiDetailRetouchedImages: normalizeLedgerAiImageItems(item.aiDetailRetouchedImages || item.aiDetailEditedImages, LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS),
+      aiMainRetouchTasks: normalizeLedgerAiImageRetouchTasks(item.aiMainRetouchTasks, LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS),
+      aiDetailRetouchTasks: normalizeLedgerAiImageRetouchTasks(item.aiDetailRetouchTasks, LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS),
       boxFileDone: normalizeLedgerFileState(item.boxFileState, item.boxFileDone) === 'done',
       labelFileDone: normalizeLedgerFileState(item.labelFileState, item.labelFileDone) === 'done',
       imagePackDone: normalizeLedgerFileState(item.imagePackState, item.imagePackDone) === 'done',
@@ -24627,15 +24747,20 @@
     return /^(pending|doing|done)$/.test(String(value || '')) ? String(value) : 'pending';
   }
 
-  function normalizeLedgerAiImageStatus(value) {
+  function isLedgerAiImageCopywritingError(value) {
+    return /缺少产品文案|产品文案.{0,12}(缺少|为空|不存在)|missing.{0,18}copy(?:writing|write)/i.test(String(value || ''));
+  }
+
+  function normalizeLedgerAiImageStatus(value, message) {
     const status = String(value || '').trim();
-    return /^(unknown|loading|running|success|empty|error)$/.test(status) ? status : 'unknown';
+    if (status === 'error' && isLedgerAiImageCopywritingError(message)) return 'needs-copywriting';
+    return /^(unknown|loading|running|success|empty|error|needs-copywriting|task-error|result-missing)$/.test(status) ? status : 'unknown';
   }
 
   function getLedgerAiImageSourceFilename(item) {
     const source = item && typeof item === 'object' ? item : { url: item };
-    const explicit = String(source.filename || source.fileName || '').trim();
-    const raw = explicit || String(source.url || source.imageUrl || source.path || '').trim();
+    const explicit = String(source.filename || source.fileName || source.baseFilename || source.originalFilename || '').trim();
+    const raw = explicit || String(source.url || source.imageUrl || source.path || source.sourceUrl || source.baseUrl || '').trim();
     if (!raw) return '';
     let filename = raw;
     try {
@@ -24652,8 +24777,45 @@
     return getLedgerAiImageSourceFilename(item).replace(/\.[^.]+$/, '').trim();
   }
 
+  function getLedgerAiImageSequence(item) {
+    const source = item && typeof item === 'object' ? item : { url: item };
+    const explicit = [source.sequence, source.sortIndex, source.order, source.index]
+      .map((value) => Number(value))
+      .find((value) => Number.isFinite(value) && value > 0);
+    if (explicit) return Math.floor(explicit);
+    const stem = getLedgerAiImageFilenameStem(source);
+    const candidates = [
+      stem.match(/(?:main|detail)[-_ ]*prompt[-_ ]*(\d+)/i),
+      stem.match(/(?:主图|详情图)\s*[-_# ]*(\d+)/),
+      stem.match(/prompt[-_ ]*(\d+)/i),
+    ];
+    for (const match of candidates) {
+      const sequence = Number(match && match[1]);
+      if (Number.isFinite(sequence) && sequence > 0) return Math.floor(sequence);
+    }
+    const rule = stem && LEDGER_AI_IMAGE_RENAME_RULES.find((candidate) => candidate.pattern.test(stem));
+    const ruleSequence = String(rule && rule.name || '').match(/(\d+)$/);
+    return ruleSequence ? Number(ruleSequence[1]) : 0;
+  }
+
+  function compareLedgerAiImageItems(left, right) {
+    const leftSequence = getLedgerAiImageSequence(left);
+    const rightSequence = getLedgerAiImageSequence(right);
+    if (leftSequence && rightSequence && leftSequence !== rightSequence) return leftSequence - rightSequence;
+    if (leftSequence !== rightSequence) return leftSequence ? -1 : 1;
+    const leftCreated = Number(left && left.createdAtMs || 0);
+    const rightCreated = Number(right && right.createdAtMs || 0);
+    if (leftCreated && rightCreated && leftCreated !== rightCreated) return leftCreated - rightCreated;
+    return String(getLedgerAiImageSourceFilename(left) || left && left.url || '')
+      .localeCompare(String(getLedgerAiImageSourceFilename(right) || right && right.url || ''), 'zh-CN', { numeric: true });
+  }
+
   function getLedgerAiImageDisplayName(item, kind, index) {
-    const fallback = (kind === 'detail' ? '详情图' : '主图') + (Number(index) + 1);
+    const source = item && typeof item === 'object' ? item : { url: item };
+    const explicitDisplayName = String(source.displayName || source.logicalName || source.slotName || '').trim();
+    if (explicitDisplayName) return explicitDisplayName.replace(/\.[^.]+$/, '');
+    const sequence = getLedgerAiImageSequence(source);
+    const fallback = (kind === 'detail' ? '详情图' : '主图') + (sequence || Number(index) + 1);
     const stem = getLedgerAiImageFilenameStem(item);
     const rule = stem && LEDGER_AI_IMAGE_RENAME_RULES.find((candidate) => candidate.pattern.test(stem));
     return rule ? rule.name : fallback;
@@ -24679,7 +24841,7 @@
   function normalizeLedgerAiImageItems(value, limit) {
     const max = Number(limit) > 0 ? Number(limit) : 12;
     const seen = new Set();
-    return (Array.isArray(value) ? value : []).map((item) => {
+    return (Array.isArray(value) ? value : []).map((item, sourceIndex) => {
       const source = item && typeof item === 'object' ? item : { url: item };
       const rawUrl = String(source.url || source.imageUrl || source.path || '').trim();
       if (!rawUrl) return null;
@@ -24694,11 +24856,73 @@
       if (url.length > 1600 || seen.has(url)) return null;
       seen.add(url);
       const fallbackName = url.split('/').pop().split('?')[0];
-      return {
+      const normalized = {
         url,
         filename: String(source.filename || source.fileName || fallbackName || '').slice(0, 180),
       };
+      const displayName = String(source.displayName || source.logicalName || source.slotName || '').trim();
+      const baseUrl = String(source.baseUrl || source.originalUrl || '').trim();
+      const parentUrl = String(source.parentUrl || source.sourceUrl || '').trim();
+      const baseFilename = String(source.baseFilename || source.originalFilename || '').trim();
+      const prompt = String(source.prompt || '').trim();
+      const createdAt = String(source.createdAt || '').trim();
+      const createdAtMs = Number(source.createdAtMs || 0) || 0;
+      const sequence = getLedgerAiImageSequence(source);
+      if (displayName) normalized.displayName = displayName.slice(0, 80);
+      if (baseUrl) normalized.baseUrl = baseUrl.slice(0, 1600);
+      if (parentUrl) normalized.parentUrl = parentUrl.slice(0, 1600);
+      if (baseFilename) normalized.baseFilename = baseFilename.slice(0, 180);
+      if (prompt) normalized.prompt = prompt.slice(0, 1000);
+      if (createdAt) normalized.createdAt = createdAt.slice(0, 80);
+      if (createdAtMs) normalized.createdAtMs = createdAtMs;
+      if (sequence) normalized.sequence = sequence;
+      normalized._sourceIndex = sourceIndex;
+      return normalized;
+    }).filter(Boolean).sort((left, right) => {
+      const compared = compareLedgerAiImageItems(left, right);
+      return compared || left._sourceIndex - right._sourceIndex;
+    }).map((item) => {
+      const normalized = { ...item };
+      delete normalized._sourceIndex;
+      return normalized;
     }).filter(Boolean).slice(0, max);
+  }
+
+  function normalizeLedgerAiImageRetouchTasks(value, limit) {
+    const max = Number(limit) > 0 ? Number(limit) : LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS;
+    const seen = new Set();
+    return (Array.isArray(value) ? value : []).map((item, sourceIndex) => {
+      const source = item && typeof item === 'object' ? item : {};
+      const sourceUrl = String(source.sourceUrl || source.imageUrl || source.url || '').trim();
+      const prompt = String(source.prompt || '').trim();
+      if (!sourceUrl || !prompt) return null;
+      const id = String(source.id || [sourceUrl, prompt, source.createdAtMs || sourceIndex].join('|')).slice(0, 180);
+      if (seen.has(id)) return null;
+      seen.add(id);
+      const status = /^(running|success|error)$/.test(String(source.status || '')) ? String(source.status) : 'running';
+      return {
+        id,
+        sourceUrl: sourceUrl.slice(0, 1600),
+        displayName: String(source.displayName || source.logicalName || source.slotName || '').slice(0, 80),
+        baseFilename: String(source.baseFilename || source.originalFilename || '').slice(0, 180),
+        sequence: getLedgerAiImageSequence(source) || 0,
+        prompt: prompt.slice(0, 1000),
+        status,
+        error: String(source.error || '').slice(0, 240),
+        createdAt: String(source.createdAt || '').slice(0, 80),
+        createdAtMs: Number(source.createdAtMs || 0) || 0,
+        updatedAtMs: Number(source.updatedAtMs || source.createdAtMs || 0) || 0,
+        _sourceIndex: sourceIndex,
+      };
+    }).filter(Boolean).sort((left, right) => {
+      const leftTime = Number(left.createdAtMs || left.updatedAtMs || 0);
+      const rightTime = Number(right.createdAtMs || right.updatedAtMs || 0);
+      return rightTime - leftTime || left._sourceIndex - right._sourceIndex;
+    }).map((item) => {
+      const normalized = { ...item };
+      delete normalized._sourceIndex;
+      return normalized;
+    }).slice(0, max);
   }
 
   function normalizeLedgerPurchasePrice(value) {
@@ -24808,6 +25032,7 @@
       'referenceUrl', 'developerName', 'developmentAssignedAt', 'performanceGroupId',
       'packageCode', 'printCode', 'purchasePrice', 'imageGeneratedAt', 'imageGeneratedAtMs',
       'aiImageStatus', 'aiImageMessage', 'aiImageJobId', 'aiImageCheckedAtMs', 'aiMainImages', 'aiDetailImages',
+      'aiMainRetouchedImages', 'aiDetailRetouchedImages', 'aiMainRetouchTasks', 'aiDetailRetouchTasks',
     ].forEach((field) => {
       const source = recentItems.find((item) => hasLedgerRecordValue(item[field]));
       if (source) merged[field] = source[field];
@@ -24965,12 +25190,19 @@
       labelFileState: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)),
       imagePackState: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)),
       artworkState: normalizeLedgerArtworkState(opts.artworkState !== undefined ? opts.artworkState : (existing && existing.artworkState)),
-      aiImageStatus: normalizeLedgerAiImageStatus(opts.aiImageStatus !== undefined ? opts.aiImageStatus : (existing && existing.aiImageStatus)),
+      aiImageStatus: normalizeLedgerAiImageStatus(
+        opts.aiImageStatus !== undefined ? opts.aiImageStatus : (existing && existing.aiImageStatus),
+        opts.aiImageMessage !== undefined ? opts.aiImageMessage : (existing && existing.aiImageMessage)
+      ),
       aiImageMessage: String(opts.aiImageMessage !== undefined ? opts.aiImageMessage || '' : (existing && existing.aiImageMessage) || '').slice(0, 180),
       aiImageJobId: String(opts.aiImageJobId !== undefined ? opts.aiImageJobId || '' : (existing && existing.aiImageJobId) || '').slice(0, 120),
       aiImageCheckedAtMs: Number(opts.aiImageCheckedAtMs !== undefined ? opts.aiImageCheckedAtMs || 0 : (existing && existing.aiImageCheckedAtMs) || 0) || 0,
       aiMainImages: normalizeLedgerAiImageItems(opts.aiMainImages !== undefined ? opts.aiMainImages : (existing && existing.aiMainImages), 12),
       aiDetailImages: normalizeLedgerAiImageItems(opts.aiDetailImages !== undefined ? opts.aiDetailImages : (existing && existing.aiDetailImages), 20),
+      aiMainRetouchedImages: normalizeLedgerAiImageItems(opts.aiMainRetouchedImages !== undefined ? opts.aiMainRetouchedImages : (existing && existing.aiMainRetouchedImages), LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS),
+      aiDetailRetouchedImages: normalizeLedgerAiImageItems(opts.aiDetailRetouchedImages !== undefined ? opts.aiDetailRetouchedImages : (existing && existing.aiDetailRetouchedImages), LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS),
+      aiMainRetouchTasks: normalizeLedgerAiImageRetouchTasks(opts.aiMainRetouchTasks !== undefined ? opts.aiMainRetouchTasks : (existing && existing.aiMainRetouchTasks), LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS),
+      aiDetailRetouchTasks: normalizeLedgerAiImageRetouchTasks(opts.aiDetailRetouchTasks !== undefined ? opts.aiDetailRetouchTasks : (existing && existing.aiDetailRetouchTasks), LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS),
       boxFileDone: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)) === 'done',
       labelFileDone: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)) === 'done',
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
@@ -25323,25 +25555,38 @@
   }
 
   function getLedgerAiImageStatusMeta(record) {
-    const status = normalizeLedgerAiImageStatus(record && record.aiImageStatus);
+    const status = normalizeLedgerAiImageStatus(record && record.aiImageStatus, record && record.aiImageMessage);
     const manual = normalizeLedgerArtworkState(record && record.artworkState);
     const mainCount = normalizeLedgerAiImageItems(record && record.aiMainImages, 12).length;
     const detailCount = normalizeLedgerAiImageItems(record && record.aiDetailImages, 20).length;
     const total = mainCount + detailCount;
     if (status === 'success' && total) return { status, label: '查看生图 · ' + total, title: '点击查看 AI 生图（主图 ' + mainCount + ' 张，详情图 ' + detailCount + ' 张）', count: total };
-    if (status === 'success') return { status, label: '查看生图', title: 'AI 生图已完成，但暂未读到图片列表，点击刷新', count: 0 };
+    if (status === 'result-missing') return { status, label: '结果缺失', title: 'PLM 返回完成状态但没有图片列表，打开后可手动重新生成', count: 0 };
+    if (status === 'success') return { status, label: '结果缺失', title: 'AI 生图完成但没有图片列表，打开后可手动重新生成', count: 0 };
     if (status === 'loading') return { status, label: '查询中…', title: '正在查询 PLM AI 生图状态', count: 0 };
     if (status === 'running') return { status, label: '生图中…', title: 'PLM AI 生图正在执行，只跟踪当前 SKU', count: 0 };
-    if (status === 'empty') return { status, label: '未生图', title: '未发现可查看的 PLM AI 生图，点击重新查询', count: 0 };
-    if (status === 'error') return { status, label: '重试生图', title: 'AI 生图状态查询失败，点击重试', count: 0 };
+    if (status === 'empty') return { status, label: '查询生图', title: '当前没有可查看的 PLM AI 生图；打开后可手动选择主图或详情图生成', count: 0 };
+    if (status === 'needs-copywriting') return { status, label: '需重新生成', title: '上次提交没有通过文案校验；打开后手动选择主图或详情图重新生成', count: 0 };
+    if (status === 'task-error') return { status, label: '任务异常', title: 'PLM 有生图任务记录但查询不到结果，请刷新或联系管理员清理任务', count: 0 };
+    if (status === 'error') return { status, label: '查询失败', title: 'AI 生图状态查询失败，打开后可手动刷新', count: 0 };
     if (manual === 'doing') return { status, label: '生图中 · 查询', title: '当前是手动生图标记，点击查询 PLM 实际状态', count: 0 };
     if (manual === 'done') return { status, label: '已生图 · 查询', title: '当前是手动完成标记，点击查询并查看 PLM AI 生图', count: 0 };
-    return { status, label: '查询生图', title: '点击查询 PLM AI 生图状态；工作台打开时不会批量查询', count: 0 };
+    return { status, label: '查询生图', title: '点击查询 PLM AI 生图状态；不会自动提交文案或开始生成', count: 0 };
   }
 
   function ledgerArtworkStateButtonHtml(record, sku, dateAttr) {
     const meta = getLedgerAiImageStatusMeta(record);
     return '<button type="button" class="pfh-ledger-artwork is-ai-' + escapeHtml(meta.status) + '" data-action="ledger-ai-image" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(meta.title) + '" aria-label="' + escapeHtml('生图状态：' + meta.label) + '">' + escapeHtml(meta.label) + '</button>';
+  }
+
+  function ledgerAiImageGenerateButtonHtml(record, kind, status) {
+    const normalizedKind = kind === 'detail' ? 'detail' : 'main';
+    const label = normalizedKind === 'detail' ? '详情图' : '主图';
+    const requestKey = getLedgerAiImageRequestKey(record && record.sku);
+    const busy = ['loading', 'running'].includes(status) || Boolean(state.ledgerAiImageRequests[requestKey]);
+    const retry = ['error', 'needs-copywriting', 'task-error', 'result-missing'].includes(status);
+    const text = busy ? '生成中…' : (retry ? '重新生成' + label + ' AI' : '生成' + label + ' AI');
+    return '<button type="button" class="pfh-ledger-ai-image-generate" data-action="ledger-ai-image-generate" data-kind="' + normalizedKind + '" data-sku="' + escapeHtml(record && record.sku || '') + '" data-date="' + escapeHtml(record && record.date || '') + '" title="点击后读取实时产品文案并提交 PLM AI 生图；PLM 接口会同时返回主图和详情图"' + (busy ? ' disabled' : '') + '>' + escapeHtml(text) + '</button>';
   }
 
   function getLedgerAiImageRequestKey(sku) {
@@ -25365,19 +25610,123 @@
     const statusCode = Number(data.status);
     const message = String(data.message || payload && (payload.message || payload.msg) || '').trim();
     const jobId = String(data.job_id || data.jobId || '').trim();
-    const status = mainImages.length || detailImages.length || statusCode === 2
+    const hasImages = mainImages.length || detailImages.length;
+    const status = hasImages
       ? 'success'
       : statusCode === 1
         ? 'running'
-        : /失败|错误|异常|fail|error/i.test(message)
-          ? 'error'
-          : 'empty';
+        : statusCode === 2
+          ? 'result-missing'
+          : /失败|错误|异常|fail|error/i.test(message)
+            ? 'error'
+            : 'empty';
     return {
       status,
-      message: message || (status === 'running' ? 'AI 生成提示：任务执行中' : (status === 'empty' ? '未发现可用的 AI 生图任务' : '执行成功')),
+      message: message || (status === 'running'
+        ? 'AI 生成提示：任务执行中'
+        : (status === 'result-missing' ? 'PLM 返回完成状态但没有图片列表' : (status === 'empty' ? '未发现可用的 AI 生图任务' : '执行成功'))),
       jobId,
       mainImages,
       detailImages,
+    };
+  }
+
+  function getLedgerAiImageCopywriteList(payload) {
+    const data = payload && payload.data !== undefined ? payload.data : payload;
+    if (Array.isArray(data)) return data;
+    const candidates = [
+      data && data.textList,
+      data && data.text_list,
+      data && data.copywrite,
+      data && data.copyWrite,
+      payload && payload.textList,
+      payload && payload.text_list,
+    ];
+    return candidates.find((value) => Array.isArray(value)) || [];
+  }
+
+  function normalizeLedgerAiImageCopywriteItems(value) {
+    return (Array.isArray(value) ? value : []).map((item, index) => {
+      const source = item && typeof item === 'object' ? item : { value: item };
+      const valueEn = getApiScalarText(source.value !== undefined ? source.value : (source.value_en !== undefined ? source.value_en : (source.valueEn !== undefined ? source.valueEn : (source.english !== undefined ? source.english : source.en))), 0);
+      const valueCn = getApiScalarText(source.value_cn !== undefined ? source.value_cn : (source.valueCn !== undefined ? source.valueCn : (source.chinese !== undefined ? source.chinese : source.zh)), 0);
+      const fallback = getApiScalarText(source.text !== undefined ? source.text : source.content, 0);
+      const normalizedEn = String(valueEn || fallback || valueCn || '').trim();
+      const normalizedCn = String(valueCn || fallback || valueEn || '').trim();
+      if (!normalizedEn && !normalizedCn) return null;
+      return {
+        id: Number(source.id || source.key || index + 1) || index + 1,
+        type: String(source.type || source.key || 'product_text_' + (index + 1)).trim().slice(0, 80),
+        title: String(source.title || source.title_en || source.titleEn || source.label || source.name || source.type || '').trim().slice(0, 160),
+        title_cn: String(source.title_cn || source.titleCn || source.title_zh || source.titleZh || source.label_cn || source.labelCn || source.label || source.name || source.title || '').trim().slice(0, 160),
+        value: normalizedEn.slice(0, 12000),
+        value_cn: normalizedCn.slice(0, 12000),
+      };
+    }).filter(Boolean).slice(0, 40);
+  }
+
+  function buildLedgerAiImageCopywriteFromCache(data) {
+    const record = normalizeCopywritingRecord(data && data.copywriting);
+    if (!record) return [];
+    const sections = Array.isArray(record.sections) ? record.sections : [];
+    const source = sections.length ? sections : (record.fullText ? [{ key: 'product_description', label: '产品文案', text: record.fullText }] : []);
+    return normalizeLedgerAiImageCopywriteItems(source.map((section, index) => ({
+      id: index + 1,
+      type: section.key || 'product_text_' + (index + 1),
+      title: section.label || section.key || '',
+      title_cn: section.label || section.key || '',
+      value: section.text || '',
+      value_cn: section.text || '',
+    })));
+  }
+
+  function getLedgerAiImageIngredientPayload(data) {
+    const source = normalizeData(data || {});
+    const copywriting = normalizeCopywritingRecord(source.copywriting);
+    const chinese = String(source.ingredientChinese || source.copywritingIngredientChinese || copywriting && (copywriting.cleanedIngredientChinese || copywriting.ingredientChinese) || '').trim().slice(0, 8000);
+    const english = String(source.ingredientEnglish || source.copywritingIngredientEnglish || copywriting && (copywriting.cleanedIngredientEnglish || copywriting.ingredientEnglish) || '').trim().slice(0, 8000);
+    return {
+      product_ingredients_efficacy_ch: chinese,
+      product_ingredients_summary_ch: chinese,
+      product_ingredients_efficacy_en: english,
+      product_ingredients_summary_en: english,
+    };
+  }
+
+  async function getLedgerAiImageTaskExists(sku) {
+    const normalizedSku = String(sku || '').trim();
+    if (!normalizedSku) return null;
+    try {
+      const payload = await fetchPlmJson(LEDGER_AI_IMAGE_TASK_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
+      if (payload && payload.success === false) return null;
+      return payload && payload.data === true;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function prepareLedgerAiImageGenerationPayload(sku) {
+    const normalizedSku = String(sku || '').trim();
+    if (!normalizedSku) throw new Error('缺少 SKU，无法开始 AI 生图');
+    const data = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
+    let copywrite = [];
+    let readError = null;
+    try {
+      const payload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
+      if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM 产品文案接口返回失败');
+      copywrite = normalizeLedgerAiImageCopywriteItems(getLedgerAiImageCopywriteList(payload));
+    } catch (error) {
+      readError = error;
+    }
+    if (!copywrite.length) copywrite = buildLedgerAiImageCopywriteFromCache(data);
+    if (!copywrite.length) {
+      if (readError) throw new Error('读取 PLM 产品文案失败：' + (formatErrorMessage(readError) || '接口未返回文案'));
+      throw new Error('PLM 缺少产品文案，请先在 PLM 补齐或生成产品文案');
+    }
+    return {
+      code: normalizedSku,
+      copywrite,
+      ...getLedgerAiImageIngredientPayload(data),
     };
   }
 
@@ -25394,6 +25743,179 @@
     const updated = updateDailyLedgerForSku(sku, { ...(patch || {}), deferSave: true, skipStorageSync: true }, dateKey);
     if (updated && shouldSave) saveDailyLedger();
     return updated;
+  }
+
+  function getLedgerAiImageFieldNames(kind) {
+    const isDetail = kind === 'detail';
+    return {
+      kind: isDetail ? 'detail' : 'main',
+      originalField: isDetail ? 'aiDetailImages' : 'aiMainImages',
+      retouchedField: isDetail ? 'aiDetailRetouchedImages' : 'aiMainRetouchedImages',
+      taskField: isDetail ? 'aiDetailRetouchTasks' : 'aiMainRetouchTasks',
+      imageLimit: isDetail ? 20 : 12,
+    };
+  }
+
+  function getLedgerAiImageRetouchRequestKey(sku, dateKey, kind, imageUrl, prompt) {
+    return [getLedgerSkuKey(sku), normalizeLedgerDate(dateKey) || '', kind === 'detail' ? 'detail' : 'main', String(imageUrl || ''), String(prompt || '').trim()].join('|');
+  }
+
+  function createLedgerAiImageRetouchTaskId() {
+    const random = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : Math.random().toString(36).slice(2, 14);
+    return 'retouch-' + Date.now().toString(36) + '-' + random;
+  }
+
+  function getLedgerAiImageRetouchSource(record, kind, imageUrl) {
+    if (!record) return null;
+    const fields = getLedgerAiImageFieldNames(kind);
+    const targetUrl = String(imageUrl || '').trim();
+    return normalizeLedgerAiImageItems(record[fields.originalField], fields.imageLimit)
+      .concat(normalizeLedgerAiImageItems(record[fields.retouchedField], LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS))
+      .find((item) => item.url === targetUrl) || null;
+  }
+
+  function getLedgerAiImageRetouchTasks(record, kind) {
+    const fields = getLedgerAiImageFieldNames(kind);
+    return normalizeLedgerAiImageRetouchTasks(record && record[fields.taskField], LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS);
+  }
+
+  function isLedgerAiImageViewerFor(sku, dateKey) {
+    const viewer = state.ledgerAiImageViewer;
+    return Boolean(viewer
+      && getLedgerSkuKey(viewer.sku) === getLedgerSkuKey(sku)
+      && (!dateKey || normalizeLedgerDate(viewer.date) === normalizeLedgerDate(dateKey)));
+  }
+
+  function renderLedgerAiImageRetouchState(sku, dateKey) {
+    if (isLedgerAiImageViewerFor(sku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
+  }
+
+  function parseLedgerAiImageRetouchResult(payload) {
+    const raw = payload && typeof payload.data === 'object'
+      ? payload.data.url || payload.data.imageUrl || payload.data.path
+      : payload && payload.data;
+    const normalized = normalizeLedgerAiImageItems([{ url: raw }], 1)[0];
+    if (!normalized) throw new Error('PLM 未返回有效的修改图片地址');
+    return normalized.url;
+  }
+
+  async function submitLedgerAiImageRetouch(sku, dateKey, kind, imageUrl, prompt) {
+    const normalizedSku = String(sku || '').trim();
+    const normalizedKind = kind === 'detail' ? 'detail' : 'main';
+    const normalizedDate = normalizeLedgerDate(dateKey) || getTodayKey();
+    const normalizedPrompt = String(prompt || '').trim();
+    const record = findLedgerRecord(normalizedSku, normalizedDate);
+    const source = getLedgerAiImageRetouchSource(record, normalizedKind, imageUrl);
+    if (!record || !source || !normalizedPrompt) return null;
+    const requestKey = getLedgerAiImageRetouchRequestKey(normalizedSku, normalizedDate, normalizedKind, source.url, normalizedPrompt);
+    const existingRequest = state.ledgerAiImageRetouchRequests[requestKey];
+    if (existingRequest) {
+      showToast('这张图的相同修改正在处理中，关闭弹窗也会继续');
+      return existingRequest;
+    }
+    const fields = getLedgerAiImageFieldNames(normalizedKind);
+    const allOriginals = normalizeLedgerAiImageItems(record[fields.originalField], fields.imageLimit);
+    const sourceIndex = allOriginals.findIndex((item) => item.url === source.url);
+    const displayName = getLedgerAiImageDisplayName(source, normalizedKind, sourceIndex >= 0 ? sourceIndex : 0);
+    const baseUrl = String(source.baseUrl || source.url || '').trim();
+    const baseFilename = String(source.baseFilename || getLedgerAiImageSourceFilename(source) || displayName + '.png').trim();
+    const sequence = getLedgerAiImageSequence(source) || (sourceIndex >= 0 ? sourceIndex + 1 : 0);
+    const now = Date.now();
+    const task = {
+      id: createLedgerAiImageRetouchTaskId(),
+      sourceUrl: source.url,
+      displayName,
+      baseFilename,
+      sequence,
+      prompt: normalizedPrompt,
+      status: 'running',
+      error: '',
+      createdAt: new Date(now).toLocaleString(),
+      createdAtMs: now,
+      updatedAtMs: now,
+    };
+    const currentTasks = getLedgerAiImageRetouchTasks(record, normalizedKind)
+      .filter((item) => !(item.sourceUrl === task.sourceUrl && item.prompt === task.prompt));
+    const taskUpdated = updateLedgerAiImageRecord(normalizedSku, normalizedDate, {
+      [fields.taskField]: [task].concat(currentTasks),
+    }, true);
+    if (!taskUpdated) return null;
+    showToast(displayName + ' 修改任务已提交，完成后可关闭并重新打开查看');
+    const request = (async () => {
+      try {
+        const payload = await fetchPlmApiJson(LEDGER_AI_IMAGE_RETOUCH_ENDPOINT, {
+          code: normalizedSku,
+          prompt: normalizedPrompt,
+          image: source.url,
+        }, { timeout: LEDGER_AI_IMAGE_RETOUCH_TIMEOUT_MS });
+        const resultUrl = parseLedgerAiImageRetouchResult(payload);
+        const extension = getLedgerAiImageExtension(source) || '.png';
+        const retouchedItem = normalizeLedgerAiImageItems([{
+          url: resultUrl,
+          filename: displayName + extension,
+          displayName,
+          baseUrl,
+          parentUrl: source.url,
+          baseFilename,
+          prompt: normalizedPrompt,
+          sequence,
+          createdAt: new Date().toLocaleString(),
+          createdAtMs: Date.now(),
+        }], 1)[0];
+        if (!retouchedItem) throw new Error('修改图片地址无法保存');
+        const latest = findLedgerRecord(normalizedSku, normalizedDate) || record;
+        const latestRetouched = normalizeLedgerAiImageItems(latest[fields.retouchedField], LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS);
+        const latestTasks = getLedgerAiImageRetouchTasks(latest, normalizedKind)
+          .filter((item) => item.id !== task.id && !(item.sourceUrl === task.sourceUrl && item.prompt === task.prompt));
+        const updated = updateLedgerAiImageRecord(normalizedSku, normalizedDate, {
+          [fields.retouchedField]: [retouchedItem].concat(latestRetouched.filter((item) => item.url !== retouchedItem.url)),
+          [fields.taskField]: latestTasks,
+          aiImageMessage: 'AI 生图与修改图已保存到工作台',
+        }, true) || latest;
+        refreshLedgerCard(updated);
+        renderLedgerAiImageRetouchState(normalizedSku, normalizedDate);
+        showToast(displayName + ' 修改完成，原图和修改图都已保留');
+        return updated;
+      } catch (error) {
+        const latest = findLedgerRecord(normalizedSku, normalizedDate) || record;
+        const latestTasks = getLedgerAiImageRetouchTasks(latest, normalizedKind).map((item) => item.id === task.id
+          ? { ...item, status: 'error', error: formatErrorMessage(error) || '修改图片失败', updatedAtMs: Date.now() }
+          : item);
+        const updated = updateLedgerAiImageRecord(normalizedSku, normalizedDate, {
+          [fields.taskField]: latestTasks,
+        }, true) || latest;
+        refreshLedgerCard(updated);
+        renderLedgerAiImageRetouchState(normalizedSku, normalizedDate);
+        showToast(displayName + ' 修改失败：' + (formatErrorMessage(error) || '网络请求失败'));
+        return updated;
+      }
+    })();
+    state.ledgerAiImageRetouchRequests[requestKey] = request;
+    renderLedgerAiImageRetouchState(normalizedSku, normalizedDate);
+    try {
+      return await request;
+    } finally {
+      if (state.ledgerAiImageRetouchRequests[requestKey] === request) delete state.ledgerAiImageRetouchRequests[requestKey];
+    }
+  }
+
+  function promptLedgerAiImageRetouch(sku, dateKey, kind, imageUrl) {
+    const record = findLedgerRecord(sku, dateKey);
+    const source = getLedgerAiImageRetouchSource(record, kind, imageUrl);
+    if (!record || !source) return;
+    const fields = getLedgerAiImageFieldNames(kind);
+    const originalItems = normalizeLedgerAiImageItems(record[fields.originalField], fields.imageLimit);
+    const sourceIndex = originalItems.findIndex((item) => item.url === source.url);
+    const displayName = getLedgerAiImageDisplayName(source, kind, sourceIndex >= 0 ? sourceIndex : 0);
+    const prompt = window.prompt('修改 ' + displayName + ' 的提示词\n通常约 45 秒返回；关闭工作台不会取消任务。', '');
+    if (prompt === null) return;
+    if (!String(prompt).trim()) {
+      showToast('修改提示词不能为空');
+      return;
+    }
+    submitLedgerAiImageRetouch(sku, dateKey, kind, source.url, prompt);
   }
 
   function clearLedgerAiImagePoll(sku) {
@@ -25425,10 +25947,16 @@
   function openLedgerAiImageViewer(record) {
     if (!record) return;
     const previous = state.ledgerAiImageViewer;
+    const sameRecord = Boolean(previous
+      && getLedgerSkuKey(previous.sku) === getLedgerSkuKey(record.sku)
+      && normalizeLedgerDate(previous.date) === normalizeLedgerDate(record.date));
     state.ledgerAiImageViewer = {
       sku: record.sku,
       date: record.date,
-      tab: previous && getLedgerSkuKey(previous.sku) === getLedgerSkuKey(record.sku) ? previous.tab : 'main',
+      tab: sameRecord ? previous.tab : 'main',
+      selected: sameRecord && previous.selected
+        ? { ...previous.selected }
+        : { main: '', detail: '' },
     };
     renderLedgerAiImageViewer(ensurePanel());
   }
@@ -25495,6 +26023,102 @@
     });
   }
 
+  function getLedgerAiImageSingleDownloadKey(sku, dateKey, kind, imageUrl) {
+    return getLedgerAiImageDownloadKey(sku, dateKey, kind) + '|item|' + String(imageUrl || '');
+  }
+
+  function downloadLedgerAiImageItem(sku, dateKey, kind, imageUrl, displayName) {
+    if (state.ledgerAiImageDownloadKey) return;
+    const normalizedKind = kind === 'detail' ? 'detail' : 'main';
+    const record = findLedgerRecord(sku, dateKey);
+    const item = getLedgerAiImageRetouchSource(record, normalizedKind, imageUrl);
+    if (!record || !item) return;
+    const name = String(displayName || getLedgerAiImageDisplayName(item, normalizedKind, 0)).trim() || (normalizedKind === 'detail' ? '详情图' : '主图');
+    const downloadKey = getLedgerAiImageSingleDownloadKey(record.sku, record.date, normalizedKind, item.url);
+    state.ledgerAiImageDownloadKey = downloadKey;
+    state.ledgerAiImageDownloadProgress = '正在下载 ' + name + '…';
+    renderLedgerAiImageViewer(ensurePanel());
+    (async () => {
+      try {
+        const blob = await fetchLedgerAiImageBlob(item.url);
+        const extension = getLedgerAiImageExtension(item, blob);
+        downloadBlob(blob, name + extension);
+        showToast(name + ' 已下载');
+      } catch (error) {
+        showToast('下载' + name + '失败：' + (formatErrorMessage(error) || '网络请求失败'));
+      } finally {
+        if (state.ledgerAiImageDownloadKey === downloadKey) {
+          state.ledgerAiImageDownloadKey = '';
+          state.ledgerAiImageDownloadProgress = '';
+          renderLedgerAiImageViewer(ensurePanel());
+        }
+      }
+    })();
+  }
+
+  function getLedgerAiImageViewerEntries(record, kind) {
+    const fields = getLedgerAiImageFieldNames(kind);
+    const originals = normalizeLedgerAiImageItems(record && record[fields.originalField], fields.imageLimit);
+    const retouched = normalizeLedgerAiImageItems(record && record[fields.retouchedField], LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS);
+    const tasks = getLedgerAiImageRetouchTasks(record, kind);
+    const entries = [];
+    originals.forEach((item, index) => entries.push({
+      item,
+      displayName: getLedgerAiImageDisplayName(item, kind, index),
+      sequence: getLedgerAiImageSequence(item) || index + 1,
+      isRetouched: false,
+      isTask: false,
+      rank: 0,
+      order: index,
+    }));
+    retouched.forEach((item, index) => entries.push({
+      item,
+      displayName: getLedgerAiImageDisplayName(item, kind, index),
+      sequence: getLedgerAiImageSequence(item) || Number(item.sequence) || 9999,
+      isRetouched: true,
+      isTask: false,
+      rank: 1,
+      order: index,
+    }));
+    tasks.forEach((task, index) => {
+      const source = getLedgerAiImageRetouchSource(record, kind, task.sourceUrl);
+      entries.push({
+        item: source,
+        task,
+        displayName: task.displayName || (source ? getLedgerAiImageDisplayName(source, kind, 0) : ((kind === 'detail' ? '详情图' : '主图') + (task.sequence || index + 1))),
+        sequence: Number(task.sequence) || (source ? getLedgerAiImageSequence(source) : 9999),
+        isRetouched: false,
+        isTask: true,
+        rank: 2,
+        order: index,
+      });
+    });
+    return entries.sort((left, right) => {
+      const leftSequence = Number(left.sequence) || 9999;
+      const rightSequence = Number(right.sequence) || 9999;
+      const leftTime = Number(left.task && left.task.createdAtMs || left.item && left.item.createdAtMs || 0);
+      const rightTime = Number(right.task && right.task.createdAtMs || right.item && right.item.createdAtMs || 0);
+      return leftSequence - rightSequence
+        || left.rank - right.rank
+        || rightTime - leftTime
+        || left.order - right.order;
+    });
+  }
+
+  function getLedgerAiImageViewerEntryKey(entry) {
+    if (!entry) return '';
+    if (entry.isTask) return 'task:' + String(entry.task && entry.task.id || '');
+    return 'image:' + String(entry.item && entry.item.url || '');
+  }
+
+  function getLedgerAiImageViewerTabCount(record, kind) {
+    const entries = getLedgerAiImageViewerEntries(record, kind);
+    const originalCount = entries.filter((entry) => !entry.isRetouched && !entry.isTask).length;
+    const retouchedCount = entries.filter((entry) => entry.isRetouched).length;
+    const taskCount = entries.filter((entry) => entry.isTask).length;
+    return String(originalCount) + (retouchedCount ? ' + 改' + retouchedCount : '') + (taskCount ? ' · 中' + taskCount : '');
+  }
+
   function renderLedgerAiImageViewer(panel) {
     if (!panel) return;
     let layer = panel.querySelector('.pfh-ledger-ai-image-layer');
@@ -25509,25 +26133,96 @@
       if (layer) layer.remove();
       return;
     }
+    const mainEntries = getLedgerAiImageViewerEntries(record, 'main');
+    const detailEntries = getLedgerAiImageViewerEntries(record, 'detail');
     const mainImages = normalizeLedgerAiImageItems(record.aiMainImages, 12);
     const detailImages = normalizeLedgerAiImageItems(record.aiDetailImages, 20);
-    const tab = viewer.tab === 'detail' && detailImages.length ? 'detail' : (viewer.tab === 'main' && mainImages.length ? 'main' : (mainImages.length ? 'main' : 'detail'));
+    const tab = viewer.tab === 'detail' ? 'detail' : 'main';
     state.ledgerAiImageViewer.tab = tab;
-    const items = tab === 'detail' ? detailImages : mainImages;
+    const entries = tab === 'detail' ? detailEntries : mainEntries;
     const meta = getLedgerAiImageStatusMeta(record);
     const mainDownloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, 'main');
     const detailDownloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, 'detail');
-    const isCurrentDownload = state.ledgerAiImageDownloadKey === mainDownloadKey || state.ledgerAiImageDownloadKey === detailDownloadKey;
-    const itemHtml = items.length
-      ? items.map((item, index) => {
-        const displayName = getLedgerAiImageDisplayName(item, tab, index);
-        const sourceFilename = getLedgerAiImageSourceFilename(item);
-        const title = sourceFilename && sourceFilename !== displayName
-          ? displayName + ' · ' + sourceFilename
-          : displayName;
-        return '<a class="pfh-ledger-ai-image-item" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(title + '（点击打开图片）') + '"><img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(displayName) + '" loading="lazy" decoding="async"><span>' + escapeHtml(displayName) + '</span></a>';
+    const isCurrentDownload = state.ledgerAiImageDownloadKey === mainDownloadKey
+      || state.ledgerAiImageDownloadKey === detailDownloadKey
+      || String(state.ledgerAiImageDownloadKey || '').indexOf(getLedgerAiImageDownloadKey(record.sku, record.date, tab) + '|item|') === 0;
+    const retouchTasks = getLedgerAiImageRetouchTasks(record, tab);
+    const getEntryViewState = (entry) => {
+      const item = entry && entry.item;
+      const task = entry && entry.task;
+      const displayName = entry && entry.displayName || (tab === 'detail' ? '详情图' : '主图');
+      const sourceFilename = item ? getLedgerAiImageSourceFilename(item) : (task && task.baseFilename || '');
+      const title = sourceFilename && sourceFilename !== displayName
+        ? displayName + ' · ' + sourceFilename
+        : displayName;
+      const activeTask = task || (item && retouchTasks.find((candidate) => candidate.sourceUrl === item.url && candidate.status === 'running'));
+      const activeRequest = activeTask && activeTask.status === 'running'
+        ? state.ledgerAiImageRetouchRequests[getLedgerAiImageRetouchRequestKey(record.sku, record.date, tab, activeTask.sourceUrl, activeTask.prompt)]
+        : null;
+      const taskStatus = activeTask && activeTask.status === 'error'
+        ? '修改失败'
+        : (activeTask && activeTask.status === 'running' ? '生成中' : (activeTask ? '待重试' : ''));
+      const variantLabel = entry && entry.isRetouched ? '修改版' : (task ? taskStatus : '原图');
+      const prompt = entry && entry.isRetouched && item && item.prompt
+        ? item.prompt
+        : (activeTask && activeTask.prompt || '');
+      return {
+        entry,
+        item,
+        task,
+        displayName,
+        sourceFilename,
+        title,
+        activeTask,
+        activeRequest,
+        taskStatus,
+        variantLabel,
+        prompt,
+        key: getLedgerAiImageViewerEntryKey(entry),
+        isGenerating: Boolean(activeTask && activeTask.status === 'running'),
+      };
+    };
+    if (!viewer.selected) viewer.selected = { main: '', detail: '' };
+    let selectedKey = String(viewer.selected[tab] || '');
+    let selectedEntry = entries.find((entry) => getLedgerAiImageViewerEntryKey(entry) === selectedKey) || entries[0] || null;
+    if (selectedEntry) {
+      selectedKey = getLedgerAiImageViewerEntryKey(selectedEntry);
+      viewer.selected[tab] = selectedKey;
+    }
+    const selectedView = selectedEntry ? getEntryViewState(selectedEntry) : null;
+    const targetLabel = tab === 'detail' ? '详情图' : '主图';
+    const emptyMessage = meta.status === 'running' || meta.status === 'loading'
+      ? '图片还在生成，当前只跟踪这个 SKU。'
+      : (meta.status === 'task-error'
+        ? 'PLM 有生图任务记录，但暂时没有返回图片结果；请先刷新，必要时联系管理员清理任务。'
+        : (meta.status === 'result-missing'
+          ? 'PLM 返回了完成状态，但没有图片列表；点击下方按钮可手动重新生成。'
+          : (meta.status === 'needs-copywriting'
+            ? '上次提交没有通过文案校验；点击下方按钮后会重新读取实时文案。'
+            : (meta.status === 'error'
+              ? '状态查询失败；可以先刷新状态，再手动提交生成。'
+              : '当前没有可查看的' + targetLabel + '；点击下方按钮后才会开始生成。'))));
+    const emptyStateHtml = '<div class="pfh-ledger-ai-image-empty-state"><span>' + escapeHtml(emptyMessage) + '</span>' + ledgerAiImageGenerateButtonHtml(record, tab, meta.status) + '</div>';
+    const thumbnailHtml = entries.length
+      ? entries.map((entry) => {
+        const view = getEntryViewState(entry);
+        const selected = view.key === selectedKey;
+        const imageHtml = view.item
+          ? '<img src="' + escapeHtml(view.item.url) + '" alt="' + escapeHtml(view.displayName) + '" loading="lazy" decoding="async">'
+          : '<span class="pfh-ledger-ai-image-thumb-missing">无图</span>';
+        return '<button type="button" class="pfh-ledger-ai-image-thumb' + (selected ? ' is-selected' : '') + (entry.isRetouched ? ' is-retouched' : '') + (entry.isTask ? ' is-retouch-task is-' + escapeHtml(view.task && view.task.status || 'running') : '') + '" data-action="ledger-ai-image-select" data-kind="' + tab + '" data-entry-key="' + escapeHtml(view.key) + '" title="' + escapeHtml(view.title) + '">' +
+          '<span class="pfh-ledger-ai-image-thumb-media">' + imageHtml + '</span><span class="pfh-ledger-ai-image-thumb-copy"><strong>' + escapeHtml(view.displayName) + '</strong><small>' + escapeHtml(view.variantLabel) + '</small></span></button>';
       }).join('')
-      : '<div class="pfh-ledger-ai-image-empty">' + escapeHtml(meta.status === 'running' || meta.status === 'loading' ? '图片还在生成，当前只跟踪这个 SKU。' : (meta.status === 'error' ? '查询失败，请点击下方“刷新状态”重试。' : '当前没有可查看的图片。')) + '</div>';
+      : emptyStateHtml;
+    const previewImageHtml = selectedView && selectedView.item
+      ? '<a class="pfh-ledger-ai-image-preview-link" href="' + escapeHtml(selectedView.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(selectedView.title + '（点击打开图片）') + '"><img src="' + escapeHtml(selectedView.item.url) + '" alt="' + escapeHtml(selectedView.displayName) + '" loading="eager" decoding="async"></a>'
+      : '<div class="pfh-ledger-ai-image-preview-missing">' + (selectedView ? '原图地址已失效' : escapeHtml(emptyMessage)) + '</div>';
+    const previewActionHtml = selectedView && selectedView.item
+      ? '<div class="pfh-ledger-ai-image-preview-actions"><button type="button" data-action="ledger-ai-image-download-item" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '" data-image-name="' + escapeHtml(selectedView.displayName) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '"' + (selectedView.isGenerating ? ' disabled' : '') + '>' + (selectedView.isGenerating ? '生成中…' : (selectedView.activeTask ? '重新修改' : '修改图')) + '</button></div>'
+      : '';
+    const previewHtml = selectedView
+      ? '<div class="pfh-ledger-ai-image-preview-stage">' + previewImageHtml + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + escapeHtml(selectedView.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + escapeHtml(selectedView.variantLabel) + '</em></div><small title="' + escapeHtml(selectedView.title) + '">' + escapeHtml(selectedView.sourceFilename || '保留原图文件名') + '</small></div>' + (selectedView.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + escapeHtml(selectedView.prompt) + '">提示词：' + escapeHtml(selectedView.prompt) + '</p>' : '') + previewActionHtml + '</div>'
+      : '<div class="pfh-ledger-ai-image-preview-empty">' + emptyStateHtml + '</div>';
     const message = String(record.aiImageMessage || meta.title || '').trim();
     const downloadButtonHtml = (kind, count, label, downloadKey) => {
       const busy = state.ledgerAiImageDownloadKey === downloadKey;
@@ -25536,7 +26231,7 @@
     };
     const downloadProgress = isCurrentDownload && state.ledgerAiImageDownloadProgress
       ? state.ledgerAiImageDownloadProgress
-      : '打开工作台不会查询全部 SKU；仅在点击或刷新当前编码时请求。';
+      : '原图和修改图都会保存在今日工作台；本功能不会自动替换或保存 PLM 商品草稿。';
     if (!layer) {
       layer = document.createElement('div');
       layer.className = 'pfh-ledger-ai-image-layer';
@@ -25547,21 +26242,45 @@
     }
     layer.innerHTML = '<section class="pfh-ledger-ai-image-dialog" role="dialog" aria-modal="true" aria-label="AI 生图" data-ledger-ai-image-dialog="1">' +
       '<header><div><h3>AI 生图 · ' + escapeHtml(record.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + escapeHtml(meta.status) + '">' + escapeHtml(meta.label) + (message ? ' · ' + escapeHtml(message) : '') + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header>' +
-      '<nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + (tab === 'main' ? 'is-active' : '') + '">主图 <em>' + mainImages.length + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + (tab === 'detail' ? 'is-active' : '') + '">详情图 <em>' + detailImages.length + '</em></button></nav>' +
-      '<div class="pfh-ledger-ai-image-grid">' + itemHtml + '</div>' +
-      '<footer><span>' + escapeHtml(downloadProgress) + '</span><div class="pfh-ledger-ai-image-download-actions">' + downloadButtonHtml('main', mainImages.length, '下载全部主图', mainDownloadKey) + downloadButtonHtml('detail', detailImages.length, '下载全部详情图', detailDownloadKey) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>刷新状态</button></div></footer>' +
+      '<nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + (tab === 'main' ? 'is-active' : '') + '">主图 <em>' + getLedgerAiImageViewerTabCount(record, 'main') + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + (tab === 'detail' ? 'is-active' : '') + '">详情图 <em>' + getLedgerAiImageViewerTabCount(record, 'detail') + '</em></button></nav>' +
+      '<div class="pfh-ledger-ai-image-workspace"><aside class="pfh-ledger-ai-image-sidebar"><div class="pfh-ledger-ai-image-sidebar-head"><strong>图片列表</strong><span>' + entries.length + ' 张</span></div><div class="pfh-ledger-ai-image-thumbs">' + thumbnailHtml + '</div></aside><main class="pfh-ledger-ai-image-preview">' + previewHtml + '</main></div>' +
+      '<footer><span>' + escapeHtml(downloadProgress || '原图和修改图会保存在今日工作台记录中；关闭弹窗不会清除。') + '</span><div class="pfh-ledger-ai-image-download-actions">' + downloadButtonHtml('main', mainImages.length, '下载全部主图', mainDownloadKey) + downloadButtonHtml('detail', detailImages.length, '下载全部详情图', detailDownloadKey) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>刷新状态</button></div></footer>' +
       '</section>';
   }
 
   function handleLedgerAiImageButton(sku, dateKey) {
     const record = findLedgerRecord(sku, dateKey);
     if (!record) return;
-    const hasImages = normalizeLedgerAiImageItems(record.aiMainImages, 12).length || normalizeLedgerAiImageItems(record.aiDetailImages, 20).length;
+    const hasImages = getLedgerAiImageViewerEntries(record, 'main').length || getLedgerAiImageViewerEntries(record, 'detail').length;
     if (hasImages) {
       openLedgerAiImageViewer(record);
       return;
     }
-    queryLedgerAiImageStatus(sku, dateKey, { openViewer: true });
+    queryLedgerAiImageStatus(sku, dateKey, {
+      openViewer: true,
+      submit: false,
+    });
+  }
+
+  function handleLedgerAiImageGenerate(sku, dateKey, kind) {
+    const record = findLedgerRecord(sku, dateKey);
+    if (!record) return;
+    const normalizedKind = kind === 'detail' ? 'detail' : 'main';
+    const key = getLedgerAiImageRequestKey(sku);
+    if (state.ledgerAiImageRequests[key]) {
+      showToast('这个 SKU 的 AI 生图正在处理中，请等待结果');
+      return;
+    }
+    const status = normalizeLedgerAiImageStatus(record.aiImageStatus, record.aiImageMessage);
+    if (status === 'loading' || status === 'running') {
+      showToast('这个 SKU 的 AI 生图正在处理中，请等待结果');
+      return;
+    }
+    queryLedgerAiImageStatus(sku, dateKey, {
+      openViewer: true,
+      submit: true,
+      generationKind: normalizedKind,
+    });
   }
 
   async function queryLedgerAiImageStatus(sku, dateKey, options) {
@@ -25577,15 +26296,33 @@
     }
     const current = findLedgerRecord(normalizedSku, dateKey);
     if (!current) return null;
+    const shouldSubmit = Boolean(opts.submit);
+    let taskExists = null;
     let loadingRecord = current;
     if (normalizeLedgerAiImageStatus(current.aiImageStatus) !== 'loading') {
-      loadingRecord = updateLedgerAiImageRecord(normalizedSku, dateKey, { aiImageStatus: 'loading', aiImageMessage: '正在查询 PLM AI 生图…' }, false) || current;
+      loadingRecord = updateLedgerAiImageRecord(normalizedSku, dateKey, {
+        aiImageStatus: 'loading',
+        aiImageMessage: shouldSubmit
+          ? '正在准备产品文案并提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）…'
+          : '正在查询 PLM AI 生图状态…',
+      }, false) || current;
       refreshLedgerCard(loadingRecord);
     }
     if (opts.openViewer) openLedgerAiImageViewer(loadingRecord);
     const request = (async () => {
       try {
-        const payload = await fetchPlmApiJson(LEDGER_AI_IMAGE_RESULT_ENDPOINT, { code: normalizedSku });
+        if (!shouldSubmit) taskExists = await getLedgerAiImageTaskExists(normalizedSku);
+        const requestBody = shouldSubmit ? await prepareLedgerAiImageGenerationPayload(normalizedSku) : { code: normalizedSku };
+        if (shouldSubmit) {
+          const preparing = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
+          const preparingUpdated = updateLedgerAiImageRecord(normalizedSku, dateKey, {
+            aiImageStatus: 'loading',
+            aiImageMessage: '产品文案已准备，正在提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）…',
+          }, true) || preparing;
+          refreshLedgerCard(preparingUpdated);
+          if (opts.openViewer) openLedgerAiImageViewer(preparingUpdated);
+        }
+        const payload = await fetchPlmApiJson(LEDGER_AI_IMAGE_RESULT_ENDPOINT, requestBody);
         const result = parseLedgerAiImageResult(payload);
         const latest = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
         const changed = !ledgerAiImageResultMatches(latest, result);
@@ -25610,16 +26347,35 @@
       } catch (error) {
         const latest = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
         const message = formatErrorMessage(error);
+        const queryCopywritingFailure = !shouldSubmit && isLedgerAiImageCopywritingError(message);
+        const status = queryCopywritingFailure
+          ? (taskExists === true ? 'task-error' : (taskExists === false ? 'empty' : 'error'))
+          : normalizeLedgerAiImageStatus('error', message);
+        const statusMessage = status === 'task-error'
+          ? 'PLM 有生图任务记录，但查询不到图片结果，请刷新或联系管理员清理任务'
+          : (status === 'empty' && queryCopywritingFailure
+            ? '当前未发现 PLM AI 生图结果，请在弹窗中手动选择主图或详情图生成'
+            : (status === 'needs-copywriting'
+              ? 'PLM 缺少产品文案，请先补齐或生成产品文案后再生图'
+              : (message || (shouldSubmit ? 'AI 生图提交失败' : 'AI 生图状态查询失败'))));
         const updated = updateLedgerAiImageRecord(normalizedSku, dateKey, {
-          aiImageStatus: 'error',
-          aiImageMessage: message || 'AI 生图状态查询失败',
+          aiImageStatus: status,
+          aiImageMessage: statusMessage,
           aiImageJobId: '',
           aiImageCheckedAtMs: Date.now(),
         }, true) || latest;
         clearLedgerAiImagePoll(normalizedSku);
         refreshLedgerCard(updated);
         if (opts.openViewer || (state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) openLedgerAiImageViewer(updated);
-        showToast('查询 ' + normalizedSku + ' AI 生图失败：' + (message || '网络请求失败'));
+        if (status === 'needs-copywriting') {
+          showToast(normalizedSku + ' 缺少产品文案，暂时无法开始 AI 生图');
+        } else if (status === 'task-error') {
+          showToast(normalizedSku + ' 有生图任务记录，但查询不到结果，请联系管理员清理任务');
+        } else if (status === 'empty' && queryCopywritingFailure) {
+          showToast(normalizedSku + ' 当前未生成 AI 生图，请在弹窗内手动选择主图或详情图生成');
+        } else {
+          showToast((shouldSubmit ? '提交 ' : '查询 ') + normalizedSku + ' AI 生图失败：' + (message || '网络请求失败'));
+        }
         return updated;
       }
     })();
@@ -25938,6 +26694,10 @@
     delete compact.referenceUrl;
     delete compact.aiMainImages;
     delete compact.aiDetailImages;
+    delete compact.aiMainRetouchedImages;
+    delete compact.aiDetailRetouchedImages;
+    delete compact.aiMainRetouchTasks;
+    delete compact.aiDetailRetouchTasks;
     return compact;
   }
 
