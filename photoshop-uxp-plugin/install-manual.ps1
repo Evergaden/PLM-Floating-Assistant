@@ -6,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 
 $pluginRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pluginId = 'com.violet.plm.photoshop-copywriting'
-$pluginVersion = '0.1.17'
-$installFolderName = 'PLM-Photoshop-Copywriting-0.1.17'
+$pluginVersion = '0.1.18'
+$installFolderName = 'PLM-Photoshop-Copywriting-0.1.18'
 $manifestPath = Join-Path $pluginRoot 'manifest.json'
 $externalRoot = Join-Path $AppDataRoot 'Adobe\UXP\Plugins\External'
 $installRoot = Join-Path $externalRoot $installFolderName

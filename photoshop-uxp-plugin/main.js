@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.17';
+const PLUGIN_VERSION = '0.1.18';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -75,17 +75,20 @@ function timedValue(value, timeoutMs, fallback) {
 }
 
 async function getStoredToken() {
+  // localStorage is updated synchronously after every successful manual entry.
+  // Prefer it on startup so a stale secureStorage value cannot overwrite the
+  // latest pairing code and make the first automatic handshake fail.
+  try {
+    const localValue = String(localStorage.getItem(TOKEN_KEY) || '').trim();
+    if (localValue) return localValue;
+  } catch (_) {}
   try {
     if (storage && storage.secureStorage) {
       const value = await timedValue(storage.secureStorage.getItem(TOKEN_KEY), STORAGE_TIMEOUT_MS, '');
       if (value) return String(value).trim();
     }
   } catch (_) {}
-  try {
-    return String(localStorage.getItem(TOKEN_KEY) || '').trim();
-  } catch (_) {
-    return '';
-  }
+  return '';
 }
 
 async function storeToken(value) {
