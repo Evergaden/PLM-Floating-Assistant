@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.22';
+const PLUGIN_VERSION = '0.1.23';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -39,6 +39,16 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function setConnectionExpanded(expanded) {
+  const settings = byId('connection-settings');
+  const toggle = byId('toggle-connection');
+  if (!settings || !toggle) return;
+  const open = Boolean(expanded);
+  settings.hidden = !open;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  toggle.textContent = open ? '收起' : '展开';
+}
+
 function renderVersion() {
   const version = byId('version');
   if (version) version.textContent = 'v' + PLUGIN_VERSION;
@@ -49,6 +59,7 @@ function setStatus(message, tone) {
   if (!element) return;
   element.textContent = String(message || '');
   element.dataset.tone = tone || 'normal';
+  if (tone === 'error') setConnectionExpanded(true);
 }
 
 function renderLayoutMode(mode, bounds) {
@@ -182,6 +193,7 @@ async function connect() {
       }
       setBusy(false);
       setStatus('已连接，正在同步 SKU…', 'success');
+      setConnectionExpanded(false);
     };
     socket.onmessage = (event) => {
       if (isCurrent()) handleMessage(event && event.data);
@@ -897,6 +909,10 @@ async function generate() {
 }
 
 function bindEvents() {
+  byId('toggle-connection').addEventListener('click', () => {
+    const settings = byId('connection-settings');
+    setConnectionExpanded(Boolean(settings && settings.hidden));
+  });
   byId('connect').addEventListener('click', connect);
   byId('disconnect').addEventListener('click', disconnect);
   byId('refresh').addEventListener('click', () => {

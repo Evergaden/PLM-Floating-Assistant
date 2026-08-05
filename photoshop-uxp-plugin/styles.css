@@ -95,6 +95,15 @@ h1 { margin: 7px 0 6px; color: #fff; font-size: 23px; letter-spacing: -.4px; lin
   box-shadow: 0 7px 22px rgba(27, 39, 69, .055);
 }
 
+.connection-card { padding-top: 10px; padding-bottom: 10px; }
+.connection-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.connection-toolbar label { margin: 0; }
+.section-toggle { min-height: 28px; padding: 0 10px; color: var(--purple); background: var(--purple-soft); font-size: 11px; font-weight: 800; }
+.section-toggle:hover:not(:disabled) { color: var(--purple-dark); background: #e8e4ff; }
+.connection-settings { margin-top: 10px; }
+.connection-settings[hidden] { display: none; }
+.connection-card .status { margin-top: 8px; }
+
 label { display: block; margin-bottom: 6px; color: #697589; font-size: 11px; font-weight: 800; }
 .inline { display: flex; align-items: center; gap: 8px; }
 .inline > input { min-width: 0; flex: 1; }

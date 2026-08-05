@@ -11,7 +11,7 @@
         <div>
           <div class="hero-meta">
           <div class="eyebrow">PLM · PHOTOSHOP</div>
-            <span id="version" class="version">v0.1.22</span>
+            <span id="version" class="version">v0.1.23</span>
           </div>
           <h1>文案助手</h1>
           <p>用矩形选区生成信息、地址和代理文字框，内容仍可编辑。</p>
@@ -19,15 +19,20 @@
         <span class="badge">选区生成</span>
       </header>
 
-      <section class="card">
-        <label for="token">悬浮助手连接码</label>
-        <div class="inline">
-          <input id="token" type="password" placeholder="从 PLM 悬浮助手设置中复制" autocomplete="off" />
-          <button id="connect" class="primary">连接</button>
+      <section class="card connection-card">
+        <div class="connection-toolbar">
+          <label for="token">悬浮助手连接码</label>
+          <button id="toggle-connection" class="section-toggle" type="button" aria-expanded="false">展开</button>
         </div>
-        <div class="inline compact">
-          <button id="disconnect">断开</button>
-          <button id="clear-token">清除连接码</button>
+        <div id="connection-settings" class="connection-settings" hidden>
+          <div class="inline">
+            <input id="token" type="password" placeholder="从 PLM 悬浮助手设置中复制" autocomplete="off" />
+            <button id="connect" class="primary">连接</button>
+          </div>
+          <div class="inline compact">
+            <button id="disconnect">断开</button>
+            <button id="clear-token">清除连接码</button>
+          </div>
         </div>
         <div id="status" class="status">未连接。</div>
       </section>
