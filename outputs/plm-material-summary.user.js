@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.7
+// @version      2.7.8
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.7';
+  const SCRIPT_VERSION = '2.7.8';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4549,10 +4549,11 @@
 
   function prefetchProjectAllListData() {
     state.projectListPrefetchTimer = 0;
-    if (!state.settings.collectionEnabled || getActiveProjectWorkflowTabText() !== '\u5168\u90e8') return;
+    const activeWorkflowTab = getActiveProjectWorkflowTabText();
+    if (!state.settings.collectionEnabled || !/^(?:\u5168\u90e8|\u8bbe\u8ba1\u4efb\u52a1)/.test(activeWorkflowTab)) return;
     const rows = collectProjectAllListRows();
     if (!rows.length) return;
-    const signature = JSON.stringify(rows);
+    const signature = activeWorkflowTab + '|' + JSON.stringify(rows);
     if (signature === state.projectListPrefetchSignature) return;
     state.projectListPrefetchSignature = signature;
     let changedCount = 0;
@@ -4642,7 +4643,8 @@
       .map((table) => Array.from(table.querySelectorAll('thead th')))
       .find((cells) => {
         const names = cells.map((cell) => normalizeProjectListHeader(cell.innerText || cell.textContent));
-        return names.includes('\u5546\u54c1\u7f16\u7801') && names.includes('\u9879\u76ee\u72b6\u6001') && names.includes('BOM\u72b6\u6001');
+        return names.includes('\u5546\u54c1\u7f16\u7801')
+          && (names.includes('\u9879\u76ee\u72b6\u6001') || names.includes('\u8bbe\u8ba1\u7c7b\u578b') || names.includes('BOM\u72b6\u6001') || names.includes('\u5bf9\u6807\u4ea7\u54c1\u94fe\u63a5'));
       }) || [];
     if (!headerCells.length) return [];
     const headers = headerCells.map((cell) => normalizeProjectListHeader(cell.innerText || cell.textContent));
@@ -5212,7 +5214,7 @@
     const cached = normalizeData(data || {});
     const tabs = [];
     const hasProjectCache = Boolean(cached.name && cached.projectStatus);
-    if (!hasProjectCache) tabs.push('\u9879\u76ee\u4fe1\u606f');
+    if (!hasProjectCache || (!cached.referenceUrl && !cached.benchmarkLink)) tabs.push('\u9879\u76ee\u4fe1\u606f');
     const hasPackageDimensions = Boolean(cached.packageLength && cached.packageWidth && cached.packageHeight);
     const hasMaterialUnitIssue = Boolean(getMaterialDimensionUnitIssue(cached, 'package') || getMaterialDimensionUnitIssue(cached, 'print'));
     const missingMaterialSize = !hasPackageDimensions && !cached.printSizeText && !hasMaterialUnitIssue;
@@ -6212,11 +6214,38 @@
     const sku = String(data && data.sku || '').trim().toUpperCase();
     if (!sku) return null;
     const existingId = [data && data.projectRowId, data && data.projectId].map((value) => String(value || '').trim()).find((value) => /^\d+$/.test(value));
-    if (existingId) return { found: true, sku, projectId: existingId };
+    const existingReferenceUrl = String(data && (data.referenceUrl || data.benchmarkLink) || '').match(/https?:\/\/[^\s]+/i)?.[0] || '';
+    if (existingId && existingReferenceUrl && !(options && options.force)) return { found: true, sku, projectId: existingId, referenceUrl: existingReferenceUrl };
     if (options && options.force) delete apiProjectSnapshotCache[sku];
     if (!apiProjectSnapshotCache[sku]) {
       const request = (async () => {
         let lastError = null;
+        if (existingId) {
+          try {
+            const detailPayload = await fetchPlmJson('/api/ChemicalNew/GetProjectDetail?id=' + encodeURIComponent(existingId));
+            const detailData = getApiPayloadDataObject(detailPayload);
+            const project = detailData && detailData.project && typeof detailData.project === 'object' ? detailData.project : detailData;
+            const referenceValue = getApiObjectFieldValue([project, detailData], ['reference_url', 'referenceUrl', 'benchmark_url', 'benchmarkUrl', 'benchmark_link', 'benchmarkLink', 'alibaba_link', 'alibabaLink']);
+            const referenceUrl = String(referenceValue || '').match(/https?:\/\/[^\s]+/i)?.[0] || '';
+            if (referenceUrl) {
+              addLog('info', 'Excel 项目详情 API 已补到对标链接', sku + ' | projectId=' + existingId);
+              return {
+                found: true,
+                sku,
+                projectId: existingId,
+                productId: String(project.product_id || project.productId || ''),
+                productVersionId: String(project.product_main_id || project.product_version_id || project.productVersionId || ''),
+                categoryId: String(project.category_id || project.categoryId || ''),
+                name: compactText(project.product_name || project.productName || project.name),
+                brand: compactText(project.brand_name || project.brandName || project.brand),
+                referenceUrl,
+                raw: project,
+              };
+            }
+          } catch (error) {
+            lastError = error;
+          }
+        }
         for (const endpoint of [
           '/api/ChemicalNewAll/GetList?page=1&pageSize=20&product_codes=' + encodeURIComponent(sku),
           '/api/ChemicalNewDesignTask/GetList?page=1&pageSize=20&product_codes=' + encodeURIComponent(sku),
@@ -6243,6 +6272,7 @@
           }
         }
         if (lastError) addLog('info', 'Excel 项目列表 API 未命中，继续使用产品/页面数据', sku + ' | ' + formatErrorMessage(lastError));
+        if (existingId) return { found: true, sku, projectId: existingId };
         return null;
       })();
       const task = request.finally(() => {
