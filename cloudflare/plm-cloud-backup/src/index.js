@@ -2476,9 +2476,18 @@ async function ensureParameterFeatureRulesTable(env) {
     enabled INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  const existingRows = (await env.DB.prepare('SELECT rule_id, category FROM parameter_feature_rules').all()).results || [];
+  const existingRows = (await env.DB.prepare('SELECT rule_id, category, keywords, phrase, priority FROM parameter_feature_rules').all()).results || [];
   const hasSeededRows = existingRows.some((row) => /^default-\d+$/.test(String(row.rule_id || '').trim()));
-  if (existingRows.length && !hasSeededRows) return;
+  const normalizeKeywords = (value) => String(value || '').split(/[,\uFF0C]/).map((item) => item.trim().toLowerCase()).filter(Boolean).join(',');
+  const ruleKey = (category, keywords, phrase, priority) => [
+    String(category || '').trim().toLowerCase(),
+    normalizeKeywords(keywords),
+    String(phrase || '').trim().toLowerCase(),
+    Number(priority || 0),
+  ].join('\u0001');
+  const defaultRuleKeys = new Set(DEFAULT_PARAMETER_FEATURE_RULES.map((rule) => ruleKey(rule[0], rule[1], rule[2], rule[3])));
+  const hasLegacyRows = existingRows.length > 0 && existingRows.every((row) => defaultRuleKeys.has(ruleKey(row.category, row.keywords, row.phrase, row.priority)));
+  if (existingRows.length && !hasSeededRows && !hasLegacyRows) return;
   const existingIds = new Set(existingRows.map((row) => String(row.rule_id || '').trim()));
   const existingCategories = new Set(existingRows.map((row) => String(row.category || '').trim().toLowerCase()).filter(Boolean));
   const missing = DEFAULT_PARAMETER_FEATURE_RULES
