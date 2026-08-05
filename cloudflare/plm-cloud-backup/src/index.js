@@ -2629,17 +2629,29 @@ async function ensureParameterFeatureRulesTable(env) {
   if (existingRows.length && !hasSeededRows && !hasLegacyRows) return;
   const existingIds = new Set(existingRows.map((row) => String(row.rule_id || '').trim()));
   const existingCategories = new Set(existingRows.map((row) => String(row.category || '').trim().toLowerCase()).filter(Boolean));
+  const chooseDefaultRuleId = (rule, index) => {
+    const preferredId = 'default-' + index;
+    if (!existingIds.has(preferredId)) {
+      existingIds.add(preferredId);
+      return preferredId;
+    }
+    const categoryKey = String(rule[0] || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || String(index);
+    let fallbackId = 'default-feature-' + categoryKey;
+    if (existingIds.has(fallbackId)) fallbackId += '-' + index;
+    existingIds.add(fallbackId);
+    return fallbackId;
+  };
   const missing = DEFAULT_PARAMETER_FEATURE_RULES
     .map((rule, index) => ({ rule, index }))
-    .filter(({ rule, index }) => {
-      const ruleId = 'default-' + index;
+    .filter(({ rule }) => {
       const category = String(rule[0] || '').trim().toLowerCase();
-      return !existingIds.has(ruleId) && category && !existingCategories.has(category);
-    });
+      return category && !existingCategories.has(category);
+    })
+    .map(({ rule, index }) => ({ rule, index, ruleId: chooseDefaultRuleId(rule, index) }));
   if (!missing.length) return;
-  await env.DB.batch(missing.map(({ rule, index }) => env.DB.prepare(
+  await env.DB.batch(missing.map(({ rule, ruleId }) => env.DB.prepare(
     'INSERT OR IGNORE INTO parameter_feature_rules (rule_id,category,keywords,phrase,priority,enabled) VALUES (?,?,?,?,?,1)'
-  ).bind('default-' + index, rule[0], rule[1], rule[2], rule[3])));
+  ).bind(ruleId, rule[0], rule[1], rule[2], rule[3])));
 }
 
 async function listParameterFeatureRules(env, includeDisabled = false) {
