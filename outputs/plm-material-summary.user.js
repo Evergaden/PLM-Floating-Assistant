@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.2
+// @version      2.7.3
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.2';
+  const SCRIPT_VERSION = '2.7.3';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1688,6 +1688,25 @@
   const LEDGER_AI_IMAGE_RESULT_ENDPOINT = '/api/ProjectFormData/GetGenPicAiResult';
   const LEDGER_AI_IMAGE_POLL_DELAY_MS = 5000;
   const LEDGER_AI_IMAGE_MAX_POLLS = 60;
+  const LEDGER_AI_IMAGE_RENAME_RULES = Object.freeze([
+    Object.freeze({ pattern: /^input-main-prompt-1-[a-zA-Z0-9]{8}$/, name: '主图1' }),
+    Object.freeze({ pattern: /^input-main-prompt-2-[a-zA-Z0-9]{8}$/, name: '主图2' }),
+    Object.freeze({ pattern: /^input-main-prompt-3-[a-zA-Z0-9]{8}$/, name: '主图3' }),
+    Object.freeze({ pattern: /^input-main-prompt-4-[a-zA-Z0-9]{8}$/, name: '主图4' }),
+    Object.freeze({ pattern: /^input-main-prompt-5-[a-zA-Z0-9]{8}$/, name: '主图5' }),
+    Object.freeze({ pattern: /^input-main-prompt-6-[a-zA-Z0-9]{8}$/, name: '主图6' }),
+    Object.freeze({ pattern: /^input-main-prompt-7-[a-zA-Z0-9]{8}$/, name: '主图7' }),
+    Object.freeze({ pattern: /^input-detail-sale-prompt-1-.+$/, name: '详情图1' }),
+    Object.freeze({ pattern: /^input-detail-sale-prompt-2-.+$/, name: '详情图2' }),
+    Object.freeze({ pattern: /^input-detail-component-prompt-.+$/, name: '详情图3' }),
+    Object.freeze({ pattern: /^input-detail-advantage-prompt-1-.+$/, name: '详情图4' }),
+    Object.freeze({ pattern: /^input-detail-advantage-prompt-2-.+$/, name: '详情图5' }),
+    Object.freeze({ pattern: /^input-detail-details-prompt-1-.+$/, name: '详情图6' }),
+    Object.freeze({ pattern: /^input-detail-details-prompt-2-.+$/, name: '详情图7' }),
+    Object.freeze({ pattern: /^input-detail-efficacy-prompt-.+$/, name: '详情图8' }),
+    Object.freeze({ pattern: /^input-detail-use-step-prompt-.+$/, name: '详情图9' }),
+    Object.freeze({ pattern: /^input-detail-scene-prompt-.+$/, name: '详情图10' }),
+  ]);
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
@@ -4212,6 +4231,8 @@
     ledgerAiImagePollTimers: Object.create(null),
     ledgerAiImagePollCounts: Object.create(null),
     ledgerAiImageViewer: null,
+    ledgerAiImageDownloadKey: '',
+    ledgerAiImageDownloadProgress: '',
     manuallyCollapsedForSku: '',
     userCollapsedPanel: false,
     launcherClickAt: 0,
@@ -11085,8 +11106,10 @@
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-item span{overflow:hidden!important;font-size:10px!important;line-height:1.3!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-empty{display:flex!important;grid-column:1/-1!important;min-height:150px!important;align-items:center!important;justify-content:center!important;color:#9389a8!important;font-size:12px!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;padding:10px 18px 14px!important;border-top:1px solid #eee9fb!important;color:#9389a8!important;font-size:10px!important;line-height:1.4!important;}' +
-      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer span{min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer>span{flex:1 1 auto!important;min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;flex:0 0 auto!important;flex-wrap:wrap!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer button{flex:0 0 auto!important;min-height:30px!important;padding:0 12px!important;border:1px solid #b8a4f3!important;border-radius:9px!important;background:#f1ecff!important;color:#6232cf!important;font:inherit!important;font-size:11px!important;font-weight:750!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer button:disabled{cursor:wait!important;opacity:.56!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-trash-actions{display:flex!important;align-items:center!important;gap:7px!important;margin-left:auto!important;}' +
@@ -11105,7 +11128,7 @@
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-item{min-width:0!important;min-height:104px!important;padding:9px!important;}' +
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-performance{padding:8px 13px!important;}' +
       '@media(max-width:940px){#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-hero-actions>span{display:none!important;}}' +
-      '@media(max-width:560px){#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{padding:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{padding:12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:10px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{align-items:stretch!important;flex-direction:column!important;padding:9px 12px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer button{width:100%!important;}' +
+      '@media(max-width:560px){#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{padding:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{padding:12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:10px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{align-items:stretch!important;flex-direction:column!important;padding:9px 12px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions{width:100%!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions button{width:100%!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-download-actions button:last-child{grid-column:1/-1!important;}' +
       '}' +
       '@media(max-width:430px){#' + PANEL_ID + ' .pfh-ledger-performance-scores{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-performance-summary.is-today{padding:0 0 8px!important;border-right:0!important;border-bottom:1px solid rgba(139,92,246,.16)!important;}}' +
       '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
@@ -16841,6 +16864,10 @@
         state.ledgerAiImageViewer.tab = actionTarget.getAttribute('data-tab') === 'detail' ? 'detail' : 'main';
         renderLedgerAiImageViewer(ensurePanel());
       }
+      return;
+    }
+    if (action === 'ledger-ai-image-download') {
+      downloadLedgerAiImageZip(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'), actionTarget.getAttribute('data-kind'));
       return;
     }
     if (action === 'ledger-ai-image-refresh') {
@@ -23575,6 +23602,64 @@
     });
   }
 
+  function getLedgerAiImageContentType(headers, url) {
+    const headerMatch = String(headers || '').match(/(?:^|\r?\n)content-type:\s*([^\r\n]+)/i);
+    const headerType = headerMatch ? String(headerMatch[1]).trim().split(';')[0].toLowerCase() : '';
+    if (headerType) return headerType;
+    if (/\.jpe?g(?:[?#]|$)/i.test(String(url || ''))) return 'image/jpeg';
+    if (/\.webp(?:[?#]|$)/i.test(String(url || ''))) return 'image/webp';
+    if (/\.gif(?:[?#]|$)/i.test(String(url || ''))) return 'image/gif';
+    if (/\.svg(?:[?#]|$)/i.test(String(url || ''))) return 'image/svg+xml';
+    return 'image/png';
+  }
+
+  function fetchLedgerAiImageBlob(url) {
+    return new Promise((resolve, reject) => {
+      const targetUrl = String(url || '').trim();
+      if (!targetUrl) {
+        reject(new Error('图片地址为空'));
+        return;
+      }
+      const resolveArrayBuffer = (buffer, contentType) => {
+        if (buffer instanceof ArrayBuffer) {
+          resolve(new Blob([buffer], { type: contentType }));
+          return;
+        }
+        if (buffer instanceof Blob) {
+          resolve(buffer);
+          return;
+        }
+        if (buffer && buffer.buffer instanceof ArrayBuffer) {
+          resolve(new Blob([buffer.buffer], { type: contentType }));
+          return;
+        }
+        reject(new Error('图片响应格式无法识别'));
+      };
+      if (typeof GM_xmlhttpRequest === 'function') {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: targetUrl,
+          responseType: 'arraybuffer',
+          timeout: 30000,
+          onload: (response) => {
+            if (response.status < 200 || response.status >= 300) {
+              reject(new Error('图片下载失败：HTTP ' + response.status));
+              return;
+            }
+            resolveArrayBuffer(response.response, getLedgerAiImageContentType(response.responseHeaders, targetUrl));
+          },
+          onerror: () => reject(new Error('图片下载失败：网络错误')),
+          ontimeout: () => reject(new Error('图片下载失败：请求超时')),
+        });
+        return;
+      }
+      fetchWithTimeout(targetUrl, 30000).then((response) => {
+        if (!response.ok) throw new Error('图片下载失败：HTTP ' + response.status);
+        return response.blob();
+      }).then(resolve).catch(reject);
+    });
+  }
+
   function fetchWithTimeout(url, timeout) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -24425,6 +24510,50 @@
     return /^(unknown|loading|running|success|empty|error)$/.test(status) ? status : 'unknown';
   }
 
+  function getLedgerAiImageSourceFilename(item) {
+    const source = item && typeof item === 'object' ? item : { url: item };
+    const explicit = String(source.filename || source.fileName || '').trim();
+    const raw = explicit || String(source.url || source.imageUrl || source.path || '').trim();
+    if (!raw) return '';
+    let filename = raw;
+    try {
+      if (/^https?:/i.test(raw)) filename = new URL(raw, window.location.origin).pathname.split('/').pop() || raw;
+    } catch (_) {
+      filename = raw;
+    }
+    filename = filename.split(/[\\/]/).pop() || filename;
+    filename = filename.split(/[?#]/)[0] || filename;
+    try { return decodeURIComponent(filename).trim(); } catch (_) { return filename.trim(); }
+  }
+
+  function getLedgerAiImageFilenameStem(item) {
+    return getLedgerAiImageSourceFilename(item).replace(/\.[^.]+$/, '').trim();
+  }
+
+  function getLedgerAiImageDisplayName(item, kind, index) {
+    const fallback = (kind === 'detail' ? '详情图' : '主图') + (Number(index) + 1);
+    const stem = getLedgerAiImageFilenameStem(item);
+    const rule = stem && LEDGER_AI_IMAGE_RENAME_RULES.find((candidate) => candidate.pattern.test(stem));
+    return rule ? rule.name : fallback;
+  }
+
+  function getLedgerAiImageExtension(item, blob) {
+    const sourceFilename = getLedgerAiImageSourceFilename(item);
+    const filenameMatch = sourceFilename.match(/\.(png|jpe?g|webp|gif|bmp|avif|svg)$/i);
+    if (filenameMatch) return '.' + filenameMatch[1].toLowerCase();
+    const type = String(blob && blob.type || '').toLowerCase().split(';')[0];
+    const typeMap = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+      'image/gif': '.gif',
+      'image/bmp': '.bmp',
+      'image/avif': '.avif',
+      'image/svg+xml': '.svg',
+    };
+    return typeMap[type] || '.png';
+  }
+
   function normalizeLedgerAiImageItems(value, limit) {
     const max = Number(limit) > 0 ? Number(limit) : 12;
     const seen = new Set();
@@ -25097,6 +25226,10 @@
     return getLedgerSkuKey(sku);
   }
 
+  function getLedgerAiImageDownloadKey(sku, dateKey, kind) {
+    return getLedgerAiImageRequestKey(sku) + '|' + (normalizeLedgerDate(dateKey) || '') + '|' + (kind === 'detail' ? 'detail' : 'main');
+  }
+
   function findLedgerRecord(sku, dateKey) {
     const normalizedSku = getLedgerSkuKey(sku);
     const normalizedDate = normalizeLedgerDate(dateKey);
@@ -25183,6 +25316,63 @@
     renderLedgerAiImageViewer(ensurePanel());
   }
 
+  function downloadLedgerAiImageZip(sku, dateKey, kind) {
+    const normalizedKind = kind === 'detail' ? 'detail' : 'main';
+    if (state.ledgerAiImageDownloadKey) return;
+    const record = findLedgerRecord(sku, dateKey);
+    if (!record) return;
+    const images = normalizeLedgerAiImageItems(normalizedKind === 'detail' ? record.aiDetailImages : record.aiMainImages, normalizedKind === 'detail' ? 20 : 12);
+    const label = normalizedKind === 'detail' ? '详情图' : '主图';
+    if (!images.length) {
+      showToast('当前没有可下载的' + label);
+      return;
+    }
+    const downloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, normalizedKind);
+    const usedNames = Object.create(null);
+    state.ledgerAiImageDownloadKey = downloadKey;
+    state.ledgerAiImageDownloadProgress = '正在准备下载 ' + images.length + ' 张' + label + '…';
+    renderLedgerAiImageViewer(ensurePanel());
+    (async () => {
+      const files = [];
+      for (let index = 0; index < images.length; index += 1) {
+        const item = images[index];
+        const displayName = getLedgerAiImageDisplayName(item, normalizedKind, index);
+        state.ledgerAiImageDownloadProgress = '正在下载 ' + (index + 1) + '/' + images.length + ' 张' + label + '…';
+        renderLedgerAiImageViewer(ensurePanel());
+        let blob;
+        try {
+          blob = await fetchLedgerAiImageBlob(item.url);
+        } catch (error) {
+          throw new Error(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
+        }
+        const extension = getLedgerAiImageExtension(item, blob);
+        const baseFilename = displayName + extension;
+        const occurrence = Number(usedNames[baseFilename] || 0) + 1;
+        usedNames[baseFilename] = occurrence;
+        const filename = occurrence === 1
+          ? baseFilename
+          : displayName + '-' + occurrence + extension;
+        files.push({ path: filename, blob });
+      }
+      state.ledgerAiImageDownloadProgress = '正在打包 ' + images.length + ' 张' + label + '…';
+      renderLedgerAiImageViewer(ensurePanel());
+      const zip = await createStoredZipBlob(files, (done, total) => {
+        state.ledgerAiImageDownloadProgress = '正在打包 ' + done + '/' + total + ' 张' + label + '…';
+        renderLedgerAiImageViewer(ensurePanel());
+      });
+      downloadBlob(zip, String(record.sku || 'SKU') + '-' + label + '.zip');
+      showToast(record.sku + ' 的' + label + '已下载');
+    })().catch((error) => {
+      showToast('下载' + label + '失败：' + (formatErrorMessage(error) || '网络请求失败'));
+    }).finally(() => {
+      if (state.ledgerAiImageDownloadKey === downloadKey) {
+        state.ledgerAiImageDownloadKey = '';
+        state.ledgerAiImageDownloadProgress = '';
+        renderLedgerAiImageViewer(ensurePanel());
+      }
+    });
+  }
+
   function renderLedgerAiImageViewer(panel) {
     if (!panel) return;
     let layer = panel.querySelector('.pfh-ledger-ai-image-layer');
@@ -25203,10 +25393,28 @@
     state.ledgerAiImageViewer.tab = tab;
     const items = tab === 'detail' ? detailImages : mainImages;
     const meta = getLedgerAiImageStatusMeta(record);
+    const mainDownloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, 'main');
+    const detailDownloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, 'detail');
+    const isCurrentDownload = state.ledgerAiImageDownloadKey === mainDownloadKey || state.ledgerAiImageDownloadKey === detailDownloadKey;
     const itemHtml = items.length
-      ? items.map((item, index) => '<a class="pfh-ledger-ai-image-item" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" title="在新标签页打开图片"><img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(item.filename || (tab === 'detail' ? '详情图 ' : '主图 ') + (index + 1)) + '" loading="lazy" decoding="async"><span>' + escapeHtml(item.filename || ((tab === 'detail' ? '详情图 ' : '主图 ') + (index + 1))) + '</span></a>').join('')
+      ? items.map((item, index) => {
+        const displayName = getLedgerAiImageDisplayName(item, tab, index);
+        const sourceFilename = getLedgerAiImageSourceFilename(item);
+        const title = sourceFilename && sourceFilename !== displayName
+          ? displayName + ' · ' + sourceFilename
+          : displayName;
+        return '<a class="pfh-ledger-ai-image-item" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(title + '（点击打开图片）') + '"><img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(displayName) + '" loading="lazy" decoding="async"><span>' + escapeHtml(displayName) + '</span></a>';
+      }).join('')
       : '<div class="pfh-ledger-ai-image-empty">' + escapeHtml(meta.status === 'running' || meta.status === 'loading' ? '图片还在生成，当前只跟踪这个 SKU。' : (meta.status === 'error' ? '查询失败，请点击下方“刷新状态”重试。' : '当前没有可查看的图片。')) + '</div>';
     const message = String(record.aiImageMessage || meta.title || '').trim();
+    const downloadButtonHtml = (kind, count, label, downloadKey) => {
+      const busy = state.ledgerAiImageDownloadKey === downloadKey;
+      const disabled = !count || Boolean(state.ledgerAiImageDownloadKey);
+      return '<button type="button" data-action="ledger-ai-image-download" data-kind="' + kind + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(busy ? '打包中…' : label) + '</button>';
+    };
+    const downloadProgress = isCurrentDownload && state.ledgerAiImageDownloadProgress
+      ? state.ledgerAiImageDownloadProgress
+      : '打开工作台不会查询全部 SKU；仅在点击或刷新当前编码时请求。';
     if (!layer) {
       layer = document.createElement('div');
       layer.className = 'pfh-ledger-ai-image-layer';
@@ -25219,7 +25427,7 @@
       '<header><div><h3>AI 生图 · ' + escapeHtml(record.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + escapeHtml(meta.status) + '">' + escapeHtml(meta.label) + (message ? ' · ' + escapeHtml(message) : '') + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header>' +
       '<nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + (tab === 'main' ? 'is-active' : '') + '">主图 <em>' + mainImages.length + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + (tab === 'detail' ? 'is-active' : '') + '">详情图 <em>' + detailImages.length + '</em></button></nav>' +
       '<div class="pfh-ledger-ai-image-grid">' + itemHtml + '</div>' +
-      '<footer><span>打开工作台不会查询全部 SKU；仅在点击或刷新当前编码时请求。</span><button type="button" data-action="ledger-ai-image-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">刷新状态</button></footer>' +
+      '<footer><span>' + escapeHtml(downloadProgress) + '</span><div class="pfh-ledger-ai-image-download-actions">' + downloadButtonHtml('main', mainImages.length, '下载全部主图', mainDownloadKey) + downloadButtonHtml('detail', detailImages.length, '下载全部详情图', detailDownloadKey) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>刷新状态</button></div></footer>' +
       '</section>';
   }
 
