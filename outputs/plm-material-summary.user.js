@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.0
+// @version      2.7.1
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.0';
+  const SCRIPT_VERSION = '2.7.1';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -8707,7 +8707,7 @@
     const meta = ['脚本 v' + SCRIPT_VERSION, '页面 ' + (context.pagePath || '当前页面'), 'SKU ' + (context.sku || '未选择')].join(' · ');
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-feedback-page">' +
       '<div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>FEEDBACK</small><h2>意见反馈</h2><p>告诉我们你遇到的问题或希望改进的地方。</p></div></div>' +
-      '<div class="pfh-mini-tool-card pfh-feedback-submit-card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><label style="margin:0">当前 PLM 姓名</label><strong>' + escapeHtml(currentName || '未识别，请先登录') + '</strong></div><label>反馈类型</label><select class="pfh-feedback-type">' + typeOptions + '</select><label>反馈内容</label><textarea class="pfh-feedback-content" maxlength="2000" placeholder="请描述你的建议、问题或数据错误，最多 2000 字">' + escapeHtml(content) + '</textarea><div class="pfh-feedback-meta" style="margin-top:8px;font-size:12px;color:var(--pfh-theme-muted,#7d728f);line-height:1.5">提交时自动附带：' + escapeHtml(meta) + '</div><div class="pfh-mini-tool-actions"><span class="pfh-feedback-count" style="margin-right:auto;color:var(--pfh-theme-muted,#7d728f)">' + count + '/2000</span><button type="button" data-action="feedback-refresh"' + (state.feedbackLoading ? ' disabled' : '') + '>' + (state.feedbackLoading ? '刷新中…' : '刷新历史') + '</button><button type="button" data-action="feedback-submit"' + (!currentName || state.feedbackSubmitting ? ' disabled' : '') + '>' + (state.feedbackSubmitting ? '提交中…' : '提交反馈') + '</button></div>' + (state.feedbackError ? '<p class="pfh-feedback-error" role="alert" style="margin:10px 0 0;color:#b42318;line-height:1.5">' + escapeHtml(state.feedbackError) + '</p>' : '') + '</div>' +
+      '<div class="pfh-mini-tool-card pfh-feedback-submit-card"><label>反馈类型</label><select class="pfh-feedback-type">' + typeOptions + '</select><label>反馈内容</label><textarea class="pfh-feedback-content" maxlength="2000" placeholder="请描述你的建议、问题或数据错误，最多 2000 字">' + escapeHtml(content) + '</textarea><div class="pfh-feedback-meta" style="margin-top:8px;font-size:12px;color:var(--pfh-theme-muted,#7d728f);line-height:1.5">提交时自动附带：' + escapeHtml(meta) + '</div><div class="pfh-mini-tool-actions"><span class="pfh-feedback-count" style="margin-right:auto;color:var(--pfh-theme-muted,#7d728f)">' + count + '/2000</span><button type="button" data-action="feedback-refresh"' + (state.feedbackLoading ? ' disabled' : '') + '>' + (state.feedbackLoading ? '刷新中…' : '刷新历史') + '</button><button type="button" data-action="feedback-submit"' + (!currentName || state.feedbackSubmitting ? ' disabled' : '') + '>' + (state.feedbackSubmitting ? '提交中…' : '提交反馈') + '</button></div>' + (state.feedbackError ? '<p class="pfh-feedback-error" role="alert" style="margin:10px 0 0;color:#b42318;line-height:1.5">' + escapeHtml(state.feedbackError) + '</p>' : '') + '</div>' +
       '<div class="pfh-mini-tool-card pfh-feedback-history-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><small>HISTORY</small><h3 style="margin:4px 0 0">我的反馈</h3></div><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">最近 50 条</span></div><div class="pfh-feedback-list">' + (items || '<div style="padding:18px 0;color:var(--pfh-theme-muted,#7d728f)">' + (state.feedbackLoading ? '正在加载反馈历史…' : (currentName ? '暂无反馈记录' : '登录后可查看反馈记录')) + '</div>') + '</div></div>' +
       '</section></div>';
   }

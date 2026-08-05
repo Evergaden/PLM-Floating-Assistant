@@ -11,6 +11,22 @@ const MAX_BACKUP_INLINE_CHARS = 900000;
 const MAX_BACKUP_CHUNK_CHARS = 500000;
 const MAX_BACKUP_CHUNKS = 64;
 
+const FEEDBACK_TYPES = Object.freeze({
+  feature: '功能建议',
+  usage: '使用问题',
+  data: '数据错误',
+  other: '其他',
+});
+
+const FEEDBACK_STATUSES = Object.freeze({
+  pending: '待处理',
+  processing: '处理中',
+  resolved: '已解决',
+});
+
+const FEEDBACK_TYPE_ALIASES = Object.freeze({ '功能建议': 'feature', '使用问题': 'usage', '数据错误': 'data', '其他': 'other' });
+const FEEDBACK_STATUS_ALIASES = Object.freeze({ '待处理': 'pending', '处理中': 'processing', '已解决': 'resolved' });
+
 const DEFAULT_LOADING_TIPS = [
   '多个编码可以一行一个粘进搜索框，脚本会自动拆开。',
   '双击紫色 SKU 可以直接复制编码，核对文件名时最省手。',
@@ -1257,6 +1273,119 @@ async function ensureNotificationTables(env) {
     env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_notification_reads_notification ON notification_reads(notification_id, read_at)'),
     env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_notification_reads_user ON notification_reads(user_name, read_at)'),
   ]);
+}
+
+async function ensureFeedbackTables(env) {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS feedback_entries (
+      feedback_id TEXT PRIMARY KEY,
+      user_name TEXT NOT NULL,
+      instance_id TEXT NOT NULL DEFAULT '',
+      feedback_type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      script_version TEXT NOT NULL DEFAULT '',
+      page_path TEXT NOT NULL DEFAULT '',
+      sku TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      admin_reply TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_feedback_entries_user_created ON feedback_entries(user_name, created_at)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_feedback_entries_status_updated ON feedback_entries(status, updated_at)'),
+  ]);
+}
+
+function normalizeFeedbackType(value) {
+  const raw = String(value || '').trim();
+  const type = FEEDBACK_TYPE_ALIASES[raw] || raw.toLowerCase();
+  return Object.prototype.hasOwnProperty.call(FEEDBACK_TYPES, type) ? type : '';
+}
+
+function normalizeFeedbackStatus(value) {
+  const raw = String(value || '').trim();
+  const status = FEEDBACK_STATUS_ALIASES[raw] || raw.toLowerCase();
+  return Object.prototype.hasOwnProperty.call(FEEDBACK_STATUSES, status) ? status : '';
+}
+
+function feedbackRowToJson(row) {
+  return {
+    feedbackId: row.feedback_id,
+    userName: row.user_name,
+    instanceId: row.instance_id || '',
+    type: normalizeFeedbackType(row.feedback_type) || 'other',
+    typeLabel: FEEDBACK_TYPES[normalizeFeedbackType(row.feedback_type) || 'other'],
+    content: row.content || '',
+    version: row.script_version || '',
+    pagePath: row.page_path || '',
+    sku: row.sku || '',
+    status: normalizeFeedbackStatus(row.status) || 'pending',
+    statusLabel: FEEDBACK_STATUSES[normalizeFeedbackStatus(row.status) || 'pending'],
+    adminReply: row.admin_reply || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || '',
+  };
+}
+
+async function handleFeedbackSubmit(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  await ensureFeedbackTables(env);
+  const body = await parseJson(request) || {};
+  const name = normalizeAccessUserName(body.name);
+  const instanceId = cleanText(body.instanceId, 80);
+  const type = normalizeFeedbackType(body.type);
+  const content = String(body.content || '').trim();
+  if (!name) return json({ ok: false, error: 'name required' }, 400);
+  if (!type) return json({ ok: false, error: 'invalid feedback type' }, 400);
+  if (!content) return json({ ok: false, error: 'content required' }, 400);
+  if (Array.from(content).length > 2000) return json({ ok: false, error: 'content too long' }, 400);
+
+  const recent = await env.DB.prepare("SELECT COUNT(*) AS total FROM feedback_entries WHERE user_name=? AND datetime(created_at)>=datetime('now','-1 day')")
+    .bind(name).first();
+  if (Number(recent && recent.total) >= 10) return json({ ok: false, error: 'too many submissions' }, 429);
+
+  const feedbackId = 'feedback_' + Date.now().toString(36) + '_' + crypto.randomUUID().slice(0, 8);
+  const version = cleanText(body.version, 30);
+  const pagePath = cleanText(body.pagePath, 200);
+  const sku = cleanText(body.sku, 80);
+  await env.DB.prepare(`
+    INSERT INTO feedback_entries
+      (feedback_id,user_name,instance_id,feedback_type,content,script_version,page_path,sku,status,admin_reply,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,'pending','',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+  `).bind(feedbackId, name, instanceId, type, content, version, pagePath, sku).run();
+  const row = await env.DB.prepare('SELECT * FROM feedback_entries WHERE feedback_id=?').bind(feedbackId).first();
+  return json({ ok: true, feedback: feedbackRowToJson(row || { feedback_id: feedbackId, user_name: name, feedback_type: type, content, status: 'pending' }) });
+}
+
+async function handleFeedbackMine(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
+  await ensureFeedbackTables(env);
+  const url = new URL(request.url);
+  const name = normalizeAccessUserName(url.searchParams.get('name'));
+  if (!name) return json({ ok: false, error: 'name required' }, 400);
+  const result = await env.DB.prepare(`
+    SELECT * FROM feedback_entries
+    WHERE user_name=?
+    ORDER BY datetime(created_at) DESC, feedback_id DESC
+    LIMIT 50
+  `).bind(name).all();
+  return json({ ok: true, feedback: (result.results || []).map(feedbackRowToJson) });
+}
+
+async function handleAdminFeedbackSave(request, env) {
+  if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureFeedbackTables(env);
+  const body = await parseBodyParams(request);
+  const feedbackId = cleanText(body.feedbackId, 120);
+  const status = normalizeFeedbackStatus(body.status);
+  const adminReply = String(body.adminReply || '').trim();
+  if (!feedbackId || !status) return json({ ok: false, error: 'feedbackId and valid status required' }, 400);
+  if (Array.from(adminReply).length > 4000) return json({ ok: false, error: 'admin reply too long' }, 400);
+  const existing = await env.DB.prepare('SELECT feedback_id FROM feedback_entries WHERE feedback_id=?').bind(feedbackId).first();
+  if (!existing) return json({ ok: false, error: 'feedback not found' }, 404);
+  await env.DB.prepare('UPDATE feedback_entries SET status=?,admin_reply=?,updated_at=CURRENT_TIMESTAMP WHERE feedback_id=?')
+    .bind(status, adminReply, feedbackId).run();
+  return adminRedirect('/admin?saved=feedback#feedback');
 }
 
 async function handleNotifications(request, env) {
@@ -2711,7 +2840,8 @@ async function handleAdminPage(request, env) {
   await ensureMagicUploadAccessColumn(env);
   await ensureNotificationTables(env);
   await ensureBrandComplianceTables(env);
-  const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads, brands] = await Promise.all([
+  await ensureFeedbackTables(env);
+  const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, COALESCE(a.magic_upload_enabled,0) AS magic_upload_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.magic_upload_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -2740,6 +2870,7 @@ async function handleAdminPage(request, env) {
       LIMIT 100`).all(),
     env.DB.prepare('SELECT notification_id,user_name,instance_id,read_at FROM notification_reads ORDER BY datetime(read_at) DESC LIMIT 5000').all(),
     env.DB.prepare('SELECT * FROM brand_compliance ORDER BY sort_order ASC, brand COLLATE NOCASE ASC').all(),
+    env.DB.prepare('SELECT * FROM feedback_entries ORDER BY datetime(created_at) DESC, feedback_id DESC LIMIT 500').all(),
   ]);
   let campaignRows = campaigns.results || [];
   if (!campaignRows.length) {
@@ -2754,7 +2885,7 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), feedbackEntries.results || [], saved));
 }
 
 function renderBrandRepresentativeFields(label, prefix, representative) {
@@ -2791,7 +2922,28 @@ function renderBrandComplianceEditor(item, index, isNew = false) {
     '</div></details>';
 }
 
-function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, notifications, notificationReads, brands, saved) {
+function renderFeedbackAdminSection(feedbackEntries) {
+  const rows = (feedbackEntries || []).map((entry, index) => {
+    const type = normalizeFeedbackType(entry.feedback_type) || 'other';
+    const status = normalizeFeedbackStatus(entry.status) || 'pending';
+    const content = htmlEscape(entry.content || '').replace(/\r?\n/g, '<br>');
+    const reply = htmlEscape(entry.admin_reply || '');
+    const context = [
+      entry.script_version ? '版本 ' + entry.script_version : '',
+      entry.page_path ? '页面 ' + entry.page_path : '',
+      entry.sku ? 'SKU ' + entry.sku : '',
+    ].filter(Boolean).join(' · ') || '无附加上下文';
+    const options = Object.entries(FEEDBACK_STATUSES).map(([value, label]) => '<option value="' + value + '"' + (value === status ? ' selected' : '') + '>' + label + '</option>').join('');
+    return '<details class="tipitem feedback-item"><summary><span class="tipno">' + (index + 1) + '</span><span class="tiptext">' + htmlEscape(entry.user_name || '未命名用户') + ' · ' + FEEDBACK_TYPES[type] + '</span><span class="tipstate">' + FEEDBACK_STATUSES[status] + ' · ' + htmlEscape(formatBeijingDateTime(entry.created_at) || entry.created_at || '') + '</span></summary><div class="tipbody">' +
+      '<div class="read-state"><b>上下文：</b>' + htmlEscape(context) + (entry.instance_id ? ' · 实例 ' + htmlEscape(entry.instance_id) : '') + '</div>' +
+      '<div class="read-state"><b>反馈内容：</b><div style="margin-top:5px;line-height:1.6;word-break:break-word">' + content + '</div></div>' +
+      '<form class="form notification-edit" method="post" action="/admin/feedback/save"><input type="hidden" name="feedbackId" value="' + htmlEscape(entry.feedback_id) + '"><div class="row"><label><span>处理状态</span><select name="status">' + options + '</select></label><div class="sub" style="align-self:end;padding-bottom:9px">更新时间：' + htmlEscape(formatBeijingDateTime(entry.updated_at) || entry.updated_at || '—') + '</div></div><label class="wide"><span>管理员回复</span><textarea name="adminReply" maxlength="4000" placeholder="可选，最多 4000 字">' + reply + '</textarea></label><div class="actions"><button type="submit">保存处理结果</button></div></form>' +
+      '</div></details>';
+  }).join('');
+  return '<section class="card" id="feedback"><div class="cardhead"><h2>意见反馈（' + (feedbackEntries || []).length + '）</h2><div class="sub">查看用户提交的反馈，修改处理状态并填写管理员回复；用户刷新反馈页后即可看到结果。</div></div><div class="form"><div class="tiplist">' + (rows || '<div class="sub">暂无反馈</div>') + '</div></div></section>';
+}
+
+function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, saved) {
   const knownUserNames = Array.from(new Set(users.map((user) => String(user.user_name || '').trim()).filter(Boolean)));
   const readsByNotification = new Map();
   (notificationReads || []).forEach((row) => {
@@ -2833,12 +2985,14 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
   const notificationAdminSection = '<section class="card" id="notifications"><div class="cardhead"><h2>发布通知</h2><div class="sub">发送给所有安装新版脚本的用户；标题或内容包含“新版本 / 版本更新 / 更新提示 / 脚本更新”时，用户端会自动弹出并显示“去更新”。</div></div>' +
     '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：版本更新提示 v2.5.160"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +
     '<div class="form"><div class="cardhead" style="padding:0"><h2>通知记录（' + (notifications || []).length + '）</h2><div class="sub">展开后可编辑、停用、重新发布、清空阅读记录，并查看已读和未读用户。</div></div><div class="tiplist">' + (notificationEditorRows || '<div class="sub">暂无通知</div>') + '</div></div></section>';
+  const feedbackAdminSection = renderFeedbackAdminSection(feedbackEntries || []);
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><style>.tiptext,.tipbody textarea{font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Microsoft YaHei",sans-serif}' +
     ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:600}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}.brandform,.brandbase{display:grid;gap:11px}.brandbase{grid-template-columns:2fr 2fr 100px}.brandbase .wide{grid-column:1/-1}.brandbase textarea{min-height:70px}.repgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.repbox{min-width:0;border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:9px}.repbox legend{padding:0 6px;color:var(--accent);font-weight:600;font-size:13px}.repbox textarea{min-height:85px}.branditem .tipbody{gap:14px}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two,.brandbase,.repgrid{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
     '<header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">用户、权限、云端数据与轮播小提示</div></div><a class="btn ghost" href="/admin/logout">退出登录</a></header>' +
-    (saved ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'brands' ? '品牌地址已保存，用户刷新页面后生效' : (saved === 'brands-deleted' ? '品牌地址已删除' : (saved === 'brands-duplicate' ? '品牌名与现有数据重复，未保存' : (saved === 'brands-error' ? '品牌名不能为空' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存')))))))) + '</div>' : '') +
+    (saved ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'feedback' ? '反馈处理结果已保存' : (saved === 'brands' ? '品牌地址已保存，用户刷新页面后生效' : (saved === 'brands-deleted' ? '品牌地址已删除' : (saved === 'brands-duplicate' ? '品牌名与现有数据重复，未保存' : (saved === 'brands-error' ? '品牌名不能为空' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存'))))))))) + '</div>' : '') +
     '<section class="metrics">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
     notificationAdminSection +
+    feedbackAdminSection +
     brandAdminSection +
     '<section class="card"><div class="cardhead"><h2>使用人与功能权限</h2><div class="sub">尺寸图和魔法上传分别控制，其他功能始终默认开放</div></div><form class="form" method="post" action="/admin/access/save"><div class="actions"><input name="userName" maxlength="40" placeholder="手动添加姓名" required><input type="hidden" name="feature" value="size-image"><input type="hidden" name="enabled" value="1"><button>添加并开通尺寸图</button></div></form><div class="tablebox"><table><thead><tr><th>姓名</th><th>版本</th><th>SKU数</th><th>最后活跃</th><th>最近备份</th><th>尺寸图</th><th>魔法上传</th></tr></thead><tbody>' + (userRows || '<tr><td colspan="7">等待新版脚本上报使用人</td></tr>') + '</tbody></table></div></section>' +
     '<section class="card" id="tips"><div class="cardhead"><h2>新增轮播小提示</h2><div class="sub">每行一条，可同时设置本次新增提示的推送条件</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="在这里输入新提示，每行一条"></textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="1"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="3"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="60"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled">已开通</option><option value="disabled">未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames"></label><label><span>排除姓名</span><input name="excludeNames"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate"></label><label><span>结束日期</span><input type="date" name="endDate"></label><label><span>开始时间</span><input type="time" name="startTime"></label><label><span>结束时间</span><input type="time" name="endTime"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1">仅法定节假日前一天</label></div><div class="actions"><button type="submit">添加提示</button></div></form></section>' +
@@ -4418,6 +4572,7 @@ export default {
     if (url.pathname === '/admin/parameter-features/save' && request.method === 'POST') return handleAdminParameterFeatureRulesSave(request, env);
     if (url.pathname === '/admin/notifications/save' && request.method === 'POST') return handleAdminNotificationSave(request, env);
     if (url.pathname === '/admin/notifications/delete' && request.method === 'POST') return handleAdminNotificationDelete(request, env);
+    if (url.pathname === '/admin/feedback/save' && request.method === 'POST') return handleAdminFeedbackSave(request, env);
     if (url.pathname === '/admin/brand-compliance/save' && request.method === 'POST') return handleAdminBrandComplianceSave(request, env);
     if (url.pathname === '/admin/brand-compliance/delete' && request.method === 'POST') return handleAdminBrandComplianceDelete(request, env);
     if (url.pathname === '/brand-compliance' && request.method === 'GET') return handleBrandCompliance(request, env);
@@ -4426,6 +4581,8 @@ export default {
     if (url.pathname === '/users/heartbeat' && request.method === 'POST') return handleUserHeartbeat(request, env);
     if (url.pathname === '/notifications' && request.method === 'GET') return handleNotifications(request, env);
     if (url.pathname === '/notifications/read' && request.method === 'POST') return handleNotificationRead(request, env);
+    if (url.pathname === '/feedback/submit' && request.method === 'POST') return handleFeedbackSubmit(request, env);
+    if (url.pathname === '/feedback/mine' && request.method === 'GET') return handleFeedbackMine(request, env);
     if (url.pathname === '/usage/size-image' && request.method === 'POST') return handleSizeImageUsage(request, env);
     if (url.pathname === '/tips' && request.method === 'GET') return handleLoadingTips(request, env);
     if (url.pathname === '/tips/impression' && request.method === 'POST') return handleLoadingTipImpression(request, env);

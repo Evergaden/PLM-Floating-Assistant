@@ -281,3 +281,24 @@ CREATE TABLE IF NOT EXISTS brand_compliance_meta (
   meta_value TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS feedback_entries (
+  feedback_id TEXT PRIMARY KEY,
+  user_name TEXT NOT NULL,
+  instance_id TEXT NOT NULL DEFAULT '',
+  feedback_type TEXT NOT NULL,
+  content TEXT NOT NULL,
+  script_version TEXT NOT NULL DEFAULT '',
+  page_path TEXT NOT NULL DEFAULT '',
+  sku TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  admin_reply TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_entries_user_created
+ON feedback_entries(user_name, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_entries_status_updated
+ON feedback_entries(status, updated_at);
