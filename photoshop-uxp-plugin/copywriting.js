@@ -100,9 +100,9 @@ function stripHeading(lines, pattern) {
 function normalizeIngredientLines(value) {
   const text = linesOf(value).join('\n');
   return text
-    .replace(/[、，]/g, ',')
-    .replace(/\s*,\s*/g, ', ')
-    .replace(/,\s*$/g, '')
+    .replace(/[\uFF0C,;]/g, '\u3001')
+    .replace(/\s*\u3001\s*/g, '\u3001 ')
+    .replace(/\u3001\s*$/g, '')
     .trim();
 }
 
@@ -168,7 +168,8 @@ function addFunctions(segments, map) {
   const body = linesOf(map && map.get('functions'));
   if (!body.length) return false;
   const heading = linesOf(map && map.get('functionsHeading')).join(' ') || LABELS.functions;
-  appendHeadingBody(segments, heading, body, false);
+  addLine(segments, heading, false);
+  body.forEach((line) => addLine(segments, line, false));
   return true;
 }
 

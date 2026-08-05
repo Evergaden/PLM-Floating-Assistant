@@ -25,11 +25,12 @@ const product = {
 
 const layout = buildPage4Layout(product);
 assert.equal(layout.missing.length, 0);
-assert.ok(layout.text.includes('INGREDIENTS:\nAQUA, GLYCERIN, MINERAL OIL'));
+assert.ok(layout.text.includes('INGREDIENTS:\nAQUA、 GLYCERIN、 MINERAL OIL'));
 assert.ok(layout.text.includes('MADE IN CHINA'));
 assert.ok(layout.text.indexOf('PRODUCT NAME:') < layout.text.indexOf('INGREDIENTS:'));
 assert.ok(layout.text.indexOf('Functions|Funktionen|Fonctions:') > layout.text.indexOf('PRODUCT NAME:'));
 assert.ok(layout.text.indexOf('Functions|Funktionen|Fonctions:') < layout.text.indexOf('INGREDIENTS:'));
+assert.equal(layout.segments.find((segment) => segment.text.includes('Functions|Funktionen|Fonctions:')).bold, false);
 assert.ok(layout.text.indexOf('US REP') > layout.text.indexOf('UK REP'));
 assert.ok(!/barcode/i.test(layout.text));
 
