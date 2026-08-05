@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.6
+// @version      2.7.7
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.6';
+  const SCRIPT_VERSION = '2.7.7';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -6579,6 +6579,7 @@
       const dimensions = getApiMaterialDimensions(item, 2);
       return { item, index, name, category, text, dimensions, unitIssue, displayName: getApiPrintDisplayName(item) };
     }).filter((item) => (!packageItem || item.index !== packageItem.index)
+      && !/说明书|使用说明/.test(item.text)
       && /标签|印刷|贴纸|不干胶|吊牌|说明书|卡纸|印刷件/.test(item.text)
       && ((item.dimensions && item.dimensions.length >= 2) || item.unitIssue));
     const packageNums = packageItem && packageItem.dimensions ? packageItem.dimensions : null;
@@ -7010,6 +7011,7 @@
 
   function isPrintMaterialRow(row) {
     const text = String(row || '');
+    if (/说明书|使用说明/.test(text)) return false;
     const excludedPackaging = /(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(text);
     const hasExplicitPrintSize = /\u5370\u5237\u5c3a\u5bf8\s*[:\uff1a]?\s*\d/i.test(text) && hasPrintDimensionText(text);
     // PLM categories are sometimes entered as "printed bag" even when the material description clearly identifies a tube.
