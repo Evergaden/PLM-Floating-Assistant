@@ -425,6 +425,48 @@ POST /api/Ai/SubmitFeedback
 
 抓包中 `feedback_content` 出现过 `"[object Object]"`，这是前端序列化结果，不应当被当作可靠的业务格式；重放或实现时应先确认服务端期望的是纯文本还是 JSON 字符串。
 
+### 2026-08-05 单张 AI 智能修图
+
+2026-08-05 的 `plm.westmonth.comai修改图包.har` 确认了“智能修图”链路。它不是整组图重新生成，而是对当前选中的一张 AI 图片附加修改提示词后重新生成一张图片。
+
+请求接口：
+
+```http
+POST /api/ProjectFormData/GetRetouchAiResult
+Content-Type: application/json;charset=UTF-8
+```
+
+请求体：
+
+```json
+{
+  "code": "SKU00047320",
+  "prompt": "去掉产品后面的纸盒",
+  "image": "https://ai-obj.westmonth.com/ai-base-svc/20260730/1785408992257_8711.png"
+}
+```
+
+字段说明：
+
+- `code`：当前 SKU。
+- `prompt`：用户输入的单张图片修改提示词。
+- `image`：当前选中的原图完整 URL，不是文件名，也不是 `mainImages`/`detailImages` 下标。
+
+成功响应中的 `data` 是新图片 URL 字符串，不是图片对象：
+
+```json
+{
+  "data": "https://ai-obj.westmonth.com/ai-base-svc/images/20260805/1785912660991_3752.png",
+  "code": 0,
+  "success": true,
+  "message": ""
+}
+```
+
+前端收到成功响应后，再 GET `data` 中的 URL 展示新图片。该接口在抓包中同步等待约 45 秒，没有返回 `job_id`，也没有观察到轮询接口；实现时应为它设置明显长于普通读取请求的超时时间，并避免同一提示词重复提交。返回 URL 位于 `/ai-base-svc/images/` 路径，且接口不返回原始文件名，脚本如需保存应自行生成显示名。
+
+本次只观察到“生成并展示新图”，没有观察到把新图上传到 OSS、登记 PLM 归档或保存商品草稿的后续动作。若要把修图结果正式写回商品，仍需另行执行本手册后面的 OSS 上传、`SaveUploadFileInfo`、`UploadArchiveFileFromExternal` 和商品草稿保存链路；不能把 `GetRetouchAiResult` 的返回 URL 当作已归档文件。
+
 ### 5. 每张图片的 OSS 和 PLM 归档链路
 
 AI 结果不是 ZIP，而是多张独立 PNG。每个图片文件都要完成下面的依赖链，16 张图片可以并发，但每一张都要独立登记：
