@@ -2476,10 +2476,21 @@ async function ensureParameterFeatureRulesTable(env) {
     enabled INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`).run();
-  const count = await env.DB.prepare('SELECT COUNT(*) AS total FROM parameter_feature_rules').first();
-  if (Number(count && count.total || 0)) return;
-  await env.DB.batch(DEFAULT_PARAMETER_FEATURE_RULES.map((rule, index) => env.DB.prepare(
-    'INSERT INTO parameter_feature_rules (rule_id,category,keywords,phrase,priority,enabled) VALUES (?,?,?,?,?,1)'
+  const existingRows = (await env.DB.prepare('SELECT rule_id, category FROM parameter_feature_rules').all()).results || [];
+  const hasSeededRows = existingRows.some((row) => /^default-\d+$/.test(String(row.rule_id || '').trim()));
+  if (existingRows.length && !hasSeededRows) return;
+  const existingIds = new Set(existingRows.map((row) => String(row.rule_id || '').trim()));
+  const existingCategories = new Set(existingRows.map((row) => String(row.category || '').trim().toLowerCase()).filter(Boolean));
+  const missing = DEFAULT_PARAMETER_FEATURE_RULES
+    .map((rule, index) => ({ rule, index }))
+    .filter(({ rule, index }) => {
+      const ruleId = 'default-' + index;
+      const category = String(rule[0] || '').trim().toLowerCase();
+      return !existingIds.has(ruleId) && category && !existingCategories.has(category);
+    });
+  if (!missing.length) return;
+  await env.DB.batch(missing.map(({ rule, index }) => env.DB.prepare(
+    'INSERT OR IGNORE INTO parameter_feature_rules (rule_id,category,keywords,phrase,priority,enabled) VALUES (?,?,?,?,?,1)'
   ).bind('default-' + index, rule[0], rule[1], rule[2], rule[3])));
 }
 
