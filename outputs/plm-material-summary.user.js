@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.1
+// @version      2.7.2
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.1';
+  const SCRIPT_VERSION = '2.7.2';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1685,6 +1685,9 @@
   const DAILY_LEDGER_KEY = 'plm-floating-helper:daily-ledger';
   const DAILY_LEDGER_TRASH_KEY = 'plm-floating-helper:daily-ledger-trash';
   const DAILY_LEDGER_SERIES_EXCLUDED_KEY = 'plm-floating-helper:daily-ledger-series-excluded';
+  const LEDGER_AI_IMAGE_RESULT_ENDPOINT = '/api/ProjectFormData/GetGenPicAiResult';
+  const LEDGER_AI_IMAGE_POLL_DELAY_MS = 5000;
+  const LEDGER_AI_IMAGE_MAX_POLLS = 60;
   const UPLOAD_DB_NAME = 'plm-floating-helper-files';
   const UPLOAD_DB_STORE = 'files';
   const UPLOAD_MAX_ZIP_BYTES = 100 * 1024 * 1024;
@@ -4205,6 +4208,10 @@
     ledgerGroupHighlightTimer: 0,
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
+    ledgerAiImageRequests: Object.create(null),
+    ledgerAiImagePollTimers: Object.create(null),
+    ledgerAiImagePollCounts: Object.create(null),
+    ledgerAiImageViewer: null,
     manuallyCollapsedForSku: '',
     userCollapsedPanel: false,
     launcherClickAt: 0,
@@ -7844,6 +7851,10 @@
     renderUploadProgressOverlay(panel);
     renderFirstRunTutorialModal(panel);
     renderNotificationModal(panel);
+    if (state.view !== 'ledger') {
+      state.ledgerAiImageViewer = null;
+      renderLedgerAiImageViewer(panel);
+    }
     if (state.view === 'home') {
       renderHome(panel, statusText);
       restorePanelScroll(panel, scrollSnapshot);
@@ -7862,6 +7873,7 @@
     }
     if (state.view === 'ledger') {
       renderLedger(panel);
+      renderLedgerAiImageViewer(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -11046,6 +11058,35 @@
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:hover{border-color:#7c3aed!important;background:#ebe4ff!important;color:#5525c4!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-toolbar .pfh-ledger-performance-merge:disabled{border-color:#ded9ed!important;background:#f5f4f8!important;color:#aaa5b7!important;cursor:not-allowed!important;opacity:.72!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22)!important;outline-offset:2px!important;border-color:#9b7cf5!important;}' +
+      '#' + PANEL_ID + ' .pfh-full{position:relative!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-file-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;flex-wrap:wrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:86px!important;min-height:30px!important;padding:0 10px!important;border:1px solid #cfc4f7!important;border-radius:9px!important;background:#f8f5ff!important;color:#6941ce!important;font:inherit!important;font-size:11px!important;font-weight:750!important;line-height:1!important;white-space:nowrap!important;cursor:pointer!important;transition:border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork:hover{border-color:#9f85f5!important;background:#eee8ff!important;color:#5525c4!important;box-shadow:0 5px 14px rgba(91,62,180,.12)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-running{border-color:#e9c987!important;background:#fff9e9!important;color:#996b13!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-loading{cursor:wait!important;opacity:.72!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-success{border-color:#b8dfc2!important;background:#f0fbf2!important;color:#2e8750!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-artwork.is-ai-error{border-color:#efbcc5!important;background:#fff2f4!important;color:#b34a5d!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{position:absolute!important;inset:0!important;z-index:160!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;background:rgba(34,26,66,.30)!important;backdrop-filter:blur(6px)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog{display:flex!important;flex-direction:column!important;width:min(900px,100%)!important;max-height:calc(100% - 4px)!important;overflow:hidden!important;border:1px solid rgba(143,121,220,.42)!important;border-radius:18px!important;background:rgba(255,255,255,.98)!important;box-shadow:0 24px 70px rgba(42,24,93,.28)!important;color:#3d3552!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;padding:15px 18px 12px!important;border-bottom:1px solid #eee9fb!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header h3{margin:0!important;color:#4f35a4!important;font-size:16px!important;line-height:1.25!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-status{margin:5px 0 0!important;color:#857a9c!important;font-size:11px!important;line-height:1.4!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-status.is-running{color:#9a7019!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-status.is-error{color:#b34a5d!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-close{display:inline-flex!important;width:30px!important;height:30px!important;align-items:center!important;justify-content:center!important;padding:0!important;border:1px solid #ded7f2!important;border-radius:9px!important;background:#faf8ff!important;color:#735bb2!important;font-size:20px!important;line-height:1!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav{display:flex!important;gap:8px!important;padding:10px 18px 0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav button{min-height:30px!important;padding:0 13px!important;border:1px solid #e0d9f4!important;border-radius:9px!important;background:#fff!important;color:#7d7290!important;font:inherit!important;font-size:11px!important;font-weight:700!important;cursor:pointer!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav button.is-active{border-color:#b5a1f3!important;background:#f0ebff!important;color:#6232cf!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>nav em{margin-left:3px!important;font-style:normal!important;opacity:.72!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;gap:10px!important;min-height:130px!important;overflow:auto!important;padding:14px 18px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item{display:flex!important;min-width:0!important;flex-direction:column!important;gap:6px!important;padding:7px!important;border:1px solid #ebe6f8!important;border-radius:11px!important;background:#fff!important;color:#756b89!important;text-decoration:none!important;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item:hover{transform:translateY(-2px)!important;border-color:#b39cf0!important;box-shadow:0 8px 20px rgba(91,62,180,.12)!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item img{display:block!important;width:100%!important;aspect-ratio:1/1!important;object-fit:contain!important;border-radius:7px!important;background:#f6f3fc!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-item span{overflow:hidden!important;font-size:10px!important;line-height:1.3!important;text-overflow:ellipsis!important;white-space:nowrap!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-empty{display:flex!important;grid-column:1/-1!important;min-height:150px!important;align-items:center!important;justify-content:center!important;color:#9389a8!important;font-size:12px!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;padding:10px 18px 14px!important;border-top:1px solid #eee9fb!important;color:#9389a8!important;font-size:10px!important;line-height:1.4!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer span{min-width:0!important;}' +
+      '#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer button{flex:0 0 auto!important;min-height:30px!important;padding:0 12px!important;border:1px solid #b8a4f3!important;border-radius:9px!important;background:#f1ecff!important;color:#6232cf!important;font:inherit!important;font-size:11px!important;font-weight:750!important;cursor:pointer!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku{flex:0 1 auto!important;max-width:130px!important;height:21px!important;min-height:21px!important;padding:0 7px!important;overflow:hidden!important;border-radius:999px!important;font-size:10px!important;font-weight:500!important;line-height:19px!important;text-overflow:ellipsis!important;white-space:nowrap!important;cursor:copy!important;transition:transform .18s ease,background .18s ease,border-color .18s ease!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-tags button.is-sku:hover{transform:translateY(-1px)!important;border-color:#9f85f5!important;background:#f0ebff!important;color:#6036d8!important;}' +
       '#' + PANEL_ID + ' .pfh-ledger-trash-actions{display:flex!important;align-items:center!important;gap:7px!important;margin-left:auto!important;}' +
@@ -11064,6 +11105,8 @@
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-item{min-width:0!important;min-height:104px!important;padding:9px!important;}' +
       '#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-performance{padding:8px 13px!important;}' +
       '@media(max-width:940px){#' + PANEL_ID + '.is-ledger-fullscreen .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-hero-actions>span{display:none!important;}}' +
+      '@media(max-width:560px){#' + PANEL_ID + ' .pfh-ledger-ai-image-layer{padding:8px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>header{padding:12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:10px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer{align-items:stretch!important;flex-direction:column!important;padding:9px 12px 12px!important;}#' + PANEL_ID + ' .pfh-ledger-ai-image-dialog>footer button{width:100%!important;}' +
+      '}' +
       '@media(max-width:430px){#' + PANEL_ID + ' .pfh-ledger-performance-scores{grid-template-columns:minmax(0,1fr)!important;}#' + PANEL_ID + ' .pfh-ledger-performance-summary.is-today{padding:0 0 8px!important;border-right:0!important;border-bottom:1px solid rgba(139,92,246,.16)!important;}}' +
       '@media (prefers-reduced-motion:reduce){#' + PANEL_ID + ' .pfh-ledger-item.is-clickable,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none!important;}#' + PANEL_ID + ' .pfh-ledger-item.is-clickable:hover,#' + PANEL_ID + ' .pfh-ledger-item.is-clickable.is-menu-open{transform:none!important;}}';
     document.documentElement.appendChild(style);
@@ -14324,7 +14367,7 @@
     const moreButton = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="更多操作" aria-expanded="' + (menuOpen ? 'true' : 'false') + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + menuHtml + '</div>';
     const actions = mode === 'finalized'
       ? '<div class="pfh-ledger-file-actions">' +
-        ledgerArtworkStateButtonHtml(sku, dateAttr, record.artworkState) +
+        ledgerArtworkStateButtonHtml(record, sku, dateAttr) +
         ledgerFileButtonHtml('ledger-toggle-box-file', sku, dateAttr, '纸盒', packageCode, record.boxFileState, record.boxFileDone) +
         ledgerFileButtonHtml('ledger-toggle-label-file', sku, dateAttr, '标签', printCode, record.labelFileState, record.labelFileDone) +
         ledgerFileButtonHtml('ledger-toggle-image-pack', sku, dateAttr, '图包', '', record.imagePackState, record.imagePackDone) +
@@ -14406,7 +14449,10 @@
       ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回定稿</button>'
       : (imageGenerated ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">撤回出图</button>' : '');
     const seriesAction = isLedgerSeriesExcluded(record) ? '恢复自动系列' : '剔除自动系列';
+    const artworkState = normalizeLedgerArtworkState(record.artworkState);
+    const artworkLabel = artworkState === 'doing' ? '生图中' : (artworkState === 'done' ? '完成生图' : '待生图');
     return '<div class="pfh-ledger-overflow-menu">' + rollback +
+      '<button type="button" data-action="ledger-cycle-artwork-state" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">手动切换生图标记（当前：' + artworkLabel + '）</button>' +
       '<button type="button" class="' + (record.performanceType === 'extension' ? 'is-active' : '') + '" data-action="ledger-extension" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + (record.performanceType === 'extension' ? '取消延伸（当前 0.3）' : '延伸（绩效 0.3）') + '</button>' +
       '<button type="button" class="' + (isLedgerSeriesExcluded(record) ? 'is-active' : '') + '" data-action="ledger-series-exclude" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">' + seriesAction + '</button>' +
       '<button type="button" data-action="ledger-void" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">作废</button>' +
@@ -16785,6 +16831,26 @@
       markAllNotificationsRead();
       return;
     }
+    if (action === 'ledger-ai-image-close') {
+      if (actionTarget.classList.contains('pfh-ledger-ai-image-layer') && event.target !== actionTarget) return;
+      closeLedgerAiImageViewer();
+      return;
+    }
+    if (action === 'ledger-ai-image-tab') {
+      if (state.ledgerAiImageViewer) {
+        state.ledgerAiImageViewer.tab = actionTarget.getAttribute('data-tab') === 'detail' ? 'detail' : 'main';
+        renderLedgerAiImageViewer(ensurePanel());
+      }
+      return;
+    }
+    if (action === 'ledger-ai-image-refresh') {
+      queryLedgerAiImageStatus(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'), { openViewer: true });
+      return;
+    }
+    if (action === 'ledger-ai-image') {
+      handleLedgerAiImageButton(actionTarget.getAttribute('data-sku'), actionTarget.getAttribute('data-date'));
+      return;
+    }
     if (action === 'detail-view-tab') {
       switchDetailViewTab(actionTarget.getAttribute('data-detail-view') || 'detail');
       return;
@@ -17936,6 +18002,11 @@
   }
 
   function handlePanelKeydown(event) {
+    if (state.ledgerAiImageViewer && event.key === 'Escape') {
+      event.preventDefault();
+      closeLedgerAiImageViewer();
+      return;
+    }
     if (state.view === 'ledger' && state.ledgerFullscreen && event.key === 'Escape') {
       event.preventDefault();
       state.ledgerFullscreen = false;
@@ -24311,6 +24382,12 @@
       labelFileState: normalizeLedgerFileState(item.labelFileState, item.labelFileDone),
       imagePackState: normalizeLedgerFileState(item.imagePackState, item.imagePackDone),
       artworkState: normalizeLedgerArtworkState(item.artworkState),
+      aiImageStatus: normalizeLedgerAiImageStatus(item.aiImageStatus),
+      aiImageMessage: String(item.aiImageMessage || '').slice(0, 180),
+      aiImageJobId: String(item.aiImageJobId || '').slice(0, 120),
+      aiImageCheckedAtMs: Number(item.aiImageCheckedAtMs || 0) || 0,
+      aiMainImages: normalizeLedgerAiImageItems(item.aiMainImages, 12),
+      aiDetailImages: normalizeLedgerAiImageItems(item.aiDetailImages, 20),
       boxFileDone: normalizeLedgerFileState(item.boxFileState, item.boxFileDone) === 'done',
       labelFileDone: normalizeLedgerFileState(item.labelFileState, item.labelFileDone) === 'done',
       imagePackDone: normalizeLedgerFileState(item.imagePackState, item.imagePackDone) === 'done',
@@ -24341,6 +24418,36 @@
 
   function normalizeLedgerArtworkState(value) {
     return /^(pending|doing|done)$/.test(String(value || '')) ? String(value) : 'pending';
+  }
+
+  function normalizeLedgerAiImageStatus(value) {
+    const status = String(value || '').trim();
+    return /^(unknown|loading|running|success|empty|error)$/.test(status) ? status : 'unknown';
+  }
+
+  function normalizeLedgerAiImageItems(value, limit) {
+    const max = Number(limit) > 0 ? Number(limit) : 12;
+    const seen = new Set();
+    return (Array.isArray(value) ? value : []).map((item) => {
+      const source = item && typeof item === 'object' ? item : { url: item };
+      const rawUrl = String(source.url || source.imageUrl || source.path || '').trim();
+      if (!rawUrl) return null;
+      let url = '';
+      try {
+        const parsed = new URL(rawUrl, window.location.origin);
+        if (!/^https?:$/.test(parsed.protocol)) return null;
+        url = parsed.href;
+      } catch (_) {
+        return null;
+      }
+      if (url.length > 1600 || seen.has(url)) return null;
+      seen.add(url);
+      const fallbackName = url.split('/').pop().split('?')[0];
+      return {
+        url,
+        filename: String(source.filename || source.fileName || fallbackName || '').slice(0, 180),
+      };
+    }).filter(Boolean).slice(0, max);
   }
 
   function normalizeLedgerPurchasePrice(value) {
@@ -24449,6 +24556,7 @@
       'brand', 'name', 'skuImageUrl', 'benchmarkImageUrl', 'designType', 'artPriority',
       'referenceUrl', 'developerName', 'developmentAssignedAt', 'performanceGroupId',
       'packageCode', 'printCode', 'purchasePrice', 'imageGeneratedAt', 'imageGeneratedAtMs',
+      'aiImageStatus', 'aiImageMessage', 'aiImageJobId', 'aiImageCheckedAtMs', 'aiMainImages', 'aiDetailImages',
     ].forEach((field) => {
       const source = recentItems.find((item) => hasLedgerRecordValue(item[field]));
       if (source) merged[field] = source[field];
@@ -24606,6 +24714,12 @@
       labelFileState: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)),
       imagePackState: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)),
       artworkState: normalizeLedgerArtworkState(opts.artworkState !== undefined ? opts.artworkState : (existing && existing.artworkState)),
+      aiImageStatus: normalizeLedgerAiImageStatus(opts.aiImageStatus !== undefined ? opts.aiImageStatus : (existing && existing.aiImageStatus)),
+      aiImageMessage: String(opts.aiImageMessage !== undefined ? opts.aiImageMessage || '' : (existing && existing.aiImageMessage) || '').slice(0, 180),
+      aiImageJobId: String(opts.aiImageJobId !== undefined ? opts.aiImageJobId || '' : (existing && existing.aiImageJobId) || '').slice(0, 120),
+      aiImageCheckedAtMs: Number(opts.aiImageCheckedAtMs !== undefined ? opts.aiImageCheckedAtMs || 0 : (existing && existing.aiImageCheckedAtMs) || 0) || 0,
+      aiMainImages: normalizeLedgerAiImageItems(opts.aiMainImages !== undefined ? opts.aiMainImages : (existing && existing.aiMainImages), 12),
+      aiDetailImages: normalizeLedgerAiImageItems(opts.aiDetailImages !== undefined ? opts.aiDetailImages : (existing && existing.aiDetailImages), 20),
       boxFileDone: normalizeLedgerFileState(opts.boxFileState !== undefined ? opts.boxFileState : (existing && existing.boxFileState), opts.boxFileDone !== undefined ? opts.boxFileDone : (existing && existing.boxFileDone)) === 'done',
       labelFileDone: normalizeLedgerFileState(opts.labelFileState !== undefined ? opts.labelFileState : (existing && existing.labelFileState), opts.labelFileDone !== undefined ? opts.labelFileDone : (existing && existing.labelFileDone)) === 'done',
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
@@ -24957,10 +25071,234 @@
     scheduleDesktopBridgeSnapshot();
   }
 
-  function ledgerArtworkStateButtonHtml(sku, dateAttr, value) {
-    const current = normalizeLedgerArtworkState(value);
-    const label = current === 'doing' ? '生图中' : (current === 'done' ? '完成生图' : '待生图');
-    return '<button type="button" class="pfh-ledger-artwork is-' + escapeHtml(current) + '" data-action="ledger-cycle-artwork-state" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="点击切换生图状态">' + label + '</button>';
+  function getLedgerAiImageStatusMeta(record) {
+    const status = normalizeLedgerAiImageStatus(record && record.aiImageStatus);
+    const manual = normalizeLedgerArtworkState(record && record.artworkState);
+    const mainCount = normalizeLedgerAiImageItems(record && record.aiMainImages, 12).length;
+    const detailCount = normalizeLedgerAiImageItems(record && record.aiDetailImages, 20).length;
+    const total = mainCount + detailCount;
+    if (status === 'success' && total) return { status, label: '查看生图 · ' + total, title: '点击查看 AI 生图（主图 ' + mainCount + ' 张，详情图 ' + detailCount + ' 张）', count: total };
+    if (status === 'success') return { status, label: '查看生图', title: 'AI 生图已完成，但暂未读到图片列表，点击刷新', count: 0 };
+    if (status === 'loading') return { status, label: '查询中…', title: '正在查询 PLM AI 生图状态', count: 0 };
+    if (status === 'running') return { status, label: '生图中…', title: 'PLM AI 生图正在执行，只跟踪当前 SKU', count: 0 };
+    if (status === 'empty') return { status, label: '未生图', title: '未发现可查看的 PLM AI 生图，点击重新查询', count: 0 };
+    if (status === 'error') return { status, label: '重试生图', title: 'AI 生图状态查询失败，点击重试', count: 0 };
+    if (manual === 'doing') return { status, label: '生图中 · 查询', title: '当前是手动生图标记，点击查询 PLM 实际状态', count: 0 };
+    if (manual === 'done') return { status, label: '已生图 · 查询', title: '当前是手动完成标记，点击查询并查看 PLM AI 生图', count: 0 };
+    return { status, label: '查询生图', title: '点击查询 PLM AI 生图状态；工作台打开时不会批量查询', count: 0 };
+  }
+
+  function ledgerArtworkStateButtonHtml(record, sku, dateAttr) {
+    const meta = getLedgerAiImageStatusMeta(record);
+    return '<button type="button" class="pfh-ledger-artwork is-ai-' + escapeHtml(meta.status) + '" data-action="ledger-ai-image" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" title="' + escapeHtml(meta.title) + '" aria-label="' + escapeHtml('生图状态：' + meta.label) + '">' + escapeHtml(meta.label) + '</button>';
+  }
+
+  function getLedgerAiImageRequestKey(sku) {
+    return getLedgerSkuKey(sku);
+  }
+
+  function findLedgerRecord(sku, dateKey) {
+    const normalizedSku = getLedgerSkuKey(sku);
+    const normalizedDate = normalizeLedgerDate(dateKey);
+    return (state.ledgerRecords || []).find((item) => getLedgerSkuKey(item.sku) === normalizedSku && (!normalizedDate || normalizeLedgerDate(item.date) === normalizedDate)) || null;
+  }
+
+  function parseLedgerAiImageResult(payload) {
+    const data = payload && payload.data && typeof payload.data === 'object' ? payload.data : {};
+    const mainImages = normalizeLedgerAiImageItems(data.mainImages || data.main_images, 12);
+    const detailImages = normalizeLedgerAiImageItems(data.detailImages || data.detail_images, 20);
+    const statusCode = Number(data.status);
+    const message = String(data.message || payload && (payload.message || payload.msg) || '').trim();
+    const jobId = String(data.job_id || data.jobId || '').trim();
+    const status = mainImages.length || detailImages.length || statusCode === 2
+      ? 'success'
+      : statusCode === 1
+        ? 'running'
+        : /失败|错误|异常|fail|error/i.test(message)
+          ? 'error'
+          : 'empty';
+    return {
+      status,
+      message: message || (status === 'running' ? 'AI 生成提示：任务执行中' : (status === 'empty' ? '未发现可用的 AI 生图任务' : '执行成功')),
+      jobId,
+      mainImages,
+      detailImages,
+    };
+  }
+
+  function ledgerAiImageResultMatches(record, result) {
+    if (!record || !result) return false;
+    return normalizeLedgerAiImageStatus(record.aiImageStatus) === result.status
+      && String(record.aiImageMessage || '') === String(result.message || '')
+      && String(record.aiImageJobId || '') === String(result.jobId || '')
+      && JSON.stringify(normalizeLedgerAiImageItems(record.aiMainImages, 12)) === JSON.stringify(result.mainImages)
+      && JSON.stringify(normalizeLedgerAiImageItems(record.aiDetailImages, 20)) === JSON.stringify(result.detailImages);
+  }
+
+  function updateLedgerAiImageRecord(sku, dateKey, patch, shouldSave) {
+    const updated = updateDailyLedgerForSku(sku, { ...(patch || {}), deferSave: true, skipStorageSync: true }, dateKey);
+    if (updated && shouldSave) saveDailyLedger();
+    return updated;
+  }
+
+  function clearLedgerAiImagePoll(sku) {
+    const key = getLedgerAiImageRequestKey(sku);
+    window.clearTimeout(state.ledgerAiImagePollTimers[key]);
+    delete state.ledgerAiImagePollTimers[key];
+    delete state.ledgerAiImagePollCounts[key];
+  }
+
+  function scheduleLedgerAiImagePoll(sku, dateKey) {
+    const key = getLedgerAiImageRequestKey(sku);
+    window.clearTimeout(state.ledgerAiImagePollTimers[key]);
+    const count = Number(state.ledgerAiImagePollCounts[key] || 0) + 1;
+    if (count > LEDGER_AI_IMAGE_MAX_POLLS) {
+      delete state.ledgerAiImagePollTimers[key];
+      return;
+    }
+    state.ledgerAiImagePollCounts[key] = count;
+    state.ledgerAiImagePollTimers[key] = window.setTimeout(() => {
+      delete state.ledgerAiImagePollTimers[key];
+      if (state.view !== 'ledger' || state.ledgerView !== 'finalized') return;
+      const viewer = state.ledgerAiImageViewer;
+      queryLedgerAiImageStatus(sku, dateKey, {
+        openViewer: Boolean(viewer && getLedgerSkuKey(viewer.sku) === getLedgerSkuKey(sku)),
+      });
+    }, LEDGER_AI_IMAGE_POLL_DELAY_MS);
+  }
+
+  function openLedgerAiImageViewer(record) {
+    if (!record) return;
+    const previous = state.ledgerAiImageViewer;
+    state.ledgerAiImageViewer = {
+      sku: record.sku,
+      date: record.date,
+      tab: previous && getLedgerSkuKey(previous.sku) === getLedgerSkuKey(record.sku) ? previous.tab : 'main',
+    };
+    renderLedgerAiImageViewer(ensurePanel());
+  }
+
+  function closeLedgerAiImageViewer() {
+    state.ledgerAiImageViewer = null;
+    renderLedgerAiImageViewer(ensurePanel());
+  }
+
+  function renderLedgerAiImageViewer(panel) {
+    if (!panel) return;
+    let layer = panel.querySelector('.pfh-ledger-ai-image-layer');
+    if (state.view !== 'ledger' || !state.ledgerAiImageViewer) {
+      if (layer) layer.remove();
+      return;
+    }
+    const viewer = state.ledgerAiImageViewer;
+    const record = findLedgerRecord(viewer.sku, viewer.date);
+    if (!record) {
+      state.ledgerAiImageViewer = null;
+      if (layer) layer.remove();
+      return;
+    }
+    const mainImages = normalizeLedgerAiImageItems(record.aiMainImages, 12);
+    const detailImages = normalizeLedgerAiImageItems(record.aiDetailImages, 20);
+    const tab = viewer.tab === 'detail' && detailImages.length ? 'detail' : (viewer.tab === 'main' && mainImages.length ? 'main' : (mainImages.length ? 'main' : 'detail'));
+    state.ledgerAiImageViewer.tab = tab;
+    const items = tab === 'detail' ? detailImages : mainImages;
+    const meta = getLedgerAiImageStatusMeta(record);
+    const itemHtml = items.length
+      ? items.map((item, index) => '<a class="pfh-ledger-ai-image-item" href="' + escapeHtml(item.url) + '" target="_blank" rel="noopener noreferrer" title="在新标签页打开图片"><img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(item.filename || (tab === 'detail' ? '详情图 ' : '主图 ') + (index + 1)) + '" loading="lazy" decoding="async"><span>' + escapeHtml(item.filename || ((tab === 'detail' ? '详情图 ' : '主图 ') + (index + 1))) + '</span></a>').join('')
+      : '<div class="pfh-ledger-ai-image-empty">' + escapeHtml(meta.status === 'running' || meta.status === 'loading' ? '图片还在生成，当前只跟踪这个 SKU。' : (meta.status === 'error' ? '查询失败，请点击下方“刷新状态”重试。' : '当前没有可查看的图片。')) + '</div>';
+    const message = String(record.aiImageMessage || meta.title || '').trim();
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-ledger-ai-image-layer';
+      layer.setAttribute('data-action', 'ledger-ai-image-close');
+      const full = panel.querySelector('.pfh-full');
+      if (full) full.appendChild(layer);
+      else panel.appendChild(layer);
+    }
+    layer.innerHTML = '<section class="pfh-ledger-ai-image-dialog" role="dialog" aria-modal="true" aria-label="AI 生图" data-ledger-ai-image-dialog="1">' +
+      '<header><div><h3>AI 生图 · ' + escapeHtml(record.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + escapeHtml(meta.status) + '">' + escapeHtml(meta.label) + (message ? ' · ' + escapeHtml(message) : '') + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header>' +
+      '<nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + (tab === 'main' ? 'is-active' : '') + '">主图 <em>' + mainImages.length + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + (tab === 'detail' ? 'is-active' : '') + '">详情图 <em>' + detailImages.length + '</em></button></nav>' +
+      '<div class="pfh-ledger-ai-image-grid">' + itemHtml + '</div>' +
+      '<footer><span>打开工作台不会查询全部 SKU；仅在点击或刷新当前编码时请求。</span><button type="button" data-action="ledger-ai-image-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">刷新状态</button></footer>' +
+      '</section>';
+  }
+
+  function handleLedgerAiImageButton(sku, dateKey) {
+    const record = findLedgerRecord(sku, dateKey);
+    if (!record) return;
+    const hasImages = normalizeLedgerAiImageItems(record.aiMainImages, 12).length || normalizeLedgerAiImageItems(record.aiDetailImages, 20).length;
+    if (hasImages) {
+      openLedgerAiImageViewer(record);
+      return;
+    }
+    queryLedgerAiImageStatus(sku, dateKey, { openViewer: true });
+  }
+
+  async function queryLedgerAiImageStatus(sku, dateKey, options) {
+    const normalizedSku = String(sku || '').trim();
+    const key = getLedgerAiImageRequestKey(normalizedSku);
+    if (!normalizedSku) return null;
+    const opts = options || {};
+    const existingRequest = state.ledgerAiImageRequests[key];
+    if (existingRequest) {
+      const current = findLedgerRecord(normalizedSku, dateKey);
+      if (opts.openViewer && current) openLedgerAiImageViewer(current);
+      return existingRequest;
+    }
+    const current = findLedgerRecord(normalizedSku, dateKey);
+    if (!current) return null;
+    let loadingRecord = current;
+    if (normalizeLedgerAiImageStatus(current.aiImageStatus) !== 'loading') {
+      loadingRecord = updateLedgerAiImageRecord(normalizedSku, dateKey, { aiImageStatus: 'loading', aiImageMessage: '正在查询 PLM AI 生图…' }, false) || current;
+      refreshLedgerCard(loadingRecord);
+    }
+    if (opts.openViewer) openLedgerAiImageViewer(loadingRecord);
+    const request = (async () => {
+      try {
+        const payload = await fetchPlmApiJson(LEDGER_AI_IMAGE_RESULT_ENDPOINT, { code: normalizedSku });
+        const result = parseLedgerAiImageResult(payload);
+        const latest = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
+        const changed = !ledgerAiImageResultMatches(latest, result);
+        const patch = {
+          aiImageStatus: result.status,
+          aiImageMessage: result.message,
+          aiImageJobId: result.jobId,
+          aiMainImages: result.mainImages,
+          aiDetailImages: result.detailImages,
+          artworkState: result.status === 'success' ? 'done' : (result.status === 'running' ? 'doing' : latest.artworkState),
+        };
+        if (changed) patch.aiImageCheckedAtMs = Date.now();
+        const updated = changed ? (updateLedgerAiImageRecord(normalizedSku, dateKey, patch, true) || latest) : latest;
+        if (changed) refreshLedgerCard(updated);
+        if (result.status === 'running') scheduleLedgerAiImagePoll(normalizedSku, dateKey);
+        else clearLedgerAiImagePoll(normalizedSku);
+        if (opts.openViewer || (state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) {
+          openLedgerAiImageViewer(updated);
+        }
+        if (result.status === 'empty' && opts.openViewer) showToast(normalizedSku + ' 暂无可查看的 AI 生图');
+        return updated;
+      } catch (error) {
+        const latest = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
+        const message = formatErrorMessage(error);
+        const updated = updateLedgerAiImageRecord(normalizedSku, dateKey, {
+          aiImageStatus: 'error',
+          aiImageMessage: message || 'AI 生图状态查询失败',
+          aiImageJobId: '',
+          aiImageCheckedAtMs: Date.now(),
+        }, true) || latest;
+        clearLedgerAiImagePoll(normalizedSku);
+        refreshLedgerCard(updated);
+        if (opts.openViewer || (state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) openLedgerAiImageViewer(updated);
+        showToast('查询 ' + normalizedSku + ' AI 生图失败：' + (message || '网络请求失败'));
+        return updated;
+      }
+    })();
+    state.ledgerAiImageRequests[key] = request;
+    try {
+      return await request;
+    } finally {
+      if (state.ledgerAiImageRequests[key] === request) delete state.ledgerAiImageRequests[key];
+    }
   }
 
   function cycleLedgerArtworkState(sku, dateKey) {
@@ -25268,6 +25606,8 @@
     delete compact.skuImageUrl;
     delete compact.benchmarkImageUrl;
     delete compact.referenceUrl;
+    delete compact.aiMainImages;
+    delete compact.aiDetailImages;
     return compact;
   }
 
