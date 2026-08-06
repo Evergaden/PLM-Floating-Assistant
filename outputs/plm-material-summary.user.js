@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.21
+// @version      2.7.22
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.21';
+  const SCRIPT_VERSION = '2.7.22';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -23459,10 +23459,22 @@
     return /缺少产品文案|产品文案.{0,12}(缺少|为空|不存在)|missing.{0,18}copy(?:writing|write)/i.test(String(value || ''));
   }
 
+  function isLedgerAiImageSkuImageError(value) {
+    const text = String(value || '');
+    return /(?:缺少|缺失|为空|未找到|无法确认|未检测到)[^。\n]{0,28}(?:SKU\s*(?:效果图|图)|SKU图)/i.test(text)
+      || /(?:SKU\s*(?:效果图|图)|SKU图)[^。\n]{0,28}(?:缺少|缺失|为空|未找到|无法确认|未检测到)/i.test(text);
+  }
+
   function normalizeLedgerAiImageStatus(value, message) {
     const status = String(value || '').trim();
-    if (status === 'error' && isLedgerAiImageCopywritingError(message)) return 'needs-copywriting';
-    return /^(unknown|loading|running|success|empty|error|needs-copywriting|task-error|result-missing)$/.test(status) ? status : 'unknown';
+    if (status === 'error') {
+      const copywritingError = isLedgerAiImageCopywritingError(message);
+      const skuImageError = isLedgerAiImageSkuImageError(message);
+      if (copywritingError && skuImageError) return 'needs-prerequisites';
+      if (skuImageError) return 'needs-sku-image';
+      if (copywritingError) return 'needs-copywriting';
+    }
+    return /^(unknown|loading|running|success|empty|error|needs-copywriting|needs-sku-image|needs-prerequisites|task-error|result-missing)$/.test(status) ? status : 'unknown';
   }
 
   function getLedgerAiImageSourceFilename(item) {
@@ -24287,7 +24299,9 @@
     if (status === 'loading') return { status, label: '查询中…', title: '正在查询 PLM AI 生图状态', count: 0 };
     if (status === 'running') return { status, label: '生图中…', title: 'PLM AI 生图正在执行，只跟踪当前 SKU', count: 0 };
     if (status === 'empty') return { status, label: '查询生图', title: '当前没有可查看的 PLM AI 生图；打开后可手动选择主图或详情图生成', count: 0 };
-    if (status === 'needs-copywriting') return { status, label: '需重新生成', title: '上次提交没有通过文案校验；打开后手动选择主图或详情图重新生成', count: 0 };
+    if (status === 'needs-prerequisites') return { status, label: '需补全资料', title: '生图前置校验未通过，请先补齐产品文案和 SKU 效果图', count: 0 };
+    if (status === 'needs-sku-image') return { status, label: '需补全 SKU 图', title: 'PLM 缺少 SKU 效果图，请先上传 SKU 图后再生成', count: 0 };
+    if (status === 'needs-copywriting') return { status, label: '需补全文案', title: 'PLM 缺少有效产品文案，请先补齐产品文案后再生成', count: 0 };
     if (status === 'task-error') return { status, label: '任务异常', title: 'PLM 有生图任务记录但查询不到结果，请刷新或联系管理员清理任务', count: 0 };
     if (status === 'error') return { status, label: '查询失败', title: 'AI 生图状态查询失败，打开后可手动刷新', count: 0 };
     if (manual === 'doing') return { status, label: '生图中 · 查询', title: '当前是手动生图标记，点击查询 PLM 实际状态', count: 0 };
@@ -24305,7 +24319,7 @@
     const label = normalizedKind === 'detail' ? '详情图' : '主图';
     const requestKey = getLedgerAiImageRequestKey(record && record.sku);
     const busy = ['loading', 'running'].includes(status) || Boolean(state.ledgerAiImageRequests[requestKey]);
-    const retry = ['error', 'needs-copywriting', 'task-error', 'result-missing'].includes(status);
+    const retry = ['error', 'needs-copywriting', 'needs-sku-image', 'needs-prerequisites', 'task-error', 'result-missing'].includes(status);
     const text = busy ? '生成中…' : (retry ? '重新生成' + label + ' AI' : '生成' + label + ' AI');
     return '<button type="button" class="pfh-ledger-ai-image-generate" data-action="ledger-ai-image-generate" data-kind="' + normalizedKind + '" data-sku="' + escapeHtml(record && record.sku || '') + '" data-date="' + escapeHtml(record && record.date || '') + '" title="点击后读取实时产品文案并提交 PLM AI 生图；PLM 接口会同时返回主图和详情图"' + (busy ? ' disabled' : '') + '>' + escapeHtml(text) + '</button>';
   }
@@ -24414,6 +24428,79 @@
     };
   }
 
+  function getLedgerAiImageSkuAttribute(contentPayload) {
+    const attrs = getApiDetailAttributes(contentPayload);
+    return (Array.isArray(attrs) ? attrs : []).find((attr) => {
+      const variableName = String(attr && attr.variable_name || '').trim();
+      const label = getApiAttributeLabel(attr);
+      return /^sku[_\s-]*pic$/i.test(variableName)
+        || /(?:SKU\s*(?:图|效果图|diagram)|SKU图)/i.test(label);
+    }) || null;
+  }
+
+  async function inspectLedgerAiImageSkuContent(contentPayload) {
+    const attr = getLedgerAiImageSkuAttribute(contentPayload);
+    if (!attr) return { status: 'unknown', reason: 'PLM 产品详情未返回 SKU 图字段' };
+    const rawValue = getApiAttributeValue(attr, 1);
+    const directUrl = getApiAssetUrl(rawValue, 0);
+    if (directUrl) return { status: 'available', url: directUrl, source: 'plm-detail' };
+    const ids = getApiAttributeFileIds([attr], /sku[_\s-]*pic|SKU\s*(?:图|效果图|diagram)/i);
+    if (!ids.length) return { status: 'missing', reason: 'PLM 的 SKU 图字段为空' };
+    try {
+      const files = (await fetchApiArchiveFileRecordsByIds(ids))
+        .map(buildApiArchiveFileInfo)
+        .filter((file) => file.url && (/(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(file.fileName) || /(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(file.fileFormat)));
+      const image = files[0];
+      return image
+        ? { status: 'available', url: image.url, source: 'plm-archive', fileId: image.fileId }
+        : { status: 'missing', reason: 'PLM 的 SKU 图附件不存在' };
+    } catch (error) {
+      return { status: 'unknown', reason: '读取 SKU 图附件失败：' + (formatErrorMessage(error) || '接口异常') };
+    }
+  }
+
+  async function fetchLedgerAiImageSkuPreflight(sku, data) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const seed = normalizeData({ ...(data || {}), sku: normalizedSku });
+    let fallbackReason = '';
+    try {
+      const snapshot = await fetchApiProductSnapshot(seed, { force: true });
+      if (snapshot && snapshot.contentPayload) {
+        const result = await inspectLedgerAiImageSkuContent(snapshot.contentPayload);
+        if (result.status !== 'unknown') return result;
+        fallbackReason = result.reason || '';
+      } else if (snapshot && snapshot.contentError) {
+        fallbackReason = snapshot.contentError;
+      }
+    } catch (error) {
+      fallbackReason = formatErrorMessage(error) || '';
+    }
+
+    let projectId = getProjectIdForMaterialApi(seed);
+    if (!projectId) {
+      try {
+        const project = await fetchApiProjectSnapshot(seed, { force: true });
+        projectId = String(project && project.projectId || '').trim();
+      } catch (error) {
+        fallbackReason = fallbackReason || formatErrorMessage(error) || '';
+      }
+    }
+    if (!projectId || !/^\d+$/.test(projectId)) {
+      return { status: 'unknown', reason: fallbackReason || '未找到对应的 PLM 项目，无法确认 SKU 图' };
+    }
+
+    try {
+      const infoPayload = await fetchPlmJson('/api/ChemicalNewDesignTask/GetProductDetailInfo?id=' + encodeURIComponent(projectId));
+      const info = getApiPayloadDataObject(infoPayload);
+      const categoryId = String(info.category_id || seed.categoryId || '').trim();
+      if (!categoryId) return { status: 'unknown', reason: 'PLM 项目缺少类目，无法确认 SKU 图' };
+      const contentPayload = await fetchPlmJson('/api/ChemicalNewDesignTask/GetProductDetailContent?id=' + encodeURIComponent(projectId) + '&category_id=' + encodeURIComponent(categoryId));
+      return inspectLedgerAiImageSkuContent(contentPayload);
+    } catch (error) {
+      return { status: 'unknown', reason: '读取 PLM SKU 图字段失败：' + (formatErrorMessage(error) || fallbackReason || '接口异常') };
+    }
+  }
+
   async function getLedgerAiImageTaskExists(sku) {
     const normalizedSku = String(sku || '').trim();
     if (!normalizedSku) return null;
@@ -24431,18 +24518,36 @@
     if (!normalizedSku) throw new Error('缺少 SKU，无法开始 AI 生图');
     const data = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
     let copywrite = [];
-    let readError = null;
+    let copywritingReason = '';
     try {
       const payload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
       if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM 产品文案接口返回失败');
       copywrite = normalizeLedgerAiImageCopywriteItems(getLedgerAiImageCopywriteList(payload));
+      if (!copywrite.length) copywritingReason = 'PLM 未返回有效产品文案';
     } catch (error) {
-      readError = error;
+      copywritingReason = '读取 PLM 产品文案失败：' + (formatErrorMessage(error) || '接口未返回文案');
     }
-    if (!copywrite.length) copywrite = buildLedgerAiImageCopywriteFromCache(data);
-    if (!copywrite.length) {
-      if (readError) throw new Error('读取 PLM 产品文案失败：' + (formatErrorMessage(readError) || '接口未返回文案'));
-      throw new Error('PLM 缺少产品文案，请先在 PLM 补齐或生成产品文案');
+    let skuImagePreflight;
+    try {
+      skuImagePreflight = await fetchLedgerAiImageSkuPreflight(normalizedSku, data);
+    } catch (error) {
+      skuImagePreflight = { status: 'unknown', reason: formatErrorMessage(error) || '接口异常' };
+    }
+    const missingCopywriting = !copywrite.length;
+    const missingSkuImage = !skuImagePreflight || skuImagePreflight.status !== 'available';
+    if (missingCopywriting || missingSkuImage) {
+      const blockers = [];
+      if (missingCopywriting) blockers.push(copywritingReason || 'PLM 未返回有效产品文案');
+      if (missingSkuImage) blockers.push(skuImagePreflight && skuImagePreflight.status === 'missing'
+        ? '缺少 SKU 效果图'
+        : '无法确认 SKU 效果图');
+      const error = new Error('AI 生图前置校验未通过：' + blockers.join('；'));
+      error.ledgerAiImagePreflight = {
+        missingCopywriting,
+        skuImageStatus: skuImagePreflight && skuImagePreflight.status || 'unknown',
+        skuImageReason: skuImagePreflight && skuImagePreflight.reason || '',
+      };
+      throw error;
     }
     return {
       code: normalizedSku,
@@ -24918,11 +25023,15 @@
         ? 'PLM 有生图任务记录，但暂时没有返回图片结果；请先刷新，必要时联系管理员清理任务。'
         : (meta.status === 'result-missing'
           ? 'PLM 返回了完成状态，但没有图片列表；点击下方按钮可手动重新生成。'
-          : (meta.status === 'needs-copywriting'
-            ? '上次提交没有通过文案校验；点击下方按钮后会重新读取实时文案。'
-            : (meta.status === 'error'
-              ? '状态查询失败；可以先刷新状态，再手动提交生成。'
-              : '当前没有可查看的' + targetLabel + '；点击下方按钮后才会开始生成。'))));
+          : (meta.status === 'needs-prerequisites'
+            ? '生图前置校验未通过，请先补齐产品文案和 SKU 效果图。'
+            : (meta.status === 'needs-sku-image'
+              ? 'PLM 缺少 SKU 效果图，请先上传 SKU 图后再生成。'
+              : (meta.status === 'needs-copywriting'
+                ? 'PLM 缺少有效产品文案，请先补齐产品文案后再生成。'
+                : (meta.status === 'error'
+                  ? '状态查询失败；可以先刷新状态，再手动提交生成。'
+                  : '当前没有可查看的' + targetLabel + '；点击下方按钮后才会开始生成。'))))));
     const emptyStateHtml = '<div class="pfh-ledger-ai-image-empty-state"><span>' + escapeHtml(emptyMessage) + '</span>' + ledgerAiImageGenerateButtonHtml(record, tab, meta.status) + '</div>';
     const thumbnailHtml = entries.length
       ? entries.map((entry) => {
@@ -25069,16 +25178,27 @@
         const latest = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
         const message = formatErrorMessage(error);
         const queryCopywritingFailure = !shouldSubmit && isLedgerAiImageCopywritingError(message);
-        const status = queryCopywritingFailure
+        const preflight = error && error.ledgerAiImagePreflight;
+        const preflightStatus = preflight
+          ? (preflight.missingCopywriting && preflight.skuImageStatus !== 'available'
+            ? 'needs-prerequisites'
+            : (preflight.skuImageStatus !== 'available' ? 'needs-sku-image' : 'needs-copywriting'))
+          : '';
+        const status = preflightStatus || (queryCopywritingFailure
           ? (taskExists === true ? 'task-error' : (taskExists === false ? 'empty' : 'error'))
-          : normalizeLedgerAiImageStatus('error', message);
-        const statusMessage = status === 'task-error'
-          ? 'PLM 有生图任务记录，但查询不到图片结果，请刷新或联系管理员清理任务'
-          : (status === 'empty' && queryCopywritingFailure
-            ? '当前未发现 PLM AI 生图结果，请在弹窗中手动选择主图或详情图生成'
-            : (status === 'needs-copywriting'
-              ? 'PLM 缺少产品文案，请先补齐或生成产品文案后再生图'
-              : (message || (shouldSubmit ? 'AI 生图提交失败' : 'AI 生图状态查询失败'))));
+          : normalizeLedgerAiImageStatus('error', message));
+        let statusMessage = message || (shouldSubmit ? 'AI 生图提交失败' : 'AI 生图状态查询失败');
+        if (status === 'needs-prerequisites') {
+          statusMessage = '生图前置校验未通过：请先补齐产品文案和 SKU 效果图，再开始生成';
+        } else if (status === 'needs-sku-image') {
+          statusMessage = '生图前置校验未通过：请先上传 SKU 效果图，再开始生成';
+        } else if (status === 'needs-copywriting') {
+          statusMessage = '生图前置校验未通过：请先补齐有效产品文案，再开始生成';
+        } else if (status === 'task-error') {
+          statusMessage = 'PLM 有生图任务记录，但查询不到图片结果，请刷新或联系管理员清理任务';
+        } else if (status === 'empty' && queryCopywritingFailure) {
+          statusMessage = '当前未发现 PLM AI 生图结果，请在弹窗中手动选择主图或详情图生成';
+        }
         const updated = updateLedgerAiImageRecord(normalizedSku, dateKey, {
           aiImageStatus: status,
           aiImageMessage: statusMessage,
@@ -25088,7 +25208,11 @@
         clearLedgerAiImagePoll(normalizedSku);
         refreshLedgerCard(updated);
         if (opts.openViewer || (state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) openLedgerAiImageViewer(updated);
-        if (status === 'needs-copywriting') {
+        if (status === 'needs-prerequisites') {
+          showToast(normalizedSku + ' 缺少产品文案或 SKU 效果图，已拦截生图请求');
+        } else if (status === 'needs-sku-image') {
+          showToast(normalizedSku + ' 缺少 SKU 效果图，已拦截生图请求');
+        } else if (status === 'needs-copywriting') {
           showToast(normalizedSku + ' 缺少产品文案，暂时无法开始 AI 生图');
         } else if (status === 'task-error') {
           showToast(normalizedSku + ' 有生图任务记录，但查询不到结果，请联系管理员清理任务');
