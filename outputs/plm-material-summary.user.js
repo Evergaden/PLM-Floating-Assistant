@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.14
+// @version      2.7.15
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.14';
+  const SCRIPT_VERSION = '2.7.15';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1780,6 +1780,7 @@
   const TOY_EFFECT_CANDIDATE_CACHE_TTL_MS = 30 * 60 * 1000;
   const TOY_EFFECT_CANDIDATE_CACHE_MAX = PROJECT_RESULT_MAX_PAGE_SIZE;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
+  const CLOUD_ASSET_FALLBACK_API_BASE = 'https://plm-cloud-backup.wt196731.workers.dev';
   const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const CLOUD_BACKUP_KDF_ITERATIONS = 180000;
@@ -2129,37 +2130,53 @@
   }
 
   function cloudAssetRequest(path, responseType) {
-    const url = CLOUD_BACKUP_API_BASE + path;
     return new Promise((resolve, reject) => {
-      const finish = (status, text, buffer) => {
-        if (status < 200 || status >= 300) {
-          reject(new Error('cloud asset HTTP ' + status));
+      const bases = Array.from(new Set([CLOUD_BACKUP_API_BASE, CLOUD_ASSET_FALLBACK_API_BASE].filter(Boolean)));
+      const suffix = (String(path || '').includes('?') ? '&' : '?')
+        + 'plm-ui=' + encodeURIComponent(UI_ASSET_VERSION + '-' + SCRIPT_VERSION);
+      const attempt = (index, previousError) => {
+        if (index >= bases.length) {
+          reject(previousError || new Error('cloud asset network unavailable'));
           return;
         }
-        try {
-          if (responseType === 'arraybuffer') resolve(buffer);
-          else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
-          else resolve(text || '');
-        } catch (error) {
-          reject(error);
+        const url = bases[index] + path + suffix;
+        const retry = (error) => attempt(index + 1, error);
+        const finish = (status, text, buffer) => {
+          if (status < 200 || status >= 300) {
+            retry(new Error('cloud asset HTTP ' + status));
+            return;
+          }
+          try {
+            if (responseType === 'arraybuffer') resolve(buffer);
+            else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
+            else resolve(text || '');
+          } catch (error) {
+            retry(error);
+          }
+        };
+        if (typeof GM_xmlhttpRequest === 'function') {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url,
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+            responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
+            timeout: 30000,
+            onload: (response) => finish(
+              response.status,
+              responseType === 'arraybuffer' ? '' : String(response.responseText || response.response || ''),
+              response.response
+            ),
+            onerror: () => retry(new Error('cloud asset network unavailable')),
+            ontimeout: () => retry(new Error('cloud asset timeout')),
+          });
+          return;
         }
+        fetch(url, { cache: 'no-store' }).then(async (response) => {
+          const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
+          finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
+        }).catch(retry);
       };
-      if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url,
-          responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
-          timeout: 30000,
-          onload: (response) => finish(response.status, response.responseText, response.response),
-          onerror: () => reject(new Error('cloud asset network unavailable')),
-          ontimeout: () => reject(new Error('cloud asset timeout')),
-        });
-        return;
-      }
-      fetch(url).then(async (response) => {
-        const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
-        finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
-      }).catch(reject);
+      attempt(0, null);
     });
   }
 
@@ -3113,6 +3130,8 @@
   const UI_STYLE_ID = 'pfh-ui-styles';
   // Full component and theme CSS is delivered by the versioned cloud UI asset. Keep only the offline skeleton locally.
   let uiFallbackNoticeTimer = 0;
+  let uiAssetRetryTimer = 0;
+  let uiAssetRetryCount = 0;
   let uiAssetRecoveryBound = false;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
@@ -3236,7 +3255,23 @@
   function showUiOfflineFallback() {
     if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
     window.clearTimeout(uiFallbackNoticeTimer);
-    updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'error');
+    const offline = navigator && navigator.onLine === false;
+    updateUiFallbackState(offline ? 'offline' : 'error');
+    if (!offline) scheduleUiAssetRetry();
+  }
+
+  function scheduleUiAssetRetry() {
+    window.clearTimeout(uiAssetRetryTimer);
+    if (!document.documentElement.classList.contains('pfh-ui-fallback') || (navigator && navigator.onLine === false)) return;
+    const delays = [3000, 8000, 20000, 60000];
+    const delay = delays[Math.min(uiAssetRetryCount, delays.length - 1)];
+    uiAssetRetryCount += 1;
+    uiAssetRetryTimer = window.setTimeout(() => {
+      if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
+      updateUiFallbackState('loading');
+      scheduleUiFallbackNotice();
+      refreshCloudAssets(true).catch(showUiOfflineFallback);
+    }, delay);
   }
 
   function bindUiAssetRecovery() {
@@ -3245,6 +3280,7 @@
     window.addEventListener('offline', showUiOfflineFallback);
     window.addEventListener('online', () => {
       if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
+      window.clearTimeout(uiAssetRetryTimer);
       updateUiFallbackState('loading');
       scheduleUiFallbackNotice();
       refreshCloudAssets(true).catch(showUiOfflineFallback);
@@ -3306,6 +3342,8 @@
     const legacy = document.getElementById('pfh-parameter-image-styles');
     if (legacy) legacy.remove();
     window.clearTimeout(uiFallbackNoticeTimer);
+    window.clearTimeout(uiAssetRetryTimer);
+    uiAssetRetryCount = 0;
     updateUiFallbackState('ready');
     return setUiStyleText(text, 'cloud-cache');
   }
