@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.12
+// @version      2.7.13
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.12';
+  const SCRIPT_VERSION = '2.7.13';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -3117,8 +3117,8 @@
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
       position:fixed;right:18px;bottom:78px;z-index:2147483647;width:686px;height:min(906px,96vh);min-width:520px;min-height:520px;
-      overflow:visible;border:1px solid #D8DEEA;border-radius:16px;background:#fff;box-shadow:0 22px 70px rgba(31,25,55,.20);
-      color:#1F2937;font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
+      overflow:visible;border:1px solid var(--pfh-theme-border,#D8DEEA);border-radius:16px;background:var(--pfh-theme-surface,#fff);box-shadow:0 22px 70px rgba(31,25,55,.20);
+      color:var(--pfh-theme-text,#1F2937);font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
     }
     #${PANEL_ID},#${PANEL_ID} *{box-sizing:border-box}
     #${PANEL_ID}.is-collapsed{display:none!important}
@@ -3189,7 +3189,8 @@
       color:#6D35E8;font-size:11px;font-weight:700;text-align:center;transform:translateX(-50%);visibility:visible;
     }
     html.pfh-ui-waiting #${PANEL_ID}::after{content:"网络较慢，正在继续加载完整界面…"}
-    html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:#F2D4A6;background:#FFFAEB;color:#B54708}
+    html.pfh-ui-error #${PANEL_ID}::after{content:"界面资源暂时不可用，正在等待恢复";border-color:var(--pfh-theme-border-strong,#D8DEEA);background:var(--pfh-theme-surface-alt,#F7F8FC);color:var(--pfh-theme-primary,#6D35E8)}
+    html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:var(--pfh-theme-border-strong,#F2D4A6);background:var(--pfh-theme-surface-alt,#FFFAEB);color:var(--pfh-theme-primary,#B54708)}
     #${LAUNCHER_ID}{position:fixed;z-index:2147483647;display:inline-flex;width:86px;height:34px;align-items:center;justify-content:center;border:1px solid #D8DEEA;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(35,25,70,.14);color:#403657;cursor:pointer;font:600 13px/1 "Microsoft YaHei",sans-serif}
     @keyframes pfh-ui-skeleton-sweep{from{background-position:130% 0}to{background-position:-130% 0}}
     @media(max-width:620px){
@@ -3217,6 +3218,7 @@
     const root = document.documentElement;
     root.classList.toggle('pfh-ui-fallback', state !== 'ready');
     root.classList.toggle('pfh-ui-waiting', state === 'waiting');
+    root.classList.toggle('pfh-ui-error', state === 'error');
     root.classList.toggle('pfh-ui-offline', state === 'offline');
   }
 
@@ -3234,7 +3236,7 @@
   function showUiOfflineFallback() {
     if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
     window.clearTimeout(uiFallbackNoticeTimer);
-    updateUiFallbackState('offline');
+    updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'error');
   }
 
   function bindUiAssetRecovery() {
