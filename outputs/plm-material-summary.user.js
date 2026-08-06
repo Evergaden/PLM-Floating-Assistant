@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.19
+// @version      2.7.20
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.19';
+  const SCRIPT_VERSION = '2.7.20';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -23474,14 +23474,27 @@
       .find((value) => Number.isFinite(value) && value > 0);
     if (explicit) return Math.floor(explicit);
     const stem = getLedgerAiImageFilenameStem(source);
-    const candidates = [
-      stem.match(/(?:main|detail)[-_ ]*prompt[-_ ]*(\d+)/i),
-      stem.match(/(?:主图|详情图)\s*[-_# ]*(\d+)/),
-      stem.match(/prompt[-_ ]*(\d+)/i),
+    const names = [
+      source.displayName,
+      source.logicalName,
+      source.slotName,
+      source.baseFilename,
+      source.originalFilename,
+      source.filename,
+      stem,
+    ].map((value) => String(value || '').trim()).filter(Boolean);
+    const patterns = [
+      /(?:主图|详情图)\s*[-_# ]*(\d+)/,
+      /(?:^|[-_ ])(?:main|detail)[-_ ]*(\d+)/i,
+      /(?:main|detail)[-_ ]*prompt[-_ ]*(\d+)/i,
+      /prompt[-_ ]*(\d+)/i,
     ];
-    for (const match of candidates) {
-      const sequence = Number(match && match[1]);
-      if (Number.isFinite(sequence) && sequence > 0) return Math.floor(sequence);
+    for (const name of names) {
+      for (const pattern of patterns) {
+        const match = name.match(pattern);
+        const sequence = Number(match && match[1]);
+        if (Number.isFinite(sequence) && sequence > 0) return Math.floor(sequence);
+      }
     }
     const rule = stem && LEDGER_AI_IMAGE_RENAME_RULES.find((candidate) => candidate.pattern.test(stem));
     const ruleSequence = String(rule && rule.name || '').match(/(\d+)$/);
