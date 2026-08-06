@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.15
+// @version      2.7.16
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.15';
+  const SCRIPT_VERSION = '2.7.16';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -18903,6 +18903,15 @@
       await enterProductEditSecondStep(item.sku);
       throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u68c0\u67e5\u65e7\u5185\u5bb9');
+      const productReviewStatus = getProductReviewStatus(item.sku);
+      if (productReviewStatus && productReviewStatus !== '\u5f85\u5ba1\u6838') {
+        const statusMessage = '\u5f53\u524d\u4ea7\u54c1\u4e3a' + productReviewStatus + '\uff0c\u4e0d\u662f\u5f85\u5ba1\u6838\u72b6\u6001';
+        markUploadQueueBlocked(item, '\u5df2\u8df3\u8fc7', statusMessage, { productReviewStatus });
+        addLog('info', '\u63d0\u5ba1\u4e0a\u4f20\u8df3\u8fc7\uff1a\u4ea7\u54c1\u72b6\u6001\u4e0d\u662f\u5f85\u5ba1\u6838', item.sku + ' | ' + productReviewStatus);
+        showToast(item.sku + ' \u00b7 ' + statusMessage);
+        await closeTopProductDrawer({ skipDraftSave: true });
+        return;
+      }
       const existingSummary = getProductReplaceUploadSummary(item.sku);
       if (existingSummary.total && !item.forceReplace) {
         markUploadQueueBlocked(item, L.uploadExistingContent, '\u65e7\u5185\u5bb9\uff1a' + existingSummary.parts.join(' / '), { existingContent: existingSummary.parts.join(' / ') });
@@ -19220,6 +19229,25 @@
       }
     }
     return { total, parts };
+  }
+
+  function extractProductReviewStatus(text) {
+    const source = compactText(text || '');
+    const labeled = source.match(/(?:\u5ba1\u6838\u72b6\u6001|\u63d0\u5ba1\u72b6\u6001|\u4ea7\u54c1\u72b6\u6001|\u5546\u54c1\u72b6\u6001|(?<!\u9879\u76ee)\u72b6\u6001)\s*[:\uff1a]?\s*(\u5f85\u5ba1\u6838|\u5ba1\u6838\u4e2d|\u5df2\u5ba1\u6838|\u5df2\u62d2\u7edd|\u5df2\u4f5c\u5e9f|\u5df2\u5b8c\u6210|\u8349\u7a3f)/);
+    if (labeled) return labeled[1];
+    return '';
+  }
+
+  function getProductReviewStatus(sku) {
+    const drawer = getProductEditDrawerForSku(sku) || Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer')).filter(isVisibleElement).pop();
+    const drawerStatus = extractProductReviewStatus(drawer && getVisibleText(drawer));
+    if (drawerStatus) return drawerStatus;
+    const rowId = findProductRowIdBySku(sku);
+    if (!rowId) return '';
+    const row = Array.from(document.querySelectorAll('tr[rowid], .vxe-body--row[rowid], .ant-table-row[rowid]'))
+      .filter(isVisibleElement)
+      .find((el) => el.getAttribute('rowid') === rowId);
+    return extractProductReviewStatus(row && getVisibleText(row));
   }
 
   async function verifyBatchImagesUploaded(sku) {
