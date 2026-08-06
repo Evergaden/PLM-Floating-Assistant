@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.22
+// @version      2.7.23
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.22';
+  const SCRIPT_VERSION = '2.7.23';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -24380,14 +24380,72 @@
     return candidates.find((value) => Array.isArray(value)) || [];
   }
 
+  const LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS = [
+    {
+      key: 'new_product_usage',
+      label: '使用说明',
+      types: ['new_product_usage', 'product_usage', 'usage'],
+      labels: ['建议使用方法', '使用说明', 'recommended usage', 'directions of safe use'],
+    },
+    {
+      key: 'new_product_selling_points',
+      label: '产品卖点',
+      types: ['new_product_selling_points', 'product_selling_points', 'selling_points'],
+      labels: ['产品卖点', 'product selling points'],
+    },
+    {
+      key: 'new_product_efficacy',
+      label: '产品功效',
+      types: ['new_product_efficacy', 'product_efficacy', 'efficacy'],
+      labels: ['产品功效', 'product efficacy'],
+    },
+    {
+      key: 'new_product_advantages',
+      label: '产品优势',
+      types: ['new_product_advantages', 'product_advantages', 'advantages'],
+      labels: ['产品优势', 'product advantages'],
+    },
+  ];
+
+  function getLedgerAiImageCopywriteValues(item) {
+    const source = item && typeof item === 'object' ? item : { value: item };
+    const valueEn = getApiScalarText(source.value !== undefined ? source.value : (source.value_en !== undefined ? source.value_en : (source.valueEn !== undefined ? source.valueEn : (source.english !== undefined ? source.english : source.en))), 0);
+    const valueCn = getApiScalarText(source.value_cn !== undefined ? source.value_cn : (source.valueCn !== undefined ? source.valueCn : (source.chinese !== undefined ? source.chinese : source.zh)), 0);
+    const fallback = getApiScalarText(source.text !== undefined ? source.text : source.content, 0);
+    return {
+      value: String(valueEn || '').trim(),
+      value_cn: String(valueCn || '').trim(),
+      fallback: String(fallback || '').trim(),
+    };
+  }
+
+  function getLedgerAiImageMissingRequiredCopywriteFields(value) {
+    const items = Array.isArray(value) ? value : [];
+    return LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.filter((rule) => {
+      const item = items.find((candidate) => {
+        const source = candidate && typeof candidate === 'object' ? candidate : {};
+        const type = String(source.type || source.key || '').trim().toLowerCase();
+        const title = [source.title_cn, source.titleCn, source.title_zh, source.titleZh, source.title, source.label_cn, source.labelCn, source.label, source.name]
+          .map((part) => String(part || '').trim().toLowerCase())
+          .filter(Boolean)
+          .join(' ');
+        return rule.types.some((candidateType) => type === candidateType)
+          || rule.labels.some((candidateLabel) => title.includes(String(candidateLabel).toLowerCase()));
+      });
+      if (!item) return true;
+      const values = getLedgerAiImageCopywriteValues(item);
+      const english = values.value || values.fallback;
+      const chinese = values.value_cn || values.fallback;
+      return !english || !chinese;
+    }).map((rule) => rule.label);
+  }
+
   function normalizeLedgerAiImageCopywriteItems(value) {
     return (Array.isArray(value) ? value : []).map((item, index) => {
       const source = item && typeof item === 'object' ? item : { value: item };
-      const valueEn = getApiScalarText(source.value !== undefined ? source.value : (source.value_en !== undefined ? source.value_en : (source.valueEn !== undefined ? source.valueEn : (source.english !== undefined ? source.english : source.en))), 0);
-      const valueCn = getApiScalarText(source.value_cn !== undefined ? source.value_cn : (source.valueCn !== undefined ? source.valueCn : (source.chinese !== undefined ? source.chinese : source.zh)), 0);
-      const fallback = getApiScalarText(source.text !== undefined ? source.text : source.content, 0);
-      const normalizedEn = String(valueEn || fallback || valueCn || '').trim();
-      const normalizedCn = String(valueCn || fallback || valueEn || '').trim();
+      const values = getLedgerAiImageCopywriteValues(source);
+      const normalizedEn = String(values.value || values.fallback || values.value_cn || '').trim();
+      const normalizedCn = String(values.value_cn || values.fallback || values.value || '').trim();
       if (!normalizedEn && !normalizedCn) return null;
       return {
         id: Number(source.id || source.key || index + 1) || index + 1,
@@ -24415,17 +24473,47 @@
     })));
   }
 
-  function getLedgerAiImageIngredientPayload(data) {
-    const source = normalizeData(data || {});
-    const copywriting = normalizeCopywritingRecord(source.copywriting);
-    const chinese = String(source.ingredientChinese || source.copywritingIngredientChinese || copywriting && (copywriting.cleanedIngredientChinese || copywriting.ingredientChinese) || '').trim().slice(0, 8000);
-    const english = String(source.ingredientEnglish || source.copywritingIngredientEnglish || copywriting && (copywriting.cleanedIngredientEnglish || copywriting.ingredientEnglish) || '').trim().slice(0, 8000);
-    return {
-      product_ingredients_efficacy_ch: chinese,
-      product_ingredients_summary_ch: chinese,
-      product_ingredients_efficacy_en: english,
-      product_ingredients_summary_en: english,
+  function getLedgerAiImagePayloadRoots(payload) {
+    const roots = [];
+    const add = (value) => {
+      if (!value || typeof value !== 'object' || roots.includes(value)) return;
+      roots.push(value);
     };
+    add(payload);
+    add(payload && payload.data);
+    add(payload && payload.result);
+    add(payload && payload.data && payload.data.data);
+    add(payload && payload.data && payload.data.result);
+    return roots;
+  }
+
+  function getLedgerAiImagePayloadField(payload, keys) {
+    const roots = getLedgerAiImagePayloadRoots(payload);
+    for (const root of roots) {
+      for (const key of keys || []) {
+        if (root[key] === undefined || root[key] === null) continue;
+        const value = getApiScalarText(root[key], 0);
+        if (value) return value;
+      }
+    }
+    return '';
+  }
+
+  function getLedgerAiImageLiveIngredientPayload(payload) {
+    return {
+      product_ingredients_efficacy_ch: getLedgerAiImagePayloadField(payload, ['product_ingredients_efficacy_ch', 'productIngredientsEfficacyCh']),
+      product_ingredients_summary_ch: getLedgerAiImagePayloadField(payload, ['product_ingredients_summary_ch', 'productIngredientsSummaryCh']),
+      product_ingredients_efficacy_en: getLedgerAiImagePayloadField(payload, ['product_ingredients_efficacy_en', 'productIngredientsEfficacyEn']),
+      product_ingredients_summary_en: getLedgerAiImagePayloadField(payload, ['product_ingredients_summary_en', 'productIngredientsSummaryEn']),
+    };
+  }
+
+  function getLedgerAiImageMissingIngredientFields(ingredientPayload) {
+    const payload = ingredientPayload || {};
+    const missing = [];
+    if (!String(payload.product_ingredients_summary_ch || '').trim() || !String(payload.product_ingredients_summary_en || '').trim()) missing.push('成分');
+    if (!String(payload.product_ingredients_efficacy_ch || '').trim() || !String(payload.product_ingredients_efficacy_en || '').trim()) missing.push('成分功能');
+    return missing;
   }
 
   function getLedgerAiImageSkuAttribute(contentPayload) {
@@ -24518,11 +24606,15 @@
     if (!normalizedSku) throw new Error('缺少 SKU，无法开始 AI 生图');
     const data = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
     let copywrite = [];
+    let copywriteSource = [];
+    let liveIngredientPayload = {};
     let copywritingReason = '';
     try {
       const payload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
       if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM 产品文案接口返回失败');
-      copywrite = normalizeLedgerAiImageCopywriteItems(getLedgerAiImageCopywriteList(payload));
+      copywriteSource = getLedgerAiImageCopywriteList(payload);
+      copywrite = normalizeLedgerAiImageCopywriteItems(copywriteSource);
+      liveIngredientPayload = getLedgerAiImageLiveIngredientPayload(payload);
       if (!copywrite.length) copywritingReason = 'PLM 未返回有效产品文案';
     } catch (error) {
       copywritingReason = '读取 PLM 产品文案失败：' + (formatErrorMessage(error) || '接口未返回文案');
@@ -24533,17 +24625,27 @@
     } catch (error) {
       skuImagePreflight = { status: 'unknown', reason: formatErrorMessage(error) || '接口异常' };
     }
-    const missingCopywriting = !copywrite.length;
+    const missingCopywriteFields = getLedgerAiImageMissingRequiredCopywriteFields(copywriteSource);
+    const missingIngredientFields = getLedgerAiImageMissingIngredientFields(liveIngredientPayload);
+    const missingRequiredCopywriting = missingCopywriteFields.length > 0 || missingIngredientFields.length > 0;
+    const missingCopywriting = !copywrite.length || missingRequiredCopywriting;
     const missingSkuImage = !skuImagePreflight || skuImagePreflight.status !== 'available';
     if (missingCopywriting || missingSkuImage) {
       const blockers = [];
-      if (missingCopywriting) blockers.push(copywritingReason || 'PLM 未返回有效产品文案');
+      if (missingCopywriting) {
+        const missingFields = missingCopywriteFields.concat(missingIngredientFields);
+        blockers.push(missingFields.length
+          ? '缺少必填产品文案：' + missingFields.join('、')
+          : (copywritingReason || 'PLM 未返回有效产品文案'));
+      }
       if (missingSkuImage) blockers.push(skuImagePreflight && skuImagePreflight.status === 'missing'
         ? '缺少 SKU 效果图'
         : '无法确认 SKU 效果图');
       const error = new Error('AI 生图前置校验未通过：' + blockers.join('；'));
       error.ledgerAiImagePreflight = {
         missingCopywriting,
+        missingCopywriteFields,
+        missingIngredientFields,
         skuImageStatus: skuImagePreflight && skuImagePreflight.status || 'unknown',
         skuImageReason: skuImagePreflight && skuImagePreflight.reason || '',
       };
@@ -24552,7 +24654,7 @@
     return {
       code: normalizedSku,
       copywrite,
-      ...getLedgerAiImageIngredientPayload(data),
+      ...liveIngredientPayload,
     };
   }
 
