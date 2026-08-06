@@ -19,9 +19,9 @@
       "sha256": "c612ee5b7df3d79bb6c15ffea30c5748c4a9dd9cd2086d3384bac8eea456eb50"
     },
     "uiStyles": {
-      "path": "v1/ui-2.5.171.css",
-      "bytes": 533671,
-      "sha256": "5b3acfbdb530ba31efca81dc209d8ad657e2cfa5826dda9ea7c46d78d18b00f2"
+      "path": "v1/ui-2.5.172.css",
+      "bytes": 534495,
+      "sha256": "cfc24711fb549ea9c65c0885de175b64229c0c5a2e3f08ad1ba33d2e1d190c02"
     }
   }
 }
