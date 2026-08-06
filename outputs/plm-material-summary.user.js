@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.20
+// @version      2.7.21
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.20';
+  const SCRIPT_VERSION = '2.7.21';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4713,7 +4713,9 @@
       if (apiPackaging && (apiPackaging.packageSizeText || apiPackaging.printSizeText || apiPackaging.hasInnerCard || apiPackaging.netContent || apiPackaging.grossWeight)) {
         merged = normalizeData({
           ...mergeApiPackagingData(merged, apiPackaging),
-          packageSource: apiPackaging.packageSizeText ? 'plm-project-pms' : merged.packageSource,
+          packageSource: apiPackaging.apiMaterialSource
+            ? (apiPackaging.packageSizeText ? 'plm-project-pms' : '')
+            : merged.packageSource,
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
         });
@@ -4751,7 +4753,9 @@
       if (apiPackagingFinal && (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.hasInnerCard || apiPackagingFinal.netContent || apiPackagingFinal.grossWeight)) {
         merged = normalizeData({
           ...mergeApiPackagingData(merged, apiPackagingFinal),
-          packageSource: apiPackagingFinal.packageSizeText ? 'plm-project-pms' : merged.packageSource,
+          packageSource: apiPackagingFinal.apiMaterialSource
+            ? (apiPackagingFinal.packageSizeText ? 'plm-project-pms' : '')
+            : merged.packageSource,
           updatedAt: new Date().toLocaleString(),
           updatedAtMs: Date.now(),
         });
@@ -6075,16 +6079,19 @@
       const category = compactText(item && item.category_name);
       const supplier = compactText(item && (item.default_supplier_name || item.supplier_name));
       const text = name + ' ' + category + ' ' + supplier + ' ' + compactText(item && item.properties_value);
+      const materialClassText = name + ' ' + category;
+      const isPackagingCategory = /包材/.test(category);
+      const isPrintMaterial = /标签|印刷|贴纸|不干胶|吊牌|印刷件/.test(materialClassText);
       const unitIssue = getApiMaterialUnitIssue(item);
       const dimensions = getApiMaterialDimensions(item, 3);
       let score = 0;
-      if (/纸盒|彩盒|纸箱|包装盒|外盒/.test(text)) score += 160;
-      if (/包材/.test(category)) score += 20;
-      if (/标签|印刷|贴纸|不干胶/.test(text)) score -= 100;
+      if (/纸盒|彩盒|纸箱|包装盒|外盒|包装袋|铝箔袋|自封袋|袋子/.test(materialClassText)) score += 160;
+      if (isPackagingCategory) score += 20;
+      if (isPrintMaterial) score -= 100;
       if (dimensions && dimensions.length >= 3) score += 40;
       else if (unitIssue) score += 25;
-      return { item, index, name, category, text, dimensions, unitIssue, score, displayName: getApiPackageDisplayName(item) };
-    }).filter((item) => item.score > 0 && ((item.dimensions && item.dimensions.length >= 3) || item.unitIssue))
+      return { item, index, name, category, text, dimensions, unitIssue, score, isPackagingCategory, isPrintMaterial, displayName: getApiPackageDisplayName(item) };
+    }).filter((item) => item.isPackagingCategory && !item.isPrintMaterial && item.score > 0 && ((item.dimensions && item.dimensions.length >= 3) || item.unitIssue))
       .sort((a, b) => b.score - a.score || a.index - b.index);
     const packageItem = candidates[0];
     const printItems = items.map((item, index) => {
@@ -6131,6 +6138,15 @@
     ].forEach((key) => {
       if (isUsefulValue(source[key])) merged[key] = source[key];
     });
+    const incomingPackage = ['packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums']
+      .some((key) => isUsefulValue(source[key]));
+    if (source.apiMaterialSource && !incomingPackage) {
+      merged.packageSizeText = '';
+      merged.packageSizeLabel = '';
+      merged.packageCode = '';
+      merged.packageNums = null;
+      merged.packageSource = '';
+    }
     const currentIssues = normalizeMaterialDimensionUnitIssues(merged.materialDimensionUnitIssues, merged);
     const incomingIssues = normalizeMaterialDimensionUnitIssues(source.materialDimensionUnitIssues, source);
     merged.materialDimensionUnitIssues = {
@@ -6470,7 +6486,9 @@
         packageNums: toyApiPackageNums,
         packageSizeText: product.outerPackageSizeText || formatApiDimensionText(toyApiPackageNums),
       } : {}),
-      packageSource: toyApiPackageNums ? 'plm-product-detail' : (material && material.packageSizeText ? 'plm-project-pms' : seed.packageSource),
+      packageSource: toyApiPackageNums
+        ? 'plm-product-detail'
+        : (material && material.apiMaterialSource ? (material.packageSizeText ? 'plm-project-pms' : '') : seed.packageSource),
       referenceUrl: seed.referenceUrl || projectReferenceUrl || current.referenceUrl || '',
       benchmarkLink: seed.benchmarkLink || projectReferenceUrl || current.benchmarkLink || '',
       packQty: seed.packQty || projectPackQty || current.packQty || '',
