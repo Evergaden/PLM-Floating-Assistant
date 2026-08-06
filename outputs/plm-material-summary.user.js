@@ -9283,7 +9283,7 @@
   }
 
   function getMagicUploadProductReviewStatus(product) {
-    const candidates = ['review_status_format', 'reviewStatusFormat', 'review_status_name', 'reviewStatusName', 'product_status_format', 'productStatusFormat', 'status_format', 'statusFormat', 'status_name', 'statusName'];
+    const candidates = ['audit_status_format', 'auditStatusFormat', 'review_status_format', 'reviewStatusFormat', 'audit_status_name', 'auditStatusName', 'review_status_name', 'reviewStatusName', 'product_status_format', 'productStatusFormat', 'status_format', 'statusFormat', 'status_name', 'statusName'];
     const statuses = ['\u5f85\u5ba1\u6838', '\u5ba1\u6838\u4e2d', '\u5df2\u5ba1\u6838', '\u5df2\u62d2\u7edd', '\u5df2\u4f5c\u5e9f', '\u5df2\u5b8c\u6210', '\u8349\u7a3f'];
     for (const key of candidates) {
       const value = compactText(product && product[key]);
