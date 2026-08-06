@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.16
+// @version      2.7.17
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.16';
+  const SCRIPT_VERSION = '2.7.17';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -56,7 +56,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.170';
+  const UI_ASSET_VERSION = '2.5.171';
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '9';
   const PLM_INGREDIENT_CACHE_VERSION = 2;
@@ -9282,6 +9282,18 @@
     return snapshot;
   }
 
+  function getMagicUploadProductReviewStatus(product) {
+    const candidates = ['review_status_format', 'reviewStatusFormat', 'review_status_name', 'reviewStatusName', 'product_status_format', 'productStatusFormat', 'status_format', 'statusFormat', 'status_name', 'statusName'];
+    const statuses = ['\u5f85\u5ba1\u6838', '\u5ba1\u6838\u4e2d', '\u5df2\u5ba1\u6838', '\u5df2\u62d2\u7edd', '\u5df2\u4f5c\u5e9f', '\u5df2\u5b8c\u6210', '\u8349\u7a3f'];
+    for (const key of candidates) {
+      const value = compactText(product && product[key]);
+      if (!value) continue;
+      const status = statuses.find((item) => value === item || value.includes(item));
+      if (status) return status;
+    }
+    return '';
+  }
+
   function applyMagicUploadReplacementSnapshot(task, snapshot, status, errorMessage) {
     if (!task) return;
     task.replaceCategories = Array.isArray(snapshot && snapshot.categories) ? snapshot.categories.slice() : [];
@@ -9311,6 +9323,17 @@
     }
     const liveTask = (state.magicUploadQueue || []).find((item) => item && item.id === task.id);
     if (!liveTask || (token && liveTask.replacementCheckToken !== token)) return;
+    if (context.productReviewStatus && context.productReviewStatus !== '\u5f85\u5ba1\u6838') {
+      const statusMessage = '\u5f53\u524d\u4ea7\u54c1\u4e3a' + context.productReviewStatus + '\uff0c\u4e0d\u662f\u5f85\u5ba1\u6838\u72b6\u6001';
+      liveTask.status = 'waiting';
+      liveTask.step = '\u5df2\u8df3\u8fc7：' + statusMessage;
+      liveTask.error = statusMessage;
+      applyMagicUploadReplacementSnapshot(liveTask, snapshot, 'blocked', statusMessage);
+      saveMagicUploadQueue(state.magicUploadQueue);
+      if (state.view === 'magicUpload') renderShell();
+      magicUploadLog('info', '\u73b0\u6709\u56fe\u7247\u68c0\u67e5\u540c\u6b65\u53d1\u73b0\u4ea7\u54c1\u72b6\u6001', task.sku + ' | ' + context.productReviewStatus);
+      return;
+    }
     applyMagicUploadReplacementSnapshot(liveTask, snapshot, 'ready', '');
     saveMagicUploadQueue(state.magicUploadQueue);
     if (state.view === 'magicUpload') renderShell();
@@ -9349,6 +9372,7 @@
   function magicUploadReplacementSummary(task) {
     const status = String(task && task.replacementCheckStatus || '');
     if (status === 'checking') return '正在查询当前图片…';
+    if (status === 'blocked') return task.replacementCheckError || task.error || '当前产品状态不允许提审';
     if (status === 'error') return '开始时会重新查询当前图片';
     const categories = Array.isArray(task && task.replaceCategories) ? task.replaceCategories : [];
     if (!categories.length) return '新增任务';
@@ -9943,6 +9967,7 @@
       productVersionId: String(productVersionId),
       categoryId: String(product.category_id || ''),
       productCode: String(product.product_code || product.code || sku).trim().toUpperCase(),
+      productReviewStatus: getMagicUploadProductReviewStatus(product),
     };
     task.productId = context.productId;
     task.productVersionId = context.productVersionId;
@@ -18903,15 +18928,6 @@
       await enterProductEditSecondStep(item.sku);
       throwIfUploadRetryNoticeVisible();
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u68c0\u67e5\u65e7\u5185\u5bb9');
-      const productReviewStatus = getProductReviewStatus(item.sku);
-      if (productReviewStatus && productReviewStatus !== '\u5f85\u5ba1\u6838') {
-        const statusMessage = '\u5f53\u524d\u4ea7\u54c1\u4e3a' + productReviewStatus + '\uff0c\u4e0d\u662f\u5f85\u5ba1\u6838\u72b6\u6001';
-        markUploadQueueBlocked(item, '\u5df2\u8df3\u8fc7', statusMessage, { productReviewStatus });
-        addLog('info', '\u63d0\u5ba1\u4e0a\u4f20\u8df3\u8fc7\uff1a\u4ea7\u54c1\u72b6\u6001\u4e0d\u662f\u5f85\u5ba1\u6838', item.sku + ' | ' + productReviewStatus);
-        showToast(item.sku + ' \u00b7 ' + statusMessage);
-        await closeTopProductDrawer({ skipDraftSave: true });
-        return;
-      }
       const existingSummary = getProductReplaceUploadSummary(item.sku);
       if (existingSummary.total && !item.forceReplace) {
         markUploadQueueBlocked(item, L.uploadExistingContent, '\u65e7\u5185\u5bb9\uff1a' + existingSummary.parts.join(' / '), { existingContent: existingSummary.parts.join(' / ') });
@@ -19229,25 +19245,6 @@
       }
     }
     return { total, parts };
-  }
-
-  function extractProductReviewStatus(text) {
-    const source = compactText(text || '');
-    const labeled = source.match(/(?:\u5ba1\u6838\u72b6\u6001|\u63d0\u5ba1\u72b6\u6001|\u4ea7\u54c1\u72b6\u6001|\u5546\u54c1\u72b6\u6001|(?<!\u9879\u76ee)\u72b6\u6001)\s*[:\uff1a]?\s*(\u5f85\u5ba1\u6838|\u5ba1\u6838\u4e2d|\u5df2\u5ba1\u6838|\u5df2\u62d2\u7edd|\u5df2\u4f5c\u5e9f|\u5df2\u5b8c\u6210|\u8349\u7a3f)/);
-    if (labeled) return labeled[1];
-    return '';
-  }
-
-  function getProductReviewStatus(sku) {
-    const drawer = getProductEditDrawerForSku(sku) || Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer')).filter(isVisibleElement).pop();
-    const drawerStatus = extractProductReviewStatus(drawer && getVisibleText(drawer));
-    if (drawerStatus) return drawerStatus;
-    const rowId = findProductRowIdBySku(sku);
-    if (!rowId) return '';
-    const row = Array.from(document.querySelectorAll('tr[rowid], .vxe-body--row[rowid], .ant-table-row[rowid]'))
-      .filter(isVisibleElement)
-      .find((el) => el.getAttribute('rowid') === rowId);
-    return extractProductReviewStatus(row && getVisibleText(row));
   }
 
   async function verifyBatchImagesUploaded(sku) {
