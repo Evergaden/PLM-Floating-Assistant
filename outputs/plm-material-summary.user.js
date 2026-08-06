@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.18
+// @version      2.7.19
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.18';
+  const SCRIPT_VERSION = '2.7.19';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -958,7 +958,7 @@
       const html = '<div class="pfh-parameter-scroll">' + (context.detailViewTabs ? context.detailViewTabs('parameterImage') : '') + '<section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
-          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>一张图可同时包含纸盒与产品</span></button>' +
+          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
           '<div class="pfh-parameter-fields">' +
             fieldHtml(session, 'englishName', '英文产品名', true) + fieldHtml(session, 'netContent', '净含量') + fieldHtml(session, 'grossWeight', '毛重') + fieldHtml(session, 'shelfLife', '保质期') + fieldHtml(session, 'features', 'FEATURES', true) +
@@ -1437,9 +1437,22 @@
       }
     }
 
+    const parameterImageFormatHint = '参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。';
+
+    function isParameterPngFile(file) {
+      return Boolean(file && (/\.png$/i.test(file.name || '') || /^image\/png$/i.test(file.type || '')));
+    }
+
+    function rejectParameterImage(data) {
+      const session = ensureSession(data);
+      session.error = parameterImageFormatHint;
+      context.render();
+      if (context.showToast) context.showToast(parameterImageFormatHint);
+    }
+
     async function processFile(file, data, options) {
       const session = ensureSession(data);
-      if (!file || !/\.png$/i.test(file.name || '')) { session.error = '请选择透明 PNG 图片。'; context.render(); return; }
+      if (!isParameterPngFile(file)) { rejectParameterImage(data); return; }
       session.file = file; session.fileName = file.name; session.showSide = null;
       session.editorImage = null;
       session.editorSourceUrl = '';
@@ -1620,8 +1633,16 @@
     }
 
     function handleDrop(files, data, options) {
-      const file = Array.from(files || []).find((item) => /\.png$/i.test(item.name || '') || item.type === 'image/png');
-      if (file) processFile(file, data, options);
+      const candidates = Array.from(files || []).filter(Boolean);
+      const file = candidates.find(isParameterPngFile);
+      if (!file) {
+        if (candidates.length) rejectParameterImage(data);
+        return;
+      }
+      if (candidates.some((item) => /^image\//i.test(item.type || '') && !isParameterPngFile(item)) && context.showToast) {
+        context.showToast('已读取 PNG；其他格式图片已忽略，请使用透明 PNG。');
+      }
+      processFile(file, data, options);
     }
 
     async function generateBridgeAssets(data, imageDataUrl) {
@@ -17109,9 +17130,11 @@
       const panel = document.getElementById(PANEL_ID);
       const drop = panel && panel.querySelector('.pfh-parameter-drop:hover');
       if (!drop || drop.disabled) return;
-      const files = Array.from(event.clipboardData && event.clipboardData.items || [])
-        .filter((item) => item.kind === 'file' && item.type === 'image/png')
+      const clipboard = event.clipboardData;
+      const itemFiles = Array.from(clipboard && clipboard.items || [])
+        .filter((item) => item.kind === 'file')
         .map((item) => item.getAsFile()).filter(Boolean);
+      const files = itemFiles.concat(Array.from(clipboard && clipboard.files || []));
       if (!files.length) return;
       event.preventDefault();
       event.stopPropagation();
