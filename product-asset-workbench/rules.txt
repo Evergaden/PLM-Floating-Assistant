@@ -1,0 +1,23 @@
+# 图包重命名规则
+# 格式：每行一条，正则|新名称
+# 匹配对象：文件名（不含扩展名），匹配成功后重命名为「新名称.原扩展名」
+# 空行和 # 开头的行会被忽略
+# 正则中请勿使用 | 作为分隔符（本格式以 | 划分正则与新名称）
+
+^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
+^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
+^input-main-prompt-3-[a-zA-Z0-9]{8}$|主图3
+^input-main-prompt-4-[a-zA-Z0-9]{8}$|主图4
+^input-main-prompt-5-[a-zA-Z0-9]{8}$|主图5
+^input-main-prompt-6-[a-zA-Z0-9]{8}$|主图6
+^input-main-prompt-7-[a-zA-Z0-9]{8}$|主图7
+^input-detail-sale-prompt-1-.+$|详情图1
+^input-detail-sale-prompt-2-.+$|详情图2
+^input-detail-component-prompt-.+$|详情图3
+^input-detail-advantage-prompt-1-.+$|详情图4
+^input-detail-advantage-prompt-2-.+$|详情图5
+^input-detail-details-prompt-1-.+$|详情图6
+^input-detail-details-prompt-2-.+$|详情图7
+^input-detail-efficacy-prompt-.+$|详情图8
+^input-detail-use-step-prompt-.+$|详情图9
+^input-detail-scene-prompt-.+$|详情图10

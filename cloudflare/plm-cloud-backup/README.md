@@ -1,6 +1,6 @@
 # PLM Cloud Backup Worker
 
-Cloudflare Worker + D1 backend for PLM helper cloud backup, shared carton pack-count recommendations, cloud insight logs, AI summaries, and Feishu export/sync.
+Cloudflare Worker + D1 backend for PLM helper cloud backup, shared carton pack-count recommendations, cloud insight logs, and AI summaries.
 
 ## Setup
 
@@ -18,6 +18,8 @@ Then create the remote tables:
 ```powershell
 npx.cmd wrangler d1 execute plm-cloud-backup-db --remote --file=./schema.sql
 ```
+
+The feedback migration uses `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS`, so its table/index statements can be rerun safely when upgrading. The feedback loop adds the `feedback_entries` table; rerun the same command after deploying this Worker version so existing databases receive the new table and indexes. Very old local databases may still need the existing `magic_upload_enabled` column migration before the complete legacy schema can be replayed.
 
 Build the versioned runtime asset manifest, then deploy the Worker and its Static Assets together:
 
@@ -94,31 +96,6 @@ npx.cmd wrangler secret put AI_CLASSIFY_ATTEMPTS
 # value: 2
 ```
 
-Set Feishu credentials only if you want direct Feishu Bitable sync:
-
-```powershell
-npx.cmd wrangler secret put FEISHU_APP_ID
-npx.cmd wrangler secret put FEISHU_APP_SECRET
-npx.cmd wrangler secret put FEISHU_BITABLE_APP_TOKEN
-npx.cmd wrangler secret put FEISHU_BITABLE_TABLE_ID
-```
-
-Create these exact fields in the target Feishu Bitable table:
-
-```text
-记录类型
-SKU
-品牌
-商品名
-商品类型
-价格
-装箱数
-包装尺寸
-产品尺寸
-缺失字段
-来源
-记录时间
-```
 
 Deploy:
 
@@ -132,20 +109,17 @@ Useful verification commands:
 $headers=@{'x-api-key'='YOUR_API_KEY'}
 Invoke-RestMethod -Uri 'https://velvet.qzz.io/health' -Method Get
 Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/ai-status' -Method Get -Headers $headers
-Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/feishu-status' -Method Get -Headers $headers
 Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Headers $headers
 ```
 
 ## Endpoints
-Backups written by userscript 2.6.105 and later use browser-side AES-GCM encryption. The Worker stores the encrypted envelope and, when necessary, stores its compressed ciphertext in `user_backup_chunks`. The client can still read legacy plaintext/compressed backups and rewrites them in the encrypted format on the next save. Run `schema.sql` once after upgrading the Worker so the chunk table exists.
-
 
 - `GET /health`
 - `GET /assets/manifest.json`
 - `GET /assets/v1/runtime-data.json`
 - `GET /assets/v1/excel-template.xlsx`
 - `GET /assets/v1/icons.json`
-- `GET /assets/v1/ui-2.5.169.css`
+- `GET /assets/v1/ui-2.5.172.css`
 - `POST /backup/save`
 - `GET /backup/load?backupId=...` (legacy `backupKey` is still accepted)
 - `POST /backup/chunk`
@@ -160,13 +134,15 @@ Backups written by userscript 2.6.105 and later use browser-side AES-GCM encrypt
 - `GET /insights/report`
 - `GET /insights/ai-report`
 - `GET /insights/ai-status`
-- `GET /insights/feishu-tsv`
-- `GET /insights/feishu-status`
-- `POST /insights/feishu-sync`
 - `GET /insights/recommend?sku=...&productType=...&name=...`
 - `GET /insights/rules`
+- `POST /feedback/submit`
+- `GET /feedback/mine?name=...`
+- `POST /admin/feedback/save` (管理员 Session)
 
 Write endpoints require `x-api-key` when `API_KEY` is configured.
+
+Backups written by userscript 2.6.105 and later use browser-side AES-GCM encryption. The Worker stores the encrypted envelope and, when necessary, stores its compressed ciphertext in `user_backup_chunks`. The client can still read legacy plaintext/compressed backups and rewrites them in the encrypted format on the next save. Run `schema.sql` once after upgrading the Worker so the chunk table exists.
 
 ## Behavior
 
@@ -176,9 +152,9 @@ Write endpoints require `x-api-key` when `API_KEY` is configured.
 - `/insights/record` stores price history, product type, and data-quality issues from the userscript.
 - `/insights/recommend` recommends purchase price from cloud history. The userscript also has local history fallback.
 - `/insights/rules` groups missing-field issues into data-cleaning rule candidates and marks high-priority cases where the page was read but parsing failed.
+- `/feedback/submit` accepts `feature`, `usage`, `data`, or `other`, stores up to 2000 characters, attaches the script/page/SKU context, and limits each PLM name to 10 submissions per rolling 24 hours.
+- `/feedback/mine` returns the latest 50 entries for the supplied PLM name. The admin page lists feedback and lets an administrator set `pending`, `processing`, or `resolved` plus a reply of up to 4000 characters.
 - `/ingredients/normalize` and `/toy-copywriting/complete` call ModelScope `Qwen/Qwen3.5-397B-A17B` first, then automatically fall back to Gemini. Image-only ingredient PDFs are rendered to images in the userscript for Qwen vision input; the original PDF is retained for Gemini fallback.
 - `/insights/ai-report` calls the selected AI model for a concise Chinese insight report. The ModelScope Qwen option automatically falls back to Gemini. If all configured AI providers are missing, busy, or time out, it returns a rule-based fallback report.
-- `/insights/feishu-tsv` returns TSV that can be pasted directly into Feishu Sheets/Bitable.
-- `/insights/feishu-sync` writes records directly to Feishu Bitable when Feishu secrets are configured. Synced records are deduplicated in D1.
 
-Secrets must stay in Worker environment variables. Do not put API keys or Feishu secrets into the userscript.
+Secrets must stay in Worker environment variables. Do not put API keys into the userscript.

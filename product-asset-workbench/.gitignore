@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+
+# 用户本机配置与 Photoshop 运行时生成的脚本
+config.txt
+config.json
+_ps_batch_resize_1600.jsx
+startup.log
+startup-error.log
+
+# 产品图片属于业务素材，不纳入公开代码仓库
+output/

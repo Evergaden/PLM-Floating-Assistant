@@ -4,7 +4,7 @@
 
 - This repository contains a browser userscript and its optional Cloudflare backend.
 - The userscript is plain JavaScript for Tampermonkey/Violentmonkey. It injects the PLM floating assistant into the logged-in PLM page.
-- The backend is a Cloudflare Worker using D1 for cloud backup, pack recommendations, insight data, and optional AI/Feishu integrations.
+- The backend is a Cloudflare Worker using D1 for cloud backup, pack recommendations, insight data, and optional AI integrations.
 
 ## Directory Map
 

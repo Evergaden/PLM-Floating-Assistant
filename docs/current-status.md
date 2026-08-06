@@ -20,7 +20,7 @@
 
 - 用户脚本头部 `@version` 仍为 `2.4.57`，而运行时 `SCRIPT_VERSION` 已为 `2.4.69`；下次脚本发布应同步元数据版本。
 - 仓库没有统一的自动化测试、构建或类型检查脚本；当前主要依赖 `node --check`、`git diff --check` 和浏览器手工验证。
-- Cloudflare README 仍包含可选 Feishu 配置说明；当前是否仍需要该集成由使用方确认。
+- Worker README 已移除 Feishu 集成说明，当前保留 AI 与反馈相关配置。
 
 ## 最近验证
 

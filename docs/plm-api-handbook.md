@@ -1,6 +1,6 @@
 # PLM API 手册
 
-更新日期：2026-07-31
+更新日期：2026-08-03
 
 站点：`https://plm.westmonth.com`
 
@@ -154,10 +154,11 @@ POST /api/Product/UploadArchiveFileFromExternal
 ```http
 POST /api/Product/GenerateFileNameByRule
 POST /api/Common/GetUploadFileInfo
+POST /api/ProjectFormData/GetArchiveFileVersionListByFileVersionId
 POST /api/Product/GetArchiveFileVersionListByFileVersionId
 ```
 
-`GenerateFileNameByRule` 用于生成 PLM 规范文件名；后两个接口用于根据 OSS 路径或文件版本 ID 获取文件信息。
+`GenerateFileNameByRule` 用于生成 PLM 规范文件名；`GetUploadFileInfo` 用 OSS 路径换原始文件名；`GetArchiveFileVersionListByFileVersionId` 用文件版本 ID 换归档文件名、路径、格式和大小。2026-07-31 的商品详情 HAR 实际调用的是 `ProjectFormData/GetArchiveFileVersionListByFileVersionId`；旧页面或其他模块仍可能调用 `Product/...`，实现时可按前者优先、后者兜底。
 
 注意：`GenerateFileNameByRule` 的 `source_id` 不是新品项目列表的行 ID，也不是 `ChemicalNew/GetProjectDetail?id=...` 的项目 ID；当 `source: 2`（商品资料）时，应传目标商品的 `product_version_id`。例如原网页上传 SKU 时使用的是：
 
@@ -242,7 +243,7 @@ Product/GetProductList
 → Product/GetDetailContent
 → 找到 variable_name=product_description
 → 读取 attr_language_config_json[language_id=1].value 中的附件 ID
-→ Product/GetArchiveFileVersionListByFileVersionId
+→ ProjectFormData/GetArchiveFileVersionListByFileVersionId（必要时回退 Product/...）
 → 取 file_format=docx 的 file_path
 → https://oss-pro.plm.westmonth.cn/{file_path}
 → 下载 DOCX 并解析 word/document.xml
@@ -266,7 +267,7 @@ Product/GetProductList
 根据附件 ID 获取文件信息：
 
 ```http
-POST /api/Product/GetArchiveFileVersionListByFileVersionId
+POST /api/ProjectFormData/GetArchiveFileVersionListByFileVersionId
 Content-Type: application/json
 
 {"ids":[1104246]}
@@ -291,7 +292,7 @@ Content-Type: application/json
 | 模板/分类辅助数据 | `GetFixedAttrNameList`、`GetFileTypeSelectOption`、`GetUserSelectOption`、`GetLanguageSelectOption`、`GetFieldLanguageJoins?type=1`、`GetCategorySelectOptionNew`、`GetCategoryTempId`、`IsBottomCategory` |
 | 商品下拉选项 | `GetAllBrandSelectOption`、`GetMeteringUnitSelectOption`、`GetProductGroupSelectOption`、`GetMaterialGroupSelectOption` |
 | 编辑校验 | `GET /api/Product/CheckJstOldCodeForProduct?jstOldCode={SKU}&id={product_id}` |
-| 原有附件和图片文件名 | `POST /api/Product/GetArchiveFileVersionListByFileVersionId`、`POST /api/Common/GetUploadFileInfo` |
+| 原有附件和图片文件名 | `POST /api/ProjectFormData/GetArchiveFileVersionListByFileVersionId`（兼容 `Product/...`）、`POST /api/Common/GetUploadFileInfo` |
 | AI 能力和任务状态 | `AccessAiCapabilities`、`CheckGetAiTextCheckTaskExists`、`CheckAiProductTextResultExists`、`CheckGenPicTaskExists` |
 | 文案、标题检查和采购信息 | `GetProductTextAiResult`、`GetAiTitleCheckResult`、`ProductProcureInfo/GetTaxRate`、`GetProductPriceInfo`、`GetProductInvoiceInfo`、`ProductProcureInfo/GetProductProcureInfo`、`ProductProcureInfo/GetProductReferencePrice` |
 
@@ -533,11 +534,96 @@ AI 生成的主图和详情图在本次抓包中使用 `archive_type_id: 1`，�
 
 ### 6. 上传完成后的保存和结果确认
 
-16 张图片全部完成 `UploadArchiveFileFromExternal` 后，页面再次调用 `SaveProductDraftByEdit`，将新增的文件版本 ID 合并进相应模板字段，同时保留原有文件 ID。抓包中保存请求成功后又调用 `GetProductList` 刷新列表，并在短时间内重复保存一次；这说明前端可能有自动保存/手动保存的双触发，脚本应使用幂等或去重保护。
+16 张图片全部完成 `UploadArchiveFileFromExternal` 后，页面再次调用 `SaveProductDraftByEdit`，将新增的文件版本 ID 写入相应模板字段。默认模式是保留原有 ID 并追加；替换模式则只替换本次上传涉及的分类，未涉及的分类仍原样保留。抓包中保存请求成功后又调用 `GetProductList` 刷新列表，并在短时间内重复保存一次；这说明前端可能有自动保存/手动保存的双触发，脚本应使用幂等或去重保护。
 
 文件字段仍按 `GetDetailContent?is_edit=true` 返回的 `variable_name` 映射，不要按图片 URL 或显示名称猜字段。当前已确认的候选字段包括 `main_image`、`detail_image`、`sku_pic`、`english_specification_diagram`、`product_parameter_diagram`、`video`、`animated_image`、`image_package_materials` 和 `promotion_materials`。
 
+### 7. 2026-07-31 新 HAR：查询现有图片和替换
+
+商品当前图片可在加入魔法上传任务时预检查：
+
+```text
+Product/GetProductList?codes={SKU}
+→ Product/GetDetailContent?is_edit=false&product_id={product_id}&product_version_id={product_version_id}&category_id={category_id}
+→ 读取 data[].category_template_attrs[] 中的 variable_name 和 attr_language_config_json[].value
+→ ProjectFormData/GetArchiveFileVersionListByFileVersionId {"ids":[...]}
+```
+
+图片、视频、推品资料和图包素材通常是 `attr_type: 12`，值是文件版本 ID 数组。空字段在不同商品/模板中可能返回 `null` 或 `[]`，两者都应按“没有现有文件”处理。当前 HAR 确认的字段映射为：
+
+| 页面分类 | `variable_name` |
+|---|---|
+| 主图 | `main_image` |
+| 英文参数图 | `english_specification_diagram` |
+| 详情图 | `detail_image` |
+| SKU图 | `sku_pic` |
+| 视频 | `video` |
+| 动图 | `animated_image` |
+| 推品资料 | `promotion_materials` |
+| 图包素材 | `image_package_materials` |
+| 版权图 | `copyright` |
+| 标签尺寸图 | `label_dimension_diagram` |
+| 印刷尺寸图 | `print_dimension_diagram` |
+| 纸盒尺寸图 | `carton_dimension_diagram` |
+| 产品文案 | `product_description` |
+
+模板中还会出现“中文参数图”（`attr_id: 2758`）和“操作视频”（`attr_id: 410`）这类 `variable_name: null` 的字段。需要按 `attr_id`/`attr_name` 兜底，不能只依赖 `variable_name` 做全量字段映射。
+
+替换不是物理删除归档文件。上传新文件并拿到新的 `file_version_id` 后，保存草稿时把本次涉及分类的旧数组清空，再写入新 ID；其他没有上传的分类继续保留。当前 HAR 没有观察到独立的“删除图包”业务接口，删除/替换效果由 `SaveProductDraftByEdit` 的完整 `attr_values` 快照产生。保存成功会返回新的 `product_version_id`，必须写回任务并用于后续重试。
+
+产品列表还会返回 `version_status`、`audit_status`、`has_bom_children` 和 `btns`。例如已被 BOM 引用的产品可能返回“不能删除”，这属于产品操作权限/状态，不等于图片字段不能通过草稿保存更新。
+
 本次抓包只确认了“保存草稿”，没有出现 `Product/Arraign` 提审请求；因此日志只能写“文件已上传并保存草稿”，不能据此写“已提审”。
+
+#### 7.1 2026-08-03 HAR：正面文案图、SKU 图和鉴权重试
+
+`plm.westmonth.com侵权图.har` 进一步确认了只读详情接口的字段和值。以项目 `46996`、SKU `SKU00048011` 为例，读取链路为：
+
+```text
+ChemicalNew/GetProjectDetail?id=46996
+→ 取得 product_id=263171、product_version_id=389686、category_id=307
+→ Product/GetProductList?codes=SKU00048011
+→ Product/GetDetailContent?is_edit=false&product_id=263171&product_version_id=389686&category_id=307
+```
+
+`GetDetailContent?is_edit=false` 本次返回 17 组、146 个模板属性；实际值仍主要位于 `data[].category_template_attrs[].attr_language_config_json[].value`。本次 HAR 中的图片字段结果如下：
+
+| 页面字段 | `variable_name` | 本次结果 | 说明 |
+|---|---|---|---|
+| 产品正面文案 | `front_product_copy` | 有值 | 返回 OSS 路径数组，可直接拼接 OSS 域名获取 PNG |
+| SKU 图 | `sku_pic` | 空 | 该 SKU 没有已绑定的 SKU 图；`null` 和 `[]` 都按无文件处理 |
+| 主图 | `main_image` | 空 | 该 SKU 本次没有已绑定主图 |
+| 详情图 | `detail_image` | 空 | 该 SKU 本次没有已绑定详情图 |
+| 产品参数图 | `product_parameter_diagram` | 空 | 该 SKU 本次没有已绑定参数图 |
+| 版权图 | `copyright` | 空 | 本次没有发现已绑定的版权/侵权图 |
+| 产品列表图片 | `picture` | 空 | `GetProductList` 中的 `picture` 也为空 |
+
+本次正面文案图的值类似：
+
+```json
+{
+  "variable_name": "front_product_copy",
+  "attr_language_config_json": [
+    {"language_id": 1, "value": ["/xy/upload/Product/...png"]}
+  ]
+}
+```
+
+图片字段的值类型不能统一假设为文件版本 ID：
+
+- 路径字符串数组（如 `front_product_copy`）：去掉开头的 `/` 后拼接 `https://oss-pro.plm.westmonth.cn/`，即可请求实际文件；
+- 数字数组（如 `product_description` 的附件引用，或其他商品可能出现的图片附件）：调用 `ProjectFormData/GetArchiveFileVersionListByFileVersionId`，必要时回退 `Product/GetArchiveFileVersionListByFileVersionId`，再使用返回的 `file_path`；
+- 需要显示原文件名时，可调用 `Common/GetUploadFileInfo`，请求体为 `{"oss_paths":[...]}`。这个接口只补充文件名，不是获取图片内容的必要步骤。
+
+`ChemicalNew/GetProjectDetail` 返回的 `project.main_pic` 是项目参考/封面图，路径通常位于 `Demand/`；`pms[].pics` 是物料图片。这两类图片都不能直接当作 SKU 图使用。
+
+本次 HAR 还观察到 `GetProductList`、`GetDetailContent`、`GetDetailInfo` 均出现过“第一次 HTTP 401（鉴权失败），紧接着同一 URL 返回 200”的情况，间隔约几十毫秒，且可见的租户请求头相同。因此读取策略应为：
+
+1. 单次 401、超时或网络错误先重试，重试时重新取得当前页面的认证头；不要立即把 401 当成“SKU 不存在”或“详情为空”。
+2. 产品列表成功但详情字段失败时，只对详情阶段重试或启用详情兜底，不要丢弃已经拿到的产品基础数据。
+3. 必要的产品列表和详情接口在有限次数重试后仍失败，再按需加载抽屉自动化/DOM 兜底代码。这样可以避免 HAR 中这种瞬时 401 直接触发抽屉。
+
+因此，API 可以在不打开详情抽屉的情况下读取产品详情；但“API 有字段”与“当前 SKU 已填写该字段”需要分开判断。当前脚本若要使用正面文案图，应单独映射 `front_product_copy`，不要把它误记为 `sku_pic` 或普通产品列表图片。
 
 ## 当前用户脚本的读取链路
 
@@ -548,7 +634,7 @@ AI 生成的主图和详情图在本次抓包中使用 `archive_type_id: 1`，�
 → Product/GetProductList
 → Product/GetDetailContent
 → 读取 suttle / rough_weight
-→ Product/GetArchiveFileVersionListByFileVersionId
+→ ProjectFormData/GetArchiveFileVersionListByFileVersionId（必要时回退 Product/...）
 → 下载并解析产品文案 DOCX
 → 保存 SKU 缓存
 ```
@@ -569,7 +655,7 @@ UploadArchiveFileFromExternal
 → Product/Arraign
 ```
 
-当前魔法上传按 `variable_name` 映射分类：`main_image`、`english_specification_diagram`、`detail_image`、`sku_pic`、`product_parameter_diagram`、`video`、`animated_image`、`image_package_materials` 和 `promotion_materials`。保存草稿时会保留原有文件 ID，只追加本次上传的 ID；任一模板字段或文件版本 ID 缺失都会阻止提审。`SaveProductDraftByEdit` 返回的新 `product_version_id` 需要写回队列，后续重试重新读取最新版本。
+当前魔法上传按 `variable_name` 映射分类：`main_image`、`english_specification_diagram`、`detail_image`、`sku_pic`、`product_parameter_diagram`、`video`、`animated_image`、`image_package_materials` 和 `promotion_materials`。加入任务后先查询当前分类是否已有文件；有则标记为“替换任务”。任务真正开始保存草稿时再次读取最新字段，仅替换本次上传涉及的分类，避免加入队列后商品被其他人修改造成旧快照覆盖。任一模板字段或文件版本 ID 缺失都会阻止提审。`SaveProductDraftByEdit` 返回的新 `product_version_id` 需要写回队列，后续重试重新读取最新版本。
 
 ## 风险和注意事项
 
