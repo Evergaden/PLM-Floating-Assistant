@@ -485,6 +485,19 @@ struct RenameRule {
     target: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PackSlotFamily {
+    Main,
+    Detail,
+}
+
+struct PackEntryPlan {
+    index: usize,
+    source_name: String,
+    extension: String,
+    target_name: Option<String>,
+}
+
 fn new_bridge_state(app: &AppHandle) -> Result<BridgeState, String> {
     let data_dir = app.path().app_data_dir().map_err(|error| format!("无法确定应用数据目录：{error}"))?;
     fs::create_dir_all(&data_dir).map_err(|error| format!("无法创建应用数据目录：{error}"))?;
@@ -1084,6 +1097,92 @@ fn parse_pack_rules(text: &str) -> Result<Vec<RenameRule>, String> {
     if errors.is_empty() { Ok(rules) } else { Err(errors.join("\n")) }
 }
 
+fn parse_pack_slot(target: &str) -> Option<(PackSlotFamily, usize)> {
+    let (family, rest) = if let Some(rest) = target.strip_prefix("主图") {
+        (PackSlotFamily::Main, rest)
+    } else if let Some(rest) = target.strip_prefix("详情图") {
+        (PackSlotFamily::Detail, rest)
+    } else {
+        return None;
+    };
+    if rest.is_empty() || !rest.chars().all(|value| value.is_ascii_digit()) {
+        return None;
+    }
+    let index = rest.parse::<usize>().ok()?;
+    (index > 0).then_some((family, index))
+}
+
+fn pack_slot_family(zip_name: &str, matched_targets: &HashSet<String>) -> Option<PackSlotFamily> {
+    let mut matched_family = None;
+    for target in matched_targets {
+        let Some((family, _)) = parse_pack_slot(target) else { continue };
+        if let Some(previous) = matched_family {
+            if previous != family {
+                return None;
+            }
+        } else {
+            matched_family = Some(family);
+        }
+    }
+    if matched_family.is_some() {
+        return matched_family;
+    }
+    let lower_name = zip_name.to_lowercase();
+    match (lower_name.contains("主图"), lower_name.contains("详情图")) {
+        (true, false) => Some(PackSlotFamily::Main),
+        (false, true) => Some(PackSlotFamily::Detail),
+        _ => None,
+    }
+}
+
+fn missing_pack_targets(
+    zip_name: &str,
+    rules: &[RenameRule],
+    matched_targets: &HashSet<String>,
+) -> Option<Vec<String>> {
+    let family = pack_slot_family(zip_name, matched_targets)?;
+    let mut slots = rules
+        .iter()
+        .filter_map(|rule| parse_pack_slot(&rule.target).map(|(rule_family, index)| (rule_family, index, rule.target.clone())))
+        .filter(|(rule_family, _, _)| *rule_family == family)
+        .collect::<Vec<_>>();
+    slots.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.2.cmp(&right.2)));
+
+    let mut seen = HashSet::new();
+    Some(
+        slots
+            .into_iter()
+            .filter_map(|(_, _, target)| {
+                if !seen.insert(target.clone()) || matched_targets.contains(&target) {
+                    None
+                } else {
+                    Some(target)
+                }
+            })
+            .collect(),
+    )
+}
+
+fn pack_source_sort_key(name: &str) -> (u8, usize, String) {
+    let lower = name.to_lowercase();
+    let numeric_suffix = lower
+        .strip_prefix("new_product_image_")
+        .and_then(|rest| rest.split(['-', '_']).next())
+        .and_then(|value| value.parse::<usize>().ok());
+    match numeric_suffix {
+        Some(number) => (0, number, lower),
+        None => (1, usize::MAX, lower),
+    }
+}
+
+fn pack_target_name(stem: &str, extension: &str) -> String {
+    if extension.is_empty() {
+        stem.to_string()
+    } else {
+        format!("{stem}.{extension}")
+    }
+}
+
 fn extract_pack_sku(filename: &str) -> Option<String> {
     Regex::new(r"(?i)SKU\d{8}").ok()?.find(filename).map(|matched| matched.as_str().to_uppercase())
 }
@@ -1311,8 +1410,11 @@ fn archive_image_packs(
         };
         let before_failed = result.failed;
         let before_skipped = result.skipped;
+        let mut plans = Vec::new();
+        let mut matched_targets = HashSet::new();
+        let mut unmatched_image_plans = Vec::new();
         for index in 0..archive.len() {
-            let mut entry = match archive.by_index(index) {
+            let entry = match archive.by_index(index) {
                 Ok(entry) => entry,
                 Err(error) => {
                     result.failed += 1;
@@ -1330,29 +1432,97 @@ fn archive_image_packs(
             };
             let source_path = Path::new(&source_name);
             let stem = source_path.file_stem().and_then(|value| value.to_str()).unwrap_or_default();
-            let extension = source_path.extension().and_then(|value| value.to_str()).unwrap_or_default();
+            let extension = source_path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_string();
             let target_name = if use_rules {
-                let Some(rule) = rules.iter().find(|rule| rule.pattern.is_match(stem)) else {
+                if let Some(rule) = rules.iter().find(|rule| rule.pattern.is_match(stem)) {
+                    matched_targets.insert(rule.target.clone());
+                    Some(pack_target_name(&rule.target, &extension))
+                } else if is_pack_image(source_path) {
+                    None
+                } else {
                     result.skipped += 1;
                     result.logs.push(format!("跳过（无匹配规则）：{source_name}"));
                     continue;
-                };
-                if extension.is_empty() { rule.target.clone() } else { format!("{}.{}", rule.target, extension) }
+                }
             } else {
-                source_name.clone()
+                Some(source_name.clone())
+            };
+            let plan_index = plans.len();
+            if target_name.is_none() {
+                unmatched_image_plans.push(plan_index);
+            }
+            plans.push(PackEntryPlan { index, source_name, extension, target_name });
+        }
+
+        if use_rules && !unmatched_image_plans.is_empty() {
+            let missing_targets = missing_pack_targets(zip_name, &rules, &matched_targets);
+            let mut unmatched_image_plans = unmatched_image_plans;
+            unmatched_image_plans.sort_by(|left, right| {
+                pack_source_sort_key(&plans[*left].source_name).cmp(&pack_source_sort_key(&plans[*right].source_name))
+            });
+            if let Some(missing_targets) = missing_targets {
+                let assign_count = unmatched_image_plans.len().min(missing_targets.len());
+                if assign_count > 0 {
+                    result.logs.push(format!(
+                        "未匹配图片按文件名顺序自动补到缺失槽位：{}",
+                        missing_targets[..assign_count].join("、")
+                    ));
+                    for (plan_index, target_stem) in unmatched_image_plans.iter().zip(missing_targets.iter()).take(assign_count) {
+                        let plan = &mut plans[*plan_index];
+                        plan.target_name = Some(pack_target_name(target_stem, &plan.extension));
+                        result.logs.push(format!("自动补名：{} → {}", plan.source_name, plan.target_name.as_deref().unwrap_or_default()));
+                    }
+                }
+                for plan_index in unmatched_image_plans.iter().skip(assign_count) {
+                    result.skipped += 1;
+                    result.logs.push(format!("跳过（缺失槽位已用完）：{}", plans[*plan_index].source_name));
+                }
+            } else {
+                for plan_index in unmatched_image_plans {
+                    result.skipped += 1;
+                    result.logs.push(format!("跳过（无法判断主图/详情图槽位）：{}", plans[plan_index].source_name));
+                }
+            }
+        }
+        drop(archive);
+        let file = match fs::File::open(&zip_path) {
+            Ok(file) => file,
+            Err(error) => {
+                result.failed += 1;
+                result.logs.push(format!("错误：无法重新打开 ZIP：{error}"));
+                continue;
+            }
+        };
+        let mut archive = match ZipArchive::new(file) {
+            Ok(archive) => archive,
+            Err(error) => {
+                result.failed += 1;
+                result.logs.push(format!("错误：无法重新读取 ZIP：{error}"));
+                continue;
+            }
+        };
+        for plan in plans {
+            let Some(target_name) = plan.target_name else { continue };
+            let mut entry = match archive.by_index(plan.index) {
+                Ok(entry) => entry,
+                Err(error) => {
+                    result.failed += 1;
+                    result.logs.push(format!("读取压缩项失败：{} — {error}", plan.source_name));
+                    continue;
+                }
             };
             let destination = unique_archive_path(&target, &target_name);
             match fs::File::create(&destination).and_then(|mut output| std::io::copy(&mut entry, &mut output).map(|_| ())) {
                 Ok(()) => {
                     result.success += 1;
-                    result.logs.push(format!("{source_name} → {}", destination.file_name().unwrap_or_default().to_string_lossy()));
+                    result.logs.push(format!("{} → {}", plan.source_name, destination.file_name().unwrap_or_default().to_string_lossy()));
                     if is_pack_image(&destination) {
                         extracted_images.push(destination);
                     }
                 }
                 Err(error) => {
                     result.failed += 1;
-                    result.logs.push(format!("解压失败：{source_name} — {error}"));
+                    result.logs.push(format!("解压失败：{} — {error}", plan.source_name));
                 }
             }
         }
@@ -2668,6 +2838,25 @@ mod tests {
     }
 
     #[test]
+    fn identifies_missing_detail_slots_for_unmatched_images() {
+        let rules = parse_pack_rules(
+            "^sale-1-.+$|详情图1\n^sale-2-.+$|详情图2\n^component-.+$|详情图3\n^advantage-1-.+$|详情图4\n^advantage-2-.+$|详情图5\n^details-1-.+$|详情图6\n^details-2-.+$|详情图7\n^efficacy-.+$|详情图8\n^use-.+$|详情图9\n^scene-.+$|详情图10",
+        )
+        .unwrap();
+        let matched = ["详情图3", "详情图5", "详情图10"]
+            .into_iter()
+            .map(str::to_string)
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            missing_pack_targets("详情图_SKU00000001_001.zip", &rules, &matched),
+            Some(vec!["详情图1", "详情图2", "详情图4", "详情图6", "详情图7", "详情图8", "详情图9"]
+                .into_iter()
+                .map(str::to_string)
+                .collect()),
+        );
+    }
+
+    #[test]
     fn matches_legacy_folder_by_unique_product_name_and_stops_on_duplicates() {
         let root = std::env::temp_dir().join(format!("plm-folder-match-test-{}", Uuid::new_v4()));
         let first = root.join("AMZ 紧致提拉精华液");
@@ -2704,12 +2893,14 @@ mod tests {
         let mut writer = ZipWriter::new(zip_file);
         writer.start_file("nested/input-main-prompt-1-abc12345.png", SimpleFileOptions::default()).unwrap();
         writer.write_all(b"fake-png").unwrap();
+        writer.start_file("nested/new_product_image_7.png", SimpleFileOptions::default()).unwrap();
+        writer.write_all(b"fallback-png").unwrap();
         writer.finish().unwrap();
 
         let result = archive_image_packs(
             vec![path_text(&zip_path)],
             path_text(&root),
-            "^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1".to_string(),
+            "^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1\n^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2".to_string(),
             true,
             false,
             false,
@@ -2718,12 +2909,14 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(result.success, 1);
+        assert_eq!(result.success, 2);
+        assert_eq!(result.skipped, 0);
         assert_eq!(result.failed, 0);
         assert_eq!(photoshop_image_category(Path::new("主图1.png")), 1);
         assert_eq!(photoshop_image_category(Path::new("详情图3.webp")), 2);
         assert_eq!(photoshop_image_category(Path::new("附件.bmp")), 0);
         assert!(product.join("套图").join("主图1.png").is_file());
+        assert!(product.join("套图").join("主图2.png").is_file());
         fs::remove_dir_all(&root).unwrap();
     }
 

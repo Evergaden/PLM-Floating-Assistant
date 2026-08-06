@@ -1579,7 +1579,7 @@ export default function App() {
               <div>
                 <span className="eyebrow">IMAGE PACK ARCHIVE</span>
                 <h2>批量图包处理</h2>
-                <p>从 ZIP 文件名识别 SKU，匹配产品目录，解压并按规则重命名到“套图”。</p>
+                <p>从 ZIP 文件名识别 SKU，匹配产品目录，解压并按规则重命名到“套图”；未匹配图片会按文件名顺序补到缺失编号。</p>
               </div>
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择产品根目录"}</button>
             </div>
@@ -1589,7 +1589,7 @@ export default function App() {
                 <div className="zip-drop" onClick={chooseZipPacks}>
                   <FileArchive size={30} />
                   <strong>{zipPaths.length ? `已添加 ${zipPaths.length} 个图包` : "拖入图包 ZIP"}</strong>
-                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip</span>
+                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip；未匹配图片会自动补到缺失的主图/详情图编号</span>
                 </div>
                 <div className="zip-list">
                   {zipPaths.map((path) => (
