@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.40
+// @version      2.7.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.40';
+  const SCRIPT_VERSION = '2.7.41';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -56,7 +56,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.181';
+  const UI_ASSET_VERSION = '2.5.182';
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -8452,13 +8452,14 @@
       headRight.insertBefore(modeTabs, pipeline || null);
     }
     const modeContent = canvas.querySelector('.pfh-magic-mode-content');
-    const overview = canvas.querySelector('.pfh-magic-overview');
-    const activity = overview && overview.querySelector('.pfh-magic-activity');
-    if (modeContent && activity && !activity.closest('.pfh-magic-activity-card')) {
-      const activityCard = document.createElement('section');
-      activityCard.className = 'pfh-magic-activity-card';
-      activityCard.appendChild(activity);
-      modeContent.appendChild(activityCard);
+    const overview = modeContent && modeContent.querySelector(':scope > .pfh-magic-overview');
+    const intake = modeContent && modeContent.querySelector(':scope > .pfh-magic-upload-drop, :scope > .pfh-magic-toy-label-form');
+    if (modeContent && overview && intake && !modeContent.querySelector(':scope > .pfh-magic-workspace')) {
+      const workspace = document.createElement('div');
+      workspace.className = 'pfh-magic-workspace';
+      modeContent.insertBefore(workspace, overview);
+      workspace.appendChild(overview);
+      workspace.appendChild(intake);
     }
     root.querySelectorAll('.pfh-magic-drop-icon').forEach((element) => element.remove());
     const effectDrop = root.querySelector('.pfh-magic-upload-drop[data-upload-drop="magic-effect"]');
@@ -8484,8 +8485,10 @@
       notice.setAttribute('role', 'status');
       notice.setAttribute('aria-live', 'polite');
       notice.innerHTML = '<span class="pfh-magic-spinner" aria-hidden="true"></span><span class="pfh-magic-processing-text"></span>';
+      const workspace = detail.querySelector('.pfh-magic-workspace');
       const drop = detail.querySelector('.pfh-magic-upload-drop');
-      if (drop && drop.parentNode) drop.parentNode.insertBefore(notice, drop);
+      if (workspace && workspace.parentNode) workspace.parentNode.insertBefore(notice, workspace.nextSibling);
+      else if (drop && drop.parentNode) drop.parentNode.insertBefore(notice, drop);
       else detail.appendChild(notice);
     }
     const text = notice.querySelector('.pfh-magic-processing-text');
