@@ -1,4 +1,5 @@
 import { PARAMETER_LOGO_ASSETS } from './parameter-logo-assets.js';
+import { STATIC_ASSET_MANIFEST } from './generated-asset-manifest.js';
 import { BRAND_COMPLIANCE_SEED } from './brand-compliance-seed.js';
 
 const CORS_HEADERS = {
@@ -2497,6 +2498,26 @@ async function ensureParameterFeatureRulesTable(env) {
   ).bind(ruleId, rule[0], rule[1], rule[2], rule[3])));
 }
 
+function getRequestedUiAssetVersion(url) {
+  const value = String(url.searchParams.get('plm-ui') || '').trim();
+  const match = /^(\d+\.\d+\.\d+)(?:-|$)/.exec(value);
+  return match ? match[1] : '';
+}
+
+async function handleAssetManifest(request, env, url) {
+  if (request.method === 'HEAD') return env.ASSETS.fetch(request);
+  const manifest = {
+    ...STATIC_ASSET_MANIFEST,
+    assets: { ...STATIC_ASSET_MANIFEST.assets },
+  };
+  const requestedVersion = getRequestedUiAssetVersion(url);
+  const versions = manifest && manifest.assets && manifest.assets.uiStyleVersions;
+  if (requestedVersion && versions && versions[requestedVersion]) {
+    manifest.assets.uiStyles = versions[requestedVersion];
+  }
+  return json(manifest);
+}
+
 async function listParameterFeatureRules(env, includeDisabled = false) {
   await ensureParameterFeatureRulesTable(env);
   const result = await env.DB.prepare('SELECT rule_id,category,keywords,phrase,priority,enabled FROM parameter_feature_rules' + (includeDisabled ? '' : ' WHERE enabled=1') + ' ORDER BY priority DESC, category ASC').all();
@@ -3934,6 +3955,9 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/assets/manifest.json' && (request.method === 'GET' || request.method === 'HEAD')) {
+      return handleAssetManifest(request, env, url);
+    }
     if (url.pathname === '/admin/login' && request.method === 'GET') return htmlResponse(renderAdminLogin(false));
     if (url.pathname === '/admin/login' && request.method === 'POST') return handleAdminLogin(request, env);
     if (url.pathname === '/admin/logout' && request.method === 'GET') return handleAdminLogout();

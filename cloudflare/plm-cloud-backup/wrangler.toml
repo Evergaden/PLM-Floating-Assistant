@@ -11,3 +11,5 @@ database_id = "75a4e636-aa91-4e95-a617-e42bb2e23bc7"
 
 [assets]
 directory = "./static"
+binding = "ASSETS"
+run_worker_first = ["/assets/manifest.json"]

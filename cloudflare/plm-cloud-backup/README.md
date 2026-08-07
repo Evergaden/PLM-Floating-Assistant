@@ -119,7 +119,11 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 - `GET /assets/v1/runtime-data.json`
 - `GET /assets/v1/excel-template.xlsx`
 - `GET /assets/v1/icons.json`
-- `GET /assets/v1/ui-2.5.181.css`
+- `GET /assets/v1/ui-2.5.182.css`
+
+`GET /assets/manifest.json?plm-ui=<ui-version>-<script-version>` returns the matching
+versioned UI descriptor when that stylesheet is still available. This keeps older
+installed userscripts compatible when a newer cloud UI is deployed.
 - `POST /backup/save`
 - `GET /backup/load?backupId=...` (legacy `backupKey` is still accepted)
 - `POST /backup/chunk`
