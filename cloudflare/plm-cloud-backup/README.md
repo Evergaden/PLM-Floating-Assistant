@@ -119,7 +119,7 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 - `GET /assets/v1/runtime-data.json`
 - `GET /assets/v1/excel-template.xlsx`
 - `GET /assets/v1/icons.json`
-- `GET /assets/v1/ui-2.5.172.css`
+- `GET /assets/v1/ui-2.5.181.css`
 - `POST /backup/save`
 - `GET /backup/load?backupId=...` (legacy `backupKey` is still accepted)
 - `POST /backup/chunk`

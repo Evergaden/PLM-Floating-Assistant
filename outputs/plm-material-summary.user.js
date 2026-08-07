@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.23
+// @version      2.7.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.23';
+  const SCRIPT_VERSION = '2.7.40';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -56,7 +56,9 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.172';
+  const UI_ASSET_VERSION = '2.5.181';
+  const HOME_ENTRY_PRESS_MS = 120;
+  const HOME_ENTRY_RELEASE_MS = 410;
   const INGREDIENT_NORMALIZER_VERSION = '3';
   const COPYWRITING_PARSER_VERSION = '9';
   const PLM_INGREDIENT_CACHE_VERSION = 2;
@@ -1763,6 +1765,8 @@
   const MAGIC_UPLOAD_CONCURRENCY = 3;
   const MAGIC_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
   const MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES = 150 * 1024 * 1024;
+  const MAGIC_UPLOAD_IMAGE_MAX_FILE_BYTES = 50 * 1024 * 1024;
+  const MAGIC_UPLOAD_MEDIA_MAX_FILE_BYTES = 200 * 1024 * 1024;
   const OSS_UPLOAD_SDK_RETRY_MAX = 2;
   const OSS_UPLOAD_RETRY_MAX = 4;
   const OSS_UPLOAD_RETRY_DELAY_MS = 1200;
@@ -1784,6 +1788,8 @@
     '图包素材': { rule: '图包素材', archiveTypeId: 7 },
     '推品资料': { rule: '推品资料', archiveTypeId: 4 },
   });
+  // ZIP 图包中需要剔除的目录名（第一级目录精确匹配），其内容不进入上传队列，也不显示待确认
+  const MAGIC_UPLOAD_IGNORE_DIRS = Object.freeze(['文案']);
   const MAGIC_UPLOAD_ATTRIBUTE_VARIABLES = Object.freeze({
     '主图': 'main_image',
     '英文参数图': 'english_specification_diagram',
@@ -2003,8 +2009,18 @@
 
   function getCachedCloudUiStyles() {
     if (String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION) return '';
+    if (!cloudUiAssetPathMatchesVersion(cloudAssetCache && cloudAssetCache.uiAssetPath)) return '';
     const css = cloudAssetCache && cloudAssetCache.uiCss;
     return typeof css === 'string' && css.length > 10000 ? css : '';
+  }
+
+  function cloudUiAssetPathMatchesVersion(value) {
+    const path = String(value || '').replace(/\\/g, '/');
+    return path.endsWith('/ui-' + UI_ASSET_VERSION + '.css') || path === 'ui-' + UI_ASSET_VERSION + '.css';
+  }
+
+  function cloudUiDescriptorMatchesVersion(descriptor) {
+    return Boolean(descriptor && cloudUiAssetPathMatchesVersion(descriptor.path));
   }
 
   function cloudBrandComplianceNeedsRefresh(cache) {
@@ -2066,16 +2082,21 @@
     if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
       throw new Error('unsupported cloud asset manifest');
     }
-    if (!staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && cloudAssetCache.dataVersion === manifest.dataVersion) {
-      cloudAssetCache = { ...cloudAssetCache, checkedAt: now, uiAssetVersion: UI_ASSET_VERSION };
-      saveCloudAssetCache(cloudAssetCache);
-      return cloudAssetCache;
-    }
     const runtimeDescriptor = manifest.assets.runtimeData;
     const templateDescriptor = manifest.assets.excelTemplate;
     const iconsDescriptor = manifest.assets.icons;
     const uiDescriptor = manifest.assets.uiStyles;
     if (!runtimeDescriptor || !templateDescriptor || !iconsDescriptor || !uiDescriptor) throw new Error('cloud asset manifest is incomplete');
+    if (!cloudUiDescriptorMatchesVersion(uiDescriptor)) throw new Error('cloud UI asset version mismatch');
+    const cachedUiHash = String(cloudAssetCache && cloudAssetCache.uiAssetHash || '').toLowerCase();
+    const manifestUiHash = String(uiDescriptor.sha256 || '').toLowerCase();
+    const uiDescriptorUnchanged = String(cloudAssetCache && cloudAssetCache.uiAssetPath || '') === String(uiDescriptor.path || '')
+      && Boolean(cachedUiHash && manifestUiHash && cachedUiHash === manifestUiHash);
+    if (!force && !staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && uiDescriptorUnchanged && cloudAssetCache.dataVersion === manifest.dataVersion) {
+      cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
+      saveCloudAssetCache(cloudAssetCache);
+      return cloudAssetCache;
+    }
     const uiCss = await fetchCloudAsset(uiDescriptor, 'text');
     if (typeof uiCss !== 'string' || uiCss.length < 10000 || !uiCss.includes('#' + PANEL_ID)) {
       throw new Error('cloud UI stylesheet is invalid');
@@ -2086,6 +2107,8 @@
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
       uiAssetVersion: UI_ASSET_VERSION,
+      uiAssetPath: String(uiDescriptor.path || ''),
+      uiAssetHash: String(uiDescriptor.sha256 || '').toLowerCase(),
       uiCss,
       uiCssUpdatedAt: new Date(now).toISOString(),
     };
@@ -2109,6 +2132,8 @@
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
       uiAssetVersion: UI_ASSET_VERSION,
+      uiAssetPath: String(uiDescriptor.path || ''),
+      uiAssetHash: String(uiDescriptor.sha256 || '').toLowerCase(),
       checkedAt: now,
       updatedAt: new Date(now).toISOString(),
       runtimeData,
@@ -3658,6 +3683,7 @@
     batchExcelDownloadRunning: false,
     batchExcelCurrentSku: '',
     batchExcelStatus: '',
+    homeChartPeriod: 7,
     insightRecommendationSku: '',
     insightRecommendationLoading: false,
     insightRecommendation: null,
@@ -6388,19 +6414,9 @@
     const productVersionId = String(product && (product.productVersionId || product.product && (product.product.product_version_id || product.product.product_main_id)) || '');
     const categoryId = String(product && (product.categoryId || product.category_id) || project && project.categoryId || '');
     const projectId = String(project && project.projectId || current.projectRowId || current.projectId || '').trim();
-    let apiPurchasePrice = product && product.purchasePrice || '';
-    if (!apiPurchasePrice && productVersionId) {
-      const pricePayloadPromise = fetchPlmJson('/api/Product/GetProductPriceInfo?type=1&product_version_id=' + encodeURIComponent(productVersionId)).catch((error) => {
-        addLog('info', 'Excel 产品价格 API 不可用，继续使用推荐或页面价格', sku + ' | ' + formatErrorMessage(error));
-        return null;
-      });
-      const procurePayloadPromise = fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(productVersionId) + '&code=' + encodeURIComponent(sku)).catch((error) => {
-        addLog('info', 'Excel 产品采购 API 不可用，继续使用推荐或页面价格', sku + ' | ' + formatErrorMessage(error));
-        return null;
-      });
-      const [pricePayload, procurePayload] = await Promise.all([pricePayloadPromise, procurePayloadPromise]);
-      apiPurchasePrice = extractApiPurchasePrice([pricePayload, procurePayload]);
-    }
+    // 2026-08-07: 停用 API 自动抓取采购价格（GetProductPriceInfo / GetProductProcureInfo / 产品快照价格
+    // 返回的价格与页面不符，会污染 Excel）。Excel 价格统一使用本地/页面数据 current.purchasePrice。
+    const apiPurchasePrice = '';
     const optional = product && product.optional || {};
     const optionalSeed = Object.keys(optional).reduce((result, key) => {
       if (isUsefulValue(optional[key])) result[key] = optional[key];
@@ -6455,7 +6471,7 @@
       referenceUrl: product && product.referenceUrl || project && project.referenceUrl || current.referenceUrl || '',
       benchmarkLink: product && product.referenceUrl || project && project.referenceUrl || current.benchmarkLink || '',
       packQty: product && product.packQty || current.packQty || '',
-      purchasePrice: apiPurchasePrice || current.purchasePrice || '',
+      purchasePrice: current.purchasePrice || '',
       netContent: productMetrics.netContent || current.netContent || '',
       grossWeight: productMetrics.grossWeight || current.grossWeight || '',
       plmProductNums: apiProductFound ? (product.productNums || null) : (current.plmProductNums || null),
@@ -6479,7 +6495,6 @@
     const projectReferenceUrl = getApiObjectFieldValue(projectObjects, ['reference_url', 'referenceUrl', 'benchmark_url', 'benchmarkUrl', 'benchmark_link', 'benchmarkLink', 'alibaba_link', 'alibabaLink'])
       .match(/https?:\/\/[^\s]+/i)?.[0] || '';
     const projectPackQty = normalizePackQty(getApiObjectFieldValue(projectObjects, ['pack_qty', 'packQty', 'pack_count', 'packCount', 'carton_qty', 'cartonQty']));
-    const projectPurchasePrice = normalizeLedgerPurchasePrice(getApiObjectFieldValue(projectObjects, ['purchase_price', 'purchasePrice', 'procurement_price', 'procurementPrice']));
     const merged = normalizeData({
       ...mergeApiPackagingData(seed, material),
       ...(toyApiPackageNums ? {
@@ -6492,7 +6507,7 @@
       referenceUrl: seed.referenceUrl || projectReferenceUrl || current.referenceUrl || '',
       benchmarkLink: seed.benchmarkLink || projectReferenceUrl || current.benchmarkLink || '',
       packQty: seed.packQty || projectPackQty || current.packQty || '',
-      purchasePrice: seed.purchasePrice || projectPurchasePrice || current.purchasePrice || '',
+      purchasePrice: seed.purchasePrice || current.purchasePrice || '',
       updatedAt: new Date().toLocaleString(),
       updatedAtMs: Date.now(),
     });
@@ -8216,6 +8231,7 @@
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
     detail.innerHTML = homeViewHtml(statusText, first);
+    setupHomeChartInteraction(detail);
   }
 
   function renderStandaloneTool(panel, html) {
@@ -8775,39 +8791,87 @@
     return Math.max(1, Math.round(previousSeconds * .72 + boundedTarget * .28));
   }
 
+  function getMagicUploadAvgFileDurationMs() {
+    const samples = state.magicUploadMetrics && Array.isArray(state.magicUploadMetrics.samples) ? state.magicUploadMetrics.samples.slice(-60) : [];
+    const durations = samples.map((sample) => Math.max(0, Number(sample && sample.durationMs) || 0)).filter((value) => value > 0);
+    if (!durations.length) return 0;
+    const median = (values) => {
+      const sorted = values.slice().sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    };
+    const recent = durations.slice(-12);
+    return median(durations) * .7 + median(recent) * .3;
+  }
+
+  function getMagicUploadTaskRemainingFileCount(task) {
+    const entries = Array.isArray(task && task.files) ? task.files : [];
+    const pendingEntries = entries.filter((entry) => entry && entry.status !== 'success').length;
+    const zipPending = task && task.zipKey && !task.sourceUploaded ? 1 : 0;
+    return pendingEntries + zipPending;
+  }
+
+  function calibrateMagicUploadTaskEta(task) {
+    if (!task) return 0;
+    const avgFileMs = getMagicUploadAvgFileDurationMs();
+    const remainingFiles = getMagicUploadTaskRemainingFileCount(task);
+    const targetSeconds = avgFileMs > 0 ? Math.ceil(remainingFiles * avgFileMs / 1000) : 0;
+    task.etaSeconds = targetSeconds;
+    task._etaCalibratedSeconds = targetSeconds;
+    task._etaCalibratedAt = Date.now();
+    return targetSeconds;
+  }
+
+  function getMagicUploadTaskDisplayEta(task) {
+    if (!task) return 0;
+    const base = Math.max(0, Number(task.etaSeconds) || 0);
+    if (!base) return 0;
+    if (typeof task._etaCalibratedSeconds !== 'number' || !task._etaCalibratedAt) return base;
+    const elapsed = Math.max(0, (Date.now() - task._etaCalibratedAt) / 1000);
+    return Math.max(0, Math.round(task._etaCalibratedSeconds - elapsed));
+  }
+
   function updateMagicUploadTaskEstimate(task) {
     if (!task) return 0;
-    const totals = getMagicUploadTaskByteTotals(task);
-    const remainingBytes = Math.max(0, totals.totalBytes - totals.uploadedBytes - totals.currentBytes);
-    const throughput = getMagicUploadThroughput();
-    const targetEtaSeconds = throughput > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
-    task.etaTargetSeconds = targetEtaSeconds;
-    task.etaSeconds = smoothMagicUploadEtaSeconds(task.etaSeconds, targetEtaSeconds);
-    task.progress = totals.totalBytes > 0 ? Math.min(1, Math.max(0, (totals.uploadedBytes + totals.currentBytes) / totals.totalBytes)) : 0;
-    return task.etaSeconds;
+    return calibrateMagicUploadTaskEta(task);
   }
 
   function getMagicUploadQueueEtaSeconds() {
-    const throughput = getMagicUploadThroughput();
-    if (throughput <= 0) return 0;
-    const remainingBytes = (state.magicUploadQueue || []).reduce((sum, task) => {
-      if (!task || task.status === 'success' || task.status === 'waiting') return sum;
-      return sum + getMagicUploadTaskRemainingBytes(task);
-    }, 0);
-    return remainingBytes > 0 ? Math.ceil(remainingBytes / throughput / 1000) : 0;
+    let total = 0;
+    let any = false;
+    (state.magicUploadQueue || []).forEach((task) => {
+      if (!task || task.status === 'success' || task.status === 'waiting') return;
+      any = true;
+      const displayEta = getMagicUploadTaskDisplayEta(task);
+      if (displayEta > 0) {
+        total += displayEta;
+      } else {
+        const avgFileMs = getMagicUploadAvgFileDurationMs();
+        if (avgFileMs > 0) total += Math.ceil(getMagicUploadTaskRemainingFileCount(task) * avgFileMs / 1000);
+      }
+    });
+    return any ? total : 0;
   }
 
   function updateMagicUploadOverviewEta() {
     if (state.view !== 'magicUpload') return;
     const panel = document.getElementById(PANEL_ID);
     const eta = panel && panel.querySelector('[data-magic-overall-eta]');
+    const bar = panel && panel.querySelector('[data-magic-queue-progress-bar]');
+    const text = panel && panel.querySelector('[data-magic-queue-progress-text]');
     if (!eta) return;
     const hasWork = (state.magicUploadQueue || []).some((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
     const targetSeconds = getMagicUploadQueueEtaSeconds();
-    if (targetSeconds > 0) state.magicUploadEtaDisplaySeconds = smoothMagicUploadEtaSeconds(state.magicUploadEtaDisplaySeconds, targetSeconds);
-    else if (!hasWork || !state.magicUploadRunning) state.magicUploadEtaDisplaySeconds = 0;
-    const seconds = Math.max(0, Number(state.magicUploadEtaDisplaySeconds) || 0);
-    eta.textContent = seconds ? formatMagicUploadDuration(seconds) : (state.magicUploadRunning && hasWork ? '正在建立估算' : '--');
+    let doneFiles = 0;
+    let totalFiles = 0;
+    (state.magicUploadQueue || []).forEach((task) => {
+      totalFiles += getMagicUploadTaskFileCount(task);
+      doneFiles += getMagicUploadTaskDoneFileCount(task);
+    });
+    const queuePercent = totalFiles > 0 ? Math.min(100, Math.round(doneFiles / totalFiles * 100)) : 0;
+    if (bar) bar.style.width = queuePercent + '%';
+    if (text) text.textContent = doneFiles + '/' + totalFiles + ' 文件';
+    eta.textContent = targetSeconds > 0 ? formatMagicUploadDuration(targetSeconds) : (state.magicUploadRunning && hasWork ? '正在建立估算' : '--');
   }
 
   function updateMagicUploadEtaDisplay() {
@@ -8828,7 +8892,8 @@
 
   function updateMagicUploadProgress(task) {
     if (!task || state.view !== 'magicUpload') return;
-    updateMagicUploadTaskEstimate(task);
+    const totals = getMagicUploadTaskByteTotals(task);
+    task.progress = totals.totalBytes > 0 ? Math.min(1, Math.max(0, (totals.uploadedBytes + totals.currentBytes) / totals.totalBytes)) : 0;
     const panel = document.getElementById(PANEL_ID);
     const row = panel && panel.querySelector('.pfh-magic-task[data-magic-id="' + CSS.escape(String(task.id)) + '"]');
     if (!row) return;
@@ -8837,9 +8902,10 @@
     const value = row.querySelector('[data-magic-progress-value]');
     const eta = row.querySelector('[data-magic-eta]');
     const stage = row.querySelector('[data-magic-stage]');
+    const displayEta = getMagicUploadTaskDisplayEta(task);
     if (bar) bar.style.width = progress + '%';
     if (value) value.textContent = progress + '%';
-    if (eta) eta.textContent = task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : '正在建立估算');
+    if (eta) eta.textContent = task.status === 'success' ? '已完成' : (displayEta ? '约 ' + formatMagicUploadDuration(displayEta) : '正在建立估算');
     if (stage) stage.textContent = task.currentFileName ? (task.step || '上传中') + ' · ' + (task.currentFileName.split('/').pop() || task.currentFileName) : (task.step || '等待上传');
     updateMagicUploadOverviewEta();
   }
@@ -8965,6 +9031,12 @@
     };
   }
 
+  function isMagicUploadIgnoredEntry(name) {
+    const normalized = String(name || '').replace(/\\/g, '/');
+    const firstFolder = normalized.split('/').filter(Boolean)[0] || '';
+    return MAGIC_UPLOAD_IGNORE_DIRS.indexOf(firstFolder) !== -1;
+  }
+
   function classifyMagicUploadName(name) {
     const normalized = String(name || '').replace(/\\/g, '/');
     const firstFolder = normalized.split('/').filter(Boolean)[0] || '';
@@ -9049,6 +9121,49 @@
     });
   }
 
+  // ZIP 内文件名编码兼容：Windows 中文压缩工具生成的 zip 常用 GBK 编码且不设置
+  // UTF-8 标志位（bit 11）。fflate 会按 Latin-1 直转（产生 Ó¢ÎÄ²ÎÊýÍ¼ 类乱码，可逆），
+  // JSZip 默认则产生 U+FFFD（不可逆）。以下函数负责正确还原文件名。
+  function decodeMagicUploadZipFileName(bytes) {
+    let u8;
+    try {
+      u8 = new Uint8Array(bytes);
+    } catch (error) {
+      u8 = Uint8Array.from(bytes || []);
+    }
+    if (!u8.length) return '';
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(u8);
+    } catch (error) {
+      try {
+        return new TextDecoder('gbk').decode(u8);
+      } catch (error2) {
+        return String.fromCharCode.apply(null, Array.from(u8));
+      }
+    }
+  }
+
+  function fixMagicUploadZipEntryName(name) {
+    if (!name) return name;
+    let hasHighChar = false;
+    const bytes = new Uint8Array(name.length);
+    for (let i = 0; i < name.length; i++) {
+      const code = name.charCodeAt(i);
+      if (code > 0xFF) {
+        hasHighChar = true;
+        break;
+      }
+      bytes[i] = code;
+    }
+    if (hasHighChar || !bytes.length) return name;
+    try {
+      const decoded = new TextDecoder('gbk').decode(bytes);
+      return decoded.indexOf('\uFFFD') !== -1 ? name : decoded;
+    } catch (error) {
+      return name;
+    }
+  }
+
   async function decodeMagicUploadZipEntries(zipBuffer, sourceName) {
     const decoder = typeof fflate !== 'undefined' && fflate && typeof fflate.unzip === 'function' ? fflate : null;
     if (decoder) {
@@ -9057,11 +9172,14 @@
         const decoded = await withMagicUploadTimeout(new Promise((resolve, reject) => {
           decoder.unzip(new Uint8Array(zipBuffer), (error, files) => error ? reject(error) : resolve(files || {}));
         }), 120000, 'ZIP 批量解压');
-        const entries = Object.keys(decoded).map((name) => ({
-          name,
-          dir: /\/$/.test(name),
-          bytes: decoded[name],
-        }));
+        const entries = Object.keys(decoded).map((name) => {
+          const fixedName = fixMagicUploadZipEntryName(name);
+          return {
+            name: fixedName,
+            dir: /\/$/.test(fixedName),
+            bytes: decoded[name],
+          };
+        });
         magicUploadLog('info', 'ZIP 批量解压完成', sourceName + ' | 解码文件=' + entries.filter((entry) => !entry.dir).length + ' | 条目=' + entries.length);
         return entries;
       } catch (error) {
@@ -9072,7 +9190,7 @@
     } else {
       magicUploadLog('warn', '未找到 fflate，回退 JSZip', sourceName);
     }
-    const zip = await withMagicUploadTimeout(JSZip.loadAsync(zipBuffer), 120000, 'ZIP 解析');
+    const zip = await withMagicUploadTimeout(JSZip.loadAsync(zipBuffer, { decodeFileName: decodeMagicUploadZipFileName }), 120000, 'ZIP 解析');
     const entries = Object.values(zip.files).map((entry) => ({
       name: entry.name,
       dir: Boolean(entry.dir),
@@ -9136,6 +9254,12 @@
       for (const zipFile of sourceFiles) {
         try {
           if (/\.xlsx$/i.test(zipFile.name || '')) {
+            const duplicateXlsxTask = findMagicUploadDuplicateSourceTask('xlsx', zipFile.name, zipFile.size);
+            if (duplicateXlsxTask) {
+              magicUploadLog('warn', '跳过重复 XLSX', zipFile.name + ' | 队列中已存在相同推品资料，忽略本次拖入');
+              showToast('已存在相同推品资料，已跳过：' + zipFile.name);
+              continue;
+            }
             setProcessingText('正在缓存 XLSX：' + zipFile.name, true);
             magicUploadLog('info', 'XLSX 开始本地缓存', zipFile.name + ' | bytes=' + Number(zipFile.size || 0));
             const skus = getSkusFromFileName(zipFile.name);
@@ -9154,13 +9278,21 @@
             continue;
           }
 
+          const duplicateZipTask = findMagicUploadDuplicateSourceTask('zip', zipFile.name, zipFile.size);
+          if (duplicateZipTask) {
+            magicUploadLog('warn', '跳过重复 ZIP', zipFile.name + ' | 队列中已存在相同图包，忽略本次拖入');
+            showToast('已存在相同图包，已跳过：' + zipFile.name);
+            continue;
+          }
           setProcessingText('正在读取 ZIP：' + zipFile.name, true);
           magicUploadLog('info', 'ZIP 开始读取', zipFile.name + ' | bytes=' + Number(zipFile.size || 0) + ' | type=' + (zipFile.type || '无类型'));
           const zipBuffer = await withMagicUploadTimeout(readMagicUploadArrayBuffer(zipFile), 120000, 'ZIP 文件读取');
           magicUploadLog('info', 'ZIP 文件已读入内存', zipFile.name + ' | bytes=' + Number(zipBuffer && zipBuffer.byteLength || 0));
           setProcessingText('正在解析 ZIP：' + zipFile.name, true);
           const decodedEntries = await decodeMagicUploadZipEntries(zipBuffer, zipFile.name);
-          const entries = decodedEntries.filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name));
+          const entries = decodedEntries.filter((entry) => entry && !entry.dir && entry.name && !/(^|\/)__MACOSX\//i.test(entry.name) && !isMagicUploadIgnoredEntry(entry.name));
+          const ignoredCount = decodedEntries.filter((entry) => entry && !entry.dir && entry.name && isMagicUploadIgnoredEntry(entry.name)).length;
+          if (ignoredCount) magicUploadLog('warn', 'ZIP 跳过忽略目录文件', zipFile.name + ' | 忽略=' + ignoredCount + ' 个（' + MAGIC_UPLOAD_IGNORE_DIRS.join('/') + '）');
           magicUploadLog('info', 'ZIP 文件清单完成', zipFile.name + ' | 可处理文件=' + entries.length);
           const fileSkus = getSkusFromFileName(zipFile.name);
           const allSkus = new Set(fileSkus);
@@ -9220,13 +9352,23 @@
     return { added: addedTaskCount, errors: processingErrors };
   }
 
+  function findMagicUploadDuplicateSourceTask(sourceType, fileName, fileSize) {
+    const isZip = sourceType === 'zip';
+    return (state.magicUploadQueue || []).find((task) => task && task.status !== 'success' &&
+      (isZip ? task.zipKey : (!task.zipKey && task.sourceType === 'xlsx')) &&
+      String(isZip ? (task.zipName || '') : (task.sourceName || '')) === String(fileName || '') &&
+      Math.abs((Number(isZip ? task.sourceSize : task.totalBytes) || 0) - (Number(fileSize) || 0)) < 16) || null;
+  }
+
   function mergeMagicUploadTasks(additions) {
     const queue = state.magicUploadQueue || [];
     const affectedTasks = [];
     (additions || []).forEach((addition) => {
       const existing = addition.sku && queue.find((task) => task.sku === addition.sku && task.status !== 'success');
       if (existing) {
-        existing.files = (existing.files || []).concat(addition.files || []);
+        const existingKeys = new Set((existing.files || []).map((entry) => String(entry && entry.name || '') + '|' + Number(entry && entry.size) || 0));
+        const freshFiles = (addition.files || []).filter((entry) => !existingKeys.has(String(entry && entry.name || '') + '|' + Number(entry && entry.size) || 0));
+        existing.files = (existing.files || []).concat(freshFiles);
         if (addition.zipKey) {
           existing.zipKey = addition.zipKey;
           existing.zipName = addition.zipName;
@@ -9481,8 +9623,7 @@
     const errorCount = queue.filter((task) => task.status === 'error').length;
     const successCount = queue.filter((task) => task.status === 'success').length;
     const etaWork = queue.filter((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
-    const queuedEtaSeconds = etaWork.reduce((sum, task) => sum + Math.max(0, Number(task.etaSeconds) || 0), 0);
-    const etaSeconds = Math.max(0, Number(state.magicUploadEtaDisplaySeconds) || 0) || queuedEtaSeconds;
+    const etaSeconds = getMagicUploadQueueEtaSeconds();
     const recentTasks = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error' || task.status === 'waiting').slice(0, 3);
     const rows = queue.length ? queue.map((task) => {
       const unknown = task.files.filter((entry) => entry.category === '待确认').length;
@@ -9494,14 +9635,15 @@
       const replacementCategories = Array.isArray(task.replaceCategories) ? task.replaceCategories : [];
       const replacementBadge = replacementStatus === 'checking' ? '<span class="pfh-magic-file-badge is-checking">检查现有图</span>' : (replacementCategories.length ? '<span class="pfh-magic-file-badge is-replace">替换任务</span>' : '');
       const replacementSummary = magicUploadReplacementSummary(task);
-      const taskEta = task.status === 'success' ? '已完成' : (task.etaSeconds ? '约 ' + formatMagicUploadDuration(task.etaSeconds) : (running ? '正在建立估算' : '--'));
+      const taskDisplayEta = getMagicUploadTaskDisplayEta(task);
+      const taskEta = task.status === 'success' ? '已完成' : (taskDisplayEta ? '约 ' + formatMagicUploadDuration(taskDisplayEta) : (running ? '正在建立估算' : '--'));
       const taskFileCount = getMagicUploadTaskFileCount(task);
       const taskFileTitle = task.zipKey ? '含待上传的原始 ZIP' : '';
       return '<article class="pfh-magic-task ' + (replacementCategories.length ? 'is-replace ' : '') + statusClass + '" data-magic-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku || '待确认 SKU') + '">' + escapeHtml(task.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(task.sourceName || task.zipName) + '">' + escapeHtml(task.sourceName || task.zipName || '未命名来源') + '</span><span class="pfh-magic-file-badge" title="' + escapeHtml(taskFileTitle) + '">' + taskFileCount + ' 个文件</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span>' + escapeHtml(categoriesText) + (unknown ? ' · ' + unknown + ' 待确认' : '') + '</span><span>API + OSS</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(replacementSummary) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + escapeHtml(task.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + escapeHtml(taskEta) + '</span><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
     }).join('') : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>';
-    const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + iconHtml('history') + ' 上传历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span>' + escapeHtml(entry.sourceName || '未命名来源') + ' · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section></div>' : '';
+    const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + iconHtml('history') + ' 上传历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => { const fullSourceName = entry.sourceName || '未命名来源'; const historySourceName = truncateFileName(fullSourceName, 30); return '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : (entry.status === 'waiting' ? '已暂停' : '失败')) + '</strong><span><span class="pfh-magic-history-source" title="' + escapeHtml(fullSourceName) + '">' + escapeHtml(historySourceName) + '</span> · ' + Number(entry.successCount || 0) + '/' + Number(entry.fileCount || 0) + ' 文件 · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '未完成') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>'; }).join('') : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + '</div></section></div>' : '';
     const activityHtml = recentTasks.length ? recentTasks.map((task) => '<p><i></i><span>' + escapeHtml((task.sku || '待确认 SKU') + ' · ' + magicUploadStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong data-magic-overall-eta>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : (running && pendingCount ? '正在建立估算' : '--')) + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX，悬浮后可按 Ctrl+V 粘贴"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>悬浮此框后按 Ctrl+V，可直接粘贴文件 · ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-upload-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + doneFiles + '/' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + successCount + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong data-magic-overall-eta>' + (etaSeconds ? formatMagicUploadDuration(etaSeconds) : (running && pendingCount ? '正在建立估算' : '--')) + '</strong></div></div><div class="pfh-magic-queue-progress"><div class="pfh-magic-queue-progress-track"><div class="pfh-magic-queue-progress-bar" data-magic-queue-progress-bar style="width:0%"></div></div><span data-magic-queue-progress-text>0/' + totalFiles + ' 文件</span></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX，悬浮后可按 Ctrl+V 粘贴"><div><span class="pfh-magic-drop-icon">' + iconHtml('upload') + '</span><strong>拖入 ZIP 或 XLSX</strong><span>悬浮此框后按 Ctrl+V，可直接粘贴文件 · ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-upload-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 个文件</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
   }
 
   function saveMagicUploadTaskEdits(id) {
@@ -10413,9 +10555,18 @@
       const secret = secretPayload && secretPayload.data;
       if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到 OSS 临时授权');
       const declaredMaxBytes = Number(secret.max_file_size) || 0;
-      const uploadMaxBytes = category === '图包素材' ? MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES : (declaredMaxBytes || MAGIC_UPLOAD_MAX_FILE_BYTES);
-      if (file.size > uploadMaxBytes) throw new Error(category === '图包素材' ? '图包素材单个文件不能超过 150MB' : '文件超过 PLM 限制：' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
-      if (category === '图包素材' && declaredMaxBytes && declaredMaxBytes < uploadMaxBytes) magicUploadLog('info', '采用图包素材页面限制', '接口通用提示=' + Math.round(declaredMaxBytes / 1024 / 1024) + 'MB；页面规则=150MB');
+      // 按文件类型设置上传上限：OSS 授权接口的 max_file_size(20MB) 是通用默认回复，
+      // 不代表 PLM 对图片/视频等大文件的真实限制，按类型放宽：图片 50MB、动图/视频 200MB、图包素材 150MB。
+      const extension = getMagicUploadFileExtension(file.name || entry.name);
+      const isImageFile = /\.(?:jpe?g|png|webp|bmp)$/i.test(extension);
+      const isMediaFile = category === '视频' || category === '动图' || /\.(?:mp4|mov|avi|webm|gif)$/i.test(extension);
+      let uploadMaxBytes;
+      if (category === '图包素材') uploadMaxBytes = MAGIC_UPLOAD_ARCHIVE_MAX_FILE_BYTES;
+      else if (isMediaFile) uploadMaxBytes = MAGIC_UPLOAD_MEDIA_MAX_FILE_BYTES;
+      else if (isImageFile) uploadMaxBytes = MAGIC_UPLOAD_IMAGE_MAX_FILE_BYTES;
+      else uploadMaxBytes = declaredMaxBytes || MAGIC_UPLOAD_MAX_FILE_BYTES;
+      if (file.size > uploadMaxBytes) throw new Error('文件超过 ' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB 上限：' + (file.name || entry.name));
+      if (declaredMaxBytes && declaredMaxBytes < uploadMaxBytes) magicUploadLog('info', '采用文件类型上限', '接口通用提示=' + Math.round(declaredMaxBytes / 1024 / 1024) + 'MB；' + category + '/' + (extension || '无扩展名') + ' 上限=' + Math.round(uploadMaxBytes / 1024 / 1024) + 'MB');
       if (typeof OSS !== 'function') throw new Error('OSS 上传组件未加载，请刷新脚本');
       const objectName = String(secret.file_directory).replace(/^\/+/, '') + '/' + createMagicObjectName(getMagicUploadFileExtension(file.name || entry.name));
       const client = new OSS({ region: 'oss-cn-shenzhen', bucket: secret.bucket, accessKeyId: secret.access_key_id, accessKeySecret: secret.access_key_secret, stsToken: secret.security_token, endpoint: 'https://oss-cn-shenzhen.aliyuncs.com', secure: true, retryMax: OSS_UPLOAD_SDK_RETRY_MAX, timeout: OSS_UPLOAD_TIMEOUT_MS });
@@ -11381,33 +11532,243 @@
     return parts.join('；') || '检测到新的产品文案文件';
   }
 
+  function homeAssignedDateKey(record) {
+    return parseLedgerDateFromText(record && record.designAssignedAt);
+  }
+
+  function homeDashboardStats(period) {
+    const todayKey = getTodayKey();
+    const yesterdayKey = shiftDateKey(todayKey, -1);
+    const assignedCounts = new Map();
+    (state.index || []).forEach((record) => {
+      const key = homeAssignedDateKey(record);
+      if (key) assignedCounts.set(key, (assignedCounts.get(key) || 0) + 1);
+    });
+    const days = Array.from({ length: period }, (_, index) => shiftDateKey(todayKey, index - period + 1));
+    const values = days.map((key) => assignedCounts.get(key) || 0);
+    const today = assignedCounts.get(todayKey) || 0;
+    const yesterday = assignedCounts.get(yesterdayKey) || 0;
+    const finalizedToday = (state.ledgerRecords || []).filter((record) => isLedgerFinalizedRecord(record) && getLedgerFinalizedDate(record) === todayKey).length;
+    return {
+      today,
+      yesterday,
+      finalizedToday,
+      completionRate: today ? Math.min(100, Math.round(finalizedToday / today * 100)) : 0,
+      days,
+      values,
+      total: values.reduce((sum, value) => sum + value, 0),
+    };
+  }
+
+  function homeChartGeometry(values) {
+    const width = 620;
+    const baseline = 112;
+    const top = 20;
+    const safeValues = values.length ? values : [0];
+    const maxValue = Math.max(1, ...safeValues);
+    const step = safeValues.length > 1 ? width / (safeValues.length - 1) : width;
+    const points = safeValues.map((value, index) => ({
+      x: Number((index * step).toFixed(2)),
+      y: Number((baseline - (Number(value) || 0) / maxValue * (baseline - top)).toFixed(2)),
+    }));
+    let line = 'M' + points[0].x + ',' + points[0].y;
+    for (let index = 1; index < points.length; index += 1) {
+      const previous = points[index - 1];
+      const current = points[index];
+      const middleX = Number(((previous.x + current.x) / 2).toFixed(2));
+      line += ' C' + middleX + ',' + previous.y + ' ' + middleX + ',' + current.y + ' ' + current.x + ',' + current.y;
+    }
+    return {
+      line,
+      area: line + ' L' + width + ',' + baseline + ' L0,' + baseline + ' Z',
+      last: points[points.length - 1],
+      points,
+    };
+  }
+
+  function homeChartLabelsHtml(days, period) {
+    const indexes = period === 30 ? [0, 6, 12, 18, 24, 29] : days.map((_day, index) => index);
+    return indexes.map((index) => {
+      const key = days[index] || days[days.length - 1] || getTodayKey();
+      const label = index === days.length - 1 ? '今天' : Number(key.slice(5, 7)) + '/' + Number(key.slice(8, 10));
+      return '<span>' + escapeHtml(label) + '</span>';
+    }).join('');
+  }
+
+  function homeChartPointsHtml(stats, chart) {
+    return chart.points.map((point, index) => {
+      const day = stats.days[index] || getTodayKey();
+      const label = index === stats.days.length - 1
+        ? '今天'
+        : Number(day.slice(5, 7)) + '月' + Number(day.slice(8, 10)) + '日';
+      const x = Number((point.x / 620 * 100).toFixed(3));
+      const y = Number((point.y / 130 * 100).toFixed(3));
+      return '<button type="button" class="pfh-home-chart-point' + (index === chart.points.length - 1 ? ' is-latest' : '') + '" style="--pfh-chart-x:' + x + '%;--pfh-chart-y:' + y + '%" data-chart-index="' + index + '" data-chart-x="' + x + '" data-chart-y="' + y + '" data-chart-label="' + escapeHtml(label) + '" data-chart-count="' + (Number(stats.values[index]) || 0) + '" aria-label="' + escapeHtml(label) + '，新分配 ' + (Number(stats.values[index]) || 0) + ' 个任务"></button>';
+    }).join('');
+  }
+
+  function setupHomeChartInteraction(root) {
+    const plot = root && root.querySelector('.pfh-home-chart-plot');
+    if (!plot) return;
+    const points = Array.from(plot.querySelectorAll('.pfh-home-chart-point'));
+    const tooltip = plot.querySelector('.pfh-home-chart-tooltip');
+    const tooltipDate = tooltip && tooltip.querySelector('strong');
+    const tooltipValue = tooltip && tooltip.querySelector('span');
+    if (!points.length || !tooltip || !tooltipDate || !tooltipValue) return;
+
+    const activate = (index) => {
+      const safeIndex = Math.max(0, Math.min(points.length - 1, Number(index) || 0));
+      const point = points[safeIndex];
+      const x = Number(point.getAttribute('data-chart-x')) || 0;
+      const y = Number(point.getAttribute('data-chart-y')) || 0;
+      points.forEach((item) => item.classList.toggle('is-active', item === point));
+      tooltipDate.textContent = point.getAttribute('data-chart-label') || '';
+      tooltipValue.textContent = '新分配 ' + (point.getAttribute('data-chart-count') || '0') + ' 个任务';
+      tooltip.style.setProperty('--pfh-chart-tip-x', Math.max(12, Math.min(88, x)) + '%');
+      plot.style.setProperty('--pfh-chart-guide-x', x + '%');
+      plot.classList.add('is-inspecting');
+      tooltip.classList.toggle('is-below', y < 32);
+    };
+    const deactivate = () => {
+      plot.classList.remove('is-inspecting', 'is-scrubbing');
+      points.forEach((item) => item.classList.remove('is-active'));
+    };
+    const activateFromPointer = (event) => {
+      const rect = plot.getBoundingClientRect();
+      if (!rect.width) return;
+      const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      activate(Math.round(ratio * (points.length - 1)));
+    };
+
+    plot.addEventListener('pointerenter', activateFromPointer);
+    plot.addEventListener('pointermove', activateFromPointer);
+    plot.addEventListener('pointerdown', (event) => {
+      plot.classList.add('is-scrubbing');
+      try { plot.setPointerCapture(event.pointerId); } catch (_) {}
+      activateFromPointer(event);
+    });
+    plot.addEventListener('pointerup', (event) => {
+      plot.classList.remove('is-scrubbing');
+      try { plot.releasePointerCapture(event.pointerId); } catch (_) {}
+      activateFromPointer(event);
+    });
+    plot.addEventListener('pointerleave', deactivate);
+    points.forEach((point, index) => {
+      point.addEventListener('focus', () => activate(index));
+      point.addEventListener('blur', () => {
+        window.setTimeout(() => {
+          if (!plot.contains(document.activeElement)) deactivate();
+        }, 0);
+      });
+      point.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const offset = event.key === 'ArrowLeft' ? -1 : 1;
+        points[Math.max(0, Math.min(points.length - 1, index + offset))].focus();
+      });
+    });
+  }
+
+  function homeTaskProgress(status, explicitProgress) {
+    if (Number.isFinite(Number(explicitProgress)) && Number(explicitProgress) > 0) {
+      const value = Number(explicitProgress) <= 1 ? Number(explicitProgress) * 100 : Number(explicitProgress);
+      return Math.max(4, Math.min(100, Math.round(value)));
+    }
+    const text = String(status || '');
+    if (/成功|完成|ready|downloaded/i.test(text)) return 100;
+    if (/进行中|上传中|生成中|preparing|processing/i.test(text)) return 56;
+    if (/待|已齐|pending/i.test(text)) return 18;
+    return 7;
+  }
+
+  function homeTaskItems() {
+    const tasks = [];
+    (state.magicUploadQueue || []).filter((task) => task && task.status !== 'success').forEach((task) => tasks.push({
+      action: 'home-magic-upload',
+      icon: 'upload',
+      title: (task.sku || '待确认 SKU') + ' · 魔法上传',
+      status: magicUploadStatusLabel(task),
+      progress: homeTaskProgress(task.status, task.progress),
+      tone: task.status === 'error' ? 'error' : (task.status === 'processing' ? 'active' : ''),
+    }));
+    (state.uploadQueue || []).filter((task) => task && !/成功/.test(task.status || '')).forEach((task) => tasks.push({
+      action: 'upload-toggle',
+      icon: 'upload',
+      title: (task.sku || '待确认 SKU') + ' · 提审上传',
+      status: task.step || task.status || '等待处理',
+      progress: homeTaskProgress(task.step || task.status),
+      tone: /失败|缺/.test((task.step || '') + (task.status || '')) ? 'error' : (/进行中|上传中/.test((task.step || '') + (task.status || '')) ? 'active' : ''),
+    }));
+    (state.batchExcelQueue || []).filter((task) => task && task.status !== 'downloaded').forEach((task) => tasks.push({
+      action: 'home-batch-excel',
+      icon: 'batchExcel',
+      title: task.sku + ' · 批量生成 Excel',
+      status: task.status === 'ready' ? '已准备，可下载' : (task.status === 'preparing' ? '正在补全缓存' : (task.status === 'error' ? '生成失败' : '等待处理')),
+      progress: homeTaskProgress(task.status),
+      tone: task.status === 'error' ? 'error' : (task.status === 'preparing' ? 'active' : (task.status === 'ready' ? 'done' : '')),
+    }));
+    return tasks.slice(0, 4);
+  }
+
+  function homeTaskPanelHtml() {
+    const tasks = homeTaskItems();
+    const body = tasks.length ? '<div class="pfh-home-task-list">' + tasks.map((task) => '<button type="button" class="pfh-home-task-row is-' + escapeHtml(task.tone || 'waiting') + '" data-action="' + escapeHtml(task.action) + '">' +
+      '<span class="pfh-home-task-icon">' + iconHtml(task.icon) + '</span>' +
+      '<span class="pfh-home-task-main"><span class="pfh-home-task-name"><b title="' + escapeHtml(task.title) + '">' + escapeHtml(task.title) + '</b><em>' + task.progress + '%</em></span><span class="pfh-home-task-progress"><i style="width:' + task.progress + '%"></i></span><small>' + escapeHtml(task.status) + '</small></span>' +
+      '<i class="pfh-home-task-status"></i></button>').join('') + '</div>' :
+      '<div class="pfh-home-task-empty"><span>' + iconHtml('taskPlan') + '</span><strong>暂时没有进行中的任务</strong><p>任务中心位置已预留，后续会集中显示上传、生成和提审进度。</p><div><i>上传队列</i><i>生成进度</i><i>提审状态</i></div></div>';
+    return '<section class="pfh-home-panel pfh-home-task-panel"><div class="pfh-home-panel-title"><h3>任务动态</h3><span class="pfh-home-preview-badge">' + (tasks.length ? '实时队列' : '功能占位') + '</span></div>' + body + '<footer><span>最多展示最近 4 项</span>' + (tasks.length ? '<button type="button" data-action="upload-toggle">查看上传队列 →</button>' : '') + '</footer></section>';
+  }
+
+  function homeFeatureEntryHtml(entry, className) {
+    const disabled = Boolean(entry.disabled);
+    return '<button type="button" class="pfh-home-entry ' + (className || '') + (disabled ? ' is-disabled' : '') + '" data-action="' + escapeHtml(entry.action) + '"' + (disabled ? ' disabled aria-disabled="true"' : '') + '>' +
+      '<span class="pfh-home-entry-icon">' + iconHtml(entry.icon) + '</span>' +
+      '<span class="pfh-home-entry-copy"><strong>' + escapeHtml(entry.title) + '</strong><small>' + escapeHtml(entry.description) + '</small></span>' +
+      (entry.badge ? '<i class="pfh-home-entry-badge">' + escapeHtml(entry.badge) + '</i>' : '') +
+      '<span class="pfh-home-entry-arrow">→</span>' +
+      (entry.meta ? '<em class="pfh-home-entry-meta">' + escapeHtml(entry.meta) + '</em>' : '') +
+      '</button>';
+  }
+
   function homeViewHtml(statusText) {
-    const count = state.index.length;
-    const status = statusText || '打开项目后，我会自动沉淀尺寸、净含量、重量与图包信息。';
-    const magicUploadLocked = !state.magicUploadAccessEnabled;
-    const magicUploadLockText = state.magicUploadAccessLoading ? '正在准备功能。' : '该功能暂未开放，敬请期待。';
-    const cards = [
-      ['open-first-detail', 'folder', '我的详情', '打开我的详情', '默认打开第一个编码的详情页。'],
-      ['ledger-open', 'taskPlan', '今日台账', '今日工作台', '记录定稿和粗流程，一键复制到月登记表。'],
-      ['home-batch-excel', 'batchExcel', '规格成表', '批量生成 Excel', '输入多个 SKU，自动补全缓存并排队下载。'],
-      ['upload-toggle', 'upload', '提审流转', '批量提审上传', '按 SKU 队列上传文件，记录成功、草稿与异常状态。'],
-      ['home-magic-upload', 'upload', '图包实验室', '魔法上传', magicUploadLocked ? magicUploadLockText : '拖入多个 ZIP，自动识别 SKU 与素材区域并通过 API 上传。', magicUploadLocked, true],
-      ['home-parameter-image', 'image', '套图辅助', '生成参数图', '选择 SKU 并拖入透明产品图，生成产品尺寸图和英文参数图。', false, true],
-      ['home-tools', 'tools', '效率辅助', '小工具', '厘米换算、编码格式化和批量玩具文案补全集中管理。'],
-      ['home-feedback', 'messageCircle', '意见反馈', '提交反馈', '告诉我们哪里需要改进，提交后可查看处理状态和管理员回复。'],
+    const period = Number(state.homeChartPeriod) === 30 ? 30 : 7;
+    const stats = homeDashboardStats(period);
+    const chart = homeChartGeometry(stats.values);
+    const now = new Date();
+    const weekNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const greeting = now.getHours() < 11 ? '早上好' : (now.getHours() < 18 ? '下午好' : '晚上好');
+    const dateText = (now.getMonth() + 1) + '月' + now.getDate() + '日 ' + weekNames[now.getDay()];
+    const delta = stats.today - stats.yesterday;
+    const deltaPercent = stats.yesterday ? Math.round(Math.abs(delta) / stats.yesterday * 100) : 0;
+    const compareClass = delta > 0 ? ' is-up' : (delta < 0 ? ' is-down' : '');
+    const compareBadge = delta > 0 ? '↗ ' + deltaPercent + '%' : (delta < 0 ? '↘ ' + deltaPercent + '%' : '持平');
+    const compareText = stats.yesterday ? '比昨天' + (delta > 0 ? '多 ' + delta : (delta < 0 ? '少 ' + Math.abs(delta) : '相同')) + ' 个' : '昨日暂无新任务';
+    const magicLocked = !state.magicUploadAccessEnabled;
+    const primary = { action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '打开最近缓存的产品详情，继续查看尺寸、重量与图包信息。', meta: state.index.length + ' 个本地产品档案' };
+    const quickEntries = [
+      { action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' },
+      { action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '队列上传并记录状态' },
+      { action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: magicLocked ? (state.magicUploadAccessLoading ? '正在准备功能' : '该功能暂未开放') : 'ZIP 自动识别并上传', disabled: magicLocked, badge: 'BETA' },
+      { action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '尺寸图与英文参数图', badge: 'BETA' },
     ];
-    return '<div class="pfh-detail-scroll"><section class="pfh-home">' +
-      '<div class="pfh-home-orbit"><i class="wave"></i><i class="wave"></i><i class="wave"></i><span></span></div>' +
-      '<h2>PLM 工作台</h2>' +
-      '<p>' + escapeHtml(status) + '</p>' +
-      '<div class="pfh-home-stats"><span>CACHED</span><b>' + escapeHtml(String(count)) + '</b><em>本地产品档案</em></div>' +
-      '<div class="pfh-home-grid">' + cards.map((card) => '<button type="button" class="pfh-home-card' + (card[5] ? ' is-disabled' : '') + '" data-action="' + card[0] + '"' + (card[5] ? ' disabled aria-disabled="true"' : '') + '>' +
-        iconHtml(card[1]) +
-        '<small>' + escapeHtml(card[2]) + '</small>' +
-        '<strong class="pfh-home-card-title"><b>' + escapeHtml(card[3]) + '</b></strong>' +
-        (card[6] ? '<i class="pfh-beta-badge">BETA</i>' : '') +
-        '<span>' + escapeHtml(card[4]) + '</span>' +
-      '</button>').join('') + '</div>' +
+    const secondaryEntries = [
+      { action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '记录定稿和流程' },
+      { action: 'home-tools', icon: 'tools', title: '小工具', description: '换算与编码整理' },
+      { action: 'home-feedback', icon: 'messageCircle', title: '提交反馈', description: '建议与问题反馈' },
+    ];
+    const chartSummary = '近 ' + period + ' 日共新分配 ' + stats.total + ' 个任务';
+    const status = statusText || '常用功能与今日进度集中在这里';
+    return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard">' +
+      '<header class="pfh-home-welcome"><div><h2>' + escapeHtml(greeting) + '，今天也一起推进吧</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div><span>今日新分配 ' + stats.today + ' 个任务</span></header>' +
+      '<div class="pfh-home-analytics">' +
+        '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
+        '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>' +
+      '</div>' +
+      '<div class="pfh-home-lower">' +
+        '<section class="pfh-home-panel pfh-home-feature-panel"><div class="pfh-home-panel-title"><h3>常用功能</h3><span>保留原入口名称，快速找到熟悉功能</span></div><div class="pfh-home-feature-layout">' + homeFeatureEntryHtml(primary, 'pfh-home-entry-primary') + '<div class="pfh-home-quick-grid">' + quickEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-quick')).join('') + '</div></div><div class="pfh-home-secondary-grid">' + secondaryEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-secondary')).join('') + '</div></section>' +
+        homeTaskPanelHtml() +
+      '</div>' +
       '</section></div>';
   }
 
@@ -15718,6 +16079,37 @@
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    const homeEntry = actionTarget && actionTarget.closest && actionTarget.closest('.pfh-home-entry');
+    if (homeEntry && !homeEntry.disabled) {
+      if (homeEntry.getAttribute('data-pfh-click-replay') === '1') {
+        homeEntry.removeAttribute('data-pfh-click-replay');
+        homeEntry.removeAttribute('data-pfh-click-pending');
+        homeEntry.classList.remove('is-click-bouncing', 'is-click-releasing');
+      } else if (homeEntry.getAttribute('data-pfh-click-pending') === '1') {
+        event.preventDefault();
+        return;
+      } else {
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!reduceMotion) {
+          event.preventDefault();
+          homeEntry.setAttribute('data-pfh-click-pending', '1');
+          homeEntry.classList.remove('is-click-bouncing', 'is-click-releasing');
+          void homeEntry.offsetWidth;
+          homeEntry.classList.add('is-click-bouncing');
+          window.setTimeout(() => {
+            if (!homeEntry.isConnected) return;
+            homeEntry.classList.remove('is-click-bouncing');
+            homeEntry.classList.add('is-click-releasing');
+          }, HOME_ENTRY_PRESS_MS);
+          window.setTimeout(() => {
+            if (!homeEntry.isConnected) return;
+            homeEntry.setAttribute('data-pfh-click-replay', '1');
+            homeEntry.click();
+          }, HOME_ENTRY_PRESS_MS + HOME_ENTRY_RELEASE_MS);
+          return;
+        }
+      }
+    }
     const ledgerMoreArea = event.target && event.target.closest && event.target.closest('.pfh-ledger-more');
     if (state.view === 'ledger' && state.ledgerMenuSku && !ledgerMoreArea) {
       state.ledgerMenuSku = '';
@@ -16134,6 +16526,11 @@
     }
     if (action === 'open-first-detail') {
       openFirstCachedDetail();
+      return;
+    }
+    if (action === 'home-chart-period') {
+      state.homeChartPeriod = Number(actionTarget.getAttribute('data-period')) === 30 ? 30 : 7;
+      renderShell();
       return;
     }
     if (action === 'home-size-image') {
@@ -22353,16 +22750,10 @@
     const current = String(state.excelPurchasePrice || '').trim();
     if (current && current !== '6') return false;
     const productType = getProductTypeForInsight(data, extra);
-    const cloudRecommendation = await fetchInsightRecommendation(data, productType).catch((error) => {
-      addLog('warn', '\u4ef7\u683c\u63a8\u8350\u83b7\u53d6\u5931\u8d25', formatErrorMessage(error));
-      return null;
-    });
-    const recommendedType = cloudRecommendation && cloudRecommendation.recommendedProductType && cloudRecommendation.recommendedProductType !== productType ? cloudRecommendation.recommendedProductType : '';
-    const effectiveProductType = recommendedType || (cloudRecommendation && cloudRecommendation.effectiveProductType) || productType;
-    if (recommendedType) {
-      addLog('success', '\u5df2\u6839\u636e\u5386\u53f2\u5546\u54c1\u540d\u63a8\u65ad\u7c7b\u578b', (data && data.sku || '') + ' ' + productType + ' -> ' + recommendedType);
-    }
-    const recommendation = cloudRecommendation && cloudRecommendation.recommendedPrice ? cloudRecommendation : getLocalPriceRecommendation(data, effectiveProductType);
+    // 2026-08-07: 停用云端推荐价格 API（fetchInsightRecommendation 推荐价格不准，会写入 Excel）。
+    // 价格补全只使用本地历史推荐，避免 Excel 出现错误价格。
+    const effectiveProductType = productType;
+    const recommendation = getLocalPriceRecommendation(data, effectiveProductType);
     const price = recommendation && recommendation.recommendedPrice ? String(recommendation.recommendedPrice) : '';
     if (!price) return false;
     const reason = recommendation.recommendationReason || buildLocalRecommendationReason(recommendation, effectiveProductType);
@@ -28455,6 +28846,16 @@
 
   function normalizeText(text) {
     return String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').trim();
+  }
+
+  function truncateFileName(name, max) {
+    const text = String(name || '');
+    if (!text) return '';
+    const limit = Math.max(8, Number(max) || 30);
+    if (text.length <= limit) return text;
+    const head = Math.ceil(limit * 0.6);
+    const tail = limit - head - 1;
+    return text.slice(0, head) + '…' + text.slice(-tail);
   }
 
   function compactText(text) {
