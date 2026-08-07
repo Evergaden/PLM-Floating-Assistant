@@ -2122,7 +2122,7 @@ fn folder_organizer_target(path: &Path) -> Option<(String, PathBuf)> {
         return None;
     }
     let target_name = format!("{prefix}-{sku}");
-    Some((sku, path.with_file_name(target_name)))
+    Some((sku, path.join(target_name)))
 }
 
 fn file_organize_item(kind: &str, source: &Path, target: &Path, sku: &str) -> FileOrganizeItem {
@@ -2168,7 +2168,10 @@ fn scan_file_organizer_plan(root: &Path, rename_sku_images: bool, rename_product
         }
         if rename_product_folders {
             if let Some((sku, target)) = folder_organizer_target(&product_folder) {
-                items.push(file_organize_item("product-folder", &product_folder, &target, &sku));
+                let source = product_folder.join("品牌 产品名-编码");
+                if source.is_dir() {
+                    items.push(file_organize_item("product-folder", &source, &target, &sku));
+                }
             }
         }
     }
@@ -2942,22 +2945,26 @@ mod tests {
     #[test]
     fn plans_and_applies_file_organizer_names() {
         let root = std::env::temp_dir().join(format!("plm-organizer-test-{}", Uuid::new_v4()));
-        let product = root.join("AMZ 亮白牙膏 SKU00047688");
+        let product_name = "Feimuko 夜间睡眠牙套 SKU00049129";
+        let product = root.join(product_name);
         fs::create_dir_all(&product).unwrap();
         fs::write(product.join("SKU.jpg"), b"sku").unwrap();
+        fs::create_dir(product.join("品牌 产品名-编码")).unwrap();
 
         let scan = scan_file_organizer_plan(&root, true, true).unwrap();
         assert_eq!(scan.items.len(), 2);
-        assert!(scan.items.iter().any(|item| item.target_name == "SKU00047688.jpg"));
-        assert!(scan.items.iter().any(|item| item.target_name == "AMZ 亮白牙膏-SKU00047688"));
+        assert!(scan.items.iter().any(|item| item.target_name == "SKU00049129.jpg"));
+        assert!(scan.items.iter().any(|item| item.source_name == "品牌 产品名-编码" && item.target_name == "Feimuko 夜间睡眠牙套-SKU00049129"));
         let operations = scan.items.iter().filter(|item| item.status == "ready").map(|item| FileOrganizeOperation {
             source_path: item.source_path.clone(),
             target_path: item.target_path.clone(),
         }).collect();
         let result = organize_files(path_text(&root), operations).unwrap();
         assert_eq!(result.renamed, 2);
-        let renamed = root.join("AMZ 亮白牙膏-SKU00047688");
-        assert!(renamed.join("SKU00047688.jpg").is_file());
+        assert!(product.is_dir());
+        assert!(product.join("SKU00049129.jpg").is_file());
+        assert!(product.join("Feimuko 夜间睡眠牙套-SKU00049129").is_dir());
+        assert!(!product.join("品牌 产品名-编码").exists());
         fs::remove_dir_all(&root).unwrap();
     }
 

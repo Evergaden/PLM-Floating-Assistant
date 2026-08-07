@@ -1020,6 +1020,7 @@ export default function App() {
       if (result.missingSlots.length) {
         notify(`素材不完整，缺少：${result.missingSlots.join("、")}`);
       } else {
+        setRandomZipPaths([]);
         notify(`随机组合完成：${result.selectedCount} 张${result.photoshopStarted ? "，Photoshop 已压缩" : ""}`);
       }
     } catch (error) {
@@ -1459,20 +1460,20 @@ export default function App() {
             </div>
             <div className="organize-toolbar">
               <label className="toggle"><input type="checkbox" checked={organizeRenameImages} onChange={(event) => setOrganizeRenameImages(event.target.checked)} /><span />SKU.jpg → 编码.jpg</label>
-              <label className="toggle"><input type="checkbox" checked={organizeRenameFolders} onChange={(event) => setOrganizeRenameFolders(event.target.checked)} /><span />品牌 产品名 SKU → 品牌 产品名-SKU</label>
+              <label className="toggle"><input type="checkbox" checked={organizeRenameFolders} onChange={(event) => setOrganizeRenameFolders(event.target.checked)} /><span />填充产品子目录名称</label>
               <button className="secondary" onClick={scanOrganizer} disabled={organizeBusy}><ScanLine size={16} />{organizeBusy ? "处理中…" : "扫描预览"}</button>
               <button className="primary" onClick={applyOrganizer} disabled={organizeBusy || !organizeItems.some((item) => item.status === "ready")}><Pencil size={16} />执行批量整理</button>
             </div>
             <div className="organize-examples">
               <div><strong>SKU 图片</strong><span><code>Feimuko 舒适义齿套装 SKU00047352\SKU.jpg</code> → <code>SKU00047352.jpg</code></span></div>
-              <div><strong>产品目录</strong><span><code>AMZ 亮白牙膏 SKU00047688</code> → <code>AMZ 亮白牙膏-SKU00047688</code></span></div>
+              <div><strong>产品子目录</strong><span><code>Feimuko 夜间睡眠牙套 SKU00049129\品牌 产品名-编码</code> → <code>Feimuko 夜间睡眠牙套-SKU00049129</code></span></div>
             </div>
             <div className="organize-summary"><span>扫描到 {organizeItems.length} 项</span><span>可执行 {organizeItems.filter((item) => item.status === "ready").length} 项</span><span>冲突/跳过 {organizeItems.filter((item) => item.status !== "ready").length} 项</span></div>
             <div className="organize-list">
               {!organizeItems.length && <div className="empty-state"><Pencil size={28} /><strong>点击“扫描预览”开始</strong><span>工作台只会在当前工作目录内操作，不覆盖已存在的目标名称。</span></div>}
               {organizeItems.map((item) => (
                 <div className={`organize-row ${item.status}`} key={`${item.kind}:${item.sourcePath}`}>
-                  <span className="organize-kind">{item.kind === "sku-image" ? "SKU 图片" : "产品目录"}</span>
+                  <span className="organize-kind">{item.kind === "sku-image" ? "SKU 图片" : "产品子目录"}</span>
                   <div><strong title={item.sourcePath}>{item.sourceName}</strong><small title={item.sourcePath}>{item.sourcePath}</small></div>
                   <div><strong title={item.targetPath}>{item.targetName}</strong><small title={item.targetPath}>{item.targetPath}</small></div>
                   <span className={`status ${item.status === "ready" ? "success" : item.status === "conflict" ? "danger" : "neutral"}`}>{item.status === "ready" ? "待整理" : item.status === "conflict" ? "目标冲突" : "已符合"}</span>
