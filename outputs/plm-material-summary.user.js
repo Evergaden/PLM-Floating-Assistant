@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.83
+// @version      2.7.85
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.83';
+  const SCRIPT_VERSION = '2.7.85';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -3980,7 +3980,9 @@
     ledgerSelectedKeys: [],
     ledgerMenuSku: '',
     ledgerMenuDate: '',
+    ledgerMenuPositionFrame: 0,
     ledgerFullscreen: false,
+    ledgerSkuDragSuppressClickUntil: 0,
     ledgerGroupHighlightTimer: 0,
     ledgerFlowTransitionSku: '',
     ledgerFlowTransitionTimer: 0,
@@ -7670,6 +7672,11 @@
       #${PANEL_ID} .pfh-ledger-table-wrap{min-height:0;overflow:auto;border:1px solid #e9e3f5;border-radius:12px;background:#fff}#${PANEL_ID} .pfh-ledger-table{width:100%;border-collapse:collapse;color:#514866;font-size:10px;user-select:text}#${PANEL_ID} .pfh-ledger-table th{position:sticky;top:0;z-index:2;background:#f6f3fc;color:#655a79;text-align:left}#${PANEL_ID} .pfh-ledger-table th,#${PANEL_ID} .pfh-ledger-table td{padding:8px 9px;border-bottom:1px solid #eee9f7;white-space:nowrap}#${PANEL_ID} .pfh-ledger-table tbody tr:hover{background:#fbf9ff}
       #${PANEL_ID} .pfh-reverse-search-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}#${PANEL_ID} .pfh-reverse-search-actions button{min-height:27px!important;padding:0 8px!important;font-size:9px!important}
       #${PANEL_ID} .pfh-ledger-ai-preparation{display:flex;width:100%;max-height:100%;min-height:0;flex-direction:column;gap:9px;overflow:hidden;text-align:left}#${PANEL_ID} .pfh-ledger-ai-prep-head{display:flex;align-items:center;justify-content:space-between;gap:10px}#${PANEL_ID} .pfh-ledger-ai-prep-head>div{display:flex;align-items:center;gap:7px}#${PANEL_ID} .pfh-ledger-ai-prep-head strong{color:#514366;font-size:13px}#${PANEL_ID} .pfh-ledger-ai-prep-head span{padding:3px 6px;border-radius:999px;font-size:9px}#${PANEL_ID} .pfh-ledger-ai-prep-head span.is-missing{background:#fff2f4;color:#b34a5d}#${PANEL_ID} .pfh-ledger-ai-prep-head span.is-ready{background:#eefaf1;color:#2e8750}#${PANEL_ID} .pfh-ledger-ai-prep-head p{margin:0;color:#8e849f;font-size:9px}
+      #${PANEL_ID} .pfh-ledger-table-sku-cell{position:relative;padding:0!important;user-select:none!important}#${PANEL_ID} .pfh-ledger-table-sku{display:flex;width:100%;min-height:34px;align-items:center;padding:8px 10px;border:0;border-radius:0;background:transparent;color:#6136cb;font:inherit;font-weight:700;text-align:left;cursor:copy;touch-action:none}#${PANEL_ID} .pfh-ledger-table-sku:hover{background:#f3efff;color:#4f20ba}#${PANEL_ID} .pfh-ledger-table-sku.is-drag-selected{background:linear-gradient(90deg,#e9e1ff,#f4f0ff);color:#4f20ba;box-shadow:inset 3px 0 #7c3aed}#${PANEL_ID}.is-ledger-sku-dragging,#${PANEL_ID}.is-ledger-sku-dragging *{cursor:copy!important}#${PANEL_ID} .pfh-ledger-drag-copy-tip{position:fixed;z-index:2147483647;display:none;align-items:center;gap:5px;padding:6px 9px;border:1px solid #b9a5f4;border-radius:9px;background:rgba(54,38,99,.94);box-shadow:0 9px 24px rgba(31,20,70,.25);color:#fff;font-size:10px;font-weight:700;line-height:1;pointer-events:none}#${PANEL_ID} .pfh-ledger-drag-copy-tip.is-visible{display:flex}
+      #${PANEL_ID} .pfh-more-dots{display:inline-flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;gap:3px!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-more-dots i{display:block!important;width:3px!important;height:3px!important;flex:0 0 3px!important;border-radius:50%!important;background:currentColor!important}#${PANEL_ID} .pfh-ledger-more>button{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-ledger-overflow-menu{position:fixed!important;z-index:2147483646!important;right:auto!important;bottom:auto!important;width:min(224px,calc(100vw - 24px))!important;min-width:0!important;max-height:calc(100vh - 24px)!important;overflow-x:hidden!important;overflow-y:auto!important;padding:7px!important;transform-origin:var(--pfh-menu-origin,right top)!important}#${PANEL_ID} .pfh-ledger-overflow-menu button{width:100%!important;height:auto!important;min-height:34px!important;padding:7px 10px!important;line-height:1.35!important;white-space:normal!important;overflow-wrap:anywhere!important}
+      #${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"]{inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;background:#f5f6fb!important;box-shadow:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-header{display:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-full,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-main.is-full,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail-scroll{width:100%!important;height:100%!important;min-height:0!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-main.is-full{display:block!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail-scroll{overflow:hidden!important;padding:0!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-page{gap:12px!important;padding:18px 22px 20px!important;background:linear-gradient(145deg,#f7f8fc,#f2f1f8)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero{align-items:center!important;padding:13px 16px!important;border-color:#e1dcf3!important;border-radius:16px!important;background:rgba(255,255,255,.92)!important;box-shadow:0 8px 28px rgba(62,49,109,.07)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero h3{font-size:19px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero p{max-width:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-fullscreen-toggle{min-height:34px!important;padding:0 13px!important;border-color:#7c3aed!important;background:#7c3aed!important;color:#fff!important;box-shadow:0 7px 16px rgba(124,58,237,.20)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs{width:min(420px,42vw)!important;justify-self:start!important;padding:5px!important;border-color:#e0daf3!important;background:rgba(255,255,255,.86)!important;box-shadow:0 5px 18px rgba(62,49,109,.05)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs button{height:34px!important;min-height:34px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-toolbar,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar{padding:9px 11px!important;border:1px solid #e3def2!important;border-radius:13px!important;background:rgba(255,255,255,.84)!important;box-shadow:0 5px 18px rgba(62,49,109,.04)!important;overflow:visible!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-toolbar{flex-wrap:wrap!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar input{min-width:280px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-list,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table-wrap{padding:12px!important;border:1px solid #e2deef!important;border-radius:16px!important;background:rgba(255,255,255,.76)!important;box-shadow:0 10px 30px rgba(62,49,109,.06)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day>h4{padding:2px 4px 3px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-item{min-height:112px!important;padding:11px 12px!important;border-radius:14px!important;background:rgba(255,255,255,.94)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table-wrap{position:relative!important;padding:0!important;overflow:auto!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table{font-size:11px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table td{height:42px!important;padding:9px 12px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th:first-child,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table td:first-child{position:sticky!important;left:0!important;z-index:1!important;background:#fff!important;box-shadow:1px 0 #eee9f7!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th:first-child{z-index:3!important;background:#f6f3fc!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-performance{box-shadow:0 5px 18px rgba(62,49,109,.05)!important}
+      @media(max-width:1380px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+      @media(max-width:900px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-page{padding:12px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs{width:100%!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar input{min-width:160px!important}}
       #${PANEL_ID} .pfh-ledger-ai-prep-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:0;overflow:auto;padding:2px}#${PANEL_ID} .pfh-ledger-ai-prep-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0;padding:7px;border:1px solid #e9e3f5;border-radius:10px}#${PANEL_ID} .pfh-ledger-ai-prep-row legend{padding:0 4px;color:#6545b7;font-size:10px;font-weight:700}#${PANEL_ID} .pfh-ledger-ai-prep-row label{display:flex;min-width:0;flex-direction:column;gap:3px;color:#9389a8;font-size:8px}#${PANEL_ID} .pfh-ledger-ai-prep-row textarea{min-height:54px;padding:6px;resize:vertical;border:1px solid #ddd5ef;border-radius:7px;background:#fff;color:#4d455e;font:9px/1.4 inherit}#${PANEL_ID} .pfh-ledger-ai-prep-row textarea.is-missing{border-color:#e7a9b5;background:#fff8f9}
       #${PANEL_ID} .pfh-ledger-ai-prep-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}#${PANEL_ID} .pfh-ledger-ai-prep-actions button{min-height:30px;padding:0 10px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:10px;font-weight:700;cursor:pointer}#${PANEL_ID} .pfh-ledger-ai-prep-actions button.is-primary{background:#7448d8;color:#fff}#${PANEL_ID} .pfh-ledger-ai-prep-actions button:disabled{cursor:not-allowed;opacity:.5}#${PANEL_ID} .pfh-ledger-ai-prep-missing{margin:0;color:#9b6471;font-size:9px;line-height:1.4}
       #${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-error{border-color:#df8496!important;background:#fff3f5!important;box-shadow:inset 0 0 0 1px rgba(190,63,89,.16)!important}#${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-pass{border-color:#8fcba0!important;background:#f2fbf4!important}.pfh-ledger-detail3-badge{align-self:flex-start;padding:2px 5px;border-radius:999px;font-size:8px;font-style:normal}.pfh-ledger-detail3-badge.is-pass{background:#e8f7ec;color:#2e8750}.pfh-ledger-detail3-badge.is-warning,.pfh-ledger-detail3-badge.is-error{background:#ffe8ec;color:#b34a5d}.pfh-ledger-detail3-badge.is-loading{background:#fff4d9;color:#996b13}
@@ -7725,6 +7732,11 @@
     panel.addEventListener('change', handlePanelChange);
     panel.addEventListener('dragstart', handlePanelDragStart);
     panel.addEventListener('dragend', handlePanelDragEnd);
+    panel.addEventListener('pointerdown', handleLedgerTableSkuPointerDown);
+    panel.addEventListener('pointermove', handleLedgerTableSkuPointerMove);
+    panel.addEventListener('pointerup', handleLedgerTableSkuPointerEnd);
+    panel.addEventListener('pointercancel', handleLedgerTableSkuPointerEnd);
+    panel.addEventListener('scroll', handleLedgerMenuScroll, true);
     panel.addEventListener('dragover', handlePanelDragOver);
     panel.addEventListener('drop', handlePanelDrop);
     panel.querySelector('.pfh-import-file').addEventListener('change', handleImportFile);
@@ -11170,6 +11182,10 @@
     const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
     if (list) list.innerHTML = '';
     detail.classList.remove('is-loading');
+    state.ledgerMenuSku = '';
+    state.ledgerMenuDate = '';
+    closeRenderedLedgerMenus(panel, null);
+    resetLedgerTableSkuDrag(false);
     detail.innerHTML = ledgerViewHtml(records);
     setupLedgerTabFusion(detail);
   }
@@ -11181,6 +11197,10 @@
     if (!detail || !page || !tabs) return false;
     const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
     const template = document.createElement('template');
+    state.ledgerMenuSku = '';
+    state.ledgerMenuDate = '';
+    closeRenderedLedgerMenus(panel, null);
+    resetLedgerTableSkuDrag(false);
     template.innerHTML = ledgerViewContentHtml(records);
     const nextContent = Array.from(template.content.childNodes);
     if (!nextContent.length) return false;
@@ -14193,7 +14213,7 @@
       const workflow = /^(?:作废|已完成|异常)$/.test(record.status || '') ? record.status : (finalized ? '已定稿' : (record.imageGeneratedAt ? '待定稿' : '待出图'));
       const ai = getLedgerAiImageStatusMeta(record).label;
       const date = mode === 'finalized' ? getLedgerFinalizedDate(record) : getLedgerDesignDate(record);
-      return '<tr><td><button type="button" data-action="ledger-copy-sku" data-sku="' + escapeHtml(record.sku) + '">' + escapeHtml(record.sku) + '</button></td><td>' + escapeHtml([record.brand, record.name].filter(Boolean).join(' ')) + '</td><td>' + escapeHtml(record.designType || '') + '</td><td>' + escapeHtml(record.artPriority || '') + '</td><td>' + escapeHtml(workflow) + '</td><td>' + escapeHtml(date || '') + '</td><td>' + escapeHtml(record.purchasePrice || '') + '</td><td>' + escapeHtml(ledgerFileStateLabel(record.boxFileState)) + '</td><td>' + escapeHtml(ledgerFileStateLabel(record.labelFileState)) + '</td><td>' + escapeHtml(ledgerFileStateLabel(record.imagePackState)) + '</td><td>' + escapeHtml(ai) + '</td></tr>';
+      return '<tr><td class="pfh-ledger-table-sku-cell"><button type="button" class="pfh-ledger-table-sku" data-action="ledger-copy-sku" data-ledger-table-sku="' + escapeHtml(record.sku) + '" data-sku="' + escapeHtml(record.sku) + '" title="单击复制；按住并向下拖可连续复制编码">' + escapeHtml(record.sku) + '</button></td><td>' + escapeHtml([record.brand, record.name].filter(Boolean).join(' ')) + '</td><td>' + escapeHtml(record.designType || '') + '</td><td>' + escapeHtml(record.artPriority || '') + '</td><td>' + escapeHtml(workflow) + '</td><td>' + escapeHtml(date || '') + '</td><td>' + escapeHtml(record.purchasePrice || '') + '</td><td>' + escapeHtml(ledgerFileStateLabel(record.boxFileState)) + '</td><td>' + escapeHtml(ledgerFileStateLabel(record.labelFileState)) + '</td><td>' + escapeHtml(ledgerFileStateLabel(record.imagePackState)) + '</td><td>' + escapeHtml(ai) + '</td></tr>';
     }).join('');
     return '<div class="pfh-ledger-table-wrap"><table class="pfh-ledger-table"><thead><tr><th>SKU</th><th>产品</th><th>设计类型</th><th>优先级</th><th>状态</th><th>日期</th><th>价格</th><th>纸盒</th><th>标签</th><th>图包</th><th>AI 生图</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
@@ -14214,6 +14234,132 @@
 
   function ledgerViewContentHtml(records) {
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
+  let ledgerTableSkuDragSession = null;
+
+  function getLedgerTableSkuButtonAtPoint(clientX, clientY, wrapper) {
+    const hit = document.elementFromPoint(clientX, clientY);
+    const row = hit && hit.closest && hit.closest('.pfh-ledger-table tbody tr');
+    const button = row && row.querySelector('.pfh-ledger-table-sku[data-ledger-table-sku]');
+    return button && wrapper && wrapper.contains(button) ? button : null;
+  }
+
+  function ensureLedgerTableSkuDragTip(panel) {
+    let tip = panel && panel.querySelector('.pfh-ledger-drag-copy-tip');
+    if (!tip && panel) {
+      tip = document.createElement('div');
+      tip.className = 'pfh-ledger-drag-copy-tip';
+      tip.setAttribute('aria-hidden', 'true');
+      (panel.querySelector('.pfh-full') || panel).appendChild(tip);
+    }
+    return tip;
+  }
+
+  function updateLedgerTableSkuDragSelection(button, clientX, clientY) {
+    const session = ledgerTableSkuDragSession;
+    if (!session || !button) return;
+    const currentIndex = session.buttons.indexOf(button);
+    if (currentIndex < 0) return;
+    const distance = Math.hypot(clientX - session.startX, clientY - session.startY);
+    if (currentIndex !== session.startIndex || distance >= 6) session.active = true;
+    if (!session.active) return;
+    const lower = Math.min(session.startIndex, currentIndex);
+    const upper = Math.max(session.startIndex, currentIndex);
+    session.selectedButtons = session.buttons.slice(lower, upper + 1);
+    session.buttons.forEach((item, index) => item.classList.toggle('is-drag-selected', index >= lower && index <= upper));
+    session.panel.classList.add('is-ledger-sku-dragging');
+    const tip = ensureLedgerTableSkuDragTip(session.panel);
+    if (tip) {
+      tip.textContent = '松开复制 ' + session.selectedButtons.length + ' 个编码';
+      tip.style.left = Math.min(window.innerWidth - 142, clientX + 14) + 'px';
+      tip.style.top = Math.min(window.innerHeight - 36, clientY + 14) + 'px';
+      tip.classList.add('is-visible');
+    }
+  }
+
+  function runLedgerTableSkuAutoScroll() {
+    const session = ledgerTableSkuDragSession;
+    if (!session || !session.autoScrollSpeed) return;
+    session.wrapper.scrollTop += session.autoScrollSpeed;
+    const button = getLedgerTableSkuButtonAtPoint(session.clientX, session.clientY, session.wrapper);
+    if (button) updateLedgerTableSkuDragSelection(button, session.clientX, session.clientY);
+    session.autoScrollFrame = window.requestAnimationFrame(runLedgerTableSkuAutoScroll);
+  }
+
+  function handleLedgerTableSkuPointerDown(event) {
+    if (state.view !== 'ledger' || state.ledgerDisplayMode !== 'table' || event.button !== 0) return;
+    const button = event.target && event.target.closest && event.target.closest('.pfh-ledger-table-sku[data-ledger-table-sku]');
+    const wrapper = button && button.closest('.pfh-ledger-table-wrap');
+    if (!button || !wrapper) return;
+    const buttons = Array.from(wrapper.querySelectorAll('.pfh-ledger-table-sku[data-ledger-table-sku]'));
+    const startIndex = buttons.indexOf(button);
+    if (startIndex < 0) return;
+    resetLedgerTableSkuDrag(false);
+    ledgerTableSkuDragSession = {
+      pointerId: event.pointerId,
+      panel: event.currentTarget,
+      wrapper,
+      button,
+      buttons,
+      startIndex,
+      startX: event.clientX,
+      startY: event.clientY,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      selectedButtons: [button],
+      active: false,
+      autoScrollSpeed: 0,
+      autoScrollFrame: 0,
+    };
+    try { button.setPointerCapture(event.pointerId); } catch (_) {}
+  }
+
+  function handleLedgerTableSkuPointerMove(event) {
+    const session = ledgerTableSkuDragSession;
+    if (!session || event.pointerId !== session.pointerId) return;
+    session.clientX = event.clientX;
+    session.clientY = event.clientY;
+    const button = getLedgerTableSkuButtonAtPoint(event.clientX, event.clientY, session.wrapper);
+    if (button) updateLedgerTableSkuDragSelection(button, event.clientX, event.clientY);
+    const rect = session.wrapper.getBoundingClientRect();
+    const edge = 42;
+    session.autoScrollSpeed = event.clientY > rect.bottom - edge ? Math.min(18, Math.max(4, (event.clientY - rect.bottom + edge) * 0.45))
+      : (event.clientY < rect.top + edge ? -Math.min(18, Math.max(4, (rect.top + edge - event.clientY) * 0.45)) : 0);
+    if (session.autoScrollSpeed && !session.autoScrollFrame) session.autoScrollFrame = window.requestAnimationFrame(runLedgerTableSkuAutoScroll);
+    if (!session.autoScrollSpeed && session.autoScrollFrame) {
+      window.cancelAnimationFrame(session.autoScrollFrame);
+      session.autoScrollFrame = 0;
+    }
+    if (session.active) event.preventDefault();
+  }
+
+  function handleLedgerTableSkuPointerEnd(event) {
+    const session = ledgerTableSkuDragSession;
+    if (!session || event.pointerId !== session.pointerId) return;
+    const active = session.active && session.selectedButtons.length > 1;
+    const skus = active ? session.selectedButtons.map((button) => button.getAttribute('data-ledger-table-sku') || '').filter(Boolean) : [];
+    try { session.button.releasePointerCapture(event.pointerId); } catch (_) {}
+    resetLedgerTableSkuDrag(false);
+    if (!active || !skus.length) return;
+    event.preventDefault();
+    state.ledgerSkuDragSuppressClickUntil = Date.now() + 700;
+    copyText(skus.join('\n'));
+    showToast('已连续复制 ' + skus.length + ' 个编码');
+  }
+
+  function resetLedgerTableSkuDrag(clearSuppressClick) {
+    const session = ledgerTableSkuDragSession;
+    if (session && session.autoScrollFrame) window.cancelAnimationFrame(session.autoScrollFrame);
+    ledgerTableSkuDragSession = null;
+    const panel = document.getElementById(PANEL_ID);
+    if (panel) {
+      panel.classList.remove('is-ledger-sku-dragging');
+      panel.querySelectorAll('.pfh-ledger-table-sku.is-drag-selected').forEach((button) => button.classList.remove('is-drag-selected'));
+      const tip = panel.querySelector('.pfh-ledger-drag-copy-tip');
+      if (tip) tip.remove();
+    }
+    if (clearSuppressClick) state.ledgerSkuDragSuppressClickUntil = 0;
+  }
+
     const filteredRecords = filterLedgerWorkbenchRecords(records, mode);
     const groups = groupLedgerRecordsByDate(filteredRecords, mode === 'trash' ? 'design' : mode);
     const performanceSummary = mode === 'finalized' ? summarizeLedgerPerformance(filteredRecords) : null;
@@ -14251,7 +14397,7 @@
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '">' + (state.ledgerFullscreen ? '退出全屏' : '全屏') + '</button></div></div>' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div></div>' +
       '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
         '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
         '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
@@ -14352,6 +14498,10 @@
     card.outerHTML = ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds);
   }
 
+    if (state.ledgerMenuSku === record.sku && state.ledgerMenuDate === normalizeLedgerDate(record.date)) {
+      const nextButton = Array.from(panel.querySelectorAll('[data-action="ledger-more"]')).find((button) => button.getAttribute('data-sku') === record.sku && normalizeLedgerDate(button.getAttribute('data-date')) === normalizeLedgerDate(record.date));
+      if (nextButton) positionRenderedLedgerMenu(panel, nextButton);
+    }
   function ledgerTrashRowHtml(record) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
@@ -14372,13 +14522,63 @@
     panel.querySelectorAll('.pfh-ledger-item.is-menu-open').forEach((card) => {
       if (keepCard && card === keepCard) return;
       card.classList.remove('is-menu-open');
-      const menu = card.querySelector('.pfh-ledger-overflow-menu');
       const button = card.querySelector('[data-action="ledger-more"]');
-      if (menu) menu.remove();
       if (button) button.setAttribute('aria-expanded', 'false');
     });
   }
 
+    panel.querySelectorAll('.pfh-ledger-overflow-menu').forEach((menu) => menu.remove());
+  }
+
+  function positionRenderedLedgerMenu(panel, button) {
+    if (!panel || !button || !button.isConnected) return;
+    const card = button.closest('.pfh-ledger-item');
+    const menu = card && card.querySelector('.pfh-ledger-overflow-menu');
+    const host = panel.querySelector('.pfh-full') || panel;
+    if (!menu || !host) return;
+    menu.setAttribute('data-ledger-menu-sku', button.getAttribute('data-sku') || '');
+    menu.setAttribute('data-ledger-menu-date', button.getAttribute('data-date') || '');
+    host.appendChild(menu);
+    menu.style.visibility = 'hidden';
+    window.requestAnimationFrame(() => {
+      if (!menu.isConnected || !button.isConnected) return;
+      const buttonRect = button.getBoundingClientRect();
+      const panelRect = panel.getBoundingClientRect();
+      const sideInset = 10;
+      const topBoundary = Math.max(8, panelRect.top + sideInset);
+      const bottomBoundary = Math.min(window.innerHeight - 8, panelRect.bottom - sideInset);
+      const leftBoundary = Math.max(8, panelRect.left + sideInset);
+      const rightBoundary = Math.min(window.innerWidth - 8, panelRect.right - sideInset);
+      menu.style.maxHeight = Math.max(120, bottomBoundary - topBoundary) + 'px';
+      const menuRect = menu.getBoundingClientRect();
+      const left = Math.max(leftBoundary, Math.min(rightBoundary - menuRect.width, buttonRect.right - menuRect.width));
+      const spaceBelow = bottomBoundary - buttonRect.bottom - 7;
+      const spaceAbove = buttonRect.top - topBoundary - 7;
+      const openBelow = spaceBelow >= Math.min(menuRect.height, 240) || spaceBelow >= spaceAbove;
+      const top = openBelow
+        ? Math.min(bottomBoundary - menuRect.height, buttonRect.bottom + 7)
+        : Math.max(topBoundary, buttonRect.top - menuRect.height - 7);
+      menu.style.left = Math.round(left) + 'px';
+      menu.style.top = Math.round(top) + 'px';
+      menu.style.setProperty('--pfh-menu-origin', openBelow ? 'right top' : 'right bottom');
+      menu.style.visibility = 'visible';
+    });
+  }
+
+  function handleLedgerMenuScroll(event) {
+    if (!state.ledgerMenuSku || state.view !== 'ledger') return;
+    if (event.target && event.target.closest && event.target.closest('.pfh-ledger-overflow-menu')) return;
+    const panel = event.currentTarget;
+    window.cancelAnimationFrame(state.ledgerMenuPositionFrame || 0);
+    state.ledgerMenuPositionFrame = window.requestAnimationFrame(() => {
+      state.ledgerMenuPositionFrame = 0;
+      const button = Array.from(panel.querySelectorAll('[data-action="ledger-more"][aria-expanded="true"]')).find((item) => item.getAttribute('data-sku') === state.ledgerMenuSku && normalizeLedgerDate(item.getAttribute('data-date')) === state.ledgerMenuDate);
+      const menu = panel.querySelector('.pfh-ledger-overflow-menu');
+      if (!button || !menu) return;
+      const card = button.closest('.pfh-ledger-item');
+      if (card) card.appendChild(menu);
+      positionRenderedLedgerMenu(panel, button);
+    });
   function ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated) {
     if (state.ledgerMenuSku !== sku || state.ledgerMenuDate !== normalizeLedgerDate(dateAttr)) return '';
     const rollback = record.status === '作废'
@@ -16882,7 +17082,7 @@
         }
       }
     }
-    const ledgerMoreArea = event.target && event.target.closest && event.target.closest('.pfh-ledger-more');
+    const ledgerMoreArea = event.target && event.target.closest && event.target.closest('.pfh-ledger-more,.pfh-ledger-overflow-menu');
     if (state.view === 'ledger' && state.ledgerMenuSku && !ledgerMoreArea) {
       state.ledgerMenuSku = '';
       state.ledgerMenuDate = '';
@@ -18011,6 +18211,10 @@
       return;
     }
     if (action === 'cloud-rule-versions-refresh') {
+      if (Date.now() < Number(state.ledgerSkuDragSuppressClickUntil || 0)) {
+        event.preventDefault();
+        return;
+      }
       refreshCloudRuleVersions();
       return;
     }
