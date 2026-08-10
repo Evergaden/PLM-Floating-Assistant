@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.41
+// @version      2.7.74
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -36,7 +36,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.41';
+  const SCRIPT_VERSION = '2.7.74';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -25805,6 +25805,9 @@
     state.copywritingMode = false;
     expandPanel();
     renderShell();
+    window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku, data).catch((error) => {
+      addLog('warn', '今日工作台后台刷新物料失败', sku + ' | ' + formatErrorMessage(error));
+    }), 0);
   }
 
   function getLedgerStatusClass(status) {
