@@ -2,6 +2,7 @@ const PAGE4_ORDER = [
   'productName',
   'functions',
   'ingredients',
+  'material',
   'directions',
   'warning',
   'email',
@@ -19,6 +20,7 @@ const INFO_BOX_ORDER = [
   'productName',
   'functions',
   'ingredients',
+  'material',
   'directions',
   'warning',
   'email',
@@ -35,6 +37,7 @@ const LABELS = {
   productName: 'PRODUCT NAME:',
   functions: 'FUNCTIONS:',
   ingredients: 'INGREDIENTS:',
+  material: 'MATERIALS:',
   directions: 'DIRECTIONS OF SAFE USE:',
   warning: 'WARNING:',
   email: 'E-MAIL:',
@@ -50,6 +53,7 @@ const MISSING_LABELS = {
   productName: 'PRODUCT NAME',
   functions: 'FUNCTIONS',
   ingredients: 'INGREDIENTS',
+  material: 'MATERIALS',
   directions: 'DIRECTIONS OF SAFE USE',
   warning: 'WARNING',
   email: 'E-MAIL',
@@ -95,6 +99,14 @@ function stripHeading(lines, pattern) {
   result.shift();
   if (remainder) result.unshift(remainder);
   return result;
+}
+
+function headingFromRaw(raw, pattern, fallback) {
+  const first = linesOf(raw)[0] || '';
+  const match = first.match(pattern);
+  if (!match) return fallback;
+  const heading = clean(match[0]).replace(/[：]$/, ':');
+  return /:$/.test(heading) ? heading : heading + ':';
 }
 
 function normalizeIngredientLines(value) {
@@ -195,21 +207,32 @@ function addIngredients(segments, map) {
   }
   const body = stripHeading(linesOf(normalizeIngredientLines(value)), /^INGREDIENTS?\s*:?\s*/i);
   if (!body.length) return false;
-  appendHeadingBody(segments, LABELS.ingredients, body, false);
+  const heading = headingFromRaw(value, /^(?:ACTIVE\s+|INACTIVE\s+)?INGREDIENTS?\s*[:：]?/i, LABELS.ingredients);
+  appendHeadingBody(segments, heading, body, false);
+  return true;
+}
+
+function addMaterial(segments, raw) {
+  const body = stripHeading(linesOf(raw), /^(?:MATERIALS?|材质)\s*[:：]?\s*/i);
+  if (!body.length) return false;
+  const heading = headingFromRaw(raw, /^(?:MATERIALS?|材质)\s*[:：]?/i, LABELS.material);
+  appendHeadingBody(segments, heading, body, false);
   return true;
 }
 
 function addDirections(segments, raw) {
   const body = stripHeading(linesOf(raw), /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*:?\s*/i);
   if (!body.length) return false;
-  appendHeadingBody(segments, LABELS.directions, body, false);
+  const heading = headingFromRaw(raw, /^DIRECTIONS(?:\s+OF\s+SAFE\s+USE)?\s*[:：]?/i, LABELS.directions);
+  appendHeadingBody(segments, heading, body, false);
   return true;
 }
 
 function addWarning(segments, raw) {
   const body = stripHeading(linesOf(raw), /^WARNINGS?\s*:?\s*/i);
   if (!body.length) return false;
-  appendHeadingBody(segments, LABELS.warning, body, false);
+  const heading = headingFromRaw(raw, /^WARNINGS?\s*[:：]?/i, LABELS.warning);
+  appendHeadingBody(segments, heading, body, false);
   return true;
 }
 
@@ -287,6 +310,9 @@ function appendSection(segments, key, map, missing) {
     case 'ingredients':
       complete = addIngredients(segments, map);
       break;
+    case 'material':
+      complete = addMaterial(segments, map.get('material'));
+      break;
     case 'directions':
       complete = addDirections(segments, map.get('directions'));
       break;
@@ -339,14 +365,20 @@ function appendLayoutBlock(target, layout) {
   layout.segments.forEach((segment) => addSegment(target, segment.text, segment.bold));
 }
 
-function buildPage4Boxes(product) {
+function buildPage4Boxes(product, options) {
   const map = sectionMap(product && product.copywriting);
   const missing = [];
   const has24LanguageFunctions = Boolean(linesOf(map.get('functions')).length);
+  const includeLowerPart = Boolean(options && options.includeLowerPart === true);
   const infoSegments = [];
   const addressSegments = [];
-  INFO_BOX_ORDER.forEach((key) => appendSection(infoSegments, key, map, missing));
-  ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
+  INFO_BOX_ORDER.forEach((key) => {
+    if (key === 'material' && !map.get('material')) return;
+    appendSection(infoSegments, key, map, missing);
+  });
+  if (includeLowerPart) {
+    ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
+  }
 
   const reps = has24LanguageFunctions ? REP_BOX_ORDER.map((key) => {
     const bodySegments = [];
@@ -385,10 +417,11 @@ function buildPage4Boxes(product) {
   };
 }
 
-function buildLabelBoxes(product) {
+function buildLabelBoxes(product, options) {
   const map = sectionMap(product && product.copywriting);
   const missing = [];
   const has24LanguageFunctions = Boolean(linesOf(map.get('functions')).length);
+  const includeLowerPart = Boolean(options && options.includeLowerPart === true);
   const nameSegments = [];
   const factsSegments = [];
   const addressSegments = [];
@@ -396,7 +429,10 @@ function buildLabelBoxes(product) {
     missing.push(MISSING_LABELS.productName);
   }
   addLabelFacts(factsSegments, map, missing);
-  ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
+  if (map.get('material')) appendSection(factsSegments, 'material', map, missing);
+  if (includeLowerPart) {
+    ADDRESS_BOX_ORDER.forEach((key) => appendSection(addressSegments, key, map, missing));
+  }
 
   const reps = has24LanguageFunctions ? REP_BOX_ORDER.map((key) => {
     const bodySegments = [];
@@ -439,9 +475,10 @@ function buildLabelBoxes(product) {
 
 function buildPage4Layout(product, options) {
   const mode = options && options.mode ? String(options.mode) : 'box-portrait';
+  const layoutOptions = { includeLowerPart: options && options.includeLowerPart === true };
   const boxes = mode === 'label' || mode === 'label-wide'
-    ? buildLabelBoxes(product)
-    : buildPage4Boxes(product);
+    ? buildLabelBoxes(product, layoutOptions)
+    : buildPage4Boxes(product, layoutOptions);
   return {
     ...boxes,
     boxes,

@@ -24,7 +24,7 @@ const product = {
   },
 };
 
-const layout = buildPage4Layout(product);
+const layout = buildPage4Layout(product, { includeLowerPart: true });
 const selection = { left: 100, top: 200, right: 700, bottom: 2000 };
 const plan = buildSelectionPlan(layout, selection, 300);
 
@@ -38,7 +38,7 @@ assert.equal(plan.blocks[2].headingBounds.right > plan.blocks[2].headingBounds.l
 assert.equal(plan.blocks[2].bodyBounds.top > plan.blocks[2].headingBounds.bottom, true);
 assert.equal(plan.blocks[4].bodyBounds.bottom <= selection.bottom, true);
 
-const labelLayout = buildPage4Layout(product, { mode: 'label' });
+const labelLayout = buildPage4Layout(product, { mode: 'label', includeLowerPart: true });
 const labelPlan = buildSelectionPlan(labelLayout, { left: 100, top: 200, right: 1500, bottom: 800 }, 300);
 assert.equal(labelPlan.orientation, 'wide');
 assert.equal(labelPlan.blocks.filter((block) => block.type === 'rep').length, 3);

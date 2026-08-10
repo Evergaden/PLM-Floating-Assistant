@@ -8,7 +8,7 @@ const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.23';
+const PLUGIN_VERSION = '0.1.26';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -321,6 +321,11 @@ function selectedProduct() {
   return state.products.find((product) => product.sku === state.selectedSku) || null;
 }
 
+function includeLowerPartSelected() {
+  const input = byId('include-lower-part');
+  return Boolean(input && input.checked);
+}
+
 function requestSelectedProduct() {
   const product = selectedProduct();
   if (!product || product.detailLoaded) return;
@@ -346,7 +351,10 @@ function renderPreview() {
   const mode = detectArtworkMode(currentDocumentTitle(), null);
   state.layoutMode = mode;
   renderLayoutMode(mode);
-  state.currentLayout = buildPage4Layout(product, { mode });
+  state.currentLayout = buildPage4Layout(product, {
+    mode,
+    includeLowerPart: includeLowerPartSelected(),
+  });
   if (preview) preview.textContent = state.currentLayout.text || '当前 SKU 没有可生成的文案。';
   if (missing) {
     missing.textContent = state.currentLayout.missing.length
@@ -866,7 +874,7 @@ async function writeLegacyPage4(product, layout, document, resolution, textColor
   }, { commandName: '生成当前页面文案' });
 }
 
-async function writePage4(product, textColor) {
+async function writePage4(product, textColor, includeLowerPart) {
   const document = app.activeDocument;
   if (!document) throw new Error('请先打开纸盒 PSD 文件。');
   const resolution = Number(document.resolution) || 72;
@@ -874,7 +882,7 @@ async function writePage4(product, textColor) {
   const mode = detectArtworkMode(currentDocumentTitle(), selection);
   state.layoutMode = mode;
   renderLayoutMode(mode, selection);
-  const layout = buildPage4Layout(product, { mode });
+  const layout = buildPage4Layout(product, { mode, includeLowerPart });
   if (!layout.text) throw new Error('当前 SKU 没有可生成的文案。');
   if (selection) return writeSelectionBoxes(product, layout, document, selection, resolution, textColor);
   return writeLegacyPage4(product, layout, document, resolution, textColor);
@@ -897,7 +905,7 @@ async function generate() {
   setStatus('正在读取矩形选区并生成可编辑文案框…', 'normal');
   try {
     const textColor = selectedTextColor();
-    const result = await writePage4(product, textColor);
+    const result = await writePage4(product, textColor, includeLowerPartSelected());
     const suffix = result.missing.length ? '；缺少 ' + result.missing.join('、') : '';
     const modeText = result.mode === 'selection' ? '已生成 ' + result.boxes + ' 个文案框' : '已写入当前文字层';
     setStatus(modeText + '（' + modeLabel(result.layoutMode) + '），字号 ' + result.size.toFixed(2) + ' pt' + suffix + '。', result.missing.length ? 'warning' : 'success');
@@ -922,6 +930,7 @@ function bindEvents() {
     if (!send({ type: 'snapshot.request' })) setStatus('请先连接悬浮助手。', 'error');
   });
   byId('generate').addEventListener('click', generate);
+  byId('include-lower-part').addEventListener('change', renderPreview);
   document.querySelectorAll('input[name="text-color"]').forEach((input) => {
     input.addEventListener('change', () => {
       state.textColor = selectedTextColor();

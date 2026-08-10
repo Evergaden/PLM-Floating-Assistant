@@ -23,7 +23,7 @@ const product = {
   },
 };
 
-const layout = buildPage4Layout(product);
+const layout = buildPage4Layout(product, { includeLowerPart: true });
 assert.equal(layout.missing.length, 0);
 assert.ok(layout.text.includes('INGREDIENTS:\nAQUA、 GLYCERIN、 MINERAL OIL'));
 assert.ok(layout.text.includes('MADE IN CHINA'));
@@ -50,17 +50,22 @@ const withoutFunctions = buildPage4Layout({
   copywriting: {
     sections: product.copywriting.sections.filter((section) => !/^functions/i.test(section.key)),
   },
-});
+}, { includeLowerPart: true });
 assert.equal(withoutFunctions.boxes.reps.length, 0);
 assert.equal(withoutFunctions.boxes.address.text.includes('DISTRIBUTED BY:'), true);
 assert.equal(withoutFunctions.boxes.address.text.includes('ADDRESS:'), true);
 assert.equal(withoutFunctions.text.includes('EU REP'), false);
 
-const labelLayout = buildPage4Layout(product, { mode: 'label' });
+const labelLayout = buildPage4Layout(product, { mode: 'label', includeLowerPart: true });
 assert.equal(labelLayout.mode, 'label');
 assert.equal(labelLayout.boxes.labelName.text.includes('PRODUCT NAME:'), false);
 assert.equal(labelLayout.boxes.labelFacts.text.includes('MADE IN CHINA'), true);
 assert.equal(labelLayout.boxes.address.text.includes('DISTRIBUTED BY:'), true);
 assert.equal(labelLayout.boxes.reps.length, 3);
+
+const withoutLowerPart = buildPage4Layout(product);
+assert.equal(withoutLowerPart.boxes.address.text, '');
+assert.equal(withoutLowerPart.text.includes('DISTRIBUTED BY:'), false);
+assert.equal(withoutLowerPart.text.includes('ADDRESS:'), false);
 
 console.log('copywriting formatter: ok');

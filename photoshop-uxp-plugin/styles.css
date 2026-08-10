@@ -192,6 +192,9 @@ pre {
 }
 
 .generate { width: 100%; min-height: 42px; margin-top: 2px; border-radius: 11px; }
+.generation-options { padding-bottom: 11px; }
+.check-option { display: flex; align-items: center; gap: 8px; min-height: 32px; margin: 0; padding: 0 9px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-soft); cursor: pointer; font-size: 11px; font-weight: 700; }
+.check-option input[type="checkbox"] { width: 15px; min-height: 15px; margin: 0; padding: 0; accent-color: var(--purple); }
 .color-card { padding-bottom: 11px; }
 .color-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .color-option {
