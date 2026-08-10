@@ -20,6 +20,9 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 use uuid::Uuid;
 use zip::ZipArchive;
 
+mod parameter_box_analysis;
+use parameter_box_analysis::analyze_parameter_box_annotations;
+
 const BRIDGE_ADDRESS: &str = "127.0.0.1:37191";
 const MAX_EXCEL_BYTES: usize = 40 * 1024 * 1024;
 const MAX_UPLOAD_ZIP_BYTES: usize = 100 * 1024 * 1024;
@@ -3534,6 +3537,7 @@ pub fn run() {
             scan_file_organizer,
             organize_files,
             scan_parameter_samples,
+            analyze_parameter_box_annotations,
             scan_label_check,
             confirm_label_check,
             open_local_folder,

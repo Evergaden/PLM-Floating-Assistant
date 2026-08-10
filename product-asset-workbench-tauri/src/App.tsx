@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.14";
+const APP_VERSION = "0.1.15";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
@@ -117,6 +117,60 @@ interface ParameterSampleScanResult {
   ready: number;
   incomplete: number;
   ambiguous: number;
+  logs: string[];
+}
+
+interface NormalizedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface BoxDimensionMarkAnalysis {
+  kind: string;
+  orientation: string;
+  placement: string;
+  lineBounds: NormalizedRect;
+  labelBounds: NormalizedRect | null;
+  lineGapRatio: number;
+  labelOffsetRatio: number | null;
+  angleDegrees: number;
+}
+
+interface ParameterBoxSampleAnalysis {
+  sku: string;
+  productName: string;
+  parameterPath: string;
+  status: "confident" | "low-confidence" | "skipped" | string;
+  confidence: number;
+  boxBounds: NormalizedRect | null;
+  lengthMark: BoxDimensionMarkAnalysis | null;
+  heightMark: BoxDimensionMarkAnalysis | null;
+  depthMark: BoxDimensionMarkAnalysis | null;
+  message: string;
+}
+
+interface DimensionPlacementSummary {
+  count: number;
+  primaryPlacement: string;
+  placementCounts: Record<string, number>;
+  medianLineGapRatio: number;
+  medianLabelOffsetRatio: number | null;
+  medianAngleDegrees: number;
+}
+
+interface ParameterBoxAnalysisResult {
+  reportPath: string;
+  sourceIndexPath: string;
+  analyzed: number;
+  confident: number;
+  lowConfidence: number;
+  skipped: number;
+  lengthRule: DimensionPlacementSummary;
+  heightRule: DimensionPlacementSummary;
+  depthRule: DimensionPlacementSummary;
+  items: ParameterBoxSampleAnalysis[];
   logs: string[];
 }
 
@@ -272,6 +326,14 @@ function formatLabelCheckTime(value: number) {
 
 function localFileName(path: string | null) {
   return path ? path.split(/[\\/]/).filter(Boolean).pop() || path : "未找到";
+}
+
+function dimensionPlacementLabel(value: string) {
+  return ({ top: "纸盒上方", bottom: "纸盒下方", left: "纸盒左侧", right: "纸盒右侧", "top-left": "纸盒左上方", "top-right": "纸盒右上方" } as Record<string, string>)[value] || "未识别";
+}
+
+function percentRatio(value: number | null) {
+  return value === null || !Number.isFinite(value) ? "—" : `${Math.round(value * 100)}%`;
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -699,6 +761,8 @@ export default function App() {
   const [parameterSampleIndexPath, setParameterSampleIndexPath] = useState("");
   const [parameterSampleBusy, setParameterSampleBusy] = useState(false);
   const [parameterSampleLogs, setParameterSampleLogs] = useState<string[]>(["请选择工作目录，工作台会自动配对透明图、正确尺寸图和 Excel。"]);
+  const [parameterBoxAnalysis, setParameterBoxAnalysis] = useState<ParameterBoxAnalysisResult | null>(null);
+  const [parameterBoxAnalysisBusy, setParameterBoxAnalysisBusy] = useState(false);
   const [labelCheckItems, setLabelCheckItems] = useState<LabelCheckItem[]>([]);
   const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
   const [labelCheckConfirmedItems, setLabelCheckConfirmedItems] = useState<LabelCheckItem[]>([]);
@@ -1307,6 +1371,7 @@ export default function App() {
   async function scanParameterSamples() {
     if (!root) return notify("请先选择工作目录");
     setParameterSampleBusy(true);
+    setParameterBoxAnalysis(null);
     setParameterSampleLogs(["正在递归扫描产品目录并自动配对样本…"]);
     try {
       const result = await invoke<ParameterSampleScanResult>("scan_parameter_samples", { root });
@@ -1319,6 +1384,24 @@ export default function App() {
       notify(String(error));
     } finally {
       setParameterSampleBusy(false);
+    }
+  }
+
+  async function analyzeParameterBoxAnnotations() {
+    if (!root) return notify("请先选择工作目录");
+    setParameterBoxAnalysisBusy(true);
+    setParameterSampleLogs(["正在用本地 CPU 分析纸盒长、高、宽/深尺寸标注位置…"]);
+    try {
+      const result = await invoke<ParameterBoxAnalysisResult>("analyze_parameter_box_annotations", { root });
+      setParameterBoxAnalysis(result);
+      setParameterSampleIndexPath(result.sourceIndexPath);
+      setParameterSampleLogs(result.logs);
+      notify(`纸盒标注分析完成：高置信度 ${result.confident} 组，低置信度 ${result.lowConfidence} 组`);
+    } catch (error) {
+      setParameterSampleLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setParameterBoxAnalysisBusy(false);
     }
   }
 
@@ -1715,12 +1798,17 @@ export default function App() {
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
             </div>
             <div className="parameter-sample-toolbar">
-              <button className="primary" onClick={scanParameterSamples} disabled={parameterSampleBusy}>
+              <button className="primary" onClick={scanParameterSamples} disabled={parameterSampleBusy || parameterBoxAnalysisBusy}>
                 {parameterSampleBusy ? <LoaderCircle size={16} className="spin" /> : <ScanLine size={16} />}
                 {parameterSampleBusy ? "正在整理…" : "扫描并整理样本"}
               </button>
-              <span>优先匹配 <code>透明.png</code>、<code>套图/产品参数图/尺寸.jpg</code> 和带 SKU 的 XLSX</span>
+              <button onClick={analyzeParameterBoxAnnotations} disabled={parameterSampleBusy || parameterBoxAnalysisBusy || !root}>
+                {parameterBoxAnalysisBusy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
+                {parameterBoxAnalysisBusy ? "正在分析纸盒…" : "提取纸盒标注规则"}
+              </button>
+              <span>CPU 分析纸盒长、高、宽/深标注的相对位置，不上传图片</span>
               {parameterSampleIndexPath && <button onClick={() => openPath(parameterSampleIndexPath)}><FileSpreadsheet size={15} />打开样本索引</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.reportPath)}><FileSpreadsheet size={15} />打开规则报告</button>}
             </div>
             <div className="parameter-sample-summary">
               <span>产品目录 {parameterSamples.length}</span>
@@ -1729,6 +1817,34 @@ export default function App() {
               <span>需核对 {parameterSamples.filter((item) => item.status === "ambiguous").length}</span>
               <small title={parameterSampleIndexPath}>{parameterSampleIndexPath || "扫描后会在工作目录生成“参数图学习样本索引.json”"}</small>
             </div>
+            {parameterBoxAnalysis && <div className="parameter-rule-analysis">
+              <div className="parameter-rule-overview">
+                <div><span>识别纸盒</span><strong>{parameterBoxAnalysis.analyzed}</strong><small>从完整样本中检测</small></div>
+                <div className="success"><span>高置信度</span><strong>{parameterBoxAnalysis.confident}</strong><small>可纳入规则统计</small></div>
+                <div className="warning"><span>低置信度</span><strong>{parameterBoxAnalysis.lowConfidence}</strong><small>建议人工抽检</small></div>
+                <div><span>未读取</span><strong>{parameterBoxAnalysis.skipped}</strong><small>图片损坏或缺失</small></div>
+              </div>
+              <div className="parameter-rule-cards">
+                {[
+                  ["纸盒长（正面横向）", parameterBoxAnalysis.lengthRule],
+                  ["纸盒高（纵向）", parameterBoxAnalysis.heightRule],
+                  ["纸盒宽/深（斜向）", parameterBoxAnalysis.depthRule],
+                ].map(([label, rule]) => {
+                  const summary = rule as DimensionPlacementSummary;
+                  return <article key={label as string}>
+                    <span>{label as string}</span>
+                    <strong>{dimensionPlacementLabel(summary.primaryPlacement)}</strong>
+                    <small>{summary.count} 组 · 尺寸线距纸盒中位值 {percentRatio(summary.medianLineGapRatio)} · 文字距线 {percentRatio(summary.medianLabelOffsetRatio)}</small>
+                  </article>;
+                })}
+              </div>
+              {!!parameterBoxAnalysis.items.some((item) => item.status !== "confident") && <details className="parameter-rule-review">
+                <summary>查看低置信度与未识别样本（{parameterBoxAnalysis.items.filter((item) => item.status !== "confident").length}）</summary>
+                <div>{parameterBoxAnalysis.items.filter((item) => item.status !== "confident").map((item) => <button key={`${item.sku}:${item.parameterPath}`} onClick={() => openPath(item.parameterPath)} title={item.parameterPath}>
+                  <span>{item.sku || "未识别 SKU"}</span><strong>{item.productName}</strong><small>{Math.round(item.confidence * 100)}% · {item.message}</small>
+                </button>)}</div>
+              </details>}
+            </div>}
             <div className="parameter-sample-list">
               {!parameterSamples.length && <div className="empty-state"><FileImage size={28} /><strong>点击“扫描并整理样本”开始</strong><span>文件保持原位，工作台只建立配对索引。</span></div>}
               {parameterSamples.map((item) => (

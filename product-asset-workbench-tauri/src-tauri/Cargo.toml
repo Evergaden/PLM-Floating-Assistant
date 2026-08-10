@@ -1,6 +1,6 @@
 [package]
 name = "plm-product-asset-workbench"
-version = "0.1.14"
+version = "0.1.15"
 description = "PLM finalized product asset production workbench"
 authors = ["Violet"]
 edition = "2024"
@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 base64 = "0.22"
 futures-util = "0.3"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 rand = "0.9"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
