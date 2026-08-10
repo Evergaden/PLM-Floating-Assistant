@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.17";
+const APP_VERSION = "0.1.18";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
@@ -107,6 +107,7 @@ interface ParameterSampleItem {
   excelPath: string | null;
   transparentHasAlpha: boolean;
   transparentCandidates: number;
+  transparentPlaceholders: number;
   parameterCandidates: number;
   excelCandidates: number;
   status: "ready" | "missing" | "ambiguous" | string;
@@ -182,9 +183,19 @@ interface DimensionPlacementSummary {
 
 interface ParameterBoxAnalysisResult {
   reportPath: string;
+  batchReportPath: string;
+  libraryPath: string;
   runtimeRulePath: string;
   ruleVersion: string;
   sourceIndexPath: string;
+  batchAnalyzed: number;
+  globalSamples: number;
+  addedSamples: number;
+  updatedSamples: number;
+  unchangedSamples: number;
+  removedSamples: number;
+  migratedSamples: number;
+  sourceCount: number;
   analyzed: number;
   confident: number;
   lowConfidence: number;
@@ -1613,6 +1624,17 @@ export default function App() {
     }
   }
 
+  async function openParameterSampleFolder(path: string) {
+    try {
+      await invoke("open_local_folder", { path });
+      setParameterSampleLogs((current) => [...current, `已打开产品目录：${path}`]);
+    } catch (error) {
+      const message = `无法打开产品目录：${String(error)}`;
+      setParameterSampleLogs((current) => [...current, message]);
+      notify(message);
+    }
+  }
+
   async function copyLabelCheckCodes() {
     if (!labelCheckRecords.length) return notify("还没有已确认的产品编码");
     await navigator.clipboard.writeText(labelCheckRecords.map((record) => record.sku).join("\n"));
@@ -1931,9 +1953,11 @@ export default function App() {
                 {parameterBoxAnalysisBusy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
                 {parameterBoxAnalysisBusy ? "正在分析纸盒…" : "提取纸盒标注规则"}
               </button>
-              <span>Excel 尺寸 + 本地 OCR + CPU 几何联合分析，不上传图片；未安装 OCR 时自动退回几何模式</span>
+              <span>每个月只分析当前目录，结果自动去重并累计到全局样本库；Excel、OCR 和图片都在本机处理</span>
               {parameterSampleIndexPath && <button onClick={() => openPath(parameterSampleIndexPath)}><FileSpreadsheet size={15} />打开样本索引</button>}
-              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.reportPath)}><FileSpreadsheet size={15} />打开规则报告</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.libraryPath)}><FileSpreadsheet size={15} />打开累计样本库</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.batchReportPath)}><FileSpreadsheet size={15} />打开本月报告</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.reportPath)}><FileSpreadsheet size={15} />打开累计规则报告</button>}
               {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.runtimeRulePath)}><FileSpreadsheet size={15} />打开运行规则</button>}
             </div>
             <div className="parameter-sample-summary">
@@ -1953,6 +1977,8 @@ export default function App() {
             </div>
             {parameterBoxAnalysis && <div className="parameter-rule-analysis">
               <div className="parameter-rule-overview">
+                <div className="success"><span>累计样本</span><strong>{parameterBoxAnalysis.globalSamples}</strong><small>{parameterBoxAnalysis.sourceCount} 个工作目录</small></div>
+                <div><span>本次识别</span><strong>{parameterBoxAnalysis.batchAnalyzed}</strong><small>新增 {parameterBoxAnalysis.addedSamples} · 更新 {parameterBoxAnalysis.updatedSamples} · 清理 {parameterBoxAnalysis.removedSamples}</small></div>
                 <div><span>识别纸盒</span><strong>{parameterBoxAnalysis.analyzed}</strong><small>从完整样本中检测</small></div>
                 <div className="success"><span>高置信度</span><strong>{parameterBoxAnalysis.confident}</strong><small>可纳入规则统计</small></div>
                 <div className="warning"><span>低置信度</span><strong>{parameterBoxAnalysis.lowConfidence}</strong><small>建议人工抽检</small></div>
@@ -1994,7 +2020,7 @@ export default function App() {
                   </div>
                   <div className={`parameter-sample-file ${item.transparentPath ? "found" : "missing"}`}>
                     {item.transparentPath ? <img src={convertFileSrc(item.transparentPath)} alt="透明原图" /> : <FileImage size={24} />}
-                    <div><strong>透明原图</strong><span title={item.transparentPath || ""}>{localFileName(item.transparentPath)}</span><small>{item.transparentCandidates} 个候选 · {item.transparentPath ? (item.transparentHasAlpha ? "有透明通道" : "未检测到透明通道") : "未找到"}</small></div>
+                    <div><strong>透明原图</strong><span title={item.transparentPath || ""}>{localFileName(item.transparentPath)}</span><small>{item.transparentCandidates} 个有效候选 · {item.transparentPlaceholders ? `已排除 ${item.transparentPlaceholders} 个占位图` : item.transparentPath ? (item.transparentHasAlpha ? "有透明通道" : "未检测到透明通道") : "未找到"}</small></div>
                   </div>
                   <div className={`parameter-sample-file ${item.parameterPath ? "found" : "missing"}`}>
                     {item.parameterPath ? <img src={convertFileSrc(item.parameterPath)} alt="正确尺寸图" /> : <FileImage size={24} />}
@@ -2007,7 +2033,7 @@ export default function App() {
                   <div className="parameter-sample-result">
                     <span className={`status ${item.status === "ready" ? "success" : item.status === "ambiguous" ? "warning" : "danger"}`}>{item.status === "ready" ? "已配对" : item.status === "ambiguous" ? "需核对" : "待补全"}</span>
                     <small>{item.message}</small>
-                    <button onClick={() => openPath(item.productPath)}><FolderOpen size={14} />打开目录</button>
+                    <button onClick={() => void openParameterSampleFolder(item.productPath)}><FolderOpen size={14} />打开目录</button>
                   </div>
                 </article>
               ))}

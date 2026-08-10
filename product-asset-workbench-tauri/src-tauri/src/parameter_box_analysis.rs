@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fs,
+    io::Read,
     path::{Path, PathBuf},
     process::Command,
     sync::OnceLock,
@@ -25,7 +26,7 @@ struct ParameterSampleIndexItem {
     status: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct NormalizedRect {
     x: f32,
@@ -34,7 +35,7 @@ struct NormalizedRect {
     height: f32,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BoxDimensionMarkAnalysis {
     kind: String,
@@ -47,7 +48,7 @@ struct BoxDimensionMarkAnalysis {
     angle_degrees: f32,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DimensionValuesCm {
     raw: String,
@@ -62,7 +63,7 @@ impl DimensionValuesCm {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ExcelDimensionEvidence {
     excel_path: String,
@@ -71,7 +72,7 @@ struct ExcelDimensionEvidence {
     message: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct OcrDimensionEvidence {
     engine: String,
@@ -94,12 +95,13 @@ struct DimensionAssignment {
     height_axis: usize,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ParameterBoxSampleAnalysis {
     sku: String,
     product_name: String,
     parameter_path: String,
+    transparent_path: Option<String>,
     status: String,
     confidence: f32,
     box_bounds: Option<NormalizedRect>,
@@ -130,9 +132,19 @@ struct DimensionPlacementSummary {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ParameterBoxAnalysisResult {
     report_path: String,
+    batch_report_path: String,
+    library_path: String,
     runtime_rule_path: String,
     rule_version: String,
     source_index_path: String,
+    batch_analyzed: usize,
+    global_samples: usize,
+    added_samples: usize,
+    updated_samples: usize,
+    unchanged_samples: usize,
+    removed_samples: usize,
+    migrated_samples: usize,
+    source_count: usize,
     analyzed: usize,
     confident: usize,
     low_confidence: usize,
@@ -148,6 +160,39 @@ pub(crate) struct ParameterBoxAnalysisResult {
     items: Vec<ParameterBoxSampleAnalysis>,
     runtime_rule: Value,
     logs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ParameterBoxLibraryEntry {
+    key: String,
+    signature: String,
+    source_root: String,
+    source_index_path: String,
+    last_modified_ms: u64,
+    analyzed_at_ms: u64,
+    analysis: ParameterBoxSampleAnalysis,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ParameterBoxLibrary {
+    schema_version: u32,
+    updated_at_ms: u64,
+    sources: Vec<String>,
+    samples: Vec<ParameterBoxLibraryEntry>,
+}
+
+#[derive(Debug)]
+struct ParameterBoxLibraryMerge {
+    library_path: PathBuf,
+    items: Vec<ParameterBoxSampleAnalysis>,
+    added: usize,
+    updated: usize,
+    unchanged: usize,
+    removed: usize,
+    migrated: usize,
+    source_count: usize,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1356,6 +1401,7 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
         sku: sample.sku.clone(),
         product_name: sample.product_name.clone(),
         parameter_path: parameter_path.clone(),
+        transparent_path: sample.transparent_path.clone(),
         status: "skipped".to_string(),
         confidence: 0.0,
         box_bounds: None,
@@ -1589,6 +1635,272 @@ fn runtime_profile(id: &str, label: &str, items: &[&ParameterBoxSampleAnalysis])
     })
 }
 
+fn current_time_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_millis().min(u64::MAX as u128) as u64)
+        .unwrap_or_default()
+}
+
+fn analysis_identity(item: &ParameterBoxSampleAnalysis) -> String {
+    let sku = item.sku.trim().to_ascii_uppercase();
+    if !sku.is_empty() {
+        return format!("sku:{sku}");
+    }
+    let product = item
+        .product_name
+        .chars()
+        .filter(|character| !character.is_whitespace() && !matches!(character, '-' | '_' | '—'))
+        .collect::<String>()
+        .to_lowercase();
+    format!("product:{product}")
+}
+
+fn hash_signature_bytes(hash: &mut u64, bytes: &[u8]) {
+    for byte in bytes {
+        *hash ^= u64::from(*byte);
+        *hash = hash.wrapping_mul(1_099_511_628_211);
+    }
+}
+
+fn analysis_source_paths(item: &ParameterBoxSampleAnalysis) -> Vec<&str> {
+    let mut paths = vec![item.parameter_path.as_str()];
+    if let Some(path) = item.transparent_path.as_deref() {
+        paths.push(path);
+    }
+    if let Some(path) = item
+        .excel_dimensions
+        .as_ref()
+        .map(|evidence| evidence.excel_path.as_str())
+    {
+        paths.push(path);
+    }
+    paths
+}
+
+fn analysis_signature(item: &ParameterBoxSampleAnalysis) -> String {
+    let mut hash = 14_695_981_039_346_656_037_u64;
+    for (index, path) in analysis_source_paths(item).into_iter().enumerate() {
+        hash_signature_bytes(&mut hash, &[index as u8, 0xff]);
+        match fs::File::open(path) {
+            Ok(mut file) => {
+                let mut buffer = [0_u8; 64 * 1024];
+                loop {
+                    match file.read(&mut buffer) {
+                        Ok(0) => break,
+                        Ok(length) => hash_signature_bytes(&mut hash, &buffer[..length]),
+                        Err(_) => {
+                            hash_signature_bytes(&mut hash, path.as_bytes());
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(_) => hash_signature_bytes(&mut hash, path.as_bytes()),
+        }
+    }
+    format!("fnv1a64:{hash:016x}")
+}
+
+fn analysis_modified_ms(item: &ParameterBoxSampleAnalysis) -> u64 {
+    analysis_source_paths(item)
+        .into_iter()
+        .filter_map(|path| fs::metadata(path).ok()?.modified().ok())
+        .filter_map(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis().min(u64::MAX as u128) as u64)
+        .max()
+        .unwrap_or_default()
+}
+
+fn merge_library_entry(
+    library: &mut ParameterBoxLibrary,
+    entry: ParameterBoxLibraryEntry,
+) -> &'static str {
+    if let Some(index) = library
+        .samples
+        .iter()
+        .position(|current| current.key == entry.key)
+    {
+        if library.samples[index].signature == entry.signature {
+            return "unchanged";
+        }
+        if entry.last_modified_ms >= library.samples[index].last_modified_ms {
+            library.samples[index] = entry;
+            return "updated";
+        }
+        return "unchanged";
+    }
+    if library
+        .samples
+        .iter()
+        .any(|current| current.signature == entry.signature)
+    {
+        return "unchanged";
+    }
+    library.samples.push(entry);
+    "added"
+}
+
+fn batch_report_paths(root: &Path) -> Vec<PathBuf> {
+    let report_name = "参数图纸盒标注规则.json";
+    let mut paths = Vec::new();
+    if let Some(parent) = root.parent() {
+        if let Ok(entries) = fs::read_dir(parent) {
+            for entry in entries.flatten() {
+                let candidate = entry.path().join(report_name);
+                if candidate.is_file() {
+                    paths.push(candidate);
+                }
+            }
+        }
+    }
+    let current = root.join(report_name);
+    if current.is_file() {
+        paths.push(current);
+    }
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
+fn migrate_batch_reports(
+    root: &Path,
+    library: &mut ParameterBoxLibrary,
+    analyzed_at_ms: u64,
+) -> usize {
+    let mut migrated = 0_usize;
+    for report_path in batch_report_paths(root) {
+        let Ok(bytes) = fs::read(&report_path) else {
+            continue;
+        };
+        let Ok(report) = serde_json::from_slice::<Value>(&bytes) else {
+            continue;
+        };
+        let Ok(items) = serde_json::from_value::<Vec<ParameterBoxSampleAnalysis>>(
+            report
+                .get("samples")
+                .cloned()
+                .unwrap_or(Value::Array(Vec::new())),
+        ) else {
+            continue;
+        };
+        let source_index_path = report
+            .get("sourceIndexPath")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let source_root = report_path.parent().map(path_text).unwrap_or_default();
+        for item in items {
+            let entry = ParameterBoxLibraryEntry {
+                key: analysis_identity(&item),
+                signature: analysis_signature(&item),
+                source_root: source_root.clone(),
+                source_index_path: source_index_path.clone(),
+                last_modified_ms: analysis_modified_ms(&item),
+                analyzed_at_ms,
+                analysis: item,
+            };
+            if merge_library_entry(library, entry) != "unchanged" {
+                migrated += 1;
+            }
+        }
+    }
+    migrated
+}
+
+fn merge_parameter_library(
+    root: &Path,
+    source_index_path: &Path,
+    batch_items: &[ParameterBoxSampleAnalysis],
+) -> Result<ParameterBoxLibraryMerge, String> {
+    let app_data_root = crate::application_data_root();
+    fs::create_dir_all(&app_data_root)
+        .map_err(|error| format!("无法创建参数图累计样本库目录：{error}"))?;
+    let library_path = app_data_root.join("参数图累计样本库.json");
+    let existed = library_path.is_file();
+    let mut library = if existed {
+        let bytes = fs::read(&library_path)
+            .map_err(|error| format!("无法读取参数图累计样本库：{error}"))?;
+        serde_json::from_slice::<ParameterBoxLibrary>(&bytes)
+            .map_err(|error| format!("参数图累计样本库格式错误：{error}"))?
+    } else {
+        ParameterBoxLibrary {
+            schema_version: 1,
+            ..Default::default()
+        }
+    };
+    let analyzed_at_ms = current_time_ms();
+    let migrated = if existed {
+        0
+    } else {
+        migrate_batch_reports(root, &mut library, analyzed_at_ms)
+    };
+    let source_root = path_text(root);
+    let source_index = path_text(source_index_path);
+    let batch_keys = batch_items
+        .iter()
+        .map(analysis_identity)
+        .collect::<HashSet<_>>();
+    let before_reconcile = library.samples.len();
+    library
+        .samples
+        .retain(|entry| entry.source_root != source_root || batch_keys.contains(&entry.key));
+    let removed = before_reconcile.saturating_sub(library.samples.len());
+    let mut added = 0_usize;
+    let mut updated = 0_usize;
+    let mut unchanged = 0_usize;
+    for item in batch_items.iter().cloned() {
+        let entry = ParameterBoxLibraryEntry {
+            key: analysis_identity(&item),
+            signature: analysis_signature(&item),
+            source_root: source_root.clone(),
+            source_index_path: source_index.clone(),
+            last_modified_ms: analysis_modified_ms(&item),
+            analyzed_at_ms,
+            analysis: item,
+        };
+        match merge_library_entry(&mut library, entry) {
+            "added" => added += 1,
+            "updated" => updated += 1,
+            _ => unchanged += 1,
+        }
+    }
+    library
+        .samples
+        .sort_by(|left, right| left.key.cmp(&right.key));
+    library.sources = library
+        .samples
+        .iter()
+        .map(|entry| entry.source_root.clone())
+        .collect();
+    library.sources.sort();
+    library.sources.dedup();
+    library.schema_version = 1;
+    library.updated_at_ms = analyzed_at_ms;
+    let bytes = serde_json::to_vec_pretty(&library)
+        .map_err(|error| format!("无法生成参数图累计样本库：{error}"))?;
+    fs::write(&library_path, bytes).map_err(|error| {
+        format!(
+            "无法保存参数图累计样本库 {}：{error}",
+            path_text(&library_path)
+        )
+    })?;
+    Ok(ParameterBoxLibraryMerge {
+        library_path,
+        items: library
+            .samples
+            .into_iter()
+            .map(|entry| entry.analysis)
+            .collect(),
+        added,
+        updated,
+        unchanged,
+        removed,
+        migrated,
+        source_count: library.sources.len(),
+    })
+}
+
 fn analyze_parameter_box_annotations_plan(
     root: &Path,
 ) -> Result<ParameterBoxAnalysisResult, String> {
@@ -1618,15 +1930,34 @@ fn analyze_parameter_box_annotations_plan(
         return Err("索引中没有可分析的完整样本".to_string());
     }
     let ocr_available = tesseract_path().is_some();
-    let mut items = eligible
+    let mut batch_items = eligible
         .into_iter()
         .map(analyze_parameter_box_sample)
         .collect::<Vec<_>>();
+    batch_items.sort_by(|left, right| {
+        left.sku
+            .cmp(&right.sku)
+            .then_with(|| left.product_name.cmp(&right.product_name))
+    });
+    let batch_analyzed = batch_items
+        .iter()
+        .filter(|item| item.box_bounds.is_some())
+        .count();
+    let library_merge = merge_parameter_library(root, &source_index_path, &batch_items)?;
+    let library_path = library_merge.library_path;
+    let added_samples = library_merge.added;
+    let updated_samples = library_merge.updated;
+    let unchanged_samples = library_merge.unchanged;
+    let removed_samples = library_merge.removed;
+    let migrated_samples = library_merge.migrated;
+    let source_count = library_merge.source_count;
+    let mut items = library_merge.items;
     items.sort_by(|left, right| {
         left.sku
             .cmp(&right.sku)
             .then_with(|| left.product_name.cmp(&right.product_name))
     });
+    let global_samples = items.len();
     let analyzed = items
         .iter()
         .filter(|item| item.box_bounds.is_some())
@@ -1675,8 +2006,9 @@ fn analyze_parameter_box_annotations_plan(
         summarize_dimension_marks(item_dimension_marks(items.iter(), "boxHeight").into_iter());
     let depth_rule =
         summarize_dimension_marks(item_dimension_marks(items.iter(), "boxDepth").into_iter());
-    let report_path = root.join("参数图纸盒标注规则.json");
-    let runtime_rule_path = root.join("参数图纸盒运行规则.json");
+    let batch_report_path = root.join("参数图纸盒标注规则.json");
+    let report_path = crate::application_data_root().join("参数图累计纸盒标注规则.json");
+    let runtime_rule_path = crate::application_data_root().join("参数图累计纸盒运行规则.json");
     let generated_at_ms = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|value| value.as_millis())
@@ -1699,7 +2031,7 @@ fn analyze_parameter_box_annotations_plan(
     let runtime_rule = json!({
         "schemaVersion": 1,
         "ruleVersion": &rule_version,
-        "minAppVersion": "0.1.17",
+        "minAppVersion": "0.1.18",
         "generatedAtMs": generated_at_ms,
         "coordinateMode": "normalized-relative-to-paper-box",
         "selection": {
@@ -1739,9 +2071,9 @@ fn analyze_parameter_box_annotations_plan(
         }
     }
     let report = json!({
-        "schemaVersion": 3, "generatedAtMs": generated_at_ms, "sourceIndexPath": path_text(&source_index_path), "runtimeRulePath": path_text(&runtime_rule_path),
+        "schemaVersion": 4, "generatedAtMs": generated_at_ms, "sourceIndexPath": path_text(&source_index_path), "libraryPath": path_text(&library_path), "runtimeRulePath": path_text(&runtime_rule_path),
         "analysis": "cpu-dark-line-plus-excel-and-local-ocr", "coordinateMode": "normalized-relative-to-paper-box", "paperBoxSelection": "excel-ocr-package-match-with-transparent-fallback",
-        "summary": { "eligible": items.len(), "analyzed": analyzed, "confident": confident, "lowConfidence": low_confidence, "skipped": skipped,
+        "summary": { "scope": "cumulative", "sources": source_count, "eligible": items.len(), "analyzed": analyzed, "confident": confident, "lowConfidence": low_confidence, "skipped": skipped,
             "ocrAvailable": ocr_available, "excelParsed": excel_parsed, "ocrVerified": ocr_verified, "excelOcrSelected": excel_ocr_selected, "dimensionMismatches": dimension_mismatches,
             "lengthRule": &length_rule, "heightRule": &height_rule, "depthRule": &depth_rule,
             "selectionMethods": selection_methods, "sourceBoxPositions": source_box_positions },
@@ -1751,10 +2083,50 @@ fn analyze_parameter_box_annotations_plan(
         .map_err(|error| format!("无法生成纸盒标注规则：{error}"))?;
     fs::write(&report_path, bytes)
         .map_err(|error| format!("无法保存纸盒标注规则 {}：{error}", path_text(&report_path)))?;
-    let logs = vec![
-        format!("读取完整样本 {} 组，仅使用本地 CPU 分析", items.len()),
+    let batch_report = json!({
+        "schemaVersion": 4,
+        "generatedAtMs": generated_at_ms,
+        "scope": "batch",
+        "sourceIndexPath": path_text(&source_index_path),
+        "cumulativeLibraryPath": path_text(&library_path),
+        "cumulativeReportPath": path_text(&report_path),
+        "runtimeRulePath": path_text(&runtime_rule_path),
+        "summary": {
+            "eligible": batch_items.len(),
+            "analyzed": batch_analyzed,
+            "added": added_samples,
+            "updated": updated_samples,
+            "unchanged": unchanged_samples,
+            "removed": removed_samples,
+            "migrated": migrated_samples,
+            "globalSamples": global_samples,
+        },
+        "samples": &batch_items,
+    });
+    let batch_bytes = serde_json::to_vec_pretty(&batch_report)
+        .map_err(|error| format!("无法生成本批次纸盒标注报告：{error}"))?;
+    fs::write(&batch_report_path, batch_bytes).map_err(|error| {
         format!(
-            "识别纸盒 {} 组；高置信度 {} 组；低置信度 {} 组；跳过 {} 组",
+            "无法保存本批次纸盒标注报告 {}：{error}",
+            path_text(&batch_report_path)
+        )
+    })?;
+    let logs = vec![
+        format!(
+            "本次分析完整样本 {} 组，识别纸盒 {} 组，仅使用本地 CPU",
+            batch_items.len(),
+            batch_analyzed
+        ),
+        format!(
+            "累计样本库：新增 {} 组，更新 {} 组，未变化 {} 组，移除本月失效记录 {} 组；首次迁移旧报告 {} 组",
+            added_samples, updated_samples, unchanged_samples, removed_samples, migrated_samples
+        ),
+        format!(
+            "当前累计 {} 组样本，来自 {} 个工作目录；切换月份会继续合并到同一个样本库",
+            global_samples, source_count
+        ),
+        format!(
+            "累计规则识别纸盒 {} 组；高置信度 {} 组；低置信度 {} 组；跳过 {} 组",
             analyzed, confident, low_confidence, skipped
         ),
         format!(
@@ -1796,14 +2168,26 @@ fn analyze_parameter_box_annotations_plan(
                 &depth_rule.primary_placement
             }
         ),
-        format!("规则报告已保存：{}", path_text(&report_path)),
-        format!("运行时规则包已保存：{}", path_text(&runtime_rule_path)),
+        format!("累计样本库已保存：{}", path_text(&library_path)),
+        format!("本批次报告已保存：{}", path_text(&batch_report_path)),
+        format!("累计规则报告已保存：{}", path_text(&report_path)),
+        format!("累计运行时规则包已保存：{}", path_text(&runtime_rule_path)),
     ];
     Ok(ParameterBoxAnalysisResult {
         report_path: path_text(&report_path),
+        batch_report_path: path_text(&batch_report_path),
+        library_path: path_text(&library_path),
         runtime_rule_path: path_text(&runtime_rule_path),
         rule_version,
         source_index_path: path_text(&source_index_path),
+        batch_analyzed,
+        global_samples,
+        added_samples,
+        updated_samples,
+        unchanged_samples,
+        removed_samples,
+        migrated_samples,
+        source_count,
         analyzed,
         confident,
         low_confidence,
