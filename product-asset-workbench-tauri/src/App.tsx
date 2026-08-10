@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.16";
+const APP_VERSION = "0.1.17";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
@@ -151,6 +151,23 @@ interface ParameterBoxSampleAnalysis {
   lengthMark: BoxDimensionMarkAnalysis | null;
   heightMark: BoxDimensionMarkAnalysis | null;
   depthMark: BoxDimensionMarkAnalysis | null;
+  selectionMethod: string;
+  excelDimensions: {
+    excelPath: string;
+    product: { raw: string; lengthCm: number; widthCm: number; heightCm: number } | null;
+    package: { raw: string; lengthCm: number; widthCm: number; heightCm: number } | null;
+    message: string;
+  } | null;
+  ocrDimensionMatch: {
+    engine: string;
+    lengthText: string;
+    heightText: string;
+    lengthAxis: string;
+    heightAxis: string;
+    packageError: number | null;
+    productError: number | null;
+    verifiedAsPackage: boolean;
+  } | null;
   message: string;
 }
 
@@ -172,6 +189,11 @@ interface ParameterBoxAnalysisResult {
   confident: number;
   lowConfidence: number;
   skipped: number;
+  ocrAvailable: boolean;
+  excelParsed: number;
+  ocrVerified: number;
+  excelOcrSelected: number;
+  dimensionMismatches: number;
   lengthRule: DimensionPlacementSummary;
   heightRule: DimensionPlacementSummary;
   depthRule: DimensionPlacementSummary;
@@ -196,7 +218,7 @@ interface ParameterRuntimeRule {
   minAppVersion: string;
   generatedAtMs: number;
   coordinateMode: string;
-  selection: { primary: string; fallback: string; supportsBoxOnEitherSide: boolean };
+  selection: { primary: string; fallback: string; supportsBoxOnEitherSide: boolean; usesExcelDimensions?: boolean; usesLocalOcr?: boolean };
   profiles: ParameterRuntimeRuleProfile[];
   confidence: { minimum: number; manualReviewBelow: number };
 }
@@ -404,6 +426,10 @@ function dimensionPlacementLabel(value: string) {
 
 function percentRatio(value: number | null) {
   return value === null || !Number.isFinite(value) ? "—" : `${Math.round(value * 100)}%`;
+}
+
+function needsParameterReview(item: ParameterBoxSampleAnalysis) {
+  return item.status !== "confident" || (item.ocrDimensionMatch?.packageError ?? 0) > 0.2;
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -1463,7 +1489,7 @@ export default function App() {
   async function analyzeParameterBoxAnnotations() {
     if (!root) return notify("请先选择工作目录");
     setParameterBoxAnalysisBusy(true);
-    setParameterSampleLogs(["正在用本地 CPU 分析纸盒长、高、宽/深尺寸标注位置…"]);
+    setParameterSampleLogs(["正在联合读取 Excel 尺寸、执行本地 OCR，并分析纸盒长、高、宽/深标注位置；精细模式可能需要几分钟…"]);
     try {
       const result = await invoke<ParameterBoxAnalysisResult>("analyze_parameter_box_annotations", { root });
       setParameterBoxAnalysis(result);
@@ -1905,7 +1931,7 @@ export default function App() {
                 {parameterBoxAnalysisBusy ? <LoaderCircle size={16} className="spin" /> : <Sparkles size={16} />}
                 {parameterBoxAnalysisBusy ? "正在分析纸盒…" : "提取纸盒标注规则"}
               </button>
-              <span>CPU 分析纸盒长、高、宽/深标注的相对位置，不上传图片</span>
+              <span>Excel 尺寸 + 本地 OCR + CPU 几何联合分析，不上传图片；未安装 OCR 时自动退回几何模式</span>
               {parameterSampleIndexPath && <button onClick={() => openPath(parameterSampleIndexPath)}><FileSpreadsheet size={15} />打开样本索引</button>}
               {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.reportPath)}><FileSpreadsheet size={15} />打开规则报告</button>}
               {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.runtimeRulePath)}><FileSpreadsheet size={15} />打开运行规则</button>}
@@ -1931,12 +1957,16 @@ export default function App() {
                 <div className="success"><span>高置信度</span><strong>{parameterBoxAnalysis.confident}</strong><small>可纳入规则统计</small></div>
                 <div className="warning"><span>低置信度</span><strong>{parameterBoxAnalysis.lowConfidence}</strong><small>建议人工抽检</small></div>
                 <div><span>未读取</span><strong>{parameterBoxAnalysis.skipped}</strong><small>图片损坏或缺失</small></div>
+                <div><span>Excel 包装尺寸</span><strong>{parameterBoxAnalysis.excelParsed}</strong><small>成功解析长、宽、高</small></div>
+                <div className={parameterBoxAnalysis.ocrAvailable ? "success" : "warning"}><span>OCR 数值验证</span><strong>{parameterBoxAnalysis.ocrVerified}</strong><small>{parameterBoxAnalysis.ocrAvailable ? "Tesseract 就绪 · cm/inch 与 Excel 一致" : "未检测到 OCR，当前为几何模式"}</small></div>
+                <div><span>Excel+OCR 选盒</span><strong>{parameterBoxAnalysis.excelOcrSelected}</strong><small>覆盖左右位置猜测</small></div>
+                <div className="warning"><span>尺寸疑点</span><strong>{parameterBoxAnalysis.dimensionMismatches}</strong><small>误差超过 20%，进入复核</small></div>
               </div>
               <div className="parameter-rule-cards">
                 {[
-                  ["纸盒长（正面横向）", parameterBoxAnalysis.lengthRule],
-                  ["纸盒高（纵向）", parameterBoxAnalysis.heightRule],
-                  ["纸盒宽/深（斜向）", parameterBoxAnalysis.depthRule],
+                  ["纸盒长（Excel 第 1 项）", parameterBoxAnalysis.lengthRule],
+                  ["纸盒高（Excel 第 3 项）", parameterBoxAnalysis.heightRule],
+                  ["纸盒宽/深（Excel 第 2 项）", parameterBoxAnalysis.depthRule],
                 ].map(([label, rule]) => {
                   const summary = rule as DimensionPlacementSummary;
                   return <article key={label as string}>
@@ -1946,9 +1976,9 @@ export default function App() {
                   </article>;
                 })}
               </div>
-              {!!parameterBoxAnalysis.items.some((item) => item.status !== "confident") && <details className="parameter-rule-review">
-                <summary>查看低置信度与未识别样本（{parameterBoxAnalysis.items.filter((item) => item.status !== "confident").length}）</summary>
-                <div>{parameterBoxAnalysis.items.filter((item) => item.status !== "confident").map((item) => <button key={`${item.sku}:${item.parameterPath}`} onClick={() => openPath(item.parameterPath)} title={item.parameterPath}>
+              {!!parameterBoxAnalysis.items.some(needsParameterReview) && <details className="parameter-rule-review">
+                <summary>查看低置信度、未识别与尺寸疑点（{parameterBoxAnalysis.items.filter(needsParameterReview).length}）</summary>
+                <div>{parameterBoxAnalysis.items.filter(needsParameterReview).map((item) => <button key={`${item.sku}:${item.parameterPath}`} onClick={() => openPath(item.parameterPath)} title={item.parameterPath}>
                   <span>{item.sku || "未识别 SKU"}</span><strong>{item.productName}</strong><small>{Math.round(item.confidence * 100)}% · {item.message}</small>
                 </button>)}</div>
               </details>}
