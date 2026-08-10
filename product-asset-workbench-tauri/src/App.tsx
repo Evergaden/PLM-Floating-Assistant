@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.13";
+const APP_VERSION = "0.1.14";
 
 const ROOT_KEY = "plm-workbench.asset-root";
+const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
+const WORKSPACE_ORDER_KEY = "plm-workbench.workspace-order-v1";
 const MAP_KEY = "plm-workbench.folder-mappings";
 const AUTO_DONE_KEY = "plm-workbench.auto-finalized-done";
 const PACK_RULES_KEY = "plm-workbench.pack-rules";
@@ -33,6 +35,8 @@ const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
 const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签";
 const LEGACY_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
+type WorkspaceView = "assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check";
+const DEFAULT_WORKSPACE_ORDER: WorkspaceView[] = ["assets", "packs", "random", "organize", "parameter-samples", "label-check", "upload", "videos"];
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
 ^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2
@@ -214,6 +218,31 @@ function readMappings(): Record<string, string> {
     return JSON.parse(localStorage.getItem(MAP_KEY) || "{}");
   } catch {
     return {};
+  }
+}
+
+function readWorkspaceRoots(): Record<WorkspaceView, string> {
+  const legacyRoot = localStorage.getItem(ROOT_KEY) || "";
+  const roots = Object.fromEntries(DEFAULT_WORKSPACE_ORDER.map((view) => [view, legacyRoot])) as Record<WorkspaceView, string>;
+  try {
+    const saved = JSON.parse(localStorage.getItem(WORKSPACE_ROOTS_KEY) || "{}");
+    DEFAULT_WORKSPACE_ORDER.forEach((view) => {
+      if (typeof saved?.[view] === "string") roots[view] = saved[view];
+    });
+  } catch {
+    // Keep the legacy directory as the initial value for every page.
+  }
+  return roots;
+}
+
+function readWorkspaceOrder(): WorkspaceView[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WORKSPACE_ORDER_KEY) || "[]");
+    if (!Array.isArray(saved)) return [...DEFAULT_WORKSPACE_ORDER];
+    const valid = saved.filter((view): view is WorkspaceView => DEFAULT_WORKSPACE_ORDER.includes(view));
+    return [...new Set([...valid, ...DEFAULT_WORKSPACE_ORDER])];
+  } catch {
+    return [...DEFAULT_WORKSPACE_ORDER];
   }
 }
 
@@ -614,7 +643,13 @@ export default function App() {
   const [bridge, setBridge] = useState<BridgeInfo>({ url: "ws://127.0.0.1:37191", token: "", connected: false, scriptVersion: "" });
   const [products, setProducts] = useState<FinalizedProduct[]>([]);
   const [rows, setRows] = useState<ProductPreview[]>([]);
-  const [root, setRoot] = useState(() => localStorage.getItem(ROOT_KEY) || "");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("assets");
+  const [workspaceRoots, setWorkspaceRoots] = useState<Record<WorkspaceView, string>>(readWorkspaceRoots);
+  const [workspaceOrder, setWorkspaceOrder] = useState<WorkspaceView[]>(readWorkspaceOrder);
+  const [draggingWorkspaceTab, setDraggingWorkspaceTab] = useState<WorkspaceView | null>(null);
+  const [workspaceDropTarget, setWorkspaceDropTarget] = useState<WorkspaceView | null>(null);
+  const root = workspaceRoots[workspaceView] || "";
+  const assetRoot = workspaceRoots.assets || "";
   const [mappings, setMappings] = useState<Record<string, string>>(readMappings);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -623,7 +658,6 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -683,6 +717,17 @@ export default function App() {
   const autoRunning = useRef(new Set<string>());
   const autoAttempts = useRef(new Map<string, string>());
   const bridgeRef = useRef(bridge);
+  const workspaceOrderRef = useRef(workspaceOrder);
+  const workspaceTabPressRef = useRef<{
+    view: WorkspaceView;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    timer: number;
+    dragging: boolean;
+    target: WorkspaceView;
+  } | null>(null);
+  const suppressWorkspaceClickRef = useRef(false);
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -811,8 +856,12 @@ export default function App() {
   }, [addRandomZipPaths, addZipPaths, workspaceView]);
 
   useEffect(() => {
-    refreshPreview(products, root, mappings).catch(console.error);
-  }, [bridge.connected, mappings, products, refreshPreview, root]);
+    refreshPreview(products, assetRoot, mappings).catch(console.error);
+  }, [assetRoot, bridge.connected, mappings, products, refreshPreview]);
+
+  useEffect(() => {
+    workspaceOrderRef.current = workspaceOrder;
+  }, [workspaceOrder]);
 
   const matchingRows = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -837,10 +886,110 @@ export default function App() {
   }, [labelCheckConfirmedItems, labelCheckFilter, labelCheckItems]);
 
   async function chooseRoot() {
-    const value = await open({ directory: true, multiple: false, title: "选择产品文件夹根目录" });
+    const view = workspaceView;
+    const value = await open({ directory: true, multiple: false, defaultPath: workspaceRoots[view] || undefined, title: "选择当前页面的工作目录" });
     if (typeof value !== "string") return;
-    setRoot(value);
-    localStorage.setItem(ROOT_KEY, value);
+    setWorkspaceRoots((current) => {
+      const next = { ...current, [view]: value };
+      localStorage.setItem(WORKSPACE_ROOTS_KEY, JSON.stringify(next));
+      if (view === "assets") localStorage.setItem(ROOT_KEY, value);
+      return next;
+    });
+  }
+
+  function beginWorkspaceTabPress(event: ReactPointerEvent<HTMLButtonElement>, view: WorkspaceView) {
+    if (event.button !== 0) return;
+    const previous = workspaceTabPressRef.current;
+    if (previous?.timer) window.clearTimeout(previous.timer);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture is best-effort. */ }
+    const press = {
+      view,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: 0,
+      dragging: false,
+      target: view,
+    };
+    press.timer = window.setTimeout(() => {
+      const current = workspaceTabPressRef.current;
+      if (!current || current.pointerId !== event.pointerId || current.view !== view) return;
+      current.dragging = true;
+      setDraggingWorkspaceTab(view);
+      setWorkspaceDropTarget(view);
+      notify("已进入按钮排序，拖到目标位置后松开");
+    }, 380);
+    workspaceTabPressRef.current = press;
+  }
+
+  function moveWorkspaceTab(event: ReactPointerEvent<HTMLButtonElement>) {
+    const press = workspaceTabPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - press.startX, event.clientY - press.startY);
+    if (!press.dragging) {
+      if (distance > 9 && press.timer) {
+        window.clearTimeout(press.timer);
+        press.timer = 0;
+      }
+      return;
+    }
+    event.preventDefault();
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-workspace-tab]"));
+    const target = buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      const dx = event.clientX - (rect.left + rect.width / 2);
+      const dy = event.clientY - (rect.top + rect.height / 2);
+      return { view: button.dataset.workspaceTab as WorkspaceView, distance: dx * dx + dy * dy };
+    }).sort((left, right) => left.distance - right.distance)[0]?.view;
+    if (!target || target === press.target) return;
+    press.target = target;
+    setWorkspaceDropTarget(target);
+    if (target === press.view) return;
+    setWorkspaceOrder((current) => {
+      const from = current.indexOf(press.view);
+      const to = current.indexOf(target);
+      if (from < 0 || to < 0 || from === to) return current;
+      const next = [...current];
+      next.splice(from, 1);
+      next.splice(to, 0, press.view);
+      workspaceOrderRef.current = next;
+      return next;
+    });
+  }
+
+  function finishWorkspaceTabPress(event: ReactPointerEvent<HTMLButtonElement>) {
+    const press = workspaceTabPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (press.timer) window.clearTimeout(press.timer);
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* Pointer capture may already be released. */ }
+    if (press.dragging) {
+      event.preventDefault();
+      event.stopPropagation();
+      localStorage.setItem(WORKSPACE_ORDER_KEY, JSON.stringify(workspaceOrderRef.current));
+      suppressWorkspaceClickRef.current = true;
+      window.setTimeout(() => { suppressWorkspaceClickRef.current = false; }, 0);
+    }
+    workspaceTabPressRef.current = null;
+    setDraggingWorkspaceTab(null);
+    setWorkspaceDropTarget(null);
+  }
+
+  function cancelWorkspaceTabPress(event: ReactPointerEvent<HTMLButtonElement>) {
+    const press = workspaceTabPressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (press.timer) window.clearTimeout(press.timer);
+    if (press.dragging) localStorage.setItem(WORKSPACE_ORDER_KEY, JSON.stringify(workspaceOrderRef.current));
+    workspaceTabPressRef.current = null;
+    setDraggingWorkspaceTab(null);
+    setWorkspaceDropTarget(null);
+  }
+
+  function activateWorkspaceTab(event: ReactMouseEvent<HTMLButtonElement>, view: WorkspaceView) {
+    if (suppressWorkspaceClickRef.current) {
+      event.preventDefault();
+      return;
+    }
+    setWorkspaceView(view);
   }
 
   async function chooseZipPacks() {
@@ -1263,7 +1412,7 @@ export default function App() {
   }
 
   async function assignFolder(row: ProductPreview) {
-    const value = await open({ directory: true, multiple: false, defaultPath: root || undefined, title: `为 ${row.product.sku} 指定产品目录` });
+    const value = await open({ directory: true, multiple: false, defaultPath: assetRoot || undefined, title: `为 ${row.product.sku} 指定产品目录` });
     if (typeof value !== "string") return;
     const next = { ...mappings, [row.product.sku]: value };
     setMappings(next);
@@ -1331,6 +1480,17 @@ export default function App() {
     });
   }
 
+  const workspaceTabDefinitions = {
+    assets: { label: "定稿资产", icon: <FileSpreadsheet size={16} /> },
+    packs: { label: "图包归档", icon: <Archive size={16} /> },
+    random: { label: "随机组合", icon: <RotateCw size={16} /> },
+    organize: { label: "文件整理", icon: <Pencil size={16} /> },
+    "parameter-samples": { label: "参数样本", icon: <FileImage size={16} /> },
+    "label-check": { label: "纸盒标签检查", icon: <Eye size={16} /> },
+    upload: { label: "检查上传", icon: <Upload size={16} /> },
+    videos: { label: "视频转动图", icon: <Film size={16} /> },
+  };
+
   return (
     <div className={`app-shell ${compactTop ? "top-collapsed" : ""}`}>
       <header className="topbar">
@@ -1365,15 +1525,23 @@ export default function App() {
           {root && <button className="path-chip" onClick={() => openPath(root)} title={root}><FolderOpen size={14} />{root}</button>}
         </section>}
 
-        <nav className="workspace-tabs">
-          <button className={workspaceView === "assets" ? "active" : ""} onClick={() => setWorkspaceView("assets")}><FileSpreadsheet size={16} />定稿资产</button>
-          <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
-          <button className={workspaceView === "random" ? "active" : ""} onClick={() => setWorkspaceView("random")}><RotateCw size={16} />随机组合</button>
-          <button className={workspaceView === "organize" ? "active" : ""} onClick={() => setWorkspaceView("organize")}><Pencil size={16} />文件整理</button>
-          <button className={workspaceView === "parameter-samples" ? "active" : ""} onClick={() => setWorkspaceView("parameter-samples")}><FileImage size={16} />参数样本</button>
-          <button className={workspaceView === "label-check" ? "active" : ""} onClick={() => setWorkspaceView("label-check")}><Eye size={16} />纸盒标签检查</button>
-          <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
-          <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
+        <nav className={`workspace-tabs ${draggingWorkspaceTab ? "is-reordering" : ""}`}>
+          {workspaceOrder.map((view) => {
+            const tab = workspaceTabDefinitions[view];
+            return <button
+              key={view}
+              type="button"
+              data-workspace-tab={view}
+              className={[workspaceView === view ? "active" : "", draggingWorkspaceTab === view ? "is-dragging" : "", workspaceDropTarget === view && draggingWorkspaceTab !== view ? "is-drop-target" : ""].filter(Boolean).join(" ")}
+              title={`${tab.label} · 长按可拖拽排序`}
+              onClick={(event) => activateWorkspaceTab(event, view)}
+              onPointerDown={(event) => beginWorkspaceTabPress(event, view)}
+              onPointerMove={moveWorkspaceTab}
+              onPointerUp={finishWorkspaceTabPress}
+              onPointerCancel={cancelWorkspaceTabPress}
+              onContextMenu={(event) => event.preventDefault()}
+            >{tab.icon}{tab.label}</button>;
+          })}
           <button className="collapse-top" onClick={toggleCompactTop} title={compactTop ? "展开顶部概览" : "收起顶部概览"}>
             {compactTop ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             {compactTop ? "展开概览" : "收起概览"}
