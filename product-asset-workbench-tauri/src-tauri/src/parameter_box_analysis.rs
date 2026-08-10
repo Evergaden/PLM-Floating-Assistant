@@ -13,6 +13,7 @@ use serde_json::{Value, json};
 struct ParameterSampleIndexItem {
     sku: String,
     product_name: String,
+    transparent_path: Option<String>,
     parameter_path: Option<String>,
     status: String,
 }
@@ -51,6 +52,10 @@ struct ParameterBoxSampleAnalysis {
     length_mark: Option<BoxDimensionMarkAnalysis>,
     height_mark: Option<BoxDimensionMarkAnalysis>,
     depth_mark: Option<BoxDimensionMarkAnalysis>,
+    selection_method: String,
+    source_box_position: String,
+    target_box_position: String,
+    box_match_score: Option<f32>,
     message: String,
 }
 
@@ -69,6 +74,8 @@ struct DimensionPlacementSummary {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ParameterBoxAnalysisResult {
     report_path: String,
+    runtime_rule_path: String,
+    rule_version: String,
     source_index_path: String,
     analyzed: usize,
     confident: usize,
@@ -78,7 +85,17 @@ pub(crate) struct ParameterBoxAnalysisResult {
     height_rule: DimensionPlacementSummary,
     depth_rule: DimensionPlacementSummary,
     items: Vec<ParameterBoxSampleAnalysis>,
+    runtime_rule: Value,
     logs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CloudParameterRulePackage {
+    manifest_url: String,
+    rule_url: String,
+    manifest: Value,
+    rule: Value,
 }
 
 #[derive(Clone, Debug)]
@@ -113,6 +130,25 @@ struct DimensionedObjectCandidate {
     vertical: DimensionLineCandidate,
     bounds: (u32, u32, u32, u32),
     score: f64,
+}
+
+#[derive(Clone, Debug)]
+struct TransparentObjectComponent {
+    min_x: u32,
+    min_y: u32,
+    max_x: u32,
+    max_y: u32,
+    pixel_count: usize,
+    fill_ratio: f64,
+}
+
+#[derive(Clone, Debug)]
+struct PaperBoxSelection {
+    object_index: usize,
+    method: String,
+    source_position: String,
+    target_position: String,
+    match_score: Option<f64>,
 }
 
 fn path_text(path: &Path) -> String {
@@ -330,6 +366,170 @@ fn dimensioned_object_candidates(
     }
     output.sort_by_key(|item| item.bounds.0);
     output
+}
+
+fn transparent_object_components(path: &str) -> Vec<TransparentObjectComponent> {
+    let Ok(image) = image::open(path).map(|image| image.to_rgba8()) else {
+        return Vec::new();
+    };
+    let (width, height) = image.dimensions();
+    let pixel_total = width as usize * height as usize;
+    let mut opaque = vec![0_u8; pixel_total];
+    for (index, pixel) in image.pixels().enumerate() {
+        opaque[index] = u8::from(pixel.0[3] > 16);
+    }
+    let mut visited = vec![0_u8; pixel_total];
+    let mut stack = Vec::new();
+    let mut output = Vec::new();
+    for start in 0..pixel_total {
+        if opaque[start] == 0 || visited[start] != 0 {
+            continue;
+        }
+        visited[start] = 1;
+        stack.push(start);
+        let mut pixel_count = 0_usize;
+        let mut min_x = width;
+        let mut min_y = height;
+        let mut max_x = 0_u32;
+        let mut max_y = 0_u32;
+        while let Some(index) = stack.pop() {
+            let x = (index % width as usize) as u32;
+            let y = (index / width as usize) as u32;
+            pixel_count += 1;
+            min_x = min_x.min(x);
+            min_y = min_y.min(y);
+            max_x = max_x.max(x);
+            max_y = max_y.max(y);
+            let start_x = x.saturating_sub(1);
+            let end_x = (x + 1).min(width.saturating_sub(1));
+            let start_y = y.saturating_sub(1);
+            let end_y = (y + 1).min(height.saturating_sub(1));
+            for neighbor_y in start_y..=end_y {
+                for neighbor_x in start_x..=end_x {
+                    let neighbor = neighbor_y as usize * width as usize + neighbor_x as usize;
+                    if opaque[neighbor] != 0 && visited[neighbor] == 0 {
+                        visited[neighbor] = 1;
+                        stack.push(neighbor);
+                    }
+                }
+            }
+        }
+        let component_width = max_x.saturating_sub(min_x).saturating_add(1);
+        let component_height = max_y.saturating_sub(min_y).saturating_add(1);
+        let box_area = component_width as usize * component_height as usize;
+        if pixel_count < pixel_total / 400
+            || component_width < width / 30
+            || component_height < height / 30
+        {
+            continue;
+        }
+        output.push(TransparentObjectComponent {
+            min_x,
+            min_y,
+            max_x,
+            max_y,
+            pixel_count,
+            fill_ratio: pixel_count as f64 / box_area.max(1) as f64,
+        });
+    }
+    output.sort_by_key(|component| component.min_x);
+    output
+}
+
+fn ordered_position(index: usize, count: usize) -> String {
+    if count <= 1 {
+        "single".to_string()
+    } else if index == 0 {
+        "left".to_string()
+    } else if index + 1 == count {
+        "right".to_string()
+    } else {
+        "middle".to_string()
+    }
+}
+
+fn select_paper_box(
+    objects: &[DimensionedObjectCandidate],
+    transparent_path: Option<&str>,
+) -> PaperBoxSelection {
+    if objects.len() <= 1 {
+        return PaperBoxSelection {
+            object_index: 0,
+            method: "single-dimensioned-object".to_string(),
+            source_position: String::new(),
+            target_position: "single".to_string(),
+            match_score: None,
+        };
+    }
+    let components = transparent_path
+        .map(transparent_object_components)
+        .unwrap_or_default();
+    if components.len() >= 2 {
+        let source_box_index = components
+            .iter()
+            .enumerate()
+            .max_by(|left, right| {
+                left.1
+                    .fill_ratio
+                    .total_cmp(&right.1.fill_ratio)
+                    .then_with(|| left.1.pixel_count.cmp(&right.1.pixel_count))
+            })
+            .map(|(index, _)| index)
+            .unwrap_or(0);
+        let source_box = &components[source_box_index];
+        let source_width = source_box
+            .max_x
+            .saturating_sub(source_box.min_x)
+            .saturating_add(1)
+            .max(1) as f64;
+        let source_height = source_box
+            .max_y
+            .saturating_sub(source_box.min_y)
+            .saturating_add(1)
+            .max(1) as f64;
+        let source_aspect = source_width / source_height;
+        let source_rank =
+            source_box_index as f64 / components.len().saturating_sub(1).max(1) as f64;
+        let mut matches = objects
+            .iter()
+            .enumerate()
+            .map(|(index, object)| {
+                let target_width = object
+                    .bounds
+                    .2
+                    .saturating_sub(object.bounds.0)
+                    .saturating_add(1)
+                    .max(1) as f64;
+                let target_height = object
+                    .bounds
+                    .3
+                    .saturating_sub(object.bounds.1)
+                    .saturating_add(1)
+                    .max(1) as f64;
+                let target_aspect = target_width / target_height;
+                let target_rank = index as f64 / objects.len().saturating_sub(1).max(1) as f64;
+                let aspect_penalty = (target_aspect / source_aspect.max(0.0001)).ln().abs() * 0.72;
+                let order_penalty = (target_rank - source_rank).abs() * 0.58;
+                (aspect_penalty + order_penalty, index)
+            })
+            .collect::<Vec<_>>();
+        matches.sort_by(|left, right| left.0.total_cmp(&right.0));
+        let (score, object_index) = matches[0];
+        return PaperBoxSelection {
+            object_index,
+            method: "transparent-component-match".to_string(),
+            source_position: ordered_position(source_box_index, components.len()),
+            target_position: ordered_position(object_index, objects.len()),
+            match_score: Some(score),
+        };
+    }
+    PaperBoxSelection {
+        object_index: 0,
+        method: "leftmost-fallback".to_string(),
+        source_position: String::new(),
+        target_position: "left".to_string(),
+        match_score: None,
+    }
 }
 
 fn union_label_components(
@@ -572,6 +772,10 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
         length_mark: None,
         height_mark: None,
         depth_mark: None,
+        selection_method: String::new(),
+        source_box_position: String::new(),
+        target_box_position: String::new(),
+        box_match_score: None,
         message: String::new(),
     };
     if parameter_path.is_empty() {
@@ -589,11 +793,13 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
     let components = dark_image_components(&image);
     let lines = dimension_line_candidates(&components, width, height);
     let objects = dimensioned_object_candidates(&lines);
-    let Some(paper_box) = objects.first() else {
+    if objects.is_empty() {
         output.status = "low-confidence".to_string();
         output.message = "没有找到可配对的纸盒横向、纵向尺寸线".to_string();
         return output;
-    };
+    }
+    let selection = select_paper_box(&objects, sample.transparent_path.as_deref());
+    let paper_box = &objects[selection.object_index];
     let length_mark = axis_mark_analysis(
         "boxLength",
         &paper_box.horizontal,
@@ -615,6 +821,11 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
     if objects.len() == 1 {
         confidence -= 0.08;
     }
+    if let Some(score) = selection.match_score {
+        confidence += (0.08 - score * 0.08).clamp(-0.10, 0.08);
+    } else if objects.len() > 1 {
+        confidence -= 0.08;
+    }
     if length_mark.label_bounds.is_none() {
         confidence -= 0.05;
     }
@@ -633,9 +844,20 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
     output.length_mark = Some(length_mark);
     output.height_mark = Some(height_mark);
     output.depth_mark = depth_mark;
-    output.message = if objects.len() > 1 {
+    output.selection_method = selection.method.clone();
+    output.source_box_position = selection.source_position.clone();
+    output.target_box_position = selection.target_position.clone();
+    output.box_match_score = selection.match_score.map(|score| score as f32);
+    output.message = if selection.method == "transparent-component-match" {
         format!(
-            "识别到 {} 组带尺寸对象，按画面从左到右选取纸盒",
+            "识别到 {} 组带尺寸对象；透明图纸盒在{}，参数图匹配到{}对象",
+            objects.len(),
+            selection.source_position,
+            selection.target_position
+        )
+    } else if objects.len() > 1 {
+        format!(
+            "识别到 {} 组带尺寸对象，透明图无法拆分，暂用左侧纸盒候选",
             objects.len()
         )
     } else {
@@ -688,6 +910,24 @@ fn summarize_dimension_marks<'a>(
         },
         median_angle_degrees: median(marks.iter().map(|mark| mark.angle_degrees.abs()).collect()),
     }
+}
+
+fn runtime_profile(id: &str, label: &str, items: &[&ParameterBoxSampleAnalysis]) -> Value {
+    let length_rule =
+        summarize_dimension_marks(items.iter().filter_map(|item| item.length_mark.as_ref()));
+    let height_rule =
+        summarize_dimension_marks(items.iter().filter_map(|item| item.height_mark.as_ref()));
+    let depth_rule =
+        summarize_dimension_marks(items.iter().filter_map(|item| item.depth_mark.as_ref()));
+    json!({
+        "id": id,
+        "label": label,
+        "sampleCount": items.len(),
+        "match": { "perspectiveDepth": id == "perspective-box" },
+        "length": length_rule,
+        "height": height_rule,
+        "depth": depth_rule,
+    })
 }
 
 fn analyze_parameter_box_annotations_plan(
@@ -747,15 +987,71 @@ fn analyze_parameter_box_annotations_plan(
     let depth_rule =
         summarize_dimension_marks(items.iter().filter_map(|item| item.depth_mark.as_ref()));
     let report_path = root.join("参数图纸盒标注规则.json");
+    let runtime_rule_path = root.join("参数图纸盒运行规则.json");
     let generated_at_ms = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|value| value.as_millis())
         .unwrap_or_default();
+    let rule_version = format!("local-{generated_at_ms}");
+    let confident_items = items
+        .iter()
+        .filter(|item| item.status == "confident")
+        .collect::<Vec<_>>();
+    let flat_items = confident_items
+        .iter()
+        .copied()
+        .filter(|item| item.depth_mark.is_none())
+        .collect::<Vec<_>>();
+    let perspective_items = confident_items
+        .iter()
+        .copied()
+        .filter(|item| item.depth_mark.is_some())
+        .collect::<Vec<_>>();
+    let runtime_rule = json!({
+        "schemaVersion": 1,
+        "ruleVersion": &rule_version,
+        "minAppVersion": "0.1.16",
+        "generatedAtMs": generated_at_ms,
+        "coordinateMode": "normalized-relative-to-paper-box",
+        "selection": {
+            "primary": "transparent-component-match",
+            "fallback": "single-dimensioned-object-or-leftmost",
+            "supportsBoxOnEitherSide": true,
+        },
+        "profiles": [
+            runtime_profile("flat-box", "正面纸盒", &flat_items),
+            runtime_profile("perspective-box", "立体纸盒", &perspective_items),
+        ],
+        "confidence": { "minimum": 0.68, "manualReviewBelow": 0.76 },
+    });
+    let runtime_bytes = serde_json::to_vec_pretty(&runtime_rule)
+        .map_err(|error| format!("无法生成运行时规则包：{error}"))?;
+    fs::write(&runtime_rule_path, runtime_bytes).map_err(|error| {
+        format!(
+            "无法保存运行时规则包 {}：{error}",
+            path_text(&runtime_rule_path)
+        )
+    })?;
+    let mut selection_methods = HashMap::new();
+    let mut source_box_positions = HashMap::new();
+    for item in &items {
+        if !item.selection_method.is_empty() {
+            *selection_methods
+                .entry(item.selection_method.clone())
+                .or_insert(0_usize) += 1;
+        }
+        if !item.source_box_position.is_empty() {
+            *source_box_positions
+                .entry(item.source_box_position.clone())
+                .or_insert(0_usize) += 1;
+        }
+    }
     let report = json!({
-        "schemaVersion": 1, "generatedAtMs": generated_at_ms, "sourceIndexPath": path_text(&source_index_path),
-        "analysis": "cpu-dark-line-geometry", "coordinateMode": "normalized-relative-to-paper-box", "paperBoxSelection": "leftmost-dimensioned-object",
+        "schemaVersion": 2, "generatedAtMs": generated_at_ms, "sourceIndexPath": path_text(&source_index_path), "runtimeRulePath": path_text(&runtime_rule_path),
+        "analysis": "cpu-dark-line-and-transparent-component-match", "coordinateMode": "normalized-relative-to-paper-box", "paperBoxSelection": "transparent-component-match-with-fallback",
         "summary": { "eligible": items.len(), "analyzed": analyzed, "confident": confident, "lowConfidence": low_confidence, "skipped": skipped,
-            "lengthRule": &length_rule, "heightRule": &height_rule, "depthRule": &depth_rule },
+            "lengthRule": &length_rule, "heightRule": &height_rule, "depthRule": &depth_rule,
+            "selectionMethods": selection_methods, "sourceBoxPositions": source_box_positions },
         "samples": &items,
     });
     let bytes = serde_json::to_vec_pretty(&report)
@@ -796,9 +1092,12 @@ fn analyze_parameter_box_annotations_plan(
             }
         ),
         format!("规则报告已保存：{}", path_text(&report_path)),
+        format!("运行时规则包已保存：{}", path_text(&runtime_rule_path)),
     ];
     Ok(ParameterBoxAnalysisResult {
         report_path: path_text(&report_path),
+        runtime_rule_path: path_text(&runtime_rule_path),
+        rule_version,
         source_index_path: path_text(&source_index_path),
         analyzed,
         confident,
@@ -808,6 +1107,7 @@ fn analyze_parameter_box_annotations_plan(
         height_rule,
         depth_rule,
         items,
+        runtime_rule,
         logs,
     })
 }
@@ -821,6 +1121,74 @@ pub(crate) async fn analyze_parameter_box_annotations(
     })
     .await
     .map_err(|error| format!("纸盒标注分析任务异常：{error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn fetch_parameter_rule_package(
+    manifest_url: String,
+) -> Result<CloudParameterRulePackage, String> {
+    let parsed_manifest_url = reqwest::Url::parse(manifest_url.trim())
+        .map_err(|error| format!("规则清单地址无效：{error}"))?;
+    if parsed_manifest_url.scheme() != "https" {
+        return Err("云端规则清单必须使用 HTTPS".to_string());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|error| format!("无法初始化规则下载器：{error}"))?;
+    let manifest_response = client
+        .get(parsed_manifest_url.clone())
+        .send()
+        .await
+        .map_err(|error| format!("规则清单请求失败：{error}"))?;
+    if !manifest_response.status().is_success() {
+        return Err(format!(
+            "规则清单请求失败：HTTP {}",
+            manifest_response.status()
+        ));
+    }
+    let manifest_bytes = manifest_response
+        .bytes()
+        .await
+        .map_err(|error| format!("无法读取规则清单：{error}"))?;
+    if manifest_bytes.len() > 512 * 1024 {
+        return Err("规则清单文件过大".to_string());
+    }
+    let manifest: Value = serde_json::from_slice(&manifest_bytes)
+        .map_err(|error| format!("规则清单不是有效 JSON：{error}"))?;
+    let relative_rule_url = manifest
+        .get("ruleUrl")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "规则清单缺少 ruleUrl".to_string())?;
+    let parsed_rule_url = parsed_manifest_url
+        .join(relative_rule_url)
+        .map_err(|error| format!("规则包地址无效：{error}"))?;
+    if parsed_rule_url.scheme() != "https" {
+        return Err("云端规则包必须使用 HTTPS".to_string());
+    }
+    let rule_response = client
+        .get(parsed_rule_url.clone())
+        .send()
+        .await
+        .map_err(|error| format!("规则包请求失败：{error}"))?;
+    if !rule_response.status().is_success() {
+        return Err(format!("规则包请求失败：HTTP {}", rule_response.status()));
+    }
+    let rule_bytes = rule_response
+        .bytes()
+        .await
+        .map_err(|error| format!("无法读取规则包：{error}"))?;
+    if rule_bytes.len() > 2 * 1024 * 1024 {
+        return Err("规则包文件过大".to_string());
+    }
+    let rule: Value = serde_json::from_slice(&rule_bytes)
+        .map_err(|error| format!("规则包不是有效 JSON：{error}"))?;
+    Ok(CloudParameterRulePackage {
+        manifest_url: parsed_manifest_url.to_string(),
+        rule_url: parsed_rule_url.to_string(),
+        manifest,
+        rule,
+    })
 }
 
 #[cfg(test)]
@@ -861,6 +1229,7 @@ mod tests {
         let sample = ParameterSampleIndexItem {
             sku: "SKU00000001".to_string(),
             product_name: "测试纸盒".to_string(),
+            transparent_path: None,
             parameter_path: Some(path_text(&image_path)),
             status: "ready".to_string(),
         };
@@ -869,6 +1238,87 @@ mod tests {
         assert_eq!(result.length_mark.as_ref().unwrap().placement, "bottom");
         assert_eq!(result.height_mark.as_ref().unwrap().placement, "left");
         assert_eq!(result.depth_mark.as_ref().unwrap().placement, "top-left");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn matches_paper_box_on_the_right_from_transparent_components() {
+        let root = std::env::temp_dir().join(format!("plm-right-box-test-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let image_path = root.join("尺寸.png");
+        let transparent_path = root.join("透明.png");
+        let mut target = image::RgbImage::from_pixel(500, 500, image::Rgb([255, 255, 255]));
+        let gray = image::Rgb([180, 180, 180]);
+        let black = image::Rgb([0, 0, 0]);
+        for y in 100..=300 {
+            for x in 60..=140 {
+                target.put_pixel(x, y, gray);
+            }
+        }
+        for y in 100..=300 {
+            for x in 280..=420 {
+                target.put_pixel(x, y, gray);
+            }
+        }
+        for x in 60..=140 {
+            target.put_pixel(x, 330, black);
+        }
+        for y in 320..=340 {
+            target.put_pixel(60, y, black);
+            target.put_pixel(140, y, black);
+        }
+        for y in 100..=300 {
+            target.put_pixel(35, y, black);
+        }
+        for x in 25..=45 {
+            target.put_pixel(x, 100, black);
+            target.put_pixel(x, 300, black);
+        }
+        for x in 280..=420 {
+            target.put_pixel(x, 330, black);
+        }
+        for y in 320..=340 {
+            target.put_pixel(280, y, black);
+            target.put_pixel(420, y, black);
+        }
+        for y in 100..=300 {
+            target.put_pixel(445, y, black);
+        }
+        for x in 435..=455 {
+            target.put_pixel(x, 100, black);
+            target.put_pixel(x, 300, black);
+        }
+        target.save(&image_path).unwrap();
+
+        let mut transparent = image::RgbaImage::from_pixel(500, 500, image::Rgba([0, 0, 0, 0]));
+        for y in 90..=310 {
+            for x in 55..=145 {
+                let dx = (x as f64 - 100.0) / 45.0;
+                let dy = (y as f64 - 200.0) / 110.0;
+                if dx * dx + dy * dy <= 1.0 {
+                    transparent.put_pixel(x, y, image::Rgba([180, 180, 180, 255]));
+                }
+            }
+        }
+        for y in 90..=310 {
+            for x in 275..=425 {
+                transparent.put_pixel(x, y, image::Rgba([180, 180, 180, 255]));
+            }
+        }
+        transparent.save(&transparent_path).unwrap();
+
+        let sample = ParameterSampleIndexItem {
+            sku: "SKU00000002".to_string(),
+            product_name: "右侧纸盒测试".to_string(),
+            transparent_path: Some(path_text(&transparent_path)),
+            parameter_path: Some(path_text(&image_path)),
+            status: "ready".to_string(),
+        };
+        let result = analyze_parameter_box_sample(&sample);
+        assert_eq!(result.selection_method, "transparent-component-match");
+        assert_eq!(result.source_box_position, "right");
+        assert_eq!(result.target_box_position, "right");
+        assert!(result.box_bounds.as_ref().unwrap().x > 0.5);
         fs::remove_dir_all(&root).unwrap();
     }
 

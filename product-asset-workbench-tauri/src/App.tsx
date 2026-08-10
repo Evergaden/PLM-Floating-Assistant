@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.15";
+const APP_VERSION = "0.1.16";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
@@ -33,6 +33,9 @@ const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
+const PARAMETER_RULE_MANIFEST_URL_KEY = "plm-workbench.parameter-rule-manifest-url";
+const PARAMETER_RULE_CACHE_KEY = "plm-workbench.parameter-rule-cache-v1";
+const DEFAULT_PARAMETER_RULE_MANIFEST_URL = "https://velvet.qzz.io/assets/v1/parameter-layout-rules.manifest.json";
 const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签";
 const LEGACY_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
 type WorkspaceView = "assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check";
@@ -162,6 +165,8 @@ interface DimensionPlacementSummary {
 
 interface ParameterBoxAnalysisResult {
   reportPath: string;
+  runtimeRulePath: string;
+  ruleVersion: string;
   sourceIndexPath: string;
   analyzed: number;
   confident: number;
@@ -171,7 +176,52 @@ interface ParameterBoxAnalysisResult {
   heightRule: DimensionPlacementSummary;
   depthRule: DimensionPlacementSummary;
   items: ParameterBoxSampleAnalysis[];
+  runtimeRule: ParameterRuntimeRule;
   logs: string[];
+}
+
+interface ParameterRuntimeRuleProfile {
+  id: string;
+  label: string;
+  sampleCount: number;
+  match: { perspectiveDepth: boolean };
+  length: DimensionPlacementSummary;
+  height: DimensionPlacementSummary;
+  depth: DimensionPlacementSummary;
+}
+
+interface ParameterRuntimeRule {
+  schemaVersion: number;
+  ruleVersion: string;
+  minAppVersion: string;
+  generatedAtMs: number;
+  coordinateMode: string;
+  selection: { primary: string; fallback: string; supportsBoxOnEitherSide: boolean };
+  profiles: ParameterRuntimeRuleProfile[];
+  confidence: { minimum: number; manualReviewBelow: number };
+}
+
+interface ParameterRuleManifest {
+  schemaVersion: number;
+  channel: string;
+  ruleVersion: string;
+  ruleUrl: string;
+  minAppVersion: string;
+  publishedAt: string;
+}
+
+interface CloudParameterRulePackage {
+  manifestUrl: string;
+  ruleUrl: string;
+  manifest: ParameterRuleManifest;
+  rule: ParameterRuntimeRule;
+}
+
+interface CachedParameterRule {
+  source: "local" | "cloud";
+  manifestUrl: string;
+  fetchedAtMs: number;
+  rule: ParameterRuntimeRule;
 }
 
 interface LabelCheckFile {
@@ -298,6 +348,26 @@ function readWorkspaceOrder(): WorkspaceView[] {
   } catch {
     return [...DEFAULT_WORKSPACE_ORDER];
   }
+}
+
+function readCachedParameterRule(): CachedParameterRule | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(PARAMETER_RULE_CACHE_KEY) || "null") as CachedParameterRule | null;
+    if (!value?.rule || value.rule.schemaVersion !== 1 || !value.rule.ruleVersion || !Array.isArray(value.rule.profiles) || !appSupportsRule(value.rule.minAppVersion)) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function appSupportsRule(minAppVersion: string) {
+  const parts = (value: string) => value.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const current = parts(APP_VERSION);
+  const minimum = parts(minAppVersion);
+  for (let index = 0; index < Math.max(current.length, minimum.length); index += 1) {
+    if ((current[index] || 0) !== (minimum[index] || 0)) return (current[index] || 0) > (minimum[index] || 0);
+  }
+  return true;
 }
 
 function statusFor(row: ProductPreview, job?: RowJob) {
@@ -763,6 +833,9 @@ export default function App() {
   const [parameterSampleLogs, setParameterSampleLogs] = useState<string[]>(["请选择工作目录，工作台会自动配对透明图、正确尺寸图和 Excel。"]);
   const [parameterBoxAnalysis, setParameterBoxAnalysis] = useState<ParameterBoxAnalysisResult | null>(null);
   const [parameterBoxAnalysisBusy, setParameterBoxAnalysisBusy] = useState(false);
+  const [parameterRuleManifestUrl, setParameterRuleManifestUrl] = useState(() => localStorage.getItem(PARAMETER_RULE_MANIFEST_URL_KEY) || DEFAULT_PARAMETER_RULE_MANIFEST_URL);
+  const [cachedParameterRule, setCachedParameterRule] = useState<CachedParameterRule | null>(readCachedParameterRule);
+  const [parameterCloudRuleBusy, setParameterCloudRuleBusy] = useState(false);
   const [labelCheckItems, setLabelCheckItems] = useState<LabelCheckItem[]>([]);
   const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
   const [labelCheckConfirmedItems, setLabelCheckConfirmedItems] = useState<LabelCheckItem[]>([]);
@@ -1395,6 +1468,9 @@ export default function App() {
       const result = await invoke<ParameterBoxAnalysisResult>("analyze_parameter_box_annotations", { root });
       setParameterBoxAnalysis(result);
       setParameterSampleIndexPath(result.sourceIndexPath);
+      const cached: CachedParameterRule = { source: "local", manifestUrl: parameterRuleManifestUrl.trim(), fetchedAtMs: Date.now(), rule: result.runtimeRule };
+      localStorage.setItem(PARAMETER_RULE_CACHE_KEY, JSON.stringify(cached));
+      setCachedParameterRule(cached);
       setParameterSampleLogs(result.logs);
       notify(`纸盒标注分析完成：高置信度 ${result.confident} 组，低置信度 ${result.lowConfidence} 组`);
     } catch (error) {
@@ -1402,6 +1478,29 @@ export default function App() {
       notify(String(error));
     } finally {
       setParameterBoxAnalysisBusy(false);
+    }
+  }
+
+  async function refreshCloudParameterRules() {
+    const manifestUrl = parameterRuleManifestUrl.trim();
+    if (!/^https:\/\//i.test(manifestUrl)) return notify("云端规则清单必须使用 HTTPS 地址");
+    localStorage.setItem(PARAMETER_RULE_MANIFEST_URL_KEY, manifestUrl);
+    setParameterCloudRuleBusy(true);
+    try {
+      const result = await invoke<CloudParameterRulePackage>("fetch_parameter_rule_package", { manifestUrl });
+      const { manifest, rule } = result;
+      if (manifest.schemaVersion !== 1 || !manifest.ruleVersion || !manifest.ruleUrl) throw new Error("云端规则清单格式不正确");
+      if (rule.schemaVersion !== 1 || !rule.ruleVersion || !Array.isArray(rule.profiles) || rule.ruleVersion !== manifest.ruleVersion) throw new Error("云端规则包版本或结构不匹配");
+      const minimumVersion = rule.minAppVersion || manifest.minAppVersion;
+      if (!appSupportsRule(minimumVersion)) throw new Error(`规则要求工作台 ${minimumVersion} 或更高版本，当前为 ${APP_VERSION}`);
+      const cached: CachedParameterRule = { source: "cloud", manifestUrl: result.manifestUrl, fetchedAtMs: Date.now(), rule };
+      localStorage.setItem(PARAMETER_RULE_CACHE_KEY, JSON.stringify(cached));
+      setCachedParameterRule(cached);
+      notify(`云端纸盒规则已更新：${rule.ruleVersion}`);
+    } catch (error) {
+      notify(`云端规则更新失败，继续使用本地缓存：${String(error)}`);
+    } finally {
+      setParameterCloudRuleBusy(false);
     }
   }
 
@@ -1809,6 +1908,7 @@ export default function App() {
               <span>CPU 分析纸盒长、高、宽/深标注的相对位置，不上传图片</span>
               {parameterSampleIndexPath && <button onClick={() => openPath(parameterSampleIndexPath)}><FileSpreadsheet size={15} />打开样本索引</button>}
               {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.reportPath)}><FileSpreadsheet size={15} />打开规则报告</button>}
+              {parameterBoxAnalysis && <button onClick={() => openPath(parameterBoxAnalysis.runtimeRulePath)}><FileSpreadsheet size={15} />打开运行规则</button>}
             </div>
             <div className="parameter-sample-summary">
               <span>产品目录 {parameterSamples.length}</span>
@@ -1816,6 +1916,14 @@ export default function App() {
               <span>待补全 {parameterSamples.filter((item) => item.status === "missing").length}</span>
               <span>需核对 {parameterSamples.filter((item) => item.status === "ambiguous").length}</span>
               <small title={parameterSampleIndexPath}>{parameterSampleIndexPath || "扫描后会在工作目录生成“参数图学习样本索引.json”"}</small>
+            </div>
+            <div className="parameter-rule-cloud">
+              <label><span>云端规则清单</span><input value={parameterRuleManifestUrl} onChange={(event) => setParameterRuleManifestUrl(event.target.value)} onBlur={() => localStorage.setItem(PARAMETER_RULE_MANIFEST_URL_KEY, parameterRuleManifestUrl.trim() || DEFAULT_PARAMETER_RULE_MANIFEST_URL)} /></label>
+              <button onClick={refreshCloudParameterRules} disabled={parameterCloudRuleBusy}>{parameterCloudRuleBusy ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{parameterCloudRuleBusy ? "正在检查…" : "检查云端规则"}</button>
+              <div className={cachedParameterRule ? "ready" : ""}>
+                <strong>{cachedParameterRule ? `${cachedParameterRule.source === "cloud" ? "云端" : "本地"}规则 ${cachedParameterRule.rule.ruleVersion}` : "尚未缓存运行规则"}</strong>
+                <small>{cachedParameterRule ? `${cachedParameterRule.rule.profiles.length} 套版式 · 支持纸盒左右两侧 · ${new Date(cachedParameterRule.fetchedAtMs).toLocaleString("zh-CN", { hour12: false })}` : "本地分析或云端更新成功后自动缓存；网络失败时继续使用最后一版"}</small>
+              </div>
             </div>
             {parameterBoxAnalysis && <div className="parameter-rule-analysis">
               <div className="parameter-rule-overview">

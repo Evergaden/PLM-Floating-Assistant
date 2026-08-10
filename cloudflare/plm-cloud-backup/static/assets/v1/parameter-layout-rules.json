@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "ruleVersion": "2026.08.10-1",
+  "minAppVersion": "0.1.16",
+  "generatedAtMs": 1786334400000,
+  "coordinateMode": "normalized-relative-to-paper-box",
+  "selection": {
+    "primary": "transparent-component-match",
+    "fallback": "single-dimensioned-object-or-leftmost",
+    "supportsBoxOnEitherSide": true
+  },
+  "profiles": [
+    {
+      "id": "flat-box",
+      "label": "正面纸盒",
+      "sampleCount": 132,
+      "match": { "perspectiveDepth": false },
+      "length": {
+        "count": 132,
+        "primaryPlacement": "bottom",
+        "placementCounts": { "bottom": 78, "top": 54 },
+        "medianLineGapRatio": 0.0208436772,
+        "medianLabelOffsetRatio": 0.0135523956,
+        "medianAngleDegrees": 0
+      },
+      "height": {
+        "count": 132,
+        "primaryPlacement": "left",
+        "placementCounts": { "left": 115, "right": 17 },
+        "medianLineGapRatio": 0.0500003472,
+        "medianLabelOffsetRatio": 0.0429517776,
+        "medianAngleDegrees": 90
+      },
+      "depth": {
+        "count": 0,
+        "primaryPlacement": "",
+        "placementCounts": {},
+        "medianLineGapRatio": 0,
+        "medianLabelOffsetRatio": null,
+        "medianAngleDegrees": 0
+      }
+    },
+    {
+      "id": "perspective-box",
+      "label": "立体纸盒",
+      "sampleCount": 16,
+      "match": { "perspectiveDepth": true },
+      "length": {
+        "count": 16,
+        "primaryPlacement": "bottom",
+        "placementCounts": { "bottom": 12, "top": 4 },
+        "medianLineGapRatio": 0.0386703163,
+        "medianLabelOffsetRatio": 0.0169933513,
+        "medianAngleDegrees": 0.0005818835
+      },
+      "height": {
+        "count": 16,
+        "primaryPlacement": "left",
+        "placementCounts": { "left": 14, "right": 2 },
+        "medianLineGapRatio": 0.0503675863,
+        "medianLabelOffsetRatio": 0.0198218338,
+        "medianAngleDegrees": 89.9999084473
+      },
+      "depth": {
+        "count": 16,
+        "primaryPlacement": "top-left",
+        "placementCounts": { "top-left": 8, "top-right": 8 },
+        "medianLineGapRatio": 0.0037634408,
+        "medianLabelOffsetRatio": 0,
+        "medianAngleDegrees": 26.3992958069
+      }
+    }
+  ],
+  "confidence": {
+    "minimum": 0.68,
+    "manualReviewBelow": 0.76
+  }
+}
