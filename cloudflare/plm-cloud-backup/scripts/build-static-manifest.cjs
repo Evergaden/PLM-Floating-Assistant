@@ -23,7 +23,7 @@ const definitions = {
   runtimeData: 'v1/runtime-data.json',
   excelTemplate: 'v1/excel-template.xlsx',
   icons: 'v1/icons.json',
-  uiStyles: 'v1/ui-2.5.183.css',
+  uiStyles: 'v14/ui-2.5.198.css',
 };
 const assets = {};
 for (const [name, relativePath] of Object.entries(definitions)) {
@@ -36,6 +36,8 @@ assets.uiStyleVersions = Object.fromEntries(
     .sort((left, right) => left.match[1].localeCompare(right.match[1], undefined, { numeric: true }))
     .map((entry) => [entry.match[1], describeAsset('v1/' + entry.fileName)]),
 );
+const currentUiVersionMatch = /ui-(\d+\.\d+\.\d+)\.css$/.exec(definitions.uiStyles);
+if (currentUiVersionMatch) assets.uiStyleVersions[currentUiVersionMatch[1]] = assets.uiStyles;
 
 const manifest = {
   schemaVersion: 1,

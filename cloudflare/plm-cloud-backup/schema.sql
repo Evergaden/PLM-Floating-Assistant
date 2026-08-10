@@ -302,3 +302,18 @@ ON feedback_entries(user_name, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_feedback_entries_status_updated
 ON feedback_entries(status, updated_at);
+
+CREATE TABLE IF NOT EXISTS home_greetings (
+  greeting_id TEXT PRIMARY KEY,
+  label TEXT NOT NULL DEFAULT '',
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  title TEXT NOT NULL,
+  subtitle TEXT NOT NULL DEFAULT '',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_home_greetings_enabled_sort
+ON home_greetings(enabled, sort_order);

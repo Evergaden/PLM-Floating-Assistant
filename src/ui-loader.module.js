@@ -11,6 +11,15 @@
     #${PANEL_ID}.is-collapsed{display:none!important}
     #${PANEL_ID} .pfh-full{position:relative;width:100%;height:100%;overflow:hidden;border-radius:inherit;background:#FAFAFC}
     html.pfh-ui-fallback #${PANEL_ID} .pfh-full>*{visibility:hidden!important;pointer-events:none!important}
+    html.pfh-ui-waiting #${PANEL_ID} .pfh-full>*,
+    html.pfh-ui-error #${PANEL_ID} .pfh-full>*,
+    html.pfh-ui-offline #${PANEL_ID} .pfh-full>*{visibility:visible!important;pointer-events:auto!important}
+    html.pfh-ui-waiting #${PANEL_ID} .pfh-full::before,
+    html.pfh-ui-waiting #${PANEL_ID} .pfh-full::after,
+    html.pfh-ui-error #${PANEL_ID} .pfh-full::before,
+    html.pfh-ui-error #${PANEL_ID} .pfh-full::after,
+    html.pfh-ui-offline #${PANEL_ID} .pfh-full::before,
+    html.pfh-ui-offline #${PANEL_ID} .pfh-full::after{display:none!important}
     html.pfh-ui-fallback #${PANEL_ID} .pfh-full::before{
       content:"";position:absolute;inset:0;z-index:1;visibility:visible;border-radius:inherit;pointer-events:none;
       background:
@@ -99,6 +108,11 @@
     return typeof getCachedCloudUiStyles === 'function' ? getCachedCloudUiStyles() : '';
   }
 
+  function getStaleCloudUiStyleText() {
+    const css = cloudAssetCache && cloudAssetCache.uiCss;
+    return typeof css === 'string' && css.length > 10000 && css.includes('#' + PANEL_ID) ? css : '';
+  }
+
   function updateUiFallbackState(state) {
     const root = document.documentElement;
     root.classList.toggle('pfh-ui-fallback', state !== 'ready');
@@ -163,8 +177,14 @@
   function injectStyle() {
     bindUiAssetRecovery();
     const cached = getCloudUiStyleText();
-    if (applyCloudUiStyles(cached)) return;
-    setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
-    updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
-    scheduleUiFallbackNotice();
+    if (!applyCloudUiStyles(cached)) {
+      // Keep the last complete stylesheet usable while the newly versioned
+      // stylesheet is downloaded in the background.
+      const staleCached = getStaleCloudUiStyleText();
+      if (!applyCloudUiStyles(staleCached)) {
+        setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
+        updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
+        scheduleUiFallbackNotice();
+      }
+    }
   }

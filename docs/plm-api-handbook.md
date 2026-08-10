@@ -40,6 +40,14 @@ GET /api/ChemicalNew/GetProjectDetail?id={project_id}
 - `data.project`：项目、SKU、`product_id`、`product_main_id` 等关联信息。
 - `data.pms[]`：项目物料清单。
 
+2026-08-07 的价格抓取 HAR 还确认，`data.project` 会直接返回国内阶梯价格字段：
+
+- `domestic_first_tier_price`：国内一档价格；
+- `domestic_second_tier_price`：国内二档价格；
+- `domestic_third_tier_price`：国内三档价格。
+
+同一项目的 `GET /api/ChemicalNew/GetProjectStockDetail?id={project_id}` 也返回上述字段，并额外带有 `procurement_price`。两者含义不同：当前 Excel 的“价格”应使用明确的 `domestic_third_tier_price`；不能把 `procurement_price`、参考价或产品价格接口中的其他价格混作国内三档价。字段不存在时再沿用本地已保存价格或原有回退逻辑。
+
 `pms[]` 物料常用字段：`code`、`name`、`category_name`、`properties_value`、`material_length`、`material_width`、`material_height`、`material_type`、`pics`。
 
 纸盒、彩盒、纸箱通常从 `pms[]` 识别；标签、印刷、贴纸、不干胶等也从这里读取尺寸和物料编码。

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>魔法上传 · 方案 B 双栏工作台</title>
+<style>
+:root{
+  --pri:#6f56e8; --pri-deep:#5a45c9; --pri-soft:#eee9ff;
+  --ok:#22b77b; --ok-soft:#e5f8ef; --err:#d95770; --err-soft:#fdeef1;
+  --warn:#e8871e; --ink:#1d2232; --mut:#78819c; --mut2:#8990a6;
+  --line:rgba(26,35,68,.09); --bg:#f5f6fa;
+  --spring:cubic-bezier(.17,1.5,.32,1); --press:cubic-bezier(.34,1.45,.64,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+body{background:var(--bg);padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.demo-note{font-size:12px;color:var(--mut2);max-width:436px;text-align:center;}
+.panel{width:436px;height:680px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 44px rgba(47,50,94,.10);}
+.head{display:flex;align-items:center;gap:8px;padding:12px 14px 10px;flex:0 0 auto;}
+.head .back{width:28px;height:28px;border:0;border-radius:9px;background:var(--pri-soft);color:var(--pri);cursor:pointer;font-size:14px;display:grid;place-items:center;transition:transform .18s var(--press),background .2s ease;}
+.head .back:hover{background:#e2d9ff;} .head .back:active{transform:scale(.9);}
+.head h1{font-size:15px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:6px;}
+.head h1 em{font-style:normal;font-size:8px;font-weight:800;color:var(--pri);background:var(--pri-soft);border-radius:999px;padding:2px 6px;}
+.head .pipe{margin-left:auto;font-size:9px;font-weight:700;color:var(--mut2);letter-spacing:.6px;}
+/* 双栏主体 */
+.body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:148px minmax(0,1fr);gap:10px;padding:0 12px 12px;}
+/* 左栏：统计 + 环形 ETA */
+.side{min-width:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;scrollbar-width:none;}
+.side::-webkit-scrollbar{display:none;}
+.ring-card{background:linear-gradient(150deg,#f4f1ff,#ece7ff);border:1px solid rgba(111,86,232,.16);border-radius:16px;padding:12px 10px;display:grid;place-items:center;gap:6px;}
+.ring{position:relative;width:92px;height:92px;}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+.ring .bgc{fill:none;stroke:rgba(111,86,232,.12);stroke-width:8;}
+.ring .fgc{fill:none;stroke:url(#gradB);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .6s cubic-bezier(.22,1,.36,1);}
+.ring-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;}
+.ring-center strong{display:block;font-size:17px;font-weight:900;color:var(--pri-deep);font-variant-numeric:tabular-nums;line-height:1.05;}
+.ring-center small{display:block;margin-top:2px;font-size:8px;font-weight:700;color:var(--mut);}
+.ring-lab{font-size:9px;font-weight:800;color:var(--pri-deep);}
+.stat-card{border:1px solid var(--line);border-radius:13px;background:#fff;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;transition:transform .3s var(--spring),border-color .2s ease;}
+.stat-card:hover{transform:translateY(-1px);border-color:rgba(111,86,232,.3);}
+.stat-card span{font-size:10px;font-weight:700;color:var(--mut);}
+.stat-card b{font-size:15px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums;}
+.stat-card.ok b{color:var(--ok);} .stat-card.err b{color:var(--err);} .stat-card.warn b{color:var(--warn);} .stat-card.run b{color:var(--pri);}
+.side-actions{display:grid;gap:6px;margin-top:auto;}
+.side-actions button{height:32px;border-radius:10px;font-size:10px;font-weight:800;cursor:pointer;transition:transform .18s var(--press),box-shadow .2s ease;}
+.side-actions button:active{transform:scale(.94);}
+.side-actions .b-pri{border:0;background:linear-gradient(135deg,var(--pri),var(--pri-deep));color:#fff;box-shadow:0 5px 12px rgba(111,86,232,.3);}
+.side-actions .b-pri:hover{transform:translateY(-1px);}
+.side-actions .b-sec{border:1px solid var(--line);background:#fff;color:var(--pri);}
+.side-actions .b-sec:hover{transform:translateY(-1px);border-color:rgba(111,86,232,.4);}
+/* 右栏 */
+.main{min-width:0;display:flex;flex-direction:column;gap:8px;}
+.drop{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 11px;border:1.5px dashed rgba(111,86,232,.4);border-radius:13px;background:#faf9ff;cursor:pointer;transition:transform .2s var(--press),border-color .2s ease,background .2s ease;}
+.drop:hover{border-color:var(--pri);background:#f5f2ff;transform:translateY(-1px);}
+.drop:active{transform:scale(.985);}
+.drop .ic{width:24px;height:24px;flex:0 0 auto;display:grid;place-items:center;border-radius:7px;background:var(--pri-soft);color:var(--pri);font-size:12px;}
+.drop strong{font-size:11px;font-weight:800;color:var(--ink);}
+.drop small{font-size:9px;color:var(--mut2);margin-left:auto;white-space:nowrap;}
+.list{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:#d8dce8 transparent;padding-right:2px;}
+.list::-webkit-scrollbar{width:5px;} .list::-webkit-scrollbar-thumb{background:#d8dce8;border-radius:99px;}
+/* 双栏版任务行 66px：信息更全 */
+.task{position:relative;display:grid;grid-template-columns:32px minmax(0,1fr);gap:9px;align-items:center;min-height:66px;padding:9px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;
+  transition:transform .32s var(--spring),border-color .24s ease,box-shadow .32s ease;
+  animation:taskIn .45s var(--spring) backwards;}
+.task:nth-child(2){animation-delay:.04s}.task:nth-child(3){animation-delay:.08s}.task:nth-child(4){animation-delay:.12s}.task:nth-child(5){animation-delay:.16s}.task:nth-child(6){animation-delay:.2s}.task:nth-child(7){animation-delay:.24s}.task:nth-child(8){animation-delay:.28s}.task:nth-child(9){animation-delay:.32s}.task:nth-child(10){animation-delay:.36s}
+@keyframes taskIn{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:none;}}
+.task:hover{transform:translateY(-2px) scale(1.006);border-color:rgba(111,86,232,.28);box-shadow:0 10px 24px rgba(76,60,150,.12);}
+.task:active{transform:translateY(1px) scale(.972);transition-duration:.12s;}
+.task .ic{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;font-size:14px;font-weight:900;background:var(--pri-soft);color:var(--pri);}
+.task.is-success .ic{background:var(--ok-soft);color:var(--ok);}
+.task.is-wait .ic{background:#fff4e5;color:var(--warn);}
+.task .content{min-width:0;display:flex;flex-direction:column;gap:5px;}
+.task .r1{display:flex;align-items:center;gap:6px;min-width:0;}
+.task .sku{font-size:12px;font-weight:900;color:var(--ink);white-space:nowrap;}
+.task .src{flex:1 1 auto;min-width:0;font-size:9px;color:var(--mut2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.chip{flex:0 0 auto;font-size:8px;font-weight:800;border-radius:6px;padding:2px 5px;background:var(--pri-soft);color:var(--pri);}
+.chip.ok{background:var(--ok-soft);color:var(--ok);} .chip.warn{background:#fff4e5;color:var(--warn);}
+.task .r2{display:flex;align-items:center;gap:7px;}
+.task .track{flex:1 1 auto;height:3px;border-radius:99px;background:#eef0f6;overflow:hidden;}
+.task .bar{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pri),#8f7bff);transition:width .5s cubic-bezier(.22,1,.36,1);}
+.task.is-success .bar{background:var(--ok);}
+.task .pct{font-size:11px;font-weight:900;color:var(--pri-deep);font-variant-numeric:tabular-nums;min-width:30px;text-align:right;}
+.task.is-success .pct{color:var(--ok);}
+.task .r3{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;color:var(--mut2);}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--mut);}
+.dot.run{background:var(--pri);animation:pulse 1.2s var(--spring) infinite;} .dot.ok{background:var(--ok);} .dot.warn{background:var(--warn);}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(111,86,232,.35);}70%{box-shadow:0 0 0 6px rgba(111,86,232,0);}100%{box-shadow:0 0 0 0 rgba(111,86,232,0);}}
+.icon-btn{width:22px;height:22px;border:0;border-radius:7px;display:grid;place-items:center;background:transparent;color:var(--mut2);cursor:pointer;font-size:11px;margin-left:auto;transition:transform .18s var(--press),background .2s ease,color .2s ease;}
+.icon-btn:hover{background:var(--err-soft);color:var(--err);transform:translateY(-1px);}
+.icon-btn:active{transform:scale(.82);}
+</style>
+</head>
+<body>
+<p class="demo-note">方案 B · 双栏工作台 —— 左侧统计栏 + 环形总进度 ETA；右侧任务行 66px 信息更全；一屏约 7 条。页面自动模拟上传演示。</p>
+<div class="panel">
+  <div class="head">
+    <button class="back">‹</button>
+    <h1>魔法上传 <em>BETA</em></h1>
+    <span class="pipe">API PIPELINE</span>
+  </div>
+  <div class="body">
+    <aside class="side">
+      <div class="ring-card">
+        <div class="ring">
+          <svg viewBox="0 0 92 92">
+            <defs><linearGradient id="gradB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6f56e8"/><stop offset="1" stop-color="#8f7bff"/></linearGradient></defs>
+            <circle class="bgc" cx="46" cy="46" r="40"/>
+            <circle class="fgc" id="ringFg" cx="46" cy="46" r="40" stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
+          </svg>
+          <div class="ring-center"><div><strong id="ringEta">--</strong><small>预计剩余</small></div></div>
+        </div>
+        <span class="ring-lab" id="ringPct">0% · 0/12 任务</span>
+      </div>
+      <div class="stat-card run"><span>进行中</span><b id="sRun">2</b></div>
+      <div class="stat-card ok"><span>已完成</span><b id="sOk">3</b></div>
+      <div class="stat-card warn"><span>待确认</span><b id="sWait">1</b></div>
+      <div class="stat-card err"><span>失败</span><b id="sErr">0</b></div>
+      <div class="stat-card"><span>历史记录</span><b>28</b></div>
+      <div class="side-actions">
+        <button class="b-sec">上传历史</button>
+        <button class="b-pri">全部开始</button>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="drop">
+        <span class="ic">⇪</span>
+        <strong>拖入 ZIP / XLSX</strong>
+        <small>Ctrl+V · ≤150MB</small>
+      </div>
+      <div class="list" id="taskList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const names = ['温变遮瑕粉底液（古铜色）','养发滴剂（薄荷味）','胶原蛋白软糖（草莓）','蓝铜肽精华（30ml）','褪黑素片（甜橙）','玫瑰果油（大瓶装）','蛋白粉（香草）','维生素软糖（柑橘）','燕麦洁面乳','烟酰胺原液（小瓶）','蜂胶口喷','葡萄籽胶囊'];
+const tasks = [];
+let actualSamples = [26000, 31000, 24000, 33500, 28800];
+for (let i = 0; i < 12; i++) {
+  tasks.push({ id: i, sku: 'SKU000' + (47000 + i * 7), name: names[i], files: 6 + (i % 5),
+    status: i < 3 ? 'success' : (i < 5 ? 'processing' : (i === 5 ? 'waiting' : 'pending')),
+    progress: i < 3 ? 1 : (i < 5 ? .3 + .3 * (i - 3) : 0) });
+}
+const fmt = (s) => { s = Math.max(0, Math.round(s)); if (!s) return '--'; if (s < 60) return s + ' 秒'; return Math.floor(s / 60) + ' 分' + (s % 60 ? ' ' + s % 60 + ' 秒' : ''); };
+const baseMs = () => { const a = actualSamples.slice().sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : 0; };
+let smoothSec = 0, targetSec = 0;
+function computeQueueEtaMs() {
+  const base = baseMs(); if (!base) return 0;
+  let remain = 0;
+  tasks.forEach(t => { if (t.status === 'success' || t.status === 'waiting') return; remain += t.status === 'processing' ? (1 - t.progress) * base : base; });
+  return remain;
+}
+function render() {
+  document.getElementById('taskList').innerHTML = tasks.map(t => {
+    const cls = t.status === 'success' ? 'is-success' : (t.status === 'waiting' ? 'is-wait' : '');
+    const dotCls = t.status === 'processing' ? 'run' : (t.status === 'success' ? 'ok' : (t.status === 'waiting' ? 'warn' : ''));
+    const st = t.status === 'processing' ? '上传中' : (t.status === 'success' ? '已完成' : (t.status === 'waiting' ? '待确认' : '排队中'));
+    const pct = Math.round(t.progress * 100);
+    const eta = t.status === 'success' ? '已完成' : (t.status === 'processing' ? '约 ' + fmt((1 - t.progress) * baseMs() / 1000) : (t.status === 'waiting' ? '需确认分类' : '--'));
+    return `<article class="task ${cls}">
+      <div class="ic">✦</div>
+      <div class="content">
+        <div class="r1"><span class="sku">${t.sku}</span><span class="src" title="${t.name}">${t.name}.zip</span><span class="chip ${t.status === 'waiting' ? 'warn' : ''}">${t.files} 文件</span></div>
+        <div class="r2"><div class="track"><div class="bar" style="width:${pct}%"></div></div><span class="pct">${t.status === 'success' ? '100' : pct}%</span></div>
+        <div class="r3"><span class="dot ${dotCls}"></span><span>${st}</span><span>·</span><span>${eta}</span><button class="icon-btn" title="删除">✕</button></div>
+      </div>
+    </article>`;
+  }).join('');
+}
+setInterval(() => {
+  const cur = tasks.find(t => t.status === 'processing');
+  if (cur) {
+    cur.progress = Math.min(1, cur.progress + .035);
+    if (cur.progress >= 1) {
+      cur.status = 'success';
+      actualSamples.push(22000 + Math.random() * 14000);
+      if (actualSamples.length > 8) actualSamples.shift();
+      const next = tasks.find(t => t.status === 'pending');
+      if (next) next.status = 'processing';
+    }
+  }
+  targetSec = computeQueueEtaMs() / 1000;
+  render();
+}, 900);
+setInterval(() => {
+  smoothSec = smoothSec ? smoothSec * .72 + targetSec * .28 : targetSec;
+  const done = tasks.filter(t => t.status === 'success').length;
+  const pct = Math.round(done / tasks.length * 100);
+  document.getElementById('ringEta').textContent = targetSec ? fmt(smoothSec) : '估算中';
+  document.getElementById('ringPct').textContent = pct + '% · ' + done + '/' + tasks.length + ' 任务';
+  document.getElementById('ringFg').style.strokeDashoffset = (251.2 * (1 - done / tasks.length)).toFixed(1);
+  document.getElementById('sOk').textContent = done;
+  document.getElementById('sRun').textContent = tasks.filter(t => t.status === 'processing').length;
+}, 500);
+render();
+</script>
+</body>
+</html>

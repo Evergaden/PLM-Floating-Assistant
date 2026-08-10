@@ -62,8 +62,19 @@
   }
 
   function getCachedCloudUiStyles() {
+    if (String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION) return '';
+    if (!cloudUiAssetPathMatchesVersion(cloudAssetCache && cloudAssetCache.uiAssetPath)) return '';
     const css = cloudAssetCache && cloudAssetCache.uiCss;
     return typeof css === 'string' && css.length > 10000 ? css : '';
+  }
+
+  function cloudUiAssetPathMatchesVersion(value) {
+    const path = String(value || '').replace(/\\/g, '/');
+    return path.endsWith('/ui-' + UI_ASSET_VERSION + '.css') || path === 'ui-' + UI_ASSET_VERSION + '.css';
+  }
+
+  function cloudUiDescriptorMatchesVersion(descriptor) {
+    return Boolean(descriptor && cloudUiAssetPathMatchesVersion(descriptor.path));
   }
 
   function scheduleCloudAssetRefresh(delay) {
@@ -86,23 +97,29 @@
   async function refreshCloudAssetsNow(force) {
     const now = Date.now();
     const hasUiStyles = Boolean(getCachedCloudUiStyles());
-    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+    const staleUiAsset = String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION;
+    if (!force && !staleUiAsset && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
     const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
     if (!manifest || Number(manifest.schemaVersion) !== CLOUD_ASSET_CACHE_SCHEMA || !manifest.assets) {
       throw new Error('unsupported cloud asset manifest');
     }
-    if (hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && cloudAssetCache.dataVersion === manifest.dataVersion) {
-      cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
-      saveCloudAssetCache(cloudAssetCache);
-      return cloudAssetCache;
-    }
     const runtimeDescriptor = manifest.assets.runtimeData;
     const templateDescriptor = manifest.assets.excelTemplate;
     const iconsDescriptor = manifest.assets.icons;
     const uiDescriptor = manifest.assets.uiStyles;
     if (!runtimeDescriptor || !templateDescriptor || !iconsDescriptor || !uiDescriptor) throw new Error('cloud asset manifest is incomplete');
+    if (!cloudUiDescriptorMatchesVersion(uiDescriptor)) throw new Error('cloud UI asset version mismatch');
+    const cachedUiHash = String(cloudAssetCache && cloudAssetCache.uiAssetHash || '').toLowerCase();
+    const manifestUiHash = String(uiDescriptor.sha256 || '').toLowerCase();
+    const uiDescriptorUnchanged = String(cloudAssetCache && cloudAssetCache.uiAssetPath || '') === String(uiDescriptor.path || '')
+      && Boolean(cachedUiHash && manifestUiHash && cachedUiHash === manifestUiHash);
+    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && uiDescriptorUnchanged && cloudAssetCache.dataVersion === manifest.dataVersion) {
+      cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
+      saveCloudAssetCache(cloudAssetCache);
+      return cloudAssetCache;
+    }
     const uiCss = await fetchCloudAsset(uiDescriptor, 'text');
     if (typeof uiCss !== 'string' || uiCss.length < 10000 || !uiCss.includes('#' + PANEL_ID)) {
       throw new Error('cloud UI stylesheet is invalid');
@@ -112,6 +129,9 @@
       ...(cloudAssetCache || {}),
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
+      uiAssetVersion: UI_ASSET_VERSION,
+      uiAssetPath: String(uiDescriptor.path || ''),
+      uiAssetHash: String(uiDescriptor.sha256 || '').toLowerCase(),
       uiCss,
       uiCssUpdatedAt: new Date(now).toISOString(),
     };
@@ -134,6 +154,9 @@
     const nextCache = {
       schemaVersion: CLOUD_ASSET_CACHE_SCHEMA,
       dataVersion: String(manifest.dataVersion || ''),
+      uiAssetVersion: UI_ASSET_VERSION,
+      uiAssetPath: String(uiDescriptor.path || ''),
+      uiAssetHash: String(uiDescriptor.sha256 || '').toLowerCase(),
       checkedAt: now,
       updatedAt: new Date(now).toISOString(),
       runtimeData,

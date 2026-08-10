@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>魔法上传 · 方案 C 进度优先版</title>
+<style>
+:root{
+  --pri:#6f56e8; --pri-deep:#5a45c9; --pri-soft:#eee9ff;
+  --ok:#22b77b; --ok-soft:#e5f8ef; --err:#d95770; --err-soft:#fdeef1;
+  --warn:#e8871e; --ink:#1d2232; --mut:#78819c; --mut2:#8990a6;
+  --line:rgba(26,35,68,.09); --bg:#f5f6fa;
+  --spring:cubic-bezier(.17,1.5,.32,1); --press:cubic-bezier(.34,1.45,.64,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+body{background:var(--bg);padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.demo-note{font-size:12px;color:var(--mut2);max-width:436px;text-align:center;}
+.panel{width:436px;height:680px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 44px rgba(47,50,94,.10);}
+.head{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;flex:0 0 auto;}
+.head .back{width:28px;height:28px;border:0;border-radius:9px;background:var(--pri-soft);color:var(--pri);cursor:pointer;font-size:14px;display:grid;place-items:center;transition:transform .18s var(--press),background .2s ease;}
+.head .back:hover{background:#e2d9ff;} .head .back:active{transform:scale(.9);}
+.head h1{font-size:15px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:6px;}
+.head h1 em{font-style:normal;font-size:8px;font-weight:800;color:var(--pri);background:var(--pri-soft);border-radius:999px;padding:2px 6px;}
+.head .pipe{margin-left:auto;font-size:9px;font-weight:700;color:var(--mut2);letter-spacing:.6px;}
+/* hero 进度优先 */
+.hero{flex:0 0 auto;margin:0 12px 10px;padding:14px;border-radius:16px;color:#fff;background:linear-gradient(140deg,var(--pri),var(--pri-deep) 70%);display:grid;gap:10px;box-shadow:0 12px 26px rgba(90,69,201,.32);}
+.hero-row{display:flex;align-items:flex-end;gap:10px;}
+.hero-eta strong{display:block;font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.05;}
+.hero-eta small{font-size:10px;font-weight:700;opacity:.8;}
+.hero-meta{margin-left:auto;text-align:right;font-size:10px;font-weight:700;opacity:.9;display:grid;gap:2px;font-variant-numeric:tabular-nums;}
+.hero-track{height:7px;border-radius:99px;background:rgba(255,255,255,.22);overflow:hidden;}
+.hero-bar{height:100%;width:0%;border-radius:99px;background:#fff;position:relative;transition:width .5s cubic-bezier(.22,1,.36,1);}
+.hero-bar:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:flow 1.5s linear infinite;}
+@keyframes flow{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
+/* 任务双列 */
+.list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;scrollbar-width:thin;scrollbar-color:#d8dce8 transparent;}
+.list::-webkit-scrollbar{width:5px;} .list::-webkit-scrollbar-thumb{background:#d8dce8;border-radius:99px;}
+.task{position:relative;min-width:0;display:flex;flex-direction:column;gap:6px;min-height:74px;padding:9px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;overflow:hidden;
+  transition:transform .32s var(--spring),border-color .24s ease,box-shadow .32s ease;
+  animation:taskIn .45s var(--spring) backwards;}
+.task:nth-child(2){animation-delay:.03s}.task:nth-child(3){animation-delay:.06s}.task:nth-child(4){animation-delay:.09s}.task:nth-child(5){animation-delay:.12s}.task:nth-child(6){animation-delay:.15s}.task:nth-child(7){animation-delay:.18s}.task:nth-child(8){animation-delay:.21s}.task:nth-child(9){animation-delay:.24s}.task:nth-child(10){animation-delay:.27s}.task:nth-child(11){animation-delay:.3s}.task:nth-child(12){animation-delay:.33s}
+@keyframes taskIn{from{opacity:0;transform:translateY(12px) scale(.96);}to{opacity:1;transform:none;}}
+.task:hover{transform:translateY(-3px) scale(1.02);border-color:rgba(111,86,232,.32);box-shadow:0 12px 26px rgba(76,60,150,.14);}
+.task:active{transform:translateY(1px) scale(.965);transition-duration:.12s;}
+.task .top{display:flex;align-items:center;gap:6px;min-width:0;}
+.task .dot{width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#c8cddb;}
+.task.run .dot{background:var(--pri);animation:pulse 1.2s var(--spring) infinite;}
+.task.is-success .dot{background:var(--ok);} .task.is-wait .dot{background:var(--warn);}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(111,86,232,.35);}70%{box-shadow:0 0 0 7px rgba(111,86,232,0);}100%{box-shadow:0 0 0 0 rgba(111,86,232,0);}}
+.task .sku{font-size:11px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.task .pct{margin-left:auto;font-size:11px;font-weight:900;color:var(--pri-deep);font-variant-numeric:tabular-nums;}
+.task.is-success .pct{color:var(--ok);}
+.task .src{font-size:9px;color:var(--mut2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.task .track{height:3px;border-radius:99px;background:#eef0f6;overflow:hidden;}
+.task .bar{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pri),#8f7bff);transition:width .5s cubic-bezier(.22,1,.36,1);}
+.task.is-success .bar{background:var(--ok);}
+.task .foot{display:flex;align-items:center;gap:5px;font-size:8px;font-weight:700;color:var(--mut2);}
+.task .foot .del{margin-left:auto;width:18px;height:18px;border:0;border-radius:6px;display:grid;place-items:center;background:transparent;color:var(--mut2);cursor:pointer;font-size:10px;transition:transform .18s var(--press),background .2s ease,color .2s ease;}
+.task .foot .del:hover{background:var(--err-soft);color:var(--err);transform:scale(1.12);}
+.task .foot .del:active{transform:scale(.8);}
+/* 底部工具条（上传入口收进底栏） */
+.bar-actions{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fbfbfd;}
+.drop-mini{display:flex;align-items:center;gap:7px;flex:1 1 auto;height:36px;padding:0 11px;border:1.5px dashed rgba(111,86,232,.42);border-radius:11px;background:#faf9ff;color:var(--pri);font-size:11px;font-weight:800;cursor:pointer;transition:transform .2s var(--press),border-color .2s ease,background .2s ease;}
+.drop-mini:hover{border-color:var(--pri);background:#f4f1ff;transform:translateY(-1px);}
+.drop-mini:active{transform:scale(.97);}
+.drop-mini small{margin-left:auto;font-size:9px;font-weight:700;color:var(--mut2);}
+.btn{flex:0 0 auto;height:36px;padding:0 13px;border:0;border-radius:11px;font-size:11px;font-weight:800;cursor:pointer;transition:transform .18s var(--press),box-shadow .2s ease;}
+.btn:active{transform:scale(.93);}
+.btn-sec{background:#fff;border:1px solid var(--line);color:var(--pri);}
+.btn-sec:hover{transform:translateY(-1px);border-color:rgba(111,86,232,.4);}
+.btn-pri{background:linear-gradient(135deg,var(--pri),var(--pri-deep));color:#fff;box-shadow:0 6px 14px rgba(111,86,232,.3);}
+.btn-pri:hover{transform:translateY(-1px);box-shadow:0 9px 20px rgba(111,86,232,.38);}
+</style>
+</head>
+<body>
+<p class="demo-note">方案 C · 进度优先版 —— 顶部 hero 大进度 + 大 ETA；任务双列 grid，密度最高（一屏约 10 条）；上传入口收进底栏。页面自动模拟上传演示。</p>
+<div class="panel">
+  <div class="head">
+    <button class="back">‹</button>
+    <h1>魔法上传 <em>BETA</em></h1>
+    <span class="pipe">API PIPELINE</span>
+  </div>
+  <div class="hero">
+    <div class="hero-row">
+      <div class="hero-eta"><small>预计剩余</small><strong id="heroEta">--</strong></div>
+      <div class="hero-meta">
+        <span id="heroTasks">完成 3 / 12 任务</span>
+        <span id="heroFiles">文件 41 / 96</span>
+        <span id="heroStat2">进行中 2 · 待确认 1 · 失败 0</span>
+      </div>
+    </div>
+    <div class="hero-track"><div class="hero-bar" id="heroBar"></div></div>
+  </div>
+  <div class="list" id="taskList"></div>
+  <div class="bar-actions">
+    <button class="drop-mini">⇪ 拖入 ZIP / XLSX <small>Ctrl+V</small></button>
+    <button class="btn btn-sec">历史</button>
+    <button class="btn btn-pri">全部开始</button>
+  </div>
+</div>
+
+<script>
+const names = ['温变遮瑕粉底液（古铜色）','养发滴剂（薄荷味）','胶原蛋白软糖（草莓）','蓝铜肽精华（30ml）','褪黑素片（甜橙）','玫瑰果油（大瓶装）','蛋白粉（香草）','维生素软糖（柑橘）','燕麦洁面乳','烟酰胺原液（小瓶）','蜂胶口喷','葡萄籽胶囊'];
+const tasks = [];
+let actualSamples = [26000, 31000, 24000, 33500, 28800];
+for (let i = 0; i < 12; i++) {
+  tasks.push({ id: i, sku: 'SKU000' + (47000 + i * 7), name: names[i], files: 6 + (i % 5),
+    status: i < 3 ? 'success' : (i < 5 ? 'processing' : (i === 5 ? 'waiting' : 'pending')),
+    progress: i < 3 ? 1 : (i < 5 ? .3 + .3 * (i - 3) : 0) });
+}
+const fmt = (s) => { s = Math.max(0, Math.round(s)); if (!s) return '--'; if (s < 60) return s + ' 秒'; return Math.floor(s / 60) + ' 分' + (s % 60 ? ' ' + s % 60 + ' 秒' : ''); };
+const baseMs = () => { const a = actualSamples.slice().sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : 0; };
+let smoothSec = 0, targetSec = 0;
+function computeQueueEtaMs() {
+  const base = baseMs(); if (!base) return 0;
+  let remain = 0;
+  tasks.forEach(t => { if (t.status === 'success' || t.status === 'waiting') return; remain += t.status === 'processing' ? (1 - t.progress) * base : base; });
+  return remain;
+}
+function render() {
+  document.getElementById('taskList').innerHTML = tasks.map(t => {
+    const cls = (t.status === 'processing' ? 'run ' : '') + (t.status === 'success' ? 'is-success' : (t.status === 'waiting' ? 'is-wait' : ''));
+    const pct = Math.round(t.progress * 100);
+    const st = t.status === 'processing' ? '上传中' : (t.status === 'success' ? '已完成' : (t.status === 'waiting' ? '待确认' : '排队中'));
+    const eta = t.status === 'success' ? '已完成' : (t.status === 'processing' ? '约 ' + fmt((1 - t.progress) * baseMs() / 1000) : (t.status === 'waiting' ? '需确认分类' : '--'));
+    return `<article class="task ${cls}">
+      <div class="top"><span class="dot"></span><span class="sku">${t.sku}</span><span class="pct">${t.status === 'success' ? '100' : pct}%</span></div>
+      <span class="src" title="${t.name}">${t.name}.zip</span>
+      <div class="track"><div class="bar" style="width:${pct}%"></div></div>
+      <div class="foot"><span>${t.files} 文件</span><span>·</span><span>${st}</span><span>·</span><span>${eta}</span><button class="del" title="删除">✕</button></div>
+    </article>`;
+  }).join('');
+}
+setInterval(() => {
+  const cur = tasks.find(t => t.status === 'processing');
+  if (cur) {
+    cur.progress = Math.min(1, cur.progress + .035);
+    if (cur.progress >= 1) {
+      cur.status = 'success';
+      actualSamples.push(22000 + Math.random() * 14000);
+      if (actualSamples.length > 8) actualSamples.shift();
+      const next = tasks.find(t => t.status === 'pending');
+      if (next) next.status = 'processing';
+    }
+  }
+  targetSec = computeQueueEtaMs() / 1000;
+  render();
+}, 900);
+setInterval(() => {
+  smoothSec = smoothSec ? smoothSec * .72 + targetSec * .28 : targetSec;
+  const done = tasks.filter(t => t.status === 'success').length;
+  const run = tasks.filter(t => t.status === 'processing').length;
+  const wait = tasks.filter(t => t.status === 'waiting').length;
+  const doneFiles = tasks.reduce((s, t) => s + Math.round(t.files * t.progress), 0);
+  document.getElementById('heroEta').textContent = targetSec ? fmt(smoothSec) : '估算中';
+  document.getElementById('heroBar').style.width = Math.round(done / tasks.length * 100) + '%';
+  document.getElementById('heroTasks').textContent = '完成 ' + done + ' / ' + tasks.length + ' 任务';
+  document.getElementById('heroFiles').textContent = '文件 ' + doneFiles + ' / 96';
+  document.getElementById('heroStat2').textContent = '进行中 ' + run + ' · 待确认 ' + wait + ' · 失败 0';
+}, 500);
+render();
+</script>
+</body>
+</html>

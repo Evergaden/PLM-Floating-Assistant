@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>魔法上传 · 方案 A 紧凑列表版</title>
+<style>
+:root{
+  --pri:#6f56e8; --pri-deep:#5a45c9; --pri-soft:#eee9ff;
+  --ok:#22b77b; --ok-soft:#e5f8ef; --err:#d95770; --err-soft:#fdeef1;
+  --warn:#e8871e; --ink:#1d2232; --mut:#78819c; --mut2:#8990a6;
+  --line:rgba(26,35,68,.09); --card:#ffffff; --bg:#f5f6fa;
+  --spring:cubic-bezier(.17,1.5,.32,1); --press:cubic-bezier(.34,1.45,.64,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+body{background:var(--bg);padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.demo-note{font-size:12px;color:var(--mut2);max-width:436px;text-align:center;}
+.panel{width:436px;height:680px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 44px rgba(47,50,94,.10);}
+/* 顶栏 */
+.head{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;flex:0 0 auto;}
+.head .back{width:28px;height:28px;border:0;border-radius:9px;background:var(--pri-soft);color:var(--pri);cursor:pointer;font-size:14px;display:grid;place-items:center;transition:transform .18s var(--press),background .2s ease;}
+.head .back:hover{background:#e2d9ff;}
+.head .back:active{transform:scale(.9);}
+.head h1{font-size:15px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:6px;}
+.head h1 em{font-style:normal;font-size:8px;font-weight:800;color:var(--pri);background:var(--pri-soft);border-radius:999px;padding:2px 6px;}
+.head .pipe{margin-left:auto;font-size:9px;font-weight:700;color:var(--mut2);letter-spacing:.6px;}
+/* 全局进度 hero 条（丝滑 ETA） */
+.hero{flex:0 0 auto;margin:2px 12px 10px;padding:10px 12px;border-radius:14px;background:linear-gradient(120deg,var(--pri-soft),#f3f0ff);border:1px solid rgba(111,86,232,.14);display:grid;gap:8px;}
+.hero-top{display:flex;align-items:baseline;gap:8px;}
+.hero-top .eta{font-size:19px;font-weight:900;color:var(--pri-deep);font-variant-numeric:tabular-nums;}
+.hero-top .eta small{font-size:10px;font-weight:700;color:var(--mut);}
+.hero-top .rate{margin-left:auto;font-size:10px;font-weight:700;color:var(--mut);}
+.hero-track{height:6px;border-radius:999px;background:rgba(111,86,232,.12);overflow:hidden;}
+.hero-bar{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--pri),#8f7bff);transition:width .5s cubic-bezier(.22,1,.36,1);position:relative;}
+.hero-bar:after{content:"";position:absolute;inset:0;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);animation:flow 1.6s linear infinite;}
+@keyframes flow{from{transform:translateX(-100%);}to{transform:translateX(100%);}}
+.hero-bottom{display:flex;gap:10px;font-size:10px;font-weight:700;color:var(--mut);}
+.hero-bottom b{color:var(--ink);font-variant-numeric:tabular-nums;}
+/* 上传区（收缩为一行） */
+.drop{flex:0 0 auto;margin:0 12px 10px;display:flex;align-items:center;gap:9px;padding:9px 12px;border:1.5px dashed rgba(111,86,232,.4);border-radius:13px;background:#faf9ff;cursor:pointer;transition:transform .2s var(--press),border-color .2s ease,background .2s ease;}
+.drop:hover{border-color:var(--pri);background:#f5f2ff;transform:translateY(-1px);}
+.drop:active{transform:scale(.985);}
+.drop .ic{width:26px;height:26px;flex:0 0 auto;display:grid;place-items:center;border-radius:8px;background:var(--pri-soft);color:var(--pri);font-size:13px;}
+.drop strong{font-size:12px;font-weight:800;color:var(--ink);}
+.drop small{font-size:10px;color:var(--mut2);margin-left:auto;white-space:nowrap;}
+/* 统计胶囊条 */
+.pills{flex:0 0 auto;display:flex;gap:6px;padding:0 12px 10px;overflow-x:auto;scrollbar-width:none;}
+.pills::-webkit-scrollbar{display:none;}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:10px;font-weight:700;color:var(--mut);white-space:nowrap;}
+.pill b{font-variant-numeric:tabular-nums;color:var(--ink);}
+.pill.ok b{color:var(--ok);} .pill.err b{color:var(--err);} .pill.warn b{color:var(--warn);} .pill.run b{color:var(--pri);}
+/* 任务列表 */
+.list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 12px 12px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:#d8dce8 transparent;}
+.list::-webkit-scrollbar{width:5px;} .list::-webkit-scrollbar-thumb{background:#d8dce8;border-radius:99px;}
+/* 紧凑任务行 58px */
+.task{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:9px;align-items:center;min-height:58px;padding:7px 10px;border:1px solid var(--line);border-radius:13px;background:#fff;cursor:pointer;position:relative;
+  transition:transform .32s var(--spring),border-color .24s ease,box-shadow .32s ease,background .24s ease;
+  animation:taskIn .45s var(--spring) backwards;}
+.task:nth-child(2){animation-delay:.04s}.task:nth-child(3){animation-delay:.08s}.task:nth-child(4){animation-delay:.12s}.task:nth-child(5){animation-delay:.16s}.task:nth-child(6){animation-delay:.2s}.task:nth-child(7){animation-delay:.24s}.task:nth-child(8){animation-delay:.28s}.task:nth-child(9){animation-delay:.32s}.task:nth-child(10){animation-delay:.36s}
+@keyframes taskIn{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:none;}}
+.task:hover{transform:translateY(-2px) scale(1.005);border-color:rgba(111,86,232,.28);box-shadow:0 8px 20px rgba(76,60,150,.10);background:#fdfcff;}
+.task:active{transform:translateY(1px) scale(.975);transition-duration:.12s;}
+.task .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:13px;font-weight:900;background:var(--pri-soft);color:var(--pri);}
+.task.is-success .ic{background:var(--ok-soft);color:var(--ok);}
+.task.is-error .ic{background:var(--err-soft);color:var(--err);}
+.task.is-wait .ic{background:#fff4e5;color:var(--warn);}
+.task .mid{min-width:0;display:flex;flex-direction:column;gap:4px;}
+.task .l1{display:flex;align-items:center;gap:6px;min-width:0;}
+.task .sku{font-size:12px;font-weight:900;color:var(--ink);letter-spacing:.2px;white-space:nowrap;}
+.task .src{flex:1 1 auto;min-width:0;font-size:10px;color:var(--mut2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.badge{flex:0 0 auto;font-size:8px;font-weight:800;border-radius:6px;padding:2px 5px;background:var(--pri-soft);color:var(--pri);}
+.badge.warn{background:#fff4e5;color:var(--warn);}
+.task .l2{display:flex;align-items:center;gap:8px;}
+.task .track{flex:1 1 auto;height:3px;border-radius:99px;background:#eef0f6;overflow:hidden;}
+.task .bar{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--pri),#8f7bff);transition:width .5s cubic-bezier(.22,1,.36,1);}
+.task.is-success .bar{background:var(--ok);}
+.task.is-error .bar{background:var(--err);}
+.task .side{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.task .pct{font-size:12px;font-weight:900;color:var(--pri-deep);font-variant-numeric:tabular-nums;line-height:1;}
+.task.is-success .pct{color:var(--ok);} .task.is-error .pct{color:var(--err);}
+.task .eta2{font-size:9px;font-weight:700;color:var(--mut2);font-variant-numeric:tabular-nums;}
+.task .row-foot{display:flex;align-items:center;gap:6px;}
+.status-dot{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;color:var(--mut);}
+.status-dot:before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;}
+.status-dot.run{color:var(--pri);} .status-dot.run:before{animation:pulse 1.2s var(--spring) infinite;}
+.status-dot.ok{color:var(--ok);} .status-dot.err{color:var(--err);} .status-dot.warn{color:var(--warn);}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(111,86,232,.35);}70%{box-shadow:0 0 0 6px rgba(111,86,232,0);}100%{box-shadow:0 0 0 0 rgba(111,86,232,0);}}
+.icon-btn{width:24px;height:24px;border:0;border-radius:8px;display:grid;place-items:center;background:transparent;color:var(--mut2);cursor:pointer;font-size:12px;transition:transform .18s var(--press),background .2s ease,color .2s ease;}
+.icon-btn:hover{background:var(--err-soft);color:var(--err);transform:translateY(-1px);}
+.icon-btn:active{transform:scale(.82);}
+/* 底部操作条 */
+.foot{flex:0 0 auto;display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fbfbfd;}
+.btn{flex:1 1 auto;height:34px;border:0;border-radius:11px;font-size:11px;font-weight:800;cursor:pointer;transition:transform .18s var(--press),box-shadow .2s ease,background .2s ease;}
+.btn:active{transform:scale(.94);}
+.btn-pri{background:linear-gradient(135deg,var(--pri),var(--pri-deep));color:#fff;box-shadow:0 6px 14px rgba(111,86,232,.3);}
+.btn-pri:hover{transform:translateY(-1px);box-shadow:0 9px 20px rgba(111,86,232,.38);}
+.btn-sec{background:#fff;border:1px solid var(--line);color:var(--pri);}
+.btn-sec:hover{border-color:rgba(111,86,232,.4);transform:translateY(-1px);}
+</style>
+</head>
+<body>
+<p class="demo-note">方案 A · 紧凑列表版 —— 任务行压到 58px，一屏约 8 条；统计改胶囊条；上传区收缩一行；顶部全局进度 + 丝滑 ETA。页面自动模拟上传演示。</p>
+<div class="panel">
+  <div class="head">
+    <button class="back">‹</button>
+    <h1>魔法上传 <em>BETA</em></h1>
+    <span class="pipe">API PIPELINE</span>
+  </div>
+
+  <div class="hero">
+    <div class="hero-top">
+      <span class="eta"><small>预计剩余</small> <span id="heroEta">--</span></span>
+      <span class="rate" id="heroRate">基准：--/任务</span>
+    </div>
+    <div class="hero-track"><div class="hero-bar" id="heroBar"></div></div>
+    <div class="hero-bottom">
+      <span>队列 <b id="heroQ">12</b> 任务</span>
+      <span>完成 <b id="heroDone">3/12</b></span>
+      <span>文件 <b id="heroFiles">41/96</b></span>
+    </div>
+  </div>
+
+  <div class="drop">
+    <span class="ic">⇪</span>
+    <strong>拖入 ZIP 图包 / XLSX</strong>
+    <small>Ctrl+V 粘贴 · ≤150MB</small>
+  </div>
+
+  <div class="pills">
+    <span class="pill run">进行中 <b id="pRun">2</b></span>
+    <span class="pill ok">已完成 <b id="pOk">3</b></span>
+    <span class="pill warn">待确认 <b id="pWait">1</b></span>
+    <span class="pill err">失败 <b id="pErr">0</b></span>
+    <span class="pill">历史 <b>28</b></span>
+  </div>
+
+  <div class="list" id="taskList"></div>
+
+  <div class="foot">
+    <button class="btn btn-sec">上传历史</button>
+    <button class="btn btn-pri">全部开始</button>
+  </div>
+</div>
+
+<script>
+// ============ 模拟数据与"伪进度条 + 丝滑 ETA"演示 ============
+// ETA 算法（对应脚本改造点）：
+// 1. 任务完成时记录实际用时 task.actualMs，滚动窗口取中位数作为单任务基准 baseMs
+// 2. 全局剩余 = 未完成任务数 × baseMs + 当前任务剩余百分比 × baseMs
+// 3. 显示值每 500ms 采样一次，对目标值做指数平滑（lerp 0.25），避免跳字
+// 4. 无历史基准时显示"估算中"，不给假数字
+const tasks = [];
+const names = ['温变遮瑕粉底液（古铜色）','养发滴剂（薄荷味）','胶原蛋白软糖（草莓）','蓝铜肽精华（30ml）','褪黑素片（甜橙）','玫瑰果油（大瓶装）','蛋白粉（香草）','维生素软糖（柑橘）','燕麦洁面乳','烟酰胺原液（小瓶）','蜂胶口喷','葡萄籽胶囊'];
+let actualSamples = []; // 已完成任务实际用时 ms
+for (let i = 0; i < 12; i++) {
+  tasks.push({
+    id: i, sku: 'SKU000' + (47000 + i * 7),
+    name: names[i], files: 6 + (i % 5),
+    status: i < 3 ? 'success' : (i < 5 ? 'processing' : (i === 5 ? 'waiting' : 'pending')),
+    progress: i < 3 ? 1 : (i < 5 ? .3 + .3 * (i - 3) : 0),
+    startedAt: 0, eta: 0,
+  });
+}
+// 预置几个"已完成任务"用时基准（秒级模拟）
+actualSamples = [26000, 31000, 24000, 33500, 28800];
+
+const fmt = (s) => {
+  s = Math.max(0, Math.round(s));
+  if (!s) return '--';
+  if (s < 60) return s + ' 秒';
+  return Math.floor(s / 60) + ' 分' + (s % 60 ? ' ' + s % 60 + ' 秒' : '');
+};
+const baseMs = () => {
+  const a = actualSamples.slice().sort((x, y) => x - y);
+  return a.length ? a[Math.floor(a.length / 2)] : 0;
+};
+
+// 丝滑显示器：指数平滑逼近目标 ETA
+let smoothSec = 0, targetSec = 0;
+function computeQueueEtaMs() {
+  const base = baseMs();
+  if (!base) return 0;
+  let remain = 0;
+  tasks.forEach(t => {
+    if (t.status === 'success' || t.status === 'waiting') return;
+    remain += t.status === 'processing' ? (1 - t.progress) * base : base;
+  });
+  return remain;
+}
+
+function render() {
+  const list = document.getElementById('taskList');
+  list.innerHTML = tasks.map(t => {
+    const cls = t.status === 'success' ? 'is-success' : (t.status === 'waiting' ? 'is-wait' : (t.status === 'error' ? 'is-error' : ''));
+    const dotCls = t.status === 'processing' ? 'run' : (t.status === 'success' ? 'ok' : (t.status === 'waiting' ? 'warn' : ''));
+    const dotText = t.status === 'processing' ? '上传中' : (t.status === 'success' ? '已完成' : (t.status === 'waiting' ? '待确认' : '排队中'));
+    const pct = Math.round(t.progress * 100);
+    const eta = t.status === 'success' ? '已完成' : (t.status === 'processing' ? '约 ' + fmt((1 - t.progress) * baseMs() / 1000) : (t.status === 'waiting' ? '需确认分类' : '--'));
+    return `<article class="task ${cls}">
+      <div class="ic">✦</div>
+      <div class="mid">
+        <div class="l1"><span class="sku">${t.sku}</span><span class="src" title="${t.name}">${t.name}.zip</span><span class="badge ${t.status === 'waiting' ? 'warn' : ''}">${t.files} 文件</span></div>
+        <div class="l2"><div class="track"><div class="bar" style="width:${pct}%"></div></div></div>
+      </div>
+      <div class="side">
+        <span class="pct">${t.status === 'success' ? '100' : pct}%</span>
+        <div class="row-foot"><span class="eta2">${eta}</span><span class="status-dot ${dotCls}">${dotText}</span><button class="icon-btn" title="删除">✕</button></div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+// 模拟上传推进 + ETA 丝滑刷新
+setInterval(() => {
+  const cur = tasks.find(t => t.status === 'processing');
+  if (cur) {
+    cur.progress = Math.min(1, cur.progress + .035);
+    if (cur.progress >= 1) {
+      cur.status = 'success';
+      actualSamples.push(22000 + Math.random() * 14000); // 记录实际用时
+      if (actualSamples.length > 8) actualSamples.shift();
+      const next = tasks.find(t => t.status === 'pending');
+      if (next) next.status = 'processing';
+    }
+  }
+  targetSec = computeQueueEtaMs() / 1000;
+  render();
+}, 900);
+
+setInterval(() => {
+  // 每 500ms 采样目标值，平滑逼近（跳字变滑动）
+  smoothSec = smoothSec ? smoothSec * .72 + targetSec * .28 : targetSec;
+  document.getElementById('heroEta').textContent = targetSec ? fmt(smoothSec) : '估算中…';
+  document.getElementById('heroRate').textContent = baseMs() ? '基准：' + fmt(baseMs() / 1000) + '/任务' : '基准：--/任务';
+  const done = tasks.filter(t => t.status === 'success').length;
+  const totalBytes = 96, doneFiles = tasks.reduce((s, t) => s + Math.round(t.files * t.progress), 0);
+  document.getElementById('heroBar').style.width = Math.round(done / tasks.length * 100) + '%';
+  document.getElementById('heroDone').textContent = done + '/' + tasks.length;
+  document.getElementById('heroFiles').textContent = doneFiles + '/' + totalBytes;
+  document.getElementById('pOk').textContent = done;
+}, 500);
+
+render();
+</script>
+</body>
+</html>

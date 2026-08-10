@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>魔法上传 UI 改版 · 三版预览对比</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+body{background:#eef0f5;padding:26px 22px;}
+h1{font-size:18px;font-weight:900;color:#1d2232;}
+.sub{font-size:12px;color:#8990a6;margin:6px 0 18px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:20px;max-width:1420px;margin:0 auto;}
+.card{background:#fff;border:1px solid rgba(26,35,68,.09);border-radius:18px;overflow:hidden;box-shadow:0 12px 30px rgba(47,50,94,.08);}
+.card header{display:flex;align-items:baseline;gap:8px;padding:14px 16px 8px;}
+.card header h2{font-size:14px;font-weight:900;color:#1d2232;}
+.card header span{margin-left:auto;font-size:10px;font-weight:700;color:#6f56e8;background:#eee9ff;border-radius:999px;padding:3px 8px;}
+.card .pts{padding:0 16px 12px;font-size:11px;color:#78819c;line-height:1.7;}
+.card .pts b{color:#1d2232;}
+.card iframe{display:block;width:100%;height:720px;border:0;border-top:1px solid rgba(26,35,68,.07);}
+.card footer{display:flex;gap:8px;padding:10px 16px;border-top:1px solid rgba(26,35,68,.07);}
+.card footer a{flex:1;text-align:center;padding:8px 0;border-radius:10px;background:#6f56e8;color:#fff;font-size:11px;font-weight:800;text-decoration:none;transition:transform .18s cubic-bezier(.34,1.45,.64,1),box-shadow .2s ease;}
+.card footer a:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(111,86,232,.35);}
+.card footer a:active{transform:scale(.95);}
+</style>
+</head>
+<body>
+<h1>魔法上传 UI 改版 · 三版预览对比</h1>
+<p class="sub">功能不增改，只改版面与动效。三个方案均内置自动上传模拟（进度推进、任务完成切换、ETA 丝滑倒数），可直接感受交互手感。点卡片可 hover / 点击体验弹性。</p>
+<div class="grid">
+  <div class="card">
+    <header><h2>方案 A · 紧凑列表版</h2><span>推荐优先</span></header>
+    <p class="pts">任务行 <b>58px</b>（一屏约 8 条）· 顶部全局进度条 + 大 ETA · 统计改横向胶囊条 · 上传区收缩一行 · 全行弹簧按压/入场动效。<br>适合：任务多时追求信息密度与操作效率。</p>
+    <iframe src="magic-upload-ui-v1-compact.html" title="方案 A 紧凑列表版"></iframe>
+    <footer><a href="magic-upload-ui-v1-compact.html" target="_blank">单独打开方案 A</a></footer>
+  </div>
+  <div class="card">
+    <header><h2>方案 B · 双栏工作台</h2><span>信息层级清晰</span></header>
+    <p class="pts">左栏统计 + <b>环形总进度 ETA</b>，右栏任务行 66px（一屏约 7 条）· 任务行多一行「状态 · ETA」信息 · 操作按钮收在左栏。<br>适合：希望概览一目了然、统计显眼。</p>
+    <iframe src="magic-upload-ui-v2-dashboard.html" title="方案 B 双栏工作台"></iframe>
+    <footer><a href="magic-upload-ui-v2-dashboard.html" target="_blank">单独打开方案 B</a></footer>
+  </div>
+  <div class="card">
+    <header><h2>方案 C · 进度优先版</h2><span>密度最高</span></header>
+    <p class="pts">顶部 hero 大进度条 + 大 ETA 数字 · 任务<b>双列 grid</b>（一屏约 10 条）· 上传入口收进底栏 · 卡片 hover 弹性最明显。<br>适合：队列很长、重点是看总进度。</p>
+    <iframe src="magic-upload-ui-v3-hero.html" title="方案 C 进度优先版"></iframe>
+    <footer><a href="magic-upload-ui-v3-hero.html" target="_blank">单独打开方案 C</a></footer>
+  </div>
+</div>
+</body>
+</html>

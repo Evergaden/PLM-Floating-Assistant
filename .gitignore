@@ -1,5 +1,6 @@
 node_modules/
 .wrangler/
+.workbuddy/
 .dev.vars
 .api-key.local.txt
 .env
