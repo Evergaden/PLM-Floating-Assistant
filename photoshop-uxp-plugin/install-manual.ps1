@@ -6,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 
 $pluginRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pluginId = 'com.violet.plm.photoshop-copywriting'
-$pluginVersion = '0.1.23'
-$installFolderName = 'PLM-Photoshop-Copywriting-0.1.23'
+$pluginVersion = '0.1.28'
+$installFolderName = 'PLM-Photoshop-Copywriting-0.1.28'
 $manifestPath = Join-Path $pluginRoot 'manifest.json'
 $externalRoot = Join-Path $AppDataRoot 'Adobe\UXP\Plugins\External'
 $installRoot = Join-Path $externalRoot $installFolderName
@@ -28,7 +28,7 @@ $legacyInstallRoots = @(
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.11'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.12'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.13'),
-  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.14')
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.14'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.15')
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.16'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.17'),
@@ -36,7 +36,12 @@ $legacyInstallRoots = @(
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.19'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.20'),
   (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.21'),
-  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.22')
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.22'),
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.23'),
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.24'),
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.25'),
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.26'),
+  (Join-Path $externalRoot 'PLM-Photoshop-Copywriting-0.1.27')
 )
 $runtimeFiles = @(
   'manifest.json',

@@ -597,8 +597,10 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
                     let _ = outgoing.send(Message::Text(json!({"type":"snapshot.request"}).to_string().into()));
                 }
                 BridgeRole::Photoshop => {
-                    let _ = outgoing.send(Message::Text(bridge_snapshot_value(&state).to_string().into()));
-                    let _ = request_assistant_snapshot(&state);
+                    let _ = outgoing.send(Message::Text(json!({
+                        "type": "photoshop.ready",
+                        "protocol": "document-query-v1",
+                    }).to_string().into()));
                 }
             }
 
@@ -625,24 +627,6 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
     }
 }
 
-fn bridge_snapshot_value(state: &BridgeState) -> Value {
-    let products = state.inner.products.lock().map(|items| items.iter().map(photoshop_product_value).collect::<Vec<_>>()).unwrap_or_default();
-    let successful_upload_skus = state.inner.successful_upload_skus.lock().map(|items| items.iter().cloned().collect::<Vec<_>>()).unwrap_or_default();
-    let version = state.inner.clients.lock().ok().and_then(|clients| {
-        clients
-            .values()
-            .find(|client| client.role == BridgeRole::Assistant)
-            .map(|client| client.script_version.clone())
-    }).unwrap_or_default();
-    json!({
-        "type": "snapshot.response",
-        "version": version,
-        "sentAt": bridge_timestamp(),
-        "products": products,
-        "successfulUploadSkus": successful_upload_skus,
-    })
-}
-
 fn photoshop_product_value(product: &FinalizedProduct) -> Value {
     json!({
         "sku": &product.sku,
@@ -650,6 +634,7 @@ fn photoshop_product_value(product: &FinalizedProduct) -> Value {
         "name": &product.name,
         "englishName": &product.english_name,
         "packageCode": &product.package_code,
+        "printCode": &product.print_code,
     })
 }
 
@@ -689,6 +674,79 @@ fn request_assistant_snapshot(state: &BridgeState) -> usize {
     send_json_to_role(state, BridgeRole::Assistant, &json!({"type": "snapshot.request"}))
 }
 
+#[derive(Clone)]
+struct DocumentIdentifier {
+    key: &'static str,
+    label: &'static str,
+    raw: String,
+    normalized: String,
+    priority: u8,
+}
+
+fn normalize_filename_identifier(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .map(|character| character.to_ascii_uppercase())
+        .collect()
+}
+
+fn split_filename_identifiers(value: &str) -> Vec<String> {
+    value
+        .split(|character: char| character.is_whitespace() || matches!(character, ',' | ';' | '，' | '；' | '、'))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn product_document_identifiers(product: &FinalizedProduct) -> Vec<DocumentIdentifier> {
+    [
+        ("packageCode", "纸盒编码", product.package_code.as_str(), 0),
+        ("printCode", "标签/印刷编码", product.print_code.as_str(), 1),
+        ("sku", "SKU", product.sku.as_str(), 2),
+    ]
+    .into_iter()
+    .flat_map(|(key, label, value, priority)| {
+        split_filename_identifiers(value).into_iter().filter_map(move |raw| {
+            let normalized = normalize_filename_identifier(&raw);
+            (normalized.len() >= 5).then_some(DocumentIdentifier {
+                key,
+                label,
+                raw,
+                normalized,
+                priority,
+            })
+        })
+    })
+    .collect()
+}
+
+fn find_product_by_document_title(products: &[FinalizedProduct], title: &str) -> Option<(usize, DocumentIdentifier)> {
+    let normalized_title = normalize_filename_identifier(title);
+    if normalized_title.is_empty() {
+        return None;
+    }
+    let mut matches = products
+        .iter()
+        .enumerate()
+        .flat_map(|(product_index, product)| {
+            product_document_identifiers(product)
+                .into_iter()
+                .filter(|identifier| normalized_title.contains(&identifier.normalized))
+                .map(move |identifier| (product_index, identifier))
+        })
+        .collect::<Vec<_>>();
+    matches.sort_by(|left, right| {
+        left.1
+            .priority
+            .cmp(&right.1.priority)
+            .then_with(|| right.1.normalized.len().cmp(&left.1.normalized.len()))
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    matches.into_iter().next()
+}
+
 async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str, client_id: &str, role: BridgeRole) {
     let value: Value = match serde_json::from_str(text) {
         Ok(value) => value,
@@ -712,13 +770,40 @@ async fn handle_bridge_message(app: &AppHandle, state: &BridgeState, text: &str,
                 *target = successful_upload_skus;
             }
             let _ = app.emit("snapshot-updated", json!({"count": state.inner.products.lock().map(|items| items.len()).unwrap_or(0)}));
-            let _ = send_json_to_role(state, BridgeRole::Photoshop, &bridge_snapshot_value(state));
         }
         "snapshot.request" => {
             if role == BridgeRole::Photoshop {
-                let _ = send_json_to_client(state, client_id, &bridge_snapshot_value(state));
-                let _ = request_assistant_snapshot(state);
+                let _ = send_json_to_client(state, client_id, &json!({
+                    "type": "photoshop.ready",
+                    "protocol": "document-query-v1",
+                }));
             }
+        }
+        "document.request" => {
+            if role != BridgeRole::Photoshop { return; }
+            let title = value.get("title").and_then(Value::as_str).unwrap_or_default().to_string();
+            let response = state.inner.products.lock().ok()
+                .and_then(|items| find_product_by_document_title(&items, &title).map(|(index, identifier)| {
+                    let product = &items[index];
+                    json!({
+                        "type": "document.response",
+                        "title": title,
+                        "matched": true,
+                        "match": {
+                            "key": identifier.key,
+                            "label": identifier.label,
+                            "raw": identifier.raw,
+                        },
+                        "product": photoshop_product_detail_value(product),
+                    })
+                }));
+            let payload = response.unwrap_or_else(|| json!({
+                "type": "document.response",
+                "title": title,
+                "matched": false,
+                "product": Value::Null,
+            }));
+            let _ = send_json_to_client(state, client_id, &payload);
         }
         "product.request" => {
             if role != BridgeRole::Photoshop { return; }
@@ -2790,6 +2875,26 @@ mod tests {
         assert_eq!(BridgeRole::from_hello(None), BridgeRole::Assistant);
         assert_eq!(BridgeRole::from_hello(Some("assistant")), BridgeRole::Assistant);
         assert_eq!(BridgeRole::from_hello(Some("photoshop")), BridgeRole::Photoshop);
+    }
+
+    #[test]
+    fn matches_one_product_from_psd_title_without_building_a_snapshot() {
+        let products = vec![
+            FinalizedProduct {
+                sku: "SKU00045440".into(),
+                package_code: "MTL00045440".into(),
+                ..Default::default()
+            },
+            FinalizedProduct {
+                sku: "SKU00057740".into(),
+                package_code: "MTL00057740".into(),
+                ..Default::default()
+            },
+        ];
+        let (index, identifier) = find_product_by_document_title(&products, "纸盒 3.2x3.2x10cm MTL00057740 AMZ.psd").unwrap();
+        assert_eq!(index, 1);
+        assert_eq!(identifier.key, "packageCode");
+        assert_eq!(identifier.raw, "MTL00057740");
     }
 
     #[test]

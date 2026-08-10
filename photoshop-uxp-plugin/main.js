@@ -2,13 +2,12 @@ const photoshop = require('photoshop');
 const { app, action, core, constants } = photoshop;
 const { storage } = require('uxp');
 const { buildPage4Layout, rangeSegments } = require('./copywriting');
-const { matchProductByFilename } = require('./file-match');
 const { buildSelectionPlan } = require('./selection-layout');
 const { detectArtworkMode, selectionRatio, modeLabel } = require('./artwork-mode');
 
 const WS_URL = 'ws://127.0.0.1:37191';
 const TOKEN_KEY = 'plm.photoshop.bridge-token';
-const PLUGIN_VERSION = '0.1.26';
+const PLUGIN_VERSION = '0.1.28';
 const REGULAR_FONT = 'ArialMT';
 // The installed “Arial MT Bold” face exposes Arial-BoldMT as its PostScript name.
 const BOLD_FONT = 'Arial-BoldMT';
@@ -192,7 +191,7 @@ async function connect() {
         return;
       }
       setBusy(false);
-      setStatus('已连接，正在同步 SKU…', 'success');
+      setStatus('已连接，请点击“同步 / 刷新”读取当前 PSD 文案。', 'success');
       setConnectionExpanded(false);
     };
     socket.onmessage = (event) => {
@@ -250,26 +249,57 @@ function handleMessage(raw) {
     setStatus(String(message.message || '连接码无效，请重新粘贴。'), 'error');
     return;
   }
-  if (message.type === 'snapshot.response') {
-    state.products = (Array.isArray(message.products) ? message.products : []).map((product) => ({ ...product, detailLoaded: false }));
-    updateDocumentSku();
-    renderProductSelect();
-    renderPreview();
-    requestSelectedProduct();
-    setStatus('已载入 ' + state.products.length + ' 个 SKU，当前产品文案按需读取。', 'success');
-    setStatus('已同步 ' + state.products.length + ' 个定稿 SKU。', 'success');
+  if (message.type === 'photoshop.ready') {
+    setBusy(false);
+    setStatus('已连接，请点击“同步 / 刷新”读取当前 PSD 文案。', 'success');
+    return;
+  }
+  if (message.type === 'document.response') {
+    setBusy(false);
+    const documentTitle = String(message.title || currentDocumentTitle());
+    updateDocumentTitle(documentTitle);
+    state.products = [];
+    state.selectedSku = '';
+    state.documentSku = '';
+    state.documentMatch = null;
+    const product = message.matched && message.product ? { ...message.product, detailLoaded: true } : null;
+    if (product) {
+      const sku = String(product.sku || '').toUpperCase();
+      state.products = [product];
+      state.selectedSku = sku;
+      state.documentSku = sku;
+      state.documentMatch = message.match ? { ...message.match, product } : { product };
+      renderProductSelect();
+      renderPreview();
+      const matchText = message.match && (message.match.label || message.match.raw)
+        ? '（匹配 ' + [message.match.label, message.match.raw].filter(Boolean).join('：') + '）'
+        : '';
+      setStatus('已完成：已读取当前 PSD 文案' + matchText + '。', 'success');
+    } else {
+      renderProductSelect();
+      renderPreview();
+      setStatus('未查询到当前 PSD 对应的产品，请先重命名 PSD（文件名包含纸盒编码、印刷编码或 SKU），再点击“同步 / 刷新”重试。', 'warning');
+    }
     return;
   }
   if (message.type === 'product.response') {
     const product = message.product;
     const sku = String(message.sku || product && product.sku || '').toUpperCase();
-    const index = state.products.findIndex((item) => String(item && item.sku || '').toUpperCase() === sku);
-    if (index < 0) return;
-    state.products[index] = { ...state.products[index], ...(product || {}), detailLoaded: true };
-    if (state.selectedSku === sku) {
+    setBusy(false);
+    if (!product) {
+      state.products = [];
+      state.selectedSku = '';
+      renderProductSelect();
       renderPreview();
-      setStatus('已读取当前产品文案: ' + sku, 'success');
+      setStatus('未查询到当前 PSD 对应的产品，请先重命名 PSD 后再点击“同步 / 刷新”重试。', 'warning');
+      return;
     }
+    state.products = [{ ...product, detailLoaded: true }];
+    state.selectedSku = sku;
+    state.documentSku = sku;
+    renderProductSelect();
+    renderPreview();
+    setStatus('已完成：已读取当前产品文案 ' + sku + '。', 'success');
     return;
   }
   if (message.type === 'ping') send({ type: 'pong', at: Date.now() });
@@ -283,19 +313,40 @@ function currentDocumentTitle() {
   }
 }
 
-function updateDocumentSku() {
-  const documentTitle = currentDocumentTitle();
-  state.documentMatch = matchProductByFilename(documentTitle, state.products);
-  state.documentSku = state.documentMatch ? state.documentMatch.product.sku : '';
+function updateDocumentTitle(documentTitle) {
+  const titleText = String(documentTitle === undefined ? currentDocumentTitle() : documentTitle);
   const title = byId('document-name');
   if (title) {
-    title.textContent = documentTitle || '未打开 Photoshop 文档';
-    title.title = state.documentMatch
-      ? '已匹配：' + state.documentMatch.label + ' ' + state.documentMatch.raw
-      : documentTitle;
+    title.textContent = titleText || '未打开 Photoshop 文档';
+    title.title = titleText;
   }
-  if (state.documentSku) state.selectedSku = state.documentSku;
-  if (!state.selectedSku && state.products.length) state.selectedSku = state.products[0].sku;
+  return titleText;
+}
+
+function clearProductState() {
+  state.products = [];
+  state.selectedSku = '';
+  state.documentSku = '';
+  state.documentMatch = null;
+}
+
+function refreshCurrentDocument() {
+  const documentTitle = updateDocumentTitle();
+  clearProductState();
+  renderProductSelect();
+  renderPreview();
+  if (!documentTitle) {
+    setBusy(false);
+    setStatus('当前没有打开 PSD，请先打开并重命名 PSD，再点击“同步 / 刷新”。', 'warning');
+    return;
+  }
+  if (!send({ type: 'document.request', title: documentTitle })) {
+    setBusy(false);
+    setStatus('请先连接悬浮助手。', 'error');
+    return;
+  }
+  setBusy(true);
+  setStatus('正在按当前 PSD 文件名查询文案…', 'normal');
 }
 
 function renderProductSelect() {
@@ -326,19 +377,13 @@ function includeLowerPartSelected() {
   return Boolean(input && input.checked);
 }
 
-function requestSelectedProduct() {
-  const product = selectedProduct();
-  if (!product || product.detailLoaded) return;
-  if (!send({ type: 'product.request', sku: product.sku })) setStatus('请先连接悬浮助手。', 'error');
-}
-
 function renderPreview() {
   const product = selectedProduct();
   const preview = byId('preview');
   const missing = byId('missing');
   if (!product) {
     state.currentLayout = null;
-    if (preview) preview.textContent = '连接悬浮助手并同步 SKU 后预览。';
+    if (preview) preview.textContent = '请点击“同步 / 刷新”，按当前 PSD 文件名读取文案。';
     if (missing) missing.textContent = '';
     return;
   }
@@ -923,12 +968,7 @@ function bindEvents() {
   });
   byId('connect').addEventListener('click', connect);
   byId('disconnect').addEventListener('click', disconnect);
-  byId('refresh').addEventListener('click', () => {
-    updateDocumentSku();
-    renderProductSelect();
-    renderPreview();
-    if (!send({ type: 'snapshot.request' })) setStatus('请先连接悬浮助手。', 'error');
-  });
+  byId('refresh').addEventListener('click', refreshCurrentDocument);
   byId('generate').addEventListener('click', generate);
   byId('include-lower-part').addEventListener('change', renderPreview);
   document.querySelectorAll('input[name="text-color"]').forEach((input) => {
@@ -948,7 +988,6 @@ function bindEvents() {
   byId('sku-select').addEventListener('change', (event) => {
     state.selectedSku = event.target.value;
     renderPreview();
-    requestSelectedProduct();
   });
 }
 
@@ -958,19 +997,10 @@ async function init() {
   const token = await getStoredToken();
   state.token = token;
   byId('token').value = token;
-  updateDocumentSku();
+  updateDocumentTitle();
   renderProductSelect();
   renderPreview();
   if (token.length >= 32) connect();
-  window.setInterval(() => {
-    const previous = state.documentSku;
-    updateDocumentSku();
-    if (previous !== state.documentSku) {
-      renderProductSelect();
-      renderPreview();
-      requestSelectedProduct();
-    }
-  }, 1000);
 }
 
 init();
