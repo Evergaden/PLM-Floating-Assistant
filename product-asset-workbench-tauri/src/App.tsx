@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.11";
+const APP_VERSION = "0.1.12";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
@@ -89,6 +89,31 @@ interface FileOrganizeResult {
   renamed: number;
   skipped: number;
   failed: number;
+}
+
+interface ParameterSampleItem {
+  sku: string;
+  productName: string;
+  productPath: string;
+  transparentPath: string | null;
+  parameterPath: string | null;
+  excelPath: string | null;
+  transparentHasAlpha: boolean;
+  transparentCandidates: number;
+  parameterCandidates: number;
+  excelCandidates: number;
+  status: "ready" | "missing" | "ambiguous" | string;
+  message: string;
+}
+
+interface ParameterSampleScanResult {
+  root: string;
+  indexPath: string;
+  items: ParameterSampleItem[];
+  ready: number;
+  incomplete: number;
+  ambiguous: number;
+  logs: string[];
 }
 
 interface LabelCheckFile {
@@ -214,6 +239,10 @@ function labelCheckStatusLabel(status: string) {
 function formatLabelCheckTime(value: number) {
   if (!value) return "未知时间";
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function localFileName(path: string | null) {
+  return path ? path.split(/[\\/]/).filter(Boolean).pop() || path : "未找到";
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -594,7 +623,7 @@ export default function App() {
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [toast, setToast] = useState("");
-  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random" | "organize" | "label-check">("assets");
+  const [workspaceView, setWorkspaceView] = useState<"assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check">("assets");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
   const [packRules, setPackRules] = useState(() => localStorage.getItem(PACK_RULES_KEY) || DEFAULT_PACK_RULES);
@@ -632,6 +661,10 @@ export default function App() {
   const [organizeRenameFolders, setOrganizeRenameFolders] = useState(true);
   const [organizeBusy, setOrganizeBusy] = useState(false);
   const [organizeLogs, setOrganizeLogs] = useState<string[]>(["请选择工作目录并扫描待整理文件。"]);
+  const [parameterSamples, setParameterSamples] = useState<ParameterSampleItem[]>([]);
+  const [parameterSampleIndexPath, setParameterSampleIndexPath] = useState("");
+  const [parameterSampleBusy, setParameterSampleBusy] = useState(false);
+  const [parameterSampleLogs, setParameterSampleLogs] = useState<string[]>(["请选择工作目录，工作台会自动配对透明图、正确尺寸图和 Excel。"]);
   const [labelCheckItems, setLabelCheckItems] = useState<LabelCheckItem[]>([]);
   const [labelCheckRecords, setLabelCheckRecords] = useState<LabelCheckRecord[]>([]);
   const [labelCheckConfirmedItems, setLabelCheckConfirmedItems] = useState<LabelCheckItem[]>([]);
@@ -1122,6 +1155,24 @@ export default function App() {
     }
   }
 
+  async function scanParameterSamples() {
+    if (!root) return notify("请先选择工作目录");
+    setParameterSampleBusy(true);
+    setParameterSampleLogs(["正在递归扫描产品目录并自动配对样本…"]);
+    try {
+      const result = await invoke<ParameterSampleScanResult>("scan_parameter_samples", { root });
+      setParameterSamples(result.items);
+      setParameterSampleIndexPath(result.indexPath);
+      setParameterSampleLogs(result.logs);
+      notify(`样本整理完成：完整 ${result.ready} 组，待补全 ${result.incomplete} 组，需核对 ${result.ambiguous} 组`);
+    } catch (error) {
+      setParameterSampleLogs((current) => [...current, `错误：${String(error)}`]);
+      notify(String(error));
+    } finally {
+      setParameterSampleBusy(false);
+    }
+  }
+
   async function scanLabelCheck() {
     if (!root) return notify("请先选择工作目录");
     const targetFolderName = labelCheckTargetFolder.trim();
@@ -1319,6 +1370,7 @@ export default function App() {
           <button className={workspaceView === "packs" ? "active" : ""} onClick={() => setWorkspaceView("packs")}><Archive size={16} />图包归档</button>
           <button className={workspaceView === "random" ? "active" : ""} onClick={() => setWorkspaceView("random")}><RotateCw size={16} />随机组合</button>
           <button className={workspaceView === "organize" ? "active" : ""} onClick={() => setWorkspaceView("organize")}><Pencil size={16} />文件整理</button>
+          <button className={workspaceView === "parameter-samples" ? "active" : ""} onClick={() => setWorkspaceView("parameter-samples")}><FileImage size={16} />参数样本</button>
           <button className={workspaceView === "label-check" ? "active" : ""} onClick={() => setWorkspaceView("label-check")}><Eye size={16} />纸盒标签检查</button>
           <button className={workspaceView === "upload" ? "active" : ""} onClick={() => setWorkspaceView("upload")}><Upload size={16} />检查上传</button>
           <button className={workspaceView === "videos" ? "active" : ""} onClick={() => setWorkspaceView("videos")}><Film size={16} />视频转动图</button>
@@ -1481,6 +1533,64 @@ export default function App() {
               ))}
             </div>
             <div className="organize-console"><strong>整理日志</strong><pre>{organizeLogs.join("\n")}</pre></div>
+          </section>
+        )}
+
+        {workspaceView === "parameter-samples" && (
+          <section className="parameter-sample-panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">PARAMETER SAMPLE INDEX</span>
+                <h2>参数图学习样本</h2>
+                <p>按含 SKU 的产品目录自动配对透明 PNG、正确尺寸图和 Excel；不使用品类，也不会移动原文件。</p>
+              </div>
+              <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
+            </div>
+            <div className="parameter-sample-toolbar">
+              <button className="primary" onClick={scanParameterSamples} disabled={parameterSampleBusy}>
+                {parameterSampleBusy ? <LoaderCircle size={16} className="spin" /> : <ScanLine size={16} />}
+                {parameterSampleBusy ? "正在整理…" : "扫描并整理样本"}
+              </button>
+              <span>优先匹配 <code>透明.png</code>、<code>套图/产品参数图/尺寸.jpg</code> 和带 SKU 的 XLSX</span>
+              {parameterSampleIndexPath && <button onClick={() => openPath(parameterSampleIndexPath)}><FileSpreadsheet size={15} />打开样本索引</button>}
+            </div>
+            <div className="parameter-sample-summary">
+              <span>产品目录 {parameterSamples.length}</span>
+              <span>完整样本 {parameterSamples.filter((item) => item.status === "ready").length}</span>
+              <span>待补全 {parameterSamples.filter((item) => item.status === "missing").length}</span>
+              <span>需核对 {parameterSamples.filter((item) => item.status === "ambiguous").length}</span>
+              <small title={parameterSampleIndexPath}>{parameterSampleIndexPath || "扫描后会在工作目录生成“参数图学习样本索引.json”"}</small>
+            </div>
+            <div className="parameter-sample-list">
+              {!parameterSamples.length && <div className="empty-state"><FileImage size={28} /><strong>点击“扫描并整理样本”开始</strong><span>文件保持原位，工作台只建立配对索引。</span></div>}
+              {parameterSamples.map((item) => (
+                <article className={`parameter-sample-row ${item.status}`} key={`${item.sku}:${item.productPath}`}>
+                  <div className="parameter-sample-product">
+                    <strong>{item.sku}</strong>
+                    <span title={item.productName}>{item.productName}</span>
+                    <small title={item.productPath}>{item.productPath}</small>
+                  </div>
+                  <div className={`parameter-sample-file ${item.transparentPath ? "found" : "missing"}`}>
+                    {item.transparentPath ? <img src={convertFileSrc(item.transparentPath)} alt="透明原图" /> : <FileImage size={24} />}
+                    <div><strong>透明原图</strong><span title={item.transparentPath || ""}>{localFileName(item.transparentPath)}</span><small>{item.transparentCandidates} 个候选 · {item.transparentPath ? (item.transparentHasAlpha ? "有透明通道" : "未检测到透明通道") : "未找到"}</small></div>
+                  </div>
+                  <div className={`parameter-sample-file ${item.parameterPath ? "found" : "missing"}`}>
+                    {item.parameterPath ? <img src={convertFileSrc(item.parameterPath)} alt="正确尺寸图" /> : <FileImage size={24} />}
+                    <div><strong>正确尺寸图</strong><span title={item.parameterPath || ""}>{localFileName(item.parameterPath)}</span><small>{item.parameterCandidates} 个候选</small></div>
+                  </div>
+                  <div className={`parameter-sample-file excel ${item.excelPath ? "found" : "missing"}`}>
+                    <FileSpreadsheet size={24} />
+                    <div><strong>尺寸 Excel</strong><span title={item.excelPath || ""}>{localFileName(item.excelPath)}</span><small>{item.excelCandidates} 个候选</small></div>
+                  </div>
+                  <div className="parameter-sample-result">
+                    <span className={`status ${item.status === "ready" ? "success" : item.status === "ambiguous" ? "warning" : "danger"}`}>{item.status === "ready" ? "已配对" : item.status === "ambiguous" ? "需核对" : "待补全"}</span>
+                    <small>{item.message}</small>
+                    <button onClick={() => openPath(item.productPath)}><FolderOpen size={14} />打开目录</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="parameter-sample-console"><strong>样本整理日志</strong><pre>{parameterSampleLogs.join("\n")}</pre></div>
           </section>
         )}
 

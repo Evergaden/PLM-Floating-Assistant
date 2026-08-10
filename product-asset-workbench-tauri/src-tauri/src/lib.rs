@@ -323,6 +323,35 @@ struct ProductPreview {
     missing: Vec<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ParameterSampleItem {
+    sku: String,
+    product_name: String,
+    product_path: String,
+    transparent_path: Option<String>,
+    parameter_path: Option<String>,
+    excel_path: Option<String>,
+    transparent_has_alpha: bool,
+    transparent_candidates: usize,
+    parameter_candidates: usize,
+    excel_candidates: usize,
+    status: String,
+    message: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ParameterSampleScanResult {
+    root: String,
+    index_path: String,
+    items: Vec<ParameterSampleItem>,
+    ready: usize,
+    incomplete: usize,
+    ambiguous: usize,
+    logs: Vec<String>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ArchivePacksResult {
@@ -2730,6 +2759,233 @@ fn open_local_folder(path: String) -> Result<(), String> {
         .map_err(|error| format!("无法打开文件夹 {}：{error}", path_text(&folder)))
 }
 
+#[derive(Clone)]
+struct RankedParameterSampleFile {
+    path: PathBuf,
+    rank: u16,
+    modified_ms: u128,
+}
+
+fn collect_parameter_product_directories(folder: &Path, depth: usize, output: &mut Vec<PathBuf>) {
+    if depth > 3 {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(folder) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(metadata) = fs::symlink_metadata(&path) else { continue };
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            continue;
+        }
+        let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+        if name.starts_with('.') || matches!(name.to_ascii_lowercase().as_str(), "node_modules" | "target") {
+            continue;
+        }
+        if organizer_sku(name).is_some() {
+            output.push(path);
+        } else {
+            collect_parameter_product_directories(&path, depth + 1, output);
+        }
+    }
+}
+
+fn collect_parameter_sample_files(folder: &Path, depth: usize, output: &mut Vec<PathBuf>) {
+    if depth > 7 {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(folder) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(metadata) = fs::symlink_metadata(&path) else { continue };
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+        if metadata.is_dir() {
+            let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+            if !name.starts_with('.') && !matches!(name.to_ascii_lowercase().as_str(), "node_modules" | "target") {
+                collect_parameter_sample_files(&path, depth + 1, output);
+            }
+        } else if metadata.is_file() {
+            output.push(path);
+        }
+    }
+}
+
+fn png_has_alpha_channel(path: &Path) -> bool {
+    let Ok(mut file) = fs::File::open(path) else { return false };
+    let mut bytes = vec![0_u8; 256 * 1024];
+    let Ok(length) = file.read(&mut bytes) else { return false };
+    bytes.truncate(length);
+    if bytes.len() < 26 || bytes[..8] != [137, 80, 78, 71, 13, 10, 26, 10] {
+        return false;
+    }
+    matches!(bytes[25], 4 | 6) || bytes.windows(4).any(|chunk| chunk == b"tRNS")
+}
+
+fn parameter_sample_relative_text(folder: &Path, path: &Path) -> String {
+    path.strip_prefix(folder)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_lowercase()
+}
+
+fn choose_parameter_sample_file(mut files: Vec<RankedParameterSampleFile>) -> (Option<PathBuf>, bool, usize) {
+    let count = files.len();
+    files.sort_by(|left, right| left.rank.cmp(&right.rank).then_with(|| right.modified_ms.cmp(&left.modified_ms)).then_with(|| left.path.cmp(&right.path)));
+    let ambiguous = files.len() > 1 && files[0].rank == files[1].rank;
+    (files.first().map(|item| item.path.clone()), ambiguous, count)
+}
+
+fn parameter_sample_candidates(folder: &Path, sku: &str, files: &[PathBuf]) -> (Vec<RankedParameterSampleFile>, Vec<RankedParameterSampleFile>, Vec<RankedParameterSampleFile>) {
+    let mut transparent = Vec::new();
+    let mut parameter = Vec::new();
+    let mut excel = Vec::new();
+    for path in files {
+        let extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
+        let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or_default();
+        let stem_lower = stem.to_lowercase();
+        let relative = parameter_sample_relative_text(folder, path);
+        let modified_ms = file_modified_ms(path);
+        if extension == "png" {
+            let alpha_penalty = if png_has_alpha_channel(path) { 0 } else { 20 };
+            let name_rank = if stem == "透明" {
+                Some(0)
+            } else if stem.starts_with("透明") {
+                Some(1)
+            } else if stem.contains("透明") {
+                Some(2)
+            } else if stem_lower.contains("transparent") {
+                Some(3)
+            } else if stem.contains("抠图") {
+                Some(4)
+            } else {
+                None
+            };
+            if let Some(rank) = name_rank {
+                transparent.push(RankedParameterSampleFile { path: path.clone(), rank: rank + alpha_penalty, modified_ms });
+            }
+        }
+        if matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "webp") && !relative.contains("英文参数图") {
+            let rank = if relative.contains("/产品参数图/") && stem == "尺寸" {
+                Some(0)
+            } else if relative.contains("/产品参数图/") && stem.contains("尺寸") {
+                Some(1)
+            } else if stem == "尺寸" {
+                Some(2)
+            } else if stem.contains("尺寸图") || stem.contains("尺寸") {
+                Some(3)
+            } else if stem.contains("产品参数") {
+                Some(4)
+            } else {
+                None
+            };
+            if let Some(rank) = rank {
+                parameter.push(RankedParameterSampleFile { path: path.clone(), rank, modified_ms });
+            }
+        }
+        if matches!(extension.as_str(), "xlsx" | "xls") && !stem.starts_with("~$") {
+            let has_sku = stem.to_ascii_uppercase().contains(sku);
+            let in_pack = relative.contains("套图/") || relative.starts_with("套图/");
+            let rank = match (has_sku, in_pack, extension.as_str()) {
+                (true, true, "xlsx") => 0,
+                (true, _, "xlsx") => 1,
+                (_, true, "xlsx") => 2,
+                (_, _, "xlsx") => 3,
+                _ => 4,
+            };
+            excel.push(RankedParameterSampleFile { path: path.clone(), rank, modified_ms });
+        }
+    }
+    (transparent, parameter, excel)
+}
+
+fn scan_parameter_samples_plan(root: &Path) -> Result<ParameterSampleScanResult, String> {
+    if !root.is_dir() {
+        return Err(format!("工作目录不存在：{}", path_text(root)));
+    }
+    let mut product_folders = Vec::new();
+    collect_parameter_product_directories(root, 0, &mut product_folders);
+    product_folders.sort();
+    product_folders.dedup();
+    let mut items = Vec::new();
+    let mut logs = vec![format!("扫描到 {} 个含 SKU 的产品目录", product_folders.len())];
+    for folder in product_folders {
+        let product_name = folder.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
+        let Some(sku) = organizer_sku(&product_name) else { continue };
+        let mut files = Vec::new();
+        collect_parameter_sample_files(&folder, 0, &mut files);
+        let (transparent_files, parameter_files, excel_files) = parameter_sample_candidates(&folder, &sku, &files);
+        let (transparent_path, transparent_ambiguous, transparent_candidates) = choose_parameter_sample_file(transparent_files);
+        let (parameter_path, parameter_ambiguous, parameter_candidates) = choose_parameter_sample_file(parameter_files);
+        let (excel_path, excel_ambiguous, excel_candidates) = choose_parameter_sample_file(excel_files);
+        let transparent_has_alpha = transparent_path.as_ref().map(|path| png_has_alpha_channel(path)).unwrap_or(false);
+        let mut missing = Vec::new();
+        if transparent_path.is_none() { missing.push("透明 PNG"); }
+        if parameter_path.is_none() { missing.push("正确尺寸图"); }
+        if excel_path.is_none() { missing.push("Excel"); }
+        if transparent_path.is_some() && !transparent_has_alpha { missing.push("透明通道"); }
+        let ambiguous = transparent_ambiguous || parameter_ambiguous || excel_ambiguous;
+        let status = if ambiguous { "ambiguous" } else if missing.is_empty() { "ready" } else { "missing" };
+        let message = if ambiguous {
+            "存在同优先级候选，已暂选最新文件，请核对".to_string()
+        } else if missing.is_empty() {
+            "透明图、正确尺寸图和 Excel 已自动配对".to_string()
+        } else {
+            format!("缺少：{}", missing.join("、"))
+        };
+        if status != "ready" {
+            logs.push(format!("{} {}：{}", sku, product_name, message));
+        }
+        items.push(ParameterSampleItem {
+            sku,
+            product_name,
+            product_path: path_text(&folder),
+            transparent_path: transparent_path.as_ref().map(|path| path_text(path)),
+            parameter_path: parameter_path.as_ref().map(|path| path_text(path)),
+            excel_path: excel_path.as_ref().map(|path| path_text(path)),
+            transparent_has_alpha,
+            transparent_candidates,
+            parameter_candidates,
+            excel_candidates,
+            status: status.to_string(),
+            message,
+        });
+    }
+    items.sort_by(|left, right| left.sku.cmp(&right.sku).then_with(|| left.product_path.cmp(&right.product_path)));
+    let ready = items.iter().filter(|item| item.status == "ready").count();
+    let ambiguous = items.iter().filter(|item| item.status == "ambiguous").count();
+    let incomplete = items.len().saturating_sub(ready + ambiguous);
+    let index_path = root.join("参数图学习样本索引.json");
+    let generated_at_ms = std::time::SystemTime::now().duration_since(UNIX_EPOCH).map(|value| value.as_millis()).unwrap_or_default();
+    let index = json!({
+        "schemaVersion": 1,
+        "generatedAtMs": generated_at_ms,
+        "root": path_text(root),
+        "matching": "product-folder-sku",
+        "categoryUsed": false,
+        "samples": &items,
+    });
+    let bytes = serde_json::to_vec_pretty(&index).map_err(|error| format!("无法生成参数图样本索引：{error}"))?;
+    fs::write(&index_path, bytes).map_err(|error| format!("无法保存参数图样本索引 {}：{error}", path_text(&index_path)))?;
+    logs.insert(1, format!("完整样本 {} 组；待补全 {} 组；需核对 {} 组", ready, incomplete, ambiguous));
+    logs.push(format!("样本索引已保存：{}", path_text(&index_path)));
+    Ok(ParameterSampleScanResult {
+        root: path_text(root),
+        index_path: path_text(&index_path),
+        items,
+        ready,
+        incomplete,
+        ambiguous,
+        logs,
+    })
+}
+
+#[tauri::command]
+fn scan_parameter_samples(root: String) -> Result<ParameterSampleScanResult, String> {
+    scan_parameter_samples_plan(&PathBuf::from(root))
+}
+
 fn direct_product_directories(root: &Path) -> Vec<PathBuf> {
     let mut items = fs::read_dir(root)
         .ok()
@@ -3141,6 +3397,29 @@ mod tests {
     }
 
     #[test]
+    fn scans_parameter_samples_by_product_folder_without_category() {
+        let root = std::env::temp_dir().join(format!("plm-parameter-samples-{}", Uuid::new_v4()));
+        let product = root.join("2026新品").join("AMZ 亮肤精华-SKU00047382");
+        let pack = product.join("套图");
+        fs::create_dir_all(pack.join("产品参数图")).unwrap();
+        let mut png = vec![0_u8; 32];
+        png[..8].copy_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+        png[25] = 6;
+        fs::write(product.join("透明.png"), png).unwrap();
+        fs::write(pack.join("产品参数图").join("尺寸.jpg"), b"size").unwrap();
+        fs::write(pack.join("AMZ 亮肤精华 SKU00047382.xlsx"), b"excel").unwrap();
+
+        let result = scan_parameter_samples_plan(&root).unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert_eq!(result.ready, 1);
+        assert_eq!(result.items[0].sku, "SKU00047382");
+        assert!(result.items[0].transparent_has_alpha);
+        assert!(result.index_path.ends_with("参数图学习样本索引.json"));
+        assert!(Path::new(&result.index_path).is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
     fn matches_video_by_sku_before_product_name() {
         let directories = vec![PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045826"), PathBuf::from(r"E:\产品\AMZ 紧致提拉精华液 SKU00045827")];
         let (matches, source) = video_product_candidates("检测视频_惊喜_SKU00045827.mp4", &directories);
@@ -3181,6 +3460,7 @@ pub fn run() {
             queue_upload_pairs,
             scan_file_organizer,
             organize_files,
+            scan_parameter_samples,
             scan_label_check,
             confirm_label_check,
             open_local_folder,

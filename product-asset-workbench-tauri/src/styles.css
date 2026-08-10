@@ -273,6 +273,42 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .organize-console { margin: 0 24px 18px; padding: 11px 13px; color: #647084; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfe; }
 .organize-console strong { font-size: 11px; }
 .organize-console pre { max-height: 110px; margin: 7px 0 0; overflow: auto; white-space: pre-wrap; color: #8792a3; font: 10px/1.6 Consolas, monospace; }
+.parameter-sample-panel { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: white; box-shadow: 0 9px 32px rgba(27,39,69,.055); }
+.parameter-sample-toolbar { min-height: 58px; padding: 9px 24px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafbfe; }
+.parameter-sample-toolbar > button { height: 34px; padding: 0 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 8px; color: #657187; background: white; font-size: 10px; font-weight: 700; }
+.parameter-sample-toolbar > button.primary { color: white; border-color: var(--purple); background: var(--purple); }
+.parameter-sample-toolbar > span { min-width: 0; overflow: hidden; color: #7d889a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-sample-toolbar > span code { color: var(--purple); font: 10px Consolas, monospace; }
+.parameter-sample-toolbar > button:last-child:not(:first-child) { margin-left: auto; }
+.parameter-sample-summary { min-height: 42px; padding: 0 24px; display: flex; align-items: center; gap: 18px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: 10px; }
+.parameter-sample-summary small { min-width: 0; margin-left: auto; overflow: hidden; color: #98a1b0; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-sample-list { max-height: 600px; overflow: auto; }
+.parameter-sample-row { min-height: 92px; padding: 10px 24px; display: grid; grid-template-columns: minmax(180px,.85fr) minmax(180px,1fr) minmax(180px,1fr) minmax(170px,.85fr) minmax(140px,.7fr); align-items: center; gap: 10px; border-bottom: 1px solid #edf0f5; }
+.parameter-sample-row.ready { background: linear-gradient(90deg,#fff,#fbfffd); }
+.parameter-sample-row.ambiguous { background: #fffdf8; }
+.parameter-sample-row.missing { background: #fffafa; }
+.parameter-sample-product { min-width: 0; display: grid; gap: 3px; }
+.parameter-sample-product strong { color: var(--purple); font: 700 11px Consolas, monospace; }
+.parameter-sample-product span, .parameter-sample-product small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-sample-product span { color: #4b586e; font-size: 10px; font-weight: 700; }
+.parameter-sample-product small { color: #98a1af; font-size: 9px; }
+.parameter-sample-file { min-width: 0; min-height: 66px; padding: 6px; display: grid; grid-template-columns: 54px minmax(0,1fr); align-items: center; gap: 8px; color: #9aa3b2; border: 1px solid #e8ebf1; border-radius: 10px; background: #fbfcfe; }
+.parameter-sample-file.found { color: #7462df; background: white; }
+.parameter-sample-file.missing { color: #bd7277; border-style: dashed; background: #fff8f8; }
+.parameter-sample-file img { width: 54px; height: 54px; display: block; object-fit: contain; border-radius: 7px; background: linear-gradient(45deg,#eef0f4 25%,transparent 25%),linear-gradient(-45deg,#eef0f4 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eef0f4 75%),linear-gradient(-45deg,transparent 75%,#eef0f4 75%),#fff; background-position: 0 0,0 5px,5px -5px,-5px 0; background-size: 10px 10px; }
+.parameter-sample-file > svg { justify-self: center; }
+.parameter-sample-file > div { min-width: 0; display: grid; gap: 3px; }
+.parameter-sample-file strong, .parameter-sample-file span, .parameter-sample-file small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-sample-file strong { color: #566277; font-size: 10px; }
+.parameter-sample-file span { color: #747f91; font-size: 9px; }
+.parameter-sample-file small { color: #9ba4b2; font-size: 8px; }
+.parameter-sample-file.excel.found { color: var(--green); border-color: #d7eee3; background: #f9fffc; }
+.parameter-sample-result { min-width: 0; display: grid; justify-items: start; gap: 5px; }
+.parameter-sample-result small { max-width: 100%; overflow: hidden; color: #8b95a5; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.parameter-sample-result button { height: 27px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; color: #69758a; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 9px; font-weight: 700; }
+.parameter-sample-console { margin: 14px 24px 18px; padding: 11px 13px; color: #647084; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfe; }
+.parameter-sample-console strong { font-size: 11px; }
+.parameter-sample-console pre { max-height: 120px; margin: 7px 0 0; overflow: auto; white-space: pre-wrap; color: #8792a3; font: 10px/1.6 Consolas, monospace; }
 .label-check-panel { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: white; box-shadow: 0 9px 32px rgba(27,39,69,.055); }
 .label-check-toolbar { min-height: 66px; padding: 9px 24px; display: flex; align-items: end; gap: 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fafbfe; }
 .label-check-target { min-width: 260px; display: grid; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 700; }
