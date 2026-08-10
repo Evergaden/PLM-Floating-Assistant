@@ -2781,8 +2781,29 @@ fn collect_parameter_product_directories(folder: &Path, depth: usize, output: &m
         if name.starts_with('.') || matches!(name.to_ascii_lowercase().as_str(), "node_modules" | "target") {
             continue;
         }
-        if organizer_sku(name).is_some() {
+        let mut has_transparent = false;
+        let mut has_pack = false;
+        let mut has_label_sections = false;
+        if let Ok(children) = fs::read_dir(&path) {
+            for child in children.flatten() {
+                let child_path = child.path();
+                let child_name = child_path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+                if child_path.is_file() && child_path.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("png")).unwrap_or(false) {
+                    let stem = child_path.file_stem().and_then(|value| value.to_str()).unwrap_or_default().to_lowercase();
+                    if stem.contains("透明") || stem.contains("transparent") || stem.contains("抠图") {
+                        has_transparent = true;
+                    }
+                } else if child_path.is_dir() {
+                    if child_name == "套图" { has_pack = true; }
+                    if child_name.starts_with("03 纸盒标签") || child_name.starts_with("04 主图及详情页") { has_label_sections = true; }
+                }
+            }
+        }
+        let name_has_sku = organizer_sku(name).is_some();
+        if has_transparent || has_pack || (name_has_sku && !has_label_sections) {
             output.push(path);
+        } else if has_label_sections || name.starts_with("03 纸盒标签") || name.starts_with("04 主图及详情页") {
+            continue;
         } else {
             collect_parameter_product_directories(&path, depth + 1, output);
         }
@@ -2828,6 +2849,29 @@ fn parameter_sample_relative_text(folder: &Path, path: &Path) -> String {
         .to_string_lossy()
         .replace('\\', "/")
         .to_lowercase()
+}
+
+fn infer_parameter_sample_sku(folder: &Path, files: &[PathBuf]) -> String {
+    if let Some(name) = folder.file_name().and_then(|value| value.to_str()) {
+        if let Some(sku) = organizer_sku(name) {
+            return sku;
+        }
+    }
+    let mut candidates = files.iter().filter_map(|path| {
+        let relative = parameter_sample_relative_text(folder, path);
+        let sku = organizer_sku(&relative)?;
+        let extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
+        let rank = if matches!(extension.as_str(), "xlsx" | "xls") {
+            0
+        } else if relative.contains("产品参数图/") || relative.contains("尺寸图") {
+            1
+        } else {
+            2
+        };
+        Some((rank, sku, file_modified_ms(path)))
+    }).collect::<Vec<_>>();
+    candidates.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| right.2.cmp(&left.2)).then_with(|| left.1.cmp(&right.1)));
+    candidates.first().map(|item| item.1.clone()).unwrap_or_default()
 }
 
 fn choose_parameter_sample_file(mut files: Vec<RankedParameterSampleFile>) -> (Option<PathBuf>, bool, usize) {
@@ -2885,7 +2929,7 @@ fn parameter_sample_candidates(folder: &Path, sku: &str, files: &[PathBuf]) -> (
             }
         }
         if matches!(extension.as_str(), "xlsx" | "xls") && !stem.starts_with("~$") {
-            let has_sku = stem.to_ascii_uppercase().contains(sku);
+            let has_sku = !sku.is_empty() && stem.to_ascii_uppercase().contains(sku);
             let in_pack = relative.contains("套图/") || relative.starts_with("套图/");
             let rank = match (has_sku, in_pack, extension.as_str()) {
                 (true, true, "xlsx") => 0,
@@ -2909,18 +2953,19 @@ fn scan_parameter_samples_plan(root: &Path) -> Result<ParameterSampleScanResult,
     product_folders.sort();
     product_folders.dedup();
     let mut items = Vec::new();
-    let mut logs = vec![format!("扫描到 {} 个含 SKU 的产品目录", product_folders.len())];
+    let mut logs = vec![format!("扫描到 {} 个产品根目录", product_folders.len())];
     for folder in product_folders {
         let product_name = folder.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string();
-        let Some(sku) = organizer_sku(&product_name) else { continue };
         let mut files = Vec::new();
         collect_parameter_sample_files(&folder, 0, &mut files);
+        let sku = infer_parameter_sample_sku(&folder, &files);
         let (transparent_files, parameter_files, excel_files) = parameter_sample_candidates(&folder, &sku, &files);
         let (transparent_path, transparent_ambiguous, transparent_candidates) = choose_parameter_sample_file(transparent_files);
         let (parameter_path, parameter_ambiguous, parameter_candidates) = choose_parameter_sample_file(parameter_files);
         let (excel_path, excel_ambiguous, excel_candidates) = choose_parameter_sample_file(excel_files);
         let transparent_has_alpha = transparent_path.as_ref().map(|path| png_has_alpha_channel(path)).unwrap_or(false);
         let mut missing = Vec::new();
+        if sku.is_empty() { missing.push("SKU"); }
         if transparent_path.is_none() { missing.push("透明 PNG"); }
         if parameter_path.is_none() { missing.push("正确尺寸图"); }
         if excel_path.is_none() { missing.push("Excel"); }
@@ -2935,7 +2980,7 @@ fn scan_parameter_samples_plan(root: &Path) -> Result<ParameterSampleScanResult,
             format!("缺少：{}", missing.join("、"))
         };
         if status != "ready" {
-            logs.push(format!("{} {}：{}", sku, product_name, message));
+            logs.push(format!("{} {}：{}", if sku.is_empty() { "未识别 SKU" } else { &sku }, product_name, message));
         }
         items.push(ParameterSampleItem {
             sku,
@@ -3416,6 +3461,34 @@ mod tests {
         assert!(result.items[0].transparent_has_alpha);
         assert!(result.index_path.ends_with("参数图学习样本索引.json"));
         assert!(Path::new(&result.index_path).is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn scans_legacy_product_root_once_and_infers_sku_from_excel() {
+        let root = std::env::temp_dir().join(format!("plm-legacy-parameter-samples-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 滋润指甲笔");
+        let label_wrapper = product.join("AMZ 滋润指甲笔-SKU00043380");
+        let pack = product.join("套图");
+        let pack_product = pack.join("AMZ 滋润指甲笔 SKU00043380");
+        fs::create_dir_all(label_wrapper.join("03 纸盒标签")).unwrap();
+        fs::create_dir_all(label_wrapper.join("04 主图及详情页")).unwrap();
+        fs::create_dir_all(pack_product.join("产品参数图")).unwrap();
+        let mut png = vec![0_u8; 32];
+        png[..8].copy_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+        png[25] = 6;
+        fs::write(product.join("透明.png"), png).unwrap();
+        fs::write(pack.join("AMZ 滋润指甲笔 SKU00043380.xlsx"), b"excel").unwrap();
+        fs::write(pack_product.join("产品参数图").join("SKU00043380-产品尺寸图.jpg"), b"size").unwrap();
+
+        let result = scan_parameter_samples_plan(&root).unwrap();
+        assert_eq!(result.items.len(), 1);
+        assert_eq!(result.ready, 1);
+        assert_eq!(result.items[0].sku, "SKU00043380");
+        assert_eq!(result.items[0].product_path, path_text(&product));
+        assert!(result.items[0].transparent_path.as_deref().unwrap().ends_with("透明.png"));
+        assert!(result.items[0].parameter_path.as_deref().unwrap().ends_with("SKU00043380-产品尺寸图.jpg"));
+        assert!(result.items[0].excel_path.as_deref().unwrap().ends_with("AMZ 滋润指甲笔 SKU00043380.xlsx"));
         fs::remove_dir_all(&root).unwrap();
     }
 

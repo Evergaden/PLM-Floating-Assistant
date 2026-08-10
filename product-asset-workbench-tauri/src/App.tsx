@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.12";
+const APP_VERSION = "0.1.13";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const MAP_KEY = "plm-workbench.folder-mappings";
@@ -1542,7 +1542,7 @@ export default function App() {
               <div>
                 <span className="eyebrow">PARAMETER SAMPLE INDEX</span>
                 <h2>参数图学习样本</h2>
-                <p>按含 SKU 的产品目录自动配对透明 PNG、正确尺寸图和 Excel；不使用品类，也不会移动原文件。</p>
+                <p>按产品根目录自动配对透明 PNG、正确尺寸图和 Excel；旧目录可从内部文件推断 SKU，不使用品类，也不会移动原文件。</p>
               </div>
               <button className="pack-root" onClick={chooseRoot}><FolderOpen size={16} />{root || "选择工作目录"}</button>
             </div>
@@ -1566,7 +1566,7 @@ export default function App() {
               {parameterSamples.map((item) => (
                 <article className={`parameter-sample-row ${item.status}`} key={`${item.sku}:${item.productPath}`}>
                   <div className="parameter-sample-product">
-                    <strong>{item.sku}</strong>
+                    <strong>{item.sku || "未识别 SKU"}</strong>
                     <span title={item.productName}>{item.productName}</span>
                     <small title={item.productPath}>{item.productPath}</small>
                   </div>
