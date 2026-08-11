@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.87
+// @version      2.7.88
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.87';
+  const SCRIPT_VERSION = '2.7.88';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -18692,9 +18692,9 @@
       if (submit) submit.disabled = Boolean(missing.length);
       if (status) {
         status.className = missing.length ? 'is-missing' : 'is-ready';
-        status.textContent = missing.length ? '还缺 ' + missing.length + ' 项' : '全部资料已完整';
+        status.textContent = missing.length ? 'PLM 还缺 ' + missing.length + ' 项' : 'PLM 资料已完整';
       }
-      if (detail) detail.textContent = missing.length ? '缺少：' + missing.join('、') : '提交前仍会再次校验；AI 补全不会自动提交。';
+      if (detail) detail.textContent = missing.length ? 'PLM API 检测缺少：' + missing.join('、') + '。弹窗修改仅供参考，请在 PLM 保存后刷新。' : '提交前会再次调用 PLM API 校验，不使用 Word 文案或助手缓存。';
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-unit-converter-input')) {
@@ -26198,7 +26198,7 @@
     return item;
   }
 
-  function getLedgerAiPreparationMissing(preparation) {
+  function calculateLedgerAiPreparationMissing(preparation) {
     const missing = [];
     LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.forEach((rule) => {
       const item = findLedgerAiPreparationCopyItem(preparation, rule);
@@ -26212,6 +26212,12 @@
     if (!isValidLedgerAiImageText(ingredients.product_ingredients_efficacy_en)) missing.push('成分功能（英文）');
     if (!preparation || !preparation.skuImage || preparation.skuImage.status !== 'available') missing.push('SKU 效果图');
     return missing;
+  }
+
+  function getLedgerAiPreparationMissing(preparation) {
+    return preparation && Array.isArray(preparation.plmMissing)
+      ? preparation.plmMissing.slice()
+      : calculateLedgerAiPreparationMissing(preparation);
   }
 
   async function loadLedgerAiImagePreparation(sku, force) {
@@ -26229,22 +26235,12 @@
     } catch (error) {
       preparation.error = '读取 PLM 文案失败：' + (formatErrorMessage(error) || '接口异常');
     }
-    const copyRecord = normalizeCopywritingRecord(data.copywriting);
-    const cachedSections = new Map((copyRecord && copyRecord.sections || []).map((section) => [section.key, copywritingSectionCopyValue(section)]));
-    const cachedFallbacks = {
-      new_product_usage: { cn: cachedSections.get('directionsChinese') || '', en: cachedSections.get('directions') || '' },
-    };
     LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.forEach((rule) => {
-      const item = ensureLedgerAiPreparationCopyItem(preparation, rule);
-      const values = getLedgerAiImageCopywriteValues(item);
-      const fallback = cachedFallbacks[rule.key] || {};
-      if (!isValidLedgerAiImageText(values.value_cn) && fallback.cn) item.value_cn = fallback.cn;
-      if (!isValidLedgerAiImageText(values.value) && fallback.en) item.value = fallback.en;
+      ensureLedgerAiPreparationCopyItem(preparation, rule);
     });
-    if (!isValidLedgerAiImageText(preparation.ingredients.product_ingredients_summary_ch)) preparation.ingredients.product_ingredients_summary_ch = data.ingredientChinese || data.copywritingIngredientChinese || '';
-    if (!isValidLedgerAiImageText(preparation.ingredients.product_ingredients_summary_en)) preparation.ingredients.product_ingredients_summary_en = data.ingredientEnglish || data.copywritingIngredientEnglish || '';
     try { preparation.skuImage = await fetchLedgerAiImageSkuPreflight(normalizedSku, data); }
     catch (error) { preparation.skuImage = { status: 'unknown', reason: formatErrorMessage(error) || '接口异常' }; }
+    preparation.plmMissing = calculateLedgerAiPreparationMissing(preparation);
     preparation.loading = false;
     preparation.updatedAtMs = Date.now();
     return preparation;
@@ -26282,7 +26278,12 @@
     const missing = getLedgerAiPreparationMissing(preparation);
     const imageStatus = preparation.skuImage && preparation.skuImage.status === 'available' ? 'SKU 效果图已就绪' : 'SKU 效果图不可用：' + (preparation.skuImage && preparation.skuImage.reason || '未找到');
     const busy = Boolean(state.ledgerAiImageAutofillRequests[getLedgerAiPreparationKey(record.sku)]);
-    return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (missing.length ? 'is-missing' : 'is-ready') + '">' + escapeHtml(missing.length ? '还缺 ' + missing.length + ' 项' : '全部资料已完整') + '</span></div><p>' + escapeHtml(imageStatus) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + rows + ingredientRows + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">从 PLM 刷新</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (busy ? ' disabled' : '') + '>' + (busy ? 'AI 补全中…' : 'AI 补齐缺失项') + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + (kind === 'detail' ? 'detail' : 'main') + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (missing.length ? ' disabled' : '') + '>资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + escapeHtml(missing.length ? '缺少：' + missing.join('、') : '提交前仍会再次校验；AI 补全不会自动提交。') + '</p></div>';
+    const preparationNotice = preparation.error
+      ? preparation.error + '；当前按 PLM 资料不完整处理。'
+      : (missing.length
+        ? 'PLM API 检测缺少：' + missing.join('、') + '。弹窗修改仅供参考，请在 PLM 保存后刷新。'
+        : '提交前会再次调用 PLM API 校验，不使用 Word 文案或助手缓存。');
+    return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (missing.length ? 'is-missing' : 'is-ready') + '">' + escapeHtml(missing.length ? 'PLM 还缺 ' + missing.length + ' 项' : 'PLM 资料已完整') + '</span></div><p>' + escapeHtml(imageStatus) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + rows + ingredientRows + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">从 PLM 刷新</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (busy ? ' disabled' : '') + '>' + (busy ? 'AI 补全中…' : 'AI 补齐参考文案') + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + (kind === 'detail' ? 'detail' : 'main') + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (missing.length ? ' disabled' : '') + '>PLM 资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + escapeHtml(preparationNotice) + '</p></div>';
   }
 
   function getLedgerAiImageSkuAttribute(contentPayload) {
@@ -26373,60 +26374,8 @@
   async function prepareLedgerAiImageGenerationPayload(sku) {
     const normalizedSku = String(sku || '').trim();
     if (!normalizedSku) throw new Error('缺少 SKU，无法开始 AI 生图');
-    const prepared = state.ledgerAiImagePreparations[getLedgerAiPreparationKey(normalizedSku)];
-    if (prepared) return getLedgerAiImagePreparationPayload(prepared);
-    const data = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
-    let copywrite = [];
-    let copywriteSource = [];
-    let liveIngredientPayload = {};
-    let copywritingReason = '';
-    try {
-      const payload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
-      if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM 产品文案接口返回失败');
-      copywriteSource = getLedgerAiImageCopywriteList(payload);
-      copywrite = normalizeLedgerAiImageCopywriteItems(copywriteSource);
-      liveIngredientPayload = getLedgerAiImageLiveIngredientPayload(payload);
-      if (!copywrite.length) copywritingReason = 'PLM 未返回有效产品文案';
-    } catch (error) {
-      copywritingReason = '读取 PLM 产品文案失败：' + (formatErrorMessage(error) || '接口未返回文案');
-    }
-    let skuImagePreflight;
-    try {
-      skuImagePreflight = await fetchLedgerAiImageSkuPreflight(normalizedSku, data);
-    } catch (error) {
-      skuImagePreflight = { status: 'unknown', reason: formatErrorMessage(error) || '接口异常' };
-    }
-    const missingCopywriteFields = getLedgerAiImageMissingRequiredCopywriteFields(copywriteSource);
-    const missingIngredientFields = getLedgerAiImageMissingIngredientFields(liveIngredientPayload);
-    const missingRequiredCopywriting = missingCopywriteFields.length > 0 || missingIngredientFields.length > 0;
-    const missingCopywriting = !copywrite.length || missingRequiredCopywriting;
-    const missingSkuImage = !skuImagePreflight || skuImagePreflight.status !== 'available';
-    if (missingCopywriting || missingSkuImage) {
-      const blockers = [];
-      if (missingCopywriting) {
-        const missingFields = missingCopywriteFields.concat(missingIngredientFields);
-        blockers.push(missingFields.length
-          ? '缺少必填产品文案：' + missingFields.join('、')
-          : (copywritingReason || 'PLM 未返回有效产品文案'));
-      }
-      if (missingSkuImage) blockers.push(skuImagePreflight && skuImagePreflight.status === 'missing'
-        ? '缺少 SKU 效果图'
-        : '无法确认 SKU 效果图');
-      const error = new Error('AI 生图前置校验未通过：' + blockers.join('；'));
-      error.ledgerAiImagePreflight = {
-        missingCopywriting,
-        missingCopywriteFields,
-        missingIngredientFields,
-        skuImageStatus: skuImagePreflight && skuImagePreflight.status || 'unknown',
-        skuImageReason: skuImagePreflight && skuImagePreflight.reason || '',
-      };
-      throw error;
-    }
-    return {
-      code: normalizedSku,
-      copywrite,
-      ...liveIngredientPayload,
-    };
+    const prepared = await loadLedgerAiImagePreparation(normalizedSku, true);
+    return getLedgerAiImagePreparationPayload(prepared);
   }
 
   function ledgerAiImageResultMatches(record, result) {
@@ -27170,7 +27119,7 @@
               showToast(normalizedSku + ' 生图历史查询失败，未提交任何生图请求');
               return failed;
             }
-            const preparation = await loadLedgerAiImagePreparation(normalizedSku, false);
+            const preparation = await loadLedgerAiImagePreparation(normalizedSku, true);
             const missing = getLedgerAiPreparationMissing(preparation);
             const status = missing.includes('SKU 效果图')
               ? (missing.length > 1 ? 'needs-prerequisites' : 'needs-sku-image')
