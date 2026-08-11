@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.97
+// @version      2.7.98
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.97';
+  const SCRIPT_VERSION = '2.7.98';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -78,6 +78,8 @@
   const apiIngredientFileCache = Object.create(null);
   const ASSIGNED_DESIGN_TASK_ENDPOINT = '/api/ChemicalNewDesignTask/GetList';
   const ASSIGNED_DESIGN_TASK_PAGE_SIZE = 20;
+  const ASSIGNED_DESIGN_TASK_SORT_FIELD = 'design_assign_at';
+  const ASSIGNED_DESIGN_TASK_SORT_ASC = false;
   const PLM_ARCHIVE_OSS_ORIGIN = 'https://oss-pro.plm.westmonth.cn';
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -4794,7 +4796,9 @@
     const rows = [];
     let total = 0;
     for (let page = 1; page <= 100; page += 1) {
-      const payload = await fetchPlmJson(ASSIGNED_DESIGN_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + ASSIGNED_DESIGN_TASK_PAGE_SIZE);
+      const payload = await fetchPlmJson(ASSIGNED_DESIGN_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + ASSIGNED_DESIGN_TASK_PAGE_SIZE
+        + '&sort_field=' + encodeURIComponent(ASSIGNED_DESIGN_TASK_SORT_FIELD)
+        + '&sort_asc=' + String(ASSIGNED_DESIGN_TASK_SORT_ASC));
       if (payload && payload.success === false) {
         throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '\u8bbe\u8ba1\u4efb\u52a1 API \u8fd4\u56de\u5931\u8d25');
       }
