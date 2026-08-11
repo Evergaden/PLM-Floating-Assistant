@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.89
+// @version      2.7.91
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.89';
+  const SCRIPT_VERSION = '2.7.91';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -142,6 +142,9 @@
     ];
     let featureRules = defaultRules.slice();
     let rulesLoaded = false;
+    let topologyRule = null;
+    let topologyRulePromise = null;
+    let topologyRuleStatus = 'unloaded';
 
     const number = (value) => {
       const matched = String(value == null ? '' : value).match(/\d+(?:\.\d+)?/);
@@ -241,7 +244,12 @@
           singleBottle: Boolean(data && data.singleBottle),
           productHeightSide: isFoodParameterProduct(data) ? 'left' : 'right',
           showSide: null,
+          showSideOverride: false,
           frontIsLength: true,
+          frontAxisOverride: false,
+          topologyApplied: false,
+          topologyRuleVersion: '',
+          topologyMessage: '',
           featuresDirty: false,
           editorOpen: false,
           manualTarget: Boolean(data && data.singleBottle) ? 'product' : 'box',
@@ -284,19 +292,65 @@
       if (!Array.isArray(session.manualLineTypes.box)) session.manualLineTypes.box = [];
       if (!Array.isArray(session.manualLineTypes.product)) session.manualLineTypes.product = [];
       if (!Array.isArray(session.manualPointHistory)) session.manualPointHistory = [];
+      if (typeof session.showSideOverride !== 'boolean') session.showSideOverride = false;
+      if (typeof session.frontAxisOverride !== 'boolean') session.frontAxisOverride = false;
+      if (typeof session.topologyApplied !== 'boolean') session.topologyApplied = false;
+      if (typeof session.topologyRuleVersion !== 'string') session.topologyRuleVersion = '';
+      if (typeof session.topologyMessage !== 'string') session.topologyMessage = '';
       session.productHeightSide = isFoodParameterProduct(data) ? 'left' : 'right';
       return session;
+    }
+
+    function topologyRulePath(manifest) {
+      const raw = String(manifest && (manifest.rulePath || manifest.ruleUrl || manifest.path) || '').trim();
+      if (!raw) return '/assets/v1/parameter-layout-rules.json';
+      if (/^https?:\/\//i.test(raw)) {
+        try {
+          const parsed = new URL(raw);
+          return parsed.pathname + (parsed.search || '');
+        } catch (_) { return '/assets/v1/parameter-layout-rules.json'; }
+      }
+      if (raw.startsWith('/assets/')) return raw;
+      if (raw.startsWith('./')) return '/assets/v1/' + raw.slice(2);
+      if (raw.startsWith('/')) return '/assets' + raw;
+      return '/assets/v1/' + raw;
+    }
+
+    async function loadTopologyRule() {
+      if (topologyRulePromise) return topologyRulePromise;
+      topologyRuleStatus = 'loading';
+      topologyRulePromise = (async () => {
+        const request = context.cloudAssetRequest;
+        if (typeof request !== 'function') throw new Error('云端资源请求不可用');
+        const manifest = await request('/assets/v1/parameter-layout-rules.manifest.json', 'json');
+        if (!manifest || Number(manifest.schemaVersion || 1) !== 1 || !manifest.ruleVersion) throw new Error('参数图布局规则清单无效');
+        const rule = await request(topologyRulePath(manifest), 'json');
+        const profiles = Array.isArray(rule && rule.profiles) ? rule.profiles : [];
+        const templates = profiles.flatMap((profile) => profile && profile.edgeTopology && Array.isArray(profile.edgeTopology.templates)
+          ? profile.edgeTopology.templates : []);
+        if (Number(rule && rule.schemaVersion || 1) !== 1 || !templates.length) throw new Error('参数图布局规则没有边拓扑模板');
+        topologyRule = { ...rule, ruleVersion: String(rule.ruleVersion || manifest.ruleVersion), manifest };
+        topologyRuleStatus = 'ready';
+        return topologyRule;
+      })().catch((error) => {
+        topologyRuleStatus = 'fallback';
+        topologyRule = null;
+        return null;
+      });
+      return topologyRulePromise;
     }
 
     async function loadRules() {
       if (rulesLoaded) return false;
       rulesLoaded = true;
-      try {
-        const response = await context.cloudRequest('/parameter-features?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' });
-        const rows = response && Array.isArray(response.rules) ? response.rules : [];
-        if (rows.length) { featureRules = rows; return true; }
-      } catch (_) {}
-      return false;
+      const results = await Promise.allSettled([
+        context.cloudRequest('/parameter-features?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' }),
+        loadTopologyRule(),
+      ]);
+      const response = results[0] && results[0].status === 'fulfilled' ? results[0].value : null;
+      const rows = response && Array.isArray(response.rules) ? response.rules : [];
+      if (rows.length) { featureRules = rows; return true; }
+      return results.some((result) => result && result.status === 'fulfilled' && result.value);
     }
 
     function fieldHtml(session, key, label, wide) {
@@ -956,7 +1010,8 @@
       });
       if (!data || !data.sku) return '<div class="pfh-parameter-scroll">' + (context.detailViewTabs ? context.detailViewTabs('parameterImage') : '') + '<div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div>';
       const session = ensureSession(data);
-      const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图。</div>' : '');
+      const topologyHint = session.topologyMessage ? ' · ' + session.topologyMessage + (session.topologyRuleVersion ? '（' + session.topologyRuleVersion + '）' : '') : '';
+      const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图' + context.escapeHtml(topologyHint) + '。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
       const heroImage = preferredImageUrl(data);
       const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
@@ -1056,7 +1111,207 @@
       };
     }
 
-    function analyzeImage(image, session) {
+    // The workbench rule describes *which* edges to annotate, not a fixed pixel
+    // position.  Rebuild the same lightweight geometry from the current PNG so
+    // a box can move to either side and its visible side can face either way.
+    function transparentObjectComponents(pixels, width, height) {
+      const total = width * height;
+      const opaque = new Uint8Array(total);
+      for (let index = 0; index < total; index += 1) opaque[index] = pixels[index * 4 + 3] > 12 ? 1 : 0;
+      const visited = new Uint8Array(total);
+      const components = [];
+      const stack = [];
+      for (let start = 0; start < total; start += 1) {
+        if (!opaque[start] || visited[start]) continue;
+        visited[start] = 1; stack.push(start);
+        let count = 0, left = width, top = height, right = 0, bottom = 0;
+        while (stack.length) {
+          const index = stack.pop();
+          const x = index % width, y = Math.floor(index / width);
+          count += 1; left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y);
+          for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny += 1) {
+            for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx += 1) {
+              const neighbor = ny * width + nx;
+              if (opaque[neighbor] && !visited[neighbor]) { visited[neighbor] = 1; stack.push(neighbor); }
+            }
+          }
+        }
+        const componentWidth = right - left + 1, componentHeight = bottom - top + 1;
+        if (count < total / 400 || componentWidth < width / 30 || componentHeight < height / 30) continue;
+        components.push({ left, top, right: right + 1, bottom: bottom + 1, width: componentWidth, height: componentHeight, pixelCount: count, fillRatio: count / Math.max(1, componentWidth * componentHeight) });
+      }
+      return components.sort((a, b) => a.left - b.left);
+    }
+
+    function transparentComponentUnion(components) {
+      if (!components.length) return null;
+      const left = Math.min(...components.map((component) => component.left));
+      const top = Math.min(...components.map((component) => component.top));
+      const right = Math.max(...components.map((component) => component.right));
+      const bottom = Math.max(...components.map((component) => component.bottom));
+      return { left, top, right, bottom, width: right - left, height: bottom - top };
+    }
+
+    function rgbaDistanceAt(pixels, width, leftX, rightX, y) {
+      const left = (y * width + leftX) * 4, right = (y * width + rightX) * 4;
+      return (Math.abs(pixels[left] - pixels[right]) + Math.abs(pixels[left + 1] - pixels[right + 1]) + Math.abs(pixels[left + 2] - pixels[right + 2])) / 3;
+    }
+
+    function percentile(values, ratio) {
+      const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+      if (!sorted.length) return 0;
+      return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * ratio)))];
+    }
+
+    function detectTransparentFaceSeam(pixels, width, height, component, preferredSide) {
+      const boxWidth = component.width, boxHeight = component.height;
+      if (boxWidth < 30 || boxHeight < 40) return null;
+      const span = Math.max(1, Math.min(7, Math.floor(boxWidth / 100)));
+      const startX = component.left + Math.floor(boxWidth * .06), endX = component.right - 1 - Math.floor(boxWidth * .06);
+      const startY = component.top + Math.floor(boxHeight * .04), endY = component.bottom - 1 - Math.floor(boxHeight * .04);
+      const scored = [];
+      for (let x = startX; x <= endX; x += 1) {
+        const relative = (x - component.left) / Math.max(1, boxWidth);
+        const side = relative >= .08 && relative <= .43 ? 'left' : (relative >= .57 && relative <= .92 ? 'right' : '');
+        if (!side || (preferredSide && side !== preferredSide)) continue;
+        const leftX = Math.max(component.left, x - span), rightX = Math.min(component.right - 1, x + span);
+        const differences = [];
+        for (let y = startY; y <= endY; y += 2) {
+          const leftAlpha = pixels[(y * width + leftX) * 4 + 3], rightAlpha = pixels[(y * width + rightX) * 4 + 3];
+          if (leftAlpha <= 12 || rightAlpha <= 12) continue;
+          differences.push(rgbaDistanceAt(pixels, width, leftX, rightX, y));
+        }
+        if (differences.length < Math.max(12, Math.floor(boxHeight / 10))) continue;
+        const score = median(differences) * .72 + percentile(differences, .72) * .28;
+        scored.push({ score, x, side });
+      }
+      if (!scored.length) return null;
+      scored.sort((a, b) => b.score - a.score);
+      const best = scored[0], baseline = median(scored.map((item) => item.score)), separation = best.score - baseline;
+      if (best.score < 5 || separation < 1.25) return null;
+      return { x: best.x, side: best.side, confidence: Math.max(.54, Math.min(.97, .54 + separation / 26 + (best.score - 5) / 90)) };
+    }
+
+    function sourcePoint(point, scale) { return { x: point.x / scale, y: point.y / scale }; }
+
+    function matchTransparentTopologyTemplate(rule, boxPosition, sideFace, hasDepth, allowSideMismatch) {
+      const templates = (rule && Array.isArray(rule.profiles) ? rule.profiles : []).flatMap((profile) =>
+        profile && profile.edgeTopology && Array.isArray(profile.edgeTopology.templates) ? profile.edgeTopology.templates : []);
+      if (!templates.length) return null;
+      let best = null;
+      templates.forEach((template) => {
+        const templateSide = String(template && template.sideFace || 'none');
+        const templatePosition = String(template && template.boxPosition || 'single');
+        if (!allowSideMismatch && templateSide !== sideFace) return;
+        let score = 0;
+        if (templateSide === sideFace) score += 5;
+        else if (templateSide === 'none' && sideFace === 'none') score += 4;
+        if (templatePosition === boxPosition) score += 4;
+        else if (templatePosition === 'single' || boxPosition === 'single') score += 1;
+        if (Boolean(template && template.depthEdge) === Boolean(hasDepth)) score += 1.5;
+        score += Math.min(1, Number(template && template.sampleCount || 0) / 100);
+        if (!best || score > best.score) best = { template, score };
+      });
+      return best && best.score >= 4 ? best.template : null;
+    }
+
+    function axisValue(session, axis, fallback) {
+      if (axis === 'boxLength') return session.fields.packageLength;
+      if (axis === 'boxDepth') return session.fields.packageWidth;
+      if (axis === 'boxHeight') return session.fields.packageHeight;
+      return fallback;
+    }
+
+    function analyzeTransparentTopology(pixels, width, height, session, rule, scale) {
+      if (!rule || !Array.isArray(rule.profiles) || !rule.profiles.some((profile) => profile && profile.edgeTopology && Array.isArray(profile.edgeTopology.templates))) return null;
+      const components = transparentObjectComponents(pixels, width, height);
+      if (components.length < 2) return null;
+      const boxComponent = components.slice().sort((a, b) => (b.fillRatio - a.fillRatio) || (b.pixelCount - a.pixelCount))[0];
+      const boxIndex = components.indexOf(boxComponent);
+      const productComponents = components.filter((component) => component !== boxComponent);
+      const productComponent = transparentComponentUnion(productComponents);
+      if (!productComponent) return null;
+      const boxPosition = components.length <= 1 ? 'single' : (boxIndex === 0 ? 'left' : (boxIndex === components.length - 1 ? 'right' : 'middle'));
+      let seam = detectTransparentFaceSeam(pixels, width, height, boxComponent, '');
+      let template = matchTransparentTopologyTemplate(rule, boxPosition, seam ? seam.side : 'none', Boolean(seam), true);
+      if (template && template.sideFace && template.sideFace !== 'none' && (!seam || seam.side !== template.sideFace)) {
+        const hinted = detectTransparentFaceSeam(pixels, width, height, boxComponent, template.sideFace);
+        if (hinted && (!seam || hinted.confidence >= seam.confidence * .82)) seam = hinted;
+      }
+      const sideFace = seam ? seam.side : 'none';
+      template = matchTransparentTopologyTemplate(rule, boxPosition, sideFace, Boolean(seam), false) || null;
+      const inset = Math.max(1, Math.min(5, Math.floor(boxComponent.width / 120)));
+      const leftOuter = boxComponent.left + inset, rightOuter = boxComponent.right - 1 - inset;
+      const frontLeftX = sideFace === 'left' ? seam.x : leftOuter;
+      const frontRightX = sideFace === 'right' ? seam.x : rightOuter;
+      const spread = Math.max(1, Math.min(4, Math.floor(boxComponent.width / 100)));
+      const leftRange = alphaColumnRange(pixels, width, height, frontLeftX, boxComponent.top, boxComponent.bottom, spread);
+      const rightRange = alphaColumnRange(pixels, width, height, frontRightX, boxComponent.top, boxComponent.bottom, spread);
+      if (!leftRange || !rightRange) return null;
+      const toSource = (point) => sourcePoint(point, scale);
+      const frontTopLeft = toSource({ x: frontLeftX, y: leftRange.top });
+      const frontTopRight = toSource({ x: frontRightX, y: rightRange.top });
+      const frontBottomRight = toSource({ x: frontRightX, y: rightRange.bottom });
+      const frontBottomLeft = toSource({ x: frontLeftX, y: leftRange.bottom });
+      const frontCorners = [frontTopLeft, frontTopRight, frontBottomRight, frontBottomLeft];
+      const heightEdge = sideFace === 'left' ? { start: frontTopRight, end: frontBottomRight } : { start: frontTopLeft, end: frontBottomLeft };
+      const frontEdge = { start: frontBottomLeft, end: frontBottomRight };
+      let sideCorners = [], depthEdge = null;
+      if (seam) {
+        const outerX = sideFace === 'left' ? leftOuter : rightOuter;
+        const outerRange = alphaColumnRange(pixels, width, height, outerX, boxComponent.top, boxComponent.bottom, spread);
+        if (outerRange) {
+          const outerTop = toSource({ x: outerX, y: outerRange.top });
+          const outerBottom = toSource({ x: outerX, y: outerRange.bottom });
+          const seamTop = sideFace === 'left' ? frontTopLeft : frontTopRight;
+          const seamBottom = sideFace === 'left' ? frontBottomLeft : frontBottomRight;
+          sideCorners = [seamTop, outerTop, outerBottom, seamBottom];
+          depthEdge = { start: seamTop, end: outerTop };
+        }
+      }
+      const box = { left: boxComponent.left / scale, top: boxComponent.top / scale, right: boxComponent.right / scale, bottom: boxComponent.bottom / scale, width: boxComponent.width / scale, height: boxComponent.height / scale };
+      const product = { left: productComponent.left / scale, top: productComponent.top / scale, right: productComponent.right / scale, bottom: productComponent.bottom / scale, width: productComponent.width / scale, height: productComponent.height / scale };
+      const shapeConfidence = Math.max(.58, Math.min(.90, .58 + boxComponent.fillRatio * .32));
+      const confidence = seam ? Math.max(0, Math.min(.98, shapeConfidence * .45 + seam.confidence * .55)) : shapeConfidence;
+      const topology = {
+        boxPosition,
+        sideFace,
+        confidence,
+        frontCorners,
+        sideCorners,
+        heightEdge,
+        frontEdge,
+        depthEdge,
+        frontAxis: String(template && template.frontAxis || ''),
+        depthAxis: String(template && template.depthAxis || ''),
+        verticalAxis: String(template && template.verticalAxis || ''),
+        axisMappingVerified: Boolean(template && template.axisMappingVerified),
+        templateId: String(template && template.id || ''),
+      };
+      session.topologyApplied = Boolean(template && confidence >= .64);
+      if (!session.frontAxisOverride && topology.axisMappingVerified) {
+        if (topology.frontAxis === 'boxLength') session.frontIsLength = true;
+        else if (topology.frontAxis === 'boxDepth') session.frontIsLength = false;
+      }
+      if (!session.showSideOverride && session.topologyApplied) session.showSide = sideFace !== 'none';
+      session.topologyRuleVersion = String(rule.ruleVersion || (rule.manifest && rule.manifest.ruleVersion) || '');
+      session.topologyMessage = session.topologyApplied ? '已按云端边拓扑规则标注' : '边拓扑置信度不足，使用基础识别';
+      return {
+        box,
+        product,
+        splitX: (box.right + product.left) / 2,
+        sidePixels: seam ? Math.abs((seam.x - (sideFace === 'left' ? boxComponent.left : boxComponent.right)) / scale) : 0,
+        detectedSide: sideFace !== 'none',
+        perspective: null,
+        transparentTopology: topology,
+        topologyRuleVersion: session.topologyRuleVersion,
+        productHeightSide: product.right <= box.left ? 'left' : 'right',
+        sourceWidth: width / scale,
+        sourceHeight: height / scale,
+      };
+    }
+
+    function analyzeImage(image, session, rule) {
       const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
       const height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -1073,6 +1328,10 @@
         const convert = (rect) => ({ left: rect.left * f, top: rect.top * f, right: rect.right * f, bottom: rect.bottom * f, width: rect.width * f, height: rect.height * f });
         return { box: null, product: convert(bottle), splitX: 0, sidePixels: 0, detectedSide: false, perspective: null, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
       }
+      session.topologyApplied = false;
+      session.topologyMessage = topologyRuleStatus === 'ready' ? '未匹配到边拓扑模板，使用基础识别' : '云端边拓扑规则未加载，使用基础识别';
+      const topologyAnalysis = analyzeTransparentTopology(pixels, width, height, session, rule, scale);
+      if (topologyAnalysis && session.topologyApplied) return topologyAnalysis;
       const occupancy = [];
       for (let x = 0; x < width; x += 1) {
         let count = 0;
@@ -1098,8 +1357,9 @@
       // Front-only carton renders often include a small shadow/edge. Treat it as a
       // visible side only when the excess is substantial; users can still override.
       const detectedSide = sidePixels > originalBox.width * .18;
-      if (session.showSide === null) session.showSide = detectedSide;
-      return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, perspective, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
+      if (session.showSide === null && !session.showSideOverride) session.showSide = detectedSide;
+      session.productHeightSide = originalProduct.right <= originalBox.left ? 'left' : session.productHeightSide;
+      return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, perspective, productHeightSide: originalProduct.right <= originalBox.left ? 'left' : 'right', sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
     }
 
     function fitSource(image, analysis, area) {
@@ -1206,6 +1466,30 @@
       });
     }
 
+    function drawTopologyDimensions(ctx, topology, session, fit) {
+      if (!topology) return 0;
+      const center = topology.frontCorners && topology.frontCorners.length
+        ? manualPathCenter(topology.frontCorners.map((point) => mapPoint(point, fit)))
+        : null;
+      if (!center) return 0;
+      const frontAxis = topology.frontAxis || (session.frontIsLength ? 'boxLength' : 'boxDepth');
+      const depthAxis = topology.depthAxis || (session.frontIsLength ? 'boxDepth' : 'boxLength');
+      const verticalAxis = topology.verticalAxis || 'boxHeight';
+      let count = 0;
+      const drawEdge = (edge, axis, fallback) => {
+        if (!edge || !edge.start || !edge.end) return;
+        const start = mapPoint(edge.start, fit), end = mapPoint(edge.end, fit);
+        const value = axisValue(session, axis, fallback);
+        if (!number(value)) return;
+        drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center));
+        count += 1;
+      };
+      drawEdge(topology.heightEdge, verticalAxis, session.fields.packageHeight);
+      drawEdge(topology.frontEdge, frontAxis, session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth);
+      if (session.showSide && topology.depthEdge) drawEdge(topology.depthEdge, depthAxis, session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength);
+      return count;
+    }
+
     function drawProductModule(ctx, image, analysis, session, area) {
       const fit = fitSource(image, analysis, area);
       ctx.save();
@@ -1217,12 +1501,14 @@
       const frontValue = session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth;
       const sideValue = session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength;
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
+      const topology = analysis.transparentTopology;
+      const productHeightSide = analysis.productHeightSide || session.productHeightSide || 'right';
       const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;
       const manualProduct = completeManualPath(session, 'product') ? session.manualPoints.product.slice(0, requiredManualPoints('product')) : null;
       if (session.singleBottle) {
         if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
         else if (product) {
-          drawVerticalDimension(ctx, product, session.fields.productHeight, session.productHeightSide || 'right');
+          drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide);
           drawHorizontalDimension(ctx, product, session.fields.productLength, false);
         }
         ctx.restore();
@@ -1230,6 +1516,8 @@
       }
       if (manualBox) {
         drawManualDimensionPath(ctx, manualBox, session, 'box', fit);
+      } else if (session.topologyApplied && topology && drawTopologyDimensions(ctx, topology, session, fit)) {
+        // The learned topology has already selected the exact front, depth and height edges.
       } else if (session.showSide && perspective) {
         drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
         drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
@@ -1241,7 +1529,7 @@
       }
       if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
       else if (product) {
-        drawVerticalDimension(ctx, product, session.fields.productHeight, session.productHeightSide || 'right');
+        drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide);
         drawHorizontalDimension(ctx, product, session.fields.productLength, false);
       }
       ctx.restore();
@@ -1413,12 +1701,14 @@
       try {
         const image = await loadImage(url);
         if (hasManualPath) editorLog(session, '生成阶段底图解码成功', { width: image.naturalWidth, height: image.naturalHeight });
-        const logo = await loadBrandLogo(data.brand);
+        const [rule, logo] = await Promise.all([loadTopologyRule(), loadBrandLogo(data.brand)]);
         try {
-          session.analysis = analyzeImage(image, session);
+          session.analysis = analyzeImage(image, session, rule);
           if (hasManualPath) editorLog(session, '自动图像分析成功，手动路径将优先覆盖', {
             hasBox: Boolean(session.analysis && session.analysis.box),
             hasProduct: Boolean(session.analysis && session.analysis.product),
+            topologyApplied: Boolean(session.analysis && session.analysis.transparentTopology),
+            topologyRuleVersion: session.topologyRuleVersion || '',
           });
         } catch (analysisError) {
           session.analysis = manualFallbackAnalysis(image, session);
@@ -1458,7 +1748,8 @@
     async function processFile(file, data, options) {
       const session = ensureSession(data);
       if (!isParameterPngFile(file)) { rejectParameterImage(data); return; }
-      session.file = file; session.fileName = file.name; session.showSide = null;
+      session.file = file; session.fileName = file.name; session.showSide = null; session.showSideOverride = false; session.frontAxisOverride = false;
+      session.topologyApplied = false; session.topologyRuleVersion = ''; session.topologyMessage = '';
       session.editorImage = null;
       session.editorSourceUrl = '';
       session.editorOpen = false;
@@ -1631,8 +1922,8 @@
     function handleChange(event, data) {
       const session = ensureSession(data);
       if (event.target.classList.contains('pfh-parameter-file')) { const file = event.target.files && event.target.files[0]; if (file) processFile(file, data); event.target.value = ''; return true; }
-      if (event.target.classList.contains('pfh-parameter-side')) { session.showSide = Boolean(event.target.checked); if (session.file) regenerate(data); return true; }
-      if (event.target.name === 'pfh-parameter-front') { session.frontIsLength = event.target.value === 'length'; session.showSide = null; if (session.file) regenerate(data); return true; }
+      if (event.target.classList.contains('pfh-parameter-side')) { session.showSide = Boolean(event.target.checked); session.showSideOverride = true; if (session.file) regenerate(data); return true; }
+      if (event.target.name === 'pfh-parameter-front') { session.frontIsLength = event.target.value === 'length'; session.frontAxisOverride = true; session.showSide = null; if (session.file) regenerate(data); return true; }
       if (event.target.classList.contains('pfh-parameter-field')) { if (session.file) regenerate(data); return true; }
       return false;
     }
@@ -4061,6 +4352,7 @@
     detailViewTabs: (activeView) => detailViewTabsHtml(activeView),
     productType: (data) => getProductTypeForInsight(data, null),
     cloudRequest,
+    cloudAssetRequest,
     collectExtra: collectExcelExtraData,
     getSaveFilePicker,
     showToast,
@@ -7662,7 +7954,7 @@
       #${PANEL_ID} .pfh-cache-editor>header h3{margin:0;color:#4f35a4;font-size:16px}#${PANEL_ID} .pfh-cache-editor>header p,#${PANEL_ID} .pfh-cache-editor>footer>span{margin:4px 0 0;color:#8d829f;font-size:10px}
       #${PANEL_ID} .pfh-cache-editor button{min-height:30px;padding:0 11px;border:1px solid #d8cff1;border-radius:9px;background:#faf8ff;color:#6537ce;font:inherit;font-size:11px;cursor:pointer}#${PANEL_ID} .pfh-cache-editor button.is-primary{border-color:#8f72e7;background:#7448d8;color:#fff}
       #${PANEL_ID} .pfh-cache-editor-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;color:#8d829f;font-size:10px}#${PANEL_ID} .pfh-cache-editor-summary>span{margin-right:auto}#${PANEL_ID} .pfh-cache-editor-search{min-width:190px;min-height:30px;padding:0 10px;border:1px solid #ded7ef;border-radius:9px;background:#fbfaff;color:#453b5a;font:inherit;font-size:10px}
-      #${PANEL_ID} .pfh-cache-editor-body{display:flex;min-height:0;flex:1 1 auto;flex-direction:column;gap:10px;overflow:auto;padding:2px 18px 14px}#${PANEL_ID} .pfh-cache-group{border:1px solid #e6dff5;border-radius:13px;background:#fbfaff;overflow:hidden}#${PANEL_ID} .pfh-cache-group>header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#f4f0fc;color:#58447f}#${PANEL_ID} .pfh-cache-group>header strong{font-size:11px}#${PANEL_ID} .pfh-cache-group>header span{font-size:9px;color:#968aa9}#${PANEL_ID} .pfh-cache-group-fields{display:flex;flex-direction:column;gap:7px;padding:9px}#${PANEL_ID} .pfh-cache-top-field.is-hidden{display:none}
+      #${PANEL_ID} .pfh-cache-editor-body{display:flex;min-height:0;flex:1 1 auto;flex-direction:column;gap:10px;overflow:auto;padding:2px 18px 14px}#${PANEL_ID} .pfh-cache-group{display:block;flex:0 0 auto;height:auto;min-height:0;max-height:none;border:1px solid #e6dff5;border-radius:13px;background:#fbfaff;overflow:hidden}#${PANEL_ID} .pfh-cache-group>header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#f4f0fc;color:#58447f}#${PANEL_ID} .pfh-cache-group>header strong{font-size:11px}#${PANEL_ID} .pfh-cache-group>header span{font-size:9px;color:#968aa9}#${PANEL_ID} .pfh-cache-group-fields{display:flex;flex:0 0 auto;height:auto;min-height:0;max-height:none;flex-direction:column;gap:7px;padding:9px}#${PANEL_ID} .pfh-cache-top-field.is-hidden{display:none}
       #${PANEL_ID} .pfh-cache-field{min-width:0;border:1px solid #ece7f6;border-radius:10px;background:#fff}#${PANEL_ID} .pfh-cache-field.is-hidden{display:none}#${PANEL_ID} .pfh-cache-field-head{display:flex;align-items:flex-start;gap:8px;padding:8px 9px}#${PANEL_ID} .pfh-cache-field-key{display:flex;min-width:155px;max-width:240px;flex-direction:column;gap:2px}#${PANEL_ID} .pfh-cache-field-key strong{overflow-wrap:anywhere;color:#514366;font-size:10px}#${PANEL_ID} .pfh-cache-field-key code{overflow:hidden;color:#a096b1;font:8px/1.3 Consolas,monospace;text-overflow:ellipsis}#${PANEL_ID} .pfh-cache-field-control{display:grid;min-width:0;flex:1 1 auto;grid-template-columns:86px minmax(0,1fr);gap:6px}#${PANEL_ID} .pfh-cache-field-control select,#${PANEL_ID} .pfh-cache-field-control input,#${PANEL_ID} .pfh-cache-field-control textarea{width:100%;min-width:0;border:1px solid #ded7ef;border-radius:7px;background:#fff;color:#453b5a;font:9px/1.4 inherit}#${PANEL_ID} .pfh-cache-field-control select,#${PANEL_ID} .pfh-cache-field-control input{height:30px;padding:0 7px}#${PANEL_ID} .pfh-cache-field-control textarea{min-height:58px;padding:7px;resize:vertical}#${PANEL_ID} .pfh-cache-field-control input[readonly]{background:#f3f0f8;color:#8e849f}#${PANEL_ID} .pfh-cache-field-control input:disabled,#${PANEL_ID} .pfh-cache-field-control textarea:disabled{background:#f6f3f9;color:#aaa1b5}
       #${PANEL_ID} details.pfh-cache-field>summary{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;list-style:none}#${PANEL_ID} details.pfh-cache-field>summary::-webkit-details-marker{display:none}#${PANEL_ID} details.pfh-cache-field>summary::before{content:'›';color:#8666d2;font-size:16px;transform:rotate(0deg);transition:transform .16s ease}#${PANEL_ID} details.pfh-cache-field[open]>summary::before{transform:rotate(90deg)}#${PANEL_ID} .pfh-cache-container-title{display:flex;min-width:0;flex:1 1 auto;flex-direction:column}#${PANEL_ID} .pfh-cache-container-title strong{overflow-wrap:anywhere;color:#514366;font-size:10px}#${PANEL_ID} .pfh-cache-container-title code{color:#a096b1;font:8px/1.3 Consolas,monospace}#${PANEL_ID} .pfh-cache-container-count{padding:2px 6px;border-radius:999px;background:#eee8fa;color:#7359ac;font-size:8px}#${PANEL_ID} .pfh-cache-children{display:flex;flex-direction:column;gap:7px;padding:0 8px 8px 24px}#${PANEL_ID} .pfh-cache-empty{padding:10px;color:#a096b1;font-size:9px;text-align:center}
       #${PANEL_ID} .pfh-cache-editor-error{min-height:18px;margin:5px 18px 0;color:#b34a5d;font-size:10px}#${PANEL_ID} .pfh-cache-editor>footer{border-top:1px solid #eee9fb;border-bottom:0}#${PANEL_ID} .pfh-cache-editor>footer>div{display:flex;gap:7px}
