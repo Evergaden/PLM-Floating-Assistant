@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.91
+// @version      2.7.94
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.7.91";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.7.94";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -3024,10 +3024,10 @@
             document.documentElement.appendChild(n), "function" == typeof e.applyTheme && e.applyTheme(),
             n.addEventListener("click", e => {
                 const a = e.target && e.target.closest && e.target.closest("[data-action]"), n = a && a.getAttribute("data-action");
-                n && Ne(n, a, t);
+                n && Ue(n, a, t);
             }), n.addEventListener("keydown", e => {
                 "Escape" === e.key ? (e.preventDefault(), J(a, "escape")) : !e.ctrlKey && !e.metaKey || e.shiftKey || "z" !== String(e.key).toLowerCase() || (e.preventDefault(),
-                Ne("parameter-editor-undo", null, t));
+                Ue("parameter-editor-undo", null, t));
             })), n.innerHTML = function(t) {
                 const a = T(t, "box"), n = T(t, "product"), r = t.editorLoadError ? " is-error" : "", i = [ "auto", "box", "product" ].includes(t.manualTargetMode) ? t.manualTargetMode : "auto", o = [ [ "auto", "自动判断" ], [ "box", "纸盒" ], [ "product", "产品" ] ].map(([e, t]) => '<button type="button" class="pfh-parameter-editor-target-button' + (i === e ? " is-active" : "") + '" data-action="parameter-editor-target-mode" data-target-mode="' + e + '" aria-pressed="' + (i === e ? "true" : "false") + '">' + t + "</button>").join("");
                 return '<section class="pfh-parameter-editor"><header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，可自动判断纸盒/产品；判断不准时先选择对象 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header><div class="pfh-parameter-editor-tools"><span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + ga().primarySoft + ";color:" + ga().primary + ';font-size:12px;font-weight:800">纸盒 ' + a + '/2-3 边</span><span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + ga().secondarySoft + ";color:" + ga().secondary + ';font-size:12px;font-weight:800">产品 ' + n + '/2 边</span><span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + ga().border + ';border-radius:10px"><b style="padding:0 4px;color:' + ga().muted + ';font-size:12px">下条线：</b>' + o + '</span><button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button><button type="button" data-action="parameter-editor-retry">重新载入底图</button><button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button><div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + F(t) + '</div></div><div class="pfh-parameter-editor-stage' + (t.editorImage || t.editorLoadError ? "" : " is-loading") + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div><footer class="pfh-parameter-editor-foot"><span>默认自动判断；也可先选纸盒/产品，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + r + '">' + e.escapeHtml(t.editorStatus || "等待载入底图") + '</span><span class="pfh-parameter-editor-progress">' + U(t) + '</span></footer><details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + e.escapeHtml(D(t)) + "</pre></details></section>";
@@ -3399,47 +3399,122 @@
         function pe(t) {
             return (t => e.formatNumber(d(t)))(t) + "cm/" + (e => (d(e) / 2.54).toFixed(2).replace(/\.00$/, "").replace(/0$/, ""))(t) + "inch";
         }
-        function ge(e, t, a, n) {
-            if (!d(a)) return;
-            const r = "left" === n ? t.left - 36 : t.right + 36, i = pe(a);
-            e.save(), e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, de(e, r, t.top, r, t.bottom),
-            de(e, r - 16, t.top, r + 16, t.top), de(e, r - 16, t.bottom, r + 16, t.bottom),
-            e.font = "42px Arial";
-            const o = t.height > e.measureText(i).width + 48 ? 58 : 82;
-            e.translate(r + ("left" === n ? -o : o), (t.top + t.bottom) / 2), e.rotate(Math.PI / 2),
-            e.textAlign = "center", e.textBaseline = "middle", e.fillText(i, 0, 0), e.restore();
+        function ge(e, t, a, n, r, i) {
+            const o = a.x - t.x, s = a.y - t.y, l = Math.max(1, Math.hypot(o, s)), c = o / l, u = s / l, d = -s / l * r, p = o / l * r, g = pe(n);
+            e.save(), e.font = "42px Arial";
+            const f = Number(i && i.offset) || 36, m = l > e.measureText(g).width + 48 ? 26 : 46, h = e.measureText(g).width;
+            if (e.restore(), !i || !Array.isArray(i.avoidBoxes)) return {
+                offset: f,
+                textGap: m,
+                tangentShift: 0
+            };
+            const y = [ f, f + 44, f + 88, Math.max(18, f - 18), f + 132 ], b = [ 0, 60, -60, 120, -120, 180, -180 ], w = (t.x + a.x) / 2, k = (t.y + a.y) / 2, S = Math.atan2(s, o) > Math.PI / 2 || Math.atan2(s, o) < -Math.PI / 2 ? Math.atan2(s, o) + Math.PI : Math.atan2(s, o);
+            let v = null;
+            return y.forEach((e, n) => b.forEach((r, o) => {
+                const s = {
+                    x: t.x + d * e + c * r,
+                    y: t.y + p * e + u * r
+                }, l = {
+                    x: a.x + d * e + c * r,
+                    y: a.y + p * e + u * r
+                }, g = function(e, t, a, n, r, i, o) {
+                    const s = Math.abs(Math.cos(n)), l = Math.abs(Math.sin(n)), c = (a * s + 52 * l) / 2 + 10, u = (a * l + 52 * s) / 2 + 10, d = {
+                        left: r.x - c,
+                        top: r.y - u,
+                        right: r.x + c,
+                        bottom: r.y + u
+                    }, p = {
+                        left: Math.min(i.x, o.x) - 9,
+                        top: Math.min(i.y, o.y) - 9,
+                        right: Math.max(i.x, o.x) + 9,
+                        bottom: Math.max(i.y, o.y) + 9
+                    };
+                    return {
+                        left: Math.min(d.left, p.left),
+                        top: Math.min(d.top, p.top),
+                        right: Math.max(d.right, p.right),
+                        bottom: Math.max(d.bottom, p.bottom)
+                    };
+                }(0, 0, h, S, {
+                    x: w + d * (e + m) + c * r,
+                    y: k + p * (e + m) + u * r
+                }, s, l), f = i.avoidBoxes.reduce((e, t) => {
+                    return e + (a = g, n = t, Math.max(0, Math.min(a.right, n.right) - Math.max(a.left, n.left)) * Math.max(0, Math.min(a.bottom, n.bottom) - Math.max(a.top, n.top)));
+                    var a, n;
+                }, 0), y = i.bounds, b = 100 * f + 25 * (y ? Math.max(0, y.left - g.left) + Math.max(0, y.top - g.top) + Math.max(0, g.right - y.right) + Math.max(0, g.bottom - y.bottom) : 0) + (.2 * n + .03 * o);
+                (!v || b < v.score) && (v = {
+                    score: b,
+                    offset: e,
+                    textGap: m,
+                    tangentShift: r,
+                    box: g
+                });
+            })), v && i.avoidBoxes.push(v.box), v || {
+                offset: f,
+                textGap: m,
+                tangentShift: 0
+            };
         }
-        function fe(e, t, a, n) {
+        function fe(e, t, a, n, r) {
             if (!d(a)) return;
-            const r = n ? t.bottom + 36 : t.top - 36, i = pe(a);
-            e.save(), e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, de(e, t.left, r, t.right, r),
-            de(e, t.left, r - 16, t.left, r + 16), de(e, t.right, r - 16, t.right, r + 16),
-            e.font = "42px Arial", e.textAlign = "center";
-            const o = t.width > e.measureText(i).width + 48 ? 20 : 38;
-            e.textBaseline = n ? "top" : "bottom", e.fillText(i, (t.left + t.right) / 2, r + (n ? o : -o)),
-            e.restore();
+            if (r && Array.isArray(r.avoidBoxes)) {
+                const i = "left" === n ? t.left : t.right;
+                return void he(e, {
+                    x: i,
+                    y: t.top
+                }, {
+                    x: i,
+                    y: t.bottom
+                }, a, "left" === n ? 1 : -1, r);
+            }
+            const i = "left" === n ? t.left - 36 : t.right + 36, o = pe(a);
+            e.save(), e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, de(e, i, t.top, i, t.bottom),
+            de(e, i - 16, t.top, i + 16, t.top), de(e, i - 16, t.bottom, i + 16, t.bottom),
+            e.font = "42px Arial";
+            const s = t.height > e.measureText(o).width + 48 ? 58 : 82;
+            e.translate(i + ("left" === n ? -s : s), (t.top + t.bottom) / 2), e.rotate(Math.PI / 2),
+            e.textAlign = "center", e.textBaseline = "middle", e.fillText(o, 0, 0), e.restore();
         }
         function me(e, t, a, n, r) {
-            if (!d(n)) return;
-            const i = a.x - t.x, o = a.y - t.y, s = Math.hypot(i, o);
-            if (s < 8) return;
-            const l = -o / s * r, c = i / s * r, u = pe(n);
-            e.save(), e.font = "42px Arial";
-            const p = s > e.measureText(u).width + 48 ? 26 : 46, g = 16, f = {
-                x: t.x + 36 * l,
-                y: t.y + 36 * c
-            }, m = {
-                x: a.x + 36 * l,
-                y: a.y + 36 * c
-            };
-            e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, de(e, f.x, f.y, m.x, m.y),
-            de(e, f.x - l * g, f.y - c * g, f.x + l * g, f.y + c * g), de(e, m.x - l * g, m.y - c * g, m.x + l * g, m.y + c * g);
-            let h = Math.atan2(o, i);
-            (h > Math.PI / 2 || h < -Math.PI / 2) && (h += Math.PI), e.translate((f.x + m.x) / 2 + l * p, (f.y + m.y) / 2 + c * p),
-            e.rotate(h), e.textAlign = "center", e.textBaseline = "middle", e.fillText(u, 0, 0),
+            if (!d(a)) return;
+            if (r && Array.isArray(r.avoidBoxes)) {
+                const i = n ? t.bottom : t.top;
+                return void he(e, {
+                    x: t.left,
+                    y: i
+                }, {
+                    x: t.right,
+                    y: i
+                }, a, n ? 1 : -1, r);
+            }
+            const i = n ? t.bottom + 36 : t.top - 36, o = pe(a);
+            e.save(), e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, de(e, t.left, i, t.right, i),
+            de(e, t.left, i - 16, t.left, i + 16), de(e, t.right, i - 16, t.right, i + 16),
+            e.font = "42px Arial", e.textAlign = "center";
+            const s = t.width > e.measureText(o).width + 48 ? 20 : 38;
+            e.textBaseline = n ? "top" : "bottom", e.fillText(o, (t.left + t.right) / 2, i + (n ? s : -s)),
             e.restore();
         }
-        function he(e) {
+        function he(e, t, a, n, r, i) {
+            if (!d(n)) return;
+            const o = a.x - t.x, s = a.y - t.y, l = Math.hypot(o, s);
+            if (l < 8) return;
+            const c = -s / l * r, u = o / l * r, p = pe(n), g = ge(e, t, a, n, r, i), f = g.offset, m = g.textGap, h = g.tangentShift || 0, y = o / l, b = s / l, w = {
+                x: t.x + c * f + y * h,
+                y: t.y + u * f + b * h
+            }, k = {
+                x: a.x + c * f + y * h,
+                y: a.y + u * f + b * h
+            }, S = 16;
+            e.save(), e.font = "42px Arial", e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5,
+            de(e, w.x, w.y, k.x, k.y), de(e, w.x - c * S, w.y - u * S, w.x + c * S, w.y + u * S),
+            de(e, k.x - c * S, k.y - u * S, k.x + c * S, k.y + u * S);
+            let v = Math.atan2(s, o);
+            (v > Math.PI / 2 || v < -Math.PI / 2) && (v += Math.PI), e.translate((w.x + k.x) / 2 + c * m, (w.y + k.y) / 2 + u * m),
+            e.rotate(v), e.textAlign = "center", e.textBaseline = "middle", e.fillText(p, 0, 0),
+            e.restore();
+        }
+        function ye(e) {
             const t = e.reduce((e, t) => ({
                 x: e.x + t.x,
                 y: e.y + t.y
@@ -3452,18 +3527,18 @@
                 y: t.y / Math.max(1, e.length)
             };
         }
-        function ye(e, t, a) {
+        function be(e, t, a) {
             const n = t.x - e.x, r = t.y - e.y, i = Math.max(1, Math.hypot(n, r)), o = -r / i, s = n / i, l = (e.x + t.x) / 2, c = (e.y + t.y) / 2;
             return (a.x - l) * o + (a.y - c) * s >= 0 ? -1 : 1;
         }
-        function be(e, t, a, n, r) {
-            const i = t.map(e => ue(e, r)), o = he(i);
+        function we(e, t, a, n, r, i) {
+            const o = t.map(e => ue(e, r)), s = ye(o);
             N(a, n).forEach((t, r) => {
-                const s = i[2 * r], l = i[2 * r + 1], c = C(a, n, t);
-                s && l && me(e, s, l, c, ye(s, l, o));
+                const l = o[2 * r], c = o[2 * r + 1], u = C(a, n, t);
+                l && c && he(e, l, c, u, be(l, c, s), i);
             });
         }
-        function we(e, t, a, n, r) {
+        function ke(e, t, a, n, r) {
             const i = function(e, t, a) {
                 const n = Math.min(a.width / t.sourceWidth, a.height / t.sourceHeight);
                 return {
@@ -3474,41 +3549,49 @@
             }(0, a, r);
             e.save(), d(r.clipLeft) && (e.beginPath(), e.rect(r.clipLeft, 0, 1600 - r.clipLeft, 1600),
             e.clip()), e.drawImage(t, i.x, i.y, a.sourceWidth * i.scale, a.sourceHeight * i.scale);
-            const o = a.box ? ce(a.box, i) : null, s = a.product ? ce(a.product, i) : null, l = n.frontIsLength ? n.fields.packageLength : n.fields.packageWidth, c = n.frontIsLength ? n.fields.packageWidth : n.fields.packageLength, u = a.perspective && Object.fromEntries(Object.entries(a.perspective).map(([e, t]) => [ e, ue(t, i) ])), p = a.transparentTopology, g = a.productHeightSide || n.productHeightSide || "right", f = E(n, "box") ? n.manualPoints.box.slice(0, M("box")) : null, m = E(n, "product") ? n.manualPoints.product.slice(0, M("product")) : null;
-            if (n.singleBottle) return m ? be(e, m, n, "product", i) : s && (ge(e, s, n.fields.productHeight, g),
-            fe(e, s, n.fields.productLength, !1)), void e.restore();
-            f ? be(e, f, n, "box", i) : n.topologyApplied && p && function(e, t, a, n) {
+            const o = a.box ? ce(a.box, i) : null, s = a.product ? ce(a.product, i) : null, l = n.frontIsLength ? n.fields.packageLength : n.fields.packageWidth, c = n.frontIsLength ? n.fields.packageWidth : n.fields.packageLength, u = a.perspective && Object.fromEntries(Object.entries(a.perspective).map(([e, t]) => [ e, ue(t, i) ])), p = a.transparentTopology, g = a.productHeightSide || n.productHeightSide || "right", f = Number(r.width) < 600 ? {
+                avoidBoxes: [],
+                bounds: {
+                    left: Number(r.clipLeft) || r.x - 100,
+                    top: r.y - 80,
+                    right: r.x + r.width + 100,
+                    bottom: r.y + r.height + 80
+                }
+            } : null, m = E(n, "box") ? n.manualPoints.box.slice(0, M("box")) : null, h = E(n, "product") ? n.manualPoints.product.slice(0, M("product")) : null;
+            if (n.singleBottle) return h ? we(e, h, n, "product", i, f) : s && (fe(e, s, n.fields.productHeight, g, f),
+            me(e, s, n.fields.productLength, !1, f)), void e.restore();
+            m ? we(e, m, n, "box", i, f) : n.topologyApplied && p && function(e, t, a, n, r) {
                 if (!t) return 0;
-                const r = t.frontCorners && t.frontCorners.length ? he(t.frontCorners.map(e => ue(e, n))) : null;
-                if (!r) return 0;
-                const i = t.frontAxis || (a.frontIsLength ? "boxLength" : "boxDepth"), o = t.depthAxis || (a.frontIsLength ? "boxDepth" : "boxLength"), s = t.verticalAxis || "boxHeight";
-                let l = 0;
-                const c = (t, i, o) => {
+                const i = t.frontCorners && t.frontCorners.length ? ye(t.frontCorners.map(e => ue(e, n))) : null;
+                if (!i) return 0;
+                const o = t.frontAxis || (a.frontIsLength ? "boxLength" : "boxDepth"), s = t.depthAxis || (a.frontIsLength ? "boxDepth" : "boxLength"), l = t.verticalAxis || "boxHeight";
+                let c = 0;
+                const u = (t, o, s) => {
                     if (!t || !t.start || !t.end) return;
-                    const s = ue(t.start, n), c = ue(t.end, n), u = function(e, t, a) {
+                    const l = ue(t.start, n), u = ue(t.end, n), p = function(e, t, a) {
                         return "boxLength" === t ? e.fields.packageLength : "boxDepth" === t ? e.fields.packageWidth : "boxHeight" === t ? e.fields.packageHeight : a;
-                    }(a, i, o);
-                    d(u) && (me(e, s, c, u, ye(s, c, r)), l += 1);
+                    }(a, o, s);
+                    d(p) && (he(e, l, u, p, be(l, u, i), r), c += 1);
                 };
-                return c(t.heightEdge, s, a.fields.packageHeight), c(t.frontEdge, i, a.frontIsLength ? a.fields.packageLength : a.fields.packageWidth),
-                a.showSide && t.depthEdge && c(t.depthEdge, o, a.frontIsLength ? a.fields.packageWidth : a.fields.packageLength),
-                l;
-            }(e, p, n, i) || (n.showSide && u ? (me(e, u.outerTop, u.outerBottom, n.fields.packageHeight, 1),
-            me(e, u.junctionBottom, u.rightBottom, l, 1), me(e, u.outerTop, u.junctionTop, c, -1)) : o && (ge(e, o, n.fields.packageHeight, "left"),
-            fe(e, {
+                return u(t.heightEdge, l, a.fields.packageHeight), u(t.frontEdge, o, a.frontIsLength ? a.fields.packageLength : a.fields.packageWidth),
+                a.showSide && t.depthEdge && u(t.depthEdge, s, a.frontIsLength ? a.fields.packageWidth : a.fields.packageLength),
+                c;
+            }(e, p, n, i, f) || (n.showSide && u ? (he(e, u.outerTop, u.outerBottom, n.fields.packageHeight, 1, f),
+            he(e, u.junctionBottom, u.rightBottom, l, 1, f), he(e, u.outerTop, u.junctionTop, c, -1, f)) : o && (fe(e, o, n.fields.packageHeight, "left", f),
+            me(e, {
                 ...o,
                 left: o.left + (n.showSide ? a.sidePixels * i.scale : 0)
-            }, l, !0), n.showSide && function(e, t, a, n) {
+            }, l, !0, f), n.showSide && function(e, t, a, n) {
                 if (!d(n) || a < 8) return;
                 const r = Math.min(.3 * t.width, Math.max(30, a)), i = t.left + r, o = t.top - 30, s = t.left - 12, l = t.top + 12;
                 e.save(), e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, de(e, s, l, i, o),
                 de(e, s - 9, l - 14, s + 9, l + 14), de(e, i - 9, o - 14, i + 9, o + 14), e.translate((s + i) / 2 - 12, (l + o) / 2 - 60),
                 e.rotate(Math.atan2(o - l, i - s)), e.font = "40px Arial", e.textAlign = "center",
                 e.textBaseline = "middle", e.fillText(pe(n), 0, 0), e.restore();
-            }(e, o, a.sidePixels * i.scale, c))), m ? be(e, m, n, "product", i) : s && (ge(e, s, n.fields.productHeight, g),
-            fe(e, s, n.fields.productLength, !1)), e.restore();
+            }(e, o, a.sidePixels * i.scale, c))), h ? we(e, h, n, "product", i, f) : s && (fe(e, s, n.fields.productHeight, g, f),
+            me(e, s, n.fields.productLength, !1, f)), e.restore();
         }
-        function ke() {
+        function Se() {
             const e = document.createElement("canvas");
             e.width = 1600, e.height = 1600;
             const t = e.getContext("2d");
@@ -3517,13 +3600,13 @@
                 ctx: t
             };
         }
-        function Se(e, t, a, n, r, i) {
+        function ve(e, t, a, n, r, i) {
             let o = n;
             do {
                 e.font = (i || "400") + " " + o + "px Arial", o -= 1;
             } while (o >= r && e.measureText(t).width > a);
         }
-        function ve(e, t, a) {
+        function xe(e, t, a) {
             const n = String(t || "").replace(/\s+/g, " ").trim();
             if (!n) return [ "" ];
             const r = [];
@@ -3545,14 +3628,14 @@
                 i && e.measureText(n).width > a ? (r.push(i), i = t) : i = n;
             }), i && r.push(i), r.length ? r : [ "" ];
         }
-        function xe(e, t, a) {
+        function Ae(e, t, a) {
             const n = a || {};
             e.save();
             const r = Math.max(1, Number(n.maxWidth) || 1), i = Math.max(1, Number(n.maxHeight) || 1), o = Math.max(1, Number(n.startSize) || 24), s = Math.max(1, Math.min(o, Number(n.minSize) || 16)), l = Math.max(1, Number(n.maxLines) || 2), c = Number(n.lineHeight) || 1.06, u = n.weight || "400";
             let d = null;
             for (let a = o; a >= s; a -= 1) {
                 e.font = u + " " + a + "px Arial";
-                const n = ve(e, t, r), o = a * c;
+                const n = xe(e, t, r), o = a * c;
                 if (n.length <= l && n.length * o <= i) {
                     d = {
                         font: e.font,
@@ -3564,7 +3647,7 @@
             }
             if (!d) {
                 e.font = u + " " + s + "px Arial";
-                const a = ve(e, t, r);
+                const a = xe(e, t, r);
                 d = {
                     font: e.font,
                     lines: a,
@@ -3576,14 +3659,14 @@
             return d.lines.forEach((t, a) => e.fillText(t, Number(n.x) || 0, p + a * d.lineHeight)),
             e.restore(), d;
         }
-        async function Ae(t) {
+        async function Ie(t) {
             const a = w(t);
             return a ? (n[a] || (n[a] = e.cloudRequest("/parameter-logo?brand=" + encodeURIComponent(a), {
                 method: "GET"
             }).then(e => e && e.dataUrl ? X(e.dataUrl) : null).catch(() => null)), n[a]) : null;
         }
-        function Ie(e, t, a, n, r) {
-            const {canvas: i, ctx: o} = ke();
+        function Me(e, t, a, n, r) {
+            const {canvas: i, ctx: o} = Se();
             !function(e, t, a) {
                 if (t) {
                     const a = 500, n = 120, r = Math.min(a / t.naturalWidth, n / t.naturalHeight), i = t.naturalWidth * r, o = t.naturalHeight * r;
@@ -3591,11 +3674,11 @@
                 }
                 const n = String(a || "").trim();
                 n && !/^(AMZ|ODM|OEM|DOWMOO)$/i.test(n) && (e.fillStyle = "#080808", e.textAlign = "center",
-                e.textBaseline = "middle", Se(e, n, 500, 70, 38, "400"), e.fillText(n, 443, 240));
+                e.textBaseline = "middle", ve(e, n, 500, 70, 38, "400"), e.fillText(n, 443, 240));
             }(o, r, n.brand);
             const s = String(a.fields.englishName || "").toUpperCase();
             o.strokeStyle = "#111", o.lineWidth = 4, o.strokeRect(75, 393, 736, 144), o.fillStyle = "#080808",
-            o.textAlign = "center", o.textBaseline = "middle", xe(o, s, {
+            o.textAlign = "center", o.textBaseline = "middle", Ae(o, s, {
                 x: 443,
                 y: 465,
                 maxWidth: 680,
@@ -3609,10 +3692,10 @@
             [ [ "NAME", a.fields.englishName || "" ], [ "NET CONTENT", a.fields.netContent ], [ "SHELF LIFE", a.fields.shelfLife ], [ "STORE", a.fields.store ], [ "FEATURES", a.fields.features ], [ "WEIGHT", a.fields.grossWeight ] ].forEach((e, t) => {
                 const a = 709 + 123 * t;
                 o.fillStyle = "#050505", o.fillRect(70, a, 230, 67), o.fillStyle = "#fff", o.textAlign = "center",
-                o.textBaseline = "middle", Se(o, e[0], 205, 32, 20, "400"), o.fillText(e[0], 185, a + 34),
+                o.textBaseline = "middle", ve(o, e[0], 205, 32, 20, "400"), o.fillText(e[0], 185, a + 34),
                 o.fillStyle = "#111", o.textAlign = "left";
                 const n = String(e[1] || "");
-                "NAME" === e[0] ? xe(o, n, {
+                "NAME" === e[0] ? Ae(o, n, {
                     x: 326,
                     y: a + 34,
                     maxWidth: 455,
@@ -3623,10 +3706,10 @@
                     lineHeight: 1.04,
                     weight: "400",
                     align: "left"
-                }) : (Se(o, n, 455, 34, 20, "400"), o.fillText(n, 326, a + 34)), o.setLineDash([ 8, 5 ]),
+                }) : (ve(o, n, 455, 34, 20, "400"), o.fillText(n, 326, a + 34)), o.setLineDash([ 8, 5 ]),
                 o.lineWidth = 2, de(o, 303, a + 67, 785, a + 67), o.setLineDash([]);
             });
-            return we(o, e, t, a, {
+            return ke(o, e, t, a, {
                 x: 960,
                 y: 300,
                 width: 470,
@@ -3634,7 +3717,7 @@
                 clipLeft: 815
             }), i.toDataURL("image/jpeg", .96);
         }
-        async function Me(t, a) {
+        async function Te(t, a) {
             const n = k(t);
             let r = !1;
             if (!n.file) return;
@@ -3650,7 +3733,7 @@
                     width: e.naturalWidth,
                     height: e.naturalHeight
                 });
-                const [a, s] = await Promise.all([ S(), Ae(t.brand) ]);
+                const [a, s] = await Promise.all([ S(), Ie(t.brand) ]);
                 try {
                     n.analysis = le(e, n, a), i && _(n, "自动图像分析成功，手动路径将优先覆盖", {
                         hasBox: Boolean(n.analysis && n.analysis.box),
@@ -3675,14 +3758,14 @@
                     }, "warn"), !n.analysis) throw t;
                 }
                 n.productResult = function(e, t, a) {
-                    const {canvas: n, ctx: r} = ke();
-                    return we(r, e, t, a, {
+                    const {canvas: n, ctx: r} = Se();
+                    return ke(r, e, t, a, {
                         x: 380,
                         y: 230,
                         width: 840,
                         height: 1080
                     }), n.toDataURL("image/jpeg", .96);
-                }(e, n.analysis, n), n.englishResult = Ie(e, n.analysis, n, t, s), r = !0, i && _(n, "两张参数图生成成功", {
+                }(e, n.analysis, n), n.englishResult = Me(e, n.analysis, n, t, s), r = !0, i && _(n, "两张参数图生成成功", {
                     productResultLength: n.productResult.length,
                     englishResultLength: n.englishResult.length
                 }), n.fields.englishName || (n.error = "未读取到英文产品名，请手动填写英文产品名后重新生成。");
@@ -3694,16 +3777,16 @@
                 URL.revokeObjectURL(o), n.busy = !1, e.render(), r && a && a.focusSave && e.focusSaveButton();
             }
         }
-        const Te = "参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。";
-        function Ee(e) {
+        const Ee = "参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。";
+        function Ce(e) {
             return Boolean(e && (/\.png$/i.test(e.name || "") || /^image\/png$/i.test(e.type || "")));
         }
-        function Ce(t) {
-            k(t).error = Te, e.render(), e.showToast && e.showToast(Te);
+        function Le(t) {
+            k(t).error = Ee, e.render(), e.showToast && e.showToast(Ee);
         }
-        async function Le(t, a, n) {
+        async function Pe(t, a, n) {
             const o = k(a);
-            if (!Ee(t)) return void Ce(a);
+            if (!Ce(t)) return void Le(a);
             if (o.file = t, o.fileName = t.name, o.showSide = null, o.showSideOverride = !1,
             o.frontAxisOverride = !1, o.topologyApplied = !1, o.topologyRuleVersion = "", o.topologyMessage = "",
             o.editorImage = null, o.editorSourceUrl = "", o.editorOpen = !1, o.editorDragging = null,
@@ -3726,14 +3809,14 @@
             !o.fields.englishName) {
                 o.busy = !0, o.error = "", e.render();
                 try {
-                    await Pe(a, o);
+                    await Ne(a, o);
                 } catch (e) {} finally {
                     o.busy = !1;
                 }
             }
-            await Me(a, n);
+            await Te(a, n);
         }
-        async function Pe(t, a) {
+        async function Ne(t, a) {
             const n = await e.collectExtra(t.sku);
             if (n && n.englishName && (a.fields.englishName = g(n.englishName, t && t.brand)),
             a.fields.englishName || (a.fields.englishName = m(n && n.liveData || t)), n && n.liveData) {
@@ -3742,7 +3825,7 @@
             }
             a.featuresDirty || (a.fields.features = y(t, a.fields.englishName));
         }
-        function Ne(t, a, n) {
+        function Ue(t, a, n) {
             const r = k(n);
             if ("parameter-editor-close" === t) return J(r, "button"), !0;
             if ("parameter-editor-target-mode" === t) {
@@ -3813,7 +3896,7 @@
                     productPoints: r.manualPoints.product.length,
                     boxTypes: N(r, "box"),
                     productTypes: N(r, "product")
-                }), J(r, "apply"), Me(n), !0) : (e.showToast("请先完成纸盒或产品的独立尺寸边。"), !0);
+                }), J(r, "apply"), Te(n), !0) : (e.showToast("请先完成纸盒或产品的独立尺寸边。"), !0);
             }
             return !1;
         }
@@ -3832,11 +3915,11 @@
                     const t = document.querySelector("#" + e.panelId + " .pfh-parameter-file");
                     return t && t.click(), !0;
                 }
-                return "parameter-image-regenerate" === t ? (Me(n), !0) : "parameter-image-refresh-data" === t ? (async function(t) {
+                return "parameter-image-regenerate" === t ? (Te(n), !0) : "parameter-image-refresh-data" === t ? (async function(t) {
                     const a = k(t);
                     a.busy = !0, a.error = "", e.render();
                     try {
-                        await Pe(t, a), a.file && await Me(t);
+                        await Ne(t, a), a.file && await Te(t);
                     } catch (e) {
                         a.error = "英文产品名读取失败，请手动填写。";
                     } finally {
@@ -3876,7 +3959,7 @@
                         sku: e && e.sku || "",
                         hasCachedImage: Boolean(t.editorImage)
                     }), Z(e));
-                }(n), !0) : !!/^parameter-editor-/.test(t) && Ne(t, a, n);
+                }(n), !0) : !!/^parameter-editor-/.test(t) && Ue(t, a, n);
             },
             handleInput: function(e, t) {
                 if (!e.target.classList.contains("pfh-parameter-field")) return !1;
@@ -3888,17 +3971,17 @@
                 const a = k(t);
                 if (e.target.classList.contains("pfh-parameter-file")) {
                     const a = e.target.files && e.target.files[0];
-                    return a && Le(a, t), e.target.value = "", !0;
+                    return a && Pe(a, t), e.target.value = "", !0;
                 }
                 return e.target.classList.contains("pfh-parameter-side") ? (a.showSide = Boolean(e.target.checked),
-                a.showSideOverride = !0, a.file && Me(t), !0) : "pfh-parameter-front" === e.target.name ? (a.frontIsLength = "length" === e.target.value,
-                a.frontAxisOverride = !0, a.showSide = null, a.file && Me(t), !0) : !!e.target.classList.contains("pfh-parameter-field") && (a.file && Me(t),
+                a.showSideOverride = !0, a.file && Te(t), !0) : "pfh-parameter-front" === e.target.name ? (a.frontIsLength = "length" === e.target.value,
+                a.frontAxisOverride = !0, a.showSide = null, a.file && Te(t), !0) : !!e.target.classList.contains("pfh-parameter-field") && (a.file && Te(t),
                 !0);
             },
             handleDrop: function(t, a, n) {
-                const r = Array.from(t || []).filter(Boolean), i = r.find(Ee);
-                i ? (r.some(e => /^image\//i.test(e.type || "") && !Ee(e)) && e.showToast && e.showToast("已读取 PNG；其他格式图片已忽略，请使用透明 PNG。"),
-                Le(i, a, n)) : r.length && Ce(a);
+                const r = Array.from(t || []).filter(Boolean), i = r.find(Ce);
+                i ? (r.some(e => /^image\//i.test(e.type || "") && !Ce(e)) && e.showToast && e.showToast("已读取 PNG；其他格式图片已忽略，请使用透明 PNG。"),
+                Pe(i, a, n)) : r.length && Le(a);
             },
             loadRules: v,
             generateBridgeAssets: async function(e, a) {
@@ -3911,7 +3994,7 @@
                 const o = new File([ i ], "透明.png", {
                     type: "image/png"
                 });
-                await Le(o, e);
+                await Pe(o, e);
                 const s = k(e);
                 if (s.error && (!s.productResult || !s.englishResult)) throw new Error(s.error);
                 if (!s.productResult || !s.englishResult) throw new Error("悬浮助手参数图生成失败");
@@ -9232,10 +9315,9 @@
             await Zs(s, "中文-简体");
             const e = Xs(s);
             await Zs(s, "英语(美国)");
-            const t = Xs(s), a = !(e.advantages && e.efficacy && t.advantages && t.efficacy && t.ingredients && t.directions);
+            const t = Xs(s), a = !(e.advantages && e.efficacy && e.directions && t.advantages && t.efficacy && t.ingredients && t.directions);
             if (!e.efficacy && !e.sellingPoints) throw new Error("中文产品卖点为空，无法生成三句产品功效");
             if (!t.ingredients && !e.ingredients) throw new Error("中文成分为空，无法生成英文 INGREDIENTS");
-            if (!t.directions && !e.directions) throw new Error("中文使用方法为空，无法生成英文 DIRECTIONS OF SAFE USE");
             let r = {};
             if (a && (Xy("魔搭 Qwen 正在整理玩具文案..."), r = await Wy("/toy-copywriting/complete", {
                 method: "POST",
@@ -9252,23 +9334,26 @@
                     needsEnglishAdvantages: !t.advantages,
                     needsChineseEfficacy: !e.efficacy,
                     needsEnglishEfficacy: !t.efficacy,
+                    needsChineseDirections: !e.directions,
                     needsEnglishIngredients: !t.ingredients,
                     needsEnglishDirections: !t.directions
                 }
             }), !r || !r.ok)) throw new Error(r && r.error ? r.error : "AI 未返回有效玩具文案");
-            const l = e.advantages || String(r.chineseAdvantages || "").trim(), u = t.advantages || String(r.englishAdvantages || "").trim(), d = e.efficacy || String(r.chineseEfficacy || "").trim(), p = t.efficacy || String(r.englishEfficacy || "").trim();
+            const l = e.advantages || String(r.chineseAdvantages || "").trim(), u = t.advantages || String(r.englishAdvantages || "").trim(), d = e.efficacy || String(r.chineseEfficacy || "").trim(), p = t.efficacy || String(r.englishEfficacy || "").trim(), g = e.directions || String(r.chineseDirections || "").trim(), f = t.directions || String(r.englishDirections || "").trim();
             if (!e.advantages && !l) throw new Error("未生成有效的中文产品优势");
             if (!t.advantages && !u) throw new Error("未生成有效的英文 PRODUCT ADVANTAGES");
             if (!e.efficacy && !d) throw new Error("未根据产品卖点生成中文产品功效");
             if (!t.efficacy && !p) throw new Error("未生成英文 PRODUCT EFFICACY");
-            const g = {};
-            e.advantages || (g.advantages = l), e.efficacy || (g.efficacy = d);
-            const f = {};
-            if (t.advantages || (f.advantages = u), t.efficacy || (f.efficacy = p), t.ingredients || (f.ingredients = String(r.englishIngredients || "").trim()),
-            t.directions || (f.directions = String(r.englishDirections || "").trim()), !Object.keys(g).length && !Object.keys(f).length) return Xy("玩具文案已完整，无需补充"),
+            if (!e.directions && !g) throw new Error("未从产品卖点和产品优势生成中文使用方法");
+            if (!t.directions && !f) throw new Error("未生成英文 DIRECTIONS OF SAFE USE");
+            const m = {};
+            e.advantages || (m.advantages = l), e.efficacy || (m.efficacy = d), e.directions || (m.directions = g);
+            const h = {};
+            if (t.advantages || (h.advantages = u), t.efficacy || (h.efficacy = p), t.ingredients || (h.ingredients = String(r.englishIngredients || "").trim()),
+            t.directions || (h.directions = f), !Object.keys(m).length && !Object.keys(h).length) return Xy("玩具文案已完整，无需补充"),
             0;
-            if ("" === f.ingredients || "" === f.directions) throw new Error("Gemini 返回的英文成分或使用方法为空");
-            if (await Zs(s, "中文-简体"), c += tl(s, g), await Zs(s, "英语(美国)"), c += tl(s, f), !c) throw new Error("目标字段未写入，PLM 表单结构可能已变化");
+            if ("" === h.ingredients || "" === h.directions) throw new Error("Gemini 返回的英文成分或使用方法为空");
+            if (await Zs(s, "中文-简体"), c += tl(s, m), await Zs(s, "英语(美国)"), c += tl(s, h), !c) throw new Error("目标字段未写入，PLM 表单结构可能已变化");
             if (!await _p()) throw new Error("文案已填写，但 PLM 未返回「保存成功」");
             return Yy("success", "玩具文案智能补充完成", n.sku + " | " + c + "个字段"), zy("toy_copywriting_supplement_success", {
                 sku: n.sku,

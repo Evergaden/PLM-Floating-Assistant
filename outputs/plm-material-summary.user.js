@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.93
+// @version      2.7.94
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.93';
+  const SCRIPT_VERSION = '2.7.94';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1383,8 +1383,75 @@
       return sizeText(value) + 'cm/' + inchText(value) + 'inch';
     }
 
-    function drawVerticalDimension(ctx, rect, value, side) {
+    function dimensionLayoutBox(start, end, labelWidth, angle, center, lineStart, lineEnd) {
+      const textHeight = 52;
+      const cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle));
+      const halfWidth = (labelWidth * cos + textHeight * sin) / 2 + 10;
+      const halfHeight = (labelWidth * sin + textHeight * cos) / 2 + 10;
+      const textBox = { left: center.x - halfWidth, top: center.y - halfHeight, right: center.x + halfWidth, bottom: center.y + halfHeight };
+      const lineBox = {
+        left: Math.min(lineStart.x, lineEnd.x) - 9,
+        top: Math.min(lineStart.y, lineEnd.y) - 9,
+        right: Math.max(lineStart.x, lineEnd.x) + 9,
+        bottom: Math.max(lineStart.y, lineEnd.y) + 9,
+      };
+      return {
+        left: Math.min(textBox.left, lineBox.left),
+        top: Math.min(textBox.top, lineBox.top),
+        right: Math.max(textBox.right, lineBox.right),
+        bottom: Math.max(textBox.bottom, lineBox.bottom),
+      };
+    }
+
+    function dimensionOverlapArea(left, right) {
+      const width = Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left));
+      const height = Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
+      return width * height;
+    }
+
+    function chooseDimensionPlacement(ctx, start, end, value, normalSign, options) {
+      const dx = end.x - start.x, dy = end.y - start.y;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const tx = dx / length, ty = dy / length;
+      const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
+      const label = dimensionLabel(value);
+      ctx.save(); ctx.font = '42px Arial';
+      const baseOffset = Number(options && options.offset) || 36;
+      const textGap = length > ctx.measureText(label).width + 48 ? 26 : 46;
+      const labelWidth = ctx.measureText(label).width;
+      ctx.restore();
+      if (!options || !Array.isArray(options.avoidBoxes)) return { offset: baseOffset, textGap, tangentShift: 0 };
+      const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, Math.max(18, baseOffset - 18), baseOffset + 132];
+      const tangentShifts = [0, 60, -60, 120, -120, 180, -180];
+      const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      const angle = Math.atan2(dy, dx) > Math.PI / 2 || Math.atan2(dy, dx) < -Math.PI / 2 ? Math.atan2(dy, dx) + Math.PI : Math.atan2(dy, dx);
+      let best = null;
+      normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => {
+        const lineStart = { x: start.x + nx * offset + tx * tangentShift, y: start.y + ny * offset + ty * tangentShift };
+        const lineEnd = { x: end.x + nx * offset + tx * tangentShift, y: end.y + ny * offset + ty * tangentShift };
+        const textCenter = { x: middle.x + nx * (offset + textGap) + tx * tangentShift, y: middle.y + ny * (offset + textGap) + ty * tangentShift };
+        const box = dimensionLayoutBox(start, end, labelWidth, angle, textCenter, lineStart, lineEnd);
+        const overlap = options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box, other), 0);
+        const bounds = options.bounds;
+        const outside = bounds
+          ? Math.max(0, bounds.left - box.left) + Math.max(0, bounds.top - box.top) + Math.max(0, box.right - bounds.right) + Math.max(0, box.bottom - bounds.bottom)
+          : 0;
+        const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03;
+        const score = overlap * 100 + outside * 25 + movementPenalty;
+        if (!best || score < best.score) best = { score, offset, textGap, tangentShift, box };
+      }));
+      if (best) options.avoidBoxes.push(best.box);
+      return best || { offset: baseOffset, textGap, tangentShift: 0 };
+    }
+
+    function drawVerticalDimension(ctx, rect, value, side, options) {
       if (!number(value)) return;
+      if (options && Array.isArray(options.avoidBoxes)) {
+        const x = side === 'left' ? rect.left : rect.right;
+        const start = { x, y: rect.top }, end = { x, y: rect.bottom };
+        drawAngledDimension(ctx, start, end, value, side === 'left' ? 1 : -1, options);
+        return;
+      }
       const x = side === 'left' ? rect.left - 36 : rect.right + 36;
       const label = dimensionLabel(value);
       ctx.save();
@@ -1397,8 +1464,13 @@
       ctx.fillText(label, 0, 0); ctx.restore();
     }
 
-    function drawHorizontalDimension(ctx, rect, value, below) {
+    function drawHorizontalDimension(ctx, rect, value, below, options) {
       if (!number(value)) return;
+      if (options && Array.isArray(options.avoidBoxes)) {
+        const y = below ? rect.bottom : rect.top;
+        drawAngledDimension(ctx, { x: rect.left, y }, { x: rect.right, y }, value, below ? 1 : -1, options);
+        return;
+      }
       const y = below ? rect.bottom + 36 : rect.top - 36;
       const label = dimensionLabel(value);
       ctx.save();
@@ -1421,17 +1493,20 @@
       ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
-    function drawAngledDimension(ctx, start, end, value, normalSign) {
+    function drawAngledDimension(ctx, start, end, value, normalSign, options) {
       if (!number(value)) return;
       const dx = end.x - start.x, dy = end.y - start.y;
       const length = Math.hypot(dx, dy);
       if (length < 8) return;
       const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
       const label = dimensionLabel(value);
+      const placement = chooseDimensionPlacement(ctx, start, end, value, normalSign, options);
+      const offset = placement.offset, textGap = placement.textGap, tangentShift = placement.tangentShift || 0;
+      const tx = dx / length, ty = dy / length;
+      const a = { x: start.x + nx * offset + tx * tangentShift, y: start.y + ny * offset + ty * tangentShift };
+      const b = { x: end.x + nx * offset + tx * tangentShift, y: end.y + ny * offset + ty * tangentShift };
+      const tick = 16;
       ctx.save(); ctx.font = '42px Arial';
-      const offset = 36, textGap = length > ctx.measureText(label).width + 48 ? 26 : 46, tick = 16;
-      const a = { x: start.x + nx * offset, y: start.y + ny * offset };
-      const b = { x: end.x + nx * offset, y: end.y + ny * offset };
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, a.x, a.y, b.x, b.y);
       line(ctx, a.x - nx * tick, a.y - ny * tick, a.x + nx * tick, a.y + ny * tick);
@@ -1455,18 +1530,18 @@
       return ((center.x - middle.x) * nx + (center.y - middle.y) * ny) >= 0 ? -1 : 1;
     }
 
-    function drawManualDimensionPath(ctx, sourcePoints, session, target, fit) {
+    function drawManualDimensionPath(ctx, sourcePoints, session, target, fit, layout) {
       const points = sourcePoints.map((point) => mapPoint(point, fit));
       const center = manualPathCenter(points);
       const types = autoAssignedManualTypes(session, target);
       types.forEach((type, index) => {
         const start = points[index * 2], end = points[index * 2 + 1];
         const value = manualDimensionValue(session, target, type);
-        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center));
+        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), layout);
       });
     }
 
-    function drawTopologyDimensions(ctx, topology, session, fit) {
+    function drawTopologyDimensions(ctx, topology, session, fit, layout) {
       if (!topology) return 0;
       const center = topology.frontCorners && topology.frontCorners.length
         ? manualPathCenter(topology.frontCorners.map((point) => mapPoint(point, fit)))
@@ -1481,7 +1556,7 @@
         const start = mapPoint(edge.start, fit), end = mapPoint(edge.end, fit);
         const value = axisValue(session, axis, fallback);
         if (!number(value)) return;
-        drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center));
+        drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), layout);
         count += 1;
       };
       drawEdge(topology.heightEdge, verticalAxis, session.fields.packageHeight);
@@ -1503,34 +1578,38 @@
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
       const topology = analysis.transparentTopology;
       const productHeightSide = analysis.productHeightSide || session.productHeightSide || 'right';
+      const dimensionLayout = Number(area.width) < 600 ? {
+        avoidBoxes: [],
+        bounds: { left: Number(area.clipLeft) || area.x - 100, top: area.y - 80, right: area.x + area.width + 100, bottom: area.y + area.height + 80 },
+      } : null;
       const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;
       const manualProduct = completeManualPath(session, 'product') ? session.manualPoints.product.slice(0, requiredManualPoints('product')) : null;
       if (session.singleBottle) {
-        if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
+        if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit, dimensionLayout);
         else if (product) {
-          drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide);
-          drawHorizontalDimension(ctx, product, session.fields.productLength, false);
+          drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide, dimensionLayout);
+          drawHorizontalDimension(ctx, product, session.fields.productLength, false, dimensionLayout);
         }
         ctx.restore();
         return;
       }
       if (manualBox) {
-        drawManualDimensionPath(ctx, manualBox, session, 'box', fit);
-      } else if (session.topologyApplied && topology && drawTopologyDimensions(ctx, topology, session, fit)) {
+        drawManualDimensionPath(ctx, manualBox, session, 'box', fit, dimensionLayout);
+      } else if (session.topologyApplied && topology && drawTopologyDimensions(ctx, topology, session, fit, dimensionLayout)) {
         // The learned topology has already selected the exact front, depth and height edges.
       } else if (session.showSide && perspective) {
-        drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
-        drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
-        drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1);
+        drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1, dimensionLayout);
+        drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1, dimensionLayout);
+        drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1, dimensionLayout);
       } else if (box) {
-        drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left');
-        drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true);
+        drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left', dimensionLayout);
+        drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true, dimensionLayout);
         if (session.showSide) drawSideDimension(ctx, box, analysis.sidePixels * fit.scale, sideValue);
       }
-      if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit);
+      if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit, dimensionLayout);
       else if (product) {
-        drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide);
-        drawHorizontalDimension(ctx, product, session.fields.productLength, false);
+        drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide, dimensionLayout);
+        drawHorizontalDimension(ctx, product, session.fields.productLength, false, dimensionLayout);
       }
       ctx.restore();
     }
