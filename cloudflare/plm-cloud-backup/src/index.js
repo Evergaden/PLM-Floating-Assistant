@@ -1424,6 +1424,20 @@ function sanitizeToyDirections(value) {
   return directions;
 }
 
+function sanitizeChineseToyDirections(value, allowLengthFallback = false) {
+  const directions = splitToyCopywritingList(value).slice(0, 3);
+  if (directions.length !== 3) throw new Error('Gemini must return exactly three Chinese directions');
+  const characterCounts = directions.map((item) => (item.match(/[\u3400-\u9fff]/g) || []).length);
+  const invalidCounts = characterCounts.filter((count) => count < 6 || count > 32);
+  if (invalidCounts.length && !allowLengthFallback) {
+    throw new Error('Chinese directions length validation failed: ' + characterCounts.join(', ') + ' characters');
+  }
+  if (allowLengthFallback && characterCounts.some((count) => count < 4 || count > 40)) {
+    throw new Error('AI returned unusable Chinese directions');
+  }
+  return directions;
+}
+
 function splitToyCopywritingList(value) {
   const source = Array.isArray(value)
     ? value
@@ -1470,12 +1484,15 @@ async function handleToyCopywritingComplete(request, env) {
   const needsAdvantages = Boolean(body && (body.needsChineseAdvantages || body.needsEnglishAdvantages));
   const needsChineseEfficacy = Boolean(body && body.needsChineseEfficacy);
   const needsEnglishEfficacy = Boolean(body && body.needsEnglishEfficacy);
+  const needsChineseDirections = Boolean(body && body.needsChineseDirections);
   const needsEnglishIngredients = Boolean(body && body.needsEnglishIngredients);
   const needsEnglishDirections = Boolean(body && body.needsEnglishDirections);
   if (!sku) return json({ error: 'sku required' }, 400);
   if (needsAdvantages && !chineseAdvantages && !chineseSellingPoints && !name) return json({ error: 'Chinese advantages source required' }, 400);
   if (needsChineseEfficacy && !chineseSellingPoints) return json({ error: 'Chinese selling points required for efficacy' }, 400);
   if (needsEnglishEfficacy && !needsChineseEfficacy && !chineseEfficacy) return json({ error: 'Chinese efficacy required for English translation' }, 400);
+  if (needsChineseDirections && !chineseSellingPoints && !chineseAdvantages) return json({ error: 'Chinese selling points or advantages required for directions' }, 400);
+  if (needsEnglishDirections && !needsChineseDirections && !chineseDirections) return json({ error: 'Chinese directions required for English translation' }, 400);
   try {
     const options = {
       model: getModelScopeModel(env),
@@ -1485,14 +1502,15 @@ async function handleToyCopywritingComplete(request, env) {
       responseMimeType: 'application/json',
       system: [
         'You complete bilingual product-copy fields for a toy product.',
-        'Return JSON only with this exact schema: {"chineseAdvantages":"...","englishAdvantages":"...","chineseEfficacy":["...","...","..."],"englishEfficacy":["...","...","..."],"englishIngredients":"...","englishDirections":["...","...","..."]}.',
+        'Return JSON only with this exact schema: {"chineseAdvantages":"...","englishAdvantages":"...","chineseEfficacy":["...","...","..."],"englishEfficacy":["...","...","..."],"chineseDirections":["...","...","..."],"englishIngredients":"...","englishDirections":["...","...","..."]}.',
         'If Chinese advantages are supplied, preserve their meaning and numbering; otherwise derive 3 to 5 concise numbered Chinese advantages only from the supplied selling points and product name.',
         'Translate Chinese advantages into concise natural US English for englishAdvantages. Do not add unsupported claims.',
         'When Chinese efficacy needs generation, derive exactly three short Chinese efficacy sentences only from the Chinese selling points.',
         'Each generated Chinese efficacy sentence must contain about 15 Chinese characters, with an allowed range of 10 to 20 Chinese characters.',
         'Translate the final Chinese efficacy sentence by sentence into natural concise US English for englishEfficacy, preserving its order and count.',
+        'If Chinese directions are empty, derive exactly three concise Chinese usage sentences only from the supplied Chinese selling points and Chinese product advantages. Do not invent unsupported steps, measurements, age ranges or safety claims.',
+        'Translate the final Chinese directions sentence by sentence into concise natural English for englishDirections, preserving order and count.',
         'Translate Chinese ingredients directly into englishIngredients, preserving the source order and material meaning. Do not invent ingredients.',
-        'Summarize Chinese directions into exactly three English imperative sentences.',
         'Every English direction must contain 8 to 15 words, excluding its array position, and must be extremely concise.',
         'Do not add warnings, age grades, certifications, medical claims, headings or explanations.',
       ].join(' '),
@@ -1504,6 +1522,7 @@ async function handleToyCopywritingComplete(request, env) {
         'Existing Chinese product efficacy: ' + chineseEfficacy,
         'Chinese ingredients/materials: ' + chineseIngredients,
         'Chinese directions: ' + chineseDirections,
+        'Needs Chinese directions: ' + (needsChineseDirections ? 'yes' : 'no'),
       ].join('\n'),
     };
     let parsed = null;
@@ -1513,20 +1532,21 @@ async function handleToyCopywritingComplete(request, env) {
       try {
         const attemptOptions = attempt === 0 ? options : {
           ...options,
-          prompt: options.prompt + '\nCorrection attempt ' + attempt + ': the previous response failed validation. Rewrite all three Chinese efficacy sentences to target 12 to 16 Chinese characters and never exceed 20, then translate those corrected sentences into English in the same order.',
+          prompt: options.prompt + '\nCorrection attempt ' + attempt + ': the previous response failed validation. Keep the exact JSON schema, return exactly three concise Chinese efficacy sentences when requested, exactly three concise Chinese directions when requested, and translate each final Chinese list in the same order.',
         };
         const preferred = await callPreferredAiText(env, attemptOptions, (candidateResult) => {
           const candidate = parseToyCopywritingAiJson(candidateResult.text);
           const completedChineseAdvantages = cleanText(candidate && candidate.chineseAdvantages, 5000);
           const englishAdvantages = cleanText(candidate && candidate.englishAdvantages, 5000);
           const generatedChineseEfficacy = needsChineseEfficacy ? sanitizeChineseToyEfficacy(candidate && candidate.chineseEfficacy, attempt === 2) : splitToyCopywritingList(chineseEfficacy);
+          const generatedChineseDirections = needsChineseDirections ? sanitizeChineseToyDirections(candidate && candidate.chineseDirections, attempt === 2) : splitToyCopywritingList(chineseDirections).slice(0, 3);
           const efficacyCount = generatedChineseEfficacy.length || 1;
           const englishEfficacy = needsEnglishEfficacy ? sanitizeEnglishToyEfficacy(candidate && candidate.englishEfficacy, efficacyCount) : [];
           const englishIngredients = needsEnglishIngredients ? cleanText(candidate && candidate.englishIngredients, 5000) : '';
           const directions = needsEnglishDirections ? sanitizeToyDirections(candidate && candidate.englishDirections) : [];
           if (needsAdvantages && (!completedChineseAdvantages || !englishAdvantages)) throw new Error('AI returned empty toy advantages');
           if (needsEnglishIngredients && !englishIngredients) throw new Error('AI returned empty English ingredients');
-          return { completedChineseAdvantages, englishAdvantages, generatedChineseEfficacy, englishEfficacy, englishIngredients, directions };
+          return { completedChineseAdvantages, englishAdvantages, generatedChineseEfficacy, englishEfficacy, generatedChineseDirections, englishIngredients, directions };
         });
         result = preferred.result;
         parsed = preferred.value;
@@ -1542,6 +1562,7 @@ async function handleToyCopywritingComplete(request, env) {
       englishAdvantages: parsed.englishAdvantages,
       chineseEfficacy: parsed.generatedChineseEfficacy.map((item, index) => (index + 1) + '. ' + item).join('\n'),
       englishEfficacy: parsed.englishEfficacy.map((item, index) => (index + 1) + '. ' + item).join('\n'),
+      chineseDirections: parsed.generatedChineseDirections.map((item, index) => (index + 1) + '. ' + item).join('\n'),
       englishIngredients: parsed.englishIngredients,
       englishDirections: parsed.directions.map((item, index) => (index + 1) + '. ' + item).join('\n'),
       model: result.model,

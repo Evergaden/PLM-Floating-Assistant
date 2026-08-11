@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.91
+// @version      2.7.93
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.91';
+  const SCRIPT_VERSION = '2.7.93';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -12326,10 +12326,9 @@
       const chinese = readToyCopywritingFields(drawer);
       await switchToyCopywritingLanguage(drawer, '\u82f1\u8bed(\u7f8e\u56fd)');
       const english = readToyCopywritingFields(drawer);
-      const needsAi = !chinese.advantages || !chinese.efficacy || !english.advantages || !english.efficacy || !english.ingredients || !english.directions;
+      const needsAi = !chinese.advantages || !chinese.efficacy || !chinese.directions || !english.advantages || !english.efficacy || !english.ingredients || !english.directions;
       if (!chinese.efficacy && !chinese.sellingPoints) throw new Error('\u4e2d\u6587\u4ea7\u54c1\u5356\u70b9\u4e3a\u7a7a\uff0c\u65e0\u6cd5\u751f\u6210\u4e09\u53e5\u4ea7\u54c1\u529f\u6548');
       if (!english.ingredients && !chinese.ingredients) throw new Error('\u4e2d\u6587\u6210\u5206\u4e3a\u7a7a\uff0c\u65e0\u6cd5\u751f\u6210\u82f1\u6587 INGREDIENTS');
-      if (!english.directions && !chinese.directions) throw new Error('\u4e2d\u6587\u4f7f\u7528\u65b9\u6cd5\u4e3a\u7a7a\uff0c\u65e0\u6cd5\u751f\u6210\u82f1\u6587 DIRECTIONS OF SAFE USE');
       let generated = {};
       if (needsAi) {
         showToast('\u9b54\u642d Qwen \u6b63\u5728\u6574\u7406\u73a9\u5177\u6587\u6848...');
@@ -12348,6 +12347,7 @@
             needsEnglishAdvantages: !english.advantages,
             needsChineseEfficacy: !chinese.efficacy,
             needsEnglishEfficacy: !english.efficacy,
+            needsChineseDirections: !chinese.directions,
             needsEnglishIngredients: !english.ingredients,
             needsEnglishDirections: !english.directions,
           },
@@ -12358,18 +12358,23 @@
       const finalEnglishAdvantages = english.advantages || String(generated.englishAdvantages || '').trim();
       const finalChineseEfficacy = chinese.efficacy || String(generated.chineseEfficacy || '').trim();
       const finalEnglishEfficacy = english.efficacy || String(generated.englishEfficacy || '').trim();
+      const finalChineseDirections = chinese.directions || String(generated.chineseDirections || '').trim();
+      const finalEnglishDirections = english.directions || String(generated.englishDirections || '').trim();
       if (!chinese.advantages && !finalChineseAdvantages) throw new Error('\u672a\u751f\u6210\u6709\u6548\u7684\u4e2d\u6587\u4ea7\u54c1\u4f18\u52bf');
       if (!english.advantages && !finalEnglishAdvantages) throw new Error('\u672a\u751f\u6210\u6709\u6548\u7684\u82f1\u6587 PRODUCT ADVANTAGES');
       if (!chinese.efficacy && !finalChineseEfficacy) throw new Error('\u672a\u6839\u636e\u4ea7\u54c1\u5356\u70b9\u751f\u6210\u4e2d\u6587\u4ea7\u54c1\u529f\u6548');
       if (!english.efficacy && !finalEnglishEfficacy) throw new Error('\u672a\u751f\u6210\u82f1\u6587 PRODUCT EFFICACY');
+      if (!chinese.directions && !finalChineseDirections) throw new Error('\u672a\u4ece\u4ea7\u54c1\u5356\u70b9\u548c\u4ea7\u54c1\u4f18\u52bf\u751f\u6210\u4e2d\u6587\u4f7f\u7528\u65b9\u6cd5');
+      if (!english.directions && !finalEnglishDirections) throw new Error('\u672a\u751f\u6210\u82f1\u6587 DIRECTIONS OF SAFE USE');
       const chinesePatch = {};
       if (!chinese.advantages) chinesePatch.advantages = finalChineseAdvantages;
       if (!chinese.efficacy) chinesePatch.efficacy = finalChineseEfficacy;
+      if (!chinese.directions) chinesePatch.directions = finalChineseDirections;
       const englishPatch = {};
       if (!english.advantages) englishPatch.advantages = finalEnglishAdvantages;
       if (!english.efficacy) englishPatch.efficacy = finalEnglishEfficacy;
       if (!english.ingredients) englishPatch.ingredients = String(generated.englishIngredients || '').trim();
-      if (!english.directions) englishPatch.directions = String(generated.englishDirections || '').trim();
+      if (!english.directions) englishPatch.directions = finalEnglishDirections;
       if (!Object.keys(chinesePatch).length && !Object.keys(englishPatch).length) {
         showToast('\u73a9\u5177\u6587\u6848\u5df2\u5b8c\u6574\uff0c\u65e0\u9700\u8865\u5145');
         return 0;
