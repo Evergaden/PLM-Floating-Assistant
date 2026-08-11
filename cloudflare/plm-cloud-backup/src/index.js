@@ -1031,10 +1031,18 @@ async function downloadIngredientAuditImage(imageUrl) {
     const declaredLength = Number(response.headers.get('content-length') || 0);
     if (declaredLength > INGREDIENT_AUDIT_MAX_IMAGE_BYTES) throw new Error('image is too large');
     const declaredType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-    if (!INGREDIENT_AUDIT_IMAGE_TYPES.has(declaredType)) throw new Error('unsupported image content-type');
+    // Some OSS/CDN responses omit Content-Type or use the generic octet-stream
+    // type.  Keep the endpoint safe by accepting those two ambiguous cases only
+    // when the downloaded bytes pass the strict image magic-byte check below.
+    const ambiguousType = !declaredType || declaredType === 'application/octet-stream';
+    if (!ambiguousType && !INGREDIENT_AUDIT_IMAGE_TYPES.has(declaredType)) {
+      throw new Error('unsupported image content-type: ' + (declaredType || 'missing'));
+    }
     const bytes = await readLimitedImageBody(response, INGREDIENT_AUDIT_MAX_IMAGE_BYTES);
     const detectedType = sniffIngredientAuditImageType(bytes);
-    if (!detectedType || detectedType !== declaredType) throw new Error('image type does not match its content');
+    if (!detectedType || (!ambiguousType && detectedType !== declaredType)) {
+      throw new Error('image type does not match its content' + (declaredType ? ' (' + declaredType + ')' : ' (missing content-type)'));
+    }
     return { bytes, mimeType: detectedType };
   }
   throw new Error('image download failed');

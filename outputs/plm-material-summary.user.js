@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.85
+// @version      2.7.87
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.85';
+  const SCRIPT_VERSION = '2.7.87';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7661,8 +7661,10 @@
       #${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;border-bottom:1px solid #eee9fb}
       #${PANEL_ID} .pfh-cache-editor>header h3{margin:0;color:#4f35a4;font-size:16px}#${PANEL_ID} .pfh-cache-editor>header p,#${PANEL_ID} .pfh-cache-editor>footer>span{margin:4px 0 0;color:#8d829f;font-size:10px}
       #${PANEL_ID} .pfh-cache-editor button{min-height:30px;padding:0 11px;border:1px solid #d8cff1;border-radius:9px;background:#faf8ff;color:#6537ce;font:inherit;font-size:11px;cursor:pointer}#${PANEL_ID} .pfh-cache-editor button.is-primary{border-color:#8f72e7;background:#7448d8;color:#fff}
-      #${PANEL_ID} .pfh-cache-editor-summary{display:flex;align-items:center;justify-content:space-between;padding:8px 18px;color:#8d829f;font-size:10px}
-      #${PANEL_ID} .pfh-cache-editor-json{min-height:0;flex:1 1 auto;margin:0 18px;padding:14px;resize:none;border:1px solid #e5dff4;border-radius:12px;background:#fbfaff;color:#362f47;font:11px/1.55 Consolas,Monaco,monospace;tab-size:2}
+      #${PANEL_ID} .pfh-cache-editor-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;color:#8d829f;font-size:10px}#${PANEL_ID} .pfh-cache-editor-summary>span{margin-right:auto}#${PANEL_ID} .pfh-cache-editor-search{min-width:190px;min-height:30px;padding:0 10px;border:1px solid #ded7ef;border-radius:9px;background:#fbfaff;color:#453b5a;font:inherit;font-size:10px}
+      #${PANEL_ID} .pfh-cache-editor-body{display:flex;min-height:0;flex:1 1 auto;flex-direction:column;gap:10px;overflow:auto;padding:2px 18px 14px}#${PANEL_ID} .pfh-cache-group{border:1px solid #e6dff5;border-radius:13px;background:#fbfaff;overflow:hidden}#${PANEL_ID} .pfh-cache-group>header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#f4f0fc;color:#58447f}#${PANEL_ID} .pfh-cache-group>header strong{font-size:11px}#${PANEL_ID} .pfh-cache-group>header span{font-size:9px;color:#968aa9}#${PANEL_ID} .pfh-cache-group-fields{display:flex;flex-direction:column;gap:7px;padding:9px}#${PANEL_ID} .pfh-cache-top-field.is-hidden{display:none}
+      #${PANEL_ID} .pfh-cache-field{min-width:0;border:1px solid #ece7f6;border-radius:10px;background:#fff}#${PANEL_ID} .pfh-cache-field.is-hidden{display:none}#${PANEL_ID} .pfh-cache-field-head{display:flex;align-items:flex-start;gap:8px;padding:8px 9px}#${PANEL_ID} .pfh-cache-field-key{display:flex;min-width:155px;max-width:240px;flex-direction:column;gap:2px}#${PANEL_ID} .pfh-cache-field-key strong{overflow-wrap:anywhere;color:#514366;font-size:10px}#${PANEL_ID} .pfh-cache-field-key code{overflow:hidden;color:#a096b1;font:8px/1.3 Consolas,monospace;text-overflow:ellipsis}#${PANEL_ID} .pfh-cache-field-control{display:grid;min-width:0;flex:1 1 auto;grid-template-columns:86px minmax(0,1fr);gap:6px}#${PANEL_ID} .pfh-cache-field-control select,#${PANEL_ID} .pfh-cache-field-control input,#${PANEL_ID} .pfh-cache-field-control textarea{width:100%;min-width:0;border:1px solid #ded7ef;border-radius:7px;background:#fff;color:#453b5a;font:9px/1.4 inherit}#${PANEL_ID} .pfh-cache-field-control select,#${PANEL_ID} .pfh-cache-field-control input{height:30px;padding:0 7px}#${PANEL_ID} .pfh-cache-field-control textarea{min-height:58px;padding:7px;resize:vertical}#${PANEL_ID} .pfh-cache-field-control input[readonly]{background:#f3f0f8;color:#8e849f}#${PANEL_ID} .pfh-cache-field-control input:disabled,#${PANEL_ID} .pfh-cache-field-control textarea:disabled{background:#f6f3f9;color:#aaa1b5}
+      #${PANEL_ID} details.pfh-cache-field>summary{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;list-style:none}#${PANEL_ID} details.pfh-cache-field>summary::-webkit-details-marker{display:none}#${PANEL_ID} details.pfh-cache-field>summary::before{content:'›';color:#8666d2;font-size:16px;transform:rotate(0deg);transition:transform .16s ease}#${PANEL_ID} details.pfh-cache-field[open]>summary::before{transform:rotate(90deg)}#${PANEL_ID} .pfh-cache-container-title{display:flex;min-width:0;flex:1 1 auto;flex-direction:column}#${PANEL_ID} .pfh-cache-container-title strong{overflow-wrap:anywhere;color:#514366;font-size:10px}#${PANEL_ID} .pfh-cache-container-title code{color:#a096b1;font:8px/1.3 Consolas,monospace}#${PANEL_ID} .pfh-cache-container-count{padding:2px 6px;border-radius:999px;background:#eee8fa;color:#7359ac;font-size:8px}#${PANEL_ID} .pfh-cache-children{display:flex;flex-direction:column;gap:7px;padding:0 8px 8px 24px}#${PANEL_ID} .pfh-cache-empty{padding:10px;color:#a096b1;font-size:9px;text-align:center}
       #${PANEL_ID} .pfh-cache-editor-error{min-height:18px;margin:5px 18px 0;color:#b34a5d;font-size:10px}#${PANEL_ID} .pfh-cache-editor>footer{border-top:1px solid #eee9fb;border-bottom:0}#${PANEL_ID} .pfh-cache-editor>footer>div{display:flex;gap:7px}
       #${PANEL_ID} .pfh-ledger-ai-image-layer{z-index:320!important}
       #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page{grid-template-rows:auto auto auto auto minmax(0,1fr)!important}#${PANEL_ID}[data-view="ledger"] .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto auto minmax(0,1fr)!important}
@@ -7670,18 +7672,18 @@
       #${PANEL_ID} .pfh-ledger-filterbar input,#${PANEL_ID} .pfh-ledger-filterbar select{min-height:30px;padding:0 9px;border:1px solid #ddd6ef;border-radius:9px;background:#fff;color:#514866;font:inherit;font-size:10px}#${PANEL_ID} .pfh-ledger-filterbar input{min-width:170px;flex:1 1 210px}
       #${PANEL_ID} .pfh-ledger-view-switch{display:flex;gap:4px;margin-left:auto}#${PANEL_ID} .pfh-ledger-view-switch button.is-active{border-color:#9f85f5;background:#eee8ff;color:#6030cf}
       #${PANEL_ID} .pfh-ledger-table-wrap{min-height:0;overflow:auto;border:1px solid #e9e3f5;border-radius:12px;background:#fff}#${PANEL_ID} .pfh-ledger-table{width:100%;border-collapse:collapse;color:#514866;font-size:10px;user-select:text}#${PANEL_ID} .pfh-ledger-table th{position:sticky;top:0;z-index:2;background:#f6f3fc;color:#655a79;text-align:left}#${PANEL_ID} .pfh-ledger-table th,#${PANEL_ID} .pfh-ledger-table td{padding:8px 9px;border-bottom:1px solid #eee9f7;white-space:nowrap}#${PANEL_ID} .pfh-ledger-table tbody tr:hover{background:#fbf9ff}
-      #${PANEL_ID} .pfh-reverse-search-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}#${PANEL_ID} .pfh-reverse-search-actions button{min-height:27px!important;padding:0 8px!important;font-size:9px!important}
-      #${PANEL_ID} .pfh-ledger-ai-preparation{display:flex;width:100%;max-height:100%;min-height:0;flex-direction:column;gap:9px;overflow:hidden;text-align:left}#${PANEL_ID} .pfh-ledger-ai-prep-head{display:flex;align-items:center;justify-content:space-between;gap:10px}#${PANEL_ID} .pfh-ledger-ai-prep-head>div{display:flex;align-items:center;gap:7px}#${PANEL_ID} .pfh-ledger-ai-prep-head strong{color:#514366;font-size:13px}#${PANEL_ID} .pfh-ledger-ai-prep-head span{padding:3px 6px;border-radius:999px;font-size:9px}#${PANEL_ID} .pfh-ledger-ai-prep-head span.is-missing{background:#fff2f4;color:#b34a5d}#${PANEL_ID} .pfh-ledger-ai-prep-head span.is-ready{background:#eefaf1;color:#2e8750}#${PANEL_ID} .pfh-ledger-ai-prep-head p{margin:0;color:#8e849f;font-size:9px}
       #${PANEL_ID} .pfh-ledger-table-sku-cell{position:relative;padding:0!important;user-select:none!important}#${PANEL_ID} .pfh-ledger-table-sku{display:flex;width:100%;min-height:34px;align-items:center;padding:8px 10px;border:0;border-radius:0;background:transparent;color:#6136cb;font:inherit;font-weight:700;text-align:left;cursor:copy;touch-action:none}#${PANEL_ID} .pfh-ledger-table-sku:hover{background:#f3efff;color:#4f20ba}#${PANEL_ID} .pfh-ledger-table-sku.is-drag-selected{background:linear-gradient(90deg,#e9e1ff,#f4f0ff);color:#4f20ba;box-shadow:inset 3px 0 #7c3aed}#${PANEL_ID}.is-ledger-sku-dragging,#${PANEL_ID}.is-ledger-sku-dragging *{cursor:copy!important}#${PANEL_ID} .pfh-ledger-drag-copy-tip{position:fixed;z-index:2147483647;display:none;align-items:center;gap:5px;padding:6px 9px;border:1px solid #b9a5f4;border-radius:9px;background:rgba(54,38,99,.94);box-shadow:0 9px 24px rgba(31,20,70,.25);color:#fff;font-size:10px;font-weight:700;line-height:1;pointer-events:none}#${PANEL_ID} .pfh-ledger-drag-copy-tip.is-visible{display:flex}
       #${PANEL_ID} .pfh-more-dots{display:inline-flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;gap:3px!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-more-dots i{display:block!important;width:3px!important;height:3px!important;flex:0 0 3px!important;border-radius:50%!important;background:currentColor!important}#${PANEL_ID} .pfh-ledger-more>button{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-ledger-overflow-menu{position:fixed!important;z-index:2147483646!important;right:auto!important;bottom:auto!important;width:min(224px,calc(100vw - 24px))!important;min-width:0!important;max-height:calc(100vh - 24px)!important;overflow-x:hidden!important;overflow-y:auto!important;padding:7px!important;transform-origin:var(--pfh-menu-origin,right top)!important}#${PANEL_ID} .pfh-ledger-overflow-menu button{width:100%!important;height:auto!important;min-height:34px!important;padding:7px 10px!important;line-height:1.35!important;white-space:normal!important;overflow-wrap:anywhere!important}
       #${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"]{inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;background:#f5f6fb!important;box-shadow:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-header{display:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-full,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-main.is-full,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail-scroll{width:100%!important;height:100%!important;min-height:0!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-main.is-full{display:block!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail-scroll{overflow:hidden!important;padding:0!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-page{gap:12px!important;padding:18px 22px 20px!important;background:linear-gradient(145deg,#f7f8fc,#f2f1f8)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero{align-items:center!important;padding:13px 16px!important;border-color:#e1dcf3!important;border-radius:16px!important;background:rgba(255,255,255,.92)!important;box-shadow:0 8px 28px rgba(62,49,109,.07)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero h3{font-size:19px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero p{max-width:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-fullscreen-toggle{min-height:34px!important;padding:0 13px!important;border-color:#7c3aed!important;background:#7c3aed!important;color:#fff!important;box-shadow:0 7px 16px rgba(124,58,237,.20)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs{width:min(420px,42vw)!important;justify-self:start!important;padding:5px!important;border-color:#e0daf3!important;background:rgba(255,255,255,.86)!important;box-shadow:0 5px 18px rgba(62,49,109,.05)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs button{height:34px!important;min-height:34px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-toolbar,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar{padding:9px 11px!important;border:1px solid #e3def2!important;border-radius:13px!important;background:rgba(255,255,255,.84)!important;box-shadow:0 5px 18px rgba(62,49,109,.04)!important;overflow:visible!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-toolbar{flex-wrap:wrap!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar input{min-width:280px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-list,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table-wrap{padding:12px!important;border:1px solid #e2deef!important;border-radius:16px!important;background:rgba(255,255,255,.76)!important;box-shadow:0 10px 30px rgba(62,49,109,.06)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day>h4{padding:2px 4px 3px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-item{min-height:112px!important;padding:11px 12px!important;border-radius:14px!important;background:rgba(255,255,255,.94)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table-wrap{position:relative!important;padding:0!important;overflow:auto!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table{font-size:11px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table td{height:42px!important;padding:9px 12px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th:first-child,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table td:first-child{position:sticky!important;left:0!important;z-index:1!important;background:#fff!important;box-shadow:1px 0 #eee9f7!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th:first-child{z-index:3!important;background:#f6f3fc!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-performance{box-shadow:0 5px 18px rgba(62,49,109,.05)!important}
       @media(max-width:1380px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
       @media(max-width:900px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-page{padding:12px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs{width:100%!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar input{min-width:160px!important}}
+      #${PANEL_ID} .pfh-reverse-search-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}#${PANEL_ID} .pfh-reverse-search-actions button{min-height:27px!important;padding:0 8px!important;font-size:9px!important}
+      #${PANEL_ID} .pfh-ledger-ai-preparation{display:flex;width:100%;max-height:100%;min-height:0;flex-direction:column;gap:9px;overflow:hidden;text-align:left}#${PANEL_ID} .pfh-ledger-ai-prep-head{display:flex;align-items:center;justify-content:space-between;gap:10px}#${PANEL_ID} .pfh-ledger-ai-prep-head>div{display:flex;align-items:center;gap:7px}#${PANEL_ID} .pfh-ledger-ai-prep-head strong{color:#514366;font-size:13px}#${PANEL_ID} .pfh-ledger-ai-prep-head span{padding:3px 6px;border-radius:999px;font-size:9px}#${PANEL_ID} .pfh-ledger-ai-prep-head span.is-missing{background:#fff2f4;color:#b34a5d}#${PANEL_ID} .pfh-ledger-ai-prep-head span.is-ready{background:#eefaf1;color:#2e8750}#${PANEL_ID} .pfh-ledger-ai-prep-head p{margin:0;color:#8e849f;font-size:9px}
       #${PANEL_ID} .pfh-ledger-ai-prep-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:0;overflow:auto;padding:2px}#${PANEL_ID} .pfh-ledger-ai-prep-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0;padding:7px;border:1px solid #e9e3f5;border-radius:10px}#${PANEL_ID} .pfh-ledger-ai-prep-row legend{padding:0 4px;color:#6545b7;font-size:10px;font-weight:700}#${PANEL_ID} .pfh-ledger-ai-prep-row label{display:flex;min-width:0;flex-direction:column;gap:3px;color:#9389a8;font-size:8px}#${PANEL_ID} .pfh-ledger-ai-prep-row textarea{min-height:54px;padding:6px;resize:vertical;border:1px solid #ddd5ef;border-radius:7px;background:#fff;color:#4d455e;font:9px/1.4 inherit}#${PANEL_ID} .pfh-ledger-ai-prep-row textarea.is-missing{border-color:#e7a9b5;background:#fff8f9}
       #${PANEL_ID} .pfh-ledger-ai-prep-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}#${PANEL_ID} .pfh-ledger-ai-prep-actions button{min-height:30px;padding:0 10px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:10px;font-weight:700;cursor:pointer}#${PANEL_ID} .pfh-ledger-ai-prep-actions button.is-primary{background:#7448d8;color:#fff}#${PANEL_ID} .pfh-ledger-ai-prep-actions button:disabled{cursor:not-allowed;opacity:.5}#${PANEL_ID} .pfh-ledger-ai-prep-missing{margin:0;color:#9b6471;font-size:9px;line-height:1.4}
       #${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-error{border-color:#df8496!important;background:#fff3f5!important;box-shadow:inset 0 0 0 1px rgba(190,63,89,.16)!important}#${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-pass{border-color:#8fcba0!important;background:#f2fbf4!important}.pfh-ledger-detail3-badge{align-self:flex-start;padding:2px 5px;border-radius:999px;font-size:8px;font-style:normal}.pfh-ledger-detail3-badge.is-pass{background:#e8f7ec;color:#2e8750}.pfh-ledger-detail3-badge.is-warning,.pfh-ledger-detail3-badge.is-error{background:#ffe8ec;color:#b34a5d}.pfh-ledger-detail3-badge.is-loading{background:#fff4d9;color:#996b13}
       #${PANEL_ID} .pfh-ledger-detail3-audit{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border:1px solid #ead6a8;border-radius:9px;background:#fffaf0;color:#78633a;font-size:9px;line-height:1.4}#${PANEL_ID} .pfh-ledger-detail3-audit.is-pass{border-color:#b7dfc1;background:#f1fbf3;color:#2e7547}#${PANEL_ID} .pfh-ledger-detail3-audit.is-error,#${PANEL_ID} .pfh-ledger-detail3-audit.is-warning{border-color:#e7b1bc;background:#fff3f5;color:#9e4053}#${PANEL_ID} .pfh-ledger-detail3-audit p{margin:0}#${PANEL_ID} .pfh-ledger-detail3-audit span{display:block}
-      @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-json{margin:0 12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
+      @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-summary,#${PANEL_ID} .pfh-cache-editor-body{padding-left:12px;padding-right:12px}#${PANEL_ID} .pfh-cache-editor-search{width:100%}#${PANEL_ID} .pfh-cache-field-head{flex-direction:column}#${PANEL_ID} .pfh-cache-field-key{max-width:none;min-width:0}#${PANEL_ID} .pfh-cache-field-control{width:100%;grid-template-columns:74px minmax(0,1fr)}#${PANEL_ID} .pfh-cache-children{padding-left:12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
     `;
   }
 
@@ -7730,13 +7732,13 @@
     panel.addEventListener('input', handlePanelInput);
     panel.addEventListener('paste', handlePanelPaste);
     panel.addEventListener('change', handlePanelChange);
-    panel.addEventListener('dragstart', handlePanelDragStart);
-    panel.addEventListener('dragend', handlePanelDragEnd);
     panel.addEventListener('pointerdown', handleLedgerTableSkuPointerDown);
     panel.addEventListener('pointermove', handleLedgerTableSkuPointerMove);
     panel.addEventListener('pointerup', handleLedgerTableSkuPointerEnd);
     panel.addEventListener('pointercancel', handleLedgerTableSkuPointerEnd);
     panel.addEventListener('scroll', handleLedgerMenuScroll, true);
+    panel.addEventListener('dragstart', handlePanelDragStart);
+    panel.addEventListener('dragend', handlePanelDragEnd);
     panel.addEventListener('dragover', handlePanelDragOver);
     panel.addEventListener('drop', handlePanelDrop);
     panel.querySelector('.pfh-import-file').addEventListener('change', handleImportFile);
@@ -11180,12 +11182,12 @@
     const list = panel.querySelector('.pfh-list');
     const detail = panel.querySelector('.pfh-detail');
     const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
-    if (list) list.innerHTML = '';
-    detail.classList.remove('is-loading');
     state.ledgerMenuSku = '';
     state.ledgerMenuDate = '';
     closeRenderedLedgerMenus(panel, null);
     resetLedgerTableSkuDrag(false);
+    if (list) list.innerHTML = '';
+    detail.classList.remove('is-loading');
     detail.innerHTML = ledgerViewHtml(records);
     setupLedgerTabFusion(detail);
   }
@@ -11195,12 +11197,12 @@
     const page = detail && detail.querySelector('.pfh-ledger-page');
     const tabs = page && page.querySelector('.pfh-ledger-tabs');
     if (!detail || !page || !tabs) return false;
-    const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
-    const template = document.createElement('template');
     state.ledgerMenuSku = '';
     state.ledgerMenuDate = '';
     closeRenderedLedgerMenus(panel, null);
     resetLedgerTableSkuDrag(false);
+    const records = getLedgerRecordsForMonth(state.ledgerView, getCurrentLedgerMonth());
+    const template = document.createElement('template');
     template.innerHTML = ledgerViewContentHtml(records);
     const nextContent = Array.from(template.content.childNodes);
     if (!nextContent.length) return false;
@@ -14232,8 +14234,6 @@
     showToast('已复制 ' + records.length + ' 条' + (asTsv ? '表格' : '编码'));
   }
 
-  function ledgerViewContentHtml(records) {
-    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
   let ledgerTableSkuDragSession = null;
 
   function getLedgerTableSkuButtonAtPoint(clientX, clientY, wrapper) {
@@ -14360,6 +14360,8 @@
     if (clearSuppressClick) state.ledgerSkuDragSuppressClickUntil = 0;
   }
 
+  function ledgerViewContentHtml(records) {
+    const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const filteredRecords = filterLedgerWorkbenchRecords(records, mode);
     const groups = groupLedgerRecordsByDate(filteredRecords, mode === 'trash' ? 'design' : mode);
     const performanceSummary = mode === 'finalized' ? summarizeLedgerPerformance(filteredRecords) : null;
@@ -14481,7 +14483,7 @@
     }
     const mode = state.ledgerView === 'finalized' ? 'finalized' : 'design';
     const panel = ensurePanel();
-    const card = Array.from(panel.querySelectorAll('.pfh-ledger-item')).find((item) => item.getAttribute('data-ledger-sku') === record.sku && item.getAttribute('data-ledger-date') === record.date);
+    const card = Array.from(panel.querySelectorAll('.pfh-ledger-item')).find((item) => item.getAttribute('data-ledger-sku') === record.sku && normalizeLedgerDate(item.getAttribute('data-ledger-date')) === normalizeLedgerDate(record.date));
     const finalized = isLedgerFinalizedRecord(record);
     if ((mode === 'finalized' && !finalized) || (mode === 'design' && finalized)) {
       if (card) card.remove();
@@ -14496,12 +14498,12 @@
       ? getLedgerPerformanceGroupMaps(summarizeLedgerPerformance(getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())))
       : { labels: null, recordGroupIds: null };
     card.outerHTML = ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds);
-  }
-
     if (state.ledgerMenuSku === record.sku && state.ledgerMenuDate === normalizeLedgerDate(record.date)) {
       const nextButton = Array.from(panel.querySelectorAll('[data-action="ledger-more"]')).find((button) => button.getAttribute('data-sku') === record.sku && normalizeLedgerDate(button.getAttribute('data-date')) === normalizeLedgerDate(record.date));
       if (nextButton) positionRenderedLedgerMenu(panel, nextButton);
     }
+  }
+
   function ledgerTrashRowHtml(record) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
@@ -14525,8 +14527,6 @@
       const button = card.querySelector('[data-action="ledger-more"]');
       if (button) button.setAttribute('aria-expanded', 'false');
     });
-  }
-
     panel.querySelectorAll('.pfh-ledger-overflow-menu').forEach((menu) => menu.remove());
   }
 
@@ -14579,6 +14579,8 @@
       if (card) card.appendChild(menu);
       positionRenderedLedgerMenu(panel, button);
     });
+  }
+
   function ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated) {
     if (state.ledgerMenuSku !== sku || state.ledgerMenuDate !== normalizeLedgerDate(dateAttr)) return '';
     const rollback = record.status === '作废'
@@ -15299,6 +15301,207 @@
     state.skuCacheEditorSku = '';
   }
 
+  const SKU_CACHE_EDITOR_LABELS = Object.freeze({
+    sku: 'SKU 编码',
+    name: '产品名称',
+    productName: '产品名称',
+    brand: '品牌',
+    brandName: '品牌',
+    categoryName: '产品分类',
+    productType: '产品类型',
+    developerName: '开发人员',
+    packageCode: '纸盒编码',
+    printCode: '印刷编码',
+    packageSizeText: '纸盒尺寸',
+    printSizeText: '印刷尺寸',
+    productSizeText: '产品尺寸',
+    purchasePrice: '采购价格',
+    ingredientEnglish: '英文成分',
+    ingredientChinese: '中文成分',
+    copywriting: '产品文案',
+    benchmarkImageUrl: '对标图片',
+    effectImage: '效果图片',
+    productListImage: '列表图片',
+    manualFieldOverrides: '手动覆盖字段',
+    recentFieldChanges: '近期字段变更',
+    updatedAt: '更新时间',
+    updatedAtMs: '更新时间戳',
+    createdAt: '创建时间',
+  });
+
+  function getSkuCacheEditorValueType(value) {
+    if (value === null) return 'null';
+    if (Array.isArray(value)) return 'array';
+    if (value && typeof value === 'object') return 'object';
+    if (typeof value === 'number') return 'number';
+    if (typeof value === 'boolean') return 'boolean';
+    return 'string';
+  }
+
+  function getSkuCacheEditorFieldLabel(key, isArrayItem) {
+    if (isArrayItem) return '第 ' + (Number(key) + 1) + ' 项';
+    return SKU_CACHE_EDITOR_LABELS[key] || String(key || '未命名字段');
+  }
+
+  function encodeSkuCacheEditorPath(path) {
+    return encodeURIComponent(JSON.stringify(path || []));
+  }
+
+  function decodeSkuCacheEditorPath(value) {
+    const parsed = JSON.parse(decodeURIComponent(String(value || '')));
+    if (!Array.isArray(parsed)) throw new Error('字段路径无效');
+    return parsed;
+  }
+
+  function collectSkuCacheEditorSearchText(key, value, seen) {
+    const parts = [String(key || ''), getSkuCacheEditorFieldLabel(key, false)];
+    const visited = seen || new WeakSet();
+    if (value && typeof value === 'object') {
+      if (visited.has(value)) return parts.join(' ');
+      visited.add(value);
+      Object.keys(value).forEach((childKey) => parts.push(collectSkuCacheEditorSearchText(childKey, value[childKey], visited)));
+    } else {
+      parts.push(String(value === null ? 'null' : (value === undefined ? 'undefined' : value)));
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').slice(0, 12000);
+  }
+
+  function renderSkuCacheEditorScalar(key, value, path, depth, isArrayItem) {
+    const type = getSkuCacheEditorValueType(value);
+    const label = getSkuCacheEditorFieldLabel(key, isArrayItem);
+    const technicalKey = isArrayItem ? '[' + key + ']' : String(key || '');
+    const pathText = path.map((part) => typeof part === 'number' ? '[' + part + ']' : String(part)).join('.').replace('.[', '[');
+    const encodedPath = encodeSkuCacheEditorPath(path);
+    const valueText = type === 'null' ? '' : String(value);
+    const longText = type === 'string' && (valueText.length > 88 || /[\r\n]/.test(valueText));
+    const isSku = path.length === 1 && path[0] === 'sku';
+    const options = ['string', 'number', 'boolean', 'null'].map((candidate) => '<option value="' + candidate + '"' + (candidate === type ? ' selected' : '') + '>' + ({ string: '文本', number: '数字', boolean: '布尔', null: '空值' }[candidate]) + '</option>').join('');
+    const control = type === 'boolean'
+      ? '<select class="pfh-cache-value-input" data-cache-role="value"><option value="true"' + (value ? ' selected' : '') + '>是 / true</option><option value="false"' + (!value ? ' selected' : '') + '>否 / false</option></select>'
+      : (longText
+        ? '<textarea class="pfh-cache-value-input" data-cache-role="value"' + (type === 'null' ? ' disabled' : '') + (isSku ? ' readonly' : '') + '>' + escapeHtml(valueText) + '</textarea>'
+        : '<input class="pfh-cache-value-input" data-cache-role="value" value="' + escapeHtml(valueText) + '"' + (type === 'null' ? ' disabled' : '') + (isSku ? ' readonly' : '') + '>');
+    return '<div class="pfh-cache-field pfh-cache-scalar" data-cache-path="' + escapeHtml(encodedPath) + '" data-cache-search="' + escapeHtml(collectSkuCacheEditorSearchText(key, value)) + '">' +
+      '<div class="pfh-cache-field-head"><div class="pfh-cache-field-key"><strong>' + escapeHtml(label) + '</strong><code title="' + escapeHtml(pathText) + '">' + escapeHtml(technicalKey) + '</code></div>' +
+      '<div class="pfh-cache-field-control"><select class="pfh-cache-value-type" data-cache-role="type"' + (isSku ? ' disabled' : '') + '>' + options + '</select>' + control + '</div></div></div>';
+  }
+
+  function renderSkuCacheEditorField(key, value, path, depth, isArrayItem) {
+    const type = getSkuCacheEditorValueType(value);
+    if (type !== 'object' && type !== 'array') return renderSkuCacheEditorScalar(key, value, path, depth, isArrayItem);
+    const entries = Object.entries(value);
+    const label = getSkuCacheEditorFieldLabel(key, isArrayItem);
+    const technicalKey = isArrayItem ? '[' + key + ']' : String(key || '');
+    const children = entries.length
+      ? entries.map(([childKey, childValue]) => renderSkuCacheEditorField(type === 'array' ? Number(childKey) : childKey, childValue, path.concat(type === 'array' ? Number(childKey) : childKey), depth + 1, type === 'array')).join('')
+      : '<div class="pfh-cache-empty">' + (type === 'array' ? '空数组' : '空对象') + '</div>';
+    return '<details class="pfh-cache-field pfh-cache-container" data-cache-search="' + escapeHtml(collectSkuCacheEditorSearchText(key, value)) + '"' + (depth < 2 ? ' open' : '') + '>' +
+      '<summary><span class="pfh-cache-container-title"><strong>' + escapeHtml(label) + '</strong><code>' + escapeHtml(technicalKey) + '</code></span><span class="pfh-cache-container-count">' + escapeHtml((type === 'array' ? '数组 ' : '对象 ') + entries.length + ' 项') + '</span></summary>' +
+      '<div class="pfh-cache-children">' + children + '</div></details>';
+  }
+
+  function getSkuCacheEditorGroup(key) {
+    const text = String(key || '');
+    if (/copy|ingredient|direction|description|selling|efficacy|benefit|warning|claim|文案|成分/i.test(text)) return 'copy';
+    if (/image|img|photo|picture|pic|thumbnail|url|file|attachment|asset|图片|文件/i.test(text)) return 'asset';
+    if (/package|print|material|size|length|width|height|weight|volume|dimension|纸盒|印刷|尺寸|包材/i.test(text)) return 'material';
+    if (/status|state|task|ledger|upload|seen|error|sync|source|history|record|log|time|date|created|updated|状态|记录/i.test(text)) return 'workflow';
+    if (/^(?:sku|name|productName|brand|brandName|category|categoryName|productType|developer|developerName|purchasePrice|price)$/i.test(text)) return 'basic';
+    return 'other';
+  }
+
+  function renderSkuCacheEditorGroups(raw) {
+    const definitions = [
+      ['basic', '基础信息'],
+      ['material', '包材与尺寸'],
+      ['asset', '图片与文件'],
+      ['copy', '文案与成分'],
+      ['workflow', '流程与记录'],
+      ['other', '其他缓存'],
+    ];
+    const groups = Object.fromEntries(definitions.map(([key]) => [key, []]));
+    Object.entries(raw).forEach(([key, value]) => groups[getSkuCacheEditorGroup(key)].push([key, value]));
+    return definitions.map(([groupKey, label]) => {
+      const entries = groups[groupKey];
+      if (!entries.length) return '';
+      const fields = entries.map(([key, value]) => '<div class="pfh-cache-top-field" data-cache-search="' + escapeHtml(collectSkuCacheEditorSearchText(key, value)) + '">' + renderSkuCacheEditorField(key, value, [key], 0, false) + '</div>').join('');
+      return '<section class="pfh-cache-group" data-cache-group="' + groupKey + '"><header><strong>' + label + '</strong><span>' + entries.length + ' 个顶层字段</span></header><div class="pfh-cache-group-fields">' + fields + '</div></section>';
+    }).join('');
+  }
+
+  function setSkuCacheEditorPathValue(target, path, value) {
+    let cursor = target;
+    for (let index = 0; index < path.length - 1; index += 1) {
+      if (!cursor || typeof cursor !== 'object') throw new Error('字段路径不存在：' + path.join('.'));
+      cursor = cursor[path[index]];
+    }
+    cursor[path[path.length - 1]] = value;
+  }
+
+  function parseSkuCacheEditorScalar(type, rawValue, label) {
+    const text = String(rawValue == null ? '' : rawValue);
+    if (type === 'null') return null;
+    if (type === 'string') return text;
+    if (type === 'number') {
+      if (!text.trim()) throw new Error(label + ' 不能为空数字');
+      const number = Number(text.trim());
+      if (!Number.isFinite(number)) throw new Error(label + ' 不是有效数字');
+      return number;
+    }
+    if (type === 'boolean') {
+      if (/^(?:true|1|yes|是)$/i.test(text.trim())) return true;
+      if (/^(?:false|0|no|否)$/i.test(text.trim())) return false;
+      throw new Error(label + ' 的布尔值请填写 true 或 false');
+    }
+    return text;
+  }
+
+  function updateSkuCacheEditorValueControl(typeControl) {
+    const field = typeControl && typeControl.closest('.pfh-cache-scalar');
+    const current = field && field.querySelector('[data-cache-role="value"]');
+    if (!field || !current) return;
+    const type = typeControl.value;
+    if (type === 'boolean' && current.tagName !== 'SELECT') {
+      const select = document.createElement('select');
+      select.className = 'pfh-cache-value-input';
+      select.setAttribute('data-cache-role', 'value');
+      const truthy = /^(?:true|1|yes|是)$/i.test(String(current.value || '').trim());
+      select.innerHTML = '<option value="true"' + (truthy ? ' selected' : '') + '>是 / true</option><option value="false"' + (!truthy ? ' selected' : '') + '>否 / false</option>';
+      current.replaceWith(select);
+      return;
+    }
+    if (type !== 'boolean' && current.tagName === 'SELECT') {
+      const input = document.createElement('input');
+      input.className = 'pfh-cache-value-input';
+      input.setAttribute('data-cache-role', 'value');
+      input.value = current.value;
+      current.replaceWith(input);
+      input.disabled = type === 'null';
+      input.placeholder = type === 'number' ? '请输入数字' : '请输入内容';
+      return;
+    }
+    current.disabled = type === 'null';
+    current.placeholder = type === 'number' ? '请输入数字' : '请输入内容';
+  }
+
+  function filterSkuCacheEditorFields(query) {
+    const layer = document.querySelector('#' + PANEL_ID + ' .pfh-cache-editor-layer');
+    if (!layer) return;
+    const needle = String(query || '').trim().toLowerCase();
+    layer.querySelectorAll('.pfh-cache-top-field').forEach((field) => {
+      field.classList.toggle('is-hidden', Boolean(needle && !String(field.getAttribute('data-cache-search') || '').toLowerCase().includes(needle)));
+    });
+    layer.querySelectorAll('.pfh-cache-group').forEach((group) => {
+      group.hidden = !Array.from(group.querySelectorAll(':scope .pfh-cache-top-field')).some((field) => !field.classList.contains('is-hidden'));
+    });
+  }
+
+  function toggleSkuCacheEditorDetails(open) {
+    const layer = document.querySelector('#' + PANEL_ID + ' .pfh-cache-editor-layer');
+    if (!layer) return;
+    layer.querySelectorAll('details.pfh-cache-field').forEach((item) => { item.open = Boolean(open); });
+  }
+
   function showSkuCacheEditor(sku) {
     const normalizedSku = String(sku || '').trim();
     const raw = loadData(normalizedSku);
@@ -15312,29 +15515,36 @@
     layer.className = 'pfh-cache-editor-layer';
     layer.setAttribute('data-action', 'sku-cache-editor-close');
     layer.innerHTML = '<section class="pfh-cache-editor" role="dialog" aria-modal="true" aria-label="SKU 完整缓存信息">' +
-      '<header><div><h3>完整缓存信息 · ' + escapeHtml(normalizedSku) + '</h3><p>展示当前本地保存的全部字段；数组、对象和未知扩展字段也会保留。</p></div><button type="button" data-action="sku-cache-editor-close" aria-label="关闭">×</button></header>' +
-      '<div class="pfh-cache-editor-summary"><span>' + escapeHtml(Object.keys(raw).length + ' 个顶层字段') + '</span><button type="button" data-action="sku-cache-editor-copy">复制 JSON</button></div>' +
-      '<textarea class="pfh-cache-editor-json" spellcheck="false" aria-label="完整缓存 JSON">' + escapeHtml(JSON.stringify(raw, null, 2)) + '</textarea>' +
+      '<header><div><h3>完整缓存信息 · ' + escapeHtml(normalizedSku) + '</h3><p>全部缓存已按用途整理；对象和数组可展开后逐项修改。</p></div><button type="button" data-action="sku-cache-editor-close" aria-label="关闭">×</button></header>' +
+      '<div class="pfh-cache-editor-summary"><span>' + escapeHtml(Object.keys(raw).length + ' 个顶层字段') + '</span><input type="search" class="pfh-cache-editor-search" placeholder="搜索字段名或内容"><button type="button" data-action="sku-cache-editor-expand">全部展开</button><button type="button" data-action="sku-cache-editor-collapse">全部折叠</button></div>' +
+      '<div class="pfh-cache-editor-body">' + renderSkuCacheEditorGroups(raw) + '</div>' +
       '<p class="pfh-cache-editor-error" aria-live="polite"></p>' +
       '<footer><span>SKU 键不可修改；尺寸等派生字段保存时会按现有兼容规则重新计算。</span><div><button type="button" data-action="sku-cache-editor-close">取消</button><button type="button" class="is-primary" data-action="sku-cache-editor-save">保存修改</button></div></footer>' +
       '</section>';
     panel.appendChild(layer);
     layer.style.setProperty('z-index', '360', 'important');
+    layer._pfhCacheOriginal = JSON.parse(JSON.stringify(raw));
     state.skuCacheEditorSku = normalizedSku;
-    const textarea = layer.querySelector('.pfh-cache-editor-json');
-    if (textarea) textarea.focus();
+    const search = layer.querySelector('.pfh-cache-editor-search');
+    if (search) search.focus();
   }
 
   function saveSkuCacheEditor() {
     const panel = document.getElementById(PANEL_ID);
     const layer = panel && panel.querySelector('.pfh-cache-editor-layer');
-    const textarea = layer && layer.querySelector('.pfh-cache-editor-json');
     const errorNode = layer && layer.querySelector('.pfh-cache-editor-error');
     const sku = String(state.skuCacheEditorSku || '').trim();
-    if (!sku || !textarea) return;
+    if (!sku || !layer || !layer._pfhCacheOriginal) return;
     try {
-      const edited = JSON.parse(textarea.value);
-      if (!edited || typeof edited !== 'object' || Array.isArray(edited)) throw new Error('缓存根节点必须是 JSON 对象');
+      const edited = JSON.parse(JSON.stringify(layer._pfhCacheOriginal));
+      layer.querySelectorAll('.pfh-cache-scalar[data-cache-path]').forEach((field) => {
+        const path = decodeSkuCacheEditorPath(field.getAttribute('data-cache-path'));
+        const typeControl = field.querySelector('[data-cache-role="type"]');
+        const valueControl = field.querySelector('[data-cache-role="value"]');
+        const label = field.querySelector('.pfh-cache-field-key strong');
+        const value = parseSkuCacheEditorScalar(typeControl && typeControl.value || 'string', valueControl && valueControl.value || '', label && label.textContent || path.join('.'));
+        setSkuCacheEditorPathValue(edited, path, value);
+      });
       const previous = normalizeData(loadData(sku) || { sku });
       edited.sku = sku;
       const overrides = { ...(edited.manualFieldOverrides && typeof edited.manualFieldOverrides === 'object' ? edited.manualFieldOverrides : {}) };
@@ -15347,7 +15557,7 @@
       renderShell();
       showToast(sku + ' 完整缓存已保存');
     } catch (error) {
-      if (errorNode) errorNode.textContent = '无法保存：' + (formatErrorMessage(error) || 'JSON 格式错误');
+      if (errorNode) errorNode.textContent = '无法保存：' + (formatErrorMessage(error) || '字段格式错误');
     }
   }
 
@@ -17016,6 +17226,22 @@
     }, []);
   }
 
+  function handleLedgerMoreAction(button) {
+    if (!button || button.disabled) return;
+    const sku = String(button.getAttribute('data-sku') || '').trim();
+    const date = normalizeLedgerDate(button.getAttribute('data-date')) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
+    if (!sku) return;
+    state.ledgerFlowTransitionSku = '';
+    const opening = state.ledgerMenuSku !== sku || state.ledgerMenuDate !== date;
+    state.ledgerMenuSku = opening ? sku : '';
+    state.ledgerMenuDate = opening ? date : '';
+    const panel = ensurePanel();
+    closeRenderedLedgerMenus(panel, opening ? button.closest('.pfh-ledger-item') : null);
+    const record = (state.ledgerRecords || []).find((item) => item.sku === sku && normalizeLedgerDate(item.date) === date);
+    if (record) refreshLedgerCard(record);
+    else renderShell();
+  }
+
   function handlePanelClick(event) {
     const skuContextMenu = event.target && event.target.closest && event.target.closest('.pfh-sku-context-menu');
     const skuDetailMore = event.target && event.target.closest && event.target.closest('[data-action="sku-detail-more"]');
@@ -17036,15 +17262,23 @@
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (action === 'ledger-more') {
+      event.preventDefault();
+      event.stopPropagation();
+      handleLedgerMoreAction(actionTarget);
+      return;
+    }
     if (action === 'sku-cache-editor-close') {
       if (actionTarget.classList.contains('pfh-cache-editor-layer') && event.target !== actionTarget) return;
       closeSkuCacheEditor();
       return;
     }
-    if (action === 'sku-cache-editor-copy') {
-      const textarea = ensurePanel().querySelector('.pfh-cache-editor-json');
-      copyText(textarea && textarea.value || '');
-      showToast(L.copied);
+    if (action === 'sku-cache-editor-expand') {
+      toggleSkuCacheEditorDetails(true);
+      return;
+    }
+    if (action === 'sku-cache-editor-collapse') {
+      toggleSkuCacheEditorDetails(false);
       return;
     }
     if (action === 'sku-cache-editor-save') {
@@ -17939,19 +18173,6 @@
       emptyLedgerTrashMonth(state.ledgerDate);
       return;
     }
-    if (action === 'ledger-more') {
-      const sku = actionTarget.getAttribute('data-sku');
-      const date = normalizeLedgerDate(actionTarget.getAttribute('data-date')) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
-      state.ledgerFlowTransitionSku = '';
-      const opening = state.ledgerMenuSku !== sku || state.ledgerMenuDate !== date;
-      state.ledgerMenuSku = opening ? sku : '';
-      state.ledgerMenuDate = opening ? date : '';
-      closeRenderedLedgerMenus(ensurePanel(), opening ? actionTarget.closest('.pfh-ledger-item') : null);
-      const record = (state.ledgerRecords || []).find((item) => item.sku === sku && item.date === date);
-      if (record) refreshLedgerCard(record);
-      else renderShell();
-      return;
-    }
     if (action === 'ledger-image-generated' || action === 'ledger-unmark-image-generated' || action === 'ledger-finalize' || action === 'ledger-unfinalize' || action === 'ledger-extension' || action === 'ledger-series-exclude' || action === 'ledger-void' || action === 'ledger-done' || action === 'ledger-remove') {
       const options = {};
       if (action === 'ledger-finalize') {
@@ -17999,6 +18220,10 @@
       return;
     }
     if (action === 'ledger-copy-sku') {
+      if (Date.now() < Number(state.ledgerSkuDragSuppressClickUntil || 0)) {
+        event.preventDefault();
+        return;
+      }
       const sku = actionTarget.getAttribute('data-sku') || '';
       if (sku) {
         copyText(sku);
@@ -18211,10 +18436,6 @@
       return;
     }
     if (action === 'cloud-rule-versions-refresh') {
-      if (Date.now() < Number(state.ledgerSkuDragSuppressClickUntil || 0)) {
-        event.preventDefault();
-        return;
-      }
       refreshCloudRuleVersions();
       return;
     }
@@ -18424,6 +18645,10 @@
   }
 
   function handlePanelInput(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-editor-search')) {
+      filterSkuCacheEditorFields(event.target.value);
+      return;
+    }
     if (state.view === 'parameterImage' && parameterImageFeature.handleInput(event, state.data || {})) return;
     if (event.target && event.target.classList && event.target.classList.contains('pfh-feedback-content')) {
       state.feedbackContent = event.target.value;
@@ -18789,6 +19014,10 @@
   }
 
   function handlePanelChange(event) {
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-value-type')) {
+      updateSkuCacheEditorValueControl(event.target);
+      return;
+    }
     if (state.view === 'parameterImage' && parameterImageFeature.handleChange(event, state.data || {})) return;
     if (event.target && event.target.classList && event.target.classList.contains('pfh-feedback-type')) {
       state.feedbackType = normalizeFeedbackTypeClient(event.target.value);
@@ -28420,6 +28649,7 @@
     if (data && data.error) parts.push(data.error);
     if (data && data.message) parts.push(data.message);
     if (data && data.warning) parts.push(data.warning);
+    if (data && data.summary) parts.push(data.summary);
     return parts.filter(Boolean).join('\uff1a') || ('HTTP ' + status);
   }
 
