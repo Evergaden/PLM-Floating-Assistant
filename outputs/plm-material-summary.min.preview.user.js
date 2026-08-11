@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.94
+// @version      2.7.95
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.7.94";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.7.95";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -3024,10 +3024,10 @@
             document.documentElement.appendChild(n), "function" == typeof e.applyTheme && e.applyTheme(),
             n.addEventListener("click", e => {
                 const a = e.target && e.target.closest && e.target.closest("[data-action]"), n = a && a.getAttribute("data-action");
-                n && Ue(n, a, t);
+                n && _e(n, a, t);
             }), n.addEventListener("keydown", e => {
                 "Escape" === e.key ? (e.preventDefault(), J(a, "escape")) : !e.ctrlKey && !e.metaKey || e.shiftKey || "z" !== String(e.key).toLowerCase() || (e.preventDefault(),
-                Ue("parameter-editor-undo", null, t));
+                _e("parameter-editor-undo", null, t));
             })), n.innerHTML = function(t) {
                 const a = T(t, "box"), n = T(t, "product"), r = t.editorLoadError ? " is-error" : "", i = [ "auto", "box", "product" ].includes(t.manualTargetMode) ? t.manualTargetMode : "auto", o = [ [ "auto", "自动判断" ], [ "box", "纸盒" ], [ "product", "产品" ] ].map(([e, t]) => '<button type="button" class="pfh-parameter-editor-target-button' + (i === e ? " is-active" : "") + '" data-action="parameter-editor-target-mode" data-target-mode="' + e + '" aria-pressed="' + (i === e ? "true" : "false") + '">' + t + "</button>").join("");
                 return '<section class="pfh-parameter-editor"><header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，可自动判断纸盒/产品；判断不准时先选择对象 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header><div class="pfh-parameter-editor-tools"><span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + ga().primarySoft + ";color:" + ga().primary + ';font-size:12px;font-weight:800">纸盒 ' + a + '/2-3 边</span><span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + ga().secondarySoft + ";color:" + ga().secondary + ';font-size:12px;font-weight:800">产品 ' + n + '/2 边</span><span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + ga().border + ';border-radius:10px"><b style="padding:0 4px;color:' + ga().muted + ';font-size:12px">下条线：</b>' + o + '</span><button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button><button type="button" data-action="parameter-editor-retry">重新载入底图</button><button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button><div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + F(t) + '</div></div><div class="pfh-parameter-editor-stage' + (t.editorImage || t.editorLoadError ? "" : " is-loading") + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div><footer class="pfh-parameter-editor-foot"><span>默认自动判断；也可先选纸盒/产品，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + r + '">' + e.escapeHtml(t.editorStatus || "等待载入底图") + '</span><span class="pfh-parameter-editor-progress">' + U(t) + '</span></footer><details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + e.escapeHtml(D(t)) + "</pre></details></section>";
@@ -3531,14 +3531,52 @@
             const n = t.x - e.x, r = t.y - e.y, i = Math.max(1, Math.hypot(n, r)), o = -r / i, s = n / i, l = (e.x + t.x) / 2, c = (e.y + t.y) / 2;
             return (a.x - l) * o + (a.y - c) * s >= 0 ? -1 : 1;
         }
-        function we(e, t, a, n, r, i) {
+        function we(e, t, a) {
+            if (e && t) {
+                const a = (e.left + e.right) / 2, n = (t.left + t.right) / 2;
+                if (t.right <= e.left + 8 || n < a) return "right";
+                if (t.left >= e.right - 8 || n > a) return "left";
+            }
+            return "left" === a ? "left" : "right";
+        }
+        function ke(e, t, a, n, r, i) {
             const o = t.map(e => ue(e, r)), s = ye(o);
             N(a, n).forEach((t, r) => {
                 const l = o[2 * r], c = o[2 * r + 1], u = C(a, n, t);
                 l && c && he(e, l, c, u, be(l, c, s), i);
             });
         }
-        function ke(e, t, a, n, r) {
+        function Se(e, t, a, n, r, i, o) {
+            if (!t) return 0;
+            const s = t.frontCorners && t.frontCorners.length ? ye(t.frontCorners.map(e => ue(e, n))) : null;
+            if (!s) return 0;
+            const l = function(e, t) {
+                const a = e && Array.isArray(e.frontCorners) ? e.frontCorners : [], n = e && Array.isArray(e.sideCorners) ? e.sideCorners : [];
+                if (a.length >= 4) return t === String(e.sideFace || "none") && n.length >= 4 ? {
+                    start: n[1],
+                    end: n[2]
+                } : "left" === t ? {
+                    start: a[0],
+                    end: a[3]
+                } : {
+                    start: a[1],
+                    end: a[2]
+                };
+                return e && e.heightEdge;
+            }(t, we(i, o, "left" === t.sideFace ? "left" : "right")), c = t.frontAxis || (a.frontIsLength ? "boxLength" : "boxDepth"), u = t.depthAxis || (a.frontIsLength ? "boxDepth" : "boxLength"), p = t.verticalAxis || "boxHeight";
+            let g = 0;
+            const f = (t, i, o) => {
+                if (!t || !t.start || !t.end) return;
+                const l = ue(t.start, n), c = ue(t.end, n), u = function(e, t, a) {
+                    return "boxLength" === t ? e.fields.packageLength : "boxDepth" === t ? e.fields.packageWidth : "boxHeight" === t ? e.fields.packageHeight : a;
+                }(a, i, o);
+                d(u) && (he(e, l, c, u, be(l, c, s), r), g += 1);
+            };
+            return f(l, p, a.fields.packageHeight), f(t.frontEdge, c, a.frontIsLength ? a.fields.packageLength : a.fields.packageWidth),
+            a.showSide && t.depthEdge && f(t.depthEdge, u, a.frontIsLength ? a.fields.packageWidth : a.fields.packageLength),
+            g;
+        }
+        function ve(e, t, a, n, r) {
             const i = function(e, t, a) {
                 const n = Math.min(a.width / t.sourceWidth, a.height / t.sourceHeight);
                 return {
@@ -3558,27 +3596,13 @@
                     bottom: r.y + r.height + 80
                 }
             } : null, m = E(n, "box") ? n.manualPoints.box.slice(0, M("box")) : null, h = E(n, "product") ? n.manualPoints.product.slice(0, M("product")) : null;
-            if (n.singleBottle) return h ? we(e, h, n, "product", i, f) : s && (fe(e, s, n.fields.productHeight, g, f),
+            if (n.singleBottle) return h ? ke(e, h, n, "product", i, f) : s && (fe(e, s, n.fields.productHeight, g, f),
             me(e, s, n.fields.productLength, !1, f)), void e.restore();
-            m ? we(e, m, n, "box", i, f) : n.topologyApplied && p && function(e, t, a, n, r) {
-                if (!t) return 0;
-                const i = t.frontCorners && t.frontCorners.length ? ye(t.frontCorners.map(e => ue(e, n))) : null;
-                if (!i) return 0;
-                const o = t.frontAxis || (a.frontIsLength ? "boxLength" : "boxDepth"), s = t.depthAxis || (a.frontIsLength ? "boxDepth" : "boxLength"), l = t.verticalAxis || "boxHeight";
-                let c = 0;
-                const u = (t, o, s) => {
-                    if (!t || !t.start || !t.end) return;
-                    const l = ue(t.start, n), u = ue(t.end, n), p = function(e, t, a) {
-                        return "boxLength" === t ? e.fields.packageLength : "boxDepth" === t ? e.fields.packageWidth : "boxHeight" === t ? e.fields.packageHeight : a;
-                    }(a, o, s);
-                    d(p) && (he(e, l, u, p, be(l, u, i), r), c += 1);
-                };
-                return u(t.heightEdge, l, a.fields.packageHeight), u(t.frontEdge, o, a.frontIsLength ? a.fields.packageLength : a.fields.packageWidth),
-                a.showSide && t.depthEdge && u(t.depthEdge, s, a.frontIsLength ? a.fields.packageWidth : a.fields.packageLength),
-                c;
-            }(e, p, n, i, f) || (n.showSide && u ? (he(e, u.outerTop, u.outerBottom, n.fields.packageHeight, 1, f),
-            he(e, u.junctionBottom, u.rightBottom, l, 1, f), he(e, u.outerTop, u.junctionTop, c, -1, f)) : o && (fe(e, o, n.fields.packageHeight, "left", f),
-            me(e, {
+            if (m) ke(e, m, n, "box", i, f); else if (n.topologyApplied && p && Se(e, p, n, i, f, o, s)) ; else if (n.showSide && u) {
+                const t = we(o, s, "left");
+                he(e, "right" === t ? u.rightTop : u.outerTop, "right" === t ? u.rightBottom : u.outerBottom, n.fields.packageHeight, 1, f),
+                he(e, u.junctionBottom, u.rightBottom, l, 1, f), he(e, u.outerTop, u.junctionTop, c, -1, f);
+            } else o && (fe(e, o, n.fields.packageHeight, we(o, s, "left"), f), me(e, {
                 ...o,
                 left: o.left + (n.showSide ? a.sidePixels * i.scale : 0)
             }, l, !0, f), n.showSide && function(e, t, a, n) {
@@ -3588,10 +3612,11 @@
                 de(e, s - 9, l - 14, s + 9, l + 14), de(e, i - 9, o - 14, i + 9, o + 14), e.translate((s + i) / 2 - 12, (l + o) / 2 - 60),
                 e.rotate(Math.atan2(o - l, i - s)), e.font = "40px Arial", e.textAlign = "center",
                 e.textBaseline = "middle", e.fillText(pe(n), 0, 0), e.restore();
-            }(e, o, a.sidePixels * i.scale, c))), h ? we(e, h, n, "product", i, f) : s && (fe(e, s, n.fields.productHeight, g, f),
+            }(e, o, a.sidePixels * i.scale, c));
+            h ? ke(e, h, n, "product", i, f) : s && (fe(e, s, n.fields.productHeight, g, f),
             me(e, s, n.fields.productLength, !1, f)), e.restore();
         }
-        function Se() {
+        function xe() {
             const e = document.createElement("canvas");
             e.width = 1600, e.height = 1600;
             const t = e.getContext("2d");
@@ -3600,13 +3625,13 @@
                 ctx: t
             };
         }
-        function ve(e, t, a, n, r, i) {
+        function Ae(e, t, a, n, r, i) {
             let o = n;
             do {
                 e.font = (i || "400") + " " + o + "px Arial", o -= 1;
             } while (o >= r && e.measureText(t).width > a);
         }
-        function xe(e, t, a) {
+        function Ie(e, t, a) {
             const n = String(t || "").replace(/\s+/g, " ").trim();
             if (!n) return [ "" ];
             const r = [];
@@ -3628,14 +3653,14 @@
                 i && e.measureText(n).width > a ? (r.push(i), i = t) : i = n;
             }), i && r.push(i), r.length ? r : [ "" ];
         }
-        function Ae(e, t, a) {
+        function Me(e, t, a) {
             const n = a || {};
             e.save();
             const r = Math.max(1, Number(n.maxWidth) || 1), i = Math.max(1, Number(n.maxHeight) || 1), o = Math.max(1, Number(n.startSize) || 24), s = Math.max(1, Math.min(o, Number(n.minSize) || 16)), l = Math.max(1, Number(n.maxLines) || 2), c = Number(n.lineHeight) || 1.06, u = n.weight || "400";
             let d = null;
             for (let a = o; a >= s; a -= 1) {
                 e.font = u + " " + a + "px Arial";
-                const n = xe(e, t, r), o = a * c;
+                const n = Ie(e, t, r), o = a * c;
                 if (n.length <= l && n.length * o <= i) {
                     d = {
                         font: e.font,
@@ -3647,7 +3672,7 @@
             }
             if (!d) {
                 e.font = u + " " + s + "px Arial";
-                const a = xe(e, t, r);
+                const a = Ie(e, t, r);
                 d = {
                     font: e.font,
                     lines: a,
@@ -3659,14 +3684,14 @@
             return d.lines.forEach((t, a) => e.fillText(t, Number(n.x) || 0, p + a * d.lineHeight)),
             e.restore(), d;
         }
-        async function Ie(t) {
+        async function Te(t) {
             const a = w(t);
             return a ? (n[a] || (n[a] = e.cloudRequest("/parameter-logo?brand=" + encodeURIComponent(a), {
                 method: "GET"
             }).then(e => e && e.dataUrl ? X(e.dataUrl) : null).catch(() => null)), n[a]) : null;
         }
-        function Me(e, t, a, n, r) {
-            const {canvas: i, ctx: o} = Se();
+        function Ee(e, t, a, n, r) {
+            const {canvas: i, ctx: o} = xe();
             !function(e, t, a) {
                 if (t) {
                     const a = 500, n = 120, r = Math.min(a / t.naturalWidth, n / t.naturalHeight), i = t.naturalWidth * r, o = t.naturalHeight * r;
@@ -3674,11 +3699,11 @@
                 }
                 const n = String(a || "").trim();
                 n && !/^(AMZ|ODM|OEM|DOWMOO)$/i.test(n) && (e.fillStyle = "#080808", e.textAlign = "center",
-                e.textBaseline = "middle", ve(e, n, 500, 70, 38, "400"), e.fillText(n, 443, 240));
+                e.textBaseline = "middle", Ae(e, n, 500, 70, 38, "400"), e.fillText(n, 443, 240));
             }(o, r, n.brand);
             const s = String(a.fields.englishName || "").toUpperCase();
             o.strokeStyle = "#111", o.lineWidth = 4, o.strokeRect(75, 393, 736, 144), o.fillStyle = "#080808",
-            o.textAlign = "center", o.textBaseline = "middle", Ae(o, s, {
+            o.textAlign = "center", o.textBaseline = "middle", Me(o, s, {
                 x: 443,
                 y: 465,
                 maxWidth: 680,
@@ -3692,10 +3717,10 @@
             [ [ "NAME", a.fields.englishName || "" ], [ "NET CONTENT", a.fields.netContent ], [ "SHELF LIFE", a.fields.shelfLife ], [ "STORE", a.fields.store ], [ "FEATURES", a.fields.features ], [ "WEIGHT", a.fields.grossWeight ] ].forEach((e, t) => {
                 const a = 709 + 123 * t;
                 o.fillStyle = "#050505", o.fillRect(70, a, 230, 67), o.fillStyle = "#fff", o.textAlign = "center",
-                o.textBaseline = "middle", ve(o, e[0], 205, 32, 20, "400"), o.fillText(e[0], 185, a + 34),
+                o.textBaseline = "middle", Ae(o, e[0], 205, 32, 20, "400"), o.fillText(e[0], 185, a + 34),
                 o.fillStyle = "#111", o.textAlign = "left";
                 const n = String(e[1] || "");
-                "NAME" === e[0] ? Ae(o, n, {
+                "NAME" === e[0] ? Me(o, n, {
                     x: 326,
                     y: a + 34,
                     maxWidth: 455,
@@ -3706,10 +3731,10 @@
                     lineHeight: 1.04,
                     weight: "400",
                     align: "left"
-                }) : (ve(o, n, 455, 34, 20, "400"), o.fillText(n, 326, a + 34)), o.setLineDash([ 8, 5 ]),
+                }) : (Ae(o, n, 455, 34, 20, "400"), o.fillText(n, 326, a + 34)), o.setLineDash([ 8, 5 ]),
                 o.lineWidth = 2, de(o, 303, a + 67, 785, a + 67), o.setLineDash([]);
             });
-            return ke(o, e, t, a, {
+            return ve(o, e, t, a, {
                 x: 960,
                 y: 300,
                 width: 470,
@@ -3717,7 +3742,7 @@
                 clipLeft: 815
             }), i.toDataURL("image/jpeg", .96);
         }
-        async function Te(t, a) {
+        async function Ce(t, a) {
             const n = k(t);
             let r = !1;
             if (!n.file) return;
@@ -3733,7 +3758,7 @@
                     width: e.naturalWidth,
                     height: e.naturalHeight
                 });
-                const [a, s] = await Promise.all([ S(), Ie(t.brand) ]);
+                const [a, s] = await Promise.all([ S(), Te(t.brand) ]);
                 try {
                     n.analysis = le(e, n, a), i && _(n, "自动图像分析成功，手动路径将优先覆盖", {
                         hasBox: Boolean(n.analysis && n.analysis.box),
@@ -3758,14 +3783,14 @@
                     }, "warn"), !n.analysis) throw t;
                 }
                 n.productResult = function(e, t, a) {
-                    const {canvas: n, ctx: r} = Se();
-                    return ke(r, e, t, a, {
+                    const {canvas: n, ctx: r} = xe();
+                    return ve(r, e, t, a, {
                         x: 380,
                         y: 230,
                         width: 840,
                         height: 1080
                     }), n.toDataURL("image/jpeg", .96);
-                }(e, n.analysis, n), n.englishResult = Me(e, n.analysis, n, t, s), r = !0, i && _(n, "两张参数图生成成功", {
+                }(e, n.analysis, n), n.englishResult = Ee(e, n.analysis, n, t, s), r = !0, i && _(n, "两张参数图生成成功", {
                     productResultLength: n.productResult.length,
                     englishResultLength: n.englishResult.length
                 }), n.fields.englishName || (n.error = "未读取到英文产品名，请手动填写英文产品名后重新生成。");
@@ -3777,16 +3802,16 @@
                 URL.revokeObjectURL(o), n.busy = !1, e.render(), r && a && a.focusSave && e.focusSaveButton();
             }
         }
-        const Ee = "参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。";
-        function Ce(e) {
+        const Le = "参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。";
+        function Pe(e) {
             return Boolean(e && (/\.png$/i.test(e.name || "") || /^image\/png$/i.test(e.type || "")));
         }
-        function Le(t) {
-            k(t).error = Ee, e.render(), e.showToast && e.showToast(Ee);
+        function Ne(t) {
+            k(t).error = Le, e.render(), e.showToast && e.showToast(Le);
         }
-        async function Pe(t, a, n) {
+        async function Ue(t, a, n) {
             const o = k(a);
-            if (!Ce(t)) return void Le(a);
+            if (!Pe(t)) return void Ne(a);
             if (o.file = t, o.fileName = t.name, o.showSide = null, o.showSideOverride = !1,
             o.frontAxisOverride = !1, o.topologyApplied = !1, o.topologyRuleVersion = "", o.topologyMessage = "",
             o.editorImage = null, o.editorSourceUrl = "", o.editorOpen = !1, o.editorDragging = null,
@@ -3809,14 +3834,14 @@
             !o.fields.englishName) {
                 o.busy = !0, o.error = "", e.render();
                 try {
-                    await Ne(a, o);
+                    await Fe(a, o);
                 } catch (e) {} finally {
                     o.busy = !1;
                 }
             }
-            await Te(a, n);
+            await Ce(a, n);
         }
-        async function Ne(t, a) {
+        async function Fe(t, a) {
             const n = await e.collectExtra(t.sku);
             if (n && n.englishName && (a.fields.englishName = g(n.englishName, t && t.brand)),
             a.fields.englishName || (a.fields.englishName = m(n && n.liveData || t)), n && n.liveData) {
@@ -3825,7 +3850,7 @@
             }
             a.featuresDirty || (a.fields.features = y(t, a.fields.englishName));
         }
-        function Ue(t, a, n) {
+        function _e(t, a, n) {
             const r = k(n);
             if ("parameter-editor-close" === t) return J(r, "button"), !0;
             if ("parameter-editor-target-mode" === t) {
@@ -3896,7 +3921,7 @@
                     productPoints: r.manualPoints.product.length,
                     boxTypes: N(r, "box"),
                     productTypes: N(r, "product")
-                }), J(r, "apply"), Te(n), !0) : (e.showToast("请先完成纸盒或产品的独立尺寸边。"), !0);
+                }), J(r, "apply"), Ce(n), !0) : (e.showToast("请先完成纸盒或产品的独立尺寸边。"), !0);
             }
             return !1;
         }
@@ -3915,11 +3940,11 @@
                     const t = document.querySelector("#" + e.panelId + " .pfh-parameter-file");
                     return t && t.click(), !0;
                 }
-                return "parameter-image-regenerate" === t ? (Te(n), !0) : "parameter-image-refresh-data" === t ? (async function(t) {
+                return "parameter-image-regenerate" === t ? (Ce(n), !0) : "parameter-image-refresh-data" === t ? (async function(t) {
                     const a = k(t);
                     a.busy = !0, a.error = "", e.render();
                     try {
-                        await Ne(t, a), a.file && await Te(t);
+                        await Fe(t, a), a.file && await Ce(t);
                     } catch (e) {
                         a.error = "英文产品名读取失败，请手动填写。";
                     } finally {
@@ -3959,7 +3984,7 @@
                         sku: e && e.sku || "",
                         hasCachedImage: Boolean(t.editorImage)
                     }), Z(e));
-                }(n), !0) : !!/^parameter-editor-/.test(t) && Ue(t, a, n);
+                }(n), !0) : !!/^parameter-editor-/.test(t) && _e(t, a, n);
             },
             handleInput: function(e, t) {
                 if (!e.target.classList.contains("pfh-parameter-field")) return !1;
@@ -3971,17 +3996,17 @@
                 const a = k(t);
                 if (e.target.classList.contains("pfh-parameter-file")) {
                     const a = e.target.files && e.target.files[0];
-                    return a && Pe(a, t), e.target.value = "", !0;
+                    return a && Ue(a, t), e.target.value = "", !0;
                 }
                 return e.target.classList.contains("pfh-parameter-side") ? (a.showSide = Boolean(e.target.checked),
-                a.showSideOverride = !0, a.file && Te(t), !0) : "pfh-parameter-front" === e.target.name ? (a.frontIsLength = "length" === e.target.value,
-                a.frontAxisOverride = !0, a.showSide = null, a.file && Te(t), !0) : !!e.target.classList.contains("pfh-parameter-field") && (a.file && Te(t),
+                a.showSideOverride = !0, a.file && Ce(t), !0) : "pfh-parameter-front" === e.target.name ? (a.frontIsLength = "length" === e.target.value,
+                a.frontAxisOverride = !0, a.showSide = null, a.file && Ce(t), !0) : !!e.target.classList.contains("pfh-parameter-field") && (a.file && Ce(t),
                 !0);
             },
             handleDrop: function(t, a, n) {
-                const r = Array.from(t || []).filter(Boolean), i = r.find(Ce);
-                i ? (r.some(e => /^image\//i.test(e.type || "") && !Ce(e)) && e.showToast && e.showToast("已读取 PNG；其他格式图片已忽略，请使用透明 PNG。"),
-                Pe(i, a, n)) : r.length && Le(a);
+                const r = Array.from(t || []).filter(Boolean), i = r.find(Pe);
+                i ? (r.some(e => /^image\//i.test(e.type || "") && !Pe(e)) && e.showToast && e.showToast("已读取 PNG；其他格式图片已忽略，请使用透明 PNG。"),
+                Ue(i, a, n)) : r.length && Ne(a);
             },
             loadRules: v,
             generateBridgeAssets: async function(e, a) {
@@ -3994,7 +4019,7 @@
                 const o = new File([ i ], "透明.png", {
                     type: "image/png"
                 });
-                await Pe(o, e);
+                await Ue(o, e);
                 const s = k(e);
                 if (s.error && (!s.productResult || !s.englishResult)) throw new Error(s.error);
                 if (!s.productResult || !s.englishResult) throw new Error("悬浮助手参数图生成失败");

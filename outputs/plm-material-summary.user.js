@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.94
+// @version      2.7.95
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.94';
+  const SCRIPT_VERSION = '2.7.95';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1530,6 +1530,29 @@
       return ((center.x - middle.x) * nx + (center.y - middle.y) * ny) >= 0 ? -1 : 1;
     }
 
+    function cartonHeightSide(box, product, fallback) {
+      if (box && product) {
+        const boxCenter = (box.left + box.right) / 2;
+        const productCenter = (product.left + product.right) / 2;
+        if (product.right <= box.left + 8 || productCenter < boxCenter) return 'right';
+        if (product.left >= box.right - 8 || productCenter > boxCenter) return 'left';
+      }
+      return fallback === 'left' ? 'left' : 'right';
+    }
+
+    function cartonTopologyHeightEdge(topology, side) {
+      const front = topology && Array.isArray(topology.frontCorners) ? topology.frontCorners : [];
+      const sideCorners = topology && Array.isArray(topology.sideCorners) ? topology.sideCorners : [];
+      if (front.length >= 4) {
+        const face = String(topology.sideFace || 'none');
+        if (side === face && sideCorners.length >= 4) return { start: sideCorners[1], end: sideCorners[2] };
+        return side === 'left'
+          ? { start: front[0], end: front[3] }
+          : { start: front[1], end: front[2] };
+      }
+      return topology && topology.heightEdge;
+    }
+
     function drawManualDimensionPath(ctx, sourcePoints, session, target, fit, layout) {
       const points = sourcePoints.map((point) => mapPoint(point, fit));
       const center = manualPathCenter(points);
@@ -1541,12 +1564,14 @@
       });
     }
 
-    function drawTopologyDimensions(ctx, topology, session, fit, layout) {
+    function drawTopologyDimensions(ctx, topology, session, fit, layout, box, product) {
       if (!topology) return 0;
       const center = topology.frontCorners && topology.frontCorners.length
         ? manualPathCenter(topology.frontCorners.map((point) => mapPoint(point, fit)))
         : null;
       if (!center) return 0;
+      const heightSide = cartonHeightSide(box, product, topology.sideFace === 'left' ? 'left' : 'right');
+      const heightEdge = cartonTopologyHeightEdge(topology, heightSide);
       const frontAxis = topology.frontAxis || (session.frontIsLength ? 'boxLength' : 'boxDepth');
       const depthAxis = topology.depthAxis || (session.frontIsLength ? 'boxDepth' : 'boxLength');
       const verticalAxis = topology.verticalAxis || 'boxHeight';
@@ -1559,7 +1584,7 @@
         drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), layout);
         count += 1;
       };
-      drawEdge(topology.heightEdge, verticalAxis, session.fields.packageHeight);
+      drawEdge(heightEdge, verticalAxis, session.fields.packageHeight);
       drawEdge(topology.frontEdge, frontAxis, session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth);
       if (session.showSide && topology.depthEdge) drawEdge(topology.depthEdge, depthAxis, session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength);
       return count;
@@ -1595,14 +1620,17 @@
       }
       if (manualBox) {
         drawManualDimensionPath(ctx, manualBox, session, 'box', fit, dimensionLayout);
-      } else if (session.topologyApplied && topology && drawTopologyDimensions(ctx, topology, session, fit, dimensionLayout)) {
+      } else if (session.topologyApplied && topology && drawTopologyDimensions(ctx, topology, session, fit, dimensionLayout, box, product)) {
         // The learned topology has already selected the exact front, depth and height edges.
       } else if (session.showSide && perspective) {
-        drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1, dimensionLayout);
+        const heightSide = cartonHeightSide(box, product, 'left');
+        const heightStart = heightSide === 'right' ? perspective.rightTop : perspective.outerTop;
+        const heightEnd = heightSide === 'right' ? perspective.rightBottom : perspective.outerBottom;
+        drawAngledDimension(ctx, heightStart, heightEnd, session.fields.packageHeight, 1, dimensionLayout);
         drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1, dimensionLayout);
         drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1, dimensionLayout);
       } else if (box) {
-        drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left', dimensionLayout);
+        drawVerticalDimension(ctx, box, session.fields.packageHeight, cartonHeightSide(box, product, 'left'), dimensionLayout);
         drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true, dimensionLayout);
         if (session.showSide) drawSideDimension(ctx, box, analysis.sidePixels * fit.scale, sideValue);
       }
