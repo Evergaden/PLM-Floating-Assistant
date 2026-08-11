@@ -2194,7 +2194,7 @@ export default function App() {
                 <div className="zip-drop" onClick={chooseZipPacks}>
                   <FileArchive size={30} />
                   <strong>{zipPaths.length ? `已添加 ${zipPaths.length} 个图包` : "拖入图包 ZIP"}</strong>
-                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip；未匹配图片会自动补到缺失的主图/详情图编号</span>
+                  <span>文件名需要包含 SKU，例如：主图_SKU00044974.zip；已命名为主图1/详情图1的文件会直接保留槽位，其他未匹配图片再自动补位</span>
                 </div>
                 <div className="zip-list">
                   {zipPaths.map((path) => (

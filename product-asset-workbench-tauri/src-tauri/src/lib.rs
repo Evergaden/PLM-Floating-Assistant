@@ -2019,7 +2019,14 @@ fn archive_image_packs(
                 .unwrap_or_default()
                 .to_string();
             let target_name = if use_rules {
-                if let Some(rule) = rules.iter().find(|rule| rule.pattern.is_match(stem)) {
+                if let Some((family, index)) = parse_pack_slot(stem) {
+                    let target = match family {
+                        PackSlotFamily::Main => format!("主图{index}"),
+                        PackSlotFamily::Detail => format!("详情图{index}"),
+                    };
+                    matched_targets.insert(target.clone());
+                    Some(pack_target_name(&target, &extension))
+                } else if let Some(rule) = rules.iter().find(|rule| rule.pattern.is_match(stem)) {
                     matched_targets.insert(rule.target.clone());
                     Some(pack_target_name(&rule.target, &extension))
                 } else if is_pack_image(source_path) {
@@ -4709,6 +4716,53 @@ mod tests {
         assert_eq!(photoshop_image_category(Path::new("附件.bmp")), 0);
         assert!(product.join("套图").join("主图1.png").is_file());
         assert!(product.join("套图").join("主图2.png").is_file());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn archives_already_renamed_main_pack_without_reordering_slots() {
+        use std::io::Write;
+        use zip::{ZipWriter, write::SimpleFileOptions};
+
+        let root = std::env::temp_dir().join(format!("plm-renamed-pack-test-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 身体乳 SKU00049398");
+        fs::create_dir_all(&product).unwrap();
+        let zip_path = root.join("SKU00049398-主图.zip");
+        let zip_file = fs::File::create(&zip_path).unwrap();
+        let mut writer = ZipWriter::new(zip_file);
+        for index in 1..=6 {
+            writer
+                .start_file(format!("主图{index}.png"), SimpleFileOptions::default())
+                .unwrap();
+            writer
+                .write_all(format!("fake-main-{index}").as_bytes())
+                .unwrap();
+        }
+        writer.finish().unwrap();
+
+        let result = archive_image_packs(
+            vec![path_text(&zip_path)],
+            path_text(&root),
+            "^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1\n^input-main-prompt-2-[a-zA-Z0-9]{8}$|主图2".to_string(),
+            true,
+            false,
+            false,
+            String::new(),
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(result.success, 6);
+        assert_eq!(result.skipped, 0);
+        assert_eq!(result.failed, 0);
+        for index in 1..=6 {
+            assert!(
+                product
+                    .join("套图")
+                    .join(format!("主图{index}.png"))
+                    .is_file()
+            );
+        }
         fs::remove_dir_all(&root).unwrap();
     }
 
