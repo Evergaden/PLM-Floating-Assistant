@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.95
+// @version      2.7.97
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.95';
+  const SCRIPT_VERSION = '2.7.97';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -76,6 +76,8 @@
   const apiProjectSnapshotCache = Object.create(null);
   const apiDomesticThirdTierPriceCache = Object.create(null);
   const apiIngredientFileCache = Object.create(null);
+  const ASSIGNED_DESIGN_TASK_ENDPOINT = '/api/ChemicalNewDesignTask/GetList';
+  const ASSIGNED_DESIGN_TASK_PAGE_SIZE = 20;
   const PLM_ARCHIVE_OSS_ORIGIN = 'https://oss-pro.plm.westmonth.cn';
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -4339,6 +4341,7 @@
     toyEffectMatchStatus: '',
     projectListPrefetchTimer: 0,
     projectListPrefetchSignature: '',
+    assignedDesignTaskSyncPromise: null,
     uploadGuideOpen: false,
     uploadClearConfirmOpen: false,
     uploadPage: 1,
@@ -4629,11 +4632,25 @@
     const signature = activeWorkflowTab + '|' + JSON.stringify(rows);
     if (signature === state.projectListPrefetchSignature) return;
     state.projectListPrefetchSignature = signature;
+    return syncProjectListRowsToCache(rows, {
+      source: 'project-all',
+      ledgerLog: '\u6574\u9875\u8bbe\u8ba1\u5206\u914d\u4efb\u52a1\u5df2\u540c\u6b65\u5230\u4eca\u65e5\u5de5\u4f5c\u53f0',
+      cacheLog: '\u65b0\u54c1\u5f00\u53d1\u5217\u8868\u57fa\u7840\u4fe1\u606f\u5df2\u9759\u9ed8\u7f13\u5b58',
+    });
+  }
+
+  function syncProjectListRowsToCache(rows, options) {
+    const opts = options || {};
+    const source = String(opts.source || 'project-all');
+    const list = (Array.isArray(rows) ? rows : []).filter((row) => row && row.sku);
+    if (!list.length) return { fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0 };
     let changedCount = 0;
+    let addedCount = 0;
     let ledgerChangedCount = 0;
+    let ledgerAddedCount = 0;
     let ledgerEligibleCount = 0;
     syncDailyLedgerBeforeMutation();
-    rows.forEach((row) => {
+    list.forEach((row) => {
       const previous = normalizeData(loadData(row.sku) || { sku: row.sku });
       const benchmarkImageUrl = stripOssResizeParams(row.benchmarkImageUrl || '');
       const productListImageUrl = stripOssResizeParams(row.productListImageUrl || '');
@@ -4645,6 +4662,9 @@
         brand: row.brand || previous.brand || '',
         name: row.name || previous.name || '',
         projectRowId: row.rowId || previous.projectRowId || '',
+        projectId: row.projectId || previous.projectId || '',
+        productId: row.productId || previous.productId || '',
+        productVersionId: row.productVersionId || previous.productVersionId || '',
         developerName: row.developerName || previous.developerName || '',
         developerText: row.developerText || previous.developerText || '',
         benchmarkImageUrl: benchmarkImageUrl || previous.benchmarkImageUrl || '',
@@ -4658,6 +4678,7 @@
         productListImageUrl: productListImageUrl || previous.productListImageUrl || '',
         productListImageFallbackUrl: row.productListImageUrl || previous.productListImageFallbackUrl || productListImageUrl || '',
         designAssignedAt: row.designAssignedAt || previous.designAssignedAt || '',
+        developmentAssignedAt: row.developmentAssignedAt || previous.developmentAssignedAt || '',
         projectCreatedAt: row.projectCreatedAt || previous.projectCreatedAt || '',
         departmentName: row.departmentName || previous.departmentName || '',
         projectOwnerName: row.projectOwnerName || previous.projectOwnerName || '',
@@ -4667,10 +4688,12 @@
         requiresPlanStock: row.requiresPlanStock || previous.requiresPlanStock || '',
         bomAuditStatus: row.bomAuditStatus || previous.bomAuditStatus || '',
         plmCategory: row.plmCategory || previous.plmCategory || '',
+        productType: row.productType || previous.productType || '',
+        productTypeValue: row.productTypeValue || previous.productTypeValue || '',
         skuImageUrl: useProductListAsSkuImage ? (productListImageUrl || row.productListImageUrl) : (previous.skuImageUrl || ''),
         skuImageFallbackUrl: useProductListAsSkuImage ? (row.productListImageUrl || productListImageUrl) : (previous.skuImageFallbackUrl || ''),
         skuImageSource: useProductListAsSkuImage ? 'productListImage' : (previous.skuImageSource || ''),
-        listPrefetchSource: 'project-all',
+        listPrefetchSource: previous.listPrefetchSource || source,
       });
       const assignedDate = parseLedgerDateFromText(row.designAssignedAt);
       if (assignedDate) {
@@ -4681,12 +4704,16 @@
           deferSave: true,
           skipStorageSync: true,
           skipUnchanged: true,
-          note: existingLedger ? undefined : '\u6574\u9875\u5217\u8868\u81ea\u52a8\u52a0\u5165',
+          note: existingLedger ? undefined : (opts.ledgerNote || '\u6574\u9875\u5217\u8868\u81ea\u52a8\u52a0\u5165'),
         });
-        if (syncedLedger && syncedLedger !== existingLedger) ledgerChangedCount += 1;
+        if (syncedLedger && syncedLedger !== existingLedger) {
+          ledgerChangedCount += 1;
+          if (!existingLedger) ledgerAddedCount += 1;
+        }
       }
       const dataChanged = hasMeaningfulDataChange(previous, candidate);
       const indexMissing = !state.index.some((item) => item && item.sku === row.sku);
+      if (indexMissing) addedCount += 1;
       if (!dataChanged && !indexMissing) return;
       const saved = dataChanged ? normalizeData({
         ...candidate,
@@ -4701,14 +4728,108 @@
     });
     if (ledgerChangedCount) {
       saveDailyLedger();
-      addLog('info', '\u6574\u9875\u8bbe\u8ba1\u5206\u914d\u4efb\u52a1\u5df2\u540c\u6b65\u5230\u4eca\u65e5\u5de5\u4f5c\u53f0', ledgerChangedCount + '/' + ledgerEligibleCount + '\u4e2a\u7f16\u7801');
+      if (opts.ledgerLog !== false) addLog('info', opts.ledgerLog || '\u8bbe\u8ba1\u5206\u914d\u4efb\u52a1\u5df2\u540c\u6b65\u5230\u4eca\u65e5\u5de5\u4f5c\u53f0', ledgerChangedCount + '/' + ledgerEligibleCount + '\u4e2a\u7f16\u7801');
     }
-    if (!changedCount && !ledgerChangedCount) return;
+    if (!changedCount && !ledgerChangedCount) return { fetchedCount: list.length, changedCount, addedCount, ledgerChangedCount, ledgerAddedCount };
     if (changedCount) {
       queueCloudBackup();
-      addLog('info', '\u65b0\u54c1\u5f00\u53d1\u5217\u8868\u57fa\u7840\u4fe1\u606f\u5df2\u9759\u9ed8\u7f13\u5b58', changedCount + '/' + rows.length + '\u4e2a\u7f16\u7801');
+      if (opts.cacheLog !== false) addLog('info', opts.cacheLog || '\u65b0\u54c1\u5f00\u53d1\u5217\u8868\u57fa\u7840\u4fe1\u606f\u5df2\u9759\u9ed8\u7f13\u5b58', changedCount + '/' + list.length + '\u4e2a\u7f16\u7801');
     }
-    if (state.view === 'home' || state.view === 'detail' || state.view === 'ledger') renderShell();
+    if (opts.render !== false && (state.view === 'home' || state.view === 'detail' || state.view === 'ledger')) renderShell();
+    return { fetchedCount: list.length, changedCount, addedCount, ledgerChangedCount, ledgerAddedCount };
+  }
+
+  function normalizeAssignedDesignTaskRow(item) {
+    if (!item || typeof item !== 'object') return null;
+    const sku = String(item.product_code || item.productCode || item.code || '').trim().toUpperCase();
+    if (!sku) return null;
+    const projectId = String(item.id || item.project_id || item.chemical_id || item.project_row_id || item.projectRowId || '').trim();
+    const benchmarkImageUrl = getApiAssetUrl(item.main_pic || item.mainPic || '', 0);
+    const productListImageUrl = getApiAssetUrl(item.pic || item.product_pic || item.product_image || '', 0);
+    const developerName = cleanName(item.dev_work_user_name || item.dev_head_user_name || '');
+    const developerText = [developerName, item.dev_work_user_jobtitlename || item.dev_head_user_jobtitlename || ''].filter(Boolean).join(' ');
+    const planStock = item.is_plan_stock === true || item.is_plan_stock === 1
+      ? '\u662f'
+      : (item.is_plan_stock === false || item.is_plan_stock === 0 ? '\u5426' : cleanProjectListCell(item.is_plan_stock));
+    return {
+      sku,
+      rowId: projectId,
+      projectId,
+      productId: String(item.product_id || '').trim(),
+      productVersionId: String(item.product_main_id || item.product_version_id || '').trim(),
+      developerText,
+      developerName,
+      brand: cleanName(item.brand_name || item.product_brand_name || ''),
+      name: cleanName(item.product_name || item.dev_product_name || ''),
+      benchmarkImageUrl,
+      referenceUrl: String(item.main_url || item.reference_url || item.referenceUrl || '').trim(),
+      developmentAdvice: cleanProjectListCell(item.remark || item.dev_proposals),
+      artPriority: cleanProjectListCell(item.priority_label),
+      projectStatus: cleanProjectListCell(item.status_format || item.status),
+      designType: cleanProjectListCell(item.design_type_label),
+      specificationText: cleanProjectListCell(item.specification),
+      productListImageUrl,
+      designAssignedAt: String(item.design_assign_at || item.designAssignedAt || '').trim(),
+      developmentAssignedAt: String(item.dev_assign_at || item.developmentAssignedAt || '').trim(),
+      projectCreatedAt: String(item.create_at || item.audit_at || item.projectCreatedAt || '').trim(),
+      departmentName: cleanProjectListCell(item.design_work_user_department_name || item.dev_work_user_department_name),
+      projectOwnerName: cleanProjectListCell(item.design_work_user_name || item.dev_work_user_name),
+      promotionStatus: cleanProjectListCell(item.promote_status_format),
+      listingStatus: cleanProjectListCell(item.sale_status_format),
+      bomStatus: cleanProjectListCell(item.bom_status_format),
+      requiresPlanStock: planStock,
+      bomAuditStatus: cleanProjectListCell(item.audit_bom_status_format),
+      plmCategory: cleanProjectListCell(item.category_name),
+      productType: cleanProjectListCell(item.product_type_format || item.product_type),
+      productTypeValue: item.product_type,
+    };
+  }
+
+  function getApiListTotal(payload) {
+    const data = getApiPayloadDataObject(payload);
+    return Number(data.total || payload && payload.total || 0) || 0;
+  }
+
+  async function fetchAssignedDesignTaskRows() {
+    const rows = [];
+    let total = 0;
+    for (let page = 1; page <= 100; page += 1) {
+      const payload = await fetchPlmJson(ASSIGNED_DESIGN_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + ASSIGNED_DESIGN_TASK_PAGE_SIZE);
+      if (payload && payload.success === false) {
+        throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '\u8bbe\u8ba1\u4efb\u52a1 API \u8fd4\u56de\u5931\u8d25');
+      }
+      const pageRows = getApiListItems(payload);
+      total = getApiListTotal(payload) || total;
+      rows.push(...pageRows);
+      if (!pageRows.length || (total && rows.length >= total) || pageRows.length < ASSIGNED_DESIGN_TASK_PAGE_SIZE) break;
+    }
+    const deduped = new Map();
+    rows.forEach((item) => {
+      const row = normalizeAssignedDesignTaskRow(item);
+      if (!row || !row.designAssignedAt) return;
+      const previous = deduped.get(row.sku);
+      if (!previous || parseSkuListTime(row.designAssignedAt) >= parseSkuListTime(previous.designAssignedAt)) deduped.set(row.sku, row);
+    });
+    return Array.from(deduped.values());
+  }
+
+  function syncAssignedDesignTasksFromApi() {
+    if (!state.settings.collectionEnabled) return Promise.resolve({ fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true });
+    if (state.assignedDesignTaskSyncPromise) return state.assignedDesignTaskSyncPromise;
+    const request = (async () => {
+      const rows = await fetchAssignedDesignTaskRows();
+      return syncProjectListRowsToCache(rows, {
+        source: 'assigned-design-api',
+        ledgerNote: '\u6211\u7684\u8be6\u60c5 API \u81ea\u52a8\u52a0\u5165',
+        ledgerLog: '\u6211\u7684\u8be6\u60c5\u5df2\u901a\u8fc7\u8bbe\u8ba1\u4efb\u52a1 API \u540c\u6b65\u5230\u4eca\u65e5\u5de5\u4f5c\u53f0',
+        cacheLog: '\u6211\u7684\u8be6\u60c5\u5df2\u901a\u8fc7\u8bbe\u8ba1\u4efb\u52a1 API \u66f4\u65b0\u672c\u5730\u7f13\u5b58',
+      });
+    })();
+    const task = request.finally(() => {
+      if (state.assignedDesignTaskSyncPromise === task) state.assignedDesignTaskSyncPromise = null;
+    });
+    state.assignedDesignTaskSyncPromise = task;
+    return task;
   }
 
   function collectProjectAllListRows() {
@@ -12769,7 +12890,7 @@
     const compareBadge = delta > 0 ? '↗ ' + deltaPercent + '%' : (delta < 0 ? '↘ ' + deltaPercent + '%' : '持平');
     const compareText = stats.yesterday ? '比昨天' + (delta > 0 ? '多 ' + delta : (delta < 0 ? '少 ' + Math.abs(delta) : '相同')) + ' 个' : '昨日暂无新任务';
     const magicLocked = !state.magicUploadAccessEnabled;
-    const primary = { action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '打开最近缓存的产品详情，继续查看尺寸、重量与图包信息。', meta: state.index.length + ' 个本地产品档案' };
+    const primary = { action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '点击后先检查新的设计分配，自动加入本地列表和今日工作台。', meta: state.index.length + ' 个本地产品档案' };
     const quickEntries = [
       { action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' },
       { action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '队列上传并记录状态' },
@@ -22157,9 +22278,23 @@
   }
 
   async function openFirstCachedDetail() {
+    let syncResult = null;
+    let syncFailed = false;
+    if (state.settings.collectionEnabled) {
+      showToast('\u6b63\u5728\u67e5\u8be2\u6211\u7684\u65b0\u8bbe\u8ba1\u5206\u914d...');
+      try {
+        syncResult = await syncAssignedDesignTasksFromApi();
+        const addedCount = Math.max(Number(syncResult && syncResult.addedCount || 0), Number(syncResult && syncResult.ledgerAddedCount || 0));
+        showToast(addedCount ? '\u5df2\u81ea\u52a8\u52a0\u5165 ' + addedCount + ' \u4e2a\u65b0\u5206\u914d\u4efb\u52a1' : '\u5df2\u68c0\u67e5\uff0c\u6682\u65e0\u65b0\u5206\u914d\u4efb\u52a1');
+      } catch (error) {
+        syncFailed = true;
+        addLog('warn', '\u6211\u7684\u8be6\u60c5\u81ea\u52a8\u540c\u6b65\u5206\u914d\u4efb\u52a1\u5931\u8d25', formatErrorMessage(error));
+        showToast('\u5206\u914d\u4efb\u52a1\u67e5\u8be2\u5931\u8d25\uff0c\u7ee7\u7eed\u6253\u5f00\u672c\u5730\u8be6\u60c5', { tone: 'info' });
+      }
+    }
     const first = state.index[0] && state.index[0].sku ? state.index[0].sku : '';
     if (!first) {
-      showToast(L.emptyList);
+      showToast(syncFailed ? '\u6682\u65e0\u53ef\u6253\u5f00\u7684\u672c\u5730\u8be6\u60c5' : L.emptyList);
       return;
     }
     const data = normalizeData(loadData(first) || state.index[0]);
