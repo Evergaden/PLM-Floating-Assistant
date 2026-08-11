@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "channel": "stable",
-  "ruleVersion": "2026.08.11-1",
+  "ruleVersion": "local-1786432848366",
   "ruleUrl": "./parameter-layout-rules.json",
-  "minAppVersion": "0.1.18",
-  "publishedAt": "2026-08-11T09:51:10+08:00"
+  "minAppVersion": "0.1.19",
+  "publishedAt": "2026-08-11T15:20:48+08:00"
 }

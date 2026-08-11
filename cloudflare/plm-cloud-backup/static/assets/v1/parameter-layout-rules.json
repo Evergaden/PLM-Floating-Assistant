@@ -5,85 +5,2785 @@
   },
   "coordinateMode": "normalized-relative-to-paper-box",
   "evidence": {
+    "axisMappingVerified": 368,
     "dimensionMismatches": 5,
-    "excelOcrSelected": 399,
-    "excelParsed": 576,
+    "excelOcrSelected": 398,
+    "excelParsed": 574,
+    "geometryAnalyzed": 543,
     "ocrAvailable": true,
-    "ocrVerified": 399
+    "ocrVerified": 398,
+    "sideFaceDetected": 428
   },
-  "generatedAtMs": 1786349091404,
-  "minAppVersion": "0.1.18",
+  "generatedAtMs": 1786432848366,
+  "minAppVersion": "0.1.19",
   "profiles": [
     {
       "depth": {
-        "count": 38,
+        "count": 4,
         "medianAngleDegrees": 90.0,
-        "medianLabelOffsetRatio": 0.03739231824874878,
-        "medianLineGapRatio": 0.05102173611521721,
+        "medianLabelOffsetRatio": 0.04901740700006485,
+        "medianLineGapRatio": 0.05462653189897537,
         "placementCounts": {
-          "left": 31,
-          "right": 5,
-          "top": 2
+          "left": 4
         },
         "primaryPlacement": "left"
       },
+      "edgeTopology": {
+        "analysisVersion": 2,
+        "axisMappingVerified": 77,
+        "boxPositionCounts": {
+          "left": 100,
+          "middle": 4,
+          "right": 4,
+          "single": 5
+        },
+        "count": 113,
+        "depthAxisCounts": {
+          "boxDepth": 74,
+          "boxHeight": 3
+        },
+        "frontAxisCounts": {
+          "boxLength": 77
+        },
+        "medianConfidence": 0.8999947309494019,
+        "sideFaceCounts": {
+          "none": 113
+        },
+        "templates": [
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.8999947309494019,
+            "depthAxis": "boxDepth",
+            "depthEdge": null,
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.0031095114536583424,
+                "y": 0.0
+              },
+              {
+                "x": 0.49025973677635193,
+                "y": 0.0
+              },
+              {
+                "x": 0.49025973677635193,
+                "y": 0.9990652799606323
+              },
+              {
+                "x": 0.0031095114536583424,
+                "y": 0.9987132549285889
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.49025973677635193,
+                "y": 0.9990652799606323
+              },
+              "start": {
+                "x": 0.0031095114536583424,
+                "y": 0.9987132549285889
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0031095114536583424,
+                "y": 0.9987132549285889
+              },
+              "start": {
+                "x": 0.0031095114536583424,
+                "y": 0.0
+              }
+            },
+            "id": "left|none|boxLength|boxDepth|boxHeight",
+            "sampleCount": 68,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.8999981880187988,
+            "depthAxis": "boxHeight",
+            "depthEdge": null,
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.0032552082557231188,
+                "y": 0.0
+              },
+              {
+                "x": 0.49533089995384216,
+                "y": 0.0
+              },
+              {
+                "x": 0.49533089995384216,
+                "y": 0.9991330504417419
+              },
+              {
+                "x": 0.0032552082557231188,
+                "y": 0.9991330504417419
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.49533089995384216,
+                "y": 0.9991330504417419
+              },
+              "start": {
+                "x": 0.0032552082557231188,
+                "y": 0.9991330504417419
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0032552082557231188,
+                "y": 0.9991330504417419
+              },
+              "start": {
+                "x": 0.0032552082557231188,
+                "y": 0.0
+              }
+            },
+            "id": "left|none|boxLength|boxHeight|boxDepth",
+            "sampleCount": 3,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "left",
+            "confidence": 0.8999949097633362,
+            "depthAxis": "",
+            "depthEdge": null,
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.0034626037813723087,
+                "y": 0.0
+              },
+              {
+                "x": 0.49500998854637146,
+                "y": 0.0
+              },
+              {
+                "x": 0.49500998854637146,
+                "y": 0.9995192289352417
+              },
+              {
+                "x": 0.0034626037813723087,
+                "y": 0.9995192289352417
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.49500998854637146,
+                "y": 0.9995192289352417
+              },
+              "start": {
+                "x": 0.0034626037813723087,
+                "y": 0.9995192289352417
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0034626037813723087,
+                "y": 0.9995192289352417
+              },
+              "start": {
+                "x": 0.0034626037813723087,
+                "y": 0.0
+              }
+            },
+            "id": "left|none|||",
+            "sampleCount": 29,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "middle",
+            "confidence": 0.8939069509506226,
+            "depthAxis": "",
+            "depthEdge": null,
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.4150222837924957,
+                "y": 0.00917431153357029
+              },
+              {
+                "x": 0.7886696457862854,
+                "y": 0.0
+              },
+              {
+                "x": 0.7886696457862854,
+                "y": 0.9943206906318665
+              },
+              {
+                "x": 0.4150222837924957,
+                "y": 0.9654871225357056
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.7886696457862854,
+                "y": 0.9943206906318665
+              },
+              "start": {
+                "x": 0.4150222837924957,
+                "y": 0.9654871225357056
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.4150222837924957,
+                "y": 0.9654871225357056
+              },
+              "start": {
+                "x": 0.4150222837924957,
+                "y": 0.00917431153357029
+              }
+            },
+            "id": "middle|none|||",
+            "sampleCount": 4,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "right",
+            "confidence": 0.898945689201355,
+            "depthAxis": "boxDepth",
+            "depthEdge": null,
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.5191301107406616,
+                "y": 0.07227616012096405
+              },
+              {
+                "x": 0.9975816011428833,
+                "y": 0.07874865084886551
+              },
+              {
+                "x": 0.9975816011428833,
+                "y": 0.9612486362457275
+              },
+              {
+                "x": 0.5191301107406616,
+                "y": 0.9612486362457275
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9975816011428833,
+                "y": 0.9612486362457275
+              },
+              "start": {
+                "x": 0.5191301107406616,
+                "y": 0.9612486362457275
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.5191301107406616,
+                "y": 0.9612486362457275
+              },
+              "start": {
+                "x": 0.5191301107406616,
+                "y": 0.07227616012096405
+              }
+            },
+            "id": "right|none|boxLength|boxDepth|boxHeight",
+            "sampleCount": 3,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "right",
+            "confidence": 0.8999941349029541,
+            "depthAxis": "",
+            "depthEdge": null,
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.465753436088562,
+                "y": 0.0
+              },
+              {
+                "x": 0.9956741333007812,
+                "y": 0.0
+              },
+              {
+                "x": 0.9956741333007812,
+                "y": 0.9995583295822144
+              },
+              {
+                "x": 0.465753436088562,
+                "y": 0.9995583295822144
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9956741333007812,
+                "y": 0.9995583295822144
+              },
+              "start": {
+                "x": 0.465753436088562,
+                "y": 0.9995583295822144
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.465753436088562,
+                "y": 0.9995583295822144
+              },
+              "start": {
+                "x": 0.465753436088562,
+                "y": 0.0
+              }
+            },
+            "id": "right|none|||",
+            "sampleCount": 1,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.8585238456726074,
+            "depthAxis": "boxDepth",
+            "depthEdge": null,
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.003209242597222328,
+                "y": 0.3038936257362366
+              },
+              {
+                "x": 0.9961488842964172,
+                "y": 0.47220486402511597
+              },
+              {
+                "x": 0.9961488842964172,
+                "y": 0.9672364592552185
+              },
+              {
+                "x": 0.003209242597222328,
+                "y": 0.9074074029922485
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9961488842964172,
+                "y": 0.9672364592552185
+              },
+              "start": {
+                "x": 0.003209242597222328,
+                "y": 0.9074074029922485
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.003209242597222328,
+                "y": 0.9074074029922485
+              },
+              "start": {
+                "x": 0.003209242597222328,
+                "y": 0.3038936257362366
+              }
+            },
+            "id": "single|none|boxLength|boxDepth|boxHeight",
+            "sampleCount": 3,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "single",
+            "confidence": 0.8632588386535645,
+            "depthAxis": "",
+            "depthEdge": null,
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.00420848373323679,
+                "y": 0.00947260670363903
+              },
+              {
+                "x": 0.994416356086731,
+                "y": 0.30299994349479675
+              },
+              {
+                "x": 0.994416356086731,
+                "y": 0.8343733549118042
+              },
+              {
+                "x": 0.00420848373323679,
+                "y": 0.9874603748321533
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.994416356086731,
+                "y": 0.8343733549118042
+              },
+              "start": {
+                "x": 0.00420848373323679,
+                "y": 0.9874603748321533
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.00420848373323679,
+                "y": 0.9874603748321533
+              },
+              "start": {
+                "x": 0.00420848373323679,
+                "y": 0.00947260670363903
+              }
+            },
+            "id": "single|none|||",
+            "sampleCount": 2,
+            "sideCorners": [],
+            "sideFace": "none",
+            "verticalAxis": ""
+          }
+        ],
+        "verticalAxisCounts": {
+          "boxDepth": 3,
+          "boxHeight": 74
+        }
+      },
       "height": {
-        "count": 505,
+        "count": 156,
         "medianAngleDegrees": 90.0,
-        "medianLabelOffsetRatio": 0.0020000000949949026,
-        "medianLineGapRatio": 0.052000001072883606,
+        "medianLabelOffsetRatio": 0.0,
+        "medianLineGapRatio": 0.054054055362939835,
         "placementCounts": {
-          "bottom": 5,
-          "left": 413,
-          "right": 86,
-          "top": 1
+          "left": 149,
+          "right": 7
         },
         "primaryPlacement": "left"
       },
       "id": "flat-box",
       "label": "正面纸盒",
       "length": {
-        "count": 541,
-        "medianAngleDegrees": 2.7608994192414305e-13,
-        "medianLabelOffsetRatio": 0.01220752764493227,
-        "medianLineGapRatio": 0.018993351608514786,
+        "count": 160,
+        "medianAngleDegrees": 0.0,
+        "medianLabelOffsetRatio": 0.012592494487762451,
+        "medianLineGapRatio": 0.017568286508321762,
         "placementCounts": {
-          "bottom": 381,
-          "left": 5,
-          "right": 2,
-          "top": 153
+          "bottom": 135,
+          "top": 25
         },
         "primaryPlacement": "bottom"
       },
       "match": {
         "perspectiveDepth": false
       },
-      "sampleCount": 542
+      "sampleCount": 160
     },
     {
       "depth": {
-        "count": 46,
-        "medianAngleDegrees": 28.794572830200195,
+        "count": 79,
+        "medianAngleDegrees": 74.18682098388672,
         "medianLabelOffsetRatio": 0.0,
-        "medianLineGapRatio": 0.011522267013788223,
+        "medianLineGapRatio": 0.029411764815449715,
         "placementCounts": {
-          "left": 6,
-          "right": 1,
-          "top": 1,
-          "top-left": 21,
+          "left": 33,
+          "right": 6,
+          "top": 3,
+          "top-left": 20,
           "top-right": 17
         },
-        "primaryPlacement": "top-left"
+        "primaryPlacement": "left"
+      },
+      "edgeTopology": {
+        "analysisVersion": 2,
+        "axisMappingVerified": 291,
+        "boxPositionCounts": {
+          "left": 203,
+          "middle": 15,
+          "right": 26,
+          "single": 181
+        },
+        "count": 425,
+        "depthAxisCounts": {
+          "boxDepth": 249,
+          "boxHeight": 41,
+          "boxLength": 1
+        },
+        "frontAxisCounts": {
+          "boxDepth": 3,
+          "boxHeight": 7,
+          "boxLength": 281
+        },
+        "medianConfidence": 0.9247530698776245,
+        "sideFaceCounts": {
+          "left": 224,
+          "right": 201
+        },
+        "templates": [
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.9366703629493713,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.00282726576551795,
+                "y": 0.018288135528564453
+              },
+              "start": {
+                "x": 0.1230015754699707,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.1230015754699707,
+                "y": 0.0
+              },
+              {
+                "x": 0.5221291780471802,
+                "y": 0.008231744170188904
+              },
+              {
+                "x": 0.5221291780471802,
+                "y": 0.9859359860420227
+              },
+              {
+                "x": 0.1230015754699707,
+                "y": 0.9986872673034668
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.5221291780471802,
+                "y": 0.9859359860420227
+              },
+              "start": {
+                "x": 0.1230015754699707,
+                "y": 0.9986872673034668
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.5221291780471802,
+                "y": 0.9859359860420227
+              },
+              "start": {
+                "x": 0.5221291780471802,
+                "y": 0.008231744170188904
+              }
+            },
+            "id": "left|left|boxLength|boxDepth|boxHeight",
+            "sampleCount": 70,
+            "sideCorners": [
+              {
+                "x": 0.1230015754699707,
+                "y": 0.0
+              },
+              {
+                "x": 0.00282726576551795,
+                "y": 0.018288135528564453
+              },
+              {
+                "x": 0.00282726576551795,
+                "y": 0.9690477252006531
+              },
+              {
+                "x": 0.1230015754699707,
+                "y": 0.9986872673034668
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.9384974241256714,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.0019841270986944437,
+                "y": 0.05064377561211586
+              },
+              "start": {
+                "x": 0.12382075190544128,
+                "y": 0.02786596119403839
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.12382075190544128,
+                "y": 0.02786596119403839
+              },
+              {
+                "x": 0.48236140608787537,
+                "y": 0.05064377561211586
+              },
+              {
+                "x": 0.48236140608787537,
+                "y": 0.9983999729156494
+              },
+              {
+                "x": 0.12382075190544128,
+                "y": 0.9984375238418579
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.48236140608787537,
+                "y": 0.9983999729156494
+              },
+              "start": {
+                "x": 0.12382075190544128,
+                "y": 0.9984375238418579
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.48236140608787537,
+                "y": 0.9983999729156494
+              },
+              "start": {
+                "x": 0.48236140608787537,
+                "y": 0.05064377561211586
+              }
+            },
+            "id": "left|left|boxLength|boxHeight|boxDepth",
+            "sampleCount": 13,
+            "sideCorners": [
+              {
+                "x": 0.12382075190544128,
+                "y": 0.02786596119403839
+              },
+              {
+                "x": 0.0019841270986944437,
+                "y": 0.05064377561211586
+              },
+              {
+                "x": 0.0019841270986944437,
+                "y": 0.9984375238418579
+              },
+              {
+                "x": 0.12382075190544128,
+                "y": 0.9984375238418579
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "left",
+            "confidence": 0.9366676807403564,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.003189865732565522,
+                "y": 0.017233125865459442
+              },
+              "start": {
+                "x": 0.12541088461875916,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.12541088461875916,
+                "y": 0.0
+              },
+              {
+                "x": 0.5229158401489258,
+                "y": 0.007581162732094526
+              },
+              {
+                "x": 0.5229158401489258,
+                "y": 0.9847425818443298
+              },
+              {
+                "x": 0.12541088461875916,
+                "y": 0.9992590546607971
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.5229158401489258,
+                "y": 0.9847425818443298
+              },
+              "start": {
+                "x": 0.12541088461875916,
+                "y": 0.9992590546607971
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.5229158401489258,
+                "y": 0.9847425818443298
+              },
+              "start": {
+                "x": 0.5229158401489258,
+                "y": 0.007581162732094526
+              }
+            },
+            "id": "left|left|||",
+            "sampleCount": 50,
+            "sideCorners": [
+              {
+                "x": 0.12541088461875916,
+                "y": 0.0
+              },
+              {
+                "x": 0.003189865732565522,
+                "y": 0.017233125865459442
+              },
+              {
+                "x": 0.003189865732565522,
+                "y": 0.9619789123535156
+              },
+              {
+                "x": 0.12541088461875916,
+                "y": 0.9992590546607971
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.9181258678436279,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.4671413004398346,
+                "y": 0.662949800491333
+              },
+              "start": {
+                "x": 0.4326396584510803,
+                "y": 0.07754687964916229
+              }
+            },
+            "frontAxis": "boxDepth",
+            "frontCorners": [
+              {
+                "x": 0.0027382257394492626,
+                "y": 0.6639634966850281
+              },
+              {
+                "x": 0.4326396584510803,
+                "y": 0.07754687964916229
+              },
+              {
+                "x": 0.4326396584510803,
+                "y": 0.9168778657913208
+              },
+              {
+                "x": 0.0027382257394492626,
+                "y": 0.7192093133926392
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.4326396584510803,
+                "y": 0.9168778657913208
+              },
+              "start": {
+                "x": 0.0027382257394492626,
+                "y": 0.7192093133926392
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0027382257394492626,
+                "y": 0.7192093133926392
+              },
+              "start": {
+                "x": 0.0027382257394492626,
+                "y": 0.6639634966850281
+              }
+            },
+            "id": "left|right|boxDepth|boxHeight|boxLength",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.4326396584510803,
+                "y": 0.07754687964916229
+              },
+              {
+                "x": 0.4671413004398346,
+                "y": 0.662949800491333
+              },
+              {
+                "x": 0.4671413004398346,
+                "y": 0.7212367057800293
+              },
+              {
+                "x": 0.4326396584510803,
+                "y": 0.9168778657913208
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxLength"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.9377321004867554,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.4951857030391693,
+                "y": 0.0
+              },
+              "start": {
+                "x": 0.31895911693573,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.0023618328850716352,
+                "y": 0.0
+              },
+              {
+                "x": 0.31895911693573,
+                "y": 0.0
+              },
+              {
+                "x": 0.31895911693573,
+                "y": 0.9978390336036682
+              },
+              {
+                "x": 0.0023618328850716352,
+                "y": 0.9976325631141663
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.31895911693573,
+                "y": 0.9978390336036682
+              },
+              "start": {
+                "x": 0.0023618328850716352,
+                "y": 0.9976325631141663
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0023618328850716352,
+                "y": 0.9976325631141663
+              },
+              "start": {
+                "x": 0.0023618328850716352,
+                "y": 0.0
+              }
+            },
+            "id": "left|right|boxLength|boxDepth|boxHeight",
+            "sampleCount": 47,
+            "sideCorners": [
+              {
+                "x": 0.31895911693573,
+                "y": 0.0
+              },
+              {
+                "x": 0.4951857030391693,
+                "y": 0.0
+              },
+              {
+                "x": 0.4951857030391693,
+                "y": 0.9974249005317688
+              },
+              {
+                "x": 0.31895911693573,
+                "y": 0.9978390336036682
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "left",
+            "confidence": 0.9384975433349609,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.4783180058002472,
+                "y": 0.0
+              },
+              "start": {
+                "x": 0.3136094808578491,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.003285151207819581,
+                "y": 0.0
+              },
+              {
+                "x": 0.3136094808578491,
+                "y": 0.0
+              },
+              {
+                "x": 0.3136094808578491,
+                "y": 0.9990774989128113
+              },
+              {
+                "x": 0.003285151207819581,
+                "y": 0.9990774989128113
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.3136094808578491,
+                "y": 0.9990774989128113
+              },
+              "start": {
+                "x": 0.003285151207819581,
+                "y": 0.9990774989128113
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.003285151207819581,
+                "y": 0.9990774989128113
+              },
+              "start": {
+                "x": 0.003285151207819581,
+                "y": 0.0
+              }
+            },
+            "id": "left|right|boxLength|boxHeight|boxDepth",
+            "sampleCount": 3,
+            "sideCorners": [
+              {
+                "x": 0.3136094808578491,
+                "y": 0.0
+              },
+              {
+                "x": 0.4783180058002472,
+                "y": 0.0
+              },
+              {
+                "x": 0.4783180058002472,
+                "y": 0.9990774989128113
+              },
+              {
+                "x": 0.3136094808578491,
+                "y": 0.9990774989128113
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "left",
+            "confidence": 0.9371509552001953,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.5176470875740051,
+                "y": 0.01380231510847807
+              },
+              "start": {
+                "x": 0.4395454525947571,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.0032071841415017843,
+                "y": 0.0014104372821748257
+              },
+              {
+                "x": 0.4395454525947571,
+                "y": 0.0
+              },
+              {
+                "x": 0.4395454525947571,
+                "y": 0.9990552663803101
+              },
+              {
+                "x": 0.0032071841415017843,
+                "y": 0.9924776554107666
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.4395454525947571,
+                "y": 0.9990552663803101
+              },
+              "start": {
+                "x": 0.0032071841415017843,
+                "y": 0.9924776554107666
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0032071841415017843,
+                "y": 0.9924776554107666
+              },
+              "start": {
+                "x": 0.0032071841415017843,
+                "y": 0.0014104372821748257
+              }
+            },
+            "id": "left|right|||",
+            "sampleCount": 19,
+            "sideCorners": [
+              {
+                "x": 0.4395454525947571,
+                "y": 0.0
+              },
+              {
+                "x": 0.5176470875740051,
+                "y": 0.01380231510847807
+              },
+              {
+                "x": 0.5176470875740051,
+                "y": 0.9928762316703796
+              },
+              {
+                "x": 0.4395454525947571,
+                "y": 0.9990552663803101
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "middle",
+            "confidence": 0.9368641376495361,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.5124450922012329,
+                "y": 0.04317789152264595
+              },
+              "start": {
+                "x": 0.5307466983795166,
+                "y": 0.03972366079688072
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.5307466983795166,
+                "y": 0.03972366079688072
+              },
+              {
+                "x": 0.7364568114280701,
+                "y": 0.04231433570384979
+              },
+              {
+                "x": 0.7364568114280701,
+                "y": 0.9896373152732849
+              },
+              {
+                "x": 0.5307466983795166,
+                "y": 0.9939550757408142
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.7364568114280701,
+                "y": 0.9896373152732849
+              },
+              "start": {
+                "x": 0.5307466983795166,
+                "y": 0.9939550757408142
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.7364568114280701,
+                "y": 0.9896373152732849
+              },
+              "start": {
+                "x": 0.7364568114280701,
+                "y": 0.04231433570384979
+              }
+            },
+            "id": "middle|left|boxLength|boxDepth|boxHeight",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.5307466983795166,
+                "y": 0.03972366079688072
+              },
+              {
+                "x": 0.5124450922012329,
+                "y": 0.04317789152264595
+              },
+              {
+                "x": 0.5124450922012329,
+                "y": 0.6895509362220764
+              },
+              {
+                "x": 0.5307466983795166,
+                "y": 0.9939550757408142
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "middle",
+            "confidence": 0.9377560019493103,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.5264235734939575,
+                "y": 0.51848965883255
+              },
+              "start": {
+                "x": 0.6358381509780884,
+                "y": 0.51848965883255
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.6358381509780884,
+                "y": 0.51848965883255
+              },
+              {
+                "x": 0.9968470931053162,
+                "y": 0.5188789367675781
+              },
+              {
+                "x": 0.9968470931053162,
+                "y": 0.9047788977622986
+              },
+              {
+                "x": 0.6358381509780884,
+                "y": 0.9700428247451782
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9968470931053162,
+                "y": 0.9047788977622986
+              },
+              "start": {
+                "x": 0.6358381509780884,
+                "y": 0.9700428247451782
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9968470931053162,
+                "y": 0.9047788977622986
+              },
+              "start": {
+                "x": 0.9968470931053162,
+                "y": 0.5188789367675781
+              }
+            },
+            "id": "middle|left|boxLength|boxHeight|boxDepth",
+            "sampleCount": 5,
+            "sideCorners": [
+              {
+                "x": 0.6358381509780884,
+                "y": 0.51848965883255
+              },
+              {
+                "x": 0.5264235734939575,
+                "y": 0.51848965883255
+              },
+              {
+                "x": 0.5264235734939575,
+                "y": 0.9044222831726074
+              },
+              {
+                "x": 0.6358381509780884,
+                "y": 0.9700428247451782
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "middle",
+            "confidence": 0.9289141893386841,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.34710410237312317,
+                "y": 0.0083663584664464
+              },
+              "start": {
+                "x": 0.4686107635498047,
+                "y": 0.0035226773470640182
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.4686107635498047,
+                "y": 0.0035226773470640182
+              },
+              {
+                "x": 0.6423653364181519,
+                "y": 0.2972258925437927
+              },
+              {
+                "x": 0.6423653364181519,
+                "y": 0.34962570667266846
+              },
+              {
+                "x": 0.4686107635498047,
+                "y": 0.35887274146080017
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.6423653364181519,
+                "y": 0.34962570667266846
+              },
+              "start": {
+                "x": 0.4686107635498047,
+                "y": 0.35887274146080017
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.6423653364181519,
+                "y": 0.34962570667266846
+              },
+              "start": {
+                "x": 0.6423653364181519,
+                "y": 0.2972258925437927
+              }
+            },
+            "id": "middle|left|||",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.4686107635498047,
+                "y": 0.0035226773470640182
+              },
+              {
+                "x": 0.34710410237312317,
+                "y": 0.0083663584664464
+              },
+              {
+                "x": 0.34710410237312317,
+                "y": 0.03126376122236252
+              },
+              {
+                "x": 0.4686107635498047,
+                "y": 0.35887274146080017
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "middle",
+            "confidence": 0.8772999048233032,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.46544116735458374,
+                "y": 0.916536271572113
+              },
+              "start": {
+                "x": 0.43088236451148987,
+                "y": 0.7459571957588196
+              }
+            },
+            "frontAxis": "boxHeight",
+            "frontCorners": [
+              {
+                "x": 0.2558823525905609,
+                "y": 0.9374021887779236
+              },
+              {
+                "x": 0.43088236451148987,
+                "y": 0.7459571957588196
+              },
+              {
+                "x": 0.43088236451148987,
+                "y": 0.9786124229431152
+              },
+              {
+                "x": 0.2558823525905609,
+                "y": 0.9447052478790283
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.43088236451148987,
+                "y": 0.9786124229431152
+              },
+              "start": {
+                "x": 0.2558823525905609,
+                "y": 0.9447052478790283
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.2558823525905609,
+                "y": 0.9447052478790283
+              },
+              "start": {
+                "x": 0.2558823525905609,
+                "y": 0.9374021887779236
+              }
+            },
+            "id": "middle|right|boxHeight|boxDepth|boxLength",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.43088236451148987,
+                "y": 0.7459571957588196
+              },
+              {
+                "x": 0.46544116735458374,
+                "y": 0.916536271572113
+              },
+              {
+                "x": 0.46544116735458374,
+                "y": 0.9655712246894836
+              },
+              {
+                "x": 0.43088236451148987,
+                "y": 0.9786124229431152
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxLength"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "middle",
+            "confidence": 0.9184373617172241,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.846312403678894,
+                "y": 0.21171173453330994
+              },
+              "start": {
+                "x": 0.6995790004730225,
+                "y": 0.19916552305221558
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.4524780511856079,
+                "y": 0.21774731576442719
+              },
+              {
+                "x": 0.6995790004730225,
+                "y": 0.19916552305221558
+              },
+              {
+                "x": 0.6995790004730225,
+                "y": 0.8147926926612854
+              },
+              {
+                "x": 0.4524780511856079,
+                "y": 0.6986651420593262
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.6995790004730225,
+                "y": 0.8147926926612854
+              },
+              "start": {
+                "x": 0.4524780511856079,
+                "y": 0.6986651420593262
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.4524780511856079,
+                "y": 0.6986651420593262
+              },
+              "start": {
+                "x": 0.4524780511856079,
+                "y": 0.21774731576442719
+              }
+            },
+            "id": "middle|right|boxLength|boxDepth|boxHeight",
+            "sampleCount": 2,
+            "sideCorners": [
+              {
+                "x": 0.6995790004730225,
+                "y": 0.19916552305221558
+              },
+              {
+                "x": 0.846312403678894,
+                "y": 0.21171173453330994
+              },
+              {
+                "x": 0.846312403678894,
+                "y": 0.7007916569709778
+              },
+              {
+                "x": 0.6995790004730225,
+                "y": 0.8147926926612854
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "middle",
+            "confidence": 0.9378193020820618,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.9964077472686768,
+                "y": 0.0
+              },
+              "start": {
+                "x": 0.9554843306541443,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.6792383790016174,
+                "y": 0.00035398229374550283
+              },
+              {
+                "x": 0.9554843306541443,
+                "y": 0.0
+              },
+              {
+                "x": 0.9554843306541443,
+                "y": 0.48739853501319885
+              },
+              {
+                "x": 0.6792383790016174,
+                "y": 0.48739853501319885
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9554843306541443,
+                "y": 0.48739853501319885
+              },
+              "start": {
+                "x": 0.6792383790016174,
+                "y": 0.48739853501319885
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.6792383790016174,
+                "y": 0.48739853501319885
+              },
+              "start": {
+                "x": 0.6792383790016174,
+                "y": 0.00035398229374550283
+              }
+            },
+            "id": "middle|right|boxLength|boxHeight|boxDepth",
+            "sampleCount": 5,
+            "sideCorners": [
+              {
+                "x": 0.9554843306541443,
+                "y": 0.0
+              },
+              {
+                "x": 0.9964077472686768,
+                "y": 0.0
+              },
+              {
+                "x": 0.9964077472686768,
+                "y": 0.48739853501319885
+              },
+              {
+                "x": 0.9554843306541443,
+                "y": 0.48739853501319885
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "right",
+            "confidence": 0.9371446967124939,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.7615152597427368,
+                "y": 0.3790459930896759
+              },
+              "start": {
+                "x": 0.8325441479682922,
+                "y": 0.3649914860725403
+              }
+            },
+            "frontAxis": "boxDepth",
+            "frontCorners": [
+              {
+                "x": 0.8325441479682922,
+                "y": 0.3649914860725403
+              },
+              {
+                "x": 0.9814894795417786,
+                "y": 0.365843266248703
+              },
+              {
+                "x": 0.9814894795417786,
+                "y": 0.6550255417823792
+              },
+              {
+                "x": 0.8325441479682922,
+                "y": 0.6695059537887573
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9814894795417786,
+                "y": 0.6550255417823792
+              },
+              "start": {
+                "x": 0.8325441479682922,
+                "y": 0.6695059537887573
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9814894795417786,
+                "y": 0.6550255417823792
+              },
+              "start": {
+                "x": 0.9814894795417786,
+                "y": 0.365843266248703
+              }
+            },
+            "id": "right|left|boxDepth|boxHeight|boxLength",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.8325441479682922,
+                "y": 0.3649914860725403
+              },
+              {
+                "x": 0.7615152597427368,
+                "y": 0.3790459930896759
+              },
+              {
+                "x": 0.7615152597427368,
+                "y": 0.6678023934364319
+              },
+              {
+                "x": 0.8325441479682922,
+                "y": 0.6695059537887573
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxLength"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "right",
+            "confidence": 0.9373956918716431,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.5710653066635132,
+                "y": 0.0815165713429451
+              },
+              "start": {
+                "x": 0.6372703909873962,
+                "y": 0.037559278309345245
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.6372703909873962,
+                "y": 0.037559278309345245
+              },
+              {
+                "x": 0.9973243474960327,
+                "y": 0.059069789946079254
+              },
+              {
+                "x": 0.9973243474960327,
+                "y": 0.9730739593505859
+              },
+              {
+                "x": 0.6372703909873962,
+                "y": 0.9964333772659302
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9973243474960327,
+                "y": 0.9730739593505859
+              },
+              "start": {
+                "x": 0.6372703909873962,
+                "y": 0.9964333772659302
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9973243474960327,
+                "y": 0.9730739593505859
+              },
+              "start": {
+                "x": 0.9973243474960327,
+                "y": 0.059069789946079254
+              }
+            },
+            "id": "right|left|boxLength|boxDepth|boxHeight",
+            "sampleCount": 6,
+            "sideCorners": [
+              {
+                "x": 0.6372703909873962,
+                "y": 0.037559278309345245
+              },
+              {
+                "x": 0.5710653066635132,
+                "y": 0.0815165713429451
+              },
+              {
+                "x": 0.5710653066635132,
+                "y": 0.9730739593505859
+              },
+              {
+                "x": 0.6372703909873962,
+                "y": 0.9964333772659302
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "right",
+            "confidence": 0.9384649991989136,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.6846488118171692,
+                "y": 0.2525252401828766
+              },
+              "start": {
+                "x": 0.7325349450111389,
+                "y": 0.11749069392681122
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.7325349450111389,
+                "y": 0.11749069392681122
+              },
+              {
+                "x": 0.9976047873497009,
+                "y": 0.2546517848968506
+              },
+              {
+                "x": 0.9976047873497009,
+                "y": 0.9992526173591614
+              },
+              {
+                "x": 0.7325349450111389,
+                "y": 0.9992526173591614
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9976047873497009,
+                "y": 0.9992526173591614
+              },
+              "start": {
+                "x": 0.7325349450111389,
+                "y": 0.9992526173591614
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9976047873497009,
+                "y": 0.9992526173591614
+              },
+              "start": {
+                "x": 0.9976047873497009,
+                "y": 0.2546517848968506
+              }
+            },
+            "id": "right|left|boxLength|boxHeight|boxDepth",
+            "sampleCount": 3,
+            "sideCorners": [
+              {
+                "x": 0.7325349450111389,
+                "y": 0.11749069392681122
+              },
+              {
+                "x": 0.6846488118171692,
+                "y": 0.2525252401828766
+              },
+              {
+                "x": 0.6846488118171692,
+                "y": 0.9992526173591614
+              },
+              {
+                "x": 0.7325349450111389,
+                "y": 0.9992526173591614
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "right",
+            "confidence": 0.8930330872535706,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.5190631151199341,
+                "y": 0.1559785008430481
+              },
+              "start": {
+                "x": 0.6807073354721069,
+                "y": 0.028153153136372566
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.6807073354721069,
+                "y": 0.028153153136372566
+              },
+              {
+                "x": 0.996263861656189,
+                "y": 0.04217587411403656
+              },
+              {
+                "x": 0.996263861656189,
+                "y": 0.963738739490509
+              },
+              {
+                "x": 0.6807073354721069,
+                "y": 0.994369387626648
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.996263861656189,
+                "y": 0.963738739490509
+              },
+              "start": {
+                "x": 0.6807073354721069,
+                "y": 0.994369387626648
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.996263861656189,
+                "y": 0.963738739490509
+              },
+              "start": {
+                "x": 0.996263861656189,
+                "y": 0.04217587411403656
+              }
+            },
+            "id": "right|left|||",
+            "sampleCount": 6,
+            "sideCorners": [
+              {
+                "x": 0.6807073354721069,
+                "y": 0.028153153136372566
+              },
+              {
+                "x": 0.5190631151199341,
+                "y": 0.1559785008430481
+              },
+              {
+                "x": 0.5190631151199341,
+                "y": 0.9521783590316772
+              },
+              {
+                "x": 0.6807073354721069,
+                "y": 0.994369387626648
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "right",
+            "confidence": 0.9315372705459595,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.9960697889328003,
+                "y": 0.012744830921292305
+              },
+              "start": {
+                "x": 0.8395482897758484,
+                "y": 0.0007058823248371482
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.4647868275642395,
+                "y": 0.11198799312114716
+              },
+              {
+                "x": 0.8395482897758484,
+                "y": 0.0007058823248371482
+              },
+              {
+                "x": 0.8395482897758484,
+                "y": 0.9983785152435303
+              },
+              {
+                "x": 0.4647868275642395,
+                "y": 0.9515882730484009
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.8395482897758484,
+                "y": 0.9983785152435303
+              },
+              "start": {
+                "x": 0.4647868275642395,
+                "y": 0.9515882730484009
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.4647868275642395,
+                "y": 0.9515882730484009
+              },
+              "start": {
+                "x": 0.4647868275642395,
+                "y": 0.11198799312114716
+              }
+            },
+            "id": "right|right|boxLength|boxDepth|boxHeight",
+            "sampleCount": 4,
+            "sideCorners": [
+              {
+                "x": 0.8395482897758484,
+                "y": 0.0007058823248371482
+              },
+              {
+                "x": 0.9960697889328003,
+                "y": 0.012744830921292305
+              },
+              {
+                "x": 0.9960697889328003,
+                "y": 0.9538553953170776
+              },
+              {
+                "x": 0.8395482897758484,
+                "y": 0.9983785152435303
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "right",
+            "confidence": 0.8989684581756592,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.9973841309547424,
+                "y": 0.7408143281936646
+              },
+              "start": {
+                "x": 0.9734678864479065,
+                "y": 0.6544190645217896
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.6849775910377502,
+                "y": 0.7413108348846436
+              },
+              {
+                "x": 0.9734678864479065,
+                "y": 0.6544190645217896
+              },
+              {
+                "x": 0.9734678864479065,
+                "y": 0.8987090587615967
+              },
+              {
+                "x": 0.6849775910377502,
+                "y": 0.8197616934776306
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9734678864479065,
+                "y": 0.8987090587615967
+              },
+              "start": {
+                "x": 0.6849775910377502,
+                "y": 0.8197616934776306
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.6849775910377502,
+                "y": 0.8197616934776306
+              },
+              "start": {
+                "x": 0.6849775910377502,
+                "y": 0.7413108348846436
+              }
+            },
+            "id": "right|right|boxLength|boxHeight|boxDepth",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.9734678864479065,
+                "y": 0.6544190645217896
+              },
+              {
+                "x": 0.9973841309547424,
+                "y": 0.7408143281936646
+              },
+              {
+                "x": 0.9973841309547424,
+                "y": 0.817775547504425
+              },
+              {
+                "x": 0.9734678864479065,
+                "y": 0.8987090587615967
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "right",
+            "confidence": 0.9360669851303101,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.9964072108268738,
+                "y": 0.19407744705677032
+              },
+              "start": {
+                "x": 0.8892215490341187,
+                "y": 0.0
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.514800488948822,
+                "y": 0.19179955124855042
+              },
+              {
+                "x": 0.8892215490341187,
+                "y": 0.0
+              },
+              {
+                "x": 0.8892215490341187,
+                "y": 0.9990854859352112
+              },
+              {
+                "x": 0.514800488948822,
+                "y": 0.9734796285629272
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.8892215490341187,
+                "y": 0.9990854859352112
+              },
+              "start": {
+                "x": 0.514800488948822,
+                "y": 0.9734796285629272
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.514800488948822,
+                "y": 0.9734796285629272
+              },
+              "start": {
+                "x": 0.514800488948822,
+                "y": 0.19179955124855042
+              }
+            },
+            "id": "right|right|||",
+            "sampleCount": 5,
+            "sideCorners": [
+              {
+                "x": 0.8892215490341187,
+                "y": 0.0
+              },
+              {
+                "x": 0.9964072108268738,
+                "y": 0.19407744705677032
+              },
+              {
+                "x": 0.9964072108268738,
+                "y": 0.9625056982040405
+              },
+              {
+                "x": 0.8892215490341187,
+                "y": 0.9990854859352112
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.9151822328567505,
+            "depthAxis": "boxLength",
+            "depthEdge": {
+              "end": {
+                "x": 0.0020903008989989758,
+                "y": 0.15414507687091827
+              },
+              "start": {
+                "x": 0.09824414551258087,
+                "y": 0.1334196925163269
+              }
+            },
+            "frontAxis": "boxDepth",
+            "frontCorners": [
+              {
+                "x": 0.09824414551258087,
+                "y": 0.1334196925163269
+              },
+              {
+                "x": 0.9970735907554626,
+                "y": 0.03950777277350426
+              },
+              {
+                "x": 0.9970735907554626,
+                "y": 0.07642486691474915
+              },
+              {
+                "x": 0.09824414551258087,
+                "y": 0.9987046718597412
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9970735907554626,
+                "y": 0.07642486691474915
+              },
+              "start": {
+                "x": 0.09824414551258087,
+                "y": 0.9987046718597412
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9970735907554626,
+                "y": 0.07642486691474915
+              },
+              "start": {
+                "x": 0.9970735907554626,
+                "y": 0.03950777277350426
+              }
+            },
+            "id": "single|left|boxDepth|boxLength|boxHeight",
+            "sampleCount": 1,
+            "sideCorners": [
+              {
+                "x": 0.09824414551258087,
+                "y": 0.1334196925163269
+              },
+              {
+                "x": 0.0020903008989989758,
+                "y": 0.15414507687091827
+              },
+              {
+                "x": 0.0020903008989989758,
+                "y": 0.9669688940048218
+              },
+              {
+                "x": 0.09824414551258087,
+                "y": 0.9987046718597412
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.9208771586418152,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.0072156586684286594,
+                "y": 0.06678464263677597
+              },
+              "start": {
+                "x": 0.1388695240020752,
+                "y": 0.0014449779409915209
+              }
+            },
+            "frontAxis": "boxHeight",
+            "frontCorners": [
+              {
+                "x": 0.1388695240020752,
+                "y": 0.0014449779409915209
+              },
+              {
+                "x": 0.9921791553497314,
+                "y": 0.6229807138442993
+              },
+              {
+                "x": 0.9921791553497314,
+                "y": 0.913692831993103
+              },
+              {
+                "x": 0.1388695240020752,
+                "y": 0.9449912905693054
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9921791553497314,
+                "y": 0.913692831993103
+              },
+              "start": {
+                "x": 0.1388695240020752,
+                "y": 0.9449912905693054
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9921791553497314,
+                "y": 0.913692831993103
+              },
+              "start": {
+                "x": 0.9921791553497314,
+                "y": 0.6229807138442993
+              }
+            },
+            "id": "single|left|boxHeight|boxDepth|boxLength",
+            "sampleCount": 2,
+            "sideCorners": [
+              {
+                "x": 0.1388695240020752,
+                "y": 0.0014449779409915209
+              },
+              {
+                "x": 0.0072156586684286594,
+                "y": 0.06678464263677597
+              },
+              {
+                "x": 0.0072156586684286594,
+                "y": 0.8647704124450684
+              },
+              {
+                "x": 0.1388695240020752,
+                "y": 0.9449912905693054
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxLength"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.9010013341903687,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.003355742432177067,
+                "y": 0.26558005809783936
+              },
+              "start": {
+                "x": 0.2736074924468994,
+                "y": 0.0025595882907509804
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.2736074924468994,
+                "y": 0.0025595882907509804
+              },
+              {
+                "x": 0.9959731101989746,
+                "y": 0.7041410207748413
+              },
+              {
+                "x": 0.9959731101989746,
+                "y": 0.9237421154975891
+              },
+              {
+                "x": 0.2736074924468994,
+                "y": 0.9927459359169006
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9959731101989746,
+                "y": 0.9237421154975891
+              },
+              "start": {
+                "x": 0.2736074924468994,
+                "y": 0.9927459359169006
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9959731101989746,
+                "y": 0.9237421154975891
+              },
+              "start": {
+                "x": 0.9959731101989746,
+                "y": 0.7041410207748413
+              }
+            },
+            "id": "single|left|boxLength|boxDepth|boxHeight",
+            "sampleCount": 48,
+            "sideCorners": [
+              {
+                "x": 0.2736074924468994,
+                "y": 0.0025595882907509804
+              },
+              {
+                "x": 0.003355742432177067,
+                "y": 0.26558005809783936
+              },
+              {
+                "x": 0.003355742432177067,
+                "y": 0.9448705911636353
+              },
+              {
+                "x": 0.2736074924468994,
+                "y": 0.9927459359169006
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.8979638814926147,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.003255624556913972,
+                "y": 0.38829144835472107
+              },
+              "start": {
+                "x": 0.2984102666378021,
+                "y": 0.2976604402065277
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.2984102666378021,
+                "y": 0.2976604402065277
+              },
+              {
+                "x": 0.9959631562232971,
+                "y": 0.6064193248748779
+              },
+              {
+                "x": 0.9959631562232971,
+                "y": 0.918789803981781
+              },
+              {
+                "x": 0.2984102666378021,
+                "y": 0.9528576731681824
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9959631562232971,
+                "y": 0.918789803981781
+              },
+              "start": {
+                "x": 0.2984102666378021,
+                "y": 0.9528576731681824
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9959631562232971,
+                "y": 0.918789803981781
+              },
+              "start": {
+                "x": 0.9959631562232971,
+                "y": 0.6064193248748779
+              }
+            },
+            "id": "single|left|boxLength|boxHeight|boxDepth",
+            "sampleCount": 4,
+            "sideCorners": [
+              {
+                "x": 0.2984102666378021,
+                "y": 0.2976604402065277
+              },
+              {
+                "x": 0.003255624556913972,
+                "y": 0.38829144835472107
+              },
+              {
+                "x": 0.003255624556913972,
+                "y": 0.8921611905097961
+              },
+              {
+                "x": 0.2984102666378021,
+                "y": 0.9528576731681824
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "single",
+            "confidence": 0.9067441821098328,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.0041631972417235374,
+                "y": 0.24214285612106323
+              },
+              "start": {
+                "x": 0.207337886095047,
+                "y": 0.0034106411039829254
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.207337886095047,
+                "y": 0.0034106411039829254
+              },
+              {
+                "x": 0.9955157041549683,
+                "y": 0.45225101709365845
+              },
+              {
+                "x": 0.9955157041549683,
+                "y": 0.9666081070899963
+              },
+              {
+                "x": 0.207337886095047,
+                "y": 0.9956363439559937
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.9955157041549683,
+                "y": 0.9666081070899963
+              },
+              "start": {
+                "x": 0.207337886095047,
+                "y": 0.9956363439559937
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.9955157041549683,
+                "y": 0.9666081070899963
+              },
+              "start": {
+                "x": 0.9955157041549683,
+                "y": 0.45225101709365845
+              }
+            },
+            "id": "single|left|||",
+            "sampleCount": 13,
+            "sideCorners": [
+              {
+                "x": 0.207337886095047,
+                "y": 0.0034106411039829254
+              },
+              {
+                "x": 0.0041631972417235374,
+                "y": 0.24214285612106323
+              },
+              {
+                "x": 0.0041631972417235374,
+                "y": 0.9440000057220459
+              },
+              {
+                "x": 0.207337886095047,
+                "y": 0.9956363439559937
+              }
+            ],
+            "sideFace": "left",
+            "verticalAxis": ""
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.8287797570228577,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.9929922223091125,
+                "y": 0.17678047716617584
+              },
+              "start": {
+                "x": 0.6412466764450073,
+                "y": 0.0005778135964646935
+              }
+            },
+            "frontAxis": "boxHeight",
+            "frontCorners": [
+              {
+                "x": 0.00629705935716629,
+                "y": 0.17477425932884216
+              },
+              {
+                "x": 0.6412466764450073,
+                "y": 0.0005778135964646935
+              },
+              {
+                "x": 0.6412466764450073,
+                "y": 0.9856363534927368
+              },
+              {
+                "x": 0.00629705935716629,
+                "y": 0.2300325632095337
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.6412466764450073,
+                "y": 0.9856363534927368
+              },
+              "start": {
+                "x": 0.00629705935716629,
+                "y": 0.2300325632095337
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.00629705935716629,
+                "y": 0.2300325632095337
+              },
+              "start": {
+                "x": 0.00629705935716629,
+                "y": 0.17477425932884216
+              }
+            },
+            "id": "single|right|boxHeight|boxDepth|boxLength",
+            "sampleCount": 4,
+            "sideCorners": [
+              {
+                "x": 0.6412466764450073,
+                "y": 0.0005778135964646935
+              },
+              {
+                "x": 0.9929922223091125,
+                "y": 0.17678047716617584
+              },
+              {
+                "x": 0.9929922223091125,
+                "y": 0.2048773616552353
+              },
+              {
+                "x": 0.6412466764450073,
+                "y": 0.9856363534927368
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxLength"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.9009823799133301,
+            "depthAxis": "boxDepth",
+            "depthEdge": {
+              "end": {
+                "x": 0.9958763122558594,
+                "y": 0.9322695136070251
+              },
+              "start": {
+                "x": 0.7255129814147949,
+                "y": 0.229414701461792
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.0034106411039829254,
+                "y": 0.2653403580188751
+              },
+              {
+                "x": 0.7255129814147949,
+                "y": 0.229414701461792
+              },
+              {
+                "x": 0.7255129814147949,
+                "y": 0.9920669198036194
+              },
+              {
+                "x": 0.0034106411039829254,
+                "y": 0.9300384521484375
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.7255129814147949,
+                "y": 0.9920669198036194
+              },
+              "start": {
+                "x": 0.0034106411039829254,
+                "y": 0.9300384521484375
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0034106411039829254,
+                "y": 0.9300384521484375
+              },
+              "start": {
+                "x": 0.0034106411039829254,
+                "y": 0.2653403580188751
+              }
+            },
+            "id": "single|right|boxLength|boxDepth|boxHeight",
+            "sampleCount": 64,
+            "sideCorners": [
+              {
+                "x": 0.7255129814147949,
+                "y": 0.229414701461792
+              },
+              {
+                "x": 0.9958763122558594,
+                "y": 0.9322695136070251
+              },
+              {
+                "x": 0.9958763122558594,
+                "y": 0.9608726501464844
+              },
+              {
+                "x": 0.7255129814147949,
+                "y": 0.9920669198036194
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxHeight"
+          },
+          {
+            "axisMappingVerified": true,
+            "boxPosition": "single",
+            "confidence": 0.9377564191818237,
+            "depthAxis": "boxHeight",
+            "depthEdge": {
+              "end": {
+                "x": 0.9961661100387573,
+                "y": 0.002802690491080284
+              },
+              "start": {
+                "x": 0.8274760246276855,
+                "y": 0.002802690491080284
+              }
+            },
+            "frontAxis": "boxLength",
+            "frontCorners": [
+              {
+                "x": 0.00319488812237978,
+                "y": 0.09024664014577866
+              },
+              {
+                "x": 0.8274760246276855,
+                "y": 0.002802690491080284
+              },
+              {
+                "x": 0.8274760246276855,
+                "y": 0.9983183741569519
+              },
+              {
+                "x": 0.00319488812237978,
+                "y": 0.9962940216064453
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.8274760246276855,
+                "y": 0.9983183741569519
+              },
+              "start": {
+                "x": 0.00319488812237978,
+                "y": 0.9962940216064453
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.00319488812237978,
+                "y": 0.9962940216064453
+              },
+              "start": {
+                "x": 0.00319488812237978,
+                "y": 0.09024664014577866
+              }
+            },
+            "id": "single|right|boxLength|boxHeight|boxDepth",
+            "sampleCount": 5,
+            "sideCorners": [
+              {
+                "x": 0.8274760246276855,
+                "y": 0.002802690491080284
+              },
+              {
+                "x": 0.9961661100387573,
+                "y": 0.002802690491080284
+              },
+              {
+                "x": 0.9961661100387573,
+                "y": 0.9983183741569519
+              },
+              {
+                "x": 0.8274760246276855,
+                "y": 0.9983183741569519
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": "boxDepth"
+          },
+          {
+            "axisMappingVerified": false,
+            "boxPosition": "single",
+            "confidence": 0.9087905883789062,
+            "depthAxis": "",
+            "depthEdge": {
+              "end": {
+                "x": 0.9962949752807617,
+                "y": 0.906570315361023
+              },
+              "start": {
+                "x": 0.7694509625434875,
+                "y": 0.014254961162805557
+              }
+            },
+            "frontAxis": "",
+            "frontCorners": [
+              {
+                "x": 0.0031918552704155445,
+                "y": 0.01672513410449028
+              },
+              {
+                "x": 0.7694509625434875,
+                "y": 0.014254961162805557
+              },
+              {
+                "x": 0.7694509625434875,
+                "y": 0.9837807416915894
+              },
+              {
+                "x": 0.0031918552704155445,
+                "y": 0.3218002915382385
+              }
+            ],
+            "frontEdge": {
+              "end": {
+                "x": 0.7694509625434875,
+                "y": 0.9837807416915894
+              },
+              "start": {
+                "x": 0.0031918552704155445,
+                "y": 0.3218002915382385
+              }
+            },
+            "heightEdge": {
+              "end": {
+                "x": 0.0031918552704155445,
+                "y": 0.3218002915382385
+              },
+              "start": {
+                "x": 0.0031918552704155445,
+                "y": 0.01672513410449028
+              }
+            },
+            "id": "single|right|||",
+            "sampleCount": 40,
+            "sideCorners": [
+              {
+                "x": 0.7694509625434875,
+                "y": 0.014254961162805557
+              },
+              {
+                "x": 0.9962949752807617,
+                "y": 0.906570315361023
+              },
+              {
+                "x": 0.9962949752807617,
+                "y": 0.9511840343475342
+              },
+              {
+                "x": 0.7694509625434875,
+                "y": 0.9837807416915894
+              }
+            ],
+            "sideFace": "right",
+            "verticalAxis": ""
+          }
+        ],
+        "verticalAxisCounts": {
+          "boxDepth": 39,
+          "boxHeight": 243,
+          "boxLength": 9
+        }
       },
       "height": {
-        "count": 46,
+        "count": 394,
         "medianAngleDegrees": 90.0,
-        "medianLabelOffsetRatio": 0.0,
-        "medianLineGapRatio": 0.06700770556926727,
+        "medianLabelOffsetRatio": 0.0030030030757188797,
+        "medianLineGapRatio": 0.052000001072883606,
         "placementCounts": {
-          "bottom": 1,
-          "left": 32,
-          "right": 5,
+          "bottom": 6,
+          "left": 296,
+          "right": 83,
+          "top": 1,
           "top-left": 3,
           "top-right": 5
         },
@@ -92,31 +2792,34 @@
       "id": "perspective-box",
       "label": "立体纸盒",
       "length": {
-        "count": 46,
-        "medianAngleDegrees": 1.2317438125610352,
-        "medianLabelOffsetRatio": 0.003225806402042508,
-        "medianLineGapRatio": 0.030558481812477112,
+        "count": 426,
+        "medianAngleDegrees": 0.0018143561901524663,
+        "medianLabelOffsetRatio": 0.00994762871414423,
+        "medianLineGapRatio": 0.021123042330145836,
         "placementCounts": {
-          "bottom": 35,
-          "left": 1,
-          "right": 1,
-          "top": 9
+          "bottom": 281,
+          "left": 6,
+          "right": 3,
+          "top": 136
         },
         "primaryPlacement": "bottom"
       },
       "match": {
         "perspectiveDepth": true
       },
-      "sampleCount": 46
+      "sampleCount": 427
     }
   ],
-  "ruleVersion": "2026.08.11-1",
+  "ruleVersion": "local-1786432848366",
   "schemaVersion": 1,
   "selection": {
+    "analyzesTransparentGeometry": true,
     "fallback": "transparent-component-match-or-single-object",
+    "mapsDimensionsToDetectedEdges": true,
     "primary": "excel-ocr-package-match",
     "supportsBoxOnEitherSide": true,
     "usesExcelDimensions": true,
     "usesLocalOcr": true
-  }
+  },
+  "topologyCoordinateMode": "normalized-to-transparent-image"
 }
