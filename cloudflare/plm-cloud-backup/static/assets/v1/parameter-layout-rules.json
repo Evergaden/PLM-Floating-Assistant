@@ -5,37 +5,37 @@
   },
   "coordinateMode": "normalized-relative-to-paper-box",
   "evidence": {
-    "dimensionMismatches": 2,
-    "excelOcrSelected": 166,
-    "excelParsed": 214,
+    "dimensionMismatches": 5,
+    "excelOcrSelected": 399,
+    "excelParsed": 576,
     "ocrAvailable": true,
-    "ocrVerified": 166
+    "ocrVerified": 399
   },
-  "generatedAtMs": 1786343656742,
+  "generatedAtMs": 1786349091404,
   "minAppVersion": "0.1.18",
   "profiles": [
     {
       "depth": {
-        "count": 29,
+        "count": 38,
         "medianAngleDegrees": 90.0,
-        "medianLabelOffsetRatio": 0.0602409653365612,
-        "medianLineGapRatio": 0.05263157933950424,
+        "medianLabelOffsetRatio": 0.03739231824874878,
+        "medianLineGapRatio": 0.05102173611521721,
         "placementCounts": {
-          "left": 24,
-          "right": 4,
-          "top": 1
+          "left": 31,
+          "right": 5,
+          "top": 2
         },
         "primaryPlacement": "left"
       },
       "height": {
-        "count": 180,
+        "count": 505,
         "medianAngleDegrees": 90.0,
-        "medianLabelOffsetRatio": 0.01893043890595436,
-        "medianLineGapRatio": 0.04870598763227463,
+        "medianLabelOffsetRatio": 0.0020000000949949026,
+        "medianLineGapRatio": 0.052000001072883606,
         "placementCounts": {
-          "bottom": 3,
-          "left": 144,
-          "right": 32,
+          "bottom": 5,
+          "left": 413,
+          "right": 86,
           "top": 1
         },
         "primaryPlacement": "left"
@@ -43,46 +43,47 @@
       "id": "flat-box",
       "label": "正面纸盒",
       "length": {
-        "count": 209,
-        "medianAngleDegrees": 9.642137891070768e-14,
-        "medianLabelOffsetRatio": 0.012939001433551311,
-        "medianLineGapRatio": 0.020703934133052826,
+        "count": 541,
+        "medianAngleDegrees": 2.7608994192414305e-13,
+        "medianLabelOffsetRatio": 0.01220752764493227,
+        "medianLineGapRatio": 0.018993351608514786,
         "placementCounts": {
-          "bottom": 130,
+          "bottom": 381,
           "left": 5,
-          "top": 74
+          "right": 2,
+          "top": 153
         },
         "primaryPlacement": "bottom"
       },
       "match": {
         "perspectiveDepth": false
       },
-      "sampleCount": 209
+      "sampleCount": 542
     },
     {
       "depth": {
-        "count": 21,
+        "count": 46,
         "medianAngleDegrees": 28.794572830200195,
         "medianLabelOffsetRatio": 0.0,
-        "medianLineGapRatio": 0.024236038327217102,
+        "medianLineGapRatio": 0.011522267013788223,
         "placementCounts": {
           "left": 6,
           "right": 1,
           "top": 1,
-          "top-left": 8,
-          "top-right": 5
+          "top-left": 21,
+          "top-right": 17
         },
         "primaryPlacement": "top-left"
       },
       "height": {
-        "count": 21,
-        "medianAngleDegrees": 87.7860107421875,
+        "count": 46,
+        "medianAngleDegrees": 90.0,
         "medianLabelOffsetRatio": 0.0,
-        "medianLineGapRatio": 0.04471544548869133,
+        "medianLineGapRatio": 0.06700770556926727,
         "placementCounts": {
           "bottom": 1,
-          "left": 10,
-          "right": 2,
+          "left": 32,
+          "right": 5,
           "top-left": 3,
           "top-right": 5
         },
@@ -91,25 +92,25 @@
       "id": "perspective-box",
       "label": "立体纸盒",
       "length": {
-        "count": 21,
-        "medianAngleDegrees": 0.010641749016940594,
-        "medianLabelOffsetRatio": 0.009483667090535164,
-        "medianLineGapRatio": 0.04035433009266853,
+        "count": 46,
+        "medianAngleDegrees": 1.2317438125610352,
+        "medianLabelOffsetRatio": 0.003225806402042508,
+        "medianLineGapRatio": 0.030558481812477112,
         "placementCounts": {
-          "bottom": 14,
+          "bottom": 35,
           "left": 1,
           "right": 1,
-          "top": 5
+          "top": 9
         },
         "primaryPlacement": "bottom"
       },
       "match": {
         "perspectiveDepth": true
       },
-      "sampleCount": 21
+      "sampleCount": 46
     }
   ],
-  "ruleVersion": "2026.08.10-3",
+  "ruleVersion": "2026.08.11-1",
   "schemaVersion": 1,
   "selection": {
     "fallback": "transparent-component-match-or-single-object",
