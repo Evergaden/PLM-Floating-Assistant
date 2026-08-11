@@ -1040,9 +1040,12 @@ async function downloadIngredientAuditImage(imageUrl) {
     }
     const bytes = await readLimitedImageBody(response, INGREDIENT_AUDIT_MAX_IMAGE_BYTES);
     const detectedType = sniffIngredientAuditImageType(bytes);
-    if (!detectedType || (!ambiguousType && detectedType !== declaredType)) {
-      throw new Error('image type does not match its content' + (declaredType ? ' (' + declaredType + ')' : ' (missing content-type)'));
+    if (!detectedType) {
+      throw new Error('image bytes are not a supported JPEG/PNG/WebP image' + (declaredType ? ' (declared ' + declaredType + ')' : ' (missing content-type)'));
     }
+    // The byte signature is authoritative.  A CDN may label a JPEG/WebP as
+    // image/png; accepting a supported signature avoids a false 422 without
+    // allowing HTML or other non-image responses through.
     return { bytes, mimeType: detectedType };
   }
   throw new Error('image download failed');
