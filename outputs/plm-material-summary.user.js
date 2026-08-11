@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.98
+// @version      2.7.99
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.98';
+  const SCRIPT_VERSION = '2.7.99';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -80,6 +80,7 @@
   const ASSIGNED_DESIGN_TASK_PAGE_SIZE = 20;
   const ASSIGNED_DESIGN_TASK_SORT_FIELD = 'design_assign_at';
   const ASSIGNED_DESIGN_TASK_SORT_ASC = false;
+  const ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PLM_ARCHIVE_OSS_ORIGIN = 'https://oss-pro.plm.westmonth.cn';
   let reviewConfirmRequestedAt = 0;
   const MODELSCOPE_INSIGHT_MODEL = 'Qwen/Qwen3.5-397B-A17B';
@@ -4344,6 +4345,7 @@
     projectListPrefetchTimer: 0,
     projectListPrefetchSignature: '',
     assignedDesignTaskSyncPromise: null,
+    assignedDesignTaskSyncLastStartedAt: 0,
     uploadGuideOpen: false,
     uploadClearConfirmOpen: false,
     uploadPage: 1,
@@ -4817,9 +4819,24 @@
     return Array.from(deduped.values());
   }
 
-  function syncAssignedDesignTasksFromApi() {
+  function syncAssignedDesignTasksFromApi(options) {
     if (!state.settings.collectionEnabled) return Promise.resolve({ fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true });
     if (state.assignedDesignTaskSyncPromise) return state.assignedDesignTaskSyncPromise;
+    const now = Date.now();
+    const lastStartedAt = Number(state.assignedDesignTaskSyncLastStartedAt || 0);
+    const elapsed = now - lastStartedAt;
+    if (lastStartedAt > 0 && elapsed >= 0 && elapsed < ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS) {
+      return Promise.resolve({
+        fetchedCount: 0,
+        changedCount: 0,
+        addedCount: 0,
+        ledgerChangedCount: 0,
+        ledgerAddedCount: 0,
+        skipped: true,
+        cooldownRemainingMs: ASSIGNED_DESIGN_TASK_SYNC_COOLDOWN_MS - elapsed,
+      });
+    }
+    state.assignedDesignTaskSyncLastStartedAt = now;
     const request = (async () => {
       const rows = await fetchAssignedDesignTaskRows();
       return syncProjectListRowsToCache(rows, {
@@ -4827,6 +4844,7 @@
         ledgerNote: '\u6211\u7684\u8be6\u60c5 API \u81ea\u52a8\u52a0\u5165',
         ledgerLog: '\u6211\u7684\u8be6\u60c5\u5df2\u901a\u8fc7\u8bbe\u8ba1\u4efb\u52a1 API \u540c\u6b65\u5230\u4eca\u65e5\u5de5\u4f5c\u53f0',
         cacheLog: '\u6211\u7684\u8be6\u60c5\u5df2\u901a\u8fc7\u8bbe\u8ba1\u4efb\u52a1 API \u66f4\u65b0\u672c\u5730\u7f13\u5b58',
+        render: options && options.deferRender ? false : undefined,
       });
     })();
     const task = request.finally(() => {
@@ -22281,33 +22299,44 @@
     }
   }
 
-  async function openFirstCachedDetail() {
-    let syncResult = null;
-    let syncFailed = false;
-    if (state.settings.collectionEnabled) {
-      showToast('\u6b63\u5728\u67e5\u8be2\u6211\u7684\u65b0\u8bbe\u8ba1\u5206\u914d...');
-      try {
-        syncResult = await syncAssignedDesignTasksFromApi();
-        const addedCount = Math.max(Number(syncResult && syncResult.addedCount || 0), Number(syncResult && syncResult.ledgerAddedCount || 0));
-        showToast(addedCount ? '\u5df2\u81ea\u52a8\u52a0\u5165 ' + addedCount + ' \u4e2a\u65b0\u5206\u914d\u4efb\u52a1' : '\u5df2\u68c0\u67e5\uff0c\u6682\u65e0\u65b0\u5206\u914d\u4efb\u52a1');
-      } catch (error) {
-        syncFailed = true;
-        addLog('warn', '\u6211\u7684\u8be6\u60c5\u81ea\u52a8\u540c\u6b65\u5206\u914d\u4efb\u52a1\u5931\u8d25', formatErrorMessage(error));
-        showToast('\u5206\u914d\u4efb\u52a1\u67e5\u8be2\u5931\u8d25\uff0c\u7ee7\u7eed\u6253\u5f00\u672c\u5730\u8be6\u60c5', { tone: 'info' });
-      }
-    }
+  function openFirstCachedDetail() {
     const first = state.index[0] && state.index[0].sku ? state.index[0].sku : '';
-    if (!first) {
-      showToast(syncFailed ? '\u6682\u65e0\u53ef\u6253\u5f00\u7684\u672c\u5730\u8be6\u60c5' : L.emptyList);
+    if (!first && !state.settings.collectionEnabled) {
+      showToast(L.emptyList);
       return;
     }
-    const data = normalizeData(loadData(first) || state.index[0]);
-    state.selectedSku = first;
-    state.data = data;
+    if (first) {
+      state.selectedSku = first;
+      state.data = normalizeData(loadData(first) || state.index[0]);
+    } else {
+      state.selectedSku = '';
+      state.data = null;
+    }
     state.view = 'detail';
     state.copywritingMode = false;
     expandPanel();
-    renderShell();
+    renderShell(first ? '\u6b63\u5728\u540e\u53f0\u68c0\u67e5\u65b0\u7684\u8bbe\u8ba1\u5206\u914d...' : L.openingDetail);
+    if (!state.settings.collectionEnabled) return;
+    window.setTimeout(() => {
+      if (state.assignedDesignTaskSyncPromise) return;
+      syncAssignedDesignTasksFromApi({ deferRender: true }).then((syncResult) => {
+        if (syncResult && syncResult.skipped) {
+          showToast('\u4e94\u5206\u949f\u5185\u5df2\u67e5\u8be2\u8fc7\uff0c\u6682\u4e0d\u91cd\u590d\u8bf7\u6c42');
+          return;
+        }
+        if (state.view === 'detail' && !state.selectedSku && state.index[0] && state.index[0].sku) {
+          const nextSku = state.index[0].sku;
+          state.selectedSku = nextSku;
+          state.data = normalizeData(loadData(nextSku) || state.index[0]);
+        }
+        if (state.view === 'detail') renderShell();
+        const addedCount = Math.max(Number(syncResult && syncResult.addedCount || 0), Number(syncResult && syncResult.ledgerAddedCount || 0));
+        showToast(addedCount ? '\u5df2\u81ea\u52a8\u52a0\u5165 ' + addedCount + ' \u4e2a\u65b0\u5206\u914d\u4efb\u52a1' : '\u5df2\u68c0\u67e5\uff0c\u6682\u65e0\u65b0\u5206\u914d\u4efb\u52a1');
+      }).catch((error) => {
+        addLog('warn', '\u6211\u7684\u8be6\u60c5\u81ea\u52a8\u540c\u6b65\u5206\u914d\u4efb\u52a1\u5931\u8d25', formatErrorMessage(error));
+        showToast('\u5206\u914d\u4efb\u52a1\u67e5\u8be2\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u8be6\u60c5', { tone: 'info' });
+      });
+    }, 0);
   }
 
   function findUploadRetryNotice() {
