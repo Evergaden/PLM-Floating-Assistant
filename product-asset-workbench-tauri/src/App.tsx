@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.18";
+const APP_VERSION = "0.1.19";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
@@ -131,6 +131,34 @@ interface NormalizedRect {
   height: number;
 }
 
+interface NormalizedPoint {
+  x: number;
+  y: number;
+}
+
+interface NormalizedEdge {
+  start: NormalizedPoint;
+  end: NormalizedPoint;
+}
+
+interface TransparentBoxGeometryEvidence {
+  analysisVersion: number;
+  method: string;
+  boxPosition: "left" | "right" | "middle" | "single" | string;
+  sideFace: "left" | "right" | "none" | string;
+  confidence: number;
+  boxBounds: NormalizedRect;
+  frontCorners: NormalizedPoint[];
+  sideCorners: NormalizedPoint[];
+  heightEdge: NormalizedEdge;
+  frontEdge: NormalizedEdge;
+  depthEdge: NormalizedEdge | null;
+  frontAxis: string;
+  depthAxis: string;
+  verticalAxis: string;
+  axisMappingVerified: boolean;
+}
+
 interface BoxDimensionMarkAnalysis {
   kind: string;
   orientation: string;
@@ -146,6 +174,7 @@ interface ParameterBoxSampleAnalysis {
   sku: string;
   productName: string;
   parameterPath: string;
+  transparentPath: string | null;
   status: "confident" | "low-confidence" | "skipped" | string;
   confidence: number;
   boxBounds: NormalizedRect | null;
@@ -169,6 +198,7 @@ interface ParameterBoxSampleAnalysis {
     productError: number | null;
     verifiedAsPackage: boolean;
   } | null;
+  transparentGeometry: TransparentBoxGeometryEvidence | null;
   message: string;
 }
 
@@ -205,6 +235,9 @@ interface ParameterBoxAnalysisResult {
   ocrVerified: number;
   excelOcrSelected: number;
   dimensionMismatches: number;
+  geometryAnalyzed: number;
+  sideFaceDetected: number;
+  axisMappingVerified: number;
   lengthRule: DimensionPlacementSummary;
   heightRule: DimensionPlacementSummary;
   depthRule: DimensionPlacementSummary;
@@ -221,6 +254,13 @@ interface ParameterRuntimeRuleProfile {
   length: DimensionPlacementSummary;
   height: DimensionPlacementSummary;
   depth: DimensionPlacementSummary;
+  edgeTopology?: {
+    analysisVersion: number;
+    count: number;
+    axisMappingVerified: number;
+    medianConfidence: number;
+    templates: unknown[];
+  };
 }
 
 interface ParameterRuntimeRule {
@@ -229,7 +269,7 @@ interface ParameterRuntimeRule {
   minAppVersion: string;
   generatedAtMs: number;
   coordinateMode: string;
-  selection: { primary: string; fallback: string; supportsBoxOnEitherSide: boolean; usesExcelDimensions?: boolean; usesLocalOcr?: boolean };
+  selection: { primary: string; fallback: string; supportsBoxOnEitherSide: boolean; usesExcelDimensions?: boolean; usesLocalOcr?: boolean; analyzesTransparentGeometry?: boolean; mapsDimensionsToDetectedEdges?: boolean };
   profiles: ParameterRuntimeRuleProfile[];
   confidence: { minimum: number; manualReviewBelow: number };
 }
@@ -440,7 +480,10 @@ function percentRatio(value: number | null) {
 }
 
 function needsParameterReview(item: ParameterBoxSampleAnalysis) {
-  return item.status !== "confident" || (item.ocrDimensionMatch?.packageError ?? 0) > 0.2;
+  return item.status !== "confident"
+    || (item.ocrDimensionMatch?.packageError ?? 0) > 0.2
+    || !item.transparentGeometry
+    || item.transparentGeometry.confidence < 0.64;
 }
 
 function ProductThumbnail({ row }: { row: ProductPreview }) {
@@ -1987,6 +2030,9 @@ export default function App() {
                 <div className={parameterBoxAnalysis.ocrAvailable ? "success" : "warning"}><span>OCR 数值验证</span><strong>{parameterBoxAnalysis.ocrVerified}</strong><small>{parameterBoxAnalysis.ocrAvailable ? "Tesseract 就绪 · cm/inch 与 Excel 一致" : "未检测到 OCR，当前为几何模式"}</small></div>
                 <div><span>Excel+OCR 选盒</span><strong>{parameterBoxAnalysis.excelOcrSelected}</strong><small>覆盖左右位置猜测</small></div>
                 <div className="warning"><span>尺寸疑点</span><strong>{parameterBoxAnalysis.dimensionMismatches}</strong><small>误差超过 20%，进入复核</small></div>
+                <div className="success"><span>透明图角点</span><strong>{parameterBoxAnalysis.geometryAnalyzed}</strong><small>识别纸盒正面四角与边</small></div>
+                <div><span>左右侧面</span><strong>{parameterBoxAnalysis.sideFaceDetected}</strong><small>独立判断侧面朝左或右</small></div>
+                <div className="success"><span>边语义验证</span><strong>{parameterBoxAnalysis.axisMappingVerified}</strong><small>长宽高已映射到透明图边</small></div>
               </div>
               <div className="parameter-rule-cards">
                 {[

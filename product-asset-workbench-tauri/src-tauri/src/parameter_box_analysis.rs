@@ -12,6 +12,8 @@ use calamine::{Reader, open_workbook_auto};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+const PARAMETER_BOX_ANALYSIS_VERSION: u32 = 2;
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -33,6 +35,40 @@ struct NormalizedRect {
     y: f32,
     width: f32,
     height: f32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedPoint {
+    x: f32,
+    y: f32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NormalizedEdge {
+    start: NormalizedPoint,
+    end: NormalizedPoint,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TransparentBoxGeometryEvidence {
+    analysis_version: u32,
+    method: String,
+    box_position: String,
+    side_face: String,
+    confidence: f32,
+    box_bounds: NormalizedRect,
+    front_corners: Vec<NormalizedPoint>,
+    side_corners: Vec<NormalizedPoint>,
+    height_edge: NormalizedEdge,
+    front_edge: NormalizedEdge,
+    depth_edge: Option<NormalizedEdge>,
+    front_axis: String,
+    depth_axis: String,
+    vertical_axis: String,
+    axis_mapping_verified: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -114,6 +150,8 @@ struct ParameterBoxSampleAnalysis {
     box_match_score: Option<f32>,
     excel_dimensions: Option<ExcelDimensionEvidence>,
     ocr_dimension_match: Option<OcrDimensionEvidence>,
+    #[serde(default)]
+    transparent_geometry: Option<TransparentBoxGeometryEvidence>,
     message: String,
 }
 
@@ -154,6 +192,9 @@ pub(crate) struct ParameterBoxAnalysisResult {
     ocr_verified: usize,
     excel_ocr_selected: usize,
     dimension_mismatches: usize,
+    geometry_analyzed: usize,
+    side_face_detected: usize,
+    axis_mapping_verified: usize,
     length_rule: DimensionPlacementSummary,
     height_rule: DimensionPlacementSummary,
     depth_rule: DimensionPlacementSummary,
@@ -875,6 +916,300 @@ fn transparent_object_components(path: &str) -> Vec<TransparentObjectComponent> 
     output
 }
 
+fn transparent_box_component(
+    components: &[TransparentObjectComponent],
+) -> Option<(usize, &TransparentObjectComponent)> {
+    components.iter().enumerate().max_by(|left, right| {
+        left.1
+            .fill_ratio
+            .total_cmp(&right.1.fill_ratio)
+            .then_with(|| left.1.pixel_count.cmp(&right.1.pixel_count))
+    })
+}
+
+fn median_f64(mut values: Vec<f64>) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    values.sort_by(|left, right| left.total_cmp(right));
+    let middle = values.len() / 2;
+    if values.len() % 2 == 0 {
+        (values[middle - 1] + values[middle]) * 0.5
+    } else {
+        values[middle]
+    }
+}
+
+fn percentile_f64(values: &[f64], percentile: f64) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mut sorted = values.to_vec();
+    sorted.sort_by(|left, right| left.total_cmp(right));
+    let index =
+        ((sorted.len().saturating_sub(1)) as f64 * percentile.clamp(0.0, 1.0)).round() as usize;
+    sorted[index.min(sorted.len() - 1)]
+}
+
+fn color_distance(left: image::Rgba<u8>, right: image::Rgba<u8>) -> f64 {
+    let red = f64::from(left.0[0])
+        .mul_add(-1.0, f64::from(right.0[0]))
+        .abs();
+    let green = f64::from(left.0[1])
+        .mul_add(-1.0, f64::from(right.0[1]))
+        .abs();
+    let blue = f64::from(left.0[2])
+        .mul_add(-1.0, f64::from(right.0[2]))
+        .abs();
+    (red + green + blue) / 3.0
+}
+
+fn alpha_column_range(
+    image: &image::RgbaImage,
+    component: &TransparentObjectComponent,
+    center_x: u32,
+    spread: u32,
+) -> Option<(u32, u32)> {
+    let mut tops = Vec::new();
+    let mut bottoms = Vec::new();
+    let start_x = center_x.saturating_sub(spread).max(component.min_x);
+    let end_x = center_x
+        .saturating_add(spread)
+        .min(component.max_x)
+        .min(image.width().saturating_sub(1));
+    for x in start_x..=end_x {
+        let mut top = None;
+        let mut bottom = None;
+        for y in component.min_y..=component.max_y.min(image.height().saturating_sub(1)) {
+            if image.get_pixel(x, y).0[3] <= 16 {
+                continue;
+            }
+            top.get_or_insert(y);
+            bottom = Some(y);
+        }
+        if let (Some(top), Some(bottom)) = (top, bottom) {
+            tops.push(f64::from(top));
+            bottoms.push(f64::from(bottom));
+        }
+    }
+    if tops.is_empty() {
+        None
+    } else {
+        Some((
+            median_f64(tops).round() as u32,
+            median_f64(bottoms).round() as u32,
+        ))
+    }
+}
+
+fn detect_vertical_face_seam(
+    image: &image::RgbaImage,
+    component: &TransparentObjectComponent,
+) -> Option<(u32, String, f32)> {
+    let box_width = component
+        .max_x
+        .saturating_sub(component.min_x)
+        .saturating_add(1);
+    let box_height = component
+        .max_y
+        .saturating_sub(component.min_y)
+        .saturating_add(1);
+    if box_width < 30 || box_height < 40 {
+        return None;
+    }
+    let span = (box_width / 100).clamp(1, 7);
+    let start_x = component
+        .min_x
+        .saturating_add((box_width as f32 * 0.06) as u32);
+    let end_x = component
+        .max_x
+        .saturating_sub((box_width as f32 * 0.06) as u32);
+    let start_y = component
+        .min_y
+        .saturating_add((box_height as f32 * 0.04) as u32);
+    let end_y = component
+        .max_y
+        .saturating_sub((box_height as f32 * 0.04) as u32);
+    let mut scored = Vec::new();
+    for x in start_x..=end_x {
+        let relative = x.saturating_sub(component.min_x) as f64 / box_width.max(1) as f64;
+        let side = if (0.08..=0.43).contains(&relative) {
+            "left"
+        } else if (0.57..=0.92).contains(&relative) {
+            "right"
+        } else {
+            continue;
+        };
+        let left_x = x.saturating_sub(span).max(component.min_x);
+        let right_x = x.saturating_add(span).min(component.max_x);
+        let mut differences = Vec::new();
+        for y in (start_y..=end_y).step_by(2) {
+            let left = *image.get_pixel(left_x, y);
+            let right = *image.get_pixel(right_x, y);
+            if left.0[3] <= 16 || right.0[3] <= 16 {
+                continue;
+            }
+            differences.push(color_distance(left, right));
+        }
+        if differences.len() < (box_height as usize / 10).max(12) {
+            continue;
+        }
+        let median = median_f64(differences.clone());
+        let upper = percentile_f64(&differences, 0.72);
+        let score = median * 0.72 + upper * 0.28;
+        scored.push((score, x, side.to_string()));
+    }
+    if scored.is_empty() {
+        return None;
+    }
+    scored.sort_by(|left, right| right.0.total_cmp(&left.0));
+    let best = &scored[0];
+    let baseline = median_f64(scored.iter().map(|item| item.0).collect());
+    let separation = best.0 - baseline;
+    if best.0 < 5.0 || separation < 1.25 {
+        return None;
+    }
+    let confidence = (0.54 + separation / 26.0 + (best.0 - 5.0) / 90.0).clamp(0.54, 0.97);
+    Some((best.1, best.2.clone(), confidence as f32))
+}
+
+fn normalized_point(x: u32, y: u32, width: u32, height: u32) -> NormalizedPoint {
+    NormalizedPoint {
+        x: x as f32 / width.max(1) as f32,
+        y: y as f32 / height.max(1) as f32,
+    }
+}
+
+fn normalized_edge(start: &NormalizedPoint, end: &NormalizedPoint) -> NormalizedEdge {
+    NormalizedEdge {
+        start: start.clone(),
+        end: end.clone(),
+    }
+}
+
+fn analyze_transparent_box_geometry(
+    path: &str,
+    front_axis: &str,
+    depth_axis: &str,
+    vertical_axis: &str,
+    axis_mapping_verified: bool,
+) -> Option<TransparentBoxGeometryEvidence> {
+    let image = image::open(path).ok()?.to_rgba8();
+    let components = transparent_object_components(path);
+    let (box_index, component) = transparent_box_component(&components)?;
+    let (width, height) = image.dimensions();
+    let box_width = component
+        .max_x
+        .saturating_sub(component.min_x)
+        .saturating_add(1);
+    let inset = (box_width / 120).clamp(1, 5);
+    let seam = detect_vertical_face_seam(&image, component);
+    let side_face = seam
+        .as_ref()
+        .map(|(_, side, _)| side.as_str())
+        .unwrap_or("none");
+    let left_outer_x = component.min_x.saturating_add(inset);
+    let right_outer_x = component.max_x.saturating_sub(inset);
+    let (front_left_x, front_right_x) = match seam.as_ref() {
+        Some((seam_x, side, _)) if side == "left" => (*seam_x, right_outer_x),
+        Some((seam_x, _, _)) => (left_outer_x, *seam_x),
+        None => (left_outer_x, right_outer_x),
+    };
+    let spread = (box_width / 100).clamp(1, 4);
+    let (front_left_top, front_left_bottom) =
+        alpha_column_range(&image, component, front_left_x, spread)?;
+    let (front_right_top, front_right_bottom) =
+        alpha_column_range(&image, component, front_right_x, spread)?;
+    let front_top_left = normalized_point(front_left_x, front_left_top, width, height);
+    let front_top_right = normalized_point(front_right_x, front_right_top, width, height);
+    let front_bottom_right = normalized_point(front_right_x, front_right_bottom, width, height);
+    let front_bottom_left = normalized_point(front_left_x, front_left_bottom, width, height);
+    let front_corners = vec![
+        front_top_left.clone(),
+        front_top_right.clone(),
+        front_bottom_right.clone(),
+        front_bottom_left.clone(),
+    ];
+    let height_edge = if side_face == "left" {
+        normalized_edge(&front_top_right, &front_bottom_right)
+    } else {
+        normalized_edge(&front_top_left, &front_bottom_left)
+    };
+    let front_edge = normalized_edge(&front_bottom_left, &front_bottom_right);
+    let mut side_corners = Vec::new();
+    let mut depth_edge = None;
+    if let Some((_, side, _)) = seam.as_ref() {
+        let outer_x = if side == "left" {
+            left_outer_x
+        } else {
+            right_outer_x
+        };
+        if let Some((outer_top, outer_bottom)) =
+            alpha_column_range(&image, component, outer_x, spread)
+        {
+            let outer_top_point = normalized_point(outer_x, outer_top, width, height);
+            let outer_bottom_point = normalized_point(outer_x, outer_bottom, width, height);
+            let (seam_top, seam_bottom) = if side == "left" {
+                (front_top_left.clone(), front_bottom_left.clone())
+            } else {
+                (front_top_right.clone(), front_bottom_right.clone())
+            };
+            side_corners = vec![
+                seam_top.clone(),
+                outer_top_point.clone(),
+                outer_bottom_point,
+                seam_bottom,
+            ];
+            depth_edge = Some(normalized_edge(&seam_top, &outer_top_point));
+        }
+    }
+    let seam_confidence = seam.as_ref().map(|item| item.2).unwrap_or(0.0);
+    let shape_confidence = (0.58 + component.fill_ratio * 0.32).clamp(0.58, 0.90) as f32;
+    let confidence = if seam.is_some() {
+        (shape_confidence * 0.45 + seam_confidence * 0.55).clamp(0.0, 0.98)
+    } else {
+        shape_confidence
+    };
+    Some(TransparentBoxGeometryEvidence {
+        analysis_version: PARAMETER_BOX_ANALYSIS_VERSION,
+        method: "alpha-components-plus-rgb-vertical-seam".to_string(),
+        box_position: ordered_position(box_index, components.len()),
+        side_face: side_face.to_string(),
+        confidence,
+        box_bounds: NormalizedRect {
+            x: component.min_x as f32 / width.max(1) as f32,
+            y: component.min_y as f32 / height.max(1) as f32,
+            width: box_width as f32 / width.max(1) as f32,
+            height: component
+                .max_y
+                .saturating_sub(component.min_y)
+                .saturating_add(1) as f32
+                / height.max(1) as f32,
+        },
+        front_corners,
+        side_corners,
+        height_edge,
+        front_edge,
+        depth_edge,
+        front_axis: if axis_mapping_verified {
+            front_axis.to_string()
+        } else {
+            String::new()
+        },
+        depth_axis: if axis_mapping_verified {
+            depth_axis.to_string()
+        } else {
+            String::new()
+        },
+        vertical_axis: if axis_mapping_verified {
+            vertical_axis.to_string()
+        } else {
+            String::new()
+        },
+        axis_mapping_verified,
+    })
+}
+
 fn ordered_position(index: usize, count: usize) -> String {
     if count <= 1 {
         "single".to_string()
@@ -905,18 +1240,8 @@ fn select_paper_box(
         .map(transparent_object_components)
         .unwrap_or_default();
     if components.len() >= 2 {
-        let source_box_index = components
-            .iter()
-            .enumerate()
-            .max_by(|left, right| {
-                left.1
-                    .fill_ratio
-                    .total_cmp(&right.1.fill_ratio)
-                    .then_with(|| left.1.pixel_count.cmp(&right.1.pixel_count))
-            })
-            .map(|(index, _)| index)
-            .unwrap_or(0);
-        let source_box = &components[source_box_index];
+        let (source_box_index, source_box) =
+            transparent_box_component(&components).unwrap_or((0, &components[0]));
         let source_width = source_box
             .max_x
             .saturating_sub(source_box.min_x)
@@ -1414,6 +1739,7 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
         box_match_score: None,
         excel_dimensions: excel_dimensions.clone(),
         ocr_dimension_match: None,
+        transparent_geometry: None,
         message: String::new(),
     };
     if parameter_path.is_empty() {
@@ -1481,6 +1807,30 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
             }
         }
     }
+    let axis_mapping_verified = selection
+        .ocr_evidence
+        .as_ref()
+        .is_some_and(|evidence| evidence.verified_as_package);
+    let depth_axis = depth_mark
+        .as_ref()
+        .map(|mark| mark.kind.clone())
+        .filter(|kind| !kind.is_empty())
+        .or_else(|| {
+            ["boxLength", "boxDepth", "boxHeight"]
+                .into_iter()
+                .find(|kind| *kind != length_mark.kind && *kind != height_mark.kind)
+                .map(str::to_string)
+        })
+        .unwrap_or_default();
+    let transparent_geometry = sample.transparent_path.as_deref().and_then(|path| {
+        analyze_transparent_box_geometry(
+            path,
+            &length_mark.kind,
+            &depth_axis,
+            &height_mark.kind,
+            axis_mapping_verified,
+        )
+    });
     let mut confidence = (0.92 - paper_box.score * 0.45).clamp(0.45, 0.94);
     if objects.len() == 1 {
         confidence -= 0.08;
@@ -1506,6 +1856,14 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
     {
         confidence -= 0.08;
     }
+    if sample.transparent_path.is_some() && transparent_geometry.is_none() {
+        confidence -= 0.10;
+    } else if transparent_geometry
+        .as_ref()
+        .is_some_and(|geometry| geometry.confidence < 0.64)
+    {
+        confidence -= 0.05;
+    }
     confidence = confidence.clamp(0.0, 1.0);
     output.status = if confidence >= 0.68 {
         "confident"
@@ -1523,16 +1881,31 @@ fn analyze_parameter_box_sample(sample: &ParameterSampleIndexItem) -> ParameterB
     output.target_box_position = selection.target_position.clone();
     output.box_match_score = selection.match_score.map(|score| score as f32);
     output.ocr_dimension_match = selection.ocr_evidence.clone();
+    output.transparent_geometry = transparent_geometry.clone();
     output.message = if selection.method == "excel-ocr-package-match" {
         let package = excel_dimensions
             .as_ref()
             .and_then(|evidence| evidence.package.as_ref())
             .map(|dimensions| dimensions.raw.as_str())
             .unwrap_or("未知");
+        let geometry = transparent_geometry
+            .as_ref()
+            .map(|geometry| {
+                format!(
+                    "；透明图纸盒在{}，侧面{}",
+                    geometry.box_position,
+                    match geometry.side_face.as_str() {
+                        "left" => "朝左",
+                        "right" => "朝右",
+                        _ => "未显露或未检出",
+                    }
+                )
+            })
+            .unwrap_or_default();
         format!(
             "Excel 包装尺寸 {package} 与标注文字一致，选择{}对象作为纸盒",
             selection.target_position
-        )
+        ) + &geometry
     } else if selection.method == "transparent-component-match" {
         format!(
             "识别到 {} 组带尺寸对象；透明图纸盒在{}，参数图匹配到{}对象",
@@ -1614,6 +1987,123 @@ fn item_dimension_marks<'a>(
         .collect()
 }
 
+fn string_counts(values: impl Iterator<Item = String>) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for value in values.filter(|value| !value.is_empty()) {
+        *counts.entry(value).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn median_point(points: impl Iterator<Item = NormalizedPoint>) -> NormalizedPoint {
+    let points = points.collect::<Vec<_>>();
+    NormalizedPoint {
+        x: median(points.iter().map(|point| point.x).collect()),
+        y: median(points.iter().map(|point| point.y).collect()),
+    }
+}
+
+fn median_edge(edges: impl Iterator<Item = NormalizedEdge>) -> NormalizedEdge {
+    let edges = edges.collect::<Vec<_>>();
+    NormalizedEdge {
+        start: median_point(edges.iter().map(|edge| edge.start.clone())),
+        end: median_point(edges.iter().map(|edge| edge.end.clone())),
+    }
+}
+
+fn topology_summary(items: &[&ParameterBoxSampleAnalysis]) -> Value {
+    let geometries = items
+        .iter()
+        .filter_map(|item| item.transparent_geometry.as_ref())
+        .collect::<Vec<_>>();
+    let verified = geometries
+        .iter()
+        .copied()
+        .filter(|geometry| geometry.axis_mapping_verified)
+        .collect::<Vec<_>>();
+    let mut groups = HashMap::<String, Vec<&TransparentBoxGeometryEvidence>>::new();
+    for geometry in &geometries {
+        let key = format!(
+            "{}|{}|{}|{}|{}",
+            geometry.box_position,
+            geometry.side_face,
+            geometry.front_axis,
+            geometry.depth_axis,
+            geometry.vertical_axis
+        );
+        groups.entry(key).or_default().push(geometry);
+    }
+    let mut group_keys = groups.keys().cloned().collect::<Vec<_>>();
+    group_keys.sort();
+    let templates = group_keys
+        .into_iter()
+        .filter_map(|key| {
+            let group = groups.get(&key)?;
+            let sample = group.first()?;
+            let front_corner_count = group
+                .iter()
+                .map(|geometry| geometry.front_corners.len())
+                .min()
+                .unwrap_or_default();
+            let side_corner_count = group
+                .iter()
+                .map(|geometry| geometry.side_corners.len())
+                .min()
+                .unwrap_or_default();
+            let front_corners = (0..front_corner_count)
+                .map(|index| {
+                    median_point(
+                        group
+                            .iter()
+                            .map(|geometry| geometry.front_corners[index].clone()),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let side_corners = (0..side_corner_count)
+                .map(|index| {
+                    median_point(
+                        group
+                            .iter()
+                            .map(|geometry| geometry.side_corners[index].clone()),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let depth_edges = group
+                .iter()
+                .filter_map(|geometry| geometry.depth_edge.clone())
+                .collect::<Vec<_>>();
+            Some(json!({
+                "id": key,
+                "sampleCount": group.len(),
+                "boxPosition": sample.box_position,
+                "sideFace": sample.side_face,
+                "confidence": median(group.iter().map(|geometry| geometry.confidence).collect()),
+                "axisMappingVerified": sample.axis_mapping_verified,
+                "frontAxis": sample.front_axis,
+                "depthAxis": sample.depth_axis,
+                "verticalAxis": sample.vertical_axis,
+                "frontCorners": front_corners,
+                "sideCorners": side_corners,
+                "heightEdge": median_edge(group.iter().map(|geometry| geometry.height_edge.clone())),
+                "frontEdge": median_edge(group.iter().map(|geometry| geometry.front_edge.clone())),
+                "depthEdge": if depth_edges.is_empty() { Value::Null } else { serde_json::to_value(median_edge(depth_edges.into_iter())).unwrap_or(Value::Null) },
+            }))
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "analysisVersion": PARAMETER_BOX_ANALYSIS_VERSION,
+        "count": geometries.len(),
+        "axisMappingVerified": verified.len(),
+        "medianConfidence": median(geometries.iter().map(|geometry| geometry.confidence).collect()),
+        "boxPositionCounts": string_counts(geometries.iter().map(|geometry| geometry.box_position.clone())),
+        "sideFaceCounts": string_counts(geometries.iter().map(|geometry| geometry.side_face.clone())),
+        "frontAxisCounts": string_counts(verified.iter().map(|geometry| geometry.front_axis.clone())),
+        "depthAxisCounts": string_counts(verified.iter().map(|geometry| geometry.depth_axis.clone())),
+        "verticalAxisCounts": string_counts(verified.iter().map(|geometry| geometry.vertical_axis.clone())),
+        "templates": templates,
+    })
+}
+
 fn runtime_profile(id: &str, label: &str, items: &[&ParameterBoxSampleAnalysis]) -> Value {
     let length_rule = summarize_dimension_marks(
         item_dimension_marks(items.iter().copied(), "boxLength").into_iter(),
@@ -1632,6 +2122,7 @@ fn runtime_profile(id: &str, label: &str, items: &[&ParameterBoxSampleAnalysis])
         "length": length_rule,
         "height": height_rule,
         "depth": depth_rule,
+        "edgeTopology": topology_summary(items),
     })
 }
 
@@ -1680,6 +2171,10 @@ fn analysis_source_paths(item: &ParameterBoxSampleAnalysis) -> Vec<&str> {
 
 fn analysis_signature(item: &ParameterBoxSampleAnalysis) -> String {
     let mut hash = 14_695_981_039_346_656_037_u64;
+    hash_signature_bytes(
+        &mut hash,
+        format!("parameter-box-analysis-v{PARAMETER_BOX_ANALYSIS_VERSION}").as_bytes(),
+    );
     for (index, path) in analysis_source_paths(item).into_iter().enumerate() {
         hash_signature_bytes(&mut hash, &[index as u8, 0xff]);
         match fs::File::open(path) {
@@ -1825,7 +2320,7 @@ fn merge_parameter_library(
             .map_err(|error| format!("参数图累计样本库格式错误：{error}"))?
     } else {
         ParameterBoxLibrary {
-            schema_version: 1,
+            schema_version: PARAMETER_BOX_ANALYSIS_VERSION,
             ..Default::default()
         }
     };
@@ -1875,7 +2370,7 @@ fn merge_parameter_library(
         .collect();
     library.sources.sort();
     library.sources.dedup();
-    library.schema_version = 1;
+    library.schema_version = PARAMETER_BOX_ANALYSIS_VERSION;
     library.updated_at_ms = analyzed_at_ms;
     let bytes = serde_json::to_vec_pretty(&library)
         .map_err(|error| format!("无法生成参数图累计样本库：{error}"))?;
@@ -2000,6 +2495,26 @@ fn analyze_parameter_box_annotations_plan(
                 .is_some_and(|error| error > 0.20)
         })
         .count();
+    let geometry_analyzed = items
+        .iter()
+        .filter(|item| item.transparent_geometry.is_some())
+        .count();
+    let side_face_detected = items
+        .iter()
+        .filter(|item| {
+            item.transparent_geometry
+                .as_ref()
+                .is_some_and(|geometry| geometry.side_face != "none")
+        })
+        .count();
+    let axis_mapping_verified = items
+        .iter()
+        .filter(|item| {
+            item.transparent_geometry
+                .as_ref()
+                .is_some_and(|geometry| geometry.axis_mapping_verified)
+        })
+        .count();
     let length_rule =
         summarize_dimension_marks(item_dimension_marks(items.iter(), "boxLength").into_iter());
     let height_rule =
@@ -2021,27 +2536,43 @@ fn analyze_parameter_box_annotations_plan(
     let flat_items = confident_items
         .iter()
         .copied()
-        .filter(|item| item.depth_mark.is_none())
+        .filter(|item| {
+            item.depth_mark.is_none()
+                && item
+                    .transparent_geometry
+                    .as_ref()
+                    .is_none_or(|geometry| geometry.side_face == "none")
+        })
         .collect::<Vec<_>>();
     let perspective_items = confident_items
         .iter()
         .copied()
-        .filter(|item| item.depth_mark.is_some())
+        .filter(|item| {
+            item.depth_mark.is_some()
+                || item
+                    .transparent_geometry
+                    .as_ref()
+                    .is_some_and(|geometry| geometry.side_face != "none")
+        })
         .collect::<Vec<_>>();
     let runtime_rule = json!({
         "schemaVersion": 1,
         "ruleVersion": &rule_version,
-        "minAppVersion": "0.1.18",
+        "minAppVersion": "0.1.19",
         "generatedAtMs": generated_at_ms,
         "coordinateMode": "normalized-relative-to-paper-box",
+        "topologyCoordinateMode": "normalized-to-transparent-image",
         "selection": {
             "primary": "excel-ocr-package-match",
             "fallback": "transparent-component-match-or-single-object",
             "supportsBoxOnEitherSide": true,
             "usesExcelDimensions": true,
             "usesLocalOcr": true,
+            "analyzesTransparentGeometry": true,
+            "mapsDimensionsToDetectedEdges": true,
         },
-        "evidence": { "ocrAvailable": ocr_available, "excelParsed": excel_parsed, "ocrVerified": ocr_verified, "excelOcrSelected": excel_ocr_selected, "dimensionMismatches": dimension_mismatches },
+        "evidence": { "ocrAvailable": ocr_available, "excelParsed": excel_parsed, "ocrVerified": ocr_verified, "excelOcrSelected": excel_ocr_selected, "dimensionMismatches": dimension_mismatches,
+            "geometryAnalyzed": geometry_analyzed, "sideFaceDetected": side_face_detected, "axisMappingVerified": axis_mapping_verified },
         "profiles": [
             runtime_profile("flat-box", "正面纸盒", &flat_items),
             runtime_profile("perspective-box", "立体纸盒", &perspective_items),
@@ -2071,10 +2602,11 @@ fn analyze_parameter_box_annotations_plan(
         }
     }
     let report = json!({
-        "schemaVersion": 4, "generatedAtMs": generated_at_ms, "sourceIndexPath": path_text(&source_index_path), "libraryPath": path_text(&library_path), "runtimeRulePath": path_text(&runtime_rule_path),
-        "analysis": "cpu-dark-line-plus-excel-and-local-ocr", "coordinateMode": "normalized-relative-to-paper-box", "paperBoxSelection": "excel-ocr-package-match-with-transparent-fallback",
+        "schemaVersion": 5, "analysisVersion": PARAMETER_BOX_ANALYSIS_VERSION, "generatedAtMs": generated_at_ms, "sourceIndexPath": path_text(&source_index_path), "libraryPath": path_text(&library_path), "runtimeRulePath": path_text(&runtime_rule_path),
+        "analysis": "cpu-dark-line-plus-excel-ocr-plus-transparent-edge-topology", "coordinateMode": "normalized-relative-to-paper-box", "topologyCoordinateMode": "normalized-to-transparent-image", "paperBoxSelection": "excel-ocr-package-match-with-transparent-fallback",
         "summary": { "scope": "cumulative", "sources": source_count, "eligible": items.len(), "analyzed": analyzed, "confident": confident, "lowConfidence": low_confidence, "skipped": skipped,
             "ocrAvailable": ocr_available, "excelParsed": excel_parsed, "ocrVerified": ocr_verified, "excelOcrSelected": excel_ocr_selected, "dimensionMismatches": dimension_mismatches,
+            "geometryAnalyzed": geometry_analyzed, "sideFaceDetected": side_face_detected, "axisMappingVerified": axis_mapping_verified,
             "lengthRule": &length_rule, "heightRule": &height_rule, "depthRule": &depth_rule,
             "selectionMethods": selection_methods, "sourceBoxPositions": source_box_positions },
         "samples": &items,
@@ -2084,7 +2616,8 @@ fn analyze_parameter_box_annotations_plan(
     fs::write(&report_path, bytes)
         .map_err(|error| format!("无法保存纸盒标注规则 {}：{error}", path_text(&report_path)))?;
     let batch_report = json!({
-        "schemaVersion": 4,
+        "schemaVersion": 5,
+        "analysisVersion": PARAMETER_BOX_ANALYSIS_VERSION,
         "generatedAtMs": generated_at_ms,
         "scope": "batch",
         "sourceIndexPath": path_text(&source_index_path),
@@ -2100,6 +2633,9 @@ fn analyze_parameter_box_annotations_plan(
             "removed": removed_samples,
             "migrated": migrated_samples,
             "globalSamples": global_samples,
+            "geometryAnalyzed": batch_items.iter().filter(|item| item.transparent_geometry.is_some()).count(),
+            "sideFaceDetected": batch_items.iter().filter(|item| item.transparent_geometry.as_ref().is_some_and(|geometry| geometry.side_face != "none")).count(),
+            "axisMappingVerified": batch_items.iter().filter(|item| item.transparent_geometry.as_ref().is_some_and(|geometry| geometry.axis_mapping_verified)).count(),
         },
         "samples": &batch_items,
     });
@@ -2132,6 +2668,10 @@ fn analyze_parameter_box_annotations_plan(
         format!(
             "Excel 包装尺寸读取 {} 组；OCR 数值验证 {} 组；由 Excel+OCR 纠正/选定纸盒 {} 组；尺寸疑似不一致 {} 组",
             excel_parsed, ocr_verified, excel_ocr_selected, dimension_mismatches
+        ),
+        format!(
+            "透明图几何拓扑 {} 组；检出左右侧面 {} 组；长宽高边映射经 Excel+OCR 验证 {} 组",
+            geometry_analyzed, side_face_detected, axis_mapping_verified
         ),
         format!(
             "本地 OCR 引擎：{}",
@@ -2197,6 +2737,9 @@ fn analyze_parameter_box_annotations_plan(
         ocr_verified,
         excel_ocr_selected,
         dimension_mismatches,
+        geometry_analyzed,
+        side_face_detected,
+        axis_mapping_verified,
         length_rule,
         height_rule,
         depth_rule,
@@ -2478,5 +3021,100 @@ mod tests {
                     .is_some_and(|evidence| evidence.verified_as_package)
             );
         }
+    }
+
+    #[test]
+    fn analyzes_configured_transparent_box_geometry() {
+        let Ok(path) = std::env::var("PLM_PARAMETER_TRANSPARENT_PATH") else {
+            return;
+        };
+        let geometry =
+            analyze_transparent_box_geometry(&path, "boxLength", "boxDepth", "boxHeight", true)
+                .expect("transparent box geometry should be detected");
+        println!("{}", serde_json::to_string_pretty(&geometry).unwrap());
+        assert_eq!(geometry.front_corners.len(), 4);
+        if let Ok(expected) = std::env::var("PLM_PARAMETER_EXPECT_BOX_POSITION") {
+            assert_eq!(geometry.box_position, expected);
+        }
+        if let Ok(expected) = std::env::var("PLM_PARAMETER_EXPECT_SIDE_FACE") {
+            assert_eq!(geometry.side_face, expected);
+        }
+    }
+
+    #[test]
+    fn detects_transparent_box_on_right_with_right_side_face() {
+        let root = std::env::temp_dir().join(format!("plm-box-topology-test-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let image_path = root.join("透明.png");
+        let mut image = image::RgbaImage::from_pixel(640, 520, image::Rgba([0, 0, 0, 0]));
+        for y in 80..=450 {
+            for x in 30..=240 {
+                let dx = (x as f64 - 135.0) / 105.0;
+                let dy = (y as f64 - 265.0) / 185.0;
+                if dx * dx + dy * dy <= 1.0 {
+                    image.put_pixel(x, y, image::Rgba([80, 120, 180, 255]));
+                }
+            }
+        }
+        for y in 40..=480 {
+            for x in 330..=590 {
+                let color = if x <= 520 {
+                    image::Rgba([34, 84, 154, 255])
+                } else {
+                    image::Rgba([15, 47, 104, 255])
+                };
+                image.put_pixel(x, y, color);
+            }
+        }
+        image.save(&image_path).unwrap();
+        let geometry = analyze_transparent_box_geometry(
+            &path_text(&image_path),
+            "boxLength",
+            "boxDepth",
+            "boxHeight",
+            true,
+        )
+        .unwrap();
+        assert_eq!(geometry.box_position, "right");
+        assert_eq!(geometry.side_face, "right");
+        assert_eq!(geometry.front_corners.len(), 4);
+        assert_eq!(geometry.side_corners.len(), 4);
+        assert!(geometry.depth_edge.is_some());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn keeps_flat_transparent_box_without_fake_side_face() {
+        let root = std::env::temp_dir().join(format!("plm-flat-box-test-{}", Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let image_path = root.join("透明.png");
+        let mut image = image::RgbaImage::from_pixel(420, 520, image::Rgba([0, 0, 0, 0]));
+        for y in 30..=490 {
+            for x in 30..=220 {
+                image.put_pixel(x, y, image::Rgba([220, 210, 190, 255]));
+            }
+        }
+        for y in 120..=430 {
+            for x in 280..=390 {
+                let dx = (x as f64 - 335.0) / 55.0;
+                let dy = (y as f64 - 275.0) / 155.0;
+                if dx * dx + dy * dy <= 1.0 {
+                    image.put_pixel(x, y, image::Rgba([130, 90, 50, 255]));
+                }
+            }
+        }
+        image.save(&image_path).unwrap();
+        let geometry = analyze_transparent_box_geometry(
+            &path_text(&image_path),
+            "boxLength",
+            "boxDepth",
+            "boxHeight",
+            true,
+        )
+        .unwrap();
+        assert_eq!(geometry.box_position, "left");
+        assert_eq!(geometry.side_face, "none");
+        assert!(geometry.depth_edge.is_none());
+        fs::remove_dir_all(&root).unwrap();
     }
 }
