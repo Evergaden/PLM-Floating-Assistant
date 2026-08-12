@@ -45,6 +45,21 @@ Set an API key for write endpoints:
 npx.cmd wrangler secret put API_KEY
 ```
 
+Set the independent signing secret used to exchange a logged-in PLM session for
+a short-lived Worker token. Keep this secret only in Cloudflare Worker secrets:
+
+```powershell
+npx.cmd wrangler secret put WORKER_TOKEN_SECRET
+```
+
+Userscript 2.8.9 and later sends the current PLM Bearer token only to
+`POST /auth/exchange`. The Worker validates that session through the PLM user
+info endpoint, discards the PLM token, and returns an 8-hour Worker token. The
+userscript keeps only that Worker token in userscript-manager storage and
+renews it after expiry or a 401 response. Older userscripts remain compatible
+through `x-api-key` while the migration is rolled out; rotate `API_KEY` after
+all old userscripts have been replaced.
+
 Set the Zhipu API key for AI insight summaries:
 
 ```powershell
@@ -115,6 +130,7 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 ## Endpoints
 
 - `GET /health`
+- `POST /auth/exchange` (PLM Bearer session to short-lived Worker token)
 - `GET /assets/manifest.json`
 - `GET /assets/v1/runtime-data.json`
 - `GET /assets/v1/excel-template.xlsx`
@@ -144,7 +160,8 @@ installed userscripts compatible when a newer cloud UI is deployed.
 - `GET /feedback/mine?name=...`
 - `POST /admin/feedback/save` (管理员 Session)
 
-Write endpoints require `x-api-key` when `API_KEY` is configured.
+Protected endpoints accept the short-lived Worker Bearer token. Older clients
+may continue using `x-api-key` while `API_KEY` is configured.
 
 Backups written by userscript 2.6.105 and later use browser-side AES-GCM encryption. The Worker stores the encrypted envelope and, when necessary, stores its compressed ciphertext in `user_backup_chunks`. The client can still read legacy plaintext/compressed backups and rewrites them in the encrypted format on the next save. Run `schema.sql` once after upgrading the Worker so the chunk table exists.
 

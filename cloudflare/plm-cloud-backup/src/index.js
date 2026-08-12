@@ -5,12 +5,16 @@ import { BRAND_COMPLIANCE_SEED } from './brand-compliance-seed.js';
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,x-api-key',
+  'access-control-allow-headers': 'content-type,authorization,x-api-key',
 };
 
 const MAX_BACKUP_INLINE_CHARS = 900000;
 const MAX_BACKUP_CHUNK_CHARS = 500000;
 const MAX_BACKUP_CHUNKS = 64;
+const PLM_USERINFO_URL = 'https://api-x.westmonth.com/umc/user/info';
+const WORKER_TOKEN_ISSUER = 'plm-floating-helper';
+const WORKER_TOKEN_TTL_SECONDS = 8 * 60 * 60;
+const requestAuthContexts = new WeakMap();
 
 const FEEDBACK_TYPES = Object.freeze({
   feature: '功能建议',
@@ -428,9 +432,227 @@ async function sha256Hex(value) {
     .join('');
 }
 
+function getBearerToken(request) {
+  const value = String(request.headers.get('authorization') || '').trim();
+  const match = /^Bearer\s+(.+)$/i.exec(value);
+  return match ? match[1].trim() : '';
+}
+
+function base64UrlText(value) {
+  return base64Url(new TextEncoder().encode(String(value || '')));
+}
+
+function decodeBase64UrlText(value) {
+  const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  if (!normalized || !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)) return '';
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  try {
+    const binary = atob(padded);
+    return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
+  } catch (_) {
+    return '';
+  }
+}
+
+function parseJwtPart(value) {
+  const text = decodeBase64UrlText(value);
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isWorkerTokenHeader(header) {
+  return Boolean(header && header.alg === 'HS256' && header.kid === 'plm-worker-v1');
+}
+
+async function importWorkerTokenKey(env, usages) {
+  const secret = String(env.WORKER_TOKEN_SECRET || '').trim();
+  if (!secret) return null;
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    usages,
+  );
+}
+
+async function createWorkerAccessToken(user, env) {
+  const key = await importWorkerTokenKey(env, ['sign']);
+  if (!key) return '';
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: WORKER_TOKEN_ISSUER,
+    ver: 1,
+    sub: String(user.id || '').slice(0, 160),
+    userName: String(user.name || '').slice(0, 120),
+    tenantId: String(user.tenantId || '').slice(0, 120),
+    companyName: String(user.companyName || '').slice(0, 160),
+    iat: issuedAt,
+    exp: issuedAt + WORKER_TOKEN_TTL_SECONDS,
+  };
+  const headerPart = base64UrlText(JSON.stringify({ alg: 'HS256', typ: 'JWT', kid: 'plm-worker-v1' }));
+  const payloadPart = base64UrlText(JSON.stringify(payload));
+  const signingInput = headerPart + '.' + payloadPart;
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signingInput));
+  return signingInput + '.' + base64Url(signature);
+}
+
+async function verifyWorkerAccessToken(token, env) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3 || parts.some((part) => !part) || String(token).length > 12000) return null;
+  const header = parseJwtPart(parts[0]);
+  const payload = parseJwtPart(parts[1]);
+  if (!isWorkerTokenHeader(header) || !payload || payload.iss !== WORKER_TOKEN_ISSUER || Number(payload.ver) !== 1) return null;
+  const exp = Number(payload.exp);
+  const subject = String(payload.sub || '').trim();
+  if (!subject || !Number.isFinite(exp) || exp <= Math.floor(Date.now() / 1000)) return null;
+  const key = await importWorkerTokenKey(env, ['verify']);
+  if (!key) return null;
+  const normalized = String(parts[2]).replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  let signature;
+  try {
+    signature = Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+  } catch (_) {
+    return null;
+  }
+  try {
+    const valid = await crypto.subtle.verify('HMAC', key, signature, new TextEncoder().encode(parts[0] + '.' + parts[1]));
+    return valid ? payload : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function prepareRequestAuth(request, env) {
+  const bearer = getBearerToken(request);
+  if (!bearer) return null;
+  const claims = await verifyWorkerAccessToken(bearer, env);
+  if (!claims) return null;
+  const context = { kind: 'worker-token', claims };
+  requestAuthContexts.set(request, context);
+  return context;
+}
+
 function requireApiKey(request, env) {
-  if (!env.API_KEY) return true;
-  return request.headers.get('x-api-key') === env.API_KEY;
+  if (requestAuthContexts.has(request)) return true;
+  return Boolean(env.API_KEY && request.headers.get('x-api-key') === env.API_KEY);
+}
+
+function getAuthObjectCandidates(payload) {
+  const candidates = [];
+  const queue = [{ value: payload, depth: 0 }];
+  const seen = new Set();
+  while (queue.length && candidates.length < 24) {
+    const current = queue.shift();
+    const value = current && current.value;
+    const depth = current && current.depth || 0;
+    if (!value || typeof value !== 'object' || seen.has(value) || depth > 3) continue;
+    seen.add(value);
+    candidates.push(value);
+    if (Array.isArray(value)) {
+      value.slice(0, 8).forEach((item) => queue.push({ value: item, depth: depth + 1 }));
+    } else {
+      Object.keys(value).slice(0, 24).forEach((key) => {
+        const nested = value[key];
+        if (nested && typeof nested === 'object') queue.push({ value: nested, depth: depth + 1 });
+      });
+    }
+  }
+  return candidates;
+}
+
+function readFirstAuthField(candidates, names, maxLength) {
+  for (const candidate of candidates) {
+    for (const name of names) {
+      const value = candidate[name];
+      if (value === undefined || value === null || value === '') continue;
+      const text = String(value).trim().slice(0, maxLength);
+      if (text) return text;
+    }
+  }
+  return '';
+}
+
+function extractPlmUser(payload) {
+  const prioritized = [
+    payload && payload.data && payload.data.userInfo,
+    payload && payload.data && payload.data.user,
+    payload && payload.userInfo,
+    payload && payload.user,
+    payload && payload.result && payload.result.userInfo,
+    payload && payload.result && payload.result.user,
+    payload && payload.data,
+    payload && payload.result,
+    payload,
+  ].filter((value) => value && typeof value === 'object');
+  const candidates = prioritized.concat(getAuthObjectCandidates(payload)).filter((value, index, list) => list.indexOf(value) === index);
+  const id = readFirstAuthField(candidates, ['userId', 'user_id', 'uid', 'accountId', 'account_id', 'employeeId', 'employee_id', 'username', 'userName', 'loginName', 'id'], 160);
+  if (!id) return null;
+  return {
+    id,
+    name: readFirstAuthField(candidates, ['name', 'realName', 'real_name', 'nickname', 'nickName', 'username', 'userName'], 120),
+    tenantId: readFirstAuthField(candidates, ['tenantId', 'tenant_id', 'companyId', 'company_id', 'orgId', 'org_id'], 120),
+    companyName: readFirstAuthField(candidates, ['companyName', 'company_name', 'orgName', 'org_name'], 160),
+  };
+}
+
+async function handleAuthExchange(request, env) {
+  if (!String(env.WORKER_TOKEN_SECRET || '').trim()) return json({ error: 'worker token service unavailable' }, 503);
+  const plmToken = getBearerToken(request);
+  if (!plmToken || isWorkerTokenHeader(parseJwtPart(plmToken.split('.')[0]))) return json({ error: 'PLM authorization required' }, 401);
+  const tokenParts = plmToken.split('.');
+  if (tokenParts.length !== 3 || tokenParts.some((part) => !/^[A-Za-z0-9_-]+$/.test(part)) || plmToken.length > 8192) {
+    return json({ error: 'PLM authorization required' }, 401);
+  }
+  let response;
+  try {
+    response = await fetch(PLM_USERINFO_URL, {
+      method: 'GET',
+      headers: {
+        accept: 'application/json, text/plain, */*',
+        authorization: 'Bearer ' + plmToken,
+        'x-app-code': 'PLM',
+        'x-tenant-code': 'xy',
+        'x-tenant-id': 'xy',
+      },
+    });
+  } catch (_) {
+    return json({ error: 'PLM authorization check failed' }, 502);
+  }
+  if (!response.ok) return json({ error: 'PLM authorization rejected' }, 401);
+  let payload;
+  try {
+    payload = await response.json();
+  } catch (_) {
+    return json({ error: 'PLM authorization response invalid' }, 401);
+  }
+  if (payload && payload.success === false) return json({ error: 'PLM authorization rejected' }, 401);
+  const responseCode = payload && payload.code;
+  if (responseCode !== undefined && responseCode !== null && /^(?:-?1|401|403)$/.test(String(responseCode))) {
+    return json({ error: 'PLM authorization rejected' }, 401);
+  }
+  const user = extractPlmUser(payload);
+  if (!user) return json({ error: 'PLM user identity unavailable' }, 401);
+  const workerToken = await createWorkerAccessToken(user, env);
+  if (!workerToken) return json({ error: 'worker token service unavailable' }, 503);
+  return json({
+    ok: true,
+    token: workerToken,
+    tokenType: 'Bearer',
+    expiresAt: new Date((Math.floor(Date.now() / 1000) + WORKER_TOKEN_TTL_SECONDS) * 1000).toISOString(),
+    user: {
+      id: user.id,
+      name: user.name,
+      tenantId: user.tenantId,
+      companyName: user.companyName,
+    },
+  });
 }
 
 async function parseJson(request) {
@@ -589,6 +811,7 @@ function handleParameterLogo(request, env) {
 }
 
 async function handleBackupLoad(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
   const identity = await resolveBackupUserId({
     backupId: url.searchParams.get('backupId'),
@@ -615,6 +838,7 @@ async function handleBackupLoad(request, env) {
 }
 
 async function handleBackupChunkLoad(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
   const identity = await resolveBackupUserId({
     backupId: url.searchParams.get('backupId'),
@@ -659,6 +883,7 @@ async function handlePackRecord(request, env) {
 }
 
 async function handlePackRecommend(request, env) {
+  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const url = new URL(request.url);
   const boxKey = normalizeBoxKey(url.searchParams.get('boxKey'));
   if (!boxKey) return json({ error: 'boxKey required' }, 400);
@@ -2758,7 +2983,8 @@ async function handleInsightReport(request, env) {
 }
 
 function requireApiKeyFromHeaderOrQuery(request, env) {
-  if (!env.API_KEY) return true;
+  if (requestAuthContexts.has(request)) return true;
+  if (!env.API_KEY) return false;
   const url = new URL(request.url);
   return request.headers.get('x-api-key') === env.API_KEY || url.searchParams.get('key') === env.API_KEY;
 }
@@ -4573,8 +4799,10 @@ export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({ ok: true });
 
+    await prepareRequestAuth(request, env);
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
+    if (url.pathname === '/auth/exchange' && request.method === 'POST') return handleAuthExchange(request, env);
     if (url.pathname === '/assets/manifest.json' && (request.method === 'GET' || request.method === 'HEAD')) {
       return handleAssetManifest(request, env, url);
     }

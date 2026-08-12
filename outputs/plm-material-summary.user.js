@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.8
+// @version      2.8.9
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,36 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.8';
-
-  // <text-utils-module>
-  // Pure text and number helpers shared by data parsing and UI formatting.
-  function normalizeText(text) {
-    return String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').trim();
-  }
-
-  function truncateFileName(name, max) {
-    const text = String(name || '');
-    if (!text) return '';
-    const limit = Math.max(8, Number(max) || 30);
-    if (text.length <= limit) return text;
-    const head = Math.ceil(limit * 0.6);
-    const tail = limit - head - 1;
-    return text.slice(0, head) + '…' + text.slice(-tail);
-  }
-
-  function compactText(text) {
-    return normalizeText(text).replace(/\s+/g, ' ');
-  }
-
-  function compactLabel(text) {
-    return compactText(text).replace(/\*+$/g, '').trim();
-  }
-
-  function trimNumber(num) {
-    return Number(num).toFixed(2).replace(/\.?0+$/, '');
-  }
-  // </text-utils-module>
+  const SCRIPT_VERSION = '2.8.9';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -86,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.198';
+  const UI_ASSET_VERSION = '2.5.199';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -145,40 +116,9 @@
       { category: '身体护理', keywords: ['身体乳', 'body lotion', 'body cream'], phrase: 'Softens & moisturizes', priority: 80 },
       { category: '洗护', keywords: ['洗发', 'shampoo', '护发', 'conditioner'], phrase: 'Cleanses & nourishes', priority: 70 },
       { category: '营养补充', keywords: ['胶囊', 'capsule', 'supplement'], phrase: 'Daily nutrition support', priority: 60 },
-      { category: '洁面', keywords: ['洁面', '洗面奶', 'cleanser', 'face wash'], phrase: 'Gently cleanses & refreshes', priority: 85 },
-      { category: '面膜', keywords: ['面膜', 'mask', 'sheet mask'], phrase: 'Deep hydration & renewal', priority: 85 },
-      { category: '唇部护理', keywords: ['润唇', '唇膏', 'lip balm', 'lip care'], phrase: 'Moisturizes & protects', priority: 80 },
-      { category: '香氛', keywords: ['香水', '香氛', 'perfume', 'fragrance'], phrase: 'Fresh scent & lasting comfort', priority: 75 },
-      { category: '手部护理', keywords: ['护手霜', 'hand cream', 'hand care'], phrase: 'Nourishes & softens hands', priority: 75 },
-      { category: '口腔护理', keywords: ['牙膏', '漱口', 'toothpaste', 'mouthwash'], phrase: 'Fresh breath & daily care', priority: 75 },
-      { category: '卫生护理', keywords: ['卫生巾', '湿巾', '纸巾', 'sanitary', 'wipes', 'tissue'], phrase: 'Gentle care & everyday comfort', priority: 65 },
-      { category: '食品', keywords: ['零食', '饼干', '糖果', '食品', 'snack', 'cookie', 'candy', 'food'], phrase: 'Delicious taste for every moment', priority: 65 },
-      { category: '饮品', keywords: ['饮料', '茶', '咖啡', 'juice', 'drink', 'tea', 'coffee'], phrase: 'Refreshing taste & daily enjoyment', priority: 65 },
-      { category: '玩具', keywords: ['玩具', 'toy', 'toys'], phrase: 'Fun play & happy moments', priority: 100 },
-      { category: '毛绒玩具', keywords: ['毛绒', '公仔', 'plush', 'stuffed toy', 'soft toy'], phrase: 'Soft touch & playful comfort', priority: 105 },
-      { category: '积木拼图', keywords: ['积木', '拼图', 'building blocks', 'puzzle'], phrase: 'Builds creativity & thinking skills', priority: 105 },
-      { category: '娃娃玩偶', keywords: ['娃娃', '玩偶', 'doll', 'dolls'], phrase: 'Imaginative play & joyful moments', priority: 105 },
-      { category: '益智玩具', keywords: ['益智', '早教', 'educational toy', 'learning toy'], phrase: 'Learning through fun play', priority: 105 },
-      { category: '遥控玩具', keywords: ['遥控', '遥控车', 'remote control', 'rc car'], phrase: 'Exciting play & easy control', priority: 105 },
-      { category: '户外玩具', keywords: ['户外玩具', '滑板车', '跳绳', 'outdoor toy', 'scooter'], phrase: 'Active play & outdoor fun', priority: 100 },
-      { category: '文具礼品', keywords: ['文具', '礼品', 'stationery', 'gift'], phrase: 'Useful design & everyday delight', priority: 55 },
-      { category: '家居用品', keywords: ['家居', '收纳', '厨房', 'home', 'storage', 'kitchen'], phrase: 'Smart design for everyday living', priority: 50 },
-      { category: '膳食营养', keywords: ['膳食营养', '入口', '软糖', '胶囊', '缓释粉', 'dietary nutrition', 'gummy', 'gummies', 'capsule', 'extended-release powder'], phrase: 'Daily dietary nutrition', priority: 109 },
-      { category: '钻石艺术套装', keywords: ['钻石艺术套装', '珍珠钻石画', '钻石挂饰', 'diamond art', 'diamond painting', 'diamond craft', 'diamond pendant'], phrase: 'Creative craft & sparkling display', priority: 120 },
-      { category: '面霜', keywords: ['面霜', '膏', '乳霜', 'face cream', 'facial cream', 'moisturizing cream'], phrase: 'Hydrates & smooths skin', priority: 95 },
-      { category: '营养补充', keywords: ['营养补充', '胶囊', '软糖', '滴剂', '粉', 'nutritional supplement', 'dietary supplement', 'gummy', 'gummies', 'drops', 'powder'], phrase: 'Daily nutritional support', priority: 111 },
-      { category: '牙科护理', keywords: ['牙科护理', '牙套', '牙贴', '牙膏', '假牙', 'dental care', 'dental aligner', 'teeth strips', 'toothpaste', 'denture'], phrase: 'Daily dental care', priority: 114 },
-      { category: '创意玩具', keywords: ['捏捏乐', 'DIY套装', '毛绒', 'stress toy', 'diy kit', 'plush toy'], phrase: 'Fun play & hands-on creativity', priority: 104 },
-      { category: '护肤品', keywords: ['护肤品', 'skincare', 'skin care', 'face care'], phrase: 'Daily skin care & radiance', priority: 78 },
-      { category: '口服营养', keywords: ['口服营养', '胶囊', '软糖', '滴剂', 'oral nutrition', 'oral supplement', 'gummy', 'gummies', 'drops'], phrase: 'Everyday wellness support', priority: 110 },
-      { category: '口腔护理', keywords: ['口腔护理', '牙膏', '牙贴', '牙套', 'oral care', 'toothpaste', 'teeth strips', 'dental aligner'], phrase: 'Fresh breath & daily care', priority: 113 },
-      { category: '口服营养品', keywords: ['口服营养品', '胶囊', '软糖', '含片', 'oral nutritional product', 'oral supplement', 'gummy', 'gummies', 'lozenge'], phrase: 'Everyday nutritional support', priority: 112 },
     ];
     let featureRules = defaultRules.slice();
     let rulesLoaded = false;
-    let topologyRule = null;
-    let topologyRulePromise = null;
-    let topologyRuleStatus = 'unloaded';
 
     const number = (value) => {
       const matched = String(value == null ? '' : value).match(/\d+(?:\.\d+)?/);
@@ -235,32 +175,10 @@
     function matchFeature(data, englishName) {
       const category = context.productType(data) || '';
       const haystack = [category, data && data.name, englishName].filter(Boolean).join(' ').toLowerCase();
-      const sortedRules = featureRules.slice().sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
-      const categoryText = String(category).toLowerCase();
-      const categoryMatched = categoryText && sortedRules.find((rule) =>
-        (rule.keywords || []).some((keyword) => categoryText.includes(String(keyword).toLowerCase()))
-      );
-      const matched = categoryMatched || sortedRules.find((rule) =>
+      const matched = featureRules.slice().sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0)).find((rule) =>
         (rule.keywords || []).some((keyword) => haystack.includes(String(keyword).toLowerCase()))
       );
       return matched ? matched.phrase : 'Everyday care & comfort';
-    }
-
-    function isFoodParameterProduct(data) {
-      const resolvedType = String(context.productType(data) || '').trim();
-      if (/面霜|精华|眼霜|防晒|身体护理|洗护|护肤|化妆|cream|serum|skincare|cosmetic/i.test(resolvedType)) return false;
-      const text = [
-        resolvedType,
-        data && data.aiProductType,
-        data && data.aiCategory,
-        data && data.productType,
-        data && data.category,
-        data && data.departmentName,
-        data && data.name,
-        data && data.englishName,
-      ].filter(Boolean).join(' ');
-      if (/面霜|精华液?|眼霜|防晒|洗发|护发|身体乳|face\s*cream|serum|shampoo|conditioner|sunscreen|body\s*lotion/i.test(text)) return false;
-      return /食品|保健品?|保健食品|营养补充|营养品|膳食补充|胶囊|软糖|片剂|咀嚼片|口服液|饮品|固体饮料|维生素|益生菌|鱼油|钙片|蛋白粉|supplement|capsule|gumm(?:y|ies)?|vitamin|mineral|probiotic|fish\s*oil|protein\s*powder/i.test(text);
     }
 
     function ensureSession(data) {
@@ -276,21 +194,12 @@
           busy: false,
           error: '',
           singleBottle: Boolean(data && data.singleBottle),
-          productHeightSide: isFoodParameterProduct(data) ? 'left' : 'right',
           showSide: null,
-          showSideOverride: false,
           frontIsLength: true,
-          frontAxisOverride: false,
-          topologyApplied: false,
-          topologyRuleVersion: '',
-          topologyMessage: '',
           featuresDirty: false,
           editorOpen: false,
           manualTarget: Boolean(data && data.singleBottle) ? 'product' : 'box',
-          manualTargetMode: 'auto',
           manualPoints: { box: [], product: [] },
-          manualLineTypes: { box: [], product: [] },
-          manualPointHistory: [],
           editorImage: null,
           editorSourceUrl: '',
           editorDragging: null,
@@ -310,210 +219,44 @@
             packageLength: fieldValue(data, 'packageLength', 'cartonLength'),
             packageWidth: fieldValue(data, 'packageWidth', 'cartonWidth'),
             packageHeight: fieldValue(data, 'packageHeight', 'cartonHeight'),
-            productLength: data && data.omitEstimatedProductSize
+            productWidth: data && data.omitEstimatedProductSize
               ? 0
               : (data && data.isTubePrint
-                ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productLength', 'productLength'))
-                : fieldValue(data, 'productLength', 'productLength')),
+                ? (fieldValue(data, 'tailSealLengthValue', 'tailSealLength') || fieldValue(data, 'tubeTailSealLengthValue', 'tubeTailSealLength') || fieldValue(data, 'productWidth', 'productWidth'))
+                : fieldValue(data, 'productWidth', 'productWidth')),
             productHeight: data && data.omitEstimatedProductSize ? 0 : fieldValue(data, 'productHeight', 'productHeight'),
           },
         };
       }
-      const session = sessions[sku];
-      if (!session.manualPoints) session.manualPoints = { box: [], product: [] };
-      if (!session.manualLineTypes) session.manualLineTypes = { box: [], product: [] };
-      if (!['auto', 'box', 'product'].includes(session.manualTargetMode)) session.manualTargetMode = 'auto';
-      if (!Array.isArray(session.manualLineTypes.box)) session.manualLineTypes.box = [];
-      if (!Array.isArray(session.manualLineTypes.product)) session.manualLineTypes.product = [];
-      if (!Array.isArray(session.manualPointHistory)) session.manualPointHistory = [];
-      if (typeof session.showSideOverride !== 'boolean') session.showSideOverride = false;
-      if (typeof session.frontAxisOverride !== 'boolean') session.frontAxisOverride = false;
-      if (typeof session.topologyApplied !== 'boolean') session.topologyApplied = false;
-      if (typeof session.topologyRuleVersion !== 'string') session.topologyRuleVersion = '';
-      if (typeof session.topologyMessage !== 'string') session.topologyMessage = '';
-      session.productHeightSide = isFoodParameterProduct(data) ? 'left' : 'right';
-      return session;
-    }
-
-    function topologyRulePath(manifest) {
-      const raw = String(manifest && (manifest.rulePath || manifest.ruleUrl || manifest.path) || '').trim();
-      if (!raw) return '/assets/v1/parameter-layout-rules.json';
-      if (/^https?:\/\//i.test(raw)) {
-        try {
-          const parsed = new URL(raw);
-          return parsed.pathname + (parsed.search || '');
-        } catch (_) { return '/assets/v1/parameter-layout-rules.json'; }
-      }
-      if (raw.startsWith('/assets/')) return raw;
-      if (raw.startsWith('./')) return '/assets/v1/' + raw.slice(2);
-      if (raw.startsWith('/')) return '/assets' + raw;
-      return '/assets/v1/' + raw;
-    }
-
-    async function loadTopologyRule() {
-      if (topologyRulePromise) return topologyRulePromise;
-      topologyRuleStatus = 'loading';
-      topologyRulePromise = (async () => {
-        const request = context.cloudAssetRequest;
-        if (typeof request !== 'function') throw new Error('云端资源请求不可用');
-        const manifest = await request('/assets/v1/parameter-layout-rules.manifest.json', 'json');
-        if (!manifest || Number(manifest.schemaVersion || 1) !== 1 || !manifest.ruleVersion) throw new Error('参数图布局规则清单无效');
-        const rule = await request(topologyRulePath(manifest), 'json');
-        const profiles = Array.isArray(rule && rule.profiles) ? rule.profiles : [];
-        const templates = profiles.flatMap((profile) => profile && profile.edgeTopology && Array.isArray(profile.edgeTopology.templates)
-          ? profile.edgeTopology.templates : []);
-        if (Number(rule && rule.schemaVersion || 1) !== 1 || !templates.length) throw new Error('参数图布局规则没有边拓扑模板');
-        topologyRule = { ...rule, ruleVersion: String(rule.ruleVersion || manifest.ruleVersion), manifest };
-        topologyRuleStatus = 'ready';
-        return topologyRule;
-      })().catch((error) => {
-        topologyRuleStatus = 'fallback';
-        topologyRule = null;
-        return null;
-      });
-      return topologyRulePromise;
+      return sessions[sku];
     }
 
     async function loadRules() {
       if (rulesLoaded) return false;
       rulesLoaded = true;
-      const results = await Promise.allSettled([
-        context.cloudRequest('/parameter-features?v=' + encodeURIComponent(SCRIPT_VERSION), { method: 'GET' }),
-        loadTopologyRule(),
-      ]);
-      const response = results[0] && results[0].status === 'fulfilled' ? results[0].value : null;
-      const rows = response && Array.isArray(response.rules) ? response.rules : [];
-      if (rows.length) { featureRules = rows; return true; }
-      return results.some((result) => result && result.status === 'fulfilled' && result.value);
+      try {
+        const response = await context.cloudRequest('/parameter-features', { method: 'GET' });
+        const rows = response && Array.isArray(response.rules) ? response.rules : [];
+        if (rows.length) { featureRules = rows; return true; }
+      } catch (_) {}
+      return false;
     }
 
     function fieldHtml(session, key, label, wide) {
       return '<label' + (wide ? ' class="wide"' : '') + '><span>' + context.escapeHtml(label) + '</span><input class="pfh-parameter-field" data-field="' + key + '" value="' + context.escapeHtml(session.fields[key] == null ? '' : session.fields[key]) + '"></label>';
     }
 
-    function manualDimensionTypes(target) {
-      return target === 'box' ? ['length', 'width', 'height'] : ['length', 'height'];
-    }
-
-    function manualDimensionLabel(type) {
-      return ({ length: '长', width: '宽', height: '高' })[type] || '未识别';
+    function manualPointLabels(target) {
+      return target === 'box' ? ['起点', '长', '宽', '高'] : ['起点', '宽', '高'];
     }
 
     function requiredManualPoints(target) {
-      return manualDimensionTypes(target).length * 2;
-    }
-
-    function minimumManualLines(target) {
-      return target === 'box' ? 2 : manualDimensionTypes(target).length;
-    }
-
-    function completedManualLines(session, target) {
-      const points = session.manualPoints && session.manualPoints[target] || [];
-      return Math.min(manualDimensionTypes(target).length, Math.floor(points.length / 2));
+      return manualPointLabels(target).length;
     }
 
     function completeManualPath(session, target) {
       const points = session.manualPoints && session.manualPoints[target];
-      return Array.isArray(points) && points.length % 2 === 0 && completedManualLines(session, target) >= minimumManualLines(target);
-    }
-
-    function manualDimensionValue(session, target, type) {
-      if (target === 'product') return type === 'height' ? session.fields.productHeight : session.fields.productLength;
-      if (type === 'length') return session.fields.packageLength;
-      if (type === 'height') return session.fields.packageHeight;
-      return session.fields.packageWidth;
-    }
-
-    function manualLineGeometry(session, target, index) {
-      const points = session.manualPoints && session.manualPoints[target] || [];
-      const start = points[index * 2], end = points[index * 2 + 1];
-      if (!start || !end) return null;
-      const dx = Math.abs(end.x - start.x), dy = Math.abs(end.y - start.y);
-      const length = Math.max(1, Math.hypot(dx, dy));
-      return { start, end, length, horizontal: dx / length, vertical: dy / length };
-    }
-
-    function manualTypeOrientationScore(session, target, type, geometry) {
-      if (type === 'height') return geometry.vertical * 4;
-      if (type === 'length') return geometry.horizontal * 4;
-      const diagonal = 1 - Math.abs(geometry.horizontal - geometry.vertical);
-      return diagonal * 2 + geometry.horizontal * .35;
-    }
-
-    function autoAssignedManualTypes(session, target) {
-      const lineCount = completedManualLines(session, target);
-      const allowed = manualDimensionTypes(target);
-      const overrides = session.manualLineTypes && session.manualLineTypes[target] || [];
-      const base = new Array(lineCount).fill('');
-      const used = new Set();
-      for (let index = 0; index < lineCount; index += 1) {
-        const type = overrides[index];
-        if (allowed.includes(type) && !used.has(type)) { base[index] = type; used.add(type); }
-      }
-      const freeLines = base.map((type, index) => type ? -1 : index).filter((index) => index >= 0);
-      const freeTypes = allowed.filter((type) => !used.has(type));
-      let best = base.slice(), bestScore = -Infinity;
-      const scoreAssignment = (assignment) => {
-        let score = 0;
-        const measurements = [];
-        for (let index = 0; index < lineCount; index += 1) {
-          const geometry = manualLineGeometry(session, target, index);
-          if (!geometry || !assignment[index]) continue;
-          score += manualTypeOrientationScore(session, target, assignment[index], geometry);
-          const value = number(manualDimensionValue(session, target, assignment[index]));
-          if (value > 0) measurements.push({ pixels: geometry.length, value });
-        }
-        if (measurements.length > 1) {
-          const scale = measurements.reduce((sum, item) => sum + item.pixels * item.value, 0) /
-            Math.max(1, measurements.reduce((sum, item) => sum + item.value * item.value, 0));
-          const residual = measurements.reduce((sum, item) => sum + Math.abs(item.pixels - scale * item.value) / Math.max(item.pixels, scale * item.value, 1), 0) / measurements.length;
-          score -= residual * 2;
-        }
-        return score;
-      };
-      const assign = (depth, candidate, remaining) => {
-        if (depth >= freeLines.length) {
-          const score = scoreAssignment(candidate);
-          if (score > bestScore) { bestScore = score; best = candidate.slice(); }
-          return;
-        }
-        remaining.forEach((type, typeIndex) => {
-          candidate[freeLines[depth]] = type;
-          assign(depth + 1, candidate, remaining.filter((_, index) => index !== typeIndex));
-        });
-      };
-      assign(0, base.slice(), freeTypes);
-      return best;
-    }
-
-    function manualOverallProgressText(session) {
-      const box = completedManualLines(session, 'box');
-      const product = completedManualLines(session, 'product');
-      const pending = ['box', 'product'].find((target) => (session.manualPoints[target] || []).length % 2 === 1);
-      return '纸盒 ' + box + '/2-3 · 产品 ' + product + '/2' + (pending ? ' · 正在画' + (pending === 'box' ? '纸盒' : '产品') + '终点' : '');
-    }
-
-    function manualCalibrationHtml(session, target) {
-      const lineCount = completedManualLines(session, target);
-      const effective = autoAssignedManualTypes(session, target);
-      const overrides = session.manualLineTypes[target] || [];
-      if (!lineCount) return '<span style="color:' + getActiveTheme().muted + ';font-size:12px">每条尺寸边分别点击起点和终点，纸盒可标长/宽/高（完成 2 或 3 条），产品标长/高。</span>';
-      return Array.from({ length: lineCount }, (_, index) => {
-        const override = overrides[index] || '';
-        const buttons = ['auto'].concat(manualDimensionTypes(target)).map((type) => {
-          const label = type === 'auto' ? '自动' : manualDimensionLabel(type);
-          const active = (type === 'auto' ? !override : override === type) ? ' is-active' : '';
-          return '<button type="button" class="' + active + '" data-action="parameter-editor-line-type" data-object="' + target + '" data-line-index="' + index + '" data-dimension="' + type + '">' + label + '</button>';
-        }).join('');
-        return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border:1px solid ' + getActiveTheme().border + ';border-radius:10px;background:' + getActiveTheme().primarySoft + '"><b style="color:' + getActiveTheme().primaryHover + ';font-size:12px">第' + (index + 1) + '条：' + (override ? '已校准 ' : '智能识别 ') + manualDimensionLabel(effective[index]) + '</b>' + buttons + '</span>';
-      }).join('');
-    }
-
-    function manualAllCalibrationHtml(session) {
-      const sections = ['box', 'product'].filter((target) => completedManualLines(session, target)).map((target) =>
-        '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + (target === 'box' ? getActiveTheme().primary : getActiveTheme().secondary) + ';font-size:12px">' + (target === 'box' ? '纸盒' : '产品') + '</strong>' + manualCalibrationHtml(session, target) + '</span>'
-      );
-      return sections.join('') || '<span style="color:' + getActiveTheme().muted + ';font-size:12px">直接在图片上画线：纸盒与产品都只需标注长和高。</span>';
+      return Array.isArray(points) && points.length >= requiredManualPoints(target);
     }
 
     function editorLog(session, step, detail, level) {
@@ -536,28 +279,23 @@
     }
 
     function manualEditorHtml(session) {
-      const boxCount = completedManualLines(session, 'box');
-      const productCount = completedManualLines(session, 'product');
+      const target = session.manualTarget === 'product' ? 'product' : 'box';
+      const boxCount = (session.manualPoints.box || []).length;
+      const productCount = (session.manualPoints.product || []).length;
+      const targetLabel = target === 'box' ? '纸盒' : '产品';
+      const labels = manualPointLabels(target);
       const statusClass = session.editorLoadError ? ' is-error' : '';
-      const targetMode = ['auto', 'box', 'product'].includes(session.manualTargetMode) ? session.manualTargetMode : 'auto';
-      const targetButtons = [
-        ['auto', '自动判断'],
-        ['box', '纸盒'],
-        ['product', '产品'],
-      ].map(([mode, label]) => '<button type="button" class="pfh-parameter-editor-target-button' + (targetMode === mode ? ' is-active' : '') + '" data-action="parameter-editor-target-mode" data-target-mode="' + mode + '" aria-pressed="' + (targetMode === mode ? 'true' : 'false') + '">' + label + '</button>').join('');
       return '<section class="pfh-parameter-editor">' +
-        '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，可自动判断纸盒/产品；判断不准时先选择对象 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+        '<header class="pfh-parameter-editor-head"><h3>手动标注尺寸路径</h3><span>拖动已有点可微调 · 按住 Ctrl 吸附横线/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
-          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2-3 边</span>' +
-          '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().secondarySoft + ';color:' + getActiveTheme().secondary + ';font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
-          '<span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + getActiveTheme().border + ';border-radius:10px"><b style="padding:0 4px;color:' + getActiveTheme().muted + ';font-size:12px">下条线：</b>' + targetButtons + '</span>' +
-          '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
+          '<button type="button" data-action="parameter-editor-target" data-target="box" class="' + (target === 'box' ? 'is-active' : '') + '">纸盒 ' + boxCount + '/4</button>' +
+          '<button type="button" data-action="parameter-editor-target" data-target="product" class="' + (target === 'product' ? 'is-active' : '') + '">产品 ' + productCount + '/3</button>' +
+          '<button type="button" data-action="parameter-editor-undo">撤销一点</button><button type="button" data-action="parameter-editor-reset">重画当前</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
           '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
-          '<div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + manualAllCalibrationHtml(session) + '</div>' +
         '</div>' +
         '<div class="pfh-parameter-editor-stage' + (!session.editorImage && !session.editorLoadError ? ' is-loading' : '') + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
-        '<footer class="pfh-parameter-editor-foot"><span>默认自动判断；也可先选纸盒/产品，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualOverallProgressText(session) + '</span></footer>' +
+        '<footer class="pfh-parameter-editor-foot"><span>当前：<b>' + targetLabel + '</b>，依次点击 ' + labels.join(' → ') + '</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">已标 ' + (session.manualPoints[target] || []).length + '/' + labels.length + ' 点</span></footer>' +
         '<details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + context.escapeHtml(editorLogText(session)) + '</pre></details>' +
       '</section>';
     }
@@ -583,31 +321,19 @@
       return { scale, width, height, stageWidth: stage.clientWidth, stageHeight: stage.clientHeight };
     }
 
-    function drawEditorLines(ctx, session, target, color, active, scale, offsetX, offsetY) {
-      const points = session.manualPoints[target] || [];
+    function drawEditorPath(ctx, points, labels, color, active, scale, offsetX, offsetY) {
       if (!points.length) return;
       const displayPoints = points.map((point) => ({ x: point.x + (offsetX || 0), y: point.y + (offsetY || 0) }));
-      const effective = autoAssignedManualTypes(session, target);
-      const overrides = session.manualLineTypes[target] || [];
       ctx.save();
       ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = (active ? 5 : 3) * scale;
       ctx.setLineDash(active ? [] : [10 * scale, 7 * scale]);
-      for (let index = 0; index < displayPoints.length; index += 2) {
-        const start = displayPoints[index], end = displayPoints[index + 1];
-        if (!start || !end) continue;
-        ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
-        const middleX = (start.x + end.x) / 2, middleY = (start.y + end.y) / 2;
-        ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText('第' + (index / 2 + 1) + '条 · ' + manualDimensionLabel(effective[index / 2]) + (overrides[index / 2] ? '（已校准）' : '（智能）'), middleX, middleY - 15 * scale);
-      }
-      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(displayPoints[0].x, displayPoints[0].y);
+      displayPoints.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
+      ctx.stroke(); ctx.setLineDash([]);
       displayPoints.forEach((point, index) => {
-        ctx.fillStyle = color;
         ctx.beginPath(); ctx.arc(point.x, point.y, 12 * scale, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.round(10 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(index % 2 ? '终' : '起', point.x, point.y);
-        if (index === displayPoints.length - 1 && displayPoints.length % 2 === 1) {
-          ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText('第' + (Math.floor(index / 2) + 1) + '条起点', point.x + 16 * scale, point.y - 10 * scale);
-        }
+        ctx.fillStyle = '#fff'; ctx.font = '700 ' + Math.round(11 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(index + 1), point.x, point.y);
+        ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(labels[index] || '', point.x + 16 * scale, point.y - 10 * scale);
       });
       ctx.restore();
     }
@@ -627,8 +353,8 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image.source || image, padding, padding, width, height);
       const scale = editorScale(image);
-      drawEditorLines(ctx, session, 'box', getActiveTheme().primary, true, scale, padding, padding);
-      drawEditorLines(ctx, session, 'product', getActiveTheme().secondary, true, scale, padding, padding);
+      drawEditorPath(ctx, session.manualPoints.box || [], manualPointLabels('box'), '#7c3aed', session.manualTarget === 'box', scale, padding, padding);
+      drawEditorPath(ctx, session.manualPoints.product || [], manualPointLabels('product'), '#0891b2', session.manualTarget === 'product', scale, padding, padding);
       const fit = fitEditorCanvas(canvas);
       const drawKey = [width, height, padding, image.sourceKind || 'image'].join('x');
       if (session.editorLastDrawKey !== drawKey) {
@@ -660,62 +386,9 @@
       };
     }
 
-    function manualPointRectScore(point, rect) {
-      if (!rect) return Infinity;
-      const dx = Math.max(rect.left - point.x, 0, point.x - rect.right);
-      const dy = Math.max(rect.top - point.y, 0, point.y - rect.bottom);
-      const diagonal = Math.max(1, Math.hypot(rect.width, rect.height));
-      const centerDistance = Math.hypot(point.x - (rect.left + rect.right) / 2, point.y - (rect.top + rect.bottom) / 2);
-      return Math.hypot(dx, dy) / diagonal + centerDistance / diagonal * .04;
-    }
-
-    function autoManualTarget(session, point) {
-      const pending = ['box', 'product'].find((target) => (session.manualPoints[target] || []).length % 2 === 1);
-      if (pending) return pending;
-      if (session.singleBottle) return 'product';
-      const available = ['box', 'product'].filter((target) => (session.manualPoints[target] || []).length < requiredManualPoints(target));
-      if (available.length === 1) return available[0];
-      if (!available.length) return '';
-      if (session.manualTargetMode && session.manualTargetMode !== 'auto' && available.includes(session.manualTargetMode)) return session.manualTargetMode;
-      const analysis = session.analysis || {};
-      const boxScore = manualPointRectScore(point, analysis.box);
-      const productScore = manualPointRectScore(point, analysis.product);
-      if (Number.isFinite(boxScore) || Number.isFinite(productScore)) return boxScore <= productScore ? 'box' : 'product';
-      if (number(analysis.splitX)) return point.x < analysis.splitX ? 'box' : 'product';
-      const imageWidth = Number(session.editorImage && (session.editorImage.naturalWidth || session.editorImage.width) || 0);
-      return !imageWidth || point.x < imageWidth / 2 ? 'box' : 'product';
-    }
-
-    function findManualPointHit(session, point, radius) {
-      let best = null;
-      ['box', 'product'].forEach((target) => {
-        (session.manualPoints[target] || []).forEach((existing, index) => {
-          const distance = Math.hypot(existing.x - point.x, existing.y - point.y);
-          if (distance <= radius && (!best || distance < best.distance)) best = { target, index, distance };
-        });
-      });
-      return best;
-    }
-
-    function undoLastManualPoint(session) {
-      let target = session.manualPointHistory.pop();
-      if (!target || !session.manualPoints[target] || !session.manualPoints[target].length) {
-        const pending = ['box', 'product'].find((key) => (session.manualPoints[key] || []).length % 2 === 1);
-        target = pending || (session.manualPoints[session.manualTarget] || []).length && session.manualTarget ||
-          ['product', 'box'].find((key) => (session.manualPoints[key] || []).length);
-      }
-      if (!target || !session.manualPoints[target] || !session.manualPoints[target].length) return { target: '', removed: null };
-      const removed = session.manualPoints[target].pop();
-      session.manualLineTypes[target] = session.manualLineTypes[target].slice(0, Math.ceil(session.manualPoints[target].length / 2));
-      session.manualTarget = target;
-      session.editorStatus = '已撤回最近的' + (target === 'box' ? '纸盒' : '产品') + '端点';
-      return { target, removed };
-    }
-
     function constrainEditorPoint(point, points, index, enabled) {
       if (!enabled || !Array.isArray(points) || !points.length) return { point, axis: '' };
-      const anchorIndex = index % 2 === 0 ? index + 1 : index - 1;
-      const anchor = points[anchorIndex];
+      const anchor = index > 0 ? points[index - 1] : points[1];
       if (!anchor) return { point, axis: '' };
       const dx = point.x - anchor.x;
       const dy = point.y - anchor.y;
@@ -726,19 +399,8 @@
     function refreshEditorProgress(session) {
       const root = document.getElementById(editorOverlayId);
       const progress = root && root.querySelector('.pfh-parameter-editor-progress');
-      const calibration = root && root.querySelector('.pfh-parameter-editor-calibration');
-      const boxProgress = root && root.querySelector('.pfh-parameter-editor-box-progress');
-      const productProgress = root && root.querySelector('.pfh-parameter-editor-product-progress');
-      const targetButtons = root && root.querySelectorAll('.pfh-parameter-editor-target-button');
-      if (progress) progress.textContent = manualOverallProgressText(session);
-      if (calibration) calibration.innerHTML = manualAllCalibrationHtml(session);
-      if (boxProgress) boxProgress.textContent = '纸盒 ' + completedManualLines(session, 'box') + '/2-3 边';
-      if (productProgress) productProgress.textContent = '产品 ' + completedManualLines(session, 'product') + '/2 边';
-      targetButtons && targetButtons.forEach((button) => {
-        const active = button.getAttribute('data-target-mode') === session.manualTargetMode;
-        button.classList.toggle('is-active', active);
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
+      const target = session.manualTarget === 'product' ? 'product' : 'box';
+      if (progress) progress.textContent = '已标 ' + (session.manualPoints[target] || []).length + '/' + requiredManualPoints(target) + ' 点';
     }
 
     function refreshEditorDiagnostics(session) {
@@ -908,37 +570,18 @@
       const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
       canvas.onpointerdown = (event) => {
         event.preventDefault();
+        const target = session.manualTarget === 'product' ? 'product' : 'box';
+        const points = session.manualPoints[target];
         let point = canvasPoint(event, canvas, session.editorImage);
         const radius = 28 * editorScale(session.editorImage);
-        const hit = findManualPointHit(session, point, radius);
-        const target = hit ? hit.target : autoManualTarget(session, point);
-        if (!target) {
-          session.editorStatus = '纸盒和产品尺寸边都已画完，可校准后应用生成';
-          refreshEditorDiagnostics(session);
-          return;
-        }
-        session.manualTarget = target;
-        const points = session.manualPoints[target];
-        let index = hit ? hit.index : -1;
+        let index = points.findIndex((existing) => Math.hypot(existing.x - point.x, existing.y - point.y) <= radius);
         let snapAxis = '';
         if (index < 0 && points.length < requiredManualPoints(target)) {
           const constrained = constrainEditorPoint(point, points, points.length, event.ctrlKey);
           point = constrained.point;
           snapAxis = constrained.axis;
           points.push(point); index = points.length - 1;
-          session.manualPointHistory.push(target);
           editorLog(session, '新增标注点', { target, index: index + 1, x: Math.round(point.x), y: Math.round(point.y), ctrlSnap: snapAxis || 'none' });
-          if (points.length % 2 === 0) {
-            const lineIndex = points.length / 2 - 1;
-            const assigned = autoAssignedManualTypes(session, target);
-            const targetLabel = target === 'box' ? '纸盒' : '产品';
-            const targetSource = session.manualTargetMode === target ? '已按手动选择归入' : '已自动判断为';
-            session.editorStatus = targetLabel + '第' + (lineIndex + 1) + '条边' + targetSource + '“' + targetLabel + '”，尺寸智能识别为“' + manualDimensionLabel(assigned[lineIndex]) + '”，可在上方校准';
-            editorLog(session, '智能识别尺寸边', { target, line: lineIndex + 1, dimension: assigned[lineIndex] || '' });
-          } else {
-            const targetLabel = target === 'box' ? '纸盒' : '产品';
-            session.editorStatus = (session.manualTargetMode === target ? '已手动选择' : '已自动判断为') + '“' + targetLabel + '”，请点击这条边的终点';
-          }
         }
         if (index < 0) return;
         session.editorDragging = { target, index, snapAxis };
@@ -1003,7 +646,6 @@
         editorPreviousRootOverflow = document.documentElement.style.overflow;
         document.documentElement.style.overflow = 'hidden';
         document.documentElement.appendChild(overlay);
-        if (typeof context.applyTheme === 'function') context.applyTheme();
         overlay.addEventListener('click', (event) => {
           const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
           const action = actionTarget && actionTarget.getAttribute('data-action');
@@ -1011,10 +653,6 @@
         });
         overlay.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') { event.preventDefault(); closeManualEditor(session, 'escape'); }
-          else if ((event.ctrlKey || event.metaKey) && !event.shiftKey && String(event.key).toLowerCase() === 'z') {
-            event.preventDefault();
-            handleEditorAction('parameter-editor-undo', null, data);
-          }
         });
       }
       overlay.innerHTML = manualEditorHtml(session);
@@ -1042,24 +680,23 @@
           context.render();
         }
       });
-      if (!data || !data.sku) return '<div class="pfh-parameter-scroll">' + (context.detailViewTabs ? context.detailViewTabs('parameterImage') : '') + '<div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div>';
+      if (!data || !data.sku) return '<div class="pfh-parameter-scroll"><div class="pfh-parameter-status is-error">请先从左侧选择 SKU。</div></div>';
       const session = ensureSession(data);
-      const topologyHint = session.topologyMessage ? ' · ' + session.topologyMessage + (session.topologyRuleVersion ? '（' + session.topologyRuleVersion + '）' : '') : '';
-      const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图' + context.escapeHtml(topologyHint) + '。</div>' : '');
+      const status = session.error ? '<div class="pfh-parameter-status is-error">' + context.escapeHtml(session.error) + '</div>' : (session.productResult ? '<div class="pfh-parameter-status">已生成产品尺寸图和英文参数图。</div>' : '');
       const preview = (label, url) => '<div class="pfh-parameter-preview-card"><b>' + label + '</b>' + (url ? '<img src="' + url + '">' : '<span>导入透明 PNG 后显示预览</span>') + '</div>';
       const heroImage = preferredImageUrl(data);
       const heroThumb = heroImage ? '<span class="pfh-parameter-hero-thumb"><img src="' + context.escapeHtml(heroImage) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + context.escapeHtml(data.sku) + '</span>';
-      const html = '<div class="pfh-parameter-scroll">' + (context.detailViewTabs ? context.detailViewTabs('parameterImage') : '') + '<section class="pfh-parameter-page">' +
+      const html = '<div class="pfh-parameter-scroll"><section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
-          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
+          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>一张图可同时包含纸盒与产品</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
           '<div class="pfh-parameter-fields">' +
             fieldHtml(session, 'englishName', '英文产品名', true) + fieldHtml(session, 'netContent', '净含量') + fieldHtml(session, 'grossWeight', '毛重') + fieldHtml(session, 'shelfLife', '保质期') + fieldHtml(session, 'features', 'FEATURES', true) +
-            fieldHtml(session, 'packageLength', '纸盒正面/长') + fieldHtml(session, 'packageWidth', '纸盒侧面/宽') + fieldHtml(session, 'packageHeight', '纸盒高') + fieldHtml(session, 'productLength', '产品长') + fieldHtml(session, 'productHeight', '产品高') +
+            fieldHtml(session, 'packageLength', '纸盒正面/长') + fieldHtml(session, 'packageWidth', '纸盒侧面/宽') + fieldHtml(session, 'packageHeight', '纸盒高') + fieldHtml(session, 'productWidth', '产品宽') + fieldHtml(session, 'productHeight', '产品高') +
           '</div>' +
           '<div class="pfh-parameter-options"><label><input type="checkbox" class="pfh-parameter-side"' + (session.showSide ? ' checked' : '') + '>纸盒展示侧面</label><label><input type="radio" name="pfh-parameter-front" value="length"' + (session.frontIsLength ? ' checked' : '') + '>正面为长</label><label><input type="radio" name="pfh-parameter-front" value="width"' + (!session.frontIsLength ? ' checked' : '') + '>正面为宽</label></div>' +
-          '<div class="pfh-parameter-actions" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动修改</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>保存图片</button></div>' +
+          '<div class="pfh-parameter-actions"><button type="button" data-action="parameter-image-refresh-data">刷新英文名</button><button type="button" data-action="parameter-editor-open"' + (!session.file || session.busy ? ' disabled' : '') + '>手动标注</button><button type="button" data-action="parameter-image-regenerate"' + (!session.file || session.busy ? ' disabled' : '') + '>重新生成</button><button type="button" data-action="parameter-image-save"' + (!session.productResult || session.busy ? ' disabled' : '') + '>另存两张 JPG</button></div>' +
           '<input type="file" class="pfh-parameter-file" accept="image/png,.png" hidden>' + status +
         '</div><div class="pfh-parameter-previews">' + preview('产品尺寸图', session.productResult) + preview('英文参数图', session.englishResult) + '</div></div>' +
         '</section></div>';
@@ -1145,207 +782,7 @@
       };
     }
 
-    // The workbench rule describes *which* edges to annotate, not a fixed pixel
-    // position.  Rebuild the same lightweight geometry from the current PNG so
-    // a box can move to either side and its visible side can face either way.
-    function transparentObjectComponents(pixels, width, height) {
-      const total = width * height;
-      const opaque = new Uint8Array(total);
-      for (let index = 0; index < total; index += 1) opaque[index] = pixels[index * 4 + 3] > 12 ? 1 : 0;
-      const visited = new Uint8Array(total);
-      const components = [];
-      const stack = [];
-      for (let start = 0; start < total; start += 1) {
-        if (!opaque[start] || visited[start]) continue;
-        visited[start] = 1; stack.push(start);
-        let count = 0, left = width, top = height, right = 0, bottom = 0;
-        while (stack.length) {
-          const index = stack.pop();
-          const x = index % width, y = Math.floor(index / width);
-          count += 1; left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y);
-          for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny += 1) {
-            for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx += 1) {
-              const neighbor = ny * width + nx;
-              if (opaque[neighbor] && !visited[neighbor]) { visited[neighbor] = 1; stack.push(neighbor); }
-            }
-          }
-        }
-        const componentWidth = right - left + 1, componentHeight = bottom - top + 1;
-        if (count < total / 400 || componentWidth < width / 30 || componentHeight < height / 30) continue;
-        components.push({ left, top, right: right + 1, bottom: bottom + 1, width: componentWidth, height: componentHeight, pixelCount: count, fillRatio: count / Math.max(1, componentWidth * componentHeight) });
-      }
-      return components.sort((a, b) => a.left - b.left);
-    }
-
-    function transparentComponentUnion(components) {
-      if (!components.length) return null;
-      const left = Math.min(...components.map((component) => component.left));
-      const top = Math.min(...components.map((component) => component.top));
-      const right = Math.max(...components.map((component) => component.right));
-      const bottom = Math.max(...components.map((component) => component.bottom));
-      return { left, top, right, bottom, width: right - left, height: bottom - top };
-    }
-
-    function rgbaDistanceAt(pixels, width, leftX, rightX, y) {
-      const left = (y * width + leftX) * 4, right = (y * width + rightX) * 4;
-      return (Math.abs(pixels[left] - pixels[right]) + Math.abs(pixels[left + 1] - pixels[right + 1]) + Math.abs(pixels[left + 2] - pixels[right + 2])) / 3;
-    }
-
-    function percentile(values, ratio) {
-      const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-      if (!sorted.length) return 0;
-      return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * ratio)))];
-    }
-
-    function detectTransparentFaceSeam(pixels, width, height, component, preferredSide) {
-      const boxWidth = component.width, boxHeight = component.height;
-      if (boxWidth < 30 || boxHeight < 40) return null;
-      const span = Math.max(1, Math.min(7, Math.floor(boxWidth / 100)));
-      const startX = component.left + Math.floor(boxWidth * .06), endX = component.right - 1 - Math.floor(boxWidth * .06);
-      const startY = component.top + Math.floor(boxHeight * .04), endY = component.bottom - 1 - Math.floor(boxHeight * .04);
-      const scored = [];
-      for (let x = startX; x <= endX; x += 1) {
-        const relative = (x - component.left) / Math.max(1, boxWidth);
-        const side = relative >= .08 && relative <= .43 ? 'left' : (relative >= .57 && relative <= .92 ? 'right' : '');
-        if (!side || (preferredSide && side !== preferredSide)) continue;
-        const leftX = Math.max(component.left, x - span), rightX = Math.min(component.right - 1, x + span);
-        const differences = [];
-        for (let y = startY; y <= endY; y += 2) {
-          const leftAlpha = pixels[(y * width + leftX) * 4 + 3], rightAlpha = pixels[(y * width + rightX) * 4 + 3];
-          if (leftAlpha <= 12 || rightAlpha <= 12) continue;
-          differences.push(rgbaDistanceAt(pixels, width, leftX, rightX, y));
-        }
-        if (differences.length < Math.max(12, Math.floor(boxHeight / 10))) continue;
-        const score = median(differences) * .72 + percentile(differences, .72) * .28;
-        scored.push({ score, x, side });
-      }
-      if (!scored.length) return null;
-      scored.sort((a, b) => b.score - a.score);
-      const best = scored[0], baseline = median(scored.map((item) => item.score)), separation = best.score - baseline;
-      if (best.score < 5 || separation < 1.25) return null;
-      return { x: best.x, side: best.side, confidence: Math.max(.54, Math.min(.97, .54 + separation / 26 + (best.score - 5) / 90)) };
-    }
-
-    function sourcePoint(point, scale) { return { x: point.x / scale, y: point.y / scale }; }
-
-    function matchTransparentTopologyTemplate(rule, boxPosition, sideFace, hasDepth, allowSideMismatch) {
-      const templates = (rule && Array.isArray(rule.profiles) ? rule.profiles : []).flatMap((profile) =>
-        profile && profile.edgeTopology && Array.isArray(profile.edgeTopology.templates) ? profile.edgeTopology.templates : []);
-      if (!templates.length) return null;
-      let best = null;
-      templates.forEach((template) => {
-        const templateSide = String(template && template.sideFace || 'none');
-        const templatePosition = String(template && template.boxPosition || 'single');
-        if (!allowSideMismatch && templateSide !== sideFace) return;
-        let score = 0;
-        if (templateSide === sideFace) score += 5;
-        else if (templateSide === 'none' && sideFace === 'none') score += 4;
-        if (templatePosition === boxPosition) score += 4;
-        else if (templatePosition === 'single' || boxPosition === 'single') score += 1;
-        if (Boolean(template && template.depthEdge) === Boolean(hasDepth)) score += 1.5;
-        score += Math.min(1, Number(template && template.sampleCount || 0) / 100);
-        if (!best || score > best.score) best = { template, score };
-      });
-      return best && best.score >= 4 ? best.template : null;
-    }
-
-    function axisValue(session, axis, fallback) {
-      if (axis === 'boxLength') return session.fields.packageLength;
-      if (axis === 'boxDepth') return session.fields.packageWidth;
-      if (axis === 'boxHeight') return session.fields.packageHeight;
-      return fallback;
-    }
-
-    function analyzeTransparentTopology(pixels, width, height, session, rule, scale) {
-      if (!rule || !Array.isArray(rule.profiles) || !rule.profiles.some((profile) => profile && profile.edgeTopology && Array.isArray(profile.edgeTopology.templates))) return null;
-      const components = transparentObjectComponents(pixels, width, height);
-      if (components.length < 2) return null;
-      const boxComponent = components.slice().sort((a, b) => (b.fillRatio - a.fillRatio) || (b.pixelCount - a.pixelCount))[0];
-      const boxIndex = components.indexOf(boxComponent);
-      const productComponents = components.filter((component) => component !== boxComponent);
-      const productComponent = transparentComponentUnion(productComponents);
-      if (!productComponent) return null;
-      const boxPosition = components.length <= 1 ? 'single' : (boxIndex === 0 ? 'left' : (boxIndex === components.length - 1 ? 'right' : 'middle'));
-      let seam = detectTransparentFaceSeam(pixels, width, height, boxComponent, '');
-      let template = matchTransparentTopologyTemplate(rule, boxPosition, seam ? seam.side : 'none', Boolean(seam), true);
-      if (template && template.sideFace && template.sideFace !== 'none' && (!seam || seam.side !== template.sideFace)) {
-        const hinted = detectTransparentFaceSeam(pixels, width, height, boxComponent, template.sideFace);
-        if (hinted && (!seam || hinted.confidence >= seam.confidence * .82)) seam = hinted;
-      }
-      const sideFace = seam ? seam.side : 'none';
-      template = matchTransparentTopologyTemplate(rule, boxPosition, sideFace, Boolean(seam), false) || null;
-      const inset = Math.max(1, Math.min(5, Math.floor(boxComponent.width / 120)));
-      const leftOuter = boxComponent.left + inset, rightOuter = boxComponent.right - 1 - inset;
-      const frontLeftX = sideFace === 'left' ? seam.x : leftOuter;
-      const frontRightX = sideFace === 'right' ? seam.x : rightOuter;
-      const spread = Math.max(1, Math.min(4, Math.floor(boxComponent.width / 100)));
-      const leftRange = alphaColumnRange(pixels, width, height, frontLeftX, boxComponent.top, boxComponent.bottom, spread);
-      const rightRange = alphaColumnRange(pixels, width, height, frontRightX, boxComponent.top, boxComponent.bottom, spread);
-      if (!leftRange || !rightRange) return null;
-      const toSource = (point) => sourcePoint(point, scale);
-      const frontTopLeft = toSource({ x: frontLeftX, y: leftRange.top });
-      const frontTopRight = toSource({ x: frontRightX, y: rightRange.top });
-      const frontBottomRight = toSource({ x: frontRightX, y: rightRange.bottom });
-      const frontBottomLeft = toSource({ x: frontLeftX, y: leftRange.bottom });
-      const frontCorners = [frontTopLeft, frontTopRight, frontBottomRight, frontBottomLeft];
-      const heightEdge = sideFace === 'left' ? { start: frontTopRight, end: frontBottomRight } : { start: frontTopLeft, end: frontBottomLeft };
-      const frontEdge = { start: frontBottomLeft, end: frontBottomRight };
-      let sideCorners = [], depthEdge = null;
-      if (seam) {
-        const outerX = sideFace === 'left' ? leftOuter : rightOuter;
-        const outerRange = alphaColumnRange(pixels, width, height, outerX, boxComponent.top, boxComponent.bottom, spread);
-        if (outerRange) {
-          const outerTop = toSource({ x: outerX, y: outerRange.top });
-          const outerBottom = toSource({ x: outerX, y: outerRange.bottom });
-          const seamTop = sideFace === 'left' ? frontTopLeft : frontTopRight;
-          const seamBottom = sideFace === 'left' ? frontBottomLeft : frontBottomRight;
-          sideCorners = [seamTop, outerTop, outerBottom, seamBottom];
-          depthEdge = { start: seamTop, end: outerTop };
-        }
-      }
-      const box = { left: boxComponent.left / scale, top: boxComponent.top / scale, right: boxComponent.right / scale, bottom: boxComponent.bottom / scale, width: boxComponent.width / scale, height: boxComponent.height / scale };
-      const product = { left: productComponent.left / scale, top: productComponent.top / scale, right: productComponent.right / scale, bottom: productComponent.bottom / scale, width: productComponent.width / scale, height: productComponent.height / scale };
-      const shapeConfidence = Math.max(.58, Math.min(.90, .58 + boxComponent.fillRatio * .32));
-      const confidence = seam ? Math.max(0, Math.min(.98, shapeConfidence * .45 + seam.confidence * .55)) : shapeConfidence;
-      const topology = {
-        boxPosition,
-        sideFace,
-        confidence,
-        frontCorners,
-        sideCorners,
-        heightEdge,
-        frontEdge,
-        depthEdge,
-        frontAxis: String(template && template.frontAxis || ''),
-        depthAxis: String(template && template.depthAxis || ''),
-        verticalAxis: String(template && template.verticalAxis || ''),
-        axisMappingVerified: Boolean(template && template.axisMappingVerified),
-        templateId: String(template && template.id || ''),
-      };
-      session.topologyApplied = Boolean(template && confidence >= .64);
-      if (!session.frontAxisOverride && topology.axisMappingVerified) {
-        if (topology.frontAxis === 'boxLength') session.frontIsLength = true;
-        else if (topology.frontAxis === 'boxDepth') session.frontIsLength = false;
-      }
-      if (!session.showSideOverride && session.topologyApplied) session.showSide = sideFace !== 'none';
-      session.topologyRuleVersion = String(rule.ruleVersion || (rule.manifest && rule.manifest.ruleVersion) || '');
-      session.topologyMessage = session.topologyApplied ? '已按云端边拓扑规则标注' : '边拓扑置信度不足，使用基础识别';
-      return {
-        box,
-        product,
-        splitX: (box.right + product.left) / 2,
-        sidePixels: seam ? Math.abs((seam.x - (sideFace === 'left' ? boxComponent.left : boxComponent.right)) / scale) : 0,
-        detectedSide: sideFace !== 'none',
-        perspective: null,
-        transparentTopology: topology,
-        topologyRuleVersion: session.topologyRuleVersion,
-        productHeightSide: product.right <= box.left ? 'left' : 'right',
-        sourceWidth: width / scale,
-        sourceHeight: height / scale,
-      };
-    }
-
-    function analyzeImage(image, session, rule) {
+    function analyzeImage(image, session) {
       const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
       const height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -1362,10 +799,6 @@
         const convert = (rect) => ({ left: rect.left * f, top: rect.top * f, right: rect.right * f, bottom: rect.bottom * f, width: rect.width * f, height: rect.height * f });
         return { box: null, product: convert(bottle), splitX: 0, sidePixels: 0, detectedSide: false, perspective: null, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
       }
-      session.topologyApplied = false;
-      session.topologyMessage = topologyRuleStatus === 'ready' ? '未匹配到边拓扑模板，使用基础识别' : '云端边拓扑规则未加载，使用基础识别';
-      const topologyAnalysis = analyzeTransparentTopology(pixels, width, height, session, rule, scale);
-      if (topologyAnalysis && session.topologyApplied) return topologyAnalysis;
       const occupancy = [];
       for (let x = 0; x < width; x += 1) {
         let count = 0;
@@ -1391,9 +824,8 @@
       // Front-only carton renders often include a small shadow/edge. Treat it as a
       // visible side only when the excess is substantial; users can still override.
       const detectedSide = sidePixels > originalBox.width * .18;
-      if (session.showSide === null && !session.showSideOverride) session.showSide = detectedSide;
-      session.productHeightSide = originalProduct.right <= originalBox.left ? 'left' : session.productHeightSide;
-      return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, perspective, productHeightSide: originalProduct.right <= originalBox.left ? 'left' : 'right', sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
+      if (session.showSide === null) session.showSide = detectedSide;
+      return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, perspective, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
     }
 
     function fitSource(image, analysis, area) {
@@ -1417,75 +849,8 @@
       return sizeText(value) + 'cm/' + inchText(value) + 'inch';
     }
 
-    function dimensionLayoutBox(start, end, labelWidth, angle, center, lineStart, lineEnd) {
-      const textHeight = 52;
-      const cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle));
-      const halfWidth = (labelWidth * cos + textHeight * sin) / 2 + 10;
-      const halfHeight = (labelWidth * sin + textHeight * cos) / 2 + 10;
-      const textBox = { left: center.x - halfWidth, top: center.y - halfHeight, right: center.x + halfWidth, bottom: center.y + halfHeight };
-      const lineBox = {
-        left: Math.min(lineStart.x, lineEnd.x) - 9,
-        top: Math.min(lineStart.y, lineEnd.y) - 9,
-        right: Math.max(lineStart.x, lineEnd.x) + 9,
-        bottom: Math.max(lineStart.y, lineEnd.y) + 9,
-      };
-      return {
-        left: Math.min(textBox.left, lineBox.left),
-        top: Math.min(textBox.top, lineBox.top),
-        right: Math.max(textBox.right, lineBox.right),
-        bottom: Math.max(textBox.bottom, lineBox.bottom),
-      };
-    }
-
-    function dimensionOverlapArea(left, right) {
-      const width = Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left));
-      const height = Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
-      return width * height;
-    }
-
-    function chooseDimensionPlacement(ctx, start, end, value, normalSign, options) {
-      const dx = end.x - start.x, dy = end.y - start.y;
-      const length = Math.max(1, Math.hypot(dx, dy));
-      const tx = dx / length, ty = dy / length;
-      const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
-      const label = dimensionLabel(value);
-      ctx.save(); ctx.font = '42px Arial';
-      const baseOffset = Number(options && options.offset) || 36;
-      const textGap = length > ctx.measureText(label).width + 48 ? 26 : 46;
-      const labelWidth = ctx.measureText(label).width;
-      ctx.restore();
-      if (!options || !Array.isArray(options.avoidBoxes)) return { offset: baseOffset, textGap, tangentShift: 0 };
-      const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, Math.max(18, baseOffset - 18), baseOffset + 132];
-      const tangentShifts = [0, 60, -60, 120, -120, 180, -180];
-      const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-      const angle = Math.atan2(dy, dx) > Math.PI / 2 || Math.atan2(dy, dx) < -Math.PI / 2 ? Math.atan2(dy, dx) + Math.PI : Math.atan2(dy, dx);
-      let best = null;
-      normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => {
-        const lineStart = { x: start.x + nx * offset + tx * tangentShift, y: start.y + ny * offset + ty * tangentShift };
-        const lineEnd = { x: end.x + nx * offset + tx * tangentShift, y: end.y + ny * offset + ty * tangentShift };
-        const textCenter = { x: middle.x + nx * (offset + textGap) + tx * tangentShift, y: middle.y + ny * (offset + textGap) + ty * tangentShift };
-        const box = dimensionLayoutBox(start, end, labelWidth, angle, textCenter, lineStart, lineEnd);
-        const overlap = options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box, other), 0);
-        const bounds = options.bounds;
-        const outside = bounds
-          ? Math.max(0, bounds.left - box.left) + Math.max(0, bounds.top - box.top) + Math.max(0, box.right - bounds.right) + Math.max(0, box.bottom - bounds.bottom)
-          : 0;
-        const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03;
-        const score = overlap * 100 + outside * 25 + movementPenalty;
-        if (!best || score < best.score) best = { score, offset, textGap, tangentShift, box };
-      }));
-      if (best) options.avoidBoxes.push(best.box);
-      return best || { offset: baseOffset, textGap, tangentShift: 0 };
-    }
-
-    function drawVerticalDimension(ctx, rect, value, side, options) {
+    function drawVerticalDimension(ctx, rect, value, side) {
       if (!number(value)) return;
-      if (options && Array.isArray(options.avoidBoxes)) {
-        const x = side === 'left' ? rect.left : rect.right;
-        const start = { x, y: rect.top }, end = { x, y: rect.bottom };
-        drawAngledDimension(ctx, start, end, value, side === 'left' ? 1 : -1, options);
-        return;
-      }
       const x = side === 'left' ? rect.left - 36 : rect.right + 36;
       const label = dimensionLabel(value);
       ctx.save();
@@ -1498,13 +863,8 @@
       ctx.fillText(label, 0, 0); ctx.restore();
     }
 
-    function drawHorizontalDimension(ctx, rect, value, below, options) {
+    function drawHorizontalDimension(ctx, rect, value, below) {
       if (!number(value)) return;
-      if (options && Array.isArray(options.avoidBoxes)) {
-        const y = below ? rect.bottom : rect.top;
-        drawAngledDimension(ctx, { x: rect.left, y }, { x: rect.right, y }, value, below ? 1 : -1, options);
-        return;
-      }
       const y = below ? rect.bottom + 36 : rect.top - 36;
       const label = dimensionLabel(value);
       ctx.save();
@@ -1527,20 +887,17 @@
       ctx.font = '40px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dimensionLabel(value), 0, 0); ctx.restore();
     }
 
-    function drawAngledDimension(ctx, start, end, value, normalSign, options) {
+    function drawAngledDimension(ctx, start, end, value, normalSign) {
       if (!number(value)) return;
       const dx = end.x - start.x, dy = end.y - start.y;
       const length = Math.hypot(dx, dy);
       if (length < 8) return;
       const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
       const label = dimensionLabel(value);
-      const placement = chooseDimensionPlacement(ctx, start, end, value, normalSign, options);
-      const offset = placement.offset, textGap = placement.textGap, tangentShift = placement.tangentShift || 0;
-      const tx = dx / length, ty = dy / length;
-      const a = { x: start.x + nx * offset + tx * tangentShift, y: start.y + ny * offset + ty * tangentShift };
-      const b = { x: end.x + nx * offset + tx * tangentShift, y: end.y + ny * offset + ty * tangentShift };
-      const tick = 16;
       ctx.save(); ctx.font = '42px Arial';
+      const offset = 36, textGap = length > ctx.measureText(label).width + 48 ? 26 : 46, tick = 16;
+      const a = { x: start.x + nx * offset, y: start.y + ny * offset };
+      const b = { x: end.x + nx * offset, y: end.y + ny * offset };
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
       line(ctx, a.x, a.y, b.x, b.y);
       line(ctx, a.x - nx * tick, a.y - ny * tick, a.x + nx * tick, a.y + ny * tick);
@@ -1564,64 +921,13 @@
       return ((center.x - middle.x) * nx + (center.y - middle.y) * ny) >= 0 ? -1 : 1;
     }
 
-    function cartonHeightSide(box, product, fallback) {
-      if (box && product) {
-        const boxCenter = (box.left + box.right) / 2;
-        const productCenter = (product.left + product.right) / 2;
-        if (product.right <= box.left + 8 || productCenter < boxCenter) return 'right';
-        if (product.left >= box.right - 8 || productCenter > boxCenter) return 'left';
-      }
-      return fallback === 'left' ? 'left' : 'right';
-    }
-
-    function cartonTopologyHeightEdge(topology, side) {
-      const front = topology && Array.isArray(topology.frontCorners) ? topology.frontCorners : [];
-      const sideCorners = topology && Array.isArray(topology.sideCorners) ? topology.sideCorners : [];
-      if (front.length >= 4) {
-        const face = String(topology.sideFace || 'none');
-        if (side === face && sideCorners.length >= 4) return { start: sideCorners[1], end: sideCorners[2] };
-        return side === 'left'
-          ? { start: front[0], end: front[3] }
-          : { start: front[1], end: front[2] };
-      }
-      return topology && topology.heightEdge;
-    }
-
-    function drawManualDimensionPath(ctx, sourcePoints, session, target, fit, layout) {
+    function drawManualDimensionPath(ctx, sourcePoints, values, fit) {
       const points = sourcePoints.map((point) => mapPoint(point, fit));
       const center = manualPathCenter(points);
-      const types = autoAssignedManualTypes(session, target);
-      types.forEach((type, index) => {
-        const start = points[index * 2], end = points[index * 2 + 1];
-        const value = manualDimensionValue(session, target, type);
-        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), layout);
+      values.forEach((value, index) => {
+        const start = points[index], end = points[index + 1];
+        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center));
       });
-    }
-
-    function drawTopologyDimensions(ctx, topology, session, fit, layout, box, product) {
-      if (!topology) return 0;
-      const center = topology.frontCorners && topology.frontCorners.length
-        ? manualPathCenter(topology.frontCorners.map((point) => mapPoint(point, fit)))
-        : null;
-      if (!center) return 0;
-      const heightSide = cartonHeightSide(box, product, topology.sideFace === 'left' ? 'left' : 'right');
-      const heightEdge = cartonTopologyHeightEdge(topology, heightSide);
-      const frontAxis = topology.frontAxis || (session.frontIsLength ? 'boxLength' : 'boxDepth');
-      const depthAxis = topology.depthAxis || (session.frontIsLength ? 'boxDepth' : 'boxLength');
-      const verticalAxis = topology.verticalAxis || 'boxHeight';
-      let count = 0;
-      const drawEdge = (edge, axis, fallback) => {
-        if (!edge || !edge.start || !edge.end) return;
-        const start = mapPoint(edge.start, fit), end = mapPoint(edge.end, fit);
-        const value = axisValue(session, axis, fallback);
-        if (!number(value)) return;
-        drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), layout);
-        count += 1;
-      };
-      drawEdge(heightEdge, verticalAxis, session.fields.packageHeight);
-      drawEdge(topology.frontEdge, frontAxis, session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth);
-      if (session.showSide && topology.depthEdge) drawEdge(topology.depthEdge, depthAxis, session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength);
-      return count;
     }
 
     function drawProductModule(ctx, image, analysis, session, area) {
@@ -1635,43 +941,32 @@
       const frontValue = session.frontIsLength ? session.fields.packageLength : session.fields.packageWidth;
       const sideValue = session.frontIsLength ? session.fields.packageWidth : session.fields.packageLength;
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
-      const topology = analysis.transparentTopology;
-      const productHeightSide = analysis.productHeightSide || session.productHeightSide || 'right';
-      const dimensionLayout = Number(area.width) < 600 ? {
-        avoidBoxes: [],
-        bounds: { left: Number(area.clipLeft) || area.x - 100, top: area.y - 80, right: area.x + area.width + 100, bottom: area.y + area.height + 80 },
-      } : null;
       const manualBox = completeManualPath(session, 'box') ? session.manualPoints.box.slice(0, requiredManualPoints('box')) : null;
       const manualProduct = completeManualPath(session, 'product') ? session.manualPoints.product.slice(0, requiredManualPoints('product')) : null;
       if (session.singleBottle) {
-        if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit, dimensionLayout);
+        if (manualProduct) drawManualDimensionPath(ctx, manualProduct, [session.fields.productWidth, session.fields.productHeight], fit);
         else if (product) {
-          drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide, dimensionLayout);
-          drawHorizontalDimension(ctx, product, session.fields.productLength, false, dimensionLayout);
+          drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+          drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
         }
         ctx.restore();
         return;
       }
       if (manualBox) {
-        drawManualDimensionPath(ctx, manualBox, session, 'box', fit, dimensionLayout);
-      } else if (session.topologyApplied && topology && drawTopologyDimensions(ctx, topology, session, fit, dimensionLayout, box, product)) {
-        // The learned topology has already selected the exact front, depth and height edges.
+        drawManualDimensionPath(ctx, manualBox, [session.fields.packageLength, session.fields.packageWidth, session.fields.packageHeight], fit);
       } else if (session.showSide && perspective) {
-        const heightSide = cartonHeightSide(box, product, 'left');
-        const heightStart = heightSide === 'right' ? perspective.rightTop : perspective.outerTop;
-        const heightEnd = heightSide === 'right' ? perspective.rightBottom : perspective.outerBottom;
-        drawAngledDimension(ctx, heightStart, heightEnd, session.fields.packageHeight, 1, dimensionLayout);
-        drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1, dimensionLayout);
-        drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1, dimensionLayout);
+        drawAngledDimension(ctx, perspective.outerTop, perspective.outerBottom, session.fields.packageHeight, 1);
+        drawAngledDimension(ctx, perspective.junctionBottom, perspective.rightBottom, frontValue, 1);
+        drawAngledDimension(ctx, perspective.outerTop, perspective.junctionTop, sideValue, -1);
       } else if (box) {
-        drawVerticalDimension(ctx, box, session.fields.packageHeight, cartonHeightSide(box, product, 'left'), dimensionLayout);
-        drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true, dimensionLayout);
+        drawVerticalDimension(ctx, box, session.fields.packageHeight, 'left');
+        drawHorizontalDimension(ctx, { ...box, left: box.left + (session.showSide ? analysis.sidePixels * fit.scale : 0) }, frontValue, true);
         if (session.showSide) drawSideDimension(ctx, box, analysis.sidePixels * fit.scale, sideValue);
       }
-      if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit, dimensionLayout);
+      if (manualProduct) drawManualDimensionPath(ctx, manualProduct, [session.fields.productWidth, session.fields.productHeight], fit);
       else if (product) {
-        drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide, dimensionLayout);
-        drawHorizontalDimension(ctx, product, session.fields.productLength, false, dimensionLayout);
+        drawVerticalDimension(ctx, product, session.fields.productHeight, 'right');
+        drawHorizontalDimension(ctx, product, session.fields.productWidth, false);
       }
       ctx.restore();
     }
@@ -1690,81 +985,6 @@
     function fitText(ctx, text, maxWidth, startSize, minSize, weight) {
       let size = startSize;
       do { ctx.font = (weight || '400') + ' ' + size + 'px Arial'; size -= 1; } while (size >= minSize && ctx.measureText(text).width > maxWidth);
-    }
-
-    function wrapCanvasText(ctx, text, maxWidth) {
-      const normalized = String(text || '').replace(/\s+/g, ' ').trim();
-      if (!normalized) return [''];
-      const lines = [];
-      let current = '';
-      const breakWord = (word) => {
-        const pieces = [];
-        let piece = '';
-        Array.from(word).forEach((character) => {
-          const candidate = piece + character;
-          if (piece && ctx.measureText(candidate).width > maxWidth) {
-            pieces.push(piece);
-            piece = character;
-          } else piece = candidate;
-        });
-        if (piece) pieces.push(piece);
-        return pieces;
-      };
-      normalized.split(' ').forEach((word) => {
-        if (ctx.measureText(word).width > maxWidth) {
-          if (current) { lines.push(current); current = ''; }
-          const pieces = breakWord(word);
-          if (pieces.length > 1) lines.push(...pieces.slice(0, -1));
-          current = pieces[pieces.length - 1] || '';
-          return;
-        }
-        const candidate = current ? current + ' ' + word : word;
-        if (current && ctx.measureText(candidate).width > maxWidth) {
-          lines.push(current);
-          current = word;
-        } else current = candidate;
-      });
-      if (current) lines.push(current);
-      return lines.length ? lines : [''];
-    }
-
-    function drawFittedMultilineText(ctx, text, options) {
-      const config = options || {};
-      ctx.save();
-      const maxWidth = Math.max(1, Number(config.maxWidth) || 1);
-      const maxHeight = Math.max(1, Number(config.maxHeight) || 1);
-      const startSize = Math.max(1, Number(config.startSize) || 24);
-      const minSize = Math.max(1, Math.min(startSize, Number(config.minSize) || 16));
-      const maxLines = Math.max(1, Number(config.maxLines) || 2);
-      const lineHeightRatio = Number(config.lineHeight) || 1.06;
-      const weight = config.weight || '400';
-      let chosen = null;
-      for (let size = startSize; size >= minSize; size -= 1) {
-        ctx.font = weight + ' ' + size + 'px Arial';
-        const lines = wrapCanvasText(ctx, text, maxWidth);
-        const lineHeight = size * lineHeightRatio;
-        if (lines.length <= maxLines && lines.length * lineHeight <= maxHeight) {
-          chosen = { font: ctx.font, lines, lineHeight };
-          break;
-        }
-      }
-      if (!chosen) {
-        ctx.font = weight + ' ' + minSize + 'px Arial';
-        const lines = wrapCanvasText(ctx, text, maxWidth);
-        chosen = {
-          font: ctx.font,
-          lines,
-          lineHeight: Math.min(minSize * lineHeightRatio, maxHeight / Math.max(1, lines.length)),
-        };
-      }
-      ctx.font = chosen.font;
-      ctx.textAlign = config.align || 'center';
-      ctx.textBaseline = 'middle';
-      const centerY = Number(config.y) || 0;
-      const startY = centerY - (chosen.lines.length - 1) * chosen.lineHeight / 2;
-      chosen.lines.forEach((lineText, index) => ctx.fillText(lineText, Number(config.x) || 0, startY + index * chosen.lineHeight));
-      ctx.restore();
-      return chosen;
     }
 
     async function loadBrandLogo(brand) {
@@ -1799,7 +1019,7 @@
       const title = String(session.fields.englishName || '').toUpperCase();
       ctx.strokeStyle = '#111'; ctx.lineWidth = 4; ctx.strokeRect(75, 393, 736, 144);
       ctx.fillStyle = '#080808'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      drawFittedMultilineText(ctx, title, { x: 443, y: 465, maxWidth: 680, maxHeight: 120, startSize: 52, minSize: 30, maxLines: 2, lineHeight: 1.06, weight: '400' });
+      fitText(ctx, title, 680, 52, 26, '400'); ctx.fillText(title, 443, 465);
       const rows = [
         ['NAME', session.fields.englishName || ''], ['NET CONTENT', session.fields.netContent], ['SHELF LIFE', session.fields.shelfLife],
         ['STORE', session.fields.store], ['FEATURES', session.fields.features], ['WEIGHT', session.fields.grossWeight],
@@ -1810,9 +1030,7 @@
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         fitText(ctx, row[0], 205, 32, 20, '400'); ctx.fillText(row[0], 185, y + 34);
         ctx.fillStyle = '#111'; ctx.textAlign = 'left';
-        const rowValue = String(row[1] || '');
-        if (row[0] === 'NAME') drawFittedMultilineText(ctx, rowValue, { x: 326, y: y + 34, maxWidth: 455, maxHeight: 60, startSize: 34, minSize: 22, maxLines: 2, lineHeight: 1.04, weight: '400', align: 'left' });
-        else { fitText(ctx, rowValue, 455, 34, 20, '400'); ctx.fillText(rowValue, 326, y + 34); }
+        fitText(ctx, String(row[1] || ''), 455, 34, 20, '400'); ctx.fillText(String(row[1] || ''), 326, y + 34);
         ctx.setLineDash([8, 5]); ctx.lineWidth = 2; line(ctx, 303, y + 67, 785, y + 67); ctx.setLineDash([]);
       });
       const rightArea = { x: 960, y: 300, width: 470, height: 1040, clipLeft: 815 };
@@ -1828,9 +1046,8 @@
       };
     }
 
-    async function regenerate(data, options) {
+    async function regenerate(data) {
       const session = ensureSession(data);
-      let generated = false;
       if (!session.file) return;
       const hasManualPath = completeManualPath(session, 'box') || completeManualPath(session, 'product');
       if (hasManualPath) editorLog(session, '开始生成参数图', {
@@ -1842,14 +1059,12 @@
       try {
         const image = await loadImage(url);
         if (hasManualPath) editorLog(session, '生成阶段底图解码成功', { width: image.naturalWidth, height: image.naturalHeight });
-        const [rule, logo] = await Promise.all([loadTopologyRule(), loadBrandLogo(data.brand)]);
+        const logo = await loadBrandLogo(data.brand);
         try {
-          session.analysis = analyzeImage(image, session, rule);
+          session.analysis = analyzeImage(image, session);
           if (hasManualPath) editorLog(session, '自动图像分析成功，手动路径将优先覆盖', {
             hasBox: Boolean(session.analysis && session.analysis.box),
             hasProduct: Boolean(session.analysis && session.analysis.product),
-            topologyApplied: Boolean(session.analysis && session.analysis.transparentTopology),
-            topologyRuleVersion: session.topologyRuleVersion || '',
           });
         } catch (analysisError) {
           session.analysis = manualFallbackAnalysis(image, session);
@@ -1858,7 +1073,6 @@
         }
         session.productResult = generateProductImage(image, session.analysis, session);
         session.englishResult = generateEnglishImage(image, session.analysis, session, data, logo);
-        generated = true;
         if (hasManualPath) editorLog(session, '两张参数图生成成功', {
           productResultLength: session.productResult.length,
           englishResultLength: session.englishResult.length,
@@ -1869,28 +1083,13 @@
         if (hasManualPath) editorLog(session, '参数图生成失败', { message: session.error }, 'error');
       } finally {
         URL.revokeObjectURL(url); session.busy = false; context.render();
-        if (generated && options && options.focusSave) context.focusSaveButton();
       }
     }
 
-    const parameterImageFormatHint = '参数图仅支持透明 PNG；JPG / WebP 等图片请先导出为透明 PNG，再粘贴或拖入。';
-
-    function isParameterPngFile(file) {
-      return Boolean(file && (/\.png$/i.test(file.name || '') || /^image\/png$/i.test(file.type || '')));
-    }
-
-    function rejectParameterImage(data) {
+    async function processFile(file, data) {
       const session = ensureSession(data);
-      session.error = parameterImageFormatHint;
-      context.render();
-      if (context.showToast) context.showToast(parameterImageFormatHint);
-    }
-
-    async function processFile(file, data, options) {
-      const session = ensureSession(data);
-      if (!isParameterPngFile(file)) { rejectParameterImage(data); return; }
-      session.file = file; session.fileName = file.name; session.showSide = null; session.showSideOverride = false; session.frontAxisOverride = false;
-      session.topologyApplied = false; session.topologyRuleVersion = ''; session.topologyMessage = '';
+      if (!file || !/\.png$/i.test(file.name || '')) { session.error = '请选择透明 PNG 图片。'; context.render(); return; }
+      session.file = file; session.fileName = file.name; session.showSide = null;
       session.editorImage = null;
       session.editorSourceUrl = '';
       session.editorOpen = false;
@@ -1905,8 +1104,6 @@
         session.editorResizeObserver = null;
       }
       session.manualPoints = { box: [], product: [] };
-      session.manualLineTypes = { box: [], product: [] };
-      session.manualPointHistory = [];
       const oldEditor = document.getElementById(editorOverlayId);
       if (oldEditor) {
         oldEditor.remove();
@@ -1918,7 +1115,7 @@
         try { await applyExtraData(data, session); } catch (_) {}
         finally { session.busy = false; }
       }
-      await regenerate(data, options);
+      await regenerate(data);
     }
 
     async function applyExtraData(data, session) {
@@ -1946,8 +1143,8 @@
     async function save(data) {
       const session = ensureSession(data);
       const outputs = [
-        { name: '尺寸.jpg', url: session.productResult },
-        { name: '英文参数图.jpg', url: session.englishResult },
+        { name: data.sku + '-产品尺寸图.jpg', url: session.productResult },
+        { name: data.sku + '-英文参数图.jpg', url: session.englishResult },
       ].filter((item) => item.url);
       if (!outputs.length) return;
       const picker = context.getSaveFilePicker();
@@ -1968,50 +1165,23 @@
         closeManualEditor(session, 'button');
         return true;
       }
-      if (action === 'parameter-editor-target-mode') {
-        const requested = String(target && target.getAttribute('data-target-mode') || 'auto');
-        if (!['auto', 'box', 'product'].includes(requested)) return true;
-        session.manualTargetMode = requested;
-        session.editorStatus = requested === 'auto'
-          ? '已恢复自动判断纸盒/产品'
-          : '下一条尺寸边将手动归入“' + (requested === 'box' ? '纸盒' : '产品') + '”';
-        editorLog(session, '切换标注对象模式', { mode: requested });
+      if (action === 'parameter-editor-target') {
+        session.manualTarget = target && target.getAttribute('data-target') === 'product' ? 'product' : 'box';
+        editorLog(session, '切换标注对象', { target: session.manualTarget });
         renderManualEditor(data);
         return true;
       }
-      if (action === 'parameter-editor-line-type') {
-        const current = target && target.getAttribute('data-object') === 'product' ? 'product' : 'box';
-        const lineIndex = Number(target && target.getAttribute('data-line-index'));
-        const requested = String(target && target.getAttribute('data-dimension') || 'auto');
-        const allowed = manualDimensionTypes(current);
-        if (!Number.isInteger(lineIndex) || lineIndex < 0 || lineIndex >= completedManualLines(session, current)) return true;
-        if (requested === 'auto') session.manualLineTypes[current][lineIndex] = '';
-        else if (allowed.includes(requested)) {
-          session.manualLineTypes[current] = Array.from({ length: allowed.length }, (_, index) => {
-            const type = session.manualLineTypes[current][index] || '';
-            return index !== lineIndex && type === requested ? '' : type;
-          });
-          session.manualLineTypes[current][lineIndex] = requested;
-        }
-        const effective = autoAssignedManualTypes(session, current);
-        session.editorStatus = '第' + (lineIndex + 1) + '条边已' + (requested === 'auto' ? '恢复智能识别：' : '校准为：') + manualDimensionLabel(effective[lineIndex]);
-        editorLog(session, '校准尺寸边', { target: current, line: lineIndex + 1, dimension: requested });
-        renderManualEditor(data);
-        return true;
-      }
+      const current = session.manualTarget === 'product' ? 'product' : 'box';
       if (action === 'parameter-editor-undo') {
-        const result = undoLastManualPoint(session);
-        editorLog(session, '撤销最近标注点', { target: result.target, removed: Boolean(result.removed), remaining: result.target ? session.manualPoints[result.target].length : 0 });
+        const removed = session.manualPoints[current].pop();
+        editorLog(session, '撤销标注点', { target: current, removed: Boolean(removed), remaining: session.manualPoints[current].length });
         renderManualEditor(data);
         return true;
       }
       if (action === 'parameter-editor-reset') {
-        const removedCount = session.manualPoints.box.length + session.manualPoints.product.length;
-        session.manualPoints = { box: [], product: [] };
-        session.manualLineTypes = { box: [], product: [] };
-        session.manualPointHistory = [];
-        session.editorStatus = '标注已全部清空，可重新直接画线';
-        editorLog(session, '全部重画', { removedCount });
+        const removedCount = session.manualPoints[current].length;
+        session.manualPoints[current] = [];
+        editorLog(session, '重画当前对象', { target: current, removedCount });
         renderManualEditor(data);
         return true;
       }
@@ -2026,14 +1196,9 @@
       }
       if (action === 'parameter-editor-apply') {
         const incomplete = ['box', 'product'].find((key) => session.manualPoints[key].length && !completeManualPath(session, key));
-        if (incomplete) { context.showToast((incomplete === 'box' ? '纸盒' : '产品') + '尺寸边还没有标完整。'); return true; }
-        if (!completeManualPath(session, 'box') && !completeManualPath(session, 'product')) { context.showToast('请先完成纸盒或产品的独立尺寸边。'); return true; }
-        editorLog(session, '应用手动尺寸边', {
-          boxPoints: session.manualPoints.box.length,
-          productPoints: session.manualPoints.product.length,
-          boxTypes: autoAssignedManualTypes(session, 'box'),
-          productTypes: autoAssignedManualTypes(session, 'product'),
-        });
+        if (incomplete) { context.showToast((incomplete === 'box' ? '纸盒' : '产品') + '路径还没有标完整。'); return true; }
+        if (!completeManualPath(session, 'box') && !completeManualPath(session, 'product')) { context.showToast('请先完成纸盒或产品路径。'); return true; }
+        editorLog(session, '应用手动路径', { boxPoints: session.manualPoints.box.length, productPoints: session.manualPoints.product.length });
         closeManualEditor(session, 'apply');
         regenerate(data);
         return true;
@@ -2063,45 +1228,18 @@
     function handleChange(event, data) {
       const session = ensureSession(data);
       if (event.target.classList.contains('pfh-parameter-file')) { const file = event.target.files && event.target.files[0]; if (file) processFile(file, data); event.target.value = ''; return true; }
-      if (event.target.classList.contains('pfh-parameter-side')) { session.showSide = Boolean(event.target.checked); session.showSideOverride = true; if (session.file) regenerate(data); return true; }
-      if (event.target.name === 'pfh-parameter-front') { session.frontIsLength = event.target.value === 'length'; session.frontAxisOverride = true; session.showSide = null; if (session.file) regenerate(data); return true; }
+      if (event.target.classList.contains('pfh-parameter-side')) { session.showSide = Boolean(event.target.checked); if (session.file) regenerate(data); return true; }
+      if (event.target.name === 'pfh-parameter-front') { session.frontIsLength = event.target.value === 'length'; session.showSide = null; if (session.file) regenerate(data); return true; }
       if (event.target.classList.contains('pfh-parameter-field')) { if (session.file) regenerate(data); return true; }
       return false;
     }
 
-    function handleDrop(files, data, options) {
-      const candidates = Array.from(files || []).filter(Boolean);
-      const file = candidates.find(isParameterPngFile);
-      if (!file) {
-        if (candidates.length) rejectParameterImage(data);
-        return;
-      }
-      if (candidates.some((item) => /^image\//i.test(item.type || '') && !isParameterPngFile(item)) && context.showToast) {
-        context.showToast('已读取 PNG；其他格式图片已忽略，请使用透明 PNG。');
-      }
-      processFile(file, data, options);
+    function handleDrop(files, data) {
+      const file = Array.from(files || []).find((item) => /\.png$/i.test(item.name || '') || item.type === 'image/png');
+      if (file) processFile(file, data);
     }
 
-    async function generateBridgeAssets(data, imageDataUrl) {
-      const sku = String(data && data.sku || '');
-      if (!sku) throw new Error('参数图任务缺少 SKU');
-      if (!/^data:image\/png;base64,/i.test(String(imageDataUrl || ''))) throw new Error('本地透明.png 数据无效');
-      const response = await fetch(imageDataUrl);
-      const blob = await response.blob();
-      if (!blob.size) throw new Error('本地透明.png 为空');
-      delete sessions[sku];
-      const file = new File([blob], '透明.png', { type: 'image/png' });
-      await processFile(file, data);
-      const session = ensureSession(data);
-      if (session.error && (!session.productResult || !session.englishResult)) throw new Error(session.error);
-      if (!session.productResult || !session.englishResult) throw new Error('悬浮助手参数图生成失败');
-      return {
-        englishDataUrl: session.englishResult,
-        sizeDataUrl: session.productResult,
-      };
-    }
-
-    return { viewHtml, handleAction, handleInput, handleChange, handleDrop, loadRules, generateBridgeAssets };
+    return { viewHtml, handleAction, handleInput, handleChange, handleDrop, loadRules };
   }
   // </parameter-image-module>
   const STORAGE_PREFIX = 'plm-floating-helper:data:';
@@ -2146,6 +1284,41 @@
     { id: 'camouflage', name: '迷彩色', primary: '#aab88c', primaryHover: '#7f9061', primarySoft: '#f3f8e9', secondary: '#9dbb94', secondarySoft: '#f0f8ee', page: '#fcfefb', surface: '#ffffff', surfaceAlt: '#f7fbf2', border: '#e2ecd8', borderStrong: '#c5d5b2', text: '#5b6a4f', muted: '#909e84', header: '#f0f7e8' },
   ]);
   const THEME_BY_ID = Object.freeze(THEME_OPTIONS.reduce((map, theme) => { map[theme.id] = theme; return map; }, Object.create(null)));
+
+  function normalizeThemeId(value) {
+    const id = String(value || '').trim();
+    return THEME_BY_ID[id] ? id : DEFAULT_THEME_ID;
+  }
+
+  function getActiveTheme() {
+    const configuredId = typeof state !== 'undefined' && state.settings ? state.settings.theme : DEFAULT_THEME_ID;
+    return THEME_BY_ID[normalizeThemeId(configuredId)] || THEME_BY_ID[DEFAULT_THEME_ID];
+  }
+
+  function applyThemeToView() {
+    const theme = getActiveTheme();
+    const variables = {
+      '--pfh-theme-primary': theme.primary,
+      '--pfh-theme-primary-hover': theme.primaryHover,
+      '--pfh-theme-primary-soft': theme.primarySoft,
+      '--pfh-theme-secondary': theme.secondary,
+      '--pfh-theme-secondary-soft': theme.secondarySoft,
+      '--pfh-theme-page': theme.page,
+      '--pfh-theme-surface': theme.surface,
+      '--pfh-theme-surface-alt': theme.surfaceAlt,
+      '--pfh-theme-border': theme.border,
+      '--pfh-theme-border-strong': theme.borderStrong,
+      '--pfh-theme-text': theme.text,
+      '--pfh-theme-muted': theme.muted,
+      '--pfh-theme-header': theme.header,
+    };
+    [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {
+      if (!element) return;
+      element.dataset.pfhTheme = theme.id;
+      Object.keys(variables).forEach((key) => element.style.setProperty(key, variables[key]));
+    });
+  }
+
   const TUTORIAL_SEEN_KEY = 'plm-floating-helper:tutorial-seen';
   const UPLOAD_QUEUE_KEY = 'plm-floating-helper:upload-queue';
   const EXCEL_BATCH_QUEUE_KEY = 'plm-floating-helper:excel-batch-queue';
@@ -2250,7 +1423,10 @@
   const TOY_EFFECT_CANDIDATE_CACHE_MAX = PROJECT_RESULT_MAX_PAGE_SIZE;
   const CLOUD_BACKUP_API_BASE = 'https://velvet.qzz.io';
   const CLOUD_ASSET_FALLBACK_API_BASE = 'https://plm-cloud-backup.wt196731.workers.dev';
-  const CLOUD_BACKUP_API_KEY = '53xFiTF3SY4hAcuJZyIz/JR3C2fTQrZrnS96ruV2jXA=';
+  const CLOUD_AUTH_TOKEN_KEY = 'plm-floating-helper:cloud-auth-token:v1';
+  const CLOUD_AUTH_TOKEN_SKEW_MS = 2 * 60 * 1000;
+  const CLOUD_AUTH_TOKEN_WAIT_MS = 8000;
+  const CLOUD_AUTH_EXCHANGE_TIMEOUT_MS = 15000;
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const CLOUD_BACKUP_KDF_ITERATIONS = 180000;
   const CLOUD_BACKUP_INLINE_LIMIT = 760000;
@@ -2272,7 +1448,9 @@
     if (!value) return false;
     try {
       const url = new URL(String(value || ''), location.href);
-      return url.origin === location.origin && !/\/assets\//i.test(url.pathname) && !/\.(css|js|png|jpg|svg|woff2?)$/i.test(url.pathname);
+      const samePageOrigin = url.origin === location.origin;
+      const plmApiOrigin = /^api-x\.westmonth\.com$/i.test(url.hostname);
+      return (samePageOrigin || plmApiOrigin) && !/\/assets\//i.test(url.pathname) && !/\.(css|js|png|jpg|svg|woff2?)$/i.test(url.pathname);
     } catch (_) { return false; }
   }
   function isOssAuthorizationHeader(name, value) {
@@ -2302,6 +1480,46 @@
       if (!isOssAuthorizationHeader(name, plmAuthHeaders[name])) headers[name] = plmAuthHeaders[name];
       return headers;
     }, {});
+  }
+  function getStoredPlmAccessToken() {
+    try {
+      const root = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window;
+      const storage = root && root.localStorage;
+      const raw = storage && storage.getItem('plmUserData');
+      if (!raw) return '';
+      const data = JSON.parse(raw);
+      const candidates = [data, data && data.data, data && data.user, data && data.userInfo].filter(Boolean);
+      const token = candidates.map((item) => item.access_token || item.accessToken || item.token).find(Boolean);
+      return /^Bearer\s+/i.test(String(token || ''))
+        ? String(token).replace(/^Bearer\s+/i, '').trim()
+        : String(token || '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+  function getPlmBearerToken() {
+    const storedToken = getStoredPlmAccessToken();
+    if (storedToken) return storedToken;
+    const headers = getPlmAuthHeaders();
+    const name = Object.keys(headers).find((key) => /^authorization$/i.test(key));
+    const value = name ? String(headers[name] || '').trim() : '';
+    return /^Bearer\s+/i.test(value) ? value.replace(/^Bearer\s+/i, '').trim() : '';
+  }
+  function waitForPlmBearerToken() {
+    const first = getPlmBearerToken();
+    if (first) return Promise.resolve(first);
+    const startedAt = Date.now();
+    return new Promise((resolve) => {
+      const poll = () => {
+        const token = getPlmBearerToken();
+        if (token || Date.now() - startedAt >= CLOUD_AUTH_TOKEN_WAIT_MS) {
+          resolve(token);
+          return;
+        }
+        window.setTimeout(poll, 200);
+      };
+      poll();
+    });
   }
   function savePlmApiMonitorState() {
     const value = { enabled: Boolean(plmApiMonitorState.enabled), entries: (plmApiMonitorState.entries || []).slice(0, PLM_API_MONITOR_MAX_ENTRIES) };
@@ -2465,59 +1683,13 @@
     return Boolean(descriptor && cloudUiAssetPathMatchesVersion(descriptor.path));
   }
 
-  function cloudBrandComplianceNeedsRefresh(cache) {
-    const brands = cache && cache.runtimeData && cache.runtimeData.brands;
-    if (!Array.isArray(brands)) return false;
-    const amz = brands.find((item) => String(item && item.brand || '').trim().toUpperCase() === 'AMZ');
-    return Boolean(amz && (!amz.us_rep || !cleanComplianceValue(amz.us_rep.company)));
-  }
-
   function scheduleCloudAssetRefresh(delay) {
-    window.setTimeout(async () => {
-      try {
-        await refreshCloudAssets(false);
-      } catch (error) {
+    window.setTimeout(() => {
+      refreshCloudAssets(false).catch((error) => {
         if (typeof showUiOfflineFallback === 'function') showUiOfflineFallback(error);
         addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
-      }
-      try {
-        await refreshBrandComplianceData();
-      } catch (error) {
-        addLog('warn', '\u54c1\u724c\u5730\u5740\u66f4\u65b0\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u5907\u7528\u6570\u636e', formatErrorMessage(error));
-      }
+      });
     }, Math.max(0, Number(delay) || 0));
-  }
-
-  async function refreshBrandComplianceData() {
-    const response = await cloudRequest('/brand-compliance', { method: 'GET' });
-    const brands = response && response.brands;
-    if (!Array.isArray(brands) || !brands.length) throw new Error('cloud brand compliance data is empty');
-    BRAND_COMPLIANCE_DATA = brands;
-    if (cloudAssetCache && cloudAssetCache.runtimeData) {
-      cloudAssetCache = {
-        ...cloudAssetCache,
-        runtimeData: { ...cloudAssetCache.runtimeData, brands },
-        brandComplianceUpdatedAt: String(response.updatedAt || new Date().toISOString()),
-      };
-      saveCloudAssetCache(cloudAssetCache);
-    }
-    return brands;
-  }
-
-  async function ensureBrandComplianceDataLoaded() {
-    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
-    try {
-      await refreshCloudAssets(false);
-    } catch (error) {
-      addLog('warn', '\u54c1\u724c\u5730\u5740\u8d44\u6e90\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
-    }
-    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
-    try {
-      await refreshBrandComplianceData();
-    } catch (error) {
-      addLog('warn', '\u54c1\u724c\u5730\u5740\u8bfb\u53d6\u5931\u8d25', formatErrorMessage(error));
-    }
-    return Boolean(Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length);
   }
 
   function refreshCloudAssets(force) {
@@ -2531,9 +1703,8 @@
   async function refreshCloudAssetsNow(force) {
     const now = Date.now();
     const hasUiStyles = Boolean(getCachedCloudUiStyles());
-    const staleBrandCompliance = cloudBrandComplianceNeedsRefresh(cloudAssetCache);
     const staleUiAsset = String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION;
-    if (!force && !staleBrandCompliance && !staleUiAsset && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+    if (!force && !staleUiAsset && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
     const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
@@ -2550,7 +1721,7 @@
     const manifestUiHash = String(uiDescriptor.sha256 || '').toLowerCase();
     const uiDescriptorUnchanged = String(cloudAssetCache && cloudAssetCache.uiAssetPath || '') === String(uiDescriptor.path || '')
       && Boolean(cachedUiHash && manifestUiHash && cachedUiHash === manifestUiHash);
-    if (!force && !staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && uiDescriptorUnchanged && cloudAssetCache.dataVersion === manifest.dataVersion) {
+    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && uiDescriptorUnchanged && cloudAssetCache.dataVersion === manifest.dataVersion) {
       cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
       saveCloudAssetCache(cloudAssetCache);
       return cloudAssetCache;
@@ -2604,9 +1775,7 @@
     cloudAssetCache = nextCache;
     applyCloudAssetCache(nextCache);
     const panel = document.getElementById(PANEL_ID);
-    if (panel) {
-      if (!refreshUploadViewInPlace(panel)) renderShell();
-    }
+    if (panel) renderShell();
     addLog('success', '\u4e91\u7aef\u8d44\u6e90\u5df2\u66f4\u65b0', nextCache.dataVersion);
     return nextCache;
   }
@@ -2634,53 +1803,37 @@
   }
 
   function cloudAssetRequest(path, responseType) {
+    const url = CLOUD_BACKUP_API_BASE + path;
     return new Promise((resolve, reject) => {
-      const bases = Array.from(new Set([CLOUD_BACKUP_API_BASE, CLOUD_ASSET_FALLBACK_API_BASE].filter(Boolean)));
-      const suffix = (String(path || '').includes('?') ? '&' : '?')
-        + 'plm-ui=' + encodeURIComponent(UI_ASSET_VERSION + '-' + SCRIPT_VERSION);
-      const attempt = (index, previousError) => {
-        if (index >= bases.length) {
-          reject(previousError || new Error('cloud asset network unavailable'));
+      const finish = (status, text, buffer) => {
+        if (status < 200 || status >= 300) {
+          reject(new Error('cloud asset HTTP ' + status));
           return;
         }
-        const url = bases[index] + path + suffix;
-        const retry = (error) => attempt(index + 1, error);
-        const finish = (status, text, buffer) => {
-          if (status < 200 || status >= 300) {
-            retry(new Error('cloud asset HTTP ' + status));
-            return;
-          }
-          try {
-            if (responseType === 'arraybuffer') resolve(buffer);
-            else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
-            else resolve(text || '');
-          } catch (error) {
-            retry(error);
-          }
-        };
-        if (typeof GM_xmlhttpRequest === 'function') {
-          GM_xmlhttpRequest({
-            method: 'GET',
-            url,
-            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-            responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
-            timeout: 30000,
-            onload: (response) => finish(
-              response.status,
-              responseType === 'arraybuffer' ? '' : String(response.responseText || response.response || ''),
-              response.response
-            ),
-            onerror: () => retry(new Error('cloud asset network unavailable')),
-            ontimeout: () => retry(new Error('cloud asset timeout')),
-          });
-          return;
+        try {
+          if (responseType === 'arraybuffer') resolve(buffer);
+          else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
+          else resolve(text || '');
+        } catch (error) {
+          reject(error);
         }
-        fetch(url, { cache: 'no-store' }).then(async (response) => {
-          const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
-          finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
-        }).catch(retry);
       };
-      attempt(0, null);
+      if (typeof GM_xmlhttpRequest === 'function') {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url,
+          responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
+          timeout: 30000,
+          onload: (response) => finish(response.status, response.responseText, response.response),
+          onerror: () => reject(new Error('cloud asset network unavailable')),
+          ontimeout: () => reject(new Error('cloud asset timeout')),
+        });
+        return;
+      }
+      fetch(url).then(async (response) => {
+        const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
+        finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
+      }).catch(reject);
     });
   }
 
@@ -2699,13 +1852,12 @@
     home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path>',
     settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.52a2 2 0 0 1-1 1.72l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.52a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle>',
     notification: '<path d="M10.27 21a2 2 0 0 0 3.46 0"></path><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>',
-    messageCircle: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"></path><path d="M8 12h.01"></path><path d="M12 12h.01"></path><path d="M16 12h.01"></path>',
     close: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
     refresh: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path>',
     back: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
     backArrow: '<path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path>',
     warning: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
-    edit: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>',
+    edit: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path>',
     upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path>',
     image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>',
@@ -2756,8 +1908,6 @@
     Object.freeze({ greetingId: 'afternoon', label: '下午', startTime: '14:00', endTime: '18:00', title: '下午好，今天也一起推进吧', subtitle: '常用功能与今日进度集中在这里', enabled: true, sortOrder: 30 }),
     Object.freeze({ greetingId: 'evening', label: '晚上', startTime: '18:00', endTime: '05:00', title: '晚上好，今天也一起推进吧', subtitle: '常用功能与今日进度集中在这里', enabled: true, sortOrder: 40 }),
   ]);
-  const BACKEND_UPDATE_PROMPTED_KEY = 'plm-floating-helper:backend-update-prompted-id';
-  const GREASYFORK_SCRIPT_URL = 'https://greasyfork.org/zh-CN/scripts/582138-plm%E6%82%AC%E6%B5%AE%E5%8A%A9%E6%89%8B';
 
   function normalizeHomeGreetingTime(value, fallback) {
     const text = String(value || '').trim();
@@ -2803,27 +1953,18 @@
     } catch (error) {}
   }
 
-  function isVersionUpdateNotification(item) {
-    const source = item && typeof item === 'object' ? item : {};
-    return /(?:新版本|版本更新|更新提示|脚本更新)/.test(String(source.title || '') + ' ' + String(source.content || ''));
-  }
-
   function normalizeNotificationItem(item) {
     const source = item && typeof item === 'object' ? item : {};
     const notificationId = String(source.notificationId || source.notification_id || '').trim();
     if (!notificationId) return null;
-    const title = String(source.title || '\u672a\u547d\u540d\u901a\u77e5').slice(0, 120);
-    const content = String(source.content || '').slice(0, 4000);
     return {
       notificationId,
-      title,
-      content,
+      title: String(source.title || '\u672a\u547d\u540d\u901a\u77e5').slice(0, 120),
+      content: String(source.content || '').slice(0, 4000),
       publishedAt: String(source.publishedAt || source.published_at || ''),
       updatedAt: String(source.updatedAt || source.updated_at || ''),
       isRead: Boolean(source.isRead || source.is_read),
       readAt: String(source.readAt || source.read_at || ''),
-      actionUrl: String(source.actionUrl || (isVersionUpdateNotification({ title, content }) ? GREASYFORK_SCRIPT_URL : '')).slice(0, 500),
-      actionLabel: String(source.actionLabel || (isVersionUpdateNotification({ title, content }) ? '\u53bb\u66f4\u65b0' : '')).slice(0, 40),
     };
   }
 
@@ -2873,25 +2014,10 @@
   }
 
   function formatNotificationTime(value) {
-    if (value === undefined || value === null || value === '') return '';
-    const text = String(value).trim();
-    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
-    const isCloudTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(text);
-    const normalized = typeof value === 'number'
-      ? value
-      : (isCloudTimestamp && !hasTimezone ? text.replace(' ', 'T') + 'Z' : text);
-    const date = new Date(normalized);
+    if (!value) return '';
+    const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
-    return new Intl.DateTimeFormat('zh-CN', {
-      timeZone: 'Asia/Shanghai',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-    }).format(date);
+    return date.toLocaleString('zh-CN', { hour12: false });
   }
 
   function notificationListHtml(items, emptyText) {
@@ -2900,26 +2026,7 @@
       '<div class="pfh-notification-item-head"><h4>' + escapeHtml(item.title) + '</h4>' + (!item.isRead ? '<span>\u65b0</span>' : '') + '</div>' +
       '<div class="pfh-notification-content">' + escapeHtml(item.content) + '</div>' +
       '<div class="pfh-notification-foot"><time>' + escapeHtml(formatNotificationTime(item.publishedAt)) + '</time>' +
-      (item.actionUrl ? '<a class="pfh-notification-action" href="' + escapeHtml(item.actionUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(item.actionLabel || '\u53bb\u66f4\u65b0') + '</a>' : '') +
       (!item.isRead ? '<button type="button" data-action="notification-read" data-notification-id="' + escapeHtml(item.notificationId) + '">\u6211\u77e5\u9053\u4e86</button>' : '<span>\u5df2\u8bfb</span>') + '</div></article>').join('');
-  }
-
-  function promptBackendUpdateNotification() {
-    const updateNotice = (state.notifications || []).find((item) => item && !item.isRead && isVersionUpdateNotification(item));
-    if (!updateNotice) return false;
-    let promptedId = '';
-    try {
-      promptedId = String(typeof GM_getValue === 'function' ? GM_getValue(BACKEND_UPDATE_PROMPTED_KEY, '') : localStorage.getItem(BACKEND_UPDATE_PROMPTED_KEY) || '');
-    } catch (error) {}
-    if (promptedId === updateNotice.notificationId) return false;
-    try {
-      if (typeof GM_setValue === 'function') GM_setValue(BACKEND_UPDATE_PROMPTED_KEY, updateNotice.notificationId);
-      else localStorage.setItem(BACKEND_UPDATE_PROMPTED_KEY, updateNotice.notificationId);
-    } catch (error) {}
-    state.notificationModalOpen = true;
-    state.notificationTab = 'new';
-    expandPanel();
-    return true;
   }
 
   function renderNotificationModal(panel) {
@@ -3028,7 +2135,6 @@
         .map((item) => pending.has(item.notificationId) ? { ...item, isRead: true } : item);
       state.notificationCheckedAt = Date.now();
       saveNotificationCache();
-      promptBackendUpdateNotification();
       if (showFeedback) showToast('\u901a\u77e5\u5df2\u66f4\u65b0');
     } catch (error) {
       state.notificationsError = formatErrorMessage(error);
@@ -3243,7 +2349,6 @@
       if (requestId && item) {
         desktopUploadTransfers.set(requestId, {
           requestId,
-          mode: String(message.mode || 'legacy'),
           autoStart: Boolean(message.autoStart),
           item,
           files: { xlsx: new Array(Number(item.xlsxTotal) || 0), zip: new Array(Number(item.zipTotal) || 0) },
@@ -3269,7 +2374,7 @@
     const value = String(encoded || '');
     if (!value) throw new Error(filename + ' 数据为空');
     const binary = atob(value);
-    if (Number(expectedSize) > 0 && binary.length !== Number(expectedSize)) throw new Error(filename + ' invalid size');
+    if (Number(expectedSize) > 0 && total !== Number(expectedSize)) throw new Error(filename + ' invalid size');
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
     if (bytes.length < 2 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error(filename + ' invalid archive');
@@ -3304,13 +2409,12 @@
     transfer.received[file] += 1;
     if (transfer.received.xlsx < transfer.files.xlsx.length || transfer.received.zip < transfer.files.zip.length) return;
     desktopUploadTransfers.delete(requestId);
-    const receiver = transfer.mode === 'magic-package' ? receiveDesktopMagicUploadAssets : receiveDesktopUploadAssets;
-    receiver({
+    receiveDesktopUploadAssets({
       requestId,
       autoStart: transfer.autoStart,
       items: [{ ...transfer.item, xlsxChunks: transfer.files.xlsx, zipChunks: transfer.files.zip }],
     }).catch((error) => {
-      sendDesktopBridgeMessage({ type: 'upload.queue.ack', mode: transfer.mode, requestId, added: 0, skipped: 0, error: formatErrorMessage(error) });
+      sendDesktopBridgeMessage({ type: 'upload.queue.ack', requestId, added: 0, skipped: 0, error: formatErrorMessage(error) });
     });
   }
 
@@ -3382,41 +2486,6 @@
     });
     if (message.autoStart && (added || queue.some((entry) => entry && entry.kind === 'standard' && isUploadItemReady(entry) && !/成功|进行中/.test(entry.status || '')))) {
       startUploadQueue();
-    }
-  }
-
-  async function receiveDesktopMagicUploadAssets(message) {
-    const items = Array.isArray(message && message.items) ? message.items : [];
-    const item = items[0] || {};
-    const requestId = String(message && message.requestId || '');
-    if (!state.magicUploadAccessEnabled) {
-      const error = '当前账号没有魔法上传权限';
-      magicUploadLog('warn', '桌面工作台任务被拦截', error);
-      sendDesktopBridgeMessage({ type: 'upload.queue.ack', mode: 'magic-package', requestId, added: 0, skipped: 0, error });
-      showToast('魔法上传暂未开放');
-      return;
-    }
-    try {
-      const xlsxName = String(item.xlsxName || 'product.xlsx');
-      const zipName = String(item.zipName || 'image-pack.zip');
-      const xlsx = decodeDesktopUploadChunks(item.xlsxChunks, xlsxName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', item.xlsxSize);
-      const zip = decodeDesktopUploadChunks(item.zipChunks, zipName, 'application/zip', item.zipSize);
-      magicUploadLog('info', '收到桌面工作台魔法上传任务', String(item.sku || '') + ' | ' + xlsxName + ' | ' + zipName);
-      const result = await processMagicUploadZipFiles([xlsx, zip]);
-      if (message.autoStart && result && result.added) startMagicUploadQueue();
-      const errors = result && Array.isArray(result.errors) ? result.errors : [];
-      sendDesktopBridgeMessage({
-        type: 'upload.queue.ack',
-        mode: 'magic-package',
-        requestId,
-        added: result ? Number(result.added) || 0 : 0,
-        skipped: 0,
-        errors,
-      });
-    } catch (error) {
-      const messageText = formatErrorMessage(error);
-      magicUploadLog('warn', '桌面工作台魔法上传任务处理失败', messageText);
-      sendDesktopBridgeMessage({ type: 'upload.queue.ack', mode: 'magic-package', requestId, added: 0, skipped: 0, error: messageText });
     }
   }
 
@@ -3497,14 +2566,10 @@
 
   function sendDesktopBridgeSnapshot() {
     const products = collectDesktopFinalizedProducts();
-    const standardSuccessfulSkus = loadUploadHistory()
+    const successfulUploadSkus = Array.from(new Set(loadUploadHistory()
       .filter((item) => (item && item.kind || 'standard') === 'standard' && isUploadHistorySuccess(item))
-      .map((item) => String(item && item.sku || '').toUpperCase());
-    const magicSuccessfulSkus = loadMagicUploadHistory()
-      .filter((item) => String(item && item.status || '') === 'success')
-      .map((item) => String(item && item.sku || '').toUpperCase());
-    const successfulUploadSkus = Array.from(new Set(standardSuccessfulSkus.concat(magicSuccessfulSkus)))
-      .filter((sku) => /^SKU\d+$/.test(sku));
+      .map((item) => String(item && item.sku || '').toUpperCase())
+      .filter((sku) => /^SKU\d+$/.test(sku))));
     sendDesktopBridgeMessage({
       type: 'snapshot.response',
       version: SCRIPT_VERSION,
@@ -3650,7 +2715,6 @@
     const workbook = new window.ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
-    removeUnusedExcelTemplateRow(sheet);
     const excelImageSource = getExcelImageSource(excelData, extra);
     const imageInfo = excelImageSource.imageUrl
       ? await fetchImageForExcel(excelImageSource.imageUrl, excelImageSource.imageFallbackUrl).catch(() => null)
@@ -3711,16 +2775,13 @@
   // </desktop-bridge-module>
   // <ui-loader-module>
   const UI_STYLE_ID = 'pfh-ui-styles';
-  // Full component and theme CSS is delivered by the versioned cloud UI asset. Keep only the offline skeleton locally.
   let uiFallbackNoticeTimer = 0;
-  let uiAssetRetryTimer = 0;
-  let uiAssetRetryCount = 0;
   let uiAssetRecoveryBound = false;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
       position:fixed;right:18px;bottom:78px;z-index:2147483647;width:686px;height:min(906px,96vh);min-width:520px;min-height:520px;
-      overflow:visible;border:1px solid var(--pfh-theme-border,#D8DEEA);border-radius:16px;background:var(--pfh-theme-surface,#fff);box-shadow:0 22px 70px rgba(31,25,55,.20);
-      color:var(--pfh-theme-text,#1F2937);font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
+      overflow:visible;border:1px solid #D8DEEA;border-radius:16px;background:#fff;box-shadow:0 22px 70px rgba(31,25,55,.20);
+      color:#1F2937;font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
     }
     #${PANEL_ID},#${PANEL_ID} *{box-sizing:border-box}
     #${PANEL_ID}.is-collapsed{display:none!important}
@@ -3765,9 +2826,8 @@
     html.pfh-ui-fallback #${PANEL_ID}[data-view="about"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="ledger"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="upload"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="batchExcel"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="feedback"] .pfh-full::before{
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="unitConverter"] .pfh-full::before,
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before{
       background:
         linear-gradient(#B9BDC6,#B9BDC6) 18px 17px/38px 38px no-repeat,
         linear-gradient(#E2E4EA,#E2E4EA) 68px 22px/118px 14px no-repeat,
@@ -3800,8 +2860,7 @@
       color:#6D35E8;font-size:11px;font-weight:700;text-align:center;transform:translateX(-50%);visibility:visible;
     }
     html.pfh-ui-waiting #${PANEL_ID}::after{content:"网络较慢，正在继续加载完整界面…"}
-    html.pfh-ui-error #${PANEL_ID}::after{content:"界面资源暂时不可用，正在等待恢复";border-color:var(--pfh-theme-border-strong,#D8DEEA);background:var(--pfh-theme-surface-alt,#F7F8FC);color:var(--pfh-theme-primary,#6D35E8)}
-    html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:var(--pfh-theme-border-strong,#F2D4A6);background:var(--pfh-theme-surface-alt,#FFFAEB);color:var(--pfh-theme-primary,#B54708)}
+    html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:#F2D4A6;background:#FFFAEB;color:#B54708}
     #${LAUNCHER_ID}{position:fixed;z-index:2147483647;display:inline-flex;width:86px;height:34px;align-items:center;justify-content:center;border:1px solid #D8DEEA;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(35,25,70,.14);color:#403657;cursor:pointer;font:600 13px/1 "Microsoft YaHei",sans-serif}
     @keyframes pfh-ui-skeleton-sweep{from{background-position:130% 0}to{background-position:-130% 0}}
     @media(max-width:620px){
@@ -3821,42 +2880,6 @@
     @media(prefers-reduced-motion:reduce){html.pfh-ui-fallback #${PANEL_ID} .pfh-full::after{animation:none;opacity:.38}}
   `;
 
-
-  const THEME_RESOURCE_STYLE_ID = 'pfh-theme-resource-styles';
-  const THEME_RESOURCE_CSS = `
-    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu {
-      min-height: 74px !important;
-      border-color: #edc47e !important;
-      background: linear-gradient(135deg, #fff8d9, #ffe8bd) !important;
-    }
-    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu:hover {
-      border-color: #dfa052 !important;
-      background: linear-gradient(135deg, #fff1b9, #ffd9a5) !important;
-    }
-    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu .pfh-theme-option-download {
-      display: block;
-      margin-top: auto;
-      color: #bd6a20 !important;
-      font-size: 10px;
-      font-weight: 800;
-      line-height: 1.2;
-    }
-    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu.is-selected .pfh-theme-option-download {
-      color: #a85b16 !important;
-    }
-  `;
-
-  function setThemeResourceStyle() {
-    let style = document.getElementById(THEME_RESOURCE_STYLE_ID);
-    if (!style) {
-      style = document.createElement('style');
-      style.id = THEME_RESOURCE_STYLE_ID;
-      document.documentElement.appendChild(style);
-    }
-    if (style.textContent !== THEME_RESOURCE_CSS) style.textContent = THEME_RESOURCE_CSS;
-    style.dataset.version = SCRIPT_VERSION;
-  }
-
   function getCloudUiStyleText() {
     return typeof getCachedCloudUiStyles === 'function' ? getCachedCloudUiStyles() : '';
   }
@@ -3870,7 +2893,6 @@
     const root = document.documentElement;
     root.classList.toggle('pfh-ui-fallback', state !== 'ready');
     root.classList.toggle('pfh-ui-waiting', state === 'waiting');
-    root.classList.toggle('pfh-ui-error', state === 'error');
     root.classList.toggle('pfh-ui-offline', state === 'offline');
   }
 
@@ -3888,23 +2910,7 @@
   function showUiOfflineFallback() {
     if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
     window.clearTimeout(uiFallbackNoticeTimer);
-    const offline = navigator && navigator.onLine === false;
-    updateUiFallbackState(offline ? 'offline' : 'error');
-    if (!offline) scheduleUiAssetRetry();
-  }
-
-  function scheduleUiAssetRetry() {
-    window.clearTimeout(uiAssetRetryTimer);
-    if (!document.documentElement.classList.contains('pfh-ui-fallback') || (navigator && navigator.onLine === false)) return;
-    const delays = [3000, 8000, 20000, 60000];
-    const delay = delays[Math.min(uiAssetRetryCount, delays.length - 1)];
-    uiAssetRetryCount += 1;
-    uiAssetRetryTimer = window.setTimeout(() => {
-      if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
-      updateUiFallbackState('loading');
-      scheduleUiFallbackNotice();
-      refreshCloudAssets(true).catch(showUiOfflineFallback);
-    }, delay);
+    updateUiFallbackState('offline');
   }
 
   function bindUiAssetRecovery() {
@@ -3913,7 +2919,6 @@
     window.addEventListener('offline', showUiOfflineFallback);
     window.addEventListener('online', () => {
       if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
-      window.clearTimeout(uiAssetRetryTimer);
       updateUiFallbackState('loading');
       scheduleUiFallbackNotice();
       refreshCloudAssets(true).catch(showUiOfflineFallback);
@@ -3935,81 +2940,12 @@
     return true;
   }
 
-  function normalizeThemeId(value) {
-    const id = String(value || '').trim();
-    return THEME_BY_ID[id] ? id : DEFAULT_THEME_ID;
-  }
-
-  function getActiveTheme() {
-    const configuredId = typeof state !== 'undefined' && state.settings ? state.settings.theme : DEFAULT_THEME_ID;
-    return THEME_BY_ID[normalizeThemeId(configuredId)] || THEME_BY_ID[DEFAULT_THEME_ID];
-  }
-
-  function applyThemeToView() {
-    const theme = getActiveTheme();
-    const variables = {
-      '--pfh-theme-primary': theme.primary,
-      '--pfh-theme-primary-hover': theme.primaryHover,
-      '--pfh-theme-primary-soft': theme.primarySoft,
-      '--pfh-theme-secondary': theme.secondary,
-      '--pfh-theme-secondary-soft': theme.secondarySoft,
-      '--pfh-theme-page': theme.page,
-      '--pfh-theme-surface': theme.surface,
-      '--pfh-theme-surface-alt': theme.surfaceAlt,
-      '--pfh-theme-border': theme.border,
-      '--pfh-theme-border-strong': theme.borderStrong,
-      '--pfh-theme-text': theme.text,
-      '--pfh-theme-muted': theme.muted,
-      '--pfh-theme-header': theme.header,
-    };
-    [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {
-      if (!element) return;
-      element.dataset.pfhTheme = theme.id;
-      Object.keys(variables).forEach((key) => element.style.setProperty(key, variables[key]));
-    });
-  }
-
-  async function loadLuluThemeResource() {
-    const pageWindow = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window;
-    const runtime = pageWindow.__PFH_LULU_THEME_RESOURCE__;
-    if (runtime && runtime.version === LULU_THEME_RESOURCE_VERSION && typeof runtime.refresh === 'function') {
-      runtime.refresh();
-      addLog('success', '噜噜乐园皮肤已启用', LULU_THEME_RESOURCE_PATH);
-      showToast('噜噜乐园已启用');
-      return;
-    }
-    showToast('噜噜配色已启用，正在加载皮肤彩蛋…');
-    try {
-      const code = await cloudAssetRequest(LULU_THEME_RESOURCE_PATH, 'text');
-      if (typeof code !== 'string' || code.length < 1000 || !code.includes('pfh-lulu-theme-resource-styles')) {
-        throw new Error('噜噜资源代码内容不完整');
-      }
-      const script = typeof GM_addElement === 'function'
-        ? GM_addElement(document.head || document.documentElement, 'script', { textContent: code })
-        : (() => {
-          const element = document.createElement('script');
-          element.type = 'text/javascript';
-          element.textContent = code;
-          (document.head || document.documentElement).appendChild(element);
-          return element;
-        })();
-      if (script && script.parentNode) script.remove();
-      addLog('success', '噜噜乐园皮肤已加载', LULU_THEME_RESOURCE_PATH);
-      showToast('噜噜乐园已启用，无需下载或安装');
-    } catch (error) {
-      addLog('warn', '噜噜乐园皮肤加载失败', error && error.message ? error.message : String(error));
-      showToast('已切换噜噜配色，但皮肤彩蛋加载失败，请稍后重试');
-    }
-  }
-
   function applyCloudUiStyles(cssText) {
     const text = String(cssText || '');
     if (text.length < 10000 || !text.includes('#' + PANEL_ID)) return false;
     const legacy = document.getElementById('pfh-parameter-image-styles');
     if (legacy) legacy.remove();
     window.clearTimeout(uiFallbackNoticeTimer);
-    window.clearTimeout(uiAssetRetryTimer);
-    uiAssetRetryCount = 0;
     updateUiFallbackState('ready');
     return setUiStyleText(text, 'cloud-cache');
   }
@@ -4021,17 +2957,12 @@
       // Keep the last complete stylesheet usable while the newly versioned
       // stylesheet is downloaded in the background.
       const staleCached = getStaleCloudUiStyleText();
-      if (applyCloudUiStyles(staleCached)) {
-        applyThemeToView();
-        setThemeResourceStyle();
-        return;
+      if (!applyCloudUiStyles(staleCached)) {
+        setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
+        updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
+        scheduleUiFallbackNotice();
       }
-      setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
-      updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
-      scheduleUiFallbackNotice();
     }
-    applyThemeToView();
-    setThemeResourceStyle();
   }
   // </ui-loader-module>
   const CM_TO_INCH = 1 / 2.54;
@@ -8244,7 +7175,7 @@
       #${PANEL_ID} .pfh-ledger-view-switch{display:flex;gap:4px;margin-left:auto}#${PANEL_ID} .pfh-ledger-view-switch button.is-active{border-color:#9f85f5;background:#eee8ff;color:#6030cf}
       #${PANEL_ID} .pfh-ledger-table-wrap{min-height:0;overflow:auto;border:1px solid #e9e3f5;border-radius:12px;background:#fff}#${PANEL_ID} .pfh-ledger-table{width:100%;border-collapse:collapse;color:#514866;font-size:10px;user-select:text}#${PANEL_ID} .pfh-ledger-table th{position:sticky;top:0;z-index:2;background:#f6f3fc;color:#655a79;text-align:left}#${PANEL_ID} .pfh-ledger-table th,#${PANEL_ID} .pfh-ledger-table td{padding:8px 9px;border-bottom:1px solid #eee9f7;white-space:nowrap}#${PANEL_ID} .pfh-ledger-table tbody tr:hover{background:#fbf9ff}
       #${PANEL_ID} .pfh-ledger-table-sku-cell{position:relative;padding:0!important;user-select:none!important}#${PANEL_ID} .pfh-ledger-table-sku{display:flex;width:100%;min-height:34px;align-items:center;padding:8px 10px;border:0;border-radius:0;background:transparent;color:#6136cb;font:inherit;font-weight:700;text-align:left;cursor:copy;touch-action:none}#${PANEL_ID} .pfh-ledger-table-sku:hover{background:#f3efff;color:#4f20ba}#${PANEL_ID} .pfh-ledger-table-sku.is-drag-selected{background:linear-gradient(90deg,#e9e1ff,#f4f0ff);color:#4f20ba;box-shadow:inset 3px 0 #7c3aed}#${PANEL_ID}.is-ledger-sku-dragging,#${PANEL_ID}.is-ledger-sku-dragging *{cursor:copy!important}#${PANEL_ID} .pfh-ledger-drag-copy-tip{position:fixed;z-index:2147483647;display:none;align-items:center;gap:5px;padding:6px 9px;border:1px solid #b9a5f4;border-radius:9px;background:rgba(54,38,99,.94);box-shadow:0 9px 24px rgba(31,20,70,.25);color:#fff;font-size:10px;font-weight:700;line-height:1;pointer-events:none}#${PANEL_ID} .pfh-ledger-drag-copy-tip.is-visible{display:flex}
-      #${PANEL_ID} .pfh-more-dots{display:inline-flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;gap:3px!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-more-dots i{display:block!important;width:3px!important;height:3px!important;flex:0 0 3px!important;border-radius:50%!important;background:currentColor!important}#${PANEL_ID} .pfh-ledger-more>button{display:inline-flex!important;align-items:center!important;justify-content:center!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-ledger-overflow-menu{position:fixed!important;z-index:2147483646!important;right:auto!important;bottom:auto!important;width:min(224px,calc(100vw - 24px))!important;min-width:0!important;max-height:calc(100vh - 24px)!important;overflow-x:hidden!important;overflow-y:auto!important;padding:7px!important;transform-origin:var(--pfh-menu-origin,right top)!important}#${PANEL_ID} .pfh-ledger-overflow-menu button{width:100%!important;height:auto!important;min-height:34px!important;padding:7px 10px!important;line-height:1.35!important;white-space:normal!important;overflow-wrap:anywhere!important}
+      #${PANEL_ID} .pfh-more-dots{display:inline-flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;gap:3px!important;padding:0!important;line-height:0!important}#${PANEL_ID} .pfh-more-dots i{display:block!important;width:3px!important;height:3px!important;flex:0 0 3px!important;border-radius:50%!important;background:currentColor!important}#${PANEL_ID} .pfh-ledger-more{display:inline-flex!important;position:relative!important;z-index:1000!important;width:36px!important;min-width:36px!important;height:34px!important;min-height:34px!important;align-items:center!important;justify-content:center!important;flex:0 0 36px!important;pointer-events:auto!important;isolation:isolate!important}#${PANEL_ID} .pfh-ledger-more>button{display:inline-flex!important;position:relative!important;z-index:1001!important;width:100%!important;min-width:36px!important;height:100%!important;min-height:34px!important;align-items:center!important;justify-content:center!important;padding:0!important;line-height:0!important;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}#${PANEL_ID} .pfh-ledger-more>button *{pointer-events:none!important}#${PANEL_ID} .pfh-ledger-overflow-menu{position:fixed!important;z-index:2147483646!important;right:auto!important;bottom:auto!important;width:min(224px,calc(100vw - 24px))!important;min-width:0!important;max-height:calc(100vh - 24px)!important;overflow-x:hidden!important;overflow-y:auto!important;padding:7px!important;transform-origin:var(--pfh-menu-origin,right top)!important}#${PANEL_ID} .pfh-ledger-overflow-menu button{width:100%!important;height:auto!important;min-height:34px!important;padding:7px 10px!important;line-height:1.35!important;white-space:normal!important;overflow-wrap:anywhere!important}
       #${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"]{inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;background:#f5f6fb!important;box-shadow:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-header{display:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-full,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-main.is-full,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail-scroll{width:100%!important;height:100%!important;min-height:0!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-main.is-full{display:block!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-detail-scroll{overflow:hidden!important;padding:0!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-page{gap:12px!important;padding:18px 22px 20px!important;background:linear-gradient(145deg,#f7f8fc,#f2f1f8)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero{align-items:center!important;padding:13px 16px!important;border-color:#e1dcf3!important;border-radius:16px!important;background:rgba(255,255,255,.92)!important;box-shadow:0 8px 28px rgba(62,49,109,.07)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero h3{font-size:19px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-hero p{max-width:none!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-fullscreen-toggle{min-height:34px!important;padding:0 13px!important;border-color:#7c3aed!important;background:#7c3aed!important;color:#fff!important;box-shadow:0 7px 16px rgba(124,58,237,.20)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs{width:min(420px,42vw)!important;justify-self:start!important;padding:5px!important;border-color:#e0daf3!important;background:rgba(255,255,255,.86)!important;box-shadow:0 5px 18px rgba(62,49,109,.05)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs button{height:34px!important;min-height:34px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-toolbar,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar{padding:9px 11px!important;border:1px solid #e3def2!important;border-radius:13px!important;background:rgba(255,255,255,.84)!important;box-shadow:0 5px 18px rgba(62,49,109,.04)!important;overflow:visible!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-toolbar{flex-wrap:wrap!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar input{min-width:280px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-list,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table-wrap{padding:12px!important;border:1px solid #e2deef!important;border-radius:16px!important;background:rgba(255,255,255,.76)!important;box-shadow:0 10px 30px rgba(62,49,109,.06)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day>h4{padding:2px 4px 3px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-item{min-height:112px!important;padding:11px 12px!important;border-radius:14px!important;background:rgba(255,255,255,.94)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table-wrap{position:relative!important;padding:0!important;overflow:auto!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table{font-size:11px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table td{height:42px!important;padding:9px 12px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th:first-child,#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table td:first-child{position:sticky!important;left:0!important;z-index:1!important;background:#fff!important;box-shadow:1px 0 #eee9f7!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-table th:first-child{z-index:3!important;background:#f6f3fc!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-performance{box-shadow:0 5px 18px rgba(62,49,109,.05)!important}
       @media(max-width:1380px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
       @media(max-width:900px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-page{padding:12px!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-tabs{width:100%!important}#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-filterbar input{min-width:160px!important}}
@@ -8254,7 +7185,65 @@
       #${PANEL_ID} .pfh-ledger-ai-prep-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}#${PANEL_ID} .pfh-ledger-ai-prep-actions button{min-height:30px;padding:0 10px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:10px;font-weight:700;cursor:pointer}#${PANEL_ID} .pfh-ledger-ai-prep-actions button.is-primary{background:#7448d8;color:#fff}#${PANEL_ID} .pfh-ledger-ai-prep-actions button:disabled{cursor:not-allowed;opacity:.5}#${PANEL_ID} .pfh-ledger-ai-prep-missing{margin:0;color:#9b6471;font-size:9px;line-height:1.4}
       #${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-error{border-color:#df8496!important;background:#fff3f5!important;box-shadow:inset 0 0 0 1px rgba(190,63,89,.16)!important}#${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-pass{border-color:#8fcba0!important;background:#f2fbf4!important}.pfh-ledger-detail3-badge{align-self:flex-start;padding:2px 5px;border-radius:999px;font-size:8px;font-style:normal}.pfh-ledger-detail3-badge.is-pass{background:#e8f7ec;color:#2e8750}.pfh-ledger-detail3-badge.is-warning,.pfh-ledger-detail3-badge.is-error{background:#ffe8ec;color:#b34a5d}.pfh-ledger-detail3-badge.is-loading{background:#fff4d9;color:#996b13}
       #${PANEL_ID} .pfh-ledger-detail3-audit{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border:1px solid #ead6a8;border-radius:9px;background:#fffaf0;color:#78633a;font-size:9px;line-height:1.4}#${PANEL_ID} .pfh-ledger-detail3-audit.is-pass{border-color:#b7dfc1;background:#f1fbf3;color:#2e7547}#${PANEL_ID} .pfh-ledger-detail3-audit.is-error,#${PANEL_ID} .pfh-ledger-detail3-audit.is-warning{border-color:#e7b1bc;background:#fff3f5;color:#9e4053}#${PANEL_ID} .pfh-ledger-detail3-audit p{margin:0}#${PANEL_ID} .pfh-ledger-detail3-audit span{display:block}
-      @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-summary,#${PANEL_ID} .pfh-cache-editor-body{padding-left:12px;padding-right:12px}#${PANEL_ID} .pfh-cache-editor-search{width:100%}#${PANEL_ID} .pfh-cache-field-head{flex-direction:column}#${PANEL_ID} .pfh-cache-field-key{max-width:none;min-width:0}#${PANEL_ID} .pfh-cache-field-control{width:100%;grid-template-columns:74px minmax(0,1fr)}#${PANEL_ID} .pfh-cache-children{padding-left:12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page{grid-template-rows:auto auto auto minmax(0,1fr)!important;gap:7px!important;}
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}
+      #${PANEL_ID} .pfh-ledger-tabs-shell{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:8px!important;min-width:0!important;}
+      #${PANEL_ID} .pfh-ledger-tabs-main{min-width:0!important;}
+      #${PANEL_ID} .pfh-ledger-tabs-main .pfh-ledger-tabs{width:min(420px,100%)!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+      #${PANEL_ID} .pfh-ledger-tabs-shell:has(.pfh-ledger-trash-entry.is-active) .pfh-ledger-tab-indicator{opacity:0!important;}
+      #${PANEL_ID} .pfh-ledger-trash-entry{display:inline-flex!important;min-width:78px!important;height:32px!important;min-height:32px!important;align-items:center!important;justify-content:center!important;gap:5px!important;padding:0 11px!important;border:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:10px!important;background:var(--pfh-theme-surface,#fff)!important;color:var(--pfh-theme-muted,#7d86a8)!important;font:inherit!important;font-size:11px!important;font-weight:650!important;cursor:pointer!important;transition:transform .22s cubic-bezier(.2,.8,.2,1),border-color .22s ease,background .22s ease,color .22s ease,box-shadow .22s ease!important;}
+      #${PANEL_ID} .pfh-ledger-trash-entry small{font-size:9px!important;font-weight:500!important;opacity:.72!important;white-space:nowrap!important;}
+      #${PANEL_ID} .pfh-ledger-trash-entry:hover{transform:translateY(-1px)!important;border-color:var(--pfh-theme-border-strong,#b7a6f4)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;box-shadow:0 6px 14px var(--pfh-theme-shadow-soft,rgba(91,62,180,.10))!important;}
+      #${PANEL_ID} .pfh-ledger-trash-entry.is-active{border-color:var(--pfh-theme-border-strong,#b7a6f4)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;box-shadow:inset 0 0 0 1px var(--pfh-theme-primary-soft,#f3efff)!important;}
+      #${PANEL_ID} .pfh-ledger-controlbar{display:grid!important;gap:7px!important;min-width:0!important;padding:8px 10px!important;border:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:13px!important;background:linear-gradient(135deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#faf9ff))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 16px var(--pfh-theme-shadow-soft,rgba(91,62,180,.06))!important;}
+      #${PANEL_ID} .pfh-ledger-controlbar .pfh-ledger-toolbar{display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important;}
+      #${PANEL_ID} .pfh-ledger-controlbar .pfh-ledger-filterbar{display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important;min-width:0!important;padding:7px 0 0!important;border:0!important;border-top:1px solid var(--pfh-theme-border,#ddd6ef)!important;background:transparent!important;}
+      #${PANEL_ID} .pfh-ledger-controlbar .pfh-ledger-filter-query{min-width:150px!important;flex:1 1 220px!important;}
+      #${PANEL_ID} .pfh-ledger-list{gap:6px!important;padding:0 2px 4px 0!important;}
+      #${PANEL_ID} .pfh-ledger-day{gap:5px!important;}
+      #${PANEL_ID} .pfh-ledger-day>h4{position:relative!important;top:auto!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important;min-height:26px!important;margin:0!important;padding:3px 3px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;}
+      #${PANEL_ID} .pfh-ledger-day>h4 .pfh-ledger-day-date{color:var(--pfh-theme-text,#514866)!important;font-size:12px!important;font-weight:700!important;}
+      #${PANEL_ID} .pfh-ledger-day>h4 .pfh-ledger-day-count{color:var(--pfh-theme-muted,#8a94ae)!important;font-size:10px!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-day>h4 .pfh-ledger-day-select{margin-left:auto!important;}
+      #${PANEL_ID} .pfh-ledger-item{min-height:78px!important;padding:6px 9px!important;gap:6px!important;border-radius:12px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.86)!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-stage-pending{border-left:3px solid var(--pfh-theme-border-strong,#b7a6f4)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-surface-alt))!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-stage-generated{border-left:3px solid var(--pfh-theme-primary,#7c3aed)!important;background:linear-gradient(135deg,var(--pfh-theme-primary-soft,#f3efff),var(--pfh-theme-surface))!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-stage-finalized{border-left:3px solid var(--pfh-theme-secondary,#60a878)!important;background:linear-gradient(135deg,var(--pfh-theme-surface),var(--pfh-theme-secondary-soft,#eefaf1))!important;}
+      #${PANEL_ID} .pfh-ledger-item .pfh-ledger-thumb{width:48px!important;height:48px!important;border-radius:11px!important;}
+      #${PANEL_ID} .pfh-ledger-main{grid-template-rows:auto auto auto!important;gap:4px!important;}
+      #${PANEL_ID} .pfh-ledger-main b{font-size:14px!important;line-height:1.2!important;font-weight:650!important;}
+      #${PANEL_ID} .pfh-ledger-title-row{gap:6px!important;}
+      #${PANEL_ID} .pfh-ledger-tags{gap:4px!important;}
+      #${PANEL_ID} .pfh-ledger-tags span,#${PANEL_ID} .pfh-ledger-tags button.is-sku{height:21px!important;min-height:21px!important;padding:0 7px!important;border-radius:999px!important;font-size:10px!important;line-height:19px!important;}
+      #${PANEL_ID} .pfh-ledger-assignment{min-height:14px!important;font-size:10px!important;line-height:14px!important;}
+      #${PANEL_ID} .pfh-ledger-bottom{min-height:28px!important;gap:6px!important;}
+      #${PANEL_ID} .pfh-ledger-flow{display:none!important;}
+      #${PANEL_ID} .pfh-ledger-actions,#${PANEL_ID} .pfh-ledger-file-actions{gap:4px!important;}
+      #${PANEL_ID} .pfh-ledger-actions button.is-primary,#${PANEL_ID} .pfh-ledger-complete,#${PANEL_ID} .pfh-ledger-file-actions>button{height:28px!important;min-height:28px!important;padding:0 8px!important;border-radius:8px!important;font-size:10px!important;}
+      #${PANEL_ID} .pfh-ledger-file-actions{grid-template-columns:repeat(4,minmax(46px,auto))!important;max-width:none!important;flex-wrap:nowrap!important;}
+      #${PANEL_ID} .pfh-ledger-more,#${PANEL_ID} .pfh-ledger-more>button{width:30px!important;min-width:30px!important;height:28px!important;min-height:28px!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable{transform:none!important;transition:transform .28s cubic-bezier(.2,.8,.2,1),border-color .22s ease,background .22s ease,box-shadow .28s ease!important;}
+       #${PANEL_ID} .pfh-ledger-item.is-clickable:hover{z-index:2!important;transform:translateY(-1px)!important;border-color:var(--pfh-theme-border-strong,#b7a6f4)!important;box-shadow:0 9px 20px var(--pfh-theme-shadow-soft,rgba(91,62,180,.12))!important;}
+       #${PANEL_ID} .pfh-ledger-item.is-clickable.is-menu-open,#${PANEL_ID} .pfh-ledger-item.is-clickable.is-menu-open:hover{transform:translateY(-1px)!important;}
+       #${PANEL_ID} .pfh-ledger-item.is-clickable:hover .pfh-ledger-thumb{transform:translateY(-1px)!important;box-shadow:0 5px 12px var(--pfh-theme-shadow-soft,rgba(83,60,168,.10))!important;}
+       @media(max-width:760px){#${PANEL_ID} .pfh-ledger-tabs-shell{grid-template-columns:minmax(0,1fr) auto!important;}#${PANEL_ID} .pfh-ledger-trash-entry{min-width:34px!important;padding:0 8px!important;}#${PANEL_ID} .pfh-ledger-trash-entry small{display:none!important;}#${PANEL_ID} .pfh-ledger-item,#${PANEL_ID} .pfh-ledger-item.is-finalized{grid-template-columns:48px minmax(0,1fr)!important;min-height:78px!important;padding:6px 8px!important;}#${PANEL_ID} .pfh-ledger-item .pfh-ledger-thumb{width:48px!important;height:48px!important;}#${PANEL_ID} .pfh-ledger-status{font-size:10px!important;padding:4px 7px!important;}#${PANEL_ID} .pfh-ledger-file-actions{grid-template-columns:repeat(4,minmax(38px,1fr))!important;width:100%!important;flex-wrap:wrap!important;}#${PANEL_ID} .pfh-ledger-bottom{flex-wrap:wrap!important;}#${PANEL_ID} .pfh-ledger-actions{width:100%!important;justify-content:flex-end!important;}}
+      /* Keep the workbench controls as one surface, then use the freed width for two cards. */
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page{grid-template-rows:auto minmax(0,1fr)!important;gap:8px!important;}
+      #${PANEL_ID} .pfh-ledger-workbench-shell{display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;min-width:0!important;min-height:0!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:16px!important;background:linear-gradient(145deg,var(--pfh-theme-surface,#fff),var(--pfh-theme-surface-alt,#faf9ff))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.90),0 10px 24px var(--pfh-theme-shadow-soft,rgba(91,62,180,.08))!important;}
+      #${PANEL_ID} .pfh-ledger-workbench-shell>.pfh-ledger-tabs-shell{padding:8px 10px!important;border:0!important;border-bottom:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+      #${PANEL_ID} .pfh-ledger-content-anchor{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;min-width:0!important;min-height:0!important;overflow:hidden!important;padding:0 10px 9px!important;gap:0!important;}
+      #${PANEL_ID} .pfh-ledger-content-anchor:has(.pfh-ledger-performance){grid-template-rows:auto auto minmax(0,1fr) auto!important;}
+      #${PANEL_ID} .pfh-ledger-content-anchor>.pfh-ledger-performance{margin:0!important;padding:8px 2px!important;border:0!important;border-bottom:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+      #${PANEL_ID} .pfh-ledger-content-anchor>.pfh-ledger-controlbar{margin:0!important;padding:8px 0!important;border:0!important;border-bottom:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+      #${PANEL_ID} .pfh-ledger-content-anchor>.pfh-ledger-list,#${PANEL_ID} .pfh-ledger-content-anchor>.pfh-ledger-table-wrap{min-height:0!important;margin:0!important;padding:8px 4px 4px 2px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+      #${PANEL_ID}:not(.is-narrow-panel) .pfh-ledger-day{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important;}
+      #${PANEL_ID} .pfh-ledger-day>h4{grid-column:1/-1!important;}
+      #${PANEL_ID} .pfh-ledger-day>.pfh-ledger-item{min-width:0!important;width:auto!important;}
+      #${PANEL_ID}.is-narrow-panel .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}
+      #${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+      @media(max-width:900px){#${PANEL_ID}.is-ledger-fullscreen[data-view="ledger"] .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}}
+      @media(max-width:760px){#${PANEL_ID} .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#${PANEL_ID} .pfh-ledger-content-anchor{padding-left:7px!important;padding-right:7px!important;}}
+       @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-summary,#${PANEL_ID} .pfh-cache-editor-body{padding-left:12px;padding-right:12px}#${PANEL_ID} .pfh-cache-editor-search{width:100%}#${PANEL_ID} .pfh-cache-field-head{flex-direction:column}#${PANEL_ID} .pfh-cache-field-key{max-width:none;min-width:0}#${PANEL_ID} .pfh-cache-field-control{width:100%;grid-template-columns:74px minmax(0,1fr)}#${PANEL_ID} .pfh-cache-children{padding-left:12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
     `;
   }
 
@@ -8297,6 +7286,7 @@
     panel.querySelector('[data-action="notifications"]').setAttribute('aria-label', '\u901a\u77e5');
     panel.querySelector('[data-action="notifications"]').setAttribute('data-tooltip', '\u901a\u77e5');
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
+    panel.addEventListener('click', handleLedgerMoreClickCapture, true);
     panel.addEventListener('click', handlePanelClick);
     panel.addEventListener('contextmenu', handlePanelContextMenu);
     panel.addEventListener('keydown', handlePanelKeydown);
@@ -11767,7 +10757,8 @@
     const detail = panel && panel.querySelector('.pfh-detail');
     const page = detail && detail.querySelector('.pfh-ledger-page');
     const tabs = page && page.querySelector('.pfh-ledger-tabs');
-    if (!detail || !page || !tabs) return false;
+    const contentAnchor = page && (page.querySelector('.pfh-ledger-content-anchor') || page.querySelector('.pfh-ledger-tabs-shell') || tabs);
+    if (!detail || !page || !tabs || !contentAnchor) return false;
     state.ledgerMenuSku = '';
     state.ledgerMenuDate = '';
     closeRenderedLedgerMenus(panel, null);
@@ -11792,8 +10783,18 @@
       button.classList.toggle('active', active);
       button.classList.toggle('is-active', active);
     });
-    while (tabs.nextElementSibling) tabs.nextElementSibling.remove();
-    nextContent.forEach((node) => page.appendChild(node));
+    const trashEntry = page.querySelector('.pfh-ledger-trash-entry');
+    if (trashEntry) {
+      trashEntry.classList.toggle('is-active', mode === 'trash');
+      trashEntry.setAttribute('aria-current', mode === 'trash' ? 'page' : 'false');
+    }
+    if (contentAnchor.classList.contains('pfh-ledger-content-anchor')) {
+      while (contentAnchor.firstChild) contentAnchor.removeChild(contentAnchor.firstChild);
+      nextContent.forEach((node) => contentAnchor.appendChild(node));
+    } else {
+      while (contentAnchor.nextElementSibling) contentAnchor.nextElementSibling.remove();
+      nextContent.forEach((node) => page.appendChild(node));
+    }
     const indicator = tabs.querySelector('.pfh-ledger-tab-indicator');
     const activeButton = tabs.querySelector('button.is-active,button.active');
     if (indicator && activeButton) {
@@ -14948,12 +13949,12 @@
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
-      return '<section class="pfh-ledger-day"><h4>' + escapeHtml(formatLedgerDateLabel(group.date)) + '<span>' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds)).join('') + '</section>';
+      return '<section class="pfh-ledger-day"><h4><span class="pfh-ledger-day-date">' + escapeHtml(formatLedgerDateLabel(group.date)) + '</span><span class="pfh-ledger-day-count">' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds)).join('') + '</section>';
     }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(records.length ? '当前筛选条件下没有记录。' : (mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。'))) + '</div>';
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return performanceHtml +
-      '<div class="pfh-ledger-toolbar">' +
+      '<div class="pfh-ledger-controlbar"><div class="pfh-ledger-toolbar">' +
         '<button type="button" class="pfh-ledger-month" data-action="ledger-prev-month" title="上个月">‹</button>' +
         '<button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + escapeHtml(formatLedgerMonthLabel(month)) + '</button>' +
         '<button type="button" class="pfh-ledger-month" data-action="ledger-next-month" title="下个月">›</button>' +
@@ -14965,7 +13966,7 @@
             '<button type="button" data-action="ledger-copy-selected" title="复制当前勾选的产品编码">复制选中编码</button>' +
             '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') +
       '</div>' +
-      '<div class="pfh-ledger-filterbar"><input type="search" class="pfh-ledger-filter-query" value="' + escapeHtml(state.ledgerFilterQuery || '') + '" placeholder="筛选 SKU / 品牌 / 品名 / 编码"><select class="pfh-ledger-filter-status"><option value="all">全部状态</option><option value="待出图"' + (state.ledgerFilterStatus === '待出图' ? ' selected' : '') + '>待出图</option><option value="待定稿"' + (state.ledgerFilterStatus === '待定稿' ? ' selected' : '') + '>待定稿</option><option value="已定稿"' + (state.ledgerFilterStatus === '已定稿' ? ' selected' : '') + '>已定稿</option><option value="已完成"' + (state.ledgerFilterStatus === '已完成' ? ' selected' : '') + '>已完成</option><option value="异常"' + (state.ledgerFilterStatus === '异常' ? ' selected' : '') + '>异常</option><option value="ai-error"' + (state.ledgerFilterStatus === 'ai-error' ? ' selected' : '') + '>AI 异常</option></select><select class="pfh-ledger-filter-image"><option value="all">全部图片</option><option value="benchmark"' + (state.ledgerFilterImage === 'benchmark' ? ' selected' : '') + '>有对标图</option><option value="effect"' + (state.ledgerFilterImage === 'effect' ? ' selected' : '') + '>有效果图</option><option value="missing"' + (state.ledgerFilterImage === 'missing' ? ' selected' : '') + '>缺当前图</option></select><button type="button" data-action="ledger-copy-filtered-skus">复制当前编码</button><button type="button" data-action="ledger-copy-filtered-table">复制当前表格</button><div class="pfh-ledger-view-switch"><button type="button" data-action="ledger-display-mode" data-mode="cards" class="' + (state.ledgerDisplayMode === 'cards' ? 'is-active' : '') + '">卡片</button><button type="button" data-action="ledger-display-mode" data-mode="table" class="' + (state.ledgerDisplayMode === 'table' ? 'is-active' : '') + '">表格</button></div></div>' +
+      '<div class="pfh-ledger-filterbar"><input type="search" class="pfh-ledger-filter-query" value="' + escapeHtml(state.ledgerFilterQuery || '') + '" placeholder="筛选 SKU / 品牌 / 品名 / 编码"><select class="pfh-ledger-filter-status"><option value="all">全部状态</option><option value="待出图"' + (state.ledgerFilterStatus === '待出图' ? ' selected' : '') + '>待出图</option><option value="待定稿"' + (state.ledgerFilterStatus === '待定稿' ? ' selected' : '') + '>待定稿</option><option value="已定稿"' + (state.ledgerFilterStatus === '已定稿' ? ' selected' : '') + '>已定稿</option><option value="已完成"' + (state.ledgerFilterStatus === '已完成' ? ' selected' : '') + '>已完成</option><option value="异常"' + (state.ledgerFilterStatus === '异常' ? ' selected' : '') + '>异常</option><option value="ai-error"' + (state.ledgerFilterStatus === 'ai-error' ? ' selected' : '') + '>AI 异常</option></select><select class="pfh-ledger-filter-image"><option value="all">全部图片</option><option value="benchmark"' + (state.ledgerFilterImage === 'benchmark' ? ' selected' : '') + '>有对标图</option><option value="effect"' + (state.ledgerFilterImage === 'effect' ? ' selected' : '') + '>有效果图</option><option value="missing"' + (state.ledgerFilterImage === 'missing' ? ' selected' : '') + '>缺当前图</option></select><button type="button" data-action="ledger-copy-filtered-skus">复制当前编码</button><button type="button" data-action="ledger-copy-filtered-table">复制当前表格</button><div class="pfh-ledger-view-switch"><button type="button" data-action="ledger-display-mode" data-mode="cards" class="' + (state.ledgerDisplayMode === 'cards' ? 'is-active' : '') + '">卡片</button><button type="button" data-action="ledger-display-mode" data-mode="table" class="' + (state.ledgerDisplayMode === 'table' ? 'is-active' : '') + '">表格</button></div></div></div>' +
       (state.ledgerDisplayMode === 'table' ? ledgerTableRowsHtml(filteredRecords, mode) : '<div class="pfh-ledger-list" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '">' + rows + '</div>') +
       ledgerTimeEditorHtml();
   }
@@ -14976,14 +13977,20 @@
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
       '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div></div>' +
-      '<div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
-        '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
-        '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
-        '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
-        '<button type="button" class="' + (mode === 'trash' ? 'is-active active' : '') + '" data-action="ledger-view-trash">垃圾篓</button>' +
-      '</div>' +
-      ledgerViewContentHtml(records) +
-      '</section></div>';
+       '<div class="pfh-ledger-workbench-shell">' +
+         '<div class="pfh-ledger-tabs-shell">' +
+           '<div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
+             '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
+             '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
+             '<button type="button" class="' + (mode === 'finalized' ? 'is-active active' : '') + '" data-action="ledger-view-finalized">已定稿</button>' +
+           '</div></div>' +
+           '<button type="button" class="pfh-ledger-trash-entry' + (mode === 'trash' ? ' is-active' : '') + '" data-action="ledger-view-trash" aria-current="' + (mode === 'trash' ? 'page' : 'false') + '"><span>垃圾篓</span><small>低频入口</small></button>' +
+         '</div>' +
+         '<div class="pfh-ledger-content-anchor">' +
+           ledgerViewContentHtml(records) +
+         '</div>' +
+       '</div>' +
+       '</section></div>';
   }
 
   function ledgerRowHtml(record, mode, performanceGroupLabels, performanceRecordGroupIds) {
@@ -15022,8 +14029,9 @@
     const assignmentHtml = '<div class="pfh-ledger-assignment">' + escapeHtml(dateText) +
       (mode === 'finalized' ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '">改时间</button>' : '') +
       '</div>';
-    const workflowHtml = mode === 'finalized' ? '' : '<div class="pfh-ledger-flow is-step-' + (record.finalizedAt ? '3' : (imageGenerated ? '2' : '1')) + '">' +
-      '<span><i></i>出图</span><em></em><span><i></i>定稿</span><em></em><span><i></i>文件</span></div>';
+    const stageClass = record.finalizedAt || mode === 'finalized'
+      ? ' is-stage-finalized'
+      : (imageGenerated ? ' is-stage-generated' : ' is-stage-pending');
     const menuHtml = ledgerOverflowMenuHtml(record, sku, dateAttr, imageGenerated);
     const menuOpen = state.ledgerMenuSku === sku && state.ledgerMenuDate === normalizeLedgerDate(record.date || workDate);
     const moreButton = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="更多操作" aria-expanded="' + (menuOpen ? 'true' : 'false') + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + menuHtml + '</div>';
@@ -15040,14 +14048,14 @@
         moreButton +
       '</div>';
     const selectButton = mode === 'finalized' ? '<button type="button" class="pfh-ledger-select' + (selected ? ' is-selected' : '') + '" data-action="ledger-toggle-select" data-sku="' + escapeHtml(sku) + '" data-date="' + dateAttr + '" aria-label="' + (selected ? '取消选择' : '选择产品') + '"></button>' : '';
-    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" data-performance-group-id="' + escapeHtml(effectivePerformanceGroupId) + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
+    return '<article class="pfh-ledger-item is-clickable is-' + escapeHtml(mode) + stageClass + (selected ? ' is-selected' : '') + (menuOpen ? ' is-menu-open' : '') + '" data-ledger-stage="' + escapeHtml(record.finalizedAt || mode === 'finalized' ? 'finalized' : (imageGenerated ? 'generated' : 'pending')) + '" data-ledger-sku="' + escapeHtml(sku) + '" data-ledger-date="' + dateAttr + '" data-performance-group-id="' + escapeHtml(effectivePerformanceGroupId) + '" role="button" tabindex="0" title="点击进入 SKU 数据界面">' +
       selectButton +
       '<button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '">' + thumb + '</button>' +
       '<div class="pfh-ledger-main">' +
         '<div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + escapeHtml(sku) + '"><b>' + escapeHtml(title) + '</b></button>' + referenceButton + statusPill + '</div>' +
         tagHtml +
         assignmentHtml +
-        '<div class="pfh-ledger-bottom">' + workflowHtml + actions + '</div>' +
+        '<div class="pfh-ledger-bottom">' + actions + '</div>' +
       '</div>' +
     '</article>';
   }
@@ -15115,6 +14123,14 @@
     menu.setAttribute('data-ledger-menu-sku', button.getAttribute('data-sku') || '');
     menu.setAttribute('data-ledger-menu-date', button.getAttribute('data-date') || '');
     host.appendChild(menu);
+    // The cloud stylesheet still has an older absolute-position rule. Pin the
+    // live menu inline so it cannot fall back to the bottom of the panel.
+    menu.style.setProperty('position', 'fixed', 'important');
+    menu.style.setProperty('right', 'auto', 'important');
+    menu.style.setProperty('bottom', 'auto', 'important');
+    menu.style.setProperty('display', 'grid', 'important');
+    menu.style.setProperty('z-index', '2147483646', 'important');
+    menu.style.setProperty('pointer-events', 'auto', 'important');
     menu.style.visibility = 'hidden';
     window.requestAnimationFrame(() => {
       if (!menu.isConnected || !button.isConnected) return;
@@ -17809,15 +16825,35 @@
     const sku = String(button.getAttribute('data-sku') || '').trim();
     const date = normalizeLedgerDate(button.getAttribute('data-date')) || normalizeLedgerDate(state.ledgerDate) || getTodayKey();
     if (!sku) return;
+    const panel = ensurePanel();
+    const card = button.closest('.pfh-ledger-item');
+    const record = findLedgerRecord(sku, date) || (state.ledgerRecords || []).find((item) => getLedgerSkuKey(item.sku) === getLedgerSkuKey(sku));
+    if (!record || !card) return;
     state.ledgerFlowTransitionSku = '';
     const opening = state.ledgerMenuSku !== sku || state.ledgerMenuDate !== date;
     state.ledgerMenuSku = opening ? sku : '';
     state.ledgerMenuDate = opening ? date : '';
-    const panel = ensurePanel();
-    closeRenderedLedgerMenus(panel, opening ? button.closest('.pfh-ledger-item') : null);
-    const record = (state.ledgerRecords || []).find((item) => item.sku === sku && normalizeLedgerDate(item.date) === date);
-    if (record) refreshLedgerCard(record);
-    else renderShell();
+    closeRenderedLedgerMenus(panel, opening ? card : null);
+    card.classList.toggle('is-menu-open', opening);
+    button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    if (!opening) return;
+    card.insertAdjacentHTML('beforeend', ledgerOverflowMenuHtml(record, sku, escapeHtml(date), Boolean(record.imageGeneratedAt)));
+    const nextButton = card.querySelector('[data-action="ledger-more"]');
+    if (nextButton) positionRenderedLedgerMenu(panel, nextButton);
+  }
+
+  function handleLedgerMoreClickCapture(event) {
+    if (!event || state.view !== 'ledger') return;
+    const target = event.target;
+    const button = target && typeof target.closest === 'function'
+      ? target.closest('[data-action="ledger-more"]')
+      : null;
+    if (!button || button.disabled) return;
+    event.preventDefault();
+    // The panel also has a normal bubble listener. Stop sibling listeners here
+    // so one click cannot open the menu and immediately toggle it closed again.
+    event.stopImmediatePropagation();
+    handleLedgerMoreAction(button);
   }
 
   function handlePanelClick(event) {
@@ -25711,10 +24747,6 @@
 
   function getLedgerAiImageSequence(item) {
     const source = item && typeof item === 'object' ? item : { url: item };
-    const explicit = [source.sequence, source.sortIndex, source.order, source.index]
-      .map((value) => Number(value))
-      .find((value) => Number.isFinite(value) && value > 0);
-    if (explicit) return Math.floor(explicit);
     const stem = getLedgerAiImageFilenameStem(source);
     const names = [
       source.displayName,
@@ -25725,8 +24757,20 @@
       source.filename,
       stem,
     ].map((value) => String(value || '').trim()).filter(Boolean);
+    const labelPattern = /(?:主图|详情图)\s*[-_# ]*(\d+)/;
+    for (const name of names) {
+      const match = name.match(labelPattern);
+      const sequence = Number(match && match[1]);
+      if (Number.isFinite(sequence) && sequence > 0) return Math.floor(sequence);
+    }
+    const rule = stem && LEDGER_AI_IMAGE_RENAME_RULES.find((candidate) => candidate.pattern.test(stem));
+    const ruleSequence = String(rule && rule.name || '').match(/(\d+)$/);
+    if (ruleSequence) return Number(ruleSequence[1]);
+    const explicit = [source.sequence, source.sortIndex]
+      .map((value) => Number(value))
+      .find((value) => Number.isFinite(value) && value > 0);
+    if (explicit) return Math.floor(explicit);
     const patterns = [
-      /(?:主图|详情图)\s*[-_# ]*(\d+)/,
       /(?:^|[-_ ])(?:main|detail)[-_ ]*(\d+)/i,
       /(?:main|detail)[-_ ]*prompt[-_ ]*(\d+)/i,
       /prompt[-_ ]*(\d+)/i,
@@ -25738,9 +24782,10 @@
         if (Number.isFinite(sequence) && sequence > 0) return Math.floor(sequence);
       }
     }
-    const rule = stem && LEDGER_AI_IMAGE_RENAME_RULES.find((candidate) => candidate.pattern.test(stem));
-    const ruleSequence = String(rule && rule.name || '').match(/(\d+)$/);
-    return ruleSequence ? Number(ruleSequence[1]) : 0;
+    const positional = [source.order, source.index]
+      .map((value) => Number(value))
+      .find((value) => Number.isFinite(value) && value > 0);
+    return positional ? Math.floor(positional) : 0;
   }
 
   function compareLedgerAiImageItems(left, right) {
@@ -29120,11 +28165,99 @@
     }
   }
 
-  function cloudRequest(path, options) {
+  let cloudAuthState = null;
+  let cloudAuthExchangePromise = null;
+
+  function parseCloudAuthExpiry(value) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric > 1e12 ? numeric : numeric * 1000;
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function readCloudAuthToken() {
+    const isUsable = (value) => Boolean(
+      value && typeof value.token === 'string' && value.token.split('.').length === 3
+      && Number(value.expiresAt) > Date.now() + CLOUD_AUTH_TOKEN_SKEW_MS,
+    );
+    if (isUsable(cloudAuthState)) return cloudAuthState;
+    try {
+      const saved = typeof GM_getValue === 'function' ? GM_getValue(CLOUD_AUTH_TOKEN_KEY, null) : null;
+      if (isUsable(saved)) {
+        cloudAuthState = {
+          token: String(saved.token),
+          expiresAt: Number(saved.expiresAt),
+          user: saved.user || null,
+        };
+        return cloudAuthState;
+      }
+    } catch (_) {
+      // Use the in-memory token when the userscript manager storage is unavailable.
+    }
+    return null;
+  }
+
+  function clearCloudAuthToken() {
+    cloudAuthState = null;
+    try {
+      if (typeof GM_deleteValue === 'function') GM_deleteValue(CLOUD_AUTH_TOKEN_KEY);
+    } catch (_) {
+      // Ignore storage cleanup failures; the in-memory token is already gone.
+    }
+  }
+
+  function saveCloudAuthToken(response) {
+    const token = String(response && response.token || '').trim();
+    const expiresAt = parseCloudAuthExpiry(response && response.expiresAt)
+      || (Date.now() + 8 * 60 * 60 * 1000);
+    if (!token || token.split('.').length !== 3 || expiresAt <= Date.now()) {
+      throw new Error('云端登录令牌无效');
+    }
+    cloudAuthState = { token, expiresAt, user: response && response.user || null };
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(CLOUD_AUTH_TOKEN_KEY, cloudAuthState);
+    } catch (_) {
+      // The token remains usable for this page session.
+    }
+    return token;
+  }
+
+  async function ensureCloudAuthToken(force) {
+    if (!force) {
+      const cached = readCloudAuthToken();
+      if (cached) return cached.token;
+    } else {
+      clearCloudAuthToken();
+    }
+    if (cloudAuthExchangePromise) return cloudAuthExchangePromise;
+    cloudAuthExchangePromise = (async () => {
+      let plmToken = await waitForPlmBearerToken();
+      if (!plmToken) throw new Error('未检测到 PLM 登录态，请先刷新 PLM 页面后重试');
+      try {
+        const response = await cloudTransport('/auth/exchange', {
+          method: 'POST',
+          timeoutMs: CLOUD_AUTH_EXCHANGE_TIMEOUT_MS,
+        }, { Authorization: 'Bearer ' + plmToken });
+        return saveCloudAuthToken(response);
+      } finally {
+        plmToken = '';
+      }
+    })().finally(() => {
+      cloudAuthExchangePromise = null;
+    });
+    return cloudAuthExchangePromise;
+  }
+
+  function cloudTransport(path, options, extraHeaders) {
     const method = (options && options.method) || 'GET';
     const body = options && options.body ? JSON.stringify(options.body) : null;
     const url = CLOUD_BACKUP_API_BASE + path;
     const timeoutMs = Number(options && options.timeoutMs) || 30000;
+    const headers = {
+      'content-type': 'application/json',
+      ...((options && options.headers) || {}),
+      ...(extraHeaders || {}),
+    };
     return new Promise((resolve, reject) => {
       const handleLoad = (response) => {
         const text = response.responseText || '';
@@ -29149,10 +28282,7 @@
         GM_xmlhttpRequest({
           method,
           url,
-          headers: {
-            'content-type': 'application/json',
-            'x-api-key': CLOUD_BACKUP_API_KEY,
-          },
+          headers,
           data: body,
           onload: handleLoad,
           onerror: () => reject(new Error('云端请求被浏览器拦截或网络不可用')),
@@ -29166,10 +28296,7 @@
       fetch(url, {
         method,
         signal: controller ? controller.signal : undefined,
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': CLOUD_BACKUP_API_KEY,
-        },
+        headers,
         body,
       }).then(async (response) => {
         const text = await response.text();
@@ -29188,6 +28315,20 @@
         if (timer) window.clearTimeout(timer);
       });
     });
+  }
+
+  async function cloudRequest(path, options) {
+    const requestOptions = options || {};
+    const token = await ensureCloudAuthToken(Boolean(requestOptions.forceAuth));
+    try {
+      return await cloudTransport(path, requestOptions, { Authorization: 'Bearer ' + token });
+    } catch (error) {
+      if (Number(error && error.status) !== 401 || requestOptions.__authRetried) throw error;
+      clearCloudAuthToken();
+      return cloudTransport(path, { ...requestOptions, __authRetried: true }, {
+        Authorization: 'Bearer ' + await ensureCloudAuthToken(true),
+      });
+    }
   }
 
   function buildCloudError(data, status) {
@@ -30979,6 +30120,32 @@
     return normalizeText([root.innerText, root.textContent, root.getAttribute && root.getAttribute('title'), root.getAttribute && root.getAttribute('aria-label')]
       .filter(Boolean)
       .join('\n'));
+  }
+
+  function normalizeText(text) {
+    return String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').trim();
+  }
+
+  function truncateFileName(name, max) {
+    const text = String(name || '');
+    if (!text) return '';
+    const limit = Math.max(8, Number(max) || 30);
+    if (text.length <= limit) return text;
+    const head = Math.ceil(limit * 0.6);
+    const tail = limit - head - 1;
+    return text.slice(0, head) + '…' + text.slice(-tail);
+  }
+
+  function compactText(text) {
+    return normalizeText(text).replace(/\s+/g, ' ');
+  }
+
+  function compactLabel(text) {
+    return compactText(text).replace(/\*+$/g, '').trim();
+  }
+
+  function trimNumber(num) {
+    return Number(num).toFixed(2).replace(/\.?0+$/, '');
   }
 
   function isVisibleElement(el) {
