@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.7.99
+// @version      2.8.8
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.7.99';
+  const SCRIPT_VERSION = '2.8.8';
 
   // <text-utils-module>
   // Pure text and number helpers shared by data parsing and UI formatting.
@@ -15134,8 +15134,10 @@
       const top = openBelow
         ? Math.min(bottomBoundary - menuRect.height, buttonRect.bottom + 7)
         : Math.max(topBoundary, buttonRect.top - menuRect.height - 7);
-      menu.style.left = Math.round(left) + 'px';
-      menu.style.top = Math.round(top) + 'px';
+      // The hosted stylesheet still declares `top` with `!important`; write
+      // both computed axes at the same priority so the menu stays in view.
+      menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+      menu.style.setProperty('top', Math.round(top) + 'px', 'important');
       menu.style.setProperty('--pfh-menu-origin', openBelow ? 'right top' : 'right bottom');
       menu.style.visibility = 'visible';
     });
