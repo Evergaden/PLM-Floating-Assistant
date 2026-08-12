@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.9
+// @version      2.8.10
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.9';
+  const SCRIPT_VERSION = '2.8.10';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9727,7 +9727,7 @@
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + iconHtml('history') + ' 玩具标签历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : '失败') + '</strong><span>' + escapeHtml(entry.name || '标签尺寸说明图') + ' · ' + escapeHtml(entry.materialCode || '标签物料') + ' · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + '</div></section></div>' : '';
     const activity = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error').slice(0, 3);
     const activityHtml = activity.length ? activity.map((task) => '<p><i></i><span>' + escapeHtml(task.sku + ' · ' + magicToyLabelStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>' + escapeHtml(state.magicToyLabelStatus || '等待 SKU 进入队列') + '</span></p>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + successCount + '/' + queue.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + pendingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM API</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + escapeHtml(state.magicToyLabelInput || '') + '</textarea><p class="pfh-magic-toy-label-hint">尺寸优先读取项目 BOM 标签物料的长宽；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-toy-label-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + iconHtml('history') + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + queue.length + ' 个 SKU · API 写入标签物料</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + successCount + '/' + queue.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + pendingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM API</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + escapeHtml(state.magicToyLabelInput || '') + '</textarea><p class="pfh-magic-toy-label-hint">玩具标签固定按宽4×高3cm生成，不读取 BOM 或普通印刷尺寸；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-toy-label-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + iconHtml('history') + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + queue.length + ' 个 SKU · API 写入标签物料</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
   }
 
   function magicUploadViewHtml() {
@@ -10200,20 +10200,9 @@
     return { projectId, data, materials, labelMaterial, effectPictureFiles, imageUrl, imageFallbackUrl };
   }
 
-  function getMagicToyLabelSizeCm(material, data) {
-    const source = material || {};
-    const readDimension = (value) => {
-      const numeric = Number(value);
-      if (Number.isFinite(numeric) && numeric > 0) return numeric;
-      const extracted = Number(extractCmValue(value));
-      return Number.isFinite(extracted) && extracted > 0 ? extracted : 0;
-    };
-    const width = readDimension(source.material_length || source.materialLength || source.length);
-    const height = readDimension(source.material_width || source.materialWidth || source.width);
-    if (width > 0 && height > 0) return { width, height };
-    const printNums = parseDimension(data && (data.printSizeText || data.printSizeLabel), 2);
-    if (printNums && printNums[0] > 0 && printNums[1] > 0) return { width: printNums[0], height: printNums[1] };
-    return getToyLabelSizeCm(data);
+  function getMagicToyLabelSizeCm() {
+    // Toy labels use a fixed 4x3cm layout. Do not inherit dimensions from BOM or print materials.
+    return { width: 4, height: 3 };
   }
 
   async function generateMagicToyLabelSizeImage(task, context) {
@@ -10228,7 +10217,7 @@
       throw new Error('产品图读取失败：' + formatErrorMessage(error));
     });
     if (!productImage || !productImage.dataUrl) throw new Error('产品图为空，已停止生成');
-    const size = getMagicToyLabelSizeCm(context.labelMaterial, data);
+    const size = getMagicToyLabelSizeCm();
     const barcodeImage = await getBarcodeForToyLabel(task.sku);
     const printCanvas = await renderToyLabelPrintCanvas({ sku: task.sku, widthCm: size.width, heightCm: size.height, productImage, barcodeImage });
     const previewCanvas = await renderToyLabelPreviewCanvas({ sku: task.sku, widthCm: size.width, heightCm: size.height, printCanvas });
