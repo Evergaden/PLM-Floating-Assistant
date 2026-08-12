@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.11
+// @version      2.8.12
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.11';
+  const SCRIPT_VERSION = '2.8.12';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -15369,7 +15369,6 @@
     cancelDrawerTabFlow();
     expandPanel();
     await wait(COPYWRITING_CACHE_DEBOUNCE_MS);
-    await ensureBrandComplianceDataLoaded();
     const storedData = hasImmediateCopywriting ? data : normalizeData(loadData(sku) || data);
     const storedCached = normalizeCopywritingRecord(storedData.copywriting);
     const initialCached = (currentCached && currentCached.fullText ? currentCached : null)
