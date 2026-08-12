@@ -8516,7 +8516,7 @@
     const labelFlow = root.querySelector('.pfh-magic-toy-label-form-head > strong');
     if (labelFlow) labelFlow.textContent = '自动生成并保存';
     const labelHint = root.querySelector('.pfh-magic-toy-label-hint');
-    if (labelHint) labelHint.textContent = '优先读取标签物料尺寸，生成高清图片后自动上传并保存到对应标签物料。';
+    if (labelHint) labelHint.textContent = '玩具标签固定按宽4×高3cm生成，不读取 BOM 或普通印刷尺寸。';
     const queueSummary = root.querySelector('.pfh-magic-queue-head > span');
     if (queueSummary) queueSummary.textContent = queueSummary.textContent.replace('API 写入标签物料', '自动保存到标签物料');
     root.querySelectorAll('.pfh-magic-task-meta > span:last-child').forEach((element) => {
