@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.10
+// @version      2.8.11
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.10';
+  const SCRIPT_VERSION = '2.8.11';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -8638,6 +8638,13 @@
       generatedFilename: String(task.generatedFilename || '').trim(),
       widthCm: Number(task.widthCm) || 0,
       heightCm: Number(task.heightCm) || 0,
+      existingImagePaths: Array.from(new Set((Array.isArray(task.existingImagePaths) ? task.existingImagePaths : []).map((path) => normalizeMagicUploadEffectPath(path)).filter(Boolean))).slice(0, 20),
+      replacementCheckStatus: String(task.replacementCheckStatus || 'idle'),
+      replacementCheckError: String(task.replacementCheckError || '').trim(),
+      replacementCheckToken: String(task.replacementCheckToken || '').trim(),
+      replacementCheckedAt: Number(task.replacementCheckedAt) || 0,
+      replacedExistingImage: Boolean(task.replacedExistingImage),
+      replacementCompleted: Boolean(task.replacementCompleted),
       updatedAt: Number(task.updatedAt) || Date.now(),
     };
   }
@@ -8677,7 +8684,7 @@
 
   function magicToyLabelStatusLabel(task) {
     if (!task) return '等待生成';
-    if (task.status === 'success') return '已写入 BOM 标签';
+    if (task.status === 'success') return task.replacedExistingImage ? '已替换 BOM 标签图' : '已写入 BOM 标签';
     if (task.status === 'error') return task.error || '生成或上传失败';
     if (task.status === 'waiting') return '已暂停';
     return task.step || '等待生成';
@@ -8719,11 +8726,12 @@
     }
     const queue = Array.isArray(state.magicToyLabelQueue) ? state.magicToyLabelQueue : [];
     const existing = new Set(queue.map((task) => String(task && task.sku || '').toUpperCase()));
+    const addedTasks = [];
     let added = 0;
     skus.forEach((sku) => {
       if (existing.has(sku)) return;
       const cached = loadData(sku) || (state.index || []).find((item) => item && item.sku === sku) || {};
-      queue.push(normalizeMagicToyLabelTask({
+      const task = normalizeMagicToyLabelTask({
         id: createMagicUploadId(),
         sku,
         name: cached.name || '',
@@ -8731,13 +8739,16 @@
         progress: 0,
         step: '等待生成',
         createdAt: Date.now(),
-      }, { preserveProcessing: true }));
+      }, { preserveProcessing: true });
+      queue.push(task);
+      addedTasks.push(task);
       existing.add(sku);
       added += 1;
     });
     state.magicToyLabelInput = '';
     state.magicToyLabelStatus = added ? '已加入 ' + added + ' 个玩具标签任务' : '这些 SKU 已在队列中';
     saveMagicToyLabelQueue(queue);
+    scheduleMagicToyLabelReplacementChecks(addedTasks);
     refreshMagicToyLabelPage();
   }
 
@@ -8751,7 +8762,8 @@
   function retryMagicToyLabelTask(id) {
     const task = (state.magicToyLabelQueue || []).find((item) => item && item.id === String(id || ''));
     if (!task) return;
-    updateMagicToyLabelTask(task, { status: 'pending', progress: 0, step: '等待重试', error: '', objectPath: '' });
+    updateMagicToyLabelTask(task, { status: 'pending', progress: 0, step: '等待重试', error: '', objectPath: '', existingImagePaths: [], replacementCheckStatus: task.sku ? 'checking' : 'idle', replacementCheckError: '', replacedExistingImage: false, replacementCompleted: false });
+    scheduleMagicToyLabelReplacementChecks([task]);
   }
 
   function clearMagicToyLabelQueue() {
@@ -8770,9 +8782,11 @@
       showToast(entry.sku + ' 已在玩具标签队列中');
       return;
     }
-    queue.push(normalizeMagicToyLabelTask({ ...entry, id: createMagicUploadId(), status: 'pending', progress: 0, step: '等待重试', error: '', objectPath: '' }, { preserveProcessing: true }));
+    const task = normalizeMagicToyLabelTask({ ...entry, id: createMagicUploadId(), status: 'pending', progress: 0, step: '等待重试', error: '', objectPath: '', existingImagePaths: [], replacementCheckStatus: entry.sku ? 'checking' : 'idle', replacementCheckError: '', replacedExistingImage: false, replacementCompleted: false }, { preserveProcessing: true });
+    queue.push(task);
     state.magicToyLabelStatus = entry.sku + ' 已恢复到队列';
     saveMagicToyLabelQueue(queue);
+    scheduleMagicToyLabelReplacementChecks([task]);
     state.magicToyLabelHistoryOpen = false;
     refreshMagicToyLabelPage();
   }
@@ -9707,8 +9721,19 @@
       .join(' · ');
   }
 
+  function magicToyLabelReplacementSummary(task) {
+    const status = String(task && task.replacementCheckStatus || 'idle');
+    if (status === 'checking') return '正在查询当前 BOM 标签图…';
+    if (status === 'error') return '开始时会重新查询当前 BOM 标签图';
+    if (status === 'idle') return '待检查当前 BOM 标签图';
+    const count = Array.isArray(task && task.existingImagePaths) ? task.existingImagePaths.length : 0;
+    return count ? '替换任务 · 现有 ' + count + ' 张标签图' : '新增任务';
+  }
+
   function magicToyLabelViewHtml(modeTabs) {
     const queue = Array.isArray(state.magicToyLabelQueue) ? state.magicToyLabelQueue : [];
+    const uncheckedTasks = queue.filter((task) => task && (task.status === 'pending' || task.status === 'error') && (!task.replacementCheckStatus || task.replacementCheckStatus === 'idle'));
+    if (uncheckedTasks.length) scheduleMagicToyLabelReplacementChecks(uncheckedTasks);
     const running = Boolean(state.magicToyLabelRunning);
     const pendingCount = queue.filter((task) => task.status === 'pending' || task.status === 'error').length;
     const errorCount = queue.filter((task) => task.status === 'error').length;
@@ -9721,8 +9746,13 @@
       const statusClass = task.status === 'success' ? 'is-success' : (task.status === 'error' ? 'is-error' : '');
       const statusText = magicToyLabelStatusLabel(task);
       const title = task.name || '标签尺寸说明图';
-      const dimension = task.widthCm && task.heightCm ? trimCm(task.widthCm) + ' × ' + trimCm(task.heightCm) + ' cm' : '尺寸读取中';
-      return '<article class="pfh-magic-task ' + statusClass + '" data-magic-toy-label-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku) + '">' + escapeHtml(task.sku) + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</span><span class="pfh-magic-file-badge">PNG</span></div><div class="pfh-magic-task-meta"><span>' + escapeHtml(task.materialCode || '标签物料待匹配') + '</span><span>' + escapeHtml(dimension) + '</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(task.step || statusText) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-remove" data-magic-toy-label-id="' + escapeHtml(task.id) + '">删除</button>' + (task.status === 'error' ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-retry" data-magic-toy-label-id="' + escapeHtml(task.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+      const replacementStatus = String(task.replacementCheckStatus || 'idle');
+      const existingImageCount = Array.isArray(task.existingImagePaths) ? task.existingImagePaths.length : 0;
+      const replacementBadge = replacementStatus === 'checking' ? '<span class="pfh-magic-file-badge is-checking">检查现有图</span>' : (existingImageCount ? '<span class="pfh-magic-file-badge is-replace">替换任务</span>' : '');
+      const taskClass = statusClass + (existingImageCount ? ' is-replace' : '');
+      const stageText = task.status === 'pending' || task.status === 'waiting' ? magicToyLabelReplacementSummary(task) : (task.step || statusText);
+      const dimension = '4 × 3 cm';
+      return '<article class="pfh-magic-task ' + taskClass + '" data-magic-toy-label-id="' + escapeHtml(task.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(task.sku) + '">' + escapeHtml(task.sku) + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</span><span class="pfh-magic-file-badge">PNG</span>' + replacementBadge + '</div><div class="pfh-magic-task-meta"><span>' + escapeHtml(task.materialCode || '标签物料待匹配') + '</span><span>' + escapeHtml(dimension) + '</span></div><div class="pfh-magic-stage" data-magic-stage>' + escapeHtml(stageText) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-remove" data-magic-toy-label-id="' + escapeHtml(task.id) + '">删除</button>' + (task.status === 'error' ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-retry" data-magic-toy-label-id="' + escapeHtml(task.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value" data-magic-progress-value>' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
     }).join('') : '<div class="pfh-magic-empty">在上方粘贴 SKU，生成带产品图、条码和尺寸标注的标签说明图</div>';
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + iconHtml('history') + ' 玩具标签历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : '失败') + '</strong><span>' + escapeHtml(entry.name || '标签尺寸说明图') + ' · ' + escapeHtml(entry.materialCode || '标签物料') + ' · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + '</div></section></div>' : '';
     const activity = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error').slice(0, 3);
@@ -10076,7 +10106,8 @@
           updateMagicToyLabelTask(task, { status: 'processing', progress: Math.max(.01, Number(task.progress) || 0), step: '读取项目 BOM 和效果图', error: '' });
           try {
             const result = await processMagicToyLabelTask(task);
-            updateMagicToyLabelTask(task, { status: 'success', progress: 1, step: '已写入 BOM 标签物料', error: '', objectPath: result.objectPath || task.objectPath, finishedAt: Date.now() });
+            const replacedExistingImage = Boolean(result.replacedExistingImage || task.replacedExistingImage);
+            updateMagicToyLabelTask(task, { status: 'success', progress: 1, step: replacedExistingImage ? '已替换旧标签图并写入 BOM' : '已写入 BOM 标签物料', error: '', objectPath: result.objectPath || task.objectPath, replacedExistingImage, finishedAt: Date.now() });
             state.magicToyLabelHistory = [{ ...normalizeMagicToyLabelTask(task, { preserveProcessing: true }), status: 'success', finishedAt: Date.now() }, ...(state.magicToyLabelHistory || [])].slice(0, 300);
             saveMagicToyLabelHistory(state.magicToyLabelHistory);
             addLog('success', '魔法上传玩具标签 API 成功', task.sku + ' | ' + (task.objectPath || result.objectPath || ''));
@@ -10116,13 +10147,20 @@
     if (!task || !task.sku) throw new Error('缺少 SKU 编码');
     const context = await resolveMagicToyLabelContext(task);
     ensureMagicToyLabelRunning();
+    const existingImagePaths = getMagicToyLabelExistingImagePaths(context.labelMaterial);
     updateMagicToyLabelTask(task, {
       projectId: context.projectId,
       name: task.name || context.data.name || '',
       materialId: context.labelMaterial.id,
       materialCode: context.labelMaterial.code || '',
       materialName: context.labelMaterial.name || context.labelMaterial.category_name || '',
-      step: '生成标签尺寸图',
+      existingImagePaths,
+      replacementCheckStatus: 'ready',
+      replacementCheckError: '',
+      replacementCheckedAt: Date.now(),
+      replacedExistingImage: false,
+      replacementCompleted: false,
+      step: existingImagePaths.length ? '检查到现有标签图，准备替换' : '未发现现有标签图，准备新增',
       progress: .2,
     });
     const generated = await generateMagicToyLabelSizeImage(task, context);
@@ -10138,8 +10176,8 @@
     ensureMagicToyLabelRunning();
     task.objectPath = objectPath;
     updateMagicToyLabelTask(task, { objectPath, step: '调用 BOM API 保存标签', progress: .82 });
-    await saveMagicToyLabelToBom(task, context, objectPath);
-    return { objectPath };
+    const saved = await saveMagicToyLabelToBom(task, context, objectPath);
+    return { objectPath, replacedExistingImage: Boolean(saved && saved.replacedExistingImage) };
   }
 
   function getMagicToyLabelEffectPicturePaths(payload) {
@@ -10158,10 +10196,41 @@
     return /^https?:\/\//i.test(text) ? stripOssResizeParams(text) : buildApiArchiveFileUrl(text);
   }
 
-  async function resolveMagicToyLabelContext(task) {
+  function getMagicToyLabelExistingImagePaths(material) {
+    const paths = [];
+    const seen = new Set();
+    const add = (value) => {
+      if (Array.isArray(value)) {
+        value.forEach(add);
+        return;
+      }
+      if (value && typeof value === 'object') {
+        add(value.path || value.file_path || value.filePath || value.oss_path || value.ossPath || value.url || value.src || value.value || '');
+        return;
+      }
+      const path = normalizeMagicUploadEffectPath(String(value || '').trim());
+      if (!path || /^(?:null|undefined)$/i.test(path) || seen.has(path)) return;
+      seen.add(path);
+      paths.push(path);
+    };
+    add(material && material.pics);
+    return paths.slice(0, 20);
+  }
+
+  function getMagicToyLabelMaterial(materials, sku) {
+    const list = Array.isArray(materials) ? materials : [];
+    if (!list.length) throw new Error('项目 BOM 没有物料：' + sku);
+    const labelMaterials = list.filter((material) => /标签/.test([material && material.category_name, material && material.categoryName].filter(Boolean).join(' ')));
+    const namedLabelMaterials = list.filter((material) => /标签/.test([material && material.name, material && material.material_name].filter(Boolean).join(' ')));
+    const labelMaterial = labelMaterials[0] || namedLabelMaterials[0] || (list.length === 1 ? list[0] : null);
+    if (!labelMaterial) throw new Error('项目 BOM 未找到标签物料：' + sku);
+    return labelMaterial;
+  }
+
+  async function resolveMagicToyLabelProject(task, options) {
     const sku = String(task && task.sku || '').trim().toUpperCase();
     if (!sku) throw new Error('缺少 SKU 编码');
-    ensureMagicToyLabelRunning();
+    if (!(options && options.allowPaused)) ensureMagicToyLabelRunning();
     const cached = loadData(sku) || (state.index || []).find((item) => item && item.sku === sku) || {};
     let data = normalizeData({ ...cached, sku });
     const projectSnapshot = await fetchApiProjectSnapshot(data, { force: true }).catch((error) => {
@@ -10177,16 +10246,83 @@
       name: data.name || projectSnapshot && projectSnapshot.name || '',
       brand: data.brand || projectSnapshot && projectSnapshot.brand || '',
     });
+    return { sku, projectId, data };
+  }
+
+  async function resolveMagicToyLabelBomContext(task) {
+    const project = await resolveMagicToyLabelProject(task, { allowPaused: true });
+    const materialsPayload = await fetchPlmJson('/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=' + encodeURIComponent(project.projectId));
+    const materials = getApiMaterialItems(materialsPayload);
+    return { ...project, materials, labelMaterial: getMagicToyLabelMaterial(materials, project.sku) };
+  }
+
+  function applyMagicToyLabelReplacementSnapshot(task, imagePaths, status, errorMessage) {
+    if (!task) return;
+    task.existingImagePaths = Array.isArray(imagePaths) ? imagePaths.slice(0, 20) : [];
+    task.replacementCheckStatus = status || 'ready';
+    task.replacementCheckError = String(errorMessage || '');
+    task.replacementCheckedAt = status === 'ready' ? Date.now() : (Number(task.replacementCheckedAt) || 0);
+    task.updatedAt = Date.now();
+  }
+
+  async function refreshMagicToyLabelReplacement(task, token) {
+    if (!task || !task.sku) return;
+    const context = await resolveMagicToyLabelBomContext(task);
+    const imagePaths = getMagicToyLabelExistingImagePaths(context.labelMaterial);
+    const liveTask = (state.magicToyLabelQueue || []).find((item) => item && item.id === task.id);
+    if (!liveTask || (token && liveTask.replacementCheckToken !== token)) return;
+    applyMagicToyLabelReplacementSnapshot(liveTask, imagePaths, 'ready', '');
+    if (liveTask.status === 'pending' || liveTask.status === 'waiting' || liveTask.status === 'error') {
+      liveTask.step = magicToyLabelReplacementSummary(liveTask);
+    }
+    saveMagicToyLabelQueue(state.magicToyLabelQueue);
+    refreshMagicToyLabelPage();
+    magicUploadLog('info', '玩具标签现有图检查完成', task.sku + ' | ' + (imagePaths.length ? '替换旧图=' + imagePaths.length : '没有旧标签图'));
+  }
+
+  function scheduleMagicToyLabelReplacementChecks(tasks) {
+    const uniqueTasks = Array.from(new Map((tasks || []).filter((task) => task && task.id).map((task) => [task.id, task])).values());
+    let changed = false;
+    uniqueTasks.forEach((task) => {
+      if (!task.sku) {
+        task.replacementCheckStatus = 'idle';
+        task.existingImagePaths = [];
+        return;
+      }
+      const token = createMagicUploadId();
+      task.replacementCheckToken = token;
+      task.existingImagePaths = [];
+      task.replacementCheckStatus = 'checking';
+      task.replacementCheckError = '';
+      task.replacedExistingImage = false;
+      task.replacementCompleted = false;
+      if (task.status !== 'processing' && task.status !== 'success') task.step = magicToyLabelReplacementSummary(task);
+      task.updatedAt = Date.now();
+      changed = true;
+      Promise.resolve().then(() => refreshMagicToyLabelReplacement(task, token)).catch((error) => {
+        const liveTask = (state.magicToyLabelQueue || []).find((item) => item && item.id === task.id);
+        if (!liveTask || liveTask.replacementCheckToken !== token) return;
+        liveTask.replacementCheckStatus = 'error';
+        liveTask.replacementCheckError = formatErrorMessage(error);
+        liveTask.step = '现有图检查失败，开始时会重新查询';
+        liveTask.updatedAt = Date.now();
+        saveMagicToyLabelQueue(state.magicToyLabelQueue);
+        refreshMagicToyLabelPage();
+        magicUploadLog('warn', '玩具标签现有图检查失败', task.sku + ' | ' + liveTask.replacementCheckError);
+      });
+    });
+    if (changed) saveMagicToyLabelQueue(state.magicToyLabelQueue);
+  }
+
+  async function resolveMagicToyLabelContext(task) {
+    const project = await resolveMagicToyLabelProject(task);
+    const { sku, projectId, data } = project;
     const [materialsPayload, effectPayload] = await Promise.all([
       fetchPlmJson('/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
       fetchPlmJson('/api/ChemicalNew/GetProjectEffectPicture?id=' + encodeURIComponent(projectId)),
     ]);
     const materials = getApiMaterialItems(materialsPayload);
-    if (!materials.length) throw new Error('项目 BOM 没有物料：' + sku);
-    const labelMaterials = materials.filter((material) => /标签/.test([material && material.category_name, material && material.categoryName].filter(Boolean).join(' ')));
-    const namedLabelMaterials = materials.filter((material) => /标签/.test([material && material.name, material && material.material_name].filter(Boolean).join(' ')));
-    const labelMaterial = labelMaterials[0] || namedLabelMaterials[0] || (materials.length === 1 ? materials[0] : null);
-    if (!labelMaterial) throw new Error('项目 BOM 未找到标签物料：' + sku);
+    const labelMaterial = getMagicToyLabelMaterial(materials, sku);
     const effectPictureFiles = getMagicToyLabelEffectPicturePaths(effectPayload);
     const cachedImageSource = getToyLabelImageSource(data, {});
     let imageUrl = effectPictureFiles.map(getMagicToyLabelImageUrl).find(Boolean) || cachedImageSource.imageUrl || cachedImageSource.imageFallbackUrl || '';
@@ -10255,13 +10391,23 @@
     const materials = (context.materials || []).map(buildMagicUploadBomMaterialPayload);
     const target = materials.find((material) => String(material && material.id || '') === String(context.labelMaterial && context.labelMaterial.id || ''));
     if (!target) throw new Error('BOM 标签物料已变化，无法定位保存行');
+    const previousImagePaths = getMagicToyLabelExistingImagePaths(context.labelMaterial);
     target.pics = [normalizeMagicUploadEffectPath(objectPath)];
     await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
       project_id: Number(context.projectId) || context.projectId,
       materials,
       effect_picture_files: context.effectPictureFiles || [],
     });
-    updateMagicToyLabelTask(task, { progress: 1, step: 'BOM 标签物料已保存' });
+    const replacedExistingImage = previousImagePaths.length > 0;
+    updateMagicToyLabelTask(task, {
+      progress: 1,
+      step: replacedExistingImage ? '已替换旧标签图并保存 BOM' : 'BOM 标签物料已保存',
+      existingImagePaths: previousImagePaths,
+      replacedExistingImage,
+      replacementCheckStatus: 'ready',
+      replacementCompleted: true,
+    });
+    return { replacedExistingImage, previousImagePaths };
   }
 
   async function resolveMagicUploadProductContext(task) {
