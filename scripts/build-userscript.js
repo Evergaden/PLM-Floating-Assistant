@@ -4,6 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const outputPath = path.join(root, 'outputs', 'plm-material-summary.user.js');
 const modules = [
+  { name: 'text-utils', file: path.join(root, 'src', 'data', 'text-utils.module.js') },
   { name: 'parameter-logo-assets', file: path.join(root, 'src', 'parameter-logo-assets.module.js') },
   { name: 'parameter-image', file: path.join(root, 'src', 'parameter-image.module.js') },
   { name: 'cloud-assets', file: path.join(root, 'src', 'cloud-assets.module.js') },
@@ -30,7 +31,7 @@ for (const module of selectedModules) {
 
 const startupIndex = output.indexOf('\n  injectStyle();');
 if (startupIndex < 0) throw new Error('userscript startup marker is missing');
-for (const name of ['cloud-assets', 'icon-assets', 'notifications', 'desktop-bridge', 'ui-loader']) {
+for (const name of ['text-utils', 'cloud-assets', 'icon-assets', 'notifications', 'desktop-bridge', 'ui-loader']) {
   const moduleIndex = output.indexOf(`  // <${name}-module>`);
   if (moduleIndex < 0 || moduleIndex > startupIndex) {
     throw new Error(`${name} module must be initialized before userscript startup`);

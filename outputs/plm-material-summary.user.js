@@ -39,6 +39,35 @@
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
   const SCRIPT_VERSION = '2.7.99';
 
+  // <text-utils-module>
+  // Pure text and number helpers shared by data parsing and UI formatting.
+  function normalizeText(text) {
+    return String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').trim();
+  }
+
+  function truncateFileName(name, max) {
+    const text = String(name || '');
+    if (!text) return '';
+    const limit = Math.max(8, Number(max) || 30);
+    if (text.length <= limit) return text;
+    const head = Math.ceil(limit * 0.6);
+    const tail = limit - head - 1;
+    return text.slice(0, head) + '…' + text.slice(-tail);
+  }
+
+  function compactText(text) {
+    return normalizeText(text).replace(/\s+/g, ' ');
+  }
+
+  function compactLabel(text) {
+    return compactText(text).replace(/\*+$/g, '').trim();
+  }
+
+  function trimNumber(num) {
+    return Number(num).toFixed(2).replace(/\.?0+$/, '');
+  }
+  // </text-utils-module>
+
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
       const panel = document.getElementById(PANEL_ID);
@@ -30948,32 +30977,6 @@
     return normalizeText([root.innerText, root.textContent, root.getAttribute && root.getAttribute('title'), root.getAttribute && root.getAttribute('aria-label')]
       .filter(Boolean)
       .join('\n'));
-  }
-
-  function normalizeText(text) {
-    return String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').trim();
-  }
-
-  function truncateFileName(name, max) {
-    const text = String(name || '');
-    if (!text) return '';
-    const limit = Math.max(8, Number(max) || 30);
-    if (text.length <= limit) return text;
-    const head = Math.ceil(limit * 0.6);
-    const tail = limit - head - 1;
-    return text.slice(0, head) + '…' + text.slice(-tail);
-  }
-
-  function compactText(text) {
-    return normalizeText(text).replace(/\s+/g, ' ');
-  }
-
-  function compactLabel(text) {
-    return compactText(text).replace(/\*+$/g, '').trim();
-  }
-
-  function trimNumber(num) {
-    return Number(num).toFixed(2).replace(/\.?0+$/, '');
   }
 
   function isVisibleElement(el) {
