@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.27
+// @version      2.8.28
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.27";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.28";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -55,7 +55,7 @@
             }
         }, 0);
     }
-    const r = "2.5.199", i = Object.freeze({
+    const r = "2.5.200", i = Object.freeze({
         id: "design",
         label: "设计版",
         code: "DESIGN"
