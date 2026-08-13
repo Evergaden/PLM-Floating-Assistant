@@ -1,3 +1,4 @@
+
   const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v1';
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
   const CLOUD_ASSET_REFRESH_MS = 24 * 60 * 60 * 1000;
@@ -77,13 +78,59 @@
     return Boolean(descriptor && cloudUiAssetPathMatchesVersion(descriptor.path));
   }
 
+  function cloudBrandComplianceNeedsRefresh(cache) {
+    const brands = cache && cache.runtimeData && cache.runtimeData.brands;
+    if (!Array.isArray(brands)) return false;
+    const amz = brands.find((item) => String(item && item.brand || '').trim().toUpperCase() === 'AMZ');
+    return Boolean(amz && (!amz.us_rep || !cleanComplianceValue(amz.us_rep.company)));
+  }
+
   function scheduleCloudAssetRefresh(delay) {
-    window.setTimeout(() => {
-      refreshCloudAssets(false).catch((error) => {
+    window.setTimeout(async () => {
+      try {
+        await refreshCloudAssets(false);
+      } catch (error) {
         if (typeof showUiOfflineFallback === 'function') showUiOfflineFallback(error);
         addLog('warn', '\u4e91\u7aef\u8d44\u6e90\u66f4\u65b0\u5931\u8d25', formatErrorMessage(error));
-      });
+      }
+      try {
+        await refreshBrandComplianceData();
+      } catch (error) {
+        addLog('warn', '\u54c1\u724c\u5730\u5740\u66f4\u65b0\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u5907\u7528\u6570\u636e', formatErrorMessage(error));
+      }
     }, Math.max(0, Number(delay) || 0));
+  }
+
+  async function refreshBrandComplianceData() {
+    const response = await cloudRequest('/brand-compliance', { method: 'GET' });
+    const brands = response && response.brands;
+    if (!Array.isArray(brands) || !brands.length) throw new Error('cloud brand compliance data is empty');
+    BRAND_COMPLIANCE_DATA = brands;
+    if (cloudAssetCache && cloudAssetCache.runtimeData) {
+      cloudAssetCache = {
+        ...cloudAssetCache,
+        runtimeData: { ...cloudAssetCache.runtimeData, brands },
+        brandComplianceUpdatedAt: String(response.updatedAt || new Date().toISOString()),
+      };
+      saveCloudAssetCache(cloudAssetCache);
+    }
+    return brands;
+  }
+
+  async function ensureBrandComplianceDataLoaded() {
+    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
+    try {
+      await refreshCloudAssets(false);
+    } catch (error) {
+      addLog('warn', '\u54c1\u724c\u5730\u5740\u8d44\u6e90\u52a0\u8f7d\u5931\u8d25', formatErrorMessage(error));
+    }
+    if (Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length) return true;
+    try {
+      await refreshBrandComplianceData();
+    } catch (error) {
+      addLog('warn', '\u54c1\u724c\u5730\u5740\u8bfb\u53d6\u5931\u8d25', formatErrorMessage(error));
+    }
+    return Boolean(Array.isArray(BRAND_COMPLIANCE_DATA) && BRAND_COMPLIANCE_DATA.length);
   }
 
   function refreshCloudAssets(force) {
@@ -97,8 +144,9 @@
   async function refreshCloudAssetsNow(force) {
     const now = Date.now();
     const hasUiStyles = Boolean(getCachedCloudUiStyles());
+    const staleBrandCompliance = cloudBrandComplianceNeedsRefresh(cloudAssetCache);
     const staleUiAsset = String(cloudAssetCache && cloudAssetCache.uiAssetVersion || '') !== UI_ASSET_VERSION;
-    if (!force && !staleUiAsset && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
+    if (!force && !staleBrandCompliance && !staleUiAsset && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && now - Number(cloudAssetCache.checkedAt || 0) < CLOUD_ASSET_REFRESH_MS) {
       return cloudAssetCache;
     }
     const manifest = await cloudAssetRequest('/assets/manifest.json', 'json');
@@ -115,7 +163,7 @@
     const manifestUiHash = String(uiDescriptor.sha256 || '').toLowerCase();
     const uiDescriptorUnchanged = String(cloudAssetCache && cloudAssetCache.uiAssetPath || '') === String(uiDescriptor.path || '')
       && Boolean(cachedUiHash && manifestUiHash && cachedUiHash === manifestUiHash);
-    if (!force && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && uiDescriptorUnchanged && cloudAssetCache.dataVersion === manifest.dataVersion) {
+    if (!force && !staleBrandCompliance && hasCompleteCloudAssetCache(cloudAssetCache) && hasUiStyles && uiDescriptorUnchanged && cloudAssetCache.dataVersion === manifest.dataVersion) {
       cloudAssetCache = { ...cloudAssetCache, checkedAt: now };
       saveCloudAssetCache(cloudAssetCache);
       return cloudAssetCache;
@@ -169,7 +217,9 @@
     cloudAssetCache = nextCache;
     applyCloudAssetCache(nextCache);
     const panel = document.getElementById(PANEL_ID);
-    if (panel) renderShell();
+    if (panel) {
+      if (!refreshUploadViewInPlace(panel)) renderShell();
+    }
     addLog('success', '\u4e91\u7aef\u8d44\u6e90\u5df2\u66f4\u65b0', nextCache.dataVersion);
     return nextCache;
   }
@@ -197,37 +247,53 @@
   }
 
   function cloudAssetRequest(path, responseType) {
-    const url = CLOUD_BACKUP_API_BASE + path;
     return new Promise((resolve, reject) => {
-      const finish = (status, text, buffer) => {
-        if (status < 200 || status >= 300) {
-          reject(new Error('cloud asset HTTP ' + status));
+      const bases = Array.from(new Set([CLOUD_BACKUP_API_BASE, CLOUD_ASSET_FALLBACK_API_BASE].filter(Boolean)));
+      const suffix = (String(path || '').includes('?') ? '&' : '?')
+        + 'plm-ui=' + encodeURIComponent(UI_ASSET_VERSION + '-' + SCRIPT_VERSION);
+      const attempt = (index, previousError) => {
+        if (index >= bases.length) {
+          reject(previousError || new Error('cloud asset network unavailable'));
           return;
         }
-        try {
-          if (responseType === 'arraybuffer') resolve(buffer);
-          else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
-          else resolve(text || '');
-        } catch (error) {
-          reject(error);
+        const url = bases[index] + path + suffix;
+        const retry = (error) => attempt(index + 1, error);
+        const finish = (status, text, buffer) => {
+          if (status < 200 || status >= 300) {
+            retry(new Error('cloud asset HTTP ' + status));
+            return;
+          }
+          try {
+            if (responseType === 'arraybuffer') resolve(buffer);
+            else if (responseType === 'json') resolve(JSON.parse(text || '{}'));
+            else resolve(text || '');
+          } catch (error) {
+            retry(error);
+          }
+        };
+        if (typeof GM_xmlhttpRequest === 'function') {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url,
+            headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+            responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
+            timeout: 30000,
+            onload: (response) => finish(
+              response.status,
+              responseType === 'arraybuffer' ? '' : String(response.responseText || response.response || ''),
+              response.response
+            ),
+            onerror: () => retry(new Error('cloud asset network unavailable')),
+            ontimeout: () => retry(new Error('cloud asset timeout')),
+          });
+          return;
         }
+        fetch(url, { cache: 'no-store' }).then(async (response) => {
+          const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
+          finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
+        }).catch(retry);
       };
-      if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'GET',
-          url,
-          responseType: responseType === 'arraybuffer' ? 'arraybuffer' : 'text',
-          timeout: 30000,
-          onload: (response) => finish(response.status, response.responseText, response.response),
-          onerror: () => reject(new Error('cloud asset network unavailable')),
-          ontimeout: () => reject(new Error('cloud asset timeout')),
-        });
-        return;
-      }
-      fetch(url).then(async (response) => {
-        const value = responseType === 'arraybuffer' ? await response.arrayBuffer() : await response.text();
-        finish(response.status, responseType === 'arraybuffer' ? '' : value, responseType === 'arraybuffer' ? value : null);
-      }).catch(reject);
+      attempt(0, null);
     });
   }
 

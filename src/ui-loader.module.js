@@ -1,11 +1,15 @@
+
   const UI_STYLE_ID = 'pfh-ui-styles';
+  // Full component and theme CSS is delivered by the versioned cloud UI asset. Keep only the offline skeleton locally.
   let uiFallbackNoticeTimer = 0;
+  let uiAssetRetryTimer = 0;
+  let uiAssetRetryCount = 0;
   let uiAssetRecoveryBound = false;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
       position:fixed;right:18px;bottom:78px;z-index:2147483647;width:686px;height:min(906px,96vh);min-width:520px;min-height:520px;
-      overflow:visible;border:1px solid #D8DEEA;border-radius:16px;background:#fff;box-shadow:0 22px 70px rgba(31,25,55,.20);
-      color:#1F2937;font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
+      overflow:visible;border:1px solid var(--pfh-theme-border,#D8DEEA);border-radius:16px;background:var(--pfh-theme-surface,#fff);box-shadow:0 22px 70px rgba(31,25,55,.20);
+      color:var(--pfh-theme-text,#1F2937);font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
     }
     #${PANEL_ID},#${PANEL_ID} *{box-sizing:border-box}
     #${PANEL_ID}.is-collapsed{display:none!important}
@@ -50,8 +54,9 @@
     html.pfh-ui-fallback #${PANEL_ID}[data-view="about"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="ledger"] .pfh-full::before,
     html.pfh-ui-fallback #${PANEL_ID}[data-view="upload"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="unitConverter"] .pfh-full::before,
-    html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before{
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="tools"] .pfh-full::before,
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="batchExcel"] .pfh-full::before,
+    html.pfh-ui-fallback #${PANEL_ID}[data-view="feedback"] .pfh-full::before{
       background:
         linear-gradient(#B9BDC6,#B9BDC6) 18px 17px/38px 38px no-repeat,
         linear-gradient(#E2E4EA,#E2E4EA) 68px 22px/118px 14px no-repeat,
@@ -84,7 +89,8 @@
       color:#6D35E8;font-size:11px;font-weight:700;text-align:center;transform:translateX(-50%);visibility:visible;
     }
     html.pfh-ui-waiting #${PANEL_ID}::after{content:"网络较慢，正在继续加载完整界面…"}
-    html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:#F2D4A6;background:#FFFAEB;color:#B54708}
+    html.pfh-ui-error #${PANEL_ID}::after{content:"界面资源暂时不可用，正在等待恢复";border-color:var(--pfh-theme-border-strong,#D8DEEA);background:var(--pfh-theme-surface-alt,#F7F8FC);color:var(--pfh-theme-primary,#6D35E8)}
+    html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:var(--pfh-theme-border-strong,#F2D4A6);background:var(--pfh-theme-surface-alt,#FFFAEB);color:var(--pfh-theme-primary,#B54708)}
     #${LAUNCHER_ID}{position:fixed;z-index:2147483647;display:inline-flex;width:86px;height:34px;align-items:center;justify-content:center;border:1px solid #D8DEEA;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(35,25,70,.14);color:#403657;cursor:pointer;font:600 13px/1 "Microsoft YaHei",sans-serif}
     @keyframes pfh-ui-skeleton-sweep{from{background-position:130% 0}to{background-position:-130% 0}}
     @media(max-width:620px){
@@ -104,6 +110,42 @@
     @media(prefers-reduced-motion:reduce){html.pfh-ui-fallback #${PANEL_ID} .pfh-full::after{animation:none;opacity:.38}}
   `;
 
+
+  const THEME_RESOURCE_STYLE_ID = 'pfh-theme-resource-styles';
+  const THEME_RESOURCE_CSS = `
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu {
+      min-height: 74px !important;
+      border-color: #edc47e !important;
+      background: linear-gradient(135deg, #fff8d9, #ffe8bd) !important;
+    }
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu:hover {
+      border-color: #dfa052 !important;
+      background: linear-gradient(135deg, #fff1b9, #ffd9a5) !important;
+    }
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu .pfh-theme-option-download {
+      display: block;
+      margin-top: auto;
+      color: #bd6a20 !important;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu.is-selected .pfh-theme-option-download {
+      color: #a85b16 !important;
+    }
+  `;
+
+  function setThemeResourceStyle() {
+    let style = document.getElementById(THEME_RESOURCE_STYLE_ID);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = THEME_RESOURCE_STYLE_ID;
+      document.documentElement.appendChild(style);
+    }
+    if (style.textContent !== THEME_RESOURCE_CSS) style.textContent = THEME_RESOURCE_CSS;
+    style.dataset.version = SCRIPT_VERSION;
+  }
+
   function getCloudUiStyleText() {
     return typeof getCachedCloudUiStyles === 'function' ? getCachedCloudUiStyles() : '';
   }
@@ -117,6 +159,7 @@
     const root = document.documentElement;
     root.classList.toggle('pfh-ui-fallback', state !== 'ready');
     root.classList.toggle('pfh-ui-waiting', state === 'waiting');
+    root.classList.toggle('pfh-ui-error', state === 'error');
     root.classList.toggle('pfh-ui-offline', state === 'offline');
   }
 
@@ -134,7 +177,23 @@
   function showUiOfflineFallback() {
     if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
     window.clearTimeout(uiFallbackNoticeTimer);
-    updateUiFallbackState('offline');
+    const offline = navigator && navigator.onLine === false;
+    updateUiFallbackState(offline ? 'offline' : 'error');
+    if (!offline) scheduleUiAssetRetry();
+  }
+
+  function scheduleUiAssetRetry() {
+    window.clearTimeout(uiAssetRetryTimer);
+    if (!document.documentElement.classList.contains('pfh-ui-fallback') || (navigator && navigator.onLine === false)) return;
+    const delays = [3000, 8000, 20000, 60000];
+    const delay = delays[Math.min(uiAssetRetryCount, delays.length - 1)];
+    uiAssetRetryCount += 1;
+    uiAssetRetryTimer = window.setTimeout(() => {
+      if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
+      updateUiFallbackState('loading');
+      scheduleUiFallbackNotice();
+      refreshCloudAssets(true).catch(showUiOfflineFallback);
+    }, delay);
   }
 
   function bindUiAssetRecovery() {
@@ -143,6 +202,7 @@
     window.addEventListener('offline', showUiOfflineFallback);
     window.addEventListener('online', () => {
       if (!document.documentElement.classList.contains('pfh-ui-fallback')) return;
+      window.clearTimeout(uiAssetRetryTimer);
       updateUiFallbackState('loading');
       scheduleUiFallbackNotice();
       refreshCloudAssets(true).catch(showUiOfflineFallback);
@@ -164,12 +224,81 @@
     return true;
   }
 
+  function normalizeThemeId(value) {
+    const id = String(value || '').trim();
+    return THEME_BY_ID[id] ? id : DEFAULT_THEME_ID;
+  }
+
+  function getActiveTheme() {
+    const configuredId = typeof state !== 'undefined' && state.settings ? state.settings.theme : DEFAULT_THEME_ID;
+    return THEME_BY_ID[normalizeThemeId(configuredId)] || THEME_BY_ID[DEFAULT_THEME_ID];
+  }
+
+  function applyThemeToView() {
+    const theme = getActiveTheme();
+    const variables = {
+      '--pfh-theme-primary': theme.primary,
+      '--pfh-theme-primary-hover': theme.primaryHover,
+      '--pfh-theme-primary-soft': theme.primarySoft,
+      '--pfh-theme-secondary': theme.secondary,
+      '--pfh-theme-secondary-soft': theme.secondarySoft,
+      '--pfh-theme-page': theme.page,
+      '--pfh-theme-surface': theme.surface,
+      '--pfh-theme-surface-alt': theme.surfaceAlt,
+      '--pfh-theme-border': theme.border,
+      '--pfh-theme-border-strong': theme.borderStrong,
+      '--pfh-theme-text': theme.text,
+      '--pfh-theme-muted': theme.muted,
+      '--pfh-theme-header': theme.header,
+    };
+    [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {
+      if (!element) return;
+      element.dataset.pfhTheme = theme.id;
+      Object.keys(variables).forEach((key) => element.style.setProperty(key, variables[key]));
+    });
+  }
+
+  async function loadLuluThemeResource() {
+    const pageWindow = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window;
+    const runtime = pageWindow.__PFH_LULU_THEME_RESOURCE__;
+    if (runtime && runtime.version === LULU_THEME_RESOURCE_VERSION && typeof runtime.refresh === 'function') {
+      runtime.refresh();
+      addLog('success', '噜噜乐园皮肤已启用', LULU_THEME_RESOURCE_PATH);
+      showToast('噜噜乐园已启用');
+      return;
+    }
+    showToast('噜噜配色已启用，正在加载皮肤彩蛋…');
+    try {
+      const code = await cloudAssetRequest(LULU_THEME_RESOURCE_PATH, 'text');
+      if (typeof code !== 'string' || code.length < 1000 || !code.includes('pfh-lulu-theme-resource-styles')) {
+        throw new Error('噜噜资源代码内容不完整');
+      }
+      const script = typeof GM_addElement === 'function'
+        ? GM_addElement(document.head || document.documentElement, 'script', { textContent: code })
+        : (() => {
+          const element = document.createElement('script');
+          element.type = 'text/javascript';
+          element.textContent = code;
+          (document.head || document.documentElement).appendChild(element);
+          return element;
+        })();
+      if (script && script.parentNode) script.remove();
+      addLog('success', '噜噜乐园皮肤已加载', LULU_THEME_RESOURCE_PATH);
+      showToast('噜噜乐园已启用，无需下载或安装');
+    } catch (error) {
+      addLog('warn', '噜噜乐园皮肤加载失败', error && error.message ? error.message : String(error));
+      showToast('已切换噜噜配色，但皮肤彩蛋加载失败，请稍后重试');
+    }
+  }
+
   function applyCloudUiStyles(cssText) {
     const text = String(cssText || '');
     if (text.length < 10000 || !text.includes('#' + PANEL_ID)) return false;
     const legacy = document.getElementById('pfh-parameter-image-styles');
     if (legacy) legacy.remove();
     window.clearTimeout(uiFallbackNoticeTimer);
+    window.clearTimeout(uiAssetRetryTimer);
+    uiAssetRetryCount = 0;
     updateUiFallbackState('ready');
     return setUiStyleText(text, 'cloud-cache');
   }
@@ -181,10 +310,15 @@
       // Keep the last complete stylesheet usable while the newly versioned
       // stylesheet is downloaded in the background.
       const staleCached = getStaleCloudUiStyleText();
-      if (!applyCloudUiStyles(staleCached)) {
-        setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
-        updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
-        scheduleUiFallbackNotice();
+      if (applyCloudUiStyles(staleCached)) {
+        applyThemeToView();
+        setThemeResourceStyle();
+        return;
       }
+      setUiStyleText(LOCAL_UI_FALLBACK_CSS, 'local-placeholder');
+      updateUiFallbackState(navigator && navigator.onLine === false ? 'offline' : 'loading');
+      scheduleUiFallbackNotice();
     }
+    applyThemeToView();
+    setThemeResourceStyle();
   }

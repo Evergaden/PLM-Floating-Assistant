@@ -1,3 +1,4 @@
+
   const DESKTOP_BRIDGE_URL = 'ws://127.0.0.1:37191';
   const DESKTOP_BRIDGE_TOKEN_KEY = 'plm_desktop_bridge_token';
   let desktopBridgeSocket = null;
@@ -166,6 +167,7 @@
       if (requestId && item) {
         desktopUploadTransfers.set(requestId, {
           requestId,
+          mode: String(message.mode || 'legacy'),
           autoStart: Boolean(message.autoStart),
           item,
           files: { xlsx: new Array(Number(item.xlsxTotal) || 0), zip: new Array(Number(item.zipTotal) || 0) },
@@ -191,7 +193,7 @@
     const value = String(encoded || '');
     if (!value) throw new Error(filename + ' 数据为空');
     const binary = atob(value);
-    if (Number(expectedSize) > 0 && total !== Number(expectedSize)) throw new Error(filename + ' invalid size');
+    if (Number(expectedSize) > 0 && binary.length !== Number(expectedSize)) throw new Error(filename + ' invalid size');
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
     if (bytes.length < 2 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error(filename + ' invalid archive');
@@ -226,12 +228,13 @@
     transfer.received[file] += 1;
     if (transfer.received.xlsx < transfer.files.xlsx.length || transfer.received.zip < transfer.files.zip.length) return;
     desktopUploadTransfers.delete(requestId);
-    receiveDesktopUploadAssets({
+    const receiver = transfer.mode === 'magic-package' ? receiveDesktopMagicUploadAssets : receiveDesktopUploadAssets;
+    receiver({
       requestId,
       autoStart: transfer.autoStart,
       items: [{ ...transfer.item, xlsxChunks: transfer.files.xlsx, zipChunks: transfer.files.zip }],
     }).catch((error) => {
-      sendDesktopBridgeMessage({ type: 'upload.queue.ack', requestId, added: 0, skipped: 0, error: formatErrorMessage(error) });
+      sendDesktopBridgeMessage({ type: 'upload.queue.ack', mode: transfer.mode, requestId, added: 0, skipped: 0, error: formatErrorMessage(error) });
     });
   }
 
@@ -303,6 +306,41 @@
     });
     if (message.autoStart && (added || queue.some((entry) => entry && entry.kind === 'standard' && isUploadItemReady(entry) && !/成功|进行中/.test(entry.status || '')))) {
       startUploadQueue();
+    }
+  }
+
+  async function receiveDesktopMagicUploadAssets(message) {
+    const items = Array.isArray(message && message.items) ? message.items : [];
+    const item = items[0] || {};
+    const requestId = String(message && message.requestId || '');
+    if (!state.magicUploadAccessEnabled) {
+      const error = '当前账号没有魔法上传权限';
+      magicUploadLog('warn', '桌面工作台任务被拦截', error);
+      sendDesktopBridgeMessage({ type: 'upload.queue.ack', mode: 'magic-package', requestId, added: 0, skipped: 0, error });
+      showToast('魔法上传暂未开放');
+      return;
+    }
+    try {
+      const xlsxName = String(item.xlsxName || 'product.xlsx');
+      const zipName = String(item.zipName || 'image-pack.zip');
+      const xlsx = decodeDesktopUploadChunks(item.xlsxChunks, xlsxName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', item.xlsxSize);
+      const zip = decodeDesktopUploadChunks(item.zipChunks, zipName, 'application/zip', item.zipSize);
+      magicUploadLog('info', '收到桌面工作台魔法上传任务', String(item.sku || '') + ' | ' + xlsxName + ' | ' + zipName);
+      const result = await processMagicUploadZipFiles([xlsx, zip]);
+      if (message.autoStart && result && result.added) startMagicUploadQueue();
+      const errors = result && Array.isArray(result.errors) ? result.errors : [];
+      sendDesktopBridgeMessage({
+        type: 'upload.queue.ack',
+        mode: 'magic-package',
+        requestId,
+        added: result ? Number(result.added) || 0 : 0,
+        skipped: 0,
+        errors,
+      });
+    } catch (error) {
+      const messageText = formatErrorMessage(error);
+      magicUploadLog('warn', '桌面工作台魔法上传任务处理失败', messageText);
+      sendDesktopBridgeMessage({ type: 'upload.queue.ack', mode: 'magic-package', requestId, added: 0, skipped: 0, error: messageText });
     }
   }
 
@@ -383,10 +421,14 @@
 
   function sendDesktopBridgeSnapshot() {
     const products = collectDesktopFinalizedProducts();
-    const successfulUploadSkus = Array.from(new Set(loadUploadHistory()
+    const standardSuccessfulSkus = loadUploadHistory()
       .filter((item) => (item && item.kind || 'standard') === 'standard' && isUploadHistorySuccess(item))
-      .map((item) => String(item && item.sku || '').toUpperCase())
-      .filter((sku) => /^SKU\d+$/.test(sku))));
+      .map((item) => String(item && item.sku || '').toUpperCase());
+    const magicSuccessfulSkus = loadMagicUploadHistory()
+      .filter((item) => String(item && item.status || '') === 'success')
+      .map((item) => String(item && item.sku || '').toUpperCase());
+    const successfulUploadSkus = Array.from(new Set(standardSuccessfulSkus.concat(magicSuccessfulSkus)))
+      .filter((sku) => /^SKU\d+$/.test(sku));
     sendDesktopBridgeMessage({
       type: 'snapshot.response',
       version: SCRIPT_VERSION,
@@ -532,6 +574,7 @@
     const workbook = new window.ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    removeUnusedExcelTemplateRow(sheet);
     const excelImageSource = getExcelImageSource(excelData, extra);
     const imageInfo = excelImageSource.imageUrl
       ? await fetchImageForExcel(excelImageSource.imageUrl, excelImageSource.imageFallbackUrl).catch(() => null)
