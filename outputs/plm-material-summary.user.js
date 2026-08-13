@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.28
+// @version      2.8.29
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.28';
+  const SCRIPT_VERSION = '2.8.29';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1425,17 +1425,19 @@
       const textGap = length > ctx.measureText(label).width + 48 ? 26 : 46;
       const labelWidth = ctx.measureText(label).width;
       ctx.restore();
-      if (!options || !Array.isArray(options.avoidBoxes)) return { offset: baseOffset, textGap, tangentShift: 0 };
+      const fixedLineStart = { x: start.x + nx * baseOffset, y: start.y + ny * baseOffset };
+      const fixedLineEnd = { x: end.x + nx * baseOffset, y: end.y + ny * baseOffset };
+      if (!options || !Array.isArray(options.avoidBoxes)) {
+        return { lineOffset: baseOffset, labelOffset: baseOffset, textGap, tangentShift: 0 };
+      }
       const normalOffsets = [baseOffset, baseOffset + 44, baseOffset + 88, Math.max(18, baseOffset - 18), baseOffset + 132];
       const tangentShifts = [0, 60, -60, 120, -120, 180, -180];
       const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
       const angle = Math.atan2(dy, dx) > Math.PI / 2 || Math.atan2(dy, dx) < -Math.PI / 2 ? Math.atan2(dy, dx) + Math.PI : Math.atan2(dy, dx);
       let best = null;
       normalOffsets.forEach((offset, normalIndex) => tangentShifts.forEach((tangentShift, tangentIndex) => {
-        const lineStart = { x: start.x + nx * offset + tx * tangentShift, y: start.y + ny * offset + ty * tangentShift };
-        const lineEnd = { x: end.x + nx * offset + tx * tangentShift, y: end.y + ny * offset + ty * tangentShift };
         const textCenter = { x: middle.x + nx * (offset + textGap) + tx * tangentShift, y: middle.y + ny * (offset + textGap) + ty * tangentShift };
-        const box = dimensionLayoutBox(start, end, labelWidth, angle, textCenter, lineStart, lineEnd);
+        const box = dimensionLayoutBox(start, end, labelWidth, angle, textCenter, fixedLineStart, fixedLineEnd);
         const overlap = options.avoidBoxes.reduce((total, other) => total + dimensionOverlapArea(box, other), 0);
         const bounds = options.bounds;
         const outside = bounds
@@ -1443,10 +1445,10 @@
           : 0;
         const movementPenalty = normalIndex * 0.2 + tangentIndex * 0.03;
         const score = overlap * 100 + outside * 25 + movementPenalty;
-        if (!best || score < best.score) best = { score, offset, textGap, tangentShift, box };
+        if (!best || score < best.score) best = { score, lineOffset: baseOffset, labelOffset: offset, textGap, tangentShift, box };
       }));
       if (best) options.avoidBoxes.push(best.box);
-      return best || { offset: baseOffset, textGap, tangentShift: 0 };
+      return best || { lineOffset: baseOffset, labelOffset: baseOffset, textGap, tangentShift: 0 };
     }
 
     function drawVerticalDimension(ctx, rect, value, side, options) {
@@ -1506,10 +1508,16 @@
       const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
       const label = dimensionLabel(value);
       const placement = chooseDimensionPlacement(ctx, start, end, value, normalSign, options);
-      const offset = placement.offset, textGap = placement.textGap, tangentShift = placement.tangentShift || 0;
+      const lineOffset = Number.isFinite(placement.lineOffset) ? placement.lineOffset : 36;
+      const labelOffset = Number.isFinite(placement.labelOffset) ? placement.labelOffset : lineOffset;
+      const textGap = placement.textGap, tangentShift = placement.tangentShift || 0;
       const tx = dx / length, ty = dy / length;
-      const a = { x: start.x + nx * offset + tx * tangentShift, y: start.y + ny * offset + ty * tangentShift };
-      const b = { x: end.x + nx * offset + tx * tangentShift, y: end.y + ny * offset + ty * tangentShift };
+      const a = { x: start.x + nx * lineOffset, y: start.y + ny * lineOffset };
+      const b = { x: end.x + nx * lineOffset, y: end.y + ny * lineOffset };
+      const labelCenter = {
+        x: (start.x + end.x) / 2 + nx * (labelOffset + textGap) + tx * tangentShift,
+        y: (start.y + end.y) / 2 + ny * (labelOffset + textGap) + ty * tangentShift,
+      };
       const tick = 16;
       ctx.save(); ctx.font = '42px Arial';
       ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5;
@@ -1518,7 +1526,7 @@
       line(ctx, b.x - nx * tick, b.y - ny * tick, b.x + nx * tick, b.y + ny * tick);
       let angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
-      ctx.translate((a.x + b.x) / 2 + nx * textGap, (a.y + b.y) / 2 + ny * textGap);
+      ctx.translate(labelCenter.x, labelCenter.y);
       ctx.rotate(angle); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 0); ctx.restore();
     }
