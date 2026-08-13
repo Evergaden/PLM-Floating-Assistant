@@ -1136,7 +1136,8 @@ async function handleIngredientNormalize(request, env) {
   }
 }
 
-const INGREDIENT_AUDIT_MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const INGREDIENT_AUDIT_MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const INGREDIENT_AUDIT_MAX_IMAGE_LABEL = '8 MiB';
 const INGREDIENT_AUDIT_IMAGE_TIMEOUT_MS = 12000;
 const INGREDIENT_AUDIT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -1206,7 +1207,7 @@ function bytesToBase64(bytes) {
 async function readLimitedImageBody(response, maxBytes) {
   if (!response.body || typeof response.body.getReader !== 'function') {
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > maxBytes) throw new Error('image is too large');
+    if (bytes.byteLength > maxBytes) throw new Error('image is too large (max ' + INGREDIENT_AUDIT_MAX_IMAGE_LABEL + ')');
     return bytes;
   }
   const reader = response.body.getReader();
@@ -1217,7 +1218,7 @@ async function readLimitedImageBody(response, maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.byteLength;
-      if (total > maxBytes) throw new Error('image is too large');
+      if (total > maxBytes) throw new Error('image is too large (max ' + INGREDIENT_AUDIT_MAX_IMAGE_LABEL + ')');
       chunks.push(value);
     }
   } catch (error) {
@@ -1254,7 +1255,7 @@ async function downloadIngredientAuditImage(imageUrl) {
     }
     if (!response.ok) throw new Error('image download HTTP ' + response.status);
     const declaredLength = Number(response.headers.get('content-length') || 0);
-    if (declaredLength > INGREDIENT_AUDIT_MAX_IMAGE_BYTES) throw new Error('image is too large');
+    if (declaredLength > INGREDIENT_AUDIT_MAX_IMAGE_BYTES) throw new Error('image is too large (max ' + INGREDIENT_AUDIT_MAX_IMAGE_LABEL + ')');
     const declaredType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     // Some OSS/CDN responses omit Content-Type or use the generic octet-stream
     // type.  Keep the endpoint safe by accepting those two ambiguous cases only
