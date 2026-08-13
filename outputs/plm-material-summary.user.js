@@ -12356,8 +12356,8 @@
     const referenceLabel = formatSkuDetailLinkLabel(referenceUrl);
     const referenceLink = referenceUrl
       ? (/^https?:\/\//i.test(referenceUrl)
-        ? '<a class="pfh-detail-link-value" href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceLabel) + '</span></a>'
-        : '<span class="pfh-detail-link-value" title="' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceLabel) + '</span></span>')
+        ? '<a class="pfh-detail-link-value" href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer" data-reference-url="' + escapeHtml(referenceUrl) + '" title="左键打开链接；右键复制链接：' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceLabel) + '</span></a>'
+        : '<span class="pfh-detail-link-value" data-reference-url="' + escapeHtml(referenceUrl) + '" title="右键复制链接：' + escapeHtml(referenceUrl) + '">' + iconHtml('link') + '<span class="pfh-detail-link-text">' + escapeHtml(referenceLabel) + '</span></span>')
       : '';
     const metaHtml = '<div class="pfh-detail-card-meta">' +
       (priorityText ? '<span class="is-priority' + priorityClass + '" title="' + escapeHtml(priorityText) + '">' + iconHtml('warning') + '<span>' + escapeHtml(priorityText) + '</span></span>' : '') +
@@ -16224,6 +16224,16 @@
   }
 
   function handlePanelContextMenu(event) {
+    const detailLink = event.target && event.target.closest && event.target.closest('.pfh-detail-link-value[data-reference-url]');
+    if (detailLink) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyText(detailLink.getAttribute('data-reference-url') || '');
+      detailLink.classList.add('is-copied');
+      window.setTimeout(() => detailLink.classList.remove('is-copied'), 650);
+      showToast('链接已复制');
+      return;
+    }
     const skuCard = event.target && event.target.closest && event.target.closest('.pfh-sku-waterfall-card[data-sku], .pfh-sku[data-sku]');
     if (skuCard) {
       event.preventDefault();
