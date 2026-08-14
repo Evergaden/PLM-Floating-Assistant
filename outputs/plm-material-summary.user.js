@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.32
+// @version      2.8.33
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.32';
+  const SCRIPT_VERSION = '2.8.33';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -26420,6 +26420,24 @@
     }).slice(0, max);
   }
 
+  function localizeLedgerDetail3AuditText(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (/^The image contains no ingredient list\b.*verify the expected ingredients/i.test(text)) return '图片中没有成分列表，无法核对预期成分。';
+    if (/^No ingredient list is present on the packaging\b.*image/i.test(text)) return '包装或图片文字中没有成分列表。';
+    if (/^The English ingredients shown in the image match the expected copy/i.test(text)) return '图片中的英文成分与预期文案一致。';
+    if (/^The English ingredient text in the image could not be read reliably/i.test(text)) return '图片中的英文成分文字无法可靠识别。';
+    if (/^The ingredient image needs review because discrepancies or generation anomalies were found/i.test(text)) return '成分图存在缺漏、错误或生图异常，需要检查。';
+    if (/image type does not match its content|image bytes are not a supported/i.test(text)) return '图片格式与内容不匹配，请重新上传有效的 JPEG、PNG 或 WebP 图片。';
+    if (/image is too large/i.test(text)) {
+      const limit = (text.match(/max\s+([^\)]+)/i) || [])[1];
+      return limit ? '图片文件过大（上限 ' + limit.trim() + '），请压缩图片后重试。' : '图片文件过大，请压缩后重试。';
+    }
+    if (/insufficient balance/i.test(text)) return 'AI 视觉服务余额不足，请检查服务配置后重试。';
+    if (/timeout|operation was aborted/i.test(text)) return 'AI 视觉服务请求超时，请稍后重试。';
+    return text;
+  }
+
   function normalizeLedgerDetail3Audit(value) {
     const source = value && typeof value === 'object' ? value : {};
     const list = (items, limit) => Array.from(new Set((Array.isArray(items) ? items : []).map((item) => String(item || '').trim()).filter(Boolean))).slice(0, limit || 30);
@@ -26429,14 +26447,14 @@
       : (/^(?:idle|loading|pass|warning|error)$/.test(rawStatus) ? rawStatus : 'idle');
     return {
       status,
-      summary: String(source.summary || '').slice(0, 500),
+      summary: localizeLedgerDetail3AuditText(String(source.summary || '').slice(0, 500)),
       imageUrl: String(source.imageUrl || '').slice(0, 1600),
       expectedIngredients: String(source.expectedIngredients || '').slice(0, 4000),
       extractedIngredients: list(source.extractedIngredients || source.recognizedEnglishIngredients, 60),
       missing: list(source.missing || source.missingInImage, 40),
-      extra: list(source.extra || source.unexpectedInImage, 40),
-      duplicates: list(source.duplicates, 40),
-      anomalies: list(source.anomalies || source.visualIssues || source.spellingIssues, 40),
+      extra: list(source.extra || source.unexpectedInImage, 40).map(localizeLedgerDetail3AuditText),
+      duplicates: list(source.duplicates, 40).map(localizeLedgerDetail3AuditText),
+      anomalies: list(source.anomalies || source.visualIssues || source.spellingIssues, 40).map(localizeLedgerDetail3AuditText),
       provider: String(source.provider || '').slice(0, 80),
       model: String(source.model || '').slice(0, 120),
       retryable: Boolean(source.retryable),
