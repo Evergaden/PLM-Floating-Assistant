@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.45
+// @version      2.8.46
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.45';
+  const SCRIPT_VERSION = '2.8.46';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7092,6 +7092,34 @@
     return getApiMaterialDimensions(item, 2);
   }
 
+  function extractApiTubeMeasure(text, label) {
+    const pattern = new RegExp('(?:^|[^\\u4e00-\\u9fffA-Za-z0-9])' + escapeRegExp(label) + '\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(mm|cm)?', 'ig');
+    const matches = Array.from(String(text || '').matchAll(pattern));
+    const match = matches[matches.length - 1];
+    return match ? normalizeTubeMeasureValue(match[1], match[2]) : 0;
+  }
+
+  function extractApiTubeFields(text) {
+    const source = String(text || '');
+    const diameter = extractApiTubeMeasure(source, '管径');
+    const body = extractApiTubeMeasure(source, '管身');
+    const parts = [];
+    if (diameter) parts.push('管径 ' + diameter + 'mm');
+    if (body) parts.push('管身 ' + body + 'mm');
+    return { diameter, body, text: parts.join(' ') };
+  }
+
+  function getApiTubeMaterialSource(item) {
+    return [
+      item && item.name,
+      item && item.category_name,
+      item && item.properties_value,
+      item && item.specification_model,
+      item && item.specification,
+      item && item.specificationModel,
+    ].map((value) => compactText(value)).filter(Boolean).join(' ');
+  }
+
   function formatApiMaterialDimensions(values) {
     return Array.isArray(values) && values.length >= 2
       ? values.map((value) => trimNumber(value)).join('x') + 'cm'
@@ -7159,8 +7187,11 @@
       // supplier can make the paper box appear again in the label/printing group.
       const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
       const unitIssue = getApiMaterialUnitIssue(item);
-      const dimensions = getApiPrintMaterialDimensions(item);
-      return { item, index, name, category, text, dimensions, unitIssue, isBoxCategory: isApiBoxCategory(category), displayName: getApiPrintDisplayName(item) };
+      const tubeSource = getApiTubeMaterialSource(item);
+      const tubeFields = extractApiTubeFields(tubeSource);
+      const tubeSpec = isTubePrintRow(tubeSource) ? findTubeSizeSpec(tubeSource, tubeFields) : null;
+      const dimensions = tubeSpec ? [tubeSpec.width, tubeSpec.height] : getApiPrintMaterialDimensions(item);
+      return { item, index, name, category, text, dimensions, unitIssue, tubeSpec, isBoxCategory: isApiBoxCategory(category), displayName: getApiPrintDisplayName(item) };
     }).filter((item) => (!packageItem || item.index !== packageItem.index)
       && !item.isBoxCategory
       && !/说明书|使用说明/.test(item.text)
@@ -7168,15 +7199,24 @@
       && ((item.dimensions && item.dimensions.length >= 2) || item.unitIssue));
     const packageNums = packageItem && packageItem.dimensions ? packageItem.dimensions : null;
     const packageUnitIssue = packageItem && packageItem.unitIssue ? packageItem.unitIssue : null;
+    const tubeItem = printItems.find((item) => item.tubeSpec);
+    const tubeSpec = tubeItem && tubeItem.tubeSpec;
     return {
       packageSizeText: packageUnitIssue ? packageUnitIssue.raw : formatApiMaterialDimensions(packageNums),
       packageSizeLabel: packageItem ? packageItem.displayName : '',
       packageCode: packageItem ? String(packageItem.item.code || '') : '',
       packageNums,
       hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name))),
-      printSizeText: printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
-      printSizeLabel: printItems.map((item) => item.displayName).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
+      printSizeText: tubeSpec ? tubeSpec.printSizeText : printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
+      printSizeLabel: tubeSpec ? '印刷' : printItems.map((item) => item.displayName).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
       printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
+      tubeSegmentText: tubeSpec ? tubeSpec.segmentText : '',
+      tubeTailSealLengthValue: tubeSpec ? tubeSpec.tailSealText : '',
+      tailSealLengthValue: tubeSpec ? tubeSpec.tailSealText : '',
+      tubeDiameter: tubeSpec ? tubeSpec.diameter : '',
+      tubeBody: tubeSpec ? tubeSpec.body : '',
+      tubeSpecKey: tubeSpec ? tubeSpec.key : '',
+      isTubePrintMaterial: Boolean(tubeSpec),
       materialDimensionUnitIssues: {
         package: packageUnitIssue,
         print: (printItems.find((item) => item.unitIssue) || {}).unitIssue || null,
@@ -7208,11 +7248,17 @@
     [
       'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'hasInnerCard',
       'printSizeText', 'printSizeLabel', 'printCode', 'printRawText', 'isTubePrintMaterial',
+      'tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey',
       'netContent', 'grossWeight', 'apiMaterialSource',
     ].forEach((key) => {
       if (preserveProductDetailPackage && packageKeys.has(key)) return;
       if (isUsefulValue(source[key])) merged[key] = source[key];
     });
+    const tubeKeys = ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'];
+    if (source.apiMaterialSource && Object.prototype.hasOwnProperty.call(source, 'isTubePrintMaterial') && !source.isTubePrintMaterial) {
+      tubeKeys.forEach((key) => { merged[key] = ''; });
+      merged.isTubePrintMaterial = false;
+    }
     const incomingPackage = ['packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums']
       .some((key) => isUsefulValue(source[key]));
     if (source.apiMaterialSource && !incomingPackage && !preserveProductDetailPackage) {
