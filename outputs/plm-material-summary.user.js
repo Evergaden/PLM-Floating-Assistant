@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.36
+// @version      2.8.37
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.36';
+  const SCRIPT_VERSION = '2.8.37';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -27245,10 +27245,24 @@
     },
   ];
 
+  function isLedgerAiImageRecommendationItem(source) {
+    const item = source && typeof source === 'object' ? source : {};
+    const type = String(item.type || item.key || '').trim().toLowerCase();
+    const title = [item.title, item.title_cn, item.titleCn, item.label, item.name]
+      .map((part) => String(part || '').trim().toLowerCase())
+      .filter(Boolean)
+      .join(' ');
+    return type === 'new_product_recommendation'
+      || type === 'product_recommendation'
+      || /new product recommendation|recommendation list|新品(?:temu)?推荐类目|新品文案/.test(title);
+  }
+
   function getLedgerAiImageCopywriteValues(item) {
     const source = item && typeof item === 'object' ? item : { value: item };
-    const valueEn = getApiScalarText(source.value !== undefined ? source.value : (source.value_en !== undefined ? source.value_en : (source.valueEn !== undefined ? source.valueEn : (source.english !== undefined ? source.english : source.en))), 0);
-    const valueCn = getApiScalarText(source.value_cn !== undefined ? source.value_cn : (source.valueCn !== undefined ? source.valueCn : (source.chinese !== undefined ? source.chinese : source.zh)), 0);
+    const rawValueEn = getApiScalarText(source.value !== undefined ? source.value : (source.value_en !== undefined ? source.value_en : (source.valueEn !== undefined ? source.valueEn : (source.english !== undefined ? source.english : source.en))), 0);
+    const rawValueCn = getApiScalarText(source.value_cn !== undefined ? source.value_cn : (source.valueCn !== undefined ? source.valueCn : (source.chinese !== undefined ? source.chinese : source.zh)), 0);
+    const valueEn = isLedgerAiImageRecommendationItem(source) && !rawValueEn ? rawValueCn : rawValueEn;
+    const valueCn = rawValueCn;
     const fallback = getApiScalarText(source.text !== undefined ? source.text : source.content, 0);
     return {
       value: String(valueEn || '').trim(),
@@ -27439,6 +27453,11 @@
     }) || null;
   }
 
+  function findLedgerAiImageRecommendationItem(preparation) {
+    const items = preparation && Array.isArray(preparation.copywrite) ? preparation.copywrite : [];
+    return items.find(isLedgerAiImageRecommendationItem) || null;
+  }
+
   function ensureLedgerAiPreparationCopyItem(preparation, rule) {
     let item = findLedgerAiPreparationCopyItem(preparation, rule);
     if (item) return item;
@@ -27459,6 +27478,8 @@
     if (!isValidLedgerAiImageText(ingredients.product_ingredients_summary_en)) missing.push('成分（英文）');
     if (!isValidLedgerAiImageText(ingredients.product_ingredients_efficacy_ch)) missing.push('成分功能（中文）');
     if (!isValidLedgerAiImageText(ingredients.product_ingredients_efficacy_en)) missing.push('成分功能（英文）');
+    const recommendation = getLedgerAiImageCopywriteValues(findLedgerAiImageRecommendationItem(preparation));
+    if (!isValidLedgerAiImageText(recommendation.value)) missing.push('新品推荐类目');
     if (!preparation || !preparation.skuImage || preparation.skuImage.status !== 'available') missing.push('SKU 效果图');
     return missing;
   }
