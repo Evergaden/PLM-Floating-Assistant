@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.38
+// @version      2.8.39
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.38';
+  const SCRIPT_VERSION = '2.8.39';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2181,6 +2181,33 @@
   const LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS = 60;
   const LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS = 20;
   const LEDGER_AI_IMAGE_HIDDEN_MAX_KEYS = 120;
+  const LEDGER_AI_IMAGE_RETOUCH_QUICK_PHRASES = Object.freeze([
+    Object.freeze({ group: '包装与材质', text: '内料改成XX色' }),
+    Object.freeze({ group: '包装与材质', text: '把内料改成XX色，其他元素保持不变' }),
+    Object.freeze({ group: '包装与材质', text: '纸盒不要展示侧面，只保留正面' }),
+    Object.freeze({ group: '包装与材质', text: '纸盒只展示正面和顶部，不要出现侧面' }),
+    Object.freeze({ group: '包装与材质', text: '将瓶身材质改成磨砂质感，保持瓶型和文字不变' }),
+    Object.freeze({ group: '包装与材质', text: '将包装颜色改成XX色，保持品牌、文字和版式不变' }),
+    Object.freeze({ group: '删减元素', text: '去除纸盒' }),
+    Object.freeze({ group: '删减元素', text: '去除瓶子' }),
+    Object.freeze({ group: '删减元素', text: '去除多余的手' }),
+    Object.freeze({ group: '删减元素', text: '去除多余人物、手指和肢体' }),
+    Object.freeze({ group: '删减元素', text: '去除背景中多余物体和杂物' }),
+    Object.freeze({ group: '删减元素', text: '去除包装上的多余标签、贴纸和水印' }),
+    Object.freeze({ group: '文字与版式', text: '保留产品包装上的品牌、成分和规格文字，不要改动' }),
+    Object.freeze({ group: '文字与版式', text: '去除图片中所有文字和水印，只保留产品本体' }),
+    Object.freeze({ group: '文字与版式', text: '修复并补全被遮挡的英文文字，保持原有字体和排版' }),
+    Object.freeze({ group: '文字与版式', text: '把产品调整为居中正面展示，文字保持清晰可读' }),
+    Object.freeze({ group: '背景与构图', text: '将背景改成纯白色' }),
+    Object.freeze({ group: '背景与构图', text: '将背景改成浅灰色，并保留柔和自然阴影' }),
+    Object.freeze({ group: '背景与构图', text: '将背景改成透明背景，只保留完整产品' }),
+    Object.freeze({ group: '背景与构图', text: '把产品调整为45度角展示，保持产品比例不变' }),
+    Object.freeze({ group: '背景与构图', text: '补全被裁切的产品边缘和包装轮廓' }),
+    Object.freeze({ group: '背景与构图', text: '只修改背景，不改变产品本身、包装和文字' }),
+    Object.freeze({ group: '质感与修复', text: '去除反光、污渍、划痕和不自然的褶皱' }),
+    Object.freeze({ group: '质感与修复', text: '增强产品细节和清晰度，但不要改变产品结构' }),
+    Object.freeze({ group: '质感与修复', text: '增加柔和自然的光影和接触阴影' }),
+  ]);
   const LEDGER_AI_IMAGE_RENAME_RULES = Object.freeze([
     Object.freeze({ pattern: /^input-main-prompt-1(?:-[a-zA-Z0-9]{8})?$/, name: '主图1' }),
     Object.freeze({ pattern: /^input-main-prompt-2(?:-[a-zA-Z0-9]{8})?$/, name: '主图2' }),
@@ -4480,6 +4507,7 @@
     ledgerAiImagePollTimers: Object.create(null),
     ledgerAiImagePollCounts: Object.create(null),
     ledgerAiImageRetouchRequests: Object.create(null),
+    ledgerAiImageRetouchComposer: null,
     ledgerAiImageViewer: null,
     ledgerAiImageDownloadKey: '',
     ledgerAiImageDownloadProgress: '',
@@ -8305,6 +8333,28 @@
       #${PANEL_ID} details.pfh-cache-field>summary{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;list-style:none}#${PANEL_ID} details.pfh-cache-field>summary::-webkit-details-marker{display:none}#${PANEL_ID} details.pfh-cache-field>summary::before{content:'›';color:#8666d2;font-size:16px;transform:rotate(0deg);transition:transform .16s ease}#${PANEL_ID} details.pfh-cache-field[open]>summary::before{transform:rotate(90deg)}#${PANEL_ID} .pfh-cache-container-title{display:flex;min-width:0;flex:1 1 auto;flex-direction:column}#${PANEL_ID} .pfh-cache-container-title strong{overflow-wrap:anywhere;color:#514366;font-size:10px}#${PANEL_ID} .pfh-cache-container-title code{color:#a096b1;font:8px/1.3 Consolas,monospace}#${PANEL_ID} .pfh-cache-container-count{padding:2px 6px;border-radius:999px;background:#eee8fa;color:#7359ac;font-size:8px}#${PANEL_ID} .pfh-cache-children{display:flex;flex-direction:column;gap:7px;padding:0 8px 8px 24px}#${PANEL_ID} .pfh-cache-empty{padding:10px;color:#a096b1;font-size:9px;text-align:center}
       #${PANEL_ID} .pfh-cache-editor-error{min-height:18px;margin:5px 18px 0;color:#b34a5d;font-size:10px}#${PANEL_ID} .pfh-cache-editor>footer{border-top:1px solid #eee9fb;border-bottom:0}#${PANEL_ID} .pfh-cache-editor>footer>div{display:flex;gap:7px}
       #${PANEL_ID} .pfh-ledger-ai-image-layer{z-index:320!important;align-items:center!important}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer-layer{position:absolute;inset:0;z-index:520!important;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(34,26,66,.40);backdrop-filter:blur(7px)}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer{display:flex;width:min(820px,100%);height:min(650px,calc(100% - 8px));min-height:0;flex-direction:column;overflow:hidden;border:1px solid rgba(143,121,220,.45);border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(42,24,93,.30);color:#3d3552}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer>header,#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 17px;border-bottom:1px solid #eee9fb}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer>header h3{margin:0;color:#4f35a4;font-size:16px}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>header p{margin:4px 0 0;color:#8d829f;font-size:10px;line-height:1.4}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer>header button{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;padding:0;border:1px solid #d8cff1;border-radius:9px;background:#faf8ff;color:#6537ce;font-family:inherit;font-size:19px;font-weight:700;line-height:1;cursor:pointer}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-body{display:grid;min-height:0;flex:1 1 auto;grid-template-columns:minmax(170px,.72fr) minmax(0,1.28fr);gap:14px;overflow:auto;padding:14px 17px}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-target,#${PANEL_ID} .pfh-ledger-ai-retouch-compose-editor{min-width:0;border:1px solid #e6dff5;border-radius:13px;background:#fbfaff}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-target{display:flex;min-height:0;flex-direction:column;gap:8px;padding:10px}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-target img{display:block;width:100%;min-height:180px;flex:1 1 auto;object-fit:contain;border-radius:9px;background:#f4f1fa}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-target strong{color:#58447f;font-size:11px}#${PANEL_ID} .pfh-ledger-ai-retouch-compose-target small{overflow-wrap:anywhere;color:#968aa9;font-size:9px;line-height:1.35}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-editor{display:flex;min-height:0;flex-direction:column;gap:9px;padding:11px}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-editor label{display:flex;min-height:0;flex:0 0 auto;flex-direction:column;gap:5px;color:#58447f;font-size:11px;font-weight:700}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer-input{width:100%;min-height:140px;padding:9px;resize:vertical;border:1px solid #ded7ef;border-radius:9px;background:#fff;color:#453b5a;font-family:inherit;font-size:12px;line-height:1.55;outline:0}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer-input:focus{border-color:#9f85f5;outline:2px solid rgba(124,58,237,.12)}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-head{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#58447f;font-size:11px;font-weight:700}#${PANEL_ID} .pfh-ledger-ai-retouch-quick-head small{color:#9b90ad;font-size:9px;font-weight:400}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-head button{min-height:25px;padding:0 8px;border:1px solid #ded7ef;border-radius:7px;background:#fff;color:#806ab0;font:inherit;font-size:9px;cursor:pointer}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-list{display:flex;min-height:0;flex:1 1 auto;flex-direction:column;gap:8px;overflow:auto;padding:2px}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-group{display:flex;flex-direction:column;gap:4px}#${PANEL_ID} .pfh-ledger-ai-retouch-quick-group>strong{color:#8d829f;font-size:9px;font-weight:700}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-items{display:flex;flex-wrap:wrap;gap:5px}#${PANEL_ID} .pfh-ledger-ai-retouch-quick-items button{padding:5px 8px;border:1px solid #ded5f2;border-radius:999px;background:#fff;color:#6245a0;font-family:inherit;font-size:10px;line-height:1.35;text-align:left;cursor:pointer;transition:border-color .16s ease,background .16s ease,color .16s ease}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-items button:hover{border-color:#a68be7;background:#f1ecff;color:#4f20ba}#${PANEL_ID} .pfh-ledger-ai-retouch-quick-tip{margin:0;color:#9b90ad;font-size:9px;line-height:1.4}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer{border-top:1px solid #eee9fb;border-bottom:0}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer>span{color:#8d829f;font-size:10px}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer>div{display:flex;gap:7px}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer button{min-height:32px;padding:0 12px;border:1px solid #d8cff1;border-radius:9px;background:#faf8ff;color:#6537ce;font:inherit;font-size:11px;cursor:pointer}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer button.is-primary{border-color:#8f72e7;background:#7448d8;color:#fff;font-weight:700}#${PANEL_ID} .pfh-ledger-ai-retouch-composer button:disabled{cursor:not-allowed;opacity:.5}
+      @media(max-width:680px){#${PANEL_ID} .pfh-ledger-ai-retouch-composer-layer{padding:8px}#${PANEL_ID} .pfh-ledger-ai-retouch-composer{height:calc(100% - 4px);border-radius:14px}#${PANEL_ID} .pfh-ledger-ai-retouch-compose-body{grid-template-columns:minmax(0,1fr);gap:9px;padding:10px}#${PANEL_ID} .pfh-ledger-ai-retouch-compose-target{max-height:230px}#${PANEL_ID} .pfh-ledger-ai-retouch-compose-target img{min-height:120px}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>header,#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer{padding:10px 12px}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer{align-items:flex-start;flex-direction:column}#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer>div{width:100%;justify-content:flex-end}}
       #${PANEL_ID} .pfh-ledger-ai-image-dialog{height:min(900px,calc(100vh - 28px))!important;min-height:min(760px,calc(100vh - 28px))!important;max-height:calc(100vh - 28px)!important}
       #${PANEL_ID} .pfh-ledger-ai-image-workspace{min-height:0!important;flex:1 1 auto!important}
       #${PANEL_ID} .pfh-ledger-ai-image-dialog>header h3{font-size:18px!important}
@@ -8759,6 +8809,7 @@
     renderFirstRunTutorialModal(panel);
     renderNotificationModal(panel);
     if (state.view !== 'ledger') {
+      closeLedgerAiImageRetouchComposer();
       state.ledgerAiImageViewer = null;
       renderLedgerAiImageViewer(panel);
     }
@@ -18481,6 +18532,23 @@
       }
       return;
     }
+    if (action === 'ledger-ai-retouch-composer-close') {
+      if (actionTarget.classList.contains('pfh-ledger-ai-retouch-composer-layer') && event.target !== actionTarget) return;
+      closeLedgerAiImageRetouchComposer();
+      return;
+    }
+    if (action === 'ledger-ai-retouch-composer-submit') {
+      submitLedgerAiImageRetouchComposer();
+      return;
+    }
+    if (action === 'ledger-ai-retouch-composer-clear') {
+      clearLedgerAiImageRetouchComposer();
+      return;
+    }
+    if (action === 'ledger-ai-retouch-quick-phrase') {
+      appendLedgerAiImageRetouchPhrase(actionTarget.getAttribute('data-text'));
+      return;
+    }
     if (action === 'ledger-ai-image-retouch') {
       promptLedgerAiImageRetouch(
         actionTarget.getAttribute('data-sku'),
@@ -19718,6 +19786,11 @@
   }
 
   function handlePanelKeydown(event) {
+    if (state.ledgerAiImageRetouchComposer && event.key === 'Escape') {
+      event.preventDefault();
+      closeLedgerAiImageRetouchComposer();
+      return;
+    }
     if (state.ledgerAiImageViewer && event.key === 'Escape') {
       event.preventDefault();
       closeLedgerAiImageViewer();
@@ -19765,6 +19838,10 @@
   function handlePanelInput(event) {
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-editor-search')) {
       filterSkuCacheEditorFields(event.target.value);
+      return;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-ai-retouch-composer-input')) {
+      if (state.ledgerAiImageRetouchComposer) state.ledgerAiImageRetouchComposer.value = event.target.value;
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-ai-prep-input')) {
@@ -27890,7 +27967,57 @@
     }
   }
 
-  function promptLedgerAiImageRetouch(sku, dateKey, kind, imageUrl) {
+  function closeLedgerAiImageRetouchComposer() {
+    const panel = document.getElementById(PANEL_ID);
+    const layer = panel && panel.querySelector('.pfh-ledger-ai-retouch-composer-layer');
+    if (layer) layer.remove();
+    state.ledgerAiImageRetouchComposer = null;
+  }
+
+  function renderLedgerAiImageRetouchComposer() {
+    const composer = state.ledgerAiImageRetouchComposer;
+    const panel = document.getElementById(PANEL_ID) || ensurePanel();
+    if (!composer || !panel) {
+      const stale = panel && panel.querySelector('.pfh-ledger-ai-retouch-composer-layer');
+      if (stale) stale.remove();
+      return;
+    }
+    const full = panel.querySelector('.pfh-full') || panel;
+    let layer = full.querySelector('.pfh-ledger-ai-retouch-composer-layer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-ledger-ai-retouch-composer-layer';
+      layer.setAttribute('data-action', 'ledger-ai-retouch-composer-close');
+      full.appendChild(layer);
+    }
+    const groups = [];
+    LEDGER_AI_IMAGE_RETOUCH_QUICK_PHRASES.forEach((phrase) => {
+      let group = groups.find((item) => item.name === phrase.group);
+      if (!group) {
+        group = { name: phrase.group, items: [] };
+        groups.push(group);
+      }
+      group.items.push(phrase.text);
+    });
+    const quickHtml = groups.map((group) => '<div class="pfh-ledger-ai-retouch-quick-group"><strong>' + escapeHtml(group.name) + '</strong><div class="pfh-ledger-ai-retouch-quick-items">' + group.items.map((text) => '<button type="button" data-action="ledger-ai-retouch-quick-phrase" data-text="' + escapeHtml(text) + '">' + escapeHtml(text) + '</button>').join('') + '</div></div>').join('');
+    const sourceFilename = String(composer.sourceFilename || '').trim();
+    layer.innerHTML = '<section class="pfh-ledger-ai-retouch-composer" role="dialog" aria-modal="true" aria-label="修改图片"><header><div><h3>修改图 · ' + escapeHtml(composer.displayName || '当前图片') + '</h3><p>可直接输入修改要求，也可以点击右侧快捷语录追加；提交后原图仍会保留。</p></div><button type="button" data-action="ledger-ai-retouch-composer-close" aria-label="关闭">×</button></header><div class="pfh-ledger-ai-retouch-compose-body"><div class="pfh-ledger-ai-retouch-compose-target"><img src="' + escapeHtml(composer.imageUrl) + '" alt="' + escapeHtml(composer.displayName || '当前图片') + '" loading="eager" decoding="async"><strong>' + escapeHtml(composer.displayName || '当前图片') + '</strong><small>' + escapeHtml(sourceFilename || '保留原图文件名') + '</small></div><div class="pfh-ledger-ai-retouch-compose-editor"><label>修改要求<textarea class="pfh-ledger-ai-retouch-composer-input" data-action="ledger-ai-retouch-composer-input" placeholder="例如：内料改成蓝色，纸盒只展示正面，其他元素保持不变"></textarea></label><div class="pfh-ledger-ai-retouch-quick-head"><span>快捷语录 <small>点击后追加到输入框</small></span><button type="button" data-action="ledger-ai-retouch-composer-clear">清空</button></div><div class="pfh-ledger-ai-retouch-quick-list">' + quickHtml + '</div><p class="pfh-ledger-ai-retouch-quick-tip">提示：XX色、XX材质等占位词可以直接改成你的具体要求；多条语录可以连续点击。</p></div></div><footer><span>通常约 45 秒返回；关闭工作台不会取消任务。</span><div><button type="button" data-action="ledger-ai-retouch-composer-close">取消</button><button type="button" class="is-primary" data-action="ledger-ai-retouch-composer-submit">提交修改</button></div></footer></section>';
+    const input = layer.querySelector('.pfh-ledger-ai-retouch-composer-input');
+    if (input) {
+      input.value = String(composer.value || '');
+      if (!layer.dataset.focused) {
+        layer.dataset.focused = '1';
+        window.requestAnimationFrame(() => {
+          if (input.isConnected) {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+          }
+        });
+      }
+    }
+  }
+
+  function openLedgerAiImageRetouchComposer(sku, dateKey, kind, imageUrl) {
     const record = findLedgerRecord(sku, dateKey);
     const source = getLedgerAiImageRetouchSource(record, kind, imageUrl);
     if (!record || !source) return;
@@ -27898,13 +28025,66 @@
     const originalItems = normalizeLedgerAiImageItems(record[fields.originalField], fields.imageLimit);
     const sourceIndex = originalItems.findIndex((item) => item.url === source.url);
     const displayName = getLedgerAiImageDisplayName(source, kind, sourceIndex >= 0 ? sourceIndex : 0);
-    const prompt = window.prompt('修改 ' + displayName + ' 的提示词\n通常约 45 秒返回；关闭工作台不会取消任务。', '');
-    if (prompt === null) return;
-    if (!String(prompt).trim()) {
-      showToast('修改提示词不能为空');
+    closeLedgerAiImageRetouchComposer();
+    state.ledgerAiImageRetouchComposer = {
+      sku: String(sku || '').trim(),
+      dateKey: normalizeLedgerDate(dateKey) || getTodayKey(),
+      kind: kind === 'detail' ? 'detail' : 'main',
+      imageUrl: source.url,
+      displayName,
+      sourceFilename: getLedgerAiImageSourceFilename(source),
+      value: '',
+    };
+    renderLedgerAiImageRetouchComposer();
+  }
+
+  function promptLedgerAiImageRetouch(sku, dateKey, kind, imageUrl) {
+    openLedgerAiImageRetouchComposer(sku, dateKey, kind, imageUrl);
+  }
+
+  function appendLedgerAiImageRetouchPhrase(text) {
+    const composer = state.ledgerAiImageRetouchComposer;
+    const phrase = String(text || '').trim();
+    if (!composer || !phrase) return;
+    const current = String(composer.value || '').trim();
+    const lines = current.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+    if (lines.includes(phrase)) {
+      showToast('这条快捷语录已经添加');
       return;
     }
-    submitLedgerAiImageRetouch(sku, dateKey, kind, source.url, prompt);
+    composer.value = current ? current + '\n' + phrase : phrase;
+    const input = document.querySelector('#' + PANEL_ID + ' .pfh-ledger-ai-retouch-composer-input');
+    if (input) {
+      input.value = composer.value;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
+  }
+
+  function clearLedgerAiImageRetouchComposer() {
+    const composer = state.ledgerAiImageRetouchComposer;
+    if (!composer) return;
+    composer.value = '';
+    const input = document.querySelector('#' + PANEL_ID + ' .pfh-ledger-ai-retouch-composer-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  function submitLedgerAiImageRetouchComposer() {
+    const composer = state.ledgerAiImageRetouchComposer;
+    if (!composer) return;
+    const prompt = String(composer.value || '').trim();
+    if (!prompt) {
+      showToast('修改提示词不能为空');
+      const input = document.querySelector('#' + PANEL_ID + ' .pfh-ledger-ai-retouch-composer-input');
+      if (input) input.focus();
+      return;
+    }
+    const payload = { ...composer };
+    closeLedgerAiImageRetouchComposer();
+    submitLedgerAiImageRetouch(payload.sku, payload.dateKey, payload.kind, payload.imageUrl, prompt);
   }
 
   function getLedgerDetail3Image(record) {
@@ -28002,6 +28182,7 @@
   }
 
   function closeLedgerAiImageViewer() {
+    closeLedgerAiImageRetouchComposer();
     state.ledgerAiImageViewer = null;
     renderLedgerAiImageViewer(ensurePanel());
   }
