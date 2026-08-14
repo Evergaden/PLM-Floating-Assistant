@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.44
+// @version      2.8.45
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.44';
+  const SCRIPT_VERSION = '2.8.45';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -8548,6 +8548,15 @@
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable.is-selected,#${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable[aria-pressed="true"]{z-index:131!important;border:1px solid var(--pfh-theme-primary,#7c3aed)!important;border-left:1px solid var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 18%,var(--pfh-theme-surface,#fff))!important;box-shadow:none!important;transform:none!important;}
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable.is-selected:hover,#${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable[aria-pressed="true"]:hover{z-index:132!important;border-color:var(--pfh-theme-primary-hover,#6036d8)!important;border-left-color:var(--pfh-theme-primary-hover,#6036d8)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 20%,var(--pfh-theme-surface,#fff))!important;box-shadow:none!important;transform:none!important;}
        @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-summary,#${PANEL_ID} .pfh-cache-editor-body{padding-left:12px;padding-right:12px}#${PANEL_ID} .pfh-cache-editor-search{width:100%}#${PANEL_ID} .pfh-cache-field-head{flex-direction:column}#${PANEL_ID} .pfh-cache-field-key{max-width:none;min-width:0}#${PANEL_ID} .pfh-cache-field-control{width:100%;grid-template-columns:74px minmax(0,1fr)}#${PANEL_ID} .pfh-cache-children{padding-left:12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
+      /* Keep one image element per card. The same source is enlarged in place on hover. */
+      #${PANEL_ID} .pfh-ledger-item.is-clickable{content-visibility:auto!important;contain-intrinsic-size:110px!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable:hover{content-visibility:visible!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{overflow:visible!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb .pfh-ledger-thumb-frame{position:relative!important;overflow:hidden!important;transition:width .2s ease,height .2s ease,box-shadow .2s ease,border-radius .2s ease!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb .pfh-ledger-thumb-frame img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-frame{position:absolute!important;right:0!important;top:0!important;z-index:141!important;width:188px!important;height:188px!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border-strong,#b7a6f4)!important;border-radius:15px!important;background:var(--pfh-theme-surface,#fff)!important;box-shadow:0 10px 26px var(--pfh-theme-shadow-soft,rgba(91,62,180,.16))!important;}
+      @media(max-width:760px){#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-frame{width:164px!important;height:164px!important;}}
+      #${PANEL_ID} .pfh-ledger-thumb-preview{display:none!important;}
     `;
   }
 
@@ -8592,6 +8601,7 @@
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.addEventListener('click', handleLedgerMoreClickCapture, true);
     panel.addEventListener('click', handlePanelClick);
+    panel.addEventListener('pointerover', handleLedgerThumbPointerOver);
     panel.addEventListener('contextmenu', handlePanelContextMenu);
     panel.addEventListener('keydown', handlePanelKeydown);
     panel.addEventListener('input', handlePanelInput);
@@ -15481,6 +15491,25 @@
     if (panel) panel.classList.remove('is-ledger-card-dragging');
   }
 
+  function getLedgerThumbnailUrl(url) {
+    const source = String(url || '').trim();
+    if (!source) return '';
+    try {
+      const parsed = new URL(source, window.location.origin);
+      const hostname = String(parsed.hostname || '').toLowerCase();
+      const isOssHost = hostname === 'oss-pro.plm.westmonth.cn'
+        || hostname === 'oss-cn-shenzhen.aliyuncs.com'
+        || hostname.endsWith('.oss-cn-shenzhen.aliyuncs.com');
+      if (!/^https?:$/.test(parsed.protocol) || !isOssHost) return source;
+      if (/(?:^|&)(?:ossaccesskeyid|signature|expires|x-oss-signature|x-oss-credential|x-oss-security-token)=/i.test(parsed.search.slice(1))) return source;
+      parsed.searchParams.delete('x-oss-process');
+      parsed.searchParams.set('x-oss-process', 'image/resize,w_240/quality,q_80');
+      return parsed.href;
+    } catch (_) {
+      return source;
+    }
+  }
+
   function ledgerViewContentHtml(records) {
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const filteredRecords = filterLedgerWorkbenchRecords(records, mode);
@@ -15545,8 +15574,10 @@
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
     const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : (record.skuImageUrl || record.benchmarkImageUrl);
+    const thumbnailUrl = getLedgerThumbnailUrl(thumbUrl);
+    const fullImageAttr = thumbnailUrl && thumbnailUrl !== thumbUrl ? ' data-ledger-full-src="' + escapeHtml(thumbUrl) + '"' : '';
     const thumb = thumbUrl
-      ? '<span class="pfh-ledger-thumb-frame"><img src="' + escapeHtml(thumbUrl) + '" alt=""></span><span class="pfh-ledger-thumb-preview"><img src="' + escapeHtml(thumbUrl) + '" alt=""></span>'
+      ? '<span class="pfh-ledger-thumb-frame"><img src="' + escapeHtml(thumbnailUrl || thumbUrl) + '" alt="" loading="lazy" decoding="async"' + fullImageAttr + '></span>'
       : '<span class="pfh-ledger-thumb-empty">' + iconHtml('image') + '</span>';
     const imageGenerated = Boolean(record.imageGeneratedAt);
     const workDate = mode === 'finalized' ? getLedgerFinalizedDate(record) : getLedgerDesignDate(record);
@@ -18405,6 +18436,37 @@
     // so one click cannot open the menu and immediately toggle it closed again.
     event.stopImmediatePropagation();
     handleLedgerMoreAction(button);
+  }
+
+  function handleLedgerThumbPointerOver(event) {
+    if (!event || state.view !== 'ledger') return;
+    const target = event.target;
+    const thumb = target && typeof target.closest === 'function'
+      ? target.closest('.pfh-ledger-thumb')
+      : null;
+    if (!thumb || !thumb.closest('#' + PANEL_ID)) return;
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget && relatedTarget.nodeType && thumb.contains(relatedTarget)) return;
+    const image = thumb.querySelector('img[data-ledger-full-src]');
+    if (!image) return;
+    const fullSrc = image.getAttribute('data-ledger-full-src');
+    if (!fullSrc) return;
+    const fallbackSrc = image.currentSrc || image.getAttribute('src') || '';
+    image.removeAttribute('data-ledger-full-src');
+    image.setAttribute('data-ledger-thumb-fallback-src', fallbackSrc);
+    image.onerror = () => {
+      const fallback = image.getAttribute('data-ledger-thumb-fallback-src');
+      image.removeAttribute('data-ledger-thumb-fallback-src');
+      image.onerror = null;
+      image.onload = null;
+      if (fallback) image.src = fallback;
+    };
+    image.onload = () => {
+      image.removeAttribute('data-ledger-thumb-fallback-src');
+      image.onerror = null;
+      image.onload = null;
+    };
+    image.src = fullSrc;
   }
 
   function handlePanelClick(event) {
@@ -27125,7 +27187,7 @@
               : { status: '已完成', stage: '完成', note: '手动完成', filesAutoCompleted: false };
     const opts = options || {};
     const finalPatch = opts.purchasePrice ? { ...patch, purchasePrice: opts.purchasePrice } : patch;
-    const updatedRecord = updateDailyLedgerForSku(sku, finalPatch, key);
+    const updatedRecord = updateDailyLedgerForSku(sku, { ...finalPatch, skipStorageSync: true }, key);
     if (action === 'ledger-finalize' && opts.purchasePrice) {
       const currentData = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
       const changed = String(currentData.purchasePrice || '') !== opts.purchasePrice;
@@ -27240,7 +27302,7 @@
       : (action === 'ledger-toggle-label-file' ? 'labelFileDone' : 'imagePackDone');
     const label = field === 'boxFileState' ? '\u7eb8\u76d2\u6587\u4ef6' : (field === 'labelFileState' ? '\u6807\u7b7e\u5370\u5237\u6587\u4ef6' : '\u56fe\u5305');
     const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
-    const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue) }, key);
+    const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue), skipStorageSync: true }, key);
     refreshLedgerCard(updatedRecord);
     scheduleDesktopBridgeSnapshot();
   }
@@ -29095,7 +29157,7 @@
     const current = normalizeLedgerArtworkState(existing && existing.artworkState);
     const next = current === 'pending' ? 'doing' : (current === 'doing' ? 'done' : 'pending');
     const label = next === 'doing' ? '生图中' : (next === 'done' ? '完成生图' : '待生图');
-    const updated = updateDailyLedgerForSku(sku, { artworkState: next, note: label }, key);
+    const updated = updateDailyLedgerForSku(sku, { artworkState: next, note: label, skipStorageSync: true }, key);
     refreshLedgerCard(updated);
   }
 
