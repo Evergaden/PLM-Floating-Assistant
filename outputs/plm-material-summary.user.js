@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.39
+// @version      2.8.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.39';
+  const SCRIPT_VERSION = '2.8.40';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -26533,6 +26533,14 @@
     if (/^The English ingredients shown in the image match the expected copy/i.test(text)) return '图片中的英文成分与预期文案一致。';
     if (/^The English ingredient text in the image could not be read reliably/i.test(text)) return '图片中的英文成分文字无法可靠识别。';
     if (/^The ingredient image needs review because discrepancies or generation anomalies were found/i.test(text)) return '成分图存在缺漏、错误或生图异常，需要检查。';
+    if (/^The image displays materials instead of cosmetic ingredients/i.test(text)) return '图片展示的是材料而不是化妆品成分；预期成分为中文，已按中文成分进行对照。';
+    if (/^No English ingredients provided in the expected list/i.test(text)) return '预期成分列表为中文，已按中文名称进行对照。';
+    if (/^The image lists materials\s*\(([^)]+)\) rather than cosmetic ingredients/i.test(text)) return '图片列出的是材料（' + text.replace(/^The image lists materials\s*\(([^)]+)\).*$/i, '$1') + '），而不是化妆品成分。';
+    if (/^The image displays materials\s*\(([^)]+)\) rather than cosmetic ingredients/i.test(text)) return '图片展示的是材料（' + text.replace(/^The image displays materials\s*\(([^)]+)\).*$/i, '$1') + '），而不是化妆品成分。';
+    if (/^The expected ingredient list provided is in Chinese/i.test(text)) return '提供的预期成分列表为中文，图片文字为英文；已按中文成分进行对照。';
+    if (/expected ingredient list.*Chinese.*not English/i.test(text)) return '提供的预期成分列表为中文，不是英文；已按中文成分进行对照。';
+    if (/image (?:text|labels?) is in English/i.test(text)) return '图片中的文字为英文。';
+    if (/materials?.*rather than cosmetic ingredients/i.test(text)) return '图片展示的是材料而不是化妆品成分。';
     if (/image type does not match its content|image bytes are not a supported/i.test(text)) return '图片格式与内容不匹配，请重新上传有效的 JPEG、PNG 或 WebP 图片。';
     if (/image is too large/i.test(text)) {
       const limit = (text.match(/max\s+([^\)]+)/i) || [])[1];
@@ -26556,7 +26564,7 @@
       imageUrl: String(source.imageUrl || '').slice(0, 1600),
       expectedIngredients: String(source.expectedIngredients || '').slice(0, 4000),
       extractedIngredients: list(source.extractedIngredients || source.recognizedEnglishIngredients, 60),
-      missing: list(source.missing || source.missingInImage, 40),
+      missing: list(source.missing || source.missingInImage, 40).map(localizeLedgerDetail3AuditText),
       extra: list(source.extra || source.unexpectedInImage, 40).map(localizeLedgerDetail3AuditText),
       duplicates: list(source.duplicates, 40).map(localizeLedgerDetail3AuditText),
       anomalies: list(source.anomalies || source.visualIssues || source.spellingIssues, 40).map(localizeLedgerDetail3AuditText),
@@ -28094,11 +28102,22 @@
 
   function getLedgerDetail3ExpectedIngredients(sku) {
     const preparation = state.ledgerAiImagePreparations[getLedgerAiPreparationKey(sku)];
-    const prepared = preparation && preparation.ingredients && preparation.ingredients.product_ingredients_summary_en;
-    if (isValidLedgerAiImageText(prepared)) return String(prepared).trim();
     const data = normalizeData(loadData(sku) || { sku });
     const record = normalizeCopywritingRecord(data.copywriting);
-    return String(data.ingredientEnglish || data.copywritingIngredientEnglish || record && record.cleanedIngredientEnglish || '').trim();
+    const candidates = [
+      preparation && preparation.ingredients && preparation.ingredients.product_ingredients_summary_en,
+      data.ingredientEnglish,
+      data.copywritingIngredientEnglish,
+      record && record.cleanedIngredientEnglish,
+      preparation && preparation.ingredients && preparation.ingredients.product_ingredients_summary_ch,
+      data.ingredientChinese,
+      data.copywritingIngredientChinese,
+    ].map((value) => String(value || '').trim()).filter(isValidLedgerAiImageText);
+    // Some PLM deployments put the Chinese value in the *_en field. Prefer a
+    // candidate without CJK characters whenever another English cache exists,
+    // but keep Chinese as a last-resort input so the Worker can translate it
+    // internally instead of incorrectly rejecting the audit.
+    return candidates.find((value) => !/[\u3400-\u9fff]/.test(value)) || candidates[0] || '';
   }
 
   async function auditLedgerDetail3(sku, dateKey, force) {

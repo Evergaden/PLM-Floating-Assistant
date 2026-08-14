@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.39
+// @version      2.8.40
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.39";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.40";
     function r(t, a) {
         window.setTimeout(() => {
             const r = document.getElementById(e);
@@ -18784,6 +18784,14 @@
         if (/^The English ingredients shown in the image match the expected copy/i.test(t)) return "图片中的英文成分与预期文案一致。";
         if (/^The English ingredient text in the image could not be read reliably/i.test(t)) return "图片中的英文成分文字无法可靠识别。";
         if (/^The ingredient image needs review because discrepancies or generation anomalies were found/i.test(t)) return "成分图存在缺漏、错误或生图异常，需要检查。";
+        if (/^The image displays materials instead of cosmetic ingredients/i.test(t)) return "图片展示的是材料而不是化妆品成分；预期成分为中文，已按中文成分进行对照。";
+        if (/^No English ingredients provided in the expected list/i.test(t)) return "预期成分列表为中文，已按中文名称进行对照。";
+        if (/^The image lists materials\s*\(([^)]+)\) rather than cosmetic ingredients/i.test(t)) return "图片列出的是材料（" + t.replace(/^The image lists materials\s*\(([^)]+)\).*$/i, "$1") + "），而不是化妆品成分。";
+        if (/^The image displays materials\s*\(([^)]+)\) rather than cosmetic ingredients/i.test(t)) return "图片展示的是材料（" + t.replace(/^The image displays materials\s*\(([^)]+)\).*$/i, "$1") + "），而不是化妆品成分。";
+        if (/^The expected ingredient list provided is in Chinese/i.test(t)) return "提供的预期成分列表为中文，图片文字为英文；已按中文成分进行对照。";
+        if (/expected ingredient list.*Chinese.*not English/i.test(t)) return "提供的预期成分列表为中文，不是英文；已按中文成分进行对照。";
+        if (/image (?:text|labels?) is in English/i.test(t)) return "图片中的文字为英文。";
+        if (/materials?.*rather than cosmetic ingredients/i.test(t)) return "图片展示的是材料而不是化妆品成分。";
         if (/image type does not match its content|image bytes are not a supported/i.test(t)) return "图片格式与内容不匹配，请重新上传有效的 JPEG、PNG 或 WebP 图片。";
         if (/image is too large/i.test(t)) {
             const e = (t.match(/max\s+([^\)]+)/i) || [])[1];
@@ -18799,7 +18807,7 @@
             imageUrl: String(t.imageUrl || "").slice(0, 1600),
             expectedIngredients: String(t.expectedIngredients || "").slice(0, 4e3),
             extractedIngredients: a(t.extractedIngredients || t.recognizedEnglishIngredients, 60),
-            missing: a(t.missing || t.missingInImage, 40),
+            missing: a(t.missing || t.missingInImage, 40).map(vh),
             extra: a(t.extra || t.unexpectedInImage, 40).map(vh),
             duplicates: a(t.duplicates, 40).map(vh),
             anomalies: a(t.anomalies || t.visualIssues || t.spellingIssues, 40).map(vh),
@@ -19544,12 +19552,10 @@
         const i = Kh(r, t), o = ky(i);
         if (!i || !o) return null;
         const s = function(e) {
-            const t = Pa.ledgerAiImagePreparations[ey(e)], a = t && t.ingredients && t.ingredients.product_ingredients_summary_en;
-            if (Yh(a)) return String(a).trim();
-            const r = br(Xw(e) || {
+            const t = Pa.ledgerAiImagePreparations[ey(e)], a = br(Xw(e) || {
                 sku: e
-            }), n = hd(r.copywriting);
-            return String(r.ingredientEnglish || r.copywritingIngredientEnglish || n && n.cleanedIngredientEnglish || "").trim();
+            }), r = hd(a.copywriting), n = [ t && t.ingredients && t.ingredients.product_ingredients_summary_en, a.ingredientEnglish, a.copywritingIngredientEnglish, r && r.cleanedIngredientEnglish, t && t.ingredients && t.ingredients.product_ingredients_summary_ch, a.ingredientChinese, a.copywritingIngredientChinese ].map(e => String(e || "").trim()).filter(Yh);
+            return n.find(e => !/[\u3400-\u9fff]/.test(e)) || n[0] || "";
         }(r), l = Ah(i.aiDetail3Audit);
         if (!a && l.imageUrl === o.url && l.expectedIngredients === s && "idle" !== l.status && "loading" !== l.status) return l;
         const c = Ah({

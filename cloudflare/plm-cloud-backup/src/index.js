@@ -1361,13 +1361,32 @@ function normalizeIngredientAuditList(value, maxItems = 100) {
   return result;
 }
 
+function localizeIngredientAuditText(value) {
+  const text = cleanText(value, 800);
+  if (!text) return '';
+  if (/^The image contains no ingredient list\b.*verify the expected ingredients/i.test(text)) return '图片中没有成分列表，无法核对预期成分。';
+  if (/^No ingredient list is present on the packaging\b.*image/i.test(text)) return '包装或图片文字中没有成分列表。';
+  if (/^The English ingredients shown in the image match the expected copy/i.test(text)) return '图片中的成分与预期文案一致。';
+  if (/^The English ingredient text in the image could not be read reliably/i.test(text)) return '图片中的成分文字无法可靠识别。';
+  if (/^The ingredient image needs review because discrepancies or generation anomalies were found/i.test(text)) return '成分图存在缺漏、错误或生图异常，需要检查。';
+  if (/^The image displays materials instead of cosmetic ingredients/i.test(text)) return '图片展示的是材料而不是化妆品成分；预期成分为中文，已按中文成分进行对照。';
+  if (/^No English ingredients provided in the expected list/i.test(text)) return '预期成分列表为中文，已按中文名称进行对照。';
+  const listedMaterials = text.match(/^The image (?:lists|displays) materials\s*\(([^)]+)\) rather than cosmetic ingredients/i);
+  if (listedMaterials) return '图片展示的是材料（' + listedMaterials[1] + '），而不是化妆品成分。';
+  if (/^The expected ingredient list provided is in Chinese/i.test(text)) return '提供的预期成分列表为中文，图片文字为英文；已按中文成分进行对照。';
+  if (/expected ingredient list.*Chinese.*not English/i.test(text)) return '提供的预期成分列表为中文，不是英文；已按中文成分进行对照。';
+  if (/image (?:text|labels?) is in English/i.test(text)) return '图片中的文字为英文。';
+  if (/materials?.*rather than cosmetic ingredients/i.test(text)) return '图片展示的是材料而不是化妆品成分。';
+  return text;
+}
+
 function sanitizeIngredientAuditResult(value) {
   const source = value && typeof value === 'object' ? value : {};
   const extractedIngredients = normalizeIngredientAuditList(source.extractedIngredients || source.ingredients);
-  const missing = normalizeIngredientAuditList(source.missing);
-  const extra = normalizeIngredientAuditList(source.extra);
-  const duplicates = normalizeIngredientAuditList(source.duplicates);
-  const anomalies = normalizeIngredientAuditList(source.anomalies, 30);
+  const missing = normalizeIngredientAuditList(source.missing).map(localizeIngredientAuditText);
+  const extra = normalizeIngredientAuditList(source.extra).map(localizeIngredientAuditText);
+  const duplicates = normalizeIngredientAuditList(source.duplicates).map(localizeIngredientAuditText);
+  const anomalies = normalizeIngredientAuditList(source.anomalies, 30).map(localizeIngredientAuditText);
   const requestedStatus = cleanText(source.status, 30).toLowerCase();
   const statusAliases = { ok: 'pass', match: 'pass', matched: 'pass', review: 'warning', mismatch: 'fail', error: 'fail' };
   let status = ['pass', 'warning', 'fail', 'unreadable'].includes(requestedStatus)
@@ -1376,13 +1395,13 @@ function sanitizeIngredientAuditResult(value) {
   if (missing.length || extra.length || duplicates.length || anomalies.length) status = 'fail';
   if (!extractedIngredients.length && requestedStatus === 'unreadable') status = 'unreadable';
   const fallbackSummary = status === 'pass'
-    ? 'The English ingredients shown in the image match the expected copy.'
+    ? '图片中的成分与预期文案一致。'
     : status === 'unreadable'
-      ? 'The English ingredient text in the image could not be read reliably.'
-      : 'The ingredient image needs review because discrepancies or generation anomalies were found.';
+      ? '图片中的成分文字无法可靠识别。'
+      : '成分图存在缺漏、错误或生图异常，需要检查。';
   return {
     status,
-    summary: cleanText(source.summary, 800) || fallbackSummary,
+    summary: localizeIngredientAuditText(source.summary) || fallbackSummary,
     extractedIngredients,
     missing,
     extra,
@@ -1412,6 +1431,8 @@ async function handleIngredientAudit(request, env) {
     const image = await downloadIngredientAuditImage(imageUrl);
     const base64 = bytesToBase64(image.bytes);
     const dataUrl = 'data:' + image.mimeType + ';base64,' + base64;
+    const expectedHasChinese = expectedIngredients.some((item) => /[\u3400-\u9fff]/.test(String(item || '')));
+    const expectedLanguage = expectedHasChinese ? '中文' : '英文';
     const options = {
       model: DETAIL3_INGREDIENT_AUDIT_MODEL,
       temperature: 0,
@@ -1426,17 +1447,20 @@ async function handleIngredientAudit(request, env) {
       images: [dataUrl],
       inlineData: { mimeType: image.mimeType, data: base64 },
       system: [
-        'You audit a product detail image against approved English ingredient copy.',
-        'Read only English ingredient names visibly presented in the supplied image.',
-        'Detect missing, incorrect or extra ingredients, duplicated ingredient cards or labels, and obvious AI-generation anomalies such as malformed text, repeated panels, mismatched ingredient imagery, or an incomplete layout.',
-        'Do not treat headings, materials, benefits, quantities or non-ingredient marketing phrases as ingredients.',
-        'Return exactly one JSON object and no Markdown.',
+        '你是负责核查化妆品详情图3的中文视觉审查助手。',
+        '只识别图片中实际展示的成分名称；如果图片展示的是 Plastic、Acrylic 等材料，不要把它们当作化妆品成分，并在 extra 或 anomalies 中指出。',
+        '预期成分可能是中文或英文；如果预期成分是中文，请在内部翻译并与图片中的英文成分对照，不要因为预期成分不是英文就判定没有预期成分。',
+        '检查缺漏、错误或多余成分、重复成分卡片或标签，以及乱码、重复面板、成分图片与文字不匹配、版式不完整等生图异常。',
+        '标题、材料、功效、用量和非成分营销短语都不能当作化妆品成分。',
+        'summary、missing、extra、duplicates、anomalies 中的说明必须使用简体中文；成分名称本身可以保留图片中的英文或预期中的中文名称。不要输出英文解释句子。',
+        '只返回一个 JSON 对象，不要 Markdown。',
       ].join(' '),
       prompt: [
         'SKU: ' + sku,
-        'Expected English ingredients: ' + JSON.stringify(expectedIngredients),
-        'Return this schema exactly: {"status":"pass|warning|fail|unreadable","summary":"short audit conclusion","extractedIngredients":["visible English ingredient"],"missing":["expected but absent"],"extra":["visible but unexpected or incorrect"],"duplicates":["duplicated ingredient or panel"],"anomalies":["specific visible generation anomaly"]}.',
-        'Use pass only when all expected ingredients are visibly represented exactly once and no anomaly is apparent. Use unreadable when the image cannot be inspected reliably. Keep every list as an array of concise English strings.',
+        '预期成分文本语言：' + expectedLanguage,
+        '预期成分：' + JSON.stringify(expectedIngredients),
+        '严格返回此结构：{"status":"pass|warning|fail|unreadable","summary":"中文核查结论","extractedIngredients":["图片中识别到的成分名称"],"missing":["缺少的成分名称或简短中文说明"],"extra":["多余或错误的成分名称"],"duplicates":["重复的成分名称或简短中文说明"],"anomalies":["中文生图异常说明"]}。',
+        '只有在所有预期成分都被图片清楚展示且各出现一次、没有异常时才使用 pass；无法可靠查看图片时使用 unreadable。所有数组必须是简短条目，不要把英文解释句子放入数组。',
       ].join('\n'),
     };
     const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeIngredientAuditResult(parseIngredientAuditAiJson(candidate.text)));
