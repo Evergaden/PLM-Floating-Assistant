@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.34
+// @version      2.8.35
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.34';
+  const SCRIPT_VERSION = '2.8.35';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -8315,6 +8315,11 @@
       #${PANEL_ID} .pfh-ledger-ai-image-preview-heading strong{font-size:15px!important}#${PANEL_ID} .pfh-ledger-ai-image-preview-heading>small{font-size:10px!important}
       #${PANEL_ID} .pfh-ledger-ai-image-preview-actions button,#${PANEL_ID} .pfh-ledger-ai-image-dialog>footer button{min-height:34px!important;font-size:12px!important}
       #${PANEL_ID} .pfh-ledger-ai-image-dialog>footer{font-size:11px!important}
+      #${PANEL_ID} .pfh-ledger-ai-image-preview-empty{min-height:0!important;flex:1 1 auto!important;align-items:stretch!important;justify-content:stretch!important;overflow:auto!important}
+      #${PANEL_ID} .pfh-ledger-ai-image-preview-empty .pfh-ledger-ai-preparation{height:100%!important;max-height:none!important;flex:1 1 auto!important}
+      #${PANEL_ID} .pfh-ledger-ai-prep-grid{flex:1 1 auto!important;align-content:stretch!important;grid-auto-rows:minmax(136px,1fr)!important}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row{min-height:136px!important;min-width:0!important}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row textarea{min-height:112px!important;height:100%!important;flex:1 1 auto!important}
       @media(max-height:850px){#${PANEL_ID} .pfh-ledger-ai-image-dialog{height:calc(100vh - 16px)!important;min-height:0!important;max-height:calc(100vh - 16px)!important}}
       #${PANEL_ID} .pfh-ledger-ai-image-thumb-row{display:flex;align-items:stretch;gap:3px;min-width:0}#${PANEL_ID} .pfh-ledger-ai-image-thumb-row .pfh-ledger-ai-image-thumb{min-width:0;flex:1 1 auto}#${PANEL_ID} .pfh-ledger-ai-image-delete{display:inline-flex;flex:0 0 22px;width:22px;min-width:22px;min-height:22px;align-items:center;justify-content:center;padding:0;border:1px solid #e4ddef;border-radius:7px;background:#fff;color:#9b8da9;font:700 14px/1 inherit;cursor:pointer;opacity:.72;transition:border-color .18s ease,background .18s ease,color .18s ease,opacity .18s ease}#${PANEL_ID} .pfh-ledger-ai-image-delete:hover{border-color:#df8496;background:#fff3f5;color:#b34a5d;opacity:1}#${PANEL_ID} .pfh-ledger-ai-image-sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}#${PANEL_ID} .pfh-ledger-ai-image-sidebar-head>div{display:flex;min-width:0;align-items:center;gap:6px}#${PANEL_ID} .pfh-ledger-ai-image-restore{min-height:22px;padding:0 6px;border:1px solid #d6c9f1;border-radius:7px;background:#f8f5ff;color:#7552bd;font:inherit;font-size:8px;cursor:pointer;white-space:nowrap}#${PANEL_ID} .pfh-ledger-ai-image-restore:hover{border-color:#a68be7;background:#eee8ff;color:#6030cf}
       #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page{grid-template-rows:auto auto auto auto minmax(0,1fr)!important}#${PANEL_ID}[data-view="ledger"] .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto auto minmax(0,1fr)!important}
@@ -27547,26 +27552,51 @@
     return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (missing.length ? 'is-missing' : 'is-ready') + '">' + escapeHtml(missing.length ? 'PLM 还缺 ' + missing.length + ' 项' : 'PLM 资料已完整') + '</span></div><p>' + escapeHtml(imageStatus) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + rows + ingredientRows + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-save" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (saving ? ' disabled' : '') + '>' + (saving ? '正在保存…' : '保存到 PLM 草稿') + '</button><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">重新检测</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (busy || saving ? ' disabled' : '') + '>' + (busy ? '正在补齐并保存…' : 'AI 补齐并保存草稿') + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + (kind === 'detail' ? 'detail' : 'main') + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (missing.length || saving ? ' disabled' : '') + '>PLM 资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + escapeHtml(preparationNotice) + '</p></div>';
   }
 
-  function getLedgerAiImageSkuAttribute(contentPayload) {
+  function getLedgerAiImageSkuAttributes(contentPayload) {
     const attrs = getApiDetailAttributes(contentPayload);
-    return (Array.isArray(attrs) ? attrs : []).find((attr) => {
+    const list = Array.isArray(attrs) ? attrs : [];
+    const dedicated = list.find((attr) => {
       const variableName = String(attr && attr.variable_name || '').trim();
       const label = getApiAttributeLabel(attr);
       return /^sku[_\s-]*pic$/i.test(variableName)
         || /(?:SKU\s*(?:图|效果图|diagram)|SKU图)/i.test(label);
-    }) || null;
+    });
+    const genericPicture = list.find((attr) => {
+      const variableName = String(attr && attr.variable_name || '').trim();
+      const label = getApiAttributeLabel(attr);
+      return Number(attr && attr.attr_id) === 148
+        || /^(?:picture|product[_\s-]*(?:pic|image))$/i.test(variableName)
+        || /(?:^|\s)(?:picture|图片|产品图)(?:\s|$)/i.test(label);
+    });
+    return [dedicated, genericPicture].filter((attr, index, items) => attr && items.indexOf(attr) === index);
+  }
+
+  function getLedgerAiImageSkuAttribute(contentPayload) {
+    return getLedgerAiImageSkuAttributes(contentPayload)[0] || null;
   }
 
   async function inspectLedgerAiImageSkuContent(contentPayload) {
-    const attr = getLedgerAiImageSkuAttribute(contentPayload);
-    if (!attr) return { status: 'unknown', reason: 'PLM 产品详情未返回 SKU 图字段' };
-    const rawValue = getApiAttributeValue(attr, 1);
-    const directUrl = getApiAssetUrl(rawValue, 0);
-    if (directUrl) return { status: 'available', url: directUrl, source: 'plm-detail' };
-    const ids = getApiAttributeFileIds([attr], /sku[_\s-]*pic|SKU\s*(?:图|效果图|diagram)/i);
-    if (!ids.length) return { status: 'missing', reason: 'PLM 的 SKU 图字段为空' };
+    const attrs = getLedgerAiImageSkuAttributes(contentPayload);
+    if (!attrs.length) return { status: 'unknown', reason: 'PLM 产品详情未返回 SKU 图或产品图片字段' };
+    let foundField = false;
+    const fileIds = [];
+    for (const attr of attrs) {
+      const rawValue = getApiAttributeValue(attr, 1);
+      const directUrl = getApiAssetUrl(rawValue, 0);
+      if (directUrl) {
+        return {
+          status: 'available',
+          url: directUrl,
+          source: Number(attr && attr.attr_id) === 148 ? 'plm-picture' : 'plm-detail',
+        };
+      }
+      const ids = getApiAttributeFileIds([attr], /sku[_\s-]*pic|SKU\s*(?:图|效果图|diagram)|picture|图片|产品图/i);
+      if (ids.length) foundField = true;
+      ids.forEach((id) => { if (!fileIds.includes(id)) fileIds.push(id); });
+    }
+    if (!fileIds.length) return { status: 'missing', reason: foundField ? 'PLM 的 SKU 图附件不存在' : 'PLM 的 SKU 图/产品图片字段为空' };
     try {
-      const files = (await fetchApiArchiveFileRecordsByIds(ids))
+      const files = (await fetchApiArchiveFileRecordsByIds(fileIds))
         .map(buildApiArchiveFileInfo)
         .filter((file) => file.url && (/(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(file.fileName) || /(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(file.fileFormat)));
       const image = files[0];
