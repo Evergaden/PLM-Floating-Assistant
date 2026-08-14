@@ -66,7 +66,7 @@ Set the Zhipu API key for AI insight summaries:
 npx.cmd wrangler secret put ZHIPU_API_KEY
 ```
 
-Set the ModelScope access token for ingredient PDF normalization, toy copywriting, and the Qwen insight option. These calls use `Qwen/Qwen3.5-397B-A17B` first:
+Set the ModelScope access token for ingredient PDF normalization, toy copywriting, and the Qwen insight option. These calls use `Qwen/Qwen3.5-397B-A17B` first. The detail-image-3 ingredient audit uses the lighter vision model `Qwen/Qwen3-VL-8B-Instruct` so image checks do not require the 397B model quota:
 
 ```powershell
 npx.cmd wrangler secret put MODELSCOPE_ACCESS_TOKEN
@@ -175,7 +175,7 @@ Backups written by userscript 2.6.105 and later use browser-side AES-GCM encrypt
 - `/insights/rules` groups missing-field issues into data-cleaning rule candidates and marks high-priority cases where the page was read but parsing failed.
 - `/feedback/submit` accepts `feature`, `usage`, `data`, or `other`, stores up to 2000 characters, attaches the script/page/SKU context, and limits each PLM name to 10 submissions per rolling 24 hours.
 - `/feedback/mine` returns the latest 50 entries for the supplied PLM name. The admin page lists feedback and lets an administrator set `pending`, `processing`, or `resolved` plus a reply of up to 4000 characters.
-- `/ingredients/normalize` and `/toy-copywriting/complete` call ModelScope `Qwen/Qwen3.5-397B-A17B` first, then automatically fall back to Gemini. Image-only ingredient PDFs are rendered to images in the userscript for Qwen vision input; the original PDF is retained for Gemini fallback.
+- `/ingredients/normalize` and `/toy-copywriting/complete` call ModelScope `Qwen/Qwen3.5-397B-A17B` first, then automatically fall back to Gemini. Image-only ingredient PDFs are rendered to images in the userscript for Qwen vision input; the original PDF is retained for Gemini fallback. `/ai-image/ingredient-audit` uses `Qwen/Qwen3-VL-8B-Instruct` first, then the same Gemini fallback chain.
 - `/insights/ai-report` calls the selected AI model for a concise Chinese insight report. The ModelScope Qwen option automatically falls back to Gemini. If all configured AI providers are missing, busy, or time out, it returns a rule-based fallback report.
 
 Secrets must stay in Worker environment variables. Do not put API keys into the userscript.

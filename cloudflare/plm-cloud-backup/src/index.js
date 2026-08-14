@@ -148,18 +148,22 @@ function getZhipuModel(env) {
 }
 
 const DEFAULT_MODELSCOPE_MODEL = 'Qwen/Qwen3.5-397B-A17B';
+const DETAIL3_INGREDIENT_AUDIT_MODEL = 'Qwen/Qwen3-VL-8B-Instruct';
 
 function getModelScopeModel(env) {
   return String((env && env.MODELSCOPE_MODEL) || DEFAULT_MODELSCOPE_MODEL).trim() || DEFAULT_MODELSCOPE_MODEL;
 }
 
 function isModelScopeModel(value) {
-  return /^(?:modelscope[:/])?qwen\/qwen3\.5-397b-a17b$/i.test(String(value || '').trim())
-    || /^qwen3\.5-397b-a17b$/i.test(String(value || '').trim());
+  const model = String(value || '').trim();
+  return /^qwen\//i.test(model)
+    || /^(?:modelscope[:/])?qwen3\.5-397b-a17b$/i.test(model)
+    || /^qwen3\.5-397b-a17b$/i.test(model);
 }
 
 function normalizeInsightAiModel(value, env) {
   const raw = String(value || (env && (env.INSIGHT_AI_MODEL || env.AI_MODEL || env.ZHIPU_MODEL)) || 'glm-4.7-flash').trim();
+  if (/^qwen\//i.test(raw)) return raw;
   if (isModelScopeModel(raw)) return getModelScopeModel(env);
   if (/^gemini-3\.5-flash$/i.test(raw)) return 'gemini-3.5-flash';
   if (/^glm-4\.7-flash$/i.test(raw)) return 'glm-4.7-flash';
@@ -289,7 +293,9 @@ async function callModelScopeText(config, options) {
 
 async function callPreferredAiText(env, options, validate) {
   const requestOptions = options || {};
-  const primaryConfig = getAiModelConfig(env, getModelScopeModel(env));
+  const primaryModel = String(requestOptions.primaryModel || requestOptions.model || getModelScopeModel(env)).trim()
+    || getModelScopeModel(env);
+  const primaryConfig = getAiModelConfig(env, primaryModel);
   const failures = [];
   if (primaryConfig.configured) {
     try {
@@ -301,10 +307,10 @@ async function callPreferredAiText(env, options, validate) {
       const value = validate ? await validate(result) : null;
       return { result, value };
     } catch (error) {
-      failures.push('ModelScope: ' + cleanText(error && error.message, 240));
+      failures.push('ModelScope (' + primaryConfig.model + '): ' + cleanText(error && error.message, 240));
     }
   } else {
-    failures.push('ModelScope: MODELSCOPE_ACCESS_TOKEN not configured');
+    failures.push('ModelScope (' + primaryConfig.model + '): MODELSCOPE_ACCESS_TOKEN not configured');
   }
 
   const requestedGeminiModels = Array.isArray(requestOptions.geminiFallbackModels) && requestOptions.geminiFallbackModels.length
@@ -1407,10 +1413,10 @@ async function handleIngredientAudit(request, env) {
     const base64 = bytesToBase64(image.bytes);
     const dataUrl = 'data:' + image.mimeType + ';base64,' + base64;
     const options = {
-      model: getModelScopeModel(env),
+      model: DETAIL3_INGREDIENT_AUDIT_MODEL,
       temperature: 0,
       maxTokens: 1000,
-      primaryTimeoutMs: 10000,
+      primaryTimeoutMs: 25000,
       fallbackTimeoutMs: 90000,
       geminiFallbackModels: [
         String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'),
