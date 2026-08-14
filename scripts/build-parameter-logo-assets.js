@@ -38,13 +38,35 @@ const files = {
   woodsleep: 'Woodsleep.svg',
   ximonth: 'ximonth.svg',
   zyvarn: 'Zyvarn bk.svg',
+  zephoco: 'zephoco.svg',
 };
+
+const existingWorkerSource = fs.existsSync(workerOutputPath)
+  ? fs.readFileSync(workerOutputPath, 'utf8')
+  : '';
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function readExistingAsset(key) {
+  const escapedKey = escapeRegExp(key);
+  const objectMatch = existingWorkerSource.match(new RegExp(`["']${escapedKey}["']\\s*:\\s*"([^"]*)"`));
+  if (objectMatch) return objectMatch[1];
+  const assignmentMatch = existingWorkerSource.match(new RegExp(`PARAMETER_LOGO_ASSET_DATA\\.${escapedKey}\\s*=\\s*"([^"]*)"`));
+  return assignmentMatch ? assignmentMatch[1] : '';
+}
 
 const assets = {};
 for (const [key, fileName] of Object.entries(files)) {
   const filePath = path.join(sourceRoot, fileName);
-  if (!fs.existsSync(filePath)) throw new Error(`Missing logo: ${filePath}`);
-  assets[key] = `data:image/svg+xml;base64,${fs.readFileSync(filePath).toString('base64')}`;
+  if (fs.existsSync(filePath)) {
+    assets[key] = `data:image/svg+xml;base64,${fs.readFileSync(filePath).toString('base64')}`;
+    continue;
+  }
+  const previous = readExistingAsset(key);
+  if (!previous) throw new Error(`Missing logo: ${filePath}`);
+  assets[key] = previous;
 }
 
 const clientSource = `  const PARAMETER_LOGO_ALIASES = Object.freeze({
@@ -61,7 +83,8 @@ const clientSource = `  const PARAMETER_LOGO_ALIASES = Object.freeze({
     if (!normalized || /^(amz|odm|oem|dowmoo)$/.test(normalized)) return '';
     const compact = normalized.replace(/[^a-z0-9\\u3400-\\u9fff\\uac00-\\ud7af]+/g, '');
     return PARAMETER_LOGO_ALIASES[normalized] || PARAMETER_LOGO_ALIASES[compact] || compact;
-  }`;
+  }
+`;
 
 const workerSource = `export const PARAMETER_LOGO_ASSETS = Object.freeze(${JSON.stringify(assets, null, 2)});\n`;
 
