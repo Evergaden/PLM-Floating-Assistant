@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.35
+// @version      2.8.36
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.35";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.36";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -719,7 +719,7 @@
         return t.endsWith("/ui-" + r + ".css") || t === "ui-" + r + ".css";
     }
     async function st() {
-        const e = await Lb("/brand-compliance", {
+        const e = await Nb("/brand-compliance", {
             method: "GET"
         }), t = e && e.brands;
         if (!Array.isArray(t) || !t.length) throw new Error("cloud brand compliance data is empty");
@@ -784,7 +784,7 @@
             at(v), et = v, rt(v);
             const x = document.getElementById(e);
             x && (Zi(x) || zi());
-            return Bb("success", "云端资源已更新", v.dataVersion), v;
+            return zb("success", "云端资源已更新", v.dataVersion), v;
         }(Boolean(t)).finally(() => {
             tt = null;
         }), tt);
@@ -842,7 +842,7 @@
         try {
             await lt(!0);
         } catch (e) {
-            Bb("warn", "云端 Excel 模板加载失败", _b(e));
+            zb("warn", "云端 Excel 模板加载失败", Ub(e));
         }
         return Boolean(Ze);
     }
@@ -886,7 +886,7 @@
     e), Object.create(null))), mt = ft.default;
     function ht(e) {
         const t = gt[e] || e, a = ft[t] || mt;
-        return '<span class="pfh-icon pfh-icon-' + pk(t) + '">' + a + "</span>";
+        return '<span class="pfh-icon pfh-icon-' + gk(t) + '">' + a + "</span>";
     }
     const yt = "plm-floating-helper:notifications:v1", bt = "plm-floating-helper:home-greetings:v1", wt = Object.freeze([ Object.freeze({
         greetingId: "morning",
@@ -1008,9 +1008,9 @@
         if (!Pa.notificationModalOpen) return void (t && t.remove());
         t || (t = document.createElement("div"), t.className = "pfh-notification-layer",
         t.setAttribute("data-action", "notification-close"), e.querySelector(".pfh-full").appendChild(t));
-        const a = "history" === Pa.notificationTab ? "history" : "new", n = (Pa.notifications || []).filter(e => "new" === a ? !e.isRead : e.isRead), r = Pa.notificationsLoading ? '<span class="pfh-notification-status">正在同步…</span>' : Pa.notificationsError ? '<span class="pfh-notification-status is-error">已显示本地缓存</span>' : '<span class="pfh-notification-status">' + (Pa.notificationCheckedAt ? "更新于 " + pk(Ct(Pa.notificationCheckedAt)) : "暂未同步") + "</span>";
+        const a = "history" === Pa.notificationTab ? "history" : "new", n = (Pa.notifications || []).filter(e => "new" === a ? !e.isRead : e.isRead), r = Pa.notificationsLoading ? '<span class="pfh-notification-status">正在同步…</span>' : Pa.notificationsError ? '<span class="pfh-notification-status is-error">已显示本地缓存</span>' : '<span class="pfh-notification-status">' + (Pa.notificationCheckedAt ? "更新于 " + gk(Ct(Pa.notificationCheckedAt)) : "暂未同步") + "</span>";
         t.innerHTML = '<section class="pfh-notification-dialog" role="dialog" aria-modal="true" aria-label="通知中心" data-notification-dialog="1"><header><div><h3>通知中心</h3>' + r + '</div><button type="button" class="pfh-notification-close" data-action="notification-close" aria-label="关闭">×</button></header><nav><button type="button" data-action="notification-tab" data-tab="new" class="' + ("new" === a ? "is-active" : "") + '">新通知 <em>' + Tt() + '</em></button><button type="button" data-action="notification-tab" data-tab="history" class="' + ("history" === a ? "is-active" : "") + '">历史通知</button><button type="button" data-action="notification-refresh">刷新</button></nav><div class="pfh-notification-list">' + function(e, t) {
-            return e.length ? e.map(e => '<article class="pfh-notification-item' + (e.isRead ? " is-read" : " is-unread") + '"><div class="pfh-notification-item-head"><h4>' + pk(e.title) + "</h4>" + (e.isRead ? "" : "<span>新</span>") + '</div><div class="pfh-notification-content">' + pk(e.content) + '</div><div class="pfh-notification-foot"><time>' + pk(Ct(e.publishedAt)) + "</time>" + (e.actionUrl ? '<a class="pfh-notification-action" href="' + pk(e.actionUrl) + '" target="_blank" rel="noopener noreferrer">' + pk(e.actionLabel || "去更新") + "</a>" : "") + (e.isRead ? "<span>已读</span>" : '<button type="button" data-action="notification-read" data-notification-id="' + pk(e.notificationId) + '">我知道了</button>') + "</div></article>").join("") : '<div class="pfh-notification-empty">' + pk(t) + "</div>";
+            return e.length ? e.map(e => '<article class="pfh-notification-item' + (e.isRead ? " is-read" : " is-unread") + '"><div class="pfh-notification-item-head"><h4>' + gk(e.title) + "</h4>" + (e.isRead ? "" : "<span>新</span>") + '</div><div class="pfh-notification-content">' + gk(e.content) + '</div><div class="pfh-notification-foot"><time>' + gk(Ct(e.publishedAt)) + "</time>" + (e.actionUrl ? '<a class="pfh-notification-action" href="' + gk(e.actionUrl) + '" target="_blank" rel="noopener noreferrer">' + gk(e.actionLabel || "去更新") + "</a>" : "") + (e.isRead ? "<span>已读</span>" : '<button type="button" data-action="notification-read" data-notification-id="' + gk(e.notificationId) + '">我知道了</button>') + "</div></article>").join("") : '<div class="pfh-notification-empty">' + gk(t) + "</div>";
         }(n, "new" === a ? "暂无新通知" : "暂无历史通知") + "</div>" + (Tt() ? '<footer><button type="button" data-action="notification-read-all">全部标为已读</button></footer>' : "") + "</section>";
     }
     async function Lt(e, t) {
@@ -1018,7 +1018,7 @@
         if (!n.length) return;
         const r = [];
         for (const i of n) try {
-            await Lb("/notifications/read", {
+            await Nb("/notifications/read", {
                 method: "POST",
                 body: {
                     notificationId: i,
@@ -1034,7 +1034,7 @@
         if (!Pa.homeGreetingsLoading) {
             Pa.homeGreetingsLoading = !0;
             try {
-                const t = await Lb("/home-greetings?v=" + encodeURIComponent(a), {
+                const t = await Nb("/home-greetings?v=" + encodeURIComponent(a), {
                     method: "GET"
                 }), n = (Array.isArray(t && t.greetings) ? t.greetings : []).map(xt).filter(Boolean);
                 n.length && (Pa.homeGreetings = n), Pa.homeGreetingCheckedAt = Date.now(), function() {
@@ -1045,9 +1045,9 @@
                     try {
                         "function" == typeof GM_setValue ? GM_setValue(bt, e) : localStorage.setItem(bt, JSON.stringify(e));
                     } catch (e) {}
-                }(), "home" === Pa.view && zi(), e && Fb("主页问候语已更新");
+                }(), "home" === Pa.view && zi(), e && Bb("主页问候语已更新");
             } catch (t) {
-                Bb("warn", "主页问候语同步失败：" + _b(t)), e && Fb("暂时无法更新主页问候语");
+                zb("warn", "主页问候语同步失败：" + Ub(t)), e && Bb("暂时无法更新主页问候语");
             } finally {
                 Pa.homeGreetingsLoading = !1;
             }
@@ -1055,11 +1055,11 @@
     }
     async function _t(t) {
         if (Pa.notificationsLoading) return;
-        const n = eb(), r = kb();
+        const n = tb(), r = Sb();
         Pa.notificationsLoading = !0, Pa.notificationsError = "", Pa.notificationModalOpen && zi();
         try {
             await Lt(n, r);
-            const e = await Lb("/notifications?name=" + encodeURIComponent(n || "") + "&instanceId=" + encodeURIComponent(r) + "&version=" + encodeURIComponent(a), {
+            const e = await Nb("/notifications?name=" + encodeURIComponent(n || "") + "&instanceId=" + encodeURIComponent(r) + "&version=" + encodeURIComponent(a), {
                 method: "GET"
             }), i = new Set(Pa.notificationPendingReadIds || []);
             Pa.notifications = (Array.isArray(e && e.notifications) ? e.notifications : []).map(It).filter(Boolean).map(e => i.has(e.notificationId) ? {
@@ -1077,9 +1077,9 @@
                     "function" == typeof GM_setValue ? GM_setValue(kt, e.notificationId) : localStorage.setItem(kt, e.notificationId);
                 } catch (e) {}
                 Pa.notificationModalOpen = !0, Pa.notificationTab = "new", Ai();
-            }(), t && Fb("通知已更新");
+            }(), t && Bb("通知已更新");
         } catch (e) {
-            Pa.notificationsError = _b(e), t && Fb("无法联网，已显示本地缓存");
+            Pa.notificationsError = Ub(e), t && Bb("无法联网，已显示本地缓存");
         } finally {
             Pa.notificationsLoading = !1;
             const t = document.getElementById(e);
@@ -1110,10 +1110,10 @@
     }
     function Kt() {
         const e = qt();
-        return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>桌面工作台</strong><span>' + pk(Ht() ? "已连接" : "本机直连") + '</span></div><label class="pfh-cloud-key"><span>工作台连接码</span><input type="text" name="plm-desktop-pairing-code" class="pfh-desktop-bridge-token" value="' + pk(e) + '" placeholder="从 PLM 产品资产工作台复制连接码" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true" style="-webkit-text-security:disc"></label><div class="pfh-about-actions"><button type="button" data-action="desktop-bridge-connect">连接工作台</button><button type="button" data-action="desktop-bridge-disconnect">断开</button><span class="pfh-desktop-bridge-status">' + pk(Rt) + "</span></div></div>";
+        return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>桌面工作台</strong><span>' + gk(Ht() ? "已连接" : "本机直连") + '</span></div><label class="pfh-cloud-key"><span>工作台连接码</span><input type="text" name="plm-desktop-pairing-code" class="pfh-desktop-bridge-token" value="' + gk(e) + '" placeholder="从 PLM 产品资产工作台复制连接码" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true" style="-webkit-text-security:disc"></label><div class="pfh-about-actions"><button type="button" data-action="desktop-bridge-connect">连接工作台</button><button type="button" data-action="desktop-bridge-disconnect">断开</button><span class="pfh-desktop-bridge-status">' + gk(Rt) + "</span></div></div>";
     }
     function Gt(e) {
-        return $t(e).length < 32 ? (Vt("连接码无效"), Fb("桌面工作台连接码无效"), !1) : (Qt(!0), !0);
+        return $t(e).length < 32 ? (Vt("连接码无效"), Bb("桌面工作台连接码无效"), !1) : (Qt(!0), !0);
     }
     function Wt(e) {
         window.clearTimeout(Bt), Bt = 0, e && $t("");
@@ -1138,8 +1138,8 @@
                         token: t,
                         role: "assistant",
                         version: a,
-                        userName: eb() || ""
-                    })), Vt("已连接桌面工作台"), e && Fb("桌面工作台已连接");
+                        userName: tb() || ""
+                    })), Vt("已连接桌面工作台"), e && Bb("桌面工作台已连接");
                 }, n.onmessage = e => function(e) {
                     let t;
                     try {
@@ -1153,7 +1153,7 @@
                         if (!/^SKU\d{8}$/.test(t) || !a) throw new Error("Excel 任务参数无效");
                         if (!window.ExcelJS) throw new Error("ExcelJS 尚未加载");
                         if (!await dt()) throw new Error("Excel 模板尚未缓存，请联网后重试");
-                        const n = bn(Gw(t) || Pa.index.find(e => e.sku === t) || {}), r = bn(ch(Pa.ledgerRecords || th()).find(e => String(e.sku || "").toUpperCase() === t) || {}), i = {
+                        const n = bn(Ww(t) || Pa.index.find(e => e.sku === t) || {}), r = bn(ch(Pa.ledgerRecords || th()).find(e => String(e.sku || "").toUpperCase() === t) || {}), i = {
                             ...e && e.product || {}
                         };
                         if (!Array.isArray(i.packageNums) || i.packageNums.length < 3) {
@@ -1167,7 +1167,7 @@
                         const o = bn(i), s = bn(un(un(n, r), o));
                         if (!s.sku) throw new Error("本地缓存中找不到 " + t);
                         let l, c;
-                        if (Pa.selectedSku = t, Pa.data = s, tf(), Bb("info", "桌面工作台请求悬浮助手生成资产", t), e.auto) {
+                        if (Pa.selectedSku = t, Pa.data = s, tf(), zb("info", "桌面工作台请求悬浮助手生成资产", t), e.auto) {
                             if (l = nf(s), c = s, Pa.excelExtra = {
                                 extra: l,
                                 excelData: c
@@ -1180,7 +1180,7 @@
                         }
                         const u = pm(Pa.excelPackQty || c.packQty || c.packCount || c.cartonQty || ""), d = String(Pa.excelPurchasePrice || c.purchasePrice || "6");
                         if (!u) {
-                            const e = sb(c);
+                            const e = lb(c);
                             if (!e) throw new Error(t + " 缺少完整包装尺寸，无法计算装箱数");
                             throw new Error(t + " 的包装尺寸为 " + e + "，但装箱推荐服务未返回结果");
                         }
@@ -1207,7 +1207,7 @@
                             a.toDataURL("image/jpeg", .95);
                         }(h.dataUrl);
                         Ff(f, "A4", Sm(c, l)), Ff(f, "B4", c.name || l.chineseName || ""), Ff(f, "C4", ""),
-                        Ff(f, "E4", sk(u)), Ff(f, "G4", c.sku || ""), c.singleBottle ? Ff(f, "H4", "瓶装") : f.getCell("H4").value = {
+                        Ff(f, "E4", lk(u)), Ff(f, "G4", c.sku || ""), c.singleBottle ? Ff(f, "H4", "瓶装") : f.getCell("H4").value = {
                             formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))'
                         };
                         Ff(f, "I4", sm([ c.productLength, c.productWidth, c.productHeight ]) || om(c.productNums, [])),
@@ -1220,7 +1220,7 @@
                             formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"'
                         }, f.getCell("L3").value = {
                             formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
-                        }) : pb(c) && (f.spliceColumns(10, 1), f.getCell("F4").value = {
+                        }) : gb(c) && (f.spliceColumns(10, 1), f.getCell("F4").value = {
                             formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"'
                         }, f.getCell("L3").value = {
                             formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
@@ -1241,17 +1241,17 @@
                             jobId: a,
                             sku: t,
                             fileName: String(e.fileName || vm(c, l)),
-                            excelBase64: Vy(w),
+                            excelBase64: Ky(w),
                             skuImageDataUrl: y,
                             englishDataUrl: k.englishDataUrl,
                             sizeDataUrl: k.sizeDataUrl
-                        }), Bb("success", "桌面工作台资产已返回", t + " / Excel " + w.length + " bytes");
+                        }), zb("success", "桌面工作台资产已返回", t + " / Excel " + w.length + " bytes");
                     }(t)).catch(e => {
                         Jt({
                             type: "excel.error",
                             jobId: String(t.jobId || ""),
                             sku: String(t.sku || ""),
-                            message: _b(e)
+                            message: Ub(e)
                         });
                     }));
                     if ("upload.queue.add" === t.type) return void Yt(t).catch(e => {
@@ -1260,7 +1260,7 @@
                             requestId: String(t.requestId || ""),
                             added: 0,
                             skipped: 0,
-                            error: _b(e)
+                            error: Ub(e)
                         });
                     });
                     if ("upload.queue.begin" === t.type) {
@@ -1302,7 +1302,7 @@
                                 requestId: t,
                                 added: 0,
                                 skipped: 0,
-                                error: _b(e)
+                                error: Ub(e)
                             });
                         });
                     }(t);
@@ -1314,7 +1314,7 @@
                     Ft === n && (Ft = null), Vt("工作台未连接"), Bt = window.setTimeout(() => Qt(!1), 5e3);
                 };
             } catch (e) {
-                Vt("连接失败：" + _b(e)), Bt = window.setTimeout(() => Qt(!1), 5e3);
+                Vt("连接失败：" + Ub(e)), Bt = window.setTimeout(() => Qt(!1), 5e3);
             }
         }
     }
@@ -1352,7 +1352,7 @@
         });
     }
     async function Yt(e) {
-        const t = Array.isArray(e && e.items) ? e.items : [], a = ow(), n = fw();
+        const t = Array.isArray(e && e.items) ? e.items : [], a = sw(), n = mw();
         let r = 0, i = 0;
         const o = [];
         for (const e of t) {
@@ -1365,15 +1365,15 @@
                 const n = String(e.xlsxName || t + ".xlsx"), i = String(e.zipName || t + ".zip"), o = Array.isArray(e.xlsxChunks) ? Zt(e.xlsxChunks, n, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", e.xlsxSize) : Xt(e.xlsxBase64, n, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", e.xlsxSize), l = Array.isArray(e.zipChunks) ? Zt(e.zipChunks, i, "application/zip", e.zipSize) : Xt(e.zipBase64, i, "application/zip", e.zipSize);
                 Pa.uploadQueue = a;
                 const c = $d(t, n), u = "desktop-upload:" + t + ":" + s + ":xlsx", d = "desktop-upload:" + t + ":" + s + ":zip";
-                await Fw(u, Hd(o)), await Fw(d, Hd(l)), c.xlsxName = n, c.xlsxKey = u, c.zipName = i,
+                await Bw(u, Hd(o)), await Bw(d, Hd(l)), c.xlsxName = n, c.xlsxKey = u, c.zipName = i,
                 c.zipKey = d, c.assetSignature = s, c.status = "待上传", c.step = "桌面工作台已检查文件", c.skipReason = "",
                 c.forceReplace = !1, c.updatedAt = (new Date).toLocaleString(), r += 1;
             } catch (e) {
-                o.push(t + "：" + _b(e));
+                o.push(t + "：" + Ub(e));
             }
         }
-        Pa.uploadQueue = a, gw(), Pa.uploadExpanded = !0, Pa.uploadMode = "standard", Pa.uploadView = "queue",
-        Pa.uploadPage = 1, zi(), r && Fb("已检查并加入 " + r + " 个图包上传任务"), o.length && Fb("上传文件检查失败：" + o.slice(0, 2).join("；")),
+        Pa.uploadQueue = a, fw(), Pa.uploadExpanded = !0, Pa.uploadMode = "standard", Pa.uploadView = "queue",
+        Pa.uploadPage = 1, zi(), r && Bb("已检查并加入 " + r + " 个图包上传任务"), o.length && Bb("上传文件检查失败：" + o.slice(0, 2).join("；")),
         Jt({
             type: "upload.queue.ack",
             requestId: String(e.requestId || ""),
@@ -1393,7 +1393,7 @@
                 added: 0,
                 skipped: 0,
                 error: e
-            }), void Fb("魔法上传暂未开放");
+            }), void Bb("魔法上传暂未开放");
         }
         try {
             const n = String(t.xlsxName || "product.xlsx"), r = String(t.zipName || "image-pack.zip"), i = Zt(t.xlsxChunks, n, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", t.xlsxSize), o = Zt(t.zipChunks, r, "application/zip", t.zipSize);
@@ -1410,7 +1410,7 @@
                 errors: l
             });
         } catch (e) {
-            const t = _b(e);
+            const t = Ub(e);
             Vo("warn", "桌面工作台魔法上传任务处理失败", t), Jt({
                 type: "upload.queue.ack",
                 mode: "magic-package",
@@ -1445,7 +1445,7 @@
                 if (!/^SKU\d{8}$/.test(n) || t.has(n)) return e;
                 t.add(n);
                 const r = bn({
-                    ...Gw(n) || {},
+                    ...Ww(n) || {},
                     ...a,
                     sku: n
                 });
@@ -1491,14 +1491,14 @@
                     imagePackDone: Boolean(a.imagePackDone || r.imagePackDone)
                 }), e;
             }, []);
-        }(), t = fw().filter(e => "standard" === (e && e.kind || "standard") && vw(e)).map(e => String(e && e.sku || "").toUpperCase()), n = ho().filter(e => "success" === String(e && e.status || "")).map(e => String(e && e.sku || "").toUpperCase()), r = Array.from(new Set(t.concat(n))).filter(e => /^SKU\d+$/.test(e));
+        }(), t = mw().filter(e => "standard" === (e && e.kind || "standard") && xw(e)).map(e => String(e && e.sku || "").toUpperCase()), n = ho().filter(e => "success" === String(e && e.status || "")).map(e => String(e && e.sku || "").toUpperCase()), r = Array.from(new Set(t.concat(n))).filter(e => /^SKU\d+$/.test(e));
         Jt({
             type: "snapshot.response",
             version: a,
             sentAt: (new Date).toISOString(),
             products: e,
             successfulUploadSkus: r
-        }), Vt("已同步 " + e.length + " 个定稿 SKU"), Bb("success", "桌面工作台同步完成", e.length + " 个已定稿 SKU");
+        }), Vt("已同步 " + e.length + " 个定稿 SKU"), zb("success", "桌面工作台同步完成", e.length + " 个已定稿 SKU");
     }
     function na() {
         Ht() && (window.clearTimeout(zt), zt = window.setTimeout(() => aa(), 700));
@@ -1820,7 +1820,7 @@
         const e = Fe.enabled ? "API 监听已开启，请刷新页面后操作 PLM" : "API 监听已关闭";
         console.info("[PLM API监听]", e);
         try {
-            Fb(e);
+            Bb(e);
         } catch (e) {}
         window.alert(e);
     }), GM_registerMenuCommand("导出 PLM API 监听结果", () => {
@@ -1879,7 +1879,7 @@
         splitWidth: function() {
             try {
                 const e = "function" == typeof GM_getValue ? GM_getValue(I, T.splitWidth) : Number(localStorage.getItem(I) || T.splitWidth);
-                return nk(Number(e) || T.splitWidth, 110, 260);
+                return rk(Number(e) || T.splitWidth, 110, 260);
             } catch (e) {
                 return T.splitWidth;
             }
@@ -1892,12 +1892,12 @@
                     height: e.height
                 } : {
                     width: 686,
-                    height: Math.min(906, tk())
+                    height: Math.min(906, ak())
                 };
             } catch (e) {
                 return {
                     width: 686,
-                    height: Math.min(906, tk())
+                    height: Math.min(906, ak())
                 };
             }
         }(),
@@ -1953,7 +1953,7 @@
         excelPurchasePrice: "6",
         batchExcelMode: "separate",
         batchExcelInput: "",
-        batchExcelQueue: sw(),
+        batchExcelQueue: lw(),
         batchExcelWorkerRunning: !1,
         batchExcelDownloadRunning: !1,
         batchExcelCurrentSku: "",
@@ -1982,7 +1982,7 @@
         toyCopywritingErrorSku: "",
         toyCopywritingErrorKind: "",
         toyCopywritingBatchInput: "",
-        toyCopywritingBatchQueue: dw(),
+        toyCopywritingBatchQueue: pw(),
         toyCopywritingBatchRunning: !1,
         toyCopywritingBatchCurrentSku: "",
         toyCopywritingBatchStatus: "",
@@ -1993,13 +1993,13 @@
         openingProjectDetailSku: "",
         uploadExpanded: !1,
         uploadReturnView: "",
-        uploadQueue: ow(),
-        uploadHistory: fw(),
-        uploadRunning: Cw(Mw()),
-        uploadWorkerMode: Mw(),
+        uploadQueue: sw(),
+        uploadHistory: mw(),
+        uploadRunning: Pw(Tw()),
+        uploadWorkerMode: Tw(),
         uploadProcessing: !1,
         uploadView: "queue",
-        uploadMode: Mw(),
+        uploadMode: Tw(),
         copyrightSkuInput: "",
         copyrightPendingFiles: [],
         toyLabelSkuInput: "",
@@ -2143,7 +2143,7 @@
         logSyncDedup: {},
         insights: function() {
             try {
-                return Rb("function" == typeof GM_getValue ? GM_getValue(K, null) : JSON.parse(localStorage.getItem(K) || "null"));
+                return jb("function" == typeof GM_getValue ? GM_getValue(K, null) : JSON.parse(localStorage.getItem(K) || "null"));
             } catch (e) {
                 return {
                     priceHistory: [],
@@ -4078,15 +4078,15 @@
         };
     }({
         panelId: e,
-        escapeHtml: pk,
+        escapeHtml: gk,
         formatNumber: Yl,
         detailViewTabs: e => Di(e),
-        productType: e => qb(e, null),
-        cloudRequest: Lb,
+        productType: e => $b(e, null),
+        cloudRequest: Nb,
         cloudAssetRequest: ut,
         collectExtra: Rf,
         getSaveFilePicker: Tm,
-        showToast: Fb,
+        showToast: Bb,
         applyTheme: D,
         render: () => {
             "parameterImage" === Pa.view && zi();
@@ -4095,10 +4095,10 @@
     });
     if (Pa.expanded = Ma, /auth\.westmonth\.com\/auth\/login/.test(location.href)) return void function() {
         const e = () => {
-            const e = Array.from(document.querySelectorAll("input")).filter(ck), t = e.find(e => /工号|手机号|邮箱|账号|用户名/i.test(e.placeholder || "") || "text" === e.type), a = e.find(e => "password" === e.type || /密码/i.test(e.placeholder || ""));
+            const e = Array.from(document.querySelectorAll("input")).filter(uk), t = e.find(e => /工号|手机号|邮箱|账号|用户名/i.test(e.placeholder || "") || "text" === e.type), a = e.find(e => "password" === e.type || /密码/i.test(e.placeholder || ""));
             if (!(t && a && t.value && a.value)) return !1;
-            const n = Array.from(document.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"]')).filter(ck).find(e => {
-                const t = sk(e.innerText || e.textContent || e.value).replace(/\s+/g, "");
+            const n = Array.from(document.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"]')).filter(uk).find(e => {
+                const t = lk(e.innerText || e.textContent || e.value).replace(/\s+/g, "");
                 return "登录" === t || /^log\s*in$/i.test(t);
             }) || null;
             return !(!n || !sg(n)) && (n.click(), !0);
@@ -4163,7 +4163,7 @@
         };
         let i = 0, o = 0, s = 0, l = 0, c = 0;
         return nh(), r.forEach(e => {
-            const t = bn(Gw(e.sku) || {
+            const t = bn(Ww(e.sku) || {
                 sku: e.sku
             }), r = bi(e.name), u = bi(t.name), d = im(e.benchmarkImageUrl || ""), p = im(e.productListImageUrl || ""), g = "effectImage" === t.skuImageSource && Boolean(t.skuImageUrl || t.skuImageFallbackUrl), f = "已完成" === e.projectStatus && Boolean(p || e.productListImageUrl) && !g, m = bn({
                 ...t,
@@ -4222,9 +4222,9 @@
                 updatedAt: (new Date).toLocaleString(),
                 updatedAtMs: Date.now()
             }) : m;
-            y && Jw(e.sku, w), Kw(w), Pa.data && Pa.data.sku === e.sku && (Pa.data = w), i += 1;
-        }), s && (ah(), !1 !== a.ledgerLog && Bb("info", a.ledgerLog || "设计分配任务已同步到今日工作台", s + "/" + c + "个编码")),
-        i || s ? (i && (rb(), !1 !== a.cacheLog && Bb("info", a.cacheLog || "新品开发列表基础信息已静默缓存", i + "/" + r.length + "个编码")),
+            y && Xw(e.sku, w), Gw(w), Pa.data && Pa.data.sku === e.sku && (Pa.data = w), i += 1;
+        }), s && (ah(), !1 !== a.ledgerLog && zb("info", a.ledgerLog || "设计分配任务已同步到今日工作台", s + "/" + c + "个编码")),
+        i || s ? (i && (ib(), !1 !== a.cacheLog && zb("info", a.cacheLog || "新品开发列表基础信息已静默缓存", i + "/" + r.length + "个编码")),
         !1 === a.render || "home" !== Pa.view && "detail" !== Pa.view && "ledger" !== Pa.view || zi(),
         {
             fetchedCount: r.length,
@@ -4295,7 +4295,7 @@
             }(e);
             if (!t || !t.designAssignedAt) return;
             const n = a.get(t.sku);
-            (!n || qw(t.designAssignedAt) >= qw(n.designAssignedAt)) && a.set(t.sku, t);
+            (!n || $w(t.designAssignedAt) >= $w(n.designAssignedAt)) && a.set(t.sku, t);
         }), Array.from(a.values());
     }
     function qa() {
@@ -4316,7 +4316,7 @@
             return s && o.push(s.href || s.getAttribute("href")), o.map(e => String(e || "").trim()).find(e => e && !/^data:image\//i.test(e)) || "";
         };
         return Array.from(i.querySelectorAll("tbody tr")).map(e => {
-            const t = Array.from(e.children), a = (((t[n] ? sk(t[n].innerText || t[n].textContent) : "").match(/SKU\d+/i) || [])[0] || "").toUpperCase(), r = o(t, "开发人员");
+            const t = Array.from(e.children), a = (((t[n] ? lk(t[n].innerText || t[n].textContent) : "").match(/SKU\d+/i) || [])[0] || "").toUpperCase(), r = o(t, "开发人员");
             return {
                 sku: a,
                 rowId: e.getAttribute("rowid") || "",
@@ -4346,10 +4346,10 @@
         }).filter(e => e.sku && e.rowId);
     }
     function $a(e) {
-        return sk(e).replace(/^\*\s*/, "").replace(/[\ue000-\uf8ff]/g, "").trim();
+        return lk(e).replace(/^\*\s*/, "").replace(/[\ue000-\uf8ff]/g, "").trim();
     }
     function Ha(e) {
-        const t = sk(e);
+        const t = lk(e);
         return "--" === t ? "" : t;
     }
     function Va() {
@@ -4363,7 +4363,7 @@
                 Pa.observedSku = "", Pa.observedTab = "", e && Ti(!0);
             }();
         }
-        const a = rk(t), n = sn(t);
+        const a = ik(t), n = sn(t);
         if (!n) return;
         if (Pa.drawerTabFlowSku && (Pa.drawerTabFlowDrawer && t !== Pa.drawerTabFlowDrawer || n && n !== Pa.drawerTabFlowSku) && (Qa(),
         Ua()), n && Pa.selectedSku && n !== Pa.selectedSku && (Pa.copywritingMode = !1,
@@ -4377,21 +4377,21 @@
         void (n && (Pa.selectedSku = n));
         const i = t !== Pa.drawer || n && n !== Pa.sku;
         if (Pa.scanRunning && t === Pa.drawer) return void (n && n !== Pa.sku && (Pa.sku = n,
-        Pa.scanTargetSku = n, Pa.scanData = bn(Gw(n) || {
+        Pa.scanTargetSku = n, Pa.scanData = bn(Ww(n) || {
             sku: n,
             name: yi((a.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || "")
         })));
         if (!i && Pa.manuallyCollapsedForSku && Pa.manuallyCollapsedForSku === (n || Pa.sku)) return;
         if (!i) return;
         Pa.manuallyCollapsedForSku = "", r && (Pa.openingProjectDetail = !1, Pa.openingProjectDetailSku = "");
-        const o = n ? Gw(n) : null;
+        const o = n ? Ww(n) : null;
         if (o) {
             Pa.drawer = t, Pa.sku = n || "", Pa.data = bn(o);
             const e = Mr(a);
             return e && e !== Pa.data.projectStatus && (Pa.data = bn({
                 ...Pa.data,
                 projectStatus: e
-            }), Qw(n, Pa.data)), Pa.selectedSku = n, Pa.view = "detail", tf(), Ai(), Kw(Pa.data),
+            }), Jw(n, Pa.data)), Pa.selectedSku = n, Pa.view = "detail", tf(), Ai(), Gw(Pa.data),
             Qa(), Fh(t) || Bh(Pa.data, {
                 status: "待定稿",
                 stage: "待定稿",
@@ -4417,14 +4417,14 @@
         const a = t || {};
         if (!Pa.settings.collectionEnabled) return;
         const n = ln();
-        if (!n) return void Fb("请先打开项目详情");
+        if (!n) return void Bb("请先打开项目详情");
         Qa();
         const r = sn(n), i = Pa.scanTargetSku || Pa.sku || "";
         if (!r || i && i !== r) return Pa.scanRunning = !0, void (Pa.scanTimer = window.setTimeout(Ga, 250));
         const o = r;
         if (o && (Pa.scanTargetSku = o, !Pa.scanData || Pa.scanData.sku !== o)) {
             const e = Pa.data && Pa.data.sku === o ? Pa.data : null;
-            Pa.scanData = bn(e || Gw(o) || {
+            Pa.scanData = bn(e || Ww(o) || {
                 sku: o
             });
         }
@@ -4441,16 +4441,16 @@
         });
     }
     async function Wa() {
-        if (!Pa.settings.collectionEnabled) return void Fb("数据采集已关闭");
+        if (!Pa.settings.collectionEnabled) return void Bb("数据采集已关闭");
         const e = Pa.data && Pa.data.sku || Pa.selectedSku || "";
-        if (!e) return void Fb(xa.excelNeedData);
+        if (!e) return void Bb(xa.excelNeedData);
         Pa.view = "detail", Ya(), Qa(), Ai();
         let t = ln();
-        const a = t ? rk(t) : "";
+        const a = t ? ik(t) : "";
         if (!(t && a.includes(e) || (zi("正在打开正确编码详情..."), await Mg(), t = await ef(() => Rg(e), 5e3, 150),
-        t))) return Fb(xa.openDetailFailed), void zi();
+        t))) return Bb(xa.openDetailFailed), void zi();
         Pa.drawer = t, Pa.sku = e, Pa.selectedSku = e, Pa.data = function(e) {
-            const t = bn(Gw(e) || {}), a = /^(?:effectImage|productListImage)$/.test(t.skuImageSource || "") ? t.skuImageSource : "";
+            const t = bn(Ww(e) || {}), a = /^(?:effectImage|productListImage)$/.test(t.skuImageSource || "") ? t.skuImageSource : "";
             return bn({
                 sku: e,
                 name: t.name || "",
@@ -4514,12 +4514,12 @@
             forceSkuImage: a === xa.productTab
         });
         if (!n.sku || n.sku !== t) return;
-        const r = un(Gw(t) || (Pa.data && Pa.data.sku === t ? Pa.data : {
+        const r = un(Ww(t) || (Pa.data && Pa.data.sku === t ? Pa.data : {
             sku: t
         }), n);
-        dn(bn(Gw(t) || (Pa.data && Pa.data.sku === t ? Pa.data : {
+        dn(bn(Ww(t) || (Pa.data && Pa.data.sku === t ? Pa.data : {
             sku: t
-        })), r) && (Qw(t, r), Pa.selectedSku === t && zi()), a === xa.productTab && en(r, {
+        })), r) && (Jw(t, r), Pa.selectedSku === t && zi()), a === xa.productTab && en(r, {
             reason: "manual-product-tab",
             includeScanTabs: !1,
             replace: !0
@@ -4540,7 +4540,7 @@
             Ja(), Pa.scanLoadingTipTimer = window.setTimeout(() => {
                 Pa.scanLoadingTipTimer = 0, Pa.scanRunning && Pa.drawerTabFlowToken === t && Pa.drawerTabFlowSku === e && (Pa.scanRunning = !1,
                 Pa.apiReadStatus && Pa.apiReadStatus.sku === e && "loading" === Pa.apiReadStatus.phase && Hs(e, "loading", "正在后台读取 PLM 数据"),
-                Pa.selectedSku === e && "detail" === Pa.view && zi(), Bb("info", "详情前台提示超时，已切换为后台读取", e + " | " + va + "ms"));
+                Pa.selectedSku === e && "detail" === Pa.view && zi(), zb("info", "详情前台提示超时，已切换为后台读取", e + " | " + va + "ms"));
             }, va);
         }(n, r)), Pa.drawerTabFlowTimer = window.setTimeout(() => {
             Pa.drawerTabFlowTimer = 0, async function(e, t, a) {
@@ -4550,7 +4550,7 @@
                 Pa.drawerTabFlowSku = "", Pa.drawerTabFlowDrawer = null));
                 Pa.drawerTabFlowRunning = !0, Pa.drawerTabFlowDrawer = r;
                 const o = n && Pa.scanData && Pa.scanData.sku === e ? Pa.scanData : null;
-                let c = bn(o || Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
+                let c = bn(o || Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
                     sku: e
                 }));
                 const u = bn(c);
@@ -4609,17 +4609,17 @@
                         packageSource: fr(c, p),
                         updatedAt: (new Date).toLocaleString(),
                         updatedAtMs: Date.now()
-                    }), (p.packageSizeText || p.printSizeText || p.netContent || p.grossWeight) && Bb("success", "已用 PLM 接口更新产品与包材数据", e + " | 纸盒 " + (p.packageSizeText || "无") + " | 标签/印刷 " + (p.printSizeText || "无") + " | 净含量 " + (p.netContent || "无") + " | 毛重 " + (p.grossWeight || "无")));
+                    }), (p.packageSizeText || p.printSizeText || p.netContent || p.grossWeight) && zb("success", "已用 PLM 接口更新产品与包材数据", e + " | 纸盒 " + (p.packageSizeText || "无") + " | 标签/印刷 " + (p.printSizeText || "无") + " | 净含量 " + (p.netContent || "无") + " | 毛重 " + (p.grossWeight || "无")));
                     const g = er([ p, p && p.apiProject ]);
                     if (g && !Ah(c.purchasePrice) && (c = bn({
                         ...c,
                         purchasePrice: g,
                         purchasePriceSource: "plm-api-domestic-third-tier",
                         purchasePriceUpdatedAt: (new Date).toLocaleString()
-                    }), Bb("success", "已用 PLM 接口读取国内三档价格", e + " | " + g)), !tn(e, t, r)) return;
-                    if (Qw(e, c, {
+                    }), zb("success", "已用 PLM 接口读取国内三档价格", e + " | " + g)), !tn(e, t, r)) return;
+                    if (Jw(e, c, {
                         changeSource: "PLM 接口"
-                    }), d = !0, Pa.selectedSku === e && (Pa.data = bn(Gw(e) || c)), n && !Fh(r) && Bh(c, {
+                    }), d = !0, Pa.selectedSku === e && (Pa.data = bn(Ww(e) || c)), n && !Fh(r) && Bh(c, {
                         status: "待定稿",
                         stage: "待定稿",
                         note: "打开详情自动记录",
@@ -4633,7 +4633,7 @@
                                 if (!e || "备货信息" !== ki(e)) return "";
                                 const t = si("国内三档价格", e), a = Ah(String(t || "").replace(/^[^\d]*/, ""));
                                 if (a) return a;
-                                const n = rk(e), r = n.match(/\u56fd\u5185\u4e09\u6863\u4ef7\u683c\s*[:\uff1a]?\s*(?:[\uffe5\u00a5]|RMB)?\s*(\d+(?:\.\d+)?)(?![\d.])/i);
+                                const n = ik(e), r = n.match(/\u56fd\u5185\u4e09\u6863\u4ef7\u683c\s*[:\uff1a]?\s*(?:[\uffe5\u00a5]|RMB)?\s*(\d+(?:\.\d+)?)(?![\d.])/i);
                                 return Ah(r ? r[1] : "");
                             }(r), 2200, 120);
                             a && tn(e, t, r) && (c = nn(e, c, a));
@@ -4649,12 +4649,12 @@
                             silent: !0,
                             drawer: r
                         }), n = md(a && a.copywriting);
-                        n && n.fullText || Bb("info", "产品信息未找到产品文案 Word", e);
+                        n && n.fullText || zb("info", "产品信息未找到产品文案 Word", e);
                         const i = await _u(e, {
                             silent: !0,
                             drawer: r
                         });
-                        i.ingredientEnglish || i.ingredientChinese || Bb("info", "产品信息未找到成分表 PDF", e);
+                        i.ingredientEnglish || i.ingredientChinese || zb("info", "产品信息未找到成分表 PDF", e);
                     }
                 } finally {
                     n && tn(e, t, r) && await Of(r, xa.materialTab, {
@@ -4665,7 +4665,7 @@
                     Pa.drawerTabFlowRunning = !1, Pa.drawerTabFlowSku = "", Pa.drawerTabFlowDrawer = null);
                 }
             }(n, r, a).catch(e => {
-                Bb("warn", "产品信息集中获取失败", n + " | " + _b(e));
+                zb("warn", "产品信息集中获取失败", n + " | " + Ub(e));
             });
         }, "cached-open" === a.reason ? 220 : 0);
     }
@@ -4692,14 +4692,14 @@
             purchasePriceSource: o,
             purchasePriceUpdatedAt: (new Date).toLocaleString()
         });
-        return Qw(e, s), Pa.selectedSku === e && (Pa.data = s, Pa.excelPurchasePrice = r),
+        return Jw(e, s), Pa.selectedSku === e && (Pa.data = s, Pa.excelPurchasePrice = r),
         Pa.excelExtra && Pa.excelExtra.excelData && Pa.excelExtra.excelData.sku === e && (Pa.excelExtra.excelData = s),
         Bh(s, {
             purchasePrice: r
-        }), i !== r && Jb(s, null, {
+        }), i !== r && Xb(s, null, {
             price: r,
             source: o
-        }), Bb("success", "已缓存国内三档价格", e + " | " + r), s;
+        }), zb("success", "已缓存国内三档价格", e + " | " + r), s;
     }
     function rn(e) {
         return Array.isArray(e) ? e.slice(0, 8).map(e => ({
@@ -4715,22 +4715,22 @@
     function sn(e) {
         if (!e) return "";
         const t = e.querySelector(".taskInfo");
-        if (!t || !ck(t)) return "";
-        const a = rk(t).match(/\u5546\u54c1\u7f16\u7801\s*[:\uff1a]\s*(SKU\d+)/i);
+        if (!t || !uk(t)) return "";
+        const a = ik(t).match(/\u5546\u54c1\u7f16\u7801\s*[:\uff1a]\s*(SKU\d+)/i);
         return a ? a[1].toUpperCase() : "";
     }
     function ln() {
         if (Pa.openingProjectDetailSku) {
             return Rg(Pa.openingProjectDetailSku) || null;
         }
-        const e = Array.from(document.querySelectorAll(".ant-drawer-open")).filter(ck).filter(e => {
-            const t = rk(e);
+        const e = Array.from(document.querySelectorAll(".ant-drawer-open")).filter(uk).filter(e => {
+            const t = ik(e);
             return !/\u67e5\u770b\u5546\u54c1/.test(t) && /\u67e5\u770b\u9879\u76ee\u8be6\u60c5/.test(t);
         });
         return e[e.length - 1] || null;
     }
     function cn(e, t) {
-        const a = t || {}, n = rk(e), r = ki(e), i = /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0[\s\S]*\u89c4\u683c\u578b\u53f7|\u5305\u88c5\u5c3a\u5bf8|\u5370\u5237\u5c3a\u5bf8|\u51c0\u542b\u91cf/.test(n), o = /PRODUCT\s*NAME|\u5546\u54c1\u540d\u79f0|\u4ea7\u54c1\u540d\u79f0|\u89c4\u683c\u4fe1\u606f|\u6bdb\u91cd|\u51c0\u542b\u91cf|\u6548\u679c\u56fe\u4fe1\u606f/.test(n), s = r === xa.materialTab && i, l = r === xa.productTab && o, c = l ? Qf(si("成分", e) || si("成份", e)) : "", u = l ? Qf(si("INGREDIENTS", e) || si("INGREDIENT", e)) : "", d = Mr(n), p = s ? vr(e) : {
+        const a = t || {}, n = ik(e), r = ki(e), i = /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0[\s\S]*\u89c4\u683c\u578b\u53f7|\u5305\u88c5\u5c3a\u5bf8|\u5370\u5237\u5c3a\u5bf8|\u51c0\u542b\u91cf/.test(n), o = /PRODUCT\s*NAME|\u5546\u54c1\u540d\u79f0|\u4ea7\u54c1\u540d\u79f0|\u89c4\u683c\u4fe1\u606f|\u6bdb\u91cd|\u51c0\u542b\u91cf|\u6548\u679c\u56fe\u4fe1\u606f/.test(n), s = r === xa.materialTab && i, l = r === xa.productTab && o, c = l ? Qf(si("成分", e) || si("成份", e)) : "", u = l ? Qf(si("INGREDIENTS", e) || si("INGREDIENT", e)) : "", d = Mr(n), p = s ? vr(e) : {
             packageSizeText: "",
             packageSizeLabel: "",
             packageCode: "",
@@ -4769,7 +4769,7 @@
             const a = gi(Gr(t), 2), n = a && a.length >= 2 ? [ a[0], a[0], a[1] ] : null, r = (t.match(/(\d+(?:\.\d+)?)\s*\u7c92/) || [])[1], i = /\u8f6f\u7cd6/.test(t) ? "GUMMIES" : "CAPSULES";
             return {
                 productNums: n,
-                netContent: r ? lk(Number(r)) + i : ""
+                netContent: r ? ck(Number(r)) + i : ""
             };
         }(e) : {
             productNums: null,
@@ -4784,7 +4784,7 @@
                 body: 0,
                 text: ""
             };
-            const t = rk(e), a = Or(si("管径", e)) || jr(t, "管径"), n = Or(si("管身", e)) || jr(t, "管身"), r = [];
+            const t = ik(e), a = Or(si("管径", e)) || jr(t, "管径"), n = Or(si("管身", e)) || jr(t, "管身"), r = [];
             a && r.push("管径 " + a + "mm");
             n && r.push("管身 " + n + "mm");
             return {
@@ -4825,11 +4825,11 @@
                 tailSealText: ii(o)
             };
         }([ y.text, p.printRawText, p.printSizeText, p.printSizeLabel ].filter(Boolean).join("\n"), y) : null, w = Boolean(b), k = Boolean(m.productNums && !p.packageNums && g.packageNums && !/\u7eb8\u76d2/.test(String(p.packageSizeLabel || "") + String(p.packageSizeText || ""))), S = k ? null : p.packageNums || g.packageNums, v = wn(p), x = k ? g.packageNums : S ? ni(S, v) : m.productNums, A = function(e, t) {
-            const a = uk(t), n = /(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5f00\u53d1\u5206\u914d\u65f6\u95f4|\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4|\u521b\u5efa\u65f6\u95f4|\u6700\u540e\u4fee\u6539\u65f6\u95f4|\u9879\u76ee\u4fe1\u606f|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/, r = String(e || "").match(new RegExp(a + "[:：]\\s*([\\s\\S]{0,80})"));
-            return r ? sk(r[1]).split(n)[0].trim() : "";
+            const a = dk(t), n = /(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5f00\u53d1\u5206\u914d\u65f6\u95f4|\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4|\u521b\u5efa\u65f6\u95f4|\u6700\u540e\u4fee\u6539\u65f6\u95f4|\u9879\u76ee\u4fe1\u606f|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/, r = String(e || "").match(new RegExp(a + "[:：]\\s*([\\s\\S]{0,80})"));
+            return r ? lk(r[1]).split(n)[0].trim() : "";
         }(n, "品牌") || oi("品牌", e), I = function(e) {
-            const t = sk(e || ""), a = t.match(/\u5f00\u53d1\u4eba\u5458\s*[:\uff1a]?\s*([\s\S]{0,80})/);
-            return a ? sk(a[1]).split(/\u5f00\u53d1\u4e3b\u7ba1|\u5f00\u53d1\u5efa\u8bae|\u5f00\u53d1\u5206\u914d|\u8bbe\u8ba1\u4eba\u5458|\u9879\u76ee\u8d1f\u8d23\u4eba|\u9879\u76ee\u72b6\u6001/)[0].trim() : "";
+            const t = lk(e || ""), a = t.match(/\u5f00\u53d1\u4eba\u5458\s*[:\uff1a]?\s*([\s\S]{0,80})/);
+            return a ? lk(a[1]).split(/\u5f00\u53d1\u4e3b\u7ba1|\u5f00\u53d1\u5efa\u8bae|\u5f00\u53d1\u5206\u914d|\u8bbe\u8ba1\u4eba\u5458|\u9879\u76ee\u8d1f\u8d23\u4eba|\u9879\u76ee\u72b6\u6001/)[0].trim() : "";
         }(n);
         return {
             sku: sn(e),
@@ -4916,7 +4916,7 @@
         return "printCode" === e || "printSizeText" === e;
     }
     function gn(e, t) {
-        const a = "name" === e ? bi(t) : sk(t);
+        const a = "name" === e ? bi(t) : lk(t);
         return pn(e) && a ? a.split(/\s*[;；]\s*/).map(e => e.trim()).filter(Boolean).sort().join(";") : a;
     }
     function fn(e, t) {
@@ -4943,7 +4943,7 @@
         xn(t, "packageSizeLabel", "packageSizeText"), xn(t, "printSizeLabel", "printSizeText"),
         An(t, "packageSizeLabel", "packageSizeText"), An(t, "printSizeLabel", "printSizeText"),
         t.packageSizeLabel = function(e) {
-            const t = sk(e);
+            const t = lk(e);
             if (!t) return "";
             const a = Pr(t);
             return a ? a + (/多页/.test(t) ? "（多页）" : "") : t;
@@ -4967,7 +4967,7 @@
                 const o = e.map(e => mi(r(e)));
                 o.every(e => Number.isFinite(e) && e > 0) && (a[t] = o, e.forEach((e, t) => {
                     a[e] = ii(o[t]);
-                }), n(i) || (a[i] = o.map(lk).join("x") + "cm"));
+                }), n(i) || (a[i] = o.map(ck).join("x") + "cm"));
             })([ "packageLength", "packageWidth", "packageHeight" ], "packageNums", "packageSizeText"),
             n("packageSizeText") && ![ "packageLength", "packageWidth", "packageHeight" ].some(e => n(e))) {
                 const e = gi(r("packageSizeText"), 3);
@@ -5025,7 +5025,7 @@
         const t = [ e && e.name, e && e.manualCategory, e && e.plmCategory, e && e.aiProductType, e && e.aiCategory, e && e.productType, e && e.category, e && e.departmentName ].filter(Boolean).join(" ");
         if (/\btoys?\b|\bdolls?\b|玩具|公仔|玩偶|捏捏|积木|盲盒|史莱姆|解压/i.test(t)) return !0;
         try {
-            return "玩具" === qb(e, null);
+            return "玩具" === $b(e, null);
         } catch (e) {
             return !1;
         }
@@ -5088,7 +5088,7 @@
     }
     function _n(e, t) {
         if (null == e || t > 4) return "";
-        if ("string" == typeof e || "number" == typeof e) return sk(e);
+        if ("string" == typeof e || "number" == typeof e) return lk(e);
         if (Array.isArray(e)) return e.map(e => _n(e, (t || 0) + 1)).filter(Boolean).join("；");
         if ("object" != typeof e) return "";
         for (const a of [ "text", "label", "name", "value", "product_name", "url", "file_url", "download_url", "oss_url", "path", "file_path", "file_save_full_path" ]) if (void 0 !== e[a] && null !== e[a]) {
@@ -5100,7 +5100,7 @@
     function Un(e) {
         if (!e) return "";
         const t = e.archive_type_attr_data || e.archiveTypeAttrData || {};
-        return [ e.variable_name, e.attr_name, e.name, e.title, e.display_name, t.name ].map(e => sk(e)).filter(Boolean).join(" ");
+        return [ e.variable_name, e.attr_name, e.name, e.title, e.display_name, t.name ].map(e => lk(e)).filter(Boolean).join(" ");
     }
     function Dn(e, t, a) {
         const n = (Array.isArray(e) ? e : []).map((e, a) => {
@@ -5135,7 +5135,7 @@
                 return r ? _n(Nn(r, 1), 0) : "";
             }(t, a);
             return function(e, t) {
-                const a = sk(e);
+                const a = lk(e);
                 if (!a || "--" === a) return NaN;
                 const n = Number(a) || mi(a);
                 if (!Number.isFinite(n) || n <= 0) return NaN;
@@ -5146,7 +5146,7 @@
         return n.length && n.every(e => Number.isFinite(e) && e > 0) ? n : null;
     }
     function zn(e) {
-        return Array.isArray(e) && e.length >= 3 ? e.slice(0, 3).map(e => lk(Number(e))).join("x") + "cm" : "";
+        return Array.isArray(e) && e.length >= 3 ? e.slice(0, 3).map(e => ck(Number(e))).join("x") + "cm" : "";
     }
     function Rn(e) {
         const t = e && void 0 !== e.data ? e.data : e && e.response && e.response.data;
@@ -5156,16 +5156,16 @@
         const a = e && (e.language_config || e.languageConfig);
         if (!Array.isArray(a)) return "";
         const n = a.find(e => Number(e && e.language_id) === Number(t)) || a.find(e => e && e.product_name);
-        return sk(n && (n.product_name || n.name || n.value));
+        return lk(n && (n.product_name || n.name || n.value));
     }
     function On(e, t) {
         const a = e && (e.language_config || e.languageConfig);
         if (!Array.isArray(a)) return "";
         const n = a.find(e => Number(e && e.language_id) === Number(t)) || a.find(e => e && e.product_name);
-        return sk(n && (n.product_name || n.name || n.value));
+        return lk(n && (n.product_name || n.name || n.value));
     }
     function qn(e) {
-        const t = sk(e).replace(/&amp;/g, "&").replace(/\\\//g, "/");
+        const t = lk(e).replace(/&amp;/g, "&").replace(/\\\//g, "/");
         return !t || /^(?:data:|javascript:)/i.test(t) ? "" : /^https?:\/\//i.test(t) ? im(t) : /^\/\//.test(t) ? im(location.protocol + t) : /^(?:\/|[a-z0-9_-]+\/)/i.test(t) && !/^(?:filePic|assets)\//i.test(t) ? nr(t) : "";
     }
     function $n(e, t) {
@@ -5201,19 +5201,19 @@
             }));
             if (a.length || e.indexOf("/Product/") >= 0) return a;
         } catch (e) {
-            if (a = e, /\b401\b|\b403\b/.test(_b(e))) throw e;
+            if (a = e, /\b401\b|\b403\b/.test(Ub(e))) throw e;
         }
         if (a) throw a;
         return [];
     }
     function Kn(e) {
-        const t = sk(e && (e.file_name || e.file_original_name || e.original_file_name)), a = sk(e && (e.file_path || e.file_save_full_path || e.oss_path || e.file_url || e.url));
+        const t = lk(e && (e.file_name || e.file_original_name || e.original_file_name)), a = lk(e && (e.file_path || e.file_save_full_path || e.oss_path || e.file_url || e.url));
         return {
             fileName: t,
             filePath: a,
             fileId: String(e && (e.archive_file_version_id || e.file_version_id || e.id) || ""),
-            fileFormat: sk(e && (e.file_format || e.format)),
-            createdAt: sk(e && (e.create_at || e.created_at || e.updated_at)),
+            fileFormat: lk(e && (e.file_format || e.format)),
+            createdAt: lk(e && (e.create_at || e.created_at || e.updated_at)),
             url: nr(a)
         };
     }
@@ -5278,7 +5278,7 @@
             attrs: r,
             chineseName: bi(Qf(p)),
             englishName: g,
-            brand: sk(d),
+            brand: lk(d),
             productType: c || Fn(i, [ "product_type_name", "productTypeName", "product_type", "productType" ]),
             plmCategory: c,
             packageNums: s,
@@ -5319,12 +5319,12 @@
                     try {
                         o = await hr("/api/Product/GetDetailContent?is_edit=false&product_id=" + encodeURIComponent(n) + "&product_version_id=" + encodeURIComponent(r) + "&category_id=" + encodeURIComponent(i));
                     } catch (e) {
-                        s = _b(e), Bb("warn", "Excel 产品详情 API 读取失败", a + " | " + _b(e));
+                        s = Ub(e), zb("warn", "Excel 产品详情 API 读取失败", a + " | " + Ub(e));
                     }
                     try {
                         l = await hr("/api/Product/GetDetailInfo?product_id=" + encodeURIComponent(n) + "&product_version_id=" + encodeURIComponent(r));
                     } catch (e) {
-                        Bb("info", "Excel 产品基础信息 API 不可用，继续使用产品列表", a + " | " + _b(e));
+                        zb("info", "Excel 产品基础信息 API 不可用，继续使用产品列表", a + " | " + Ub(e));
                     }
                 }
                 return {
@@ -5360,15 +5360,15 @@
                 let e = null;
                 if (n) try {
                     const e = Rn(await hr("/api/ChemicalNew/GetProjectDetail?id=" + encodeURIComponent(n))), t = e && e.project && "object" == typeof e.project ? e.project : e, r = Fn([ t, e ], [ "reference_url", "referenceUrl", "benchmark_url", "benchmarkUrl", "benchmark_link", "benchmarkLink", "alibaba_link", "alibabaLink" ]), i = String(r || "").match(/https?:\/\/[^\s]+/i)?.[0] || "";
-                    if (i) return Bb("info", "Excel 项目详情 API 已补到对标链接", a + " | projectId=" + n), {
+                    if (i) return zb("info", "Excel 项目详情 API 已补到对标链接", a + " | projectId=" + n), {
                         found: !0,
                         sku: a,
                         projectId: n,
                         productId: String(t.product_id || t.productId || ""),
                         productVersionId: String(t.product_main_id || t.product_version_id || t.productVersionId || ""),
                         categoryId: String(t.category_id || t.categoryId || ""),
-                        name: sk(t.product_name || t.productName || t.name),
-                        brand: sk(t.brand_name || t.brandName || t.brand),
+                        name: lk(t.product_name || t.productName || t.name),
+                        brand: lk(t.brand_name || t.brandName || t.brand),
                         referenceUrl: i,
                         raw: t
                     };
@@ -5385,15 +5385,15 @@
                         productId: String(n.product_id || ""),
                         productVersionId: String(n.product_main_id || n.product_version_id || ""),
                         categoryId: String(n.category_id || ""),
-                        name: sk(n.product_name || n.productName || n.name),
-                        brand: sk(n.brand_name || n.brandName || n.brand),
+                        name: lk(n.product_name || n.productName || n.name),
+                        brand: lk(n.brand_name || n.brandName || n.brand),
                         referenceUrl: String(n.reference_url || n.referenceUrl || n.benchmark_url || n.benchmarkUrl || "").match(/https?:\/\/[^\s]+/i)?.[0] || "",
                         raw: n
                     };
                 } catch (t) {
                     e = t;
                 }
-                return e && Bb("info", "Excel 项目列表 API 未命中，继续使用产品/页面数据", a + " | " + _b(e)), n ? {
+                return e && zb("info", "Excel 项目列表 API 未命中，继续使用产品/页面数据", a + " | " + Ub(e)), n ? {
                     found: !0,
                     sku: a,
                     projectId: n
@@ -5431,8 +5431,8 @@
             Ln(e.attr).forEach(e => tr(e && e.value, n)), e.attr && void 0 !== e.attr.value && tr(e.attr.value, n);
             const r = (await Vn(n)).filter(e => e && !Number(e.is_invalid || 0)).map(Kn).filter(e => e.url && (/\.pdf$/i.test(e.fileName) || /pdf/i.test(e.fileFormat)));
             if (r.length) return r.sort((e, a) => {
-                const n = t && new RegExp(uk(t), "i").test(e.fileName) ? 1 : 0;
-                return (t && new RegExp(uk(t), "i").test(a.fileName) ? 1 : 0) - n || String(a.createdAt || "").localeCompare(String(e.createdAt || ""));
+                const n = t && new RegExp(dk(t), "i").test(e.fileName) ? 1 : 0;
+                return (t && new RegExp(dk(t), "i").test(a.fileName) ? 1 : 0) - n || String(a.createdAt || "").localeCompare(String(e.createdAt || ""));
             }), {
                 found: !0,
                 ...r[0],
@@ -5448,7 +5448,7 @@
                 if (e.variable_name === t) {
                     const t = Array.isArray(e.attr_language_config_json) ? e.attr_language_config_json : [], n = t.find(e => 1 === Number(e && e.language_id) && null != e.value) || t.find(e => e && null != e.value), r = n ? n.value : "";
                     if ("" !== r && null != r) {
-                        const t = 3 === Number(e.attr_display_unit_id) ? "g" : 4 === Number(e.attr_display_unit_id) ? "ml" : "", n = sk(r);
+                        const t = 3 === Number(e.attr_display_unit_id) ? "g" : 4 === Number(e.attr_display_unit_id) ? "ml" : "", n = lk(r);
                         a = t && /^\d+(?:\.\d+)?$/.test(n) ? n + t : n;
                     }
                     return;
@@ -5501,15 +5501,15 @@
         if (!a) return null;
         if (t && t.force && delete d[a], !d[a]) {
             const e = (async () => {
-                Bb("info", "产品文案 API：开始读取产品关联", a);
+                zb("info", "产品文案 API：开始读取产品关联", a);
                 const e = await hr("/api/Product/GetProductList?page=1&pageSize=20&codes=" + encodeURIComponent(a)), t = e && e.data && Array.isArray(e.data.list) ? e.data.list : [], n = t.find(e => String(e && (e.product_code || e.code) || "").trim() === a) || t[0] || {}, r = n.product_id, i = n.product_version_id, o = n.category_id;
                 if (!r || !i || !o) throw new Error("产品列表缺少详情关联");
-                Bb("info", "产品文案 API：读取产品详情字段", a + " | product_id=" + r + " | category_id=" + o);
+                zb("info", "产品文案 API：读取产品详情字段", a + " | product_id=" + r + " | category_id=" + o);
                 const s = function(e) {
                     const t = [], a = e => {
                         if (!e || "object" != typeof e) return;
                         if (Array.isArray(e)) return void e.forEach(a);
-                        const n = String(e.variable_name || "").trim(), r = sk(e.attr_name);
+                        const n = String(e.variable_name || "").trim(), r = lk(e.attr_name);
                         if ("product_description" === n || "产品文案" === r) {
                             const a = Array.isArray(e.attr_language_config_json) ? e.attr_language_config_json : [], n = a.find(e => 1 === Number(e && e.language_id) && null != e.value) || a.find(e => e && null != e.value);
                             return void tr(n && n.value, t);
@@ -5518,18 +5518,18 @@
                     };
                     return a(e), t.filter((e, t, a) => a.indexOf(e) === t);
                 }(await hr("/api/Product/GetDetailContent?is_edit=false&product_id=" + encodeURIComponent(r) + "&product_version_id=" + encodeURIComponent(i) + "&category_id=" + encodeURIComponent(o)));
-                if (!s.length) return Bb("info", "产品文案 API：详情中没有关联 Word", a), {
+                if (!s.length) return zb("info", "产品文案 API：详情中没有关联 Word", a), {
                     found: !1,
                     reason: "产品文案字段没有附件 ID"
                 };
-                Bb("info", "产品文案 API：找到文案附件 ID", a + " | ids=" + s.join(","));
+                zb("info", "产品文案 API：找到文案附件 ID", a + " | ids=" + s.join(","));
                 const l = ar(await br("/api/Product/GetArchiveFileVersionListByFileVersionId", {
                     ids: s.map(e => Number(e))
-                })).filter(e => e && !Number(e.is_invalid || 0)).filter(e => /\.docx$/i.test(String(e.file_name || "")) || "docx" === String(e.file_format || "").toLowerCase()), c = l.filter(e => !a || new RegExp(uk(a), "i").test(String(e.file_name || ""))), u = (c.length ? c : l).sort((e, t) => {
+                })).filter(e => e && !Number(e.is_invalid || 0)).filter(e => /\.docx$/i.test(String(e.file_name || "")) || "docx" === String(e.file_format || "").toLowerCase()), c = l.filter(e => !a || new RegExp(dk(a), "i").test(String(e.file_name || ""))), u = (c.length ? c : l).sort((e, t) => {
                     const a = $u(e.file_name) || String(e.create_at || "");
                     return ($u(t.file_name) || String(t.create_at || "")).localeCompare(a);
                 })[0];
-                if (!u) return Bb("info", "产品文案 API：附件列表中没有 docx", a + " | records=" + l.length),
+                if (!u) return zb("info", "产品文案 API：附件列表中没有 docx", a + " | records=" + l.length),
                 {
                     found: !1,
                     reason: "附件列表中没有 docx"
@@ -5537,7 +5537,7 @@
                 const d = nr(u.file_path);
                 if (!d) throw new Error("文案附件缺少 file_path");
                 const p = String(u.file_name || "").trim();
-                return Bb("info", "产品文案 API：命中文案 Word", a + " | " + p + " | " + Ku(d)), {
+                return zb("info", "产品文案 API：命中文案 Word", a + " | " + p + " | " + Ku(d)), {
                     found: !0,
                     fileName: p,
                     filePath: String(u.file_path || ""),
@@ -5556,9 +5556,9 @@
         return d[a];
     }
     function ir(e) {
-        const t = Jr(sk(e && e.properties_value));
+        const t = Jr(lk(e && e.properties_value));
         if (t) return t;
-        if (![ e && e.material_unit, e && e.material_unit_name, e && e.dimension_unit, e && e.unit, e && e.unit_name ].map(e => sk(e)).find(e => /^(?:m|米)$/i.test(e))) return null;
+        if (![ e && e.material_unit, e && e.material_unit_name, e && e.dimension_unit, e && e.unit, e && e.unit_name ].map(e => lk(e)).find(e => /^(?:m|米)$/i.test(e))) return null;
         const a = [ e && e.material_length, e && e.material_width, e && e.material_height ].map(e => mi(e)).filter(e => Number.isFinite(e) && e > 0);
         return {
             unit: "m",
@@ -5578,28 +5578,28 @@
         return o && o.length >= t ? a ? o : o.slice(0, t) : null;
     }
     function sr(e) {
-        return Array.isArray(e) && e.length >= 2 ? e.map(e => lk(e)).join("x") + "cm" : "";
+        return Array.isArray(e) && e.length >= 2 ? e.map(e => ck(e)).join("x") + "cm" : "";
     }
     function lr(e, t) {
-        const a = sk(e);
+        const a = lk(e);
         if (!a) return "";
         const n = a.match(t);
         return n ? a.slice(n.index).trim() : a.trim();
     }
     function cr(e) {
-        return Pr(e && e.name) || Pr(e && e.category_name) || sk(e && e.name) || sk(e && e.category_name);
+        return Pr(e && e.name) || Pr(e && e.category_name) || lk(e && e.name) || lk(e && e.category_name);
     }
     function ur(e) {
         const t = /(标签|印刷软管|印刷尺寸|印刷管|印刷瓶|印刷乳液瓶|印刷)/;
-        return _r(lr(e && e.name, t) || lr(e && e.category_name, t) || sk(e && e.name) || sk(e && e.category_name));
+        return _r(lr(e && e.name, t) || lr(e && e.category_name, t) || lk(e && e.name) || lk(e && e.category_name));
     }
     function dr(e) {
-        const t = sk(e);
+        const t = lk(e);
         return /包材/.test(t) && /纸盒|彩盒|纸箱|包装盒|外盒/.test(t);
     }
     function pr(e) {
         const t = Tn(e), a = t.map((e, t) => {
-            const a = sk(e && e.name), n = sk(e && e.category_name), r = a + " " + n + " " + sk(e && (e.default_supplier_name || e.supplier_name)) + " " + sk(e && e.properties_value), i = a + " " + n, o = /包材/.test(n), s = !dr(n) && /标签|印刷|贴纸|不干胶|吊牌|印刷件/.test(i), l = ir(e), c = or(e, 3, !0);
+            const a = lk(e && e.name), n = lk(e && e.category_name), r = a + " " + n + " " + lk(e && (e.default_supplier_name || e.supplier_name)) + " " + lk(e && e.properties_value), i = a + " " + n, o = /包材/.test(n), s = !dr(n) && /标签|印刷|贴纸|不干胶|吊牌|印刷件/.test(i), l = ir(e), c = or(e, 3, !0);
             let u = 0;
             return /纸盒|彩盒|纸箱|包装盒|外盒|包装袋|铝箔袋|自封袋|袋子/.test(i) && (u += 160), o && (u += 20), s && (u -= 100),
             c && c.length >= 3 ? u += 40 : l && (u += 25), {
@@ -5616,7 +5616,7 @@
                 displayName: cr(e)
             };
         }).filter(e => e.isPackagingCategory && !e.isPrintMaterial && e.score > 0 && (e.dimensions && e.dimensions.length >= 3 || e.unitIssue)).sort((e, t) => t.score - e.score || e.index - t.index)[0], n = t.map((e, t) => {
-            const a = sk(e && e.name), n = sk(e && e.category_name), r = a + " " + n + " " + sk(e && e.properties_value), i = ir(e);
+            const a = lk(e && e.name), n = lk(e && e.category_name), r = a + " " + n + " " + lk(e && e.properties_value), i = ir(e);
             return {
                 item: e,
                 index: t,
@@ -5634,7 +5634,7 @@
             packageSizeLabel: a ? a.displayName : "",
             packageCode: a ? String(a.item.code || "") : "",
             packageNums: r,
-            hasInnerCard: t.some(e => /内卡/.test(sk(e && e.name) + " " + sk(e && e.category_name))),
+            hasInnerCard: t.some(e => /内卡/.test(lk(e && e.name) + " " + lk(e && e.category_name))),
             printSizeText: n.map(e => e.unitIssue ? e.unitIssue.raw : sr(e.dimensions)).filter(Boolean).join("；"),
             printSizeLabel: n.map(e => e.displayName).filter(Boolean).filter((e, t, a) => a.indexOf(e) === t).join("；"),
             printCode: n.map(e => String(e.item.code || "")).filter(Boolean).join("；"),
@@ -5642,7 +5642,7 @@
                 package: i,
                 print: (n.find(e => e.unitIssue) || {}).unitIssue || null
             },
-            netContent: a ? Kr(a.name + " " + sk(a.item.properties_value)) : "",
+            netContent: a ? Kr(a.name + " " + lk(a.item.properties_value)) : "",
             apiMaterialSource: a || n.length ? "plm-project-pms" : ""
         };
     }
@@ -5721,7 +5721,7 @@
                         ontimeout: () => o(r, new Error("请求超时"))
                     });
                 });
-                if (!t || t.status < 200 || t.status >= 300) throw new Error("Cookie 会话 " + _b(i) + "；页面授权 " + _b(o) + "；扩展请求 HTTP " + (t && t.status || 0));
+                if (!t || t.status < 200 || t.status >= 300) throw new Error("Cookie 会话 " + Ub(i) + "；页面授权 " + Ub(o) + "；扩展请求 HTTP " + (t && t.status || 0));
                 return JSON.parse(t.responseText || "{}");
             }
             throw o || new Error("PLM 页面请求失败");
@@ -5773,10 +5773,10 @@
     async function wr(e, t) {
         const a = String(e && e.sku || ""), n = Mn(e);
         return n && window.fetch ? (Hs(a, "loading", "正在读取 PLM 数据"), t && t.force && delete u[n],
-        u[n] || (Bb("info", "详情自动读取 PLM 物料接口", a + " | projectId=" + n), u[n] = hr("/api/ChemicalNew/GetProjectDetail?id=" + encodeURIComponent(n)).then(e => ({
+        u[n] || (zb("info", "详情自动读取 PLM 物料接口", a + " | projectId=" + n), u[n] = hr("/api/ChemicalNew/GetProjectDetail?id=" + encodeURIComponent(n)).then(e => ({
             result: pr(e),
             project: e && e.data && e.data.project || {}
-        })).catch(e => (Bb("warn", "PLM 项目物料读取失败，继续读取产品接口", a + " | " + _b(e)), {
+        })).catch(e => (zb("warn", "PLM 项目物料读取失败，继续读取产品接口", a + " | " + Ub(e)), {
             result: {
                 packageSizeText: "",
                 packageSizeLabel: "",
@@ -5803,13 +5803,13 @@
                 return s && (a.product_id || n) && (a.product_version_id || r) ? hr("/api/Product/GetDetailContent?is_edit=false&product_id=" + encodeURIComponent(a.product_id || n) + "&product_version_id=" + encodeURIComponent(a.product_version_id || r) + "&category_id=" + encodeURIComponent(s)).then(e => ({
                     ...o,
                     ...Yn(e)
-                })).catch(e => (Bb("warn", "PLM 产品详情字段读取失败", i + " | " + _b(e)), o)) : (Bb("info", "PLM 产品列表读取完成但缺少详情关联", i + " | 保留已读取物料结果"),
+                })).catch(e => (zb("warn", "PLM 产品详情字段读取失败", i + " | " + Ub(e)), o)) : (zb("info", "PLM 产品列表读取完成但缺少详情关联", i + " | 保留已读取物料结果"),
                 o);
-            }).catch(e => (Bb("warn", "PLM 产品列表读取失败", i + " | " + _b(e)), o));
-        }).then(e => (Bb("info", "PLM 接口读取完成", a + " | 纸盒=" + (e.packageSizeText || "无") + " | 标签/印刷=" + (e.printSizeText || "无") + " | 净含量=" + (e.netContent || "无") + " | 毛重=" + (e.grossWeight || "无")),
+            }).catch(e => (zb("warn", "PLM 产品列表读取失败", i + " | " + Ub(e)), o));
+        }).then(e => (zb("info", "PLM 接口读取完成", a + " | 纸盒=" + (e.packageSizeText || "无") + " | 标签/印刷=" + (e.printSizeText || "无") + " | 净含量=" + (e.netContent || "无") + " | 毛重=" + (e.grossWeight || "无")),
         Hs(a, "success", Vs(e) ? "PLM 数据读取完成" : "PLM 读取完成，暂无可用字段"), e)).catch(e => {
-            const t = /HTTP 401/.test(_b(e)) ? _b(e) + " | 请刷新 PLM 页面后重试，或检查当前账号项目权限" : _b(e);
-            return Bb("warn", "PLM 物料接口读取失败", a + " | " + t), Hs(a, "error", "PLM 读取失败"), {
+            const t = /HTTP 401/.test(Ub(e)) ? Ub(e) + " | 请刷新 PLM 页面后重试，或检查当前账号项目权限" : Ub(e);
+            return zb("warn", "PLM 物料接口读取失败", a + " | " + t), Hs(a, "error", "PLM 读取失败"), {
                 packageSizeText: "",
                 packageSizeLabel: "",
                 packageCode: "",
@@ -5825,7 +5825,7 @@
                 netContent: ""
             };
         })), u[n].then(e => (Pa.apiReadStatus && Pa.apiReadStatus.sku === a && "loading" === Pa.apiReadStatus.phase && Hs(a, "success", Vs(e) ? "PLM 数据读取完成" : "PLM 读取完成，暂无可用字段"),
-        e))) : (a && (Bb("warn", "详情自动读取物料接口跳过", a + " | 未找到项目 ID"), Hs(a, "error", "未找到项目 ID")),
+        e))) : (a && (zb("warn", "详情自动读取物料接口跳过", a + " | 未找到项目 ID"), Hs(a, "error", "未找到项目 ID")),
         {
             packageSizeText: "",
             packageSizeLabel: "",
@@ -5844,7 +5844,7 @@
     }
     async function kr(e, t) {
         if (!Pa.settings.collectionEnabled || !e) return;
-        const a = Pa.index.find(t => t && t.sku === e), n = bn(t || Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : null) || a || {
+        const a = Pa.index.find(t => t && t.sku === e), n = bn(t || Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : null) || a || {
             sku: e
         });
         Hs(e, "loading", "正在读取 PLM 数据");
@@ -5852,7 +5852,7 @@
             const t = await Sr(n, {
                 force: !0
             });
-            if (!t || !t.found || !t.data) return Hs(e, "error", "未找到 PLM 数据"), void (Pa.selectedSku === e && Fb("PLM 未找到可更新数据", {
+            if (!t || !t.found || !t.data) return Hs(e, "error", "未找到 PLM 数据"), void (Pa.selectedSku === e && Bb("PLM 未找到可更新数据", {
                 quiet: !0
             }));
             const a = bn({
@@ -5861,13 +5861,13 @@
                 updatedAt: (new Date).toLocaleString(),
                 updatedAtMs: Date.now()
             });
-            Qw(e, a, {
+            Jw(e, a, {
                 changeSource: "PLM 接口"
             }), Hs(e, "success", "PLM 数据读取完成"), Pa.selectedSku === e && (Pa.data = a, zi("已刷新 PLM 数据"),
             Ks(e, n, a));
         } catch (t) {
-            Hs(e, "error", "PLM 读取失败"), Bb("warn", "搜索 SKU 自动 API 刷新失败", e + " | " + _b(t)),
-            Pa.selectedSku === e && Fb("PLM 刷新失败，请稍后重试", {
+            Hs(e, "error", "PLM 读取失败"), zb("warn", "搜索 SKU 自动 API 刷新失败", e + " | " + Ub(t)),
+            Pa.selectedSku === e && Bb("PLM 刷新失败，请稍后重试", {
                 quiet: !0
             });
         }
@@ -5882,24 +5882,24 @@
                 sku: n
             }, r);
         } catch (e) {
-            Bb("warn", "Excel 产品 API 补全失败，继续使用页面读取", n + " | " + _b(e));
+            zb("warn", "Excel 产品 API 补全失败，继续使用页面读取", n + " | " + Ub(e));
         }
         try {
             o = await Jn(a, r);
         } catch (e) {
-            Bb("info", "Excel 项目 API 补全失败，继续使用页面读取", n + " | " + _b(e));
+            zb("info", "Excel 项目 API 补全失败，继续使用页面读取", n + " | " + Ub(e));
         }
         const s = String(i && (i.productId || i.product && (i.product.product_id || i.product.id)) || ""), l = String(i && (i.productVersionId || i.product && (i.product.product_version_id || i.product.product_main_id)) || ""), c = String(i && (i.categoryId || i.category_id) || o && o.categoryId || ""), u = String(o && o.projectId || a.projectRowId || a.projectId || "").trim(), d = i && i.optional || {}, p = Object.keys(d).reduce((e, t) => (In(d[t]) && (e[t] = d[t]),
         e), {}), g = i && i.contentPayload ? Yn(i.contentPayload) : {};
         let f = i && i.productListImageUrl || "", m = f;
         if (!f && i && i.imageFileIds && i.imageFileIds.length) try {
             const e = (await Vn(i.imageFileIds)).map(Kn).filter(e => e.url && (/\.(?:jpe?g|png|webp|bmp|gif)$/i.test(e.fileName) || /(?:jpe?g|png|webp|bmp|gif)/i.test(e.fileFormat))).sort((e, t) => {
-                const a = n && new RegExp(uk(n), "i").test(e.fileName) ? 1 : 0;
-                return (n && new RegExp(uk(n), "i").test(t.fileName) ? 1 : 0) - a || String(t.createdAt || "").localeCompare(String(e.createdAt || ""));
+                const a = n && new RegExp(dk(n), "i").test(e.fileName) ? 1 : 0;
+                return (n && new RegExp(dk(n), "i").test(t.fileName) ? 1 : 0) - a || String(t.createdAt || "").localeCompare(String(e.createdAt || ""));
             })[0];
             e && (f = e.url, m = e.url);
         } catch (e) {
-            Bb("info", "Excel 产品图片附件 API 读取失败，继续使用页面图片", n + " | " + _b(e));
+            zb("info", "Excel 产品图片附件 API 读取失败，继续使用页面图片", n + " | " + Ub(e));
         }
         const h = Boolean(i && i.found), y = {
             ...a,
@@ -5953,7 +5953,7 @@
                 force: Boolean(r.force)
             });
         } catch (e) {
-            Bb("warn", "Excel 物料 API 补全失败，继续使用页面读取", n + " | " + _b(e));
+            zb("warn", "Excel 物料 API 补全失败，继续使用页面读取", n + " | " + Ub(e));
         }
         const S = k && k.apiProject || {}, v = [ o, o && o.raw, S ], x = er(v), A = Fn(v, [ "reference_url", "referenceUrl", "benchmark_url", "benchmarkUrl", "benchmark_link", "benchmarkLink", "alibaba_link", "alibabaLink" ]).match(/https?:\/\/[^\s]+/i)?.[0] || "", I = pm(Fn(v, [ "pack_qty", "packQty", "pack_count", "packCount", "carton_qty", "cartonQty" ])), M = bn({
             ...mr(w, k),
@@ -5971,12 +5971,12 @@
             updatedAt: (new Date).toLocaleString(),
             updatedAtMs: Date.now()
         });
-        x && !Ah(a.purchasePrice) && Bb("success", "Excel 已读取国内三档价格", n + " | " + x);
+        x && !Ah(a.purchasePrice) && zb("success", "Excel 已读取国内三档价格", n + " | " + x);
         let T = null;
         if (i && i.contentPayload) try {
             T = await Xn(i.contentPayload, n);
         } catch (e) {
-            Bb("info", "Excel 成分表附件 API 读取失败，继续使用页面附件", n + " | " + _b(e));
+            zb("info", "Excel 成分表附件 API 读取失败，继续使用页面附件", n + " | " + Ub(e));
         }
         return {
             found: Boolean(i && i.found || o && o.found || Vs(k)),
@@ -6062,17 +6062,17 @@
         return !(a && !zr(t) && !n) && (/\u5305\u6750/.test(t) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6)/.test(t) || /\u5305\u6750/.test(t) && /\u5370\u5237/.test(t) && Dr(t) || /\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(t) && Dr(t));
     }
     function Ar(e, t) {
-        const a = uk(t), n = String(e || "").match(new RegExp(a + "\\s*[:：]?\\s*([\\s\\S]{0,120})"));
-        return n ? sk(n[1]).split(/(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5176\u4ed6\u4fe1\u606f|\u5ba1\u6279\u72b6\u6001|\u9879\u76ee\u72b6\u6001|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/)[0].trim() : "";
+        const a = dk(t), n = String(e || "").match(new RegExp(a + "\\s*[:：]?\\s*([\\s\\S]{0,120})"));
+        return n ? lk(n[1]).split(/(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5176\u4ed6\u4fe1\u606f|\u5ba1\u6279\u72b6\u6001|\u9879\u76ee\u72b6\u6001|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/)[0].trim() : "";
     }
     function Ir(e) {
-        const t = sk(e || "").replace(/^(?:\u5f00\u53d1\u4eba\u5458|\u5f00\u53d1)\s*[:\uff1a]?\s*/, "").trim();
+        const t = lk(e || "").replace(/^(?:\u5f00\u53d1\u4eba\u5458|\u5f00\u53d1)\s*[:\uff1a]?\s*/, "").trim();
         if (!t) return "";
         const a = t.match(/^([\u4e00-\u9fa5A-Za-z ._-]+?)(?=\s+(?:\u5f00\u53d1|\u4e3b\u7ba1|\u7ecf\u7406|\u4e13\u5458)|\s*\||$)/);
-        return sk(a ? a[1] : t.split(/[|｜/\\]/)[0]);
+        return lk(a ? a[1] : t.split(/[|｜/\\]/)[0]);
     }
     function Mr(e) {
-        const t = sk(e || ""), a = t.match(/\u9879\u76ee\u72b6\u6001\s*[:\uff1a]?\s*(\u5f85\u5ba1\u6838|\u8fdb\u884c\u4e2d|\u5df2\u62d2\u7edd|\u5df2\u4f5c\u5e9f|\u5df2\u5b8c\u6210)/);
+        const t = lk(e || ""), a = t.match(/\u9879\u76ee\u72b6\u6001\s*[:\uff1a]?\s*(\u5f85\u5ba1\u6838|\u8fdb\u884c\u4e2d|\u5df2\u62d2\u7edd|\u5df2\u4f5c\u5e9f|\u5df2\u5b8c\u6210)/);
         return a ? a[1] : [ "待审核", "进行中", "已拒绝", "已作废", "已完成" ].find(e => t.includes(e)) || "";
     }
     function Tr(e) {
@@ -6080,7 +6080,7 @@
         return t ? t[1].trim() : "";
     }
     function Er(e) {
-        const t = sk(e || "").match(/\bP[0-9]\s*[-\uff0d]\s*[\u4e00-\u9fa5A-Za-z0-9]{1,8}/);
+        const t = lk(e || "").match(/\bP[0-9]\s*[-\uff0d]\s*[\u4e00-\u9fa5A-Za-z0-9]{1,8}/);
         return t ? t[0].replace(/\s+/g, "") : "";
     }
     function Cr(e, t) {
@@ -6090,7 +6090,7 @@
         return n ? a.slice(n.index).trim() : a.trim();
     }
     function Pr(e) {
-        const t = sk(e).match(/(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/);
+        const t = lk(e).match(/(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/);
         return t ? t[1] : "";
     }
     function Lr(e) {
@@ -6105,11 +6105,11 @@
         return t.filter((e, a) => t.indexOf(e) === a).join("；");
     }
     function _r(e) {
-        const t = sk(e);
+        const t = lk(e);
         return /\u5370\u5237(?:\u4e73\u6db2\u74f6|\u8f6f\u7ba1|\u7ba1|\u74f6)/.test(t) || /\u8f6f\u7ba1/.test(t) && /\u5370\u5237/.test(t) ? "印刷" : t.replace(/\uff08\u4ef7\u683c\u5305\u542b\u4e8e\u534a\u6210\u54c1\uff09/g, "").replace(/[\uff08(]\s*\u4ef7\u683c\u5305\u542b[\u5728\u4e8e]\s*\u534a\u6210\u54c1\s*[\uff09)]/g, "").replace(/\uff08\u8fd4\u5de5\s*\u4e00\u6b21\u6027\uff09/g, "").replace(/\uff08\u888b\u542b\u6599\uff09/g, "").trim();
     }
     function Ur(e) {
-        const t = sk(e || ""), a = t.match(/(?:MTL\d+\s+){1,2}(.+?)\s+\u5305\u6750\s*[-\uff0d\u2013\u2014\u2212]/i);
+        const t = lk(e || ""), a = t.match(/(?:MTL\d+\s+){1,2}(.+?)\s+\u5305\u6750\s*[-\uff0d\u2013\u2014\u2212]/i);
         if (a) return a[1].trim();
         const n = t.match(/\u5305\u6750\s*[-\uff0d\u2013\u2014\u2212]\s*/);
         if (!n) return "";
@@ -6140,10 +6140,10 @@
         }(t) && /\u5370\u5237(?:\u5c3a\u5bf8)?/.test(t);
     }
     function Rr(e) {
-        return e && Number.isFinite(Number(e.width)) && Number.isFinite(Number(e.height)) ? lk(Number(e.width)) + "x" + lk(Number(e.height)) + "cm" : "";
+        return e && Number.isFinite(Number(e.width)) && Number.isFinite(Number(e.height)) ? ck(Number(e.width)) + "x" + ck(Number(e.height)) + "cm" : "";
     }
     function jr(e, t) {
-        const a = String(e || ""), n = uk(t), r = a.match(/\u7ba1\u5f84\s+\u7ba1\u8eab\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/i);
+        const a = String(e || ""), n = dk(t), r = a.match(/\u7ba1\u5f84\s+\u7ba1\u8eab\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/i);
         if (r) return qr("管径" === t ? r[1] : r[2], "");
         const i = a.match(/\u7ba1\u5f84[^\d]{0,12}(\d+(?:\.\d+)?)\s*(mm|cm)?[^\u7ba1\d]{0,20}\u7ba1\u8eab[^\d]{0,12}(\d+(?:\.\d+)?)\s*(mm|cm)?/i);
         if (i) {
@@ -6172,7 +6172,7 @@
         return a.includes(".") ? a : a + ".0";
     }
     function Hr(e) {
-        return Array.from(e.querySelectorAll('tr, .ant-table-row, [role="row"]')).filter(ck).map(e => sk(e.innerText || e.textContent || "")).flatMap(Vr).filter((e, t, a) => e && a.indexOf(e) === t);
+        return Array.from(e.querySelectorAll('tr, .ant-table-row, [role="row"]')).filter(uk).map(e => lk(e.innerText || e.textContent || "")).flatMap(Vr).filter((e, t, a) => e && a.indexOf(e) === t);
     }
     function Vr(e) {
         const t = String(e || ""), a = Array.from(t.matchAll(/\bMTL\d+\b/gi));
@@ -6186,13 +6186,13 @@
     }
     function Kr(e) {
         const t = String(e || "").match(/(\d+(?:\.\d+)?)\s*\u7247\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
-        if (t) return lk(Number(t[1])) + "TABLETS";
+        if (t) return ck(Number(t[1])) + "TABLETS";
         const a = String(e || "").match(/(\d+(?:\.\d+)?)\s*(PCS?)\s*(?:\/\s*(?:\u4ef6|\u76d2|\u74f6|\u888b))?/i);
-        if (a) return lk(Number(a[1])) + a[2].toUpperCase();
+        if (a) return ck(Number(a[1])) + a[2].toUpperCase();
         const n = String(e || "").match(/(\d+(?:\.\d+)?)\s*\u5957\s*\/\s*\u76d2/i);
         if (n) {
             const e = Number(n[1]);
-            return lk(e) + (1 === e ? "PAIR" : "PAIRS");
+            return ck(e) + (1 === e ? "PAIR" : "PAIRS");
         }
         const r = String(e || "").match(/(\d+(?:\.\d+)?)\s*(g|kg|ml|mL|l|L|\u514b|\u5343\u514b|\u6beb\u5347|\u5347)\s*\/\s*\u76d2/i);
         if (!r) return "";
@@ -6202,7 +6202,7 @@
             "毫升": "ml",
             "升": "L"
         }[r[2]] || r[2];
-        return lk(Number(r[1])) + i;
+        return ck(Number(r[1])) + i;
     }
     function Gr(e) {
         const t = String(e || "").match(/\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?\s*(?:(?:cm|mm))?){1,4}\s*(?:cm|mm)/gi);
@@ -6216,20 +6216,20 @@
     }
     function Qr(e, t) {
         const a = "mm" === String(t || "").toLowerCase() ? 10 : 1;
-        return e.map(e => lk(Number(e) / a)).join("x") + "cm";
+        return e.map(e => ck(Number(e) / a)).join("x") + "cm";
     }
     function Jr(e) {
         const t = String(e || ""), a = t.match(/(\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){1,4}\s*m(?!m|l))/i);
         if (a) return {
             unit: "m",
-            raw: sk(a[1])
+            raw: lk(a[1])
         };
         const n = Array.from(t.matchAll(/\d+(?:\.\d+)?\s*m(?!m|l)/gi));
         if (n.length >= 2) {
             const e = Number(n[0].index) || 0, a = (Number(n[n.length - 1].index) || e) + n[n.length - 1][0].length;
             return {
                 unit: "m",
-                raw: sk(t.slice(e, a))
+                raw: lk(t.slice(e, a))
             };
         }
         return null;
@@ -6240,7 +6240,7 @@
         if ("m" !== String(e.unit || "").toLowerCase()) return null;
         return {
             unit: "m",
-            raw: sk(e.raw || "") || "m"
+            raw: lk(e.raw || "") || "m"
         };
     }
     function Zr(e, t) {
@@ -6264,15 +6264,15 @@
         r;
     }
     function ti(e) {
-        const t = sk(e);
+        const t = lk(e);
         if (!t) return "";
         const a = t.match(/(\d+(?:\.\d+)?)\s*(PCS?)\s*(?:\/\s*(?:\u4ef6|\u76d2|\u74f6|\u888b))?/i);
-        if (a) return lk(Number(a[1])) + a[2].toUpperCase();
+        if (a) return ck(Number(a[1])) + a[2].toUpperCase();
         if (/^\d+(?:\.\d+)?\s*(CAPSULES|GUMMIES|TABLETS|PAIR|PAIRS|PC)$/i.test(t)) return t.replace(/\s+/g, "").toUpperCase();
         const n = t.match(/(\d+(?:\.\d+)?)\s*(?:\u7c92|\u80f6\u56ca)\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
-        if (n) return lk(Number(n[1])) + "CAPSULES";
+        if (n) return ck(Number(n[1])) + "CAPSULES";
         const r = t.match(/(\d+(?:\.\d+)?)\s*\u7247\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
-        if (r) return lk(Number(r[1])) + "TABLETS";
+        if (r) return ck(Number(r[1])) + "TABLETS";
         const i = t.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l|\u514b|\u5343\u514b|\u6beb\u5347|\u5347)\s*(?:\/\s*[\u4e00-\u9fa5A-Za-z]+)?/i);
         return i ? function(e, t) {
             const a = {
@@ -6281,11 +6281,11 @@
                 "毫升": "ml",
                 "升": "L"
             };
-            return lk(Number(e)) + (a[t] || t);
+            return ck(Number(e)) + (a[t] || t);
         }(i[1], i[2]) : "";
     }
     function ai(e) {
-        const t = rk(e).split("\n").map(e => sk(e)).filter(Boolean);
+        const t = ik(e).split("\n").map(e => lk(e)).filter(Boolean);
         for (let e = 0; e < t.length; e += 1) {
             if (!/\u89c4\u683c\u578b\u53f7/.test(t[e])) continue;
             const a = [ t[e].replace(/\u89c4\u683c\u578b\u53f7[:\uff1a]?/, "").trim(), t[e + 1] || "" ].filter(Boolean);
@@ -6306,62 +6306,62 @@
     }
     function ii(e) {
         if (!Number.isFinite(Number(e))) return "";
-        return lk(Number(e)) + "cm/" + lk(Number(e) * wa) + "inch";
+        return ck(Number(e)) + "cm/" + ck(Number(e) * wa) + "inch";
     }
     function oi(e, t) {
-        const a = Array.from(t.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(ck).filter(t => aw(t.textContent) === e);
+        const a = Array.from(t.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(uk).filter(t => nw(t.textContent) === e);
         for (const t of a) {
             const a = t.closest(".ant-form-item") || t.parentElement;
-            if (!a || !ck(a)) continue;
+            if (!a || !uk(a)) continue;
             const n = li(a);
             if (n) return n;
-            const r = pi(sk(a.innerText || a.textContent || "").replace(new RegExp("^" + uk(e) + "\\*?\\s*"), "").trim());
+            const r = pi(lk(a.innerText || a.textContent || "").replace(new RegExp("^" + dk(e) + "\\*?\\s*"), "").trim());
             if (r) return r;
         }
         return "";
     }
     function si(e, t) {
-        const a = ci(e), n = Array.from(t.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(ck).filter(e => ci(e.textContent) === a);
+        const a = ci(e), n = Array.from(t.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(uk).filter(e => ci(e.textContent) === a);
         for (const t of n) {
             const a = t.closest(".ant-form-item") || t.closest(".ant-descriptions-item") || t.parentElement;
-            if (!a || !ck(a)) continue;
+            if (!a || !uk(a)) continue;
             const n = li(a);
             if (n) return n;
-            const r = pi(sk(a.innerText || a.textContent || "").replace(new RegExp("^" + uk(aw(t.textContent)) + "\\*?\\s*"), "").replace(new RegExp("^" + uk(e) + "(?:\\s*[\\uff08(][^\\uff09)]*[\\uff09)])?\\*?\\s*"), "").trim());
+            const r = pi(lk(a.innerText || a.textContent || "").replace(new RegExp("^" + dk(nw(t.textContent)) + "\\*?\\s*"), "").replace(new RegExp("^" + dk(e) + "(?:\\s*[\\uff08(][^\\uff09)]*[\\uff09)])?\\*?\\s*"), "").trim());
             if (r) return r;
         }
         return oi(e, t);
     }
     function li(e) {
         if (!e) return "";
-        const t = Array.from(e.querySelectorAll("input, textarea, select")).filter(ck).find(e => pi(e.value || e.getAttribute("value") || ""));
+        const t = Array.from(e.querySelectorAll("input, textarea, select")).filter(uk).find(e => pi(e.value || e.getAttribute("value") || ""));
         if (t) return pi(t.value || t.getAttribute("value") || "");
-        const a = Array.from(e.querySelectorAll(".ant-select-selection-item, .ant-input-number-input, .ant-descriptions-item-content")).filter(ck).find(e => pi(e.innerText || e.textContent || ""));
+        const a = Array.from(e.querySelectorAll(".ant-select-selection-item, .ant-input-number-input, .ant-descriptions-item-content")).filter(uk).find(e => pi(e.innerText || e.textContent || ""));
         return a ? pi(a.innerText || a.textContent || "") : "";
     }
     function ci(e) {
-        return aw(e).replace(/\*?(?:\u70b9\u51fb)?\u67e5\u770b\u98ce\u9669$/g, "").replace(/[\uff08(]\s*(?:mm|cm|kg|g|ml|l|\u6beb\u7c73|\u5398\u7c73|\u5343\u514b|\u514b|\u6beb\u5347|\u5347)\s*[\uff09)]/gi, "").replace(/\s+/g, "").trim();
+        return nw(e).replace(/\*?(?:\u70b9\u51fb)?\u67e5\u770b\u98ce\u9669$/g, "").replace(/[\uff08(]\s*(?:mm|cm|kg|g|ml|l|\u6beb\u7c73|\u5398\u7c73|\u5343\u514b|\u514b|\u6beb\u5347|\u5347)\s*[\uff09)]/gi, "").replace(/\s+/g, "").trim();
     }
     function ui(e) {
         if (!e) return "";
         const t = String(e).match(/(\d+(?:\.\d+)?)\s*(kg|\u5343\u514b|g|\u514b)/i);
         if (!t) return pi(e);
         const a = /kg|\u5343\u514b/i.test(t[2]) ? "kg" : "g";
-        return lk(Number(t[1])) + a;
+        return ck(Number(t[1])) + a;
     }
     function di(e) {
         const t = si("毛重", e);
         if (!t) return "";
         if (/(?:kg|\u5343\u514b|g|\u514b)/i.test(t)) return ui(t);
         if (/^\d+(?:\.\d+)?$/.test(t)) {
-            const a = Array.from(e.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(ck).find(e => "毛重" === ci(e.textContent)), n = String(a && a.textContent || "");
+            const a = Array.from(e.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(uk).find(e => "毛重" === ci(e.textContent)), n = String(a && a.textContent || "");
             if (/(?:kg|\u5343\u514b)/i.test(n)) return ui(t + "kg");
             if (/(?:g|\u514b)/i.test(n)) return ui(t + "g");
         }
         return ui(t);
     }
     function pi(e) {
-        const t = sk(e);
+        const t = lk(e);
         return !t || "--" === t || /^--\s*(g|kg|ml|mL|l|L|\u514b|\u5343\u514b|\u6beb\u5347|\u5347|\w*\([^)]*\))?/i.test(t) || /^[\s:：*]*(\u51c0\u542b\u91cf|\u51c0\u91cd|\u6bdb\u91cd|\u89c4\u683c\u578b\u53f7|\u5bb9\u91cf)(\s+|\u3000)*(\u51c0\u542b\u91cf|\u51c0\u91cd|\u6bdb\u91cd|\u89c4\u683c\u578b\u53f7|\u5bb9\u91cf)?[\s:：*]*$/.test(t) ? "" : t;
     }
     function gi(e, t) {
@@ -6370,7 +6370,7 @@
     }
     function fi(e, t) {
         const a = e || xa.packageSize;
-        return new RegExp("（" + uk(t) + "）").test(a) ? a : a + "（" + t + "）";
+        return new RegExp("（" + dk(t) + "）").test(a) ? a : a + "（" + t + "）";
     }
     function mi(e) {
         const t = String(e || "").match(/\d+(?:\.\d+)?/);
@@ -6380,22 +6380,22 @@
         return (e.match(/\u5546\u54c1\u7f16\u7801[:\uff1a]\s*(SKU\d+)/i) || e.match(/\b(SKU\d+)\b/i) || [])[1] || "";
     }
     function yi(e) {
-        return sk(e).replace(/\s*(\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|PRODUCT NAME)[:\uff1a].*$/i, "").replace(/\s*[\uff08(]\d+[\uff09)]\s*$/g, "").trim();
+        return lk(e).replace(/\s*(\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|PRODUCT NAME)[:\uff1a].*$/i, "").replace(/\s*[\uff08(]\d+[\uff09)]\s*$/g, "").trim();
     }
     function bi(e) {
-        const t = sk(e);
+        const t = lk(e);
         return !t || /^(?:--+|—+|－+|未填写|未命名|预设编码新品)$/i.test(t) ? "" : t;
     }
     function wi(e, t) {
-        const a = Array.from(e.querySelectorAll('[role="tab"], .ant-tabs-tab, .ant-tabs-tab-btn, button, div')).filter(ck).filter(e => {
-            const a = sk(e.textContent);
+        const a = Array.from(e.querySelectorAll('[role="tab"], .ant-tabs-tab, .ant-tabs-tab-btn, button, div')).filter(uk).filter(e => {
+            const a = lk(e.textContent);
             return a === t || a.startsWith(t + " ");
         });
         return a.find(e => "tab" === e.getAttribute("role")) || a.find(e => String(e.className || "").includes("ant-tabs-tab-btn")) || a[0] || null;
     }
     function ki(e) {
-        const t = Array.from(e.querySelectorAll('[role="tab"], .ant-tabs-tab')).filter(ck).find(Si);
-        return t ? sk(t.textContent) : "";
+        const t = Array.from(e.querySelectorAll('[role="tab"], .ant-tabs-tab')).filter(uk).find(Si);
+        return t ? lk(t.textContent) : "";
     }
     function Si(e) {
         const t = e.closest(".ant-tabs-tab") || e;
@@ -6415,10 +6415,10 @@
         }
         return t = document.createElement("div"), t.id = e, t.dataset.version = a, t.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" name="plm-sku-search" role="searchbox" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="home-main"></button><button type="button" data-action="notifications"></button><button type="button" data-action="about"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="拖动调整左右宽度"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="拖动调整窗口大小"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>',
         document.documentElement.appendChild(t), t.querySelector(".pfh-heading").insertAdjacentHTML("afterbegin", '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="数据采集">P</button>'),
-        t.dataset.edition = i.id, t.querySelector(".pfh-heading strong").insertAdjacentHTML("afterend", '<span class="pfh-edition-badge pfh-edition-' + pk(i.id) + '"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.2 10.8 10.7 3.3a1.55 1.55 0 0 1 2.2 0l.1.1a1.55 1.55 0 0 1 0 2.2l-7.5 7.5"></path><path d="m9.7 4.3 2 2"></path><path d="m2.4 13.7 3.4-.8-2.6-2.6-.8 3.4Z"></path></svg><b>' + pk(i.label) + "</b><small>" + pk(i.code) + "</small></span>"),
+        t.dataset.edition = i.id, t.querySelector(".pfh-heading strong").insertAdjacentHTML("afterend", '<span class="pfh-edition-badge pfh-edition-' + gk(i.id) + '"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.2 10.8 10.7 3.3a1.55 1.55 0 0 1 2.2 0l.1.1a1.55 1.55 0 0 1 0 2.2l-7.5 7.5"></path><path d="m9.7 4.3 2 2"></path><path d="m2.4 13.7 3.4-.8-2.6-2.6-.8 3.4Z"></path></svg><b>' + gk(i.label) + "</b><small>" + gk(i.code) + "</small></span>"),
         t.querySelector("strong").textContent = xa.title, t.querySelector(".pfh-search-input").placeholder = xa.searchPlaceholder,
         t.querySelector(".pfh-search-clear").textContent = "×", t.querySelector(".pfh-search-clear").title = xa.clearSearch,
-        t.querySelector('[data-action="search"]').innerHTML = '<span class="pfh-btn-text">' + pk(xa.search) + "</span>",
+        t.querySelector('[data-action="search"]').innerHTML = '<span class="pfh-btn-text">' + gk(xa.search) + "</span>",
         t.querySelector('[data-action="search"]').title = Ia.search, t.querySelector('[data-action="about"]').innerHTML = ht("settings") + "<span>设置</span>",
         t.querySelector('[data-action="about"]').removeAttribute("title"), t.querySelector('[data-action="about"]').setAttribute("aria-label", Ia.about),
         t.querySelector('[data-action="about"]').setAttribute("data-tooltip", Ia.about),
@@ -6435,7 +6435,7 @@
         t.addEventListener("pointerup", Pc), t.addEventListener("pointercancel", Pc), t.addEventListener("pointerdown", Dc),
         t.addEventListener("pointermove", Fc), t.addEventListener("pointerup", Bc), t.addEventListener("pointercancel", Bc),
         t.addEventListener("scroll", Hc, !0), t.addEventListener("dragstart", _d), t.addEventListener("dragend", Ud),
-        t.addEventListener("dragover", Dd), t.addEventListener("drop", Fd), t.querySelector(".pfh-import-file").addEventListener("change", Jy),
+        t.addEventListener("dragover", Dd), t.addEventListener("drop", Fd), t.querySelector(".pfh-import-file").addEventListener("change", Xy),
         function(e, t) {
             let a = 0, n = 0, r = 0, i = 0, o = !1;
             t.addEventListener("mousedown", s => {
@@ -6445,7 +6445,7 @@
             }), document.addEventListener("mousemove", t => {
                 o && (e.style.right = Math.max(0, r - (t.clientX - a)) + "px", e.style.bottom = Math.max(0, i - (t.clientY - n)) + "px");
             }), document.addEventListener("mouseup", () => {
-                o && (o = !1, Xw({
+                o && (o = !1, Zw({
                     right: Number.parseFloat(getComputedStyle(e).right) || 0,
                     bottom: Number.parseFloat(getComputedStyle(e).bottom) || 0
                 }));
@@ -6458,18 +6458,18 @@
                 if (!Pa.splitDragging) return;
                 const a = e.querySelector(".pfh-main");
                 if (!a) return;
-                const n = a.getBoundingClientRect(), r = nk(t.clientX - n.left, 110, Math.min(260, n.width - 220));
-                Pa.splitWidth = r, ak(e);
+                const n = a.getBoundingClientRect(), r = rk(t.clientX - n.left, 110, Math.min(260, n.width - 220));
+                Pa.splitWidth = r, nk(e);
             }), document.addEventListener("mouseup", () => {
                 Pa.splitDragging && (Pa.splitDragging = !1, function(e) {
-                    const t = nk(e, 110, 260);
+                    const t = rk(e, 110, 260);
                     Pa.splitWidth = t;
                     try {
                         "function" == typeof GM_setValue ? GM_setValue(I, t) : localStorage.setItem(I, String(t));
                     } catch (e) {
                         console.warn("PLM floating helper split save failed:", e);
                     }
-                }(Pa.splitWidth), Pa.ignoreOutsideClickUntil = Date.now() + 300, ak(e));
+                }(Pa.splitWidth), Pa.ignoreOutsideClickUntil = Date.now() + 300, nk(e));
             });
         }(t, t.querySelector(".pfh-splitter")), function(e) {
             let t = !1, a = "", n = 0, r = 0, i = 0, o = 0, s = 0, l = 0;
@@ -6483,18 +6483,18 @@
                 if (!t) return;
                 const u = c.clientX - n, d = c.clientY - r;
                 let p = i, g = o, f = s, m = l;
-                const h = 520, y = Math.min(1180, window.innerWidth - 24), b = tk();
+                const h = 520, y = Math.min(1180, window.innerWidth - 24), b = ak();
                 a.includes("w") && (p = i - u), a.includes("e") && (p = i + u, f = s - u), a.includes("n") && (g = o - d),
-                a.includes("s") && (g = o + d, m = l - d), p = nk(p, h, y), g = nk(g, 520, b), f = Math.max(0, Math.min(window.innerWidth - p - 8, f)),
+                a.includes("s") && (g = o + d, m = l - d), p = rk(p, h, y), g = rk(g, 520, b), f = Math.max(0, Math.min(window.innerWidth - p - 8, f)),
                 m = Math.max(0, Math.min(window.innerHeight - g - 8, m)), Pa.panelSize = {
                     width: p,
                     height: g
-                }, e.style.right = f + "px", e.style.bottom = m + "px", ek(e), ak(e);
+                }, e.style.right = f + "px", e.style.bottom = m + "px", tk(e), nk(e);
             }), document.addEventListener("mouseup", () => {
                 t && (t = !1, function(e) {
-                    const t = tk(), a = {
-                        width: nk(e.width, 640, Math.min(1180, window.innerWidth - 24)),
-                        height: nk(e.height, 520, t)
+                    const t = ak(), a = {
+                        width: rk(e.width, 640, Math.min(1180, window.innerWidth - 24)),
+                        height: rk(e.height, 520, t)
                     };
                     Pa.panelSize = a;
                     try {
@@ -6502,8 +6502,8 @@
                     } catch (e) {
                         console.warn("PLM floating helper size save failed:", e);
                     }
-                }(Pa.panelSize), Bb("info", "窗口大小已保存", Math.round(Pa.panelSize.width) + " x " + Math.round(Pa.panelSize.height)),
-                Xw({
+                }(Pa.panelSize), zb("info", "窗口大小已保存", Math.round(Pa.panelSize.width) + " x " + Math.round(Pa.panelSize.height)),
+                Zw({
                     right: Number.parseFloat(getComputedStyle(e).right) || 0,
                     bottom: Number.parseFloat(getComputedStyle(e).bottom) || 0
                 }), Pa.ignoreOutsideClickUntil = Date.now() + 300);
@@ -6519,12 +6519,12 @@
                 }
             }();
             if (!t) {
-                const t = nk(Pa.panelSize?.width || 686, 520, Math.min(1180, window.innerWidth - 24)), a = nk(Pa.panelSize?.height || 906, 520, tk()), n = nk(Math.round(window.innerWidth * T.panelLeftRatio), 8, Math.max(8, window.innerWidth - t - 8)), r = nk(Math.round(window.innerHeight * T.panelTopRatio), 8, Math.max(8, window.innerHeight - a - 8));
+                const t = rk(Pa.panelSize?.width || 686, 520, Math.min(1180, window.innerWidth - 24)), a = rk(Pa.panelSize?.height || 906, 520, ak()), n = rk(Math.round(window.innerWidth * T.panelLeftRatio), 8, Math.max(8, window.innerWidth - t - 8)), r = rk(Math.round(window.innerHeight * T.panelTopRatio), 8, Math.max(8, window.innerHeight - a - 8));
                 return e.style.right = Math.max(8, window.innerWidth - t - n) + "px", void (e.style.bottom = Math.max(8, window.innerHeight - a - r) + "px");
             }
             Number.isFinite(t.right) && (e.style.right = t.right + "px");
             Number.isFinite(t.bottom) && (e.style.bottom = t.bottom + "px");
-        }(t), ek(t), ak(t), Pi(t), D(), t;
+        }(t), tk(t), nk(t), Pi(t), D(), t;
     }
     function xi() {
         let e = document.getElementById(t);
@@ -6541,7 +6541,7 @@
                 if (!i) return;
                 const l = s.clientX - t, c = s.clientY - a;
                 Math.abs(l) + Math.abs(c) > 3 && (o = !0);
-                const u = nk(n + l, 8, Math.max(8, window.innerWidth - e.offsetWidth - 8)), d = nk(r + c, 8, Math.max(8, window.innerHeight - e.offsetHeight - 8));
+                const u = rk(n + l, 8, Math.max(8, window.innerWidth - e.offsetWidth - 8)), d = rk(r + c, 8, Math.max(8, window.innerHeight - e.offsetHeight - 8));
                 e.style.left = u + "px", e.style.top = d + "px", s.preventDefault();
             }), document.addEventListener("mouseup", () => {
                 if (i && (i = !1, o)) {
@@ -6549,8 +6549,8 @@
                     const t = e.getBoundingClientRect();
                     !function(e) {
                         const t = {
-                            left: nk(e.left, 8, Math.max(8, window.innerWidth - 40)),
-                            top: nk(e.top, 8, Math.max(8, window.innerHeight - 24))
+                            left: rk(e.left, 8, Math.max(8, window.innerWidth - 40)),
+                            top: rk(e.top, 8, Math.max(8, window.innerHeight - 24))
                         };
                         try {
                             "function" == typeof GM_setValue ? GM_setValue(A, t) : localStorage.setItem(A, JSON.stringify(t));
@@ -6563,7 +6563,7 @@
                     });
                 }
             });
-        }(e)), Zw(e), D(), e;
+        }(e)), Yw(e), D(), e;
     }
     function Ai() {
         Pa.expanded = !0, Pa.userCollapsedPanel = !1, Pa.manuallyCollapsedForSku = "", Pa.ignoreOutsideClickUntil = Date.now() + 250;
@@ -6613,7 +6613,7 @@
     }
     function Pi(e) {
         const t = e && e.querySelector('[data-action="panel-close"]');
-        t && (t.innerHTML = ht("close") + "<span>" + pk(xa.close) + "</span>", t.removeAttribute("title"),
+        t && (t.innerHTML = ht("close") + "<span>" + gk(xa.close) + "</span>", t.removeAttribute("title"),
         t.setAttribute("aria-label", Ia.collapse), t.setAttribute("data-tooltip", Ia.collapse));
     }
     function Li(e) {
@@ -6664,17 +6664,17 @@
     }, !0), document.addEventListener("click", function(t) {
         if (!(t && t.isTrusted && t.target instanceof Element)) return;
         const a = t.target.closest('button, a, [role="button"]'), n = a && a.closest("tr");
-        if (a && n && !a.closest("#" + e + ", .ant-drawer-open, .ant-drawer") && /\/projectManagementChemicalNew/.test(location.pathname) && "详情" === sk(a.innerText || a.textContent)) {
+        if (a && n && !a.closest("#" + e + ", .ant-drawer-open, .ant-drawer") && /\/projectManagementChemicalNew/.test(location.pathname) && "详情" === lk(a.innerText || a.textContent)) {
             const e = function(e) {
                 if (!e) return "";
-                const t = hi(rk(e));
+                const t = hi(ik(e));
                 if (t) return t;
                 const a = e.getAttribute("rowid");
                 if (!a) return "";
-                const n = Array.from(document.querySelectorAll('tr[rowid="' + dk(a) + '"]')).find(t => t !== e && hi(rk(t)));
-                return n ? hi(rk(n)) : "";
+                const n = Array.from(document.querySelectorAll('tr[rowid="' + pk(a) + '"]')).find(t => t !== e && hi(ik(t)));
+                return n ? hi(ik(n)) : "";
             }(n);
-            return void (e && _a(e, Gw(e) || {
+            return void (e && _a(e, Ww(e) || {
                 sku: e
             }));
         }
@@ -6684,24 +6684,24 @@
         if (!i || i !== ln()) return;
         if (Pa.scanRunning) {
             const e = Pa.scanData && Pa.scanData.sku ? Pa.scanData : null;
-            Qa(), e && (Qw(e.sku, e), Pa.selectedSku === e.sku && (Pa.data = bn(Gw(e.sku) || e)));
+            Qa(), e && (Jw(e.sku, e), Pa.selectedSku === e.sku && (Pa.data = bn(Ww(e.sku) || e)));
         }
         (Pa.drawerTabFlowRunning || Pa.drawerTabFlowTimer) && (Pa.drawerTabFlowUserInterrupted = !0,
         Ua({
             preserveUserInterrupted: !0
         }));
-        const o = sn(i), s = sk(r.innerText || r.textContent || "");
+        const o = sn(i), s = lk(r.innerText || r.textContent || "");
         o && s && (Pa.observedDrawer = i, Pa.observedSku = o, Pa.observedTab = s, Xa(),
         Pa.manualCollectTimer = window.setTimeout(() => Za(i, o, s), 420));
     }, !0), document.addEventListener("click", function(e) {
         if (!(e && e.target instanceof Element)) return;
         const t = e.target.closest("[data-pfh-page-toy-copywriting]");
-        if (!t || t.disabled || !ck(t)) return;
+        if (!t || t.disabled || !uk(t)) return;
         e.preventDefault(), e.stopPropagation(), async function(e) {
             const t = e && e.getAttribute("data-sku");
             if (!t || Pa.pageToyCopywritingBusy || Pa.toyCopywritingBusy) return;
             const a = Ys(cl(t), t);
-            if (!Xs(a) && !Zs(a)) return void Fb("当前编码不适用玩具或食品文案补全");
+            if (!Xs(a) && !Zs(a)) return void Bb("当前编码不适用玩具或食品文案补全");
             Pa.pageToyCopywritingBusy = !0, Pa.pageToyCopywritingSku = t, el(e, a);
             try {
                 await yl({
@@ -6712,18 +6712,18 @@
                 Pa.pageToyCopywritingBusy = !1, Pa.pageToyCopywritingSku = "", al();
             }
         }(t);
-    }, !0), xi(), zi(xa.noDrawer), wb(!1), Na = 50, window.setTimeout(async () => {
+    }, !0), xi(), zi(xa.noDrawer), kb(!1), Na = 50, window.setTimeout(async () => {
         try {
             await lt(!1);
         } catch (e) {
-            ha(), Bb("warn", "云端资源更新失败", _b(e));
+            ha(), zb("warn", "云端资源更新失败", Ub(e));
         }
         try {
             await st();
         } catch (e) {
-            Bb("warn", "品牌地址更新失败，继续使用本地备用数据", _b(e));
+            zb("warn", "品牌地址更新失败，继续使用本地备用数据", Ub(e));
         }
-    }, Math.max(0, Number(Na) || 0)), Ab(300), vb(800), function e(t) {
+    }, Math.max(0, Number(Na) || 0)), Ib(300), xb(800), function e(t) {
         window.clearTimeout(Pa.notificationRefreshTimer), Pa.notificationRefreshTimer = window.setTimeout(async () => {
             await _t(!1), e(3e5);
         }, Math.max(0, Number(t) || 0));
@@ -6731,7 +6731,7 @@
         window.clearTimeout(Pa.homeGreetingRefreshTimer), Pa.homeGreetingRefreshTimer = window.setTimeout(async () => {
             await Nt(!1), e(9e5);
         }, Math.max(0, Number(t) || 0));
-    }(700), window.addEventListener("resize", () => Zw(document.getElementById(t))),
+    }(700), window.addEventListener("resize", () => Yw(document.getElementById(t))),
     function() {
         let e = 0;
         new MutationObserver(() => {
@@ -6745,7 +6745,7 @@
                     Pa.observedSku = t, void (Pa.observedTab = a);
                     if (a === Pa.observedTab) return;
                     Pa.observedTab = a, Xa(), Pa.manualCollectTimer = window.setTimeout(() => Za(e, t, a), 420);
-                }(), Ba(), Zw(document.getElementById(t));
+                }(), Ba(), Yw(document.getElementById(t));
             }, 120);
         }).observe(document.body, {
             childList: !0,
@@ -6785,15 +6785,15 @@
     }), Qt(!1), function() {
         let e = 0;
         const t = () => {
-            Pa.uploadQueue = ow(), Pa.uploadHistory = fw();
-            const e = Iw() ? Mw() : xw(Pa.uploadMode);
-            Pa.uploadWorkerMode = e, Pa.uploadRunning = Cw(e), "upload" === Pa.view ? Zi(vi()) || zi() : Pa.uploadExpanded && zi();
+            Pa.uploadQueue = sw(), Pa.uploadHistory = mw();
+            const e = Mw() ? Tw() : Aw(Pa.uploadMode);
+            Pa.uploadWorkerMode = e, Pa.uploadRunning = Pw(e), "upload" === Pa.view ? Zi(vi()) || zi() : Pa.uploadExpanded && zi();
         }, a = a => {
             a && "history" === Pa.uploadView && (Pa.uploadHistoryPage = 1), window.clearTimeout(e),
             e = window.setTimeout(t, 0);
         };
         "function" == typeof GM_addValueChangeListener && (GM_addValueChangeListener(B, (e, t, n, r) => {
-            !r && Iw() || a(!1);
+            !r && Mw() || a(!1);
         }), GM_addValueChangeListener(R, () => {
             a(!0), na();
         }), GM_addValueChangeListener(j, () => a(!1)), GM_addValueChangeListener(O, () => a(!1)));
@@ -6801,10 +6801,10 @@
             e.key !== B && e.key !== R && e.key !== j && e.key !== O || t(), e.key === R && na();
         }), window.setInterval(t, 5e3);
     }(), Va(), al(), Ba(), function() {
-        const e = Iw() ? Mw() : "";
-        return Cw(e) && (Iw() || function(e) {
-            const t = e ? xw(e) : "";
-            return ow().some(e => (!t || Aw(e) === t) && (!!(e && e.xlsxKey && e.zipKey) && (!!e.resumeUploadAfterRefresh || Number(e.uploadPageRefreshRetryCount) > 0 && /\u5f85\u4e0a\u4f20/.test(e.status || "") && /\u5237\u65b0\u540e\u91cd\u65b0\u641c\u7d22\u4e0a\u4f20/.test(e.step || ""))));
+        const e = Mw() ? Tw() : "";
+        return Pw(e) && (Mw() || function(e) {
+            const t = e ? Aw(e) : "";
+            return sw().some(e => (!t || Iw(e) === t) && (!!(e && e.xlsxKey && e.zipKey) && (!!e.resumeUploadAfterRefresh || Number(e.uploadPageRefreshRetryCount) > 0 && /\u5f85\u4e0a\u4f20/.test(e.status || "") && /\u5237\u65b0\u540e\u91cd\u65b0\u641c\u7d22\u4e0a\u4f20/.test(e.step || ""))));
         }(e));
     }() && window.setTimeout(() => Ap(), 1200);
     const Ni = Object.freeze([ {
@@ -6830,9 +6830,9 @@
     function Di(e) {
         const t = _i(e || Ui()), a = !Pa.sizeImageAccessEnabled, n = Pa.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待", r = Ni.map(e => {
             const r = e.id === t, i = "sizeImage" === e.id && a;
-            return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + e.id + '" class="' + (r ? "is-active" : "") + '" aria-selected="' + String(r) + '"' + (i ? ' disabled aria-disabled="true" title="' + pk(n) + '"' : "") + ">" + pk(e.label) + "</button>";
+            return '<button type="button" role="tab" data-action="detail-view-tab" data-detail-view="' + e.id + '" class="' + (r ? "is-active" : "") + '" aria-selected="' + String(r) + '"' + (i ? ' disabled aria-disabled="true" title="' + gk(n) + '"' : "") + ">" + gk(e.label) + "</button>";
         }).join("");
-        return '<nav class="pfh-detail-view-tabs" data-active-view="' + pk(t) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + r + "</nav>";
+        return '<nav class="pfh-detail-view-tabs" data-active-view="' + gk(t) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + r + "</nav>";
     }
     function Fi(e) {
         const t = e && e.querySelector(".pfh-detail-view-tabs"), a = t && t.querySelector(".pfh-detail-view-indicator"), n = t && t.querySelector("button.is-active");
@@ -6859,7 +6859,7 @@
     function zi(e) {
         const t = vi();
         "unitConverter" === Pa.view && (Pa.view = "tools", Pa.toolsActiveTool = "unit"),
-        t.dataset.view = Pa.view || "home", t.dataset.uploadMode = xw(Pa.uploadMode), t.classList.toggle("is-ledger-fullscreen", "ledger" === Pa.view && Boolean(Pa.ledgerFullscreen));
+        t.dataset.view = Pa.view || "home", t.dataset.uploadMode = Aw(Pa.uploadMode), t.classList.toggle("is-ledger-fullscreen", "ledger" === Pa.view && Boolean(Pa.ledgerFullscreen));
         const n = t.querySelector(".pfh-main"), r = "home" === Pa.view || "about" === Pa.view || "ledger" === Pa.view || "upload" === Pa.view || "magicUpload" === Pa.view || "tools" === Pa.view || "batchExcel" === Pa.view || "feedback" === Pa.view;
         n && (n.classList.toggle("is-home", "home" === Pa.view), n.classList.toggle("is-full", r));
         const i = function(e) {
@@ -6883,9 +6883,9 @@
             t && t.remove();
             if (!Pa.tutorialModalOpen) return;
             const a = document.createElement("div");
-            a.className = "pfh-first-run-backdrop", a.innerHTML = '<section class="pfh-first-run-dialog" role="dialog" aria-modal="true" aria-label="使用引导"><div class="pfh-first-run-head"><strong>欢迎使用 PLM 悬浮助手</strong><span>首次引导</span></div><ol><li><b>1</b><p>打开任意产品详情页，正式启动程序。</p></li><li><b>2</b><p>拖动窗口调整到合适位置，让它保持舒服的工作姿势。</p></li><li><b>3</b><div><p>在浏览器属性「目标」栏末尾添加参数：</p><code>--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding</code><p>避免浏览器退到后台后暂停任务，让自动上传安静地继续工作。</p></div></li><li><b>4</b><div><p>先设置一串仅你知道的云备份密钥（至少 4 位）。它用来区分和找回你自己的备份。</p><label class="pfh-tutorial-key"><span>备份密钥</span><input type="text" class="pfh-tutorial-cloud-key" value="' + pk(Pa.settings.cloudBackupKey || "") + '" placeholder="请输入至少 4 位密钥" minlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label></div></li></ol><button type="button" data-action="first-run-tutorial-done"' + (Zy().length >= 4 ? "" : ' aria-disabled="true"') + ">开始使用</button></section>",
+            a.className = "pfh-first-run-backdrop", a.innerHTML = '<section class="pfh-first-run-dialog" role="dialog" aria-modal="true" aria-label="使用引导"><div class="pfh-first-run-head"><strong>欢迎使用 PLM 悬浮助手</strong><span>首次引导</span></div><ol><li><b>1</b><p>打开任意产品详情页，正式启动程序。</p></li><li><b>2</b><p>拖动窗口调整到合适位置，让它保持舒服的工作姿势。</p></li><li><b>3</b><div><p>在浏览器属性「目标」栏末尾添加参数：</p><code>--disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding</code><p>避免浏览器退到后台后暂停任务，让自动上传安静地继续工作。</p></div></li><li><b>4</b><div><p>先设置一串仅你知道的云备份密钥（至少 4 位）。它用来区分和找回你自己的备份。</p><label class="pfh-tutorial-key"><span>备份密钥</span><input type="text" class="pfh-tutorial-cloud-key" value="' + gk(Pa.settings.cloudBackupKey || "") + '" placeholder="请输入至少 4 位密钥" minlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label></div></li></ol><button type="button" data-action="first-run-tutorial-done"' + (Yy().length >= 4 ? "" : ' aria-disabled="true"') + ">开始使用</button></section>",
             e.appendChild(a);
-        }(t), Pt(t), "ledger" !== Pa.view && (Pa.ledgerAiImageViewer = null, Iy(t)), "home" === Pa.view) return function(e, t) {
+        }(t), Pt(t), "ledger" !== Pa.view && (Pa.ledgerAiImageViewer = null, My(t)), "home" === Pa.view) return function(e, t) {
             const a = e.querySelector(".pfh-list"), n = e.querySelector(".pfh-detail");
             a && (a.innerHTML = "");
             n.classList.remove("is-loading"), n.innerHTML = Al(t), function(e) {
@@ -6966,17 +6966,17 @@
             }(t);
         }(t);
         return "about" === Pa.view ? (function(e) {
-            const t = e.querySelector(".pfh-detail"), n = '<label class="pfh-cloud-key"><span>' + pk(xa.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + pk(Pa.settings.cloudBackupKey || "") + '" placeholder="' + pk(xa.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label><div class="pfh-about-actions"><button type="button" data-action="cloud-backup-save">' + pk(xa.cloudBackupSave) + '</button><button type="button" data-action="cloud-backup-restore">' + pk(xa.cloudBackupRestore) + '</button><span class="pfh-cloud-status">' + pk(tb()) + "</span></div>", r = [ '<div class="pfh-setting-row"><span>' + pk(xa.excelKeywordSetting) + '</span><label><input type="radio" name="pfh-keyword-mode" value="brandName"' + ("brandName" === Pa.settings.excelKeywordMode ? " checked" : "") + "> " + pk(xa.excelKeywordBrandName) + '</label><label><input type="radio" name="pfh-keyword-mode" value="english"' + ("english" === Pa.settings.excelKeywordMode ? " checked" : "") + "> " + pk(xa.excelKeywordEnglish) + "</label></div>", '<div class="pfh-setting-row"><span>' + pk(xa.excelDownloadSetting) + '</span><label><input type="radio" name="pfh-download-mode" value="picker"' + ("picker" === Pa.settings.excelDownloadMode ? " checked" : "") + "> " + pk(xa.excelDownloadPicker) + '</label><label><input type="radio" name="pfh-download-mode" value="direct"' + ("direct" === Pa.settings.excelDownloadMode ? " checked" : "") + "> " + pk(xa.excelDownloadDirect) + "</label></div>" ].join(""), i = L.map(e => {
+            const t = e.querySelector(".pfh-detail"), n = '<label class="pfh-cloud-key"><span>' + gk(xa.cloudBackupKey) + '</span><input type="text" class="pfh-cloud-backup-key" value="' + gk(Pa.settings.cloudBackupKey || "") + '" placeholder="' + gk(xa.cloudBackupPlaceholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true"></label><div class="pfh-about-actions"><button type="button" data-action="cloud-backup-save">' + gk(xa.cloudBackupSave) + '</button><button type="button" data-action="cloud-backup-restore">' + gk(xa.cloudBackupRestore) + '</button><span class="pfh-cloud-status">' + gk(ab()) + "</span></div>", r = [ '<div class="pfh-setting-row"><span>' + gk(xa.excelKeywordSetting) + '</span><label><input type="radio" name="pfh-keyword-mode" value="brandName"' + ("brandName" === Pa.settings.excelKeywordMode ? " checked" : "") + "> " + gk(xa.excelKeywordBrandName) + '</label><label><input type="radio" name="pfh-keyword-mode" value="english"' + ("english" === Pa.settings.excelKeywordMode ? " checked" : "") + "> " + gk(xa.excelKeywordEnglish) + "</label></div>", '<div class="pfh-setting-row"><span>' + gk(xa.excelDownloadSetting) + '</span><label><input type="radio" name="pfh-download-mode" value="picker"' + ("picker" === Pa.settings.excelDownloadMode ? " checked" : "") + "> " + gk(xa.excelDownloadPicker) + '</label><label><input type="radio" name="pfh-download-mode" value="direct"' + ("direct" === Pa.settings.excelDownloadMode ? " checked" : "") + "> " + gk(xa.excelDownloadDirect) + "</label></div>" ].join(""), i = L.map(e => {
                 const t = _(Pa.settings.theme) === e.id, a = "lulu" === e.id, n = a ? '<small class="pfh-theme-option-download">点击启用 · 在线加载皮肤</small>' : "";
-                return '<button type="button" class="' + ("pfh-theme-option" + (a ? " pfh-theme-option-lulu" : "") + (t ? " is-selected" : "")) + '" data-action="' + (a ? "theme-resource-enable" : "theme-select") + '" data-theme-id="' + pk(e.id) + '" aria-pressed="' + String(t) + '" style="--pfh-theme-option-primary:' + pk(e.primary) + ";--pfh-theme-option-secondary:" + pk(e.secondary) + ";--pfh-theme-option-soft:" + pk(e.primarySoft) + '"><span class="pfh-theme-option-swatch"></span><span class="pfh-theme-option-label">' + pk(e.name) + "</span>" + n + "</button>";
-            }).join(""), o = '<div class="pfh-settings-card pfh-theme-settings-card"><div class="pfh-settings-card-head"><strong>主题颜色</strong><span>' + pk(U().name) + '</span></div><div class="pfh-about-note">普通色卡直接切换；点击噜噜乐园会切换暖黄配色并按需加载皮肤彩蛋。</div><div class="pfh-theme-grid">' + i + "</div></div>", s = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + pk(xa.exportCache) + '</button><button type="button" data-action="import-cache">' + pk(xa.importCache) + "</button></div>";
-            t.innerHTML = [ '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">', '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + pk(xa.settingsTitle) + "</h3><p>云备份、运行偏好和调试记录</p></div><span>v" + pk(a) + " / " + pk(String(Pa.index.length)) + " 个编码</span></div>", Kt(), o, Gi(), '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + pk(xa.cloudBackupTitle) + "</strong><span>优先</span></div>" + n + "</div>", Pa.developerInsightsUnlocked ? Wi() : "", Qi(), '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>导出偏好</strong><span>Excel</span></div>' + r + "</div>", '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>本地缓存</strong><span>备份迁移</span></div>' + s + "</div>", Pa.developerToolsOpen ? '<div class="pfh-developer-backdrop" data-action="developer-tools-close"><section class="pfh-developer-dialog" role="dialog" aria-modal="true" aria-label="开发者工具"><div><strong>开发者工具</strong><span>当前布局</span></div><p>复制窗口、唤起按钮、尺寸和左右分隔栏数据，用于设定新用户首次打开时的默认布局。</p><button type="button" data-action="developer-layout-copy">复制当前布局</button><button type="button" data-action="developer-tools-close">关闭</button></section></div>' : "", "</section></div>" ].join("");
+                return '<button type="button" class="' + ("pfh-theme-option" + (a ? " pfh-theme-option-lulu" : "") + (t ? " is-selected" : "")) + '" data-action="' + (a ? "theme-resource-enable" : "theme-select") + '" data-theme-id="' + gk(e.id) + '" aria-pressed="' + String(t) + '" style="--pfh-theme-option-primary:' + gk(e.primary) + ";--pfh-theme-option-secondary:" + gk(e.secondary) + ";--pfh-theme-option-soft:" + gk(e.primarySoft) + '"><span class="pfh-theme-option-swatch"></span><span class="pfh-theme-option-label">' + gk(e.name) + "</span>" + n + "</button>";
+            }).join(""), o = '<div class="pfh-settings-card pfh-theme-settings-card"><div class="pfh-settings-card-head"><strong>主题颜色</strong><span>' + gk(U().name) + '</span></div><div class="pfh-about-note">普通色卡直接切换；点击噜噜乐园会切换暖黄配色并按需加载皮肤彩蛋。</div><div class="pfh-theme-grid">' + i + "</div></div>", s = '<div class="pfh-about-actions"><button type="button" data-action="export-cache">' + gk(xa.exportCache) + '</button><button type="button" data-action="import-cache">' + gk(xa.importCache) + "</button></div>";
+            t.innerHTML = [ '<div class="pfh-detail-scroll"><section class="pfh-section pfh-about-section pfh-settings-page">', '<div class="pfh-settings-hero"><div><h3 data-action="developer-settings-tap">' + gk(xa.settingsTitle) + "</h3><p>云备份、运行偏好和调试记录</p></div><span>v" + gk(a) + " / " + gk(String(Pa.index.length)) + " 个编码</span></div>", Kt(), o, Gi(), '<div class="pfh-cloud-backup pfh-settings-card"><div class="pfh-settings-card-head"><strong>' + gk(xa.cloudBackupTitle) + "</strong><span>优先</span></div>" + n + "</div>", Pa.developerInsightsUnlocked ? Wi() : "", Qi(), '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>导出偏好</strong><span>Excel</span></div>' + r + "</div>", '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>本地缓存</strong><span>备份迁移</span></div>' + s + "</div>", Pa.developerToolsOpen ? '<div class="pfh-developer-backdrop" data-action="developer-tools-close"><section class="pfh-developer-dialog" role="dialog" aria-modal="true" aria-label="开发者工具"><div><strong>开发者工具</strong><span>当前布局</span></div><p>复制窗口、唤起按钮、尺寸和左右分隔栏数据，用于设定新用户首次打开时的默认布局。</p><button type="button" data-action="developer-layout-copy">复制当前布局</button><button type="button" data-action="developer-tools-close">关闭</button></section></div>' : "", "</section></div>" ].join("");
         }(t), Li(t), void Oi(t, i)) : "ledger" === Pa.view ? (function(e) {
             const t = e.querySelector(".pfh-list"), a = e.querySelector(".pfh-detail"), n = Dh(Pa.ledgerView, Xm());
             Pa.ledgerMenuSku = "", Pa.ledgerMenuDate = "", qc(e, null), Lc(!1), t && (t.innerHTML = "");
             a.classList.remove("is-loading"), a.innerHTML = function(e) {
                 const t = "trash" === Pa.ledgerView ? "trash" : "finalized" === Pa.ledgerView ? "finalized" : "design", a = Xm();
-                return '<div class="pfh-detail-scroll" data-scroll-context="' + pk([ "ledger", t, a ].join("|")) + '"><section class="pfh-ledger-page"><div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + pk("trash" === t ? "移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。" : "按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。") + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + pk(e.length + " 条 / " + a) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (Pa.ledgerFullscreen ? "true" : "false") + '" title="' + (Pa.ledgerFullscreen ? "返回悬浮窗" : "打开专注工作区") + '">' + (Pa.ledgerFullscreen ? "退出工作区" : "全屏工作区") + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell"><div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + t + '"><span class="pfh-ledger-tab-indicator" aria-hidden="true"></span><button type="button" class="' + ("design" === t ? "is-active active" : "") + '" data-action="ledger-view-design">待定稿</button><button type="button" class="' + ("finalized" === t ? "is-active active" : "") + '" data-action="ledger-view-finalized">已定稿</button></div></div><button type="button" class="pfh-ledger-trash-entry' + ("trash" === t ? " is-active" : "") + '" data-action="ledger-view-trash" aria-current="' + ("trash" === t ? "page" : "false") + '"><span>垃圾篓</span><small>低频入口</small></button></div></div></div><div class="pfh-ledger-workbench-shell"><div class="pfh-ledger-content-anchor">' + Rc(e) + "</div></div></section></div>";
+                return '<div class="pfh-detail-scroll" data-scroll-context="' + gk([ "ledger", t, a ].join("|")) + '"><section class="pfh-ledger-page"><div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + gk("trash" === t ? "移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。" : "按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。") + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + gk(e.length + " 条 / " + a) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (Pa.ledgerFullscreen ? "true" : "false") + '" title="' + (Pa.ledgerFullscreen ? "返回悬浮窗" : "打开专注工作区") + '">' + (Pa.ledgerFullscreen ? "退出工作区" : "全屏工作区") + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell"><div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + t + '"><span class="pfh-ledger-tab-indicator" aria-hidden="true"></span><button type="button" class="' + ("design" === t ? "is-active active" : "") + '" data-action="ledger-view-design">待定稿</button><button type="button" class="' + ("finalized" === t ? "is-active active" : "") + '" data-action="ledger-view-finalized">已定稿</button></div></div><button type="button" class="pfh-ledger-trash-entry' + ("trash" === t ? " is-active" : "") + '" data-action="ledger-view-trash" aria-current="' + ("trash" === t ? "page" : "false") + '"><span>垃圾篓</span><small>低频入口</small></button></div></div></div><div class="pfh-ledger-workbench-shell"><div class="pfh-ledger-content-anchor">' + Rc(e) + "</div></div></section></div>";
             }(n), function(e) {
                 const t = e && e.querySelector(".pfh-ledger-tabs"), a = t && t.querySelector(".pfh-ledger-tab-indicator");
                 if (!t || !a) return;
@@ -7001,7 +7001,7 @@
                 if (!o) return;
                 i(o);
             }(a);
-        }(t), Iy(t), void Oi(t, i)) : "upload" === Pa.view ? (function(e) {
+        }(t), My(t), void Oi(t, i)) : "upload" === Pa.view ? (function(e) {
             const t = e.querySelector(".pfh-detail"), a = t && t.querySelector("[data-upload-sku-picker]"), n = a && a.querySelector(".pfh-upload-sku-picker-scroll"), r = n ? n.scrollLeft : 0;
             t.classList.remove("is-loading"), t.innerHTML = wd(), function(e) {
                 const t = e && e.querySelector(".pfh-upload-mode-tabs"), a = t && t.querySelector(".pfh-upload-mode-indicator");
@@ -7057,12 +7057,12 @@
             Pa.toolsActiveTool = e;
             const t = [ [ "unit", "calculator", "厘米换算英寸" ], [ "code", "tag", "编码格式化" ], [ "copywriting", "sparkle", "批量文案补全" ] ], a = "unit" === e ? function() {
                 const e = ql(Pa.cmConverterInput);
-                return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>UNIT CONVERTER</small><h3>厘米换算英寸</h3><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + pk(Pa.cmConverterInput || "") + '</textarea><div class="pfh-mini-tool-result"><span>英寸（inch）</span><strong class="pfh-unit-converter-result">' + pk(e || "等待输入") + '</strong></div><div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (e ? "" : " disabled") + ">复制结果</button></div></section>";
+                return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>UNIT CONVERTER</small><h3>厘米换算英寸</h3><p>支持单个数值或多个尺寸，例如 3.3 × 3.3 × 12.6。</p></div><label>厘米（cm）</label><textarea class="pfh-unit-converter-input" placeholder="例如：3.3 × 3.3 × 12.6">' + gk(Pa.cmConverterInput || "") + '</textarea><div class="pfh-mini-tool-result"><span>英寸（inch）</span><strong class="pfh-unit-converter-result">' + gk(e || "等待输入") + '</strong></div><div class="pfh-mini-tool-actions"><button type="button" data-action="unit-converter-clear">清空</button><button type="button" data-action="unit-converter-copy"' + (e ? "" : " disabled") + ">复制结果</button></div></section>";
             }() : "code" === e ? function() {
                 const e = Hl(Pa.codeFormatterInput);
-                return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>CODE FORMATTER</small><h3>编码格式化</h3><p>把多个编码整理为文件搜索格式，支持空格、换行或逗号分隔。</p></div><label>编码</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + pk(Pa.codeFormatterInput || "") + '</textarea><div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + pk(e || "ext:zip|ext:xlsx 编码1|编码2") + '</strong></div><div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (e ? "" : " disabled") + ">复制结果</button></div></section>";
+                return '<section class="pfh-mini-tool-card pfh-tools-panel"><div class="pfh-tools-panel-head"><small>CODE FORMATTER</small><h3>编码格式化</h3><p>把多个编码整理为文件搜索格式，支持空格、换行或逗号分隔。</p></div><label>编码</label><textarea class="pfh-code-formatter-input" placeholder="粘贴多个编码，可用空格、换行或逗号分隔">' + gk(Pa.codeFormatterInput || "") + '</textarea><div class="pfh-mini-tool-result"><span>输出格式</span><strong class="pfh-code-formatter-result">' + gk(e || "ext:zip|ext:xlsx 编码1|编码2") + '</strong></div><div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (e ? "" : " disabled") + ">复制结果</button></div></section>";
             }() : function() {
-                const e = (Pa.toyCopywritingBatchRunning || Pa.toyCopywritingApplyRunning) && Pa.toyCopywritingBatchQueue || dw();
+                const e = (Pa.toyCopywritingBatchRunning || Pa.toyCopywritingApplyRunning) && Pa.toyCopywritingBatchQueue || pw();
                 Pa.toyCopywritingBatchQueue = e;
                 const t = function(e) {
                     return (Array.isArray(e) ? e : []).reduce((e, t) => {
@@ -7076,7 +7076,7 @@
                         error: 0
                     });
                 }(e), a = Boolean(Pa.toyCopywritingBatchRunning), n = Boolean(Pa.toyCopywritingApplyRunning), r = n && "download-review" === Pa.toyCopywritingApplyMode, i = a || n, o = !i && e.some(e => "pending" === e.status || "error" === e.status), s = !i && e.some(e => ("success" === e.status || "noop" === e.status) && "submitted" !== e.applyStatus), l = Pa.toyCopywritingBatchStatus || (a ? "正在先读取新品开发全部项目状态，再按状态进入设计任务或商品管理补全文案并生成图片，请保持 PLM 页面登录状态。" : "输入 SKU 后，系统会自动识别玩具并只补全缺失的中英文文案字段。");
-                return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-toy-copywriting-batch-page"><div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div><div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + pk(Pa.toyCopywritingBatchInput || "") + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div><div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + t.total + " 个 · 已完成 " + t.done + " 个 · 待处理 " + t.pending + " 个 · 失败 " + t.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + function(e, t) {
+                return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-toy-copywriting-batch-page"><div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div><div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + gk(Pa.toyCopywritingBatchInput || "") + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div><div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + t.total + " 个 · 已完成 " + t.done + " 个 · 待处理 " + t.pending + " 个 · 失败 " + t.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + function(e, t) {
                     return Array.isArray(e) && e.length ? e.map(e => {
                         const a = function(e) {
                             const t = String(e && e.status || "pending"), a = String(e && e.applyStatus || "");
@@ -7112,14 +7112,14 @@
                                 kind: "pending",
                                 text: "待处理"
                             };
-                        }(e), n = bn(Gw(e.sku) || {}), r = e.name || n.name || "等待读取产品名称", i = Number(e.generatedImages) || 0, o = "submitted" === e.applyStatus ? "download-review" === e.applyMode ? "主图/详情图已下载并提审（未全部应用）" : "主图/详情图已全部应用并提审" : "success" === e.status ? (/已生成/.test(e.step || "") ? e.step : "已补充 " + (Number(e.filledCount) || 0) + " 个字段并保存草稿" + (i ? "，主图/详情图请求已触发" : "")) + (e.applyError ? " / " + e.applyError : "") : "noop" === e.status ? "现有文案已完整" + (e.applyError ? " / " + e.applyError : "") : e.error || e.step || "等待处理", s = t || "error" !== e.status ? "" : '<button type="button" data-action="toy-copywriting-batch-retry" data-sku="' + pk(e.sku) + '" title="重新补全">↻</button>', l = t ? "" : '<button type="button" data-action="toy-copywriting-batch-remove" data-sku="' + pk(e.sku) + '" title="移除">×</button>';
-                        return '<div class="pfh-toy-copywriting-batch-row"><div class="pfh-toy-copywriting-batch-row-main"><b>' + pk(e.sku) + '</b><small title="' + pk(r + " / " + o) + '">' + pk(r + " · " + o) + '</small></div><span class="pfh-toy-copywriting-batch-status is-' + a.kind + '">' + pk(a.text) + "</span>" + s + l + "</div>";
+                        }(e), n = bn(Ww(e.sku) || {}), r = e.name || n.name || "等待读取产品名称", i = Number(e.generatedImages) || 0, o = "submitted" === e.applyStatus ? "download-review" === e.applyMode ? "主图/详情图已下载并提审（未全部应用）" : "主图/详情图已全部应用并提审" : "success" === e.status ? (/已生成/.test(e.step || "") ? e.step : "已补充 " + (Number(e.filledCount) || 0) + " 个字段并保存草稿" + (i ? "，主图/详情图请求已触发" : "")) + (e.applyError ? " / " + e.applyError : "") : "noop" === e.status ? "现有文案已完整" + (e.applyError ? " / " + e.applyError : "") : e.error || e.step || "等待处理", s = t || "error" !== e.status ? "" : '<button type="button" data-action="toy-copywriting-batch-retry" data-sku="' + gk(e.sku) + '" title="重新补全">↻</button>', l = t ? "" : '<button type="button" data-action="toy-copywriting-batch-remove" data-sku="' + gk(e.sku) + '" title="移除">×</button>';
+                        return '<div class="pfh-toy-copywriting-batch-row"><div class="pfh-toy-copywriting-batch-row-main"><b>' + gk(e.sku) + '</b><small title="' + gk(r + " / " + o) + '">' + gk(r + " · " + o) + '</small></div><span class="pfh-toy-copywriting-batch-status is-' + a.kind + '">' + gk(a.text) + "</span>" + s + l + "</div>";
                     }).join("") : '<div class="pfh-toy-copywriting-batch-empty">还没有编码。先粘贴 SKU，再加入文案队列。</div>';
-                }(e, i) + '</div><p class="pfh-toy-copywriting-batch-progress">' + pk(l) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (o ? "" : " disabled") + ">" + (a ? "正在补全…" : "开始补全文案") + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (a ? "" : " disabled") + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (s ? "" : " disabled") + ">" + (n && !r ? "正在全部应用并提审…" : "批量全部应用并提审") + '</button><button type="button" data-action="toy-copywriting-batch-download-review" title="下载主图和详情图后直接提交审批，不点击全部应用"' + (s ? "" : " disabled") + ">" + (r ? "正在下载并提审…" : "下载后直接提审") + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (t.done && !i ? "" : " disabled") + ">清除已完成</button></div></div></section>";
+                }(e, i) + '</div><p class="pfh-toy-copywriting-batch-progress">' + gk(l) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (o ? "" : " disabled") + ">" + (a ? "正在补全…" : "开始补全文案") + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (a ? "" : " disabled") + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (s ? "" : " disabled") + ">" + (n && !r ? "正在全部应用并提审…" : "批量全部应用并提审") + '</button><button type="button" data-action="toy-copywriting-batch-download-review" title="下载主图和详情图后直接提交审批，不点击全部应用"' + (s ? "" : " disabled") + ">" + (r ? "正在下载并提审…" : "下载后直接提审") + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (t.done && !i ? "" : " disabled") + ">清除已完成</button></div></div></section>";
             }(), n = t.map(t => '<button type="button" data-action="tools-select" data-tool="' + t[0] + '" class="' + (t[0] === e ? "is-active" : "") + '" aria-current="' + (t[0] === e ? "page" : "false") + '">' + ht(t[1]) + "<span>" + t[2] + "</span></button>").join("");
             return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-tools-page"><div class="pfh-mini-tool-head pfh-tools-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>厘米换算、编码格式化和批量玩具文案补全，统一在这里切换。</p></div></div><div class="pfh-tools-workbench"><aside class="pfh-tools-sidebar"><div class="pfh-tools-sidebar-head"><small>TOOLS</small><strong>工具列表</strong></div><nav class="pfh-tools-nav" aria-label="小工具列表">' + n + '</nav></aside><main class="pfh-tools-content">' + a + "</main></div></section></div>";
         }()), void Oi(t, i)) : "batchExcel" === Pa.view ? (ao(t, function() {
-            const e = sw();
+            const e = lw();
             Pa.batchExcelQueue = e;
             const t = function(e) {
                 const t = Array.isArray(e) ? e : [];
@@ -7138,7 +7138,7 @@
                     downloaded: 0
                 });
             }(e), a = "merge" === Pa.batchExcelMode ? "merge" : "separate", n = Boolean(Pa.batchExcelWorkerRunning), r = Boolean(Pa.batchExcelDownloadRunning), i = n || r ? " disabled" : "", o = t.generatable > 0 && !n && !r, s = Pa.batchExcelStatus || (n ? "正在按顺序补全缓存，请保持 PLM 页面登录状态。" : "数据不完整也可生成；缺失字段会留空，缺少产品图时不插入图片。");
-            return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-batch-excel-page"><div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，补全资料后按需要分别下载或合并下载。</p></div></div><div class="pfh-batch-excel-top"><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-form"><label>SKU 编码</label><textarea class="pfh-batch-excel-input" placeholder="例如：SKU00046398\nSKU00046397\nSKU00046396\nSKU00046395">' + pk(Pa.batchExcelInput || "") + '</textarea><p class="pfh-batch-excel-hint">每行一个或直接粘贴一串编码，重复 SKU 会自动合并。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="batch-excel-clear-input">清空</button><button type="button" data-action="batch-excel-add">加入补全队列</button></div></div><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-mode-card"><div class="pfh-batch-excel-mode-head"><strong>导出方式</strong><span>下载前可随时切换</span></div><div class="pfh-batch-excel-mode"><button type="button" data-action="batch-excel-mode" data-mode="separate" class="pfh-batch-excel-mode-option is-separate' + ("separate" === a ? " is-active" : "") + '" aria-pressed="' + ("separate" === a ? "true" : "false") + '"' + i + ">" + ht("download") + '<span><b>分别下载</b><small>每个 SKU 一个文件</small></span></button><button type="button" data-action="batch-excel-mode" data-mode="merge" class="pfh-batch-excel-mode-option is-merge' + ("merge" === a ? " is-active" : "") + '" aria-pressed="' + ("merge" === a ? "true" : "false") + '"' + i + ">" + ht("batchExcel") + '<span><b>合并下载</b><small>合成一个工作簿</small></span></button></div><p class="pfh-batch-excel-mode-hint">分别下载方便逐个发送；合并下载适合一次性整理。</p></div></div><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-queue-card"><div class="pfh-batch-excel-summary"><div><strong>补全与下载队列</strong><small>上下滑动浏览全部任务</small></div><span>共 ' + t.total + " 个 · 完整 " + t.ready + " 个 · 可生成 " + t.partial + ' 个</span></div><div class="pfh-batch-excel-queue">' + function(e, t) {
+            return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-batch-excel-page"><div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，补全资料后按需要分别下载或合并下载。</p></div></div><div class="pfh-batch-excel-top"><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-form"><label>SKU 编码</label><textarea class="pfh-batch-excel-input" placeholder="例如：SKU00046398\nSKU00046397\nSKU00046396\nSKU00046395">' + gk(Pa.batchExcelInput || "") + '</textarea><p class="pfh-batch-excel-hint">每行一个或直接粘贴一串编码，重复 SKU 会自动合并。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="batch-excel-clear-input">清空</button><button type="button" data-action="batch-excel-add">加入补全队列</button></div></div><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-mode-card"><div class="pfh-batch-excel-mode-head"><strong>导出方式</strong><span>下载前可随时切换</span></div><div class="pfh-batch-excel-mode"><button type="button" data-action="batch-excel-mode" data-mode="separate" class="pfh-batch-excel-mode-option is-separate' + ("separate" === a ? " is-active" : "") + '" aria-pressed="' + ("separate" === a ? "true" : "false") + '"' + i + ">" + ht("download") + '<span><b>分别下载</b><small>每个 SKU 一个文件</small></span></button><button type="button" data-action="batch-excel-mode" data-mode="merge" class="pfh-batch-excel-mode-option is-merge' + ("merge" === a ? " is-active" : "") + '" aria-pressed="' + ("merge" === a ? "true" : "false") + '"' + i + ">" + ht("batchExcel") + '<span><b>合并下载</b><small>合成一个工作簿</small></span></button></div><p class="pfh-batch-excel-mode-hint">分别下载方便逐个发送；合并下载适合一次性整理。</p></div></div><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-queue-card"><div class="pfh-batch-excel-summary"><div><strong>补全与下载队列</strong><small>上下滑动浏览全部任务</small></div><span>共 ' + t.total + " 个 · 完整 " + t.ready + " 个 · 可生成 " + t.partial + ' 个</span></div><div class="pfh-batch-excel-queue">' + function(e, t) {
                 return Array.isArray(e) && e.length ? e.map(e => {
                     const a = uf(e.sku), n = a.missing, r = function(e, t) {
                         const a = String(e && e.status || "pending");
@@ -7161,24 +7161,24 @@
                             kind: "ready",
                             text: "缓存完整"
                         };
-                    }(e, n), i = "ready" === r.kind ? "is-ready" : "error" === r.kind ? "is-error" : "is-pending", o = a.data.name || a.data.englishName || "未读取产品名称", s = "ready" === r.kind ? "downloaded" === e.status ? "已生成文件，可再次下载" : "缓存字段完整，等待下载" : r.text + (n.length ? "：" + n.join("、") : "") + (e.error ? " / " + e.error : ""), l = t || "ready" === r.kind ? "" : '<button type="button" data-action="batch-excel-retry" data-sku="' + pk(e.sku) + '" title="重新补全">↻</button>';
-                    return '<div class="pfh-batch-excel-row"><div class="pfh-batch-excel-row-main"><b>' + pk(e.sku) + '</b><small title="' + pk(o + " / " + s) + '">' + pk(o + " · " + s) + '</small></div><span class="pfh-batch-excel-status ' + i + '">' + pk(r.text) + "</span>" + l + '<button type="button" data-action="batch-excel-remove" data-sku="' + pk(e.sku) + '" title="移除">×</button></div>';
+                    }(e, n), i = "ready" === r.kind ? "is-ready" : "error" === r.kind ? "is-error" : "is-pending", o = a.data.name || a.data.englishName || "未读取产品名称", s = "ready" === r.kind ? "downloaded" === e.status ? "已生成文件，可再次下载" : "缓存字段完整，等待下载" : r.text + (n.length ? "：" + n.join("、") : "") + (e.error ? " / " + e.error : ""), l = t || "ready" === r.kind ? "" : '<button type="button" data-action="batch-excel-retry" data-sku="' + gk(e.sku) + '" title="重新补全">↻</button>';
+                    return '<div class="pfh-batch-excel-row"><div class="pfh-batch-excel-row-main"><b>' + gk(e.sku) + '</b><small title="' + gk(o + " / " + s) + '">' + gk(o + " · " + s) + '</small></div><span class="pfh-batch-excel-status ' + i + '">' + gk(r.text) + "</span>" + l + '<button type="button" data-action="batch-excel-remove" data-sku="' + gk(e.sku) + '" title="移除">×</button></div>';
                 }).join("") : '<div class="pfh-batch-excel-empty">还没有编码。先粘贴 SKU，再加入补全队列。</div>';
-            }(e, n || r) + '</div><div class="pfh-batch-excel-footer"><p class="pfh-batch-excel-progress">' + pk(s) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" class="is-prepare" data-action="batch-excel-prepare"' + (n || r || !e.length ? " disabled" : "") + ">" + ht("refresh") + (n ? "正在补全…" : "补全数据") + '</button><button type="button" class="is-download" data-action="batch-excel-download"' + (o ? "" : " disabled") + ">" + ht("download") + ("merge" === a ? "合并下载 Excel" : "分别下载 Excel") + '</button><button type="button" class="is-clear" data-action="batch-excel-clear-completed"' + (t.downloaded ? "" : " disabled") + ">清除已下载</button></div></div></div></section></div>";
+            }(e, n || r) + '</div><div class="pfh-batch-excel-footer"><p class="pfh-batch-excel-progress">' + gk(s) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" class="is-prepare" data-action="batch-excel-prepare"' + (n || r || !e.length ? " disabled" : "") + ">" + ht("refresh") + (n ? "正在补全…" : "补全数据") + '</button><button type="button" class="is-download" data-action="batch-excel-download"' + (o ? "" : " disabled") + ">" + ht("download") + ("merge" === a ? "合并下载 Excel" : "分别下载 Excel") + '</button><button type="button" class="is-clear" data-action="batch-excel-clear-completed"' + (t.downloaded ? "" : " disabled") + ">清除已下载</button></div></div></div></section></div>";
         }()), void Oi(t, i)) : "feedback" === Pa.view ? (function(e) {
             const t = e.querySelector(".pfh-list"), n = e.querySelector(".pfh-detail");
             t && (t.innerHTML = "");
             n.classList.remove("is-loading"), n.innerHTML = function() {
                 const e = lo(), t = e.name || "", n = so(Pa.feedbackType), r = String(Pa.feedbackContent || ""), i = Object.entries(no).map(([e, t]) => '<option value="' + e + '"' + (e === n ? " selected" : "") + ">" + t + "</option>").join(""), o = (Pa.feedbackItems || []).map(e => {
-                    const t = [ e.version ? "版本 " + e.version : "", e.pagePath ? "页面 " + e.pagePath : "", e.sku ? "SKU " + e.sku : "" ].filter(Boolean).join(" · "), a = e.adminReply ? '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--pfh-theme-soft,#f7f3ff);color:var(--pfh-theme-text,#34284d);line-height:1.6"><b>管理员回复：</b>' + pk(e.adminReply).replace(/\r?\n/g, "<br>") + "</div>" : "";
-                    return '<article class="pfh-feedback-item" style="padding:13px 14px;border:1px solid var(--pfh-theme-border,#e7e1fb);border-radius:12px;background:var(--pfh-theme-card,rgba(255,255,255,.72));margin-top:10px"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><strong>' + pk(no[e.type]) + '</strong><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">' + pk(ro[e.status]) + '</span></div><p style="margin:9px 0 0;line-height:1.6;white-space:normal;word-break:break-word">' + pk(e.content).replace(/\r?\n/g, "<br>") + '</p><small style="display:block;margin-top:9px;color:var(--pfh-theme-muted,#7d728f)">' + pk(Ct(e.createdAt) || e.createdAt || "") + (t ? " · " + pk(t) : "") + "</small>" + a + "</article>";
+                    const t = [ e.version ? "版本 " + e.version : "", e.pagePath ? "页面 " + e.pagePath : "", e.sku ? "SKU " + e.sku : "" ].filter(Boolean).join(" · "), a = e.adminReply ? '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--pfh-theme-soft,#f7f3ff);color:var(--pfh-theme-text,#34284d);line-height:1.6"><b>管理员回复：</b>' + gk(e.adminReply).replace(/\r?\n/g, "<br>") + "</div>" : "";
+                    return '<article class="pfh-feedback-item" style="padding:13px 14px;border:1px solid var(--pfh-theme-border,#e7e1fb);border-radius:12px;background:var(--pfh-theme-card,rgba(255,255,255,.72));margin-top:10px"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><strong>' + gk(no[e.type]) + '</strong><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">' + gk(ro[e.status]) + '</span></div><p style="margin:9px 0 0;line-height:1.6;white-space:normal;word-break:break-word">' + gk(e.content).replace(/\r?\n/g, "<br>") + '</p><small style="display:block;margin-top:9px;color:var(--pfh-theme-muted,#7d728f)">' + gk(Ct(e.createdAt) || e.createdAt || "") + (t ? " · " + gk(t) : "") + "</small>" + a + "</article>";
                 }).join(""), s = Array.from(r).length, l = [ "脚本 v" + a, "页面 " + (e.pagePath || "当前页面"), "SKU " + (e.sku || "未选择") ].join(" · ");
-                return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-feedback-page"><div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div><small>FEEDBACK</small><h2>意见反馈</h2><p>告诉我们你遇到的问题或希望改进的地方。</p></div></div><div class="pfh-mini-tool-card pfh-feedback-submit-card"><label>反馈类型</label><select class="pfh-feedback-type">' + i + '</select><label>反馈内容</label><textarea class="pfh-feedback-content" maxlength="2000" placeholder="请描述你的建议、问题或数据错误，最多 2000 字">' + pk(r) + '</textarea><div class="pfh-feedback-meta" style="margin-top:8px;font-size:12px;color:var(--pfh-theme-muted,#7d728f);line-height:1.5">提交时自动附带：' + pk(l) + '</div><div class="pfh-mini-tool-actions"><span class="pfh-feedback-count" style="margin-right:auto;color:var(--pfh-theme-muted,#7d728f)">' + s + '/2000</span><button type="button" data-action="feedback-refresh"' + (Pa.feedbackLoading ? " disabled" : "") + ">" + (Pa.feedbackLoading ? "刷新中…" : "刷新历史") + '</button><button type="button" data-action="feedback-submit"' + (!t || Pa.feedbackSubmitting ? " disabled" : "") + ">" + (Pa.feedbackSubmitting ? "提交中…" : "提交反馈") + "</button></div>" + (Pa.feedbackError ? '<p class="pfh-feedback-error" role="alert" style="margin:10px 0 0;color:#b42318;line-height:1.5">' + pk(Pa.feedbackError) + "</p>" : "") + '</div><div class="pfh-mini-tool-card pfh-feedback-history-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><small>HISTORY</small><h3 style="margin:4px 0 0">我的反馈</h3></div><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">最近 50 条</span></div><div class="pfh-feedback-list">' + (o || '<div style="padding:18px 0;color:var(--pfh-theme-muted,#7d728f)">' + (Pa.feedbackLoading ? "正在加载反馈历史…" : t ? "暂无反馈记录" : "登录后可查看反馈记录") + "</div>") + "</div></div></section></div>";
+                return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-feedback-page"><div class="pfh-mini-tool-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + '</button><div><small>FEEDBACK</small><h2>意见反馈</h2><p>告诉我们你遇到的问题或希望改进的地方。</p></div></div><div class="pfh-mini-tool-card pfh-feedback-submit-card"><label>反馈类型</label><select class="pfh-feedback-type">' + i + '</select><label>反馈内容</label><textarea class="pfh-feedback-content" maxlength="2000" placeholder="请描述你的建议、问题或数据错误，最多 2000 字">' + gk(r) + '</textarea><div class="pfh-feedback-meta" style="margin-top:8px;font-size:12px;color:var(--pfh-theme-muted,#7d728f);line-height:1.5">提交时自动附带：' + gk(l) + '</div><div class="pfh-mini-tool-actions"><span class="pfh-feedback-count" style="margin-right:auto;color:var(--pfh-theme-muted,#7d728f)">' + s + '/2000</span><button type="button" data-action="feedback-refresh"' + (Pa.feedbackLoading ? " disabled" : "") + ">" + (Pa.feedbackLoading ? "刷新中…" : "刷新历史") + '</button><button type="button" data-action="feedback-submit"' + (!t || Pa.feedbackSubmitting ? " disabled" : "") + ">" + (Pa.feedbackSubmitting ? "提交中…" : "提交反馈") + "</button></div>" + (Pa.feedbackError ? '<p class="pfh-feedback-error" role="alert" style="margin:10px 0 0;color:#b42318;line-height:1.5">' + gk(Pa.feedbackError) + "</p>" : "") + '</div><div class="pfh-mini-tool-card pfh-feedback-history-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><small>HISTORY</small><h3 style="margin:4px 0 0">我的反馈</h3></div><span style="font-size:12px;color:var(--pfh-theme-muted,#7d728f)">最近 50 条</span></div><div class="pfh-feedback-list">' + (o || '<div style="padding:18px 0;color:var(--pfh-theme-muted,#7d728f)">' + (Pa.feedbackLoading ? "正在加载反馈历史…" : t ? "暂无反馈记录" : "登录后可查看反馈记录") + "</div>") + "</div></div></section></div>";
             }();
         }(t), void Oi(t, i)) : "sizeImage" === Pa.view ? (function(e) {
             const t = e.querySelector(".pfh-detail");
             t.classList.remove("is-loading"), t.innerHTML = function() {
-                const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+                const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
                 if (!e || !e.sku) return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + Di("sizeImage") + '<section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>选择一个 SKU</strong><p>从左侧选择 SKU 后，可生成纸盒、标签或印刷尺寸图。</p></div></section></div>';
                 const t = Gl(e), a = Ql(e), n = a[0] || null, r = Vl(e.sku);
                 Kl(r, n);
@@ -7186,9 +7186,9 @@
                     return (Array.isArray(t) ? t : []).some(t => Zl(e, t));
                 }(e, a);
                 i && (r.includeRoundArc = !1, r.includeBatchNumber = !1);
-                const o = i ? ' disabled title="透明标签已自动取消该选项"' : "", s = Pa.sizeImageBusySku === e.sku, l = t ? [ t.length, t.width, t.height ].concat(t.extraWidths || []).map(Yl).join(" × ") + " cm" : "", c = a.map(e => ("print" === e.kind ? "印刷" : "标签") + " " + Yl(e.width) + " × " + Yl(e.height) + " cm"), u = [ l ? "纸盒 " + l : "" ].concat(c).filter(Boolean).join(" / ") || "尺寸不可用", d = a.filter(e => r.flatResults[e.key] && r.flatResults[e.key].dataUrl).length, p = Number(Boolean(r.cartonResultDataUrl)) + d, g = Boolean(r.cartonFile || Object.keys(r.flatFiles).length), f = s ? '<div class="pfh-size-image-status is-processing"><i></i><span>' + pk(r.processingStep || "正在读取图片...") + "</span><em></em></div>" : r.error ? '<div class="pfh-size-image-status is-error">' + pk(r.error) + "</div>" : p ? '<div class="pfh-size-image-status is-ready">已生成 ' + p + " 个 3000 × 3000 JPG。</div>" : "", m = (t, a, n) => {
+                const o = i ? ' disabled title="透明标签已自动取消该选项"' : "", s = Pa.sizeImageBusySku === e.sku, l = t ? [ t.length, t.width, t.height ].concat(t.extraWidths || []).map(Yl).join(" × ") + " cm" : "", c = a.map(e => ("print" === e.kind ? "印刷" : "标签") + " " + Yl(e.width) + " × " + Yl(e.height) + " cm"), u = [ l ? "纸盒 " + l : "" ].concat(c).filter(Boolean).join(" / ") || "尺寸不可用", d = a.filter(e => r.flatResults[e.key] && r.flatResults[e.key].dataUrl).length, p = Number(Boolean(r.cartonResultDataUrl)) + d, g = Boolean(r.cartonFile || Object.keys(r.flatFiles).length), f = s ? '<div class="pfh-size-image-status is-processing"><i></i><span>' + gk(r.processingStep || "正在读取图片...") + "</span><em></em></div>" : r.error ? '<div class="pfh-size-image-status is-error">' + gk(r.error) + "</div>" : p ? '<div class="pfh-size-image-status is-ready">已生成 ' + p + " 个 3000 × 3000 JPG。</div>" : "", m = (t, a, n) => {
                     const r = "label" === t ? "标签" : "print" === t ? "印刷" : "纸盒";
-                    return a ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + r + (n ? " " + pk(n) : "") + '预览</span><img src="' + a + '" alt="' + pk(e.sku + " " + r + "尺寸图") + '"></div>' : '<div class="pfh-size-image-placeholder is-compact">' + ht("carton" === t ? "box" : "tag") + "<strong>暂无" + r + (n ? " " + pk(n) : "") + "预览</strong><span>可同时拖入多张图片</span></div>";
+                    return a ? '<div class="pfh-size-image-preview"><span class="pfh-size-image-preview-type">' + r + (n ? " " + gk(n) : "") + '预览</span><img src="' + a + '" alt="' + gk(e.sku + " " + r + "尺寸图") + '"></div>' : '<div class="pfh-size-image-placeholder is-compact">' + ht("carton" === t ? "box" : "tag") + "<strong>暂无" + r + (n ? " " + gk(n) : "") + "预览</strong><span>可同时拖入多张图片</span></div>";
                 }, h = a.map(e => {
                     const t = r.flatResults[e.key], a = Yl(e.width) + "×" + Yl(e.height) + "cm";
                     return m(e.kind, t && t.dataUrl, a);
@@ -7197,17 +7197,17 @@
                 a.forEach(e => {
                     "string" != typeof r.labelRemarkTexts[e.key] && (r.labelRemarkTexts[e.key] = e.remark || w.label || "");
                 });
-                const k = [ t ? '<label><span>纸盒</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="carton" value="' + pk(r.cartonRemarkText) + '" placeholder="纸盒标题备注"></label>' : "", ...a.map(e => {
+                const k = [ t ? '<label><span>纸盒</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="carton" value="' + gk(r.cartonRemarkText) + '" placeholder="纸盒标题备注"></label>' : "", ...a.map(e => {
                     const t = "print" === e.kind ? "印刷" : "标签";
-                    return "<label><span>" + t + " " + (Yl(e.width) + "×" + Yl(e.height)) + '</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="label" data-size-image-key="' + pk(e.key) + '" value="' + pk(r.labelRemarkTexts[e.key]) + '" placeholder="' + t + '标题备注"></label>';
-                }) ].filter(Boolean).join(""), S = r.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>请选择图片对应的尺寸</strong>' + r.pendingLabelMatches.map(e => "<div><span>" + pk(e.file.name || "待匹配图片") + '</span><select class="pfh-size-image-match-select" data-pending-id="' + pk(e.id) + '">' + a.map(e => '<option value="' + pk(e.key) + '">' + pk(("print" === e.kind ? "印刷 " : "标签 ") + Yl(e.width) + " × " + Yl(e.height) + " cm") + "</option>").join("") + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + pk(e.id) + '">确认生成</button></div>').join("") + "</div>" : "";
-                return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + Di("sizeImage") + '<section class="pfh-size-image-page"><header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + Wc(e) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + pk(e.sku) + " 尺寸图</h3><p>" + pk([ e.brand, e.name ].filter(Boolean).join(" ") || "选中产品") + "</p></div></header>" + (t || n ? "" : '<div class="pfh-size-image-status is-error">' + pk(Wl(e)) + "</div>") + '<div class="pfh-size-image-workspace' + (s ? " is-busy" : "") + '"><div class="pfh-size-image-controls"><div class="pfh-size-image-spec"><span>已读取规格</span><b>' + pk(u) + '</b><small>纸盒按刀模轮廓识别；标签和印刷按宽高比例识别。</small></div><div class="pfh-size-image-remark-editor"><span>标题备注</span><div>' + k + '</div></div><div class="pfh-size-image-options">' + (a.some(e => "label" === e.kind) ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (!1 === r.includeRoundArc ? "" : " checked") + o + "><span>标签圆弧</span></label>" : "") + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (!1 === r.includeBatchNumber ? "" : " checked") + o + '><span>批次号</span></label></div><button type="button" class="pfh-size-image-drop' + (s ? " is-processing" : "") + '" data-action="size-image-pick"' + b + ">" + (s ? '<i class="pfh-size-image-spinner"></i>' : ht("upload")) + "<strong>" + (s ? pk(r.processingStep || "正在分析并生成...") : "点击选择或拖入图片") + "</strong><span>" + (s ? "请稍候，大尺寸图片需要几秒处理时间。" : "鼠标停在这里可直接 Ctrl+V 粘贴图片。纸盒用透明 PNG，标签/印刷支持 PNG / JPG。") + "</span></button>" + (r.fileName ? '<p class="pfh-size-image-file">最近读取：' + pk(r.fileName) + "</p>" : "") + '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (g && !s ? "" : " disabled") + ">" + ht("refresh") + '重新生成</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (p && !s ? "" : " disabled") + ">" + ht("download") + "另存尺寸图 JPG</button></div>" + S + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + f + "</div>" + y + "</div></section></div>";
+                    return "<label><span>" + t + " " + (Yl(e.width) + "×" + Yl(e.height)) + '</span><input type="text" class="pfh-size-image-remark-text" data-size-image-type="label" data-size-image-key="' + gk(e.key) + '" value="' + gk(r.labelRemarkTexts[e.key]) + '" placeholder="' + t + '标题备注"></label>';
+                }) ].filter(Boolean).join(""), S = r.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>请选择图片对应的尺寸</strong>' + r.pendingLabelMatches.map(e => "<div><span>" + gk(e.file.name || "待匹配图片") + '</span><select class="pfh-size-image-match-select" data-pending-id="' + gk(e.id) + '">' + a.map(e => '<option value="' + gk(e.key) + '">' + gk(("print" === e.kind ? "印刷 " : "标签 ") + Yl(e.width) + " × " + Yl(e.height) + " cm") + "</option>").join("") + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + gk(e.id) + '">确认生成</button></div>').join("") + "</div>" : "";
+                return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + Di("sizeImage") + '<section class="pfh-size-image-page"><header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + Wc(e) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + gk(e.sku) + " 尺寸图</h3><p>" + gk([ e.brand, e.name ].filter(Boolean).join(" ") || "选中产品") + "</p></div></header>" + (t || n ? "" : '<div class="pfh-size-image-status is-error">' + gk(Wl(e)) + "</div>") + '<div class="pfh-size-image-workspace' + (s ? " is-busy" : "") + '"><div class="pfh-size-image-controls"><div class="pfh-size-image-spec"><span>已读取规格</span><b>' + gk(u) + '</b><small>纸盒按刀模轮廓识别；标签和印刷按宽高比例识别。</small></div><div class="pfh-size-image-remark-editor"><span>标题备注</span><div>' + k + '</div></div><div class="pfh-size-image-options">' + (a.some(e => "label" === e.kind) ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (!1 === r.includeRoundArc ? "" : " checked") + o + "><span>标签圆弧</span></label>" : "") + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (!1 === r.includeBatchNumber ? "" : " checked") + o + '><span>批次号</span></label></div><button type="button" class="pfh-size-image-drop' + (s ? " is-processing" : "") + '" data-action="size-image-pick"' + b + ">" + (s ? '<i class="pfh-size-image-spinner"></i>' : ht("upload")) + "<strong>" + (s ? gk(r.processingStep || "正在分析并生成...") : "点击选择或拖入图片") + "</strong><span>" + (s ? "请稍候，大尺寸图片需要几秒处理时间。" : "鼠标停在这里可直接 Ctrl+V 粘贴图片。纸盒用透明 PNG，标签/印刷支持 PNG / JPG。") + "</span></button>" + (r.fileName ? '<p class="pfh-size-image-file">最近读取：' + gk(r.fileName) + "</p>" : "") + '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (g && !s ? "" : " disabled") + ">" + ht("refresh") + '重新生成</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (p && !s ? "" : " disabled") + ">" + ht("download") + "另存尺寸图 JPG</button></div>" + S + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + f + "</div>" + y + "</div></section></div>";
             }();
         }(t), Bi(t), Fi(t), void Oi(t, i)) : "parameterImage" === Pa.view ? (function(e) {
-            const t = e.querySelector(".pfh-detail"), a = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+            const t = e.querySelector(".pfh-detail"), a = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
             t.classList.remove("is-loading"), t.innerHTML = La.viewHtml(a || {});
         }(t), Bi(t), Fi(t), void Oi(t, i)) : (function(e, t) {
-            const a = e.querySelector(".pfh-detail"), n = Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null), r = Pa.openingProjectDetail || t === xa.openingDetail, i = Boolean(Pa.copywritingMode && n && md(n.copywriting) && md(n.copywriting).fullText), o = r || Pa.copywritingLoading || !i && (Pa.scanRunning || t === xa.scanning || t === xa.checkingMaterial);
+            const a = e.querySelector(".pfh-detail"), n = Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null), r = Pa.openingProjectDetail || t === xa.openingDetail, i = Boolean(Pa.copywritingMode && n && md(n.copywriting) && md(n.copywriting).fullText), o = r || Pa.copywritingLoading || !i && (Pa.scanRunning || t === xa.scanning || t === xa.checkingMaterial);
             if (a.classList.toggle("is-loading", o), r) {
                 const t = e.querySelector(".pfh-main");
                 return t && t.classList.remove("is-home"), void (a.innerHTML = Jc(xa.openingDetail) + '<div class="pfh-detail-scroll"></div>');
@@ -7224,14 +7224,14 @@
                 if (!t || Pa.insightRecommendationLoading || Pa.insightRecommendationSku === t) return;
                 Pa.insightRecommendationSku = t, Pa.insightRecommendation = null, Pa.insightRecommendationLoading = !0,
                 window.setTimeout(() => async function(e) {
-                    const t = bn(Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : null));
+                    const t = bn(Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : null));
                     if (!t || !t.sku) return;
-                    const a = qb(t, null), n = await async function(e, t) {
+                    const a = $b(t, null), n = await async function(e, t) {
                         const a = new URLSearchParams;
                         e && e.sku && a.set("sku", e.sku);
                         t && a.set("productType", t);
                         e && e.name && a.set("name", e.name);
-                        return Lb("/insights/recommend?" + a.toString(), {
+                        return Nb("/insights/recommend?" + a.toString(), {
                             method: "GET"
                         });
                     }(t, a).catch(() => null), r = n && n.recommendedProductType && n.recommendedProductType !== a ? n.recommendedProductType : "", i = r || n && n.effectiveProductType || a, o = n && n.recommendedPrice ? n : wm(t, i);
@@ -7242,7 +7242,7 @@
                         effectiveProductType: i,
                         recommendedProductType: o.recommendedProductType || r || "",
                         recommendationReason: o.recommendationReason || bm(o, i)
-                    }, yb("recommendation", {
+                    }, bb("recommendation", {
                         sku: t.sku || "",
                         brand: t.brand || "",
                         name: t.name || "",
@@ -7262,7 +7262,7 @@
                         priceStats: o.priceStats || null
                     });
                 }(t).catch(e => {
-                    Bb("warn", "智能补全建议获取失败", t + " " + _b(e));
+                    zb("warn", "智能补全建议获取失败", t + " " + Ub(e));
                 }).finally(() => {
                     Pa.insightRecommendationSku === t && (Pa.insightRecommendationLoading = !1, function(e) {
                         if (!e || "detail" !== Pa.view || !Pa.data || Pa.data.sku !== e) return !1;
@@ -7278,10 +7278,10 @@
             const s = e.querySelector(".pfh-main");
             s && s.classList.remove("is-home");
             if (Pa.copywritingMode) return void (a.innerHTML = [ '<div class="pfh-detail-scroll pfh-copywriting-scroll">', Di("copywriting"), Gs(Pa.data, !0), Qs(Pa.data), "</div>" ].join(""));
-            a.innerHTML = [ Jc(t), '<div class="pfh-detail-scroll">', Di("detail"), Os(Pa.data), Gs(Pa.data, !1), js(Pa.data), '<div class="pfh-info-grid">', ru("packageCode", xa.packageCode, Pa.data.packageCode), ru("printCode", xa.printCode, Pa.data.printCode), ru("packageSizeText", Pa.data.packageSizeLabel || xa.packageSize, Pa.data.packageSizeText || xa.noPackage), ru("printSizeText", Pa.data.printSizeLabel || xa.printSize, Qc(Pa.data) || xa.noPrint), "</div>", "</section>", '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + pk(xa.graphicSection) + "</h3>" + nl(Pa.data) + iu() + "</div>" + rl(Pa.data) + '<div class="pfh-excel-options-row">' + ou() + "</div>", '<div class="pfh-graphic-table pfh-info-grid">', ru("packageLength", xa.cartonLength, Pa.data.packageLength || xa.noDimension), ru("productLength", Pa.data.isTubePrint ? xa.tailSealLength : xa.productLength, (Pa.data.isTubePrint,
+            a.innerHTML = [ Jc(t), '<div class="pfh-detail-scroll">', Di("detail"), Os(Pa.data), Gs(Pa.data, !1), js(Pa.data), '<div class="pfh-info-grid">', ru("packageCode", xa.packageCode, Pa.data.packageCode), ru("printCode", xa.printCode, Pa.data.printCode), ru("packageSizeText", Pa.data.packageSizeLabel || xa.packageSize, Pa.data.packageSizeText || xa.noPackage), ru("printSizeText", Pa.data.printSizeLabel || xa.printSize, Qc(Pa.data) || xa.noPrint), "</div>", "</section>", '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + gk(xa.graphicSection) + "</h3>" + nl(Pa.data) + iu() + "</div>" + rl(Pa.data) + '<div class="pfh-excel-options-row">' + ou() + "</div>", '<div class="pfh-graphic-table pfh-info-grid">', ru("packageLength", xa.cartonLength, Pa.data.packageLength || xa.noDimension), ru("productLength", Pa.data.isTubePrint ? xa.tailSealLength : xa.productLength, (Pa.data.isTubePrint,
             Pa.data.productLength || xa.noDimension), {
                 editable: Pa.data.isTubePrint
-            }), ru("packageWidth", xa.cartonWidth, Pa.data.packageWidth || xa.noDimension), ru("productWidth", xa.productWidth, Pa.data.productWidth || xa.noDimension), ru("packageHeight", xa.cartonHeight, Pa.data.packageHeight || xa.noDimension), ru("productHeight", xa.productHeight, Pa.data.productHeight || xa.noDimension), ru("netContent", xa.netContent, Pa.data.netContent || xa.unknown), ru("grossWeight", xa.grossWeight, Pa.data.grossWeight || xa.unknown), "</div>" + Yc(Pa.data) + "</section>", "</div>", '<div class="pfh-note"><span class="pfh-note-source">' + pk(Pa.data.updatedAt ? xa.updatedAt + ": " + Pa.data.updatedAt : "") + "</span>" + qs() + '<span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + pk(Ia.refresh) + '">' + ht("refresh") + "</button></div>" ].join("");
+            }), ru("packageWidth", xa.cartonWidth, Pa.data.packageWidth || xa.noDimension), ru("productWidth", xa.productWidth, Pa.data.productWidth || xa.noDimension), ru("packageHeight", xa.cartonHeight, Pa.data.packageHeight || xa.noDimension), ru("productHeight", xa.productHeight, Pa.data.productHeight || xa.noDimension), ru("netContent", xa.netContent, Pa.data.netContent || xa.unknown), ru("grossWeight", xa.grossWeight, Pa.data.grossWeight || xa.unknown), "</div>" + Yc(Pa.data) + "</section>", "</div>", '<div class="pfh-note"><span class="pfh-note-source">' + gk(Pa.data.updatedAt ? xa.updatedAt + ": " + Pa.data.updatedAt : "") + "</span>" + qs() + '<span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + gk(Ia.refresh) + '">' + ht("refresh") + "</button></div>" ].join("");
         }(t, e), Bi(t), Fi(t), void Oi(t, i));
     }
     function Ri(t) {
@@ -7369,7 +7369,7 @@
             label: "参数图纸盒布局",
             version: String(t.ruleVersion || "未检查"),
             detail: "桌面工作台使用"
-        } ].map(e => '<div class="pfh-rule-row"><div><b>' + pk(e.label) + "</b><small>" + pk(e.detail) + "</small></div><span>" + pk(e.version) + "</span></div>").join(""), u = Pa.cloudRuleVersionStatus ? '<span class="pfh-cloud-status">' + pk(Pa.cloudRuleVersionStatus) + "</span>" : "";
+        } ].map(e => '<div class="pfh-rule-row"><div><b>' + gk(e.label) + "</b><small>" + gk(e.detail) + "</small></div><span>" + gk(e.version) + "</span></div>").join(""), u = Pa.cloudRuleVersionStatus ? '<span class="pfh-cloud-status">' + gk(Pa.cloudRuleVersionStatus) + "</span>" : "";
         return '<div class="pfh-settings-card"><div class="pfh-settings-card-head"><strong>云端规则版本</strong><span>当前用户</span></div><div class="pfh-about-note">显示这台浏览器当前已缓存、正在使用的规则版本。</div><div class="pfh-rule-list">' + c + '</div><div class="pfh-about-actions"><button type="button" data-action="cloud-rule-versions-refresh"' + (Pa.cloudRuleVersionsBusy ? " disabled" : "") + ">" + (Pa.cloudRuleVersionsBusy ? "正在检查..." : "刷新全部版本") + "</button>" + u + "</div></div>";
     }
     function Wi() {
@@ -7377,28 +7377,28 @@
             priceHistory: [],
             dataIssues: [],
             typeStats: {}
-        }, t = Array.isArray(e.priceHistory) ? e.priceHistory.length : 0, a = Array.isArray(e.dataIssues) ? e.dataIssues.length : 0, n = e.typeStats && "object" == typeof e.typeStats ? Object.keys(e.typeStats).length : 0, r = t || a || n ? "价格 " + t + "条 / 异常 " + a + "条 / 类型 " + n + "类" : xa.insightsEmpty, i = Pa.insightCloudStatus ? '<p class="pfh-insight-status">' + pk(Pa.insightCloudStatus) + "</p>" : "";
-        return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + pk(xa.insightsTitle) + "</strong><span>" + pk(r) + "</span></div>" + function() {
-            const e = ab();
-            return '<div class="pfh-setting-row pfh-ai-model-row"><span>' + pk(xa.insightsAiModel) + '</span><label><input type="radio" name="pfh-ai-model" value="glm-4.7-flash"' + ("glm-4.7-flash" === e ? " checked" : "") + '> GLM-4.7-Flash</label><label><input type="radio" name="pfh-ai-model" value="' + b + '"' + (e === b ? " checked" : "") + "> 魔搭 Qwen3.5-397B-A17B</label></div>";
-        }() + '<div class="pfh-about-actions"><button type="button" data-action="insights-readiness">体检</button><button type="button" data-action="tips-manage">' + pk(xa.loadingTipsManage) + '</button><button type="button" data-action="insights-cloud-summary">' + pk(xa.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">AI总结规则</button><button type="button" data-action="insights-apply-classify">重新应用规则</button><button type="button" data-action="insights-view-classify">查看规则</button><button type="button" data-action="insights-check-ai">' + pk(xa.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + pk(xa.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-report">' + pk(xa.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + pk(xa.insightsExport) + '</button><button type="button" data-action="clear-insights">' + pk(xa.insightsClear) + "</button></div>" + i + function() {
+        }, t = Array.isArray(e.priceHistory) ? e.priceHistory.length : 0, a = Array.isArray(e.dataIssues) ? e.dataIssues.length : 0, n = e.typeStats && "object" == typeof e.typeStats ? Object.keys(e.typeStats).length : 0, r = t || a || n ? "价格 " + t + "条 / 异常 " + a + "条 / 类型 " + n + "类" : xa.insightsEmpty, i = Pa.insightCloudStatus ? '<p class="pfh-insight-status">' + gk(Pa.insightCloudStatus) + "</p>" : "";
+        return '<div class="pfh-log-panel pfh-insights-panel pfh-settings-card"><div class="pfh-log-head"><strong>' + gk(xa.insightsTitle) + "</strong><span>" + gk(r) + "</span></div>" + function() {
+            const e = nb();
+            return '<div class="pfh-setting-row pfh-ai-model-row"><span>' + gk(xa.insightsAiModel) + '</span><label><input type="radio" name="pfh-ai-model" value="glm-4.7-flash"' + ("glm-4.7-flash" === e ? " checked" : "") + '> GLM-4.7-Flash</label><label><input type="radio" name="pfh-ai-model" value="' + b + '"' + (e === b ? " checked" : "") + "> 魔搭 Qwen3.5-397B-A17B</label></div>";
+        }() + '<div class="pfh-about-actions"><button type="button" data-action="insights-readiness">体检</button><button type="button" data-action="tips-manage">' + gk(xa.loadingTipsManage) + '</button><button type="button" data-action="insights-cloud-summary">' + gk(xa.insightsCloudSummary) + '</button><button type="button" data-action="insights-ai-classify">AI总结规则</button><button type="button" data-action="insights-apply-classify">重新应用规则</button><button type="button" data-action="insights-view-classify">查看规则</button><button type="button" data-action="insights-check-ai">' + gk(xa.insightsCheckAi) + '</button><button type="button" data-action="insights-copy-ai">' + gk(xa.insightsCopyAi) + '</button><button type="button" data-action="insights-copy-report">' + gk(xa.insightsCopyReport) + '</button><button type="button" data-action="export-insights">' + gk(xa.insightsExport) + '</button><button type="button" data-action="clear-insights">' + gk(xa.insightsClear) + "</button></div>" + i + function() {
             const e = Pa.insightReadiness;
             if (!e) return "";
-            const t = Array.isArray(e.checks) ? e.checks : [], a = t.filter(e => e.ok).length, n = (e.ready ? "已就绪" : "未就绪") + " / " + a + "/" + t.length, r = t.length ? t.map(e => '<div class="pfh-readiness-row' + (e.ok ? " is-ok" : " is-bad") + '"><span>' + pk(e.ok ? "通过" : "未通过") + "</span><b>" + pk(e.label || e.key || "") + "</b><small>" + pk(e.detail || "") + "</small></div>").join("") : '<div class="pfh-empty">暂无体检结果</div>', i = Array.isArray(e.blockers) && e.blockers.length ? '<p class="pfh-readiness-blockers">' + pk(e.blockers.map(e => (e.label || e.key || "") + "：" + (e.detail || "")).join(" / ")) + "</p>" : "", o = function(e) {
+            const t = Array.isArray(e.checks) ? e.checks : [], a = t.filter(e => e.ok).length, n = (e.ready ? "已就绪" : "未就绪") + " / " + a + "/" + t.length, r = t.length ? t.map(e => '<div class="pfh-readiness-row' + (e.ok ? " is-ok" : " is-bad") + '"><span>' + gk(e.ok ? "通过" : "未通过") + "</span><b>" + gk(e.label || e.key || "") + "</b><small>" + gk(e.detail || "") + "</small></div>").join("") : '<div class="pfh-empty">暂无体检结果</div>', i = Array.isArray(e.blockers) && e.blockers.length ? '<p class="pfh-readiness-blockers">' + gk(e.blockers.map(e => (e.label || e.key || "") + "：" + (e.detail || "")).join(" / ")) + "</p>" : "", o = function(e) {
                 if (!e || !e.total) return "";
                 const t = Array.isArray(e.topRules) ? e.topRules : [], a = e.byStatus && "object" == typeof e.byStatus ? Object.keys(e.byStatus).map(t => t + " " + e.byStatus[t]).join(" / ") : "", n = t.length ? t.map(e => {
                     const t = [ e.priority, e.status, e.action, e.examples ? "例：" + e.examples : "" ].filter(Boolean).join(" / ");
-                    return '<div class="pfh-rule-mini"><b>' + pk(e.field || e.ruleId || "") + "</b><small>" + pk(t) + "</small></div>";
+                    return '<div class="pfh-rule-mini"><b>' + gk(e.field || e.ruleId || "") + "</b><small>" + gk(t) + "</small></div>";
                 }).join("") : "";
-                return '<div class="pfh-rule-maintenance-summary"><strong>规则维护摘要</strong><span>' + pk(a || "总数 " + e.total) + "</span>" + n + "</div>";
+                return '<div class="pfh-rule-maintenance-summary"><strong>规则维护摘要</strong><span>' + gk(a || "总数 " + e.total) + "</span>" + n + "</div>";
             }(e.ruleMaintenance);
-            return '<div class="pfh-readiness-panel"><div class="pfh-log-head"><strong>云端链路体检</strong><span>' + pk(n) + "</span></div>" + r + i + o + "</div>";
+            return '<div class="pfh-readiness-panel"><div class="pfh-log-head"><strong>云端链路体检</strong><span>' + gk(n) + "</span></div>" + r + i + o + "</div>";
         }() + function() {
             const e = Array.isArray(Pa.classificationRules) ? Pa.classificationRules : [];
             if (!e.length) return "";
             const t = e.filter(e => "category" === e.kind).length, a = e.filter(e => "packageType" === e.kind).length, n = e.slice(0, 10).map(e => {
                 const t = Array.isArray(e.keywords) ? e.keywords.slice(0, 8).join(" / ") : "";
-                return '<div class="pfh-rule-mini"><b>' + pk(("packageType" === e.kind ? "包材 " : "品类 ") + (e.label || "")) + "</b><small>" + pk(t) + "</small></div>";
+                return '<div class="pfh-rule-mini"><b>' + gk(("packageType" === e.kind ? "包材 " : "品类 ") + (e.label || "")) + "</b><small>" + gk(t) + "</small></div>";
             }).join("");
             return '<div class="pfh-rule-maintenance-summary"><strong>商品分类规则</strong><span>品类 ' + t + " / 包材 " + a + "</span>" + n + "</div>";
         }() + "</div>";
@@ -7406,9 +7406,9 @@
     function Qi() {
         const e = (Pa.logs || []).slice(0, 80), t = e.length ? e.map(e => {
             const t = e.level || "info";
-            return '<div class="pfh-log-row is-' + pk(t) + '"><span>' + pk(e.time || "") + "</span><b>" + pk(t.toUpperCase()) + "</b><p>" + pk(e.message || "") + "</p></div>";
-        }).join("") : '<div class="pfh-empty">' + pk(xa.logEmpty) + "</div>";
-        return '<div class="pfh-log-panel pfh-runtime-log-panel"><div class="pfh-log-head"><strong>' + pk(xa.logTitle) + "</strong><span>" + pk(String((Pa.logs || []).length)) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="copy-logs">' + pk(xa.logCopy) + '</button><button type="button" data-action="clear-logs">' + pk(xa.logClear) + '</button></div><div class="pfh-log-list">' + t + "</div></div>";
+            return '<div class="pfh-log-row is-' + gk(t) + '"><span>' + gk(e.time || "") + "</span><b>" + gk(t.toUpperCase()) + "</b><p>" + gk(e.message || "") + "</p></div>";
+        }).join("") : '<div class="pfh-empty">' + gk(xa.logEmpty) + "</div>";
+        return '<div class="pfh-log-panel pfh-runtime-log-panel"><div class="pfh-log-head"><strong>' + gk(xa.logTitle) + "</strong><span>" + gk(String((Pa.logs || []).length)) + '</span></div><div class="pfh-about-actions"><button type="button" data-action="copy-logs">' + gk(xa.logCopy) + '</button><button type="button" data-action="clear-logs">' + gk(xa.logClear) + '</button></div><div class="pfh-log-list">' + t + "</div></div>";
     }
     function Ji(e) {
         if (!e || "magicUpload" !== Pa.view) return !1;
@@ -7448,7 +7448,7 @@
         window.requestAnimationFrame(() => {
             m.isConnected && (m.style.setProperty("left", h.offsetLeft + "px", "important"),
             m.style.setProperty("width", h.offsetWidth + "px", "important"));
-        })), e.dataset.uploadMode = xw(Pa.uploadMode);
+        })), e.dataset.uploadMode = Aw(Pa.uploadMode);
         const y = e.querySelector("[data-upload-sku-picker]");
         return y && "queue" === Pa.uploadView && Yi(Pa.uploadMode) && eo(y, f), !0;
     }
@@ -7460,12 +7460,12 @@
     }
     function eo(e, t) {
         if (!e) return;
-        const a = e.querySelector(".pfh-upload-sku-picker-scroll"), n = void 0 === t ? a ? a.scrollLeft : 0 : Number(t), r = Number.isFinite(n) ? Math.max(0, n) : 0, i = Rm(Pa.searchQuery.trim()), o = Hw(Om(i)), s = jw(), l = xw(Pa.uploadMode), c = new Set((Pa.uploadQueue || ow()).filter(e => Aw(e) === l && !/\u6210\u529f/.test(e.status || "")).map(e => String(e.sku || "").trim().toUpperCase()).filter(Boolean)), u = Math.max(1, Math.ceil(o.length / 20));
-        Pa.skuPage = nk(Pa.skuPage || 1, 1, u);
+        const a = e.querySelector(".pfh-upload-sku-picker-scroll"), n = void 0 === t ? a ? a.scrollLeft : 0 : Number(t), r = Number.isFinite(n) ? Math.max(0, n) : 0, i = Rm(Pa.searchQuery.trim()), o = Vw(Om(i)), s = Ow(), l = Aw(Pa.uploadMode), c = new Set((Pa.uploadQueue || sw()).filter(e => Iw(e) === l && !/\u6210\u529f/.test(e.status || "")).map(e => String(e.sku || "").trim().toUpperCase()).filter(Boolean)), u = Math.max(1, Math.ceil(o.length / 20));
+        Pa.skuPage = rk(Pa.skuPage || 1, 1, u);
         const d = o.slice(20 * (Pa.skuPage - 1), 20 * Pa.skuPage), p = d.map(e => {
-            const t = bn(Gw(e.sku) || e), a = [ e.brand || t.brand, e.name || t.name, e.sku ].filter(Boolean).join(" "), n = Vw(t), r = n ? '<img src="' + pk(n) + '" alt="" loading="lazy" decoding="async">' : ht("image"), i = c.has(String(e.sku || "").trim().toUpperCase());
-            return '<button type="button" class="pfh-upload-sku-card' + (i ? " is-queued" : "") + '" data-sku="' + pk(e.sku) + '" data-upload-drag-sku="' + pk(e.sku) + '" draggable="true" aria-pressed="' + String(i) + '" title="拖动到下方添加任务：' + pk(a) + '"><span class="pfh-upload-sku-thumb">' + r + '</span><span class="pfh-upload-sku-meta"><b>' + pk(e.sku) + "</b><small>" + pk(e.name || t.name || "未命名产品") + "</small></span></button>";
-        }).join(""), g = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div class="pfh-upload-sku-picker-pager-leading"><span>第 ' + Pa.skuPage + " / " + u + ' 页</span></div><div class="pfh-upload-sku-picker-pager-controls"><button type="button" data-action="sku-page-prev"' + (Pa.skuPage <= 1 ? " disabled" : "") + ">‹</button>" + kd("sku-page", Pa.skuPage, u) + '<button type="button" data-action="sku-page-next"' + (Pa.skuPage >= u ? " disabled" : "") + ">›</button></div></div>", f = d.length ? "waterfall" === s ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + p + "</div>" : '<div class="pfh-upload-sku-card-list">' + p + "</div>" : '<div class="pfh-empty">' + pk(i.length ? xa.noSearchResult : xa.emptyList) + "</div>";
+            const t = bn(Ww(e.sku) || e), a = [ e.brand || t.brand, e.name || t.name, e.sku ].filter(Boolean).join(" "), n = Kw(t), r = n ? '<img src="' + gk(n) + '" alt="" loading="lazy" decoding="async">' : ht("image"), i = c.has(String(e.sku || "").trim().toUpperCase());
+            return '<button type="button" class="pfh-upload-sku-card' + (i ? " is-queued" : "") + '" data-sku="' + gk(e.sku) + '" data-upload-drag-sku="' + gk(e.sku) + '" draggable="true" aria-pressed="' + String(i) + '" title="拖动到下方添加任务：' + gk(a) + '"><span class="pfh-upload-sku-thumb">' + r + '</span><span class="pfh-upload-sku-meta"><b>' + gk(e.sku) + "</b><small>" + gk(e.name || t.name || "未命名产品") + "</small></span></button>";
+        }).join(""), g = '<div class="pfh-list-pager pfh-upload-sku-picker-pager"><div class="pfh-upload-sku-picker-pager-leading"><span>第 ' + Pa.skuPage + " / " + u + ' 页</span></div><div class="pfh-upload-sku-picker-pager-controls"><button type="button" data-action="sku-page-prev"' + (Pa.skuPage <= 1 ? " disabled" : "") + ">‹</button>" + kd("sku-page", Pa.skuPage, u) + '<button type="button" data-action="sku-page-next"' + (Pa.skuPage >= u ? " disabled" : "") + ">›</button></div></div>", f = d.length ? "waterfall" === s ? '<div class="pfh-upload-sku-card-grid is-waterfall">' + p + "</div>" : '<div class="pfh-upload-sku-card-list">' + p + "</div>" : '<div class="pfh-empty">' + gk(i.length ? xa.noSearchResult : xa.emptyList) + "</div>";
         e.innerHTML = '<div class="pfh-upload-sku-picker-scroll">' + f + "</div>" + g;
         const m = e.querySelector(".pfh-upload-sku-picker-scroll");
         m && (m.scrollLeft = r, window.requestAnimationFrame(() => {
@@ -7473,19 +7473,19 @@
         }));
     }
     function to() {
-        const e = Pa.searchQuery.trim(), t = Rm(e), a = Hw(Om(t)), n = jw(), r = "waterfall" === n ? 20 : 10, i = Math.max(1, Math.ceil(a.length / r));
-        Pa.skuPage = nk(Pa.skuPage || 1, 1, i);
-        const o = a.slice((Pa.skuPage - 1) * r, Pa.skuPage * r), s = "sizeImage" === Pa.view ? "尺寸图 SKU" : "parameterImage" === Pa.view ? "参数图 SKU" : "SKU列表", l = Ow(), c = [ "sku", Pa.view, n, l, Pa.skuPage, e ].join("|"), u = "acquired" === l ? "获取时间" : "分配时间", d = '<div class="pfh-export-menu pfh-sku-sort-menu' + (Pa.skuSortMenuOpen ? " is-open" : "") + '"><button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (Pa.skuSortMenuOpen ? "true" : "false") + '"><span>' + pk(u) + '</span><i></i></button><div class="pfh-export-menu-list"><button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + ("assigned" === l ? "is-active" : "") + '">分配时间</button><button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + ("acquired" === l ? "is-active" : "") + '">获取时间</button></div></div>', p = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + n + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span><button type="button" data-action="sku-list-mode" data-mode="list" class="' + ("list" === n ? "is-active" : "") + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + ("waterfall" === n ? "is-active" : "") + '">瀑布流</button></div><label class="pfh-sku-sort"><span>排序</span>' + d + "</label></div>", g = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + "</button><strong>" + s + "</strong><span>共 " + a.length + " 条</span></div>" + p, f = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (Pa.skuPage <= 1 ? " disabled" : "") + ">‹</button>" + kd("sku-page", Pa.skuPage, i) + '<button type="button" data-action="sku-page-next"' + (Pa.skuPage >= i ? " disabled" : "") + ">›</button></div></div>";
-        if (!a.length) return g + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + pk(c) + '"><div class="pfh-empty">' + pk(t.length ? xa.noSearchResult : xa.emptyList) + "</div></div>" + f + "</div>";
-        const m = t.length ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + pk(xa.searchResult + ": " + a.length) + "</span></div>" : "", h = o.map(e => {
-            const t = e.sku === Pa.selectedSku ? " is-active" : "", a = e.pinned ? " is-pinned" : "", r = [ e.brand, e.name, e.sku ].filter(Boolean).join(" "), i = e.pinned ? Ia.unpin : Ia.pin, o = t ? '<em data-pin-sku="' + pk(e.sku) + '" title="' + pk(i) + '">' + ht("pin") + "</em>" : "";
+        const e = Pa.searchQuery.trim(), t = Rm(e), a = Vw(Om(t)), n = Ow(), r = "waterfall" === n ? 20 : 10, i = Math.max(1, Math.ceil(a.length / r));
+        Pa.skuPage = rk(Pa.skuPage || 1, 1, i);
+        const o = a.slice((Pa.skuPage - 1) * r, Pa.skuPage * r), s = "sizeImage" === Pa.view ? "尺寸图 SKU" : "parameterImage" === Pa.view ? "参数图 SKU" : "SKU列表", l = qw(), c = [ "sku", Pa.view, n, l, Pa.skuPage, e ].join("|"), u = "acquired" === l ? "获取时间" : "分配时间", d = '<div class="pfh-export-menu pfh-sku-sort-menu' + (Pa.skuSortMenuOpen ? " is-open" : "") + '"><button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (Pa.skuSortMenuOpen ? "true" : "false") + '"><span>' + gk(u) + '</span><i></i></button><div class="pfh-export-menu-list"><button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + ("assigned" === l ? "is-active" : "") + '">分配时间</button><button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + ("acquired" === l ? "is-active" : "") + '">获取时间</button></div></div>', p = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + n + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span><button type="button" data-action="sku-list-mode" data-mode="list" class="' + ("list" === n ? "is-active" : "") + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + ("waterfall" === n ? "is-active" : "") + '">瀑布流</button></div><label class="pfh-sku-sort"><span>排序</span>' + d + "</label></div>", g = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + ht("backArrow") + "</button><strong>" + s + "</strong><span>共 " + a.length + " 条</span></div>" + p, f = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (Pa.skuPage <= 1 ? " disabled" : "") + ">‹</button>" + kd("sku-page", Pa.skuPage, i) + '<button type="button" data-action="sku-page-next"' + (Pa.skuPage >= i ? " disabled" : "") + ">›</button></div></div>";
+        if (!a.length) return g + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + gk(c) + '"><div class="pfh-empty">' + gk(t.length ? xa.noSearchResult : xa.emptyList) + "</div></div>" + f + "</div>";
+        const m = t.length ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + gk(xa.searchResult + ": " + a.length) + "</span></div>" : "", h = o.map(e => {
+            const t = e.sku === Pa.selectedSku ? " is-active" : "", a = e.pinned ? " is-pinned" : "", r = [ e.brand, e.name, e.sku ].filter(Boolean).join(" "), i = e.pinned ? Ia.unpin : Ia.pin, o = t ? '<em data-pin-sku="' + gk(e.sku) + '" title="' + gk(i) + '">' + ht("pin") + "</em>" : "";
             if ("waterfall" === n) {
-                const n = bn(Gw(e.sku) || e), i = Vw(n), o = i ? '<img src="' + pk(i) + '" alt="" loading="lazy" decoding="async">' : ht("image"), s = n.name || e.name || "未命名产品";
-                return '<button type="button" class="pfh-sku-waterfall-card' + t + a + '" data-sku="' + pk(e.sku) + '" title="' + pk(r) + '"><span class="pfh-sku-waterfall-thumb">' + o + '</span><span class="pfh-sku-waterfall-meta"><b>' + pk(s) + "</b></span></button>";
+                const n = bn(Ww(e.sku) || e), i = Kw(n), o = i ? '<img src="' + gk(i) + '" alt="" loading="lazy" decoding="async">' : ht("image"), s = n.name || e.name || "未命名产品";
+                return '<button type="button" class="pfh-sku-waterfall-card' + t + a + '" data-sku="' + gk(e.sku) + '" title="' + gk(r) + '"><span class="pfh-sku-waterfall-thumb">' + o + '</span><span class="pfh-sku-waterfall-meta"><b>' + gk(s) + "</b></span></button>";
             }
-            return '<button type="button" class="pfh-sku' + t + a + '" data-sku="' + pk(e.sku) + '" title="' + pk(r) + '"><span><b>' + pk(e.sku) + "</b>" + o + "</span>" + ([ e.brand, e.name ].filter(Boolean).join(" ") ? "<small>" + pk([ e.brand, e.name ].filter(Boolean).join(" ")) + "</small>" : "") + "</button>";
+            return '<button type="button" class="pfh-sku' + t + a + '" data-sku="' + gk(e.sku) + '" title="' + gk(r) + '"><span><b>' + gk(e.sku) + "</b>" + o + "</span>" + ([ e.brand, e.name ].filter(Boolean).join(" ") ? "<small>" + gk([ e.brand, e.name ].filter(Boolean).join(" ")) + "</small>" : "") + "</button>";
         }).join("");
-        return g + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + ("waterfall" === n ? " is-waterfall" : "") + '" data-scroll-context="' + pk(c) + '">' + m + ("waterfall" === n ? '<div class="pfh-sku-waterfall-grid">' + h + "</div>" : h) + "</div>" + f + "</div>";
+        return g + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + ("waterfall" === n ? " is-waterfall" : "") + '" data-scroll-context="' + gk(c) + '">' + m + ("waterfall" === n ? '<div class="pfh-sku-waterfall-grid">' + h + "</div>" : h) + "</div>" + f + "</div>";
     }
     function ao(e, t) {
         const a = e.querySelector(".pfh-list"), n = e.querySelector(".pfh-detail");
@@ -7518,8 +7518,8 @@
     function lo() {
         const e = Pa.data || {};
         return {
-            name: eb(),
-            instanceId: kb(),
+            name: tb(),
+            instanceId: Sb(),
             version: a,
             pagePath: String(location.pathname || "").slice(0, 200),
             sku: String(e.sku || Pa.selectedSku || Pa.observedSku || "").trim().slice(0, 80)
@@ -7545,21 +7545,21 @@
         };
     }
     function uo(e) {
-        const t = _b(e);
+        const t = Ub(e);
         return 404 === Number(e && e.status) || /(?:not found|\b404\b)/i.test(t) ? "反馈接口尚未部署，请更新 Worker 后再试。" : /name required/i.test(t) ? "未识别当前 PLM 用户，请先登录后再提交反馈。" : /invalid feedback type/i.test(t) ? "反馈类型无效，请重新选择。" : /content required/i.test(t) ? "请填写反馈内容。" : /content too long/i.test(t) ? "反馈内容不能超过 2000 字。" : /too many submissions/i.test(t) ? "提交过于频繁，请稍后再试。" : t;
     }
     async function po(e = !0) {
         if (Pa.feedbackLoading) return;
-        const t = eb();
+        const t = tb();
         if (!t) return Pa.feedbackItems = [], Pa.feedbackLoadedName = "", Pa.feedbackError = "未识别当前 PLM 用户，请先登录后再提交反馈。",
         void (e && "feedback" === Pa.view && zi());
         Pa.feedbackLoading = !0, Pa.feedbackError = "", Pa.feedbackLoadedName !== t && (Pa.feedbackItems = []),
         e && "feedback" === Pa.view && zi();
         try {
-            const e = await Lb("/feedback/mine?name=" + encodeURIComponent(t), {
+            const e = await Nb("/feedback/mine?name=" + encodeURIComponent(t), {
                 method: "GET"
             });
-            if (eb() !== t) return;
+            if (tb() !== t) return;
             const a = Array.isArray(e && e.feedback) ? e.feedback : [];
             Pa.feedbackItems = a.map(co).filter(e => e.feedbackId || e.content), Pa.feedbackLoadedName = t;
         } catch (e) {
@@ -7717,12 +7717,12 @@
             return t.map(e => String(e).trim().toUpperCase()).filter(e => !(!e || a.has(e) || (a.add(e),
             0)));
         }(e);
-        if (!t.length) return void Fb("请粘贴 SKU 编码，例如 SKU12345678");
+        if (!t.length) return void Bb("请粘贴 SKU 编码，例如 SKU12345678");
         const a = Array.isArray(Pa.magicToyLabelQueue) ? Pa.magicToyLabelQueue : [], n = new Set(a.map(e => String(e && e.sku || "").toUpperCase())), r = [];
         let i = 0;
         t.forEach(e => {
             if (n.has(e)) return;
-            const t = Gw(e) || (Pa.index || []).find(t => t && t.sku === e) || {}, o = yo({
+            const t = Ww(e) || (Pa.index || []).find(t => t && t.sku === e) || {}, o = yo({
                 id: Ho(),
                 sku: e,
                 name: t.name || "",
@@ -8003,7 +8003,7 @@
         return "magic-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
     }
     function Vo(e, t, a) {
-        Bb(e || "info", "魔法上传 " + t, a || "");
+        zb(e || "info", "魔法上传 " + t, a || "");
     }
     function Ko(e, t, a) {
         let n = 0;
@@ -8101,7 +8101,7 @@
                 return Vo("info", "ZIP 批量解压完成", t + " | 解码文件=" + r.filter(e => !e.dir).length + " | 条目=" + r.length),
                 r;
             } catch (e) {
-                const a = _b(e);
+                const a = Ub(e);
                 if (/超时/.test(a)) throw e;
                 Vo("warn", "fflate 解压失败，回退 JSZip", t + " | " + a);
             }
@@ -8117,7 +8117,7 @@
     }
     async function Zo(e) {
         if (!Pa.magicUploadAccessEnabled) return Vo("warn", "文件处理被拦截", "当前账号没有魔法上传权限"),
-        Fb("魔法上传暂未开放"), {
+        Bb("魔法上传暂未开放"), {
             added: 0,
             errors: [ "魔法上传暂未开放" ]
         };
@@ -8132,23 +8132,23 @@
         });
         if (a.length && Vo("warn", "文件超过入口限制", a.map(e => e.name + "|" + Math.round(Number(e.size || 0) / 1024 / 1024) + "MB").join("；") + " | ZIP 上限=150MB"),
         !t.length) return Vo("warn", "没有识别到可处理文件", (e || []).map(e => e && (e.name || "无文件名") + "|" + (e.type || "无类型") || "空").join("；")),
-        Fb("请选择 ZIP 图包或 XLSX"), {
+        Bb("请选择 ZIP 图包或 XLSX"), {
             added: 0,
             errors: [ "请选择 ZIP 图包或 XLSX" ]
         };
         if (Pa.magicUploadProcessing) return Vo("warn", "忽略重复处理请求", "已有文件正在处理：" + (Pa.magicUploadProcessingText || "处理中")),
-        Fb("已有文件正在处理，请等待当前任务完成"), {
+        Bb("已有文件正在处理，请等待当前任务完成"), {
             added: 0,
             errors: [ "已有文件正在处理" ]
         };
         Vo("info", "开始处理文件", t.map(e => e.name + "|" + Math.round(Number(e.size || 0) / 1024) + "KB").join("；")),
         Pa.magicUploadProcessing = !0, Pa.magicUploadProcessingText = "正在准备读取 " + t.length + " 个文件…",
-        Fb(Pa.magicUploadProcessingText);
+        Bb(Pa.magicUploadProcessingText);
         const n = Pa.magicUploadReplaceId;
         Pa.magicUploadReplaceId = "", Pa.magicUploadFileInputOpen = !0;
         let r = 0;
         const i = [], o = (e, t) => {
-            Pa.magicUploadProcessingText = String(e || "正在处理文件…"), fo(), t && Fb(Pa.magicUploadProcessingText);
+            Pa.magicUploadProcessingText = String(e || "正在处理文件…"), fo(), t && Bb(Pa.magicUploadProcessingText);
         };
         try {
             if (n && t[0]) {
@@ -8159,12 +8159,12 @@
             for (const e of t) try {
                 if (/\.xlsx$/i.test(e.name || "")) {
                     if (Yo("xlsx", e.name, e.size)) {
-                        Vo("warn", "跳过重复 XLSX", e.name + " | 队列中已存在相同推品资料，忽略本次拖入"), Fb("已存在相同推品资料，已跳过：" + e.name);
+                        Vo("warn", "跳过重复 XLSX", e.name + " | 队列中已存在相同推品资料，忽略本次拖入"), Bb("已存在相同推品资料，已跳过：" + e.name);
                         continue;
                     }
                     o("正在缓存 XLSX：" + e.name, !0), Vo("info", "XLSX 开始本地缓存", e.name + " | bytes=" + Number(e.size || 0));
                     const t = Vd(e.name), a = "magic-upload:" + Ho() + ":source.xlsx";
-                    await Ko(Fw(a, Hd(e)), 12e4, "XLSX 本地缓存"), Vo("info", "XLSX 本地缓存完成", e.name + " | key=" + a);
+                    await Ko(Bw(a, Hd(e)), 12e4, "XLSX 本地缓存"), Vo("info", "XLSX 本地缓存完成", e.name + " | key=" + a);
                     const n = (t.length ? t : [ "" ]).map(t => ({
                         id: Ho(),
                         sku: t,
@@ -8172,7 +8172,7 @@
                         sourceName: e.name,
                         zipName: "",
                         zipKey: "",
-                        projectId: Mn(Gw(t) || {}),
+                        projectId: Mn(Ww(t) || {}),
                         files: [ {
                             name: e.name,
                             key: a,
@@ -8190,11 +8190,11 @@
                         updatedAt: Date.now()
                     }));
                     es(n), r += n.length, Vo("info", "XLSX 已加入队列", e.name + " | SKU=" + (t.join(",") || "待确认")),
-                    Fb(e.name + " 已加入推品资料"), zi();
+                    Bb(e.name + " 已加入推品资料"), zi();
                     continue;
                 }
                 if (Yo("zip", e.name, e.size)) {
-                    Vo("warn", "跳过重复 ZIP", e.name + " | 队列中已存在相同图包，忽略本次拖入"), Fb("已存在相同图包，已跳过：" + e.name);
+                    Vo("warn", "跳过重复 ZIP", e.name + " | 队列中已存在相同图包，忽略本次拖入"), Bb("已存在相同图包，已跳过：" + e.name);
                     continue;
                 }
                 o("正在读取 ZIP：" + e.name, !0), Vo("info", "ZIP 开始读取", e.name + " | bytes=" + Number(e.size || 0) + " | type=" + (e.type || "无类型"));
@@ -8218,7 +8218,7 @@
                         type: vg(t.name)
                     }), p = "magic-upload:" + Ho() + ":" + t.name;
                     Vo("info", "ZIP 开始缓存文件", e.name + " | " + d + "/" + n.length + " | " + t.name + " | bytes=" + Number(s && s.byteLength || 0)),
-                    await Ko(Fw(p, l), 12e4, "素材本地缓存");
+                    await Ko(Bw(p, l), 12e4, "素材本地缓存");
                     const g = Oo(t.name), f = $o(g, qo(t.name));
                     r.forEach(e => {
                         u.has(e) || u.set(e, []), u.get(e).push({
@@ -8235,14 +8235,14 @@
                 }
                 o("正在保留原始 ZIP：" + e.name, !0);
                 const p = "magic-upload:" + Ho() + ":source.zip";
-                await Ko(Fw(p, Hd(e)), 12e4, "原始 ZIP 本地缓存"), Vo("info", "原始 ZIP 已缓存", e.name + " | key=" + p + " | 将上传到图包素材");
+                await Ko(Bw(p, Hd(e)), 12e4, "原始 ZIP 本地缓存"), Vo("info", "原始 ZIP 已缓存", e.name + " | key=" + p + " | 将上传到图包素材");
                 const g = Array.from(u.entries()).map(([t, a]) => ({
                     id: Ho(),
                     sku: t,
                     zipName: e.name,
                     zipKey: p,
                     sourceSize: Number(e.size) || 0,
-                    projectId: Mn(Gw(t) || {}),
+                    projectId: Mn(Ww(t) || {}),
                     files: a,
                     status: a.some(e => "待确认" === e.category) ? "waiting" : "pending",
                     step: a.some(e => "待确认" === e.category) ? "请确认文件分类" : "等待上传",
@@ -8251,10 +8251,10 @@
                     updatedAt: Date.now()
                 }));
                 es(g), r += g.length, Vo("info", "ZIP 识别完成", e.name + " | 文件=" + n.length + " | SKU=" + (c.join(",") || "待确认") + " | 任务=" + g.length),
-                Fb(e.name + " 已识别 " + g.length + " 个任务"), zi();
+                Bb(e.name + " 已识别 " + g.length + " 个任务"), zi();
             } catch (t) {
-                const a = _b(t);
-                i.push(e.name + "：" + a), Vo("warn", "图包处理失败", e.name + " | " + a), Fb("图包处理失败：" + a);
+                const a = Ub(t);
+                i.push(e.name + "：" + a), Vo("warn", "图包处理失败", e.name + " | " + a), Bb("图包处理失败：" + a);
             }
         } finally {
             Pa.magicUploadFileInputOpen = !1, Pa.magicUploadProcessing = !1, Pa.magicUploadProcessingText = "",
@@ -8306,7 +8306,7 @@
     function ns(e) {
         const t = [ "audit_status_format", "auditStatusFormat", "review_status_format", "reviewStatusFormat", "audit_status_name", "auditStatusName", "review_status_name", "reviewStatusName", "product_status_format", "productStatusFormat", "status_format", "statusFormat", "status_name", "statusName" ], a = [ "待审核", "审核中", "已审核", "已拒绝", "已作废", "已完成", "草稿" ];
         for (const n of t) {
-            const t = sk(e && e[n]);
+            const t = lk(e && e[n]);
             if (!t) continue;
             const r = a.find(e => t === e || t.includes(e));
             if (r) return r;
@@ -8336,7 +8336,7 @@
                     }), n = a && a.data;
                     return Array.isArray(n) ? n : n && Array.isArray(n.list) ? n.list : [];
                 } catch (e) {
-                    if (a = e, /\b401\b|\b403\b/.test(_b(e))) throw e;
+                    if (a = e, /\b401\b|\b403\b/.test(Ub(e))) throw e;
                 }
                 throw a || new Error("无法读取现有归档文件信息");
             }(o);
@@ -8358,7 +8358,7 @@
                 });
             }(i, e);
         } catch (t) {
-            Vo("warn", "现有图片名称读取失败，仍保留替换判断", e.sku + " | " + _b(t));
+            Vo("warn", "现有图片名称读取失败，仍保留替换判断", e.sku + " | " + Ub(t));
         }
         const s = (Pa.magicUploadQueue || []).find(t => t && t.id === e.id);
         if (s && (!t || s.replacementCheckToken === t)) {
@@ -8380,7 +8380,7 @@
             e.replacementCheckToken = t, e.replacementCheckStatus = "checking", e.replacementCheckError = "",
             e.updatedAt = Date.now(), a = !0, Promise.resolve().then(() => is(e, t)).catch(a => {
                 const n = (Pa.magicUploadQueue || []).find(t => t && t.id === e.id);
-                n && n.replacementCheckToken === t && (n.replacementCheckStatus = "error", n.replacementCheckError = _b(a),
+                n && n.replacementCheckToken === t && (n.replacementCheckStatus = "error", n.replacementCheckError = Ub(a),
                 n.updatedAt = Date.now(), mo(Pa.magicUploadQueue), "magicUpload" === Pa.view && zi(),
                 Vo("warn", "现有图片检查失败", e.sku + " | " + n.replacementCheckError));
             });
@@ -8395,23 +8395,23 @@
         return a ? "替换任务 · 现有 " + a + " 张标签图" : "新增任务";
     }
     function ls() {
-        if (!Pa.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + pk(Pa.magicUploadAccessLoading ? "正在检查权限…" : "该功能暂未开放，请联系管理员开通。") + "</p></div></div></div></div></section></div>";
+        if (!Pa.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + gk(Pa.magicUploadAccessLoading ? "正在检查权限…" : "该功能暂未开放，请联系管理员开通。") + "</p></div></div></div></div></section></div>";
         const e = "effect" === Pa.magicUploadMode ? "effect" : "toy-label" === Pa.magicUploadMode ? "toy-label" : "package", t = '<div class="pfh-magic-mode-tabs ' + ("effect" === e ? "is-effect" : "toy-label" === e ? "is-toy-label" : "") + '" data-active-mode="' + e + '"><i class="pfh-magic-mode-indicator" aria-hidden="true"></i><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + ("package" === e ? "is-active" : "") + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + ("effect" === e ? "is-active" : "") + '">效果图</button><button type="button" data-action="magic-upload-mode" data-magic-mode="toy-label" class="' + ("toy-label" === e ? "is-active" : "") + '">玩具标签</button></div>';
         if ("toy-label" === e) return function(e) {
             const t = Array.isArray(Pa.magicToyLabelQueue) ? Pa.magicToyLabelQueue : [], a = t.filter(e => e && ("pending" === e.status || "error" === e.status) && (!e.replacementCheckStatus || "idle" === e.replacementCheckStatus));
             a.length && xs(a);
             const n = Boolean(Pa.magicToyLabelRunning), r = t.filter(e => "pending" === e.status || "error" === e.status).length, i = t.filter(e => "error" === e.status).length, o = t.filter(e => "success" === e.status).length, s = t.filter(e => "processing" === e.status).length, l = Array.isArray(Pa.magicToyLabelHistory) ? Pa.magicToyLabelHistory : [], c = Boolean(Pa.magicToyLabelHistoryOpen), u = t.length ? t.map(e => {
                 const t = Math.round(100 * ("success" === e.status ? 1 : Math.min(1, Math.max(0, Number(e.progress) || 0)))), a = "success" === e.status ? "is-success" : "error" === e.status ? "is-error" : "", n = ko(e), r = e.name || "标签尺寸说明图", i = String(e.replacementCheckStatus || "idle"), o = Array.isArray(e.existingImagePaths) ? e.existingImagePaths.length : 0, s = "checking" === i ? '<span class="pfh-magic-file-badge is-checking">检查现有图</span>' : o ? '<span class="pfh-magic-file-badge is-replace">替换任务</span>' : "", l = a + (o ? " is-replace" : ""), c = "pending" === e.status || "waiting" === e.status ? ss(e) : e.step || n;
-                return '<article class="pfh-magic-task ' + l + '" data-magic-toy-label-id="' + pk(e.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + pk(e.sku) + '">' + pk(e.sku) + '</span><span class="pfh-magic-task-source" title="' + pk(r) + '">' + pk(r) + '</span><span class="pfh-magic-file-badge">PNG</span>' + s + '</div><div class="pfh-magic-task-meta"><span>' + pk(e.materialCode || "标签物料待匹配") + "</span><span>" + pk("4 × 3 cm") + '</span></div><div class="pfh-magic-stage" data-magic-stage>' + pk(c) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + t + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-remove" data-magic-toy-label-id="' + pk(e.id) + '">删除</button>' + ("error" === e.status ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-retry" data-magic-toy-label-id="' + pk(e.id) + '">重试</button>' : "") + '<strong class="pfh-magic-progress-value" data-magic-progress-value>' + t + '%</strong><span class="pfh-magic-status ' + a + '" title="' + pk(n) + '">' + pk(n) + "</span></div></div></article>";
-            }).join("") : '<div class="pfh-magic-empty">在上方粘贴 SKU，生成带产品图、条码和尺寸标注的标签说明图</div>', d = c ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + ht("history") + " 玩具标签历史 · " + l.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (l.length ? l.slice(0, 40).map(e => '<div class="pfh-magic-history-item"><div><strong>' + pk(e.sku || "待确认 SKU") + " · " + pk("success" === e.status ? "成功" : "失败") + "</strong><span>" + pk(e.name || "标签尺寸说明图") + " · " + pk(e.materialCode || "标签物料") + " · " + pk(e.finishedAt ? new Date(e.finishedAt).toLocaleString() : "") + "</span></div>" + ("success" === e.status ? "" : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + pk(e.id) + '">' + ht("refresh") + "恢复</button>") + "</div>").join("") : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + "</div></section></div>" : "", p = t.filter(e => "processing" === e.status || "success" === e.status || "error" === e.status).slice(0, 3), g = p.length ? p.map(e => "<p><i></i><span>" + pk(e.sku + " · " + ko(e)) + "</span></p>").join("") : "<p><i></i><span>" + pk(Pa.magicToyLabelStatus || "等待 SKU 进入队列") + "</span></p>";
-            return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL API</span></div>' + e + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(s).padStart(2, "0") + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + o + "/" + t.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + r + "/" + i + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (n ? "ON" : "--") + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + g + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM API</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + pk(Pa.magicToyLabelInput || "") + '</textarea><p class="pfh-magic-toy-label-hint">玩具标签固定按宽4×高3cm生成，不读取 BOM 或普通印刷尺寸；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (n || !r ? " disabled" : "") + ">" + ht("upload") + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (n ? "" : " disabled") + ">" + ht(n ? "pause" : "play") + (n ? "暂停" : "继续") + '</button><button type="button" data-action="magic-toy-label-clear"' + (t.length ? "" : " disabled") + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + ht("history") + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + t.length + ' 个 SKU · API 写入标签物料</span></div><div class="pfh-magic-queue">' + u + "</div>" + d + "</div></section></div>";
+                return '<article class="pfh-magic-task ' + l + '" data-magic-toy-label-id="' + gk(e.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + gk(e.sku) + '">' + gk(e.sku) + '</span><span class="pfh-magic-task-source" title="' + gk(r) + '">' + gk(r) + '</span><span class="pfh-magic-file-badge">PNG</span>' + s + '</div><div class="pfh-magic-task-meta"><span>' + gk(e.materialCode || "标签物料待匹配") + "</span><span>" + gk("4 × 3 cm") + '</span></div><div class="pfh-magic-stage" data-magic-stage>' + gk(c) + '</div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + t + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-remove" data-magic-toy-label-id="' + gk(e.id) + '">删除</button>' + ("error" === e.status ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-toy-label-retry" data-magic-toy-label-id="' + gk(e.id) + '">重试</button>' : "") + '<strong class="pfh-magic-progress-value" data-magic-progress-value>' + t + '%</strong><span class="pfh-magic-status ' + a + '" title="' + gk(n) + '">' + gk(n) + "</span></div></div></article>";
+            }).join("") : '<div class="pfh-magic-empty">在上方粘贴 SKU，生成带产品图、条码和尺寸标注的标签说明图</div>', d = c ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + ht("history") + " 玩具标签历史 · " + l.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (l.length ? l.slice(0, 40).map(e => '<div class="pfh-magic-history-item"><div><strong>' + gk(e.sku || "待确认 SKU") + " · " + gk("success" === e.status ? "成功" : "失败") + "</strong><span>" + gk(e.name || "标签尺寸说明图") + " · " + gk(e.materialCode || "标签物料") + " · " + gk(e.finishedAt ? new Date(e.finishedAt).toLocaleString() : "") + "</span></div>" + ("success" === e.status ? "" : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + gk(e.id) + '">' + ht("refresh") + "恢复</button>") + "</div>").join("") : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + "</div></section></div>" : "", p = t.filter(e => "processing" === e.status || "success" === e.status || "error" === e.status).slice(0, 3), g = p.length ? p.map(e => "<p><i></i><span>" + gk(e.sku + " · " + ko(e)) + "</span></p>").join("") : "<p><i></i><span>" + gk(Pa.magicToyLabelStatus || "等待 SKU 进入队列") + "</span></p>";
+            return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL API</span></div>' + e + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(s).padStart(2, "0") + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + o + "/" + t.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + r + "/" + i + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (n ? "ON" : "--") + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + g + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM API</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + gk(Pa.magicToyLabelInput || "") + '</textarea><p class="pfh-magic-toy-label-hint">玩具标签固定按宽4×高3cm生成，不读取 BOM 或普通印刷尺寸；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (n || !r ? " disabled" : "") + ">" + ht("upload") + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (n ? "" : " disabled") + ">" + ht(n ? "pause" : "play") + (n ? "暂停" : "继续") + '</button><button type="button" data-action="magic-toy-label-clear"' + (t.length ? "" : " disabled") + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + ht("history") + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + t.length + ' 个 SKU · API 写入标签物料</span></div><div class="pfh-magic-queue">' + u + "</div>" + d + "</div></section></div>";
         }(t);
         if ("effect" === e) {
-            const e = ow().filter(e => "toy-effect" === e.kind && !/\u6210\u529f/.test(e.status || "")), a = fw().filter(e => "toy-effect" === e.kind), n = Boolean(Pa.magicEffectHistoryOpen), r = Cw("toy-effect"), i = e.reduce((e, t) => e + sp(t).length, 0), o = a.filter(e => /成功/.test(e.status || "")).length, s = e.filter(e => !lp(e)).length, l = e.filter(e => /失败/.test(e.status || "")).length, c = e.length ? e.map(e => {
+            const e = sw().filter(e => "toy-effect" === e.kind && !/\u6210\u529f/.test(e.status || "")), a = mw().filter(e => "toy-effect" === e.kind), n = Boolean(Pa.magicEffectHistoryOpen), r = Pw("toy-effect"), i = e.reduce((e, t) => e + sp(t).length, 0), o = a.filter(e => /成功/.test(e.status || "")).length, s = e.filter(e => !lp(e)).length, l = e.filter(e => /失败/.test(e.status || "")).length, c = e.length ? e.map(e => {
                 const t = sp(e), a = e.step || e.status || "等待上传", n = /成功/.test(e.status || "") ? 100 : /进行中/.test(e.status || "") ? 45 : 0, r = /失败/.test(e.status || "") ? "is-error" : /成功/.test(e.status || "") ? "is-success" : "";
-                return '<article class="pfh-magic-task ' + r + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + pk(e.sku || "待确认 SKU") + '">' + pk(e.sku || "待确认 SKU") + '</span><span class="pfh-magic-task-source" title="' + pk(rp(e) || e.name || "") + '">' + pk(rp(e) || e.name || "效果图任务") + '</span><span class="pfh-magic-file-badge">' + t.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + n + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + pk(e.id) + '">删除</button><strong class="pfh-magic-progress-value">' + n + '%</strong><span class="pfh-magic-status ' + r + '" title="' + pk(a) + '">' + pk(a) + "</span></div></div></article>";
-            }).join("") : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>', u = n ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + ht("history") + " 效果图历史 · " + a.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (a.length ? a.slice(0, 40).map(e => '<div class="pfh-magic-history-item"><div><strong>' + pk(e.sku || "待确认 SKU") + " · " + pk(e.status || "已完成") + "</strong><span>" + pk(e.name || e.sourceName || "效果图任务") + " · " + sp(e).length + " 张 · " + pk(e.completedAt || e.updatedAt || "") + "</span></div></div>").join("") : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + "</div></section></div>" : "";
-            return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">BOM EFFECT API</span></div>' + t + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(e.length).padStart(2, "0") + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + i + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + s + "/" + l + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (r ? "ON" : "--") + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + o + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + pk(Pa.toyEffectMatchStatus || "等待效果图进入队列") + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + ht("image") + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (r || !e.some(lp) ? " disabled" : "") + ">" + ht("upload") + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (r ? "" : " disabled") + ">" + ht(r ? "pause" : "play") + (r ? "暂停" : "继续") + '</button><button type="button" data-action="magic-effect-clear"' + (e.length ? "" : " disabled") + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + ht("history") + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + e.length + " 个商品 · " + i + ' 张图</span></div><div class="pfh-magic-queue">' + c + "</div>" + u + "</div></section></div>";
+                return '<article class="pfh-magic-task ' + r + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + gk(e.sku || "待确认 SKU") + '">' + gk(e.sku || "待确认 SKU") + '</span><span class="pfh-magic-task-source" title="' + gk(rp(e) || e.name || "") + '">' + gk(rp(e) || e.name || "效果图任务") + '</span><span class="pfh-magic-file-badge">' + t.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + n + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + gk(e.id) + '">删除</button><strong class="pfh-magic-progress-value">' + n + '%</strong><span class="pfh-magic-status ' + r + '" title="' + gk(a) + '">' + gk(a) + "</span></div></div></article>";
+            }).join("") : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>', u = n ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + ht("history") + " 效果图历史 · " + a.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (a.length ? a.slice(0, 40).map(e => '<div class="pfh-magic-history-item"><div><strong>' + gk(e.sku || "待确认 SKU") + " · " + gk(e.status || "已完成") + "</strong><span>" + gk(e.name || e.sourceName || "效果图任务") + " · " + sp(e).length + " 张 · " + gk(e.completedAt || e.updatedAt || "") + "</span></div></div>").join("") : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + "</div></section></div>" : "";
+            return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">BOM EFFECT API</span></div>' + t + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(e.length).padStart(2, "0") + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + i + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + s + "/" + l + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (r ? "ON" : "--") + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + o + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + gk(Pa.toyEffectMatchStatus || "等待效果图进入队列") + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + ht("image") + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (r || !e.some(lp) ? " disabled" : "") + ">" + ht("upload") + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (r ? "" : " disabled") + ">" + ht(r ? "pause" : "play") + (r ? "暂停" : "继续") + '</button><button type="button" data-action="magic-effect-clear"' + (e.length ? "" : " disabled") + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + ht("history") + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + e.length + " 个商品 · " + i + ' 张图</span></div><div class="pfh-magic-queue">' + c + "</div>" + u + "</div></section></div>";
         }
         const a = Pa.magicUploadQueue || [], n = Boolean(Pa.magicUploadRunning), r = a.filter(e => "pending" === e.status || "error" === e.status).length, i = Array.isArray(Pa.magicUploadHistory) ? Pa.magicUploadHistory : [], o = Boolean(Pa.magicUploadHistoryOpen), s = a.reduce((e, t) => e + Mo(t), 0), l = a.reduce((e, t) => e + To(t), 0), c = a.filter(e => "processing" === e.status).length, u = a.filter(e => "waiting" === e.status).length, d = a.filter(e => "error" === e.status).length, p = a.filter(e => "success" === e.status).length, g = (a.filter(e => e && ("pending" === e.status || "processing" === e.status || "error" === e.status)),
         No()), f = a.filter(e => "processing" === e.status || "success" === e.status || "error" === e.status || "waiting" === e.status).slice(0, 3), m = a.length ? a.map(e => {
@@ -8424,14 +8424,14 @@
                 if (!a.length) return "新增任务";
                 const n = a.reduce((t, a) => t + (e.existingFileVersionIds && e.existingFileVersionIds[a] || []).length, 0), r = a.flatMap(t => (e.existingFiles && e.existingFiles[t] || []).map(e => e && e.name || "")).filter(Boolean), i = r.length ? "：" + r.slice(0, 2).join("、") + (r.length > 2 ? "…" : "") : "";
                 return "替换 " + a.join("、") + (n ? " · 现有 " + n + " 个文件" : "") + i;
-            }(e), c = Po(e), u = "success" === e.status ? "已完成" : c ? "约 " + Ao(c) : n ? "正在建立估算" : "--", d = Mo(e), p = Gw(e.sku) || (Pa.index || []).find(t => t && t.sku === e.sku) || {}, g = [ e.brand || p.brand, e.name || p.name, e.sku ].map(e => String(e || "").trim()).filter(Boolean).join(" ") || e.sku || "待确认 SKU", f = function(e) {
+            }(e), c = Po(e), u = "success" === e.status ? "已完成" : c ? "约 " + Ao(c) : n ? "正在建立估算" : "--", d = Mo(e), p = Ww(e.sku) || (Pa.index || []).find(t => t && t.sku === e.sku) || {}, g = [ e.brand || p.brand, e.name || p.name, e.sku ].map(e => String(e || "").trim()).filter(Boolean).join(" ") || e.sku || "待确认 SKU", f = function(e) {
                 const t = new Map;
                 return (Array.isArray(e && e.files) ? e.files : []).forEach(e => {
                     const a = String(e && e.category || "待确认");
                     t.set(a, (t.get(a) || 0) + 1);
                 }), ve.filter(e => t.has(e)).map(e => (xe[e] || e) + t.get(e)).concat(Array.from(t.keys()).filter(e => !ve.includes(e)).map(e => e + t.get(e))).join(" · ");
             }(e) || (d ? d + "个文件" : "待确认");
-            return '<article class="pfh-magic-task pfh-magic-package-task ' + (o.length ? "is-replace " : "") + a + '" data-magic-id="' + pk(e.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-package-title-text" title="' + pk(g) + '">' + pk(g) + "</span>" + s + '</div><div class="pfh-magic-task-meta"><span class="pfh-magic-package-summary" title="' + pk(f) + '">' + pk(f) + '</span><span class="pfh-magic-stage" data-magic-stage>' + pk(l) + '</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + t + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + pk(e.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + t + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + pk(u) + '</span><span class="pfh-magic-status ' + a + '" title="' + pk(r) + '">' + pk(r) + "</span></div></div></article>";
+            return '<article class="pfh-magic-task pfh-magic-package-task ' + (o.length ? "is-replace " : "") + a + '" data-magic-id="' + gk(e.id) + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-package-title-text" title="' + gk(g) + '">' + gk(g) + "</span>" + s + '</div><div class="pfh-magic-task-meta"><span class="pfh-magic-package-summary" title="' + gk(f) + '">' + gk(f) + '</span><span class="pfh-magic-stage" data-magic-stage>' + gk(l) + '</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" data-magic-progress-bar style="width:' + t + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="magic-upload-remove" data-magic-id="' + gk(e.id) + '">删除</button><strong class="pfh-magic-progress-value" data-magic-progress-value>' + t + '%</strong><span class="pfh-magic-eta" data-magic-eta>' + gk(u) + '</span><span class="pfh-magic-status ' + a + '" title="' + gk(r) + '">' + gk(r) + "</span></div></div></article>";
         }).join("") : '<div class="pfh-magic-empty">拖入 ZIP 图包或 XLSX，极光队列会在这里生成商品任务</div>', h = o ? '<div class="pfh-magic-history-modal" data-action="magic-upload-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="魔法上传历史"><header><span>' + ht("history") + " 上传历史 · " + i.length + ' 条</span><button type="button" data-action="magic-upload-history-close">×</button></header><div class="pfh-magic-history-list">' + (i.length ? i.slice(0, 40).map(e => {
             const t = e.sourceName || "未命名来源", a = function(e, t) {
                 const a = String(e || "");
@@ -8441,16 +8441,16 @@
                 const r = Math.ceil(.6 * n), i = n - r - 1;
                 return a.slice(0, r) + "…" + a.slice(-i);
             }(t, 30);
-            return '<div class="pfh-magic-history-item"><div><strong>' + pk(e.sku || "待确认 SKU") + " · " + pk("success" === e.status ? "成功" : "waiting" === e.status ? "已暂停" : "失败") + '</strong><span><span class="pfh-magic-history-source" title="' + pk(t) + '">' + pk(a) + "</span> · " + Number(e.successCount || 0) + "/" + Number(e.fileCount || 0) + " 文件 · " + pk(e.finishedAt ? new Date(e.finishedAt).toLocaleString() : "未完成") + "</span></div>" + ("success" === e.status ? "" : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + pk(e.id) + '">' + ht("refresh") + "恢复</button>") + "</div>";
-        }).join("") : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + "</div></section></div>" : "", y = f.length ? f.map(e => "<p><i></i><span>" + pk((e.sku || "待确认 SKU") + " · " + ts(e)) + "</span></p>").join("") : "<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>";
+            return '<div class="pfh-magic-history-item"><div><strong>' + gk(e.sku || "待确认 SKU") + " · " + gk("success" === e.status ? "成功" : "waiting" === e.status ? "已暂停" : "失败") + '</strong><span><span class="pfh-magic-history-source" title="' + gk(t) + '">' + gk(a) + "</span> · " + Number(e.successCount || 0) + "/" + Number(e.fileCount || 0) + " 文件 · " + gk(e.finishedAt ? new Date(e.finishedAt).toLocaleString() : "未完成") + "</span></div>" + ("success" === e.status ? "" : '<button type="button" data-action="magic-upload-history-retry" data-magic-history-id="' + gk(e.id) + '">' + ht("refresh") + "恢复</button>") + "</div>";
+        }).join("") : '<div class="pfh-magic-history-empty">还没有上传历史</div>') + "</div></section></div>" : "", y = f.length ? f.map(e => "<p><i></i><span>" + gk((e.sku || "待确认 SKU") + " · " + ts(e)) + "</span></p>").join("") : "<p><i></i><span>等待 ZIP 或 XLSX 进入队列</span></p>";
         return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + ht("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div>' + t + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(c).padStart(2, "0") + '</strong></div><div class="pfh-magic-stat"><span>已完成文件</span><strong>' + l + "/" + s + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + u + "/" + d + '</strong></div><div class="pfh-magic-stat"><span>已提审商品</span><strong>' + p + '</strong></div><div class="pfh-magic-stat"><span>预计剩余</span><strong data-magic-overall-eta>' + (g ? Ao(g) : n && r ? "正在建立估算" : "--") + '</strong></div></div><div class="pfh-magic-queue-progress"><div class="pfh-magic-queue-progress-track"><div class="pfh-magic-queue-progress-bar" data-magic-queue-progress-bar style="width:0%"></div></div><span data-magic-queue-progress-text>0/' + s + ' 文件</span></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + y + '</div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic" tabindex="0" role="button" aria-label="拖入 ZIP 图包或 XLSX，悬浮后可按 Ctrl+V 粘贴"><div><span class="pfh-magic-drop-icon">' + ht("upload") + '</span><strong>拖入 ZIP 或 XLSX</strong><span>悬浮此框后按 Ctrl+V，可直接粘贴文件 · ZIP 单文件 150MB · 自动识别 SKU · 原包保留到图包素材</span></div></div><input class="pfh-upload-file pfh-magic-upload-file" data-upload-kind="magic" type="file" multiple accept=".zip,.xlsx,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-upload-start"' + (n || !r ? " disabled" : "") + ">" + ht("upload") + '开始上传</button><button type="button" data-action="magic-upload-pause"' + (n ? "" : " disabled") + ">" + ht(n ? "pause" : "play") + (n ? "暂停" : "继续") + '</button><button type="button" data-action="magic-upload-clear"' + (a.length ? "" : " disabled") + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-upload-history-toggle">' + ht("history") + '上传历史</button></div><div class="pfh-magic-queue-head"><b>上传队列</b><span>' + a.length + " 个商品 · " + s + ' 个文件</span></div><div class="pfh-magic-queue">' + m + "</div>" + h + "</div></section></div>";
     }
     function cs(e, t) {
         const a = new Set((t || []).flatMap(e => [ e.zipKey ].concat((e.files || []).map(e => e.key))).filter(Boolean));
-        [ e.zipKey ].concat((e.files || []).map(e => e.key)).filter(e => e && !a.has(e)).forEach(e => Rw(e).catch(() => {}));
+        [ e.zipKey ].concat((e.files || []).map(e => e.key)).filter(e => e && !a.has(e)).forEach(e => jw(e).catch(() => {}));
     }
     function us(e) {
-        if (we) return void Fb("请先刷新 PLM 页面，再重试魔法上传");
+        if (we) return void Bb("请先刷新 PLM 页面，再重试魔法上传");
         const t = (Pa.magicUploadQueue || []).find(t => t.id === e);
         if (t && (t.status = t.files.some(e => "待确认" === e.category) ? "waiting" : "pending",
         t.error = "", t.step = "waiting" === t.status ? "请确认文件分类" : "等待上传", t.submitted = !1,
@@ -8471,14 +8471,14 @@
         return /\b401\b/.test(String(e && e.message || e || ""));
     }
     function ps(e) {
-        const t = _b(e);
+        const t = Ub(e);
         return /请刷新 PLM 页面后重试/.test(t) ? t : t + " | 请刷新 PLM 页面后重试";
     }
     function gs() {
         if (fe) return fe;
         if (Pa.magicUploadRunning) return Promise.resolve();
-        if (!Pa.magicUploadAccessEnabled) return Fb("魔法上传暂未开放"), Promise.resolve();
-        if (we) return Fb("PLM 登录态可能已失效，请刷新 PLM 页面后再重试"), Promise.resolve();
+        if (!Pa.magicUploadAccessEnabled) return Bb("魔法上传暂未开放"), Promise.resolve();
+        if (we) return Bb("PLM 登录态可能已失效，请刷新 PLM 页面后再重试"), Promise.resolve();
         we = !1, Pa.magicUploadRunning = !0, Pa.magicUploadEtaDisplaySeconds = 0, he || (he = window.setInterval(Do, 1e3));
         const e = new Set;
         let t;
@@ -8499,16 +8499,16 @@
                             t.currentFileName = "", t.currentFileProgress = 0, t.finishedAt = Date.now(), t.updatedAt = Date.now(),
                             zo(t);
                         } catch (e) {
-                            const a = _b(e);
+                            const a = Ub(e);
                             if (ds(e)) {
                                 const a = !we;
                                 we = !0, Pa.magicUploadRunning = !1, t.status = "waiting", t.error = ps(e), t.step = "已暂停：请刷新 PLM 页面后重试",
-                                t.updatedAt = Date.now(), a && (Bb("warn", "魔法上传鉴权失败，队列已暂停", t.sku + " | " + t.error),
-                                Fb("PLM 登录态已失效，魔法上传队列已暂停，请刷新页面后重试"));
+                                t.updatedAt = Date.now(), a && (zb("warn", "魔法上传鉴权失败，队列已暂停", t.sku + " | " + t.error),
+                                Bb("PLM 登录态已失效，魔法上传队列已暂停，请刷新页面后重试"));
                             } else we ? (t.status = t.files.some(e => "待确认" === e.category) ? "waiting" : "pending",
                             t.error = "队列因 HTTP 401 暂停，请刷新 PLM 页面后重试", t.step = "已暂停：请刷新 PLM 页面后重试", t.updatedAt = Date.now()) : !Pa.magicUploadRunning && /已暂停/.test(a) ? (t.status = t.files.some(e => "待确认" === e.category) ? "waiting" : "pending",
                             t.error = "", t.step = "waiting" === t.status ? "请确认文件分类" : "已暂停，点击开始继续", t.updatedAt = Date.now()) : (t.status = "error",
-                            t.error = a, t.step = "上传失败", t.updatedAt = Date.now(), Bb("warn", "魔法上传任务失败", t.sku + " | " + t.error));
+                            t.error = a, t.step = "上传失败", t.updatedAt = Date.now(), zb("warn", "魔法上传任务失败", t.sku + " | " + t.error));
                             t.finishedAt = Date.now(), zo(t);
                         }
                         mo(Pa.magicUploadQueue), "magicUpload" === Pa.view && zi();
@@ -8517,7 +8517,7 @@
                 await Promise.all(t);
             } finally {
                 Pa.magicUploadRunning = !1, Pa.magicUploadEtaDisplaySeconds = 0, he && (window.clearInterval(he),
-                he = 0), mo(Pa.magicUploadQueue), "magicUpload" === Pa.view && zi(), Fb(we ? "魔法上传队列已暂停，请刷新 PLM 页面后重试" : "魔法上传队列已停止");
+                he = 0), mo(Pa.magicUploadQueue), "magicUpload" === Pa.view && zi(), Bb(we ? "魔法上传队列已暂停，请刷新 PLM 页面后重试" : "魔法上传队列已停止");
             }
         })().finally(() => {
             fe === t && (fe = null);
@@ -8527,7 +8527,7 @@
         return Boolean(Pa.magicUploadAccessEnabled);
     }
     function ms() {
-        Pa.magicUploadAccessLoading ? (Fb("正在检查 API 权限，请稍后再试"), Hb(0)) : Fb("当前账号没有 API 上传权限，普通图包表格仍可使用");
+        Pa.magicUploadAccessLoading ? (Bb("正在检查 API 权限，请稍后再试"), Vb(0)) : Bb("当前账号没有 API 上传权限，普通图包表格仍可使用");
     }
     function hs() {
         if (!Pa.magicToyLabelRunning) throw new Error("已暂停");
@@ -8580,7 +8580,7 @@
                 toyLabelProductImageUrl: t.imageUrl,
                 toyLabelProductImageFallbackUrl: t.imageFallbackUrl || t.imageUrl
             }), n = await Pm(t.imageUrl, t.imageFallbackUrl || t.imageUrl).catch(e => {
-                throw new Error("产品图读取失败：" + _b(e));
+                throw new Error("产品图读取失败：" + Ub(e));
             });
             if (!n || !n.dataUrl) throw new Error("产品图为空，已停止生成");
             const r = {
@@ -8714,12 +8714,12 @@
         if (!a) throw new Error("缺少 SKU 编码");
         t && t.allowPaused || hs();
         let n = bn({
-            ...Gw(a) || (Pa.index || []).find(e => e && e.sku === a) || {},
+            ...Ww(a) || (Pa.index || []).find(e => e && e.sku === a) || {},
             sku: a
         });
         const r = await Jn(n, {
             force: !0
-        }).catch(e => (Vo("info", "玩具标签项目查询失败，继续使用缓存项目", a + " | " + _b(e)), null)), i = Mn(n) || String(r && r.projectId || "").trim();
+        }).catch(e => (Vo("info", "玩具标签项目查询失败，继续使用缓存项目", a + " | " + Ub(e)), null)), i = Mn(n) || String(r && r.projectId || "").trim();
         if (!i || !/^\d+$/.test(i)) throw new Error("未找到 " + a + " 对应的项目 ID");
         return n = bn({
             ...n,
@@ -8763,7 +8763,7 @@
             "processing" !== e.status && "success" !== e.status && (e.step = ss(e)), e.updatedAt = Date.now(),
             a = !0, Promise.resolve().then(() => vs(e, t)).catch(a => {
                 const n = (Pa.magicToyLabelQueue || []).find(t => t && t.id === e.id);
-                n && n.replacementCheckToken === t && (n.replacementCheckStatus = "error", n.replacementCheckError = _b(a),
+                n && n.replacementCheckToken === t && (n.replacementCheckStatus = "error", n.replacementCheckError = Ub(a),
                 n.step = "现有图检查失败，开始时会重新查询", n.updatedAt = Date.now(), bo(Pa.magicToyLabelQueue),
                 So(), Vo("warn", "玩具标签现有图检查失败", e.sku + " | " + n.replacementCheckError));
             });
@@ -8791,7 +8791,7 @@
     }
     function Is(e, t) {
         const a = String(e || "").trim(), n = String(t || "").trim().toUpperCase();
-        return Boolean(a && n && new RegExp("(?:^|[^A-Z0-9])" + uk(n) + "(?:[^A-Z0-9]|$)", "i").test(a));
+        return Boolean(a && n && new RegExp("(?:^|[^A-Z0-9])" + dk(n) + "(?:[^A-Z0-9]|$)", "i").test(a));
     }
     function Ms(e) {
         return Array.isArray(e) ? e.map(e => Ms(e)) : e && "object" == typeof e ? Object.keys(e).reduce((t, a) => (t[a] = Ms(e[a]),
@@ -8831,8 +8831,8 @@
     function Ps(e, t) {
         const a = Ie[t] || "", n = e.find(e => String(e && e.variable_name || "") === a);
         if (n) return n;
-        const r = e.find(e => sk(e && e.attr_name) === sk(t));
-        return r || (e.find(e => sk(e && e.attr_name).includes(sk(t))) || null);
+        const r = e.find(e => lk(e && e.attr_name) === lk(t));
+        return r || (e.find(e => lk(e && e.attr_name).includes(lk(t))) || null);
     }
     function Ls(e) {
         return e && e.data && "object" == typeof e.data && !Array.isArray(e.data) ? e.data : {};
@@ -8913,7 +8913,7 @@
     }
     async function Us(e) {
         if (!e.sku) throw new Error("缺少 SKU 编码，请先编辑任务");
-        const t = Mn(bn(Gw(e.sku) || {})), a = await As(e), n = (e.files || []).filter(t => "success" === t.status && (!t.fileVersionId || t.generatedName && !Is(t.generatedName, e.sku)));
+        const t = Mn(bn(Ww(e.sku) || {})), a = await As(e), n = (e.files || []).filter(t => "success" === t.status && (!t.fileVersionId || t.generatedName && !Is(t.generatedName, e.sku)));
         n.length && (n.forEach(e => {
             e.status = "pending", e.error = "历史文件名与目标 SKU 不一致，已准备重新上传", e.generatedName = "",
             e.fileVersionId = "", e.fileId = "";
@@ -8928,14 +8928,14 @@
             let t = 0, a = 0;
             for (const n of e.files || []) {
                 if (!n.size) {
-                    const e = await Bw(n.key);
+                    const e = await zw(n.key);
                     e && (n.size = Number(e.size) || 0);
                 }
                 t += Number(n.size) || 0, "success" === n.status && (a += Number(n.size) || 0);
             }
             if (e.zipKey) {
                 if (!e.sourceSize) {
-                    const t = await Bw(e.zipKey);
+                    const t = await zw(e.zipKey);
                     t && (e.sourceSize = Number(t.size) || 0);
                 }
                 t += Number(e.sourceSize) || 0, e.sourceUploaded && (a += Number(e.sourceSize) || 0);
@@ -8952,19 +8952,19 @@
             e.step = "上传文件 " + (o + 1) + "/" + i, e.currentFileName = n.name, e.currentFileSize = Number(n.size) || 0,
             e.currentFileProgress = 0, n.status = "processing", mo(Pa.magicUploadQueue), Bo(e);
             try {
-                const t = await Bw(n.key);
+                const t = await zw(n.key);
                 if (!t) throw new Error("本地文件已丢失：" + n.name);
                 await Bs(e, n, t, a), n.status = "success", n.error = "", e.uploadedBytes = (Number(e.uploadedBytes) || 0) + Math.max(0, Number(n.size) || 0),
                 o += 1, e.currentFileName = "", e.currentFileSize = 0, e.currentFileProgress = 0,
                 Bo(e);
             } catch (e) {
-                throw n.status = "error", n.error = _b(e), e;
+                throw n.status = "error", n.error = Ub(e), e;
             }
         }
         if (!Pa.magicUploadRunning) throw new Error("已暂停");
         if (e.zipKey && !e.sourceUploaded) {
             e.step = "上传原始 ZIP（" + (o + 1) + "/" + i + "）";
-            const t = await Bw(e.zipKey);
+            const t = await zw(e.zipKey);
             if (t) {
                 const n = {
                     name: e.zipName,
@@ -9004,7 +9004,7 @@
                 const a = t || await As(e);
                 Vo("info", "调用提审接口", e.sku + " | product_id=" + a.productId), await br("/api/Product/Arraign", {
                     product_id: Number(a.productId) || a.productId
-                }), Bb("success", "魔法上传并提审成功", e.sku + " | product_id=" + a.productId);
+                }), zb("success", "魔法上传并提审成功", e.sku + " | product_id=" + a.productId);
             }(e, a), e.submitted = !0;
         }
     }
@@ -9080,7 +9080,7 @@
                     progress: e => o.listeners.forEach(t => t(e))
                 }, (e, n, r, i) => {
                     const o = i && Array.isArray(i.doneParts) ? i.doneParts.length : 0;
-                    Vo("warn", "OSS 分片上传失败，自动重试", (t.name || a.name) + " | 第" + n + "/4次 | " + Math.round(r / 1e3) + "秒后继续 | 已完成分片=" + o + " | " + _b(e));
+                    Vo("warn", "OSS 分片上传失败，自动重试", (t.name || a.name) + " | 第" + n + "/4次 | " + Math.round(r / 1e3) + "秒后继续 | 已完成分片=" + o + " | " + Ub(e));
                 });
                 const g = t.name || a.name;
                 return await br("/api/Common/SaveUploadFileInfo", {
@@ -9146,7 +9146,7 @@
     function js(e) {
         const t = au(e).slice(0, 8);
         if (!t.length) return "";
-        return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><button type="button" data-action="sku-changes-ack">已核对</button></div><div class="pfh-data-change-list">' + t.map(e => '<div class="pfh-data-change-item"><span>' + pk(e.label) + '</span><div class="pfh-data-change-values"><del>' + pk(e.before || "未识别") + "</del><i>→</i><ins>" + pk(e.after || "已清空") + "</ins></div></div>").join("") + "</div></div>";
+        return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><button type="button" data-action="sku-changes-ack">已核对</button></div><div class="pfh-data-change-list">' + t.map(e => '<div class="pfh-data-change-item"><span>' + gk(e.label) + '</span><div class="pfh-data-change-values"><del>' + gk(e.before || "未识别") + "</del><i>→</i><ins>" + gk(e.after || "已清空") + "</ins></div></div>").join("") + "</div></div>";
     }
     function Os(e) {
         const t = Zr(e && e.materialDimensionUnitIssues, e), a = function(e) {
@@ -9161,14 +9161,14 @@
             text: "标签尺寸直接离谱，cm 打成 m，标签大到能当海报，赶紧揪开发" + a + "改尺寸。",
             focusKey: "printSizeText"
         }), !n.length) return "";
-        const r = n[0].focusKey, i = n.map(e => '<div class="pfh-material-unit-item"><b>' + pk(e.label) + "</b><span>" + pk(e.text) + "</span></div>").join("");
-        return '<div class="pfh-material-unit-alert" role="alert"><div class="pfh-material-unit-head"><strong>发现尺寸单位异常</strong><button type="button" data-action="sku-edit-open" data-focus-key="' + pk(r) + '">点击纠错</button></div><div class="pfh-material-unit-list">' + i + "</div></div>";
+        const r = n[0].focusKey, i = n.map(e => '<div class="pfh-material-unit-item"><b>' + gk(e.label) + "</b><span>" + gk(e.text) + "</span></div>").join("");
+        return '<div class="pfh-material-unit-alert" role="alert"><div class="pfh-material-unit-head"><strong>发现尺寸单位异常</strong><button type="button" data-action="sku-edit-open" data-focus-key="' + gk(r) + '">点击纠错</button></div><div class="pfh-material-unit-list">' + i + "</div></div>";
     }
     function qs() {
         const e = Pa.apiReadStatus || {};
         if (!e.sku || e.sku !== String(Pa.selectedSku || Pa.data && Pa.data.sku || "") || "idle" === e.phase) return "";
         const t = "error" === e.phase ? "error" : "success" === e.phase ? "success" : "loading";
-        return '<span class="pfh-api-status is-' + t + '" role="status" aria-live="polite">' + ("loading" === t ? '<i class="pfh-api-spinner" aria-hidden="true"></i>' : '<span class="pfh-api-status-icon" aria-hidden="true">' + ("error" === t ? "!" : "✓") + "</span>") + "<span>" + pk(e.message || "正在读取 PLM 数据") + "</span></span>";
+        return '<span class="pfh-api-status is-' + t + '" role="status" aria-live="polite">' + ("loading" === t ? '<i class="pfh-api-spinner" aria-hidden="true"></i>' : '<span class="pfh-api-status-icon" aria-hidden="true">' + ("error" === t ? "!" : "✓") + "</span>") + "<span>" + gk(e.message || "正在读取 PLM 数据") + "</span></span>";
     }
     function $s() {
         const t = document.getElementById(e), a = t && t.querySelector(".pfh-note");
@@ -9198,25 +9198,25 @@
     }
     function Ks(e, t, a) {
         const n = function(e, t) {
-            return Ww(e, t, {
+            return Qw(e, t, {
                 changeSource: "PLM 接口"
             }).map(e => e.label).filter((e, t, a) => e && a.indexOf(e) === t);
-        }(t, a), r = String(e || "") + "|" + n.join("、") + "|" + [ "packageCode", "printCode", "packageSizeText", "printSizeText", "netContent", "grossWeight" ].map(e => sk(a && a[e])).join("|");
+        }(t, a), r = String(e || "") + "|" + n.join("、") + "|" + [ "packageCode", "printCode", "packageSizeText", "printSizeText", "netContent", "grossWeight" ].map(e => lk(a && a[e])).join("|");
         if (Pa.apiLastNoticeKey === r && Date.now() - Pa.apiLastNoticeAt < 5e3) return n;
         if (Pa.apiLastNoticeKey = r, Pa.apiLastNoticeAt = Date.now(), n.length) {
             const t = n.length > 4 ? "等" : "";
-            Fb("PLM 已更新 " + e + "：" + n.slice(0, 4).join("、") + t);
-        } else Fb("PLM 已读取 " + e + "，历史数据无变化", {
+            Bb("PLM 已更新 " + e + "：" + n.slice(0, 4).join("、") + t);
+        } else Bb("PLM 已读取 " + e + "，历史数据无变化", {
             quiet: !0
         });
         return n;
     }
     function Gs(e, t) {
         if (t) return function(e) {
-            const t = String(e && e.sku || xa.sku), a = Vw(e), n = a ? '<span class="pfh-parameter-hero-thumb"><img src="' + pk(a) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + pk(t) + "</span>", r = t + " 文案", i = [ e && e.brand, e && e.name ].filter(Boolean).join(" ") || xa.noDrawer;
-            return '<section class="pfh-section pfh-file-section pfh-copywriting-hero-section"><header class="pfh-parameter-hero pfh-copywriting-parameter-hero">' + n + '<div class="pfh-parameter-hero-copy"><small>COPYWRITING</small><h3>' + pk(r) + "</h3><p>" + pk(i) + "</p></div></header></section>";
+            const t = String(e && e.sku || xa.sku), a = Kw(e), n = a ? '<span class="pfh-parameter-hero-thumb"><img src="' + gk(a) + '" alt=""></span>' : '<span class="pfh-parameter-hero-thumb is-empty">' + gk(t) + "</span>", r = t + " 文案", i = [ e && e.brand, e && e.name ].filter(Boolean).join(" ") || xa.noDrawer;
+            return '<section class="pfh-section pfh-file-section pfh-copywriting-hero-section"><header class="pfh-parameter-hero pfh-copywriting-parameter-hero">' + n + '<div class="pfh-parameter-hero-copy"><small>COPYWRITING</small><h3>' + gk(r) + "</h3><p>" + gk(i) + "</p></div></header></section>";
         }(e);
-        const a = String(e && e.sku || xa.sku), n = Pa.skuContextMenuSku === a, r = [ e && e.brand, e && e.name ].filter(Boolean).join(" ") || Ub(e) || xa.noDrawer, i = function(e) {
+        const a = String(e && e.sku || xa.sku), n = Pa.skuContextMenuSku === a, r = [ e && e.brand, e && e.name ].filter(Boolean).join(" ") || Db(e) || xa.noDrawer, i = function(e) {
             const t = yi(e || "").replace(/\s+/g, "");
             if (!t) return "";
             const a = t.match(/^(P\d+)[\-\uFF0D\u2013\u2014·•|/:：]?(.*)$/i);
@@ -9236,26 +9236,26 @@
                 a = t;
             }
             return a.length > 30 ? a.slice(0, 29) + "…" : a;
-        }(c), d = c ? /^https?:\/\//i.test(c) ? '<a class="pfh-detail-link-value" href="' + pk(c) + '" target="_blank" rel="noopener noreferrer" data-reference-url="' + pk(c) + '" title="左键打开链接；右键复制链接：' + pk(c) + '">' + ht("link") + '<span class="pfh-detail-link-text">' + pk(u) + "</span></a>" : '<span class="pfh-detail-link-value" data-reference-url="' + pk(c) + '" title="右键复制链接：' + pk(c) + '">' + ht("link") + '<span class="pfh-detail-link-text">' + pk(u) + "</span></span>" : "", p = '<div class="pfh-detail-card-meta">' + (i ? '<span class="is-priority' + o + '" title="' + pk(i) + '">' + ht("warning") + "<span>" + pk(i) + "</span></span>" : "") + '<span class="is-design-type" title="' + pk(s) + '">' + ht("tag") + "<span>" + pk(s) + "</span></span></div>", g = l || d ? '<div class="pfh-detail-card-info">' + (l ? '<span class="pfh-detail-developer-value" title="' + pk(l) + '">' + pk(l) + "</span>" : "") + d + "</div>" : "", f = '<div class="pfh-title-actions pfh-detail-card-actions"><button type="button" class="pfh-detail-view-button pfh-title-open-detail" data-action="open-detail"><span>查看详情</span><span aria-hidden="true">›</span></button><div class="pfh-detail-secondary-actions">' + (Pa.skuEditMode ? '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-detail-more-button" data-action="sku-edit-cancel" aria-label="取消编辑">取消</button>' : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + ht("edit") + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + pk(a) + '" aria-label="更多操作" aria-expanded="' + (n ? "true" : "false") + '"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') + "</div></div>";
-        return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card">' + Wc(e) + '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" data-action="copy-sku" title="点击复制 SKU">' + ht("tag") + "<span>" + pk(a) + '</span></span><strong class="pfh-detail-product-title" data-action="copy-title-meta" title="' + pk(xa.copyHint) + '">' + pk(r) + "</strong></div>" + p + g + "</div>" + f + "</div></div></section>";
+        }(c), d = c ? /^https?:\/\//i.test(c) ? '<a class="pfh-detail-link-value" href="' + gk(c) + '" target="_blank" rel="noopener noreferrer" data-reference-url="' + gk(c) + '" title="左键打开链接；右键复制链接：' + gk(c) + '">' + ht("link") + '<span class="pfh-detail-link-text">' + gk(u) + "</span></a>" : '<span class="pfh-detail-link-value" data-reference-url="' + gk(c) + '" title="右键复制链接：' + gk(c) + '">' + ht("link") + '<span class="pfh-detail-link-text">' + gk(u) + "</span></span>" : "", p = '<div class="pfh-detail-card-meta">' + (i ? '<span class="is-priority' + o + '" title="' + gk(i) + '">' + ht("warning") + "<span>" + gk(i) + "</span></span>" : "") + '<span class="is-design-type" title="' + gk(s) + '">' + ht("tag") + "<span>" + gk(s) + "</span></span></div>", g = l || d ? '<div class="pfh-detail-card-info">' + (l ? '<span class="pfh-detail-developer-value" title="' + gk(l) + '">' + gk(l) + "</span>" : "") + d + "</div>" : "", f = '<div class="pfh-title-actions pfh-detail-card-actions"><button type="button" class="pfh-detail-view-button pfh-title-open-detail" data-action="open-detail"><span>查看详情</span><span aria-hidden="true">›</span></button><div class="pfh-detail-secondary-actions">' + (Pa.skuEditMode ? '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail is-primary" data-action="sku-edit-save">保存校准</button><button type="button" class="pfh-detail-more-button" data-action="sku-edit-cancel" aria-label="取消编辑">取消</button>' : '<button type="button" class="pfh-detail-edit-button pfh-title-open-detail" data-action="sku-edit-open" title="编辑数据" aria-label="编辑数据">' + ht("edit") + '<span>编辑</span></button><button type="button" class="pfh-detail-more-button" data-action="sku-detail-more" data-sku="' + gk(a) + '" aria-label="更多操作" aria-expanded="' + (n ? "true" : "false") + '"><span class="pfh-detail-more-dots"><i></i><i></i><i></i></span></button>') + "</div></div>";
+        return '<section class="pfh-section pfh-file-section"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card">' + Wc(e) + '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" data-action="copy-sku" title="点击复制 SKU">' + ht("tag") + "<span>" + gk(a) + '</span></span><strong class="pfh-detail-product-title" data-action="copy-title-meta" title="' + gk(xa.copyHint) + '">' + gk(r) + "</strong></div>" + p + g + "</div>" + f + "</div></div></section>";
     }
     function Ws(e) {
         return Boolean(e && "directionsChinese" !== e.key);
     }
     function Qs(e) {
         const t = ld(e), a = "full" === Pa.copywritingView ? "full" : "file", n = '<div class="pfh-copywriting-toolbar"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式"><option value="file"' + ("file" === a ? " selected" : "") + '>文件视图</option><option value="full"' + ("full" === a ? " selected" : "") + '>全文视图</option></select></label><div class="pfh-copywriting-toolbar-actions"><button type="button" data-action="copywriting-refresh"' + (Pa.copywritingLoading || Pa.copywritingChecking ? " disabled" : "") + ">" + ht("refresh") + "重新获取</button>" + (t && t.fullText ? '<button type="button" data-action="copywriting-copy"><svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>复制全文</button>' : "") + "</div></div>";
-        if (Pa.copywritingLoading && (!t || !t.fullText)) return '<section class="pfh-copywriting-page is-loading">' + n + '<div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + pk(Pa.copywritingStatus || "正在定位产品信息里的 Word 附件...") + "</p></div></section>";
-        const r = Pa.copywritingError ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + pk(Pa.copywritingError) + "</span></div>" : "";
+        if (Pa.copywritingLoading && (!t || !t.fullText)) return '<section class="pfh-copywriting-page is-loading">' + n + '<div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + gk(Pa.copywritingStatus || "正在定位产品信息里的 Word 附件...") + "</p></div></section>";
+        const r = Pa.copywritingError ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + gk(Pa.copywritingError) + "</span></div>" : "";
         if (!t || !t.fullText) return '<section class="pfh-copywriting-page">' + r + n + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
-        const i = new Set(t.changedSectionKeys || []), o = t.sections.filter(Ws), s = t.updatePending ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + pk(function(e) {
+        const i = new Set(t.changedSectionKeys || []), o = t.sections.filter(Ws), s = t.updatePending ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + gk(function(e) {
             const t = (e.changedSectionKeys || []).length, a = e.removedSections || [], n = [];
             t && n.push(t + " 段有变化");
             a.length && n.push("删除：" + a.join("、"));
             return n.join("；") || "检测到新的产品文案文件";
         }(t)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>' : "";
-        return '<section class="pfh-copywriting-page">' + r + (Pa.copywritingChecking ? '<div class="pfh-copywriting-alert is-update"><strong>正在检查新文案</strong><span>' + pk(Pa.copywritingStatus || "已显示历史内容，正在读取新的文案文件...") + "</span></div>" : Pa.copywritingLoading ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + pk(Pa.copywritingStatus || "正在读取新的文案文件...") + "</span></div>" : "") + s + (t.missingSections && t.missingSections.length ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + pk(t.missingSections.join("、")) + "</span></div>" : "") + n + '<div class="pfh-copywriting-content is-' + a + '">' + ("full" === a ? '<div class="pfh-copywriting-full-card"><div class="pfh-copywriting-block-head"><span><b>全文</b><small>全部文案内容</small></span><button type="button" data-action="copywriting-copy"><svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>复制全文</button></div><pre>' + pk(t.fullText) + "</pre></div>" : o.map((e, t) => {
+        return '<section class="pfh-copywriting-page">' + r + (Pa.copywritingChecking ? '<div class="pfh-copywriting-alert is-update"><strong>正在检查新文案</strong><span>' + gk(Pa.copywritingStatus || "已显示历史内容，正在读取新的文案文件...") + "</span></div>" : Pa.copywritingLoading ? '<div class="pfh-copywriting-alert is-update"><strong>正在更新文案</strong><span>' + gk(Pa.copywritingStatus || "正在读取新的文案文件...") + "</span></div>" : "") + s + (t.missingSections && t.missingSections.length ? '<div class="pfh-copywriting-alert is-warning"><strong>部分字段缺失</strong><span>' + gk(t.missingSections.join("、")) + "</span></div>" : "") + n + '<div class="pfh-copywriting-content is-' + a + '">' + ("full" === a ? '<div class="pfh-copywriting-full-card"><div class="pfh-copywriting-block-head"><span><b>全文</b><small>全部文案内容</small></span><button type="button" data-action="copywriting-copy"><svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>复制全文</button></div><pre>' + gk(t.fullText) + "</pre></div>" : o.map((e, t) => {
             const a = "netContent" === e.key ? '<small class="pfh-copywriting-net-notice" style="display:block;margin-top:7px;color:#a06a20;font-size:10px;line-height:1.45;">仅供参考，请注意审查</small>' : "";
-            return '<div class="pfh-copywriting-block' + (i.has(e.key) ? " is-changed" : "") + '" data-copywriting-key="' + pk(e.key) + '"><div class="pfh-copywriting-block-head"><span><b>' + String(t + 1).padStart(2, "0") + "</b><strong>" + pk(e.label || e.key) + '</strong></span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + pk(e.key) + '"><svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>复制本段</button></div><pre>' + pk(e.text) + "</pre>" + a + "</div>";
+            return '<div class="pfh-copywriting-block' + (i.has(e.key) ? " is-changed" : "") + '" data-copywriting-key="' + gk(e.key) + '"><div class="pfh-copywriting-block-head"><span><b>' + String(t + 1).padStart(2, "0") + "</b><strong>" + gk(e.label || e.key) + '</strong></span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + gk(e.key) + '"><svg class="pfh-copywriting-copy-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>复制本段</button></div><pre>' + gk(e.text) + "</pre>" + a + "</div>";
         }).join("")) + "</div></section>";
     }
     function Js(e) {
@@ -9271,18 +9271,18 @@
     }
     function Xs(e) {
         if (!e) return !1;
-        const t = qb(e, null), a = [ e.plmCategory, e.productType, e.category, e.departmentName ].filter(Boolean).join(" ");
-        return "玩具" === t || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test($b(e) + " " + a);
+        const t = $b(e, null), a = [ e.plmCategory, e.productType, e.category, e.departmentName ].filter(Boolean).join(" ");
+        return "玩具" === t || /\u73a9\u5177|\u516c\u4ed4|\u73a9\u5076|\u634f\u634f|\u79ef\u6728|\u76f2\u76d2|\u53f2\u83b1\u59c6|\u89e3\u538b|\btoy\b|\bdoll\b/i.test(Hb(e) + " " + a);
     }
     function Zs(e) {
         if (!e || !/\u5165\u53e3/.test(String(e.name || ""))) return !1;
-        const t = Kb(e.manualCategory);
+        const t = Gb(e.manualCategory);
         if (t) return "食品" === t;
         const a = [ e.name, e.manualCategory, e.plmCategory, e.aiProductType, e.aiCategory, e.departmentName ].filter(Boolean).join(" ");
         return /\u98df\u54c1|\u4fdd\u5065|\u6ecb\u8865|\u81b3\u98df|\u8425\u517b|\u80f6\u56ca|\u8f6f\u7cd6|\u56fa\u4f53\u996e\u6599|\u7c89/i.test(a);
     }
     function Ys(e, t) {
-        const a = Pa.data && Pa.data.sku === t ? Pa.data : null, n = Gw(t), r = (Pa.index || []).find(e => e && e.sku === t) || null, i = function(e) {
+        const a = Pa.data && Pa.data.sku === t ? Pa.data : null, n = Ww(t), r = (Pa.index || []).find(e => e && e.sku === t) || null, i = function(e) {
             if (!e) return null;
             let t = [];
             try {
@@ -9310,7 +9310,7 @@
                 name: u(l),
                 plmCategory: u(s)
             };
-        }(t), o = [ a, n, r, i ].filter(Boolean), s = e => o.map(t => String(t[e] || "").trim()).find(Boolean) || "", l = yi(((e ? rk(e) : "").match(/\u5546\u54c1\u540d\u79f0\s*[:\uff1a]\s*([^\n]+)/) || [])[1] || "");
+        }(t), o = [ a, n, r, i ].filter(Boolean), s = e => o.map(t => String(t[e] || "").trim()).find(Boolean) || "", l = yi(((e ? ik(e) : "").match(/\u5546\u54c1\u540d\u79f0\s*[:\uff1a]\s*([^\n]+)/) || [])[1] || "");
         return bn({
             ...i || {},
             ...r || {},
@@ -9326,7 +9326,7 @@
         if (!e || !t || !t.sku) return;
         const a = function(e) {
             return Zs(e) ? "智能补充食品文案" : "智能补充玩具文案";
-        }(t), n = Boolean(Pa.pageToyCopywritingBusy && Pa.pageToyCopywritingSku === t.sku || Pa.toyCopywritingBusy && Pa.selectedSku === t.sku), r = Boolean(Pa.toyCopywritingErrorSku === t.sku && Pa.toyCopywritingError), i = n ? '<span class="pfh-page-toy-copywriting-spinner" aria-hidden="true"></span><span>智能补充中</span>' : r ? '<span aria-hidden="true">⚠</span><span>' + pk(a + "失败") + "</span>" : '<span aria-hidden="true">✦</span><span>' + pk(a) + "</span>";
+        }(t), n = Boolean(Pa.pageToyCopywritingBusy && Pa.pageToyCopywritingSku === t.sku || Pa.toyCopywritingBusy && Pa.selectedSku === t.sku), r = Boolean(Pa.toyCopywritingErrorSku === t.sku && Pa.toyCopywritingError), i = n ? '<span class="pfh-page-toy-copywriting-spinner" aria-hidden="true"></span><span>智能补充中</span>' : r ? '<span aria-hidden="true">⚠</span><span>' + gk(a + "失败") + "</span>" : '<span aria-hidden="true">✦</span><span>' + gk(a) + "</span>";
         e.innerHTML !== i && (e.innerHTML = i), e.disabled = n, e.classList.toggle("is-busy", n),
         e.classList.toggle("is-error", !n && r), e.setAttribute("aria-busy", n ? "true" : "false"),
         e.setAttribute("aria-label", n ? "智能补充中" : a), e.title = n ? "正在整理文案" : a;
@@ -9339,12 +9339,12 @@
         null;
         const e = cl("");
         if (!e) return tl(), null;
-        const t = sn(e) || hi(rk(e)), a = Ys(e, t), n = Xs(a), r = Zs(a), i = function(e) {
+        const t = sn(e) || hi(ik(e)), a = Ys(e, t), n = Xs(a), r = Zs(a), i = function(e) {
             if (!e) return null;
-            const t = Array.from(e.querySelectorAll(".ant-form-item-label label")).filter(ck), a = t.find(e => {
+            const t = Array.from(e.querySelectorAll(".ant-form-item-label label")).filter(uk), a = t.find(e => {
                 const t = Array.from(e.children).find(e => "SPAN" === e.tagName && !e.classList.contains("aiBox"));
-                return "主图" === sk(t ? t.textContent : e.textContent).replace(/[*\uff1a:]/g, "") && e.querySelector(".aiBox");
-            }) || t.find(e => /^\u4e3b\u56fe/.test(sk(e.textContent)) && e.querySelector(".aiBox"));
+                return "主图" === lk(t ? t.textContent : e.textContent).replace(/[*\uff1a:]/g, "") && e.querySelector(".aiBox");
+            }) || t.find(e => /^\u4e3b\u56fe/.test(lk(e.textContent)) && e.querySelector(".aiBox"));
             return a ? {
                 label: a,
                 aiBox: a.querySelector(".aiBox")
@@ -9366,7 +9366,7 @@
     }
     function rl(e) {
         if (!e || !e.sku || Pa.toyCopywritingErrorSku !== e.sku || !Pa.toyCopywritingError) return "";
-        return '<div class="pfh-toy-copywriting-feedback is-error" role="alert"><span><strong>' + (Zs(e) ? "食品文案补充失败" : "成分补充失败") + "</strong><b>" + pk(Pa.toyCopywritingError) + '</b></span><button type="button" data-action="open-detail">打开当前详情</button></div>';
+        return '<div class="pfh-toy-copywriting-feedback is-error" role="alert"><span><strong>' + (Zs(e) ? "食品文案补充失败" : "成分补充失败") + "</strong><b>" + gk(Pa.toyCopywritingError) + '</b></span><button type="button" data-action="open-detail">打开当前详情</button></div>';
     }
     function il(e, t, a) {
         Pa.toyCopywritingErrorSku = String(e || ""), Pa.toyCopywritingError = String(t || "").trim(),
@@ -9403,22 +9403,22 @@
         }(t);
         if (!e || !a) return null;
         if (a.group) {
-            const t = Array.from(e.querySelectorAll('textarea[id*="_attr_group_' + a.group + '_"][id$="_value"], input[id*="_attr_group_' + a.group + '_"][id$="_value"]')).filter(ck)[0];
+            const t = Array.from(e.querySelectorAll('textarea[id*="_attr_group_' + a.group + '_"][id$="_value"], input[id*="_attr_group_' + a.group + '_"][id$="_value"]')).filter(uk)[0];
             if (t) return t;
         }
-        const n = Array.from(e.querySelectorAll(".ant-form-item")).filter(ck).find(e => {
-            const t = e.querySelector(".ant-form-item-label, label"), n = sk(t && (t.innerText || t.textContent)).replace(/[\uff1a:*]/g, "").replace(/\s+/g, " ");
+        const n = Array.from(e.querySelectorAll(".ant-form-item")).filter(uk).find(e => {
+            const t = e.querySelector(".ant-form-item-label, label"), n = lk(t && (t.innerText || t.textContent)).replace(/[\uff1a:*]/g, "").replace(/\s+/g, " ");
             return a.labels.test(n);
         });
-        return n && Array.from(n.querySelectorAll("textarea, input")).filter(ck)[0] || null;
+        return n && Array.from(n.querySelectorAll("textarea, input")).filter(uk)[0] || null;
     }
     function ll(e) {
-        const t = Array.from(e && e.querySelectorAll('[role="tab"], .ant-tabs-tab') || []).filter(ck).filter(e => /^(?:\u4e2d\u6587-\u7b80\u4f53|\u82f1\u8bed\(\u7f8e\u56fd\))$/.test(sk(e.textContent))).find(Si);
-        return t ? sk(t.textContent) : "";
+        const t = Array.from(e && e.querySelectorAll('[role="tab"], .ant-tabs-tab') || []).filter(uk).filter(e => /^(?:\u4e2d\u6587-\u7b80\u4f53|\u82f1\u8bed\(\u7f8e\u56fd\))$/.test(lk(e.textContent))).find(Si);
+        return t ? lk(t.textContent) : "";
     }
     function cl(e) {
-        const t = Array.from(document.querySelectorAll(".pdmDetailDrawer, .ant-drawer-open, .ant-drawer")).filter(ck).filter(t => {
-            const a = rk(t);
+        const t = Array.from(document.querySelectorAll(".pdmDetailDrawer, .ant-drawer-open, .ant-drawer")).filter(uk).filter(t => {
+            const a = ik(t);
             return (!e || a.includes(e)) && a.includes("中文-简体") && a.includes("英语(美国)") && a.includes("保存草稿") && (a.includes("推品资料") || pl(t));
         });
         return t[t.length - 1] || null;
@@ -9445,7 +9445,7 @@
         if (pl(e)) return e;
         const a = function(e) {
             if (!e) return null;
-            const t = Array.from(e.querySelectorAll("button")).filter(ck).filter(sg).filter(e => "下一步" === sk(e.innerText || e.textContent));
+            const t = Array.from(e.querySelectorAll("button")).filter(uk).filter(sg).filter(e => "下一步" === lk(e.innerText || e.textContent));
             return 1 === t.length ? t[0] : null;
         }(e);
         if (!a) throw new Error("编辑抽屉未进入文案页，且未找到唯一可用的「下一步」");
@@ -9487,20 +9487,20 @@
         const a = () => {
             t.fromPage || zi();
         }, n = bn(t.data || Pa.data || {}), r = Xs(n), i = Zs(n), o = !r && !i;
-        if (!n.sku) return Fb("未找到当前 SKU"), 0;
+        if (!n.sku) return Bb("未找到当前 SKU"), 0;
         if (i) {
-            const e = bn(Gw(n.sku) || n);
+            const e = bn(Ww(n.sku) || n);
             if (!e.ingredientChinese || !e.ingredientEnglish) {
                 const e = "未找到完整的成分表缓存。请先打开当前 SKU 的「产品信息」，等待成分表读取完成后再试。";
-                return il(n.sku, e, "ingredient-cache"), Bb("warn", "食品文案智能补充缺少成分表缓存", n.sku), a(),
-                Fb("食品文案补充失败：" + e), 0;
+                return il(n.sku, e, "ingredient-cache"), zb("warn", "食品文案智能补充缺少成分表缓存", n.sku), a(),
+                Bb("食品文案补充失败：" + e), 0;
             }
         }
         ol(n.sku);
         const s = cl(n.sku);
         if (!s) {
             const e = "请先打开当前 SKU 的 PLM 详情";
-            return r || (il(n.sku, e, i ? "detail" : "ingredient-detail"), a()), Fb(e), 0;
+            return r || (il(n.sku, e, i ? "detail" : "ingredient-detail"), a()), Bb(e), 0;
         }
         Pa.toyCopywritingBusy = !0, a();
         const l = ll(s) || "中文-简体";
@@ -9515,7 +9515,7 @@
                 await ul(t, "英语(美国)");
                 const r = dl(t), i = !n.ingredients || !r.ingredients, o = !n.directions || !r.directions;
                 if (!i && !o) return 0;
-                let s = bn(Gw(a) || e);
+                let s = bn(Ww(a) || e);
                 !i || s.ingredientChinese && s.ingredientEnglish || (s = await _u(a)), !o || ml(s, "directions") && ml(s, "directionsChinese") || (s = await Lu(a, {
                     force: !0
                 }));
@@ -9533,13 +9533,13 @@
                 }), !p) return 0;
                 if (!await ig()) throw new Error("食品文案已填写，但 PLM 未返回「保存成功」");
                 return p;
-            }(n, s), c ? (Bb("success", "食品文案智能补充完成", n.sku + " | " + c + "个字段"), yb("toy_copywriting_supplement_success", {
+            }(n, s), c ? (zb("success", "食品文案智能补充完成", n.sku + " | " + c + "个字段"), bb("toy_copywriting_supplement_success", {
                 sku: n.sku,
                 name: n.name || "",
                 source: "food-copywriting",
                 copywritingType: "food",
                 filledCount: c
-            }), Fb("已补充 " + c + " 个食品文案字段并保存草稿"), c) : (Fb("食品文案已完整，无需补充"), 0);
+            }), Bb("已补充 " + c + " 个食品文案字段并保存草稿"), c) : (Bb("食品文案已完整，无需补充"), 0);
             if (o) return c = await async function(e, t) {
                 const a = e.sku;
                 Pa.copywritingHydratingSkus.has(a) && await ef(() => !Pa.copywritingHydratingSkus.has(a), 65e3, 250),
@@ -9548,7 +9548,7 @@
                 await ul(t, "英语(美国)");
                 const r = dl(t);
                 if (n.ingredients && r.ingredients) return 0;
-                let i = bn(Gw(a) || e);
+                let i = bn(Ww(a) || e);
                 (n.ingredients || hl(i, "chinese")) && (r.ingredients || hl(i, "english")) || (i = await Lu(a, {
                     force: !0,
                     drawer: t
@@ -9564,13 +9564,13 @@
                 }), !l) return 0;
                 if (!await ig()) throw new Error("成分已填写，但 PLM 未返回「保存成功」");
                 return l;
-            }(n, s), c ? (Bb("success", "产品成分补全完成", n.sku + " | " + c + "个字段"), yb("toy_copywriting_supplement_success", {
+            }(n, s), c ? (zb("success", "产品成分补全完成", n.sku + " | " + c + "个字段"), bb("toy_copywriting_supplement_success", {
                 sku: n.sku,
                 name: n.name || "",
                 source: "product-ingredients",
                 copywritingType: "ingredients",
                 filledCount: c
-            }), Fb("已补全 " + c + " 个中英文成分字段并保存草稿"), c) : (Fb("中英文成分已完整，无需补充"), 0);
+            }), Bb("已补全 " + c + " 个中英文成分字段并保存草稿"), c) : (Bb("中英文成分已完整，无需补充"), 0);
             await ul(s, "中文-简体");
             const e = dl(s);
             await ul(s, "英语(美国)");
@@ -9578,7 +9578,7 @@
             if (!e.efficacy && !e.sellingPoints) throw new Error("中文产品卖点为空，无法生成三句产品功效");
             if (!t.ingredients && !e.ingredients) throw new Error("中文成分为空，无法生成英文 INGREDIENTS");
             let r = {};
-            if (a && (Fb("魔搭 Qwen 正在整理玩具文案..."), r = await Lb("/toy-copywriting/complete", {
+            if (a && (Bb("魔搭 Qwen 正在整理玩具文案..."), r = await Nb("/toy-copywriting/complete", {
                 method: "POST",
                 timeoutMs: 9e4,
                 body: {
@@ -9609,22 +9609,22 @@
             e.advantages || (m.advantages = l), e.efficacy || (m.efficacy = d), e.directions || (m.directions = g);
             const h = {};
             if (t.advantages || (h.advantages = u), t.efficacy || (h.efficacy = p), t.ingredients || (h.ingredients = String(r.englishIngredients || "").trim()),
-            t.directions || (h.directions = f), !Object.keys(m).length && !Object.keys(h).length) return Fb("玩具文案已完整，无需补充"),
+            t.directions || (h.directions = f), !Object.keys(m).length && !Object.keys(h).length) return Bb("玩具文案已完整，无需补充"),
             0;
             if ("" === h.ingredients || "" === h.directions) throw new Error("Gemini 返回的英文成分或使用方法为空");
             if (await ul(s, "中文-简体"), c += fl(s, m), await ul(s, "英语(美国)"), c += fl(s, h), !c) throw new Error("目标字段未写入，PLM 表单结构可能已变化");
             if (!await ig()) throw new Error("文案已填写，但 PLM 未返回「保存成功」");
-            return Bb("success", "玩具文案智能补充完成", n.sku + " | " + c + "个字段"), yb("toy_copywriting_supplement_success", {
+            return zb("success", "玩具文案智能补充完成", n.sku + " | " + c + "个字段"), bb("toy_copywriting_supplement_success", {
                 sku: n.sku,
                 name: n.name || "",
                 source: "toy-copywriting",
                 copywritingType: "toy",
                 filledCount: c
-            }), Fb("已补充 " + c + " 个玩具文案字段并保存草稿"), c;
+            }), Bb("已补充 " + c + " 个玩具文案字段并保存草稿"), c;
         } catch (e) {
-            const a = _b(e) || "智能补充失败", s = i ? "食品文案" : o ? "成分" : "玩具文案";
-            if (r || il(n.sku, a, o ? "ingredient" : "general"), Bb("error", s + "智能补充失败", n.sku + " | " + a),
-            Fb(s + "补充失败：" + a), t.throwOnError) throw e;
+            const a = Ub(e) || "智能补充失败", s = i ? "食品文案" : o ? "成分" : "玩具文案";
+            if (r || il(n.sku, a, o ? "ingredient" : "general"), zb("error", s + "智能补充失败", n.sku + " | " + a),
+            Bb(s + "补充失败：" + a), t.throwOnError) throw e;
             return 0;
         } finally {
             l && cl(n.sku) && await ul(s, l).catch(() => {}), Pa.toyCopywritingBusy = !1, a();
@@ -9685,11 +9685,11 @@
                 tone: "error" === t.status ? "error" : "preparing" === t.status ? "active" : "ready" === t.status ? "done" : ""
             })), e.slice(0, 4);
         }();
-        return '<section class="pfh-home-panel pfh-home-task-panel"><div class="pfh-home-panel-title"><h3>任务动态</h3>' + (e.length ? '<span class="pfh-home-preview-badge">实时队列</span>' : "") + "</div>" + (e.length ? '<div class="pfh-home-task-list">' + e.map(e => '<button type="button" class="pfh-home-task-row is-' + pk(e.tone || "waiting") + '" data-action="' + pk(e.action) + '"><span class="pfh-home-task-icon">' + ht(e.icon) + '</span><span class="pfh-home-task-main"><span class="pfh-home-task-name"><b title="' + pk(e.title) + '">' + pk(e.title) + "</b><em>" + e.progress + '%</em></span><span class="pfh-home-task-progress"><i style="width:' + e.progress + '%"></i></span><small>' + pk(e.status) + '</small></span><i class="pfh-home-task-status"></i></button>').join("") + "</div>" : '<div class="pfh-home-task-empty"><span>' + ht("taskPlan") + "</span><strong>暂时没有进行中的任务</strong><p>任务中心位置已预留，后续会集中显示上传、生成和提审进度。</p><div><i>上传队列</i><i>生成进度</i><i>提审状态</i></div></div>") + "<footer><span>最多展示最近 4 项</span>" + (e.length ? '<button type="button" data-action="upload-toggle">查看上传队列 →</button>' : "") + "</footer></section>";
+        return '<section class="pfh-home-panel pfh-home-task-panel"><div class="pfh-home-panel-title"><h3>任务动态</h3>' + (e.length ? '<span class="pfh-home-preview-badge">实时队列</span>' : "") + "</div>" + (e.length ? '<div class="pfh-home-task-list">' + e.map(e => '<button type="button" class="pfh-home-task-row is-' + gk(e.tone || "waiting") + '" data-action="' + gk(e.action) + '"><span class="pfh-home-task-icon">' + ht(e.icon) + '</span><span class="pfh-home-task-main"><span class="pfh-home-task-name"><b title="' + gk(e.title) + '">' + gk(e.title) + "</b><em>" + e.progress + '%</em></span><span class="pfh-home-task-progress"><i style="width:' + e.progress + '%"></i></span><small>' + gk(e.status) + '</small></span><i class="pfh-home-task-status"></i></button>').join("") + "</div>" : '<div class="pfh-home-task-empty"><span>' + ht("taskPlan") + "</span><strong>暂时没有进行中的任务</strong><p>任务中心位置已预留，后续会集中显示上传、生成和提审进度。</p><div><i>上传队列</i><i>生成进度</i><i>提审状态</i></div></div>") + "<footer><span>最多展示最近 4 项</span>" + (e.length ? '<button type="button" data-action="upload-toggle">查看上传队列 →</button>' : "") + "</footer></section>";
     }
     function Sl(e, t) {
         const a = Boolean(e.disabled);
-        return '<button type="button" class="pfh-home-entry ' + (t || "") + (a ? " is-disabled" : "") + '" data-action="' + pk(e.action) + '"' + (a ? ' disabled aria-disabled="true"' : "") + '><span class="pfh-home-entry-icon">' + ht(e.icon) + '</span><span class="pfh-home-entry-copy"><strong>' + pk(e.title) + "</strong><small>" + pk(e.description) + "</small></span>" + (e.badge ? '<i class="pfh-home-entry-badge">' + pk(e.badge) + "</i>" : "") + '<span class="pfh-home-entry-arrow">→</span>' + (e.meta ? '<em class="pfh-home-entry-meta">' + pk(e.meta) + "</em>" : "") + "</button>";
+        return '<button type="button" class="pfh-home-entry ' + (t || "") + (a ? " is-disabled" : "") + '" data-action="' + gk(e.action) + '"' + (a ? ' disabled aria-disabled="true"' : "") + '><span class="pfh-home-entry-icon">' + ht(e.icon) + '</span><span class="pfh-home-entry-copy"><strong>' + gk(e.title) + "</strong><small>" + gk(e.description) + "</small></span>" + (e.badge ? '<i class="pfh-home-entry-badge">' + gk(e.badge) + "</i>" : "") + '<span class="pfh-home-entry-arrow">→</span>' + (e.meta ? '<em class="pfh-home-entry-meta">' + gk(e.meta) + "</em>" : "") + "</button>";
     }
     function vl(e) {
         const t = String(e || "").split(":");
@@ -9752,15 +9752,15 @@
             description: "尺寸图与英文参数图",
             badge: "BETA"
         } ], m = "近 " + t + " 日共新分配 " + a.total + " 个任务", h = e || i.subtitle || "常用功能与今日进度集中在这里";
-        return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard"><header class="pfh-home-welcome"><div><h2>' + pk(i.title) + "</h2><p>" + pk(o) + " · " + pk(h) + "</p></div><span>今日新分配 " + a.today + ' 个任务</span></header><div class="pfh-home-analytics"><article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + a.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + c + '"><b>' + pk(u) + "</b><span>" + pk(d) + "</span></p><footer><span><small>昨日</small><b>" + a.yesterday + "</b></span><span><small>今日已定稿</small><b>" + a.finalizedToday + "</b></span><span><small>完成率</small><b>" + (a.today ? a.completionRate + "%" : "--") + '</b></span></footer></article><article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + pk(m) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (7 === t ? "is-active" : "") + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (30 === t ? "is-active" : "") + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + n.area + '"></path><path class="pfh-home-chart-line" d="' + n.line + '"></path></svg><div class="pfh-home-chart-points">' + function(e, t) {
+        return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard"><header class="pfh-home-welcome"><div><h2>' + gk(i.title) + "</h2><p>" + gk(o) + " · " + gk(h) + "</p></div><span>今日新分配 " + a.today + ' 个任务</span></header><div class="pfh-home-analytics"><article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + a.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + c + '"><b>' + gk(u) + "</b><span>" + gk(d) + "</span></p><footer><span><small>昨日</small><b>" + a.yesterday + "</b></span><span><small>今日已定稿</small><b>" + a.finalizedToday + "</b></span><span><small>完成率</small><b>" + (a.today ? a.completionRate + "%" : "--") + '</b></span></footer></article><article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + gk(m) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (7 === t ? "is-active" : "") + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (30 === t ? "is-active" : "") + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + n.area + '"></path><path class="pfh-home-chart-line" d="' + n.line + '"></path></svg><div class="pfh-home-chart-points">' + function(e, t) {
             return t.points.map((a, n) => {
                 const r = e.days[n] || qm(), i = n === e.days.length - 1 ? "今天" : Number(r.slice(5, 7)) + "月" + Number(r.slice(8, 10)) + "日", o = Number((a.x / 620 * 100).toFixed(3)), s = Number((a.y / 130 * 100).toFixed(3));
-                return '<button type="button" class="pfh-home-chart-point' + (n === t.points.length - 1 ? " is-latest" : "") + '" style="--pfh-chart-x:' + o + "%;--pfh-chart-y:" + s + '%" data-chart-index="' + n + '" data-chart-x="' + o + '" data-chart-y="' + s + '" data-chart-label="' + pk(i) + '" data-chart-count="' + (Number(e.values[n]) || 0) + '" aria-label="' + pk(i) + "，新分配 " + (Number(e.values[n]) || 0) + ' 个任务"></button>';
+                return '<button type="button" class="pfh-home-chart-point' + (n === t.points.length - 1 ? " is-latest" : "") + '" style="--pfh-chart-x:' + o + "%;--pfh-chart-y:" + s + '%" data-chart-index="' + n + '" data-chart-x="' + o + '" data-chart-y="' + s + '" data-chart-label="' + gk(i) + '" data-chart-count="' + (Number(e.values[n]) || 0) + '" aria-label="' + gk(i) + "，新分配 " + (Number(e.values[n]) || 0) + ' 个任务"></button>';
             }).join("");
         }(a, n) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + function(e, t) {
             return (30 === t ? [ 0, 6, 12, 18, 24, 29 ] : e.map((e, t) => t)).map(t => {
                 const a = e[t] || e[e.length - 1] || qm();
-                return "<span>" + pk(t === e.length - 1 ? "今天" : Number(a.slice(5, 7)) + "/" + Number(a.slice(8, 10))) + "</span>";
+                return "<span>" + gk(t === e.length - 1 ? "今天" : Number(a.slice(5, 7)) + "/" + Number(a.slice(8, 10))) + "</span>";
             }).join("");
         }(a.days, t) + '</div></div></article></div><div class="pfh-home-lower"><section class="pfh-home-panel pfh-home-feature-panel"><div class="pfh-home-panel-title"><h3>常用功能</h3><span>保留原入口名称，快速找到熟悉功能</span></div><div class="pfh-home-feature-layout">' + Sl(g, "pfh-home-entry-primary") + '<div class="pfh-home-quick-grid">' + f.map(e => Sl(e, "pfh-home-entry-quick")).join("") + '</div></div><div class="pfh-home-secondary-grid">' + [ {
             action: "ledger-open",
@@ -9789,10 +9789,10 @@
             return $l(e).filter(e => /^SKU\d+$/i.test(e)).map(e => String(e).toUpperCase()).filter(e => !t.has(e) && (t.add(e),
             !0));
         }(e);
-        if (!t.length) return void Fb("没有找到有效 SKU，请检查编码格式");
-        const a = new Map(dw().map(e => [ e.sku, e ])), n = Date.now();
+        if (!t.length) return void Bb("没有找到有效 SKU，请检查编码格式");
+        const a = new Map(pw().map(e => [ e.sku, e ])), n = Date.now();
         t.forEach((e, t) => {
-            const r = a.get(e), i = bn(Gw(e) || {});
+            const r = a.get(e), i = bn(Ww(e) || {});
             a.set(e, {
                 ...r || {},
                 id: r && r.id || "toy-copywriting-" + e + "-" + n + "-" + t,
@@ -9811,22 +9811,22 @@
                 updatedAt: n
             });
         }), Pa.toyCopywritingBatchInput = "", Pa.toyCopywritingBatchStatus = "已加入 " + t.length + " 个 SKU，等待补全文案",
-        pw(Array.from(a.values())), zi(), Fb(Pa.toyCopywritingBatchStatus);
+        gw(Array.from(a.values())), zi(), Bb(Pa.toyCopywritingBatchStatus);
     }
     function Tl(e, t) {
-        const a = String(e || "").trim().toUpperCase(), n = (Array.isArray(Pa.toyCopywritingBatchQueue) ? Pa.toyCopywritingBatchQueue : dw()).map(e => e.sku === a ? {
+        const a = String(e || "").trim().toUpperCase(), n = (Array.isArray(Pa.toyCopywritingBatchQueue) ? Pa.toyCopywritingBatchQueue : pw()).map(e => e.sku === a ? {
             ...e,
             ...t || {},
             updatedAt: Date.now()
         } : e);
-        return pw(n), n.find(e => e.sku === a) || null;
+        return gw(n), n.find(e => e.sku === a) || null;
     }
     async function El() {
         if (Pa.toyCopywritingBatchRunning || Pa.toyCopywritingApplyRunning) return;
-        Pa.toyCopywritingBatchQueue = dw();
+        Pa.toyCopywritingBatchQueue = pw();
         if (!Pa.toyCopywritingBatchQueue.filter(e => "pending" === e.status || "error" === e.status).length) return Pa.toyCopywritingBatchStatus = Pa.toyCopywritingBatchQueue.length ? "当前队列没有待处理项目" : "队列暂为空",
         void zi();
-        Pa.toyCopywritingBatchRunning = !0, Pa.toyCopywritingBatchStatus = "开始批量补全文案", pw(Pa.toyCopywritingBatchQueue),
+        Pa.toyCopywritingBatchRunning = !0, Pa.toyCopywritingBatchStatus = "开始批量补全文案", gw(Pa.toyCopywritingBatchQueue),
         zi();
         try {
             await async function() {
@@ -9842,7 +9842,7 @@
                     });
                     let n = null;
                     try {
-                        const a = bn(Gw(e) || (Pa.index || []).find(t => t.sku === e) || {
+                        const a = bn(Ww(e) || (Pa.index || []).find(t => t.sku === e) || {
                             sku: e
                         });
                         n = await jl(e, a, t.get(e));
@@ -9865,23 +9865,23 @@
                             generatedImages: s
                         });
                     } catch (t) {
-                        const a = _b(t) || "文案补全失败";
+                        const a = Ub(t) || "文案补全失败";
                         Tl(e, {
                             status: "error",
                             step: "处理失败",
                             error: a
-                        }), Bb("error", "批量玩具文案补充失败", e + " | " + a);
+                        }), zb("error", "批量玩具文案补充失败", e + " | " + a);
                     } finally {
                         (n || cl(e) || Rg(e)) && await mm(e).catch(() => {}), Pa.toyCopywritingBatchCurrentSku = "",
-                        pw(Pa.toyCopywritingBatchQueue), Pa.toyCopywritingBatchRunning && (Pa.toyCopywritingBatchStatus = "已处理 " + e + "，继续下一个编码",
+                        gw(Pa.toyCopywritingBatchQueue), Pa.toyCopywritingBatchRunning && (Pa.toyCopywritingBatchStatus = "已处理 " + e + "，继续下一个编码",
                         zi());
                     }
                 }
                 Pa.toyCopywritingBatchRunning && (Pa.toyCopywritingBatchRunning = !1, Pa.toyCopywritingBatchStatus = "批量文案补全完成",
-                Pa.toyCopywritingBatchCurrentSku = "", pw(Pa.toyCopywritingBatchQueue), zi(), Fb("批量玩具文案补全完成"));
+                Pa.toyCopywritingBatchCurrentSku = "", gw(Pa.toyCopywritingBatchQueue), zi(), Bb("批量玩具文案补全完成"));
             }();
         } catch (e) {
-            Pa.toyCopywritingBatchRunning = !1, Pa.toyCopywritingBatchCurrentSku = "", Pa.toyCopywritingBatchStatus = "批量处理异常：" + _b(e),
+            Pa.toyCopywritingBatchRunning = !1, Pa.toyCopywritingBatchCurrentSku = "", Pa.toyCopywritingBatchStatus = "批量处理异常：" + Ub(e),
             zi();
         }
     }
@@ -9893,7 +9893,7 @@
             const e = Dg();
             if (/^\u5168\u90e8/.test(e)) return !0;
             const t = Fg("全部");
-            if (!t) return Bb("error", "玩具文案：未找到新品开发「全部」页签"), !1;
+            if (!t) return zb("error", "玩具文案：未找到新品开发「全部」页签"), !1;
             return Vp(t), Boolean(await ef(() => /^\u5168\u90e8/.test(Dg()), 5e3, 120));
         }()) throw new Error("未能切换到新品开发「全部」页签读取项目状态");
         const n = Xg("搜索商品编码"), r = Zg("查询");
@@ -9909,7 +9909,7 @@
         await xp(t.length), await zm(350);
         const i = new Map(qa().filter(e => t.includes(e.sku)).map(e => [ e.sku, e ]));
         return t.forEach(e => {
-            const t = i.get(e), n = bn(Gw(e) || {}), r = sk(t && t.projectStatus || n.projectStatus || ""), o = {
+            const t = i.get(e), n = bn(Ww(e) || {}), r = lk(t && t.projectStatus || n.projectStatus || ""), o = {
                 projectStatus: r,
                 projectRowId: t && t.rowId || n.projectRowId || "",
                 completed: /已完成/.test(r)
@@ -9923,11 +9923,11 @@
     }
     function Pl(e, t) {
         if (!e) return null;
-        const a = sk(t), n = sk("AI一键生成"), r = Array.from(e.querySelectorAll('button, a, [role="button"], span.startBtn')).filter(ck).filter(e => sk(e.innerText || e.textContent) === n);
+        const a = lk(t), n = lk("AI一键生成"), r = Array.from(e.querySelectorAll('button, a, [role="button"], span.startBtn')).filter(uk).filter(e => lk(e.innerText || e.textContent) === n);
         for (const t of r) {
             let n = t.parentElement;
             for (let r = 0; n && n !== e && r < 10; r += 1, n = n.parentElement) {
-                const e = sk(rk(n));
+                const e = lk(ik(n));
                 if (!e.includes(a)) continue;
                 return {
                     button: t,
@@ -9943,17 +9943,17 @@
         const r = Pl(n, a);
         if (!r || !r.button) throw new Error("未找到" + a + "的 AI一键生成按钮");
         if (!sg(r.button)) throw new Error(a + " AI一键生成按钮不可用");
-        const i = sk(r.button.innerText || r.button.textContent);
+        const i = lk(r.button.innerText || r.button.textContent);
         Vp(r.button);
         if (!await ef(() => {
             const n = Pl(cl(t) || e, a);
             if (!n) {
-                const e = sk(r.button.innerText || r.button.textContent);
-                return document.body.contains(r.button) && ck(r.button) && e === i ? "" : r;
+                const e = lk(r.button.innerText || r.button.textContent);
+                return document.body.contains(r.button) && uk(r.button) && e === i ? "" : r;
             }
             return function(e) {
                 if (!e) return !1;
-                const t = sk(e.innerText || e.textContent), a = String(e.className || ""), n = String(e.innerHTML || "");
+                const t = lk(e.innerText || e.textContent), a = String(e.className || ""), n = String(e.innerHTML || "");
                 return Boolean(e.disabled || "true" === e.getAttribute("aria-disabled") || "true" === e.getAttribute("aria-busy") || /\bloading\b|ant-btn-loading|ant-btn-disabled|ant-spin/.test(a + " " + n) || e.querySelector('.ant-spin, [aria-busy="true"]') || /生成中|处理中|上传中|排队中/.test(t));
             }(n.button) || n.signature !== r.signature ? n : "";
         }, 5e3, 100)) throw new Error(a + " AI一键生成未进入加载态");
@@ -9976,29 +9976,29 @@
     }
     function _l(e, t) {
         if (!e) return null;
-        const a = sk(t);
-        return Array.from(e.querySelectorAll(".ant-form-item")).filter(ck).find(e => {
+        const a = lk(t);
+        return Array.from(e.querySelectorAll(".ant-form-item")).filter(uk).find(e => {
             const t = e.querySelector(".ant-form-item-label, label");
-            return sk(t && (t.innerText || t.textContent)).replace(/[*：:]/g, "").startsWith(a) && /已生成|点击查看|AI(?:一键|重新)生成/.test(rk(e));
+            return lk(t && (t.innerText || t.textContent)).replace(/[*：:]/g, "").startsWith(a) && /已生成|点击查看|AI(?:一键|重新)生成/.test(ik(e));
         }) || null;
     }
     function Ul(e, t) {
         const a = _l(e, t);
-        return Boolean(a && rk(a).includes("已生成") && Dl(a, "点击查看"));
+        return Boolean(a && ik(a).includes("已生成") && Dl(a, "点击查看"));
     }
     function Dl(e, t) {
         if (!e) return null;
-        const a = sk(t).replace(/\s+/g, "");
-        return Array.from(e.querySelectorAll('button, a, [role="button"], span')).filter(ck).filter(sg).find(e => sk(e.innerText || e.textContent).replace(/\s+/g, "") === a) || null;
+        const a = lk(t).replace(/\s+/g, "");
+        return Array.from(e.querySelectorAll('button, a, [role="button"], span')).filter(uk).filter(sg).find(e => lk(e.innerText || e.textContent).replace(/\s+/g, "") === a) || null;
     }
     function Fl() {
-        const e = Array.from(document.querySelectorAll('button, a, [role="button"], span')).filter(ck).filter(e => "全部应用" === sk(e.innerText || e.textContent).replace(/\s+/g, ""));
+        const e = Array.from(document.querySelectorAll('button, a, [role="button"], span')).filter(uk).filter(e => "全部应用" === lk(e.innerText || e.textContent).replace(/\s+/g, ""));
         for (const t of e) {
             const e = t.closest('.ant-modal, .ant-drawer-open, [role="dialog"], .ant-image-preview-wrap');
-            if (e && rk(e).includes("下载图片")) return e;
+            if (e && ik(e).includes("下载图片")) return e;
             let a = null, n = t.parentElement;
             for (let e = 0; n && n !== document.body && e < 14; e += 1, n = n.parentElement) {
-                const e = rk(n);
+                const e = ik(n);
                 if (e.includes("下载图片") && e.includes("全部应用") && (a = n, bg(n))) return n;
             }
             if (a) return a;
@@ -10010,7 +10010,7 @@
         if (!e) return !0;
         const t = bg(e) || Dl(e, "关闭");
         if (!t) throw new Error("未找到生成图片预览关闭按钮");
-        return Vp(t), Boolean(await ef(() => !document.body.contains(e) || !ck(e) || !Fl(), 1e4, 100));
+        return Vp(t), Boolean(await ef(() => !document.body.contains(e) || !uk(e) || !Fl(), 1e4, 100));
     }
     async function zl(e, t, a, n) {
         const r = n || {}, i = await ef(() => {
@@ -10050,7 +10050,7 @@
     async function Rl(e) {
         const t = Boolean((e || {}).skipApply), a = t ? "批量下载后直接提审" : "批量全部应用并提审", n = t ? "download-review" : "apply";
         if (Pa.toyCopywritingBatchRunning || Pa.toyCopywritingApplyRunning) return;
-        Pa.toyCopywritingBatchQueue = dw();
+        Pa.toyCopywritingBatchQueue = pw();
         const r = Pa.toyCopywritingBatchQueue.filter(e => ("success" === e.status || "noop" === e.status) && "submitted" !== e.applyStatus);
         if (!r.length) return Pa.toyCopywritingBatchStatus = "没有等待" + a + "的已完成产品", void zi();
         let i;
@@ -10059,8 +10059,8 @@
         try {
             i = await Cl(r);
         } catch (e) {
-            return Pa.toyCopywritingApplyRunning = !1, Pa.toyCopywritingApplyMode = "", Pa.toyCopywritingBatchStatus = a + "前读取项目状态失败：" + _b(e),
-            Bb("error", "玩具生成图片：读取项目状态失败", _b(e)), void zi();
+            return Pa.toyCopywritingApplyRunning = !1, Pa.toyCopywritingApplyMode = "", Pa.toyCopywritingBatchStatus = a + "前读取项目状态失败：" + Ub(e),
+            zb("error", "玩具生成图片：读取项目状态失败", Ub(e)), void zi();
         }
         for (const e of r) {
             const r = e.sku;
@@ -10072,7 +10072,7 @@
                 step: "正在打开设计资料"
             }), Pa.toyCopywritingBatchStatus = r + "：正在打开设计资料", zi();
             try {
-                const e = bn(Gw(r) || (Pa.index || []).find(e => e.sku === r) || {
+                const e = bn(Ww(r) || (Pa.index || []).find(e => e.sku === r) || {
                     sku: r
                 });
                 o = await jl(r, e, i.get(r));
@@ -10094,15 +10094,15 @@
                     applyMode: n,
                     applyError: "",
                     step: t ? "主图和详情图已下载并提审（未全部应用）" : "主图和详情图已全部应用并提审"
-                }), Bb("success", "玩具生成图片" + a + "成功", r);
+                }), zb("success", "玩具生成图片" + a + "成功", r);
             } catch (e) {
-                const t = _b(e) || a + "失败";
+                const t = Ub(e) || a + "失败";
                 Tl(r, {
                     applyStatus: "error",
                     applyMode: n,
                     applyError: t,
                     step: a + "失败"
-                }), Bb("error", "玩具生成图片" + a + "失败", r + " | " + t), await Bl().catch(() => {}),
+                }), zb("error", "玩具生成图片" + a + "失败", r + " | " + t), await Bl().catch(() => {}),
                 await mm(r).catch(() => {});
             } finally {
                 Pa.toyCopywritingApplyCurrentSku = "", Pa.toyCopywritingBatchStatus = "已处理 " + r + "，继续下一个编码",
@@ -10110,7 +10110,7 @@
             }
         }
         Pa.toyCopywritingApplyRunning = !1, Pa.toyCopywritingApplyCurrentSku = "", Pa.toyCopywritingApplyMode = "",
-        Pa.toyCopywritingBatchStatus = a + "完成", zi(), Fb(a + "完成");
+        Pa.toyCopywritingBatchStatus = a + "完成", zi(), Bb(a + "完成");
     }
     async function jl(e, t, a) {
         const n = cl(e);
@@ -10252,7 +10252,7 @@
         return /\u900f\u660e/.test(a) && !/(?:\u4e0d\u900f\u660e|\u975e\u900f\u660e)/.test(a);
     }
     function Yl(e) {
-        return lk(Number(e));
+        return ck(Number(e));
     }
     function ec() {
         return new Promise(e => window.requestAnimationFrame(() => window.setTimeout(e, 0)));
@@ -10263,8 +10263,8 @@
         r && (r.textContent = a), i && (i.textContent = a), await ec();
     }
     async function ac(e, t, a) {
-        const n = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null)), r = Gl(n), i = Ql(n);
-        if (!n || !n.sku || !r && !i.length) return void Fb(n ? Wl(n) : "请先选择 SKU");
+        const n = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null)), r = Gl(n), i = Ql(n);
+        if (!n || !n.sku || !r && !i.length) return void Bb(n ? Wl(n) : "请先选择 SKU");
         if (!e || !/\.(?:png|jpe?g)$/i.test(e.name || "") || e.type && !/^image\/(?:png|jpeg)$/.test(e.type)) {
             const t = Vl(n.sku);
             return t.fileName = e && e.name || "", t.error = "请选择 PNG 或 JPG 图片；纸盒必须使用透明 PNG。",
@@ -10376,7 +10376,7 @@
                         s.pendingLabelMatches.push({
                             id: t,
                             file: e
-                        }), s.error = "", a || Fb("两个尺寸比例太接近，请手动选择对应尺寸"), "pending";
+                        }), s.error = "", a || Bb("两个尺寸比例太接近，请手动选择对应尺寸"), "pending";
                     }
                     g = n.spec, f = n.geometry;
                 }
@@ -10394,7 +10394,7 @@
                 l.fillText("规格尺寸：长" + Yl(a.length) + "X宽" + Yl(a.width) + "X高" + Yl(a.height) + c + "CM", 505, 260),
                 l.fillStyle = "#ee1410", l.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif',
                 l.fillText("(生产日期+截止日期+批次号)", 505, 370);
-                const u = ic(a), d = u.reduce((e, t) => e + t, 0), p = a.height + 2 * a.width, g = nk(1600 + (d / p - .72) / .38 * 450, 1600, 2050), f = Math.min(g / d, 2020 / p), m = d * f, h = p * f, y = Math.round((3e3 - m) / 2), b = nk(Math.round((3e3 - h) / 2), 650, 900), w = b + a.width * f, k = w + a.height * f;
+                const u = ic(a), d = u.reduce((e, t) => e + t, 0), p = a.height + 2 * a.width, g = rk(1600 + (d / p - .72) / .38 * 450, 1600, 2050), f = Math.min(g / d, 2020 / p), m = d * f, h = p * f, y = Math.round((3e3 - m) / 2), b = rk(Math.round((3e3 - h) / 2), 650, 900), w = b + a.width * f, k = w + a.height * f;
                 l.save(), l.beginPath(), l.rect(y + a.width * f, b, a.length * f, a.width * f),
                 l.rect(y, w, d * f, a.height * f), l.rect(y + (2 * a.width + a.length) * f, k, a.length * f, a.width * f),
                 l.clip(), l.imageSmoothingEnabled = !0, l.imageSmoothingQuality = "high";
@@ -10445,7 +10445,7 @@
                         }(n) ? "（生产日期+截止日期+批次号）" : "（批次号）";
                         c.fillText(e, 469, 370);
                     }
-                    const g = Math.min(2050 / d, 1550 / a.height), f = d * g, m = a.height * g, h = Math.round((3e3 - f) / 2), y = nk(Math.round((3e3 - m) / 2), 760, 1200), b = "label" === a.kind && i ? Math.min(18, Math.max(6, .08 * g)) : 0;
+                    const g = Math.min(2050 / d, 1550 / a.height), f = d * g, m = a.height * g, h = Math.round((3e3 - f) / 2), y = rk(Math.round((3e3 - m) / 2), 760, 1200), b = "label" === a.kind && i ? Math.min(18, Math.max(6, .08 * g)) : 0;
                     c.save(), c.beginPath(), b ? sc(c, h, y, f, m, b) : c.rect(h, y, f, m);
                     c.clip(), c.imageSmoothingEnabled = !0, c.imageSmoothingQuality = "high", t.rotated ? (c.translate(h + f / 2, y + m / 2),
                     c.rotate(-Math.PI / 2), c.drawImage(e, t.cropX, t.cropY, t.cropWidth, t.cropHeight, -m / 2, -f / 2, m, f)) : c.drawImage(e, t.cropX, t.cropY, t.cropWidth, t.cropHeight, h, y, f, m);
@@ -10482,13 +10482,13 @@
             } : {
                 labelFileState: "done",
                 labelFileDone: !0
-            }, qm()), xb(!0), a || Fb("已自动识别为" + ("carton" === p ? "纸盒" : "print" === g.kind ? "印刷" : "标签") + "并生成尺寸图"),
+            }, qm()), Ab(!0), a || Bb("已自动识别为" + ("carton" === p ? "纸盒" : "print" === g.kind ? "印刷" : "标签") + "并生成尺寸图"),
             !0;
         } catch (e) {
             return s.error = function(e) {
                 const t = String(e && e.message || e || "").trim();
                 return t || "无法识别纸盒、标签或印刷，请检查图片与 PLM 尺寸是否匹配。";
-            }(e), xb(!1), !1;
+            }(e), Ab(!1), !1;
         } finally {
             URL.revokeObjectURL(l), a || (Pa.sizeImageBusySku === o && (Pa.sizeImageBusySku = ""),
             s.processingStep = "", "sizeImage" === Pa.view && zi());
@@ -10507,7 +10507,7 @@
         if (Pa.sizeImageBusySku === r && (Pa.sizeImageBusySku = ""), i && (i.processingStep = ""),
         i && !i.error) {
             const e = Object.values(i.flatResults).filter(e => e && e.dataUrl).length, t = [ i.cartonResultDataUrl ? "纸盒" : "", e ? e + "个标签/印刷" : "" ].filter(Boolean).join("和");
-            t ? Fb("已生成" + t + "尺寸图") : i.pendingLabelMatches.length && Fb("请手动选择图片对应的标签尺寸");
+            t ? Bb("已生成" + t + "尺寸图") : i.pendingLabelMatches.length && Bb("请手动选择图片对应的标签尺寸");
         }
         "sizeImage" === Pa.view && zi(), o && t && t.focusSave && n("size-image-save-all", "sizeImage");
     }
@@ -10576,7 +10576,7 @@
         const e = Pa.selectedSku || Pa.data && Pa.data.sku || "", t = e && Vl(e);
         if (!t) return;
         if (Pa.sizeImageBusySku === e) return;
-        const a = Ql(bn(Pa.data || (e ? Gw(e) : null)));
+        const a = Ql(bn(Pa.data || (e ? Ww(e) : null)));
         Kl(t, a[0]);
         const n = [ t.cartonFile ? {
             file: t.cartonFile,
@@ -10591,12 +10591,12 @@
             try {
                 const e = [];
                 for (const a of n) await ac(a.file, a.type, !0), t.error && e.push(t.error);
-                t.error = e.join("\n"), e.length || Fb("已按最新选项重新生成尺寸图");
+                t.error = e.join("\n"), e.length || Bb("已按最新选项重新生成尺寸图");
             } finally {
                 Pa.sizeImageBusySku === e && (Pa.sizeImageBusySku = ""), t.processingStep = "",
                 "sizeImage" === Pa.view && zi();
             }
-        } else Fb("请先导入纸盒、标签或印刷图片");
+        } else Bb("请先导入纸盒、标签或印刷图片");
     }
     function uc(e) {
         const t = String(e || "").match(/(\d+)/);
@@ -10612,7 +10612,7 @@
         (e || []).forEach(e => {
             const a = function(e) {
                 if (!e || "作废" === e.status || e.performanceGroupId || "extension" === e.performanceType || wc(e)) return "";
-                const t = bn(Gw(e.sku) || {}), a = {
+                const t = bn(Ww(e.sku) || {}), a = {
                     ...t,
                     brand: e.brand || t.brand || "",
                     name: e.name || t.name || "",
@@ -10707,8 +10707,8 @@
             logo: "换/无 Logo 1 分",
             void: "作废 0.5 分",
             extension: "延伸 0.3 分"
-        }, o = Array.isArray(a.groups) ? a.groups : [], s = o.length ? '<details class="pfh-ledger-merge-groups"><summary>绩效分组 ' + pk(String(o.length)) + ' 组，点击展开组合明细</summary><div class="pfh-ledger-merge-list">' + o.map(e => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + pk(e.id) + '" title="高亮这一组的产品卡片"><b>' + pk("auto-series" === e.source ? yc(e, o) + " · 玩具 1 分 · " + String((e.skus || []).length) + " 个" : yc(e, o) + " · " + (i[e.kind] || "")) + "</b><span>" + pk((e.seriesKey ? e.seriesKey + "：" : "") + (e.skus || []).join(" + ")) + "</span></button>").join("") + "</div></details>" : "";
-        return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-scores"><div class="pfh-ledger-performance-summary is-today"><div><span>当天绩效</span><small>今天已定稿 ' + pk(String(n.count || 0)) + " 条</small></div><strong>" + pk(fc(n.summary && n.summary.total)) + '</strong></div><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + pk(r) + "</small></div><strong>" + pk(fc(a.total)) + "</strong></div></div>" + s + "</div>";
+        }, o = Array.isArray(a.groups) ? a.groups : [], s = o.length ? '<details class="pfh-ledger-merge-groups"><summary>绩效分组 ' + gk(String(o.length)) + ' 组，点击展开组合明细</summary><div class="pfh-ledger-merge-list">' + o.map(e => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + gk(e.id) + '" title="高亮这一组的产品卡片"><b>' + gk("auto-series" === e.source ? yc(e, o) + " · 玩具 1 分 · " + String((e.skus || []).length) + " 个" : yc(e, o) + " · " + (i[e.kind] || "")) + "</b><span>" + gk((e.seriesKey ? e.seriesKey + "：" : "") + (e.skus || []).join(" + ")) + "</span></button>").join("") + "</div></details>" : "";
+        return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-scores"><div class="pfh-ledger-performance-summary is-today"><div><span>当天绩效</span><small>今天已定稿 ' + gk(String(n.count || 0)) + " 条</small></div><strong>" + gk(fc(n.summary && n.summary.total)) + '</strong></div><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + gk(r) + "</small></div><strong>" + gk(fc(a.total)) + "</strong></div></div>" + s + "</div>";
     }
     function yc(e, t) {
         const a = e && "auto-series" === e.source ? "auto-series" : "manual", n = (t || []).filter(e => (e && "auto-series" === e.source ? "auto-series" : "manual") === a).indexOf(e) + 1;
@@ -10759,8 +10759,8 @@
             const e = "trash" === Pa.ledgerView ? "trash" : "finalized" === Pa.ledgerView ? "finalized" : "design";
             return vc(Dh(Pa.ledgerView, Xm()), e);
         }();
-        Db(e ? [ "SKU\t产品\t设计类型\t优先级\t状态\t日期\t价格\t纸盒\t标签\t图包\tAI生图" ].concat(t.map(e => [ e.sku, [ e.brand, e.name ].filter(Boolean).join(" "), e.designType || "", e.artPriority || "", e.status || "", "finalized" === Pa.ledgerView ? Ym(e) : Zm(e), e.purchasePrice || "", Ih(e.boxFileState), Ih(e.labelFileState), Ih(e.imagePackState), qh(e).label ].join("\t"))).join("\n") : t.map(e => e.sku).filter(Boolean).join("\n")),
-        Fb("已复制 " + t.length + " 条" + (e ? "表格" : "编码"));
+        Fb(e ? [ "SKU\t产品\t设计类型\t优先级\t状态\t日期\t价格\t纸盒\t标签\t图包\tAI生图" ].concat(t.map(e => [ e.sku, [ e.brand, e.name ].filter(Boolean).join(" "), e.designType || "", e.artPriority || "", e.status || "", "finalized" === Pa.ledgerView ? Ym(e) : Zm(e), e.purchasePrice || "", Ih(e.boxFileState), Ih(e.labelFileState), Ih(e.imagePackState), qh(e).label ].join("\t"))).join("\n") : t.map(e => e.sku).filter(Boolean).join("\n")),
+        Bb("已复制 " + t.length + " 条" + (e ? "表格" : "编码"));
     }
     let Ac = null;
     function Ic(e, t, a) {
@@ -10840,7 +10840,7 @@
             t.button.releasePointerCapture(e.pointerId);
         } catch (e) {}
         Lc(!1), a && n.length && (e.preventDefault(), Pa.ledgerSkuDragSuppressClickUntil = Date.now() + 700,
-        Db(n.join("\n")), Fb("已连续复制 " + n.length + " 个编码"));
+        Fb(n.join("\n")), Bb("已连续复制 " + n.length + " 个编码"));
     }
     function Lc(t) {
         const a = Ac;
@@ -10940,30 +10940,30 @@
                 items: t
             }));
         }(a, "trash" === t ? "design" : t), r = "finalized" === t ? gc(a) : null, i = r ? hc(r, mc()) : "", o = bc(r), s = new Set(Pa.ledgerSelectedKeys || []), l = "finalized" === t ? kc(e, s) : "", c = n.length ? n.map(e => {
-            const a = "finalized" === t && e.items.length && e.items.every(e => s.has(Rh(e))), n = "finalized" === t ? '<button type="button" class="pfh-ledger-day-select' + (a ? " is-selected" : "") + '" data-action="ledger-select-date" data-date="' + pk(e.date) + '">' + (a ? "取消当天" : "选择当天") + "</button>" : "";
-            return '<section class="pfh-ledger-day"><h4><span class="pfh-ledger-day-date">' + pk(Vm(e.date)) + '</span><span class="pfh-ledger-day-count">' + pk(String(e.items.length)) + " 条</span>" + n + "</h4>" + e.items.map(e => "trash" === t ? function(e) {
-                const t = e.sku || "", a = [ e.brand, e.name ].filter(Boolean).join(" ") || t, n = e.skuImageUrl || e.benchmarkImageUrl || "", r = n ? '<img src="' + pk(n) + '" alt="">' : '<span class="pfh-ledger-thumb-empty">' + ht("image") + "</span>", i = pk(e.date || ""), o = e.removedAt ? "移除 " + Km(e.removedAt, e.date) : "已从工作台移除";
-                return '<article class="pfh-ledger-item is-trash" data-ledger-sku="' + pk(t) + '" data-ledger-date="' + i + '"><div class="pfh-ledger-thumb">' + r + '</div><div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><b>' + pk(a) + '</b><span class="pfh-ledger-status is-skip">垃圾篓</span></div><div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + pk(t) + '">' + pk(t) + '</button><span class="is-design-type">' + pk(e.designType || "未分类") + '</span></div><div class="pfh-ledger-bottom"><div class="pfh-ledger-assignment">' + pk(o) + '</div><div class="pfh-ledger-trash-actions"><button type="button" class="is-restore" data-action="ledger-trash-restore" data-sku="' + pk(t) + '" data-date="' + i + '">恢复</button><button type="button" class="is-delete" data-action="ledger-trash-delete" data-sku="' + pk(t) + '" data-date="' + i + '">清除</button></div></div></div></article>';
+            const a = "finalized" === t && e.items.length && e.items.every(e => s.has(Rh(e))), n = "finalized" === t ? '<button type="button" class="pfh-ledger-day-select' + (a ? " is-selected" : "") + '" data-action="ledger-select-date" data-date="' + gk(e.date) + '">' + (a ? "取消当天" : "选择当天") + "</button>" : "";
+            return '<section class="pfh-ledger-day"><h4><span class="pfh-ledger-day-date">' + gk(Vm(e.date)) + '</span><span class="pfh-ledger-day-count">' + gk(String(e.items.length)) + " 条</span>" + n + "</h4>" + e.items.map(e => "trash" === t ? function(e) {
+                const t = e.sku || "", a = [ e.brand, e.name ].filter(Boolean).join(" ") || t, n = e.skuImageUrl || e.benchmarkImageUrl || "", r = n ? '<img src="' + gk(n) + '" alt="">' : '<span class="pfh-ledger-thumb-empty">' + ht("image") + "</span>", i = gk(e.date || ""), o = e.removedAt ? "移除 " + Km(e.removedAt, e.date) : "已从工作台移除";
+                return '<article class="pfh-ledger-item is-trash" data-ledger-sku="' + gk(t) + '" data-ledger-date="' + i + '"><div class="pfh-ledger-thumb">' + r + '</div><div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><b>' + gk(a) + '</b><span class="pfh-ledger-status is-skip">垃圾篓</span></div><div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + gk(t) + '">' + gk(t) + '</button><span class="is-design-type">' + gk(e.designType || "未分类") + '</span></div><div class="pfh-ledger-bottom"><div class="pfh-ledger-assignment">' + gk(o) + '</div><div class="pfh-ledger-trash-actions"><button type="button" class="is-restore" data-action="ledger-trash-restore" data-sku="' + gk(t) + '" data-date="' + i + '">恢复</button><button type="button" class="is-delete" data-action="ledger-trash-delete" data-sku="' + gk(t) + '" data-date="' + i + '">清除</button></div></div></div></article>';
             }(e) : jc(e, t, o.labels, o.recordGroupIds)).join("") + "</section>";
-        }).join("") : '<div class="pfh-ledger-empty">' + pk(e.length ? "当前筛选条件下没有记录。" : "trash" === t ? "本月垃圾篓是空的。" : "finalized" === t ? "本月还没有已定稿记录。" : "本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。") + "</div>", u = Xm(), d = [ "ledger", t, u ].join("|"), p = Boolean(Pa.ledgerToolsCollapsed);
-        return '<section class="pfh-ledger-tools-panel' + (p ? " is-collapsed" : "") + '"><button type="button" class="pfh-ledger-tools-toggle" data-action="ledger-toggle-tools" aria-expanded="' + (p ? "false" : "true") + '"><span class="pfh-ledger-tools-toggle-copy"><strong>' + (i ? "绩效与筛选" : "筛选与操作") + '</strong><small>收起后列表会展示更多产品</small></span><span class="pfh-ledger-tools-toggle-state" data-ledger-tools-state>' + (p ? "展开" : "收起") + '</span><span class="pfh-ledger-tools-toggle-chevron" aria-hidden="true">⌄</span></button><div class="pfh-ledger-tools-body">' + i + '<div class="pfh-ledger-controlbar"><div class="pfh-ledger-toolbar"><button type="button" class="pfh-ledger-month" data-action="ledger-prev-month" title="上个月">‹</button><button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + pk(Gc(u)) + '</button><button type="button" class="pfh-ledger-month" data-action="ledger-next-month" title="下个月">›</button><button type="button" data-action="ledger-today">本月</button>' + ("trash" === t ? '<button type="button" data-action="ledger-trash-empty"' + (e.length ? "" : " disabled") + ">清空本月垃圾篓</button>" : l + '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button><button type="button" data-action="ledger-copy-selected" title="复制当前勾选的产品编码">复制选中编码</button><button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') + '</div><div class="pfh-ledger-filterbar"><input type="search" class="pfh-ledger-filter-query" value="' + pk(Pa.ledgerFilterQuery || "") + '" placeholder="筛选 SKU / 品牌 / 品名 / 编码"><select class="pfh-ledger-filter-status"><option value="all">全部状态</option><option value="待出图"' + ("待出图" === Pa.ledgerFilterStatus ? " selected" : "") + '>待出图</option><option value="待定稿"' + ("待定稿" === Pa.ledgerFilterStatus ? " selected" : "") + '>待定稿</option><option value="已定稿"' + ("已定稿" === Pa.ledgerFilterStatus ? " selected" : "") + '>已定稿</option><option value="已完成"' + ("已完成" === Pa.ledgerFilterStatus ? " selected" : "") + '>已完成</option><option value="异常"' + ("异常" === Pa.ledgerFilterStatus ? " selected" : "") + '>异常</option><option value="ai-error"' + ("ai-error" === Pa.ledgerFilterStatus ? " selected" : "") + '>AI 异常</option></select><select class="pfh-ledger-filter-image"><option value="all">全部图片</option><option value="benchmark"' + ("benchmark" === Pa.ledgerFilterImage ? " selected" : "") + '>有对标图</option><option value="effect"' + ("effect" === Pa.ledgerFilterImage ? " selected" : "") + '>有效果图</option><option value="missing"' + ("missing" === Pa.ledgerFilterImage ? " selected" : "") + '>缺当前图</option></select><button type="button" data-action="ledger-copy-filtered-skus">复制当前编码</button><button type="button" data-action="ledger-copy-filtered-table">复制当前表格</button><div class="pfh-ledger-view-switch"><button type="button" data-action="ledger-display-mode" data-mode="cards" class="' + ("cards" === Pa.ledgerDisplayMode ? "is-active" : "") + '">卡片</button><button type="button" data-action="ledger-display-mode" data-mode="table" class="' + ("table" === Pa.ledgerDisplayMode ? "is-active" : "") + '">表格</button></div></div></div></div></section>' + ("table" === Pa.ledgerDisplayMode ? function(e, t) {
+        }).join("") : '<div class="pfh-ledger-empty">' + gk(e.length ? "当前筛选条件下没有记录。" : "trash" === t ? "本月垃圾篓是空的。" : "finalized" === t ? "本月还没有已定稿记录。" : "本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。") + "</div>", u = Xm(), d = [ "ledger", t, u ].join("|"), p = Boolean(Pa.ledgerToolsCollapsed);
+        return '<section class="pfh-ledger-tools-panel' + (p ? " is-collapsed" : "") + '"><button type="button" class="pfh-ledger-tools-toggle" data-action="ledger-toggle-tools" aria-expanded="' + (p ? "false" : "true") + '"><span class="pfh-ledger-tools-toggle-copy"><strong>' + (i ? "绩效与筛选" : "筛选与操作") + '</strong><small>收起后列表会展示更多产品</small></span><span class="pfh-ledger-tools-toggle-state" data-ledger-tools-state>' + (p ? "展开" : "收起") + '</span><span class="pfh-ledger-tools-toggle-chevron" aria-hidden="true">⌄</span></button><div class="pfh-ledger-tools-body">' + i + '<div class="pfh-ledger-controlbar"><div class="pfh-ledger-toolbar"><button type="button" class="pfh-ledger-month" data-action="ledger-prev-month" title="上个月">‹</button><button type="button" class="pfh-ledger-month-label" data-action="ledger-today">' + gk(Gc(u)) + '</button><button type="button" class="pfh-ledger-month" data-action="ledger-next-month" title="下个月">›</button><button type="button" data-action="ledger-today">本月</button>' + ("trash" === t ? '<button type="button" data-action="ledger-trash-empty"' + (e.length ? "" : " disabled") + ">清空本月垃圾篓</button>" : l + '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button><button type="button" data-action="ledger-copy-selected" title="复制当前勾选的产品编码">复制选中编码</button><button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') + '</div><div class="pfh-ledger-filterbar"><input type="search" class="pfh-ledger-filter-query" value="' + gk(Pa.ledgerFilterQuery || "") + '" placeholder="筛选 SKU / 品牌 / 品名 / 编码"><select class="pfh-ledger-filter-status"><option value="all">全部状态</option><option value="待出图"' + ("待出图" === Pa.ledgerFilterStatus ? " selected" : "") + '>待出图</option><option value="待定稿"' + ("待定稿" === Pa.ledgerFilterStatus ? " selected" : "") + '>待定稿</option><option value="已定稿"' + ("已定稿" === Pa.ledgerFilterStatus ? " selected" : "") + '>已定稿</option><option value="已完成"' + ("已完成" === Pa.ledgerFilterStatus ? " selected" : "") + '>已完成</option><option value="异常"' + ("异常" === Pa.ledgerFilterStatus ? " selected" : "") + '>异常</option><option value="ai-error"' + ("ai-error" === Pa.ledgerFilterStatus ? " selected" : "") + '>AI 异常</option></select><select class="pfh-ledger-filter-image"><option value="all">全部图片</option><option value="benchmark"' + ("benchmark" === Pa.ledgerFilterImage ? " selected" : "") + '>有对标图</option><option value="effect"' + ("effect" === Pa.ledgerFilterImage ? " selected" : "") + '>有效果图</option><option value="missing"' + ("missing" === Pa.ledgerFilterImage ? " selected" : "") + '>缺当前图</option></select><button type="button" data-action="ledger-copy-filtered-skus">复制当前编码</button><button type="button" data-action="ledger-copy-filtered-table">复制当前表格</button><div class="pfh-ledger-view-switch"><button type="button" data-action="ledger-display-mode" data-mode="cards" class="' + ("cards" === Pa.ledgerDisplayMode ? "is-active" : "") + '">卡片</button><button type="button" data-action="ledger-display-mode" data-mode="table" class="' + ("table" === Pa.ledgerDisplayMode ? "is-active" : "") + '">表格</button></div></div></div></div></section>' + ("table" === Pa.ledgerDisplayMode ? function(e, t) {
             return e.length ? '<div class="pfh-ledger-table-wrap"><table class="pfh-ledger-table"><thead><tr><th>SKU</th><th>产品</th><th>设计类型</th><th>优先级</th><th>状态</th><th>日期</th><th>价格</th><th>纸盒</th><th>标签</th><th>图包</th><th>AI 生图</th></tr></thead><tbody>' + e.map(e => {
                 const a = eh(e), n = /^(?:作废|已完成|异常)$/.test(e.status || "") ? e.status : a ? "已定稿" : e.imageGeneratedAt ? "待定稿" : "待出图", r = qh(e).label, i = "finalized" === t ? Ym(e) : Zm(e);
-                return '<tr><td class="pfh-ledger-table-sku-cell"><button type="button" class="pfh-ledger-table-sku" data-action="ledger-copy-sku" data-ledger-table-sku="' + pk(e.sku) + '" data-sku="' + pk(e.sku) + '" title="单击复制；按住并向下拖可连续复制编码">' + pk(e.sku) + "</button></td><td>" + pk([ e.brand, e.name ].filter(Boolean).join(" ")) + "</td><td>" + pk(e.designType || "") + "</td><td>" + pk(e.artPriority || "") + "</td><td>" + pk(n) + "</td><td>" + pk(i || "") + "</td><td>" + pk(e.purchasePrice || "") + "</td><td>" + pk(Ih(e.boxFileState)) + "</td><td>" + pk(Ih(e.labelFileState)) + "</td><td>" + pk(Ih(e.imagePackState)) + "</td><td>" + pk(r) + "</td></tr>";
+                return '<tr><td class="pfh-ledger-table-sku-cell"><button type="button" class="pfh-ledger-table-sku" data-action="ledger-copy-sku" data-ledger-table-sku="' + gk(e.sku) + '" data-sku="' + gk(e.sku) + '" title="单击复制；按住并向下拖可连续复制编码">' + gk(e.sku) + "</button></td><td>" + gk([ e.brand, e.name ].filter(Boolean).join(" ")) + "</td><td>" + gk(e.designType || "") + "</td><td>" + gk(e.artPriority || "") + "</td><td>" + gk(n) + "</td><td>" + gk(i || "") + "</td><td>" + gk(e.purchasePrice || "") + "</td><td>" + gk(Ih(e.boxFileState)) + "</td><td>" + gk(Ih(e.labelFileState)) + "</td><td>" + gk(Ih(e.imagePackState)) + "</td><td>" + gk(r) + "</td></tr>";
             }).join("") + "</tbody></table></div>" : '<div class="pfh-ledger-empty">当前筛选条件下没有记录。</div>';
-        }(a, t) : '<div class="pfh-ledger-list" data-scroll-context="' + pk(d) + '">' + c + "</div>") + function() {
+        }(a, t) : '<div class="pfh-ledger-list" data-scroll-context="' + gk(d) + '">' + c + "</div>") + function() {
             const e = Pa.ledgerTimeEditor;
             if (!e) return "";
             const t = new Date(e.timeMs || Date.now()), a = [ t.getFullYear(), String(t.getMonth() + 1).padStart(2, "0"), String(t.getDate()).padStart(2, "0") ].join("-"), n = String(t.getHours()).padStart(2, "0"), r = String(t.getMinutes()).padStart(2, "0");
-            return '<div class="pfh-ledger-time-modal" role="dialog" aria-modal="true" aria-label="修改定稿时间"><div class="pfh-ledger-time-card"><div class="pfh-ledger-time-head"><div><b>修改定稿时间</b><span>' + pk(e.sku) + '</span></div><button type="button" data-action="ledger-time-close" aria-label="关闭">×</button></div><div class="pfh-ledger-time-fields"><label>日期<input class="pfh-ledger-time-date" type="text" inputmode="numeric" value="' + pk(a) + '" placeholder="2026-07-10"></label><label>时间<span class="pfh-ledger-time-clock"><input class="pfh-ledger-time-hour" type="text" inputmode="numeric" maxlength="2" value="' + n + '"><i>:</i><input class="pfh-ledger-time-minute" type="text" inputmode="numeric" maxlength="2" value="' + r + '"></span></label></div><div class="pfh-ledger-time-presets"><button type="button" data-action="ledger-time-today">今天</button><button type="button" data-action="ledger-time-yesterday">昨天</button><button type="button" data-action="ledger-time-day-before">前天</button></div><div class="pfh-ledger-time-actions"><button type="button" data-action="ledger-time-close">取消</button><button type="button" class="is-primary" data-action="ledger-time-save">保存时间</button></div></div></div>';
+            return '<div class="pfh-ledger-time-modal" role="dialog" aria-modal="true" aria-label="修改定稿时间"><div class="pfh-ledger-time-card"><div class="pfh-ledger-time-head"><div><b>修改定稿时间</b><span>' + gk(e.sku) + '</span></div><button type="button" data-action="ledger-time-close" aria-label="关闭">×</button></div><div class="pfh-ledger-time-fields"><label>日期<input class="pfh-ledger-time-date" type="text" inputmode="numeric" value="' + gk(a) + '" placeholder="2026-07-10"></label><label>时间<span class="pfh-ledger-time-clock"><input class="pfh-ledger-time-hour" type="text" inputmode="numeric" maxlength="2" value="' + n + '"><i>:</i><input class="pfh-ledger-time-minute" type="text" inputmode="numeric" maxlength="2" value="' + r + '"></span></label></div><div class="pfh-ledger-time-presets"><button type="button" data-action="ledger-time-today">今天</button><button type="button" data-action="ledger-time-yesterday">昨天</button><button type="button" data-action="ledger-time-day-before">前天</button></div><div class="pfh-ledger-time-actions"><button type="button" data-action="ledger-time-close">取消</button><button type="button" class="is-primary" data-action="ledger-time-save">保存时间</button></div></div></div>';
         }();
     }
     function jc(e, t, a, n) {
-        const r = e.sku || "", i = [ e.brand, e.name ].filter(Boolean).join(" ") || r, o = "design" === t ? e.benchmarkImageUrl : e.skuImageUrl || e.benchmarkImageUrl, s = o ? '<span class="pfh-ledger-thumb-frame"><img src="' + pk(o) + '" alt=""></span><span class="pfh-ledger-thumb-preview"><img src="' + pk(o) + '" alt=""></span>' : '<span class="pfh-ledger-thumb-empty">' + ht("image") + "</span>", l = Boolean(e.imageGeneratedAt), c = "finalized" === t ? Ym(e) : Zm(e), u = e.designType || "未分类", d = e.artPriority || "", p = /^P0.*(?:紧急|urgent)/i.test(d) ? " is-p0-urgent" : /^P0.*(?:当日|当天|today)/i.test(d) ? " is-p0-today" : /^P0/i.test(d) ? " is-p0-urgent" : /^P1/i.test(d) ? " is-p1" : "", g = e.packageCode || "", f = e.printCode || "", m = String(e.purchasePrice || "").trim(), h = pk(e.date || c), y = (Pa.ledgerSelectedKeys || []).includes(Rh(e)), b = n && n.get(Rh(e)) || e.performanceGroupId || "", w = "finalized" === t ? ("作废" === e.status ? "作废 " : "定稿 ") + (e.finalizedAt ? Km(e.finalizedAt, c) : Vm(c)) : "分配 " + Km(e.designAssignedAt || c, c), k = '<div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + pk(r) + '" title="点击复制产品编码">' + pk(r) + '</button><span class="is-design-type" title="设计类型">' + pk(u) + "</span>" + (d ? '<span class="is-priority' + p + '" title="美工处理优先级">' + pk(d) + "</span>" : "") + ("extension" === e.performanceType ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : "") + (wc(e) ? '<span class="is-series-excluded" title="已手动剔除自动系列">已剔除系列</span>' : "") + (a && a.get(b) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + pk(a.get(b)) + "</span>" : "") + "</div>", S = '<div class="pfh-ledger-assignment">' + pk(w) + ("finalized" === t ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + pk(r) + '" data-date="' + h + '">改时间</button>' : "") + "</div>", v = e.finalizedAt || "finalized" === t ? " is-stage-finalized" : l ? " is-stage-generated" : " is-stage-pending", x = Vc(e, r, h, l), A = Pa.ledgerMenuSku === r && Pa.ledgerMenuDate === $m(e.date || c), I = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + pk(r) + '" data-date="' + h + '" aria-label="更多操作" aria-expanded="' + (A ? "true" : "false") + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + x + "</div>", M = "finalized" === t ? '<div class="pfh-ledger-file-actions">' + function(e, t, a) {
+        const r = e.sku || "", i = [ e.brand, e.name ].filter(Boolean).join(" ") || r, o = "design" === t ? e.benchmarkImageUrl : e.skuImageUrl || e.benchmarkImageUrl, s = o ? '<span class="pfh-ledger-thumb-frame"><img src="' + gk(o) + '" alt=""></span><span class="pfh-ledger-thumb-preview"><img src="' + gk(o) + '" alt=""></span>' : '<span class="pfh-ledger-thumb-empty">' + ht("image") + "</span>", l = Boolean(e.imageGeneratedAt), c = "finalized" === t ? Ym(e) : Zm(e), u = e.designType || "未分类", d = e.artPriority || "", p = /^P0.*(?:紧急|urgent)/i.test(d) ? " is-p0-urgent" : /^P0.*(?:当日|当天|today)/i.test(d) ? " is-p0-today" : /^P0/i.test(d) ? " is-p0-urgent" : /^P1/i.test(d) ? " is-p1" : "", g = e.packageCode || "", f = e.printCode || "", m = String(e.purchasePrice || "").trim(), h = gk(e.date || c), y = (Pa.ledgerSelectedKeys || []).includes(Rh(e)), b = n && n.get(Rh(e)) || e.performanceGroupId || "", w = "finalized" === t ? ("作废" === e.status ? "作废 " : "定稿 ") + (e.finalizedAt ? Km(e.finalizedAt, c) : Vm(c)) : "分配 " + Km(e.designAssignedAt || c, c), k = '<div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + gk(r) + '" title="点击复制产品编码">' + gk(r) + '</button><span class="is-design-type" title="设计类型">' + gk(u) + "</span>" + (d ? '<span class="is-priority' + p + '" title="美工处理优先级">' + gk(d) + "</span>" : "") + ("extension" === e.performanceType ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : "") + (wc(e) ? '<span class="is-series-excluded" title="已手动剔除自动系列">已剔除系列</span>' : "") + (a && a.get(b) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + gk(a.get(b)) + "</span>" : "") + "</div>", S = '<div class="pfh-ledger-assignment">' + gk(w) + ("finalized" === t ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + gk(r) + '" data-date="' + h + '">改时间</button>' : "") + "</div>", v = e.finalizedAt || "finalized" === t ? " is-stage-finalized" : l ? " is-stage-generated" : " is-stage-pending", x = Vc(e, r, h, l), A = Pa.ledgerMenuSku === r && Pa.ledgerMenuDate === $m(e.date || c), I = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + gk(r) + '" data-date="' + h + '" aria-label="更多操作" aria-expanded="' + (A ? "true" : "false") + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + x + "</div>", M = "finalized" === t ? '<div class="pfh-ledger-file-actions">' + function(e, t, a) {
             const n = qh(e);
-            return '<button type="button" class="pfh-ledger-artwork is-ai-' + pk(n.status) + '" data-action="ledger-ai-image" data-sku="' + pk(t) + '" data-date="' + a + '" title="' + pk(n.title) + '" aria-label="' + pk("生图状态：" + n.label) + '">' + pk(n.label) + "</button>";
-        }(e, r, h) + Kc("ledger-toggle-box-file", r, h, "纸盒", g, e.boxFileState, e.boxFileDone) + Kc("ledger-toggle-label-file", r, h, "标签", f, e.labelFileState, e.labelFileDone) + Kc("ledger-toggle-image-pack", r, h, "图包", "", e.imagePackState, e.imagePackDone) + I + "</div>" : '<div class="pfh-ledger-actions">' + (l ? e.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (Pa.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '"><span>¥</span><input type="text" inputmode="decimal" value="' + pk(m) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (Pa.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '" data-action="ledger-finalize" data-sku="' + pk(r) + '" data-date="' + h + '"><svg class="pfh-ledger-finalize-check" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M511.93 64.07C264.54 64.07 64 264.62 64 512s200.54 447.93 447.93 447.93c58.83 0.07 117.09-11.5 171.43-34.04 167.5-69.32 276.7-232.76 276.64-414.03-0.08-247.39-200.69-447.87-448.07-447.79z m0.41 831.87c-212.04 0.11-384.03-171.69-384.14-383.73-0.11-212.04 171.69-384.03 383.73-384.14 50.5 0 100.51 9.93 147.18 29.24C802.49 216.72 895.99 356.6 896.08 511.8c0.11 212.04-171.7 384.02-383.74 384.14z"></path><path d="M431.85 660.55l-121.19-121.2c-12.49-12.49-12.49-32.75 0-45.24 12.49-12.49 32.75-12.49 45.24 0l92.11 92.11L668.1 366.13c12.49-12.49 32.75-12.49 45.24 0 12.49 12.49 12.49 32.75 0 45.24L464.17 660.55c-8.92 8.92-23.39 8.92-32.32 0z"></path></svg><span>定稿</span><em>已出图</em></button>' : '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + pk(r) + '" data-date="' + h + '"><span>出图</span></button>') + I + "</div>";
-        return '<article class="pfh-ledger-item is-clickable is-' + pk(t) + v + (y ? " is-selected" : "") + (A ? " is-menu-open" : "") + '" data-ledger-stage="' + pk(e.finalizedAt || "finalized" === t ? "finalized" : l ? "generated" : "pending") + '" data-ledger-sku="' + pk(r) + '" data-ledger-date="' + h + '" data-performance-group-id="' + pk(b) + '" role="button" aria-pressed="' + (y ? "true" : "false") + '" tabindex="0" title="点击卡片选择产品"><button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + pk(r) + '">' + s + '</button><div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + pk(r) + '"><b>' + pk(i) + "</b></button></div>" + k + S + '</div><div class="pfh-ledger-bottom">' + M + "</div></article>";
+            return '<button type="button" class="pfh-ledger-artwork is-ai-' + gk(n.status) + '" data-action="ledger-ai-image" data-sku="' + gk(t) + '" data-date="' + a + '" title="' + gk(n.title) + '" aria-label="' + gk("生图状态：" + n.label) + '">' + gk(n.label) + "</button>";
+        }(e, r, h) + Kc("ledger-toggle-box-file", r, h, "纸盒", g, e.boxFileState, e.boxFileDone) + Kc("ledger-toggle-label-file", r, h, "标签", f, e.labelFileState, e.labelFileDone) + Kc("ledger-toggle-image-pack", r, h, "图包", "", e.imagePackState, e.imagePackDone) + I + "</div>" : '<div class="pfh-ledger-actions">' + (l ? e.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (Pa.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '"><span>¥</span><input type="text" inputmode="decimal" value="' + gk(m) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (Pa.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '" data-action="ledger-finalize" data-sku="' + gk(r) + '" data-date="' + h + '"><svg class="pfh-ledger-finalize-check" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M511.93 64.07C264.54 64.07 64 264.62 64 512s200.54 447.93 447.93 447.93c58.83 0.07 117.09-11.5 171.43-34.04 167.5-69.32 276.7-232.76 276.64-414.03-0.08-247.39-200.69-447.87-448.07-447.79z m0.41 831.87c-212.04 0.11-384.03-171.69-384.14-383.73-0.11-212.04 171.69-384.03 383.73-384.14 50.5 0 100.51 9.93 147.18 29.24C802.49 216.72 895.99 356.6 896.08 511.8c0.11 212.04-171.7 384.02-383.74 384.14z"></path><path d="M431.85 660.55l-121.19-121.2c-12.49-12.49-12.49-32.75 0-45.24 12.49-12.49 32.75-12.49 45.24 0l92.11 92.11L668.1 366.13c12.49-12.49 32.75-12.49 45.24 0 12.49 12.49 12.49 32.75 0 45.24L464.17 660.55c-8.92 8.92-23.39 8.92-32.32 0z"></path></svg><span>定稿</span><em>已出图</em></button>' : '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + gk(r) + '" data-date="' + h + '"><span>出图</span></button>') + I + "</div>";
+        return '<article class="pfh-ledger-item is-clickable is-' + gk(t) + v + (y ? " is-selected" : "") + (A ? " is-menu-open" : "") + '" data-ledger-stage="' + gk(e.finalizedAt || "finalized" === t ? "finalized" : l ? "generated" : "pending") + '" data-ledger-sku="' + gk(r) + '" data-ledger-date="' + h + '" data-performance-group-id="' + gk(b) + '" role="button" aria-pressed="' + (y ? "true" : "false") + '" tabindex="0" title="点击卡片选择产品"><button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + gk(r) + '">' + s + '</button><div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + gk(r) + '"><b>' + gk(i) + "</b></button></div>" + k + S + '</div><div class="pfh-ledger-bottom">' + M + "</div></article>";
     }
     function Oc(e) {
         if (!e || "ledger" !== Pa.view) return void zi();
@@ -11018,20 +11018,20 @@
     }
     function Vc(e, t, a, n) {
         if (Pa.ledgerMenuSku !== t || Pa.ledgerMenuDate !== $m(a)) return "";
-        const r = "作废" === e.status ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + pk(t) + '" data-date="' + a + '">撤回作废</button>' : e.finalizedAt ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + pk(t) + '" data-date="' + a + '">撤回定稿</button>' : n ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + pk(t) + '" data-date="' + a + '">撤回出图</button>' : "", i = wc(e) ? "恢复自动系列" : "剔除自动系列", o = dh(e.artworkState), s = "doing" === o ? "生图中" : "done" === o ? "完成生图" : "待生图", l = "design" === Pa.ledgerView || !e.skuImageUrl, c = l ? e.benchmarkImageUrl || "" : e.skuImageUrl, u = l ? "对标图" : "效果图";
-        return '<div class="pfh-ledger-overflow-menu">' + r + (c ? '<button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + pk(c) + '">1688 搜' + u + '</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + pk(c) + '">Google 搜' + u + '</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + pk(c) + '">Yandex 搜' + u + "</button>" : "") + '<button type="button" data-action="ledger-cycle-artwork-state" data-sku="' + pk(t) + '" data-date="' + a + '">手动切换生图标记（当前：' + s + '）</button><button type="button" class="' + ("extension" === e.performanceType ? "is-active" : "") + '" data-action="ledger-extension" data-sku="' + pk(t) + '" data-date="' + a + '">' + ("extension" === e.performanceType ? "取消延伸（当前 0.3）" : "延伸（绩效 0.3）") + '</button><button type="button" class="' + (wc(e) ? "is-active" : "") + '" data-action="ledger-series-exclude" data-sku="' + pk(t) + '" data-date="' + a + '">' + i + '</button><button type="button" data-action="ledger-void" data-sku="' + pk(t) + '" data-date="' + a + '">作废</button><button type="button" data-action="ledger-done" data-sku="' + pk(t) + '" data-date="' + a + '">完成</button><button type="button" data-action="ledger-remove" data-sku="' + pk(t) + '" data-date="' + a + '">移除</button></div>';
+        const r = "作废" === e.status ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + gk(t) + '" data-date="' + a + '">撤回作废</button>' : e.finalizedAt ? '<button type="button" data-action="ledger-unfinalize" data-sku="' + gk(t) + '" data-date="' + a + '">撤回定稿</button>' : n ? '<button type="button" data-action="ledger-unmark-image-generated" data-sku="' + gk(t) + '" data-date="' + a + '">撤回出图</button>' : "", i = wc(e) ? "恢复自动系列" : "剔除自动系列", o = dh(e.artworkState), s = "doing" === o ? "生图中" : "done" === o ? "完成生图" : "待生图", l = "design" === Pa.ledgerView || !e.skuImageUrl, c = l ? e.benchmarkImageUrl || "" : e.skuImageUrl, u = l ? "对标图" : "效果图";
+        return '<div class="pfh-ledger-overflow-menu">' + r + (c ? '<button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + gk(c) + '">1688 搜' + u + '</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + gk(c) + '">Google 搜' + u + '</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + gk(c) + '">Yandex 搜' + u + "</button>" : "") + '<button type="button" data-action="ledger-cycle-artwork-state" data-sku="' + gk(t) + '" data-date="' + a + '">手动切换生图标记（当前：' + s + '）</button><button type="button" class="' + ("extension" === e.performanceType ? "is-active" : "") + '" data-action="ledger-extension" data-sku="' + gk(t) + '" data-date="' + a + '">' + ("extension" === e.performanceType ? "取消延伸（当前 0.3）" : "延伸（绩效 0.3）") + '</button><button type="button" class="' + (wc(e) ? "is-active" : "") + '" data-action="ledger-series-exclude" data-sku="' + gk(t) + '" data-date="' + a + '">' + i + '</button><button type="button" data-action="ledger-void" data-sku="' + gk(t) + '" data-date="' + a + '">作废</button><button type="button" data-action="ledger-done" data-sku="' + gk(t) + '" data-date="' + a + '">完成</button><button type="button" data-action="ledger-remove" data-sku="' + gk(t) + '" data-date="' + a + '">移除</button></div>';
     }
     function Kc(e, t, a, n, r, i, o) {
         const s = uh(i, o), l = n + "：" + Ih(s) + (r ? " · " + r : ""), c = "skip" === s ? String.fromCharCode(26080, 38656) + n : n;
-        return '<button type="button" class="is-' + pk(s) + '" data-action="' + e + '" data-sku="' + pk(t) + '" data-date="' + a + '" title="' + pk(l) + '"><span>' + pk(c) + "</span>" + ("skip" !== s && r ? "<small>" + pk(r) + "</small>" : "") + "</button>";
+        return '<button type="button" class="is-' + gk(s) + '" data-action="' + e + '" data-sku="' + gk(t) + '" data-date="' + a + '" title="' + gk(l) + '"><span>' + gk(c) + "</span>" + ("skip" !== s && r ? "<small>" + gk(r) + "</small>" : "") + "</button>";
     }
     function Gc(e) {
         const t = String(e || "").match(/^(\d{4})-(\d{2})$/);
         return t ? t[1] + " 年 " + Number(t[2]) + " 月" : String(e || "本月");
     }
     function Wc(e) {
-        const t = Vw(e);
-        return t ? '<button type="button" class="pfh-product-thumb" title="悬浮放大预览"><span class="pfh-thumb-frame"><img src="' + pk(t) + '" alt=""></span><span class="pfh-thumb-preview"><img src="' + pk(t) + '" alt=""></span></button>' : '<span class="pfh-product-thumb is-empty">' + ht("image") + "</span>";
+        const t = Kw(e);
+        return t ? '<button type="button" class="pfh-product-thumb" title="悬浮放大预览"><span class="pfh-thumb-frame"><img src="' + gk(t) + '" alt=""></span><span class="pfh-thumb-preview"><img src="' + gk(t) + '" alt=""></span></button>' : '<span class="pfh-product-thumb is-empty">' + ht("image") + "</span>";
     }
     function Qc(e) {
         return e ? [ e.printSizeText || "", e.tubeSegmentText || "" ].filter(Boolean).join("\n") : "";
@@ -11039,7 +11039,7 @@
     function Jc(e) {
         const t = Pa.openingProjectDetail || e === xa.openingDetail;
         if (t || Pa.scanRunning || e === xa.scanning || e === xa.checkingMaterial) {
-            return '<div class="pfh-status pfh-loading-tip"><span>' + (t ? "加载中" : "识别中") + "</span><strong>" + pk(function() {
+            return '<div class="pfh-status pfh-loading-tip"><span>' + (t ? "加载中" : "识别中") + "</span><strong>" + gk(function() {
                 const e = function(e) {
                     return Zc(e).map(e => e.text);
                 }(Pa.loadingTips), t = Pa.scanTargetSku || Pa.selectedSku || Pa.sku || String(Date.now());
@@ -11070,13 +11070,13 @@
         Pa.loadingTipText = a.text, Pa.loadingTipId = a.tipId || "", Pa.loadingTipSeed = t,
         function(e) {
             if (!e || !e.tipId) return;
-            Lb("/tips/impression", {
+            Nb("/tips/impression", {
                 method: "POST",
                 body: {
                     tipId: e.tipId,
-                    name: eb(),
-                    instanceId: kb(),
-                    shownDay: Sb(new Date)
+                    name: tb(),
+                    instanceId: Sb(),
+                    shownDay: vb(new Date)
                 }
             }).catch(() => {});
         }(a);
@@ -11095,13 +11095,13 @@
     }
     function Yc(e) {
         if (!e || !e.sku) return "";
-        const t = Pa.insightRecommendationSku === e.sku ? Pa.insightRecommendation : null, a = Pa.skuEditMode ? '<input type="text" class="pfh-smart-category-input" data-sku-edit-key="manualCategory" value="' + pk(function(e, t) {
+        const t = Pa.insightRecommendationSku === e.sku ? Pa.insightRecommendation : null, a = Pa.skuEditMode ? '<input type="text" class="pfh-smart-category-input" data-sku-edit-key="manualCategory" value="' + gk(function(e, t) {
             if (!e) return "";
-            const a = Kb(e.manualCategory);
+            const a = Gb(e.manualCategory);
             if (a) return a;
             const n = String(e.aiProductType || e.aiCategory || e.productType || e.category || "").trim();
             if (n && !/^\u672a\u5206\u7c7b$/i.test(n)) return n;
-            const r = qb(e, null);
+            const r = $b(e, null);
             return r && !/^\u672a\u5206\u7c7b$/i.test(r) ? r : t ? "" : "未分类";
         }(e, !0)) + '" placeholder="例如：玩具" autocomplete="off" spellcheck="false">' : "";
         if (Pa.insightRecommendationLoading && Pa.insightRecommendationSku === e.sku && !Pa.skuEditMode) return '<div class="pfh-smart-recommend is-loading"><strong>智能补全</strong><span>正在匹配历史价格和商品类型...</span></div>';
@@ -11112,7 +11112,7 @@
                 return [ t, a ? "￥" + a : "", e && e.productType ? String(e.productType) : "", e && e.packQty ? "装" + String(e.packQty) : "" ].filter(Boolean).join(" ");
             }).filter(Boolean).join("；") : "";
         }(t.priceSamples);
-        return '<div class="pfh-smart-recommend"><strong>智能补全</strong><span>推荐价格 <b>' + pk(String(t.recommendedPrice)) + "</b>" + (Pa.skuEditMode ? " / " + a : n ? " / " + pk(n) : "") + (r ? " / 置信度" + pk(r) : "") + "</span>" + (i || o ? "<small>" + pk([ i, o ].filter(Boolean).join(" / ")) + "</small>" : "") + (s ? "<em>样本依据：" + pk(s) + "</em>" : "") + "</div>";
+        return '<div class="pfh-smart-recommend"><strong>智能补全</strong><span>推荐价格 <b>' + gk(String(t.recommendedPrice)) + "</b>" + (Pa.skuEditMode ? " / " + a : n ? " / " + gk(n) : "") + (r ? " / 置信度" + gk(r) : "") + "</span>" + (i || o ? "<small>" + gk([ i, o ].filter(Boolean).join(" / ")) + "</small>" : "") + (s ? "<em>样本依据：" + gk(s) + "</em>" : "") + "</div>";
     }
     function eu(e) {
         return e && /^(?:effectImage|productListImage)$/.test(e.skuImageSource || "") && (e.skuImageUrl || e.skuImageFallbackUrl) || "";
@@ -11144,7 +11144,7 @@
         return Array.isArray(e && e.recentFieldChanges) ? e.recentFieldChanges.filter(e => e && e.key && !mn(e.key, e.before, e.after)).slice(0, 20) : [];
     }
     function nu() {
-        const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+        const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
         if (!e || !e.sku) return;
         const t = vi(), a = {};
         Array.from(t.querySelectorAll("[data-sku-edit-key]")).forEach(e => {
@@ -11157,24 +11157,24 @@
         }, i = (e, t) => {
             hn(e) && (r[e] = null == t ? "" : String(t).trim());
         };
-        Object.prototype.hasOwnProperty.call(a, "manualCategory") && (n.manualCategory = Kb(a.manualCategory),
+        Object.prototype.hasOwnProperty.call(a, "manualCategory") && (n.manualCategory = Gb(a.manualCategory),
         n.manualCategoryUpdatedAt = n.manualCategory ? (new Date).toLocaleString() : "",
-        sk(n.manualCategory) !== sk(e.manualCategory) && i("manualCategory", n.manualCategory)),
+        lk(n.manualCategory) !== lk(e.manualCategory) && i("manualCategory", n.manualCategory)),
         [ "packageCode", "printCode", "packageSizeText", "printSizeText", "netContent", "grossWeight" ].forEach(t => {
-            Object.prototype.hasOwnProperty.call(a, t) && (n[t] = a[t], sk(a[t]) !== sk(e[t]) && i(t, a[t]));
+            Object.prototype.hasOwnProperty.call(a, t) && (n[t] = a[t], lk(a[t]) !== lk(e[t]) && i(t, a[t]));
         });
         const o = [ "packageLength", "packageWidth", "packageHeight" ];
-        if (o.some(t => sk(a[t]) !== sk(e[t]))) {
+        if (o.some(t => lk(a[t]) !== lk(e[t]))) {
             const e = o.map(e => mi(a[e]));
-            if (!e.every(e => Number.isFinite(e) && e > 0)) return void Fb("纸盒长、宽、高需要填写完整的有效数字");
-            n.packageNums = e, n.packageSizeText = e.map(lk).join("x") + "cm", o.forEach(e => i(e, a[e])),
+            if (!e.every(e => Number.isFinite(e) && e > 0)) return void Bb("纸盒长、宽、高需要填写完整的有效数字");
+            n.packageNums = e, n.packageSizeText = e.map(ck).join("x") + "cm", o.forEach(e => i(e, a[e])),
             i("packageSizeText", n.packageSizeText);
-        } else Object.prototype.hasOwnProperty.call(a, "packageSizeText") && sk(a.packageSizeText) !== sk(e.packageSizeText) && (n.packageNums = null,
+        } else Object.prototype.hasOwnProperty.call(a, "packageSizeText") && lk(a.packageSizeText) !== lk(e.packageSizeText) && (n.packageNums = null,
         delete r.packageLength, delete r.packageWidth, delete r.packageHeight, i("packageSizeText", a.packageSizeText));
         const s = [ "productLength", "productWidth", "productHeight" ];
-        if (s.some(t => sk(a[t]) !== sk(e[t]))) {
+        if (s.some(t => lk(a[t]) !== lk(e[t]))) {
             const t = s.map(e => mi(a[e]));
-            if (!t.every(e => Number.isFinite(e) && e > 0)) return void Fb("产品长、宽、高需要填写完整的有效数字");
+            if (!t.every(e => Number.isFinite(e) && e > 0)) return void Bb("产品长、宽、高需要填写完整的有效数字");
             n.plmProductNums = t, n.productNums = t, e.isTubePrint && (n.tailSealLengthValue = ii(t[0]),
             n.tubeTailSealLengthValue = n.tailSealLengthValue), s.forEach(e => i(e, a[e]));
         }
@@ -11183,42 +11183,42 @@
         Object.prototype.hasOwnProperty.call(a, "printSizeText") && (l.print = Jr(n.printSizeText) || (Gr(n.printSizeText) ? null : l.print)),
         n.materialDimensionUnitIssues = l, n.manualFieldOverrides = r, n.updatedAt = (new Date).toLocaleString(),
         n.updatedAtMs = Date.now();
-        const c = sk(n.manualCategory) !== sk(e.manualCategory);
-        Qw(e.sku, n, {
+        const c = lk(n.manualCategory) !== lk(e.manualCategory);
+        Jw(e.sku, n, {
             changeSource: "手动校准",
             trackEmptyChanges: !0
         }), Pa.skuEditMode = !1, c && (Pa.insightRecommendationSku = "", Pa.insightRecommendation = null,
-        Pa.toyCopywritingErrorSku = "", Pa.toyCopywritingError = ""), tf(), zi(), Bb("success", "SKU 数据手动校准已保存", e.sku),
-        Fb("校准数据已保存");
+        Pa.toyCopywritingErrorSku = "", Pa.toyCopywritingError = ""), tf(), zi(), zb("success", "SKU 数据手动校准已保存", e.sku),
+        Bb("校准数据已保存");
     }
     function ru(e, t, a, n) {
         const r = a || xa.unknown, i = /^package(Length|Width|Height)$/.test(e) ? " is-carton-dim" : /^product(Length|Width|Height)$/.test(e) ? " is-product-dim" : "", o = Pa.skuEditMode && function(e) {
             return [ "packageCode", "printCode", "packageSizeText", "printSizeText", "packageLength", "packageWidth", "packageHeight", "productLength", "productWidth", "productHeight", "netContent", "grossWeight" ].includes(e);
-        }(e), s = !o && n && n.editable ? '<button type="button" data-edit-key="' + pk(e) + '">' + pk(xa.edit) + "</button>" : "", l = /^(?:packageSizeText|printSizeText)$/.test(e) ? "左键复制尺寸，右键查看命名与历史编码" : xa.copyHint, c = o || n && n.noCopy ? "" : ' data-copy-key="' + pk(e) + '" title="' + pk(l) + '"', u = function(e, t) {
+        }(e), s = !o && n && n.editable ? '<button type="button" data-edit-key="' + gk(e) + '">' + gk(xa.edit) + "</button>" : "", l = /^(?:packageSizeText|printSizeText)$/.test(e) ? "左键复制尺寸，右键查看命名与历史编码" : xa.copyHint, c = o || n && n.noCopy ? "" : ' data-copy-key="' + gk(e) + '" title="' + gk(l) + '"', u = function(e, t) {
             const a = e && null != e[t] ? e[t] : "";
             if (!/^(?:package|product)(?:Length|Width|Height)$/.test(t)) return a;
             const n = lm(a);
-            return Number.isFinite(Number(n)) && Number(n) > 0 ? lk(Number(n)) : "";
-        }(Pa.data, e), d = /^(?:package|product)(?:Length|Width|Height)$/.test(e) ? "cm（自动换算 inch）" : "", p = o ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + pk(e) + '" value="' + pk(u) + '" placeholder="' + pk(d) + '" autocomplete="off" spellcheck="false">' : "";
-        return '<div class="pfh-row' + i + (o ? " is-sku-editing" : "") + '"' + c + ' data-key="' + pk(e) + '"><span class="pfh-label"><span>' + pk(t) + '</span></span><span class="pfh-value">' + pk(r).replace(/\n/g, "<br>") + "</span>" + p + '<span class="pfh-row-actions">' + s + "</span></div>";
+            return Number.isFinite(Number(n)) && Number(n) > 0 ? ck(Number(n)) : "";
+        }(Pa.data, e), d = /^(?:package|product)(?:Length|Width|Height)$/.test(e) ? "cm（自动换算 inch）" : "", p = o ? '<input type="text" class="pfh-sku-edit-input" data-sku-edit-key="' + gk(e) + '" value="' + gk(u) + '" placeholder="' + gk(d) + '" autocomplete="off" spellcheck="false">' : "";
+        return '<div class="pfh-row' + i + (o ? " is-sku-editing" : "") + '"' + c + ' data-key="' + gk(e) + '"><span class="pfh-label"><span>' + gk(t) + '</span></span><span class="pfh-value">' + gk(r).replace(/\n/g, "<br>") + "</span>" + p + '<span class="pfh-row-actions">' + s + "</span></div>";
     }
     function iu() {
-        return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + ht("download") + "<span>" + pk(xa.excel) + "</span></button></div>";
+        return '<div class="pfh-excel-controls"><button type="button" data-action="excel-prepare">' + ht("download") + "<span>" + gk(xa.excel) + "</span></button></div>";
     }
     function ou() {
         if (!Pa.excelPanelOpen) return "";
         const e = Pa.excelStatus || rf(Pa.excelMissing), t = Pa.excelMissing.length || !Pa.excelExtra ? " is-bad" : " is-good", a = "" === Pa.excelPurchasePrice ? "6" : Pa.excelPurchasePrice, n = "toy-label" === Pa.exportType ? xa.exportTypeToyLabel : xa.exportTypeExcel;
-        return '<div class="pfh-excel-form is-open"><div class="pfh-export-menu' + (Pa.exportMenuOpen ? " is-open" : "") + '"><button type="button" class="pfh-export-menu-button" data-action="export-menu-toggle" aria-expanded="' + (Pa.exportMenuOpen ? "true" : "false") + '"><span>' + pk(n) + '</span><i></i></button><div class="pfh-export-menu-list"><button type="button" data-action="export-type" data-export-type="excel" class="' + ("excel" === Pa.exportType ? "is-active" : "") + '">' + pk(xa.exportTypeExcel) + '</button><button type="button" data-action="export-type" data-export-type="toy-label" class="' + ("toy-label" === Pa.exportType ? "is-active" : "") + '">' + pk(xa.exportTypeToyLabel) + '</button></div></div><input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + pk(xa.excelPurchasePrice) + '" value="' + pk(a) + '"><button type="button" data-action="excel-prepare" title="' + pk(xa.excelRefresh) + '">' + ht("refresh") + '</button><button type="button" data-action="excel-generate">' + pk(xa.excel) + '</button><span class="pfh-excel-status' + t + '">' + pk(e) + "</span></div>";
+        return '<div class="pfh-excel-form is-open"><div class="pfh-export-menu' + (Pa.exportMenuOpen ? " is-open" : "") + '"><button type="button" class="pfh-export-menu-button" data-action="export-menu-toggle" aria-expanded="' + (Pa.exportMenuOpen ? "true" : "false") + '"><span>' + gk(n) + '</span><i></i></button><div class="pfh-export-menu-list"><button type="button" data-action="export-type" data-export-type="excel" class="' + ("excel" === Pa.exportType ? "is-active" : "") + '">' + gk(xa.exportTypeExcel) + '</button><button type="button" data-action="export-type" data-export-type="toy-label" class="' + ("toy-label" === Pa.exportType ? "is-active" : "") + '">' + gk(xa.exportTypeToyLabel) + '</button></div></div><input type="number" min="0" step="1" class="pfh-excel-price" placeholder="' + gk(xa.excelPurchasePrice) + '" value="' + gk(a) + '"><button type="button" data-action="excel-prepare" title="' + gk(xa.excelRefresh) + '">' + ht("refresh") + '</button><button type="button" data-action="excel-generate">' + gk(xa.excel) + '</button><span class="pfh-excel-status' + t + '">' + gk(e) + "</span></div>";
     }
     function su(e) {
-        return sk(e && (e.logoText || e.brand) || "").toUpperCase().replace(/[^A-Z0-9\u3400-\u9fff]/g, "");
+        return lk(e && (e.logoText || e.brand) || "").toUpperCase().replace(/[^A-Z0-9\u3400-\u9fff]/g, "");
     }
     function lu(e) {
         const t = yi(e && e.brand || ""), a = yi(e && e.name || "");
         return t && a.toUpperCase().startsWith(t.toUpperCase()) ? a : t + a;
     }
     function cu(e) {
-        return e.map(e => lk(Number(e))).join("x") + "cm";
+        return e.map(e => ck(Number(e))).join("x") + "cm";
     }
     function uu(e) {
         const t = String(e || "").match(/\bMTL\d+\b/gi);
@@ -11232,25 +11232,25 @@
             const a = uu(e.packageCode);
             return [ {
                 type: "package",
-                label: sk(e.packageSizeLabel || "纸盒"),
+                label: lk(e.packageSizeLabel || "纸盒"),
                 values: t.slice(0, 3),
                 size: cu(t.slice(0, 3)),
-                code: a[0] || sk(e.packageCode || "")
+                code: a[0] || lk(e.packageCode || "")
             } ];
         }
         return "printSizeText" !== t ? [] : Ql(e).map(e => ({
             type: "print",
-            label: sk(e.labelText || ("label" === e.kind ? "标签" : "印刷")),
+            label: lk(e.labelText || ("label" === e.kind ? "标签" : "印刷")),
             values: [ Number(e.width), Number(e.height) ],
             size: cu([ e.width, e.height ]),
-            code: sk(e.code || "")
+            code: lk(e.code || "")
         }));
     }
     function pu(e, t, a) {
         const n = String(e && e.sku || ""), r = su(e), i = new Set(a.map(e => e.code).filter(Boolean)), o = [];
         (Pa.index || []).forEach(e => {
             if (!e || !e.sku || e.sku === n) return;
-            const s = bn(Gw(e.sku) || e);
+            const s = bn(Ww(e.sku) || e);
             du(s, t).forEach(t => {
                 if (!t.code || i.has(t.code)) return;
                 let n = null;
@@ -11292,10 +11292,10 @@
         t && t.remove();
     }
     function fu(t, a, n) {
-        const r = t && t.closest("#" + e), i = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+        const r = t && t.closest("#" + e), i = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
         if (!r || !i) return;
         const o = du(i, a);
-        if (!o.length) return void Fb("当前尺寸无法生成命名", {
+        if (!o.length) return void Bb("当前尺寸无法生成命名", {
             quiet: !0
         });
         gu(r);
@@ -11304,8 +11304,8 @@
                 const a = [ e.code, lu(t) ].filter(Boolean).join(" ");
                 return e.label + (/[）)]$/.test(e.label) ? " " : "") + "（" + e.size + "）" + a;
             }(e, i);
-            return '<button type="button" class="pfh-packaging-naming-current" data-naming-copy="' + pk(t) + '"><span>' + pk(t) + "</span></button>";
-        }).join(""), c = s.length ? s.map(e => '<button type="button" class="pfh-packaging-naming-history" data-naming-copy="' + pk(e.code) + '"><span><b>' + pk(e.code) + "</b><i>" + pk(e.exact ? "同尺寸" : "相近") + "</i>" + (e.sameLogo ? '<i class="is-logo">同 Logo</i>' : "") + "</span><small>" + pk(e.label + (/[）)]$/.test(e.label) ? " " : "") + "（" + e.size + "）" + (e.brandName ? " " + e.brandName : "")) + "</small></button>").join("") : '<p class="pfh-packaging-naming-empty">暂无同尺寸或偏差 0.5cm 以内的历史文件</p>', u = document.createElement("section");
+            return '<button type="button" class="pfh-packaging-naming-current" data-naming-copy="' + gk(t) + '"><span>' + gk(t) + "</span></button>";
+        }).join(""), c = s.length ? s.map(e => '<button type="button" class="pfh-packaging-naming-history" data-naming-copy="' + gk(e.code) + '"><span><b>' + gk(e.code) + "</b><i>" + gk(e.exact ? "同尺寸" : "相近") + "</i>" + (e.sameLogo ? '<i class="is-logo">同 Logo</i>' : "") + "</span><small>" + gk(e.label + (/[）)]$/.test(e.label) ? " " : "") + "（" + e.size + "）" + (e.brandName ? " " + e.brandName : "")) + "</small></button>").join("") : '<p class="pfh-packaging-naming-empty">暂无同尺寸或偏差 0.5cm 以内的历史文件</p>', u = document.createElement("section");
         u.className = "pfh-packaging-naming-card", u.setAttribute("role", "dialog"), u.setAttribute("aria-label", "包材命名与历史编码"),
         u.innerHTML = "<header><div><b>" + ("packageSizeText" === a ? "纸盒命名" : "标签 / 印刷命名") + '</b><span>点击内容即可复制</span></div><button type="button" data-naming-close aria-label="关闭">×</button></header><div class="pfh-packaging-naming-current-list">' + l + '</div><div class="pfh-packaging-naming-subtitle"><b>历史相近文件编码</b><span>同 Logo 优先 · 偏差 ≤ 0.5cm</span></div><div class="pfh-packaging-naming-history-list">' + c + "</div>",
         r.appendChild(u);
@@ -11315,9 +11315,9 @@
     }
     function mu(e) {
         const t = e.target && e.target.closest && e.target.closest(".pfh-detail-link-value[data-reference-url]");
-        if (t) return e.preventDefault(), e.stopPropagation(), Db(t.getAttribute("data-reference-url") || ""),
+        if (t) return e.preventDefault(), e.stopPropagation(), Fb(t.getAttribute("data-reference-url") || ""),
         t.classList.add("is-copied"), window.setTimeout(() => t.classList.remove("is-copied"), 650),
-        void Fb("链接已复制");
+        void Bb("链接已复制");
         const a = e.target && e.target.closest && e.target.closest(".pfh-sku-waterfall-card[data-sku], .pfh-sku[data-sku]");
         if (a) return e.preventDefault(), e.stopPropagation(), gu(vi()), void bu(a.getAttribute("data-sku"), e);
         const n = e.target && e.target.closest && e.target.closest('.pfh-row[data-key="packageSizeText"], .pfh-row[data-key="printSizeText"]');
@@ -11346,7 +11346,7 @@
             r && i.push('<rect x="' + a(11.268 + 1.13 * n) + '" y="9.8218" width="' + a(1.13 * t - .13) + '" height="36.01"></rect>'),
             n += t, r = !r;
         }
-        return '<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="198.463pt" height="60.4398pt" viewBox="0 0 198.463 60.4398"><rect width="198.463" height="60.4398" fill="#fff"></rect><rect x="11.203" y="9.8218" width="176.28" height="45.01" fill="#fff"></rect><g fill="#000">' + i.join("") + '</g><rect x="77.343" y="46.8318" width="44" height="8" fill="#fff"></rect><text x="77.3433" y="54.0306" fill="#000" font-family="SimSun, Songti SC, serif" font-size="8pt" font-weight="400" textLength="44" lengthAdjust="spacingAndGlyphs">' + pk(t.value) + "</text></svg>";
+        return '<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="198.463pt" height="60.4398pt" viewBox="0 0 198.463 60.4398"><rect width="198.463" height="60.4398" fill="#fff"></rect><rect x="11.203" y="9.8218" width="176.28" height="45.01" fill="#fff"></rect><g fill="#000">' + i.join("") + '</g><rect x="77.343" y="46.8318" width="44" height="8" fill="#fff"></rect><text x="77.3433" y="54.0306" fill="#000" font-family="SimSun, Songti SC, serif" font-size="8pt" font-weight="400" textLength="44" lengthAdjust="spacingAndGlyphs">' + gk(t.value) + "</text></svg>";
     }
     function yu(e) {
         const t = e && e.querySelector(".pfh-sku-context-menu");
@@ -11358,7 +11358,7 @@
         yu(a);
         if (!(Pa.index.find(t => t.sku === e) || (Pa.data && Pa.data.sku === e ? Pa.data : null))) return;
         const n = document.createElement("div");
-        n.className = "pfh-sku-context-menu", n.setAttribute("role", "menu"), n.innerHTML = '<button type="button" data-action="sku-context-cache" data-sku="' + pk(e) + '">完整缓存信息</button><button type="button" data-action="sku-context-barcode" data-sku="' + pk(e) + '">生成条码</button>',
+        n.className = "pfh-sku-context-menu", n.setAttribute("role", "menu"), n.innerHTML = '<button type="button" data-action="sku-context-cache" data-sku="' + gk(e) + '">完整缓存信息</button><button type="button" data-action="sku-context-barcode" data-sku="' + gk(e) + '">生成条码</button>',
         a.appendChild(n), Pa.skuContextMenuSku = e, a.querySelectorAll('[data-action="sku-detail-more"]').forEach(t => {
             t.getAttribute("data-sku") === e && t.setAttribute("aria-expanded", "true");
         });
@@ -11419,14 +11419,14 @@
             number: "数字",
             boolean: "布尔",
             null: "空值"
-        }[e] + "</option>").join(""), f = "boolean" === i ? '<select class="pfh-cache-value-input" data-cache-role="value"><option value="true"' + (t ? " selected" : "") + '>是 / true</option><option value="false"' + (t ? "" : " selected") + ">否 / false</option></select>" : d ? '<textarea class="pfh-cache-value-input" data-cache-role="value"' + ("null" === i ? " disabled" : "") + (p ? " readonly" : "") + ">" + pk(u) + "</textarea>" : '<input class="pfh-cache-value-input" data-cache-role="value" value="' + pk(u) + '"' + ("null" === i ? " disabled" : "") + (p ? " readonly" : "") + ">";
-        return '<div class="pfh-cache-field pfh-cache-scalar" data-cache-path="' + pk(c) + '" data-cache-search="' + pk(xu(e, t)) + '"><div class="pfh-cache-field-head"><div class="pfh-cache-field-key"><strong>' + pk(o) + '</strong><code title="' + pk(l) + '">' + pk(s) + '</code></div><div class="pfh-cache-field-control"><select class="pfh-cache-value-type" data-cache-role="type"' + (p ? " disabled" : "") + ">" + g + "</select>" + f + "</div></div></div>";
+        }[e] + "</option>").join(""), f = "boolean" === i ? '<select class="pfh-cache-value-input" data-cache-role="value"><option value="true"' + (t ? " selected" : "") + '>是 / true</option><option value="false"' + (t ? "" : " selected") + ">否 / false</option></select>" : d ? '<textarea class="pfh-cache-value-input" data-cache-role="value"' + ("null" === i ? " disabled" : "") + (p ? " readonly" : "") + ">" + gk(u) + "</textarea>" : '<input class="pfh-cache-value-input" data-cache-role="value" value="' + gk(u) + '"' + ("null" === i ? " disabled" : "") + (p ? " readonly" : "") + ">";
+        return '<div class="pfh-cache-field pfh-cache-scalar" data-cache-path="' + gk(c) + '" data-cache-search="' + gk(xu(e, t)) + '"><div class="pfh-cache-field-head"><div class="pfh-cache-field-key"><strong>' + gk(o) + '</strong><code title="' + gk(l) + '">' + gk(s) + '</code></div><div class="pfh-cache-field-control"><select class="pfh-cache-value-type" data-cache-role="type"' + (p ? " disabled" : "") + ">" + g + "</select>" + f + "</div></div></div>";
     }
     function Iu(e, t, a, n, r) {
         const i = Su(t);
         if ("object" !== i && "array" !== i) return Au(e, t, a, 0, r);
         const o = Object.entries(t), s = vu(e, r), l = r ? "[" + e + "]" : String(e || ""), c = o.length ? o.map(([e, t]) => Iu("array" === i ? Number(e) : e, t, a.concat("array" === i ? Number(e) : e), n + 1, "array" === i)).join("") : '<div class="pfh-cache-empty">' + ("array" === i ? "空数组" : "空对象") + "</div>";
-        return '<details class="pfh-cache-field pfh-cache-container" data-cache-search="' + pk(xu(e, t)) + '"' + (n < 2 ? " open" : "") + '><summary><span class="pfh-cache-container-title"><strong>' + pk(s) + "</strong><code>" + pk(l) + '</code></span><span class="pfh-cache-container-count">' + pk(("array" === i ? "数组 " : "对象 ") + o.length + " 项") + '</span></summary><div class="pfh-cache-children">' + c + "</div></details>";
+        return '<details class="pfh-cache-field pfh-cache-container" data-cache-search="' + gk(xu(e, t)) + '"' + (n < 2 ? " open" : "") + '><summary><span class="pfh-cache-container-title"><strong>' + gk(s) + "</strong><code>" + gk(l) + '</code></span><span class="pfh-cache-container-count">' + gk(("array" === i ? "数组 " : "对象 ") + o.length + " 项") + '</span></summary><div class="pfh-cache-children">' + c + "</div></details>";
     }
     function Mu(e) {
         const t = [ [ "basic", "基础信息" ], [ "material", "包材与尺寸" ], [ "asset", "图片与文件" ], [ "copy", "文案与成分" ], [ "workflow", "流程与记录" ], [ "other", "其他缓存" ] ], a = Object.fromEntries(t.map(([e]) => [ e, [] ]));
@@ -11436,7 +11436,7 @@
         }(e)].push([ e, t ])), t.map(([e, t]) => {
             const n = a[e];
             if (!n.length) return "";
-            const r = n.map(([e, t]) => '<div class="pfh-cache-top-field" data-cache-search="' + pk(xu(e, t)) + '">' + Iu(e, t, [ e ], 0, !1) + "</div>").join("");
+            const r = n.map(([e, t]) => '<div class="pfh-cache-top-field" data-cache-search="' + gk(xu(e, t)) + '">' + Iu(e, t, [ e ], 0, !1) + "</div>").join("");
             return '<section class="pfh-cache-group" data-cache-group="' + e + '"><header><strong>' + t + "</strong><span>" + n.length + ' 个顶层字段</span></header><div class="pfh-cache-group-fields">' + r + "</div></section>";
         }).join("");
     }
@@ -11481,7 +11481,7 @@
                     n[t[t.length - 1]] = a;
                 }(e, a, o);
             });
-            const t = bn(Gw(r) || {
+            const t = bn(Ww(r) || {
                 sku: r
             });
             e.sku = r;
@@ -11490,12 +11490,12 @@
             };
             Ca.forEach(a => {
                 mn(a, t[a], e[a]) || (n[a] = null == e[a] ? "" : String(e[a]).trim());
-            }), e.manualFieldOverrides = n, Qw(r, e, {
+            }), e.manualFieldOverrides = n, Jw(r, e, {
                 changeSource: "完整信息编辑",
                 trackEmptyChanges: !0
-            }), wu(), zi(), Fb(r + " 完整缓存已保存");
+            }), wu(), zi(), Bb(r + " 完整缓存已保存");
         } catch (e) {
-            n && (n.textContent = "无法保存：" + (_b(e) || "字段格式错误"));
+            n && (n.textContent = "无法保存：" + (Ub(e) || "字段格式错误"));
         }
     }
     async function Cu(e, t) {
@@ -11505,7 +11505,7 @@
         };
         const r = e => {
             "function" == typeof a.onStatus && a.onStatus(e);
-        }, i = bn(a.data || Gw(n) || {
+        }, i = bn(a.data || Ww(n) || {
             sku: n
         }), o = md(i.copywriting);
         let l;
@@ -11514,7 +11514,7 @@
                 force: Boolean(a.force)
             });
         } catch (e) {
-            return Bb("warn", "产品文案 API：定位失败，改用页面下载", n + " | " + _b(e)), {
+            return zb("warn", "产品文案 API：定位失败，改用页面下载", n + " | " + Ub(e)), {
                 handled: !1,
                 error: e
             };
@@ -11523,10 +11523,10 @@
             handled: !1,
             noFile: !0
         };
-        const c = l.fileName, u = l.fileTimestamp || "", d = Boolean(o && o.fullText && o.parserVersion === s && sk(o.fileName).toLowerCase() === sk(c).toLowerCase());
+        const c = l.fileName, u = l.fileTimestamp || "", d = Boolean(o && o.fullText && o.parserVersion === s && lk(o.fileName).toLowerCase() === lk(c).toLowerCase());
         if (!a.force && d) {
             const e = yd(i, o, Date.now());
-            return Bb("info", "产品文案 API：命中历史缓存", n + " | " + c), {
+            return zb("info", "产品文案 API：命中历史缓存", n + " | " + c), {
                 handled: !0,
                 skipped: !0,
                 data: e,
@@ -11535,7 +11535,7 @@
         }
         if (!a.force && o && o.fileTimestamp && u && u < o.fileTimestamp) {
             const e = yd(i, o, Date.now());
-            return Bb("warn", "产品文案 API：当前 Word 早于缓存，保留较新文案", n + " | " + c + " < " + o.fileName),
+            return zb("warn", "产品文案 API：当前 Word 早于缓存，保留较新文案", n + " | " + c + " < " + o.fileName),
             {
                 handled: !0,
                 skipped: !0,
@@ -11548,13 +11548,13 @@
             r("正在通过 API 下载 Word " + c);
             const e = await Vu(Xu(l.url), 18e3, "API Word 文件读取");
             if (!Zu(e)) throw new Error("API 返回内容不是有效 Word 文件");
-            r("正在解析 API Word 表格..."), Bb("info", "产品文案 API：开始解析 Word", n + " | " + c + " | " + e.byteLength + "B");
+            r("正在解析 API Word 表格..."), zb("info", "产品文案 API：开始解析 Word", n + " | " + c + " | " + e.byteLength + "B");
             const t = await pd(e), a = id(await Vu(Yu(e), 2e4, "API Word 表格解析"), i);
             if (!a.sections.length) throw new Error("API Word 中未识别到主流版文案字段");
             const s = fd(c, u, t, a, o), d = bd(i, s);
-            Qw(n, d);
+            Jw(n, d);
             const p = Boolean(o && o.fullText && s.updatePending && (s.fileHash !== o.fileHash || s.fileName !== o.fileName || s.fullText !== o.fullText));
-            return Bb("info", p ? "产品文案 API：检测到更新" : "产品文案 API：读取成功", n + " | " + c + " | " + a.sections.length + "段"),
+            return zb("info", p ? "产品文案 API：检测到更新" : "产品文案 API：读取成功", n + " | " + c + " | " + a.sections.length + "段"),
             {
                 handled: !0,
                 data: d,
@@ -11562,7 +11562,7 @@
                 file: l
             };
         } catch (e) {
-            return Bb("warn", "产品文案 API：Word 读取失败，改用页面下载", n + " | " + _b(e)), {
+            return zb("warn", "产品文案 API：Word 读取失败，改用页面下载", n + " | " + Ub(e)), {
                 handled: !1,
                 error: e,
                 file: l
@@ -11570,34 +11570,34 @@
         }
     }
     async function Pu(e) {
-        const t = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
-        if (!t || !t.sku) return void Fb("请先选择一个产品");
+        const t = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
+        if (!t || !t.sku) return void Bb("请先选择一个产品");
         const a = t.sku, n = md(t.copywriting), r = Boolean(n && n.fullText);
         Pa.copywritingMode || (Pa.copywritingView = "file"), Pa.copywritingMode = !0, Pa.copywritingLoading = !r,
         Pa.copywritingChecking = !0, Pa.copywritingError = "", Pa.copywritingStatus = r ? "正在检查新文案..." : "正在读取本地缓存...",
         Qa(), Ya(), Ua(), Ai(), await zm(120);
-        const i = md((r ? t : bn(Gw(a) || t)).copywriting), o = (n && n.fullText ? n : null) || (i && i.fullText ? i : null) || n || i, l = Boolean(o && o.fullText), c = !e && l && o.parserVersion === s && hd(o);
+        const i = md((r ? t : bn(Ww(a) || t)).copywriting), o = (n && n.fullText ? n : null) || (i && i.fullText ? i : null) || n || i, l = Boolean(o && o.fullText), c = !e && l && o.parserVersion === s && hd(o);
         if (o && o.fullText && !r && (Pa.data = bn({
             ...Pa.data,
             copywriting: o
         })), c) return Pa.copywritingLoading = !1, Pa.copywritingChecking = !1, Pa.copywritingStatus = "",
-        Pa.copywritingError = "", Bb("info", "产品文案：30分钟内已检查，跳过重复检查", a), void zi();
+        Pa.copywritingError = "", zb("info", "产品文案：30分钟内已检查，跳过重复检查", a), void zi();
         o && o.fullText && !r && (Pa.copywritingLoading = !1, Pa.copywritingStatus = "正在检查新文案...",
-        Pa.copywritingChecking = !0, zi()), Bb("info", "产品文案：开始读取", a + (e ? " 重新获取" : ""));
+        Pa.copywritingChecking = !0, zi()), zb("info", "产品文案：开始读取", a + (e ? " 重新获取" : ""));
         try {
             const n = await Cu(a, {
                 force: Boolean(e),
-                data: bn(Gw(a) || Pa.data || t),
+                data: bn(Ww(a) || Pa.data || t),
                 onStatus: e => {
                     Pa.copywritingStatus = e, zi();
                 }
             });
-            if (n && n.handled) return Pa.data = bn(n.data || Gw(a) || t), Pa.copywritingStatus = "",
-            Pa.copywritingError = "", n.skipped || Fb(n.updated ? "文案已更新，差异已高亮" : "文案读取成功"),
+            if (n && n.handled) return Pa.data = bn(n.data || Ww(a) || t), Pa.copywritingStatus = "",
+            Pa.copywritingError = "", n.skipped || Bb(n.updated ? "文案已更新，差异已高亮" : "文案读取成功"),
             void zi();
-            if (n && n.noFile) return Pa.data = bn(Gw(a) || Pa.data || t), Pa.copywritingLoading = !1,
+            if (n && n.noFile) return Pa.data = bn(Ww(a) || Pa.data || t), Pa.copywritingLoading = !1,
             Pa.copywritingChecking = !1, Pa.copywritingStatus = "", Pa.copywritingError = "",
-            Bb("info", "产品文案：API 未找到 Word，不再读取页面附件", a), void zi();
+            zb("info", "产品文案：API 未找到 Word，不再读取页面附件", a), void zi();
             let r = Rg(a);
             if (r || (await Mg({
                 preserveCopywriting: l
@@ -11611,24 +11611,24 @@
             if (!i) throw new Error("产品信息中未找到“产品文案”字段");
             const o = ju(i, a);
             if (!o) throw new Error("产品文案字段中未找到当前编码的 Word 文件");
-            let c = bn(Gw(a) || Pa.data || t), u = md(c.copywriting);
+            let c = bn(Ww(a) || Pa.data || t), u = md(c.copywriting);
             u && u.fullText && (c = yd(c, u, Date.now()), u = md(c.copywriting));
             const d = $u(o.fileName);
-            if (!e && u && u.fullText && u.parserVersion === s && sk(u.fileName).toLowerCase() === sk(o.fileName).toLowerCase()) return Pa.data = c,
-            Pa.copywritingStatus = "", Pa.copywritingError = "", void Bb("info", "产品文案：命中历史缓存", o.fileName);
+            if (!e && u && u.fullText && u.parserVersion === s && lk(u.fileName).toLowerCase() === lk(o.fileName).toLowerCase()) return Pa.data = c,
+            Pa.copywritingStatus = "", Pa.copywritingError = "", void zb("info", "产品文案：命中历史缓存", o.fileName);
             if (!e && u && u.fileTimestamp && d && d < u.fileTimestamp) return Pa.copywritingError = "页面中的 Word 版本早于缓存，已保留较新的文案",
-            void Bb("warn", "产品文案：检测到旧附件", o.fileName + " < " + u.fileName);
+            void zb("warn", "产品文案：检测到旧附件", o.fileName + " < " + u.fileName);
             l || (Pa.copywritingLoading = !0), Pa.copywritingStatus = "正在触发 Word 下载 " + o.fileName,
             zi();
             let p, g = await Vu(Hu(o.card, o.fileName), 12e3, "Word 下载监听");
             if (!g || !g.url && !g.arrayBuffer) throw new Error("未读取到 Word 文件内容");
-            Bb("info", "产品文案：已取得文件内容", g.arrayBuffer ? "内存 Word 数据" : String(g.url || "").replace(/\?.*$/, "?..."));
+            zb("info", "产品文案：已取得文件内容", g.arrayBuffer ? "内存 Word 数据" : String(g.url || "").replace(/\?.*$/, "?..."));
             try {
                 if (Pa.copywritingStatus = g.arrayBuffer ? "正在校验 Word 文件..." : "正在读取 Word 文件...",
                 zi(), p = g.arrayBuffer || await Vu(Xu(g.url), 18e3, "Word 文件读取"), !Zu(p)) throw new Error("读取到的内容不是有效 Word 文件");
             } catch (e) {
                 if ("captured" === g.kind) throw e;
-                if (Bb("warn", "产品文案：组件地址不可直接读取，改用下载监听", _b(e)), Pa.copywritingStatus = "正在重新监听 Word 下载...",
+                if (zb("warn", "产品文案：组件地址不可直接读取，改用下载监听", Ub(e)), Pa.copywritingStatus = "正在重新监听 Word 下载...",
                 zi(), g = {
                     ...await Vu(Ju(o.card, o.fileName), 12e3, "备用下载监听"),
                     kind: "captured"
@@ -11637,27 +11637,27 @@
                 zi(), p = g.arrayBuffer || await Vu(Xu(g.url), 18e3, "备用 Word 文件读取"), !Zu(p)) throw new Error("下载监听取得的内容不是有效 Word 文件");
             }
             const f = await pd(p);
-            Pa.copywritingStatus = "正在解析 Word 表格...", zi(), Bb("info", "产品文案：开始解析 Word", o.fileName + " | " + p.byteLength + "B");
+            Pa.copywritingStatus = "正在解析 Word 表格...", zi(), zb("info", "产品文案：开始解析 Word", o.fileName + " | " + p.byteLength + "B");
             const m = id(await Vu(Yu(p), 2e4, "Word 表格解析"), c);
             if (!m.sections.length) throw new Error("Word 中未识别到主流版文案字段");
             const h = fd(o.fileName, d, f, m, u);
-            Qw(a, bd(c, h)), Pa.copywritingStatus = "", Pa.copywritingError = "";
+            Jw(a, bd(c, h)), Pa.copywritingStatus = "", Pa.copywritingError = "";
             const y = Boolean(u && u.fullText && h.updatePending && (h.fileHash !== u.fileHash || h.fileName !== u.fileName || h.fullText !== u.fullText));
-            Bb("info", y ? "产品文案：检测到更新" : "产品文案：读取成功", o.fileName + " " + m.sections.length + "段"),
-            Fb(y ? "文案已更新，差异已高亮" : "文案读取成功");
+            zb("info", y ? "产品文案：检测到更新" : "产品文案：读取成功", o.fileName + " " + m.sections.length + "段"),
+            Bb(y ? "文案已更新，差异已高亮" : "文案读取成功");
         } catch (e) {
-            Pa.copywritingError = _b(e) || "产品文案读取失败", Bb("error", "产品文案读取失败", a + " " + Pa.copywritingError),
-            Fb("产品文案读取失败");
+            Pa.copywritingError = Ub(e) || "产品文案读取失败", zb("error", "产品文案读取失败", a + " " + Pa.copywritingError),
+            Bb("产品文案读取失败");
         } finally {
             Pa.copywritingLoading = !1, Pa.copywritingChecking = !1, zi();
         }
     }
     async function Lu(e, t) {
         const a = t || {}, n = Number(Pa.skuResultGeneration[e] || 0);
-        if (!e || Pa.copywritingHydratingSkus.has(e)) return bn(Gw(e) || {});
+        if (!e || Pa.copywritingHydratingSkus.has(e)) return bn(Ww(e) || {});
         const r = Number(Pa.copywritingHydrateFailedAt[e] || 0);
-        if (!a.force && r && Date.now() - r < 6e5) return bn(Gw(e) || {});
-        const i = bn(Gw(e) || {}), o = md(i.copywriting);
+        if (!a.force && r && Date.now() - r < 6e5) return bn(Ww(e) || {});
+        const i = bn(Ww(e) || {}), o = md(i.copywriting);
         if (!a.force && o && o.parserVersion === s && hd(o)) return i;
         Pa.copywritingHydratingSkus.add(e);
         let l = null, c = "";
@@ -11670,18 +11670,18 @@
                     Pa.copywritingStatus = e, zi();
                 }
             });
-            if (t && t.handled) return delete Pa.copywritingHydrateFailedAt[e], bn(t.data || Gw(e) || i);
+            if (t && t.handled) return delete Pa.copywritingHydrateFailedAt[e], bn(t.data || Ww(e) || i);
             if (t && t.noFile) return i;
-            if (l = a.drawer || Rg(e), !l || l !== Rg(e)) return bn(Gw(e) || {});
-            if (c = ki(l), a.silent && !a.file && ki(l) !== xa.productTab && (!t || !t.error)) return bn(Gw(e) || {});
+            if (l = a.drawer || Rg(e), !l || l !== Rg(e)) return bn(Ww(e) || {});
+            if (c = ki(l), a.silent && !a.file && ki(l) !== xa.productTab && (!t || !t.error)) return bn(Ww(e) || {});
             a.file || await Of(l, xa.productTab), a.file || await ef(() => Ru(l), 5e3, 160);
             const r = a.file ? null : Ru(l);
-            if (!a.file && !r) return bn(Gw(e) || {});
+            if (!a.file && !r) return bn(Ww(e) || {});
             const o = a.file || ju(r, e);
-            if (!o) return bn(Gw(e) || {});
-            const u = bn(Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
+            if (!o) return bn(Ww(e) || {});
+            const u = bn(Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
                 sku: e
-            })), d = md(u.copywriting), p = d && d.fullText && d.parserVersion === s && sk(d.fileName).toLowerCase() === sk(o.fileName).toLowerCase();
+            })), d = md(u.copywriting), p = d && d.fullText && d.parserVersion === s && lk(d.fileName).toLowerCase() === lk(o.fileName).toLowerCase();
             if (!a.force && hd(d)) return u;
             const g = $u(o.fileName);
             if (!a.force && p) return yd(u, d, Date.now());
@@ -11701,12 +11701,12 @@
             const h = await pd(f), y = id(await Vu(Yu(f), 2e4, "产品文案 Word 表格解析"), u);
             if (!y.sections.length) throw new Error("Word 中未识别到主流版文案字段");
             const b = bd(u, fd(o.fileName, g, h, y, d));
-            return l !== Rg(e) || Number(Pa.skuResultGeneration[e] || 0) !== n ? bn(Gw(e) || {}) : (Qw(e, b),
-            delete Pa.copywritingHydrateFailedAt[e], Bb("success", "产品文案静默缓存完成", e + " | " + o.fileName),
+            return l !== Rg(e) || Number(Pa.skuResultGeneration[e] || 0) !== n ? bn(Ww(e) || {}) : (Jw(e, b),
+            delete Pa.copywritingHydrateFailedAt[e], zb("success", "产品文案静默缓存完成", e + " | " + o.fileName),
             b);
         } catch (t) {
             return Number(Pa.skuResultGeneration[e] || 0) === n && (Pa.copywritingHydrateFailedAt[e] = Date.now(),
-            Bb("warn", "产品文案静默读取失败", e + " | " + _b(t))), bn(Gw(e) || {});
+            zb("warn", "产品文案静默读取失败", e + " | " + Ub(t))), bn(Ww(e) || {});
         } finally {
             Number(Pa.skuResultGeneration[e] || 0) === n && Pa.copywritingHydratingSkus.delete(e);
             const t = Rg(e);
@@ -11748,7 +11748,7 @@
                 force: Boolean(a.force)
             }));
         } catch (t) {
-            return Bb("warn", "成分表 API：定位失败，改用页面附件", e + " | " + _b(t)), {
+            return zb("warn", "成分表 API：定位失败，改用页面附件", e + " | " + Ub(t)), {
                 handled: !1,
                 error: t
             };
@@ -11758,10 +11758,10 @@
             noFile: !0
         };
         if (!n.url) throw new Error("成分表 API 附件缺少下载地址");
-        const r = bn(Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
+        const r = bn(Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
             sku: e
         })), i = String(n.fileName || "ingredient-" + e + ".pdf").trim();
-        if (!a.force && r.ingredientNormalizerVersion === o && r.ingredientPdfFileName === i && r.ingredientEnglish && r.ingredientChinese) return Bb("info", "成分表 API：命中历史缓存", e + " | " + i),
+        if (!a.force && r.ingredientNormalizerVersion === o && r.ingredientPdfFileName === i && r.ingredientEnglish && r.ingredientChinese) return zb("info", "成分表 API：命中历史缓存", e + " | " + i),
         {
             handled: !0,
             skipped: !0,
@@ -11778,7 +11778,7 @@
                     ingredientPdfFileName: i,
                     ingredientSource: "ingredientPdfApi"
                 });
-                return Qw(e, t, {
+                return Jw(e, t, {
                     suppressDataQuality: !0
                 }), {
                     handled: !0,
@@ -11791,7 +11791,7 @@
             try {
                 l = await Vu(Bu(t), 2e4, "API 成分表 PDF 解析");
             } catch (t) {
-                Bb("warn", "成分表 API：PDF 文本层不可用", e + " | 将转为图片交给 AI | " + _b(t));
+                zb("warn", "成分表 API：PDF 文本层不可用", e + " | 将转为图片交给 AI | " + Ub(t));
             }
             const c = {
                 sku: e,
@@ -11802,11 +11802,11 @@
                 try {
                     c.pageImages = await Vu(zu(t), 25e3, "API 成分表 PDF 转图片");
                 } catch (t) {
-                    Bb("warn", "成分表 API：PDF 转图片失败，改用 AI 直接读取 PDF", e + " | " + _b(t));
+                    zb("warn", "成分表 API：PDF 转图片失败，改用 AI 直接读取 PDF", e + " | " + Ub(t));
                 }
                 c.pdfBase64 = Fu(t);
             }
-            const u = await Lb("/ingredients/normalize", {
+            const u = await Nb("/ingredients/normalize", {
                 method: "POST",
                 timeoutMs: 9e4,
                 body: c
@@ -11826,20 +11826,20 @@
             }), p = a.drawer || Rg(e);
             if (a.drawer && (p !== Rg(e) || Number(Pa.skuResultGeneration[e] || 0) !== Number(a.resultGeneration || Pa.skuResultGeneration[e] || 0))) return {
                 handled: !0,
-                data: bn(Gw(e) || {})
+                data: bn(Ww(e) || {})
             };
-            Qw(e, d, {
+            Jw(e, d, {
                 suppressDataQuality: !0
             });
             return Pa.toyCopywritingErrorSku === e && "ingredient-cache" === Pa.toyCopywritingErrorKind && Boolean(Pa.toyCopywritingError) && (ol(e),
-            Pa.selectedSku === e && zi(), Fb("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Pa.ingredientHydrateFailedAt[e],
-            Bb("success", "成分表 API 缓存完成", e + " | " + d.ingredientEnglish), {
+            Pa.selectedSku === e && zi(), Bb("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Pa.ingredientHydrateFailedAt[e],
+            zb("success", "成分表 API 缓存完成", e + " | " + d.ingredientEnglish), {
                 handled: !0,
                 data: d,
                 file: n
             };
         } catch (t) {
-            return Bb("warn", "成分表 API：读取失败，改用页面附件", e + " | " + _b(t)), {
+            return zb("warn", "成分表 API：读取失败，改用页面附件", e + " | " + Ub(t)), {
                 handled: !1,
                 error: t,
                 file: n
@@ -11848,12 +11848,12 @@
     }
     async function _u(e, t) {
         const a = t || {}, n = Number(Pa.skuResultGeneration[e] || 0);
-        if (!e || Pa.ingredientHydratingSkus.has(e)) return bn(Gw(e) || {});
+        if (!e || Pa.ingredientHydratingSkus.has(e)) return bn(Ww(e) || {});
         const r = Number(Pa.ingredientHydrateFailedAt[e] || 0);
-        if (!a.force && r && Date.now() - r < 6e5) return bn(Gw(e) || {});
+        if (!a.force && r && Date.now() - r < 6e5) return bn(Ww(e) || {});
         const i = a.drawer || Rg(e);
-        if (!i && !1 === a.preferApi) return bn(Gw(e) || {});
-        if (i && i !== Rg(e) && !1 === a.preferApi) return bn(Gw(e) || {});
+        if (!i && !1 === a.preferApi) return bn(Ww(e) || {});
+        if (i && i !== Rg(e) && !1 === a.preferApi) return bn(Ww(e) || {});
         Pa.ingredientHydratingSkus.add(e);
         const s = i ? ki(i) : "";
         try {
@@ -11864,23 +11864,23 @@
                     drawer: i,
                     resultGeneration: n,
                     apiFile: a.apiFile || null
-                }), t && t.handled) return t.data || bn(Gw(e) || {});
-                if (t && t.noFile) return bn(Gw(e) || {});
+                }), t && t.handled) return t.data || bn(Ww(e) || {});
+                if (t && t.noFile) return bn(Ww(e) || {});
             }
-            if (!i || i !== Rg(e)) return bn(Gw(e) || {});
-            if (a.silent && !a.file && ki(i) !== xa.productTab && (!t || !t.error)) return bn(Gw(e) || {});
+            if (!i || i !== Rg(e)) return bn(Ww(e) || {});
+            if (a.silent && !a.file && ki(i) !== xa.productTab && (!t || !t.error)) return bn(Ww(e) || {});
             a.file || await Of(i, xa.productTab), a.file || await ef(() => Uu(i), 3500, 140);
             const r = a.file ? null : Uu(i);
-            if (!a.file && !r) return bn(Gw(e) || {});
+            if (!a.file && !r) return bn(Ww(e) || {});
             const s = a.file || function(e) {
-                const t = Array.from(e.querySelectorAll(".filePreviewMainBox, .filePreviewCard, .removeOtherContent")).filter(ck).map(e => ({
+                const t = Array.from(e.querySelectorAll(".filePreviewMainBox, .filePreviewCard, .removeOtherContent")).filter(uk).map(e => ({
                     card: e,
                     fileName: qu(e)
                 })).filter(e => /\.pdf$/i.test(e.fileName));
                 return t.filter((e, a) => t.findIndex(t => t.fileName === e.fileName) === a)[0] || null;
             }(r);
-            if (!s) return bn(Gw(e) || {});
-            const l = bn(Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
+            if (!s) return bn(Ww(e) || {});
+            const l = bn(Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
                 sku: e
             }));
             if (!a.force && l.ingredientNormalizerVersion === o && l.ingredientPdfFileName === s.fileName && l.ingredientEnglish && l.ingredientChinese) return l;
@@ -11893,7 +11893,7 @@
             }, u = c.arrayBuffer || (c.url ? await Vu(Xu(c.url), 18e3, "备用成分表 PDF 读取") : null)),
             !Du(u)) throw new Error("读取到的内容不是有效 PDF");
             const d = await pd(u);
-            if (!a.force && l.ingredientNormalizerVersion === o && l.ingredientPdfHash === d && l.ingredientEnglish && l.ingredientChinese) return l.ingredientPdfFileName !== s.fileName && i === Rg(e) && Number(Pa.skuResultGeneration[e] || 0) === n && Qw(e, {
+            if (!a.force && l.ingredientNormalizerVersion === o && l.ingredientPdfHash === d && l.ingredientEnglish && l.ingredientChinese) return l.ingredientPdfFileName !== s.fileName && i === Rg(e) && Number(Pa.skuResultGeneration[e] || 0) === n && Jw(e, {
                 ...l,
                 ingredientPdfFileName: s.fileName
             }), l;
@@ -11901,7 +11901,7 @@
             try {
                 p = await Vu(Bu(u), 2e4, "成分表 PDF 解析");
             } catch (t) {
-                Bb("warn", "成分表 PDF 文本层不可用", e + " | 将转为图片交给魔搭读取 | " + _b(t));
+                zb("warn", "成分表 PDF 文本层不可用", e + " | 将转为图片交给魔搭读取 | " + Ub(t));
             }
             const g = {
                 sku: e,
@@ -11912,11 +11912,11 @@
                 try {
                     g.pageImages = await Vu(zu(u), 25e3, "成分表 PDF 转图片");
                 } catch (t) {
-                    Bb("warn", "成分表 PDF 转图片失败", e + " | 将回退 Gemini 直接读取 PDF | " + _b(t));
+                    zb("warn", "成分表 PDF 转图片失败", e + " | 将回退 Gemini 直接读取 PDF | " + Ub(t));
                 }
                 g.pdfBase64 = Fu(u);
             }
-            const f = await Lb("/ingredients/normalize", {
+            const f = await Nb("/ingredients/normalize", {
                 method: "POST",
                 timeoutMs: 9e4,
                 body: g
@@ -11934,14 +11934,14 @@
                 ingredientNormalizerVersion: String(f.normalizerVersion || o),
                 ingredientSource: "ingredientPdf"
             });
-            if (i !== Rg(e) || Number(Pa.skuResultGeneration[e] || 0) !== n) return bn(Gw(e) || {});
-            Qw(e, m);
+            if (i !== Rg(e) || Number(Pa.skuResultGeneration[e] || 0) !== n) return bn(Ww(e) || {});
+            Jw(e, m);
             return Pa.toyCopywritingErrorSku === e && "ingredient-cache" === Pa.toyCopywritingErrorKind && Boolean(Pa.toyCopywritingError) && (ol(e),
-            Pa.selectedSku === e && zi(), Fb("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Pa.ingredientHydrateFailedAt[e],
-            Bb("success", "成分表静默缓存完成", e + " | " + m.ingredientEnglish), m;
+            Pa.selectedSku === e && zi(), Bb("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Pa.ingredientHydrateFailedAt[e],
+            zb("success", "成分表静默缓存完成", e + " | " + m.ingredientEnglish), m;
         } catch (t) {
             return Number(Pa.skuResultGeneration[e] || 0) === n && (Pa.ingredientHydrateFailedAt[e] = Date.now(),
-            Bb("warn", "成分表静默读取失败", e + " | " + _b(t))), bn(Gw(e) || {});
+            zb("warn", "成分表静默读取失败", e + " | " + Ub(t))), bn(Ww(e) || {});
         } finally {
             Number(Pa.skuResultGeneration[e] || 0) === n && Pa.ingredientHydratingSkus.delete(e);
             const t = Rg(e);
@@ -11949,9 +11949,9 @@
         }
     }
     function Uu(e) {
-        return e && Array.from(e.querySelectorAll(".ant-form-item")).filter(ck).find(e => {
+        return e && Array.from(e.querySelectorAll(".ant-form-item")).filter(uk).find(e => {
             const t = e.querySelector(".ant-form-item-label");
-            return /^(?:成份表|成分表)$/.test(sk(t && (t.innerText || t.textContent)).replace(/[：:*]/g, ""));
+            return /^(?:成份表|成分表)$/.test(lk(t && (t.innerText || t.textContent)).replace(/[：:*]/g, ""));
         }) || null;
     }
     function Du(e) {
@@ -12024,29 +12024,29 @@
         return r;
     }
     function Ru(e) {
-        return e && Array.from(e.querySelectorAll(".ant-form-item")).filter(ck).find(e => {
+        return e && Array.from(e.querySelectorAll(".ant-form-item")).filter(uk).find(e => {
             const t = e.querySelector(".ant-form-item-label");
-            return "产品文案" === sk(t && (t.innerText || t.textContent)).replace(/[：:*]/g, "");
+            return "产品文案" === lk(t && (t.innerText || t.textContent)).replace(/[：:*]/g, "");
         }) || null;
     }
     function ju(e, t) {
-        const a = Array.from(e.querySelectorAll(".filePreviewMainBox, .filePreviewCard, .removeOtherContent")).filter(ck).map(e => ({
+        const a = Array.from(e.querySelectorAll(".filePreviewMainBox, .filePreviewCard, .removeOtherContent")).filter(uk).map(e => ({
             card: e,
             fileName: Ou(e)
         })).filter(e => /\.docx$/i.test(e.fileName)), n = a.filter((e, t) => a.findIndex(t => t.fileName === e.fileName) === t);
         if (!n.length) return null;
-        const r = n.filter(e => !t || new RegExp(uk(t), "i").test(e.fileName)), i = r.length ? r : 1 === n.length ? n : [];
+        const r = n.filter(e => !t || new RegExp(dk(t), "i").test(e.fileName)), i = r.length ? r : 1 === n.length ? n : [];
         return i.length ? i.sort((e, t) => $u(t.fileName).localeCompare($u(e.fileName)))[0] : null;
     }
     function Ou(e) {
         if (!e) return "";
-        const t = Array.from(e.querySelectorAll('.title span, [class*="title"] span')).map(e => sk(e.innerText || e.textContent)).filter(e => /\.docx$/i.test(e));
-        return t.length ? t[t.length - 1] : ((sk(e.innerText || e.textContent).match(/[^\n\\/:*?"<>|]+\.docx\b/i) || [])[0] || "").trim();
+        const t = Array.from(e.querySelectorAll('.title span, [class*="title"] span')).map(e => lk(e.innerText || e.textContent)).filter(e => /\.docx$/i.test(e));
+        return t.length ? t[t.length - 1] : ((lk(e.innerText || e.textContent).match(/[^\n\\/:*?"<>|]+\.docx\b/i) || [])[0] || "").trim();
     }
     function qu(e) {
         if (!e) return "";
-        const t = Array.from(e.querySelectorAll('.title span, [class*="title"] span')).map(e => sk(e.innerText || e.textContent)).filter(e => /\.pdf$/i.test(e));
-        return t.length ? t[t.length - 1] : ((sk(e.innerText || e.textContent).match(/[^\n\\/:*?"<>|]+\.pdf\b/i) || [])[0] || "").trim();
+        const t = Array.from(e.querySelectorAll('.title span, [class*="title"] span')).map(e => lk(e.innerText || e.textContent)).filter(e => /\.pdf$/i.test(e));
+        return t.length ? t[t.length - 1] : ((lk(e.innerText || e.textContent).match(/[^\n\\/:*?"<>|]+\.pdf\b/i) || [])[0] || "").trim();
     }
     function $u(e) {
         return (String(e || "").match(/_(\d{14,17})(?=\.docx$)/i) || [])[1] || "";
@@ -12062,11 +12062,11 @@
             const n = String(e.outerHTML || "").replace(/&amp;/g, "&");
             return (n.match(/https?:\/\/[^"'<>\s]+/g) || []).map(Gu).find(Wu) || "";
         }(e);
-        return n ? (Bb("info", a + "：命中卡片地址", t + " | " + Ku(n)), {
+        return n ? (zb("info", a + "：命中卡片地址", t + " | " + Ku(n)), {
             url: n,
             arrayBuffer: null,
             kind: "direct"
-        }) : (Bb("info", a + "：未发现静态地址，直接监听下载动作", t), {
+        }) : (zb("info", a + "：未发现静态地址，直接监听下载动作", t), {
             ...await Ju(e, t),
             kind: "captured"
         });
@@ -12104,12 +12104,12 @@
     }
     async function Ju(e, t) {
         const a = /\.pdf$/i.test(String(t || "")), n = a ? "成分表" : "产品文案";
-        if (!e) return Bb("error", n + "：下载监听失败", "附件卡片不存在"), {
+        if (!e) return zb("error", n + "：下载监听失败", "附件卡片不存在"), {
             url: "",
             arrayBuffer: null
         };
         const r = e.querySelector('.delBtn .anticon-vertical-align-bottom, .delBtn [aria-label="vertical-align-bottom"], .anticon-vertical-align-bottom, [aria-label="vertical-align-bottom"], [class*="download" i]'), i = r && (r.closest('.delBtn, button, a, [role="button"]') || r);
-        if (!i) return Bb("error", n + "：下载监听失败", t + " | 未找到下载图标，卡片类名：" + String(e.className || "")),
+        if (!i) return zb("error", n + "：下载监听失败", t + " | 未找到下载图标，卡片类名：" + String(e.className || "")),
         {
             url: "",
             arrayBuffer: null
@@ -12200,7 +12200,7 @@
                 });
             }
         } catch (e) {
-            Bb("warn", n + "：下载地址监听受限", _b(e));
+            zb("warn", n + "：下载地址监听受限", Ub(e));
         }
         const h = new Set((performance.getEntriesByType && performance.getEntriesByType("resource") || []).map(e => e.name)), y = new MutationObserver(e => {
             e.forEach(e => Array.from(e.addedNodes || []).forEach(e => {
@@ -12227,7 +12227,7 @@
                 } catch (e) {}
             });
         }
-        return u ? Bb("info", n + "：下载监听成功", t + " | 内存 " + (a ? "PDF " : "Word ") + u.byteLength + "B") : o ? Bb("info", n + "：下载监听捕获地址", t + " | " + Ku(o)) : Bb("error", n + "：下载监听未取得文件", t + " | " + (g.join("；") || "点击后未发现下载地址、Blob 或目标文件响应")),
+        return u ? zb("info", n + "：下载监听成功", t + " | 内存 " + (a ? "PDF " : "Word ") + u.byteLength + "B") : o ? zb("info", n + "：下载监听捕获地址", t + " | " + Ku(o)) : zb("error", n + "：下载监听未取得文件", t + " | " + (g.join("；") || "点击后未发现下载地址、Blob 或目标文件响应")),
         {
             url: o,
             arrayBuffer: u
@@ -12291,17 +12291,17 @@
                     return c.decode(new Uint8Array(m));
                 }
                 throw new Error("Word 中没有正文 XML");
-            }(e), Bb("info", "产品文案：Word 原生解压成功", t.length + " 字符");
+            }(e), zb("info", "产品文案：Word 原生解压成功", t.length + " 字符");
         } catch (a) {
-            Bb("warn", "产品文案：原生解压不可用，尝试 JSZip", _b(a));
+            zb("warn", "产品文案：原生解压不可用，尝试 JSZip", Ub(a));
             const n = "undefined" != typeof JSZip && JSZip || "undefined" != typeof unsafeWindow && unsafeWindow.JSZip;
-            if (!n) throw new Error("Word 解析组件未加载，且原生解压失败：" + _b(a));
+            if (!n) throw new Error("Word 解析组件未加载，且原生解压失败：" + Ub(a));
             const r = (await n.loadAsync(e, {
                 checkCRC32: !1,
                 createFolders: !1
             })).file("word/document.xml");
             if (!r) throw new Error("Word 文件结构不完整");
-            t = await r.async("string"), Bb("info", "产品文案：JSZip 解压成功", t.length + " 字符");
+            t = await r.async("string"), zb("info", "产品文案：JSZip 解压成功", t.length + " 字符");
         }
         const a = (new DOMParser).parseFromString(t, "application/xml");
         if (a.querySelector("parsererror")) throw new Error("Word XML 解析失败");
@@ -12420,7 +12420,7 @@
             };
             const i = "G" === r ? n / 28.349523125 : n / 29.5735295625;
             return {
-                text: lk(n) + r + "/ " + i.toFixed(2) + ("G" === r ? " OZ" : " FL OZ"),
+                text: ck(n) + r + "/ " + i.toFixed(2) + ("G" === r ? " OZ" : " FL OZ"),
                 warning: ""
             };
         }(t && t.netContent);
@@ -12610,7 +12610,7 @@
             ...n,
             lastCheckedAtMs: r
         }));
-        return Qw(e.sku, i, {
+        return Jw(e.sku, i, {
             suppressChangeTracking: !0
         }), i;
     }
@@ -12632,28 +12632,28 @@
     }
     function wd() {
         Pa.uploadExpanded = !0;
-        const e = xw(Pa.uploadMode);
-        Pa.uploadMode = e, Pa.uploadWorkerMode = e, Pa.uploadRunning = Cw(e), yw(e), function() {
-            const e = ow();
+        const e = Aw(Pa.uploadMode);
+        Pa.uploadMode = e, Pa.uploadWorkerMode = e, Pa.uploadRunning = Pw(e), bw(e), function() {
+            const e = sw();
             let t = e;
             if (q.forEach(e => {
-                const a = t.filter(t => Aw(t) === e && /\u8fdb\u884c\u4e2d/.test(t.status || ""));
+                const a = t.filter(t => Iw(t) === e && /\u8fdb\u884c\u4e2d/.test(t.status || ""));
                 if (a.length <= 1) return;
                 const n = hp(a, e);
                 t = bp(t, n);
             }), t === e) return;
-            Pa.uploadQueue = t, gw();
-        }(), Pa.uploadQueue = ow(), Pa.uploadHistory = fw();
-        const t = "history" === Pa.uploadView, a = (Pa.uploadHistory || []).filter(t => Aw(t) === e), n = a.filter(vw), r = (Pa.uploadQueue || []).filter(t => Aw(t) === e && !/\u6210\u529f/.test(t.status || "")), i = t ? a : r, o = t ? "uploadHistoryPage" : "uploadPage", s = Math.max(1, Math.ceil(i.length / 10));
-        Pa[o] = nk(Pa[o] || 1, 1, s);
+            Pa.uploadQueue = t, fw();
+        }(), Pa.uploadQueue = sw(), Pa.uploadHistory = mw();
+        const t = "history" === Pa.uploadView, a = (Pa.uploadHistory || []).filter(t => Iw(t) === e), n = a.filter(xw), r = (Pa.uploadQueue || []).filter(t => Iw(t) === e && !/\u6210\u529f/.test(t.status || "")), i = t ? a : r, o = t ? "uploadHistoryPage" : "uploadPage", s = Math.max(1, Math.ceil(i.length / 10));
+        Pa[o] = rk(Pa[o] || 1, 1, s);
         const l = i.slice(10 * (Pa[o] - 1), 10 * Pa[o]), c = Pa.data && Pa.data.sku ? Pa.data.sku : "", u = Pa.uploadRunning ? hp(r, e) : null, d = (Pa.uploadRunning ? "运行中" : "已暂停") + (u ? " | " + u.sku : ""), p = new Set(i.map(e => e.id)), g = new Set((Pa.uploadSelectedIds || []).filter(e => p.has(e))), f = l.length ? l.map(e => {
             const a = c && e.sku === c ? " is-current" : "", r = "toy-label" === e.kind, i = "toy-effect" === e.kind, o = "copyright" === e.kind, s = lp(e), l = !r || e.status && e.status !== xa.uploadSuccess ? !i || e.status && e.status !== xa.uploadSuccess ? !o || e.status && e.status !== xa.uploadSuccess ? e.status || xa.uploadSuccess : "版权图上传成功" : "效果图上传成功" : "标签上传成功", u = r ? "待生成玩具标签" : i ? "待上传效果图" : "待上传", d = t ? l : s ? e.status || u : "缺文件", p = /\u6210\u529f/.test(d) ? "is-success" : !s || /\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(d) ? "is-missing" : "is-ready", f = op(e), m = sp(e), h = r ? "玩具标签：生成 / 上传 BOM / 下载 PSD 与图片" : i ? "效果图：" + (m.length ? m.map(e => e.name).join(" / ") : "缺少图片") : o ? "版权图：" + (f.length ? f.map(e => e.name).join(" / ") : "缺少图片") : [ e.xlsxName ? "XLSX 已有 " + e.xlsxName : "XLSX 缺少", e.zipName ? "ZIP 已有 " + e.zipName : "ZIP 缺少" ].join(" | "), y = t ? null : function(e, t) {
-                const a = Array.isArray(t) ? t : [], n = kw(e), r = e && e.kind || "standard";
-                return a.find(e => kw(e) === n && (e.kind || "standard") === r) || a.find(t => t.sku === e.sku && (t.kind || "standard") === r) || null;
-            }(e, n), b = y ? "上次上传：" + (y.completedAt || y.updatedAt || "") : "", w = t ? e.completedAt || e.updatedAt || "" : [ b, e.step || h ].filter(Boolean).join(" · "), k = t ? e.step || e.skipReason || "" : [ b, h ].filter(Boolean).join("\n"), S = rp(e), v = t ? "upload-history-select" : "upload-queue-select", x = '<button type="button" class="pfh-upload-check' + (g.has(e.id) ? " is-checked" : "") + '" data-action="' + v + '" data-upload-id="' + pk(e.id) + '" title="选中"></button>';
-            return '<div class="pfh-upload-item' + a + (t ? " is-history" : "") + '" data-upload-id="' + pk(e.id) + '"><div><b>' + pk(e.sku) + "</b><small>" + pk(S) + '</small></div><span class="' + p + '">' + pk(d) + '</span><em title="' + pk(k) + '">' + pk(w) + "</em>" + x + "</div>";
-        }).join("") : '<div class="pfh-empty">' + pk(t ? xa.uploadHistoryEmpty : xa.uploadQueueEmpty) + "</div>", m = '<div class="pfh-upload-table-head' + (t ? " is-history" : "") + '"><span class="pfh-upload-head-project"><b>项目</b></span><span>状态</span><span>' + pk(t ? "时间" : "文件/进度") + "</span><span>选择</span></div>", h = t ? "upload-history-page" : "upload-page", y = '<div class="pfh-upload-pager"><span>共 ' + i.length + ' 条</span><div><button type="button" data-action="' + h + '-prev"' + (Pa[o] <= 1 ? " disabled" : "") + ">‹</button>" + kd(h, Pa[o], s) + '<button type="button" data-action="' + h + '-next"' + (Pa[o] >= s ? " disabled" : "") + ">›</button></div></div>", b = '<button type="button" data-action="upload-clear-list">' + pk(xa.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (g.size ? "" : " disabled") + ">" + pk(xa.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (g.size ? "" : " disabled") + ">" + pk(xa.uploadRetry) + "</button>", w = t ? "upload-history-toggle" : "home-back", k = t ? "返回提审上传" : "返回主页", S = t ? "" : '<div class="pfh-upload-mode-tabs is-four' + ("toy-label" === e ? " is-toy-label" : "") + ("toy-effect" === e ? " is-toy-effect" : "") + ("copyright" === e ? " is-copyright" : "") + '" data-active-mode="' + pk(e) + '" style="--pfh-upload-mode-count:4;grid-template-columns:repeat(4,minmax(68px,1fr));width:min(100%,360px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + ("standard" === e ? "is-active" : "") + '">图包表格</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + ("toy-label" === e ? "is-active" : "") + '">玩具标签</button><button type="button" data-action="upload-mode" data-upload-mode="toy-effect" class="' + ("toy-effect" === e ? "is-active" : "") + '">玩具效果图</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + ("copyright" === e ? "is-active" : "") + '">版权图</button></div>', v = Array.isArray(Pa.copyrightPendingFiles) ? Pa.copyrightPendingFiles : [], x = Pa.uploadRunning ? '<button type="button" data-action="upload-pause">' + pk(xa.uploadPauseQueue) + "</button>" : '<button type="button" data-action="upload-start">' + pk(xa.uploadStartQueue) + "</button>", A = Yi(e) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">拖动上方 SKU 卡片到这里添加任务</div>' : "", I = !t && Yi(e) ? '<div class="pfh-upload-sku-picker" data-upload-sku-picker="true"></div>' : "", M = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="粘贴一个或多个 SKU 编码">' + pk(Pa.copyrightSkuInput || "") + '</textarea><div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="粘贴或拖入版权图">粘贴或拖入版权图（JPG / PNG）' + (v.length ? "<small>已选 " + v.length + " 张：" + pk(v.slice(0, 6).map(e => e.name).join(" / ") + (v.length > 6 ? " ..." : "")) + "</small>" : "") + '</div><input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + ((Pa.copyrightSkuInput || "").trim() && v.length ? "" : " disabled") + ">加入版权图任务</button>" + (v.length ? '<button type="button" data-action="copyright-pending-clear">清空已选</button>' : "") + x + "</div>", T = '<div class="pfh-upload-drop pfh-toy-effect-drop" data-action="upload-pick" data-upload-drop="toy-effect" tabindex="0" role="button" aria-label="拖入玩具效果图">拖入玩具效果图（JPG / PNG）<small>按文件名中的产品名匹配 SKU，上传到对应 BOM 的效果图</small></div>' + (Pa.toyEffectMatchStatus ? '<div class="pfh-upload-match-status is-error">' + pk(Pa.toyEffectMatchStatus) + "</div>" : "") + '<input class="pfh-upload-file" data-upload-kind="toy-effect" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="toy-effect">选择效果图</button>' + x + "</div>", E = '<button type="button" data-action="upload-history-toggle">' + pk(t ? "返回提审上传" : "历史记录") + "</button>";
-        return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (t ? " is-history-view" : "") + '"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + w + '" aria-label="' + k + '">' + ht("backArrow") + "</button><h3>" + pk(xa.uploadSection) + "</h3>" + S + '<span class="pfh-upload-status">' + pk(d) + '</span><button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="使用说明" aria-label="使用说明"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512 85.3c235.3 0 426.7 191.4 426.7 426.7 0 235.3-191.4 426.7-426.7 426.7S85.3 747.3 85.3 512C85.3 276.7 276.7 85.3 512 85.3m0-64C241 21.3 21.3 241 21.3 512S241 1002.7 512 1002.7 1002.7 783 1002.7 512 783 21.3 512 21.3z"></path><path d="M512 277.3m-64 0a64 64 0 1 0 128 0 64 64 0 1 0-128 0Z"></path><path d="M512 810.7c-35.3 0-64-28.7-64-64v-256c0-35.3 28.7-64 64-64s64 28.7 64 64v256c0 35.3-28.7 64-64 64z"></path></svg></button></div>' + I + '<div class="pfh-upload-body">' + (t ? "" : "toy-label" === e ? A + '<textarea class="pfh-toy-label-sku-input" placeholder="粘贴多个 SKU 编码，每行一个或用空格/逗号分隔">' + pk(Pa.toyLabelSkuInput || "") + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">加入玩具标签任务</button>' + x + "</div>" : "toy-effect" === e ? T : "copyright" === e ? A + M : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + pk(xa.uploadDropHint) + '">' + pk(xa.uploadDropHint) + '</div><input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">选择文件</button>' + x + "</div>") + m + '<div class="pfh-upload-list">' + f + '</div></div></section></div><div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + y + '<div class="pfh-upload-bottom-actions">' + E + b + "</div></div></div>" + (Pa.uploadGuideOpen ? '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="使用说明"><header><h3>使用说明</h3><button type="button" data-action="upload-guide-close" aria-label="关闭">×</button></header><article><b>图包表格</b><p>把 XLSX 和 ZIP 一起拖入，脚本按文件名中的 SKU 自动匹配并加入任务栏。</p><b>玩具标签</b><p>粘贴多个 SKU 后加入任务；队列会逐个生成标签、上传 BOM，并在结束后下载一个 ZIP 压缩包。</p><b>版权图</b><p>输入 SKU 后粘贴或拖入 JPG/PNG；队列会上传到「设计文件 - 版权图」，保存草稿后提审。多 SKU 可按文件名中的 SKU 匹配，或按图片顺序一对一分配。</p><p class="pfh-upload-guide-tip">请先保证 SKU 已有本地缓存，以避免任务无法获取制作数据。</p></article></section></div>' : "") + function() {
+                const a = Array.isArray(t) ? t : [], n = Sw(e), r = e && e.kind || "standard";
+                return a.find(e => Sw(e) === n && (e.kind || "standard") === r) || a.find(t => t.sku === e.sku && (t.kind || "standard") === r) || null;
+            }(e, n), b = y ? "上次上传：" + (y.completedAt || y.updatedAt || "") : "", w = t ? e.completedAt || e.updatedAt || "" : [ b, e.step || h ].filter(Boolean).join(" · "), k = t ? e.step || e.skipReason || "" : [ b, h ].filter(Boolean).join("\n"), S = rp(e), v = t ? "upload-history-select" : "upload-queue-select", x = '<button type="button" class="pfh-upload-check' + (g.has(e.id) ? " is-checked" : "") + '" data-action="' + v + '" data-upload-id="' + gk(e.id) + '" title="选中"></button>';
+            return '<div class="pfh-upload-item' + a + (t ? " is-history" : "") + '" data-upload-id="' + gk(e.id) + '"><div><b>' + gk(e.sku) + "</b><small>" + gk(S) + '</small></div><span class="' + p + '">' + gk(d) + '</span><em title="' + gk(k) + '">' + gk(w) + "</em>" + x + "</div>";
+        }).join("") : '<div class="pfh-empty">' + gk(t ? xa.uploadHistoryEmpty : xa.uploadQueueEmpty) + "</div>", m = '<div class="pfh-upload-table-head' + (t ? " is-history" : "") + '"><span class="pfh-upload-head-project"><b>项目</b></span><span>状态</span><span>' + gk(t ? "时间" : "文件/进度") + "</span><span>选择</span></div>", h = t ? "upload-history-page" : "upload-page", y = '<div class="pfh-upload-pager"><span>共 ' + i.length + ' 条</span><div><button type="button" data-action="' + h + '-prev"' + (Pa[o] <= 1 ? " disabled" : "") + ">‹</button>" + kd(h, Pa[o], s) + '<button type="button" data-action="' + h + '-next"' + (Pa[o] >= s ? " disabled" : "") + ">›</button></div></div>", b = '<button type="button" data-action="upload-clear-list">' + gk(xa.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (g.size ? "" : " disabled") + ">" + gk(xa.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (g.size ? "" : " disabled") + ">" + gk(xa.uploadRetry) + "</button>", w = t ? "upload-history-toggle" : "home-back", k = t ? "返回提审上传" : "返回主页", S = t ? "" : '<div class="pfh-upload-mode-tabs is-four' + ("toy-label" === e ? " is-toy-label" : "") + ("toy-effect" === e ? " is-toy-effect" : "") + ("copyright" === e ? " is-copyright" : "") + '" data-active-mode="' + gk(e) + '" style="--pfh-upload-mode-count:4;grid-template-columns:repeat(4,minmax(68px,1fr));width:min(100%,360px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + ("standard" === e ? "is-active" : "") + '">图包表格</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + ("toy-label" === e ? "is-active" : "") + '">玩具标签</button><button type="button" data-action="upload-mode" data-upload-mode="toy-effect" class="' + ("toy-effect" === e ? "is-active" : "") + '">玩具效果图</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + ("copyright" === e ? "is-active" : "") + '">版权图</button></div>', v = Array.isArray(Pa.copyrightPendingFiles) ? Pa.copyrightPendingFiles : [], x = Pa.uploadRunning ? '<button type="button" data-action="upload-pause">' + gk(xa.uploadPauseQueue) + "</button>" : '<button type="button" data-action="upload-start">' + gk(xa.uploadStartQueue) + "</button>", A = Yi(e) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">拖动上方 SKU 卡片到这里添加任务</div>' : "", I = !t && Yi(e) ? '<div class="pfh-upload-sku-picker" data-upload-sku-picker="true"></div>' : "", M = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="粘贴一个或多个 SKU 编码">' + gk(Pa.copyrightSkuInput || "") + '</textarea><div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="粘贴或拖入版权图">粘贴或拖入版权图（JPG / PNG）' + (v.length ? "<small>已选 " + v.length + " 张：" + gk(v.slice(0, 6).map(e => e.name).join(" / ") + (v.length > 6 ? " ..." : "")) + "</small>" : "") + '</div><input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + ((Pa.copyrightSkuInput || "").trim() && v.length ? "" : " disabled") + ">加入版权图任务</button>" + (v.length ? '<button type="button" data-action="copyright-pending-clear">清空已选</button>' : "") + x + "</div>", T = '<div class="pfh-upload-drop pfh-toy-effect-drop" data-action="upload-pick" data-upload-drop="toy-effect" tabindex="0" role="button" aria-label="拖入玩具效果图">拖入玩具效果图（JPG / PNG）<small>按文件名中的产品名匹配 SKU，上传到对应 BOM 的效果图</small></div>' + (Pa.toyEffectMatchStatus ? '<div class="pfh-upload-match-status is-error">' + gk(Pa.toyEffectMatchStatus) + "</div>" : "") + '<input class="pfh-upload-file" data-upload-kind="toy-effect" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="toy-effect">选择效果图</button>' + x + "</div>", E = '<button type="button" data-action="upload-history-toggle">' + gk(t ? "返回提审上传" : "历史记录") + "</button>";
+        return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (t ? " is-history-view" : "") + '"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + w + '" aria-label="' + k + '">' + ht("backArrow") + "</button><h3>" + gk(xa.uploadSection) + "</h3>" + S + '<span class="pfh-upload-status">' + gk(d) + '</span><button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="使用说明" aria-label="使用说明"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512 85.3c235.3 0 426.7 191.4 426.7 426.7 0 235.3-191.4 426.7-426.7 426.7S85.3 747.3 85.3 512C85.3 276.7 276.7 85.3 512 85.3m0-64C241 21.3 21.3 241 21.3 512S241 1002.7 512 1002.7 1002.7 783 1002.7 512 783 21.3 512 21.3z"></path><path d="M512 277.3m-64 0a64 64 0 1 0 128 0 64 64 0 1 0-128 0Z"></path><path d="M512 810.7c-35.3 0-64-28.7-64-64v-256c0-35.3 28.7-64 64-64s64 28.7 64 64v256c0 35.3-28.7 64-64 64z"></path></svg></button></div>' + I + '<div class="pfh-upload-body">' + (t ? "" : "toy-label" === e ? A + '<textarea class="pfh-toy-label-sku-input" placeholder="粘贴多个 SKU 编码，每行一个或用空格/逗号分隔">' + gk(Pa.toyLabelSkuInput || "") + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">加入玩具标签任务</button>' + x + "</div>" : "toy-effect" === e ? T : "copyright" === e ? A + M : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + gk(xa.uploadDropHint) + '">' + gk(xa.uploadDropHint) + '</div><input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">选择文件</button>' + x + "</div>") + m + '<div class="pfh-upload-list">' + f + '</div></div></section></div><div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + y + '<div class="pfh-upload-bottom-actions">' + E + b + "</div></div></div>" + (Pa.uploadGuideOpen ? '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="使用说明"><header><h3>使用说明</h3><button type="button" data-action="upload-guide-close" aria-label="关闭">×</button></header><article><b>图包表格</b><p>把 XLSX 和 ZIP 一起拖入，脚本按文件名中的 SKU 自动匹配并加入任务栏。</p><b>玩具标签</b><p>粘贴多个 SKU 后加入任务；队列会逐个生成标签、上传 BOM，并在结束后下载一个 ZIP 压缩包。</p><b>版权图</b><p>输入 SKU 后粘贴或拖入 JPG/PNG；队列会上传到「设计文件 - 版权图」，保存草稿后提审。多 SKU 可按文件名中的 SKU 匹配，或按图片顺序一对一分配。</p><p class="pfh-upload-guide-tip">请先保证 SKU 已有本地缓存，以避免任务无法获取制作数据。</p></article></section></div>' : "") + function() {
             if (!Pa.uploadClearConfirmOpen) return "";
             const e = "history" === Pa.uploadView;
             return '<div class="pfh-upload-guide-modal pfh-upload-clear-modal"><section role="dialog" aria-modal="true" aria-label="确认清空"><header><h3>确认清空</h3><button type="button" data-action="upload-clear-cancel" aria-label="关闭">×</button></header><article><b>' + (e ? "清空全部历史记录？" : "清空当前提审队列？") + "</b><p>" + (e ? "清空后将无法在历史记录中查看已上传或报错的产品。" : "队列中的待上传文件会被移除，这项操作无法撤销。") + '</p><footer><button type="button" data-action="upload-clear-cancel">取消</button><button type="button" class="is-danger" data-action="upload-clear-confirm">确认清空</button></footer></article></section></div>';
@@ -12689,7 +12689,7 @@
         if (Pa.ledgerMenuSku = o ? t : "", Pa.ledgerMenuDate = o ? a : "", qc(n, o ? r : null),
         r.classList.toggle("is-menu-open", o), e.setAttribute("aria-expanded", o ? "true" : "false"),
         !o) return;
-        r.insertAdjacentHTML("beforeend", Vc(i, t, pk(a), Boolean(i.imageGeneratedAt)));
+        r.insertAdjacentHTML("beforeend", Vc(i, t, gk(a), Boolean(i.imageGeneratedAt)));
         const s = r.querySelector('[data-action="ledger-more"]');
         s && $c(n, s);
     }
@@ -12702,8 +12702,8 @@
         const r = n.target && n.target.closest && n.target.closest(".pfh-sku-context-menu"), i = n.target && n.target.closest && n.target.closest('[data-action="sku-detail-more"]');
         r || i || yu(vi());
         const o = n.target && n.target.closest && n.target.closest(".pfh-packaging-naming-card"), s = n.target && n.target.closest && n.target.closest("[data-naming-copy]");
-        if (s) return Db(s.getAttribute("data-naming-copy") || ""), s.classList.add("is-copied"),
-        window.setTimeout(() => s.classList.remove("is-copied"), 650), void Fb(xa.copied);
+        if (s) return Fb(s.getAttribute("data-naming-copy") || ""), s.classList.add("is-copied"),
+        window.setTimeout(() => s.classList.remove("is-copied"), 650), void Bb(xa.copied);
         if (n.target && n.target.closest && n.target.closest("[data-naming-close]")) return void gu(vi());
         o || gu(vi());
         const l = n.target && n.target.closest && n.target.closest("[data-action]"), c = l && l.getAttribute("data-action");
@@ -12753,7 +12753,7 @@
                 isRead: !0,
                 readAt: (new Date).toISOString()
             } : e), Pa.notificationPendingReadIds = Array.from(new Set([ ...Pa.notificationPendingReadIds || [], a ])),
-            Mt(), zi(), await Lt(eb(), kb()), t && Fb("已标为已读"));
+            Mt(), zi(), await Lt(tb(), Sb()), t && Bb("已标为已读"));
         }(l.getAttribute("data-notification-id"), !0);
         if ("notification-read-all" === c) return void async function() {
             const e = (Pa.notifications || []).filter(e => !e.isRead).map(e => e.notificationId);
@@ -12762,11 +12762,11 @@
                 isRead: !0,
                 readAt: e.readAt || (new Date).toISOString()
             })), Pa.notificationPendingReadIds = Array.from(new Set([ ...Pa.notificationPendingReadIds || [], ...e ])),
-            Pa.notificationTab = "history", Mt(), zi(), await Lt(eb(), kb()), Fb("已全部标为已读"));
+            Pa.notificationTab = "history", Mt(), zi(), await Lt(tb(), Sb()), Bb("已全部标为已读"));
         }();
         if ("ledger-ai-image-close" === c) {
             if (l.classList.contains("pfh-ledger-ai-image-layer") && n.target !== l) return;
-            return void ky();
+            return void Sy();
         }
         if ("ledger-ai-image-select" === c) {
             if (Pa.ledgerAiImageViewer) {
@@ -12774,47 +12774,47 @@
                 Pa.ledgerAiImageViewer.tab = e, Pa.ledgerAiImageViewer.selected = {
                     ...Pa.ledgerAiImageViewer.selected || {},
                     [e]: t
-                }, Iy(vi());
+                }, My(vi());
             }
             return;
         }
         if ("ledger-ai-image-hide" === c) return void function(e, t, a, n) {
             const r = String(e || "").trim(), i = "detail" === a ? "detail" : "main", o = String(n || "").trim(), s = Vh(r, t);
             if (!s || !o) return;
-            const l = ly(i), c = kh(s[l.hiddenField], te);
+            const l = cy(i), c = kh(s[l.hiddenField], te);
             c.includes(o) || c.push(o);
-            const u = sy(r, t, {
+            const u = ly(r, t, {
                 [l.hiddenField]: c
             }, !0);
             if (!u) return;
-            Oc(u), Fb(("detail" === i ? "详情图" : "主图") + "已从悬浮助手隐藏，PLM 原图未删除"), Iy(vi());
+            Oc(u), Bb(("detail" === i ? "详情图" : "主图") + "已从悬浮助手隐藏，PLM 原图未删除"), My(vi());
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"), l.getAttribute("data-kind"), l.getAttribute("data-entry-key"));
         if ("ledger-ai-image-restore-hidden" === c) return void function(e, t, a) {
             const n = String(e || "").trim(), r = "detail" === a ? "detail" : "main", i = Vh(n, t);
             if (!i) return;
-            const o = ly(r);
+            const o = cy(r);
             if (!kh(i[o.hiddenField], te).length) return;
-            const s = sy(n, t, {
+            const s = ly(n, t, {
                 [o.hiddenField]: []
             }, !0);
             if (!s) return;
-            Oc(s), Fb("已恢复" + ("detail" === r ? "详情图" : "主图") + "列表"), Iy(vi());
+            Oc(s), Bb("已恢复" + ("detail" === r ? "详情图" : "主图") + "列表"), My(vi());
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"), l.getAttribute("data-kind"));
         if ("ledger-ai-image-tab" === c) return void (Pa.ledgerAiImageViewer && (Pa.ledgerAiImageViewer.tab = "detail" === l.getAttribute("data-tab") ? "detail" : "main",
-        Iy(vi())));
+        My(vi())));
         if ("ledger-ai-image-retouch" === c) return void function(e, t, a, n) {
-            const r = Vh(e, t), i = dy(r, a, n);
+            const r = Vh(e, t), i = py(r, a, n);
             if (!r || !i) return;
-            const o = ly(a), s = wh(r[o.originalField], o.imageLimit).findIndex(e => e.url === i.url), l = yh(i, a, s >= 0 ? s : 0), c = window.prompt("修改 " + l + " 的提示词\n通常约 45 秒返回；关闭工作台不会取消任务。", "");
+            const o = cy(a), s = wh(r[o.originalField], o.imageLimit).findIndex(e => e.url === i.url), l = yh(i, a, s >= 0 ? s : 0), c = window.prompt("修改 " + l + " 的提示词\n通常约 45 秒返回；关闭工作台不会取消任务。", "");
             if (null === c) return;
-            if (!String(c).trim()) return void Fb("修改提示词不能为空");
+            if (!String(c).trim()) return void Bb("修改提示词不能为空");
             !async function(e, t, a, n, r) {
-                const i = String(e || "").trim(), o = "detail" === a ? "detail" : "main", s = $m(t) || qm(), l = String(r || "").trim(), c = Vh(i, s), u = dy(c, o, n);
+                const i = String(e || "").trim(), o = "detail" === a ? "detail" : "main", s = $m(t) || qm(), l = String(r || "").trim(), c = Vh(i, s), u = py(c, o, n);
                 if (!c || !u || !l) return null;
-                const d = cy(i, s, o, u.url, l), p = Pa.ledgerAiImageRetouchRequests[d];
-                if (p) return Fb("这张图的相同修改正在处理中，关闭弹窗也会继续"), p;
-                const g = ly(o), f = wh(c[g.originalField], g.imageLimit), m = f.findIndex(e => e.url === u.url), h = yh(u, o, m >= 0 ? m : 0), y = String(u.baseUrl || u.url || "").trim(), b = String(u.baseFilename || fh(u) || h + ".png").trim(), w = hh(u) || (m >= 0 ? m + 1 : 0), k = Date.now(), S = {
-                    id: uy(),
+                const d = uy(i, s, o, u.url, l), p = Pa.ledgerAiImageRetouchRequests[d];
+                if (p) return Bb("这张图的相同修改正在处理中，关闭弹窗也会继续"), p;
+                const g = cy(o), f = wh(c[g.originalField], g.imageLimit), m = f.findIndex(e => e.url === u.url), h = yh(u, o, m >= 0 ? m : 0), y = String(u.baseUrl || u.url || "").trim(), b = String(u.baseFilename || fh(u) || h + ".png").trim(), w = hh(u) || (m >= 0 ? m + 1 : 0), k = Date.now(), S = {
+                    id: dy(),
                     sourceUrl: u.url,
                     displayName: h,
                     baseFilename: b,
@@ -12825,11 +12825,11 @@
                     createdAt: new Date(k).toLocaleString(),
                     createdAtMs: k,
                     updatedAtMs: k
-                }, v = py(c, o).filter(e => !(e.sourceUrl === S.sourceUrl && e.prompt === S.prompt)), x = sy(i, s, {
+                }, v = gy(c, o).filter(e => !(e.sourceUrl === S.sourceUrl && e.prompt === S.prompt)), x = ly(i, s, {
                     [g.taskField]: [ S ].concat(v)
                 }, !0);
                 if (!x) return null;
-                Fb(h + " 修改任务已提交，完成后可关闭并重新打开查看");
+                Bb(h + " 修改任务已提交，完成后可关闭并重新打开查看");
                 const A = (async () => {
                     try {
                         const e = function(e) {
@@ -12857,25 +12857,25 @@
                             createdAtMs: Date.now()
                         } ], 1)[0];
                         if (!a) throw new Error("修改图片地址无法保存");
-                        const n = Vh(i, s) || c, r = wh(n[g.retouchedField], Y), d = py(n, o).filter(e => e.id !== S.id && !(e.sourceUrl === S.sourceUrl && e.prompt === S.prompt)), p = sy(i, s, {
+                        const n = Vh(i, s) || c, r = wh(n[g.retouchedField], Y), d = gy(n, o).filter(e => e.id !== S.id && !(e.sourceUrl === S.sourceUrl && e.prompt === S.prompt)), p = ly(i, s, {
                             [g.retouchedField]: [ a ].concat(r.filter(e => e.url !== a.url)),
                             [g.taskField]: d,
                             aiImageMessage: "AI 生图与修改图已保存到工作台"
                         }, !0) || n;
-                        return Oc(p), my(i, s), Fb(h + " 修改完成，原图和修改图都已保留"), p;
+                        return Oc(p), hy(i, s), Bb(h + " 修改完成，原图和修改图都已保留"), p;
                     } catch (e) {
-                        const t = Vh(i, s) || c, a = py(t, o).map(t => t.id === S.id ? {
+                        const t = Vh(i, s) || c, a = gy(t, o).map(t => t.id === S.id ? {
                             ...t,
                             status: "error",
-                            error: _b(e) || "修改图片失败",
+                            error: Ub(e) || "修改图片失败",
                             updatedAtMs: Date.now()
-                        } : t), n = sy(i, s, {
+                        } : t), n = ly(i, s, {
                             [g.taskField]: a
                         }, !0) || t;
-                        return Oc(n), my(i, s), Fb(h + " 修改失败：" + (_b(e) || "网络请求失败")), n;
+                        return Oc(n), hy(i, s), Bb(h + " 修改失败：" + (Ub(e) || "网络请求失败")), n;
                     }
                 })();
-                Pa.ledgerAiImageRetouchRequests[d] = A, my(i, s);
+                Pa.ledgerAiImageRetouchRequests[d] = A, hy(i, s);
                 try {
                     return await A;
                 } finally {
@@ -12891,33 +12891,33 @@
             } catch (e) {
                 n = null;
             }
-            if (!n || !/^https?:$/.test(n.protocol)) return void Fb("当前图片没有可公开搜索的地址");
+            if (!n || !/^https?:$/.test(n.protocol)) return void Bb("当前图片没有可公开搜索的地址");
             const r = n.href;
             if ("google" === e) return void window.open("https://lens.google.com/uploadbyurl?url=" + encodeURIComponent(r), "_blank", "noopener,noreferrer");
             if ("yandex" === e) return void window.open("https://yandex.com/images/search?rpt=imageview&url=" + encodeURIComponent(r), "_blank", "noopener,noreferrer");
-            Db(r), window.open("https://s.1688.com/youyuan/index.htm?tab=imageSearch", "_blank", "noopener,noreferrer"),
-            Fb("图片地址已复制；1688 打开后点相机并粘贴/上传当前图");
+            Fb(r), window.open("https://s.1688.com/youyuan/index.htm?tab=imageSearch", "_blank", "noopener,noreferrer"),
+            Bb("图片地址已复制；1688 打开后点相机并粘贴/上传当前图");
         }(l.getAttribute("data-engine"), l.getAttribute("data-image-url"));
         if ("ledger-ai-image-generate" === c) return void async function(e, t, a) {
             const n = Vh(e, t);
             if (!n) return;
             const r = "detail" === a ? "detail" : "main", i = $h(e);
-            if (Pa.ledgerAiImageRequests[i]) return void Fb("这个 SKU 的 AI 生图正在处理中，请等待结果");
+            if (Pa.ledgerAiImageRequests[i]) return void Bb("这个 SKU 的 AI 生图正在处理中，请等待结果");
             const o = gh(n.aiImageStatus, n.aiImageMessage);
-            if ("loading" === o || "running" === o) return void Fb("这个 SKU 的 AI 生图正在处理中，请等待结果");
+            if ("loading" === o || "running" === o) return void Bb("这个 SKU 的 AI 生图正在处理中，请等待结果");
             try {
                 const a = ay(await ny(e, !0));
                 if (a.length) {
-                    return wy(sy(e, t, {
+                    return ky(ly(e, t, {
                         aiImageStatus: a.includes("SKU 效果图") ? a.length > 1 ? "needs-prerequisites" : "needs-sku-image" : "needs-copywriting",
                         aiImageMessage: "生图前置校验未通过：" + a.join("、"),
                         aiImageCheckedAtMs: Date.now()
-                    }, !0) || n), void Fb("已拦截 AI 生图：请先补齐 " + a.join("、"));
+                    }, !0) || n), void Bb("已拦截 AI 生图：请先补齐 " + a.join("、"));
                 }
             } catch (e) {
-                return Fb("无法确认生图资料，已停止提交：" + (_b(e) || "接口异常")), void wy(n);
+                return Bb("无法确认生图资料，已停止提交：" + (Ub(e) || "接口异常")), void ky(n);
             }
-            Py(e, t, {
+            Ly(e, t, {
                 openViewer: !0,
                 submit: !0,
                 generationKind: r
@@ -12934,46 +12934,46 @@
                     status: "unknown"
                 },
                 loading: !0
-            }, Iy(vi()), await ny(e, !0), Iy(vi());
+            }, My(vi()), await ny(e, !0), My(vi());
         }(l.getAttribute("data-sku"));
         if ("ledger-ai-prep-save" === c) return void async function(e) {
             const t = Th(e), a = Zh(t);
             if (Pa.ledgerAiImageSaveRequests[a]) return Pa.ledgerAiImageSaveRequests[a];
-            const n = Cy(t);
+            const n = Py(t);
             if (!n) return null;
-            n.saving = !0, Iy(vi());
+            n.saving = !0, My(vi());
             const r = (async () => {
-                await Ey(t, n), Fb("生图资料已保存到 PLM 草稿，正在回读校验…"), await zm(350);
+                await Cy(t, n), Bb("生图资料已保存到 PLM 草稿，正在回读校验…"), await zm(350);
                 const e = await ny(t, !0);
-                Iy(vi());
+                My(vi());
                 const a = ay(e);
-                return Fb(a.length ? "已保存，但当前仍缺：" + a.join("、") : "PLM 草稿已保存，文案和 SKU 效果图均已通过校验"),
+                return Bb(a.length ? "已保存，但当前仍缺：" + a.join("、") : "PLM 草稿已保存，文案和 SKU 效果图均已通过校验"),
                 e;
             })();
             Pa.ledgerAiImageSaveRequests[a] = r;
             try {
                 return await r;
             } catch (e) {
-                return Fb("保存生图资料失败：" + (_b(e) || "接口异常")), null;
+                return Bb("保存生图资料失败：" + (Ub(e) || "接口异常")), null;
             } finally {
                 Pa.ledgerAiImageSaveRequests[a] === r && delete Pa.ledgerAiImageSaveRequests[a];
                 const e = Pa.ledgerAiImagePreparations[a];
-                e && (e.saving = !1), Iy(vi());
+                e && (e.saving = !1), My(vi());
             }
         }(l.getAttribute("data-sku"));
         if ("ledger-ai-prep-autofill" === c) return void async function(e) {
             const t = Zh(e);
             if (Pa.ledgerAiImageAutofillRequests[t]) return Pa.ledgerAiImageAutofillRequests[t];
             const a = (async () => {
-                const t = await ny(e, !0), a = bn(Gw(e) || {
+                const t = await ny(e, !0), a = bn(Ww(e) || {
                     sku: e
-                }), n = await Lb("/ai-image/copywriting-complete", {
+                }), n = await Nb("/ai-image/copywriting-complete", {
                     method: "POST",
                     timeoutMs: 9e4,
                     body: {
                         sku: e,
                         name: a.name || "",
-                        fields: My(t)
+                        fields: Ty(t)
                     }
                 });
                 if (!n || !n.ok) throw new Error(n && n.error || "AI 未返回可用文案");
@@ -12997,42 +12997,42 @@
                             i += 1);
                         }), a.plmMissing = ty(a), i;
                     }(n, t);
-                    return await Ey(a, n), r;
+                    return await Cy(a, n), r;
                 }(e, n.fields || {});
-                Fb("PLM 草稿保存成功，正在通过 API 回读校验…"), await zm(500);
+                Bb("PLM 草稿保存成功，正在通过 API 回读校验…"), await zm(500);
                 const i = await ny(e, !0);
-                Iy(vi());
+                My(vi());
                 const o = ay(i);
-                return Fb(o.length ? "草稿已保存，但 PLM API 回读仍缺 " + o.length + " 项：" + o.join("、") : "已补齐 " + r + " 个字段、保存 PLM 草稿并通过 API 完整性校验"),
+                return Bb(o.length ? "草稿已保存，但 PLM API 回读仍缺 " + o.length + " 项：" + o.join("、") : "已补齐 " + r + " 个字段、保存 PLM 草稿并通过 API 完整性校验"),
                 i;
             })();
-            Pa.ledgerAiImageAutofillRequests[t] = a, Iy(vi());
+            Pa.ledgerAiImageAutofillRequests[t] = a, My(vi());
             try {
                 return await a;
             } catch (e) {
-                return Fb("AI 补齐或保存草稿失败：" + (_b(e) || "接口异常")), null;
+                return Bb("AI 补齐或保存草稿失败：" + (Ub(e) || "接口异常")), null;
             } finally {
                 Pa.ledgerAiImageAutofillRequests[t] === a && delete Pa.ledgerAiImageAutofillRequests[t],
-                Iy(vi());
+                My(vi());
             }
         }(l.getAttribute("data-sku"));
         if ("ledger-ai-image-download-item" === c) return void function(e, t, a, n, r) {
             if (Pa.ledgerAiImageDownloadKey) return;
-            const i = "detail" === a ? "detail" : "main", o = Vh(e, t), s = dy(o, i, n);
+            const i = "detail" === a ? "detail" : "main", o = Vh(e, t), s = py(o, i, n);
             if (!o || !s) return;
             const l = String(r || yh(s, i, 0)).trim() || ("detail" === i ? "详情图" : "主图"), c = function(e, t, a, n) {
                 return Hh(e, t, a) + "|item|" + String(n || "");
             }(o.sku, o.date, i, s.url);
             Pa.ledgerAiImageDownloadKey = c, Pa.ledgerAiImageDownloadProgress = "正在下载 " + l + "…",
-            Iy(vi()), (async () => {
+            My(vi()), (async () => {
                 try {
                     const e = await Lm(s.url), t = bh(s, e);
-                    Um(e, l + t), Fb(l + " 已下载");
+                    Um(e, l + t), Bb(l + " 已下载");
                 } catch (e) {
-                    Fb("下载" + l + "失败：" + (_b(e) || "网络请求失败"));
+                    Bb("下载" + l + "失败：" + (Ub(e) || "网络请求失败"));
                 } finally {
                     Pa.ledgerAiImageDownloadKey === c && (Pa.ledgerAiImageDownloadKey = "", Pa.ledgerAiImageDownloadProgress = "",
-                    Iy(vi()));
+                    My(vi()));
                 }
             })();
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"), l.getAttribute("data-kind"), l.getAttribute("data-image-url"), l.getAttribute("data-image-name"));
@@ -13041,21 +13041,21 @@
             if (Pa.ledgerAiImageDownloadKey) return;
             const r = Vh(e, t);
             if (!r) return;
-            const i = xy(r, n), o = "detail" === n ? "详情图" : "主图";
-            if (!i.length) return void Fb("当前没有可下载的" + o);
+            const i = Ay(r, n), o = "detail" === n ? "详情图" : "主图";
+            if (!i.length) return void Bb("当前没有可下载的" + o);
             const s = Hh(r.sku, r.date, n), l = Object.create(null);
             Pa.ledgerAiImageDownloadKey = s, Pa.ledgerAiImageDownloadProgress = "正在准备下载 " + i.length + " 张" + o + "…",
-            Iy(vi()), (async () => {
+            My(vi()), (async () => {
                 const e = [];
                 for (let t = 0; t < i.length; t += 1) {
                     const a = i[t], r = yh(a, n, t);
                     let s;
                     Pa.ledgerAiImageDownloadProgress = "正在下载 " + (t + 1) + "/" + i.length + " 张" + o + "…",
-                    Iy(vi());
+                    My(vi());
                     try {
                         s = await Lm(a.url);
                     } catch (e) {
-                        throw new Error(r + "：" + (_b(e) || "下载失败"));
+                        throw new Error(r + "：" + (Ub(e) || "下载失败"));
                     }
                     const c = bh(a, s), u = r + c, d = Number(l[u] || 0) + 1;
                     l[u] = d;
@@ -13065,26 +13065,26 @@
                         blob: s
                     });
                 }
-                Pa.ledgerAiImageDownloadProgress = "正在打包 " + i.length + " 张" + o + "…", Iy(vi());
+                Pa.ledgerAiImageDownloadProgress = "正在打包 " + i.length + " 张" + o + "…", My(vi());
                 Um(await Dm(e, (e, t) => {
-                    Pa.ledgerAiImageDownloadProgress = "正在打包 " + e + "/" + t + " 张" + o + "…", Iy(vi());
-                }), String(r.sku || "SKU") + "-" + o + ".zip"), Fb(r.sku + " 的" + o + "已下载");
+                    Pa.ledgerAiImageDownloadProgress = "正在打包 " + e + "/" + t + " 张" + o + "…", My(vi());
+                }), String(r.sku || "SKU") + "-" + o + ".zip"), Bb(r.sku + " 的" + o + "已下载");
             })().catch(e => {
-                Fb("下载" + o + "失败：" + (_b(e) || "网络请求失败"));
+                Bb("下载" + o + "失败：" + (Ub(e) || "网络请求失败"));
             }).finally(() => {
                 Pa.ledgerAiImageDownloadKey === s && (Pa.ledgerAiImageDownloadKey = "", Pa.ledgerAiImageDownloadProgress = "",
-                Iy(vi()));
+                My(vi()));
             });
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"), l.getAttribute("data-kind"));
-        if ("ledger-ai-image-refresh" === c) return void Py(l.getAttribute("data-sku"), l.getAttribute("data-date"), {
+        if ("ledger-ai-image-refresh" === c) return void Ly(l.getAttribute("data-sku"), l.getAttribute("data-date"), {
             openViewer: !0
         });
-        if ("ledger-detail3-audit" === c) return void yy(l.getAttribute("data-sku"), l.getAttribute("data-date"), !0);
+        if ("ledger-detail3-audit" === c) return void by(l.getAttribute("data-sku"), l.getAttribute("data-date"), !0);
         if ("ledger-ai-image" === c) return void function(e, t) {
             const a = Vh(e, t);
             if (!a) return;
-            if (Sy(a, "main").length || Sy(a, "detail").length) return void wy(a);
-            Py(e, t, {
+            if (vy(a, "main").length || vy(a, "detail").length) return void ky(a);
+            Ly(e, t, {
                 openViewer: !0,
                 submit: !1
             });
@@ -13095,21 +13095,21 @@
         if ("ledger-copy-filtered-table" === c) return void xc(!0);
         if ("detail-view-tab" === c) return void function(e) {
             const t = _i(e), a = Ui();
-            if ("sizeImage" === t && !Pa.sizeImageAccessEnabled) return void Fb(Pa.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待");
+            if ("sizeImage" === t && !Pa.sizeImageAccessEnabled) return void Bb(Pa.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待");
             if (t === a) return;
-            const n = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+            const n = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
             if (n && n.sku) {
                 if (Pa.detailViewPreviousTab = a, Pa.selectedSku = n.sku, Pa.data = n, "copywriting" === t) return Pa.view = "detail",
                 Pa.copywritingMode = !1, void Pu(!1);
                 Pa.copywritingMode = !1, Pa.view = t, "parameterImage" === t && La.loadRules(),
                 Ai();
-            } else Fb("请先从左侧选择 SKU");
+            } else Bb("请先从左侧选择 SKU");
         }(l.getAttribute("data-detail-view") || "detail");
         if ("parameterImage" === Pa.view && c && La.handleAction(c, l, Pa.data || {})) return;
         if ("sku-context-barcode" === c) {
             const e = l.getAttribute("data-sku") || "";
             if (!e) return;
-            const t = bn(Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : null) || Pa.index.find(t => t.sku === e) || {
+            const t = bn(Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : null) || Pa.index.find(t => t.sku === e) || {
                 sku: e
             });
             yu(vi());
@@ -13118,23 +13118,23 @@
                     const a = String(e || "").trim(), n = [ a, xm(t) ].filter(Boolean).join(" ") + ".svg", r = hu(a);
                     Um(new Blob([ r ], {
                         type: "image/svg+xml;charset=utf-8"
-                    }), n), Bb("success", "已生成 SKU 条码", a + " / Code 128-B"), Fb(a + " 条码已下载");
+                    }), n), zb("success", "已生成 SKU 条码", a + " / Code 128-B"), Bb(a + " 条码已下载");
                 }(e, t.name);
             } catch (e) {
-                Fb(_b(e));
+                Bb(Ub(e));
             }
             return;
         }
         if ("sku-context-cache" === c) {
             const e = l.getAttribute("data-sku") || "";
             return yu(vi()), void function(e) {
-                const t = String(e || "").trim(), a = Gw(t);
-                if (!t || !a || "object" != typeof a || Array.isArray(a)) return void Fb("没有找到 " + (t || "当前 SKU") + " 的完整缓存");
+                const t = String(e || "").trim(), a = Ww(t);
+                if (!t || !a || "object" != typeof a || Array.isArray(a)) return void Bb("没有找到 " + (t || "当前 SKU") + " 的完整缓存");
                 const n = vi();
                 wu();
                 const r = document.createElement("div");
                 r.className = "pfh-cache-editor-layer", r.setAttribute("data-action", "sku-cache-editor-close"),
-                r.innerHTML = '<section class="pfh-cache-editor" role="dialog" aria-modal="true" aria-label="SKU 完整缓存信息"><header><div><h3>完整缓存信息 · ' + pk(t) + '</h3><p>全部缓存已按用途整理；对象和数组可展开后逐项修改。</p></div><button type="button" data-action="sku-cache-editor-close" aria-label="关闭">×</button></header><div class="pfh-cache-editor-summary"><span>' + pk(Object.keys(a).length + " 个顶层字段") + '</span><input type="search" class="pfh-cache-editor-search" placeholder="搜索字段名或内容"><button type="button" data-action="sku-cache-editor-expand">全部展开</button><button type="button" data-action="sku-cache-editor-collapse">全部折叠</button></div><div class="pfh-cache-editor-body">' + Mu(a) + '</div><p class="pfh-cache-editor-error" aria-live="polite"></p><footer><span>SKU 键不可修改；尺寸等派生字段保存时会按现有兼容规则重新计算。</span><div><button type="button" data-action="sku-cache-editor-close">取消</button><button type="button" class="is-primary" data-action="sku-cache-editor-save">保存修改</button></div></footer></section>',
+                r.innerHTML = '<section class="pfh-cache-editor" role="dialog" aria-modal="true" aria-label="SKU 完整缓存信息"><header><div><h3>完整缓存信息 · ' + gk(t) + '</h3><p>全部缓存已按用途整理；对象和数组可展开后逐项修改。</p></div><button type="button" data-action="sku-cache-editor-close" aria-label="关闭">×</button></header><div class="pfh-cache-editor-summary"><span>' + gk(Object.keys(a).length + " 个顶层字段") + '</span><input type="search" class="pfh-cache-editor-search" placeholder="搜索字段名或内容"><button type="button" data-action="sku-cache-editor-expand">全部展开</button><button type="button" data-action="sku-cache-editor-collapse">全部折叠</button></div><div class="pfh-cache-editor-body">' + Mu(a) + '</div><p class="pfh-cache-editor-error" aria-live="polite"></p><footer><span>SKU 键不可修改；尺寸等派生字段保存时会按现有兼容规则重新计算。</span><div><button type="button" data-action="sku-cache-editor-close">取消</button><button type="button" class="is-primary" data-action="sku-cache-editor-save">保存修改</button></div></footer></section>',
                 n.appendChild(r), r.style.setProperty("z-index", "360", "important"), r._pfhCacheOriginal = JSON.parse(JSON.stringify(a)),
                 Pa.skuCacheEditorSku = t;
                 const i = r.querySelector(".pfh-cache-editor-search");
@@ -13147,12 +13147,12 @@
         void zi();
         if ("expand" === c) return void Ai();
         if ("panel-close" === c) return Ei(l), void Ti(!0);
-        if ("theme-resource-enable" === c) return Pa.settings.theme = "lulu", rw(Pa.settings),
+        if ("theme-resource-enable" === c) return Pa.settings.theme = "lulu", iw(Pa.settings),
         D(), zi(), void async function() {
             const e = ("undefined" != typeof unsafeWindow && unsafeWindow ? unsafeWindow : window).__PFH_LULU_THEME_RESOURCE__;
             if (e && "1.8.0" === e.version && "function" == typeof e.refresh) return e.refresh(),
-            Bb("success", "噜噜乐园皮肤已启用", P), void Fb("噜噜乐园已启用");
-            Fb("噜噜配色已启用，正在加载皮肤彩蛋…");
+            zb("success", "噜噜乐园皮肤已启用", P), void Bb("噜噜乐园已启用");
+            Bb("噜噜配色已启用，正在加载皮肤彩蛋…");
             try {
                 const e = await ut(P, "text");
                 if ("string" != typeof e || e.length < 1e3 || !e.includes("pfh-lulu-theme-resource-styles")) throw new Error("噜噜资源代码内容不完整");
@@ -13163,18 +13163,18 @@
                     return t.type = "text/javascript", t.textContent = e, (document.head || document.documentElement).appendChild(t),
                     t;
                 })();
-                t && t.parentNode && t.remove(), Bb("success", "噜噜乐园皮肤已加载", P), Fb("噜噜乐园已启用，无需下载或安装");
+                t && t.parentNode && t.remove(), zb("success", "噜噜乐园皮肤已加载", P), Bb("噜噜乐园已启用，无需下载或安装");
             } catch (e) {
-                Bb("warn", "噜噜乐园皮肤加载失败", e && e.message ? e.message : String(e)), Fb("已切换噜噜配色，但皮肤彩蛋加载失败，请稍后重试");
+                zb("warn", "噜噜乐园皮肤加载失败", e && e.message ? e.message : String(e)), Bb("已切换噜噜配色，但皮肤彩蛋加载失败，请稍后重试");
             }
         }();
         if ("theme-select" === c) return Pa.settings.theme = _(l.getAttribute("data-theme-id")),
-        rw(Pa.settings), D(), zi(), void Fb("主题已切换为 " + U().name);
+        iw(Pa.settings), D(), zi(), void Bb("主题已切换为 " + U().name);
         if ("developer-settings-tap" === c) {
             const e = Date.now();
             return e - Pa.developerSettingsTapAt > 1800 && (Pa.developerSettingsTapCount = 0),
             Pa.developerSettingsTapAt = e, Pa.developerSettingsTapCount += 1, void (Pa.developerSettingsTapCount >= 5 && (Pa.developerSettingsTapCount = 0,
-            Pa.developerInsightsUnlocked = !0, Pa.developerToolsOpen = !1, zi(), Fb("数据洞察已显示")));
+            Pa.developerInsightsUnlocked = !0, Pa.developerToolsOpen = !1, zi(), Bb("数据洞察已显示")));
         }
         if ("developer-tools-close" === c) {
             if (l.classList.contains("pfh-developer-backdrop") && n.target !== l) return;
@@ -13182,15 +13182,15 @@
         }
         if ("developer-layout-copy" === c) {
             const e = function() {
-                const e = vi(), a = e.getBoundingClientRect(), n = getComputedStyle(e), r = document.getElementById(t), i = r && r.getBoundingClientRect(), o = Number.parseFloat(n.right), s = Number.parseFloat(n.bottom), l = Number.isFinite(o) ? o : Math.max(0, window.innerWidth - a.right), c = Number.isFinite(s) ? s : Math.max(0, window.innerHeight - a.bottom), u = i ? Math.round(i.left) : Yw()?.left ?? 0, d = i ? Math.round(i.top) : Yw()?.top ?? 0;
+                const e = vi(), a = e.getBoundingClientRect(), n = getComputedStyle(e), r = document.getElementById(t), i = r && r.getBoundingClientRect(), o = Number.parseFloat(n.right), s = Number.parseFloat(n.bottom), l = Number.isFinite(o) ? o : Math.max(0, window.innerWidth - a.right), c = Number.isFinite(s) ? s : Math.max(0, window.innerHeight - a.bottom), u = i ? Math.round(i.left) : ek()?.left ?? 0, d = i ? Math.round(i.top) : ek()?.top ?? 0;
                 return [ "PLM 悬浮助手默认布局", "窗口位置：right " + Math.round(l) + "px / bottom " + Math.round(c) + "px", "窗口尺寸：" + Math.round(a.width) + " x " + Math.round(a.height), "唤起按钮：left " + u + "px / top " + d + "px", "左右分隔栏：" + Math.round(Pa.splitWidth) + "px" ].join("\n");
             }();
-            return Db(e), Bb("info", "已复制当前布局", e.replace(/\n/g, " | ")), void Fb("当前布局已复制");
+            return Fb(e), zb("info", "已复制当前布局", e.replace(/\n/g, " | ")), void Bb("当前布局已复制");
         }
         if ("toggle-collection" === c) return Pa.settings.collectionEnabled = !Pa.settings.collectionEnabled,
-        rw(Pa.settings), Pa.settings.collectionEnabled ? (Pa.observedDrawer = ln(), Pa.observedSku = Pa.observedDrawer ? hi(rk(Pa.observedDrawer)) : "",
+        iw(Pa.settings), Pa.settings.collectionEnabled ? (Pa.observedDrawer = ln(), Pa.observedSku = Pa.observedDrawer ? hi(ik(Pa.observedDrawer)) : "",
         Pa.observedTab = Pa.observedDrawer ? ki(Pa.observedDrawer) : "") : (Qa(), Ya(),
-        Xa()), Fb(Pa.settings.collectionEnabled ? "数据采集已开启" : "数据采集已关闭"), void zi();
+        Xa()), Bb(Pa.settings.collectionEnabled ? "数据采集已开启" : "数据采集已关闭"), void zi();
         if ("refresh" === c) return void Wa();
         if ("search" === c) {
             const e = Ui();
@@ -13203,7 +13203,7 @@
         }();
         if ("sku-list-mode" === c) {
             const e = "waterfall" === l.getAttribute("data-mode") ? "waterfall" : "list";
-            return Pa.settings.skuListMode = e, Pa.skuPage = 1, Pa.skuSortMenuOpen = !1, rw(Pa.settings),
+            return Pa.settings.skuListMode = e, Pa.skuPage = 1, Pa.skuSortMenuOpen = !1, iw(Pa.settings),
             void (function(e) {
                 const t = e && e.querySelector(".pfh-list"), a = t && t.querySelector(".pfh-sku-view-switch"), n = t && t.querySelector(".pfh-sku-list-content");
                 if (!t || !a || !n) return !1;
@@ -13211,8 +13211,8 @@
                 r.innerHTML = to();
                 const i = r.content.querySelector(".pfh-sku-view-switch"), o = r.content.querySelector(".pfh-sku-list-content");
                 if (!i || !o) return !1;
-                a.setAttribute("data-active-mode", jw()), a.querySelectorAll('button[data-action="sku-list-mode"]').forEach(e => {
-                    const t = e.getAttribute("data-mode") === jw();
+                a.setAttribute("data-active-mode", Ow()), a.querySelectorAll('button[data-action="sku-list-mode"]').forEach(e => {
+                    const t = e.getAttribute("data-mode") === Ow();
                     e.classList.toggle("is-active", t);
                 });
                 const s = t.querySelector(".pfh-sku-sort-menu"), l = r.content.querySelector(".pfh-sku-sort-menu");
@@ -13229,14 +13229,14 @@
         if ("sku-sort-toggle" === c) return Pa.skuSortMenuOpen = !Pa.skuSortMenuOpen, Pa.exportMenuOpen = !1,
         void zi();
         if ("sku-list-sort" === c) return Pa.settings.skuListSort = "acquired" === l.getAttribute("data-sort") ? "acquired" : "assigned",
-        Pa.skuPage = 1, Pa.skuSortMenuOpen = !1, rw(Pa.settings), void zi();
+        Pa.skuPage = 1, Pa.skuSortMenuOpen = !1, iw(Pa.settings), void zi();
         if ("sku-page-prev" === c) return Pa.skuPage = Math.max(1, (Pa.skuPage || 1) - 1),
         void zi();
         if ("sku-page-next" === c) return Pa.skuPage = (Pa.skuPage || 1) + 1, void zi();
         if ("sku-page-goto" === c) return Pa.skuPage = Number(l.getAttribute("data-page")) || Pa.skuPage || 1,
         void zi();
-        if ("copy-title-meta" === c) return Db(Ub(Pa.data)), void Fb(xa.copied);
-        if ("copy-sku" === c) return Db(Pa.data && Pa.data.sku ? Pa.data.sku : ""), void Fb(xa.copied);
+        if ("copy-title-meta" === c) return Fb(Db(Pa.data)), void Bb(xa.copied);
+        if ("copy-sku" === c) return Fb(Pa.data && Pa.data.sku ? Pa.data.sku : ""), void Bb(xa.copied);
         if ("sku-detail-more" === c) {
             const e = l.getAttribute("data-sku") || Pa.selectedSku || "";
             if (!e) return;
@@ -13254,44 +13254,44 @@
             e.forEach((e, t) => {
                 const a = Pa.index.find(t => t.sku === e.sku);
                 a && (a.pinned = !0, a.pinOrder = t + 1);
-            }), nw(), Pa.skuPage = 1, Fb("已置顶 " + e.length + " 个编码"), zi();
+            }), rw(), Pa.skuPage = 1, Bb("已置顶 " + e.length + " 个编码"), zi();
         }();
         if ("about" === c) return Pa.settings.backgroundNoticeSeen || (Pa.settings.backgroundNoticeSeen = !0,
-        rw(Pa.settings)), "about" === Pa.view ? (Pa.view = Pa.settingsReturnView || (Pa.data ? "detail" : "home"),
+        iw(Pa.settings)), "about" === Pa.view ? (Pa.view = Pa.settingsReturnView || (Pa.data ? "detail" : "home"),
         Pa.settingsReturnView = "") : (Pa.settingsReturnView = Pa.view || (Pa.data ? "detail" : "home"),
         Pa.view = "about"), Ai(), void zi();
         if ("first-run-tutorial-done" === c) {
             const e = vi().querySelector(".pfh-tutorial-cloud-key");
-            if (e && (Pa.settings.cloudBackupKey = e.value.trim(), rw(Pa.settings)), Zy()) Pa.tutorialEmptyKeyClickCount = 0; else if (Pa.tutorialEmptyKeyClickCount = (Pa.tutorialEmptyKeyClickCount || 0) + 1,
-            Pa.tutorialEmptyKeyClickCount >= 5) return iw(!0), Pa.tutorialModalOpen = !1, Pa.tutorialEmptyKeyClickCount = 0,
+            if (e && (Pa.settings.cloudBackupKey = e.value.trim(), iw(Pa.settings)), Yy()) Pa.tutorialEmptyKeyClickCount = 0; else if (Pa.tutorialEmptyKeyClickCount = (Pa.tutorialEmptyKeyClickCount || 0) + 1,
+            Pa.tutorialEmptyKeyClickCount >= 5) return ow(!0), Pa.tutorialModalOpen = !1, Pa.tutorialEmptyKeyClickCount = 0,
             void zi();
-            return Zy() ? Zy().length < 4 ? (Fb(xa.cloudBackupKeyTooShort), void (e && e.focus())) : (iw(!0),
-            Pa.tutorialModalOpen = !1, void zi()) : (Fb(xa.cloudBackupMissingKey), void (e && e.focus()));
+            return Yy() ? Yy().length < 4 ? (Bb(xa.cloudBackupKeyTooShort), void (e && e.focus())) : (ow(!0),
+            Pa.tutorialModalOpen = !1, void zi()) : (Bb(xa.cloudBackupMissingKey), void (e && e.focus()));
         }
         if ("home-main" === c) return Pa.view = "home", Pa.copywritingMode = !1, Pa.uploadExpanded = !1,
         Pa.uploadReturnView = "", Ai(), void zi();
         if ("home-feedback" === c) {
             Pa.view = "feedback", Pa.copywritingMode = !1, Pa.detailReturnView = "", Pa.detailReturnScroll = null,
             Ai(), zi();
-            const e = eb();
+            const e = tb();
             return void (e && Pa.feedbackLoadedName === e || po());
         }
         if ("feedback-submit" === c) return void async function() {
             if (Pa.feedbackSubmitting) return;
             const e = lo();
-            if (!e.name) return Pa.feedbackError = "未识别当前 PLM 用户，请先登录后再提交反馈。", Fb(Pa.feedbackError),
+            if (!e.name) return Pa.feedbackError = "未识别当前 PLM 用户，请先登录后再提交反馈。", Bb(Pa.feedbackError),
             void zi();
             const t = String(Pa.feedbackContent || "").trim();
             if (!t) {
-                Pa.feedbackError = "请填写反馈内容。", Fb(Pa.feedbackError);
+                Pa.feedbackError = "请填写反馈内容。", Bb(Pa.feedbackError);
                 const e = vi().querySelector(".pfh-feedback-content");
                 return e && e.focus(), void zi();
             }
-            if (Array.from(t).length > 2e3) return Pa.feedbackError = "反馈内容不能超过 2000 字。", Fb(Pa.feedbackError),
+            if (Array.from(t).length > 2e3) return Pa.feedbackError = "反馈内容不能超过 2000 字。", Bb(Pa.feedbackError),
             void zi();
             Pa.feedbackSubmitting = !0, Pa.feedbackError = "", zi();
             try {
-                const a = await Lb("/feedback/submit", {
+                const a = await Nb("/feedback/submit", {
                     method: "POST",
                     body: {
                         name: e.name,
@@ -13305,9 +13305,9 @@
                 }), n = a && a.feedback ? co(a.feedback) : null;
                 n && (n.feedbackId || n.content) ? Pa.feedbackItems = [ n ].concat((Pa.feedbackItems || []).filter(e => e.feedbackId !== n.feedbackId)).slice(0, 50) : await po(!1),
                 Pa.feedbackLoadedName = e.name, Pa.feedbackContent = "", Pa.feedbackError = "",
-                Fb("反馈已提交，感谢你的建议。");
+                Bb("反馈已提交，感谢你的建议。");
             } catch (e) {
-                Pa.feedbackError = "反馈提交失败：" + uo(e), Fb(Pa.feedbackError);
+                Pa.feedbackError = "反馈提交失败：" + uo(e), Bb(Pa.feedbackError);
             } finally {
                 Pa.feedbackSubmitting = !1, "feedback" === Pa.view && zi();
             }
@@ -13322,29 +13322,29 @@
         if ("sku-edit-cancel" === c) return Pa.skuEditMode = !1, void zi();
         if ("sku-edit-save" === c) return void nu();
         if ("sku-changes-ack" === c) return void function() {
-            const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+            const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
             if (!e || !e.sku) return;
             const t = {
                 ...e,
                 recentFieldChanges: []
             };
-            Qw(e.sku, t, {
+            Jw(e.sku, t, {
                 suppressChangeTracking: !0
-            }), zi(), Fb("已确认本次数据更新");
+            }), zi(), Bb("已确认本次数据更新");
         }();
         if ("copywriting-open" === c) return void Pu(!1);
         if ("toy-copywriting-fill" === c) return void yl();
         if ("copywriting-copy" === c) {
             const e = ld(Pa.data);
-            return void (e && e.fullText ? (Db(e.fullText), Fb("文案已复制")) : Fb("没有可复制的文案"));
+            return void (e && e.fullText ? (Fb(e.fullText), Bb("文案已复制")) : Bb("没有可复制的文案"));
         }
         if ("copywriting-section-copy" === c) {
             const e = ld(Pa.data), t = l.getAttribute("data-copywriting-key") || "", a = e && e.sections ? e.sections.find(e => e.key === t) : null, n = Js(a);
-            return void (n ? (Db(n), Fb((a && a.label ? a.label : "本段") + "已复制")) : Fb("本段没有可复制内容"));
+            return void (n ? (Fb(n), Bb((a && a.label ? a.label : "本段") + "已复制")) : Bb("本段没有可复制内容"));
         }
         if ("copywriting-refresh" === c) return void Pu(!0);
         if ("copywriting-ack" === c) return void function() {
-            const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null)), t = md(e && e.copywriting);
+            const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null)), t = md(e && e.copywriting);
             if (!e || !e.sku || !t) return;
             const a = {
                 ...t,
@@ -13353,15 +13353,15 @@
                 removedSections: [],
                 previousSections: []
             };
-            Qw(e.sku, {
+            Jw(e.sku, {
                 ...e,
                 copywriting: a
-            }), Fb("已标记为查看"), zi();
+            }), Bb("已标记为查看"), zi();
         }();
         if ("open-first-detail" === c) return void function() {
             const e = Pa.index[0] && Pa.index[0].sku ? Pa.index[0].sku : "";
-            if (!e && !Pa.settings.collectionEnabled) return void Fb(xa.emptyList);
-            e ? (Pa.selectedSku = e, Pa.data = bn(Gw(e) || Pa.index[0])) : (Pa.selectedSku = "",
+            if (!e && !Pa.settings.collectionEnabled) return void Bb(xa.emptyList);
+            e ? (Pa.selectedSku = e, Pa.data = bn(Ww(e) || Pa.index[0])) : (Pa.selectedSku = "",
             Pa.data = null);
             if (Pa.view = "detail", Pa.copywritingMode = !1, Ai(), zi(e ? "正在后台检查新的设计分配..." : xa.openingDetail),
             !Pa.settings.collectionEnabled) return;
@@ -13400,16 +13400,16 @@
                 }({
                     deferRender: !0
                 }).then(e => {
-                    if (e && e.skipped) return void Fb("五分钟内已查询过，暂不重复请求");
+                    if (e && e.skipped) return void Bb("五分钟内已查询过，暂不重复请求");
                     if ("detail" === Pa.view && !Pa.selectedSku && Pa.index[0] && Pa.index[0].sku) {
                         const e = Pa.index[0].sku;
-                        Pa.selectedSku = e, Pa.data = bn(Gw(e) || Pa.index[0]);
+                        Pa.selectedSku = e, Pa.data = bn(Ww(e) || Pa.index[0]);
                     }
                     "detail" === Pa.view && zi();
                     const t = Math.max(Number(e && e.addedCount || 0), Number(e && e.ledgerAddedCount || 0));
-                    Fb(t ? "已自动加入 " + t + " 个新分配任务" : "已检查，暂无新分配任务");
+                    Bb(t ? "已自动加入 " + t + " 个新分配任务" : "已检查，暂无新分配任务");
                 }).catch(e => {
-                    Bb("warn", "我的详情自动同步分配任务失败", _b(e)), Fb("分配任务查询失败，已保留当前详情", {
+                    zb("warn", "我的详情自动同步分配任务失败", Ub(e)), Bb("分配任务查询失败，已保留当前详情", {
                         tone: "info"
                     });
                 });
@@ -13419,13 +13419,13 @@
         void zi();
         if ("home-size-image" === c) return Pa.sizeImageAccessEnabled ? (Pa.view = "sizeImage",
         Pa.copywritingMode = !1, Pa.skuPage = 1, !Pa.selectedSku && Pa.index[0] && (Pa.selectedSku = Pa.index[0].sku),
-        Pa.data = Pa.selectedSku ? bn(Gw(Pa.selectedSku) || {
+        Pa.data = Pa.selectedSku ? bn(Ww(Pa.selectedSku) || {
             sku: Pa.selectedSku
-        }) : null, Ai(), void zi()) : (Fb(Pa.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待"),
-        void Ab(0));
+        }) : null, Ai(), void zi()) : (Bb(Pa.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待"),
+        void Ib(0));
         if ("home-parameter-image" === c) return Pa.view = "parameterImage", Pa.copywritingMode = !1,
         Pa.skuPage = 1, !Pa.selectedSku && Pa.index[0] && (Pa.selectedSku = Pa.index[0].sku),
-        Pa.data = Pa.selectedSku ? bn(Gw(Pa.selectedSku) || {
+        Pa.data = Pa.selectedSku ? bn(Ww(Pa.selectedSku) || {
             sku: Pa.selectedSku
         }) : null, La.loadRules(), Ai(), void zi();
         if ("size-image-pick" === c) {
@@ -13433,19 +13433,19 @@
             return void (e && !e.disabled && e.click());
         }
         if ("size-image-save-all" === c) return void async function() {
-            const e = Pa.selectedSku || Pa.data && Pa.data.sku || "", t = e && Pa.sizeImageSessions[e], a = bn(Pa.data || (e ? Gw(e) : null)), n = Ql(a);
+            const e = Pa.selectedSku || Pa.data && Pa.data.sku || "", t = e && Pa.sizeImageSessions[e], a = bn(Pa.data || (e ? Ww(e) : null)), n = Ql(a);
             t && Kl(t, n[0]);
             const r = t ? n.map(a => {
                 const n = t.flatResults[a.key];
                 return n && n.dataUrl ? {
-                    name: Im(("print" === (n.kind || a.kind) ? "印刷" : "标签") + (uu(n.code || a.code)[0] || sk(n.code || a.code || "") || e) + ".jpg"),
+                    name: Im(("print" === (n.kind || a.kind) ? "印刷" : "标签") + (uu(n.code || a.code)[0] || lk(n.code || a.code || "") || e) + ".jpg"),
                     dataUrl: n.dataUrl
                 } : null;
-            }).filter(Boolean) : [], i = uu(a.packageCode)[0] || sk(a.packageCode || "") || e, o = t ? [ t.cartonResultDataUrl ? {
+            }).filter(Boolean) : [], i = uu(a.packageCode)[0] || lk(a.packageCode || "") || e, o = t ? [ t.cartonResultDataUrl ? {
                 name: Im("纸盒" + i + ".jpg"),
                 dataUrl: t.cartonResultDataUrl
             } : null, ...r ].filter(Boolean) : [];
-            if (!o.length) return void Fb("请先生成纸盒、标签或印刷尺寸图");
+            if (!o.length) return void Bb("请先生成纸盒、标签或印刷尺寸图");
             const s = Tm();
             if (s) try {
                 for (const e of o) {
@@ -13460,37 +13460,37 @@
                     }), a = await t.createWritable();
                     await a.write(await (await fetch(e.dataUrl)).blob()), await a.close();
                 }
-                Fb("已保存 " + o.length + " 个尺寸图 JPG");
+                Bb("已保存 " + o.length + " 个尺寸图 JPG");
             } catch (e) {
                 if (e && "AbortError" === e.name) return;
-                console.warn("PLM floating helper size image folder save failed:", e), Fb("保存失败：" + _b(e));
-            } else Fb("当前浏览器不支持另存为，请使用最新版 Chrome");
+                console.warn("PLM floating helper size image folder save failed:", e), Bb("保存失败：" + Ub(e));
+            } else Bb("当前浏览器不支持另存为，请使用最新版 Chrome");
         }();
         if ("size-image-regenerate" === c) return void cc();
         if ("size-image-confirm-match" === c) return void async function(t) {
             const a = Pa.selectedSku || Pa.data && Pa.data.sku || "", n = a && Vl(a);
             if (!n || Pa.sizeImageBusySku === a) return;
-            const r = n.pendingLabelMatches.find(e => e.id === t), i = document.getElementById(e), o = i && i.querySelector('.pfh-size-image-match-select[data-pending-id="' + dk(t) + '"]'), s = o && o.value;
-            r && s ? await ac(r.file, "label:" + s, !1) : Fb("请选择图片对应的尺寸");
+            const r = n.pendingLabelMatches.find(e => e.id === t), i = document.getElementById(e), o = i && i.querySelector('.pfh-size-image-match-select[data-pending-id="' + pk(t) + '"]'), s = o && o.value;
+            r && s ? await ac(r.file, "label:" + s, !1) : Bb("请选择图片对应的尺寸");
         }(l.getAttribute("data-pending-id") || "");
         if ("excel-prepare" === c) return void sf();
         if ("excel-generate" === c) return void ("toy-label" === Pa.exportType ? If() : async function() {
-            const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
-            if (!e || !e.sku) return void Fb(xa.excelNeedData);
-            if (!window.ExcelJS) return void Fb(xa.excelNeedLibrary);
-            if (!await dt()) return void Fb("Excel 模板尚未缓存，请联网后重试");
+            const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
+            if (!e || !e.sku) return void Bb(xa.excelNeedData);
+            if (!window.ExcelJS) return void Bb(xa.excelNeedLibrary);
+            if (!await dt()) return void Bb("Excel 模板尚未缓存，请联网后重试");
             af();
             const t = pm(Pa.excelPackQty), a = "" === Pa.excelPurchasePrice ? "6" : Pa.excelPurchasePrice;
-            if ((!Pa.excelExtra || !Pa.excelExtra.excelData || Pa.excelExtra.excelData.sku !== e.sku || Pa.excelMissing.length) && (Bb("info", "生成 Excel 前自动准备数据", e.sku + " | " + (Pa.excelMissing.length ? "上次仍缺：" + Pa.excelMissing.join("、") : "当前没有匹配的表格数据快照")),
+            if ((!Pa.excelExtra || !Pa.excelExtra.excelData || Pa.excelExtra.excelData.sku !== e.sku || Pa.excelMissing.length) && (zb("info", "生成 Excel 前自动准备数据", e.sku + " | " + (Pa.excelMissing.length ? "上次仍缺：" + Pa.excelMissing.join("、") : "当前没有匹配的表格数据快照")),
             await sf(), !Pa.excelExtra || !Pa.excelExtra.excelData || Pa.excelExtra.excelData.sku !== e.sku)) return Pa.excelStatus = "🔴 表格数据准备失败",
-            zi(), void Fb(Pa.excelStatus);
-            Pa.excelMissing.length && (Pa.excelStatus = rf(Pa.excelMissing), Bb("warn", "Excel 将使用不完整数据生成", e.sku + " | 缺少：" + Pa.excelMissing.join("、")),
+            zi(), void Bb(Pa.excelStatus);
+            Pa.excelMissing.length && (Pa.excelStatus = rf(Pa.excelMissing), zb("warn", "Excel 将使用不完整数据生成", e.sku + " | 缺少：" + Pa.excelMissing.join("、")),
             zi());
             Pa.excelMissing.length && Af();
             try {
                 const n = Pa.excelExtra.extra, r = Pa.excelExtra.excelData, i = Am(vm(r, n)), o = await Mm(i);
-                if (!o) return Pa.excelStatus = xa.excelSaveCanceled, zi(), void Fb(xa.excelSaveCanceled);
-                Fb(xa.excelGenerating);
+                if (!o) return Pa.excelStatus = xa.excelSaveCanceled, zi(), void Bb(xa.excelSaveCanceled);
+                Bb(xa.excelGenerating);
                 const s = new window.ExcelJS.Workbook;
                 await s.xlsx.load(Cm(Ze));
                 const l = s.getWorksheet("Sheet1") || s.worksheets[0];
@@ -13498,7 +13498,7 @@
                 const c = Bf(r, n), u = c.imageUrl ? await Pm(c.imageUrl, c.imageFallbackUrl).catch(e => (console.warn("PLM floating helper image fetch failed:", e),
                 null)) : null;
                 if (lf(e, n), Ff(l, "A4", Sm(r, n)), Ff(l, "B4", r.name || n.chineseName || ""),
-                Ff(l, "C4", ""), Ff(l, "E4", sk(t)), Ff(l, "G4", r.sku || ""), r.singleBottle ? Ff(l, "H4", "瓶装") : l.getCell("H4").value = {
+                Ff(l, "C4", ""), Ff(l, "E4", lk(t)), Ff(l, "G4", r.sku || ""), r.singleBottle ? Ff(l, "H4", "瓶装") : l.getCell("H4").value = {
                     formula: 'IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=2,"盒装",IF(LEN(J4)-LEN(SUBSTITUTE(J4,"*",""))=1,"袋装",""))'
                 }, Ff(l, "I4", sm([ r.productLength, r.productWidth, r.productHeight ]) || om(r.productNums, [])),
                 Ff(l, "J4", sm([ r.packageLength, r.packageWidth, r.packageHeight ]) || om(r.packageNums, [])),
@@ -13510,7 +13510,7 @@
                     formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"'
                 }, l.getCell("L3").value = {
                     formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
-                }) : pb(r) && (l.spliceColumns(10, 1), l.getCell("F4").value = {
+                }) : gb(r) && (l.spliceColumns(10, 1), l.getCell("F4").value = {
                     formula: 'TEXT(VALUE(LEFT(E4,LEN(E4)-3))*(VALUE(LEFT(M4,LEN(M4)-1))/1000)+0.75,"0.00")&"KG"'
                 }, l.getCell("L3").value = {
                     formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
@@ -13522,13 +13522,13 @@
                     });
                     l.addImage(e, _m(u));
                 }
-                const d = sb(r);
+                const d = lb(r);
                 if (d) {
-                    const a = await gb(d).catch(() => null);
+                    const a = await fb(d).catch(() => null);
                     a && a.packCount && (Pa.excelStatus = "推荐装箱数: " + a.packCount, zi()), t && await async function(e, t, a) {
                         const n = Number.parseInt(String(t || "").replace(/[^0-9]/g, ""), 10);
                         if (!e || !Number.isInteger(n) || n <= 0) return !1;
-                        const r = await Lb("/pack/record", {
+                        const r = await Nb("/pack/record", {
                             method: "POST",
                             body: {
                                 boxKey: e,
@@ -13544,11 +13544,11 @@
                 Pa.excelStatus = xa.excelDownloading + " " + i, zi(), console.info("PLM floating helper Excel filename:", i),
                 await Em(new Blob([ p ], {
                     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                }), i, o), yb("excel_generated", {
+                }), i, o), bb("excel_generated", {
                     sku: r.sku || "",
                     name: r.name || "",
                     source: "excel-generation"
-                }), Jb(r, n, {
+                }), Xb(r, n, {
                     price: a,
                     packQty: t,
                     source: "excel",
@@ -13557,10 +13557,10 @@
                     status: "制作中",
                     stage: "表格/上传处理中",
                     note: "已生成 Excel"
-                }), Pa.excelStatus = xa.excelDone, zi(), Fb(xa.excelDone);
+                }), Pa.excelStatus = xa.excelDone, zi(), Bb(xa.excelDone);
             } catch (e) {
                 console.warn("PLM floating helper excel failed:", e), Pa.excelStatus = xa.excelFailed,
-                zi(), Fb(xa.excelFailed);
+                zi(), Bb(xa.excelFailed);
             }
         }());
         if ("export-menu-toggle" === c) return Pa.exportMenuOpen = !Pa.exportMenuOpen, void zi();
@@ -13577,12 +13577,12 @@
         if ("unit-converter-clear" === c) return Pa.cmConverterInput = "", void zi();
         if ("unit-converter-copy" === c) {
             const e = ql(Pa.cmConverterInput);
-            return void (e && (Db(e), Fb("换算结果已复制")));
+            return void (e && (Fb(e), Bb("换算结果已复制")));
         }
         if ("code-formatter-clear" === c) return Pa.codeFormatterInput = "", void zi();
         if ("code-formatter-copy" === c) {
             const e = Hl(Pa.codeFormatterInput);
-            return void (e && (Db(e), Fb("编码格式已复制")));
+            return void (e && (Fb(e), Bb("编码格式已复制")));
         }
         if ("magic-upload-pick" === c) {
             const e = vi().querySelector(".pfh-magic-upload-file");
@@ -13627,7 +13627,7 @@
                                 status: "success",
                                 finishedAt: Date.now()
                             }, ...Pa.magicToyLabelHistory || [] ].slice(0, 300), wo(Pa.magicToyLabelHistory),
-                            Bb("success", "魔法上传玩具标签 API 成功", e.sku + " | " + (e.objectPath || t.objectPath || ""));
+                            zb("success", "魔法上传玩具标签 API 成功", e.sku + " | " + (e.objectPath || t.objectPath || ""));
                         } catch (t) {
                             if (!Pa.magicToyLabelRunning || "已暂停" === String(t && t.message || t)) {
                                 vo(e, {
@@ -13637,7 +13637,7 @@
                                 });
                                 break;
                             }
-                            const a = _b(t);
+                            const a = Ub(t);
                             vo(e, {
                                 status: "error",
                                 step: "处理失败",
@@ -13650,7 +13650,7 @@
                                 error: a,
                                 finishedAt: Date.now()
                             }, ...Pa.magicToyLabelHistory || [] ].slice(0, 300), wo(Pa.magicToyLabelHistory),
-                            Bb("error", "魔法上传玩具标签 API 失败", e.sku + " | " + a);
+                            zb("error", "魔法上传玩具标签 API 失败", e.sku + " | " + a);
                         }
                         Pa.magicToyLabelRunning && So();
                     }
@@ -13696,7 +13696,7 @@
             const t = (Pa.magicToyLabelHistory || []).find(t => t && t.id === String(e || ""));
             if (!t || !t.sku) return;
             const a = Array.isArray(Pa.magicToyLabelQueue) ? Pa.magicToyLabelQueue : [];
-            if (a.some(e => e && e.sku === t.sku && "success" !== e.status)) return void Fb(t.sku + " 已在玩具标签队列中");
+            if (a.some(e => e && e.sku === t.sku && "success" !== e.status)) return void Bb(t.sku + " 已在玩具标签队列中");
             const n = yo({
                 ...t,
                 id: Ho(),
@@ -13719,8 +13719,8 @@
         if ("magic-effect-start" === c) return void function() {
             const e = "toy-effect";
             if (!fs()) return void ms();
-            Pa.uploadMode = e, Pa.uploadWorkerMode = e, Pa.uploadRunning = !0, Pw(e, !0), gw(),
-            Pa.view = "magicUpload", Pa.magicUploadMode = "effect", zi(), Fb("效果图 API 队列已开始"),
+            Pa.uploadMode = e, Pa.uploadWorkerMode = e, Pa.uploadRunning = !0, Lw(e, !0), fw(),
+            Pa.view = "magicUpload", Pa.magicUploadMode = "effect", zi(), Bb("效果图 API 队列已开始"),
             window.setTimeout(() => Ap(e), 80);
         }();
         if ("magic-effect-pause" === c) return Pa.uploadMode = "toy-effect", void gp();
@@ -13763,8 +13763,8 @@
             });
             if (!n) return;
             const r = [ n.zipKey ].concat((n.files || []).map(e => e.key)).filter(Boolean), i = [];
-            for (const e of r) await Bw(e) || i.push(e);
-            if (i.length) return Fb("历史源文件已失效，请重新选择 ZIP/XLSX"), void Vo("warn", "历史任务无法恢复", n.sku + " | 本地文件已丢失=" + i.length);
+            for (const e of r) await zw(e) || i.push(e);
+            if (i.length) return Bb("历史源文件已失效，请重新选择 ZIP/XLSX"), void Vo("warn", "历史任务无法恢复", n.sku + " | 本地文件已丢失=" + i.length);
             (Pa.magicUploadQueue || []).find(e => e.id === n.id) || (Pa.magicUploadQueue = (Pa.magicUploadQueue || []).concat(n)),
             Pa.magicUploadHistoryOpen = !1, mo(Pa.magicUploadQueue), zi(), us(n.id);
         }(l.getAttribute("data-magic-history-id") || "");
@@ -13778,12 +13778,12 @@
         }(l.getAttribute("data-magic-id") || "");
         if ("magic-upload-clear" === c) return (Pa.magicUploadQueue || []).forEach(e => cs(e, [])),
         Pa.magicUploadQueue = [], Pa.magicUploadRunning = !1, he && (window.clearInterval(he),
-        he = 0), mo(Pa.magicUploadQueue), zi(), void Fb("魔法上传队列已清空");
+        he = 0), mo(Pa.magicUploadQueue), zi(), void Bb("魔法上传队列已清空");
         if ("magic-effect-clear" === c) return void function() {
-            const e = ow();
-            e.filter(e => "toy-effect" === Aw(e)).forEach(zw), Pa.uploadQueue = e.filter(e => "toy-effect" !== Aw(e)),
-            Pa.uploadMode = "toy-effect", Pa.uploadRunning = !1, Pw("toy-effect", !1), gw(),
-            zi(), Fb("效果图队列已清空");
+            const e = sw();
+            e.filter(e => "toy-effect" === Iw(e)).forEach(Rw), Pa.uploadQueue = e.filter(e => "toy-effect" !== Iw(e)),
+            Pa.uploadMode = "toy-effect", Pa.uploadRunning = !1, Lw("toy-effect", !1), fw(),
+            zi(), Bb("效果图队列已清空");
         }();
         if ("magic-upload-retry" === c) return void us(l.getAttribute("data-magic-id") || "");
         if ("magic-upload-save-task" === c) return void function(e) {
@@ -13799,14 +13799,14 @@
                 n.fileId = "", n.generatedName = "";
             }), t.status = t.files.some(e => "待确认" === e.category) ? "waiting" : "pending",
             t.step = "waiting" === t.status ? "请确认文件分类" : "等待上传", t.submitted = !1, t.draftSaved = !1,
-            t.projectId = Mn(Gw(t.sku) || {}), t.replaceCategories = [], t.existingFileVersionIds = {},
+            t.projectId = Mn(Ww(t.sku) || {}), t.replaceCategories = [], t.existingFileVersionIds = {},
             t.existingFiles = {}, t.replacementCheckStatus = t.sku ? "checking" : "idle", t.updatedAt = Date.now(),
-            mo(Pa.magicUploadQueue), os([ t ]), zi(), Fb("任务修改已保存");
+            mo(Pa.magicUploadQueue), os([ t ]), zi(), Bb("任务修改已保存");
         }(l.getAttribute("data-magic-id") || "");
         if ("home-magic-upload" === c) return Pa.magicUploadAccessEnabled ? (Pa.view = "magicUpload",
         Pa.uploadReturnView = "", Pa.magicUploadMode = "effect" === Pa.magicUploadMode || "toy-label" === Pa.magicUploadMode ? Pa.magicUploadMode : "package",
-        Ai(), void zi()) : (Fb(Pa.magicUploadAccessLoading ? "正在准备功能" : "魔法上传暂未开放，敬请期待"),
-        void Hb(0));
+        Ai(), void zi()) : (Bb(Pa.magicUploadAccessLoading ? "正在准备功能" : "魔法上传暂未开放，敬请期待"),
+        void Vb(0));
         if ("toy-copywriting-batch-clear-input" === c) return Pa.toyCopywritingBatchInput = "",
         void zi();
         if ("toy-copywriting-batch-add" === c) return void Ml(Pa.toyCopywritingBatchInput);
@@ -13824,24 +13824,24 @@
                 step: "已暂停，等待继续",
                 error: ""
             }), Pa.toyCopywritingBatchCurrentSku = "", Pa.toyCopywritingBatchStatus = "已暂停，已完成项目保留在队列中",
-            pw(Pa.toyCopywritingBatchQueue), zi();
+            gw(Pa.toyCopywritingBatchQueue), zi();
         }();
         if ("toy-copywriting-batch-remove" === c) return void function(e) {
-            if (Pa.toyCopywritingBatchRunning) return void Fb("当前队列正在处理，请先暂停后再移除");
+            if (Pa.toyCopywritingBatchRunning) return void Bb("当前队列正在处理，请先暂停后再移除");
             const t = String(e || "").trim().toUpperCase();
-            pw(dw().filter(e => e.sku !== t)), zi();
+            gw(pw().filter(e => e.sku !== t)), zi();
         }(l.getAttribute("data-sku") || "");
         if ("toy-copywriting-batch-retry" === c) return void function(e) {
             if (Pa.toyCopywritingBatchRunning) return;
             const t = String(e || "").trim().toUpperCase();
-            dw().some(e => e.sku === t) && (Tl(t, {
+            pw().some(e => e.sku === t) && (Tl(t, {
                 status: "pending",
                 step: "等待重新补全",
                 error: "",
                 filledCount: 0
             }), zi());
         }(l.getAttribute("data-sku") || "");
-        if ("toy-copywriting-batch-clear-completed" === c) return void (Pa.toyCopywritingBatchRunning || (pw(dw().filter(e => "success" !== e.status && "noop" !== e.status)),
+        if ("toy-copywriting-batch-clear-completed" === c) return void (Pa.toyCopywritingBatchRunning || (gw(pw().filter(e => "success" !== e.status && "noop" !== e.status)),
         Pa.toyCopywritingBatchStatus = "已清除已完成项目", zi()));
         if ("ledger-open" === c) return Pa.view = "ledger", Pa.ledgerDate = Pa.ledgerDate || qm(),
         Ai(), void zi();
@@ -13876,27 +13876,27 @@
         void zi();
         if ("ledger-copy" === c) return void function(e) {
             const t = Dh("finalized", Jm(e || Pa.ledgerDate)).filter(e => e.finalizedAt && "作废" !== e.status);
-            if (!t.length) return void Fb("本月没有可复制的已定稿记录");
-            Db(t.map(e => {
+            if (!t.length) return void Bb("本月没有可复制的已定稿记录");
+            Fb(t.map(e => {
                 const t = [ e.brand, e.name ].filter(Boolean).join(" ") || e.name || "", a = e.skuImageUrl ? "主图" : "", n = e.skuImageUrl ? "SKU图" : "", r = e.finalizedAt || "";
                 return [ t, e.sku || "", a, r, n, r ].map(e => String(e || "").replace(/[\t\r\n]+/g, " ")).join("\t");
-            }).join("\n")), Fb("本月登记已复制：" + t.length + "条");
+            }).join("\n")), Bb("本月登记已复制：" + t.length + "条");
         }(Pa.ledgerDate);
         if ("ledger-copy-selected" === c) return void function() {
             const e = new Set(Pa.ledgerSelectedKeys || []), t = Dh("finalized", Xm()).filter(t => e.has(Rh(t)));
-            if (!t.length) return void Fb("请先勾选需要复制的产品");
+            if (!t.length) return void Bb("请先勾选需要复制的产品");
             const a = Array.from(new Set(t.map(e => e.sku).filter(Boolean)));
-            Db(a.join("\n")), Fb("已复制选中编码：" + a.length + "个");
+            Fb(a.join("\n")), Bb("已复制选中编码：" + a.length + "个");
         }();
         if ("ledger-copy-video" === c) return void function() {
             const e = new Set(Pa.ledgerSelectedKeys || []), t = Dh("finalized", Xm()).filter(t => e.has(Rh(t)));
-            if (!t.length) return void Fb("请先选择产品卡片或日期");
-            const a = eb() || Pa.sizeImageAccessName || String(Pa.settings.cloudBackupOwnerName || "").trim();
-            if (!a) return void Fb("未识别到当前 PLM 用户姓名，请刷新页面后重试");
-            Db(t.map(e => {
-                const t = bn(Gw(e.sku) || {});
+            if (!t.length) return void Bb("请先选择产品卡片或日期");
+            const a = tb() || Pa.sizeImageAccessName || String(Pa.settings.cloudBackupOwnerName || "").trim();
+            if (!a) return void Bb("未识别到当前 PLM 用户姓名，请刷新页面后重试");
+            Fb(t.map(e => {
+                const t = bn(Ww(e.sku) || {});
                 return [ a, e.referenceUrl || t.referenceUrl || "", e.name || t.name || e.sku ].map(e => String(e || "").replace(/[\t\r\n]+/g, " ").trim()).join("\t");
-            }).join("\n")), Fb("视频申请内容已复制：" + t.length + "个产品");
+            }).join("\n")), Bb("视频申请内容已复制：" + t.length + "个产品");
         }();
         if ("ledger-toggle-select" === c) return void jh(l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-select-date" === c) return void function(e) {
@@ -13906,20 +13906,20 @@
         }(l.getAttribute("data-date"));
         if ("ledger-performance-merge" === c || "ledger-performance-unmerge" === c) return void function(e) {
             const t = new Set(Pa.ledgerSelectedKeys || []), a = Dh("finalized", Xm()).filter(e => t.has(Rh(e)));
-            if (e && a.length < 2) return void Fb("请至少选择两个编码再合并绩效");
-            if (!e && !a.some(e => e.performanceGroupId)) return void Fb("选中的编码尚未合并绩效");
+            if (e && a.length < 2) return void Bb("请至少选择两个编码再合并绩效");
+            if (!e && !a.some(e => e.performanceGroupId)) return void Bb("选中的编码尚未合并绩效");
             const n = new Set(a.map(Rh)), r = e ? "performance-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8) : "", i = (new Date).toLocaleString(), o = Date.now();
             Pa.ledgerRecords = (Pa.ledgerRecords || []).map(e => n.has(Rh(e)) ? {
                 ...e,
                 performanceGroupId: r,
                 updatedAt: i,
                 updatedAtMs: o
-            } : e), Pa.ledgerSelectedKeys = [], ah(), zi(), Fb(e ? "已合并为 1 个绩效单位" : "已取消绩效合并");
+            } : e), Pa.ledgerSelectedKeys = [], ah(), zi(), Bb(e ? "已合并为 1 个绩效单位" : "已取消绩效合并");
         }("ledger-performance-merge" === c);
         if ("ledger-highlight-performance-group" === c) return void function(t) {
             const a = String(t || "").trim(), n = document.getElementById(e);
             if (!a || !n) return;
-            const r = Array.from(n.querySelectorAll('.pfh-ledger-item[data-performance-group-id="' + dk(a) + '"]'));
+            const r = Array.from(n.querySelectorAll('.pfh-ledger-item[data-performance-group-id="' + pk(a) + '"]'));
             n.querySelectorAll(".pfh-ledger-item.is-group-highlighted").forEach(e => e.classList.remove("is-group-highlighted")),
             r.length ? (r.forEach(e => e.classList.add("is-group-highlighted")), r[0].scrollIntoView({
                 behavior: "smooth",
@@ -13927,7 +13927,7 @@
                 inline: "nearest"
             }), window.clearTimeout(Pa.ledgerGroupHighlightTimer), Pa.ledgerGroupHighlightTimer = window.setTimeout(() => {
                 r.forEach(e => e.classList.remove("is-group-highlighted")), Pa.ledgerGroupHighlightTimer = 0;
-            }, 2600), Fb("已高亮这一组的 " + r.length + " 个产品")) : Fb("当前列表中没有找到这一组合并产品");
+            }, 2600), Bb("已高亮这一组的 " + r.length + " 个产品")) : Bb("当前列表中没有找到这一组合并产品");
         }(l.getAttribute("data-group-id"));
         if ("ledger-export" === c) return void function(e) {
             const t = Jm(e || Pa.ledgerDate), n = Dh("design", t), r = {
@@ -13942,7 +13942,7 @@
             o.href = URL.createObjectURL(i), o.download = "plm-daily-ledger-" + r.month + ".json",
             document.body.appendChild(o), o.click(), setTimeout(() => {
                 URL.revokeObjectURL(o.href), o.remove();
-            }, 0), Fb("本月记录已导出");
+            }, 0), Bb("本月记录已导出");
         }(Pa.ledgerDate);
         if ("ledger-clear" === c) return void function(e) {
             const t = $m(e) || qm();
@@ -13966,7 +13966,7 @@
                 ...e,
                 purged: !0
             } : e);
-            ih(), zi(), Fb("ledger-trash-restore" === e ? "已恢复到今日工作台" : "已从垃圾篓清除，仍会阻止自动加入");
+            ih(), zi(), Bb("ledger-trash-restore" === e ? "已恢复到今日工作台" : "已从垃圾篓清除，仍会阻止自动加入");
         }(c, l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-trash-empty" === c) return void function(e) {
             const t = Jm(e || qm()), a = (Pa.ledgerTrashRecords || []).filter(e => !e.purged && Qm(e.date) === t).length;
@@ -13974,13 +13974,13 @@
             Pa.ledgerTrashRecords = (Pa.ledgerTrashRecords || []).map(e => Qm(e.date) === t ? {
                 ...e,
                 purged: !0
-            } : e), ih(), zi(), Fb("本月垃圾篓已清空，移除编码仍不会自动加入");
+            } : e), ih(), zi(), Bb("本月垃圾篓已清空，移除编码仍不会自动加入");
         }(Pa.ledgerDate);
         if ("ledger-image-generated" === c || "ledger-unmark-image-generated" === c || "ledger-finalize" === c || "ledger-unfinalize" === c || "ledger-extension" === c || "ledger-series-exclude" === c || "ledger-void" === c || "ledger-done" === c || "ledger-remove" === c) {
             const t = {};
             if ("ledger-finalize" === c) {
                 const e = l.closest(".pfh-ledger-item"), a = e && e.querySelector(".pfh-ledger-price input"), n = String(a && a.value || "").trim(), r = Ah(n);
-                if (n && !r) return Fb("价格格式不正确，请输入数字，例如 6 或 6.50"), void (a && a.focus());
+                if (n && !r) return Bb("价格格式不正确，请输入数字，例如 6 或 6.50"), void (a && a.focus());
                 r && (t.purchasePrice = r);
             }
             return void function(t, a, n, r) {
@@ -14003,7 +14003,7 @@
                     } ].concat((Pa.ledgerTrashRecords || []).filter(e => !(e.sku === a && Qm(e.date) === o))).slice(0, 1200),
                     Pa.ledgerRecords = (Pa.ledgerRecords || []).filter(e => !(e.sku === a && Qm(e.date) === o)),
                     Pa.ledgerSelectedKeys = (Pa.ledgerSelectedKeys || []).filter(e => e !== Rh(t)),
-                    ah(), ih(), zi(), void Fb("已移入垃圾篓，不会再次自动加入");
+                    ah(), ih(), zi(), void Bb("已移入垃圾篓，不会再次自动加入");
                 }
                 const i = Km(Date.now()), o = qm(), s = $m(n) || $m(Pa.ledgerDate) || qm(), l = (Pa.ledgerRecords || []).find(e => e.date === s && e.sku === a), c = "ledger-series-exclude" === t && !wc(l || {
                     sku: a
@@ -14069,13 +14069,13 @@
                     purchasePrice: d.purchasePrice
                 } : u, g = zh(a, p, s);
                 if ("ledger-finalize" === t && d.purchasePrice) {
-                    const e = bn(Gw(a) || (Pa.data && Pa.data.sku === a ? Pa.data : {
+                    const e = bn(Ww(a) || (Pa.data && Pa.data.sku === a ? Pa.data : {
                         sku: a
                     })), t = String(e.purchasePrice || "") !== d.purchasePrice, n = bn({
                         ...e,
                         purchasePrice: d.purchasePrice
                     });
-                    Qw(a, n), Pa.data && Pa.data.sku === a && (Pa.data = n), t && Jb(n, null, {
+                    Jw(a, n), Pa.data && Pa.data.sku === a && (Pa.data = n), t && Xb(n, null, {
                         price: d.purchasePrice,
                         source: "ledger-finalize"
                     });
@@ -14086,15 +14086,15 @@
                     if (!a) return;
                     const n = Dh("finalized", Xm());
                     a.outerHTML = hc(gc(n), mc());
-                }(), "ledger-extension" === t && Fb(g && "extension" === g.performanceType ? "已设为延伸，绩效按 0.3 分计算" : "已取消延伸绩效");
-                "ledger-series-exclude" === t && Fb(c ? "已剔除自动系列，按单独产品计算" : "已恢复自动系列匹配");
+                }(), "ledger-extension" === t && Bb(g && "extension" === g.performanceType ? "已设为延伸，绩效按 0.3 分计算" : "已取消延伸绩效");
+                "ledger-series-exclude" === t && Bb(c ? "已剔除自动系列，按单独产品计算" : "已恢复自动系列匹配");
                 "ledger-finalize" === t && na();
             }(c, l.getAttribute("data-sku"), l.getAttribute("data-date"), t);
         }
         if ("ledger-edit-finalized-time" === c) return void function(e, t) {
             if (!e) return;
             const a = $m(t) || $m(Pa.ledgerDate) || qm(), n = (Pa.ledgerRecords || []).find(t => t.date === a && t.sku === e);
-            if (!n || !n.finalizedAt) return void Fb("请先定稿后再修改时间");
+            if (!n || !n.finalizedAt) return void Bb("请先定稿后再修改时间");
             Pa.ledgerTimeEditor = {
                 sku: e,
                 dateKey: a,
@@ -14137,18 +14137,18 @@
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-open-reference" === c) return void function(e, t) {
             const a = $m(t) || $m(Pa.ledgerDate) || qm(), n = (Pa.ledgerRecords || []).find(t => t.date === a && t.sku === e), r = n && n.referenceUrl;
-            if (!r) return void Fb("这个编码没有参考链接");
+            if (!r) return void Bb("这个编码没有参考链接");
             window.open(r, "_blank", "noopener,noreferrer");
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-copy-sku" === c) {
             if (Date.now() < Number(Pa.ledgerSkuDragSuppressClickUntil || 0)) return void n.preventDefault();
             const e = l.getAttribute("data-sku") || "";
-            return void (e && (Db(e), l.classList.add("is-copied"), window.setTimeout(() => l.classList.remove("is-copied"), 650),
-            Fb("已复制编码：" + e)));
+            return void (e && (Fb(e), l.classList.add("is-copied"), window.setTimeout(() => l.classList.remove("is-copied"), 650),
+            Bb("已复制编码：" + e)));
         }
         if ("ledger-open-sku" === c) return void function(t, a) {
             if (!t) return;
-            const n = bn(Gw(t) || {
+            const n = bn(Ww(t) || {
                 sku: t
             });
             Pa.detailReturnScroll = "ledger" === Pa.view ? function(t) {
@@ -14164,7 +14164,7 @@
                 };
             }(a) : null, Pa.selectedSku = t, Pa.data = n, Pa.detailReturnView = Pa.view || "ledger",
             Pa.view = "detail", Pa.copywritingMode = !1, Ai(), zi(), window.setTimeout(() => kr(t, n).catch(e => {
-                Bb("warn", "今日工作台后台刷新物料失败", t + " | " + _b(e));
+                zb("warn", "今日工作台后台刷新物料失败", t + " | " + Ub(e));
             }), 0);
         }(l.getAttribute("data-sku"), l.closest(".pfh-ledger-item"));
         if ("home-batch-excel" === c || "home-excel-coming-soon" === c) return Pa.view = "batchExcel",
@@ -14177,8 +14177,8 @@
                 const t = String(e || "").match(/\bSKU\d{8}\b/gi) || [], a = new Set;
                 return t.map(e => String(e).toUpperCase()).filter(e => !a.has(e) && (a.add(e), !0));
             }(e);
-            if (!t.length) return void Fb("没有找到有效 SKU，请检查编码格式");
-            const a = sw().slice();
+            if (!t.length) return void Bb("没有找到有效 SKU，请检查编码格式");
+            const a = lw().slice();
             t.forEach(e => {
                 const t = uf(e), n = a.findIndex(t => t.sku === e), r = {
                     ...n >= 0 ? a[n] : {},
@@ -14191,15 +14191,15 @@
                     updatedAt: Date.now()
                 };
                 n >= 0 ? a[n] = r : a.push(r);
-            }), Pa.batchExcelInput = "", lw(a), Pa.batchExcelStatus = "已加入 " + t.length + " 个 SKU，等待补全缓存",
-            zi(), Fb(Pa.batchExcelStatus), pf();
+            }), Pa.batchExcelInput = "", cw(a), Pa.batchExcelStatus = "已加入 " + t.length + " 个 SKU，等待补全缓存",
+            zi(), Bb(Pa.batchExcelStatus), pf();
         }(Pa.batchExcelInput);
         if ("batch-excel-prepare" === c) return void pf();
         if ("batch-excel-download" === c) return void async function() {
             if (Pa.batchExcelWorkerRunning || Pa.batchExcelDownloadRunning) return;
-            if (!window.ExcelJS) return void Fb(xa.excelNeedLibrary);
-            if (!await dt()) return void Fb("模板尚未缓存，请联网后重试");
-            const e = sw().map(e => {
+            if (!window.ExcelJS) return void Bb(xa.excelNeedLibrary);
+            if (!await dt()) return void Bb("模板尚未缓存，请联网后重试");
+            const e = lw().map(e => {
                 const t = uf(e.sku);
                 return {
                     entry: e,
@@ -14210,7 +14210,7 @@
                     purchasePrice: String(e.purchasePrice || t.purchasePrice || "6")
                 };
             }).filter(e => "preparing" !== e.entry.status);
-            if (!e.length) return void Fb("队列中没有可生成的 SKU");
+            if (!e.length) return void Bb("队列中没有可生成的 SKU");
             Pa.batchExcelDownloadRunning = !0, Pa.view = "batchExcel", Ai(), zi();
             try {
                 if ("merge" === Pa.batchExcelMode) {
@@ -14256,7 +14256,7 @@
                         return function(e, t) {
                             const a = Array.isArray(t) ? t : [];
                             if (!a.length) return;
-                            const n = a.every(e => vn(e.data)), r = !n && a.every(e => pb(e.data));
+                            const n = a.every(e => vn(e.data)), r = !n && a.every(e => gb(e.data));
                             if (!n && !r) return;
                             n ? e.spliceColumns(9, 1) : e.spliceColumns(10, 1);
                             const i = 3 + a.length;
@@ -14271,7 +14271,7 @@
                     await Em(new Blob([ n ], {
                         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     }), t, a), vf(e, t), xf(e, "excel-batch-merge", t), Pa.batchExcelStatus = "合并 Excel 已下载：" + t,
-                    Fb("已下载合并 Excel");
+                    Bb("已下载合并 Excel");
                 } else for (let t = 0; t < e.length; t += 1) {
                     const a = e[t], n = Am(vm(a.data, a.extra)), r = await Mm(n);
                     if (!r) {
@@ -14285,30 +14285,30 @@
                             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         }), n, r), vf([ a ], n), xf([ a ], "excel-batch", n);
                     } catch (e) {
-                        const t = _b(e) || "未知错误";
+                        const t = Ub(e) || "未知错误";
                         df(a.data.sku, {
                             status: "error",
                             error: t
-                        }), Pa.batchExcelStatus = a.data.sku + " 下载失败：" + t, Bb("error", "Excel 单独下载失败", a.data.sku + " | " + t);
+                        }), Pa.batchExcelStatus = a.data.sku + " 下载失败：" + t, zb("error", "Excel 单独下载失败", a.data.sku + " | " + t);
                     }
                     "batchExcel" === Pa.view && zi(), await zm(120);
                 }
             } catch (e) {
-                const t = _b(e) || "未知错误";
-                Pa.batchExcelStatus = "批量 Excel 生成失败：" + t, Bb("error", "批量 Excel 生成失败", t), Fb(Pa.batchExcelStatus);
+                const t = Ub(e) || "未知错误";
+                Pa.batchExcelStatus = "批量 Excel 生成失败：" + t, zb("error", "批量 Excel 生成失败", t), Bb(Pa.batchExcelStatus);
             } finally {
                 Pa.batchExcelDownloadRunning = !1, "batchExcel" === Pa.view && zi();
             }
         }();
         if ("batch-excel-remove" === c) return void function(e) {
-            if (Pa.batchExcelWorkerRunning || Pa.batchExcelDownloadRunning) return void Fb("当前队列正在处理，请等待完成");
+            if (Pa.batchExcelWorkerRunning || Pa.batchExcelDownloadRunning) return void Bb("当前队列正在处理，请等待完成");
             const t = String(e || "").trim().toUpperCase();
-            lw(sw().filter(e => e.sku !== t)), zi();
+            cw(lw().filter(e => e.sku !== t)), zi();
         }(l.getAttribute("data-sku"));
         if ("batch-excel-retry" === c) return void function(e) {
             if (Pa.batchExcelWorkerRunning || Pa.batchExcelDownloadRunning) return;
             const t = String(e || "").trim().toUpperCase();
-            if (!sw().some(e => e.sku === t)) return;
+            if (!lw().some(e => e.sku === t)) return;
             df(t, {
                 status: "pending",
                 error: ""
@@ -14316,7 +14316,7 @@
         }(l.getAttribute("data-sku"));
         if ("batch-excel-clear-completed" === c) return void function() {
             if (Pa.batchExcelWorkerRunning || Pa.batchExcelDownloadRunning) return;
-            lw(sw().filter(e => "downloaded" !== e.status)), Pa.batchExcelStatus = "已清除已下载项",
+            cw(lw().filter(e => "downloaded" !== e.status)), Pa.batchExcelStatus = "已清除已下载项",
             zi();
         }();
         if ("home-back" === c) {
@@ -14349,13 +14349,13 @@
         if ("upload-clear-list" === c) return Pa.uploadClearConfirmOpen = !0, void zi();
         if ("upload-clear-cancel" === c) return Pa.uploadClearConfirmOpen = !1, void zi();
         if ("upload-clear-confirm" === c) return void function() {
-            const e = xw(Pa.uploadMode);
-            if (Pa.uploadClearConfirmOpen = !1, "history" === Pa.uploadView) return Pa.uploadHistory = fw().filter(t => Aw(t) !== e),
-            Pa.uploadHistoryPage = 1, Pa.uploadSelectedIds = [], mw(), zi(), void Fb("历史记录已清空");
-            const t = ow();
-            t.filter(t => Aw(t) === e).forEach(zw), Pa.uploadQueue = t.filter(t => Aw(t) !== e),
-            Pa.uploadPage = 1, Pa.uploadSelectedIds = [], Pa.uploadRunning = !1, Pw(e, !1),
-            gw(), zi(), Fb("队列已清空");
+            const e = Aw(Pa.uploadMode);
+            if (Pa.uploadClearConfirmOpen = !1, "history" === Pa.uploadView) return Pa.uploadHistory = mw().filter(t => Iw(t) !== e),
+            Pa.uploadHistoryPage = 1, Pa.uploadSelectedIds = [], hw(), zi(), void Bb("历史记录已清空");
+            const t = sw();
+            t.filter(t => Iw(t) === e).forEach(Rw), Pa.uploadQueue = t.filter(t => Iw(t) !== e),
+            Pa.uploadPage = 1, Pa.uploadSelectedIds = [], Pa.uploadRunning = !1, Lw(e, !1),
+            fw(), zi(), Bb("队列已清空");
         }();
         if ("upload-guide" === c) return Pa.uploadGuideOpen = !0, void zi();
         if ("upload-guide-close" === c) {
@@ -14369,9 +14369,9 @@
         }
         if ("toy-label-queue-add" === c) return void function(e) {
             const t = Array.from(new Set((String(e || "").match(/\bSKU\d+\b/gi) || []).map(e => e.toUpperCase())));
-            if (!t.length) return void Fb("请粘贴至少一个 SKU 编码");
+            if (!t.length) return void Bb("请粘贴至少一个 SKU 编码");
             const a = new Set((Pa.uploadQueue || []).filter(e => "toy-label" === e.kind && !/\u6210\u529f/.test(e.status || "")).map(e => e.sku)), n = (new Date).toLocaleString(), r = t.filter(e => !a.has(e)).map((e, t) => {
-                const a = Gw(e);
+                const a = Ww(e);
                 return {
                     id: "toy-label-" + e + "-" + Date.now() + "-" + t,
                     kind: "toy-label",
@@ -14385,13 +14385,13 @@
                     updatedAt: n
                 };
             });
-            if (!r.length) return void Fb("这些 SKU 已在玩具标签任务栏中");
+            if (!r.length) return void Bb("这些 SKU 已在玩具标签任务栏中");
             Pa.uploadQueue = r.concat(Pa.uploadQueue || []), Pa.toyLabelSkuInput = "", Pa.uploadPage = 1,
-            gw(), zi(), Fb(r.length + " 个玩具标签任务已加入");
+            fw(), zi(), Bb(r.length + " 个玩具标签任务已加入");
         }(Pa.toyLabelSkuInput);
         if ("copyright-queue-add" === c) return void async function(e, t) {
             const a = Array.from(new Set((String(e || "").match(/\bSKU\d+\b/gi) || []).map(e => e.toUpperCase()))), n = Array.from(t || []).filter(zd);
-            if (!a.length || !n.length) return void Fb("请先输入 SKU 并粘贴或选择版权图");
+            if (!a.length || !n.length) return void Bb("请先输入 SKU 并粘贴或选择版权图");
             const r = function(e, t) {
                 const a = new Map(e.map(e => [ e, [] ])), n = t.map(t => ({
                     file: t,
@@ -14406,13 +14406,13 @@
                 if (t.length === e.length) return e.forEach((e, n) => a.set(e, [ t[n] ])), a;
                 return null;
             }(a, n);
-            if (!r) return void Fb("多 SKU 时，请让图片数量与 SKU 数量一致，或在文件名中带上 SKU");
+            if (!r) return void Bb("多 SKU 时，请让图片数量与 SKU 数量一致，或在文件名中带上 SKU");
             try {
-                const e = ow(), t = (new Date).toLocaleString();
+                const e = sw(), t = (new Date).toLocaleString();
                 for (const n of a) {
                     let a = e.find(e => "copyright" === e.kind && e.sku === n && !/\u6210\u529f/.test(e.status || ""));
                     if (!a) {
-                        const r = Gw(n);
+                        const r = Ww(n);
                         a = {
                             id: "copyright-" + n + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
                             kind: "copyright",
@@ -14428,7 +14428,7 @@
                         const r = t.name + "|" + t.size;
                         if (i.has(r)) continue;
                         const o = xg(n, "copyright") + ":" + Date.now() + ":" + e + ":" + Math.random().toString(36).slice(2, 7);
-                        await Fw(o, Hd(t)), a.copyrightFiles.push({
+                        await Bw(o, Hd(t)), a.copyrightFiles.push({
                             key: o,
                             name: t.name,
                             size: t.size,
@@ -14439,9 +14439,9 @@
                     a.skipReason = "", a.forceReplace = !1, a.updatedAt = t;
                 }
                 Pa.uploadQueue = e, Pa.copyrightSkuInput = "", Pa.copyrightPendingFiles = [], Pa.uploadPage = 1,
-                gw(), zi(), Fb(a.length + " 个版权图任务已加入");
+                fw(), zi(), Bb(a.length + " 个版权图任务已加入");
             } catch (e) {
-                console.warn("PLM floating helper copyright queue failed:", e), Fb("版权图任务保存失败");
+                console.warn("PLM floating helper copyright queue failed:", e), Bb("版权图任务保存失败");
             }
         }(Pa.copyrightSkuInput, Pa.copyrightPendingFiles);
         if ("copyright-pending-clear" === c) return Pa.copyrightPendingFiles = [], void zi();
@@ -14462,11 +14462,11 @@
         }
         if ("upload-start" === c) return void pp();
         if ("upload-pause" === c) return void gp();
-        if ("upload-remove" === c) return p = l.getAttribute("data-upload-id"), zw(Pa.uploadQueue.find(e => e.id === p)),
-        Pa.uploadQueue = Pa.uploadQueue.filter(e => e.id !== p), gw(), void zi();
+        if ("upload-remove" === c) return p = l.getAttribute("data-upload-id"), Rw(Pa.uploadQueue.find(e => e.id === p)),
+        Pa.uploadQueue = Pa.uploadQueue.filter(e => e.id !== p), fw(), void zi();
         var p, g;
         if ("upload-retry" === c) return void function(e) {
-            const t = ow();
+            const t = sw();
             let a = !1;
             if (Pa.uploadQueue = t.map(t => {
                 if (t.id !== e) return t;
@@ -14481,7 +14481,7 @@
                     updatedAt: (new Date).toLocaleString()
                 };
             }), !a) return;
-            gw(), Fb(xa.uploadRetry + "：已重新加入队列"), pp();
+            fw(), Bb(xa.uploadRetry + "：已重新加入队列"), pp();
         }(l.getAttribute("data-upload-id"));
         if ("upload-queue-select" === c) return void cp(l.getAttribute("data-upload-id"));
         if ("upload-history-select" === c) return void cp(l.getAttribute("data-upload-id"));
@@ -14494,7 +14494,7 @@
             if (!t.size) return;
             const a = (new Date).toLocaleString();
             let n = !1;
-            Pa.uploadQueue = ow().map(e => {
+            Pa.uploadQueue = sw().map(e => {
                 if (!t.has(e.id)) return e;
                 n = !0;
                 const r = lp(e), i = /\u5df2\u6709\u5185\u5bb9/.test(e.status || "");
@@ -14507,18 +14507,18 @@
                     updatedAt: a
                 };
             }), n && (Pa.uploadSelectedIds = (Pa.uploadSelectedIds || []).filter(e => !t.has(e)),
-            gw(), zi(), Fb("已重新加入队列"), pp());
+            fw(), zi(), Bb("已重新加入队列"), pp());
         }(Pa.uploadSelectedIds || []));
         if ("upload-selected-delete" === c) return void ("history" === Pa.uploadView ? dp(Pa.uploadSelectedIds || []) : function(e) {
             const t = new Set((e || []).filter(Boolean));
             if (!t.size) return;
             const a = [];
-            Pa.uploadQueue = ow().filter(e => !t.has(e.id) || (a.push(e), !1)), a.forEach(zw),
-            Pa.uploadSelectedIds = (Pa.uploadSelectedIds || []).filter(e => !t.has(e)), gw(),
-            zi(), Fb("已删除队列记录");
+            Pa.uploadQueue = sw().filter(e => !t.has(e.id) || (a.push(e), !1)), a.forEach(Rw),
+            Pa.uploadSelectedIds = (Pa.uploadSelectedIds || []).filter(e => !t.has(e)), fw(),
+            zi(), Bb("已删除队列记录");
         }(Pa.uploadSelectedIds || []));
         if ("export-cache" === c) return void function() {
-            const e = Ly(), t = new Blob([ JSON.stringify(e, null, 2) ], {
+            const e = Ny(), t = new Blob([ JSON.stringify(e, null, 2) ], {
                 type: "application/json"
             }), a = document.createElement("a");
             a.href = URL.createObjectURL(t), a.download = "plm-floating-helper-cache-" + (new Date).toISOString().slice(0, 10) + ".json",
@@ -14533,9 +14533,9 @@
         if ("cloud-backup-save" === c) return void async function() {
             window.clearTimeout(Pa.cloudBackupTimer), Pa.cloudBackupQueued = !1;
             const e = vi().querySelector(".pfh-cloud-backup-key");
-            e && (Pa.settings.cloudBackupKey = e.value.trim(), rw(Pa.settings));
+            e && (Pa.settings.cloudBackupKey = e.value.trim(), iw(Pa.settings));
             try {
-                await ob({
+                await sb({
                     silent: !1
                 });
             } catch (e) {
@@ -14545,7 +14545,7 @@
         if ("cloud-rule-versions-refresh" === c) return void async function() {
             if (Pa.cloudRuleVersionsBusy) return;
             Pa.cloudRuleVersionsBusy = !0, Pa.cloudRuleVersionStatus = "正在分项检查云端规则...", zi();
-            const e = await Promise.allSettled([ lt(!0), st(), bb().then(e => {
+            const e = await Promise.allSettled([ lt(!0), st(), wb().then(e => {
                 Pa.classificationRules = Array.isArray(e && e.rules) ? e.rules : [];
             }), ut("/assets/v1/parameter-layout-rules.manifest.json", "json").then(e => {
                 if (!e || !e.ruleVersion) throw new Error("parameter layout manifest is invalid");
@@ -14564,28 +14564,28 @@
             }), Hi(t);
             const a = e.filter(e => "fulfilled" === e.status).length;
             Pa.cloudRuleVersionsBusy = !1, Pa.cloudRuleVersionStatus = "已更新 " + a + "/" + e.length + " 类规则" + (a < e.length ? "，未配置的云端项已跳过" : ""),
-            Bb(a === e.length ? "success" : "warn", "云端规则版本已刷新", Pa.cloudRuleVersionStatus),
+            zb(a === e.length ? "success" : "warn", "云端规则版本已刷新", Pa.cloudRuleVersionStatus),
             zi();
         }();
         if ("cloud-backup-restore" === c) return void async function() {
             const e = vi().querySelector(".pfh-cloud-backup-key");
-            e && (Pa.settings.cloudBackupKey = e.value.trim(), rw(Pa.settings));
-            const t = Zy();
-            if (!t) return void Fb(xa.cloudBackupMissingKey);
-            if (t.length < 4) return void Fb(xa.cloudBackupKeyTooShort);
+            e && (Pa.settings.cloudBackupKey = e.value.trim(), iw(Pa.settings));
+            const t = Yy();
+            if (!t) return void Bb(xa.cloudBackupMissingKey);
+            if (t.length < 4) return void Bb(xa.cloudBackupKeyTooShort);
             if (!window.confirm("确定要从云备份恢复数据吗？")) return;
-            nb(xa.cloudBackupRestoring), Fb(xa.cloudBackupRestoring);
+            rb(xa.cloudBackupRestoring), Bb(xa.cloudBackupRestoring);
             try {
                 const e = await async function(e) {
-                    const t = await qy(e);
+                    const t = await $y(e);
                     let a;
                     try {
-                        a = await Lb("/backup/load?backupId=" + encodeURIComponent(t), {
+                        a = await Nb("/backup/load?backupId=" + encodeURIComponent(t), {
                             method: "GET"
                         });
                     } catch (t) {
-                        if (!Ky(t)) throw t;
-                        a = await Lb("/backup/load?backupKey=" + encodeURIComponent(e), {
+                        if (!Gy(t)) throw t;
+                        a = await Nb("/backup/load?backupKey=" + encodeURIComponent(e), {
                             method: "GET"
                         });
                     }
@@ -14598,7 +14598,7 @@
                             length: Math.min(4, i - e)
                         }, (a, n) => {
                             const i = e + n;
-                            return Lb("/backup/load-chunk?backupId=" + encodeURIComponent(t) + "&snapshotId=" + encodeURIComponent(r) + "&chunkIndex=" + i, {
+                            return Nb("/backup/load-chunk?backupId=" + encodeURIComponent(t) + "&snapshotId=" + encodeURIComponent(r) + "&chunkIndex=" + i, {
                                 method: "GET"
                             });
                         }))).forEach(e => o.push(String(e && e.data || "")));
@@ -14610,8 +14610,8 @@
                     }, delete a.payload.chunked, delete a.payload.snapshotId, delete a.payload.chunkCount,
                     delete a.payload.chunkSize, a;
                 }(t);
-                if (!e || !e.found) return nb(xa.cloudBackupNotFound), void Fb(xa.cloudBackupNotFound);
-                Xy(await async function(e, t) {
+                if (!e || !e.found) return rb(xa.cloudBackupNotFound), void Bb(xa.cloudBackupNotFound);
+                Zy(await async function(e, t) {
                     if (!e || "plm-backup-v2" !== e.format) {
                         if (!e || "gzip-base64" !== e.compression || !e.data) return e;
                         if ("function" != typeof DecompressionStream) throw new Error("当前浏览器无法解压云备份，请使用最新版 Chrome");
@@ -14619,10 +14619,10 @@
                         return JSON.parse(n);
                     }
                     if (!e.data) throw new Error("云备份分片不完整");
-                    const a = new Uint8Array(Cm(e.salt || "")), n = new Uint8Array(Cm(e.iv || "")), r = await $y(t, a);
+                    const a = new Uint8Array(Cm(e.salt || "")), n = new Uint8Array(Cm(e.iv || "")), r = await Hy(t, a);
                     let i;
                     try {
-                        i = new Uint8Array(await jy().subtle.decrypt({
+                        i = new Uint8Array(await Oy().subtle.decrypt({
                             name: "AES-GCM",
                             iv: n
                         }, r, Cm(e.data)));
@@ -14635,12 +14635,12 @@
                         i = new Uint8Array(await new Response(e).arrayBuffer());
                     }
                     return JSON.parse(new TextDecoder("utf-8").decode(i));
-                }(e.payload, t)), rw(Pa.settings), nb(xa.cloudBackupRestored + "：" + Pa.index.length + "个编码"),
-                Bb("success", "云备份恢复成功", Pa.index.length + "个编码"), Fb(xa.cloudBackupRestored), Pa.view = "about",
+                }(e.payload, t)), iw(Pa.settings), rb(xa.cloudBackupRestored + "：" + Pa.index.length + "个编码"),
+                zb("success", "云备份恢复成功", Pa.index.length + "个编码"), Bb(xa.cloudBackupRestored), Pa.view = "about",
                 zi();
             } catch (e) {
-                console.warn("PLM floating helper cloud backup restore failed:", e), nb(xa.cloudBackupFailed + "：" + (e && e.message ? e.message : "未知错误")),
-                Bb("error", "云备份恢复失败", e && e.message ? e.message : "未知错误"), Fb(xa.cloudBackupFailed + "：" + (e && e.message ? e.message : "未知错误"));
+                console.warn("PLM floating helper cloud backup restore failed:", e), rb(xa.cloudBackupFailed + "：" + (e && e.message ? e.message : "未知错误")),
+                zb("error", "云备份恢复失败", e && e.message ? e.message : "未知错误"), Bb(xa.cloudBackupFailed + "：" + (e && e.message ? e.message : "未知错误"));
             }
         }();
         if ("desktop-bridge-connect" === c) {
@@ -14648,9 +14648,9 @@
             return void Gt(e && e.value);
         }
         if ("desktop-bridge-disconnect" === c) return Wt(!0), void zi();
-        if ("copy-logs" === c) return Db((Pa.logs || []).map(e => "[" + (e.time || "") + "] " + (e.level || "info").toUpperCase() + " " + (e.message || "")).join("\n") || xa.logEmpty),
-        void Fb(xa.copied);
-        if ("clear-logs" === c) return Pa.logs = [], zb(), Fb("日志已清空"), void zi();
+        if ("copy-logs" === c) return Fb((Pa.logs || []).map(e => "[" + (e.time || "") + "] " + (e.level || "info").toUpperCase() + " " + (e.message || "")).join("\n") || xa.logEmpty),
+        void Bb(xa.copied);
+        if ("clear-logs" === c) return Pa.logs = [], Rb(), Bb("日志已清空"), void zi();
         if ("export-insights" === c) return void function() {
             const e = {
                 plugin: xa.title,
@@ -14668,19 +14668,19 @@
             n.href = URL.createObjectURL(t), n.download = "plm-floating-helper-insights-" + (new Date).toISOString().slice(0, 10) + ".json",
             document.body.appendChild(n), n.click(), setTimeout(() => {
                 URL.revokeObjectURL(n.href), n.remove();
-            }, 0), Bb("success", "已导出数据洞察", e.exportedAt);
+            }, 0), zb("success", "已导出数据洞察", e.exportedAt);
         }();
         if ("insights-cloud-summary" === c) return void async function() {
             Pa.insightCloudStatus = "正在拉取云端摘要...", zi();
             try {
                 const t = await async function() {
-                    return Lb("/insights/summary", {
+                    return Nb("/insights/summary", {
                         method: "GET"
                     });
                 }(), a = (e = t && t.totals, Array.isArray(e) && e.length ? e.map(e => ("price" === e.event_type ? "价格" : "issue" === e.event_type ? "异常" : e.event_type) + " " + e.count).join(" / ") : "暂无事件"), n = t && Array.isArray(t.productTypes) ? t.productTypes.length : 0;
-                Pa.insightCloudStatus = "云端：" + a + "，类型 " + n + "类", Bb("success", "云端洞察摘要已更新", Pa.insightCloudStatus);
+                Pa.insightCloudStatus = "云端：" + a + "，类型 " + n + "类", zb("success", "云端洞察摘要已更新", Pa.insightCloudStatus);
             } catch (e) {
-                Pa.insightCloudStatus = "云端摘要失败：" + _b(e), Bb("warn", "云端洞察摘要失败", _b(e));
+                Pa.insightCloudStatus = "云端摘要失败：" + Ub(e), zb("warn", "云端洞察摘要失败", Ub(e));
             }
             var e;
             zi();
@@ -14689,28 +14689,28 @@
             Pa.insightCloudStatus = "正在体检云端洞察链路...", zi();
             try {
                 const e = await async function() {
-                    return Lb("/insights/readiness?model=" + encodeURIComponent(ab()), {
+                    return Nb("/insights/readiness?model=" + encodeURIComponent(nb()), {
                         method: "GET"
                     });
                 }();
                 Pa.insightReadiness = e || null;
                 const t = Array.isArray(e && e.checks) ? e.checks : [], a = t.filter(e => e.ok).length, n = t.length - a, r = (e && e.blockers || []).map(e => e.label + "：" + e.detail).join(" / ");
                 Pa.insightCloudStatus = (e && e.ready ? "洞察链路已就绪" : "洞察链路未就绪") + "：" + a + "/" + t.length + "项通过" + (n ? "，缺口 " + r : ""),
-                Db(function(e) {
+                Fb(function(e) {
                     const t = Array.isArray(e && e.checks) ? e.checks : [], a = Array.isArray(e && e.blockers) ? e.blockers : [], n = e && e.totals ? e.totals : {}, r = [ "PLM 云端洞察体检", "生成时间：" + (new Date).toLocaleString(), "总状态：" + (e && e.ready ? "已就绪" : "未就绪"), "事件统计：" + Object.keys(n).map(e => e + "=" + n[e]).join(" / "), "", "检查项" ];
                     t.forEach(e => {
                         r.push((e.ok ? "通过" : "未通过") + "\t" + (e.label || e.key || "") + "\t" + (e.detail || ""));
                     }), r.push("", "阻塞项"), a.length ? a.forEach(e => r.push((e.label || e.key || "") + "\t" + (e.detail || ""))) : r.push("无");
                     return r.join("\n");
-                }(e)), Bb(e && e.ready ? "success" : "warn", "云端洞察体检", Pa.insightCloudStatus), Fb(Pa.insightCloudStatus + "，报告已复制");
+                }(e)), zb(e && e.ready ? "success" : "warn", "云端洞察体检", Pa.insightCloudStatus), Bb(Pa.insightCloudStatus + "，报告已复制");
             } catch (e) {
-                Pa.insightCloudStatus = "云端洞察体检失败：" + _b(e), Bb("warn", "云端洞察体检失败", _b(e));
+                Pa.insightCloudStatus = "云端洞察体检失败：" + Ub(e), zb("warn", "云端洞察体检失败", Ub(e));
             }
             zi();
         }();
         if ("tips-manage" === c) return void function() {
             const e = Ee + "/admin";
-            window.open(e, "_blank", "noopener,noreferrer"), wb(!0);
+            window.open(e, "_blank", "noopener,noreferrer"), kb(!0);
         }();
         if ("insights-ai-classify" === c) return void async function() {
             const e = function(e) {
@@ -14719,7 +14719,7 @@
                     if (t.length >= (Number(e) || 300)) return !0;
                     const n = a && a.sku ? String(a.sku) : "";
                     if (!n) return !1;
-                    const r = bn(Gw(n) || a);
+                    const r = bn(Ww(n) || a);
                     if (!r || !r.sku) return !1;
                     const i = String(r.aiProductType || r.aiCategory || "").trim();
                     if (i && !/^\u672a\u5206\u7c7b$/i.test(i)) return !1;
@@ -14732,16 +14732,16 @@
                     }), !1);
                 }), t;
             }(300);
-            if (!e.length) return Pa.insightCloudStatus = "暂无未分类产品", zi(), void Fb(Pa.insightCloudStatus);
+            if (!e.length) return Pa.insightCloudStatus = "暂无未分类产品", zi(), void Bb(Pa.insightCloudStatus);
             Pa.insightCloudStatus = "正在让 AI 总结前 " + e.length + " 条未分类产品...", zi();
             try {
                 const t = await async function(e) {
-                    return Lb("/insights/classification-summarize", {
+                    return Nb("/insights/classification-summarize", {
                         method: "POST",
                         timeoutMs: 9e4,
                         body: {
                             version: a,
-                            aiModel: ab(),
+                            aiModel: nb(),
                             samples: Array.isArray(e) ? e.slice(0, 300) : []
                         }
                     });
@@ -14749,10 +14749,10 @@
                 Pa.classificationRules = n;
                 const r = t && t.warning ? "，兜底：" + t.warning : "";
                 Pa.insightCloudStatus = "分类规则已生成：" + n.length + "条，未分类样本 " + (t.sampleCount || 0) + "条，来源 " + (t.sampleSource || t.source || "") + r,
-                Bb(t && t.warning ? "warn" : "success", "AI 总结分类规则", Pa.insightCloudStatus), Fb(Pa.insightCloudStatus);
+                zb(t && t.warning ? "warn" : "success", "AI 总结分类规则", Pa.insightCloudStatus), Bb(Pa.insightCloudStatus);
             } catch (e) {
-                Pa.insightCloudStatus = "AI 总结分类规则失败：" + _b(e), Bb("warn", "AI 总结分类规则失败", _b(e)),
-                Fb(Pa.insightCloudStatus);
+                Pa.insightCloudStatus = "AI 总结分类规则失败：" + Ub(e), zb("warn", "AI 总结分类规则失败", Ub(e)),
+                Bb(Pa.insightCloudStatus);
             }
             zi();
         }();
@@ -14761,7 +14761,7 @@
             try {
                 let e = Array.isArray(Pa.classificationRules) && Pa.classificationRules.length ? Pa.classificationRules : [];
                 if (!e.length) {
-                    const t = await bb();
+                    const t = await wb();
                     e = Array.isArray(t && t.rules) ? t.rules : [], Pa.classificationRules = e;
                 }
                 const t = function(e) {
@@ -14772,13 +14772,13 @@
                     if ((Pa.index || []).forEach(e => {
                         const i = e && e.sku;
                         if (!i) return;
-                        const o = bn(Gw(i) || e);
+                        const o = bn(Ww(i) || e);
                         if (!o || !o.sku) return;
                         const s = String(o.aiProductType || o.aiCategory || "").trim();
                         if (s && !/^\u672a\u5206\u7c7b$/i.test(s)) return;
                         a += 1;
-                        const l = Wb(o, t, "category"), c = function(e, t) {
-                            const a = (Array.isArray(t) ? t : []).filter(e => "packageType" === e.kind).map(t => Wb(e, [ t ], "packageType")).filter(Boolean).sort((e, t) => Number(t.score || 0) - Number(e.score || 0)), n = new Set;
+                        const l = Qb(o, t, "category"), c = function(e, t) {
+                            const a = (Array.isArray(t) ? t : []).filter(e => "packageType" === e.kind).map(t => Qb(e, [ t ], "packageType")).filter(Boolean).sort((e, t) => Number(t.score || 0) - Number(e.score || 0)), n = new Set;
                             return a.filter(e => {
                                 const t = e.label || "";
                                 return !(!t || n.has(t)) && (n.add(t), !0);
@@ -14792,9 +14792,9 @@
                         const p = c.map(e => e.label).filter(Boolean);
                         p.length && JSON.stringify(u.aiPackageTypes || []) !== JSON.stringify(p) && (u.aiPackageTypes = p,
                         u.aiPackageRuleIds = c.map(e => e.ruleId || "").filter(Boolean), d = !0), d && (u.aiClassifiedAt = r,
-                        Jw(i, bn(u)), Kw(u), n += 1);
-                    }), nw(), Pa.selectedSku) {
-                        const e = Gw(Pa.selectedSku);
+                        Xw(i, bn(u)), Gw(u), n += 1);
+                    }), rw(), Pa.selectedSku) {
+                        const e = Ww(Pa.selectedSku);
                         e && (Pa.data = bn(e));
                     }
                     return {
@@ -14802,29 +14802,29 @@
                         updated: n
                     };
                 }(e);
-                Pa.insightCloudStatus = "已重新应用规则：更新 " + t.updated + "/" + t.total + "个编码", Bb("success", "已重新应用分类规则", Pa.insightCloudStatus),
-                Fb(Pa.insightCloudStatus);
+                Pa.insightCloudStatus = "已重新应用规则：更新 " + t.updated + "/" + t.total + "个编码", zb("success", "已重新应用分类规则", Pa.insightCloudStatus),
+                Bb(Pa.insightCloudStatus);
             } catch (e) {
-                Pa.insightCloudStatus = "重新应用分类规则失败：" + _b(e), Bb("warn", "重新应用分类规则失败", _b(e)),
-                Fb(Pa.insightCloudStatus);
+                Pa.insightCloudStatus = "重新应用分类规则失败：" + Ub(e), zb("warn", "重新应用分类规则失败", Ub(e)),
+                Bb(Pa.insightCloudStatus);
             }
             zi();
         }();
         if ("insights-view-classify" === c) return void async function() {
             Pa.insightCloudStatus = "正在拉取分类规则...", zi();
             try {
-                const e = await bb(), t = Array.isArray(e && e.rules) ? e.rules : [];
+                const e = await wb(), t = Array.isArray(e && e.rules) ? e.rules : [];
                 Pa.classificationRules = t;
                 const a = function(e) {
                     const t = [ "类型\t名称\t置信度\t关键词\t排除词\t样例\t来源\t更新时间" ];
                     return (Array.isArray(e) ? e : []).forEach(e => {
-                        t.push([ "packageType" === e.kind ? "包材" : "品类", e.label || "", e.confidence || "", Gb(e.keywords).join("/"), Gb(e.negativeKeywords).join("/"), Gb(e.examples).join("/"), e.source || "", e.updatedAt || "" ].join("\t"));
+                        t.push([ "packageType" === e.kind ? "包材" : "品类", e.label || "", e.confidence || "", Wb(e.keywords).join("/"), Wb(e.negativeKeywords).join("/"), Wb(e.examples).join("/"), e.source || "", e.updatedAt || "" ].join("\t"));
                     }), t.join("\n");
                 }(t);
-                Db(a || "暂无分类规则"), Pa.insightCloudStatus = "分类规则已复制：" + t.length + "条", Bb("success", "已查看分类规则", Pa.insightCloudStatus),
-                Fb(xa.copied);
+                Fb(a || "暂无分类规则"), Pa.insightCloudStatus = "分类规则已复制：" + t.length + "条", zb("success", "已查看分类规则", Pa.insightCloudStatus),
+                Bb(xa.copied);
             } catch (e) {
-                Pa.insightCloudStatus = "查看分类规则失败：" + _b(e), Bb("warn", "查看分类规则失败", _b(e)), Fb(Pa.insightCloudStatus);
+                Pa.insightCloudStatus = "查看分类规则失败：" + Ub(e), zb("warn", "查看分类规则失败", Ub(e)), Bb(Pa.insightCloudStatus);
             }
             zi();
         }();
@@ -14832,14 +14832,14 @@
             Pa.insightCloudStatus = "正在检查 AI 配置...", zi();
             try {
                 const e = await async function() {
-                    return Lb("/insights/ai-status?model=" + encodeURIComponent(ab()), {
+                    return Nb("/insights/ai-status?model=" + encodeURIComponent(nb()), {
                         method: "GET"
                     });
                 }();
                 Pa.insightCloudStatus = e && e.configured ? "modelscope" === e.provider && !e.primaryConfigured && e.fallbackConfigured ? "魔搭 Token 未配置，Gemini 兜底可用" : "AI 已配置：" + [ e.provider || "", e.model || "" ].filter(Boolean).join(" / ") : "AI 未配置，将使用规则版总结",
-                Bb(e && e.configured ? "success" : "warn", "AI 配置检查", Pa.insightCloudStatus), Fb(Pa.insightCloudStatus);
+                zb(e && e.configured ? "success" : "warn", "AI 配置检查", Pa.insightCloudStatus), Bb(Pa.insightCloudStatus);
             } catch (e) {
-                Pa.insightCloudStatus = "AI 配置检查失败：" + _b(e), Bb("warn", "AI 配置检查失败", _b(e));
+                Pa.insightCloudStatus = "AI 配置检查失败：" + Ub(e), zb("warn", "AI 配置检查失败", Ub(e));
             }
             zi();
         }();
@@ -14847,15 +14847,15 @@
             Pa.insightCloudStatus = "正在生成云端总结...", zi();
             try {
                 const e = await async function() {
-                    return Lb("/insights/report", {
+                    return Nb("/insights/report", {
                         method: "GET"
                     });
                 }(), t = e && e.report ? e.report : "";
                 if (!t) throw new Error("empty report");
-                Pa.insightCloudReport = t, Pa.insightCloudStatus = "云端总结已复制，可直接贴到 AI 或表格", Db(t),
-                Bb("success", "已复制云端洞察总结"), Fb(xa.copied);
+                Pa.insightCloudReport = t, Pa.insightCloudStatus = "云端总结已复制，可直接贴到 AI 或表格", Fb(t),
+                zb("success", "已复制云端洞察总结"), Bb(xa.copied);
             } catch (e) {
-                Pa.insightCloudStatus = "云端总结失败：" + _b(e), Bb("warn", "云端洞察总结失败", _b(e));
+                Pa.insightCloudStatus = "云端总结失败：" + Ub(e), zb("warn", "云端洞察总结失败", Ub(e));
             }
             zi();
         }();
@@ -14864,8 +14864,8 @@
             try {
                 const e = await async function(e) {
                     const t = e || {}, a = new URLSearchParams;
-                    a.set("model", ab()), t.refresh && a.set("refresh", "1");
-                    return Lb("/insights/ai-report?" + a.toString(), {
+                    a.set("model", nb()), t.refresh && a.set("refresh", "1");
+                    return Nb("/insights/ai-report?" + a.toString(), {
                         method: "GET"
                     });
                 }({
@@ -14873,9 +14873,9 @@
                 }), t = e && e.report ? e.report : "";
                 if (!t) throw new Error("empty ai report");
                 Pa.insightCloudReport = t, Pa.insightCloudStatus = e.source && "fallback" !== e.source ? "AI 整理已复制" : "AI 暂不可用，已复制规则版总结",
-                Db(t), Bb("success", "已复制 AI 洞察整理", e.source || ""), Fb(xa.copied);
+                Fb(t), zb("success", "已复制 AI 洞察整理", e.source || ""), Bb(xa.copied);
             } catch (e) {
-                Pa.insightCloudStatus = "AI 整理失败：" + _b(e), Bb("warn", "AI 洞察整理失败", _b(e));
+                Pa.insightCloudStatus = "AI 整理失败：" + Ub(e), zb("warn", "AI 洞察整理失败", Ub(e));
             }
             zi();
         }();
@@ -14883,30 +14883,30 @@
             priceHistory: [],
             dataIssues: [],
             typeStats: {}
-        }, Ob(), Fb("洞察数据已清空"), void zi();
+        }, qb(), Bb("洞察数据已清空"), void zi();
         if (n.target && "pfh-keyword-mode" === n.target.name) return Pa.settings.excelKeywordMode = "brandName" === n.target.value ? "brandName" : "english",
-        rw(Pa.settings), void zi();
+        iw(Pa.settings), void zi();
         if (n.target && "pfh-download-mode" === n.target.name) return Pa.settings.excelDownloadMode = "direct" === n.target.value ? "direct" : "picker",
-        rw(Pa.settings), void zi();
+        iw(Pa.settings), void zi();
         if (n.target && "pfh-ai-model" === n.target.name) return Pa.settings.insightAiModel = n.target.value === b ? b : "glm-4.7-flash",
-        rw(Pa.settings), void zi();
+        iw(Pa.settings), void zi();
         if ("confirm-tail-seal" === c) return void Od(n.target);
-        if ("copy-all" === c) return Db((g = Pa.data) ? [ "[" + xa.fileSection + "]", xa.brand + " / " + xa.name + " / " + xa.sku + ": " + [ g.brand, g.name, g.sku ].filter(Boolean).join(" | "), xa.packageCode + ": " + (g.packageCode || xa.unknown), xa.printCode + ": " + (g.printCode || xa.unknown), (g.packageSizeLabel || xa.packageSize) + ": " + (g.packageSizeText || xa.noPackage), (g.printSizeLabel || xa.printSize) + ": " + (g.printSizeText || xa.noPrint), "", "[" + xa.graphicSection + "]", xa.cartonLength + ": " + (g.packageLength || xa.noDimension), xa.cartonWidth + ": " + (g.packageWidth || xa.noDimension), xa.cartonHeight + ": " + (g.packageHeight || xa.noDimension), xa.productLength + ": " + (g.isTubePrint ? g.productLength || xa.tailSealLength : g.productLength || xa.noDimension), xa.productWidth + ": " + (g.productWidth || xa.noDimension), xa.productHeight + ": " + (g.productHeight || xa.noDimension), xa.netContent + ": " + (g.netContent || xa.unknown), xa.grossWeight + ": " + (g.grossWeight || xa.unknown) ].join("\n") : ""),
-        void Fb(xa.copied);
+        if ("copy-all" === c) return Fb((g = Pa.data) ? [ "[" + xa.fileSection + "]", xa.brand + " / " + xa.name + " / " + xa.sku + ": " + [ g.brand, g.name, g.sku ].filter(Boolean).join(" | "), xa.packageCode + ": " + (g.packageCode || xa.unknown), xa.printCode + ": " + (g.printCode || xa.unknown), (g.packageSizeLabel || xa.packageSize) + ": " + (g.packageSizeText || xa.noPackage), (g.printSizeLabel || xa.printSize) + ": " + (g.printSizeText || xa.noPrint), "", "[" + xa.graphicSection + "]", xa.cartonLength + ": " + (g.packageLength || xa.noDimension), xa.cartonWidth + ": " + (g.packageWidth || xa.noDimension), xa.cartonHeight + ": " + (g.packageHeight || xa.noDimension), xa.productLength + ": " + (g.isTubePrint ? g.productLength || xa.tailSealLength : g.productLength || xa.noDimension), xa.productWidth + ": " + (g.productWidth || xa.noDimension), xa.productHeight + ": " + (g.productHeight || xa.noDimension), xa.netContent + ": " + (g.netContent || xa.unknown), xa.grossWeight + ": " + (g.grossWeight || xa.unknown) ].join("\n") : ""),
+        void Bb(xa.copied);
         const f = n.target && n.target.closest && n.target.closest("[data-pin-sku]"), m = f && f.getAttribute("data-pin-sku");
         if (m) return n.stopPropagation(), function(e) {
             const t = Pa.index.find(t => t.sku === e);
             if (!t) return;
             t.pinned ? (delete t.pinned, delete t.pinOrder) : (t.pinned = !0, t.pinOrder = Date.now());
-            nw();
+            rw();
         }(m), void zi();
         const y = n.target && n.target.closest && n.target.closest("[data-sku]");
         if (y) {
-            const e = Ui(), t = y.getAttribute("data-sku"), a = Gw(t) || Pa.index.find(e => e && e.sku === t) || null;
+            const e = Ui(), t = y.getAttribute("data-sku"), a = Ww(t) || Pa.index.find(e => e && e.sku === t) || null;
             return Pa.selectedSku = t, Pa.data = a ? bn(a) : "sizeImage" === e || "parameterImage" === e ? bn({
                 sku: t
             }) : null, window.setTimeout(() => kr(t, a).catch(e => {
-                Bb("warn", "悬浮窗后台刷新物料失败", t + " | " + _b(e));
+                zb("warn", "悬浮窗后台刷新物料失败", t + " | " + Ub(e));
             }), 0), Pa.detailViewPreviousTab = "", "sizeImage" === e || "parameterImage" === e ? (Pa.view = e,
             Pa.copywritingMode = !1, Pa.skuEditMode = !1, tf(), "parameterImage" === e && La.loadRules(),
             void Ai()) : (Pa.view = "detail", Pa.copywritingMode = "copywriting" === e && Boolean(Pa.data),
@@ -14920,19 +14920,19 @@
             if (!a) return;
             t.classList.add("is-inline-editing");
             const n = mi(Pa.data && Pa.data.productLength);
-            a.innerHTML = '<span class="pfh-inline-edit"><input class="pfh-tail-input" type="text" placeholder="cm" value="' + pk(Number.isFinite(n) ? lk(n) : "") + '"><button type="button" data-action="confirm-tail-seal">' + pk(xa.ok) + "</button></span>";
+            a.innerHTML = '<span class="pfh-inline-edit"><input class="pfh-tail-input" type="text" placeholder="cm" value="' + gk(Number.isFinite(n) ? ck(n) : "") + '"><button type="button" data-action="confirm-tail-seal">' + gk(xa.ok) + "</button></span>";
             const r = a.querySelector("input");
             r && r.focus();
         }(w);
         const k = n.target && n.target.closest && n.target.closest("[data-copy-key]"), S = k && k.getAttribute("data-copy-key");
         if (S) {
             if (n.target.closest("button, input, textarea, select")) return;
-            Db("printSizeText" === S ? Qc(Pa.data) : Pa.data && Pa.data[S] || ""), k.classList.add("is-copied"),
-            window.setTimeout(() => k.classList.remove("is-copied"), 650), Fb(xa.copied);
+            Fb("printSizeText" === S ? Qc(Pa.data) : Pa.data && Pa.data[S] || ""), k.classList.add("is-copied"),
+            window.setTimeout(() => k.classList.remove("is-copied"), 650), Bb(xa.copied);
         }
     }
     function Ad(e) {
-        if (Pa.ledgerAiImageViewer && "Escape" === e.key) return e.preventDefault(), void ky();
+        if (Pa.ledgerAiImageViewer && "Escape" === e.key) return e.preventDefault(), void Sy();
         if ("ledger" === Pa.view && Pa.ledgerFullscreen && "Escape" === e.key) return e.preventDefault(),
         Pa.ledgerFullscreen = !1, void zi();
         if (Pa.skuEditMode && e.target && e.target.matches && e.target.matches("[data-sku-edit-key]")) {
@@ -14959,7 +14959,7 @@
             if (t.target && t.target.classList && t.target.classList.contains("pfh-ledger-ai-prep-input")) {
                 const e = t.target.getAttribute("data-prep-sku") || Pa.ledgerAiImageViewer && Pa.ledgerAiImageViewer.sku || "";
                 return void (e && function(e) {
-                    const t = Cy(e);
+                    const t = Py(e);
                     if (!t) return;
                     const a = vi().querySelector(".pfh-ledger-ai-image-layer");
                     if (!a) return;
@@ -15012,10 +15012,10 @@
                 t.target && t.target.classList && t.target.classList.contains("pfh-toy-copywriting-batch-input") && (Pa.toyCopywritingBatchInput = t.target.value),
                 t.target && t.target.classList && t.target.classList.contains("pfh-magic-toy-label-input") && (Pa.magicToyLabelInput = t.target.value),
                 t.target && t.target.classList && t.target.classList.contains("pfh-cloud-backup-key") && (Pa.settings.cloudBackupKey = t.target.value.trim(),
-                rw(Pa.settings)), t.target && t.target.classList && t.target.classList.contains("pfh-tutorial-cloud-key")) {
-                    Pa.settings.cloudBackupKey = t.target.value.trim(), rw(Pa.settings), Pa.tutorialEmptyKeyClickCount = 0;
+                iw(Pa.settings)), t.target && t.target.classList && t.target.classList.contains("pfh-tutorial-cloud-key")) {
+                    Pa.settings.cloudBackupKey = t.target.value.trim(), iw(Pa.settings), Pa.tutorialEmptyKeyClickCount = 0;
                     const e = vi().querySelector('[data-action="first-run-tutorial-done"]');
-                    e && e.setAttribute("aria-disabled", Zy().length < 4 ? "true" : "false");
+                    e && e.setAttribute("aria-disabled", Yy().length < 4 ? "true" : "false");
                 }
                 if (t.target && t.target.classList && t.target.classList.contains("pfh-toy-label-sku-input") && !t.target.classList.contains("pfh-copyright-sku-input") && (Pa.toyLabelSkuInput = t.target.value),
                 t.target && t.target.classList && t.target.classList.contains("pfh-copyright-sku-input")) {
@@ -15097,15 +15097,15 @@
                 return t.length && Vo("info", "通过 Clipboard API 读取到文件", t.map(e => e.name + "|" + e.type).join("；")),
                 t;
             } catch (e) {
-                return Vo("warn", "Clipboard API 读取失败", _b(e)), [];
+                return Vo("warn", "Clipboard API 读取失败", Ub(e)), [];
             }
         }(t).then(e => {
             l(e, "Clipboard API") || (Vo("warn", "悬浮粘贴未找到可处理文件", function(e) {
                 const t = e && e.clipboardData, a = Array.from(t && t.items || []).map(e => [ e.kind || "unknown", e.type || "no-type" ].join(":")), n = Array.from(t && t.files || []).map(e => [ e.name || "no-name", e.type || "no-type", e.size || 0 ].join("|"));
                 return "types=" + Array.from(t && t.types || []).join(",") + " | items=" + (a.join(",") || "none") + " | files=" + (n.join(",") || "none");
-            }(t)), Fb("剪贴板里没有 ZIP 或 XLSX 文件"));
+            }(t)), Bb("剪贴板里没有 ZIP 或 XLSX 文件"));
         }).catch(e => {
-            Vo("warn", "悬浮粘贴读取失败", _b(e)), Fb("读取剪贴板文件失败，请重试");
+            Vo("warn", "悬浮粘贴读取失败", Ub(e)), Bb("读取剪贴板文件失败，请重试");
         }), !0;
     }
     function Pd(e) {
@@ -15216,17 +15216,17 @@
             void (r.length && n ? ap(r, {
                 stayInMagic: !0
             }) : r.length ? Zo(r) : (Vo("warn", n ? "拖拽内容不是效果图" : "拖拽内容不是 ZIP/XLSX", a.map(e => e.name || e.type || "未知").join("；") || "浏览器未提供文件"),
-            Fb(n ? "效果图只接受 JPG / PNG / BMP" : "魔法上传只接受 ZIP 图包或 XLSX")));
+            Bb(n ? "效果图只接受 JPG / PNG / BMP" : "魔法上传只接受 ZIP 图包或 XLSX")));
         }
         const t = e.target && e.target.closest && e.target.closest("[data-upload-sku-drop]"), a = e.dataTransfer && e.dataTransfer.getData("application/x-pfh-upload-sku");
         if (t && a && "upload" === Pa.view && Yi(Pa.uploadMode)) return e.preventDefault(),
         t.classList.remove("is-drag-over"), void function(e, t) {
-            const a = String(e || "").trim().toUpperCase(), n = xw(t);
+            const a = String(e || "").trim().toUpperCase(), n = Aw(t);
             if (!a || !Yi(n)) return;
-            const r = ow();
-            if (r.find(e => Aw(e) === n && e.sku === a && !/\u6210\u529f/.test(e.status || ""))) return Pa.uploadMode = n,
-            Pa.uploadView = "queue", zi(), void Fb(a + " 已在当前任务栏中");
-            const i = Gw(a), o = (new Date).toLocaleString(), s = "toy-label" === n ? {
+            const r = sw();
+            if (r.find(e => Iw(e) === n && e.sku === a && !/\u6210\u529f/.test(e.status || ""))) return Pa.uploadMode = n,
+            Pa.uploadView = "queue", zi(), void Bb(a + " 已在当前任务栏中");
+            const i = Ww(a), o = (new Date).toLocaleString(), s = "toy-label" === n ? {
                 id: "toy-label-" + a + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
                 kind: "toy-label",
                 sku: a,
@@ -15249,7 +15249,7 @@
                 updatedAt: o
             };
             r.unshift(s), Pa.uploadQueue = r, Pa.uploadMode = n, Pa.uploadView = "queue", Pa.uploadPage = 1,
-            gw(), zi(), Fb(a + " 已加入" + ("copyright" === n ? "版权图" : "玩具标签") + "任务");
+            fw(), zi(), Bb(a + " 已加入" + ("copyright" === n ? "版权图" : "玩具标签") + "任务");
         }(a, Pa.uploadMode);
         if (e.target && e.target.closest && e.target.closest(".pfh-parameter-page")) return e.preventDefault(),
         void La.handleDrop(Array.from(e.dataTransfer && e.dataTransfer.files || []), Pa.data || {}, {
@@ -15269,7 +15269,7 @@
     }
     async function Bd(e) {
         const t = Array.from(e || []).filter(e => e && Kd(e.name));
-        if (t.length) for (const e of t) await qd(e); else Fb("请拖入或粘贴 xls、xlsx、zip 或 rar 文件");
+        if (t.length) for (const e of t) await qd(e); else Bb("请拖入或粘贴 xls、xlsx、zip 或 rar 文件");
     }
     function zd(e) {
         return Boolean(e && (/^image\/(?:jpeg|png)$/i.test(e.type || "") || /\.(?:png|jpe?g)$/i.test(e.name || "")));
@@ -15284,22 +15284,22 @@
     }
     function jd(e) {
         const t = Array.from(e || []).filter(zd).map(Rd), a = t.filter(e => e.size <= 52428800);
-        if (!a.length) return void Fb(t.length ? "版权图单个文件不能超过 50MB" : "请粘贴或拖入 JPG / PNG 图片");
+        if (!a.length) return void Bb(t.length ? "版权图单个文件不能超过 50MB" : "请粘贴或拖入 JPG / PNG 图片");
         const n = Array.isArray(Pa.copyrightPendingFiles) ? Pa.copyrightPendingFiles : [], r = new Set(n.map(e => [ e.name, e.size, e.lastModified ].join("|"))), i = a.filter(e => {
             const t = [ e.name, e.size, e.lastModified ].join("|");
             return !r.has(t) && (r.add(t), !0);
         });
-        Pa.copyrightPendingFiles = n.concat(i).slice(0, 60), zi(), Fb("已选择 " + Pa.copyrightPendingFiles.length + " 张版权图");
+        Pa.copyrightPendingFiles = n.concat(i).slice(0, 60), zi(), Bb("已选择 " + Pa.copyrightPendingFiles.length + " 张版权图");
     }
     function Od(e) {
         const t = e && e.closest && e.closest('[data-key="productLength"]'), a = t && t.querySelector(".pfh-tail-input"), n = mi(a && a.value);
-        if (!Number.isFinite(n) || n <= 0) return void Fb(xa.invalidCm);
+        if (!Number.isFinite(n) || n <= 0) return void Bb(xa.invalidCm);
         const r = ri([ n ], 0);
         Pa.data = bn({
             ...Pa.data || {},
             tailSealLengthValue: r,
             productLength: r
-        }), Pa.data.sku && Qw(Pa.data.sku, Pa.data), zi();
+        }), Pa.data.sku && Jw(Pa.data.sku, Pa.data), zi();
     }
     async function qd(e) {
         if (!e) return;
@@ -15311,32 +15311,32 @@
                 const t = [];
                 for (const n of a) {
                     const a = $d(n, e.name);
-                    a.zipKey && Rw(a.zipKey).catch(e => console.warn("PLM floating helper upload file cleanup failed:", e)),
+                    a.zipKey && jw(a.zipKey).catch(e => console.warn("PLM floating helper upload file cleanup failed:", e)),
                     a.zipName = e.name, a.zipKey = "", a.status = "已跳过", a.step = xa.uploadFileTooLarge,
                     a.skipReason = xa.uploadFileTooLarge, a.updatedAt = (new Date).toLocaleString(),
                     t.push(a);
                 }
-                return gw(), Pa.uploadExpanded = !0, Pa.view = "upload", zi(), void Fb(a.join(" / ") + " " + xa.uploadFileTooLarge);
+                return fw(), Pa.uploadExpanded = !0, Pa.view = "upload", zi(), void Bb(a.join(" / ") + " " + xa.uploadFileTooLarge);
             }
             try {
                 for (const n of a) {
                     const a = xg(n, t);
-                    await Fw(a, Hd(e));
+                    await Bw(a, Hd(e));
                     const r = $d(n, e.name);
                     "xlsx" === t ? (r.xlsxName = e.name, r.xlsxKey = a) : (r.zipName = e.name, r.zipKey = a),
                     r.status = r.xlsxKey && r.zipKey ? "待上传" : "缺文件", r.step = r.xlsxKey && r.zipKey ? "文件已齐" : ip(r),
                     r.forceReplace = !1, r.skipReason = "", r.updatedAt = (new Date).toLocaleString();
                 }
-                gw(), Pa.uploadExpanded = !0, Pa.view = "upload", zi(), Fb(a.join(" / ") + " " + t.toUpperCase() + " 已加入");
+                fw(), Pa.uploadExpanded = !0, Pa.view = "upload", zi(), Bb(a.join(" / ") + " " + t.toUpperCase() + " 已加入");
             } catch (e) {
-                console.warn("PLM floating helper store upload file failed:", e), Fb("文件记录失败");
+                console.warn("PLM floating helper store upload file failed:", e), Bb("文件记录失败");
             }
-        } else Fb(xa.uploadNoSkuInFile + ": " + e.name);
+        } else Bb(xa.uploadNoSkuInFile + ": " + e.name);
     }
     function $d(e, t) {
         let a = Pa.uploadQueue.find(t => "standard" === (t.kind || "standard") && t.sku === e && !/成功/.test(t.status || ""));
         if (a) return a;
-        const n = Gw(e);
+        const n = Ww(e);
         return a = {
             id: e + "-" + Date.now(),
             sku: e,
@@ -15369,28 +15369,28 @@
     }
     function Qd() {
         const e = (Array.from(document.querySelectorAll("table.vxe-table--header")).map(e => Array.from(e.querySelectorAll("thead th"))).find(e => {
-            const t = e.map(e => sk(e.innerText || e.textContent).replace(/^\*/, ""));
+            const t = e.map(e => lk(e.innerText || e.textContent).replace(/^\*/, ""));
             return t.includes("商品编码") && t.includes("商品名称");
-        }) || []).map(e => sk(e.innerText || e.textContent).replace(/^\*/, "")), t = e.indexOf("商品编码"), a = e.indexOf("商品名称"), n = e.indexOf("品牌");
+        }) || []).map(e => lk(e.innerText || e.textContent).replace(/^\*/, "")), t = e.indexOf("商品编码"), a = e.indexOf("商品名称"), n = e.indexOf("品牌");
         if (t < 0 || a < 0) return [];
         const r = Array.from(document.querySelectorAll("table.vxe-table--body")).find(e => Array.from(e.querySelectorAll("tbody tr")).some(e => /SKU\d+/i.test(e.innerText || e.textContent || "")));
         return r ? Array.from(r.querySelectorAll("tbody tr")).map(e => {
             const r = Array.from(e.children);
             return {
-                sku: (((sk(r[t] && (r[t].innerText || r[t].textContent)) || "").match(/SKU\d+/i) || [])[0] || "").toUpperCase(),
+                sku: (((lk(r[t] && (r[t].innerText || r[t].textContent)) || "").match(/SKU\d+/i) || [])[0] || "").toUpperCase(),
                 rowId: e.getAttribute("rowid") || "",
-                brand: n >= 0 ? sk(r[n] && (r[n].innerText || r[n].textContent)) : "",
-                name: a >= 0 ? sk(r[a] && (r[a].innerText || r[a].textContent)) : ""
+                brand: n >= 0 ? lk(r[n] && (r[n].innerText || r[n].textContent)) : "",
+                name: a >= 0 ? lk(r[a] && (r[a].innerText || r[a].textContent)) : ""
             };
         }).filter(e => e.sku && e.name && e.rowId) : [];
     }
     function Jd(e) {
         if (!e) return null;
-        const t = String(e.sku || "").trim().toUpperCase(), a = sk(e.name || "");
+        const t = String(e.sku || "").trim().toUpperCase(), a = lk(e.name || "");
         return t && a ? {
             sku: t,
             rowId: String(e.rowId || e.projectRowId || e.projectId || "").trim(),
-            brand: sk(e.brand || ""),
+            brand: lk(e.brand || ""),
             name: a
         } : null;
     }
@@ -15441,7 +15441,7 @@
         }
         const n = [];
         (Pa.index || []).forEach(e => {
-            const t = bn(Gw(e.sku) || e);
+            const t = bn(Ww(e.sku) || e);
             t.sku && t.name && n.push({
                 sku: t.sku,
                 rowId: t.projectRowId || t.projectId || "",
@@ -15496,13 +15496,13 @@
         };
     }
     async function tp(e, t, a) {
-        const n = Array.isArray(a) ? a : ow();
+        const n = Array.isArray(a) ? a : sw();
         let r = n.find(e => "toy-effect" === e.kind && e.sku === t.sku && !/\u6210\u529f/.test(e.status || ""));
         const i = "toy-effect:" + t.sku + ":" + Date.now() + ":" + Math.random().toString(36).slice(2, 8);
-        await Fw(i, Hd(e));
+        await Bw(i, Hd(e));
         const o = sp(r);
-        if (o.length >= 3) return await Rw(i), "limit";
-        if (o.some(t => t.name === e.name)) return await Rw(i), !1;
+        if (o.length >= 3) return await jw(i), "limit";
+        if (o.some(t => t.name === e.name)) return await jw(i), !1;
         const s = (new Date).toLocaleString(), l = {
             name: e.name,
             key: i,
@@ -15511,14 +15511,14 @@
         };
         if (r) r.effectFiles = o.concat(l), r.projectRowId = r.projectRowId || t.rowId || "",
         r.status = "待上传效果图", r.step = "待上传到 BOM 效果图", r.updatedAt = s; else {
-            const a = bn(Gw(t.sku) || {}), i = bn({
+            const a = bn(Ww(t.sku) || {}), i = bn({
                 ...a,
                 sku: t.sku,
                 brand: t.brand || a.brand || "",
                 name: t.name || a.name || "",
                 projectRowId: t.rowId || a.projectRowId || ""
             });
-            Jw(t.sku, i), Kw(i), r = {
+            Xw(t.sku, i), Gw(i), r = {
                 id: "toy-effect-" + t.sku + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
                 kind: "toy-effect",
                 sku: t.sku,
@@ -15536,7 +15536,7 @@
     async function ap(e, t) {
         const a = Boolean(t && t.stayInMagic), n = Array.from(e || []).filter(Gd), r = n.filter(e => e.size <= 52428800);
         if (r.length) try {
-            const e = await Yd(r), t = ow(), n = [];
+            const e = await Yd(r), t = sw(), n = [];
             let i = 0;
             for (const a of r) {
                 const r = ep(a, e);
@@ -15549,22 +15549,22 @@
             }
             Pa.uploadMode = "toy-effect", Pa.uploadView = "queue", a && (Pa.view = "magicUpload",
             Pa.magicUploadMode = "effect"), Pa.uploadPage = 1, Pa.uploadQueue = t, Pa.toyEffectMatchStatus = n.length ? "未匹配：" + n.slice(0, 4).join("、") + (n.length > 4 ? "…" : "") : "",
-            gw(), zi(), i && Fb("已识别并加入 " + i + " 张玩具效果图"), n.length && Fb("有 " + n.length + " 张效果图未能唯一匹配，请检查文件名");
+            fw(), zi(), i && Bb("已识别并加入 " + i + " 张玩具效果图"), n.length && Bb("有 " + n.length + " 张效果图未能唯一匹配，请检查文件名");
         } catch (e) {
-            console.warn("PLM floating helper toy effect image match failed:", e), Fb("效果图匹配失败：" + (e && e.message ? e.message : "请检查当前页面"));
-        } else Fb(n.length ? "玩具效果图单个文件不能超过 50MB" : "请拖入 JPG / PNG 玩具效果图");
+            console.warn("PLM floating helper toy effect image match failed:", e), Bb("效果图匹配失败：" + (e && e.message ? e.message : "请检查当前页面"));
+        } else Bb(n.length ? "玩具效果图单个文件不能超过 50MB" : "请拖入 JPG / PNG 玩具效果图");
     }
     function np(e, t, a) {
         return yi([ e && e.brand, e && e.name ].filter(Boolean).join(" ")) || yi(function(e, t) {
-            return sk(String(e || "").replace(/\.[^.]+$/, "").replace(t, ""));
+            return lk(String(e || "").replace(/\.[^.]+$/, "").replace(t, ""));
         }(t, a));
     }
     function rp(e) {
-        const t = e && e.sku ? Gw(e.sku) : null, a = op(e)[0], n = sp(e)[0], r = np(t, e && (e.xlsxName || e.zipName) || a && a.name || n && n.name || "", e && e.sku);
+        const t = e && e.sku ? Ww(e.sku) : null, a = op(e)[0], n = sp(e)[0], r = np(t, e && (e.xlsxName || e.zipName) || a && a.name || n && n.name || "", e && e.sku);
         return r && e && e.name !== r && (e.name = r, window.setTimeout(() => {
-            const t = ow(), a = t.find(t => t.id === e.id);
+            const t = sw(), a = t.find(t => t.id === e.id);
             a && a.name !== r && (a.name = r, Pa.uploadQueue = t.map(t => t.id === e.id ? a : t),
-            gw());
+            fw());
         }, 0)), r || e && e.name || "";
     }
     function ip(e) {
@@ -15600,9 +15600,9 @@
     function up(e) {
         const t = new Set((e || []).filter(Boolean));
         if (!t.size) return;
-        const a = fw(), n = a.filter(e => t.has(e.id));
+        const a = mw(), n = a.filter(e => t.has(e.id));
         if (!n.length) return;
-        const r = ow(), i = (new Date).toLocaleString();
+        const r = sw(), i = (new Date).toLocaleString();
         n.forEach(e => {
             const t = lp(e);
             r.unshift({
@@ -15617,27 +15617,27 @@
                 createdAt: i
             });
         }), Pa.uploadQueue = r, Pa.uploadHistory = a, Pa.uploadSelectedIds = (Pa.uploadSelectedIds || []).filter(e => !t.has(e)),
-        hw(Pa.uploadQueue, Pa.uploadHistory), Pa.uploadView = "queue", zi(), Fb("已恢复到队列" + (n.some(e => !lp(e)) ? "，请补充文件" : ""));
+        yw(Pa.uploadQueue, Pa.uploadHistory), Pa.uploadView = "queue", zi(), Bb("已恢复到队列" + (n.some(e => !lp(e)) ? "，请补充文件" : ""));
     }
     function dp(e) {
         const t = new Set((e || []).filter(Boolean));
-        t.size && (Pa.uploadHistory = fw().filter(e => !t.has(e.id)), Pa.uploadSelectedIds = (Pa.uploadSelectedIds || []).filter(e => !t.has(e)),
-        mw(), zi(), Fb("已删除历史记录"));
+        t.size && (Pa.uploadHistory = mw().filter(e => !t.has(e.id)), Pa.uploadSelectedIds = (Pa.uploadSelectedIds || []).filter(e => !t.has(e)),
+        hw(), zi(), Bb("已删除历史记录"));
     }
     function pp() {
-        const e = xw(Pa.uploadMode);
+        const e = Aw(Pa.uploadMode);
         if ("toy-effect" === e && !fs()) return void ms();
-        Pa.uploadWorkerMode = e, Pa.uploadRunning = !0, Pw(e, !0), gw(), Pa.uploadExpanded = !0,
-        zi(), Fb(xa.uploadQueueStarted);
+        Pa.uploadWorkerMode = e, Pa.uploadRunning = !0, Lw(e, !0), fw(), Pa.uploadExpanded = !0,
+        zi(), Bb(xa.uploadQueueStarted);
         const t = location.origin + "/productManagementProduct?plmUploadWorker=1&plmUploadMode=" + encodeURIComponent(e);
-        Iw() ? window.setTimeout(() => Ap(e), 800) : window.open(t, "plm-upload-worker-" + e);
+        Mw() ? window.setTimeout(() => Ap(e), 800) : window.open(t, "plm-upload-worker-" + e);
     }
     function gp() {
-        const e = Tw();
-        Pa.uploadWorkerMode = e, Pa.uploadRunning = !1, Pw(e, !1), function(e) {
-            const t = xw(e || Tw()), a = ow();
+        const e = Ew();
+        Pa.uploadWorkerMode = e, Pa.uploadRunning = !1, Lw(e, !1), function(e) {
+            const t = Aw(e || Ew()), a = sw();
             Pa.uploadQueue = a.map(e => {
-                if (Aw(e) !== t) return e;
+                if (Iw(e) !== t) return e;
                 if (!/\u8fdb\u884c\u4e2d/.test(e.status || "")) return e;
                 const a = lp(e);
                 return {
@@ -15647,35 +15647,35 @@
                     updatedAt: (new Date).toLocaleString()
                 };
             });
-        }(e), gw(), zi(), Fb(xa.uploadQueuePaused);
+        }(e), fw(), zi(), Bb(xa.uploadQueuePaused);
     }
     async function fp(e) {
-        const t = xw(e || Tw());
-        if (await gg(), Pa.uploadRunning = !1, Pa.uploadWorkerMode = t, Pw(t, !1), yw(t),
-        Pa.uploadQueue = ow(), Pa.uploadHistory = fw(), "toy-label" === t) {
-            const e = Lw();
-            e.downloaded ? await _w(e) : await Bm();
+        const t = Aw(e || Ew());
+        if (await gg(), Pa.uploadRunning = !1, Pa.uploadWorkerMode = t, Lw(t, !1), bw(t),
+        Pa.uploadQueue = sw(), Pa.uploadHistory = mw(), "toy-label" === t) {
+            const e = Nw();
+            e.downloaded ? await Uw(e) : await Bm();
         }
-        zi(), Fb(xa.uploadQueuePaused);
+        zi(), Bb(xa.uploadQueuePaused);
     }
     function mp(e, t, a, n) {
-        const r = ow(), i = r.find(t => t.id === e.id) || e;
+        const r = sw(), i = r.find(t => t.id === e.id) || e;
         n && "object" == typeof n && Object.assign(i, n), i.status = t || i.status, i.step = a || "",
         i.updatedAt = (new Date).toLocaleString(), Object.assign(e, i);
         const o = /\u8fdb\u884c\u4e2d/.test(i.status || "") ? bp(r, i) : r;
         Pa.uploadQueue = o.some(t => t.id === e.id) ? o.map(t => t.id === e.id ? i : t) : [ i ].concat(o),
-        gw(), zi();
+        fw(), zi();
     }
     function hp(e, t) {
-        const a = t ? xw(t) : "";
-        return (e || []).filter(e => !a || Aw(e) === a).filter(e => /\u8fdb\u884c\u4e2d/.test(e.status || "")).sort((e, t) => yp(t) - yp(e))[0] || null;
+        const a = t ? Aw(t) : "";
+        return (e || []).filter(e => !a || Iw(e) === a).filter(e => /\u8fdb\u884c\u4e2d/.test(e.status || "")).sort((e, t) => yp(t) - yp(e))[0] || null;
     }
     function yp(e) {
         const t = e && (e.updatedAt || e.createdAt || e.completedAt), a = Date.parse(t || "");
         return Number.isFinite(a) ? a : 0;
     }
     function bp(e, t) {
-        const a = Aw(t), n = (e || []).filter(e => e.id !== t.id && Aw(e) === a && /\u8fdb\u884c\u4e2d/.test(e.status || ""));
+        const a = Iw(t), n = (e || []).filter(e => e.id !== t.id && Iw(e) === a && /\u8fdb\u884c\u4e2d/.test(e.status || ""));
         if (!n.length) return e;
         const r = (new Date).toLocaleString();
         return (e || []).map(e => {
@@ -15699,20 +15699,20 @@
         const t = (e || []).filter(e => "toy-label" === e.kind && e.xlsxKey && e.zipKey && !/成功|进行中|已跳过|已有内容|失败/.test(e.status || ""));
         if (!t.length) return !0;
         const a = Array.from(new Set(t.map(e => String(e.sku || "").toUpperCase()).filter(Boolean))), n = a.join("|");
-        await Uw(n);
+        await Dw(n);
         const r = Pa.toyLabelBatchRows || {};
         if (Pa.toyLabelBatchPreparedSignature === n && a.every(e => r[e] && r[e].productImageUrl)) return !0;
-        if (!await Pg() || !await Ug()) return Bb("error", "玩具标签：无法进入设计任务批量搜索", a.join(" ")),
+        if (!await Pg() || !await Ug()) return zb("error", "玩具标签：无法进入设计任务批量搜索", a.join(" ")),
         !1;
         const i = Xg("搜索商品编码"), o = Zg("查询");
-        if (!i || !o) return Bb("error", "玩具标签：未找到商品编码批量搜索框", ""), !1;
-        Bb("info", "玩具标签：批量搜索设计任务", a.length + "个编码"), Yg(i, a.join(" ")), Vp(o), await zm(450),
+        if (!i || !o) return zb("error", "玩具标签：未找到商品编码批量搜索框", ""), !1;
+        zb("info", "玩具标签：批量搜索设计任务", a.length + "个编码"), Yg(i, a.join(" ")), Vp(o), await zm(450),
         await ef(() => kp(a).length > 0 || !Sp() && vp(), 12e3, 180), await xp(a.length),
         await zm(350);
         const s = kp(a), l = {};
         s.forEach(e => {
             l[e.sku] = e;
-            const t = bn(Gw(e.sku) || {
+            const t = bn(Ww(e.sku) || {
                 sku: e.sku
             }), a = im(e.productImageUrl || ""), n = bn({
                 ...t,
@@ -15725,35 +15725,35 @@
                 updatedAt: t.updatedAt || (new Date).toLocaleString(),
                 updatedAtMs: t.updatedAtMs || Date.now()
             });
-            Jw(e.sku, n), Kw(n);
-        }), Pa.toyLabelBatchRows = l, Pa.toyLabelBatchPreparedSignature = n, Pa.uploadQueue = ow().map(e => {
+            Xw(e.sku, n), Gw(n);
+        }), Pa.toyLabelBatchRows = l, Pa.toyLabelBatchPreparedSignature = n, Pa.uploadQueue = sw().map(e => {
             if ("toy-label" !== e.kind || !l[e.sku] || !l[e.sku].productImageUrl) return e;
-            const t = Gw(e.sku);
+            const t = Ww(e.sku);
             return {
                 ...e,
                 name: np(t, "", e.sku),
                 step: "已获取商品图片，等待上传 BOM",
                 updatedAt: (new Date).toLocaleString()
             };
-        }), gw(), rb();
+        }), fw(), ib();
         const c = a.filter(e => !l[e]), u = s.filter(e => !e.productImageUrl).map(e => e.sku), d = new Map;
         if (c.forEach(e => d.set(e, "设计任务批量搜索未找到商品行")), u.forEach(e => d.set(e, "设计任务中未找到 SKU 商品图")),
         d.size) {
             const e = "设计任务批量搜索未找到商品图片或行数据";
-            Pa.uploadQueue = ow().map(t => "toy-label" === t.kind && d.has(t.sku) ? {
+            Pa.uploadQueue = sw().map(t => "toy-label" === t.kind && d.has(t.sku) ? {
                 ...t,
                 status: xa.uploadFailed,
                 step: d.get(t.sku) || e,
                 skipReason: d.get(t.sku) || e,
                 updatedAt: (new Date).toLocaleString()
-            } : t), gw();
+            } : t), fw();
         }
         await async function(e, t) {
-            let a = Lw();
+            let a = Nw();
             for (const n of e || []) {
                 const e = String(n && n.sku || "").toUpperCase();
                 if (!e || a.files.filter(t => t.sku === e).length >= 3) continue;
-                const r = bn(Gw(e) || {});
+                const r = bn(Ww(e) || {});
                 if (!r.sku) continue;
                 mp(n, "进行中", "生成标签打包文件"), Pa.selectedSku = r.sku, Pa.sku = r.sku, Pa.data = r, Pa.view = "detail",
                 tf();
@@ -15763,43 +15763,43 @@
                     skipExcelPrepare: !0,
                     skipBomUpload: !0,
                     batchRowOnly: !0
-                }) ? mp(n, "待上传", "已打包，等待上传 BOM") : ww(n, xa.uploadFailed, "玩具标签文件生成失败"), a = Lw();
+                }) ? mp(n, "待上传", "已打包，等待上传 BOM") : kw(n, xa.uploadFailed, "玩具标签文件生成失败"), a = Nw();
             }
             if (!a.files.length || a.downloaded) return;
-            Bb("info", "批量玩具标签：图片已获取，先下载 ZIP", a.files.length + "个文件"), await Bm({
+            zb("info", "批量玩具标签：图片已获取，先下载 ZIP", a.files.length + "个文件"), await Bm({
                 keepStagedFiles: !0
             });
         }(t.filter(e => l[e.sku] && l[e.sku].productImageUrl), n);
         const p = [];
         return c.length && p.push("未找到 " + c.join(" ")), u.length && p.push("缺少 SKU 图 " + u.join(" ")),
-        Bb(p.length ? "warn" : "success", "玩具标签：设计任务批量数据已读取", s.length + "/" + a.length + (p.length ? "，" + p.join("，") : "")),
+        zb(p.length ? "warn" : "success", "玩具标签：设计任务批量数据已读取", s.length + "/" + a.length + (p.length ? "，" + p.join("，") : "")),
         zi(), s.some(e => Boolean(e.productImageUrl));
     }
     function kp(e) {
-        const t = new Set((e || []).map(e => String(e || "").toUpperCase())), a = (Array.from(document.querySelectorAll("table.vxe-table--header")).map(e => Array.from(e.querySelectorAll("thead th"))).find(e => e.some(e => "商品图片" === sk(e.innerText || e.textContent).replace(/^\*/, ""))) || []).map(e => sk(e.innerText || e.textContent).replace(/^\*/, "")), n = a.indexOf("商品编码"), r = a.indexOf("品牌"), i = a.indexOf("商品名称"), o = a.indexOf("商品图片");
+        const t = new Set((e || []).map(e => String(e || "").toUpperCase())), a = (Array.from(document.querySelectorAll("table.vxe-table--header")).map(e => Array.from(e.querySelectorAll("thead th"))).find(e => e.some(e => "商品图片" === lk(e.innerText || e.textContent).replace(/^\*/, ""))) || []).map(e => lk(e.innerText || e.textContent).replace(/^\*/, "")), n = a.indexOf("商品编码"), r = a.indexOf("品牌"), i = a.indexOf("商品名称"), o = a.indexOf("商品图片");
         if (n < 0 || o < 0) return [];
         const s = Array.from(document.querySelectorAll("table.vxe-table--body")).find(e => Array.from(e.querySelectorAll("tbody tr")).some(e => e.children.length > o && /SKU\d+/i.test(e.innerText || e.textContent || "")));
         return s ? Array.from(s.querySelectorAll("tbody tr")).map(e => {
-            const t = Array.from(e.children), a = (((t[n] ? sk(t[n].innerText || t[n].textContent) : "").match(/SKU\d+/i) || [])[0] || "").toUpperCase(), s = t[o] && t[o].querySelector("img");
+            const t = Array.from(e.children), a = (((t[n] ? lk(t[n].innerText || t[n].textContent) : "").match(/SKU\d+/i) || [])[0] || "").toUpperCase(), s = t[o] && t[o].querySelector("img");
             return {
                 sku: a,
                 rowId: e.getAttribute("rowid") || "",
-                brand: r >= 0 && t[r] ? sk(t[r].innerText || t[r].textContent) : "",
-                name: i >= 0 && t[i] ? sk(t[i].innerText || t[i].textContent) : "",
+                brand: r >= 0 && t[r] ? lk(t[r].innerText || t[r].textContent) : "",
+                name: i >= 0 && t[i] ? lk(t[i].innerText || t[i].textContent) : "",
                 productImageUrl: s && (s.currentSrc || s.src || s.getAttribute("src")) || ""
             };
         }).filter(e => e.sku && t.has(e.sku) && e.rowId) : [];
     }
     function Sp() {
-        return Array.from(document.querySelectorAll(".vxe-loading--wrapper, .ant-spin-spinning, .vxe-table--loading")).some(ck);
+        return Array.from(document.querySelectorAll(".vxe-loading--wrapper, .ant-spin-spinning, .vxe-table--loading")).some(uk);
     }
     function vp() {
-        return Array.from(document.querySelectorAll(".vxe-table--empty-content, .vxe-table--empty-block, .ant-empty")).filter(ck).some(e => /\u6682\u65e0\u6570\u636e|\u6682\u65e0|No Data/i.test(sk(e.innerText || e.textContent)));
+        return Array.from(document.querySelectorAll(".vxe-table--empty-content, .vxe-table--empty-block, .ant-empty")).filter(uk).some(e => /\u6682\u65e0\u6570\u636e|\u6682\u65e0|No Data/i.test(lk(e.innerText || e.textContent)));
     }
     async function xp(e) {
-        const t = Number(e) || 20, a = Array.from(document.querySelectorAll(".ant-select-selector")).filter(ck).find(e => /\d+\s*\u6761\s*\/\s*\u9875/.test(sk(e.innerText || e.textContent)));
+        const t = Number(e) || 20, a = Array.from(document.querySelectorAll(".ant-select-selector")).filter(uk).find(e => /\d+\s*\u6761\s*\/\s*\u9875/.test(lk(e.innerText || e.textContent)));
         if (!a) return;
-        const n = Number((sk(a.innerText || a.textContent).match(/\d+/) || [])[0]) || 20;
+        const n = Number((lk(a.innerText || a.textContent).match(/\d+/) || [])[0]) || 20;
         if (t <= 20 && n <= Me) return;
         const r = n > Me ? Me : Math.min(Math.max(t, 20), Me);
         if (n === r) return;
@@ -15807,9 +15807,9 @@
         let i = [];
         try {
             i = await Sg(() => {
-                const e = Array.from(document.querySelectorAll('.ant-select-item-option, [role="option"]')).filter(ck).map(e => ({
+                const e = Array.from(document.querySelectorAll('.ant-select-item-option, [role="option"]')).filter(uk).map(e => ({
                     el: e,
-                    size: Number((sk(e.innerText || e.textContent).match(/\d+/) || [])[0]) || 0
+                    size: Number((lk(e.innerText || e.textContent).match(/\d+/) || [])[0]) || 0
                 })).filter(e => e.size && e.size !== n);
                 return e.length ? e : null;
             }, 2500, 100);
@@ -15822,46 +15822,46 @@
         await ef(() => !Sp(), 8e3, 180);
     }
     async function Ap(e) {
-        const t = xw(e || (Iw() ? Mw() : Pa.uploadMode));
-        if (Pa.uploadWorkerMode = t, Pa.uploadRunning = Cw(t), Pa.uploadQueue = ow(), !Pa.uploadRunning || Pa.uploadProcessing) return;
+        const t = Aw(e || (Mw() ? Tw() : Pa.uploadMode));
+        if (Pa.uploadWorkerMode = t, Pa.uploadRunning = Pw(t), Pa.uploadQueue = sw(), !Pa.uploadRunning || Pa.uploadProcessing) return;
         Pa.uploadProcessing = !0;
         const a = new Set;
         try {
             if ("toy-effect" === t) {
                 if (!await ef(() => !Pa.magicUploadAccessLoading, 8e3, 100) || !fs()) return Pa.uploadRunning = !1,
-                Pw(t, !1), Bb("warn", "API 效果图队列已拦截", "当前账号没有 API 上传权限；普通图包表格仍可使用旧脚本流程"), Fb("当前账号没有 API 上传权限，已停止效果图 API 队列"),
+                Lw(t, !1), zb("warn", "API 效果图队列已拦截", "当前账号没有 API 上传权限；普通图包表格仍可使用旧脚本流程"), Bb("当前账号没有 API 上传权限，已停止效果图 API 队列"),
                 void zi();
             }
             if ("toy-label" === t) {
-                if (!await wp(Pa.uploadQueue.filter(e => Aw(e) === t))) return Pa.uploadRunning = !1,
-                Pa.uploadWorkerMode = t, Pw(t, !1), Pa.uploadQueue = ow(), Bb("error", "玩具标签：批量数据未读取，已暂停上传", "未执行 BOM 上传"),
-                Fb("批量设计任务数据未读取，已暂停，未执行上传"), void zi();
+                if (!await wp(Pa.uploadQueue.filter(e => Iw(e) === t))) return Pa.uploadRunning = !1,
+                Pa.uploadWorkerMode = t, Lw(t, !1), Pa.uploadQueue = sw(), zb("error", "玩具标签：批量数据未读取，已暂停上传", "未执行 BOM 上传"),
+                Bb("批量设计任务数据未读取，已暂停，未执行上传"), void zi();
             }
             for (;Pa.uploadRunning; ) {
                 if (await Pp(t)) {
-                    Pa.uploadRunning = Cw(t), Pa.uploadQueue = ow();
+                    Pa.uploadRunning = Pw(t), Pa.uploadQueue = sw();
                     continue;
                 }
-                const e = Pa.uploadQueue.filter(e => Aw(e) === t && lp(e) && !a.has(kw(e)) && !/成功|进行中|已跳过|已有内容|失败/.test(e.status || ""))[0];
+                const e = Pa.uploadQueue.filter(e => Iw(e) === t && lp(e) && !a.has(Sw(e)) && !/成功|进行中|已跳过|已有内容|失败/.test(e.status || ""))[0];
                 if (!e) {
                     await fp(t);
                     break;
                 }
-                a.add(kw(e)), "toy-effect" !== t && await Cp();
+                a.add(Sw(e)), "toy-effect" !== t && await Cp();
                 try {
                     await Ep(e);
                 } catch (a) {
                     if (await Pp(t)) {
-                        Pa.uploadRunning = Cw(t), Pa.uploadQueue = ow();
+                        Pa.uploadRunning = Pw(t), Pa.uploadQueue = sw();
                         continue;
                     }
                     if (Xp(a)) {
-                        Zp(e, a), Pa.uploadRunning = Cw(t), Pa.uploadQueue = ow();
+                        Zp(e, a), Pa.uploadRunning = Pw(t), Pa.uploadQueue = sw();
                         continue;
                     }
                     const n = a && a.message ? a.message : "未知错误";
                     console.warn("PLM floating helper upload queue item failed, continue next:", a),
-                    ww(e, xa.uploadFailed, n);
+                    kw(e, xa.uploadFailed, n);
                     let r = null;
                     if ("toy-effect" !== t) try {
                         await ug({
@@ -15872,27 +15872,27 @@
                     }
                     if (r || wg() || kg()) {
                         const a = r && r.message ? r.message : "当前商品页或弹窗未完全关闭";
-                        Pa.uploadRunning = !1, Pw(t, !1), ww(e, xa.uploadFailed, n + "；" + a + "，已暂停"),
-                        Bb("error", "提审上传失败：关闭当前商品页失败", e.sku + " " + a), Fb("当前商品页或弹窗未关闭，已暂停队列");
+                        Pa.uploadRunning = !1, Lw(t, !1), kw(e, xa.uploadFailed, n + "；" + a + "，已暂停"),
+                        zb("error", "提审上传失败：关闭当前商品页失败", e.sku + " " + a), Bb("当前商品页或弹窗未关闭，已暂停队列");
                     }
                 }
-                Pa.uploadRunning = Cw(t), Pa.uploadQueue = ow();
+                Pa.uploadRunning = Pw(t), Pa.uploadQueue = sw();
             }
         } finally {
             await gg().catch(e => console.warn("PLM floating helper final modal cleanup failed:", e)),
-            Pa.uploadProcessing = !1, Cw(t) && window.setTimeout(() => Ap(t), 800);
+            Pa.uploadProcessing = !1, Pw(t) && window.setTimeout(() => Ap(t), 800);
         }
     }
     async function Ip(e) {
-        const t = bn(Gw(e && e.sku) || {});
-        if (!t.sku) return void ww(e, xa.uploadFailed, "设计任务批量搜索中未找到该 SKU");
-        if (!t.projectRowId || !(t.toyLabelProductImageUrl || t.toyLabelProductImageFallbackUrl || t.productListImageUrl || t.productListImageFallbackUrl || eu(t))) return void ww(e, xa.uploadFailed, "设计任务搜索结果中未找到商品图片或行标识");
+        const t = bn(Ww(e && e.sku) || {});
+        if (!t.sku) return void kw(e, xa.uploadFailed, "设计任务批量搜索中未找到该 SKU");
+        if (!t.projectRowId || !(t.toyLabelProductImageUrl || t.toyLabelProductImageFallbackUrl || t.productListImageUrl || t.productListImageFallbackUrl || eu(t))) return void kw(e, xa.uploadFailed, "设计任务搜索结果中未找到商品图片或行标识");
         mp(e, "进行中", "使用设计任务商品图片"), Pa.selectedSku = t.sku, Pa.sku = t.sku, Pa.data = t,
         Pa.view = "detail", tf(), mp(e, "进行中", "上传已打包的标签到 BOM");
         const a = await async function(e) {
-            const t = Lw().files.find(t => t.sku === String(e || "").toUpperCase() && /\.jpg$/i.test(t.filename) && !/\u5370\u5237/.test(t.filename));
+            const t = Nw().files.find(t => t.sku === String(e || "").toUpperCase() && /\.jpg$/i.test(t.filename) && !/\u5370\u5237/.test(t.filename));
             if (!t) return null;
-            const a = await Bw(t.key).catch(() => null);
+            const a = await zw(t.key).catch(() => null);
             return a ? {
                 filename: t.filename,
                 blob: a
@@ -15911,7 +15911,7 @@
             skipExcelPrepare: !0,
             batchRowOnly: !0
         });
-        n ? (bw(e), Bb("success", "批量玩具标签完成", t.sku)) : ww(e, xa.uploadFailed, "玩具标签生成或 BOM 上传失败");
+        n ? (ww(e), zb("success", "批量玩具标签完成", t.sku)) : kw(e, xa.uploadFailed, "玩具标签生成或 BOM 上传失败");
     }
     async function Mp(e, t) {
         const a = function(e) {
@@ -15971,17 +15971,17 @@
         if (e && "toy-label" === e.kind) return void await Ip(e);
         if (e && "toy-effect" === e.kind) return void await async function(e) {
             if (!fs()) throw new Error("当前账号没有 API 上传权限，效果图 API 队列已停止");
-            const t = Gw(e && e.sku) || (Pa.index || []).find(t => t.sku === (e && e.sku)) || {}, a = bn({
+            const t = Ww(e && e.sku) || (Pa.index || []).find(t => t.sku === (e && e.sku)) || {}, a = bn({
                 ...t,
                 sku: t.sku || e && e.sku || "",
                 name: t.name || e && e.name || "",
                 projectRowId: t.projectRowId || e && e.projectRowId || ""
             }), n = sp(e);
-            if (!a.sku || !n.length) return void ww(e, xa.uploadFailed, "缺少玩具效果图文件");
+            if (!a.sku || !n.length) return void kw(e, xa.uploadFailed, "缺少玩具效果图文件");
             const r = [];
             for (const t of n) {
-                const a = await Bw(t.key);
-                if (!a) return void ww(e, xa.uploadFailed, "缺少玩具效果图：" + t.name);
+                const a = await zw(t.key);
+                if (!a) return void kw(e, xa.uploadFailed, "缺少玩具效果图：" + t.name);
                 r.push({
                     entry: t,
                     file: a
@@ -15993,15 +15993,15 @@
                 const a = r[t];
                 i.push(await Tp(e, 0, a.entry, a.file, t + 1, r.length));
             }
-            mp(e, "进行中", "保存 BOM 效果图"), await Mp(a, i), bw(e), Bb("success", "玩具效果图 API 上传成功", a.sku + " | " + i.length + " 张"),
-            Fb(a.sku + " 效果图 API 上传成功");
+            mp(e, "进行中", "保存 BOM 效果图"), await Mp(a, i), ww(e), zb("success", "玩具效果图 API 上传成功", a.sku + " | " + i.length + " 张"),
+            Bb(a.sku + " 效果图 API 上传成功");
         }(e);
         if (e && "copyright" === e.kind) return void await async function(e) {
-            Bb("info", "版权图提审上传开始", e && e.sku ? e.sku : "");
+            zb("info", "版权图提审上传开始", e && e.sku ? e.sku : "");
             const t = op(e), a = [];
             for (const n of t) {
-                const t = await Bw(n.key);
-                if (!t) return void ww(e, xa.uploadFailed, "缺少版权图文件：" + n.name);
+                const t = await zw(n.key);
+                if (!t) return void kw(e, xa.uploadFailed, "缺少版权图文件：" + n.name);
                 a.push({
                     entry: n,
                     file: t
@@ -16020,20 +16020,20 @@
                 Eg(), mp(e, "进行中", "提审"), await Yp(), Eg(), mp(e, "进行中", "关闭商品页"), await ug({
                     skipDraftSave: !0,
                     allowReviewResultModal: !0
-                }), bw(e), Bb("success", "版权图提审上传成功", e.sku), Fb(e.sku + " 版权图上传成功");
+                }), ww(e), zb("success", "版权图提审上传成功", e.sku), Bb(e.sku + " 版权图上传成功");
             } catch (t) {
-                throw Bb("error", "版权图提审上传失败", e.sku + " " + _b(t)), t;
-            } else ww(e, xa.uploadFailed, "缺少版权图文件");
+                throw zb("error", "版权图提审上传失败", e.sku + " " + Ub(t)), t;
+            } else kw(e, xa.uploadFailed, "缺少版权图文件");
         }(e);
-        Bb("info", "提审上传开始", e && e.sku ? e.sku : "");
-        const t = await Bw(e.xlsxKey), a = await Bw(e.zipKey);
-        if (!t || !a) return ww(e, xa.uploadFailed, "缺少文件"), void Bb("error", "提审上传失败：缺少文件", e && e.sku ? e.sku : "");
+        zb("info", "提审上传开始", e && e.sku ? e.sku : "");
+        const t = await zw(e.xlsxKey), a = await zw(e.zipKey);
+        if (!t || !a) return kw(e, xa.uploadFailed, "缺少文件"), void zb("error", "提审上传失败：缺少文件", e && e.sku ? e.sku : "");
         try {
             mp(e, "进行中", "打开商品", {
                 resumeUploadAfterRefresh: !1
             }), await Lp(), await Np(e.sku), await Up(e.sku), await Fp(e.sku), Eg(), mp(e, "进行中", "检查旧内容");
             const n = function(e) {
-                const t = Dp(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(ck).pop(), a = [];
+                const t = Dp(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(uk).pop(), a = [];
                 let n = 0;
                 if (!t) return {
                     total: n,
@@ -16051,21 +16051,21 @@
                 };
             }(e.sku);
             if (n.total && !e.forceReplace) {
-                ww(e, xa.uploadExistingContent, "旧内容：" + n.parts.join(" / "), {
+                kw(e, xa.uploadExistingContent, "旧内容：" + n.parts.join(" / "), {
                     existingContent: n.parts.join(" / ")
-                }), Bb("info", "提审上传跳过：已有内容", e.sku + " " + n.parts.join(" / ")), Fb(e.sku + " " + xa.uploadExistingContent + "，已跳过；勾选重试才会清理后重传");
+                }), zb("info", "提审上传跳过：已有内容", e.sku + " " + n.parts.join(" / ")), Bb(e.sku + " " + xa.uploadExistingContent + "，已跳过；勾选重试才会清理后重传");
                 try {
                     await ug({
                         skipDraftSave: !0
                     });
                 } catch (t) {
-                    Pa.uploadRunning = !1, Pw(Tw(), !1), Bb("error", "提审上传跳过：关闭商品页失败", e.sku + " " + _b(t)),
-                    Fb(e.sku + " 已有内容，但关闭商品页失败，队列已暂停");
+                    Pa.uploadRunning = !1, Lw(Ew(), !1), zb("error", "提审上传跳过：关闭商品页失败", e.sku + " " + Ub(t)),
+                    Bb(e.sku + " 已有内容，但关闭商品页失败，队列已暂停");
                 }
                 return;
             }
             e.forceReplace && (mp(e, "进行中", "清理旧文件"), await async function(e) {
-                const t = Dp(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(ck).pop();
+                const t = Dp(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(uk).pop();
                 if (!t) throw new Error("未打开编辑抽屉");
                 let a = 0;
                 for (const e of _e) {
@@ -16086,25 +16086,25 @@
                 if (!e) throw new Error("未找到批量上传入口");
                 await zm(120), await gg(), e = Jp(), e || (await zm(300), await gg(), e = Jp());
                 if (!e) throw new Error("批量上传入口被弹窗占用");
-                e.click(), await Sg(() => rk(document.body).includes("批量上传文件") && wg(), 3e4, 500);
+                e.click(), await Sg(() => ik(document.body).includes("批量上传文件") && wg(), 3e4, 500);
             }(), await async function(e, t) {
                 const a = wg();
                 if (!a) throw new Error("未打开批量上传窗口");
                 await Wp(a, e, t), await Qp(a, t, 18e4);
             }(a, e.zipName || a.name), await async function() {
-                const e = wg(), t = e && Array.from(e.querySelectorAll("button")).filter(ck).find(e => "匹配表单" === sk(e.innerText || e.textContent));
+                const e = wg(), t = e && Array.from(e.querySelectorAll("button")).filter(uk).find(e => "匹配表单" === lk(e.innerText || e.textContent));
                 if (!t) throw new Error("未找到匹配表单");
                 t.click(), await Sg(() => {
-                    const e = rk(document.body);
+                    const e = ik(document.body);
                     if (function(e) {
                         return /\u672a\u5728\u8868\u5355\u4e2d\u5339\u914d\u5230\u5bf9\u5e94\u7684\u5c5e\u6027|\u672a\u5339\u914d\u5230\u5bf9\u5e94\u7684\u5c5e\u6027|\u8868\u5355.*\u5339\u914d.*\u5c5e\u6027/.test(String(e || ""));
                     }(e)) throw new Error("图包ZIP内部文件分组不正确");
                     return e.includes("确认无误，开始上传");
                 }, 3e4, 200);
             }(), await async function() {
-                const e = wg(), t = e && Array.from(e.querySelectorAll("button")).filter(ck).find(e => "确认无误，开始上传" === sk(e.innerText || e.textContent));
+                const e = wg(), t = e && Array.from(e.querySelectorAll("button")).filter(uk).find(e => "确认无误，开始上传" === lk(e.innerText || e.textContent));
                 if (!t) throw new Error("未找到开始上传");
-                t.click(), await Sg(() => !wg() || rk(document.body).includes("批量上传完成"), 24e4, 1e3),
+                t.click(), await Sg(() => !wg() || ik(document.body).includes("批量上传完成"), 24e4, 1e3),
                 await zm(1500);
             }(), await async function(e) {
                 await Sg(() => {
@@ -16117,48 +16117,48 @@
             Eg(), mp(e, "进行中", "提审"), await Yp(), Eg(), mp(e, "进行中", "关闭商品页"), await ug({
                 skipDraftSave: !0,
                 allowReviewResultModal: !0
-            }), bw(e), Bb("success", "提审上传成功", e.sku), Fb(e.sku + " " + xa.uploadSuccess);
+            }), ww(e), zb("success", "提审上传成功", e.sku), Bb(e.sku + " " + xa.uploadSuccess);
         } catch (t) {
             if (console.warn("PLM floating helper upload queue failed:", t), function(e) {
                 return Boolean(e && ("PFH_UPLOAD_REFRESH_RETRY" === e.code || /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(e.message || "")));
             }(t) || Tg()) return void await async function(e) {
-                const t = Aw(e), a = ow().find(t => t.id === e.id) || e, n = Math.max(0, Number(a.uploadPageRefreshRetryCount) || 0) + 1;
+                const t = Iw(e), a = sw().find(t => t.id === e.id) || e, n = Math.max(0, Number(a.uploadPageRefreshRetryCount) || 0) + 1;
                 if (n > 3) {
                     const t = "连续刷新 3 次仍提示存在需要重试文件";
-                    return ww(e, xa.uploadFailed, t, {
+                    return kw(e, xa.uploadFailed, t, {
                         uploadPageRefreshRetryCount: n
-                    }), Bb("error", "提审上传自动恢复失败", (e.sku || "") + " " + t), void Fb((e.sku || "") + " " + t);
+                    }), zb("error", "提审上传自动恢复失败", (e.sku || "") + " " + t), void Bb((e.sku || "") + " " + t);
                 }
                 mp(e, "待上传", "检测到需重试文件，刷新后重新搜索上传", {
                     forceReplace: !0,
                     resumeUploadAfterRefresh: !0,
                     uploadPageRefreshRetryCount: n
-                }), Pa.uploadWorkerMode = t, Pa.uploadRunning = !0, Pw(t, !0), Bb("warn", "检测到需重试文件，刷新后重试编码", (e.sku || "") + " (" + n + "/3)"),
-                Fb((e.sku || "") + " 检测到需重试文件，正在刷新页面重新上传"), await zm(120);
+                }), Pa.uploadWorkerMode = t, Pa.uploadRunning = !0, Lw(t, !0), zb("warn", "检测到需重试文件，刷新后重试编码", (e.sku || "") + " (" + n + "/3)"),
+                Bb((e.sku || "") + " 检测到需重试文件，正在刷新页面重新上传"), await zm(120);
                 const r = new URL(window.location.href);
                 r.pathname = "/productManagementProduct", r.searchParams.set("plmUploadWorker", "1"),
                 r.searchParams.set("plmUploadMode", t), window.location.replace(r.toString()), await new Promise(() => {});
             }(e);
             if (Xp(t)) return void Zp(e, t);
-            if (t && /产品信息开品中|不能编辑/.test(t.message || "")) return ww(e, "已跳过", "产品信息开品中，不能编辑"),
-            Bb("info", "提审上传跳过：产品信息开品中", e.sku), Fb(e.sku + " 已跳过：产品信息开品中"), void await ug();
-            if (t && /\u4ea7\u54c1\u5df2\u505c\u7528|\u5f00\u53d1\u4eba\u5458?\u5df2\u505c\u7528/.test(t.message || "")) return ww(e, xa.uploadFailed, "产品已停用"),
-            Bb("error", "提审上传失败：产品已停用", e.sku), Fb(e.sku + " " + xa.uploadFailed + "：产品已停用"),
+            if (t && /产品信息开品中|不能编辑/.test(t.message || "")) return kw(e, "已跳过", "产品信息开品中，不能编辑"),
+            zb("info", "提审上传跳过：产品信息开品中", e.sku), Bb(e.sku + " 已跳过：产品信息开品中"), void await ug();
+            if (t && /\u4ea7\u54c1\u5df2\u505c\u7528|\u5f00\u53d1\u4eba\u5458?\u5df2\u505c\u7528/.test(t.message || "")) return kw(e, xa.uploadFailed, "产品已停用"),
+            zb("error", "提审上传失败：产品已停用", e.sku), Bb(e.sku + " " + xa.uploadFailed + "：产品已停用"),
             void await ug();
-            if (t && /\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a/.test(t.message || "")) return ww(e, xa.uploadFailed, "采购信息不可为空"),
-            Bb("error", "提审上传失败：采购信息不可为空", e.sku), Fb(e.sku + " " + xa.uploadFailed + "：采购信息不可为空"),
+            if (t && /\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a/.test(t.message || "")) return kw(e, xa.uploadFailed, "采购信息不可为空"),
+            zb("error", "提审上传失败：采购信息不可为空", e.sku), Bb(e.sku + " " + xa.uploadFailed + "：采购信息不可为空"),
             void await ug({
                 skipDraftSave: !0
             });
             const a = t && t.message ? t.message : "未知错误";
-            ww(e, xa.uploadFailed, a), Bb("error", "提审上传失败", e.sku + " " + a), Fb(e.sku + " " + xa.uploadFailed + "：" + a);
+            kw(e, xa.uploadFailed, a), zb("error", "提审上传失败", e.sku + " " + a), Bb(e.sku + " " + xa.uploadFailed + "：" + a);
             try {
                 await ug();
             } catch (t) {
                 throw console.warn("PLM floating helper close after upload failure failed:", t),
-                Pa.uploadRunning = !1, Pw(Tw(), !1), ww(e, xa.uploadFailed, a + "；关闭当前商品页失败，已暂停"),
-                Bb("error", "提审上传失败：关闭商品页失败", e.sku + " " + (t && t.message ? t.message : "未知错误")),
-                Fb("关闭当前商品页失败，已暂停，请手动处理弹窗"), t;
+                Pa.uploadRunning = !1, Lw(Ew(), !1), kw(e, xa.uploadFailed, a + "；关闭当前商品页失败，已暂停"),
+                zb("error", "提审上传失败：关闭商品页失败", e.sku + " " + (t && t.message ? t.message : "未知错误")),
+                Bb("关闭当前商品页失败，已暂停，请手动处理弹窗"), t;
             }
         }
     }
@@ -16188,83 +16188,83 @@
                 throw new Error("等待商品页和弹窗完全关闭超时，已暂停上传队列");
             }();
         } catch (e) {
-            throw Pa.uploadRunning = !1, Pw(Tw(), !1), e;
+            throw Pa.uploadRunning = !1, Lw(Ew(), !1), e;
         }
     }
     async function Pp(e) {
         if (!ng()) return !1;
-        const t = hp(ow(), e || Tw());
-        return !!t && (ww(t, xa.uploadFailed, "采购信息不可为空"), Bb("error", "提审上传失败：采购信息不可为空", t.sku || ""),
+        const t = hp(sw(), e || Ew());
+        return !!t && (kw(t, xa.uploadFailed, "采购信息不可为空"), zb("error", "提审上传失败：采购信息不可为空", t.sku || ""),
         await ug({
             skipDraftSave: !0
-        }), Pa.uploadQueue = ow(), Pa.uploadHistory = fw(), Fb(t.sku + " " + xa.uploadFailed + "：采购信息不可为空"),
+        }), Pa.uploadQueue = sw(), Pa.uploadHistory = mw(), Bb(t.sku + " " + xa.uploadFailed + "：采购信息不可为空"),
         !0);
     }
     async function Lp() {
-        /\/productManagementProduct/.test(location.pathname) || (location.href = location.origin + "/productManagementProduct?plmUploadWorker=1&plmUploadMode=" + encodeURIComponent(Tw()),
+        /\/productManagementProduct/.test(location.pathname) || (location.href = location.origin + "/productManagementProduct?plmUploadWorker=1&plmUploadMode=" + encodeURIComponent(Ew()),
         await Sg(() => /\/productManagementProduct/.test(location.pathname), 15e3, 300)),
         await Sg(() => document.body && document.body.innerText.includes("商品管理"), 2e4, 300);
     }
     async function Np(e) {
         const t = function() {
-            const e = Array.from(document.querySelectorAll(".searchForm, .queryForm, .ant-form, .vxe-toolbar, .el-form, form, body")).filter(ck), t = Array.from(new Set(e.flatMap(e => Array.from(e.querySelectorAll("input")).filter(ck)))), a = e => t.find(t => {
-                const a = sk(t.getAttribute("placeholder") || t.placeholder || "");
+            const e = Array.from(document.querySelectorAll(".searchForm, .queryForm, .ant-form, .vxe-toolbar, .el-form, form, body")).filter(uk), t = Array.from(new Set(e.flatMap(e => Array.from(e.querySelectorAll("input")).filter(uk)))), a = e => t.find(t => {
+                const a = lk(t.getAttribute("placeholder") || t.placeholder || "");
                 return e.some(e => e.test(a));
             }) || null, n = a([ /^\s*商品编码(?:\/|$|[\s，,、])/i, /^\s*商品编码/i ]);
             if (n) return n;
             const r = t.find(e => {
-                const t = e.closest(".ant-form-item, .el-form-item, .vxe-form--item, .form-item, div"), a = sk(t && (t.innerText || t.textContent) || "");
+                const t = e.closest(".ant-form-item, .el-form-item, .vxe-form--item, .form-item, div"), a = lk(t && (t.innerText || t.textContent) || "");
                 return /商品编码/.test(a) && !/商品名称|产品名称/.test(a.replace(/商品编码/g, ""));
             });
             return r || (a([ /SKU/i ]) || null);
         }();
         if (!t) throw new Error("未找到商品搜索框");
         Yg(t, e);
-        const a = (n = "查询", Array.from(document.querySelectorAll("button")).filter(ck).find(e => sk(e.innerText || e.textContent) === n) || null);
+        const a = (n = "查询", Array.from(document.querySelectorAll("button")).filter(uk).find(e => lk(e.innerText || e.textContent) === n) || null);
         var n;
         if (!a) throw new Error("未找到查询按钮");
         a.click(), await Sg(() => _p(e), 2e4, 500);
     }
     function _p(e) {
-        const t = Array.from(document.querySelectorAll("tr[rowid], .vxe-body--row[rowid], .ant-table-row[rowid]")).filter(ck).find(t => rk(t).includes(e));
+        const t = Array.from(document.querySelectorAll("tr[rowid], .vxe-body--row[rowid], .ant-table-row[rowid]")).filter(uk).find(t => ik(t).includes(e));
         return t && t.getAttribute("rowid") || "";
     }
     async function Up(e) {
         if (Dp(e)) return;
         const t = _p(e);
         if (!t) throw new Error("未找到商品行");
-        const a = Array.from(document.querySelectorAll('tr[rowid="' + dk(t) + '"], .vxe-body--row[rowid="' + dk(t) + '"]')).filter(ck).find(e => Array.from(e.querySelectorAll("button")).some(e => "编辑" === sk(e.innerText || e.textContent))), n = a && Array.from(a.querySelectorAll("button")).filter(ck).find(e => "编辑" === sk(e.innerText || e.textContent));
+        const a = Array.from(document.querySelectorAll('tr[rowid="' + pk(t) + '"], .vxe-body--row[rowid="' + pk(t) + '"]')).filter(uk).find(e => Array.from(e.querySelectorAll("button")).some(e => "编辑" === lk(e.innerText || e.textContent))), n = a && Array.from(a.querySelectorAll("button")).filter(uk).find(e => "编辑" === lk(e.innerText || e.textContent));
         if (!n) throw new Error("未找到编辑按钮");
         if (n.disabled || "true" === n.getAttribute("aria-disabled") || /\bdisabled\b|\bis-disabled\b|ant-btn-disabled/.test(n.className || "")) throw new Error("产品信息开品中，不能编辑");
         n.click();
         const r = Date.now();
         for (;Date.now() - r < 2e4; ) {
             if (Dp(e)) return;
-            if (rk(document.body).includes("产品信息开品中，不能编辑")) throw new Error("产品信息开品中，不能编辑");
+            if (ik(document.body).includes("产品信息开品中，不能编辑")) throw new Error("产品信息开品中，不能编辑");
             await zm(300);
         }
         throw new Error("未打开编辑抽屉");
     }
     function Dp(e) {
-        return Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open, .ant-drawer")).filter(ck).find(t => {
-            const a = rk(t), n = sn(t);
+        return Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open, .ant-drawer")).filter(uk).find(t => {
+            const a = ik(t), n = sn(t);
             return /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(a) && (!e || n === String(e).toUpperCase() || a.includes(e));
         }) || null;
     }
     async function Fp(e) {
         const t = Dp(e);
         if (!t) throw new Error("未打开编辑抽屉");
-        if (rk(t).includes("推品资料")) return;
+        if (ik(t).includes("推品资料")) return;
         const a = await ef(() => {
             const t = Dp(e);
             if (!t || !function(e) {
                 if (!e) return !1;
                 const t = Bp(e, "类目");
                 if (!t) return !1;
-                const a = sk(t.innerText || t.textContent), n = a.replace(/^\u7c7b\u76ee[*\uff1a:\s]*/, "").trim(), r = t.innerHTML || "";
+                const a = lk(t.innerText || t.textContent), n = a.replace(/^\u7c7b\u76ee[*\uff1a:\s]*/, "").trim(), r = t.innerHTML || "";
                 return !(!n || /\u8bf7\u9009\u62e9|--/.test(n)) && !/\u52a0\u8f7d|loading|ant-spin|ant-select-loading/.test(a + r);
             }(t)) return null;
-            const a = Array.from(t.querySelectorAll("button")).filter(ck).find(e => "下一步" === sk(e.innerText || e.textContent) && sg(e));
+            const a = Array.from(t.querySelectorAll("button")).filter(uk).find(e => "下一步" === lk(e.innerText || e.textContent) && sg(e));
             return a ? {
                 drawer: t,
                 button: a
@@ -16273,11 +16273,11 @@
         if (!a) throw new Error("类目未加载完成或未找到可点击的「下一步」");
         Vp(a.button), await Sg(() => {
             const t = Dp(e);
-            return t && rk(t).includes("推品资料");
+            return t && ik(t).includes("推品资料");
         }, 3e4, 500);
     }
     function Bp(e, t) {
-        const a = Array.from(e.querySelectorAll(".ant-form-item-label label")), n = e => sk(e.innerText || e.textContent).replace(/[*\uff1a:]/g, "").trim(), r = a.find(e => n(e) === t) || a.find(e => {
+        const a = Array.from(e.querySelectorAll(".ant-form-item-label label")), n = e => lk(e.innerText || e.textContent).replace(/[*\uff1a:]/g, "").trim(), r = a.find(e => n(e) === t) || a.find(e => {
             const a = n(e);
             return a === t || a.startsWith(t + " ") || a.startsWith(t + "　");
         });
@@ -16290,7 +16290,7 @@
     }
     async function zp(e, t, a) {
         const n = function(e) {
-            const t = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(ck).pop();
+            const t = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(uk).pop();
             return t ? Bp(t, e) : null;
         }(e);
         if (!n) throw new Error("未找到" + e);
@@ -16300,7 +16300,7 @@
         }), await zm(300), await Wp(n, t, a), await Qp(n, a, 18e4);
     }
     function Rp(e) {
-        const t = Dp(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(ck).pop(), a = [];
+        const t = Dp(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(uk).pop(), a = [];
         let n = 0;
         if (!t) return {
             total: n,
@@ -16331,8 +16331,8 @@
         return a;
     }
     function Op(e) {
-        return Array.from(e.querySelectorAll(".filePreviewCard, .ant-upload-list-item, .ant-upload-list-picture-card-container, .ant-upload-list-text-container")).filter(ck).filter(e => !/ant-upload-list-item-uploading/.test(e.className || "")).filter(e => {
-            const t = rk(e), a = e.innerHTML || "";
+        return Array.from(e.querySelectorAll(".filePreviewCard, .ant-upload-list-item, .ant-upload-list-picture-card-container, .ant-upload-list-text-container")).filter(uk).filter(e => !/ant-upload-list-item-uploading/.test(e.className || "")).filter(e => {
+            const t = ik(e), a = e.innerHTML || "";
             return /filePreviewCard|ant-upload-list-item|ant-upload-list-picture-card-container|ant-upload-list-text-container/.test(e.className || "") && /\u9884\u89c8|anticon-delete|delBtnIcon|ant-upload-list-item-name|ant-upload-list-item-card-actions/.test(t + a);
         });
     }
@@ -16350,7 +16350,7 @@
             if (t) return Hp(t);
         }
         const a = Array.from(e.querySelectorAll("button, span, i, svg, a")).filter(e => {
-            const t = sk(e.innerText || e.textContent || ""), a = [ e.className || "", e.getAttribute("aria-label") || "", e.getAttribute("title") || "" ].join(" ");
+            const t = lk(e.innerText || e.textContent || ""), a = [ e.className || "", e.getAttribute("aria-label") || "", e.getAttribute("title") || "" ].join(" ");
             return /\u5220\u9664|delete|remove|trash|close/i.test(t + " " + a);
         });
         return a.length ? Hp(a[0]) : null;
@@ -16375,9 +16375,9 @@
     }
     async function Gp() {
         await zm(250);
-        const e = Array.from(document.querySelectorAll(".ant-popover, .ant-modal")).filter(ck).reverse().find(e => /\u5220\u9664|\u786e\u5b9a|\u786e\u8ba4/.test(rk(e)));
+        const e = Array.from(document.querySelectorAll(".ant-popover, .ant-modal")).filter(uk).reverse().find(e => /\u5220\u9664|\u786e\u5b9a|\u786e\u8ba4/.test(ik(e)));
         if (!e) return;
-        const t = Array.from(e.querySelectorAll("button")).filter(ck).find(e => /\u786e\u5b9a|\u786e\u8ba4|OK/i.test(sk(e.innerText || e.textContent)));
+        const t = Array.from(e.querySelectorAll("button")).filter(uk).find(e => /\u786e\u5b9a|\u786e\u8ba4|OK/i.test(lk(e.innerText || e.textContent)));
         t && (t.click(), await zm(250));
     }
     async function Wp(e, t, a) {
@@ -16399,7 +16399,7 @@
         const n = String(t || "").replace(/^.*[\\\/]/, "");
         let r = 0;
         await Sg(() => {
-            const t = e.innerHTML || "", a = rk(e);
+            const t = e.innerHTML || "", a = ik(e);
             if (Eg(), /\u4e0a\u4f20\u5931\u8d25|ant-upload-list-item-error/.test(t + a)) {
                 if (r || (r = Date.now()), Date.now() - r < 1800) return !1;
                 throw new Error("上传失败");
@@ -16408,7 +16408,7 @@
         }, a || 12e4, 800);
     }
     function Jp() {
-        const e = Array.from(document.querySelectorAll(".ant-float-btn")).filter(ck).map(e => ({
+        const e = Array.from(document.querySelectorAll(".ant-float-btn")).filter(uk).map(e => ({
             el: e,
             rect: e.getBoundingClientRect()
         })).filter(({rect: e}) => e.width > 0 && e.height > 0).filter(({rect: e}) => e.right > window.innerWidth - 80 && e.bottom > window.innerHeight - 80).find(({el: e, rect: t}) => function(e, t) {
@@ -16416,7 +16416,7 @@
             return Boolean(r && (r === e || e.contains(r) || r.closest(".ant-float-btn") === e));
         }(e, t));
         if (e) return e.el;
-        const t = Array.from(document.querySelectorAll(".vcb-chat-button, .vcb-chat-button-with-badge, .vcb-fixed-bottom-right")).filter(ck).map(e => ({
+        const t = Array.from(document.querySelectorAll(".vcb-chat-button, .vcb-chat-button-with-badge, .vcb-fixed-bottom-right")).filter(uk).map(e => ({
             el: e,
             rect: e.getBoundingClientRect()
         })).filter(({rect: e}) => e.width > 0 && e.height > 0).filter(({rect: e}) => e.left > window.innerWidth - 180 && e.top > window.innerHeight - 180);
@@ -16430,8 +16430,8 @@
     }
     function Zp(e, t) {
         const a = t && t.message ? t.message : "提审确认弹窗等待超时";
-        y = 0, Pa.uploadRunning = !1, Pw(Tw(), !1), ww(e, xa.uploadFailed, a + "，已暂停，请手动处理提审弹窗"),
-        Bb("error", "提审上传失败：提审弹窗响应超时，已暂停", e && e.sku ? e.sku : ""), Fb((e && e.sku ? e.sku + " " : "") + "提审弹窗响应较慢，已暂停队列，请手动处理");
+        y = 0, Pa.uploadRunning = !1, Lw(Ew(), !1), kw(e, xa.uploadFailed, a + "，已暂停，请手动处理提审弹窗"),
+        zb("error", "提审上传失败：提审弹窗响应超时，已暂停", e && e.sku ? e.sku : ""), Bb((e && e.sku ? e.sku + " " : "") + "提审弹窗响应较慢，已暂停队列，请手动处理");
     }
     async function Yp() {
         const e = await tg();
@@ -16446,7 +16446,7 @@
                     block: "center",
                     inline: "nearest"
                 }), await zm(300);
-                const t = Array.from(e.querySelectorAll("input")).filter(ck)[0];
+                const t = Array.from(e.querySelectorAll("input")).filter(uk)[0];
                 return !!t && (Yg(t, "1000"), await zm(300), !0);
             }()) throw new Error("未打开提审确认弹窗");
             const e = await tg();
@@ -16461,7 +16461,7 @@
         if (!t) throw new Error("未找到确认提审");
         t.click(), y = 0;
         const a = await Sg(() => {
-            const e = rk(document.body);
+            const e = ik(document.body);
             return e.includes("产品提审成功") || e.includes("提审成功") ? hg(wg()) ? "" : "success" : rg() ? "disabled" : ng() ? "purchase-empty" : "";
         }, 12e4, 200);
         if ("disabled" === a) throw new Error("产品已停用");
@@ -16470,8 +16470,8 @@
     }
     function eg() {
         const e = wg();
-        return e && Array.from(e.querySelectorAll("button")).filter(ck).find(e => {
-            const t = sk(e.innerText || e.textContent).replace(/\s+/g, ""), a = e.disabled || "true" === e.getAttribute("aria-disabled") || /\bdisabled\b|ant-btn-loading|ant-btn-disabled/.test(e.className || "");
+        return e && Array.from(e.querySelectorAll("button")).filter(uk).find(e => {
+            const t = lk(e.innerText || e.textContent).replace(/\s+/g, ""), a = e.disabled || "true" === e.getAttribute("aria-disabled") || /\bdisabled\b|ant-btn-loading|ant-btn-disabled/.test(e.className || "");
             return "提审" === t && !a;
         }) || null;
     }
@@ -16496,52 +16496,52 @@
     }
     function ag() {
         const e = function() {
-            const e = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(ck).pop();
+            const e = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(uk).pop();
             return e ? Bp(e, "最小起订量") : null;
         }();
         if (!e) return null;
-        const t = Array.from(e.querySelectorAll("input")).filter(ck)[0], a = t ? sk(t.value || "") : "", n = rk(e);
+        const t = Array.from(e.querySelectorAll("input")).filter(uk)[0], a = t ? lk(t.value || "") : "", n = ik(e);
         return /\u8bf7\u8f93\u5165\u6700\u5c0f\u8d77\u8ba2\u91cf|ant-form-item-has-error|ant-form-item-explain-error/.test(n + " " + (e.className || "") + " " + (e.innerHTML || "")) && !a ? e : null;
     }
     function ng() {
-        const t = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open")).filter(ck).pop(), a = t || document.body, n = ik(a);
+        const t = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open")).filter(uk).pop(), a = t || document.body, n = ok(a);
         if (/\u91c7\u8d2d\u4fe1\u606f\u4e0d\u53ef\u4e3a\u7a7a/.test(n)) return !0;
         const r = t || document;
-        if (Array.from(r.querySelectorAll('.ant-form-item-explain-error, .ant-form-item-has-error, [role="alert"], .ant-message-notice, .ant-notification-notice')).filter(t => !t.closest("#" + e)).some(e => /\u91c7\u8d2d\u4fe1\u606f|\u4e0d\u53ef\u4e3a\u7a7a/.test(ik(e) + " " + (e.className || "") + " " + (e.innerHTML || "")))) return !0;
-        const i = Array.from(a.querySelectorAll(".ant-form-item-label label, .ant-collapse-header, .ant-anchor-link-title, [title]")).find(e => "采购信息" === sk(e.innerText || e.textContent || e.getAttribute("title"))), o = i && (i.closest(".ant-form-item") || i.parentElement);
+        if (Array.from(r.querySelectorAll('.ant-form-item-explain-error, .ant-form-item-has-error, [role="alert"], .ant-message-notice, .ant-notification-notice')).filter(t => !t.closest("#" + e)).some(e => /\u91c7\u8d2d\u4fe1\u606f|\u4e0d\u53ef\u4e3a\u7a7a/.test(ok(e) + " " + (e.className || "") + " " + (e.innerHTML || "")))) return !0;
+        const i = Array.from(a.querySelectorAll(".ant-form-item-label label, .ant-collapse-header, .ant-anchor-link-title, [title]")).find(e => "采购信息" === lk(e.innerText || e.textContent || e.getAttribute("title"))), o = i && (i.closest(".ant-form-item") || i.parentElement);
         return !(!o || !/ant-form-item-has-error|ant-form-item-explain-error|\u4e0d\u53ef\u4e3a\u7a7a/.test((o.className || "") + " " + (o.innerHTML || "")));
     }
     function rg() {
-        const e = rk(document.body);
+        const e = ik(document.body);
         return /\u5f00\u53d1\u4eba\u5458?\u5df2\u505c\u7528|\u5f53\u524d\u4ea7\u54c1\u5df2\u505c\u7528|\u4ea7\u54c1\u5df2\u505c\u7528/.test(e);
     }
     async function ig() {
         const e = function() {
             const e = og("保存草稿");
             if (e) return e;
-            const t = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .ant-drawer-open, .pdmDetailDrawer")).filter(ck).filter(e => /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(ik(e)));
+            const t = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .ant-drawer-open, .pdmDetailDrawer")).filter(uk).filter(e => /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(ok(e)));
             for (const e of t.reverse()) {
-                const t = Array.from(e.querySelectorAll("button")).filter(ck).find(e => sg(e) && "保存草稿" === sk(e.innerText || e.textContent).replace(/\s+/g, ""));
+                const t = Array.from(e.querySelectorAll("button")).filter(uk).find(e => sg(e) && "保存草稿" === lk(e.innerText || e.textContent).replace(/\s+/g, ""));
                 if (t) return t;
             }
-            return Array.from(document.querySelectorAll("button")).filter(ck).find(e => sg(e) && "保存草稿" === sk(e.innerText || e.textContent).replace(/\s+/g, "")) || null;
+            return Array.from(document.querySelectorAll("button")).filter(uk).find(e => sg(e) && "保存草稿" === lk(e.innerText || e.textContent).replace(/\s+/g, "")) || null;
         }();
         if (!e) throw new Error("未找到保存草稿按钮");
-        const t = new Map(lg().map(e => [ e, ik(e) ]));
+        const t = new Map(lg().map(e => [ e, ok(e) ]));
         e.scrollIntoView({
             block: "nearest",
             inline: "nearest"
         }), e.click();
         return "saved" === await Sg(() => {
-            const e = lg().filter(e => !t.has(e) || t.get(e) !== ik(e)).map(e => ik(e)).join("\n");
+            const e = lg().filter(e => !t.has(e) || t.get(e) !== ok(e)).map(e => ok(e)).join("\n");
             return /\u8349\u7a3f\u4fdd\u5b58\u6210\u529f|\u4fdd\u5b58\u8349\u7a3f.*\u6210\u529f|\u8349\u7a3f.*\u4fdd\u5b58.*\u6210\u529f|\u4fdd\u5b58\u6210\u529f/.test(e) ? "saved" : /\u8349\u7a3f.*\u672a\u4fdd\u5b58\u6210\u529f|\u4fdd\u5b58\u8349\u7a3f.*\u5931\u8d25|\u8349\u7a3f.*\u4fdd\u5b58.*\u5931\u8d25/.test(e) ? "failed" : (ng(),
             "");
         }, 8e3, 100).catch(() => "");
     }
     function og(e) {
-        const t = sk(e).replace(/\s+/g, ""), a = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .ant-drawer-open, .pdmDetailDrawer")).filter(ck).filter(e => /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(ik(e))).flatMap(e => {
+        const t = lk(e).replace(/\s+/g, ""), a = Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .ant-drawer-open, .pdmDetailDrawer")).filter(uk).filter(e => /(?:\u7f16\u8f91\u5546\u54c1|\u8bbe\u8ba1\u8d44\u6599)/.test(ok(e))).flatMap(e => {
             const a = e.getBoundingClientRect();
-            return Array.from(e.querySelectorAll("button")).filter(ck).filter(sg).filter(e => sk(e.innerText || e.textContent).replace(/\s+/g, "") === t).map(e => ({
+            return Array.from(e.querySelectorAll("button")).filter(uk).filter(sg).filter(e => lk(e.innerText || e.textContent).replace(/\s+/g, "") === t).map(e => ({
                 button: e,
                 rect: e.getBoundingClientRect(),
                 drawerRect: a
@@ -16556,7 +16556,7 @@
         return Array.from(document.querySelectorAll(".ant-message, .ant-message-notice, .ant-notification, .ant-notification-notice")).filter(t => !t.closest("#" + e));
     }
     function cg() {
-        return lg().map(e => ik(e)).join("\n");
+        return lg().map(e => ok(e)).join("\n");
     }
     async function ug(e) {
         const t = {
@@ -16571,7 +16571,7 @@
             !1));
             if (t.draftSaved = e, !e) throw new Error("采购信息不可为空");
         }
-        const n = bg(Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open")).filter(ck).pop());
+        const n = bg(Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer, .ant-drawer-open")).filter(uk).pop());
         return n ? (n.click(), await Sg(() => {
             const e = wg();
             if (e) {
@@ -16584,17 +16584,17 @@
     function dg(e) {
         if (!e) return !1;
         if (hg(e)) throw new Error("提审确认弹窗未处理，已阻止关闭弹窗");
-        const t = Array.from(e.querySelectorAll("button, .ant-modal-close, [aria-label]")).filter(ck).find(e => {
-            const t = sk(e.innerText || e.textContent).replace(/\s+/g, ""), a = t + " " + (e.getAttribute("aria-label") || "") + " " + (e.className || "");
+        const t = Array.from(e.querySelectorAll("button, .ant-modal-close, [aria-label]")).filter(uk).find(e => {
+            const t = lk(e.innerText || e.textContent).replace(/\s+/g, ""), a = t + " " + (e.getAttribute("aria-label") || "") + " " + (e.className || "");
             return "取消" === t || /\u5173\u95ed|close|ant-modal-close/i.test(a);
         });
         if (!t) throw new Error("未找到关闭弹窗按钮");
         return t.click(), !0;
     }
     function pg(e) {
-        e && rk(e);
+        e && ik(e);
         if (!e || !mg(e)) return !1;
-        const t = Array.from(e.querySelectorAll("button")).filter(ck).find(e => "确定" === sk(e.innerText || e.textContent).replace(/\s+/g, ""));
+        const t = Array.from(e.querySelectorAll("button")).filter(uk).find(e => "确定" === lk(e.innerText || e.textContent).replace(/\s+/g, ""));
         if (!t) throw new Error("未找到取消配置确定按钮");
         return t.click(), !0;
     }
@@ -16605,19 +16605,19 @@
     }
     function fg(e) {
         if (!e || !mg(e)) return !1;
-        const t = Array.from(e.querySelectorAll("button")).filter(ck).find(e => "取消" === sk(e.innerText || e.textContent).replace(/\s+/g, ""));
+        const t = Array.from(e.querySelectorAll("button")).filter(uk).find(e => "取消" === lk(e.innerText || e.textContent).replace(/\s+/g, ""));
         if (!t) throw new Error("未找到取消配置取消按钮");
         return t.click(), !0;
     }
     function mg(e) {
-        const t = e ? rk(e) : "";
+        const t = e ? ik(e) : "";
         return /\u5f53\u524d\u7c7b\u76ee\u5c5e\u6027\u4fe1\u606f\u672a\u4fdd\u5b58|\u662f\u5426\u786e\u8ba4\u53d6\u6d88\u914d\u7f6e/.test(t);
     }
     function hg(e) {
-        if (!e || !ck(e)) return !1;
-        const t = rk(e).replace(/\s+/g, "");
-        return !/提审成功|产品提审成功|成功/.test(t) && (!!/确定提交审批吗|确认提交审批|提交审批吗/.test(t) && Array.from(e.querySelectorAll("button")).filter(ck).some(e => {
-            const t = sk(e.innerText || e.textContent).replace(/\s+/g, ""), a = String(e.className || ""), n = e.disabled || "true" === e.getAttribute("aria-disabled") || /\bdisabled\b|ant-btn-loading|ant-btn-disabled/.test(a);
+        if (!e || !uk(e)) return !1;
+        const t = ik(e).replace(/\s+/g, "");
+        return !/提审成功|产品提审成功|成功/.test(t) && (!!/确定提交审批吗|确认提交审批|提交审批吗/.test(t) && Array.from(e.querySelectorAll("button")).filter(uk).some(e => {
+            const t = lk(e.innerText || e.textContent).replace(/\s+/g, ""), a = String(e.className || ""), n = e.disabled || "true" === e.getAttribute("aria-disabled") || /\bdisabled\b|ant-btn-loading|ant-btn-disabled/.test(a);
             return "提审" === t && !n;
         }));
     }
@@ -16631,18 +16631,18 @@
     function bg(e) {
         if (!e) return null;
         const t = e.getBoundingClientRect();
-        return Array.from(e.querySelectorAll("button, .ant-drawer-close, [aria-label]")).filter(ck).find(e => {
-            const a = sk(e.innerText || e.textContent), n = a + " " + (e.getAttribute("aria-label") || "") + " " + (e.className || "");
+        return Array.from(e.querySelectorAll("button, .ant-drawer-close, [aria-label]")).filter(uk).find(e => {
+            const a = lk(e.innerText || e.textContent), n = a + " " + (e.getAttribute("aria-label") || "") + " " + (e.className || "");
             if (/\u5173\u95ed|close|ant-drawer-close/i.test(n)) return !0;
             const r = e.getBoundingClientRect(), i = r.top <= t.top + 80 && r.left <= t.left + 120 && !a, o = r.top <= t.top + 80 && r.right >= t.right - 100 && !a;
             return i || o;
         }) || null;
     }
     function wg() {
-        return Array.from(document.querySelectorAll(".ant-modal")).filter(ck).pop() || null;
+        return Array.from(document.querySelectorAll(".ant-modal")).filter(uk).pop() || null;
     }
     function kg() {
-        return Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .ant-drawer-open")).filter(ck).find(e => e.matches(".pdmDetailDrawer.ant-drawer-open") || rk(e).includes("编辑商品")) || null;
+        return Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .ant-drawer-open")).filter(uk).find(e => e.matches(".pdmDetailDrawer.ant-drawer-open") || ik(e).includes("编辑商品")) || null;
     }
     async function Sg(e, t, a) {
         const n = Date.now();
@@ -16666,7 +16666,7 @@
         Ig();
         const r = Rm(Pa.searchQuery).length ? Om(Pa.searchQuery) : [];
         if (r.length) {
-            const e = r[0], n = Gw(e.sku);
+            const e = r[0], n = Ww(e.sku);
             if (Pa.selectedSku = e.sku, Pa.data = n ? bn(n) : null, Pa.detailViewPreviousTab = a !== t ? a : "",
             Pa.view = "copywriting" === t ? "detail" : t, Pa.copywritingMode = "copywriting" === t,
             tf(), "parameterImage" === t && La.loadRules(), "copywriting" === t && Pa.data) return Pa.copywritingMode = !1,
@@ -16679,21 +16679,21 @@
         a && a.classList.toggle("is-visible", Boolean(t && t.value));
     }
     async function Mg(e) {
-        if (Pa.openingProjectDetail) return void Fb(xa.openingDetail);
-        const t = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null)), a = t && t.sku;
-        if (!a) return void Fb(xa.excelNeedData);
+        if (Pa.openingProjectDetail) return void Bb(xa.openingDetail);
+        const t = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null)), a = t && t.sku;
+        if (!a) return void Bb(xa.excelNeedData);
         const n = Boolean(e && e.preserveCopywriting && Pa.copywritingMode && Pa.selectedSku === a);
         Pa.ignoreOutsideClickUntil = Date.now() + 2500, n ? (Pa.openingProjectDetail = !1,
         Pa.openingProjectDetailSku = "", Pa.selectedSku = a, Pa.data = t, tf(), Ai()) : _a(a, t),
-        Fb(xa.openingDetail);
+        Bb(xa.openingDetail);
         try {
             if (!await Pg()) throw new Error("new product project page not ready");
             let e = t.projectRowId || t.projectId || "";
-            if (e && await Bg(e, a)) return Jg(a, e), Cg(a), void Fb(xa.openDetailDone);
+            if (e && await Bg(e, a)) return Jg(a, e), Cg(a), void Bb(xa.openDetailDone);
             if (e = await Ng(a), !e || !await Bg(e, a)) throw new Error("detail button not found");
-            Jg(a, e), Cg(a), Fb(xa.openDetailDone);
+            Jg(a, e), Cg(a), Bb(xa.openDetailDone);
         } catch (e) {
-            console.warn("PLM floating helper open detail failed:", e), Fb(xa.openDetailFailed);
+            console.warn("PLM floating helper open detail failed:", e), Bb(xa.openDetailFailed);
         } finally {
             Pa.openingProjectDetail = !1, Pa.selectedSku === a && zi(n ? "" : Pa.scanRunning ? xa.scanning : ""),
             window.setTimeout(() => {
@@ -16702,7 +16702,7 @@
         }
     }
     function Tg() {
-        return Array.from(document.querySelectorAll(".ant-notification-notice, .ant-notification")).filter(ck).find(e => /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(sk(e.innerText || e.textContent || ""))) || null;
+        return Array.from(document.querySelectorAll(".ant-notification-notice, .ant-notification")).filter(uk).find(e => /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(lk(e.innerText || e.textContent || ""))) || null;
     }
     function Eg() {
         if (!Tg()) return;
@@ -16714,7 +16714,7 @@
         if (!n) return;
         const r = Boolean(Pa.selectedSku && Pa.selectedSku !== e);
         Pa.drawer = n, Pa.sku = e, Pa.selectedSku = e;
-        const i = Gw(e);
+        const i = Ww(e);
         i ? Pa.data = bn(i) : Pa.data && Pa.data.sku === e || (Pa.data = bn({
             sku: e
         })), Pa.view = a.keepToolsView ? "tools" : "detail", r && (Pa.copywritingMode = !1),
@@ -16725,24 +16725,24 @@
     }
     async function Pg() {
         if (Lg()) return !0;
-        Bb("info", "打开详情：切换到项目管理-新品开发");
+        zb("info", "打开详情：切换到项目管理-新品开发");
         const e = function(e) {
-            const t = sk(e);
-            return Array.from(document.querySelectorAll('.ant-tabs-tab, .ant-tabs-tab-btn, [role="tab"]')).filter(ck).find(e => sk(e.innerText || e.textContent) === t) || null;
+            const t = lk(e);
+            return Array.from(document.querySelectorAll('.ant-tabs-tab, .ant-tabs-tab-btn, [role="tab"]')).filter(uk).find(e => lk(e.innerText || e.textContent) === t) || null;
         }("新品开发");
         if (e) {
             Vp(e);
             if (await ef(() => Lg(), 5e3, 150)) return !0;
         }
         const t = function(e, t) {
-            const a = sk(t);
-            return Array.from(document.querySelectorAll("[data-menu-id], .ant-menu-item, .ant-menu-submenu-title, li")).filter(ck).find(t => (t.getAttribute("data-menu-id") || "") === e || sk(t.innerText || t.textContent) === a) || null;
+            const a = lk(t);
+            return Array.from(document.querySelectorAll("[data-menu-id], .ant-menu-item, .ant-menu-submenu-title, li")).filter(uk).find(t => (t.getAttribute("data-menu-id") || "") === e || lk(t.innerText || t.textContent) === a) || null;
         }("/projectManagementChemicalNew", "新品开发");
         if (t) {
             Vp(t);
             if (await ef(() => Lg(), 8e3, 150)) return !0;
         }
-        return Bb("error", "打开详情：未找到新品开发顶部标签或左侧菜单"), Lg();
+        return zb("error", "打开详情：未找到新品开发顶部标签或左侧菜单"), Lg();
     }
     function Lg() {
         return /\/projectManagementChemicalNew/.test(location.pathname) && Boolean(Xg("搜索商品编码") && Zg("查询"));
@@ -16759,35 +16759,35 @@
         const e = Dg();
         if (/^\u8bbe\u8ba1\u4efb\u52a1/.test(e)) return !0;
         const t = Fg("设计任务");
-        return t ? (Vp(t), Boolean(await ef(() => /^\u8bbe\u8ba1\u4efb\u52a1/.test(Dg()), 5e3, 120))) : (Bb("error", "玩具标签：未找到设计任务页签"),
+        return t ? (Vp(t), Boolean(await ef(() => /^\u8bbe\u8ba1\u4efb\u52a1/.test(Dg()), 5e3, 120))) : (zb("error", "玩具标签：未找到设计任务页签"),
         !1);
     }
     function Dg() {
-        const e = Array.from(document.querySelectorAll(".filterTabs .ant-tabs-tab-active, .ant-tabs-tab-active")).filter(ck).find(e => /^(?:\u5168\u90e8|\u5f00\u53d1\u4efb\u52a1|\u8bbe\u8ba1\u4efb\u52a1|\u63a8\u5e7f\u4e0a\u67b6)/.test(sk(e.innerText || e.textContent)));
-        return e ? sk(e.innerText || e.textContent) : "";
+        const e = Array.from(document.querySelectorAll(".filterTabs .ant-tabs-tab-active, .ant-tabs-tab-active")).filter(uk).find(e => /^(?:\u5168\u90e8|\u5f00\u53d1\u4efb\u52a1|\u8bbe\u8ba1\u4efb\u52a1|\u63a8\u5e7f\u4e0a\u67b6)/.test(lk(e.innerText || e.textContent)));
+        return e ? lk(e.innerText || e.textContent) : "";
     }
     function Fg(e) {
-        const t = sk(e);
-        return Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab, .filterTabs .ant-tabs-tab-btn, .ant-tabs-tab, [role="tab"]')).filter(ck).find(e => {
-            const a = sk(e.innerText || e.textContent);
+        const t = lk(e);
+        return Array.from(document.querySelectorAll('.filterTabs .ant-tabs-tab, .filterTabs .ant-tabs-tab-btn, .ant-tabs-tab, [role="tab"]')).filter(uk).find(e => {
+            const a = lk(e.innerText || e.textContent);
             return a === t || a.startsWith(t);
         }) || null;
     }
     async function Bg(e, t) {
         if (zg(t)) return !0;
         const a = function(e) {
-            return Array.from(document.querySelectorAll('tr[rowid="' + dk(e) + '"], .vxe-body--row[rowid="' + dk(e) + '"]')).filter(ck).find(e => Array.from(e.querySelectorAll("button")).some(e => "详情" === sk(e.innerText || e.textContent))) || null;
+            return Array.from(document.querySelectorAll('tr[rowid="' + pk(e) + '"], .vxe-body--row[rowid="' + pk(e) + '"]')).filter(uk).find(e => Array.from(e.querySelectorAll("button")).some(e => "详情" === lk(e.innerText || e.textContent))) || null;
         }(e);
         if (!a) return !1;
-        const n = Array.from(a.querySelectorAll("button")).filter(ck).find(e => "详情" === sk(e.innerText || e.textContent));
+        const n = Array.from(a.querySelectorAll("button")).filter(uk).find(e => "详情" === lk(e.innerText || e.textContent));
         return !!n && (n.click(), Boolean(await ef(() => zg(t), 8e3, 120)));
     }
     function zg(e) {
         return Boolean(Rg(e));
     }
     function Rg(e) {
-        return Array.from(document.querySelectorAll(".ant-drawer-open, .ant-drawer")).filter(ck).find(t => {
-            const a = rk(t), n = sn(t);
+        return Array.from(document.querySelectorAll(".ant-drawer-open, .ant-drawer")).filter(uk).find(t => {
+            const a = ik(t), n = sn(t);
             return /\u67e5\u770b\u9879\u76ee\u8be6\u60c5/.test(a) && Boolean(n) && (!e || n === String(e).toUpperCase());
         }) || null;
     }
@@ -16814,7 +16814,7 @@
         const t = Rg(e);
         if (!t) return !0;
         const a = bg(t);
-        return !!a && (Vp(a), await ef(() => !ck(t) || !document.body.contains(t), 5e3, 150),
+        return !!a && (Vp(a), await ef(() => !uk(t) || !document.body.contains(t), 5e3, 150),
         !0);
     }
     async function $g(e, t) {
@@ -16823,52 +16823,52 @@
         return !!a && (Vp(a), Boolean(await ef(() => Hg(t), 5e3, 150)));
     }
     function Hg(e) {
-        return Array.from(document.querySelectorAll(".ant-drawer-open, .ant-drawer")).filter(ck).find(t => {
-            const a = rk(t);
+        return Array.from(document.querySelectorAll(".ant-drawer-open, .ant-drawer")).filter(uk).find(t => {
+            const a = ik(t);
             return /\u7ed1\u5b9aBOM|\u7ed1BOM/.test(a) && (!e || a.includes(e));
         }) || null;
     }
     async function Vg(e) {
         const t = function(e, t) {
-            const a = sk(t);
-            return Array.from(e.querySelectorAll('button, a, [role="button"], span')).filter(ck).find(e => sk(e.innerText || e.textContent) === a) || null;
+            const a = lk(t);
+            return Array.from(e.querySelectorAll('button, a, [role="button"], span')).filter(uk).find(e => lk(e.innerText || e.textContent) === a) || null;
         }(e, "批量保存");
         if (!t) throw new Error("未找到绑BOM批量保存按钮");
         const a = new Set(Kg());
         Vp(t);
         const n = await ef(() => function(e) {
-            const t = e && "function" == typeof e.has ? e : new Set, a = Kg().filter(e => !t.has(e)).map(e => ik(e)).join("\n");
+            const t = e && "function" == typeof e.has ? e : new Set, a = Kg().filter(e => !t.has(e)).map(e => ok(e)).join("\n");
             return /\u4fdd\u5b58\u5931\u8d25|\u64cd\u4f5c\u5931\u8d25|\u8bf7\u6c42\u5931\u8d25|\u7f51\u7edc\u5f02\u5e38|\u7cfb\u7edf\u5f02\u5e38/.test(a) ? "failed" : /\u4fdd\u5b58\u6210\u529f|\u64cd\u4f5c\u6210\u529f|\u6279\u91cf\u4fdd\u5b58\u6210\u529f/.test(a) ? "saved" : "";
         }(a), 12e4, 150);
         if ("saved" === n) return !0;
-        if (Pa.uploadRunning = !1, Pw(Tw(), !1), "failed" === n) throw new Error("绑BOM批量保存失败，已暂停队列并保留当前抽屉");
+        if (Pa.uploadRunning = !1, Lw(Ew(), !1), "failed" === n) throw new Error("绑BOM批量保存失败，已暂停队列并保留当前抽屉");
         throw new Error("未检测到绑BOM“保存成功”提示，已暂停队列并保留当前抽屉");
     }
     function Kg() {
-        return Array.from(document.querySelectorAll(".ant-message-notice, .ant-notification-notice")).filter(ck).filter(t => !t.closest("#" + e));
+        return Array.from(document.querySelectorAll(".ant-message-notice, .ant-notification-notice")).filter(uk).filter(t => !t.closest("#" + e));
     }
     async function Gg(e) {
         const t = bg(e);
         if (!t) throw new Error("未找到绑BOM抽屉关闭按钮");
         Vp(t);
-        if (!await ef(() => !ck(e) || !document.body.contains(e), 8e3, 150)) throw new Error("绑BOM抽屉未成功关闭");
+        if (!await ef(() => !uk(e) || !document.body.contains(e), 8e3, 150)) throw new Error("绑BOM抽屉未成功关闭");
     }
     function Wg(e) {
-        const t = Array.from(document.querySelectorAll("tr[rowid], .vxe-body--row[rowid]")).filter(ck).find(t => rk(t).includes(e));
+        const t = Array.from(document.querySelectorAll("tr[rowid], .vxe-body--row[rowid]")).filter(uk).find(t => ik(t).includes(e));
         return t && t.getAttribute("rowid") || "";
     }
     function Qg(e, t) {
-        const a = sk(t), n = Array.from(document.querySelectorAll('tr[rowid="' + dk(e) + '"], .vxe-body--row[rowid="' + dk(e) + '"]')).filter(ck);
+        const a = lk(t), n = Array.from(document.querySelectorAll('tr[rowid="' + pk(e) + '"], .vxe-body--row[rowid="' + pk(e) + '"]')).filter(uk);
         for (const e of n) {
-            const t = Array.from(e.querySelectorAll("button")).filter(ck).find(e => sk(e.innerText || e.textContent) === a);
+            const t = Array.from(e.querySelectorAll("button")).filter(uk).find(e => lk(e.innerText || e.textContent) === a);
             if (t) return t;
         }
         return null;
     }
     function Jg(e, t) {
         if (!e || !t) return;
-        Qw(e, bn({
-            ...Gw(e) || Pa.data || {},
+        Jw(e, bn({
+            ...Ww(e) || Pa.data || {},
             sku: e,
             projectRowId: String(t)
         }), {
@@ -16876,10 +16876,10 @@
         });
     }
     function Xg(e) {
-        return Array.from(document.querySelectorAll("input")).filter(ck).find(t => t.getAttribute("placeholder") === e) || null;
+        return Array.from(document.querySelectorAll("input")).filter(uk).find(t => t.getAttribute("placeholder") === e) || null;
     }
     function Zg(e) {
-        return Array.from(document.querySelectorAll("button")).filter(ck).find(t => sk(t.innerText || t.textContent) === e) || null;
+        return Array.from(document.querySelectorAll("button")).filter(uk).find(t => lk(t.innerText || t.textContent) === e) || null;
     }
     function Yg(e, t) {
         Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(e, t),
@@ -16901,7 +16901,7 @@
     function tf() {
         Pa.excelPanelOpen = !1, Pa.excelExtra = null, Pa.excelMissing = [], Pa.excelStatus = "",
         Pa.excelPackQty = "";
-        const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+        const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
         Pa.excelPurchasePrice = String(e && e.purchasePrice || "6");
     }
     function af() {
@@ -16939,8 +16939,8 @@
     }
     async function sf() {
         af();
-        const e = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
-        if (!e || !e.sku) return void Fb(xa.excelNeedData);
+        const e = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
+        if (!e || !e.sku) return void Bb(xa.excelNeedData);
         Pa.view = "detail", Pa.selectedSku = e.sku, Pa.data = e, e.purchasePrice && (Pa.excelPurchasePrice = String(e.purchasePrice)),
         Pa.excelPanelOpen = !0;
         const t = nf(e), a = cf(e, t);
@@ -16948,10 +16948,10 @@
             extra: t,
             excelData: e
         }, Pa.excelMissing = a, Pa.excelStatus = a.length ? xa.excelPreparing + "（缓存缺少：" + a.join("、") + "）" : xa.excelReady + "（使用缓存）",
-        Bb(a.length ? "info" : "success", "Excel 缓存预检", e.sku + " | " + of(e, t, a)), zi(),
+        zb(a.length ? "info" : "success", "Excel 缓存预检", e.sku + " | " + of(e, t, a)), zi(),
         !a.length) return await fm(e), await hm(e, t), zi(), !0;
         try {
-            Bb("info", "Excel 开始补全实时数据", e.sku + " | 需要补全：" + a.join("、"));
+            zb("info", "Excel 开始补全实时数据", e.sku + " | 需要补全：" + a.join("、"));
             let t = await Rf(e.sku), n = bn(un(e, t.liveData || {})), r = cf(n, t);
             if (r.length) {
                 if (!await jg(n)) throw new Error("未能打开目标项目详情抽屉");
@@ -16960,14 +16960,14 @@
             return lf(n, t), Pa.excelExtra = {
                 extra: t,
                 excelData: n
-            }, Pa.excelMissing = r, Pa.excelStatus = rf(Pa.excelMissing), Bb(Pa.excelMissing.length ? "warn" : "success", "Excel 信息补全结果", e.sku + " | " + of(n, t, Pa.excelMissing)),
+            }, Pa.excelMissing = r, Pa.excelStatus = rf(Pa.excelMissing), zb(Pa.excelMissing.length ? "warn" : "success", "Excel 信息补全结果", e.sku + " | " + of(n, t, Pa.excelMissing)),
             await fm(n), await hm(n, t), Pa.excelMissing.length && Af(), !0;
         } catch (n) {
             return console.warn("PLM floating helper excel prepare failed:", n), Pa.excelExtra = {
                 extra: t,
                 excelData: e
-            }, Pa.excelMissing = a, Pa.excelStatus = rf(a), Bb("error", "获取表格信息失败", e.sku + " | " + of(e, t, a) + " | 错误：" + _b(n)),
-            Xb(e, "excelPrepareFailed"), Af(), !0;
+            }, Pa.excelMissing = a, Pa.excelStatus = rf(a), zb("error", "获取表格信息失败", e.sku + " | " + of(e, t, a) + " | 错误：" + Ub(n)),
+            Zb(e, "excelPrepareFailed"), Af(), !0;
         } finally {
             zi();
         }
@@ -16981,8 +16981,8 @@
             skuImageFallbackUrl: t.skuImageFallbackUrl || t.imageFallbackUrl || t.skuImageUrl || t.imageUrl || "",
             skuImageSource: t.skuImageSource || e.skuImageSource || "effectImage"
         });
-        Jw(a, r), (Pa.data && Pa.data.sku === a || !Pa.data && Pa.selectedSku === a) && (Pa.data = r),
-        Kw(r);
+        Xw(a, r), (Pa.data && Pa.data.sku === a || !Pa.data && Pa.selectedSku === a) && (Pa.data = r),
+        Gw(r);
     }
     function cf(e, t) {
         const a = [];
@@ -16992,7 +16992,7 @@
         e.netContent || a.push("净含量"), e.grossWeight || a.push("毛重"), a;
     }
     function uf(e) {
-        const t = String(e || "").trim().toUpperCase(), a = Pa.index.find(e => String(e && e.sku || "").toUpperCase() === t), n = bn(Gw(t) || a || {
+        const t = String(e || "").trim().toUpperCase(), a = Pa.index.find(e => String(e && e.sku || "").toUpperCase() === t), n = bn(Ww(t) || a || {
             sku: t
         }), r = nf(n), i = cf(n, r), o = pm(n.packQty || n.packCount || n.cartonQty || "");
         return o || i.push("装箱数"), {
@@ -17004,23 +17004,23 @@
         };
     }
     function df(e, t) {
-        const a = String(e || "").trim().toUpperCase(), n = sw().map(e => e.sku === a ? {
+        const a = String(e || "").trim().toUpperCase(), n = lw().map(e => e.sku === a ? {
             ...e,
             ...t || {},
             updatedAt: Date.now()
         } : e);
-        return lw(n), n.find(e => e.sku === a) || null;
+        return cw(n), n.find(e => e.sku === a) || null;
     }
     async function pf() {
         if (Pa.batchExcelWorkerRunning || Pa.batchExcelDownloadRunning) return;
-        const e = sw().filter(e => "pending" === e.status || "error" === e.status);
-        if (!e.length) return Pa.batchExcelStatus = sw().length ? "当前队列没有需要补全的项目" : "队列暂空",
+        const e = lw().filter(e => "pending" === e.status || "error" === e.status);
+        if (!e.length) return Pa.batchExcelStatus = lw().length ? "当前队列没有需要补全的项目" : "队列暂空",
         void zi();
         Pa.batchExcelWorkerRunning = !0, Pa.view = "batchExcel", Ai(), Pa.batchExcelStatus = "开始按顺序补全 " + e.length + " 个 SKU",
         zi();
         try {
             for (let t = 0; t < e.length; t += 1) {
-                const a = sw().find(a => a.sku === e[t].sku);
+                const a = lw().find(a => a.sku === e[t].sku);
                 if (!a || "pending" !== a.status && "error" !== a.status) continue;
                 const n = a.sku;
                 Pa.batchExcelCurrentSku = n, Pa.batchExcelStatus = "正在补全 " + (t + 1) + "/" + e.length + "：" + n,
@@ -17035,7 +17035,7 @@
                         break;
                     } catch (e) {
                         if (t = e, a >= 3) break;
-                        Pa.batchExcelStatus = n + " 页面仍在加载，等待重试 " + a + "/3", Bb("warn", "Excel 批量补全等待页面加载", n + " | 第 " + a + " 次失败：" + _b(e)),
+                        Pa.batchExcelStatus = n + " 页面仍在加载，等待重试 " + a + "/3", zb("warn", "Excel 批量补全等待页面加载", n + " | 第 " + a + " 次失败：" + Ub(e)),
                         "batchExcel" === Pa.view && zi(), await zm(1200 * a);
                     }
                     if (!e) throw t || new Error("未取得完整页面数据");
@@ -17047,12 +17047,12 @@
                         error: ""
                     }), Pa.batchExcelStatus = e.missing.length ? n + " 还缺：" + e.missing.join("、") + "，仍可生成 Excel" : n + " 缓存已完整，等待下载";
                 } catch (e) {
-                    const t = _b(e) || "未知错误";
+                    const t = Ub(e) || "未知错误";
                     df(n, {
                         status: "error",
                         error: t,
                         missing: uf(n).missing
-                    }), Pa.batchExcelStatus = n + " 补全失败：" + t, Bb("error", "Excel 批量补全失败", n + " | " + t);
+                    }), Pa.batchExcelStatus = n + " 补全失败：" + t, zb("error", "Excel 批量补全失败", n + " | " + t);
                 }
                 "batchExcel" === Pa.view && zi(), await zm(120);
             }
@@ -17090,14 +17090,14 @@
                     skuImageFallbackUrl: n.skuImageFallbackUrl || n.imageFallbackUrl || a.skuImageFallbackUrl || "",
                     skuImageSource: n.skuImageSource || a.skuImageSource || ""
                 };
-                lf(r, n), Qw(e, r, {
+                lf(r, n), Jw(e, r, {
                     suppressChangeTracking: !0,
                     changeSource: "批量 Excel 补全"
-                }), a = bn(Gw(e) || r), n = nf(a);
+                }), a = bn(Ww(e) || r), n = nf(a);
             }
             Pa.data = a, Pa.selectedSku = e, Pa.excelPackQty = pm(a.packQty || a.packCount || a.cartonQty || ""),
-            Pa.excelPurchasePrice = String(a.purchasePrice || "6"), await fm(a), a = bn(Gw(e) || a),
-            n = nf(a), await hm(a, n), a = bn(Gw(e) || a), n = nf(a);
+            Pa.excelPurchasePrice = String(a.purchasePrice || "6"), await fm(a), a = bn(Ww(e) || a),
+            n = nf(a), await hm(a, n), a = bn(Ww(e) || a), n = nf(a);
             const t = cf(a, n), r = pm(Pa.excelPackQty || a.packQty || a.packCount || a.cartonQty || "");
             return r || t.push("装箱数"), {
                 data: a,
@@ -17113,7 +17113,7 @@
     function ff(e, t) {
         for (const a of t || []) {
             const t = e && e[a];
-            if (null != t && sk(t)) return sk(t);
+            if (null != t && lk(t)) return lk(t);
         }
         return "";
     }
@@ -17132,7 +17132,7 @@
         const t = e.getRow(5);
         [ 1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ].some(e => {
             const a = t.getCell(e).value;
-            return null != a && sk(a);
+            return null != a && lk(a);
         }) || e.spliceRows(5, 1);
     }
     function yf(e, t, a) {
@@ -17145,7 +17145,7 @@
     function bf(e, t, a, n, r, i) {
         const o = (a, n) => Ff(e, a + t, n), s = sm([ a.productLength, a.productWidth, a.productHeight ]) || om(a.productNums, []), l = sm([ a.packageLength, a.packageWidth, a.packageHeight ]) || om(a.packageNums, []), c = ff(a, [ "cartonSpec", "outerCartonSpec", "cartonSize", "cartonSizeText", "boxSpec" ]), u = ff(a, [ "packageMaterial", "packagingMaterial", "material" ]), d = ff(a, [ "leadTimeText", "deliveryText", "deliveryNote", "leadTimeNote" ]), p = ff(a, [ "alibabaLink", "aliLink", "1688Link", "alibabaUrl" ]);
         o("A", Sm(a, n)), o("B", a.name || n.chineseName || ""), o("C", ""), c && o("D", c),
-        o("E", sk(r)), o("F", wf(t, "N")), o("G", a.sku || ""), a.singleBottle ? o("H", "瓶装") : o("H", {
+        o("E", lk(r)), o("F", wf(t, "N")), o("G", a.sku || ""), a.singleBottle ? o("H", "瓶装") : o("H", {
             formula: "IF(LEN(J" + t + ")-LEN(SUBSTITUTE(J" + t + ',"*",""))=2,"盒装",IF(LEN(J' + t + ")-LEN(SUBSTITUTE(J" + t + ',"*",""))=1,"袋装",""))'
         }), o("I", s), o("J", l), u && o("K", u), o("L", um(n.ingredients || zf(a))), o("M", cm(a.netContent)),
         o("N", cm(a.grossWeight)), o("O", dm(i)), o("P", a.returnDate || km(7)), d && o("Q", d),
@@ -17172,7 +17172,7 @@
                 formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))'
             }, e.getCell("F4").value = wf(4, "M"), e.getCell("L3").value = {
                 formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
-            }) : pb(t) && (e.spliceColumns(10, 1), e.getCell("H4").value = {
+            }) : gb(t) && (e.spliceColumns(10, 1), e.getCell("H4").value = {
                 formula: 'IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=2,"盒装",IF(LEN(I4)-LEN(SUBSTITUTE(I4,"*",""))=1,"袋装",""))'
             }, e.getCell("F4").value = wf(4, "M"), e.getCell("L3").value = {
                 formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
@@ -17188,7 +17188,7 @@
     }
     function vf(e, t) {
         const a = new Set((e || []).map(e => e.data && e.data.sku).filter(Boolean));
-        lw(sw().map(e => a.has(e.sku) ? {
+        cw(lw().map(e => a.has(e.sku) ? {
             ...e,
             status: "downloaded",
             missing: [],
@@ -17200,11 +17200,11 @@
     function xf(e, t, a) {
         (e || []).forEach(e => {
             const n = e.data || {}, r = e.extra || {};
-            yb("excel_generated", {
+            bb("excel_generated", {
                 sku: n.sku || "",
                 name: n.name || "",
                 source: t
-            }), Jb(n, r, {
+            }), Xb(n, r, {
                 price: e.purchasePrice,
                 packQty: e.packQty,
                 source: t,
@@ -17217,19 +17217,19 @@
         });
     }
     function Af() {
-        Fb(xa.excelMissing + Pa.excelMissing.join("、"));
+        Bb(xa.excelMissing + Pa.excelMissing.join("、"));
     }
     async function If(e) {
         const t = e || {};
-        let a = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null));
+        let a = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null));
         if (a && a.sku) {
             af();
             try {
                 t.skipExcelPrepare || Pa.excelExtra && Pa.excelExtra.excelData && Pa.excelExtra.excelData.sku === a.sku || (await sf(),
-                a = bn(Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null)));
+                a = bn(Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null)));
                 const e = Pa.excelExtra && Pa.excelExtra.excelData && Pa.excelExtra.excelData.sku === a.sku ? Pa.excelExtra : null;
                 let n = e && e.extra ? e.extra : {}, r = bn(e && e.excelData || a);
-                Pa.excelStatus = xa.labelGenerating, zi(), Fb(xa.labelGenerating);
+                Pa.excelStatus = xa.labelGenerating, zi(), Bb(xa.labelGenerating);
                 const i = await async function(e, t) {
                     const a = Tf(e, t);
                     if (a.imageUrl || a.imageFallbackUrl) return {
@@ -17275,7 +17275,7 @@
                 }(r, n);
                 r = i.data, n = i.extra;
                 const o = i.imageSource, s = o.imageUrl ? await Pm(o.imageUrl, o.imageFallbackUrl).catch(e => (console.warn("PLM floating helper label product image fetch failed:", e),
-                Bb("error", "玩具标签：产品图获取失败", e && e.message ? e.message : ""), null)) : null;
+                zb("error", "玩具标签：产品图获取失败", e && e.message ? e.message : ""), null)) : null;
                 if (!s || !s.dataUrl) throw new Error("未能读取 SKU 效果图，已停止生成和上传，避免只剩条码的标签说明图");
                 const l = await Ef(r.sku), c = {
                     width: 4,
@@ -17323,17 +17323,17 @@
                         blob: h
                     } ];
                     t.collectFiles.push(...e), await async function(e, t) {
-                        const a = await Uw(t);
+                        const a = await Dw(t);
                         for (const t of e || []) {
                             if (!t || !t.blob || !t.filename) continue;
                             const e = "toy-label-export:" + Date.now() + ":" + Math.random().toString(36).slice(2);
-                            await Fw(e, t.blob), a.files.push({
+                            await Bw(e, t.blob), a.files.push({
                                 key: e,
                                 sku: String(t.sku || ""),
                                 filename: String(t.filename)
                             });
                         }
-                        a.downloaded = !1, Nw(a);
+                        a.downloaded = !1, _w(a);
                     }(e, t.batchSignature || Pa.toyLabelBatchPreparedSignature);
                 } else Um(f, y), await zm(250), Um(m, b), await zm(250), Um(h, k);
                 return t.skipBomUpload || await Mf(r, f, y, t), Pa.excelStatus = xa.labelDone, Bh(r, {
@@ -17342,30 +17342,30 @@
                     note: "已生成玩具标签",
                     labelFileState: "done",
                     labelFileDone: !0
-                }), zi(), Bb("success", "玩具标签生成成功", r.sku), Fb(xa.labelDone), !0;
+                }), zi(), zb("success", "玩具标签生成成功", r.sku), Bb(xa.labelDone), !0;
             } catch (e) {
                 return console.warn("PLM floating helper label failed:", e), Pa.excelStatus = xa.labelFailed,
-                zi(), Bb("error", "玩具标签生成失败", e && e.message ? e.message : ""), Fb(xa.labelFailed),
+                zi(), zb("error", "玩具标签生成失败", e && e.message ? e.message : ""), Bb(xa.labelFailed),
                 !1;
             }
-        } else Fb(xa.excelNeedData);
+        } else Bb(xa.excelNeedData);
     }
     async function Mf(e, t, a, n) {
         const r = e && e.sku;
         if (!r) throw new Error("未找到 SKU，无法上传到绑BOM");
-        Bb("info", "玩具标签：准备上传说明图到绑BOM", r);
+        zb("info", "玩具标签：准备上传说明图到绑BOM", r);
         const i = await async function(e, t) {
             const a = t || {}, n = e && e.sku;
             if (!n) return null;
             const r = Hg(n);
             if (r) return r;
             const i = Hg("");
-            if (i && !rk(i).includes(n)) return Bb("error", "玩具标签：当前打开的绑BOM不是目标 SKU", n), null;
+            if (i && !ik(i).includes(n)) return zb("error", "玩具标签：当前打开的绑BOM不是目标 SKU", n), null;
             if (await qg(n), !await Pg()) return null;
             if (!await Ug()) return null;
             let o = e.projectRowId || e.projectId || "";
             if (o && await $g(o, n)) return Hg(n);
-            if (a.batchRowOnly) return Bb("error", "玩具标签：批量搜索行已失效，未重新单独搜索", n), null;
+            if (a.batchRowOnly) return zb("error", "玩具标签：批量搜索行已失效，未重新单独搜索", n), null;
             if (o = await _g(n), !o) return null;
             const s = await $g(o, n);
             return s && Jg(n, o), s ? Hg(n) : null;
@@ -17375,23 +17375,23 @@
             if (!e) return null;
             const t = e => {
                 if (!e || !e.querySelector('input[type="file"]')) return !1;
-                const t = rk(e), a = sk(t);
+                const t = ik(e), a = lk(t);
                 return /\u6807\u7b7e/.test(t) && (/\u5305\u6750\s*-\s*\u6807\u7b7e/.test(t) || a.startsWith("标签"));
-            }, a = Array.from(e.querySelectorAll('.ant-upload, .ant-upload-wrapper, input[type="file"]')).filter(ck).map(e => e.closest(".materialCardItemHeader, .ant-collapse-item, .typeCard, .cardBox") || e.parentElement).filter(Boolean).find(t);
+            }, a = Array.from(e.querySelectorAll('.ant-upload, .ant-upload-wrapper, input[type="file"]')).filter(uk).map(e => e.closest(".materialCardItemHeader, .ant-collapse-item, .typeCard, .cardBox") || e.parentElement).filter(Boolean).find(t);
             if (a) return a;
-            const n = Array.from(e.querySelectorAll(".cardBox, .typeCard")).filter(ck).filter(e => e.querySelector('input[type="file"]')), r = n.find(e => "标签" === sk((e.querySelector(".cardTitle") || {}).innerText || ""));
+            const n = Array.from(e.querySelectorAll(".cardBox, .typeCard")).filter(uk).filter(e => e.querySelector('input[type="file"]')), r = n.find(e => "标签" === lk((e.querySelector(".cardTitle") || {}).innerText || ""));
             if (r) return r;
             return n.find(e => {
-                const t = rk(e);
+                const t = ik(e);
                 return /\u6807\u7b7e/.test(t) && /\u5305\u6750\s*-\s*\u6807\u7b7e/.test(t);
-            }) || Array.from(e.querySelectorAll(".ant-collapse-item, .materialCardItemHeader")).filter(ck).find(t) || null;
+            }) || Array.from(e.querySelectorAll(".ant-collapse-item, .materialCardItemHeader")).filter(uk).find(t) || null;
         }(i), 12e3, 250);
         if (!o) throw new Error("未找到绑BOM中标签行的上传加号");
         o.scrollIntoView({
             block: "center",
             inline: "nearest"
-        }), await zm(180), await Wp(o, t, a), await Qp(o, a, 18e4), await zm(1600), Bb("success", "玩具标签：说明图已上传到绑BOM标签", a),
-        await Vg(i), await Gg(i), Bb("success", "玩具标签：绑BOM已批量保存并关闭", r);
+        }), await zm(180), await Wp(o, t, a), await Qp(o, a, 18e4), await zm(1600), zb("success", "玩具标签：说明图已上传到绑BOM标签", a),
+        await Vg(i), await Gg(i), zb("success", "玩具标签：绑BOM已批量保存并关闭", r);
     }
     function Tf(e, t) {
         const a = e && (e.toyLabelProductImageUrl || e.toyLabelProductImageFallbackUrl || e.productListImageUrl || e.productListImageFallbackUrl);
@@ -17542,7 +17542,7 @@
     async function Rf(e) {
         Qa(), Ua();
         let t = e ? Rg(e) : ln();
-        const a = bn((Pa.data && Pa.data.sku === e ? Pa.data : null) || Gw(e) || {});
+        const a = bn((Pa.data && Pa.data.sku === e ? Pa.data : null) || Ww(e) || {});
         let n = a, r = nf(a);
         try {
             const i = await Sr(a, {
@@ -17553,7 +17553,7 @@
                     silent: !0,
                     drawer: t,
                     apiFile: i.ingredientFile
-                }), n = bn(Gw(e) || n)), r = function(e, t, a) {
+                }), n = bn(Ww(e) || n)), r = function(e, t, a) {
                     const n = nf(e), r = t || {}, i = r.imageUrl || n.imageUrl || "", o = r.imageFallbackUrl || n.imageFallbackUrl || i;
                     return {
                         ...n,
@@ -17569,16 +17569,16 @@
                         isSkuDesignImage: Boolean(r.isSkuDesignImage || n.isSkuDesignImage || i),
                         liveData: e
                     };
-                }(n, i, r), r.liveData = n, Qw(e, n, {
+                }(n, i, r), r.liveData = n, Jw(e, n, {
                     suppressDataQuality: !0,
                     changeSource: "Excel PLM API"
                 }), Pa.selectedSku === e && (Pa.data = n);
                 const o = cf(n, r);
-                if (Bb(o.length ? "info" : "success", "Excel PLM API 补全结果", e + " | " + (o.length ? "仍缺：" + o.join("、") : "已取得生成所需字段")),
+                if (zb(o.length ? "info" : "success", "Excel PLM API 补全结果", e + " | " + (o.length ? "仍缺：" + o.join("、") : "已取得生成所需字段")),
                 !o.length) return r;
             }
         } catch (t) {
-            Bb("warn", "Excel PLM API 补全异常，改用现有页面读取", e + " | " + _b(t));
+            zb("warn", "Excel PLM API 补全异常，改用现有页面读取", e + " | " + Ub(t));
         }
         if (!t) return r;
         t = await Og(e, 12e3) || t;
@@ -17606,21 +17606,21 @@
             }
             if (r.liveData = o, o.sku === e) {
                 const t = un(a, o);
-                Qw(e, t, {
+                Jw(e, t, {
                     suppressDataQuality: !0
                 }), Pa.selectedSku === e && (Pa.data = t);
             }
-            let c = bn(Gw(e) || a), u = md(c.copywriting);
+            let c = bn(Ww(e) || a), u = md(c.copywriting);
             u && u.parserVersion === s || (Pa.copywritingHydratingSkus.has(e) && await ef(() => !Pa.copywritingHydratingSkus.has(e), 25e3, 200),
-            c = bn(Gw(e) || c), u = md(c.copywriting), u && u.parserVersion === s || (c = await Lu(e, {
+            c = bn(Ww(e) || c), u = md(c.copywriting), u && u.parserVersion === s || (c = await Lu(e, {
                 silent: !0,
                 drawer: t
             }))), c.ingredientEnglish && c.ingredientChinese || (Pa.ingredientHydratingSkus.has(e) ? await ef(() => !Pa.ingredientHydratingSkus.has(e), 65e3, 250) : c = await _u(e, {
                 silent: !0,
                 drawer: t
-            }), c = bn(Gw(e) || c)), r.ingredientEnglish = c.ingredientEnglish || r.ingredientEnglish,
+            }), c = bn(Ww(e) || c)), r.ingredientEnglish = c.ingredientEnglish || r.ingredientEnglish,
             r.ingredientChinese = c.ingredientChinese || r.ingredientChinese;
-            const d = rk(t), p = await qf(t, {
+            const d = ik(t), p = await qf(t, {
                 sku: e,
                 includeBenchmark: !1,
                 allowPreview: !0,
@@ -17642,7 +17642,7 @@
             return r.benchmarkLink = function(e) {
                 const t = Wf(e), a = t.findIndex(e => /\u5bf9\u6807\u94fe\u63a5/.test(e));
                 return ((a >= 0 ? t.slice(a + 1, a + 5).join(" ") : e).match(/https?:\/\/\S+/) || String(e || "").match(/https?:\/\/\S+/) || [ "" ])[0];
-            }(rk(t)) || r.benchmarkLink, await Of(t, xa.productTab, {
+            }(ik(t)) || r.benchmarkLink, await Of(t, xa.productTab, {
                 flowToken: i,
                 timeout: 9e3
             }), r;
@@ -17651,7 +17651,7 @@
         }
     }
     function jf(e) {
-        const t = bn((Pa.data && Pa.data.sku === e ? Pa.data : null) || Gw(e) || {}), a = /^(?:effectImage|productListImage)$/.test(t.skuImageSource || "") && Boolean(t.skuImageUrl || t.skuImageFallbackUrl), n = a ? t.skuImageUrl || t.skuImageFallbackUrl || "" : t.productListImageUrl || t.productListImageFallbackUrl || "";
+        const t = bn((Pa.data && Pa.data.sku === e ? Pa.data : null) || Ww(e) || {}), a = /^(?:effectImage|productListImage)$/.test(t.skuImageSource || "") && Boolean(t.skuImageUrl || t.skuImageFallbackUrl), n = a ? t.skuImageUrl || t.skuImageFallbackUrl || "" : t.productListImageUrl || t.productListImageFallbackUrl || "";
         if (!n) return {
             imageUrl: "",
             imageFallbackUrl: "",
@@ -17681,7 +17681,7 @@
         }, Math.max(500, r - (Date.now() - i)), 100)) return !1;
         const s = Math.max(500, r - (Date.now() - i)), l = await ef(() => (!n.flowToken || Pa.drawerTabFlowToken === n.flowToken) && function(e, t) {
             if (!e || ki(e) !== t) return !1;
-            const a = rk(e);
+            const a = ik(e);
             return t === xa.materialTab ? /\u7269\u6599\u7f16\u7801[\s\S]*\u7269\u6599\u540d\u79f0|\u89c4\u683c\u578b\u53f7|\u5305\u88c5\u5c3a\u5bf8|\u5370\u5237\u5c3a\u5bf8|\u51c0\u542b\u91cf/.test(a) : t === xa.productTab ? /PRODUCT\s*NAME|\u5546\u54c1\u540d\u79f0|\u4ea7\u54c1\u540d\u79f0|\u89c4\u683c\u4fe1\u606f|\u6bdb\u91cd|\u51c0\u542b\u91cf|\u6548\u679c\u56fe\u4fe1\u606f/.test(a) : "备货信息" === t ? /\u56fd\u5185\u4e09\u6863\u4ef7\u683c|\u91c7\u8d2d\u4ef7/.test(a) : "项目信息" !== t || /\u9879\u76ee\u7f16\u7801|\u5bf9\u6807\u94fe\u63a5/.test(a);
         }(e, t), s, 120);
         return (!n.flowToken || Pa.drawerTabFlowToken === n.flowToken) && Boolean(l);
@@ -17754,7 +17754,7 @@
     }
     function Vf(e) {
         const t = Yf(e || document);
-        return t && Array.from(t.querySelectorAll(".filePreviewCard, .filePreviewMainBox, .removeOtherContent, .previewMasker, .preview")).filter(ck).find(e => em(rm(e))) || null;
+        return t && Array.from(t.querySelectorAll(".filePreviewCard, .filePreviewMainBox, .removeOtherContent, .previewMasker, .preview")).filter(uk).find(e => em(rm(e))) || null;
     }
     function Kf(e, t) {
         const a = Wf(e), n = t.replace(/[：:]\s*$/, ""), r = a.findIndex(e => e.replace(/[：:]\s*$/, "") === n);
@@ -17770,16 +17770,16 @@
         return "";
     }
     function Wf(e) {
-        return String(e || "").split("\n").map(e => sk(e)).filter(Boolean);
+        return String(e || "").split("\n").map(e => lk(e)).filter(Boolean);
     }
     function Qf(e) {
-        const t = sk(e);
+        const t = lk(e);
         return "--" === t ? "" : t;
     }
     function Jf(e, t) {
         let a = Qf(e).replace(/^PRODUCT\s*NAME\s*[:：]?\s*/i, "").replace(/\s+/g, " ").trim();
         if (!a) return "";
-        const n = sk(t).replace(/[._-]+/g, " ").trim();
+        const n = lk(t).replace(/[._-]+/g, " ").trim();
         if (n) {
             const e = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "[\\s._-]+");
             a = a.replace(new RegExp("^" + e + "(?:[\\s._–—-]+|$)", "i"), "").trim();
@@ -17797,7 +17797,7 @@
             imageFallbackUrl: "",
             isSkuDesignImage: !1
         };
-        const a = Array.from(t.querySelectorAll("img.ant-image-img, .ant-image img, img")).filter(ck).map(e => e.currentSrc || e.src || "").find(nm) || "", n = im(a);
+        const a = Array.from(t.querySelectorAll("img.ant-image-img, .ant-image img, img")).filter(uk).map(e => e.currentSrc || e.src || "").find(nm) || "", n = im(a);
         return {
             imageUrl: n,
             imageFallbackUrl: a || n,
@@ -17807,15 +17807,15 @@
     function Yf(e) {
         if (!e) return null;
         const t = function(e) {
-            const t = Array.from(e.querySelectorAll(".previewFormRoot .tabContent, .tabContent, .previewFormRoot")).filter(ck).filter(e => !e.closest(".searchDropdownPanel, .searchDropdown"));
+            const t = Array.from(e.querySelectorAll(".previewFormRoot .tabContent, .tabContent, .previewFormRoot")).filter(uk).filter(e => !e.closest(".searchDropdownPanel, .searchDropdown"));
             return t.find(e => /\u6548\u679c\u56fe\u4fe1\u606f[\s\S]*\u56fe\u7247/.test(e.innerText || e.textContent)) || t[0] || e;
         }(e);
-        return t && Array.from(t.querySelectorAll(".ant-form-item")).filter(ck).find(e => function(e, t) {
-            const a = sk((t.querySelector(".ant-form-item-label label, .ant-form-item-label") || {}).innerText || (t.querySelector(".ant-form-item-label label, .ant-form-item-label") || {}).textContent || "");
+        return t && Array.from(t.querySelectorAll(".ant-form-item")).filter(uk).find(e => function(e, t) {
+            const a = lk((t.querySelector(".ant-form-item-label label, .ant-form-item-label") || {}).innerText || (t.querySelector(".ant-form-item-label label, .ant-form-item-label") || {}).textContent || "");
             return "图片" === a && "效果图信息" === function(e, t) {
-                const a = t.getBoundingClientRect().top, n = Array.from(e.querySelectorAll(".titleRow, .titleContent, .title")).filter(ck).map(e => ({
+                const a = t.getBoundingClientRect().top, n = Array.from(e.querySelectorAll(".titleRow, .titleContent, .title")).filter(uk).map(e => ({
                     top: e.getBoundingClientRect().top,
-                    text: sk(e.innerText || e.textContent)
+                    text: lk(e.innerText || e.textContent)
                 })).filter(e => e.top <= a && /^(\u57fa\u672c\u4fe1\u606f|\u6548\u679c\u56fe\u4fe1\u606f|\u4ea7\u54c1\u6587\u6848|\u8bbe\u8ba1\u6587\u4ef6|\u5907\u6ce8\u4fe1\u606f)$/.test(e.text)).sort((e, t) => e.top - t.top);
                 let r = "";
                 return n.forEach(e => {
@@ -17825,24 +17825,24 @@
         }(t, e) && em(e.innerText || e.textContent)) || null;
     }
     function em(e) {
-        const t = sk(e);
+        const t = lk(e);
         return !(!t || tm(t)) && /\.(jpg|jpeg|png|webp)\b/i.test(t);
     }
     function tm(e) {
-        return /(\u6807\u7b7e\u5c3a\u5bf8\u56fe|\u4ea7\u54c1\u6587\u6848|\u4ea7\u54c1\u6b63\u9762\u6587\u6848|\u6587\u6848|\u4f01\u4e1a\u5fae\u4fe1|\u622a\u56fe|\.pdf\b|\.docx?\b|\.xlsx?\b)/i.test(sk(e));
+        return /(\u6807\u7b7e\u5c3a\u5bf8\u56fe|\u4ea7\u54c1\u6587\u6848|\u4ea7\u54c1\u6b63\u9762\u6587\u6848|\u6587\u6848|\u4f01\u4e1a\u5fae\u4fe1|\u622a\u56fe|\.pdf\b|\.docx?\b|\.xlsx?\b)/i.test(lk(e));
     }
     function am(e) {
-        return Array.from((e || document).querySelectorAll(".ant-image-preview-img, .ant-image-preview-wrap img, img")).filter(ck).map(e => e.currentSrc || e.src || "").filter(e => /^https?:\/\/oss-pro\.plm\.westmonth\.cn\//.test(e));
+        return Array.from((e || document).querySelectorAll(".ant-image-preview-img, .ant-image-preview-wrap img, img")).filter(uk).map(e => e.currentSrc || e.src || "").filter(e => /^https?:\/\/oss-pro\.plm\.westmonth\.cn\//.test(e));
     }
     function nm(e) {
         return /^https?:\/\/oss-pro\.plm\.westmonth\.cn\//.test(String(e || "")) && !/\/filePic\//i.test(e);
     }
     function rm(e) {
         const t = e.closest(".filePreviewCard, .filePreviewMainBox, .removeOtherContent");
-        if (t) return sk(t.innerText || t.textContent || "");
+        if (t) return lk(t.innerText || t.textContent || "");
         let a = e.parentElement;
         for (;a && a !== document.body; ) {
-            const e = sk(a.innerText || a.textContent || "");
+            const e = lk(a.innerText || a.textContent || "");
             if (e) return e;
             a = a.parentElement;
         }
@@ -17852,7 +17852,7 @@
         return String(e || "").replace(/\?x-oss-process=.*$/i, "");
     }
     function om(e, t) {
-        const a = (Array.isArray(e) && e.length >= 3 ? e.slice(0, 3).map(lk) : t.map(lm)).filter(e => "" !== e);
+        const a = (Array.isArray(e) && e.length >= 3 ? e.slice(0, 3).map(ck) : t.map(lm)).filter(e => "" !== e);
         return a.length >= 2 ? a.join("*") + "CM" : "";
     }
     function sm(e) {
@@ -17861,47 +17861,47 @@
     }
     function lm(e) {
         const t = String(e || "").match(/\d+(?:\.\d+)?/);
-        return t ? lk(Number(t[0])) : "";
+        return t ? ck(Number(t[0])) : "";
     }
     function cm(e) {
-        const t = sk(e).replace(/\s+/g, "");
+        const t = lk(e).replace(/\s+/g, "");
         return t && t !== xa.unknown ? t.replace(/g\b/i, "G").replace(/ml\b/i, "ML") : "";
     }
     function um(e) {
         return String(e || "").replace(/\s*(\u975e\u6d3b\u6027\u6210\u5206[:\uff1a])\s*/g, "\n$1");
     }
     function dm(e) {
-        const t = sk(e);
+        const t = lk(e);
         if (!t) return "";
         const a = Number(t);
         return Number.isFinite(a) ? a : t;
     }
     function pm(e) {
-        const t = sk(e).replace(/\s+/g, "");
+        const t = lk(e).replace(/\s+/g, "");
         return t ? /pcs$/i.test(t) ? t.toUpperCase() : t + "PCS" : "";
     }
     function gm(e, t, a) {
         const n = function(e) {
-            const t = sk(e);
+            const t = lk(e);
             return t ? /local-calc|本地计算/i.test(t) ? "本地" : /cache|缓存/i.test(t) ? "缓存" : t.length > 10 ? t.slice(0, 10) + "…" : t : "";
         }(t);
         return "装箱数" + (a || "") + " " + String(e || "") + (n ? " · " + n : "");
     }
     async function fm(e) {
         if (Pa.excelPackQty) return !1;
-        const t = sb(e);
+        const t = lb(e);
         if (!t) return !1;
-        const a = lb(e && (e.packQty || e.packCount || e.cartonQty)), n = String(e && e.packQtyBoxKey || "");
+        const a = cb(e && (e.packQty || e.packCount || e.cartonQty)), n = String(e && e.packQtyBoxKey || "");
         if (a && (!n || n === t)) return Pa.excelPackQty = a, Pa.excelStatus = gm(a, "缓存"),
         !0;
-        let r = await gb(t).catch(() => null);
-        r && r.packCount || (r = await hb(t, e && e.sku).catch(e => (Bb("warn", "装箱数计算失败", _b(e)),
-        null))), r && r.packCount || (r = cb(t));
+        let r = await fb(t).catch(() => null);
+        r && r.packCount || (r = await yb(t, e && e.sku).catch(e => (zb("warn", "装箱数计算失败", Ub(e)),
+        null))), r && r.packCount || (r = ub(t));
         const i = r && r.packCount ? String(r.packCount) : "";
         if (!i) return !1;
         Pa.excelPackQty = i;
         const o = r.source || "历史推荐";
-        return Pa.excelStatus = gm(i, o), ub(e, t, r), Bb("success", "已补全装箱数", String(e && e.sku || "") + " " + t + " → " + i + "（" + o + "）"),
+        return Pa.excelStatus = gm(i, o), db(e, t, r), zb("success", "已补全装箱数", String(e && e.sku || "") + " " + t + " → " + i + "（" + o + "）"),
         !0;
     }
     async function mm(e) {
@@ -17914,11 +17914,11 @@
             const e = wg();
             return e && mg(e) ? {
                 modal: e
-            } : ck(t) && document.body.contains(t) ? null : {
+            } : uk(t) && document.body.contains(t) ? null : {
                 closed: !0
             };
         }, 1e4, 100);
-        return !!n && (n.modal ? (pg(n.modal), Boolean(await ef(() => !(wg() || ck(t) && document.body.contains(t)), 1e4, 100))) : Boolean(n.closed));
+        return !!n && (n.modal ? (pg(n.modal), Boolean(await ef(() => !(wg() || uk(t) && document.body.contains(t)), 1e4, 100))) : Boolean(n.closed));
     }
     async function hm(e, t) {
         const a = Ah(e && e.purchasePrice);
@@ -17950,14 +17950,14 @@
             if (t) return nn(e && e.sku, e, t, "plm-api-domestic-third-tier"), Pa.excelPurchasePrice = t,
             Pa.excelStatus = "国内三档价格: " + t, !0;
         } catch (t) {
-            Bb("info", "国内三档价格 API 读取失败，继续使用本地价格", (e && e.sku || "") + " | " + _b(t));
+            zb("info", "国内三档价格 API 读取失败，继续使用本地价格", (e && e.sku || "") + " | " + Ub(t));
         }
-        const r = qb(e, t), i = r, o = wm(e, i), s = o && o.recommendedPrice ? String(o.recommendedPrice) : "";
+        const r = $b(e, t), i = r, o = wm(e, i), s = o && o.recommendedPrice ? String(o.recommendedPrice) : "";
         if (!s) return !1;
         const l = o.recommendationReason || bm(o, i), c = o.priceConfidence || o.recommendationConfidence || "", d = ym(o.priceStats);
         return Pa.excelPurchasePrice = s, Pa.excelStatus = "推荐价格: " + s + (i ? " / " + i : "") + (c ? " / 置信度" + c : "") + (o.source ? " / " + o.source : "") + (l ? " / " + l : ""),
-        Bb("success", "已智能补全采购价格", (e && e.sku || "") + " " + i + " " + s + (c ? " / 置信度" + c : "") + (d ? " / " + d : "") + (l ? " / " + l : "")),
-        yb("recommendation", {
+        zb("success", "已智能补全采购价格", (e && e.sku || "") + " " + i + " " + s + (c ? " / 置信度" + c : "") + (d ? " / " + d : "") + (l ? " / " + l : "")),
+        bb("recommendation", {
             sku: e && e.sku || "",
             brand: e && e.brand || "",
             name: e && e.name || "",
@@ -18049,7 +18049,7 @@
             };
         } catch (e) {
             return e && "AbortError" === e.name ? null : (console.warn("PLM floating helper save picker failed, fallback to download:", e),
-            Fb(xa.excelSavePickerUnavailable), {
+            Bb(xa.excelSavePickerUnavailable), {
                 type: "download"
             });
         }
@@ -18062,7 +18062,7 @@
             const t = await a.handle.createWritable();
             return await t.write(e), void await t.close();
         }
-        a && a.direct || Fb(xa.excelSavePickerUnavailable), Um(e, t);
+        a && a.direct || Bb(xa.excelSavePickerUnavailable), Um(e, t);
     }
     function Cm(e) {
         const t = atob(e), a = new Uint8Array(t.length);
@@ -18215,9 +18215,9 @@
         return (4294967295 ^ t) >>> 0;
     }
     async function Bm(e) {
-        const t = e || {}, a = Array.isArray(Pa.toyLabelBatchFiles) ? Pa.toyLabelBatchFiles.splice(0) : [], n = Lw(), r = [];
+        const t = e || {}, a = Array.isArray(Pa.toyLabelBatchFiles) ? Pa.toyLabelBatchFiles.splice(0) : [], n = Nw(), r = [];
         for (const e of n.files) {
-            const t = await Bw(e.key).catch(e => (console.warn("PLM floating helper toy label staged file read failed:", e),
+            const t = await zw(e.key).catch(e => (console.warn("PLM floating helper toy label staged file read failed:", e),
             null));
             t && r.push({
                 sku: e.sku,
@@ -18229,16 +18229,16 @@
         if (r.concat(a).forEach(e => {
             const t = String(e && e.sku || "") + "\0" + String(e && e.filename || "");
             e && e.blob && e.filename && !o.has(t) && (o.add(t), i.push(e));
-        }), !i.length) return Bb("warn", "批量玩具标签：没有可打包的 PSD 和图片", ""), !1;
+        }), !i.length) return zb("warn", "批量玩具标签：没有可打包的 PSD 和图片", ""), !1;
         const s = i.map(e => ({
             ...e,
             path: (xm(e.sku || "玩具标签") || "玩具标签") + "/" + Im(e.filename)
         }));
-        Bb("info", "批量玩具标签：正在写入 ZIP", s.length + "个文件");
+        zb("info", "批量玩具标签：正在写入 ZIP", s.length + "个文件");
         return Um(await Dm(s, (e, t) => {
             Pa.excelStatus = "正在打包 ZIP " + e + "/" + t;
         }), "玩具标签批量包_" + (new Date).toISOString().slice(0, 10) + ".zip"), t.keepStagedFiles ? (n.downloaded = !0,
-        Nw(n)) : await _w(n), Bb("success", "批量玩具标签 PSD 和图片已打包", s.length + "个文件"), Fb("玩具标签 PSD 和图片 ZIP 已下载"),
+        _w(n)) : await Uw(n), zb("success", "批量玩具标签 PSD 和图片已打包", s.length + "个文件"), Bb("玩具标签 PSD 和图片 ZIP 已下载"),
         !0;
     }
     function zm(e) {
@@ -18257,7 +18257,7 @@
             const a = Array.isArray(t) ? t : Rm(t);
             if (!a.length) return !0;
             if ([ e.sku, e.brand, e.name, e.packageCode, e.printCode ].some(e => a.some(t => String(e || "").toLowerCase().includes(t)))) return !0;
-            const n = Gw(e.sku);
+            const n = Ww(e.sku);
             return !!n && [ n.brand, n.name, n.packageCode, n.printCode ].some(e => a.some(t => String(e || "").toLowerCase().includes(t)));
         }(e, t)) : a;
     }
@@ -18337,7 +18337,7 @@
     function ah() {
         try {
             Pa.ledgerRecords = ch(Pa.ledgerRecords), "function" == typeof GM_setValue ? GM_setValue(W, Pa.ledgerRecords) : localStorage.setItem(W, JSON.stringify(Pa.ledgerRecords)),
-            rb();
+            ib();
         } catch (e) {
             console.warn("PLM floating helper daily ledger save failed:", e);
         }
@@ -18355,7 +18355,7 @@
     function ih() {
         try {
             Pa.ledgerTrashRecords = oh(Pa.ledgerTrashRecords), "function" == typeof GM_setValue ? GM_setValue(Q, Pa.ledgerTrashRecords) : localStorage.setItem(Q, JSON.stringify(Pa.ledgerTrashRecords)),
-            rb();
+            ib();
         } catch (e) {
             console.warn("PLM floating helper daily ledger trash save failed:", e);
         }
@@ -18767,7 +18767,7 @@
         });
     }
     function Fh(e) {
-        const t = e ? sk(rk(e)).replace(/\s+/g, "") : "";
+        const t = e ? lk(ik(e)).replace(/\s+/g, "") : "";
         return /已完成|已作废|已拒绝/.test(t);
     }
     function Bh(e, t) {
@@ -18841,7 +18841,7 @@
     }
     function zh(e, t, a) {
         const n = $m(a) || $m(Pa.ledgerDate) || qm();
-        return Bh(bn(Gw(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
+        return Bh(bn(Ww(e) || (Pa.data && Pa.data.sku === e ? Pa.data : {
             sku: e
         })), {
             ...t || {},
@@ -18862,7 +18862,7 @@
         const e = Pa.ledgerTimeEditor;
         if (!e) return;
         const t = vi(), a = t.querySelector(".pfh-ledger-time-date"), n = t.querySelector(".pfh-ledger-time-hour"), r = t.querySelector(".pfh-ledger-time-minute"), i = Gm(String(a && a.value || "").trim() + " " + String(n && n.value || "").trim().padStart(2, "0") + ":" + String(r && r.value || "").trim().padStart(2, "0"));
-        if (!i) return void Fb("时间格式不正确，请使用 2026-07-10 14:30");
+        if (!i) return void Bb("时间格式不正确，请使用 2026-07-10 14:30");
         const o = new Date(i), s = [ o.getFullYear(), String(o.getMonth() + 1).padStart(2, "0"), String(o.getDate()).padStart(2, "0") ].join("-");
         zh(e.sku, {
             status: "已定稿",
@@ -18871,7 +18871,7 @@
             finalizedDate: s,
             finalizedAtMs: i,
             note: "已修改定稿时间"
-        }, e.dateKey), Pa.ledgerTimeEditor = null, Fb("定稿时间已更新"), zi();
+        }, e.dateKey), Pa.ledgerTimeEditor = null, Bb("定稿时间已更新"), zi();
     }
     function qh(e) {
         const t = gh(e && e.aiImageStatus, e && e.aiImageMessage), a = dh(e && e.artworkState), n = wh(e && e.aiMainImages, 12).length, r = wh(e && e.aiDetailImages, 20).length, i = n + r;
@@ -19067,7 +19067,7 @@
     async function ny(e, t) {
         const a = String(e || "").trim().toUpperCase(), n = Zh(a);
         if (!t && Pa.ledgerAiImagePreparations[n]) return Pa.ledgerAiImagePreparations[n];
-        const r = bn(Gw(a) || {
+        const r = bn(Ww(a) || {
             sku: a
         }), i = {
             sku: a,
@@ -19098,7 +19098,7 @@
                 };
             }(e);
         } catch (e) {
-            i.error = "读取 PLM 文案失败：" + (_b(e) || "接口异常");
+            i.error = "读取 PLM 文案失败：" + (Ub(e) || "接口异常");
         }
         try {
             const e = await Qn(r, {
@@ -19172,7 +19172,7 @@
                 });
             }(i, a);
         } catch (e) {
-            i.plmDetailError = "读取 PLM 详情字段失败：" + (_b(e) || "接口异常");
+            i.plmDetailError = "读取 PLM 详情字段失败：" + (Ub(e) || "接口异常");
         }
         Kh.forEach(e => {
             ey(i, e);
@@ -19193,12 +19193,12 @@
                         t = await hr("/api/Product/GetDetailContent?is_edit=true&product_id=" + encodeURIComponent(e.productId) + "&category_id=" + encodeURIComponent(e.categoryId) + "&product_version_id=" + encodeURIComponent(e.productVersionId));
                     } catch (e) {}
                     if (t) {
-                        const e = await iy(t);
+                        const e = await oy(t);
                         if ("unknown" !== e.status) return e;
                         r = e.reason || "";
                     } else e && e.contentError && (r = e.contentError);
                 } catch (e) {
-                    r = _b(e) || "";
+                    r = Ub(e) || "";
                 }
                 let i = Mn(n);
                 if (!i) try {
@@ -19207,7 +19207,7 @@
                     });
                     i = String(e && e.projectId || "").trim();
                 } catch (e) {
-                    r = r || _b(e) || "";
+                    r = r || Ub(e) || "";
                 }
                 if (!i || !/^\d+$/.test(i)) return {
                     status: "unknown",
@@ -19219,34 +19219,35 @@
                         status: "unknown",
                         reason: "PLM 项目缺少类目，无法确认 SKU 图"
                     };
-                    return iy(await hr("/api/ChemicalNewDesignTask/GetProductDetailContent?id=" + encodeURIComponent(i) + "&category_id=" + encodeURIComponent(t)));
+                    return oy(await hr("/api/ChemicalNewDesignTask/GetProductDetailContent?id=" + encodeURIComponent(i) + "&category_id=" + encodeURIComponent(t)));
                 } catch (e) {
                     return {
                         status: "unknown",
-                        reason: "读取 PLM SKU 图字段失败：" + (_b(e) || r || "接口异常")
+                        reason: "读取 PLM SKU 图字段失败：" + (Ub(e) || r || "接口异常")
                     };
                 }
             }(a, r);
         } catch (e) {
             i.skuImage = {
                 status: "unknown",
-                reason: _b(e) || "接口异常"
+                reason: Ub(e) || "接口异常"
             };
         }
         return i.plmMissing = ty(i), i.loading = !1, i.updatedAtMs = Date.now(), i;
     }
     function ry(e) {
+        const t = String(e && e.variable_name || "").trim(), a = Un(e);
+        return /^sku[_\s-]*pic$/i.test(t) || /(?:SKU\s*(?:图|效果图|diagram)|SKU图)/i.test(a);
+    }
+    function iy(e) {
         const t = Pn(e), a = Array.isArray(t) ? t : [];
-        return [ a.find(e => {
-            const t = String(e && e.variable_name || "").trim(), a = Un(e);
-            return /^sku[_\s-]*pic$/i.test(t) || /(?:SKU\s*(?:图|效果图|diagram)|SKU图)/i.test(a);
-        }), a.find(e => {
+        return [ a.find(ry), a.find(e => {
             const t = String(e && e.variable_name || "").trim(), a = Un(e);
             return 148 === Number(e && e.attr_id) || /^(?:picture|product[_\s-]*(?:pic|image))$/i.test(t) || /(?:^|\s)(?:picture|图片|产品图)(?:\s|$)/i.test(a);
         }) ].filter((e, t, a) => e && a.indexOf(e) === t);
     }
-    async function iy(e) {
-        const t = ry(e);
+    async function oy(e) {
+        const t = iy(e);
         if (!t.length) return {
             status: "unknown",
             reason: "PLM 产品详情未返回 SKU 图或产品图片字段"
@@ -19254,40 +19255,58 @@
         let a = !1;
         const n = [];
         for (const e of t) {
-            const t = $n(Nn(e, 1), 0);
-            if (t) return {
-                status: "available",
-                url: t,
-                source: 148 === Number(e && e.attr_id) ? "plm-picture" : "plm-detail"
-            };
-            const r = Hn([ e ], /sku[_\s-]*pic|SKU\s*(?:图|效果图|diagram)|picture|图片|产品图/i);
-            r.length && (a = !0), r.forEach(e => {
-                n.includes(e) || n.push(e);
+            const t = $n(Nn(e, 1), 0), r = Hn([ e ], /sku[_\s-]*pic|SKU\s*(?:图|效果图|diagram)|picture|图片|产品图/i);
+            (t || r.length) && (a = !0), n.push({
+                attr: e,
+                directUrl: t,
+                fileIds: r,
+                source: ry(e) ? "plm-sku-pic" : "plm-picture"
             });
         }
-        if (!n.length) return {
-            status: "missing",
-            reason: a ? "PLM 的 SKU 图附件不存在" : "PLM 的 SKU 图/产品图片字段为空"
+        const r = async e => {
+            if (!e || !e.fileIds.length) return null;
+            return (await Vn(e.fileIds)).map(Kn).filter(e => e.url && (/(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(e.fileName) || /(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(e.fileFormat))).find(t => e.fileIds.includes(String(t.fileId))) || null;
+        }, i = n.find(e => ry(e.attr)), o = n.find(e => !ry(e.attr));
+        if (i && i.directUrl) return {
+            status: "available",
+            url: i.directUrl,
+            source: i.source
         };
         try {
-            const e = (await Vn(n)).map(Kn).filter(e => e.url && (/(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(e.fileName) || /(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(e.fileFormat)))[0];
-            return e ? {
+            const e = await r(i);
+            if (e) return {
                 status: "available",
                 url: e.url,
-                source: "plm-archive",
+                source: i.source,
                 fileId: e.fileId
+            };
+            if (o && o.directUrl) return {
+                status: "available",
+                url: o.directUrl,
+                source: o.source
+            };
+            const t = await r(o);
+            return t ? {
+                status: "available",
+                url: t.url,
+                source: o.source,
+                fileId: t.fileId
             } : {
                 status: "missing",
-                reason: "PLM 的 SKU 图附件不存在"
+                reason: a ? "PLM 的 SKU 图附件不存在" : "PLM 的 SKU 图/产品图片字段为空"
             };
         } catch (e) {
-            return {
+            return o && o.directUrl ? {
+                status: "available",
+                url: o.directUrl,
+                source: o.source
+            } : {
                 status: "unknown",
-                reason: "读取 SKU 图附件失败：" + (_b(e) || "接口异常")
+                reason: "读取 SKU 图附件失败：" + (Ub(e) || "接口异常")
             };
         }
     }
-    async function oy(e) {
+    async function sy(e) {
         const t = String(e || "").trim();
         if (!t) throw new Error("缺少 SKU，无法开始 AI 生图");
         return function(e) {
@@ -19309,7 +19328,7 @@
             };
         }(await ny(t, !0));
     }
-    function sy(e, t, a, n) {
+    function ly(e, t, a, n) {
         const r = zh(e, {
             ...a || {},
             deferSave: !0,
@@ -19317,7 +19336,7 @@
         }, t);
         return r && n && ah(), r;
     }
-    function ly(e) {
+    function cy(e) {
         const t = "detail" === e;
         return {
             kind: t ? "detail" : "main",
@@ -19328,45 +19347,45 @@
             imageLimit: t ? 20 : 12
         };
     }
-    function cy(e, t, a, n, r) {
+    function uy(e, t, a, n, r) {
         return [ Th(e), $m(t) || "", "detail" === a ? "detail" : "main", String(n || ""), String(r || "").trim() ].join("|");
     }
-    function uy() {
+    function dy() {
         const e = "undefined" != typeof crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "").slice(0, 12) : Math.random().toString(36).slice(2, 14);
         return "retouch-" + Date.now().toString(36) + "-" + e;
     }
-    function dy(e, t, a) {
+    function py(e, t, a) {
         if (!e) return null;
-        const n = ly(t), r = String(a || "").trim();
+        const n = cy(t), r = String(a || "").trim();
         return wh(e[n.originalField], n.imageLimit).concat(wh(e[n.retouchedField], Y)).find(e => e.url === r) || null;
     }
-    function py(e, t) {
-        const a = ly(t);
+    function gy(e, t) {
+        const a = cy(t);
         return Sh(e && e[a.taskField], ee);
     }
-    function gy(e, t) {
-        const a = ly(t);
+    function fy(e, t) {
+        const a = cy(t);
         return new Set(kh(e && e[a.hiddenField], te));
     }
-    function fy(e, t) {
+    function my(e, t) {
         const a = Pa.ledgerAiImageViewer;
         return Boolean(a && Th(a.sku) === Th(e) && (!t || $m(a.date) === $m(t)));
     }
-    function my(e, t) {
-        fy(e, t) && Iy(vi());
+    function hy(e, t) {
+        my(e, t) && My(vi());
     }
-    function hy(e) {
+    function yy(e) {
         return wh(e && e.aiDetailImages, 20).find((e, t) => 3 === hh(e) || "详情图3" === yh(e, "detail", t)) || null;
     }
-    async function yy(e, t, a) {
+    async function by(e, t, a) {
         const n = Th(e), r = [ n, $m(t) || "" ].join("|");
         if (Pa.ledgerDetail3AuditRequests[r]) return Pa.ledgerDetail3AuditRequests[r];
-        const i = Vh(n, t), o = hy(i);
+        const i = Vh(n, t), o = yy(i);
         if (!i || !o) return null;
         const s = function(e) {
             const t = Pa.ledgerAiImagePreparations[Zh(e)], a = t && t.ingredients && t.ingredients.product_ingredients_summary_en;
             if (Xh(a)) return String(a).trim();
-            const n = bn(Gw(e) || {
+            const n = bn(Ww(e) || {
                 sku: e
             }), r = md(n.copywriting);
             return String(n.ingredientEnglish || n.copywritingIngredientEnglish || r && r.cleanedIngredientEnglish || "").trim();
@@ -19378,14 +19397,14 @@
             imageUrl: o.url,
             expectedIngredients: s,
             checkedAtMs: Date.now()
-        }), u = sy(n, t, {
+        }), u = ly(n, t, {
             aiDetail3Audit: c
         }, !0) || i;
-        fy(n, t) && Iy(vi());
+        my(n, t) && My(vi());
         const d = (async () => {
             try {
                 if (!Xh(s)) throw new Error("英文成分文案为空，无法核对详情图3");
-                const e = await Lb("/ai-image/ingredient-audit", {
+                const e = await Nb("/ai-image/ingredient-audit", {
                     method: "POST",
                     timeoutMs: 15e4,
                     body: {
@@ -19401,22 +19420,22 @@
                     expectedIngredients: s,
                     checkedAtMs: Date.now()
                 });
-                return Oc(sy(n, t, {
+                return Oc(ly(n, t, {
                     aiDetail3Audit: a
-                }, !0) || u), fy(n, t) && Iy(vi()), "warning" !== a.status && "error" !== a.status || Fb(n + " 详情图3发现异常：" + (a.summary || "请检查成分展示")),
+                }, !0) || u), my(n, t) && My(vi()), "warning" !== a.status && "error" !== a.status || Bb(n + " 详情图3发现异常：" + (a.summary || "请检查成分展示")),
                 a;
             } catch (e) {
                 const a = xh({
                     status: "error",
-                    summary: _b(e) || "详情图3识别失败",
-                    retryable: Boolean(e && e.cloudData && e.cloudData.retryable) || /insufficient balance|timeout|aborted|overload|high demand|429|5\d\d/i.test(_b(e)),
+                    summary: Ub(e) || "详情图3识别失败",
+                    retryable: Boolean(e && e.cloudData && e.cloudData.retryable) || /insufficient balance|timeout|aborted|overload|high demand|429|5\d\d/i.test(Ub(e)),
                     imageUrl: o.url,
                     expectedIngredients: s,
                     checkedAtMs: Date.now()
                 });
-                return Oc(sy(n, t, {
+                return Oc(ly(n, t, {
                     aiDetail3Audit: a
-                }, !0) || u), fy(n, t) && Iy(vi()), a;
+                }, !0) || u), my(n, t) && My(vi()), a;
             }
         })();
         Pa.ledgerDetail3AuditRequests[r] = d;
@@ -19426,12 +19445,12 @@
             Pa.ledgerDetail3AuditRequests[r] === d && delete Pa.ledgerDetail3AuditRequests[r];
         }
     }
-    function by(e) {
+    function wy(e) {
         const t = $h(e);
         window.clearTimeout(Pa.ledgerAiImagePollTimers[t]), delete Pa.ledgerAiImagePollTimers[t],
         delete Pa.ledgerAiImagePollCounts[t];
     }
-    function wy(e) {
+    function ky(e) {
         if (!e) return;
         const t = Pa.ledgerAiImageViewer, a = Boolean(t && Th(t.sku) === Th(e.sku) && $m(t.date) === $m(e.date));
         Pa.ledgerAiImageViewer = {
@@ -19444,13 +19463,13 @@
                 main: "",
                 detail: ""
             }
-        }, Iy(vi());
+        }, My(vi());
     }
-    function ky() {
-        Pa.ledgerAiImageViewer = null, Iy(vi());
+    function Sy() {
+        Pa.ledgerAiImageViewer = null, My(vi());
     }
-    function Sy(e, t) {
-        const a = ly(t), n = wh(e && e[a.originalField], a.imageLimit), r = wh(e && e[a.retouchedField], Y), i = py(e, t), o = [];
+    function vy(e, t) {
+        const a = cy(t), n = wh(e && e[a.originalField], a.imageLimit), r = wh(e && e[a.retouchedField], Y), i = gy(e, t), o = [];
         n.forEach((e, a) => o.push({
             item: e,
             displayName: yh(e, t, a),
@@ -19468,7 +19487,7 @@
             rank: 1,
             order: a
         })), i.forEach((a, n) => {
-            const r = dy(e, t, a.sourceUrl);
+            const r = py(e, t, a.sourceUrl);
             o.push({
                 item: r,
                 task: a,
@@ -19483,31 +19502,31 @@
         const s = o.sort((e, t) => {
             const a = Number(e.sequence) || 9999, n = Number(t.sequence) || 9999, r = Number(e.task && e.task.createdAtMs || e.item && e.item.createdAtMs || 0), i = Number(t.task && t.task.createdAtMs || t.item && t.item.createdAtMs || 0);
             return a - n || e.rank - t.rank || i - r || e.order - t.order;
-        }), l = gy(e, t);
-        return s.filter(e => !l.has(vy(e)));
+        }), l = fy(e, t);
+        return s.filter(e => !l.has(xy(e)));
     }
-    function vy(e) {
+    function xy(e) {
         return e ? e.isTask ? "task:" + String(e.task && e.task.id || "") : "image:" + String(e.item && e.item.url || "") : "";
     }
-    function xy(e, t) {
+    function Ay(e, t) {
         const a = new Set;
-        return Sy(e, t).filter(e => !e.isTask && e.item && e.item.url).map(e => e.item).filter(e => !a.has(e.url) && (a.add(e.url),
+        return vy(e, t).filter(e => !e.isTask && e.item && e.item.url).map(e => e.item).filter(e => !a.has(e.url) && (a.add(e.url),
         !0));
     }
-    function Ay(e, t) {
-        const a = Sy(e, t), n = a.filter(e => !e.isRetouched && !e.isTask).length, r = a.filter(e => e.isRetouched).length, i = a.filter(e => e.isTask).length;
+    function Iy(e, t) {
+        const a = vy(e, t), n = a.filter(e => !e.isRetouched && !e.isTask).length, r = a.filter(e => e.isRetouched).length, i = a.filter(e => e.isTask).length;
         return String(n) + (r ? " + 改" + r : "") + (i ? " · 中" + i : "");
     }
-    function Iy(e) {
+    function My(e) {
         if (!e) return;
         let t = e.querySelector(".pfh-ledger-ai-image-layer");
         if ("ledger" !== Pa.view || !Pa.ledgerAiImageViewer) return void (t && t.remove());
         const a = Pa.ledgerAiImageViewer, n = Vh(a.sku, a.date);
         if (!n) return Pa.ledgerAiImageViewer = null, void (t && t.remove());
-        const r = Sy(n, "main"), i = Sy(n, "detail"), o = xy(n, "main"), s = xy(n, "detail"), l = "detail" === a.tab ? "detail" : "main";
+        const r = vy(n, "main"), i = vy(n, "detail"), o = Ay(n, "main"), s = Ay(n, "detail"), l = "detail" === a.tab ? "detail" : "main";
         Pa.ledgerAiImageViewer.tab = l;
-        const c = "detail" === l ? i : r, u = qh(n), d = Hh(n.sku, n.date, "main"), p = Hh(n.sku, n.date, "detail"), g = Pa.ledgerAiImageDownloadKey === d || Pa.ledgerAiImageDownloadKey === p || 0 === String(Pa.ledgerAiImageDownloadKey || "").indexOf(Hh(n.sku, n.date, l) + "|item|"), f = py(n, l), m = xh(n.aiDetail3Audit), h = e => {
-            const t = e && e.item, a = e && e.task, r = e && e.displayName || ("detail" === l ? "详情图" : "主图"), i = t ? fh(t) : a && a.baseFilename || "", o = i && i !== r ? r + " · " + i : r, s = a || t && f.find(e => e.sourceUrl === t.url && "running" === e.status), c = s && "running" === s.status ? Pa.ledgerAiImageRetouchRequests[cy(n.sku, n.date, l, s.sourceUrl, s.prompt)] : null, u = s && "error" === s.status ? "修改失败" : s && "running" === s.status ? "生成中" : s ? "待重试" : "", d = e && e.isRetouched ? "修改版" : a ? u : "原图", p = e && e.isRetouched && t && t.prompt ? t.prompt : s && s.prompt || "";
+        const c = "detail" === l ? i : r, u = qh(n), d = Hh(n.sku, n.date, "main"), p = Hh(n.sku, n.date, "detail"), g = Pa.ledgerAiImageDownloadKey === d || Pa.ledgerAiImageDownloadKey === p || 0 === String(Pa.ledgerAiImageDownloadKey || "").indexOf(Hh(n.sku, n.date, l) + "|item|"), f = gy(n, l), m = xh(n.aiDetail3Audit), h = e => {
+            const t = e && e.item, a = e && e.task, r = e && e.displayName || ("detail" === l ? "详情图" : "主图"), i = t ? fh(t) : a && a.baseFilename || "", o = i && i !== r ? r + " · " + i : r, s = a || t && f.find(e => e.sourceUrl === t.url && "running" === e.status), c = s && "running" === s.status ? Pa.ledgerAiImageRetouchRequests[uy(n.sku, n.date, l, s.sourceUrl, s.prompt)] : null, u = s && "error" === s.status ? "修改失败" : s && "running" === s.status ? "生成中" : s ? "待重试" : "", d = e && e.isRetouched ? "修改版" : a ? u : "原图", p = e && e.isRetouched && t && t.prompt ? t.prompt : s && s.prompt || "";
             return {
                 entry: e,
                 item: t,
@@ -19520,7 +19539,7 @@
                 taskStatus: u,
                 variantLabel: d,
                 prompt: p,
-                key: vy(e),
+                key: xy(e),
                 isGenerating: Boolean(s && "running" === s.status)
             };
         };
@@ -19528,26 +19547,26 @@
             main: "",
             detail: ""
         });
-        let y = String(a.selected[l] || ""), b = c.find(e => vy(e) === y) || c[0] || null;
-        b && (y = vy(b), a.selected[l] = y);
+        let y = String(a.selected[l] || ""), b = c.find(e => xy(e) === y) || c[0] || null;
+        b && (y = xy(b), a.selected[l] = y);
         const w = b ? h(b) : null, k = "detail" === l ? "详情图" : "主图", S = "running" === u.status || "loading" === u.status ? "图片还在生成，当前只跟踪这个 SKU。" : "task-error" === u.status ? "PLM 有生图任务记录，但暂时没有返回图片结果；请先刷新，必要时联系管理员清理任务。" : "result-missing" === u.status ? "PLM 返回了完成状态，但没有图片列表；点击下方按钮可手动重新生成。" : "needs-prerequisites" === u.status ? "生图前置校验未通过，请先补齐产品文案和 SKU 效果图。" : "needs-sku-image" === u.status ? "PLM 缺少 SKU 效果图，请先上传 SKU 图后再生成。" : "needs-copywriting" === u.status ? "PLM 缺少有效产品文案，请先补齐产品文案后再生成。" : "error" === u.status ? "状态查询失败；可以先刷新状态，再手动提交生成。" : "当前没有可查看的" + k + "；点击下方按钮后才会开始生成。", v = Pa.ledgerAiImagePreparations[Zh(n.sku)], x = Boolean(v && ![ "loading", "running" ].includes(u.status)), A = x ? function(e, t) {
             const a = Pa.ledgerAiImagePreparations[Zh(e && e.sku)];
             if (!a) return '<div class="pfh-ledger-ai-image-empty-state"><span>正在读取生图资料…</span></div>';
             if (a.loading) return '<div class="pfh-ledger-ai-image-empty-state"><span>正在读取实时产品文案和 SKU 效果图…</span></div>';
             const n = Kh.map(t => {
                 const n = Gh(ey(a, t));
-                return '<fieldset class="pfh-ledger-ai-prep-row"><legend>' + pk(t.label) + '</legend><label>中文<textarea class="pfh-ledger-ai-prep-input' + (Xh(n.value_cn) ? "" : " is-missing") + '" data-prep-sku="' + pk(e.sku) + '" data-prep-kind="copy" data-prep-key="' + pk(t.key) + '" data-prep-lang="cn" placeholder="填写 PLM 中文' + pk(t.label) + '">' + pk(n.value_cn) + '</textarea></label><label>英文<textarea class="pfh-ledger-ai-prep-input' + (Xh(n.value) ? "" : " is-missing") + '" data-prep-sku="' + pk(e.sku) + '" data-prep-kind="copy" data-prep-key="' + pk(t.key) + '" data-prep-lang="en" placeholder="填写 PLM 英文' + pk(t.label) + '">' + pk(n.value) + "</textarea></label></fieldset>";
-            }).join(""), r = [ [ "product_ingredients_summary", "成分" ], [ "product_ingredients_efficacy", "成分功能" ] ].map(([t, n]) => '<fieldset class="pfh-ledger-ai-prep-row"><legend>' + n + '</legend><label>中文<textarea class="pfh-ledger-ai-prep-input' + (Xh(a.ingredients[t + "_ch"]) ? "" : " is-missing") + '" data-prep-sku="' + pk(e.sku) + '" data-prep-kind="ingredient" data-prep-key="' + t + '_ch" placeholder="填写 PLM 中文' + n + '">' + pk(a.ingredients[t + "_ch"] || "") + '</textarea></label><label>英文<textarea class="pfh-ledger-ai-prep-input' + (Xh(a.ingredients[t + "_en"]) ? "" : " is-missing") + '" data-prep-sku="' + pk(e.sku) + '" data-prep-kind="ingredient" data-prep-key="' + t + '_en" placeholder="填写 PLM 英文' + pk(n) + '">' + pk(a.ingredients[t + "_en"] || "") + "</textarea></label></fieldset>").join(""), i = ay(a), o = a.skuImage && "available" === a.skuImage.status ? "SKU 效果图已就绪" : "SKU 效果图不可用：" + (a.skuImage && a.skuImage.reason || "未找到"), s = Zh(e.sku), l = Boolean(Pa.ledgerAiImageAutofillRequests[s]), c = Boolean(Pa.ledgerAiImageSaveRequests[s] || a.saving), u = a.error || a.plmDetailError ? (a.error || a.plmDetailError) + "；当前按 PLM 资料不完整处理。" : i.length ? "PLM API 检测缺少：" + i.join("、") + "。填写后请点击“保存到 PLM 草稿”；没有 SKU 效果图时不会允许开始 AI 生图。" : "PLM 草稿已保存且 API 回读完整；提交前还会再次校验文案和 SKU 效果图。";
-            return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (i.length ? "is-missing" : "is-ready") + '">' + pk(i.length ? "PLM 还缺 " + i.length + " 项" : "PLM 资料已完整") + "</span></div><p>" + pk(o) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + n + r + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-save" data-sku="' + pk(e.sku) + '" data-date="' + pk(e.date) + '"' + (c ? " disabled" : "") + ">" + (c ? "正在保存…" : "保存到 PLM 草稿") + '</button><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + pk(e.sku) + '" data-date="' + pk(e.date) + '">重新检测</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + pk(e.sku) + '" data-date="' + pk(e.date) + '"' + (l || c ? " disabled" : "") + ">" + (l ? "正在补齐并保存…" : "AI 补齐并保存草稿") + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + ("detail" === t ? "detail" : "main") + '" data-sku="' + pk(e.sku) + '" data-date="' + pk(e.date) + '"' + (i.length || c ? " disabled" : "") + '>PLM 资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + pk(u) + "</p></div>";
-        }(n, l) : '<div class="pfh-ledger-ai-image-empty-state"><span>' + pk(S) + "</span>" + function(e, t, a) {
+                return '<fieldset class="pfh-ledger-ai-prep-row"><legend>' + gk(t.label) + '</legend><label>中文<textarea class="pfh-ledger-ai-prep-input' + (Xh(n.value_cn) ? "" : " is-missing") + '" data-prep-sku="' + gk(e.sku) + '" data-prep-kind="copy" data-prep-key="' + gk(t.key) + '" data-prep-lang="cn" placeholder="填写 PLM 中文' + gk(t.label) + '">' + gk(n.value_cn) + '</textarea></label><label>英文<textarea class="pfh-ledger-ai-prep-input' + (Xh(n.value) ? "" : " is-missing") + '" data-prep-sku="' + gk(e.sku) + '" data-prep-kind="copy" data-prep-key="' + gk(t.key) + '" data-prep-lang="en" placeholder="填写 PLM 英文' + gk(t.label) + '">' + gk(n.value) + "</textarea></label></fieldset>";
+            }).join(""), r = [ [ "product_ingredients_summary", "成分" ], [ "product_ingredients_efficacy", "成分功能" ] ].map(([t, n]) => '<fieldset class="pfh-ledger-ai-prep-row"><legend>' + n + '</legend><label>中文<textarea class="pfh-ledger-ai-prep-input' + (Xh(a.ingredients[t + "_ch"]) ? "" : " is-missing") + '" data-prep-sku="' + gk(e.sku) + '" data-prep-kind="ingredient" data-prep-key="' + t + '_ch" placeholder="填写 PLM 中文' + n + '">' + gk(a.ingredients[t + "_ch"] || "") + '</textarea></label><label>英文<textarea class="pfh-ledger-ai-prep-input' + (Xh(a.ingredients[t + "_en"]) ? "" : " is-missing") + '" data-prep-sku="' + gk(e.sku) + '" data-prep-kind="ingredient" data-prep-key="' + t + '_en" placeholder="填写 PLM 英文' + gk(n) + '">' + gk(a.ingredients[t + "_en"] || "") + "</textarea></label></fieldset>").join(""), i = ay(a), o = a.skuImage && "available" === a.skuImage.status ? "SKU 效果图已就绪" : "SKU 效果图不可用：" + (a.skuImage && a.skuImage.reason || "未找到"), s = Zh(e.sku), l = Boolean(Pa.ledgerAiImageAutofillRequests[s]), c = Boolean(Pa.ledgerAiImageSaveRequests[s] || a.saving), u = a.error || a.plmDetailError ? (a.error || a.plmDetailError) + "；当前按 PLM 资料不完整处理。" : i.length ? "PLM API 检测缺少：" + i.join("、") + "。填写后请点击“保存到 PLM 草稿”；没有 SKU 效果图时不会允许开始 AI 生图。" : "PLM 草稿已保存且 API 回读完整；提交前还会再次校验文案和 SKU 效果图。";
+            return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (i.length ? "is-missing" : "is-ready") + '">' + gk(i.length ? "PLM 还缺 " + i.length + " 项" : "PLM 资料已完整") + "</span></div><p>" + gk(o) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + n + r + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-save" data-sku="' + gk(e.sku) + '" data-date="' + gk(e.date) + '"' + (c ? " disabled" : "") + ">" + (c ? "正在保存…" : "保存到 PLM 草稿") + '</button><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + gk(e.sku) + '" data-date="' + gk(e.date) + '">重新检测</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + gk(e.sku) + '" data-date="' + gk(e.date) + '"' + (l || c ? " disabled" : "") + ">" + (l ? "正在补齐并保存…" : "AI 补齐并保存草稿") + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + ("detail" === t ? "detail" : "main") + '" data-sku="' + gk(e.sku) + '" data-date="' + gk(e.date) + '"' + (i.length || c ? " disabled" : "") + '>PLM 资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + gk(u) + "</p></div>";
+        }(n, l) : '<div class="pfh-ledger-ai-image-empty-state"><span>' + gk(S) + "</span>" + function(e, t, a) {
             const n = "detail" === t ? "detail" : "main", r = "detail" === n ? "详情图" : "主图", i = $h(e && e.sku), o = [ "loading", "running" ].includes(a) || Boolean(Pa.ledgerAiImageRequests[i]), s = [ "error", "needs-copywriting", "needs-sku-image", "needs-prerequisites", "task-error", "result-missing" ].includes(a), l = o ? "生成中…" : s ? "重新生成" + r + " AI" : "生成" + r + " AI";
-            return '<button type="button" class="pfh-ledger-ai-image-generate" data-action="ledger-ai-image-generate" data-kind="' + n + '" data-sku="' + pk(e && e.sku || "") + '" data-date="' + pk(e && e.date || "") + '" title="点击后读取实时产品文案并提交 PLM AI 生图；PLM 接口会同时返回主图和详情图"' + (o ? " disabled" : "") + ">" + pk(l) + "</button>";
+            return '<button type="button" class="pfh-ledger-ai-image-generate" data-action="ledger-ai-image-generate" data-kind="' + n + '" data-sku="' + gk(e && e.sku || "") + '" data-date="' + gk(e && e.date || "") + '" title="点击后读取实时产品文案并提交 PLM AI 生图；PLM 接口会同时返回主图和详情图"' + (o ? " disabled" : "") + ">" + gk(l) + "</button>";
         }(n, l, u.status) + "</div>", I = c.length ? c.map(e => {
-            const t = h(e), a = t.key === y, r = t.item ? '<img src="' + pk(t.item.url) + '" alt="' + pk(t.displayName) + '" loading="lazy" decoding="async">' : '<span class="pfh-ledger-ai-image-thumb-missing">无图</span>', i = "detail" === l && "详情图3" === t.displayName, o = i && /^(?:warning|error)$/.test(m.status) ? " is-audit-error" : i && "pass" === m.status ? " is-audit-pass" : "", s = i && "idle" !== m.status ? '<em class="pfh-ledger-detail3-badge is-' + pk(m.status) + '">' + pk("pass" === m.status ? "核对通过" : "loading" === m.status ? "识别中" : "有异常") + "</em>" : "", c = e.isTask ? "隐藏此修改任务" : "从悬浮助手隐藏此图片";
-            return '<div class="pfh-ledger-ai-image-thumb-row"><button type="button" class="pfh-ledger-ai-image-thumb' + (a ? " is-selected" : "") + (e.isRetouched ? " is-retouched" : "") + (e.isTask ? " is-retouch-task is-" + pk(t.task && t.task.status || "running") : "") + o + '" data-action="ledger-ai-image-select" data-kind="' + l + '" data-entry-key="' + pk(t.key) + '" title="' + pk(t.title) + '"><span class="pfh-ledger-ai-image-thumb-media">' + r + '</span><span class="pfh-ledger-ai-image-thumb-copy"><strong>' + pk(t.displayName) + "</strong><small>" + pk(t.variantLabel) + "</small>" + s + '</span></button><button type="button" class="pfh-ledger-ai-image-delete" data-action="ledger-ai-image-hide" data-kind="' + l + '" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '" data-entry-key="' + pk(t.key) + '" title="' + pk(c) + '" aria-label="' + pk(c) + '">×</button></div>';
-        }).join("") : x ? '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : A, M = w && w.item ? '<a class="pfh-ledger-ai-image-preview-link" href="' + pk(w.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + pk(w.title + "（点击打开图片）") + '"><img src="' + pk(w.item.url) + '" alt="' + pk(w.displayName) + '" loading="eager" decoding="async"></a>' : '<div class="pfh-ledger-ai-image-preview-missing">' + (w ? "原图地址已失效" : pk(S)) + "</div>", T = Boolean(w && "detail" === l && "详情图3" === w.displayName), E = T && "idle" !== m.status ? '<div class="pfh-ledger-detail3-audit is-' + pk(m.status) + '"><strong>' + pk("pass" === m.status ? "详情图3成分核对通过" : "loading" === m.status ? "正在识别详情图3" : "详情图3需要检查") + "</strong><p>" + pk(m.summary || "") + "</p>" + (m.retryable ? "<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>" : "") + (m.missing.length ? "<span>缺漏：" + pk(m.missing.join("、")) + "</span>" : "") + (m.extra.length ? "<span>多余/错误：" + pk(m.extra.join("、")) + "</span>" : "") + (m.duplicates.length ? "<span>重复：" + pk(m.duplicates.join("、")) + "</span>" : "") + (m.anomalies.length ? "<span>生图异常：" + pk(m.anomalies.join("、")) + "</span>" : "") + "</div>" : "", C = w && w.item ? '<div class="pfh-ledger-ai-image-preview-actions"><div class="pfh-reverse-search-actions"><button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + pk(w.item.url) + '">1688 搜图</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + pk(w.item.url) + '">Google</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + pk(w.item.url) + '">Yandex</button></div>' + (T ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '">重新核对成分</button>' : "") + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + l + '" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '" data-image-url="' + pk(w.item.url) + '" data-image-name="' + pk(w.displayName) + '"' + (Pa.ledgerAiImageDownloadKey ? " disabled" : "") + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + l + '" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '" data-image-url="' + pk(w.item.url) + '"' + (w.isGenerating ? " disabled" : "") + ">" + (w.isGenerating ? "生成中…" : w.activeTask ? "重新修改" : "修改图") + "</button></div>" : "", P = w ? '<div class="pfh-ledger-ai-image-preview-stage">' + M + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + pk(w.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + pk(w.variantLabel) + '</em></div><small title="' + pk(w.title) + '">' + pk(w.sourceFilename || "保留原图文件名") + "</small></div>" + (w.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + pk(w.prompt) + '">提示词：' + pk(w.prompt) + "</p>" : "") + E + C + "</div>" : '<div class="pfh-ledger-ai-image-preview-empty">' + A + "</div>", L = String(n.aiImageMessage || u.title || "").trim(), N = (e, t, a, r) => {
+            const t = h(e), a = t.key === y, r = t.item ? '<img src="' + gk(t.item.url) + '" alt="' + gk(t.displayName) + '" loading="lazy" decoding="async">' : '<span class="pfh-ledger-ai-image-thumb-missing">无图</span>', i = "detail" === l && "详情图3" === t.displayName, o = i && /^(?:warning|error)$/.test(m.status) ? " is-audit-error" : i && "pass" === m.status ? " is-audit-pass" : "", s = i && "idle" !== m.status ? '<em class="pfh-ledger-detail3-badge is-' + gk(m.status) + '">' + gk("pass" === m.status ? "核对通过" : "loading" === m.status ? "识别中" : "有异常") + "</em>" : "", c = e.isTask ? "隐藏此修改任务" : "从悬浮助手隐藏此图片";
+            return '<div class="pfh-ledger-ai-image-thumb-row"><button type="button" class="pfh-ledger-ai-image-thumb' + (a ? " is-selected" : "") + (e.isRetouched ? " is-retouched" : "") + (e.isTask ? " is-retouch-task is-" + gk(t.task && t.task.status || "running") : "") + o + '" data-action="ledger-ai-image-select" data-kind="' + l + '" data-entry-key="' + gk(t.key) + '" title="' + gk(t.title) + '"><span class="pfh-ledger-ai-image-thumb-media">' + r + '</span><span class="pfh-ledger-ai-image-thumb-copy"><strong>' + gk(t.displayName) + "</strong><small>" + gk(t.variantLabel) + "</small>" + s + '</span></button><button type="button" class="pfh-ledger-ai-image-delete" data-action="ledger-ai-image-hide" data-kind="' + l + '" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '" data-entry-key="' + gk(t.key) + '" title="' + gk(c) + '" aria-label="' + gk(c) + '">×</button></div>';
+        }).join("") : x ? '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : A, M = w && w.item ? '<a class="pfh-ledger-ai-image-preview-link" href="' + gk(w.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + gk(w.title + "（点击打开图片）") + '"><img src="' + gk(w.item.url) + '" alt="' + gk(w.displayName) + '" loading="eager" decoding="async"></a>' : '<div class="pfh-ledger-ai-image-preview-missing">' + (w ? "原图地址已失效" : gk(S)) + "</div>", T = Boolean(w && "detail" === l && "详情图3" === w.displayName), E = T && "idle" !== m.status ? '<div class="pfh-ledger-detail3-audit is-' + gk(m.status) + '"><strong>' + gk("pass" === m.status ? "详情图3成分核对通过" : "loading" === m.status ? "正在识别详情图3" : "详情图3需要检查") + "</strong><p>" + gk(m.summary || "") + "</p>" + (m.retryable ? "<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>" : "") + (m.missing.length ? "<span>缺漏：" + gk(m.missing.join("、")) + "</span>" : "") + (m.extra.length ? "<span>多余/错误：" + gk(m.extra.join("、")) + "</span>" : "") + (m.duplicates.length ? "<span>重复：" + gk(m.duplicates.join("、")) + "</span>" : "") + (m.anomalies.length ? "<span>生图异常：" + gk(m.anomalies.join("、")) + "</span>" : "") + "</div>" : "", C = w && w.item ? '<div class="pfh-ledger-ai-image-preview-actions"><div class="pfh-reverse-search-actions"><button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + gk(w.item.url) + '">1688 搜图</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + gk(w.item.url) + '">Google</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + gk(w.item.url) + '">Yandex</button></div>' + (T ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '">重新核对成分</button>' : "") + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + l + '" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '" data-image-url="' + gk(w.item.url) + '" data-image-name="' + gk(w.displayName) + '"' + (Pa.ledgerAiImageDownloadKey ? " disabled" : "") + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + l + '" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '" data-image-url="' + gk(w.item.url) + '"' + (w.isGenerating ? " disabled" : "") + ">" + (w.isGenerating ? "生成中…" : w.activeTask ? "重新修改" : "修改图") + "</button></div>" : "", P = w ? '<div class="pfh-ledger-ai-image-preview-stage">' + M + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + gk(w.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + gk(w.variantLabel) + '</em></div><small title="' + gk(w.title) + '">' + gk(w.sourceFilename || "保留原图文件名") + "</small></div>" + (w.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + gk(w.prompt) + '">提示词：' + gk(w.prompt) + "</p>" : "") + E + C + "</div>" : '<div class="pfh-ledger-ai-image-preview-empty">' + A + "</div>", L = String(n.aiImageMessage || u.title || "").trim(), N = (e, t, a, r) => {
             const i = Pa.ledgerAiImageDownloadKey === r, o = !t || Boolean(Pa.ledgerAiImageDownloadKey);
-            return '<button type="button" data-action="ledger-ai-image-download" data-kind="' + e + '" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '"' + (o ? " disabled" : "") + ">" + pk(i ? "打包中…" : a) + "</button>";
+            return '<button type="button" data-action="ledger-ai-image-download" data-kind="' + e + '" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '"' + (o ? " disabled" : "") + ">" + gk(i ? "打包中…" : a) + "</button>";
         }, _ = g && Pa.ledgerAiImageDownloadProgress ? Pa.ledgerAiImageDownloadProgress : "原图和修改图都会保存在今日工作台；本功能不会自动替换或保存 PLM 商品草稿。";
         if (!t) {
             t = document.createElement("div"), t.className = "pfh-ledger-ai-image-layer", t.setAttribute("data-action", "ledger-ai-image-close");
@@ -19555,10 +19574,10 @@
             a ? a.appendChild(t) : e.appendChild(t);
         }
         t.style.setProperty("z-index", "320", "important");
-        const U = gy(n, l), D = U.size ? '<button type="button" class="pfh-ledger-ai-image-restore" data-action="ledger-ai-image-restore-hidden" data-kind="' + l + '" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '">恢复隐藏 ' + U.size + " 张</button>" : "";
-        t.innerHTML = '<section class="pfh-ledger-ai-image-dialog" role="dialog" aria-modal="true" aria-label="AI 生图" data-ledger-ai-image-dialog="1"><header><div><h3>AI 生图 · ' + pk(n.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + pk(u.status) + '">' + pk(u.label) + (L ? " · " + pk(L) : "") + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header><nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + ("main" === l ? "is-active" : "") + '">主图 <em>' + Ay(n, "main") + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + ("detail" === l ? "is-active" : "") + '">详情图 <em>' + Ay(n, "detail") + '</em></button></nav><div class="pfh-ledger-ai-image-workspace"><aside class="pfh-ledger-ai-image-sidebar"><div class="pfh-ledger-ai-image-sidebar-head"><div><strong>图片列表</strong><span>' + c.length + " 张</span></div>" + D + '</div><div class="pfh-ledger-ai-image-thumbs">' + I + '</div></aside><main class="pfh-ledger-ai-image-preview">' + P + "</main></div><footer><span>" + pk(_ || "原图和修改图会保存在今日工作台记录中；关闭弹窗不会清除。") + '</span><div class="pfh-ledger-ai-image-download-actions">' + N("main", o.length, "下载全部主图", d) + N("detail", s.length, "下载全部详情图", p) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + pk(n.sku) + '" data-date="' + pk(n.date) + '"' + (Pa.ledgerAiImageDownloadKey ? " disabled" : "") + ">刷新状态</button></div></footer></section>";
+        const U = fy(n, l), D = U.size ? '<button type="button" class="pfh-ledger-ai-image-restore" data-action="ledger-ai-image-restore-hidden" data-kind="' + l + '" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '">恢复隐藏 ' + U.size + " 张</button>" : "";
+        t.innerHTML = '<section class="pfh-ledger-ai-image-dialog" role="dialog" aria-modal="true" aria-label="AI 生图" data-ledger-ai-image-dialog="1"><header><div><h3>AI 生图 · ' + gk(n.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + gk(u.status) + '">' + gk(u.label) + (L ? " · " + gk(L) : "") + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header><nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + ("main" === l ? "is-active" : "") + '">主图 <em>' + Iy(n, "main") + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + ("detail" === l ? "is-active" : "") + '">详情图 <em>' + Iy(n, "detail") + '</em></button></nav><div class="pfh-ledger-ai-image-workspace"><aside class="pfh-ledger-ai-image-sidebar"><div class="pfh-ledger-ai-image-sidebar-head"><div><strong>图片列表</strong><span>' + c.length + " 张</span></div>" + D + '</div><div class="pfh-ledger-ai-image-thumbs">' + I + '</div></aside><main class="pfh-ledger-ai-image-preview">' + P + "</main></div><footer><span>" + gk(_ || "原图和修改图会保存在今日工作台记录中；关闭弹窗不会清除。") + '</span><div class="pfh-ledger-ai-image-download-actions">' + N("main", o.length, "下载全部主图", d) + N("detail", s.length, "下载全部详情图", p) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + gk(n.sku) + '" data-date="' + gk(n.date) + '"' + (Pa.ledgerAiImageDownloadKey ? " disabled" : "") + ">刷新状态</button></div></footer></section>";
     }
-    function My(e) {
+    function Ty(e) {
         const t = {}, a = {
             new_product_usage: "usage",
             new_product_selling_points: "sellingPoints",
@@ -19579,7 +19598,7 @@
             en: e.ingredients.product_ingredients_efficacy_en || ""
         }, t;
     }
-    function Ty(e, t, a) {
+    function Ey(e, t, a) {
         const n = Array.isArray(e) ? e : [], r = Number(a) || 1, i = new Set((t && t.ids || []).map(e => String(e))), o = new Set((t && t.variables || []).map(e => String(e).toLowerCase())), s = t && t.label instanceof RegExp ? t.label : null;
         return n.find(e => {
             if (!e || Number(e.language_id) !== r) return !1;
@@ -19587,7 +19606,7 @@
             return t || o.size && o.has(a) || s && s.test(n);
         }) || null;
     }
-    async function Ey(e, t) {
+    async function Cy(e, t) {
         const a = Th(e);
         if (!a) throw new Error("缺少 SKU，无法保存生图资料");
         const n = Cn(await hr("/api/Product/GetProductList?page=1&pageSize=20&codes=" + encodeURIComponent(a))), r = n.find(e => String(e && (e.product_code || e.productCode || e.code || "")).trim().toUpperCase() === a) || n[0];
@@ -19649,7 +19668,7 @@
                 variables: [ "ingredient_function" ],
                 label: /成分功能|component function/i
             } ] ].forEach(([e, t]) => {
-                const a = Ty(o, t, 1), n = Ty(o, t, 2);
+                const a = Ey(o, t, 1), n = Ey(o, t, 2);
                 if (!a || !n) throw new Error("商品模板缺少“" + ("ingredientSummary" === e ? "成分" : "ingredientEfficacy" === e ? "成分功能" : e) + "”中英文字段");
                 const r = c.attr_values.find(e => String(e.attr_id) === String(a.attr_id) && 1 === Number(e.language_id)), i = c.attr_values.find(e => String(e.attr_id) === String(n.attr_id) && 2 === Number(e.language_id));
                 if (!r || !i) throw new Error("商品模板字段“" + e + "”无法转换为保存格式");
@@ -19662,7 +19681,7 @@
         });
         return br("/api/Product/SaveProductDraftByEdit", c);
     }
-    function Cy(e) {
+    function Py(e) {
         const t = Th(e), a = Pa.ledgerAiImagePreparations[Zh(t)];
         if (!a) return null;
         const n = {
@@ -19685,22 +19704,22 @@
         }), n.plmMissing = ty(n), n.localDirty = !0, Pa.ledgerAiImagePreparations[Zh(t)] = n,
         n;
     }
-    async function Py(e, t, a) {
+    async function Ly(e, t, a) {
         const n = String(e || "").trim(), r = $h(n);
         if (!n) return null;
         const i = a || {}, o = Pa.ledgerAiImageRequests[r];
         if (o) {
             const e = Vh(n, t);
-            return i.openViewer && e && wy(e), o;
+            return i.openViewer && e && ky(e), o;
         }
         const s = Vh(n, t);
         if (!s) return null;
         const l = Boolean(i.submit);
         let c = null, u = s;
-        "loading" !== gh(s.aiImageStatus) && (u = sy(n, t, {
+        "loading" !== gh(s.aiImageStatus) && (u = ly(n, t, {
             aiImageStatus: "loading",
             aiImageMessage: l ? "正在准备产品文案并提交 PLM AI 生图（" + ("detail" === i.generationKind ? "详情图" : "主图") + "入口）…" : "正在查询 PLM AI 生图状态…"
-        }, !1) || s, Oc(u)), i.openViewer && wy(u);
+        }, !1) || s, Oc(u)), i.openViewer && ky(u);
         const d = (async () => {
             try {
                 if (!l && (c = await async function(e) {
@@ -19714,30 +19733,30 @@
                     }
                 }(n), !0 !== c)) {
                     if (null === c) {
-                        const e = sy(n, t, {
+                        const e = ly(n, t, {
                             aiImageStatus: "error",
                             aiImageMessage: "无法确认是否存在生图历史；已停止查询，不会提交生成",
                             aiImageCheckedAtMs: Date.now()
                         }, !0) || u;
-                        return Oc(e), i.openViewer && wy(e), Fb(n + " 生图历史查询失败，未提交任何生图请求"), e;
+                        return Oc(e), i.openViewer && ky(e), Bb(n + " 生图历史查询失败，未提交任何生图请求"), e;
                     }
-                    const e = ay(await ny(n, !0)), a = e.includes("SKU 效果图") ? e.length > 1 ? "needs-prerequisites" : "needs-sku-image" : e.length ? "needs-copywriting" : "empty", r = sy(n, t, {
+                    const e = ay(await ny(n, !0)), a = e.includes("SKU 效果图") ? e.length > 1 ? "needs-prerequisites" : "needs-sku-image" : e.length ? "needs-copywriting" : "empty", r = ly(n, t, {
                         aiImageStatus: a,
                         aiImageMessage: e.length ? "没有生图历史；请先补齐：" + e.join("、") : "没有生图历史；资料已完整，可手动提交 AI 生图",
                         aiImageJobId: "",
                         aiImageCheckedAtMs: Date.now()
                     }, !0) || u;
-                    return Oc(r), i.openViewer && wy(r), r;
+                    return Oc(r), i.openViewer && ky(r), r;
                 }
-                const e = l ? await oy(n) : {
+                const e = l ? await sy(n) : {
                     code: n
                 };
                 if (l) {
-                    const e = Vh(n, t) || u, a = sy(n, t, {
+                    const e = Vh(n, t) || u, a = ly(n, t, {
                         aiImageStatus: "loading",
                         aiImageMessage: "产品文案已准备，正在提交 PLM AI 生图（" + ("detail" === i.generationKind ? "详情图" : "主图") + "入口）…"
                     }, !0) || e;
-                    Oc(a), i.openViewer && wy(a);
+                    Oc(a), i.openViewer && ky(a);
                 }
                 const a = function(e) {
                     const t = e && e.data && "object" == typeof e.data ? e.data : {}, a = wh(t.mainImages || t.main_images, 12), n = wh(t.detailImages || t.detail_images, 20), r = Number(t.status), i = String(t.message || e && (e.message || e.msg) || "").trim(), o = String(t.job_id || t.jobId || "").trim(), s = a.length || n.length ? "success" : 1 === r ? "running" : 2 === r ? "result-missing" : /失败|错误|异常|fail|error/i.test(i) ? "error" : "empty";
@@ -19759,7 +19778,7 @@
                     artworkState: "success" === a.status ? "done" : "running" === a.status ? "doing" : r.artworkState
                 };
                 o && (s.aiImageCheckedAtMs = Date.now());
-                const d = o && sy(n, t, s, !0) || r;
+                const d = o && ly(n, t, s, !0) || r;
                 return o && Oc(d), "running" === a.status ? function(e, t) {
                     const a = $h(e);
                     window.clearTimeout(Pa.ledgerAiImagePollTimers[a]);
@@ -19768,25 +19787,25 @@
                     Pa.ledgerAiImagePollTimers[a] = window.setTimeout(() => {
                         if (delete Pa.ledgerAiImagePollTimers[a], "ledger" !== Pa.view || "finalized" !== Pa.ledgerView) return;
                         const n = Pa.ledgerAiImageViewer;
-                        Py(e, t, {
+                        Ly(e, t, {
                             openViewer: Boolean(n && Th(n.sku) === Th(e))
                         });
                     }, 5e3));
-                }(n, t) : by(n), (i.openViewer || Pa.ledgerAiImageViewer && Th(Pa.ledgerAiImageViewer.sku) === Th(n)) && wy(d),
-                "success" === a.status && hy(d) && yy(n, t, !1), "empty" === a.status && i.openViewer && Fb(n + " 暂无可查看的 AI 生图"),
+                }(n, t) : wy(n), (i.openViewer || Pa.ledgerAiImageViewer && Th(Pa.ledgerAiImageViewer.sku) === Th(n)) && ky(d),
+                "success" === a.status && yy(d) && by(n, t, !1), "empty" === a.status && i.openViewer && Bb(n + " 暂无可查看的 AI 生图"),
                 d;
             } catch (e) {
-                const a = Vh(n, t) || u, r = _b(e), o = !l && ph(r), s = e && e.ledgerAiImagePreflight, d = (s ? s.missingCopywriting && "available" !== s.skuImageStatus ? "needs-prerequisites" : "available" !== s.skuImageStatus ? "needs-sku-image" : "needs-copywriting" : "") || (o ? !0 === c ? "task-error" : !1 === c ? "empty" : "error" : gh("error", r));
+                const a = Vh(n, t) || u, r = Ub(e), o = !l && ph(r), s = e && e.ledgerAiImagePreflight, d = (s ? s.missingCopywriting && "available" !== s.skuImageStatus ? "needs-prerequisites" : "available" !== s.skuImageStatus ? "needs-sku-image" : "needs-copywriting" : "") || (o ? !0 === c ? "task-error" : !1 === c ? "empty" : "error" : gh("error", r));
                 let p = r || (l ? "AI 生图提交失败" : "AI 生图状态查询失败");
                 "needs-prerequisites" === d ? p = "生图前置校验未通过：请先补齐产品文案和 SKU 效果图，再开始生成" : "needs-sku-image" === d ? p = "生图前置校验未通过：请先上传 SKU 效果图，再开始生成" : "needs-copywriting" === d ? p = "生图前置校验未通过：请先补齐有效产品文案，再开始生成" : "task-error" === d ? p = "PLM 有生图任务记录，但查询不到图片结果，请刷新或联系管理员清理任务" : "empty" === d && o && (p = "当前未发现 PLM AI 生图结果，请在弹窗中手动选择主图或详情图生成");
-                const g = sy(n, t, {
+                const g = ly(n, t, {
                     aiImageStatus: d,
                     aiImageMessage: p,
                     aiImageJobId: "",
                     aiImageCheckedAtMs: Date.now()
                 }, !0) || a;
-                return by(n), Oc(g), (i.openViewer || Pa.ledgerAiImageViewer && Th(Pa.ledgerAiImageViewer.sku) === Th(n)) && wy(g),
-                Fb("needs-prerequisites" === d ? n + " 缺少产品文案或 SKU 效果图，已拦截生图请求" : "needs-sku-image" === d ? n + " 缺少 SKU 效果图，已拦截生图请求" : "needs-copywriting" === d ? n + " 缺少产品文案，暂时无法开始 AI 生图" : "task-error" === d ? n + " 有生图任务记录，但查询不到结果，请联系管理员清理任务" : "empty" === d && o ? n + " 当前未生成 AI 生图，请在弹窗内手动选择主图或详情图生成" : (l ? "提交 " : "查询 ") + n + " AI 生图失败：" + (r || "网络请求失败")),
+                return wy(n), Oc(g), (i.openViewer || Pa.ledgerAiImageViewer && Th(Pa.ledgerAiImageViewer.sku) === Th(n)) && ky(g),
+                Bb("needs-prerequisites" === d ? n + " 缺少产品文案或 SKU 效果图，已拦截生图请求" : "needs-sku-image" === d ? n + " 缺少 SKU 效果图，已拦截生图请求" : "needs-copywriting" === d ? n + " 缺少产品文案，暂时无法开始 AI 生图" : "task-error" === d ? n + " 有生图任务记录，但查询不到结果，请联系管理员清理任务" : "empty" === d && o ? n + " 当前未生成 AI 生图，请在弹窗内手动选择主图或详情图生成" : (l ? "提交 " : "查询 ") + n + " AI 生图失败：" + (r || "网络请求失败")),
                 g;
             }
         })();
@@ -19797,22 +19816,22 @@
             Pa.ledgerAiImageRequests[r] === d && delete Pa.ledgerAiImageRequests[r];
         }
     }
-    function Ly() {
+    function Ny() {
         const e = {};
         return Pa.index.forEach(t => {
-            const a = Gw(t.sku);
+            const a = Ww(t.sku);
             a && (e[t.sku] = a);
         }), {
             plugin: xa.title,
             version: a,
             exportedAt: (new Date).toLocaleString(),
-            backupOwnerName: Yy(),
+            backupOwnerName: eb(),
             includesImageLinks: !0,
             index: Pa.index,
             items: e,
             uploadRecords: {
-                queue: Qy(ow()),
-                history: Qy(fw())
+                queue: Jy(sw()),
+                history: Jy(mw())
             },
             dailyLedger: ch(Pa.ledgerRecords || th()),
             dailyLedgerTrash: oh(Pa.ledgerTrashRecords || rh()),
@@ -19823,8 +19842,8 @@
             }
         };
     }
-    function Ny(e) {
-        const t = e || Ly(), n = Array.isArray(t.index) ? t.index.slice(0, 2e3) : [], r = new Set(n.map(e => String(e && (e.sku || e.code) || e || "").trim()).filter(Boolean)), i = {};
+    function _y(e) {
+        const t = e || Ny(), n = Array.isArray(t.index) ? t.index.slice(0, 2e3) : [], r = new Set(n.map(e => String(e && (e.sku || e.code) || e || "").trim()).filter(Boolean)), i = {};
         let o = 0;
         Object.keys(t.items || {}).forEach(e => {
             if (r.size && !r.has(String(e))) return;
@@ -19851,9 +19870,9 @@
             delete n.lastMissingDiagnostic, delete n.recentFieldChanges, i[e] = n, o += 1;
         });
         const s = t.uploadRecords || {}, l = {
-            queue: Qy(s.queue).slice(0, 120),
-            history: Qy(s.history).slice(0, 120)
-        }, c = Rb(t.insights || {
+            queue: Jy(s.queue).slice(0, 120),
+            history: Jy(s.history).slice(0, 120)
+        }, c = jb(t.insights || {
             priceHistory: [],
             dataIssues: [],
             typeStats: {}
@@ -19874,73 +19893,73 @@
             insights: c
         };
     }
-    function _y(e, t) {
+    function Uy(e, t) {
         const a = Number(t) > 0 ? Number(t) : 240;
         return String(null == e ? "" : e).slice(0, a);
     }
-    function Uy(e) {
+    function Dy(e) {
         return (Array.isArray(e) ? e : []).slice(0, 2e3).map(e => {
             const t = e && "object" == typeof e ? e : {
                 sku: e
             };
             return {
-                sku: _y(t.sku || t.code, 80),
-                brand: _y(t.brand, 120),
-                name: _y(t.name || t.productName, 220),
-                packageCode: _y(t.packageCode, 120),
-                printCode: _y(t.printCode, 180),
-                designAssignedAt: _y(t.designAssignedAt, 80),
+                sku: Uy(t.sku || t.code, 80),
+                brand: Uy(t.brand, 120),
+                name: Uy(t.name || t.productName, 220),
+                packageCode: Uy(t.packageCode, 120),
+                printCode: Uy(t.printCode, 180),
+                designAssignedAt: Uy(t.designAssignedAt, 80),
                 pinned: Boolean(t.pinned),
                 pinOrder: Number(t.pinOrder || 0) || 0,
-                updatedAt: _y(t.updatedAt, 80),
+                updatedAt: Uy(t.updatedAt, 80),
                 updatedAtMs: Number(t.updatedAtMs || 0) || 0
             };
         }).filter(e => e.sku);
     }
-    const Dy = [ "sku", "brand", "name", "englishName", "manualCategory", "plmCategory", "category", "productType", "aiCategory", "aiProductType", "developerText", "developerName", "projectStatus", "projectId", "projectRowId", "projectVersionId", "apiMaterialSource", "designType", "artPriority", "designAssignedAt", "developmentAssignedAt", "referenceUrl", "packageSizeText", "packageSizeLabel", "packageCode", "packageNums", "manualFieldOverrides", "printSizeText", "printSizeLabel", "printCode", "tubeSegmentText", "tubeTailSealLengthValue", "tailSealLengthValue", "tubeDiameter", "tubeBody", "tubeSpecKey", "isTubePrintMaterial", "productNums", "plmProductNums", "bottleNums", "singleBottle", "hasInnerCard", "productSizeSource", "omitEstimatedProductSize", "netContent", "grossWeight", "purchasePrice", "packageSource", "materialDimensionUnitIssues", "plmIngredientText", "plmIngredientEnglishText", "plmIngredientParserVersion", "plmIngredientCheckedAt", "ingredientEnglish", "ingredientChinese", "copywritingIngredientEnglish", "copywritingIngredientChinese", "copywritingIngredientSplit", "ingredientWordFileName", "ingredientWordHash", "ingredientWordUpdatedAt", "ingredientPdfFileName", "ingredientPdfHash", "ingredientPdfModel", "ingredientPdfUpdatedAt", "ingredientNormalizerVersion", "ingredientSource", "seenProject", "seenMaterial", "seenProduct", "seenDesign", "isToy", "seriesExcluded", "updatedAt", "updatedAtMs" ];
-    function Fy(e, t) {
+    const Fy = [ "sku", "brand", "name", "englishName", "manualCategory", "plmCategory", "category", "productType", "aiCategory", "aiProductType", "developerText", "developerName", "projectStatus", "projectId", "projectRowId", "projectVersionId", "apiMaterialSource", "designType", "artPriority", "designAssignedAt", "developmentAssignedAt", "referenceUrl", "packageSizeText", "packageSizeLabel", "packageCode", "packageNums", "manualFieldOverrides", "printSizeText", "printSizeLabel", "printCode", "tubeSegmentText", "tubeTailSealLengthValue", "tailSealLengthValue", "tubeDiameter", "tubeBody", "tubeSpecKey", "isTubePrintMaterial", "productNums", "plmProductNums", "bottleNums", "singleBottle", "hasInnerCard", "productSizeSource", "omitEstimatedProductSize", "netContent", "grossWeight", "purchasePrice", "packageSource", "materialDimensionUnitIssues", "plmIngredientText", "plmIngredientEnglishText", "plmIngredientParserVersion", "plmIngredientCheckedAt", "ingredientEnglish", "ingredientChinese", "copywritingIngredientEnglish", "copywritingIngredientChinese", "copywritingIngredientSplit", "ingredientWordFileName", "ingredientWordHash", "ingredientWordUpdatedAt", "ingredientPdfFileName", "ingredientPdfHash", "ingredientPdfModel", "ingredientPdfUpdatedAt", "ingredientNormalizerVersion", "ingredientSource", "seenProject", "seenMaterial", "seenProduct", "seenDesign", "isToy", "seriesExcluded", "updatedAt", "updatedAtMs" ];
+    function By(e, t) {
         const a = e && "object" == typeof e ? e : {}, n = {};
-        return Dy.forEach(e => {
+        return Fy.forEach(e => {
             const t = a[e];
             if (null != t && "" !== t) if ("materialDimensionUnitIssues" === e) {
                 const a = t && "object" == typeof t ? t : {};
                 n[e] = {
                     package: a.package ? {
                         unit: "m",
-                        raw: _y(a.package.raw, 120)
+                        raw: Uy(a.package.raw, 120)
                     } : null,
                     print: a.print ? {
                         unit: "m",
-                        raw: _y(a.print.raw, 120)
+                        raw: Uy(a.print.raw, 120)
                     } : null
                 };
-            } else Array.isArray(t) ? n[e] = t.slice(0, 12).map(e => "number" == typeof e ? e : _y(e, 120)) : n[e] = "string" == typeof t ? _y(t, /ingredient/i.test(e) ? 1800 : "referenceUrl" === e ? 600 : 400) : t;
-        }), n.sku = _y(a.sku || t, 80), a.copywriting && (n.copywriting = function(e) {
+            } else Array.isArray(t) ? n[e] = t.slice(0, 12).map(e => "number" == typeof e ? e : Uy(e, 120)) : n[e] = "string" == typeof t ? Uy(t, /ingredient/i.test(e) ? 1800 : "referenceUrl" === e ? 600 : 400) : t;
+        }), n.sku = Uy(a.sku || t, 80), a.copywriting && (n.copywriting = function(e) {
             const t = md(e);
             return t ? {
-                fileName: _y(t.fileName, 180),
-                parserVersion: _y(t.parserVersion, 30),
-                fileTimestamp: _y(t.fileTimestamp, 24),
-                fileHash: _y(t.fileHash, 80),
-                fetchedAt: _y(t.fetchedAt, 60),
+                fileName: Uy(t.fileName, 180),
+                parserVersion: Uy(t.parserVersion, 30),
+                fileTimestamp: Uy(t.fileTimestamp, 24),
+                fileHash: Uy(t.fileHash, 80),
+                fetchedAt: Uy(t.fetchedAt, 60),
                 lastCheckedAtMs: Number(t.lastCheckedAtMs || 0) || 0,
-                fullText: _y(t.fullText, 2400),
+                fullText: Uy(t.fullText, 2400),
                 sections: (t.sections || []).slice(0, 8).map(e => ({
-                    key: _y(e.key, 60),
-                    label: _y(e.label, 100),
-                    text: _y(e.text, 450)
+                    key: Uy(e.key, 60),
+                    label: Uy(e.label, 100),
+                    text: Uy(e.text, 450)
                 })).filter(e => e.key && e.text),
-                ingredientEnglish: _y(t.ingredientEnglish, 1600),
-                ingredientChinese: _y(t.ingredientChinese, 1600),
-                cleanedIngredientEnglish: _y(t.cleanedIngredientEnglish, 1600),
-                cleanedIngredientChinese: _y(t.cleanedIngredientChinese, 1600),
+                ingredientEnglish: Uy(t.ingredientEnglish, 1600),
+                ingredientChinese: Uy(t.ingredientChinese, 1600),
+                cleanedIngredientEnglish: Uy(t.cleanedIngredientEnglish, 1600),
+                cleanedIngredientChinese: Uy(t.cleanedIngredientChinese, 1600),
                 ingredientSplit: Boolean(t.ingredientSplit),
-                missingSections: (t.missingSections || []).slice(0, 12).map(e => _y(e, 80)).filter(Boolean),
+                missingSections: (t.missingSections || []).slice(0, 12).map(e => Uy(e, 80)).filter(Boolean),
                 updatePending: Boolean(t.updatePending),
-                changedSectionKeys: (t.changedSectionKeys || []).slice(0, 12).map(e => _y(e, 60)).filter(Boolean),
-                removedSections: (t.removedSections || []).slice(0, 12).map(e => _y(e, 80)).filter(Boolean),
+                changedSectionKeys: (t.changedSectionKeys || []).slice(0, 12).map(e => Uy(e, 60)).filter(Boolean),
+                removedSections: (t.removedSections || []).slice(0, 12).map(e => Uy(e, 80)).filter(Boolean),
                 previousSections: [],
-                copiedSectionKeys: (t.copiedSectionKeys || []).slice(0, 20).map(e => _y(e, 60)).filter(Boolean),
+                copiedSectionKeys: (t.copiedSectionKeys || []).slice(0, 20).map(e => Uy(e, 60)).filter(Boolean),
                 copiedFullText: Boolean(t.copiedFullText)
             } : null;
         }(a.copywriting)), Array.isArray(a.ingredientItems) && (n.ingredientItems = a.ingredientItems.slice(0, 20).map(e => {
@@ -19948,27 +19967,27 @@
                 value: e
             };
             return {
-                name: _y(t.name || t.label || t.ingredient || t.ingredientName, 120),
-                english: _y(t.english || t.en || t.englishName, 300),
-                chinese: _y(t.chinese || t.zh || t.chineseName, 300),
-                amount: _y(t.amount || t.content || t.quantity, 120),
-                value: _y(t.value || t.text, 400)
+                name: Uy(t.name || t.label || t.ingredient || t.ingredientName, 120),
+                english: Uy(t.english || t.en || t.englishName, 300),
+                chinese: Uy(t.chinese || t.zh || t.chineseName, 300),
+                amount: Uy(t.amount || t.content || t.quantity, 120),
+                value: Uy(t.value || t.text, 400)
             };
         }).filter(e => Object.values(e).some(Boolean))), n;
     }
-    function By(e) {
+    function zy(e) {
         const t = [ [ "id", 120 ], [ "sku", 80 ], [ "name", 180 ], [ "kind", 40 ], [ "mode", 40 ], [ "sourceName", 180 ], [ "xlsxName", 180 ], [ "zipName", 180 ], [ "status", 80 ], [ "step", 160 ], [ "error", 220 ], [ "createdAt", 80 ], [ "updatedAt", 80 ], [ "finishedAt", 80 ] ];
         return (Array.isArray(e) ? e : []).slice(0, 60).map(e => {
             const a = e && "object" == typeof e ? e : {}, n = {};
             return t.forEach(([e, t]) => {
                 const r = a[e];
-                null != r && "" !== r && (n[e] = "number" == typeof r || "boolean" == typeof r ? r : _y(r, t));
+                null != r && "" !== r && (n[e] = "number" == typeof r || "boolean" == typeof r ? r : Uy(r, t));
             }), [ "fileCount", "successCount", "failedCount" ].forEach(e => {
                 void 0 !== a[e] && null !== a[e] && (n[e] = Number(a[e]) || 0);
             }), n;
         }).filter(e => e.id || e.sku);
     }
-    function zy(e) {
+    function Ry(e) {
         const t = {
             ...e
         };
@@ -19977,24 +19996,24 @@
         delete t.aiDetailRetouchedImages, delete t.aiMainRetouchTasks, delete t.aiDetailRetouchTasks,
         t;
     }
-    function Ry(e) {
-        return oh(e).slice(0, 360).map(zy);
+    function jy(e) {
+        return oh(e).slice(0, 360).map(Ry);
     }
-    function jy() {
+    function Oy() {
         const e = "undefined" != typeof window && window.crypto ? window.crypto : "undefined" != typeof crypto ? crypto : null;
         if (!e || !e.subtle || "function" != typeof e.getRandomValues) throw new Error("当前浏览器不支持云备份加密");
         return e;
     }
-    function Oy(e) {
+    function qy(e) {
         const t = new Uint8Array(e);
-        return jy().getRandomValues(t), t;
+        return Oy().getRandomValues(t), t;
     }
-    async function qy(e) {
-        const t = await jy().subtle.digest("SHA-256", (new TextEncoder).encode(String(e || "")));
+    async function $y(e) {
+        const t = await Oy().subtle.digest("SHA-256", (new TextEncoder).encode(String(e || "")));
         return Array.from(new Uint8Array(t)).map(e => e.toString(16).padStart(2, "0")).join("");
     }
-    async function $y(e, t, a) {
-        const n = jy(), r = Number(a), i = Number.isInteger(r) && r >= 1e5 && r <= 5e5 ? r : Le, o = await n.subtle.importKey("raw", (new TextEncoder).encode(String(e || "")), {
+    async function Hy(e, t, a) {
+        const n = Oy(), r = Number(a), i = Number.isInteger(r) && r >= 1e5 && r <= 5e5 ? r : Le, o = await n.subtle.importKey("raw", (new TextEncoder).encode(String(e || "")), {
             name: "PBKDF2"
         }, !1, [ "deriveKey" ]);
         return n.subtle.deriveKey({
@@ -20007,7 +20026,7 @@
             length: 256
         }, !1, [ "encrypt", "decrypt" ]);
     }
-    async function Hy(e, t) {
+    async function Vy(e, t) {
         const n = JSON.stringify(e), r = await async function(e) {
             const t = (new TextEncoder).encode(e);
             if ("function" != typeof CompressionStream) return {
@@ -20024,7 +20043,7 @@
                 bytes: t,
                 compression: "none"
             };
-        }(n), i = Oy(16), o = Oy(12), s = await $y(t, i, e.kdfIterations), l = await jy().subtle.encrypt({
+        }(n), i = qy(16), o = qy(12), s = await Hy(t, i, e.kdfIterations), l = await Oy().subtle.encrypt({
             name: "AES-GCM",
             iv: o
         }, s, r.bytes);
@@ -20034,33 +20053,33 @@
             compression: r.compression,
             kdf: "pbkdf2-sha256",
             kdfIterations: Le,
-            salt: Vy(i),
-            iv: Vy(o),
+            salt: Ky(i),
+            iv: Ky(o),
             uncompressedLength: (new TextEncoder).encode(n).byteLength,
             plugin: e.plugin || xa.title,
             version: e.version || a,
             exportedAt: e.exportedAt || (new Date).toLocaleString(),
             backupOwnerName: e.backupOwnerName || "",
             backupMode: e.backupMode || "full",
-            data: Vy(new Uint8Array(l))
+            data: Ky(new Uint8Array(l))
         };
     }
-    function Vy(e) {
+    function Ky(e) {
         let t = "";
         for (let a = 0; a < e.length; a += 32768) t += String.fromCharCode(...e.subarray(a, a + 32768));
         return btoa(t);
     }
-    function Ky(e) {
+    function Gy(e) {
         const t = e && e.cloudData ? e.cloudData : {};
         return Boolean(e && 400 === e.status && "backupKey too short" === t.error);
     }
-    function Gy() {
+    function Wy() {
         const e = new Error("payload too large");
         return e.cloudData = {
             error: "payload too large"
         }, e.status = 413, e;
     }
-    async function Wy(e, t, a, n) {
+    async function Qy(e, t, a, n) {
         const r = {
             backupId: e,
             version: a,
@@ -20068,16 +20087,16 @@
         };
         if (JSON.stringify(n).length <= 76e4) try {
             return {
-                ...await Lb("/backup/save", {
+                ...await Nb("/backup/save", {
                     method: "POST",
                     body: r
                 }),
                 chunked: !1
             };
         } catch (e) {
-            if (!Ky(e)) throw e;
+            if (!Gy(e)) throw e;
             return {
-                ...await Lb("/backup/save", {
+                ...await Nb("/backup/save", {
                     method: "POST",
                     body: {
                         backupKey: t,
@@ -20090,12 +20109,12 @@
             };
         }
         const i = String(n.data || ""), o = Math.ceil(i.length / Ne);
-        if (!i || o > 64) throw Gy();
-        const s = Array.from(Oy(18)).map(e => e.toString(16).padStart(2, "0")).join("");
+        if (!i || o > 64) throw Wy();
+        const s = Array.from(qy(18)).map(e => e.toString(16).padStart(2, "0")).join("");
         for (let t = 0; t < o; t += 1) {
             const n = i.slice(t * Ne, (t + 1) * Ne);
             try {
-                await Lb("/backup/chunk", {
+                await Nb("/backup/chunk", {
                     method: "POST",
                     body: {
                         backupId: e,
@@ -20107,7 +20126,7 @@
                     }
                 });
             } catch (e) {
-                if (e && 404 === e.status) throw Gy();
+                if (e && 404 === e.status) throw Wy();
                 throw e;
             }
         }
@@ -20120,7 +20139,7 @@
         };
         delete l.data;
         return {
-            ...await Lb("/backup/save", {
+            ...await Nb("/backup/save", {
                 method: "POST",
                 body: {
                     backupId: e,
@@ -20132,7 +20151,7 @@
             bytes: i.length
         };
     }
-    function Qy(e) {
+    function Jy(e) {
         return (Array.isArray(e) ? e : []).slice(0, 300).map(e => ({
             ...e,
             xlsxKey: "",
@@ -20148,24 +20167,24 @@
             selected: !1
         }));
     }
-    function Jy(e) {
+    function Xy(e) {
         const t = e.target && e.target.files && e.target.files[0];
         if (!t) return;
         const a = new FileReader;
         a.onload = () => {
             try {
-                Xy(JSON.parse(String(a.result || "{}"))), Fb(xa.importDone), Pa.view = "about",
+                Zy(JSON.parse(String(a.result || "{}"))), Bb(xa.importDone), Pa.view = "about",
                 zi();
             } catch (e) {
-                console.warn("PLM floating helper import failed:", e), Fb(xa.importFailed);
+                console.warn("PLM floating helper import failed:", e), Bb(xa.importFailed);
             } finally {
                 e.target.value = "";
             }
         }, a.onerror = () => {
-            Fb(xa.importFailed), e.target.value = "";
+            Bb(xa.importFailed), e.target.value = "";
         }, a.readAsText(t, "utf-8");
     }
-    function Xy(e) {
+    function Zy(e) {
         const t = e && e.items ? e.items : e;
         if (!t || "object" != typeof t) throw new Error("Invalid cache payload");
         if (Object.keys(t).forEach(e => {
@@ -20173,16 +20192,16 @@
                 ...t[e],
                 sku: t[e] && t[e].sku || e
             });
-            a.sku && (Jw(a.sku, a), Kw(a));
+            a.sku && (Xw(a.sku, a), Gw(a));
         }), Array.isArray(e.index) && (e.index.forEach(e => {
             const t = Pa.index.find(t => t.sku === e.sku);
             t && (e.brand && !t.brand && (t.brand = e.brand), e.pinned && (t.pinned = !0), e.pinOrder && (t.pinOrder = e.pinOrder));
-        }), nw()), e.uploadRecords && "object" == typeof e.uploadRecords && (Array.isArray(e.uploadRecords.queue) && (Pa.uploadQueue = Qy(e.uploadRecords.queue).map(e => ({
+        }), rw()), e.uploadRecords && "object" == typeof e.uploadRecords && (Array.isArray(e.uploadRecords.queue) && (Pa.uploadQueue = Jy(e.uploadRecords.queue).map(e => ({
             ...e,
             status: e.status && /\u6210\u529f|\u5931\u8d25|\u5df2\u8df3\u8fc7|\u5df2\u4fdd\u5b58/.test(e.status) ? e.status : "请补充文件",
             step: e.step || "云备份恢复，需重新选择文件"
-        })), gw()), Array.isArray(e.uploadRecords.history) && (Pa.uploadHistory = Qy(e.uploadRecords.history),
-        mw())), Array.isArray(e.dailyLedgerTrash)) {
+        })), fw()), Array.isArray(e.uploadRecords.history) && (Pa.uploadHistory = Jy(e.uploadRecords.history),
+        hw())), Array.isArray(e.dailyLedgerTrash)) {
             const t = oh(e.dailyLedgerTrash), a = new Set(t.map(e => Qm(e.date) + "|" + e.sku));
             Pa.ledgerTrashRecords = t.concat((Pa.ledgerTrashRecords || rh()).filter(e => !a.has(Qm(e.date) + "|" + e.sku))).slice(0, 1200),
             ih();
@@ -20192,76 +20211,76 @@
             Pa.ledgerRecords = lh(t.concat((Pa.ledgerRecords || th()).filter(e => !a.has(e.date + "|" + e.sku)))).slice(0, 1200),
             ah();
         }
-        e.insights && "object" == typeof e.insights && (Pa.insights = Rb(e.insights), Ob());
-    }
-    function Zy() {
-        return String(Pa.settings.cloudBackupKey || "").trim();
+        e.insights && "object" == typeof e.insights && (Pa.insights = jb(e.insights), qb());
     }
     function Yy() {
-        const e = Zy();
+        return String(Pa.settings.cloudBackupKey || "").trim();
+    }
+    function eb() {
+        const e = Yy();
         if (!e) return "";
         const t = String(Pa.settings.cloudBackupOwnerName || "").trim();
         if (Pa.settings.cloudBackupOwnerKey === e && t) return t;
-        const a = eb();
+        const a = tb();
         return Pa.settings.cloudBackupOwnerKey = e, Pa.settings.cloudBackupOwnerName = a,
-        rw(Pa.settings), a;
+        iw(Pa.settings), a;
     }
-    function eb() {
-        const e = Array.from(document.querySelectorAll('.btnBoxMainText.ant-dropdown-trigger, [data-user-name], [data-username], .user-name, .userName, .username, .nick-name, .nickName, .nickname, .ant-layout-header .ant-dropdown-trigger, header .ant-dropdown-trigger, [class*="user-info"], [class*="userInfo"], [class*="account-name"], [class*="accountName"], [class*="profile-name"], [class*="profileName"]')).filter(ck);
+    function tb() {
+        const e = Array.from(document.querySelectorAll('.btnBoxMainText.ant-dropdown-trigger, [data-user-name], [data-username], .user-name, .userName, .username, .nick-name, .nickName, .nickname, .ant-layout-header .ant-dropdown-trigger, header .ant-dropdown-trigger, [class*="user-info"], [class*="userInfo"], [class*="account-name"], [class*="accountName"], [class*="profile-name"], [class*="profileName"]')).filter(uk);
         for (const t of e) {
             const e = Array.from(t.childNodes || []).filter(e => 3 === e.nodeType).map(e => e.textContent || "").join(" ").trim(), a = String(t.getAttribute("data-user-name") || t.getAttribute("data-username") || e || t.innerText || t.textContent || "").trim().replace(/\s+/g, " ");
             if (/^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z ._-]{1,30}$/.test(a) && !/^(PLM|\u7528\u6237|\u8d26\u53f7|\u6211\u7684)$/.test(a) && !/\u9000\u51fa|\u767b\u5f55|\u8bbe\u7f6e|\u5e2e\u52a9/.test(a)) return a;
         }
         return "";
     }
-    function tb() {
+    function ab() {
         return Pa.cloudBackupStatus || Pa.settings.cloudBackupStatus || xa.cloudBackupReady;
     }
-    function ab() {
+    function nb() {
         const e = Pa.settings && Pa.settings.insightAiModel;
         return e === b || "gemini-3.5-flash" === e ? b : "glm-4.7-flash";
     }
-    function nb(e) {
+    function rb(e) {
         Pa.cloudBackupStatus = e || "", Pa.settings.cloudBackupStatus = Pa.cloudBackupStatus,
-        rw(Pa.settings);
+        iw(Pa.settings);
         const t = vi().querySelector(".pfh-cloud-status");
-        t && (t.textContent = tb());
+        t && (t.textContent = ab());
     }
-    function rb() {
-        Zy() && (Pa.cloudBackupQueued = !0, window.clearTimeout(Pa.cloudBackupTimer), Pa.cloudBackupTimer = window.setTimeout(() => ib(), 8e3));
+    function ib() {
+        Yy() && (Pa.cloudBackupQueued = !0, window.clearTimeout(Pa.cloudBackupTimer), Pa.cloudBackupTimer = window.setTimeout(() => ob(), 8e3));
     }
-    async function ib() {
-        Pa.cloudBackupQueued && !Pa.cloudBackupRunning && (Pa.cloudBackupQueued = !1, await ob({
+    async function ob() {
+        Pa.cloudBackupQueued && !Pa.cloudBackupRunning && (Pa.cloudBackupQueued = !1, await sb({
             silent: !0
-        }), Pa.cloudBackupQueued && (window.clearTimeout(Pa.cloudBackupTimer), Pa.cloudBackupTimer = window.setTimeout(() => ib(), 8e3)));
+        }), Pa.cloudBackupQueued && (window.clearTimeout(Pa.cloudBackupTimer), Pa.cloudBackupTimer = window.setTimeout(() => ob(), 8e3)));
     }
-    async function ob(e) {
-        const t = Zy();
-        if (!t) return e && e.silent || Fb(xa.cloudBackupMissingKey), !1;
-        if (t.length < 4) return e && e.silent || Fb(xa.cloudBackupKeyTooShort), !1;
+    async function sb(e) {
+        const t = Yy();
+        if (!t) return e && e.silent || Bb(xa.cloudBackupMissingKey), !1;
+        if (t.length < 4) return e && e.silent || Bb(xa.cloudBackupKeyTooShort), !1;
         if (Pa.cloudBackupRunning) return Pa.cloudBackupQueued = !0, !1;
-        Pa.cloudBackupRunning = !0, nb(xa.cloudBackupSaving), e && e.silent || Fb(xa.cloudBackupSaving);
+        Pa.cloudBackupRunning = !0, rb(xa.cloudBackupSaving), e && e.silent || Bb(xa.cloudBackupSaving);
         try {
-            const n = Ly();
+            const n = Ny();
             if (!n.backupOwnerName) throw new Error(xa.cloudBackupOwnerMissing);
-            const r = await qy(t), i = [ {
+            const r = await $y(t), i = [ {
                 label: "完整",
                 build: () => n
             }, {
                 label: "精简",
-                build: () => Ny(n)
+                build: () => _y(n)
             }, {
                 label: "超精简",
                 build: () => function(e) {
-                    const t = e || Ly(), n = Uy(t.index), r = new Set(n.map(e => e.sku)), i = {};
+                    const t = e || Ny(), n = Dy(t.index), r = new Set(n.map(e => e.sku)), i = {};
                     let o = 0;
                     Object.keys(t.items || {}).forEach(e => {
                         if (r.size && !r.has(String(e))) return;
                         if (o >= 2e3) return;
                         const a = t.items[e];
-                        a && "object" == typeof a && (i[e] = Fy(a, e), o += 1);
+                        a && "object" == typeof a && (i[e] = By(a, e), o += 1);
                     });
-                    const s = t.uploadRecords || {}, l = Rb(t.insights || {
+                    const s = t.uploadRecords || {}, l = jb(t.insights || {
                         priceHistory: [],
                         dataIssues: [],
                         typeStats: {}
@@ -20277,11 +20296,11 @@
                         index: n,
                         items: i,
                         uploadRecords: {
-                            queue: By(s.queue),
-                            history: By(s.history)
+                            queue: zy(s.queue),
+                            history: zy(s.history)
                         },
-                        dailyLedger: (c = t.dailyLedger, ch(c).slice(0, 360).map(zy)),
-                        dailyLedgerTrash: Ry(t.dailyLedgerTrash),
+                        dailyLedger: (c = t.dailyLedger, ch(c).slice(0, 360).map(Ry)),
+                        dailyLedgerTrash: jy(t.dailyLedgerTrash),
                         insights: l
                     };
                     var c;
@@ -20289,7 +20308,7 @@
             }, {
                 label: "索引",
                 build: () => function(e) {
-                    const t = e || Ly(), n = Uy(t.index), r = {};
+                    const t = e || Ny(), n = Dy(t.index), r = {};
                     return n.forEach(e => {
                         r[e.sku] = {
                             sku: e.sku,
@@ -20327,9 +20346,9 @@
             let o, s = "";
             for (let e = 0; e < i.length; e += 1) {
                 const n = i[e];
-                e > 0 && Bb("warn", "云备份" + i[e - 1].label + "快照超限，改用" + n.label + "快照重试", Pa.index.length + " 个编码");
+                e > 0 && zb("warn", "云备份" + i[e - 1].label + "快照超限，改用" + n.label + "快照重试", Pa.index.length + " 个编码");
                 try {
-                    o = await Wy(r, t, a, await Hy(n.build(), t)), s = n.label;
+                    o = await Qy(r, t, a, await Vy(n.build(), t)), s = n.label;
                     break;
                 } catch (t) {
                     const a = t && t.cloudData ? t.cloudData : {};
@@ -20338,41 +20357,41 @@
             }
             if (!o || !o.ok) throw new Error(o && o.error ? o.error : "save failed");
             const l = s && "完整" !== s, c = Boolean(o.chunked), u = l ? "（" + s + (c ? "·分片" : "") + "）" : c ? "（分片）" : "";
-            return nb(xa.cloudBackupSavedAt + " " + (new Date).toLocaleTimeString() + "，" + Pa.index.length + "个编码" + u),
-            Bb("success", l ? "云备份" + s + "上传成功" : "云备份上传成功", Pa.index.length + "个编码" + (c ? "·分片" : "")),
-            e && e.silent || Fb(xa.cloudBackupSaved), !0;
+            return rb(xa.cloudBackupSavedAt + " " + (new Date).toLocaleTimeString() + "，" + Pa.index.length + "个编码" + u),
+            zb("success", l ? "云备份" + s + "上传成功" : "云备份上传成功", Pa.index.length + "个编码" + (c ? "·分片" : "")),
+            e && e.silent || Bb(xa.cloudBackupSaved), !0;
         } catch (t) {
             const a = function(e) {
                 const t = e && e.cloudData ? e.cloudData : {};
                 if ("backup owner mismatch" === t.error) {
-                    const e = String(t.ownerName || "").trim() || "其他用户", a = String(t.currentOwnerName || Yy() || "").trim();
+                    const e = String(t.ownerName || "").trim() || "其他用户", a = String(t.currentOwnerName || eb() || "").trim();
                     return "该备份密钥已绑定「" + e + "」" + (a ? "，当前 PLM 用户为「" + a + "」" : "") + "，已阻止覆盖";
                 }
                 if ("payload too large" === t.error || e && "payload too large" === e.message) return "云备份分级快照均超过上限";
                 return e && e.message ? e.message : "未知错误";
             }(t);
-            return console.warn("PLM floating helper cloud backup save failed:", t), nb(xa.cloudBackupFailed + "：" + a),
-            Bb("error", "云备份上传失败", a), e && e.silent || Fb(xa.cloudBackupFailed + "：" + a),
+            return console.warn("PLM floating helper cloud backup save failed:", t), rb(xa.cloudBackupFailed + "：" + a),
+            zb("error", "云备份上传失败", a), e && e.silent || Bb(xa.cloudBackupFailed + "：" + a),
             !1;
         } finally {
             Pa.cloudBackupRunning = !1;
         }
     }
-    function sb(e) {
+    function lb(e) {
         if (!e) return "";
-        const t = (db(e) ? [ e.productLength, e.productWidth, e.productHeight ] : [ e.packageLength, e.packageWidth, e.packageHeight ]).map(e => function(e) {
+        const t = (pb(e) ? [ e.productLength, e.productWidth, e.productHeight ] : [ e.packageLength, e.packageWidth, e.packageHeight ]).map(e => function(e) {
             const t = String(e || "").toLowerCase().replace(/\s+/g, "").replace(/\u5398\u7c73|\u516c\u5206/g, "cm").replace(/[\u00d7*]/g, "x"), a = t.split("/")[0].replace(/cm/g, "").match(/\d+(?:\.\d+)?/);
             if (!a) return "";
             const n = Number(a[0]);
-            return Number.isFinite(n) && n > 0 ? lk(n) : "";
+            return Number.isFinite(n) && n > 0 ? ck(n) : "";
         }(e)).filter(Boolean);
         return 3 === t.length ? t.join("x") : "";
     }
-    function lb(e) {
+    function cb(e) {
         const t = Number.parseInt(String(e || "").replace(/[^0-9]/g, ""), 10);
         return Number.isInteger(t) && t > 0 ? String(t) : "";
     }
-    function cb(e) {
+    function ub(e) {
         const t = String(e || "").split("x").map(e => Number(e));
         if (3 !== t.length || t.some(e => !Number.isFinite(e) || e <= 0)) return null;
         const a = [ 56, 36, 21 ], n = [ [ t[0], t[1], t[2] ], [ t[0], t[2], t[1] ], [ t[1], t[0], t[2] ], [ t[1], t[2], t[0] ], [ t[2], t[0], t[1] ], [ t[2], t[1], t[0] ] ].reduce((e, t) => {
@@ -20393,11 +20412,11 @@
             source: "local-calc"
         } : null;
     }
-    function ub(e, t, a) {
-        const n = String(e && e.sku || "").trim(), r = lb(a && a.packCount);
+    function db(e, t, a) {
+        const n = String(e && e.sku || "").trim(), r = cb(a && a.packCount);
         if (!n || !t || !r) return;
-        const i = bn(Gw(n) || e);
-        lb(i.packQty || i.packCount || i.cartonQty) === r && String(i.packQtyBoxKey || "") === t || Qw(n, {
+        const i = bn(Ww(n) || e);
+        cb(i.packQty || i.packCount || i.cartonQty) === r && String(i.packQtyBoxKey || "") === t || Jw(n, {
             ...i,
             packQty: r,
             packCount: r,
@@ -20409,51 +20428,51 @@
             changeSource: "装箱数推荐"
         });
     }
-    function db(e) {
+    function pb(e) {
         return Boolean(e && e.singleBottle && !/纸盒/.test(String(e.packageSizeLabel || "")));
     }
-    function pb(e) {
-        return db(e);
+    function gb(e) {
+        return pb(e);
     }
-    async function gb(e) {
-        return Lb("/pack/recommend?boxKey=" + encodeURIComponent(e), {
+    async function fb(e) {
+        return Nb("/pack/recommend?boxKey=" + encodeURIComponent(e), {
             method: "GET"
         });
     }
-    function fb(e) {
-        const t = sb(e);
+    function mb(e) {
+        const t = lb(e);
         if (!t) return void (function(e) {
-            return !!e && (db(e) ? Boolean(e.productLength || e.productWidth || e.productHeight || e.productNums) : Boolean(e.packageLength || e.packageWidth || e.packageHeight || e.packageSizeText));
-        }(e) && mb("装箱数：尺寸不完整"));
-        if (Pa.packAiEstimatingKeys.has(t)) return void mb("装箱数：计算中");
+            return !!e && (pb(e) ? Boolean(e.productLength || e.productWidth || e.productHeight || e.productNums) : Boolean(e.packageLength || e.packageWidth || e.packageHeight || e.packageSizeText));
+        }(e) && hb("装箱数：尺寸不完整"));
+        if (Pa.packAiEstimatingKeys.has(t)) return void hb("装箱数：计算中");
         const a = Pa.packAiFailedAt && Pa.packAiFailedAt[t] || 0;
-        a && Date.now() - a < 6e5 ? mb("装箱数：刚失败，10分钟后重试") : (Pa.packAiEstimatingKeys.add(t),
+        a && Date.now() - a < 6e5 ? hb("装箱数：刚失败，10分钟后重试") : (Pa.packAiEstimatingKeys.add(t),
         window.setTimeout(() => async function(e, t) {
-            const a = await gb(t).catch(() => null);
-            if (a && a.found && a.packCount) return mb(gm(a.packCount, "历史", "已取用")), ub(e, t, a),
+            const a = await fb(t).catch(() => null);
+            if (a && a.found && a.packCount) return hb(gm(a.packCount, "历史", "已取用")), db(e, t, a),
             a;
-            mb("装箱数：后台计算中");
-            let n = await hb(t, e && e.sku).catch(t => (Bb("warn", "在线装箱推荐不可用，改用本地计算", String(e && e.sku || "") + " " + _b(t)),
+            hb("装箱数：后台计算中");
+            let n = await yb(t, e && e.sku).catch(t => (zb("warn", "在线装箱推荐不可用，改用本地计算", String(e && e.sku || "") + " " + Ub(t)),
             null));
-            n && n.packCount || (n = cb(t));
+            n && n.packCount || (n = ub(t));
             if (n && n.packCount) {
                 const a = n.source || "", r = gm(n.packCount, a, "已写入");
-                return mb(r), ub(e, t, n), Pa.excelPanelOpen && Pa.data && e && Pa.data.sku === e.sku && !Pa.excelPackQty && (Pa.excelPackQty = String(n.packCount),
+                return hb(r), db(e, t, n), Pa.excelPanelOpen && Pa.data && e && Pa.data.sku === e.sku && !Pa.excelPackQty && (Pa.excelPackQty = String(n.packCount),
                 Pa.excelStatus = r, zi()), n;
             }
             return null;
         }(e, t).catch(e => {
-            console.warn("PLM floating helper pack AI estimate failed:", e), mb("装箱数计算失败"),
+            console.warn("PLM floating helper pack AI estimate failed:", e), hb("装箱数计算失败"),
             Pa.packAiFailedAt[t] = Date.now();
         }).finally(() => {
             Pa.packAiEstimatingKeys.delete(t);
         }), 100));
     }
-    function mb(e) {
-        Fb(e);
+    function hb(e) {
+        Bb(e);
     }
-    async function hb(e, t) {
-        return Lb("/pack/ai-estimate", {
+    async function yb(e, t) {
+        return Nb("/pack/ai-estimate", {
             method: "POST",
             body: {
                 boxKey: e,
@@ -20461,9 +20480,9 @@
             }
         });
     }
-    function yb(e, t) {
+    function bb(e, t) {
         window.setTimeout(() => {
-            Lb("/insights/record", {
+            Nb("/insights/record", {
                 method: "POST",
                 body: {
                     ...t || {},
@@ -20472,37 +20491,37 @@
                     version: a
                 }
             }).catch(e => {
-                Bb("warn", "云端洞察同步失败", _b(e));
+                zb("warn", "云端洞察同步失败", Ub(e));
             });
         }, 0);
     }
-    async function bb() {
-        return Lb("/insights/classification-rules?limit=240", {
+    async function wb() {
+        return Nb("/insights/classification-rules?limit=240", {
             method: "GET"
         });
     }
-    async function wb(e) {
+    async function kb(e) {
         try {
             const t = await async function() {
                 const e = new Date;
-                return Lb("/tips?" + new URLSearchParams({
-                    name: eb(),
-                    instanceId: kb(),
+                return Nb("/tips?" + new URLSearchParams({
+                    name: tb(),
+                    instanceId: Sb(),
                     version: a,
-                    date: Sb(e),
+                    date: vb(e),
                     time: String(e.getHours()).padStart(2, "0") + ":" + String(e.getMinutes()).padStart(2, "0"),
                     weekday: String(e.getDay())
                 }).toString(), {
                     method: "GET"
                 });
             }(), n = Zc(t && t.tips);
-            Pa.loadingTips = n, Pa.loadingTipsLoaded = !0, e && Fb("小提示已刷新：" + n.length + "条");
+            Pa.loadingTips = n, Pa.loadingTipsLoaded = !0, e && Bb("小提示已刷新：" + n.length + "条");
         } catch (t) {
-            Pa.loadingTips = Aa.slice(), Pa.loadingTipsLoaded = !1, Bb("warn", "小提示拉取失败，已使用本地默认提示", _b(t)),
-            e && Fb("小提示拉取失败，已使用默认提示");
+            Pa.loadingTips = Aa.slice(), Pa.loadingTipsLoaded = !1, zb("warn", "小提示拉取失败，已使用本地默认提示", Ub(t)),
+            e && Bb("小提示拉取失败，已使用默认提示");
         }
     }
-    function kb() {
+    function Sb() {
         try {
             let e = "function" == typeof GM_getValue ? GM_getValue(G, "") : localStorage.getItem(G);
             return e || (e = "function" == typeof crypto.randomUUID ? crypto.randomUUID() : "browser-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2),
@@ -20512,39 +20531,39 @@
             return "browser-session";
         }
     }
-    function Sb(e) {
+    function vb(e) {
         return e.getFullYear() + "-" + String(e.getMonth() + 1).padStart(2, "0") + "-" + String(e.getDate()).padStart(2, "0");
     }
-    function vb(e) {
+    function xb(e) {
         Pa.userHeartbeatTimer && window.clearTimeout(Pa.userHeartbeatTimer), Pa.userHeartbeatTimer = window.setTimeout(() => {
             Pa.userHeartbeatTimer = 0, async function() {
-                const e = eb();
-                if (!e) return void vb(3e3);
+                const e = tb();
+                if (!e) return void xb(3e3);
                 try {
-                    const t = await Lb("/users/heartbeat", {
+                    const t = await Nb("/users/heartbeat", {
                         method: "POST",
                         body: {
                             name: e,
-                            instanceId: kb(),
+                            instanceId: Sb(),
                             version: a,
                             skuCount: Pa.index.length
                         }
                     });
                     t && "boolean" == typeof t.sizeImageEnabled && (Pa.sizeImageAccessName = e, Pa.sizeImageAccessEnabled = t.sizeImageEnabled,
                     Pa.sizeImageAccessLoading = !1, Pa.magicUploadAccessName = e, Pa.magicUploadAccessEnabled = Boolean(t.magicUploadEnabled),
-                    Pa.magicUploadAccessLoading = !1, "home" === Pa.view && zi()), t && "boolean" == typeof t.magicUploadEnabled || Vb(),
-                    wb(!1);
+                    Pa.magicUploadAccessLoading = !1, "home" === Pa.view && zi()), t && "boolean" == typeof t.magicUploadEnabled || Kb(),
+                    kb(!1);
                 } catch (e) {
-                    Bb("warn", "使用状态同步失败", _b(e));
+                    zb("warn", "使用状态同步失败", Ub(e));
                 } finally {
-                    vb(18e5);
+                    xb(18e5);
                 }
             }();
         }, Math.max(0, Number(e) || 0));
     }
-    function xb(e) {
-        const t = eb();
-        t && Lb("/usage/size-image", {
+    function Ab(e) {
+        const t = tb();
+        t && Nb("/usage/size-image", {
             method: "POST",
             body: {
                 name: t,
@@ -20552,34 +20571,34 @@
             }
         }).catch(() => {});
     }
-    function Ab(e) {
+    function Ib(e) {
         Pa.sizeImageAccessTimer && window.clearTimeout(Pa.sizeImageAccessTimer), Pa.sizeImageAccessTimer = window.setTimeout(() => {
             Pa.sizeImageAccessTimer = 0, async function() {
-                const e = eb();
-                if (!e) return Pa.sizeImageAccessEnabled = !1, Pa.sizeImageAccessLoading = !0, void Ab(1500);
+                const e = tb();
+                if (!e) return Pa.sizeImageAccessEnabled = !1, Pa.sizeImageAccessLoading = !0, void Ib(1500);
                 Pa.sizeImageAccessName = e, Pa.sizeImageAccessLoading = !0, "home" === Pa.view && zi();
                 try {
-                    const t = await Lb("/features/size-image?name=" + encodeURIComponent(e), {
+                    const t = await Nb("/features/size-image?name=" + encodeURIComponent(e), {
                         method: "GET"
                     });
                     if (Pa.sizeImageAccessName !== e) return;
                     Pa.sizeImageAccessEnabled = Boolean(t && t.enabled);
                 } catch (e) {
-                    Pa.sizeImageAccessEnabled = !1, Bb("warn", "生成尺寸图权限检查失败", _b(e));
+                    Pa.sizeImageAccessEnabled = !1, zb("warn", "生成尺寸图权限检查失败", Ub(e));
                 } finally {
                     Pa.sizeImageAccessLoading = !1, "home" === Pa.view && zi();
                 }
             }();
         }, Math.max(0, Number(e) || 0));
     }
-    let Ib = null, Mb = null;
-    function Tb() {
-        Ib = null;
+    let Mb = null, Tb = null;
+    function Eb() {
+        Mb = null;
         try {
             "function" == typeof GM_deleteValue && GM_deleteValue(Pe);
         } catch (e) {}
     }
-    function Eb(e) {
+    function Cb(e) {
         const t = String(e && e.token || "").trim(), a = function(e) {
             const t = Number(e);
             if (Number.isFinite(t) && t > 0) return t > 1e12 ? t : 1e3 * t;
@@ -20587,34 +20606,34 @@
             return Number.isFinite(a) ? a : 0;
         }(e && e.expiresAt) || Date.now() + 288e5;
         if (!t || 3 !== t.split(".").length || a <= Date.now()) throw new Error("云端登录令牌无效");
-        Ib = {
+        Mb = {
             token: t,
             expiresAt: a,
             user: e && e.user || null
         };
         try {
-            "function" == typeof GM_setValue && GM_setValue(Pe, Ib);
+            "function" == typeof GM_setValue && GM_setValue(Pe, Mb);
         } catch (e) {}
         return t;
     }
-    async function Cb(e) {
-        if (e) Tb(); else {
+    async function Pb(e) {
+        if (e) Eb(); else {
             const e = function() {
                 const e = e => Boolean(e && "string" == typeof e.token && 3 === e.token.split(".").length && Number(e.expiresAt) > Date.now() + 12e4);
-                if (e(Ib)) return Ib;
+                if (e(Mb)) return Mb;
                 try {
                     const t = "function" == typeof GM_getValue ? GM_getValue(Pe, null) : null;
-                    if (e(t)) return Ib = {
+                    if (e(t)) return Mb = {
                         token: String(t.token),
                         expiresAt: Number(t.expiresAt),
                         user: t.user || null
-                    }, Ib;
+                    }, Mb;
                 } catch (e) {}
                 return null;
             }();
             if (e) return e.token;
         }
-        return Mb || (Mb = (async () => {
+        return Tb || (Tb = (async () => {
             let e = await function() {
                 const e = Oe();
                 if (e) return Promise.resolve(e);
@@ -20629,7 +20648,7 @@
             }();
             if (!e) throw new Error("未检测到 PLM 登录态，请先刷新 PLM 页面后重试");
             try {
-                return Eb(await Pb("/auth/exchange", {
+                return Cb(await Lb("/auth/exchange", {
                     method: "POST",
                     timeoutMs: 15e3
                 }, {
@@ -20639,10 +20658,10 @@
                 e = "";
             }
         })().finally(() => {
-            Mb = null;
-        }), Mb);
+            Tb = null;
+        }), Tb);
     }
-    function Pb(e, t, a) {
+    function Lb(e, t, a) {
         const n = t && t.method || "GET", r = t && t.body ? JSON.stringify(t.body) : null, i = Ee + e, o = Number(t && t.timeoutMs) || 3e4, s = {
             "content-type": "application/json",
             ...t && t.headers || {},
@@ -20665,7 +20684,7 @@
                             responseFormat: "html"
                         }) : void a(new Error("云端返回了非 JSON 响应（HTTP " + n.status + "）"));
                     }
-                    n.status < 200 || n.status >= 300 ? a(Nb(i, n.status)) : t(i);
+                    n.status < 200 || n.status >= 300 ? a(_b(i, n.status)) : t(i);
                 },
                 onerror: () => a(new Error("云端请求被浏览器拦截或网络不可用")),
                 ontimeout: () => a(new Error("timeout")),
@@ -20689,7 +20708,7 @@
                     };
                     throw new Error("云端返回了非 JSON 响应（HTTP " + t.status + "）");
                 }
-                if (!t.ok) throw Nb(n, t.status);
+                if (!t.ok) throw _b(n, t.status);
                 return n;
             }).then(t, e => {
                 a(e && "AbortError" === e.name ? new Error("timeout") : e);
@@ -20698,23 +20717,23 @@
             });
         });
     }
-    async function Lb(e, t) {
-        const a = t || {}, n = await Cb(Boolean(a.forceAuth));
+    async function Nb(e, t) {
+        const a = t || {}, n = await Pb(Boolean(a.forceAuth));
         try {
-            return await Pb(e, a, {
+            return await Lb(e, a, {
                 Authorization: "Bearer " + n
             });
         } catch (t) {
             if (401 !== Number(t && t.status) || a.__authRetried) throw t;
-            return Tb(), Pb(e, {
+            return Eb(), Lb(e, {
                 ...a,
                 __authRetried: !0
             }, {
-                Authorization: "Bearer " + await Cb(!0)
+                Authorization: "Bearer " + await Pb(!0)
             });
         }
     }
-    function Nb(e, t) {
+    function _b(e, t) {
         const a = new Error(function(e, t) {
             const a = [];
             e && e.error && a.push(e.error);
@@ -20725,17 +20744,17 @@
         }(e, t));
         return a.cloudData = e || {}, a.status = t, a;
     }
-    function _b(e) {
+    function Ub(e) {
         return e && e.message ? e.message : String(e || "未知错误");
     }
-    function Ub(e) {
+    function Db(e) {
         return e ? [ e.brand, e.name, e.sku ].filter(Boolean).join(" ") : "";
     }
-    function Db(e) {
+    function Fb(e) {
         const t = e || xa.unknown;
         "function" == typeof GM_setClipboard ? GM_setClipboard(t, "text") : navigator.clipboard && navigator.clipboard.writeText(t);
     }
-    function Fb(e, t) {
+    function Bb(e, t) {
         const a = vi(), n = String(e || ""), r = Boolean(t && t.quiet), i = String(t && t.tone || "").trim() || (r ? "quiet" : /失败|错误|异常|不可用|无法|不能为空|请先|缺少|拦截|未找到|没有可/.test(n) ? "error" : "success"), o = n.length > 12 ? 12e3 : 7e3;
         let s = a.querySelector(".pfh-toast");
         s || (s = document.createElement("div"), s.className = "pfh-toast", s.setAttribute("role", "status"),
@@ -20751,13 +20770,13 @@
             }, 420));
         }, o);
     }
-    function Bb(t, a, n) {
+    function zb(t, a, n) {
         const r = [ a, n ].filter(Boolean).join(" | "), i = {
             time: (new Date).toLocaleTimeString(),
             level: t || "info",
             message: String(r || "").slice(0, 600)
         };
-        Pa.logs = [ i ].concat(Pa.logs || []).slice(0, 300), zb(), function(e, t) {
+        Pa.logs = [ i ].concat(Pa.logs || []).slice(0, 300), Rb(), function(e, t) {
             const a = String(e && e.level || "").toLowerCase();
             if (!/^(success|warn|error)$/.test(a)) return;
             const n = String(e && e.message || "");
@@ -20768,8 +20787,8 @@
             const r = Date.now(), i = [ a, n.slice(0, 180) ].join("|");
             if (Pa.logSyncDedup = Pa.logSyncDedup || {}, Pa.logSyncDedup[i] && r - Pa.logSyncDedup[i] < 3e5) return;
             Pa.logSyncDedup[i] = r;
-            const o = Pa.data || (Pa.selectedSku ? Gw(Pa.selectedSku) : null) || {}, s = hi([ n, t ].filter(Boolean).join(" "));
-            yb("log", {
+            const o = Pa.data || (Pa.selectedSku ? Ww(Pa.selectedSku) : null) || {}, s = hi([ n, t ].filter(Boolean).join(" "));
+            bb("log", {
                 sku: s || o.sku || Pa.selectedSku || Pa.sku || "",
                 brand: s && s !== o.sku ? "" : o.brand || "",
                 name: s && s !== o.sku ? "" : o.name || "",
@@ -20786,14 +20805,14 @@
             e && (e.outerHTML = Qi());
         }
     }
-    function zb() {
+    function Rb() {
         try {
             "function" == typeof GM_setValue ? GM_setValue(V, Pa.logs || []) : localStorage.setItem(V, JSON.stringify(Pa.logs || []));
         } catch (e) {
             console.warn("PLM floating helper log save failed:", e);
         }
     }
-    function Rb(e) {
+    function jb(e) {
         const t = e && "object" == typeof e ? e : {}, a = {
             priceHistory: [],
             dataIssues: [],
@@ -20820,8 +20839,8 @@
             seen: String(e.seen || "").slice(0, 120),
             issueKind: String(e.issueKind || "").slice(0, 80),
             readiness: String(e.readiness || "").slice(0, 160),
-            diagnosticAttempt: ew(e.diagnosticAttempt),
-            fieldDiagnostics: jb(e.fieldDiagnostics),
+            diagnosticAttempt: tw(e.diagnosticAttempt),
+            fieldDiagnostics: Ob(e.fieldDiagnostics),
             source: String(e.source || "").slice(0, 80),
             recordedAt: String(e.recordedAt || "").slice(0, 80),
             recordedAtMs: Number(e.recordedAtMs || 0) || 0
@@ -20837,7 +20856,7 @@
             };
         }), a;
     }
-    function jb(e) {
+    function Ob(e) {
         return Array.isArray(e) ? e.slice(0, 20).map(e => ({
             field: String(e && e.field || "").slice(0, 80),
             targetTab: String(e && e.targetTab || "").slice(0, 80),
@@ -20846,65 +20865,65 @@
             action: String(e && e.action || "").slice(0, 120)
         })).filter(e => e.field) : [];
     }
-    function Ob() {
+    function qb() {
         try {
-            Pa.insights = Rb(Pa.insights), "function" == typeof GM_setValue ? GM_setValue(K, Pa.insights) : localStorage.setItem(K, JSON.stringify(Pa.insights));
+            Pa.insights = jb(Pa.insights), "function" == typeof GM_setValue ? GM_setValue(K, Pa.insights) : localStorage.setItem(K, JSON.stringify(Pa.insights));
         } catch (e) {
             console.warn("PLM floating helper insights save failed:", e);
         }
     }
-    function qb(e, t) {
-        const a = Kb(e && e.manualCategory);
+    function $b(e, t) {
+        const a = Gb(e && e.manualCategory);
         if (a) return a;
         if (kn(e)) return "玩具";
         if (e && e.aiProductType && !/^\u672a\u5206\u7c7b$/i.test(String(e.aiProductType))) return String(e.aiProductType);
-        const n = [ t && t.englishName, t && t.chineseName, e && e.name, e && e.netContent ].filter(Boolean).join(" "), r = Wb(e, Pa.classificationRules || [], "category");
+        const n = [ t && t.englishName, t && t.chineseName, e && e.name, e && e.netContent ].filter(Boolean).join(" "), r = Qb(e, Pa.classificationRules || [], "category");
         return r && r.label ? r.label : /(?:\u80f6\u56ca|capsule)\s*(?:\u9762\u971c|cream)|(?:\u9762\u971c|cream)\s*(?:\u80f6\u56ca|capsule)/i.test(n) ? "面霜" : /\u8f6f\u7cd6|gumm/i.test(n) ? "软糖" : /\u7cbe\u6cb9|oil/i.test(n) ? "精油" : /\u9762\u971c|face\s*cream/i.test(n) ? "面霜" : /\u80f6\u56ca|capsule/i.test(n) ? "胶囊" : /\u971c|cream/i.test(n) ? "霜类" : /\u9999\u6c34|perfume/i.test(n) ? "香水" : /\u73a9\u5177|toy|\u516c\u4ed4|\u634f\u634f/i.test(n) ? "玩具" : "未分类";
     }
-    function $b(e) {
+    function Hb(e) {
         return [ e && e.sku, e && e.brand, e && e.name, e && e.manualCategory, e && e.netContent, e && e.packageSizeLabel, e && e.packageSizeText, e && e.printSizeLabel, e && e.printSizeText, e && e.plmCategory, e && e.logoText, e && e.aiProductType, e && e.aiCategory, Array.isArray(e && e.aiPackageTypes) ? e.aiPackageTypes.join(" ") : "" ].filter(Boolean).join(" ").toLowerCase();
     }
-    function Hb(e) {
+    function Vb(e) {
         Pa.magicUploadAccessTimer && window.clearTimeout(Pa.magicUploadAccessTimer), Pa.magicUploadAccessTimer = window.setTimeout(() => {
-            Pa.magicUploadAccessTimer = 0, Vb();
+            Pa.magicUploadAccessTimer = 0, Kb();
         }, Math.max(0, Number(e) || 0));
     }
-    async function Vb() {
-        const e = eb();
+    async function Kb() {
+        const e = tb();
         if (!e) return Pa.magicUploadAccessEnabled = !1, Pa.magicUploadAccessLoading = !0,
-        void Hb(1500);
+        void Vb(1500);
         Pa.magicUploadAccessName = e, Pa.magicUploadAccessLoading = !0, "home" !== Pa.view && "magicUpload" !== Pa.view || zi();
         try {
-            const t = await Lb("/features/magic-upload?name=" + encodeURIComponent(e), {
+            const t = await Nb("/features/magic-upload?name=" + encodeURIComponent(e), {
                 method: "GET"
             });
             if (Pa.magicUploadAccessName !== e) return;
             Pa.magicUploadAccessEnabled = Boolean(t && t.enabled);
         } catch (e) {
-            Pa.magicUploadAccessEnabled = !1, Bb("warn", "魔法上传权限检查失败", _b(e));
+            Pa.magicUploadAccessEnabled = !1, zb("warn", "魔法上传权限检查失败", Ub(e));
         } finally {
             Pa.magicUploadAccessLoading = !1, "home" !== Pa.view && "magicUpload" !== Pa.view || zi();
         }
     }
-    function Kb(e) {
+    function Gb(e) {
         const t = String(e || "").replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, " ").replace(/\s+/g, " ").trim();
         return !t || /^(?:未设置|自动识别|未分类)$/i.test(t) ? "" : /玩具/i.test(t) ? "玩具" : /食品/i.test(t) ? "食品" : t.slice(0, 60);
     }
-    function Gb(e) {
+    function Wb(e) {
         if (Array.isArray(e)) return e.map(e => String(e || "").trim()).filter(Boolean);
         if ("string" == typeof e) try {
             const t = JSON.parse(e);
-            if (Array.isArray(t)) return Gb(t);
+            if (Array.isArray(t)) return Wb(t);
         } catch (t) {
             return e.split(/[,，/、\s]+/).map(e => e.trim()).filter(Boolean);
         }
         return [];
     }
-    function Wb(e, t, a) {
-        const n = $b(e);
+    function Qb(e, t, a) {
+        const n = Hb(e);
         if (!n) return null;
         const r = (Array.isArray(t) ? t : []).filter(e => !a || e.kind === a).map(e => {
-            const t = Gb(e.keywords), a = Gb(e.negativeKeywords);
+            const t = Wb(e.keywords), a = Wb(e.negativeKeywords);
             if (!t.length || a.some(e => e && n.includes(e.toLowerCase()))) return null;
             const r = t.filter(e => e && n.includes(e.toLowerCase()));
             if (!r.length) return null;
@@ -20924,24 +20943,24 @@
             score: r[0].score
         } : null;
     }
-    function Qb(e, t) {
+    function Jb(e, t) {
         return (Array.isArray(e) ? e.filter(Boolean).join("x") : "") || String(t || "");
     }
-    function Jb(e, t, a) {
+    function Xb(e, t, a) {
         if (!e || !e.sku) return;
         const n = Pa.insights || {
             priceHistory: [],
             dataIssues: [],
             typeStats: {}
-        }, r = qb(e, t), i = {
+        }, r = $b(e, t), i = {
             sku: e.sku,
             brand: e.brand || "",
             name: e.name || t && t.chineseName || "",
             productType: r,
             price: String(a && a.price || ""),
             packQty: String(a && a.packQty || ""),
-            packageSize: Qb([ e.packageLength, e.packageWidth, e.packageHeight ], e.packageSizeText),
-            productSize: Qb([ e.productLength, e.productWidth, e.productHeight ], e.productNums),
+            packageSize: Jb([ e.packageLength, e.packageWidth, e.packageHeight ], e.packageSizeText),
+            productSize: Jb([ e.productLength, e.productWidth, e.productHeight ], e.productNums),
             source: a && a.source || "manual",
             fileName: a && a.fileName || "",
             recordedAt: (new Date).toLocaleString(),
@@ -20956,14 +20975,14 @@
             latestSku: e.sku,
             latestPrice: i.price,
             latestAt: i.recordedAt
-        }, Pa.insights = n, Ob(), Bb("success", "已记录价格/类型历史", e.sku + " " + r + " " + i.price),
-        yb("price", i), rb();
+        }, Pa.insights = n, qb(), zb("success", "已记录价格/类型历史", e.sku + " " + r + " " + i.price),
+        bb("price", i), ib();
     }
-    function Xb(e, t) {
+    function Zb(e, t) {
         if (!e || !e.sku) return;
-        const a = Zb(e);
+        const a = Yb(e);
         if (!a.length) return;
-        const n = [ e.seenMaterial ? "物料" : "", e.seenProduct ? "产品" : "" ].filter(Boolean).join("/"), r = Yb(e, a), i = {
+        const n = [ e.seenMaterial ? "物料" : "", e.seenProduct ? "产品" : "" ].filter(Boolean).join("/"), r = ew(e, a), i = {
             sku: e.sku,
             brand: e.brand || "",
             name: e.name || "",
@@ -20982,26 +21001,26 @@
             typeStats: {}
         };
         (o.dataIssues || []).some(e => e.sku === i.sku && e.missing.join(",") === i.missing.join(",") && Date.now() - Number(e.recordedAtMs || 0) < 6e5) || (o.dataIssues = [ i ].concat(o.dataIssues || []).slice(0, 1e3),
-        Pa.insights = o, Ob(), Bb("warn", "数据缺失", e.sku + " 缺：" + a.join("、") + (n ? " / 已读：" + n : "") + " / " + r.kind),
-        yb("issue", {
+        Pa.insights = o, qb(), zb("warn", "数据缺失", e.sku + " 缺：" + a.join("、") + (n ? " / 已读：" + n : "") + " / " + r.kind),
+        bb("issue", {
             ...i,
             missingFields: i.missing,
             diagnosticAttempt: i.diagnosticAttempt,
             fieldDiagnostics: i.fieldDiagnostics
         }));
     }
-    function Zb(e) {
+    function Yb(e) {
         const t = [];
         return e ? (e.brand || t.push("品牌"), e.name || t.push("商品名称"), e.packageSizeText || e.packageLength && e.packageWidth && e.packageHeight || t.push("包装尺寸"),
         e.printSizeText || t.push("印刷尺寸"), vn(e) || e.productLength && e.productWidth && e.productHeight || t.push("产品尺寸"),
         e.netContent || t.push("净含量"), e.grossWeight || t.push("毛重"), e.seenProduct && !eu(e) && t.push("SKU图"),
         t) : t;
     }
-    function Yb(e, t) {
+    function ew(e, t) {
         const a = [ e.seenMaterial ? "物料清单" : "", e.seenProduct ? "产品信息" : "" ].filter(Boolean), n = Boolean(e.seenMaterial && e.seenProduct), r = [ "包装尺寸", "印刷尺寸", "净含量" ], i = [ "产品尺寸", "毛重" ], o = [ "SKU图" ], s = [ "品牌", "商品名称" ], l = t.some(e => r.includes(e)), c = t.some(e => i.includes(e)), u = t.some(e => o.includes(e)), d = t.some(e => s.includes(e));
         let p = "可能 PLM 空值";
         l && !e.seenMaterial || (c || u) && !e.seenProduct || !a.length ? p = "页面未读完" : (d || l && e.seenMaterial || (c || u) && e.seenProduct || n) && (p = "页面已读但未解析");
-        const g = ew(e.lastMissingDiagnostic), f = t.map(t => function(e, t, a) {
+        const g = tw(e.lastMissingDiagnostic), f = t.map(t => function(e, t, a) {
             const n = function(e) {
                 return "包装尺寸" === e || "印刷尺寸" === e || "净含量" === e ? "物料清单" : "品牌" === e || "商品名称" === e ? "项目详情" : "产品尺寸" === e || "毛重" === e || "SKU图" === e ? "产品信息" : "";
             }(t), r = "项目详情" === n ? Boolean(e.sku) : "物料清单" === n ? Boolean(e.seenMaterial) : "产品信息" === n && Boolean(e.seenProduct), i = r ? "页面已读但未解析" : "页面未读完", o = function(e, t) {
@@ -21020,12 +21039,12 @@
         }(e, t, g));
         return {
             kind: p,
-            readiness: (a.length ? "已读页签：" + a.join("/") : "未读到核心页签") + tw(g),
+            readiness: (a.length ? "已读页签：" + a.join("/") : "未读到核心页签") + aw(g),
             diagnosticAttempt: g,
             fieldDiagnostics: f
         };
     }
-    function ew(e) {
+    function tw(e) {
         const t = e && "object" == typeof e ? e : {};
         return {
             status: String(t.status || "").slice(0, 40),
@@ -21039,19 +21058,19 @@
             at: String(t.at || "").slice(0, 80)
         };
     }
-    function tw(e) {
+    function aw(e) {
         if (!e || !e.status) return "";
         const t = [ "二次读取：" + e.status ];
         return e.tabs && e.tabs.length && t.push("页签 " + e.tabs.join("/")), e.attempts && e.attempts.length && t.push("尝试 " + e.attempts.map(e => e.tab + "x" + e.count).join("/")),
-        e.elapsedMs && t.push(lk(e.elapsedMs / 1e3) + "s"), e.reason && t.push(e.reason),
+        e.elapsedMs && t.push(ck(e.elapsedMs / 1e3) + "s"), e.reason && t.push(e.reason),
         " / " + t.join(" / ");
     }
-    function aw(e) {
+    function nw(e) {
         return function(e) {
-            return sk(e).replace(/\*+$/g, "").trim();
+            return lk(e).replace(/\*+$/g, "").trim();
         }(e).replace(/[:\uff1a]\s*$/g, "").trim();
     }
-    function nw() {
+    function rw() {
         try {
             "function" == typeof GM_setValue ? GM_setValue(v, Pa.index) : localStorage.setItem(v, JSON.stringify(Pa.index));
         } catch (e) {
@@ -21064,21 +21083,21 @@
             console.warn("PLM floating helper frontend catalog notification failed:", e);
         }
     }
-    function rw(e) {
+    function iw(e) {
         try {
             "function" == typeof GM_setValue ? GM_setValue(E, e) : localStorage.setItem(E, JSON.stringify(e));
         } catch (e) {
             console.warn("PLM floating helper settings save failed:", e);
         }
     }
-    function iw(e) {
+    function ow(e) {
         try {
             "function" == typeof GM_setValue ? GM_setValue(F, Boolean(e)) : localStorage.setItem(F, JSON.stringify(Boolean(e)));
         } catch (e) {
             console.warn("PLM floating helper tutorial flag save failed:", e);
         }
     }
-    function ow() {
+    function sw() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(B, null) : JSON.parse(localStorage.getItem(B) || "null");
             return Array.isArray(e) ? e : [];
@@ -21086,7 +21105,7 @@
             return [];
         }
     }
-    function sw() {
+    function lw() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(z, null) : JSON.parse(localStorage.getItem(z) || "null"), t = (() => {
                 try {
@@ -21095,7 +21114,7 @@
                     return !1;
                 }
             })();
-            return (Array.isArray(e) ? e : []).map(cw).filter(Boolean).map(e => t || "preparing" !== e.status ? e : {
+            return (Array.isArray(e) ? e : []).map(uw).filter(Boolean).map(e => t || "preparing" !== e.status ? e : {
                 ...e,
                 status: "pending"
             }).slice(0, 300);
@@ -21103,8 +21122,8 @@
             return [];
         }
     }
-    function lw(e) {
-        const t = (Array.isArray(e) ? e : []).map(cw).filter(Boolean).slice(0, 300);
+    function cw(e) {
+        const t = (Array.isArray(e) ? e : []).map(uw).filter(Boolean).slice(0, 300);
         Pa.batchExcelQueue = t;
         try {
             "function" == typeof GM_setValue ? GM_setValue(z, t) : localStorage.setItem(z, JSON.stringify(t));
@@ -21112,7 +21131,7 @@
             console.warn("PLM floating helper Excel batch queue save failed:", e);
         }
     }
-    function cw(e) {
+    function uw(e) {
         const t = String(e && e.sku || "").trim().toUpperCase();
         if (!/^SKU\d{8}$/.test(t)) return null;
         return {
@@ -21126,7 +21145,7 @@
             updatedAt: Number(e && e.updatedAt) || Date.now()
         };
     }
-    function uw(e, t) {
+    function dw(e, t) {
         const a = String(e && e.sku || "").trim().toUpperCase();
         if (!/^SKU\d+$/.test(a)) return null;
         let n = new Set([ "pending", "processing", "success", "noop", "error" ]).has(String(e && e.status || "")) ? String(e.status) : "pending";
@@ -21152,16 +21171,16 @@
             updatedAt: Number(e && e.updatedAt) || Date.now()
         };
     }
-    function dw() {
+    function pw() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue($, null) : JSON.parse(localStorage.getItem($) || "null");
-            return (Array.isArray(e) ? e : []).map(e => uw(e, !0)).filter(Boolean).slice(0, 300);
+            return (Array.isArray(e) ? e : []).map(e => dw(e, !0)).filter(Boolean).slice(0, 300);
         } catch (e) {
             return [];
         }
     }
-    function pw(e) {
-        const t = (Array.isArray(e) ? e : []).map(e => uw(e, !1)).filter(Boolean).slice(0, 300);
+    function gw(e) {
+        const t = (Array.isArray(e) ? e : []).map(e => dw(e, !1)).filter(Boolean).slice(0, 300);
         Pa.toyCopywritingBatchQueue = t;
         try {
             "function" == typeof GM_setValue ? GM_setValue($, t) : localStorage.setItem($, JSON.stringify(t));
@@ -21169,14 +21188,14 @@
             console.warn("PLM floating helper toy copywriting batch queue save failed:", e);
         }
     }
-    function gw() {
+    function fw() {
         try {
             "function" == typeof GM_setValue ? GM_setValue(B, Pa.uploadQueue) : localStorage.setItem(B, JSON.stringify(Pa.uploadQueue));
         } catch (e) {
             console.warn("PLM floating helper upload queue save failed:", e);
         }
     }
-    function fw() {
+    function mw() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(R, null) : JSON.parse(localStorage.getItem(R) || "null");
             return Array.isArray(e) ? e : [];
@@ -21184,14 +21203,14 @@
             return [];
         }
     }
-    function mw() {
+    function hw() {
         try {
             "function" == typeof GM_setValue ? GM_setValue(R, Pa.uploadHistory) : localStorage.setItem(R, JSON.stringify(Pa.uploadHistory));
         } catch (e) {
             console.warn("PLM floating helper upload history save failed:", e);
         }
     }
-    function hw(e, t) {
+    function yw(e, t) {
         const a = Array.isArray(e) ? e : [], n = Array.isArray(t) ? t : [];
         Pa.uploadQueue = a, Pa.uploadHistory = n;
         try {
@@ -21202,8 +21221,8 @@
         }
         Pa.uploadQueue = a, Pa.uploadHistory = n;
     }
-    function yw(e) {
-        const t = e ? xw(e) : "", a = ow(), n = fw(), r = a.length ? a : Pa.uploadQueue || [], i = r.filter(e => (!t || Aw(e) === t) && /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(e.status || "") && !/\u8fdb\u884c\u4e2d/.test(e.status || ""));
+    function bw(e) {
+        const t = e ? Aw(e) : "", a = sw(), n = mw(), r = a.length ? a : Pa.uploadQueue || [], i = r.filter(e => (!t || Iw(e) === t) && /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(e.status || "") && !/\u8fdb\u884c\u4e2d/.test(e.status || ""));
         if (!i.length) return;
         const o = new Map;
         i.forEach(e => {
@@ -21223,14 +21242,14 @@
                     key: ""
                 }))
             };
-            o.set(Sw(n), n);
+            o.set(vw(n), n);
         });
-        const s = Array.from(o.values()), l = new Set(s.map(Sw)), c = new Set(i.map(kw));
-        Pa.uploadQueue = r.filter(e => !c.has(kw(e))), Pa.uploadHistory = s.concat(n.filter(e => !l.has(Sw(e)))).slice(0, 200),
-        i.forEach(zw), hw(Pa.uploadQueue, Pa.uploadHistory);
+        const s = Array.from(o.values()), l = new Set(s.map(vw)), c = new Set(i.map(Sw));
+        Pa.uploadQueue = r.filter(e => !c.has(Sw(e))), Pa.uploadHistory = s.concat(n.filter(e => !l.has(vw(e)))).slice(0, 200),
+        i.forEach(Rw), yw(Pa.uploadQueue, Pa.uploadHistory);
     }
-    function bw(e) {
-        const t = (new Date).toLocaleString(), a = ow(), n = fw(), r = a.find(t => t.id === e.id) || e, i = "toy-label" === r.kind ? "标签上传成功" : "toy-effect" === r.kind ? "效果图上传成功" : "copyright" === r.kind ? "版权图上传成功" : xa.uploadSuccess, o = {
+    function ww(e) {
+        const t = (new Date).toLocaleString(), a = sw(), n = mw(), r = a.find(t => t.id === e.id) || e, i = "toy-label" === r.kind ? "标签上传成功" : "toy-effect" === r.kind ? "效果图上传成功" : "copyright" === r.kind ? "版权图上传成功" : xa.uploadSuccess, o = {
             ...r,
             status: i,
             step: i,
@@ -21246,13 +21265,13 @@
                 ...e,
                 key: ""
             }))
-        }, s = Sw(o);
-        Pa.uploadQueue = a.filter(t => t.id !== e.id && Sw(t) !== s), Pa.uploadHistory = [ o ].concat(n.filter(e => Sw(e) !== s)).slice(0, 200),
-        zw(r), hw(Pa.uploadQueue, Pa.uploadHistory), "standard" === (o.kind || "standard") && yb("image_pack_upload_success", {
+        }, s = vw(o);
+        Pa.uploadQueue = a.filter(t => t.id !== e.id && vw(t) !== s), Pa.uploadHistory = [ o ].concat(n.filter(e => vw(e) !== s)).slice(0, 200),
+        Rw(r), yw(Pa.uploadQueue, Pa.uploadHistory), "standard" === (o.kind || "standard") && bb("image_pack_upload_success", {
             sku: o.sku || "",
             name: o.name || "",
             source: "upload-queue"
-        }), "toy-label" === o.kind && /\u6210\u529f/.test(o.status || "") && yb("toy_label_upload_success", {
+        }), "toy-label" === o.kind && /\u6210\u529f/.test(o.status || "") && bb("toy_label_upload_success", {
             sku: o.sku || "",
             name: o.name || "",
             source: "upload-queue"
@@ -21267,8 +21286,8 @@
             labelFileDone: !0
         }, qm())), zi();
     }
-    function ww(e, t, a, n) {
-        const r = ow(), i = r.find(t => t.id === e.id) || e, o = (new Date).toLocaleString(), s = {
+    function kw(e, t, a, n) {
+        const r = sw(), i = r.find(t => t.id === e.id) || e, o = (new Date).toLocaleString(), s = {
             ...i,
             ...n || {},
             status: t || xa.uploadFailed,
@@ -21278,38 +21297,38 @@
             updatedAt: o
         };
         Object.assign(e, s), Pa.uploadQueue = r.some(t => t.id === e.id) ? r.map(t => t.id === e.id ? s : t) : [ s ].concat(r),
-        gw(), zi();
+        fw(), zi();
     }
-    function kw(e) {
+    function Sw(e) {
         const t = op(e).map(e => e.name).join(","), a = sp(e).map(e => e.name).join(",");
         return [ e && e.sku, e && e.xlsxName, e && e.zipName, t, a ].filter(Boolean).join("|") || e && e.id || "";
     }
-    function Sw(e) {
+    function vw(e) {
         return [ e && e.kind || "standard", e && e.sku ].filter(Boolean).join("|") || e && e.id || "";
     }
-    function vw(e) {
+    function xw(e) {
         return /\u6210\u529f/.test(String(e && e.status || ""));
     }
-    function xw(e) {
+    function Aw(e) {
         return q.includes(e) ? e : "standard";
     }
-    function Aw(e) {
-        return xw(e && e.kind);
-    }
-    function Iw() {
-        return /[?&]plmUploadWorker=1\b/.test(location.search);
+    function Iw(e) {
+        return Aw(e && e.kind);
     }
     function Mw() {
+        return /[?&]plmUploadWorker=1\b/.test(location.search);
+    }
+    function Tw() {
         try {
-            return xw(new URLSearchParams(location.search).get("plmUploadMode"));
+            return Aw(new URLSearchParams(location.search).get("plmUploadMode"));
         } catch (e) {
             return "standard";
         }
     }
-    function Tw() {
-        return Iw() ? Mw() : xw(Pa.uploadMode);
-    }
     function Ew() {
+        return Mw() ? Tw() : Aw(Pa.uploadMode);
+    }
+    function Cw() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(O, null) : JSON.parse(localStorage.getItem(O) || "null"), t = "string" == typeof e ? JSON.parse(e) : e, a = "function" == typeof GM_getValue ? GM_getValue(j, !1) : JSON.parse(localStorage.getItem(j) || "false");
             return {
@@ -21327,15 +21346,15 @@
             };
         }
     }
-    function Cw(e) {
-        const t = xw(e || (Iw() ? Mw() : "standard"));
-        return Boolean(Ew()[t]);
+    function Pw(e) {
+        const t = Aw(e || (Mw() ? Tw() : "standard"));
+        return Boolean(Cw()[t]);
     }
-    function Pw(e, t) {
+    function Lw(e, t) {
         let a = e, n = t;
-        void 0 === t && (n = e, a = Iw() ? Mw() : "standard"), a = xw(a);
+        void 0 === t && (n = e, a = Mw() ? Tw() : "standard"), a = Aw(a);
         try {
-            const e = Ew();
+            const e = Cw();
             e[a] = Boolean(n);
             const t = q.some(t => Boolean(e[t]));
             "function" == typeof GM_setValue ? (GM_setValue(O, e), GM_setValue(j, t)) : (localStorage.setItem(O, JSON.stringify(e)),
@@ -21344,7 +21363,7 @@
             console.warn("PLM floating helper upload worker save failed:", e);
         }
     }
-    function Lw() {
+    function Nw() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(H, null) : JSON.parse(localStorage.getItem(H) || "null");
             return e && "object" == typeof e ? {
@@ -21364,7 +21383,7 @@
             };
         }
     }
-    function Nw(e) {
+    function _w(e) {
         const t = {
             signature: String(e && e.signature || ""),
             files: Array.isArray(e && e.files) ? e.files : [],
@@ -21372,28 +21391,28 @@
         };
         "function" == typeof GM_setValue ? GM_setValue(H, t) : localStorage.setItem(H, JSON.stringify(t));
     }
-    async function _w(e) {
-        const t = e || Lw();
-        await Promise.all((t.files || []).map(e => Rw(e.key).catch(e => {
+    async function Uw(e) {
+        const t = e || Nw();
+        await Promise.all((t.files || []).map(e => jw(e.key).catch(e => {
             console.warn("PLM floating helper toy label staged file cleanup failed:", e);
-        }))), Nw({
+        }))), _w({
             signature: "",
             files: [],
             downloaded: !1
         });
     }
-    async function Uw(e) {
-        const t = Lw(), a = String(e || ""), n = new Set(t.signature.split("|").filter(Boolean)), r = a.split("|").filter(Boolean);
+    async function Dw(e) {
+        const t = Nw(), a = String(e || ""), n = new Set(t.signature.split("|").filter(Boolean)), r = a.split("|").filter(Boolean);
         if (t.signature === a || t.files.length && r.length && r.every(e => n.has(e))) return t;
-        await _w(t);
+        await Uw(t);
         const i = {
             signature: a,
             files: [],
             downloaded: !1
         };
-        return Nw(i), Pa.toyLabelBatchFiles = [], i;
+        return _w(i), Pa.toyLabelBatchFiles = [], i;
     }
-    function Dw() {
+    function Fw() {
         return new Promise((e, t) => {
             const a = indexedDB.open("plm-floating-helper-files", 1);
             a.onupgradeneeded = () => {
@@ -21402,8 +21421,8 @@
             }, a.onsuccess = () => e(a.result), a.onerror = () => t(a.error);
         });
     }
-    async function Fw(e, t) {
-        const a = await Dw();
+    async function Bw(e, t) {
+        const a = await Fw();
         return new Promise((n, r) => {
             const i = a.transaction(ne, "readwrite");
             i.objectStore(ne).put(t, e), i.oncomplete = () => {
@@ -21413,8 +21432,8 @@
             };
         });
     }
-    async function Bw(e) {
-        const t = await Dw();
+    async function zw(e) {
+        const t = await Fw();
         return new Promise((a, n) => {
             const r = t.transaction(ne, "readonly"), i = r.objectStore(ne).get(e);
             i.onsuccess = () => a(i.result || null), i.onerror = () => n(i.error), r.oncomplete = () => t.close(),
@@ -21423,14 +21442,14 @@
             };
         });
     }
-    function zw(e) {
+    function Rw(e) {
         e && [ e.xlsxKey, e.zipKey ].concat(op(e).map(e => e.key)).concat(sp(e).map(e => e.key)).filter(Boolean).forEach(e => {
-            Rw(e).catch(e => console.warn("PLM floating helper upload file cleanup failed:", e));
+            jw(e).catch(e => console.warn("PLM floating helper upload file cleanup failed:", e));
         });
     }
-    async function Rw(e) {
+    async function jw(e) {
         if (!e) return;
-        const t = await Dw();
+        const t = await Fw();
         return new Promise((a, n) => {
             const r = t.transaction(ne, "readwrite");
             r.objectStore(ne).delete(e), r.oncomplete = () => {
@@ -21440,13 +21459,13 @@
             };
         });
     }
-    function jw() {
+    function Ow() {
         return Pa.settings && "waterfall" === Pa.settings.skuListMode ? "waterfall" : "list";
     }
-    function Ow() {
+    function qw() {
         return Pa.settings && "acquired" === Pa.settings.skuListSort ? "acquired" : "assigned";
     }
-    function qw(e) {
+    function $w(e) {
         if ("number" == typeof e && Number.isFinite(e)) return e > 0 && e < 1e11 ? 1e3 * e : e;
         const t = String(e || "").trim();
         if (!t) return 0;
@@ -21462,20 +21481,20 @@
         const n = Date.parse(t.replace(/[年\/]/g, "-").replace(/月/g, "-").replace(/日/g, " "));
         return Number.isFinite(n) ? n : 0;
     }
-    function $w(e) {
-        const t = e && e.sku ? Gw(e.sku) : null;
+    function Hw(e) {
+        const t = e && e.sku ? Ww(e.sku) : null;
         return t && "object" == typeof t ? {
             ...e,
             ...t
         } : e || {};
     }
-    function Hw(e) {
-        const t = Ow(), a = (e || []).map((e, t) => ({
+    function Vw(e) {
+        const t = qw(), a = (e || []).map((e, t) => ({
             item: e,
             index: t,
-            record: $w(e)
+            record: Hw(e)
         })), n = e => {
-            const a = qw(e.designAssignedAt), n = [ e.acquiredAtMs, e.fetchedAtMs, e.listPrefetchedAtMs, e.updatedAtMs, e.firstSeenAtMs, e.listPrefetchedAt, e.updatedAt, e.createdAt ].map(qw).find(e => e > 0) || 0;
+            const a = $w(e.designAssignedAt), n = [ e.acquiredAtMs, e.fetchedAtMs, e.listPrefetchedAtMs, e.updatedAtMs, e.firstSeenAtMs, e.listPrefetchedAt, e.updatedAt, e.createdAt ].map($w).find(e => e > 0) || 0;
             return "acquired" === t ? n : a;
         };
         return a.map(e => ({
@@ -21483,11 +21502,11 @@
             time: n(e.record)
         })).sort((e, t) => e.item.pinned && t.item.pinned ? (e.item.pinOrder || 0) - (t.item.pinOrder || 0) : e.item.pinned ? -1 : t.item.pinned ? 1 : e.time !== t.time ? t.time - e.time : e.index - t.index).map(e => e.item);
     }
-    function Vw(e) {
+    function Kw(e) {
         if (!e) return "";
         return [ eu(e), e.skuImageUrl, e.skuImageFallbackUrl, e.productListImageUrl, e.productListImageFallbackUrl, e.toyLabelProductImageUrl, e.toyLabelProductImageFallbackUrl, e.benchmarkImageUrl, e.benchmarkImageFallbackUrl ].map(e => String(e || "").trim()).find(e => e && !/^data:image\//i.test(e)) || "";
     }
-    function Kw(e) {
+    function Gw(e) {
         if (!e || !e.sku) return;
         const t = {
             sku: e.sku,
@@ -21510,9 +21529,9 @@
             updatedAtMs: e.updatedAtMs || Date.now()
         }, a = Pa.index.find(t => t.sku === e.sku);
         a && a.pinned && (t.pinned = !0, t.pinOrder = a.pinOrder || Date.now()), Pa.index = Pa.index.filter(t => t.sku !== e.sku),
-        Pa.index.unshift(t), nw();
+        Pa.index.unshift(t), rw();
     }
-    function Gw(e) {
+    function Ww(e) {
         if (!e) return null;
         try {
             if ("function" == typeof GM_getValue) return GM_getValue(S + e, null);
@@ -21522,7 +21541,7 @@
             return null;
         }
     }
-    function Ww(e, t, a) {
+    function Qw(e, t, a) {
         if (!e || !t) return [];
         const n = a || {}, r = n.changeSource || "自动获取", i = (new Date).toLocaleString();
         return [ "brand", "name", "manualCategory", "packageCode", "printCode", "packageSizeText", "printSizeText", "packageLength", "packageWidth", "packageHeight", "productLength", "productWidth", "productHeight", "netContent", "grossWeight", "englishName", "ingredientChinese", "ingredientEnglish", "referenceUrl" ].reduce((a, o) => {
@@ -21537,9 +21556,9 @@
             }), a;
         }, []);
     }
-    function Qw(e, t, a) {
+    function Jw(e, t, a) {
         if (!e || !t) return;
-        const n = a || {}, r = Gw(e), i = r ? bn(r) : null, o = bn({
+        const n = a || {}, r = Ww(e), i = r ? bn(r) : null, o = bn({
             ...t,
             updatedAt: t.updatedAt || (new Date).toLocaleString(),
             updatedAtMs: t.updatedAtMs || Date.now()
@@ -21548,7 +21567,7 @@
             const e = Object.prototype.hasOwnProperty.call(t, "recentFieldChanges") ? o : i;
             o.recentFieldChanges = au(e);
         }
-        const s = n.suppressChangeTracking ? [] : Ww(i, o, n);
+        const s = n.suppressChangeTracking ? [] : Qw(i, o, n);
         if (s.length) {
             const e = s.concat(au(o)), t = new Set;
             o.recentFieldChanges = e.filter(e => {
@@ -21557,81 +21576,81 @@
             }).slice(0, 20);
         }
         try {
-            Jw(e, o);
+            Xw(e, o);
             const t = Pa.selectedSku || Pa.data && Pa.data.sku || "";
-            t && t !== e || (Pa.data = o, Pa.selectedSku = e), Kw(o), n.suppressDataQuality || Xb(o, "saveData"),
-            rb(), na();
-            const a = i ? sb(i) : "", r = sb(o);
-            r && r !== a && fb(o), s.length && Bb("warn", "SKU 数据发生变化", e + " | " + s.map(e => e.label + "：" + (e.before || "未识别") + " → " + (e.after || "已清空")).join("；"));
+            t && t !== e || (Pa.data = o, Pa.selectedSku = e), Gw(o), n.suppressDataQuality || Zb(o, "saveData"),
+            ib(), na();
+            const a = i ? lb(i) : "", r = lb(o);
+            r && r !== a && mb(o), s.length && zb("warn", "SKU 数据发生变化", e + " | " + s.map(e => e.label + "：" + (e.before || "未识别") + " → " + (e.after || "已清空")).join("；"));
         } catch (t) {
-            console.warn("PLM floating helper save failed:", t), Bb("error", "缓存商品失败", (e || "") + " " + _b(t));
+            console.warn("PLM floating helper save failed:", t), zb("error", "缓存商品失败", (e || "") + " " + Ub(t));
         }
     }
-    function Jw(e, t) {
+    function Xw(e, t) {
         "function" == typeof GM_setValue ? GM_setValue(S + e, t) : localStorage.setItem(S + e, JSON.stringify(t));
     }
-    function Xw(e) {
+    function Zw(e) {
         try {
             "function" == typeof GM_setValue ? GM_setValue(x, e) : localStorage.setItem(x, JSON.stringify(e));
         } catch (e) {
             console.warn("PLM floating helper position save failed:", e);
         }
     }
-    function Zw(e) {
+    function Yw(e) {
         if (!e) return;
         e.classList.add("is-floating"), e.parentElement !== document.documentElement && document.documentElement.appendChild(e);
-        const t = Yw();
+        const t = ek();
         if (t) return e.style.left = t.left + "px", void (e.style.top = t.top + "px");
-        e.style.left = nk(Math.round(window.innerWidth * T.launcherLeftRatio), 8, Math.max(8, window.innerWidth - 86 - 8)) + "px",
-        e.style.top = nk(Math.round(window.innerHeight * T.launcherTopRatio), 8, Math.max(8, window.innerHeight - 34 - 8)) + "px";
+        e.style.left = rk(Math.round(window.innerWidth * T.launcherLeftRatio), 8, Math.max(8, window.innerWidth - 86 - 8)) + "px",
+        e.style.top = rk(Math.round(window.innerHeight * T.launcherTopRatio), 8, Math.max(8, window.innerHeight - 34 - 8)) + "px";
     }
-    function Yw() {
+    function ek() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(A, null) : JSON.parse(localStorage.getItem(A) || "null");
             return e && Number.isFinite(e.left) && Number.isFinite(e.top) ? {
-                left: nk(e.left, 8, Math.max(8, window.innerWidth - 40)),
-                top: nk(e.top, 8, Math.max(8, window.innerHeight - 24))
+                left: rk(e.left, 8, Math.max(8, window.innerWidth - 40)),
+                top: rk(e.top, 8, Math.max(8, window.innerHeight - 24))
             } : null;
         } catch (e) {
             return null;
         }
     }
-    function ek(e) {
+    function tk(e) {
         if (!Pa.panelSize) return;
-        const t = nk(Pa.panelSize.height, 520, tk()), a = nk(Pa.panelSize.width, 520, Math.min(1180, window.innerWidth - 24));
-        e.style.width = a + "px", e.style.height = t + "px", e.style.maxHeight = tk() + "px",
+        const t = rk(Pa.panelSize.height, 520, ak()), a = rk(Pa.panelSize.width, 520, Math.min(1180, window.innerWidth - 24));
+        e.style.width = a + "px", e.style.height = t + "px", e.style.maxHeight = ak() + "px",
         e.classList.toggle("is-narrow-panel", a < 920);
         const n = e.querySelector(".pfh-main");
         n && (n.style.height = "auto");
     }
-    function tk() {
+    function ak() {
         return Math.max(520, Math.floor(.96 * window.innerHeight));
     }
-    function ak(e) {
+    function nk(e) {
         const t = e.querySelector(".pfh-main");
         t && t.style.setProperty("--pfh-list-width", Pa.splitWidth + "px");
         const a = e.querySelector(".pfh-splitter");
         a && a.classList.toggle("is-dragging", Boolean(Pa.splitDragging));
     }
-    function nk(e, t, a) {
+    function rk(e, t, a) {
         return Math.max(t, Math.min(a, e));
     }
-    function rk(e) {
-        return ok(e && (e.innerText || e.textContent) || "");
-    }
     function ik(e) {
-        return e ? ok([ e.innerText, e.textContent, e.getAttribute && e.getAttribute("title"), e.getAttribute && e.getAttribute("aria-label") ].filter(Boolean).join("\n")) : "";
+        return sk(e && (e.innerText || e.textContent) || "");
     }
     function ok(e) {
-        return String(e || "").replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n").trim();
+        return e ? sk([ e.innerText, e.textContent, e.getAttribute && e.getAttribute("title"), e.getAttribute && e.getAttribute("aria-label") ].filter(Boolean).join("\n")) : "";
     }
     function sk(e) {
-        return ok(e).replace(/\s+/g, " ");
+        return String(e || "").replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n").trim();
     }
     function lk(e) {
-        return Number(e).toFixed(2).replace(/\.?0+$/, "");
+        return sk(e).replace(/\s+/g, " ");
     }
     function ck(e) {
+        return Number(e).toFixed(2).replace(/\.?0+$/, "");
+    }
+    function uk(e) {
         if (!e || !e.isConnected) return !1;
         let t = e;
         for (;t && 1 === t.nodeType; ) {
@@ -21641,13 +21660,13 @@
         }
         return e.getClientRects().length > 0;
     }
-    function uk(e) {
+    function dk(e) {
         return String(e).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
-    function dk(e) {
+    function pk(e) {
         return window.CSS && "function" == typeof window.CSS.escape ? window.CSS.escape(String(e)) : String(e).replace(/["\\]/g, "\\$&");
     }
-    function pk(e) {
+    function gk(e) {
         return String(e || "").replace(/[&<>"']/g, e => ({
             "&": "&amp;",
             "<": "&lt;",

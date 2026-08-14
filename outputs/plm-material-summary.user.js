@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.35
+// @version      2.8.36
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.35';
+  const SCRIPT_VERSION = '2.8.36';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -27552,15 +27552,17 @@
     return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (missing.length ? 'is-missing' : 'is-ready') + '">' + escapeHtml(missing.length ? 'PLM 还缺 ' + missing.length + ' 项' : 'PLM 资料已完整') + '</span></div><p>' + escapeHtml(imageStatus) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + rows + ingredientRows + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-save" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (saving ? ' disabled' : '') + '>' + (saving ? '正在保存…' : '保存到 PLM 草稿') + '</button><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">重新检测</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (busy || saving ? ' disabled' : '') + '>' + (busy ? '正在补齐并保存…' : 'AI 补齐并保存草稿') + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + (kind === 'detail' ? 'detail' : 'main') + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (missing.length || saving ? ' disabled' : '') + '>PLM 资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + escapeHtml(preparationNotice) + '</p></div>';
   }
 
+  function isLedgerAiImageDedicatedAttribute(attr) {
+    const variableName = String(attr && attr.variable_name || '').trim();
+    const label = getApiAttributeLabel(attr);
+    return /^sku[_\s-]*pic$/i.test(variableName)
+      || /(?:SKU\s*(?:图|效果图|diagram)|SKU图)/i.test(label);
+  }
+
   function getLedgerAiImageSkuAttributes(contentPayload) {
     const attrs = getApiDetailAttributes(contentPayload);
     const list = Array.isArray(attrs) ? attrs : [];
-    const dedicated = list.find((attr) => {
-      const variableName = String(attr && attr.variable_name || '').trim();
-      const label = getApiAttributeLabel(attr);
-      return /^sku[_\s-]*pic$/i.test(variableName)
-        || /(?:SKU\s*(?:图|效果图|diagram)|SKU图)/i.test(label);
-    });
+    const dedicated = list.find(isLedgerAiImageDedicatedAttribute);
     const genericPicture = list.find((attr) => {
       const variableName = String(attr && attr.variable_name || '').trim();
       const label = getApiAttributeLabel(attr);
@@ -27579,31 +27581,40 @@
     const attrs = getLedgerAiImageSkuAttributes(contentPayload);
     if (!attrs.length) return { status: 'unknown', reason: 'PLM 产品详情未返回 SKU 图或产品图片字段' };
     let foundField = false;
-    const fileIds = [];
+    const candidates = [];
     for (const attr of attrs) {
       const rawValue = getApiAttributeValue(attr, 1);
       const directUrl = getApiAssetUrl(rawValue, 0);
-      if (directUrl) {
-        return {
-          status: 'available',
-          url: directUrl,
-          source: Number(attr && attr.attr_id) === 148 ? 'plm-picture' : 'plm-detail',
-        };
-      }
       const ids = getApiAttributeFileIds([attr], /sku[_\s-]*pic|SKU\s*(?:图|效果图|diagram)|picture|图片|产品图/i);
-      if (ids.length) foundField = true;
-      ids.forEach((id) => { if (!fileIds.includes(id)) fileIds.push(id); });
+      if (directUrl || ids.length) foundField = true;
+      candidates.push({
+        attr,
+        directUrl,
+        fileIds: ids,
+        source: isLedgerAiImageDedicatedAttribute(attr) ? 'plm-sku-pic' : 'plm-picture',
+      });
     }
-    if (!fileIds.length) return { status: 'missing', reason: foundField ? 'PLM 的 SKU 图附件不存在' : 'PLM 的 SKU 图/产品图片字段为空' };
-    try {
-      const files = (await fetchApiArchiveFileRecordsByIds(fileIds))
+
+    const resolveArchiveImage = async (candidate) => {
+      if (!candidate || !candidate.fileIds.length) return null;
+      const files = (await fetchApiArchiveFileRecordsByIds(candidate.fileIds))
         .map(buildApiArchiveFileInfo)
         .filter((file) => file.url && (/(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(file.fileName) || /(?:jpg|jpeg|png|webp|gif|bmp|avif)/i.test(file.fileFormat)));
-      const image = files[0];
-      return image
-        ? { status: 'available', url: image.url, source: 'plm-archive', fileId: image.fileId }
-        : { status: 'missing', reason: 'PLM 的 SKU 图附件不存在' };
+      return files.find((file) => candidate.fileIds.includes(String(file.fileId))) || null;
+    };
+
+    const dedicated = candidates.find((candidate) => isLedgerAiImageDedicatedAttribute(candidate.attr));
+    const generic = candidates.find((candidate) => !isLedgerAiImageDedicatedAttribute(candidate.attr));
+    if (dedicated && dedicated.directUrl) return { status: 'available', url: dedicated.directUrl, source: dedicated.source };
+    try {
+      const dedicatedImage = await resolveArchiveImage(dedicated);
+      if (dedicatedImage) return { status: 'available', url: dedicatedImage.url, source: dedicated.source, fileId: dedicatedImage.fileId };
+      if (generic && generic.directUrl) return { status: 'available', url: generic.directUrl, source: generic.source };
+      const genericImage = await resolveArchiveImage(generic);
+      if (genericImage) return { status: 'available', url: genericImage.url, source: generic.source, fileId: genericImage.fileId };
+      return { status: 'missing', reason: foundField ? 'PLM 的 SKU 图附件不存在' : 'PLM 的 SKU 图/产品图片字段为空' };
     } catch (error) {
+      if (generic && generic.directUrl) return { status: 'available', url: generic.directUrl, source: generic.source };
       return { status: 'unknown', reason: '读取 SKU 图附件失败：' + (formatErrorMessage(error) || '接口异常') };
     }
   }
