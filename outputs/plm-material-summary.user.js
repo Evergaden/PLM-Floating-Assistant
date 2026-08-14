@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.29
+// @version      2.8.30
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.29';
+  const SCRIPT_VERSION = '2.8.30';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -26441,6 +26441,7 @@
       anomalies: list(source.anomalies || source.visualIssues || source.spellingIssues, 40),
       provider: String(source.provider || '').slice(0, 80),
       model: String(source.model || '').slice(0, 120),
+      retryable: Boolean(source.retryable),
       checkedAtMs: Number(source.checkedAtMs || 0) || 0,
     };
   }
@@ -27742,7 +27743,7 @@
     const request = (async () => {
       try {
         if (!isValidLedgerAiImageText(expectedIngredients)) throw new Error('英文成分文案为空，无法核对详情图3');
-        const response = await cloudRequest('/ai-image/ingredient-audit', { method: 'POST', timeoutMs: 90000, body: { sku: normalizedSku, imageUrl: image.url, expectedIngredients } });
+        const response = await cloudRequest('/ai-image/ingredient-audit', { method: 'POST', timeoutMs: 150000, body: { sku: normalizedSku, imageUrl: image.url, expectedIngredients } });
         if (!response || !response.ok) throw new Error(response && response.summary || response && response.error || 'AI 识别失败');
         const audit = normalizeLedgerDetail3Audit({ ...response, imageUrl: image.url, expectedIngredients, checkedAtMs: Date.now() });
         const updated = updateLedgerAiImageRecord(normalizedSku, dateKey, { aiDetail3Audit: audit }, true) || loadingRecord;
@@ -27751,7 +27752,7 @@
         if (audit.status === 'warning' || audit.status === 'error') showToast(normalizedSku + ' 详情图3发现异常：' + (audit.summary || '请检查成分展示'));
         return audit;
       } catch (error) {
-        const audit = normalizeLedgerDetail3Audit({ status: 'error', summary: formatErrorMessage(error) || '详情图3识别失败', imageUrl: image.url, expectedIngredients, checkedAtMs: Date.now() });
+        const audit = normalizeLedgerDetail3Audit({ status: 'error', summary: formatErrorMessage(error) || '详情图3识别失败', retryable: Boolean(error && error.cloudData && error.cloudData.retryable) || /insufficient balance|timeout|aborted|overload|high demand|429|5\d\d/i.test(formatErrorMessage(error)), imageUrl: image.url, expectedIngredients, checkedAtMs: Date.now() });
         const updated = updateLedgerAiImageRecord(normalizedSku, dateKey, { aiDetail3Audit: audit }, true) || loadingRecord;
         refreshLedgerCard(updated);
         if (isLedgerAiImageViewerFor(normalizedSku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
@@ -28126,7 +28127,7 @@
       : '<div class="pfh-ledger-ai-image-preview-missing">' + (selectedView ? '原图地址已失效' : escapeHtml(emptyMessage)) + '</div>';
     const selectedIsDetail3 = Boolean(selectedView && tab === 'detail' && selectedView.displayName === '详情图3');
     const detail3AuditHtml = selectedIsDetail3 && detail3Audit.status !== 'idle'
-      ? '<div class="pfh-ledger-detail3-audit is-' + escapeHtml(detail3Audit.status) + '"><strong>' + escapeHtml(detail3Audit.status === 'pass' ? '详情图3成分核对通过' : (detail3Audit.status === 'loading' ? '正在识别详情图3' : '详情图3需要检查')) + '</strong><p>' + escapeHtml(detail3Audit.summary || '') + '</p>' + (detail3Audit.missing.length ? '<span>缺漏：' + escapeHtml(detail3Audit.missing.join('、')) + '</span>' : '') + (detail3Audit.extra.length ? '<span>多余/错误：' + escapeHtml(detail3Audit.extra.join('、')) + '</span>' : '') + (detail3Audit.duplicates.length ? '<span>重复：' + escapeHtml(detail3Audit.duplicates.join('、')) + '</span>' : '') + (detail3Audit.anomalies.length ? '<span>生图异常：' + escapeHtml(detail3Audit.anomalies.join('、')) + '</span>' : '') + '</div>'
+      ? '<div class="pfh-ledger-detail3-audit is-' + escapeHtml(detail3Audit.status) + '"><strong>' + escapeHtml(detail3Audit.status === 'pass' ? '详情图3成分核对通过' : (detail3Audit.status === 'loading' ? '正在识别详情图3' : '详情图3需要检查')) + '</strong><p>' + escapeHtml(detail3Audit.summary || '') + '</p>' + (detail3Audit.retryable ? '<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>' : '') + (detail3Audit.missing.length ? '<span>缺漏：' + escapeHtml(detail3Audit.missing.join('、')) + '</span>' : '') + (detail3Audit.extra.length ? '<span>多余/错误：' + escapeHtml(detail3Audit.extra.join('、')) + '</span>' : '') + (detail3Audit.duplicates.length ? '<span>重复：' + escapeHtml(detail3Audit.duplicates.join('、')) + '</span>' : '') + (detail3Audit.anomalies.length ? '<span>生图异常：' + escapeHtml(detail3Audit.anomalies.join('、')) + '</span>' : '') + '</div>'
       : '';
     const previewActionHtml = selectedView && selectedView.item
       ? '<div class="pfh-ledger-ai-image-preview-actions"><div class="pfh-reverse-search-actions"><button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + escapeHtml(selectedView.item.url) + '">1688 搜图</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + escapeHtml(selectedView.item.url) + '">Google</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + escapeHtml(selectedView.item.url) + '">Yandex</button></div>' + (selectedIsDetail3 ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">重新核对成分</button>' : '') + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '" data-image-name="' + escapeHtml(selectedView.displayName) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '"' + (selectedView.isGenerating ? ' disabled' : '') + '>' + (selectedView.isGenerating ? '生成中…' : (selectedView.activeTask ? '重新修改' : '修改图')) + '</button></div>'

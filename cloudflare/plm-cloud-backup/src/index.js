@@ -288,11 +288,16 @@ async function callModelScopeText(config, options) {
 }
 
 async function callPreferredAiText(env, options, validate) {
+  const requestOptions = options || {};
   const primaryConfig = getAiModelConfig(env, getModelScopeModel(env));
   const failures = [];
   if (primaryConfig.configured) {
     try {
-      const result = await callModelScopeText(primaryConfig, options || {});
+      const primaryOptions = {
+        ...requestOptions,
+        timeoutMs: Number(requestOptions.primaryTimeoutMs || requestOptions.timeoutMs || 25000),
+      };
+      const result = await callModelScopeText(primaryConfig, primaryOptions);
       const value = validate ? await validate(result) : null;
       return { result, value };
     } catch (error) {
@@ -302,18 +307,38 @@ async function callPreferredAiText(env, options, validate) {
     failures.push('ModelScope: MODELSCOPE_ACCESS_TOKEN not configured');
   }
 
-  const fallbackConfig = getAiModelConfig(env, String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'));
-  if (fallbackConfig.configured) {
+  const requestedGeminiModels = Array.isArray(requestOptions.geminiFallbackModels) && requestOptions.geminiFallbackModels.length
+    ? requestOptions.geminiFallbackModels
+    : [String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite')];
+  const geminiModels = Array.from(new Set(requestedGeminiModels
+    .map((model) => String(model || '').trim())
+    .filter((model) => /^gemini-/i.test(model))));
+  const fallbackTimeoutMs = Math.max(12000, Math.min(
+    Number(requestOptions.fallbackTimeoutMs || requestOptions.timeoutMs || 30000) || 30000,
+    120000
+  ));
+  const perGeminiTimeoutMs = geminiModels.length > 1
+    ? Math.max(12000, Math.floor(fallbackTimeoutMs / geminiModels.length))
+    : fallbackTimeoutMs;
+  let geminiConfigured = false;
+  for (const model of geminiModels) {
+    const fallbackConfig = getAiModelConfig(env, model);
+    if (!fallbackConfig.configured) continue;
+    geminiConfigured = true;
     try {
-      const fallbackOptions = { ...(options || {}), timeoutMs: Math.min(Number(options && options.timeoutMs || 30000), 30000) };
+      const fallbackOptions = {
+        ...requestOptions,
+        timeoutMs: perGeminiTimeoutMs,
+      };
       const result = await callGeminiText(fallbackConfig, fallbackOptions);
       result.fallbackFrom = 'modelscope';
       const value = validate ? await validate(result) : null;
       return { result, value };
     } catch (error) {
-      failures.push('Gemini: ' + cleanText(error && error.message, 240));
+      failures.push('Gemini (' + model + '): ' + cleanText(error && error.message, 240));
     }
-  } else {
+  }
+  if (!geminiConfigured) {
     failures.push('Gemini: GEMINI_API_KEY not configured');
   }
   throw new Error(failures.join(' | '));
@@ -1153,6 +1178,7 @@ function ingredientAuditPayload(overrides = {}) {
     anomalies: [],
     provider: '',
     model: '',
+    retryable: false,
     ...overrides,
   };
 }
@@ -1383,8 +1409,13 @@ async function handleIngredientAudit(request, env) {
     const options = {
       model: getModelScopeModel(env),
       temperature: 0,
-      maxTokens: 2200,
-      timeoutMs: 45000,
+      maxTokens: 1000,
+      primaryTimeoutMs: 10000,
+      fallbackTimeoutMs: 90000,
+      geminiFallbackModels: [
+        String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'),
+        'gemini-2.5-flash-lite',
+      ],
       responseMimeType: 'application/json',
       images: [dataUrl],
       inlineData: { mimeType: image.mimeType, data: base64 },
@@ -1411,8 +1442,10 @@ async function handleIngredientAudit(request, env) {
     }));
   } catch (error) {
     const message = cleanText(error && error.message, 500) || 'ingredient audit failed';
-    const statusCode = /too large/i.test(message) ? 413 : /content-type|image type|download HTTP|redirect|unsafe URL/i.test(message) ? 422 : 502;
-    return json(ingredientAuditPayload({ summary: message }), statusCode);
+    const imageError = /too large/i.test(message) || /content-type|image type|download HTTP|redirect|unsafe URL/i.test(message);
+    const retryable = !imageError && /insufficient balance|timeout|aborted|overload|high demand|429|5\d\d/i.test(message);
+    const statusCode = /too large/i.test(message) ? 413 : imageError ? 422 : (retryable ? 503 : 502);
+    return json(ingredientAuditPayload({ summary: message, retryable }), statusCode);
   }
 }
 

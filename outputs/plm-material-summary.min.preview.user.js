@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.29
+// @version      2.8.30
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.29";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.30";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -18587,6 +18587,7 @@
             anomalies: a(t.anomalies || t.visualIssues || t.spellingIssues, 40),
             provider: String(t.provider || "").slice(0, 80),
             model: String(t.model || "").slice(0, 120),
+            retryable: Boolean(t.retryable),
             checkedAtMs: Number(t.checkedAtMs || 0) || 0
         };
     }
@@ -19215,7 +19216,7 @@
                 if (!Qh(s)) throw new Error("英文成分文案为空，无法核对详情图3");
                 const e = await Mb("/ai-image/ingredient-audit", {
                     method: "POST",
-                    timeoutMs: 9e4,
+                    timeoutMs: 15e4,
                     body: {
                         sku: n,
                         imageUrl: o.url,
@@ -19237,6 +19238,7 @@
                 const a = xh({
                     status: "error",
                     summary: Eb(e) || "详情图3识别失败",
+                    retryable: Boolean(e && e.cloudData && e.cloudData.retryable) || /insufficient balance|timeout|aborted|overload|high demand|429|5\d\d/i.test(Eb(e)),
                     imageUrl: o.url,
                     expectedIngredients: s,
                     checkedAtMs: Date.now()
@@ -19372,7 +19374,7 @@
         }(n, l, u.status) + "</div>", I = c.length ? c.map(e => {
             const t = h(e), a = t.key === y, r = t.item ? '<img src="' + sk(t.item.url) + '" alt="' + sk(t.displayName) + '" loading="lazy" decoding="async">' : '<span class="pfh-ledger-ai-image-thumb-missing">无图</span>', i = "detail" === l && "详情图3" === t.displayName, o = i && /^(?:warning|error)$/.test(m.status) ? " is-audit-error" : i && "pass" === m.status ? " is-audit-pass" : "", s = i && "idle" !== m.status ? '<em class="pfh-ledger-detail3-badge is-' + sk(m.status) + '">' + sk("pass" === m.status ? "核对通过" : "loading" === m.status ? "识别中" : "有异常") + "</em>" : "", c = e.isTask ? "隐藏此修改任务" : "从悬浮助手隐藏此图片";
             return '<div class="pfh-ledger-ai-image-thumb-row"><button type="button" class="pfh-ledger-ai-image-thumb' + (a ? " is-selected" : "") + (e.isRetouched ? " is-retouched" : "") + (e.isTask ? " is-retouch-task is-" + sk(t.task && t.task.status || "running") : "") + o + '" data-action="ledger-ai-image-select" data-kind="' + l + '" data-entry-key="' + sk(t.key) + '" title="' + sk(t.title) + '"><span class="pfh-ledger-ai-image-thumb-media">' + r + '</span><span class="pfh-ledger-ai-image-thumb-copy"><strong>' + sk(t.displayName) + "</strong><small>" + sk(t.variantLabel) + "</small>" + s + '</span></button><button type="button" class="pfh-ledger-ai-image-delete" data-action="ledger-ai-image-hide" data-kind="' + l + '" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '" data-entry-key="' + sk(t.key) + '" title="' + sk(c) + '" aria-label="' + sk(c) + '">×</button></div>';
-        }).join("") : v ? '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : A, M = w && w.item ? '<a class="pfh-ledger-ai-image-preview-link" href="' + sk(w.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + sk(w.title + "（点击打开图片）") + '"><img src="' + sk(w.item.url) + '" alt="' + sk(w.displayName) + '" loading="eager" decoding="async"></a>' : '<div class="pfh-ledger-ai-image-preview-missing">' + (w ? "原图地址已失效" : sk(S)) + "</div>", T = Boolean(w && "detail" === l && "详情图3" === w.displayName), E = T && "idle" !== m.status ? '<div class="pfh-ledger-detail3-audit is-' + sk(m.status) + '"><strong>' + sk("pass" === m.status ? "详情图3成分核对通过" : "loading" === m.status ? "正在识别详情图3" : "详情图3需要检查") + "</strong><p>" + sk(m.summary || "") + "</p>" + (m.missing.length ? "<span>缺漏：" + sk(m.missing.join("、")) + "</span>" : "") + (m.extra.length ? "<span>多余/错误：" + sk(m.extra.join("、")) + "</span>" : "") + (m.duplicates.length ? "<span>重复：" + sk(m.duplicates.join("、")) + "</span>" : "") + (m.anomalies.length ? "<span>生图异常：" + sk(m.anomalies.join("、")) + "</span>" : "") + "</div>" : "", C = w && w.item ? '<div class="pfh-ledger-ai-image-preview-actions"><div class="pfh-reverse-search-actions"><button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + sk(w.item.url) + '">1688 搜图</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + sk(w.item.url) + '">Google</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + sk(w.item.url) + '">Yandex</button></div>' + (T ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '">重新核对成分</button>' : "") + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + l + '" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '" data-image-url="' + sk(w.item.url) + '" data-image-name="' + sk(w.displayName) + '"' + (La.ledgerAiImageDownloadKey ? " disabled" : "") + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + l + '" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '" data-image-url="' + sk(w.item.url) + '"' + (w.isGenerating ? " disabled" : "") + ">" + (w.isGenerating ? "生成中…" : w.activeTask ? "重新修改" : "修改图") + "</button></div>" : "", L = w ? '<div class="pfh-ledger-ai-image-preview-stage">' + M + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + sk(w.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + sk(w.variantLabel) + '</em></div><small title="' + sk(w.title) + '">' + sk(w.sourceFilename || "保留原图文件名") + "</small></div>" + (w.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + sk(w.prompt) + '">提示词：' + sk(w.prompt) + "</p>" : "") + E + C + "</div>" : '<div class="pfh-ledger-ai-image-preview-empty">' + A + "</div>", P = String(n.aiImageMessage || u.title || "").trim(), N = (e, t, a, r) => {
+        }).join("") : v ? '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : A, M = w && w.item ? '<a class="pfh-ledger-ai-image-preview-link" href="' + sk(w.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + sk(w.title + "（点击打开图片）") + '"><img src="' + sk(w.item.url) + '" alt="' + sk(w.displayName) + '" loading="eager" decoding="async"></a>' : '<div class="pfh-ledger-ai-image-preview-missing">' + (w ? "原图地址已失效" : sk(S)) + "</div>", T = Boolean(w && "detail" === l && "详情图3" === w.displayName), E = T && "idle" !== m.status ? '<div class="pfh-ledger-detail3-audit is-' + sk(m.status) + '"><strong>' + sk("pass" === m.status ? "详情图3成分核对通过" : "loading" === m.status ? "正在识别详情图3" : "详情图3需要检查") + "</strong><p>" + sk(m.summary || "") + "</p>" + (m.retryable ? "<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>" : "") + (m.missing.length ? "<span>缺漏：" + sk(m.missing.join("、")) + "</span>" : "") + (m.extra.length ? "<span>多余/错误：" + sk(m.extra.join("、")) + "</span>" : "") + (m.duplicates.length ? "<span>重复：" + sk(m.duplicates.join("、")) + "</span>" : "") + (m.anomalies.length ? "<span>生图异常：" + sk(m.anomalies.join("、")) + "</span>" : "") + "</div>" : "", C = w && w.item ? '<div class="pfh-ledger-ai-image-preview-actions"><div class="pfh-reverse-search-actions"><button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + sk(w.item.url) + '">1688 搜图</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + sk(w.item.url) + '">Google</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + sk(w.item.url) + '">Yandex</button></div>' + (T ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '">重新核对成分</button>' : "") + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + l + '" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '" data-image-url="' + sk(w.item.url) + '" data-image-name="' + sk(w.displayName) + '"' + (La.ledgerAiImageDownloadKey ? " disabled" : "") + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + l + '" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '" data-image-url="' + sk(w.item.url) + '"' + (w.isGenerating ? " disabled" : "") + ">" + (w.isGenerating ? "生成中…" : w.activeTask ? "重新修改" : "修改图") + "</button></div>" : "", L = w ? '<div class="pfh-ledger-ai-image-preview-stage">' + M + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + sk(w.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + sk(w.variantLabel) + '</em></div><small title="' + sk(w.title) + '">' + sk(w.sourceFilename || "保留原图文件名") + "</small></div>" + (w.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + sk(w.prompt) + '">提示词：' + sk(w.prompt) + "</p>" : "") + E + C + "</div>" : '<div class="pfh-ledger-ai-image-preview-empty">' + A + "</div>", P = String(n.aiImageMessage || u.title || "").trim(), N = (e, t, a, r) => {
             const i = La.ledgerAiImageDownloadKey === r, o = !t || Boolean(La.ledgerAiImageDownloadKey);
             return '<button type="button" data-action="ledger-ai-image-download" data-kind="' + e + '" data-sku="' + sk(n.sku) + '" data-date="' + sk(n.date) + '"' + (o ? " disabled" : "") + ">" + sk(i ? "打包中…" : a) + "</button>";
         }, U = g && La.ledgerAiImageDownloadProgress ? La.ledgerAiImageDownloadProgress : "原图和修改图都会保存在今日工作台；本功能不会自动替换或保存 PLM 商品草稿。";
