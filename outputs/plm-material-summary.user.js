@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.40
+// @version      2.8.41
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.40';
+  const SCRIPT_VERSION = '2.8.41';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.201';
+  const UI_ASSET_VERSION = '2.5.202';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -8512,6 +8512,20 @@
       @media(max-width:760px){#${PANEL_ID} .pfh-ledger-hero{grid-template-columns:auto minmax(0,1fr)!important;grid-template-rows:auto auto auto!important;column-gap:9px!important;padding:11px 12px!important;}#${PANEL_ID} .pfh-ledger-hero>.pfh-ledger-hero-actions{grid-column:2!important;grid-row:2!important;justify-self:end!important;}#${PANEL_ID} .pfh-ledger-hero-tabs{grid-column:1/-1!important;grid-row:3!important;}#${PANEL_ID} .pfh-ledger-tools-toggle-copy small{display:none!important;}}
       @media(max-width:760px){#${PANEL_ID} .pfh-ledger-item.is-clickable,#${PANEL_ID} .pfh-ledger-item.is-clickable.is-finalized{grid-template-columns:minmax(0,1fr) 64px!important;min-height:96px!important;padding:10px!important;gap:9px!important;}#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{width:58px!important;min-width:58px!important;height:58px!important;min-height:58px!important;}#${PANEL_ID} .pfh-ledger-thumb-preview{width:164px!important;height:164px!important;}#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-preview{width:164px!important;height:164px!important;}}
       #${PANEL_ID}.is-ledger-card-dragging,#${PANEL_ID}.is-ledger-card-dragging *{user-select:none!important;cursor:grabbing!important;}
+      /* Keep ledger switch geometry and collapse affordance aligned after themed CSS loads. */
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-hero-tabs{align-self:center!important;position:relative!important;top:-5px!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs{box-sizing:border-box!important;height:48px!important;min-height:48px!important;align-items:center!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs button{align-self:center!important;height:38px!important;min-height:38px!important;line-height:1!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs .pfh-ledger-tab-indicator{top:4px!important;right:auto!important;bottom:4px!important;height:auto!important;width:calc((100% - 8px) / 2)!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-panel,#${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-body{background:transparent!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-body>.pfh-ledger-performance{margin:0!important;padding:8px 2px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle{align-items:center!important;min-height:32px!important;padding:3px 2px!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle-copy{align-items:center!important;line-height:1.2!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle-state{display:inline-flex!important;align-items:center!important;line-height:1.2!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle-chevron{display:grid!important;flex:0 0 18px!important;width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;margin:0!important;padding:0!important;place-items:center!important;font-size:0!important;line-height:0!important;transform:rotate(180deg)!important;transform-origin:center!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle-chevron::before{content:"⌄"!important;display:block!important;color:currentColor!important;font-family:Arial,sans-serif!important;font-size:14px!important;line-height:1!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-panel.is-collapsed .pfh-ledger-tools-toggle-chevron{transform:rotate(0deg)!important;}
+      #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle-chevron::before{content:""!important;display:block!important;width:7px!important;height:7px!important;color:currentColor!important;border-right:1.6px solid currentColor!important;border-bottom:1.6px solid currentColor!important;transform:rotate(45deg) translate(-1px,-1px)!important;}
        @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-summary,#${PANEL_ID} .pfh-cache-editor-body{padding-left:12px;padding-right:12px}#${PANEL_ID} .pfh-cache-editor-search{width:100%}#${PANEL_ID} .pfh-cache-field-head{flex-direction:column}#${PANEL_ID} .pfh-cache-field-key{max-width:none;min-width:0}#${PANEL_ID} .pfh-cache-field-control{width:100%;grid-template-columns:74px minmax(0,1fr)}#${PANEL_ID} .pfh-cache-children{padding-left:12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
     `;
   }
