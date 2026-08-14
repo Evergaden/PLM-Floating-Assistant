@@ -8,6 +8,9 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use futures_util::{SinkExt, StreamExt};
 use rand::{Rng, RngCore};
@@ -2547,6 +2550,33 @@ fn is_video_file(path: &Path) -> bool {
     )
 }
 
+fn is_gif_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.eq_ignore_ascii_case("gif"))
+        .unwrap_or(false)
+}
+
+fn directory_contains_file(folder: &Path, predicate: fn(&Path) -> bool) -> bool {
+    let Ok(entries) = fs::read_dir(folder) else {
+        return false;
+    };
+    entries.filter_map(Result::ok).any(|entry| {
+        entry
+            .file_type()
+            .map(|file_type| file_type.is_file() && predicate(&entry.path()))
+            .unwrap_or(false)
+    })
+}
+
+#[cfg(windows)]
+fn suppress_console_window(command: &mut Command) {
+    command.creation_flags(0x08000000);
+}
+
+#[cfg(not(windows))]
+fn suppress_console_window(_command: &mut Command) {}
+
 fn collect_video_files(folder: &Path, files: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
@@ -2648,22 +2678,10 @@ fn video_outputs_exist(item: &VideoMatch) -> bool {
     let Some(product_text) = item.product_folder.as_ref() else {
         return false;
     };
-    let source = Path::new(&item.source_path);
-    let stem = source
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("video");
     let product = Path::new(product_text);
-    product
-        .join("套图")
-        .join("视频")
-        .join(&item.file_name)
-        .is_file()
-        && product
-            .join("套图")
-            .join("动图")
-            .join(format!("{stem}.gif"))
-            .is_file()
+    let pack = product.join("套图");
+    directory_contains_file(&pack.join("视频"), is_video_file)
+        && directory_contains_file(&pack.join("动图"), is_gif_file)
 }
 
 #[tauri::command]
@@ -2734,7 +2752,9 @@ fn resolve_video_tool(configured: &str, command_name: &str) -> Result<PathBuf, S
         }
         return Err(format!("找不到可执行文件：{}", path_text(&path)));
     }
-    let result = Command::new("where.exe").arg(command_name).output();
+    let mut command = Command::new("where.exe");
+    suppress_console_window(&mut command);
+    let result = command.arg(command_name).output();
     let Ok(result) = result else {
         return Err(format!("未找到 {command_name}，请在设置中选择可执行文件"));
     };
@@ -2812,6 +2832,15 @@ fn process_video_files(
             result.files.push(item);
             continue;
         }
+        if video_outputs_exist(&item) {
+            item.status = "跳过：产品已有视频和动图".to_string();
+            result.logs.push(format!(
+                "跳过 {}：产品目录已有视频和动图文件",
+                item.file_name
+            ));
+            result.files.push(item);
+            continue;
+        }
         let pack = product.join("套图");
         let video_dir = pack.join("视频");
         let gif_dir = pack.join("动图");
@@ -2843,7 +2872,9 @@ fn process_video_files(
             .unwrap_or("video");
         let output_gif = gif_dir.join(format!("{stem}.gif"));
         let temporary_gif = std::env::temp_dir().join(format!("plm-video-{}.gif", Uuid::new_v4()));
-        let ffmpeg_status = Command::new(&ffmpeg)
+        let mut ffmpeg_command = Command::new(&ffmpeg);
+        suppress_console_window(&mut ffmpeg_command);
+        let ffmpeg_status = ffmpeg_command
             .arg("-i")
             .arg(&source)
             .arg("-vf")
@@ -2866,7 +2897,9 @@ fn process_video_files(
             result.files.push(item);
             continue;
         }
-        let gifsicle_status = Command::new(&gifsicle)
+        let mut gifsicle_command = Command::new(&gifsicle);
+        suppress_console_window(&mut gifsicle_command);
+        let gifsicle_status = gifsicle_command
             .arg("-O2")
             .arg(format!("--lossy={lossy}"))
             .arg(format!("-j{threads}"))
@@ -5063,6 +5096,30 @@ mod tests {
             video_product_candidates("检测视频_惊喜_SKU00045827.mp4", &directories);
         assert_eq!(source, "sku");
         assert_eq!(matches, vec![directories[1].clone()]);
+    }
+
+    #[test]
+    fn skips_video_task_when_product_has_any_video_and_gif_outputs() {
+        let root = std::env::temp_dir().join(format!("plm-video-output-test-{}", Uuid::new_v4()));
+        let product = root.join("AMZ 产品 SKU00045827");
+        let video_dir = product.join("套图").join("视频");
+        let gif_dir = product.join("套图").join("动图");
+        fs::create_dir_all(&video_dir).unwrap();
+        fs::create_dir_all(&gif_dir).unwrap();
+        fs::write(video_dir.join("已有的其他视频.mp4"), b"video").unwrap();
+        fs::write(gif_dir.join("已有的其他动图.GIF"), b"gif").unwrap();
+
+        let item = VideoMatch {
+            source_path: path_text(&root.join("检测视频_SKU00045827.mp4")),
+            file_name: "检测视频_SKU00045827.mp4".to_string(),
+            product_folder: Some(path_text(&product)),
+            match_source: "sku".to_string(),
+            ambiguous_folders: Vec::new(),
+            status: "待处理".to_string(),
+        };
+
+        assert!(video_outputs_exist(&item));
+        fs::remove_dir_all(&root).unwrap();
     }
 }
 
