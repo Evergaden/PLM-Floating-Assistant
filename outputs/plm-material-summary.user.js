@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.31
+// @version      2.8.32
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.31';
+  const SCRIPT_VERSION = '2.8.32';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -8421,6 +8421,12 @@
       #${PANEL_ID} .pfh-ledger-hero-tabs{grid-column:2/4!important;grid-row:2!important;min-width:0!important;width:100%!important;}
       #${PANEL_ID} .pfh-ledger-hero-tabs>.pfh-ledger-tabs-shell{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;}
       #${PANEL_ID} .pfh-ledger-hero-tabs .pfh-ledger-tabs{width:min(520px,100%)!important;}
+      /* Keep the hero status switch aligned even when a theme stylesheet supplies the legacy three-column rule. */
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-hero-tabs>.pfh-ledger-tabs-shell{width:100%!important;}
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs{display:grid!important;width:100%!important;max-width:none!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0!important;padding:4px!important;box-sizing:border-box!important;}
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs button{display:flex!important;box-sizing:border-box!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important;align-items:center!important;justify-content:center!important;padding:0 12px!important;border-radius:999px!important;line-height:1!important;text-align:center!important;transform:none!important;}
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs button:hover,#${PANEL_ID}[data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs button:active{transform:none!important;}
+      #${PANEL_ID}[data-view="ledger"] .pfh-ledger-hero-tabs .pfh-ledger-tabs .pfh-ledger-tab-indicator{top:4px!important;width:calc((100% - 8px) / 2)!important;height:calc(100% - 8px)!important;box-sizing:border-box!important;border-radius:999px!important;transform:none!important;}
       #${PANEL_ID} .pfh-ledger-workbench-shell{grid-template-rows:minmax(0,1fr)!important;}
       #${PANEL_ID} .pfh-ledger-content-anchor,#${PANEL_ID} .pfh-ledger-content-anchor:has(.pfh-ledger-performance){grid-template-rows:auto minmax(0,1fr) auto!important;}
       #${PANEL_ID} .pfh-ledger-tools-panel{display:grid!important;grid-template-rows:auto minmax(0,auto)!important;min-width:0!important;margin:0!important;border-bottom:1px solid var(--pfh-theme-border,#ddd6ef)!important;}
