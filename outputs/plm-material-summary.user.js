@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.37
+// @version      2.8.38
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.37';
+  const SCRIPT_VERSION = '2.8.38';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -27395,9 +27395,10 @@
     };
   }
 
-  function mergeLedgerAiImagePlmCopywritingPayload(preparation, payload) {
+  function mergeLedgerAiImagePlmCopywritingPayload(preparation, payload, options) {
     const target = preparation || {};
     const source = payload || {};
+    const authoritative = Boolean(options && options.authoritative);
     const byKey = {
       usage: 'new_product_usage',
       sellingPoints: 'new_product_selling_points',
@@ -27409,8 +27410,8 @@
       const rule = LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.find((item) => item.key === byKey[key]);
       if (!rule) return;
       const item = ensureLedgerAiPreparationCopyItem(target, rule);
-      if (!String(item.value_cn || '').trim() && String(values.cn || '').trim()) item.value_cn = String(values.cn).trim();
-      if (!String(item.value || '').trim() && String(values.en || '').trim()) item.value = String(values.en).trim();
+      if (authoritative || !String(item.value_cn || '').trim()) item.value_cn = String(values.cn || '').trim();
+      if (authoritative || !String(item.value || '').trim()) item.value = String(values.en || '').trim();
     });
     const ingredientMap = {
       ingredientSummary: ['product_ingredients_summary_ch', 'product_ingredients_summary_en'],
@@ -27420,8 +27421,8 @@
     Object.keys(ingredientMap).forEach((key) => {
       const values = source[key] || {};
       const fields = ingredientMap[key];
-      if (!String(target.ingredients[fields[0]] || '').trim() && String(values.cn || '').trim()) target.ingredients[fields[0]] = String(values.cn).trim();
-      if (!String(target.ingredients[fields[1]] || '').trim() && String(values.en || '').trim()) target.ingredients[fields[1]] = String(values.en).trim();
+      if (authoritative || !String(target.ingredients[fields[0]] || '').trim()) target.ingredients[fields[0]] = String(values.cn || '').trim();
+      if (authoritative || !String(target.ingredients[fields[1]] || '').trim()) target.ingredients[fields[1]] = String(values.en || '').trim();
     });
     return target;
   }
@@ -27480,6 +27481,7 @@
     if (!isValidLedgerAiImageText(ingredients.product_ingredients_efficacy_en)) missing.push('成分功能（英文）');
     const recommendation = getLedgerAiImageCopywriteValues(findLedgerAiImageRecommendationItem(preparation));
     if (!isValidLedgerAiImageText(recommendation.value)) missing.push('新品推荐类目');
+    if (preparation && preparation.plmDetailLoaded === false) missing.push('PLM 详情资料');
     if (!preparation || !preparation.skuImage || preparation.skuImage.status !== 'available') missing.push('SKU 效果图');
     return missing;
   }
@@ -27495,7 +27497,7 @@
     const key = getLedgerAiPreparationKey(normalizedSku);
     if (!force && state.ledgerAiImagePreparations[key]) return state.ledgerAiImagePreparations[key];
     const data = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
-    const preparation = { sku: normalizedSku, copywrite: [], ingredients: {}, skuImage: { status: 'unknown', reason: '' }, loading: true, saving: false, error: '', updatedAtMs: Date.now() };
+    const preparation = { sku: normalizedSku, copywrite: [], ingredients: {}, skuImage: { status: 'unknown', reason: '' }, loading: true, saving: false, error: '', plmDetailLoaded: false, updatedAtMs: Date.now() };
     state.ledgerAiImagePreparations[key] = preparation;
     try {
       const payload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
@@ -27515,8 +27517,10 @@
           // The read-only snapshot remains a compatible fallback for older PLM deployments.
         }
       }
+      if (!contentPayload) throw new Error('PLM 商品详情未返回字段数据');
       const plmCopywriting = getLedgerAiImagePlmCopywritingPayload(contentPayload);
-      mergeLedgerAiImagePlmCopywritingPayload(preparation, plmCopywriting);
+      preparation.plmDetailLoaded = true;
+      mergeLedgerAiImagePlmCopywritingPayload(preparation, plmCopywriting, { authoritative: true });
     } catch (error) {
       preparation.plmDetailError = '读取 PLM 详情字段失败：' + (formatErrorMessage(error) || '接口异常');
     }
