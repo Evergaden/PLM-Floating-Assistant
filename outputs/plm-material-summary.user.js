@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.42
+// @version      2.8.43
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.42';
+  const SCRIPT_VERSION = '2.8.43';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7073,6 +7073,18 @@
       : null;
   }
 
+  function getApiPrintMaterialDimensions(item) {
+    const source = String(item && item.properties_value || '');
+    const markers = Array.from(source.matchAll(/印刷尺寸/ig));
+    const explicitSource = markers.length
+      ? source.slice(Number(markers[markers.length - 1].index) || 0)
+      : '';
+    const explicitText = explicitSource ? extractPrintDimensionString(explicitSource) : '';
+    const explicitValues = parseDimension(explicitText, 2);
+    if (explicitValues && explicitValues.length >= 2) return explicitValues.slice(0, 2);
+    return getApiMaterialDimensions(item, 2);
+  }
+
   function formatApiMaterialDimensions(values) {
     return Array.isArray(values) && values.length >= 2
       ? values.map((value) => trimNumber(value)).join('x') + 'cm'
@@ -7140,7 +7152,7 @@
       // supplier can make the paper box appear again in the label/printing group.
       const text = name + ' ' + category + ' ' + compactText(item && item.properties_value);
       const unitIssue = getApiMaterialUnitIssue(item);
-      const dimensions = getApiMaterialDimensions(item, 2);
+      const dimensions = getApiPrintMaterialDimensions(item);
       return { item, index, name, category, text, dimensions, unitIssue, isBoxCategory: isApiBoxCategory(category), displayName: getApiPrintDisplayName(item) };
     }).filter((item) => (!packageItem || item.index !== packageItem.index)
       && !item.isBoxCategory
