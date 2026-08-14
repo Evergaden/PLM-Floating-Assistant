@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.30
+// @version      2.8.31
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.30";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.31";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -55,7 +55,7 @@
             }
         }, 0);
     }
-    const r = "2.5.200", i = Object.freeze({
+    const r = "2.5.201", i = Object.freeze({
         id: "design",
         label: "设计版",
         code: "DESIGN"
@@ -3449,24 +3449,21 @@
             const o = a.x - t.x, s = a.y - t.y, l = Math.max(1, Math.hypot(o, s)), c = o / l, u = s / l, d = -s / l * r, p = o / l * r, g = ge(n);
             e.save(), e.font = "42px Arial";
             const f = Number(i && i.offset) || 36, m = l > e.measureText(g).width + 48 ? 26 : 46, h = e.measureText(g).width;
-            e.restore();
-            const y = {
-                x: t.x + d * f,
-                y: t.y + p * f
-            }, b = {
-                x: a.x + d * f,
-                y: a.y + p * f
-            };
-            if (!i || !Array.isArray(i.avoidBoxes)) return {
-                lineOffset: f,
-                labelOffset: f,
+            if (e.restore(), !i || !Array.isArray(i.avoidBoxes)) return {
+                offset: f,
                 textGap: m,
                 tangentShift: 0
             };
-            const w = [ f, f + 44, f + 88, Math.max(18, f - 18), f + 132 ], k = [ 0, 60, -60, 120, -120, 180, -180 ], S = (t.x + a.x) / 2, x = (t.y + a.y) / 2, v = Math.atan2(s, o) > Math.PI / 2 || Math.atan2(s, o) < -Math.PI / 2 ? Math.atan2(s, o) + Math.PI : Math.atan2(s, o);
-            let A = null;
-            return w.forEach((e, t) => k.forEach((a, n) => {
-                const r = function(e, t, a, n, r, i, o) {
+            const y = [ f, f + 44, f + 88, Math.max(18, f - 18), f + 132 ], b = [ 0, 60, -60, 120, -120, 180, -180 ], w = (t.x + a.x) / 2, k = (t.y + a.y) / 2, S = Math.atan2(s, o) > Math.PI / 2 || Math.atan2(s, o) < -Math.PI / 2 ? Math.atan2(s, o) + Math.PI : Math.atan2(s, o);
+            let x = null;
+            return y.forEach((e, n) => b.forEach((r, o) => {
+                const s = {
+                    x: t.x + d * e + c * r,
+                    y: t.y + p * e + u * r
+                }, l = {
+                    x: a.x + d * e + c * r,
+                    y: a.y + p * e + u * r
+                }, g = function(e, t, a, n, r, i, o) {
                     const s = Math.abs(Math.cos(n)), l = Math.abs(Math.sin(n)), c = (a * s + 52 * l) / 2 + 10, u = (a * l + 52 * s) / 2 + 10, d = {
                         left: r.x - c,
                         top: r.y - u,
@@ -3484,24 +3481,22 @@
                         right: Math.max(d.right, p.right),
                         bottom: Math.max(d.bottom, p.bottom)
                     };
-                }(0, 0, h, v, {
-                    x: S + d * (e + m) + c * a,
-                    y: x + p * (e + m) + u * a
-                }, y, b), o = i.avoidBoxes.reduce((e, t) => {
-                    return e + (a = r, n = t, Math.max(0, Math.min(a.right, n.right) - Math.max(a.left, n.left)) * Math.max(0, Math.min(a.bottom, n.bottom) - Math.max(a.top, n.top)));
+                }(0, 0, h, S, {
+                    x: w + d * (e + m) + c * r,
+                    y: k + p * (e + m) + u * r
+                }, s, l), f = i.avoidBoxes.reduce((e, t) => {
+                    return e + (a = g, n = t, Math.max(0, Math.min(a.right, n.right) - Math.max(a.left, n.left)) * Math.max(0, Math.min(a.bottom, n.bottom) - Math.max(a.top, n.top)));
                     var a, n;
-                }, 0), s = i.bounds, l = 100 * o + 25 * (s ? Math.max(0, s.left - r.left) + Math.max(0, s.top - r.top) + Math.max(0, r.right - s.right) + Math.max(0, r.bottom - s.bottom) : 0) + (.2 * t + .03 * n);
-                (!A || l < A.score) && (A = {
-                    score: l,
-                    lineOffset: f,
-                    labelOffset: e,
+                }, 0), y = i.bounds, b = 100 * f + 25 * (y ? Math.max(0, y.left - g.left) + Math.max(0, y.top - g.top) + Math.max(0, g.right - y.right) + Math.max(0, g.bottom - y.bottom) : 0) + (.2 * n + .03 * o);
+                (!x || b < x.score) && (x = {
+                    score: b,
+                    offset: e,
                     textGap: m,
-                    tangentShift: a,
-                    box: r
+                    tangentShift: r,
+                    box: g
                 });
-            })), A && i.avoidBoxes.push(A.box), A || {
-                lineOffset: f,
-                labelOffset: f,
+            })), x && i.avoidBoxes.push(x.box), x || {
+                offset: f,
                 textGap: m,
                 tangentShift: 0
             };
@@ -3550,22 +3545,19 @@
             if (!d(n)) return;
             const o = a.x - t.x, s = a.y - t.y, l = Math.hypot(o, s);
             if (l < 8) return;
-            const c = -s / l * r, u = o / l * r, p = ge(n), g = fe(e, t, a, n, r, i), f = Number.isFinite(g.lineOffset) ? g.lineOffset : 36, m = Number.isFinite(g.labelOffset) ? g.labelOffset : f, h = g.textGap, y = g.tangentShift || 0, b = o / l, w = s / l, k = {
-                x: t.x + c * f,
-                y: t.y + u * f
-            }, S = {
-                x: a.x + c * f,
-                y: a.y + u * f
-            }, x = {
-                x: (t.x + a.x) / 2 + c * (m + h) + b * y,
-                y: (t.y + a.y) / 2 + u * (m + h) + w * y
-            }, v = 16;
+            const c = -s / l * r, u = o / l * r, p = ge(n), g = fe(e, t, a, n, r, i), f = g.offset, m = g.textGap, h = g.tangentShift || 0, y = o / l, b = s / l, w = {
+                x: t.x + c * f + y * h,
+                y: t.y + u * f + b * h
+            }, k = {
+                x: a.x + c * f + y * h,
+                y: a.y + u * f + b * h
+            }, S = 16;
             e.save(), e.font = "42px Arial", e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5,
-            pe(e, k.x, k.y, S.x, S.y), pe(e, k.x - c * v, k.y - u * v, k.x + c * v, k.y + u * v),
-            pe(e, S.x - c * v, S.y - u * v, S.x + c * v, S.y + u * v);
-            let A = Math.atan2(s, o);
-            (A > Math.PI / 2 || A < -Math.PI / 2) && (A += Math.PI), e.translate(x.x, x.y),
-            e.rotate(A), e.textAlign = "center", e.textBaseline = "middle", e.fillText(p, 0, 0),
+            pe(e, w.x, w.y, k.x, k.y), pe(e, w.x - c * S, w.y - u * S, w.x + c * S, w.y + u * S),
+            pe(e, k.x - c * S, k.y - u * S, k.x + c * S, k.y + u * S);
+            let x = Math.atan2(s, o);
+            (x > Math.PI / 2 || x < -Math.PI / 2) && (x += Math.PI), e.translate((w.x + k.x) / 2 + c * m, (w.y + k.y) / 2 + u * m),
+            e.rotate(x), e.textAlign = "center", e.textBaseline = "middle", e.fillText(p, 0, 0),
             e.restore();
         }
         function be(e) {
