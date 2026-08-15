@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.47
+// @version      2.8.51
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.47';
+  const SCRIPT_VERSION = '2.8.51';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -14391,8 +14391,13 @@
   }
 
   function getSizeImageSpec(data) {
-    if (!data || !/\u7eb8\u76d2/.test(String(data.packageSizeLabel || ''))) return null;
-    const nums = Array.isArray(data.packageNums) ? data.packageNums.map(Number) : [];
+    // A manually entered carton size may not have the derived material label.
+    // The dimensions themselves are sufficient to identify the size-image input.
+    if (!data || getMaterialDimensionUnitIssue(data, 'package')) return null;
+    const sourceNums = Array.isArray(data.packageNums) && data.packageNums.length
+      ? data.packageNums
+      : parseDimension(data.packageSizeText, 3);
+    const nums = Array.isArray(sourceNums) ? sourceNums.map(Number) : [];
     if (![3, 5].includes(nums.length) || nums.some((value) => !Number.isFinite(value) || value <= 0)) return null;
     return { length: nums[0], width: nums[1], height: nums[2], extraWidths: nums.slice(3) };
   }
@@ -14412,11 +14417,14 @@
   }
 
   function getLabelSizeImageSpecs(data) {
-    if (!data || (!/(?:\u6807\u7b7e|\u5370\u5237)/.test(String(data.printSizeLabel || '')) && !data.isTubePrint)) return [];
+    // printSizeLabel is derived from the PLM material name and may be absent
+    // in older/manual cache records. A valid width x height is enough here.
+    if (!data) return [];
     if (getMaterialDimensionUnitIssue(data, 'print')) return [];
     const labels = String(data.printSizeLabel || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
     const codes = String(data.printCode || '').split(/\s*[\uff1b;]\s*/).filter(Boolean);
     const printedBag = isPrintedBagSizeImageData(data);
+    const rawPrintLabel = /\u6807\u7b7e/.test(String(data.printRawText || '')) ? '\u6807\u7b7e' : '';
     const dimensions = [];
     const pattern = /(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(cm|mm)?/ig;
     let match;
@@ -14427,8 +14435,8 @@
       if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) dimensions.push({ width, height });
     }
     return dimensions.map((dimension, index) => {
-      const labelText = labels[index] || labels[0] || '';
-      const kind = /\u6807\u7b7e/.test(labelText || String(data.printSizeLabel || '')) && !data.isTubePrint ? 'label' : 'print';
+      const labelText = labels[index] || labels[0] || rawPrintLabel;
+      const kind = /\u6807\u7b7e/.test([labelText, data.printSizeLabel, data.printRawText].filter(Boolean).join(' ')) && !data.isTubePrint ? 'label' : 'print';
       return {
         width: dimension.width,
         height: dimension.height,
