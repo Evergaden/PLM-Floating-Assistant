@@ -1824,6 +1824,20 @@
         { name: '英文参数图.jpg', url: session.englishResult },
       ].filter((item) => item.url);
       if (!outputs.length) return;
+      if (typeof context.saveImageFiles === 'function') {
+        try {
+          const result = await context.saveImageFiles(outputs.map((item) => ({ name: item.name, dataUrl: item.url })));
+          if (result && result.cancelled) return;
+          if (result && result.mode === 'unsupported') {
+            context.showToast('当前浏览器不支持文件夹批量保存，请使用最新版 Chrome 或 Edge。');
+            return;
+          }
+          context.showToast('已保存两张参数图 JPG');
+        } catch (error) {
+          if (!error || error.name !== 'AbortError') context.showToast('保存失败');
+        }
+        return;
+      }
       const picker = context.getSaveFilePicker();
       if (!picker) { context.showToast('当前浏览器不支持另存为，请使用最新版 Chrome。'); return; }
       try {
