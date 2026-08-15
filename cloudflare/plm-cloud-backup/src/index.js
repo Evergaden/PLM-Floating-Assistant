@@ -1368,37 +1368,47 @@ function localizeIngredientAuditText(value) {
   if (/^No ingredient list is present on the packaging\b.*image/i.test(text)) return '包装或图片文字中没有成分列表。';
   if (/^The English ingredients shown in the image match the expected copy/i.test(text)) return '图片中的成分与预期文案一致。';
   if (/^The English ingredient text in the image could not be read reliably/i.test(text)) return '图片中的成分文字无法可靠识别。';
-  if (/^The ingredient image needs review because discrepancies or generation anomalies were found/i.test(text)) return '成分图存在缺漏、错误或生图异常，需要检查。';
-  if (/^The image displays materials instead of cosmetic ingredients/i.test(text)) return '图片展示的是材料而不是化妆品成分；预期成分为中文，已按中文成分进行对照。';
-  if (/^No English ingredients provided in the expected list/i.test(text)) return '预期成分列表为中文，已按中文名称进行对照。';
+  if (/^The ingredient image needs review because discrepancies or generation anomalies were found/i.test(text)) return '成分图存在缺漏、重复或显示异常，需要检查。';
+  if (/^The image displays materials instead of cosmetic ingredients/i.test(text)) return '图片中的名称已按实际文字纳入核对，当前只检查完整显示和重复情况。';
+  if (/^No English ingredients provided in the expected list/i.test(text)) return '预期成分已按图片中的实际名称进行对照。';
   const listedMaterials = text.match(/^The image (?:lists|displays) materials\s*\(([^)]+)\) rather than cosmetic ingredients/i);
-  if (listedMaterials) return '图片展示的是材料（' + listedMaterials[1] + '），而不是化妆品成分。';
-  if (/^The expected ingredient list provided is in Chinese/i.test(text)) return '提供的预期成分列表为中文，图片文字为英文；已按中文成分进行对照。';
-  if (/expected ingredient list.*Chinese.*not English/i.test(text)) return '提供的预期成分列表为中文，不是英文；已按中文成分进行对照。';
+  if (listedMaterials) return '图片中的名称（' + listedMaterials[1] + '）已按实际文字纳入核对，当前只检查完整显示和重复情况。';
+  if (/^The expected ingredient list provided is in Chinese/i.test(text)) return '预期成分已按图片中的实际名称进行对照。';
+  if (/expected ingredient list.*Chinese.*not English/i.test(text)) return '预期成分已按图片中的实际名称进行对照。';
   if (/image (?:text|labels?) is in English/i.test(text)) return '图片中的文字为英文。';
-  if (/materials?.*rather than cosmetic ingredients/i.test(text)) return '图片展示的是材料而不是化妆品成分。';
+  if (/materials?.*rather than cosmetic ingredients/i.test(text)) return '图片中的名称已按实际文字纳入核对，当前只检查完整显示和重复情况。';
   return text;
 }
 
 function sanitizeIngredientAuditResult(value) {
   const source = value && typeof value === 'object' ? value : {};
   const extractedIngredients = normalizeIngredientAuditList(source.extractedIngredients || source.ingredients);
-  const missing = normalizeIngredientAuditList(source.missing).map(localizeIngredientAuditText);
-  const extra = normalizeIngredientAuditList(source.extra).map(localizeIngredientAuditText);
+  const isIgnoredFinding = (item) => /材料.*(?:化妆品|成分)|materials?.*(?:cosmetic ingredients|rather than)|No English ingredients provided in the expected list|expected ingredient list.*Chinese.*(?:not English|while the image text is English)|预期成分(?:列表为中文|已按图片中的实际名称进行对照)|提供的预期成分列表为中文/i.test(String(item || ''));
+  const missing = normalizeIngredientAuditList(source.missing).map(localizeIngredientAuditText).filter((item) => !isIgnoredFinding(item));
+  // A clearly readable label is valid regardless of whether it is a cosmetic
+  // ingredient, a material, a mineral, or a botanical name.  The audit only
+  // reports expected labels that are missing, repeated, or visibly malformed;
+  // never turn a category judgement into an "extra/incorrect" finding.
+  const extra = [];
   const duplicates = normalizeIngredientAuditList(source.duplicates).map(localizeIngredientAuditText);
-  const anomalies = normalizeIngredientAuditList(source.anomalies, 30).map(localizeIngredientAuditText);
+  const anomalies = normalizeIngredientAuditList(source.anomalies, 30).map(localizeIngredientAuditText).filter((item) => !isIgnoredFinding(item));
   const requestedStatus = cleanText(source.status, 30).toLowerCase();
   const statusAliases = { ok: 'pass', match: 'pass', matched: 'pass', review: 'warning', mismatch: 'fail', error: 'fail' };
   let status = ['pass', 'warning', 'fail', 'unreadable'].includes(requestedStatus)
     ? requestedStatus
     : (statusAliases[requestedStatus] || 'warning');
-  if (missing.length || extra.length || duplicates.length || anomalies.length) status = 'fail';
+  if (missing.length || duplicates.length || anomalies.length) status = 'fail';
   if (!extractedIngredients.length && requestedStatus === 'unreadable') status = 'unreadable';
+  // Older model responses often used fail/warning solely for a category-based
+  // `extra` finding (for example, calling GOLD or Plastic “not cosmetic”).
+  // Once that finding is ignored, a readable set of labels with no missing,
+  // duplicate, or display anomaly is a pass.
+  if (extractedIngredients.length && !missing.length && !duplicates.length && !anomalies.length && (status === 'fail' || status === 'warning')) status = 'pass';
   const fallbackSummary = status === 'pass'
     ? '图片中的成分与预期文案一致。'
     : status === 'unreadable'
       ? '图片中的成分文字无法可靠识别。'
-      : '成分图存在缺漏、错误或生图异常，需要检查。';
+      : '成分图存在缺漏、重复或显示异常，需要检查。';
   return {
     status,
     summary: localizeIngredientAuditText(source.summary) || fallbackSummary,
@@ -1447,11 +1457,11 @@ async function handleIngredientAudit(request, env) {
       images: [dataUrl],
       inlineData: { mimeType: image.mimeType, data: base64 },
       system: [
-        '你是负责核查化妆品详情图3的中文视觉审查助手。',
-        '只识别图片中实际展示的成分名称；如果图片展示的是 Plastic、Acrylic 等材料，不要把它们当作化妆品成分，并在 extra 或 anomalies 中指出。',
+        '你是负责核查详情图3文字完整性的中文视觉审查助手。',
+        '图片中清晰可读、作为成分卡片或成分列表标签展示的每个名称都视为有效；无论它是化妆品成分、Plastic、Acrylic、Gold、矿物、植物提取物还是其他材料，都不要按类别判错，也不要因为类别把它放入 extra 或 anomalies。',
         '预期成分可能是中文或英文；如果预期成分是中文，请在内部翻译并与图片中的英文成分对照，不要因为预期成分不是英文就判定没有预期成分。',
-        '检查缺漏、错误或多余成分、重复成分卡片或标签，以及乱码、重复面板、成分图片与文字不匹配、版式不完整等生图异常。',
-        '标题、材料、功效、用量和非成分营销短语都不能当作化妆品成分。',
+        '只检查预期名称是否完整显示、是否缺漏、重复、截断、明显拼写/OCR错位、文字与卡片错配或版式不完整；不要判断名称是否属于化妆品成分。',
+        '标题、功效、用量和明显不是名称的营销短语可以忽略，但不要把任何清晰可读的名称按“材料”或“非化妆品”判为错误。',
         'summary、missing、extra、duplicates、anomalies 中的说明必须使用简体中文；成分名称本身可以保留图片中的英文或预期中的中文名称。不要输出英文解释句子。',
         '只返回一个 JSON 对象，不要 Markdown。',
       ].join(' '),
@@ -1459,7 +1469,7 @@ async function handleIngredientAudit(request, env) {
         'SKU: ' + sku,
         '预期成分文本语言：' + expectedLanguage,
         '预期成分：' + JSON.stringify(expectedIngredients),
-        '严格返回此结构：{"status":"pass|warning|fail|unreadable","summary":"中文核查结论","extractedIngredients":["图片中识别到的成分名称"],"missing":["缺少的成分名称或简短中文说明"],"extra":["多余或错误的成分名称"],"duplicates":["重复的成分名称或简短中文说明"],"anomalies":["中文生图异常说明"]}。',
+        '严格返回此结构：{"status":"pass|warning|fail|unreadable","summary":"中文核查结论","extractedIngredients":["图片中识别到的名称"],"missing":["未完整显示的预期名称或简短中文说明"],"extra":[],"duplicates":["重复的名称或简短中文说明"],"anomalies":["截断、明显错位或版式异常说明"]}。',
         '只有在所有预期成分都被图片清楚展示且各出现一次、没有异常时才使用 pass；无法可靠查看图片时使用 unreadable。所有数组必须是简短条目，不要把英文解释句子放入数组。',
       ].join('\n'),
     };
