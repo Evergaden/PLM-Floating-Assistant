@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.51
+// @version      2.8.52
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.51';
+  const SCRIPT_VERSION = '2.8.52';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -3914,6 +3914,201 @@
 
   const THEME_RESOURCE_STYLE_ID = 'pfh-theme-resource-styles';
   const THEME_RESOURCE_CSS = `
+    #${PANEL_ID} .pfh-size-image-hero-actions {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-left: auto;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-button {
+      min-height: 34px;
+      padding: 5px 12px;
+      color: #6d35e8;
+      border: 1px solid rgba(124,58,237,.32);
+      border-radius: 10px;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 5px 14px rgba(124,58,237,.08);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 760;
+      white-space: nowrap;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-button:hover {
+      border-color: rgba(124,58,237,.62);
+      background: rgba(248,245,255,.98);
+      transform: translateY(-1px);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483646;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      box-sizing: border-box;
+      background: rgba(25,18,52,.28);
+      backdrop-filter: blur(5px);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-modal {
+      width: min(680px, calc(100vw - 28px));
+      max-height: min(720px, calc(100vh - 28px));
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      color: #352766;
+      border: 1px solid rgba(167,139,250,.34);
+      border-radius: 18px;
+      background: rgba(255,255,255,.98);
+      box-shadow: 0 24px 70px rgba(40,24,92,.26);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 17px 18px 12px;
+      border-bottom: 1px solid rgba(167,139,250,.16);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-head h3 {
+      margin: 0;
+      color: #30255f;
+      font-size: 17px;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-head p {
+      margin: 5px 0 0;
+      color: #858baa;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-close {
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0;
+      color: #766b99;
+      border: 0;
+      border-radius: 8px;
+      background: rgba(124,58,237,.07);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-form {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px 18px 4px;
+      box-sizing: border-box;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-section {
+      display: grid;
+      gap: 9px;
+      margin-bottom: 14px;
+      padding: 11px;
+      border: 1px solid rgba(167,139,250,.18);
+      border-radius: 13px;
+      background: rgba(250,248,255,.72);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-section-title {
+      color: #4e4379;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-field {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-field.is-wide {
+      grid-column: 1 / -1;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-field > span {
+      color: #746b96;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-field input,
+    #${PANEL_ID} .pfh-size-image-custom-field select {
+      width: 100%;
+      min-width: 0;
+      height: 32px;
+      padding: 5px 8px;
+      color: #352766;
+      border: 1px solid rgba(167,139,250,.28);
+      border-radius: 8px;
+      outline: none;
+      background: rgba(255,255,255,.95);
+      box-sizing: border-box;
+      font-size: 11px;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-field input:focus,
+    #${PANEL_ID} .pfh-size-image-custom-field select:focus {
+      border-color: rgba(124,58,237,.58);
+      box-shadow: 0 0 0 3px rgba(124,58,237,.08);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-hint {
+      margin: -2px 0 0;
+      color: #8a91ae;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-checks label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #574b80;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-checks input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: #7c3aed;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 18px 16px;
+      border-top: 1px solid rgba(167,139,250,.16);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-foot button {
+      min-height: 34px;
+      padding: 5px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 760;
+    }
+    #${PANEL_ID} .pfh-size-image-custom-foot button.is-secondary {
+      color: #6d35e8;
+      border: 1px solid rgba(124,58,237,.28);
+      background: rgba(255,255,255,.9);
+    }
+    #${PANEL_ID} .pfh-size-image-custom-foot button.is-primary {
+      color: #fff;
+      border: 1px solid #7c3aed;
+      background: linear-gradient(135deg, #8b5cf6, #6d35e8);
+    }
+    @media (max-width: 520px) {
+      #${PANEL_ID} .pfh-size-image-custom-grid { grid-template-columns: 1fr; }
+      #${PANEL_ID} .pfh-size-image-custom-field.is-wide { grid-column: auto; }
+      #${PANEL_ID} .pfh-size-image-custom-modal { max-height: calc(100vh - 18px); }
+      #${PANEL_ID} .pfh-size-image-custom-form { padding-left: 12px; padding-right: 12px; }
+      #${PANEL_ID} .pfh-size-image-custom-foot { padding-left: 12px; padding-right: 12px; }
+    }
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu {
       min-height: 74px !important;
       border-color: #edc47e !important;
@@ -4535,6 +4730,9 @@
     skuPage: 1,
     sizeImageSessions: {},
     sizeImageBusySku: '',
+    sizeImageCustomData: null,
+    sizeImageCustomDraft: null,
+    sizeImageCustomOpen: false,
     sizeImageAccessName: '',
     sizeImageAccessEnabled: false,
     sizeImageAccessLoading: true,
@@ -14299,10 +14497,181 @@
     return codes.length ? 'ext:zip|ext:xlsx ' + codes.join('|') : '';
   }
 
+  function getActiveSizeImageData() {
+    const source = state.sizeImageCustomData || state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
+    return source ? normalizeData(source) : null;
+  }
+
+  function getActiveSizeImageSku() {
+    const data = getActiveSizeImageData();
+    return data && data.sku ? String(data.sku) : '';
+  }
+
+  function formatSizeImageCustomDimensionText(value, fallbackNums) {
+    const text = String(value || '').trim();
+    if (text) return text;
+    const nums = Array.isArray(fallbackNums) ? fallbackNums.map(Number).filter((item) => Number.isFinite(item) && item > 0) : [];
+    return nums.length ? nums.map(formatSizeImageNumber).join(' × ') + ' cm' : '';
+  }
+
+  function getSizeImageCustomDraft(data) {
+    const source = data && data.sku ? data : {};
+    const sku = source.sku || '';
+    const session = sku ? ensureSizeImageSession(sku) : null;
+    const remarks = getSizeImageRemarks(source);
+    const labelSpecs = getLabelSizeImageSpecs(source);
+    const firstLabel = labelSpecs[0] || null;
+    const customFlatKind = source.sizeImageCustomFlatKind === 'label' || source.sizeImageCustomFlatKind === 'print'
+      ? source.sizeImageCustomFlatKind
+      : (firstLabel && firstLabel.kind === 'label' ? 'label' : 'print');
+    return {
+      sku,
+      brand: source.brand || '',
+      name: source.name || '',
+      packageTitle: source.sizeImageCustomPackageTitle || source.packageSizeLabel || '纸盒',
+      packageSizeText: formatSizeImageCustomDimensionText(source.packageSizeText, source.packageNums),
+      packageCode: source.packageCode || '',
+      flatKind: customFlatKind,
+      flatTitle: source.sizeImageCustomFlatTitle || source.printSizeLabel || (customFlatKind === 'label' ? '标签' : '印刷'),
+      flatSizeText: source.printSizeText || '',
+      flatCode: source.printCode || '',
+      cartonRemark: source.sizeImageCustomCartonRemark || (session && session.cartonRemarkText) || remarks.carton || '',
+      flatRemark: source.sizeImageCustomFlatRemark || (session && firstLabel && session.labelRemarkTexts[firstLabel.key]) || remarks.label || '',
+      includeRemark: !session || session.includeRemark !== false,
+      includeRoundArc: !session || session.includeRoundArc !== false,
+      includeBatchNumber: !session || session.includeBatchNumber !== false,
+    };
+  }
+
+  function sizeImageCustomInput(key, label, value, placeholder, wide) {
+    return '<label class="pfh-size-image-custom-field' + (wide ? ' is-wide' : '') + '"><span>' + escapeHtml(label) + '</span><input type="text" data-size-image-custom-key="' + escapeHtml(key) + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></label>';
+  }
+
+  function sizeImageCustomModalHtml() {
+    if (!state.sizeImageCustomOpen) return '';
+    const draft = state.sizeImageCustomDraft || getSizeImageCustomDraft(getActiveSizeImageData());
+    const selectedLabel = draft.flatKind === 'label' ? ' selected' : '';
+    const selectedPrint = draft.flatKind === 'print' ? ' selected' : '';
+    return '<div class="pfh-size-image-custom-layer" data-action="size-image-custom-close">' +
+      '<div class="pfh-size-image-custom-modal" role="dialog" aria-modal="true" aria-label="自定义尺寸图">' +
+        '<div class="pfh-size-image-custom-head"><div><h3>自定义尺寸图</h3><p>不依赖 PLM 缓存，填写后上传底图即可生成尺寸图。</p></div><button type="button" class="pfh-size-image-custom-close" data-action="size-image-custom-close" aria-label="关闭">×</button></div>' +
+        '<div class="pfh-size-image-custom-form">' +
+          '<section class="pfh-size-image-custom-section"><strong class="pfh-size-image-custom-section-title">基础信息</strong><div class="pfh-size-image-custom-grid">' +
+            sizeImageCustomInput('sku', 'SKU（必填）', draft.sku, '例如 SKU00050446') +
+            sizeImageCustomInput('brand', '品牌', draft.brand, '可不填') +
+            sizeImageCustomInput('name', '商品名称', draft.name, '可不填', true) +
+          '</div></section>' +
+          '<section class="pfh-size-image-custom-section"><strong class="pfh-size-image-custom-section-title">纸盒信息</strong><div class="pfh-size-image-custom-grid">' +
+            sizeImageCustomInput('packageTitle', '纸盒标题', draft.packageTitle, '纸盒') +
+            sizeImageCustomInput('packageCode', '纸盒物料编码', draft.packageCode, '可不填') +
+            sizeImageCustomInput('packageSizeText', '纸盒尺寸（长×宽×高）', draft.packageSizeText, '例如 5.2×5.2×4.6cm', true) +
+          '</div><p class="pfh-size-image-custom-hint">支持 3 个尺寸；多页纸盒可填写 5 个尺寸，例如 5.2×5.2×4.6×5.2×5.2cm。纸盒尺寸可留空，只生成标签/印刷图。</p></section>' +
+          '<section class="pfh-size-image-custom-section"><strong class="pfh-size-image-custom-section-title">标签 / 印刷信息</strong><div class="pfh-size-image-custom-grid">' +
+            '<label class="pfh-size-image-custom-field"><span>平面图类型</span><select data-size-image-custom-key="flatKind"><option value="label"' + selectedLabel + '>标签</option><option value="print"' + selectedPrint + '>印刷</option></select></label>' +
+            sizeImageCustomInput('flatTitle', '标签 / 印刷标题', draft.flatTitle, '例如 标签、印刷') +
+            sizeImageCustomInput('flatCode', '标签 / 印刷物料编码', draft.flatCode, '可不填') +
+            sizeImageCustomInput('flatSizeText', '平面图尺寸（宽×高）', draft.flatSizeText, '例如 10×2.3cm', true) +
+          '</div><p class="pfh-size-image-custom-hint">可填写多个宽×高尺寸，用分号隔开；纸盒、标签、印刷至少填写一组有效尺寸。</p></section>' +
+          '<section class="pfh-size-image-custom-section"><strong class="pfh-size-image-custom-section-title">标题备注与生成选项</strong><div class="pfh-size-image-custom-grid">' +
+            sizeImageCustomInput('cartonRemark', '纸盒备注', draft.cartonRemark, '例如 多页、内卡') +
+            sizeImageCustomInput('flatRemark', '标签 / 印刷备注', draft.flatRemark, '例如 透明、加粘') +
+          '</div><div class="pfh-size-image-custom-checks"><label><input type="checkbox" data-size-image-custom-key="includeRemark"' + (draft.includeRemark ? ' checked' : '') + '>生成标题备注</label><label><input type="checkbox" data-size-image-custom-key="includeRoundArc"' + (draft.includeRoundArc ? ' checked' : '') + '>标签圆弧</label><label><input type="checkbox" data-size-image-custom-key="includeBatchNumber"' + (draft.includeBatchNumber ? ' checked' : '') + '>批次号</label></div></section>' +
+        '</div>' +
+        '<div class="pfh-size-image-custom-foot"><button type="button" class="is-secondary" data-action="size-image-custom-close">取消</button><button type="button" class="is-primary" data-action="size-image-custom-save">保存并继续</button></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function openSizeImageCustomEditor() {
+    state.sizeImageCustomDraft = getSizeImageCustomDraft(getActiveSizeImageData());
+    state.sizeImageCustomOpen = true;
+    expandPanel();
+    renderShell();
+    window.setTimeout(() => {
+      const input = ensurePanel().querySelector('[data-size-image-custom-key="sku"]');
+      if (input) input.focus();
+    }, 0);
+  }
+
+  function closeSizeImageCustomEditor() {
+    state.sizeImageCustomOpen = false;
+    state.sizeImageCustomDraft = null;
+    renderShell();
+  }
+
+  function readSizeImageCustomField(panel, key) {
+    const input = panel && panel.querySelector('[data-size-image-custom-key="' + key + '"]');
+    return input ? String(input.value || '').trim() : '';
+  }
+
+  function saveSizeImageCustomConfig() {
+    const panel = ensurePanel();
+    const sku = readSizeImageCustomField(panel, 'sku');
+    const packageSizeText = readSizeImageCustomField(panel, 'packageSizeText');
+    const flatSizeText = readSizeImageCustomField(panel, 'flatSizeText');
+    const flatKind = readSizeImageCustomField(panel, 'flatKind') === 'label' ? 'label' : 'print';
+    const packageTitle = readSizeImageCustomField(panel, 'packageTitle') || '纸盒';
+    const flatTitle = readSizeImageCustomField(panel, 'flatTitle') || (flatKind === 'label' ? '标签' : '印刷');
+    if (!sku) {
+      showToast('请填写 SKU');
+      const input = panel.querySelector('[data-size-image-custom-key="sku"]');
+      if (input) input.focus();
+      return;
+    }
+    const customData = normalizeData({
+      sku,
+      brand: readSizeImageCustomField(panel, 'brand'),
+      name: readSizeImageCustomField(panel, 'name'),
+      packageSizeLabel: packageTitle,
+      packageSizeText,
+      packageCode: readSizeImageCustomField(panel, 'packageCode'),
+      printSizeLabel: flatTitle,
+      printSizeText: flatSizeText,
+      printRawText: flatTitle,
+      printCode: readSizeImageCustomField(panel, 'flatCode'),
+      materialDimensionUnitIssues: { package: null, print: null },
+      isCustomSizeImage: true,
+      sizeImageCustomFlatKind: flatKind,
+      sizeImageCustomPackageTitle: packageTitle,
+      sizeImageCustomFlatTitle: flatTitle,
+      sizeImageCustomCartonRemark: readSizeImageCustomField(panel, 'cartonRemark'),
+      sizeImageCustomFlatRemark: readSizeImageCustomField(panel, 'flatRemark'),
+    });
+    const cartonSpec = getSizeImageSpec(customData);
+    const labelSpecs = getLabelSizeImageSpecs(customData);
+    if (packageSizeText && !cartonSpec) {
+      showToast('纸盒尺寸格式不正确，请填写 3 个或 5 个数字');
+      return;
+    }
+    if (flatSizeText && !labelSpecs.length) {
+      showToast('标签 / 印刷尺寸格式不正确，请填写宽×高');
+      return;
+    }
+    if (!cartonSpec && !labelSpecs.length) {
+      showToast('纸盒或标签 / 印刷至少填写一组有效尺寸');
+      return;
+    }
+    state.sizeImageCustomData = customData;
+    state.sizeImageCustomDraft = null;
+    state.sizeImageCustomOpen = false;
+    delete state.sizeImageSessions[customData.sku];
+    const session = ensureSizeImageSession(customData.sku);
+    session.includeRemark = Boolean(panel.querySelector('[data-size-image-custom-key="includeRemark"]')?.checked);
+    session.includeRoundArc = Boolean(panel.querySelector('[data-size-image-custom-key="includeRoundArc"]')?.checked);
+    session.includeBatchNumber = Boolean(panel.querySelector('[data-size-image-custom-key="includeBatchNumber"]')?.checked);
+    session.cartonRemarkText = customData.sizeImageCustomCartonRemark || '';
+    if (labelSpecs[0]) session.labelRemarkTexts[labelSpecs[0].key] = customData.sizeImageCustomFlatRemark || '';
+    state.view = 'sizeImage';
+    state.copywritingMode = false;
+    expandPanel();
+    renderShell();
+    showToast('自定义尺寸已保存，请上传纸盒或标签底图');
+  }
+
   function sizeImageViewHtml() {
-    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    const data = getActiveSizeImageData();
     if (!data || !data.sku) {
-      return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>\u9009\u62e9\u4e00\u4e2a SKU</strong><p>\u4ece\u5de6\u4fa7\u9009\u62e9 SKU \u540e\uff0c\u53ef\u751f\u6210\u7eb8\u76d2\u3001\u6807\u7b7e\u6216\u5370\u5237\u5c3a\u5bf8\u56fe\u3002</p></div></section></div>';
+      return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page"><div class="pfh-size-image-empty"><strong>选择一个 SKU 或自定义尺寸</strong><p>缓存中没有 SKU 时，也可以直接填写 SKU、尺寸、标题和备注，再上传底图生成尺寸图。</p><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></section>' + sizeImageCustomModalHtml() + '</div>';
     }
     const cartonSpec = getSizeImageSpec(data);
     const labelSpecs = getLabelSizeImageSpecs(data);
@@ -14355,7 +14724,7 @@
     ].filter(Boolean).join('');
     const pendingMatch = session.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>\u8bf7\u9009\u62e9\u56fe\u7247\u5bf9\u5e94\u7684\u5c3a\u5bf8</strong>' + session.pendingLabelMatches.map((pending) => '<div><span>' + escapeHtml(pending.file.name || '\u5f85\u5339\u914d\u56fe\u7247') + '</span><select class="pfh-size-image-match-select" data-pending-id="' + escapeHtml(pending.id) + '">' + labelSpecs.map((spec) => '<option value="' + escapeHtml(spec.key) + '">' + escapeHtml((spec.kind === 'print' ? '\u5370\u5237 ' : '\u6807\u7b7e ') + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm') + '</option>').join('') + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + escapeHtml(pending.id) + '">\u786e\u8ba4\u751f\u6210</button></div>').join('') + '</div>' : '';
     return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + detailViewTabsHtml('sizeImage') + '<section class="pfh-size-image-page">' +
-      '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || '\u9009\u4e2d\u4ea7\u54c1') + '</p></div></header>' +
+      '<header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + productThumbHtml(data) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + escapeHtml(data.sku) + ' \u5c3a\u5bf8\u56fe</h3><p>' + escapeHtml([data.brand, data.name].filter(Boolean).join(' ') || (data.isCustomSizeImage ? '自定义数据' : '\u9009\u4e2d\u4ea7\u54c1')) + '</p></div><div class="pfh-size-image-hero-actions"><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></header>' +
       (!(cartonSpec || labelSpec) ? '<div class="pfh-size-image-status is-error">' + escapeHtml(getSizeImageSpecError(data)) + '</div>' : '') +
       '<div class="pfh-size-image-workspace' + (busy ? ' is-busy' : '') + '"><div class="pfh-size-image-controls">' +
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u548c\u5370\u5237\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
@@ -14366,7 +14735,7 @@
         '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (canRegenerate && !busy ? '' : ' disabled') + '>' + iconHtml('refresh') + '\u91cd\u65b0\u751f\u6210</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
         pendingMatch + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
       '</div>' + preview + '</div>' +
-    '</section></div>';
+    '</section>' + sizeImageCustomModalHtml() + '</div>';
   }
 
   function ensureSizeImageSession(sku) {
@@ -14436,7 +14805,8 @@
     }
     return dimensions.map((dimension, index) => {
       const labelText = labels[index] || labels[0] || rawPrintLabel;
-      const kind = /\u6807\u7b7e/.test([labelText, data.printSizeLabel, data.printRawText].filter(Boolean).join(' ')) && !data.isTubePrint ? 'label' : 'print';
+      const customKind = data.sizeImageCustomFlatKind === 'label' || data.sizeImageCustomFlatKind === 'print' ? data.sizeImageCustomFlatKind : '';
+      const kind = customKind || (/\u6807\u7b7e/.test([labelText, data.printSizeLabel, data.printRawText].filter(Boolean).join(' ')) && !data.isTubePrint ? 'label' : 'print');
       return {
         width: dimension.width,
         height: dimension.height,
@@ -14477,8 +14847,8 @@
 
   function getSizeImageRemarks(data) {
     return {
-      carton: collectSizeImageRemark(data && data.packageSizeLabel, [data && data.hasInnerCard ? '\u5185\u5361' : '']),
-      label: collectSizeImageRemark(data && data.printSizeLabel, []),
+      carton: (data && data.sizeImageCustomCartonRemark) || collectSizeImageRemark(data && data.packageSizeLabel, [data && data.hasInnerCard ? '\u5185\u5361' : '']),
+      label: (data && data.sizeImageCustomFlatRemark) || collectSizeImageRemark(data && data.printSizeLabel, []),
     };
   }
 
@@ -14517,7 +14887,7 @@
   }
 
   async function processSizeImageFile(file, preferredType, silent) {
-    const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
+    const data = getActiveSizeImageData();
     const cartonSpec = getSizeImageSpec(data);
     const labelSpecs = getLabelSizeImageSpecs(data);
     if (!data || !data.sku || !(cartonSpec || labelSpecs.length)) {
@@ -14610,10 +14980,12 @@
         }
       }
       session.error = '';
-      if (detectedType === 'carton') {
-        updateDailyLedgerForSku(sku, { boxFileState: 'done', boxFileDone: true }, getTodayKey());
-      } else {
-        updateDailyLedgerForSku(sku, { labelFileState: 'done', labelFileDone: true }, getTodayKey());
+      if (!data.isCustomSizeImage) {
+        if (detectedType === 'carton') {
+          updateDailyLedgerForSku(sku, { boxFileState: 'done', boxFileDone: true }, getTodayKey());
+        } else {
+          updateDailyLedgerForSku(sku, { labelFileState: 'done', labelFileDone: true }, getTodayKey());
+        }
       }
       recordSizeImageUsage(true);
       if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (detectedType === 'carton' ? '\u7eb8\u76d2' : (matchedLabelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e')) + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
@@ -14644,7 +15016,7 @@
   async function processSizeImageFiles(files, options) {
     const items = Array.from(files || []).filter(Boolean);
     if (!items.length) return;
-    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const sku = getActiveSizeImageSku();
     const session = sku && ensureSizeImageSession(sku);
     if (session) {
       state.sizeImageBusySku = sku;
@@ -15060,8 +15432,11 @@
   }
 
   function getSizeImageTitle(type, data, includeRemark, includeRoundArc, customRemark) {
-    const base = type === 'label' ? '\u6807\u7b7e' : (type === 'print' ? '\u5370\u5237' : '\u7eb8\u76d2');
-    if (!includeRemark && typeof customRemark !== 'string') return base;
+    const customBase = type === 'carton'
+      ? String(data && data.sizeImageCustomPackageTitle || '').trim()
+      : String(data && data.sizeImageCustomFlatTitle || '').trim();
+    const base = customBase || (type === 'label' ? '\u6807\u7b7e' : (type === 'print' ? '\u5370\u5237' : '\u7eb8\u76d2'));
+    if (!includeRemark) return base;
     const remarks = getSizeImageRemarks(data);
     const sourceRemark = typeof customRemark === 'string' ? customRemark.trim() : (type === 'carton' ? remarks.carton : remarks.label);
     const roundArcRemark = type === 'label' && includeRoundArc && !String(sourceRemark || '').includes('\u5706\u5f27') ? '\u5706\u5f27' : '';
@@ -15096,9 +15471,9 @@
   }
 
   async function saveCurrentSizeImagesToFolder() {
-    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const sku = getActiveSizeImageSku();
     const session = sku && state.sizeImageSessions[sku];
-    const currentData = normalizeData(state.data || (sku ? loadData(sku) : null));
+    const currentData = getActiveSizeImageData();
     const flatSpecs = getLabelSizeImageSpecs(currentData);
     if (session) migrateLegacySizeImageResult(session, flatSpecs[0]);
     const flatFiles = session ? flatSpecs.map((spec) => {
@@ -15141,11 +15516,11 @@
   }
 
   async function regenerateCurrentSizeImages() {
-    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const sku = getActiveSizeImageSku();
     const session = sku && ensureSizeImageSession(sku);
     if (!session) return;
     if (state.sizeImageBusySku === sku) return;
-    const data = normalizeData(state.data || (sku ? loadData(sku) : null));
+    const data = getActiveSizeImageData();
     const flatSpecs = getLabelSizeImageSpecs(data);
     migrateLegacySizeImageResult(session, flatSpecs[0]);
     const sources = [
@@ -15177,7 +15552,7 @@
   }
 
   async function confirmPendingSizeImageMatch(pendingId) {
-    const sku = state.selectedSku || (state.data && state.data.sku) || '';
+    const sku = getActiveSizeImageSku();
     const session = sku && ensureSizeImageSession(sku);
     if (!session || state.sizeImageBusySku === sku) return;
     const pending = session.pendingLabelMatches.find((item) => item.id === pendingId);
@@ -19168,6 +19543,9 @@
       return;
     }
     if (action === 'home-main') {
+      state.sizeImageCustomData = null;
+      state.sizeImageCustomDraft = null;
+      state.sizeImageCustomOpen = false;
       state.view = 'home';
       state.copywritingMode = false;
       state.uploadExpanded = false;
@@ -19282,6 +19660,19 @@
       state.data = state.selectedSku ? normalizeData(loadData(state.selectedSku) || { sku: state.selectedSku }) : null;
       expandPanel();
       renderShell();
+      return;
+    }
+    if (action === 'size-image-custom-open') {
+      openSizeImageCustomEditor();
+      return;
+    }
+    if (action === 'size-image-custom-close') {
+      if (actionTarget.classList.contains('pfh-size-image-custom-layer') && event.target !== actionTarget) return;
+      closeSizeImageCustomEditor();
+      return;
+    }
+    if (action === 'size-image-custom-save') {
+      saveSizeImageCustomConfig();
       return;
     }
     if (action === 'home-parameter-image') {
@@ -20057,6 +20448,9 @@
       const currentTab = getCurrentDetailViewTab();
       const sku = skuButton.getAttribute('data-sku');
       const data = loadData(sku) || state.index.find((entry) => entry && entry.sku === sku) || null;
+      state.sizeImageCustomData = null;
+      state.sizeImageCustomDraft = null;
+      state.sizeImageCustomOpen = false;
       state.selectedSku = sku;
       state.data = data ? normalizeData(data) : (currentTab === 'sizeImage' || currentTab === 'parameterImage' ? normalizeData({ sku }) : null);
       window.setTimeout(() => refreshMaterialFromApiWithoutDrawer(sku, data).catch((error) => {
@@ -20211,7 +20605,7 @@
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-text')) {
-      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      const sku = getActiveSizeImageSku();
       const type = event.target.getAttribute('data-size-image-type');
       if (sku && type === 'carton') ensureSizeImageSession(sku).cartonRemarkText = event.target.value;
       if (sku && type === 'label') {
@@ -20536,21 +20930,21 @@
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-remark-input')) {
-      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      const sku = getActiveSizeImageSku();
       if (!sku) return;
       ensureSizeImageSession(sku).includeRemark = Boolean(event.target.checked);
       regenerateCurrentSizeImages();
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-round-arc-input')) {
-      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      const sku = getActiveSizeImageSku();
       if (!sku) return;
       ensureSizeImageSession(sku).includeRoundArc = Boolean(event.target.checked);
       regenerateCurrentSizeImages();
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-size-image-batch-number-input')) {
-      const sku = state.selectedSku || (state.data && state.data.sku) || '';
+      const sku = getActiveSizeImageSku();
       if (!sku) return;
       ensureSizeImageSession(sku).includeBatchNumber = Boolean(event.target.checked);
       regenerateCurrentSizeImages();
