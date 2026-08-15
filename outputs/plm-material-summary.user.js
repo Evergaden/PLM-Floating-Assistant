@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.46
+// @version      2.8.47
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.46';
+  const SCRIPT_VERSION = '2.8.47';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2188,6 +2188,7 @@
   const LEDGER_AI_IMAGE_RETOUCH_MAX_ITEMS = 60;
   const LEDGER_AI_IMAGE_RETOUCH_MAX_TASKS = 20;
   const LEDGER_AI_IMAGE_HIDDEN_MAX_KEYS = 120;
+  const LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY = 4;
   const LEDGER_AI_IMAGE_RETOUCH_QUICK_PHRASES = Object.freeze([
     Object.freeze({ group: '包装与材质', text: '内料改成XX色' }),
     Object.freeze({ group: '包装与材质', text: '把内料改成XX色，其他元素保持不变' }),
@@ -6151,6 +6152,7 @@
 
   function normalizeData(data) {
     const safe = data || {};
+    safe.apiFieldStates = normalizeApiFieldStates(safe.apiFieldStates);
     safe.name = normalizeProductNameValue(safe.name);
     const manualFieldOverrides = normalizeManualFieldOverrides(safe);
     migrateLabelValue(safe, 'packageSizeLabel', 'packageSizeText');
@@ -6311,6 +6313,40 @@
     if (payload && Array.isArray(payload.pms)) return payload.pms;
     if (data && Array.isArray(data.list)) return data.list;
     return [];
+  }
+
+  function hasApiMaterialItemsPayload(payload) {
+    const data = payload && (payload.data || payload.response && payload.response.data);
+    return Boolean(
+      Array.isArray(data)
+      || data && Array.isArray(data.pms)
+      || data && data.data && Array.isArray(data.data.pms)
+      || payload && Array.isArray(payload.pms)
+      || data && Array.isArray(data.list)
+    );
+  }
+
+  function getApiFieldState(value, resolved) {
+    if (!resolved) return '';
+    if (Array.isArray(value)) return value.length ? 'value' : 'empty';
+    return value !== undefined && value !== null && String(value).trim() && String(value).trim() !== '--' ? 'value' : 'empty';
+  }
+
+  function normalizeApiFieldStates(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.keys(value).reduce((result, key) => {
+      if (value[key] === 'value' || value[key] === 'empty') result[key] = value[key];
+      return result;
+    }, {});
+  }
+
+  function mergeApiFieldStates() {
+    return Array.from(arguments).reduce((result, value) => ({ ...result, ...normalizeApiFieldStates(value) }), {});
+  }
+
+  function isApiFieldResolved(data, key) {
+    const state = data && data.apiFieldStates && data.apiFieldStates[key];
+    return state === 'value' || state === 'empty';
   }
 
   function getApiListItems(payload) {
@@ -6621,6 +6657,7 @@
       alibabaLink: getApiObjectFieldValue(objects, ['alibaba_link', 'alibabaLink', '1688_link', '1688Link', 'alibaba_url', 'alibabaUrl'])
         || getApiAttributeText(attrs, /alibaba|1688|阿里链接/i, 1),
     };
+    const productDetailResolved = Boolean(infoPayload || contentPayload);
     return {
       product,
       info,
@@ -6646,6 +6683,10 @@
       productId: String(product && (product.product_id || product.id) || info.product_id || ''),
       productVersionId: String(product && (product.product_version_id || product.product_main_id) || info.product_version_id || info.product_main_id || ''),
       languageConfig: Array.isArray(configs) ? configs : [],
+      apiFieldStates: {
+        englishName: getApiFieldState(englishName, productDetailResolved),
+        productSize: getApiFieldState(productNums || productSizeText, productDetailResolved),
+      },
     };
   }
 
@@ -6858,16 +6899,18 @@
     return apiIngredientFileCache[sku];
   }
 
-  function getApiProductMetricValue(payload, variableName) {
+  function getApiProductMetricState(payload, variableName) {
     let result = '';
+    let found = false;
     const visit = (value) => {
-      if (result || !value) return;
+      if (found || !value) return;
       if (Array.isArray(value)) {
         value.forEach(visit);
         return;
       }
       if (typeof value !== 'object') return;
       if (value.variable_name === variableName) {
+        found = true;
         const languageValues = Array.isArray(value.attr_language_config_json) ? value.attr_language_config_json : [];
         const preferred = languageValues.find((item) => Number(item && item.language_id) === 1 && item.value != null)
           || languageValues.find((item) => item && item.value != null);
@@ -6882,16 +6925,24 @@
       Object.keys(value).forEach((key) => visit(value[key]));
     };
     visit(payload);
-    return result;
+    return { value: result, state: found ? (result ? 'value' : 'empty') : '' };
+  }
+
+  function getApiProductMetricValue(payload, variableName) {
+    return getApiProductMetricState(payload, variableName).value;
   }
 
   function extractApiProductMetrics(payload) {
-    const netContent = getApiProductMetricValue(payload, 'suttle');
-    const grossWeight = getApiProductMetricValue(payload, 'rough_weight');
+    const netContentState = getApiProductMetricState(payload, 'suttle');
+    const grossWeightState = getApiProductMetricState(payload, 'rough_weight');
+    const apiFieldStates = {};
+    if (netContentState.state) apiFieldStates.netContent = netContentState.state;
+    if (grossWeightState.state) apiFieldStates.grossWeight = grossWeightState.state;
     return {
-      ...(netContent ? { netContent } : {}),
-      ...(grossWeight ? { grossWeight } : {}),
-      ...(netContent || grossWeight ? { apiProductSource: 'plm-product-detail-content' } : {}),
+      ...(netContentState.value ? { netContent: netContentState.value } : {}),
+      ...(grossWeightState.value ? { grossWeight: grossWeightState.value } : {}),
+      ...(netContentState.value || grossWeightState.value ? { apiProductSource: 'plm-product-detail-content' } : {}),
+      apiFieldStates,
     };
   }
 
@@ -7156,6 +7207,7 @@
 
   function extractApiMaterialPackaging(payload) {
     const items = getApiMaterialItems(payload);
+    const materialResponseResolved = hasApiMaterialItemsPayload(payload);
     const candidates = items.map((item, index) => {
       const name = compactText(item && item.name);
       const category = compactText(item && item.category_name);
@@ -7201,15 +7253,33 @@
     const packageUnitIssue = packageItem && packageItem.unitIssue ? packageItem.unitIssue : null;
     const tubeItem = printItems.find((item) => item.tubeSpec);
     const tubeSpec = tubeItem && tubeItem.tubeSpec;
+    const packageSizeText = packageUnitIssue ? packageUnitIssue.raw : formatApiMaterialDimensions(packageNums);
+    const packageSizeLabel = packageItem ? packageItem.displayName : '';
+    const packageCode = packageItem ? String(packageItem.item.code || '') : '';
+    const printSizeText = tubeSpec ? tubeSpec.printSizeText : printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；');
+    const printSizeLabel = tubeSpec ? '印刷' : printItems.map((item) => item.displayName).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；');
+    const printCode = printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；');
+    const netContent = packageItem ? extractNetContentFromMaterial(packageItem.name + ' ' + compactText(packageItem.item.properties_value)) : '';
+    const apiFieldStates = materialResponseResolved ? {
+      material: items.length ? 'value' : 'empty',
+      materialSize: getApiFieldState([packageSizeText, printSizeText].filter(Boolean), true),
+      packageSize: getApiFieldState(packageSizeText, true),
+      packageLabel: getApiFieldState(packageSizeLabel, true),
+      packageCode: getApiFieldState(packageCode, true),
+      printSize: getApiFieldState(printSizeText, true),
+      printLabel: getApiFieldState(printSizeLabel, true),
+      printCode: getApiFieldState(printCode, true),
+      netContent: getApiFieldState(netContent, true),
+    } : {};
     return {
-      packageSizeText: packageUnitIssue ? packageUnitIssue.raw : formatApiMaterialDimensions(packageNums),
-      packageSizeLabel: packageItem ? packageItem.displayName : '',
-      packageCode: packageItem ? String(packageItem.item.code || '') : '',
+      packageSizeText,
+      packageSizeLabel,
+      packageCode,
       packageNums,
       hasInnerCard: items.some((item) => /内卡/.test(compactText(item && item.name) + ' ' + compactText(item && item.category_name))),
-      printSizeText: tubeSpec ? tubeSpec.printSizeText : printItems.map((item) => item.unitIssue ? item.unitIssue.raw : formatApiMaterialDimensions(item.dimensions)).filter(Boolean).join('；'),
-      printSizeLabel: tubeSpec ? '印刷' : printItems.map((item) => item.displayName).filter(Boolean).filter((value, index, arr) => arr.indexOf(value) === index).join('；'),
-      printCode: printItems.map((item) => String(item.item.code || '')).filter(Boolean).join('；'),
+      printSizeText,
+      printSizeLabel,
+      printCode,
       tubeSegmentText: tubeSpec ? tubeSpec.segmentText : '',
       tubeTailSealLengthValue: tubeSpec ? tubeSpec.tailSealText : '',
       tailSealLengthValue: tubeSpec ? tubeSpec.tailSealText : '',
@@ -7221,8 +7291,9 @@
         package: packageUnitIssue,
         print: (printItems.find((item) => item.unitIssue) || {}).unitIssue || null,
       },
-      netContent: packageItem ? extractNetContentFromMaterial(packageItem.name + ' ' + compactText(packageItem.item.properties_value)) : '',
+      netContent,
       apiMaterialSource: packageItem || printItems.length ? 'plm-project-pms' : '',
+      apiFieldStates,
     };
   }
 
@@ -7254,6 +7325,9 @@
       if (preserveProductDetailPackage && packageKeys.has(key)) return;
       if (isUsefulValue(source[key])) merged[key] = source[key];
     });
+    if (source.apiFieldStates && typeof source.apiFieldStates === 'object') {
+      merged.apiFieldStates = mergeApiFieldStates(merged.apiFieldStates, source.apiFieldStates);
+    }
     const tubeKeys = ['tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey'];
     if (source.apiMaterialSource && Object.prototype.hasOwnProperty.call(source, 'isTubePrintMaterial') && !source.isTubePrintMaterial) {
       tubeKeys.forEach((key) => { merged[key] = ''; });
@@ -8453,6 +8527,54 @@
       #${PANEL_ID} .pfh-ledger-ai-prep-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}#${PANEL_ID} .pfh-ledger-ai-prep-actions button{min-height:34px;padding:0 11px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:11px;font-weight:700;cursor:pointer}#${PANEL_ID} .pfh-ledger-ai-prep-actions button.is-primary{background:#7448d8;color:#fff}#${PANEL_ID} .pfh-ledger-ai-prep-actions button:disabled{cursor:not-allowed;opacity:.5}#${PANEL_ID} .pfh-ledger-ai-prep-missing{margin:0;color:#9b6471;font-size:10px;line-height:1.45}
       #${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-error{border-color:#df8496!important;background:#fff3f5!important;box-shadow:inset 0 0 0 1px rgba(190,63,89,.16)!important}#${PANEL_ID} .pfh-ledger-ai-image-thumb.is-audit-pass{border-color:#8fcba0!important;background:#f2fbf4!important}.pfh-ledger-detail3-badge{align-self:flex-start;padding:2px 5px;border-radius:999px;font-size:8px;font-style:normal}.pfh-ledger-detail3-badge.is-pass{background:#e8f7ec;color:#2e8750}.pfh-ledger-detail3-badge.is-warning,.pfh-ledger-detail3-badge.is-error{background:#ffe8ec;color:#b34a5d}.pfh-ledger-detail3-badge.is-loading{background:#fff4d9;color:#996b13}
       #${PANEL_ID} .pfh-ledger-detail3-audit{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border:1px solid #ead6a8;border-radius:9px;background:#fffaf0;color:#78633a;font-size:9px;line-height:1.4}#${PANEL_ID} .pfh-ledger-detail3-audit.is-pass{border-color:#b7dfc1;background:#f1fbf3;color:#2e7547}#${PANEL_ID} .pfh-ledger-detail3-audit.is-error,#${PANEL_ID} .pfh-ledger-detail3-audit.is-warning{border-color:#e7b1bc;background:#fff3f5;color:#9e4053}#${PANEL_ID} .pfh-ledger-detail3-audit p{margin:0}#${PANEL_ID} .pfh-ledger-detail3-audit span{display:block}
+      #${PANEL_ID} .pfh-sku-context-menu{position:absolute!important;z-index:2147483646!important;display:flex!important;min-width:214px!important;max-width:280px!important;flex-direction:column!important;gap:5px!important;padding:7px!important;border:1px solid var(--pfh-theme-border-strong,#b9a8ed)!important;border-radius:12px!important;background:var(--pfh-theme-surface,#fff)!important;box-shadow:0 18px 42px rgba(42,24,93,.20)!important;color:var(--pfh-theme-text,#514866)!important;}
+      #${PANEL_ID} .pfh-sku-context-menu>button{width:100%!important;min-height:32px!important;padding:7px 10px!important;border:1px solid transparent!important;border-radius:8px!important;background:var(--pfh-theme-surface-alt,#f7f8fc)!important;color:var(--pfh-theme-text,#514866)!important;font:inherit!important;font-size:10px!important;font-weight:500!important;line-height:1.3!important;text-align:left!important;cursor:pointer!important;}
+      #${PANEL_ID} .pfh-sku-context-menu>button:hover{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;}
+      #${PANEL_ID} .pfh-sku-context-search-group{display:flex!important;flex-direction:column!important;gap:5px!important;padding:5px 3px 6px!important;border-bottom:1px solid var(--pfh-theme-border,#d8deea)!important;}
+      #${PANEL_ID} .pfh-sku-context-search-group strong{color:var(--pfh-theme-primary-hover,#6036d8)!important;font-size:10px!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-sku-context-search-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important;}
+      #${PANEL_ID} .pfh-sku-context-search-actions button{min-height:27px!important;padding:0 5px!important;border:1px solid var(--pfh-theme-border-strong,#b9a8ed)!important;border-radius:7px!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;font:inherit!important;font-size:9px!important;font-weight:500!important;cursor:pointer!important;}
+      #${PANEL_ID} .pfh-sku-context-search-actions button:hover{background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-dialog,#${PANEL_ID} .pfh-ledger-ai-preparation{color:var(--pfh-theme-text,#514866)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-layer{background:rgba(34,26,66,.30)!important;background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 18%,transparent)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-dialog{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-surface,#fff)!important;box-shadow:0 24px 70px color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 24%,rgba(42,24,93,.28))!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-dialog>header,#${PANEL_ID} .pfh-ledger-ai-image-dialog>footer{border-color:var(--pfh-theme-border,#d8deea)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-dialog>header h3,#${PANEL_ID} .pfh-ledger-ai-prep-head strong{color:var(--pfh-theme-primary-hover,#6036d8)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-status,#${PANEL_ID} .pfh-ledger-ai-image-dialog>footer,#${PANEL_ID} .pfh-ledger-ai-prep-head p{color:var(--pfh-theme-muted,#64748b)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-close,#${PANEL_ID} .pfh-ledger-ai-image-dialog>nav button,#${PANEL_ID} .pfh-ledger-ai-image-dialog>footer button{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-dialog>nav button.is-active,#${PANEL_ID} .pfh-ledger-ai-image-dialog>footer button:hover:not(:disabled){border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-surface,#fff)!important;color:var(--pfh-theme-text,#514866)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer>header,#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer{border-color:var(--pfh-theme-border,#d8deea)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer h3,#${PANEL_ID} .pfh-ledger-ai-retouch-quick-head{color:var(--pfh-theme-primary-hover,#6036d8)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer p,#${PANEL_ID} .pfh-ledger-ai-retouch-composer small,#${PANEL_ID} .pfh-ledger-ai-retouch-composer footer>span{color:var(--pfh-theme-muted,#64748b)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-compose-target,#${PANEL_ID} .pfh-ledger-ai-retouch-compose-editor{border-color:var(--pfh-theme-border,#d8deea)!important;background:var(--pfh-theme-surface-alt,#f7f8fc)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer-input{border-color:var(--pfh-theme-border,#d8deea)!important;background:var(--pfh-theme-surface,#fff)!important;color:var(--pfh-theme-text,#514866)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-items button,#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer button{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-quick-items button:hover,#${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer button:hover{border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+      #${PANEL_ID} .pfh-ledger-ai-retouch-composer>footer button.is-primary{border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-sidebar{border-color:var(--pfh-theme-border,#d8deea)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-thumb{border-color:var(--pfh-theme-border,#d8deea)!important;background:var(--pfh-theme-surface,#fff)!important;color:var(--pfh-theme-text,#514866)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-thumb:hover,#${PANEL_ID} .pfh-ledger-ai-image-thumb.is-selected{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-thumb-copy strong,#${PANEL_ID} .pfh-ledger-ai-image-preview-heading strong,#${PANEL_ID} .pfh-ledger-ai-image-name{color:var(--pfh-theme-text,#514866)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-thumb-copy small,#${PANEL_ID} .pfh-ledger-ai-image-preview-heading>small,#${PANEL_ID} .pfh-ledger-ai-image-prompt{color:var(--pfh-theme-muted,#64748b)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-preview-stage{border-color:var(--pfh-theme-border,#d8deea)!important;background:linear-gradient(145deg,var(--pfh-theme-surface-alt,#f7f8fc),var(--pfh-theme-secondary-soft,#e8f7fa))!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-preview-actions button,#${PANEL_ID} .pfh-ledger-ai-prep-actions button{border-color:var(--pfh-theme-border-strong,#b9a8ed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-preview-actions button:hover:not(:disabled),#${PANEL_ID} .pfh-ledger-ai-prep-actions button:hover:not(:disabled){border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row{border-color:var(--pfh-theme-border,#d8deea)!important;background:var(--pfh-theme-surface,#fff)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row legend{color:var(--pfh-theme-primary-hover,#6036d8)!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row label{color:var(--pfh-theme-muted,#64748b)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row textarea{border-color:var(--pfh-theme-border,#d8deea)!important;background:var(--pfh-theme-surface,#fff)!important;color:var(--pfh-theme-text,#514866)!important;font-weight:400!important;}
+      #${PANEL_ID} .pfh-ledger-ai-prep-row textarea:focus{border-color:var(--pfh-theme-primary,#7c3aed)!important;outline-color:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 18%,transparent)!important;}
+      #${PANEL_ID} .pfh-ledger-ai-prep-actions button.is-primary{border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;color:#fff!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-loading{display:flex!important;width:100%!important;min-height:220px!important;align-items:center!important;justify-content:center!important;gap:14px!important;padding:28px!important;color:var(--pfh-theme-text,#514866)!important;text-align:left!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-loading>div{min-width:0!important;max-width:380px!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-loading strong{display:block!important;color:var(--pfh-theme-primary-hover,#6036d8)!important;font-size:14px!important;font-weight:500!important;line-height:1.4!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-loading p{margin:5px 0 0!important;color:var(--pfh-theme-text,#514866)!important;font-size:11px!important;font-weight:400!important;line-height:1.5!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-loading small{display:block!important;margin-top:5px!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:9px!important;font-weight:400!important;line-height:1.45!important;}
+      #${PANEL_ID} .pfh-ledger-ai-loading-spinner{display:block!important;width:30px!important;height:30px!important;flex:0 0 30px!important;border:3px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 18%,transparent)!important;border-top-color:var(--pfh-theme-primary,#7c3aed)!important;border-radius:50%!important;animation:pfh-ledger-ai-loading-spin .9s linear infinite!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-thumb-loading{display:flex!important;min-height:150px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:8px!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:9px!important;font-weight:400!important;text-align:center!important;}
+      #${PANEL_ID} .pfh-ledger-ai-image-thumb-loading .pfh-ledger-ai-loading-spinner{width:22px!important;height:22px!important;flex-basis:22px!important;border-width:2px!important;}
+      @keyframes pfh-ledger-ai-loading-spin{to{transform:rotate(360deg)}}
       #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page{grid-template-rows:auto auto auto minmax(0,1fr)!important;gap:7px!important;}
       #${PANEL_ID}[data-view="ledger"] .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto minmax(0,1fr)!important;}
       #${PANEL_ID} .pfh-ledger-tabs-shell{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:8px!important;min-width:0!important;}
@@ -16425,7 +16547,7 @@
       event.preventDefault();
       event.stopPropagation();
       closePackagingNamingCard(ensurePanel());
-      showSkuWaterfallContextMenu(skuCard.getAttribute('data-sku'), event);
+      showSkuWaterfallContextMenu(skuCard.getAttribute('data-sku'), event, { allowCache: true, includeSearch: false });
       return;
     }
     const row = event.target && event.target.closest && event.target.closest('.pfh-row[data-key="packageSizeText"], .pfh-row[data-key="printSizeText"]');
@@ -16496,15 +16618,59 @@
     state.skuContextMenuSku = '';
   }
 
-  function showSkuWaterfallContextMenu(sku, event) {
+  function getSkuContextSearchSources(data) {
+    const source = data && typeof data === 'object' ? data : {};
+    const firstImage = (values) => values
+      .map((value) => String(value || '').trim())
+      .find((value) => value && !/^data:image\//i.test(value)) || '';
+    return {
+      effect: firstImage([
+        source.skuImageUrl,
+        source.skuImageFallbackUrl,
+        source.effectImage,
+        source.productListImageUrl,
+        source.productListImageFallbackUrl,
+        source.productListImage,
+      ]),
+      benchmark: firstImage([
+        source.benchmarkImageUrl,
+        source.benchmarkImageFallbackUrl,
+        source.benchmarkImage,
+      ]),
+    };
+  }
+
+  function skuContextReverseSearchGroupHtml(label, imageUrl) {
+    const url = String(imageUrl || '').trim();
+    if (!url) return '';
+    const encodedUrl = escapeHtml(url);
+    return '<div class="pfh-sku-context-search-group"><strong>' + escapeHtml(label) + '</strong><div class="pfh-sku-context-search-actions">' +
+      '<button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + encodedUrl + '" title="1688 搜' + escapeHtml(label) + '">1688</button>' +
+      '<button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + encodedUrl + '" title="Google 搜' + escapeHtml(label) + '">Google</button>' +
+      '<button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + encodedUrl + '" title="Yandex 搜' + escapeHtml(label) + '">Yandex</button>' +
+      '</div></div>';
+  }
+
+  function showSkuWaterfallContextMenu(sku, event, options) {
+    const opts = options || {};
     const panel = ensurePanel();
     closeSkuWaterfallContextMenu(panel);
     const item = state.index.find((entry) => entry.sku === sku) || (state.data && state.data.sku === sku ? state.data : null);
     if (!item) return;
+    const sourceData = opts.includeSearch
+      ? normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : item))
+      : item;
+    const searchSources = opts.includeSearch ? getSkuContextSearchSources(sourceData) : { effect: '', benchmark: '' };
+    const searchHtml = opts.includeSearch
+      ? skuContextReverseSearchGroupHtml('搜 SKU 效果图', searchSources.effect) + skuContextReverseSearchGroupHtml('搜对标图', searchSources.benchmark)
+      : '';
+    const cacheHtml = opts.allowCache === false
+      ? ''
+      : '<button type="button" data-action="sku-context-cache" data-sku="' + escapeHtml(sku) + '">完整缓存信息</button>';
     const menu = document.createElement('div');
     menu.className = 'pfh-sku-context-menu';
     menu.setAttribute('role', 'menu');
-    menu.innerHTML = '<button type="button" data-action="sku-context-cache" data-sku="' + escapeHtml(sku) + '">完整缓存信息</button>' +
+    menu.innerHTML = searchHtml + cacheHtml +
       '<button type="button" data-action="sku-context-barcode" data-sku="' + escapeHtml(sku) + '">生成条码</button>';
     panel.appendChild(menu);
     state.skuContextMenuSku = sku;
@@ -18937,7 +19103,7 @@
         return;
       }
       const rect = actionTarget.getBoundingClientRect();
-      showSkuWaterfallContextMenu(sku, { clientX: rect.right - 4, clientY: rect.bottom - 4 });
+      showSkuWaterfallContextMenu(sku, { clientX: rect.right - 4, clientY: rect.bottom - 4 }, { allowCache: false, includeSearch: true });
       return;
     }
     if (action === 'pin-search-results') {
@@ -27362,7 +27528,11 @@
     if (status === 'success' && total) return { status, label: '查看生图 · ' + total, title: '点击查看 AI 生图（主图 ' + mainCount + ' 张，详情图 ' + detailCount + ' 张）', count: total };
     if (status === 'result-missing') return { status, label: '结果缺失', title: 'PLM 返回完成状态但没有图片列表，打开后可手动重新生成', count: 0 };
     if (status === 'success') return { status, label: '结果缺失', title: 'AI 生图完成但没有图片列表，打开后可手动重新生成', count: 0 };
-    if (status === 'loading') return { status, label: '查询中…', title: '正在查询 PLM AI 生图状态', count: 0 };
+    if (status === 'loading') {
+      const message = String(record && record.aiImageMessage || '');
+      const preparing = /正在准备|提交 PLM AI 生图/.test(message);
+      return { status, label: preparing ? '准备生图…' : '检查生图历史…', title: preparing ? '正在准备生图资料并提交 PLM AI 生图' : '正在检查是否存在 PLM AI 生图历史，不会提交生成请求', count: 0 };
+    }
     if (status === 'running') return { status, label: '生图中…', title: 'PLM AI 生图正在执行，只跟踪当前 SKU', count: 0 };
     if (status === 'empty') return { status, label: '查询生图', title: '当前没有可查看的 PLM AI 生图；打开后可手动选择主图或详情图生成', count: 0 };
     if (status === 'needs-prerequisites') return { status, label: '需补全资料', title: '生图前置校验未通过，请先补齐产品文案和 SKU 效果图', count: 0 };
@@ -27725,8 +27895,17 @@
     const key = getLedgerAiPreparationKey(normalizedSku);
     if (!force && state.ledgerAiImagePreparations[key]) return state.ledgerAiImagePreparations[key];
     const data = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
-    const preparation = { sku: normalizedSku, copywrite: [], ingredients: {}, skuImage: { status: 'unknown', reason: '' }, loading: true, saving: false, error: '', plmDetailLoaded: false, updatedAtMs: Date.now() };
+    const preparation = { sku: normalizedSku, copywrite: [], ingredients: {}, skuImage: { status: 'unknown', reason: '' }, loading: true, loadingStage: '正在读取产品文案', loadingDetail: '先检查使用方法、卖点、功效、优势和成分；不会自动提交生图。', saving: false, error: '', plmDetailLoaded: false, updatedAtMs: Date.now() };
     state.ledgerAiImagePreparations[key] = preparation;
+    const renderStage = (stage, detail) => {
+      preparation.loadingStage = stage;
+      preparation.loadingDetail = detail;
+      preparation.updatedAtMs = Date.now();
+      if (state.view === 'ledger' && state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku)) {
+        renderLedgerAiImageViewer(ensurePanel());
+      }
+    };
+    renderStage('正在读取产品文案', '检查使用方法、卖点、功效、优势和成分；不会自动提交生图。');
     try {
       const payload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
       if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM 产品文案接口返回失败');
@@ -27735,6 +27914,7 @@
     } catch (error) {
       preparation.error = '读取 PLM 文案失败：' + (formatErrorMessage(error) || '接口异常');
     }
+    renderStage('正在读取商品详情字段', '继续核对 PLM 详情中的中英文文案和功能字段…');
     try {
       const snapshot = await fetchApiProductSnapshot(data, { force: true });
       let contentPayload = snapshot && snapshot.contentPayload;
@@ -27755,11 +27935,17 @@
     LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.forEach((rule) => {
       ensureLedgerAiPreparationCopyItem(preparation, rule);
     });
+    renderStage('正在检查 SKU 效果图', '检查 PLM 的 sku_pic / SKU 效果图字段，确认是否具备生图条件…');
     try { preparation.skuImage = await fetchLedgerAiImageSkuPreflight(normalizedSku, data); }
     catch (error) { preparation.skuImage = { status: 'unknown', reason: formatErrorMessage(error) || '接口异常' }; }
     preparation.plmMissing = calculateLedgerAiPreparationMissing(preparation);
     preparation.loading = false;
+    preparation.loadingStage = '生图资料检查完成';
+    preparation.loadingDetail = preparation.plmMissing.length ? '已完成读取，正在展示缺少的字段和效果图检查结果。' : '文案和 SKU 效果图已完成检查，可以继续保存或提交。';
     preparation.updatedAtMs = Date.now();
+    if (state.view === 'ledger' && state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku)) {
+      renderLedgerAiImageViewer(ensurePanel());
+    }
     return preparation;
   }
 
@@ -27779,10 +27965,14 @@
     return { code: preparation.sku, copywrite: normalizeLedgerAiImageCopywriteItems(preparation.copywrite), ...(preparation.ingredients || {}) };
   }
 
+  function ledgerAiImageLoadingHtml(title, detail) {
+    return '<div class="pfh-ledger-ai-image-loading" role="status" aria-live="polite"><span class="pfh-ledger-ai-loading-spinner" aria-hidden="true"></span><div><strong>' + escapeHtml(title || '正在读取生图资料') + '</strong><p>' + escapeHtml(detail || '正在从 PLM 读取资料，请稍候…') + '</p><small>这是后台读取和校验，不会自动提交生图；网络较慢时仍可继续等待。</small></div></div>';
+  }
+
   function ledgerAiImagePreparationHtml(record, kind) {
     const preparation = state.ledgerAiImagePreparations[getLedgerAiPreparationKey(record && record.sku)];
-    if (!preparation) return '<div class="pfh-ledger-ai-image-empty-state"><span>正在读取生图资料…</span></div>';
-    if (preparation.loading) return '<div class="pfh-ledger-ai-image-empty-state"><span>正在读取实时产品文案和 SKU 效果图…</span></div>';
+    if (!preparation) return ledgerAiImageLoadingHtml('正在准备生图资料', '页面会依次读取产品文案、商品详情和 SKU 效果图，请稍候…');
+    if (preparation.loading) return ledgerAiImageLoadingHtml(preparation.loadingStage || '正在读取生图资料', preparation.loadingDetail || '正在从 PLM 读取生图前置资料，请稍候…');
     const rows = LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.map((rule) => {
       const item = ensureLedgerAiPreparationCopyItem(preparation, rule);
       const values = getLedgerAiImageCopywriteValues(item);
@@ -28396,32 +28586,49 @@
       return;
     }
     const downloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, normalizedKind);
-    const usedNames = Object.create(null);
     state.ledgerAiImageDownloadKey = downloadKey;
-    state.ledgerAiImageDownloadProgress = '正在准备下载 ' + images.length + ' 张' + label + '…';
+    state.ledgerAiImageDownloadProgress = '准备并发下载 ' + images.length + ' 张' + label + '（' + LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY + ' 路）…';
     renderLedgerAiImageViewer(ensurePanel());
     (async () => {
-      const files = [];
-      for (let index = 0; index < images.length; index += 1) {
-        const item = images[index];
-        const displayName = getLedgerAiImageDisplayName(item, normalizedKind, index);
-        state.ledgerAiImageDownloadProgress = '正在下载 ' + (index + 1) + '/' + images.length + ' 张' + label + '…';
-        renderLedgerAiImageViewer(ensurePanel());
-        let blob;
-        try {
-          blob = await fetchLedgerAiImageBlob(item.url);
-        } catch (error) {
-          throw new Error(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
+      const downloaded = new Array(images.length);
+      const workerCount = Math.min(LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY, images.length);
+      let nextIndex = 0;
+      let completed = 0;
+      let firstError = null;
+      const workers = Array.from({ length: workerCount }, async () => {
+        while (true) {
+          const index = nextIndex;
+          nextIndex += 1;
+          if (index >= images.length) return;
+          const item = images[index];
+          const displayName = getLedgerAiImageDisplayName(item, normalizedKind, index);
+          try {
+            const blob = await fetchLedgerAiImageBlob(item.url);
+            downloaded[index] = { item, displayName, blob };
+          } catch (error) {
+            firstError = firstError || new Error(displayName + '：' + (formatErrorMessage(error) || '下载失败'));
+          } finally {
+            completed += 1;
+            state.ledgerAiImageDownloadProgress = '并发下载中 ' + completed + '/' + images.length + ' 张' + label + '…';
+            renderLedgerAiImageViewer(ensurePanel());
+          }
         }
-        const extension = getLedgerAiImageExtension(item, blob);
-        const baseFilename = displayName + extension;
+      });
+      await Promise.all(workers);
+      if (firstError) throw firstError;
+      const files = [];
+      const usedNames = Object.create(null);
+      downloaded.forEach((entry) => {
+        if (!entry || !entry.blob) return;
+        const extension = getLedgerAiImageExtension(entry.item, entry.blob);
+        const baseFilename = entry.displayName + extension;
         const occurrence = Number(usedNames[baseFilename] || 0) + 1;
         usedNames[baseFilename] = occurrence;
         const filename = occurrence === 1
           ? baseFilename
-          : displayName + '-' + occurrence + extension;
-        files.push({ path: filename, blob });
-      }
+          : entry.displayName + '-' + occurrence + extension;
+        files.push({ path: filename, blob: entry.blob });
+      });
       state.ledgerAiImageDownloadProgress = '正在打包 ' + images.length + ' 张' + label + '…';
       renderLedgerAiImageViewer(ensurePanel());
       const zip = await createStoredZipBlob(files, (done, total) => {
@@ -28624,8 +28831,10 @@
     }
     const selectedView = selectedEntry ? getEntryViewState(selectedEntry) : null;
     const targetLabel = tab === 'detail' ? '详情图' : '主图';
-    const emptyMessage = meta.status === 'running' || meta.status === 'loading'
-      ? '图片还在生成，当前只跟踪这个 SKU。'
+    const emptyMessage = meta.status === 'loading'
+      ? '正在检查这个 SKU 是否已有生图历史，不会自动提交生图。'
+      : (meta.status === 'running'
+        ? '图片还在生成，当前只跟踪这个 SKU。'
       : (meta.status === 'task-error'
         ? 'PLM 有生图任务记录，但暂时没有返回图片结果；请先刷新，必要时联系管理员清理任务。'
         : (meta.status === 'result-missing'
@@ -28638,12 +28847,14 @@
                 ? 'PLM 缺少有效产品文案，请先补齐产品文案后再生成。'
                 : (meta.status === 'error'
                   ? '状态查询失败；可以先刷新状态，再手动提交生成。'
-                  : '当前没有可查看的' + targetLabel + '；点击下方按钮后才会开始生成。'))))));
+                  : '当前没有可查看的' + targetLabel + '；点击下方按钮后才会开始生成。')))))));
     const preparation = state.ledgerAiImagePreparations[getLedgerAiPreparationKey(record.sku)];
-    const showPreparation = Boolean(preparation && !['loading', 'running'].includes(meta.status));
+    const showPreparation = Boolean(preparation && (preparation.loading || !['loading', 'running'].includes(meta.status)));
     const emptyStateHtml = showPreparation
       ? ledgerAiImagePreparationHtml(record, tab)
-      : '<div class="pfh-ledger-ai-image-empty-state"><span>' + escapeHtml(emptyMessage) + '</span>' + ledgerAiImageGenerateButtonHtml(record, tab, meta.status) + '</div>';
+      : (meta.status === 'loading'
+        ? ledgerAiImageLoadingHtml(meta.label || '正在检查生图历史', emptyMessage)
+        : '<div class="pfh-ledger-ai-image-empty-state"><span>' + escapeHtml(emptyMessage) + '</span>' + ledgerAiImageGenerateButtonHtml(record, tab, meta.status) + '</div>');
     const thumbnailHtml = entries.length
       ? entries.map((entry) => {
         const view = getEntryViewState(entry);
@@ -28658,7 +28869,11 @@
         return '<div class="pfh-ledger-ai-image-thumb-row"><button type="button" class="pfh-ledger-ai-image-thumb' + (selected ? ' is-selected' : '') + (entry.isRetouched ? ' is-retouched' : '') + (entry.isTask ? ' is-retouch-task is-' + escapeHtml(view.task && view.task.status || 'running') : '') + auditClass + '" data-action="ledger-ai-image-select" data-kind="' + tab + '" data-entry-key="' + escapeHtml(view.key) + '" title="' + escapeHtml(view.title) + '">' +
           '<span class="pfh-ledger-ai-image-thumb-media">' + imageHtml + '</span><span class="pfh-ledger-ai-image-thumb-copy"><strong>' + escapeHtml(view.displayName) + '</strong><small>' + escapeHtml(view.variantLabel) + '</small>' + auditLabel + '</span></button><button type="button" class="pfh-ledger-ai-image-delete" data-action="ledger-ai-image-hide" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-entry-key="' + escapeHtml(view.key) + '" title="' + escapeHtml(hideLabel) + '" aria-label="' + escapeHtml(hideLabel) + '">×</button></div>';
       }).join('')
-      : (showPreparation ? '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : emptyStateHtml);
+      : (showPreparation
+        ? (preparation.loading
+          ? '<div class="pfh-ledger-ai-image-thumb-loading"><span class="pfh-ledger-ai-loading-spinner" aria-hidden="true"></span><small>正在读取生图资料</small></div>'
+          : '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>')
+        : emptyStateHtml);
     const previewImageHtml = selectedView && selectedView.item
       ? '<a class="pfh-ledger-ai-image-preview-link" href="' + escapeHtml(selectedView.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + escapeHtml(selectedView.title + '（点击打开图片）') + '"><img src="' + escapeHtml(selectedView.item.url) + '" alt="' + escapeHtml(selectedView.displayName) + '" loading="eager" decoding="async"></a>'
       : '<div class="pfh-ledger-ai-image-preview-missing">' + (selectedView ? '原图地址已失效' : escapeHtml(emptyMessage)) + '</div>';
@@ -28667,7 +28882,7 @@
       ? '<div class="pfh-ledger-detail3-audit is-' + escapeHtml(detail3Audit.status) + '"><strong>' + escapeHtml(detail3Audit.status === 'pass' ? '详情图3成分核对通过' : (detail3Audit.status === 'loading' ? '正在识别详情图3' : '详情图3需要检查')) + '</strong><p>' + escapeHtml(detail3Audit.summary || '') + '</p>' + (detail3Audit.retryable ? '<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>' : '') + (detail3Audit.missing.length ? '<span>缺漏：' + escapeHtml(detail3Audit.missing.join('、')) + '</span>' : '') + (detail3Audit.extra.length ? '<span>多余/错误：' + escapeHtml(detail3Audit.extra.join('、')) + '</span>' : '') + (detail3Audit.duplicates.length ? '<span>重复：' + escapeHtml(detail3Audit.duplicates.join('、')) + '</span>' : '') + (detail3Audit.anomalies.length ? '<span>生图异常：' + escapeHtml(detail3Audit.anomalies.join('、')) + '</span>' : '') + '</div>'
       : '';
     const previewActionHtml = selectedView && selectedView.item
-      ? '<div class="pfh-ledger-ai-image-preview-actions"><div class="pfh-reverse-search-actions"><button type="button" data-action="reverse-image-search" data-engine="1688" data-image-url="' + escapeHtml(selectedView.item.url) + '">1688 搜图</button><button type="button" data-action="reverse-image-search" data-engine="google" data-image-url="' + escapeHtml(selectedView.item.url) + '">Google</button><button type="button" data-action="reverse-image-search" data-engine="yandex" data-image-url="' + escapeHtml(selectedView.item.url) + '">Yandex</button></div>' + (selectedIsDetail3 ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">重新核对成分</button>' : '') + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '" data-image-name="' + escapeHtml(selectedView.displayName) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '"' + (selectedView.isGenerating ? ' disabled' : '') + '>' + (selectedView.isGenerating ? '生成中…' : (selectedView.activeTask ? '重新修改' : '修改图')) + '</button></div>'
+      ? '<div class="pfh-ledger-ai-image-preview-actions">' + (selectedIsDetail3 ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">重新核对成分</button>' : '') + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '" data-image-name="' + escapeHtml(selectedView.displayName) + '"' + (state.ledgerAiImageDownloadKey ? ' disabled' : '') + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + tab + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '" data-image-url="' + escapeHtml(selectedView.item.url) + '"' + (selectedView.isGenerating ? ' disabled' : '') + '>' + (selectedView.isGenerating ? '生成中…' : (selectedView.activeTask ? '重新修改' : '修改图')) + '</button></div>'
       : '';
     const previewHtml = selectedView
       ? '<div class="pfh-ledger-ai-image-preview-stage">' + previewImageHtml + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + escapeHtml(selectedView.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + escapeHtml(selectedView.variantLabel) + '</em></div><small title="' + escapeHtml(selectedView.title) + '">' + escapeHtml(selectedView.sourceFilename || '保留原图文件名') + '</small></div>' + (selectedView.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + escapeHtml(selectedView.prompt) + '">提示词：' + escapeHtml(selectedView.prompt) + '</p>' : '') + detail3AuditHtml + previewActionHtml + '</div>'
@@ -29008,7 +29223,7 @@
   async function refreshLedgerAiImagePreparation(sku) {
     const key = getLedgerAiPreparationKey(sku);
     const existing = state.ledgerAiImagePreparations[key];
-    state.ledgerAiImagePreparations[key] = { ...(existing || {}), sku: getLedgerSkuKey(sku), copywrite: existing && existing.copywrite || [], ingredients: existing && existing.ingredients || {}, skuImage: existing && existing.skuImage || { status: 'unknown' }, loading: true };
+    state.ledgerAiImagePreparations[key] = { ...(existing || {}), sku: getLedgerSkuKey(sku), copywrite: existing && existing.copywrite || [], ingredients: existing && existing.ingredients || {}, skuImage: existing && existing.skuImage || { status: 'unknown' }, loading: true, loadingStage: '正在重新读取生图资料', loadingDetail: '正在重新检查产品文案、成分和 SKU 效果图…' };
     renderLedgerAiImageViewer(ensurePanel());
     await loadLedgerAiImagePreparation(sku, true);
     renderLedgerAiImageViewer(ensurePanel());
@@ -29068,7 +29283,7 @@
         aiImageStatus: 'loading',
         aiImageMessage: shouldSubmit
           ? '正在准备产品文案并提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）…'
-          : '正在查询 PLM AI 生图状态…',
+          : '正在检查这个 SKU 是否已有生图历史；不会提交生成请求…',
       }, false) || current;
       refreshLedgerCard(loadingRecord);
     }
