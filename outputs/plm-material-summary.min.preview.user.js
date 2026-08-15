@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.63
+// @version      2.8.64
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.63";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.64";
     function r(t, a) {
         window.setTimeout(() => {
             const r = document.getElementById(e);
@@ -3790,7 +3790,7 @@
             }(0, a, n);
             e.save(), d(n.clipLeft) && (e.beginPath(), e.rect(n.clipLeft, 0, 1600 - n.clipLeft, 1600),
             e.clip()), e.drawImage(t, i.x, i.y, a.sourceWidth * i.scale, a.sourceHeight * i.scale);
-            const o = a.box ? ue(a.box, i) : null, s = a.product ? ue(a.product, i) : null, l = r.frontIsLength ? r.fields.packageLength : r.fields.packageWidth, c = r.frontIsLength ? r.fields.packageWidth : r.fields.packageLength, u = a.perspective && Object.fromEntries(Object.entries(a.perspective).map(([e, t]) => [ e, de(t, i) ])), p = a.transparentTopology, g = a.productHeightSide || r.productHeightSide || "right", f = Number(n.width) < 600 ? {
+            const o = a.box ? ue(a.box, i) : null, s = a.product ? ue(a.product, i) : null, l = r.frontIsLength ? r.fields.packageLength : r.fields.packageWidth, c = r.frontIsLength ? r.fields.packageWidth : r.fields.packageLength, u = a.perspective && Object.fromEntries(Object.entries(a.perspective).map(([e, t]) => [ e, de(t, i) ])), p = a.transparentTopology, g = a.productHeightSide || r.productHeightSide || "right", f = !r.showSide, m = Number(n.width) < 600 ? {
                 avoidBoxes: [],
                 bounds: {
                     left: Number(n.clipLeft) || n.x - 100,
@@ -3798,17 +3798,17 @@
                     right: n.x + n.width + 100,
                     bottom: n.y + n.height + 80
                 }
-            } : null, m = T(r, "box") ? r.manualPoints.box.slice(0, M("box")) : null, h = T(r, "product") ? r.manualPoints.product.slice(0, M("product")) : null;
-            if (r.singleBottle) return h ? Se(e, h, r, "product", i, f) : s && (me(e, s, r.fields.productHeight, g, f),
-            he(e, s, r.fields.productLength, !1, f)), void e.restore();
-            if (m) Se(e, m, r, "box", i, f); else if (r.topologyApplied && p && xe(e, p, r, i, f, o, s)) ; else if (r.showSide && u) {
+            } : null, h = T(r, "box") ? r.manualPoints.box.slice(0, M("box")) : null, y = T(r, "product") ? r.manualPoints.product.slice(0, M("product")) : null;
+            if (r.singleBottle) return y ? Se(e, y, r, "product", i, m) : s && (me(e, s, r.fields.productHeight, g, m),
+            he(e, s, r.fields.productLength, f, m)), void e.restore();
+            if (h) Se(e, h, r, "box", i, m); else if (r.topologyApplied && p && xe(e, p, r, i, m, o, s)) ; else if (r.showSide && u) {
                 const t = ke(o, s, "left");
-                ye(e, "right" === t ? u.rightTop : u.outerTop, "right" === t ? u.rightBottom : u.outerBottom, r.fields.packageHeight, 1, f),
-                ye(e, u.junctionBottom, u.rightBottom, l, 1, f), ye(e, u.outerTop, u.junctionTop, c, -1, f);
-            } else o && (me(e, o, r.fields.packageHeight, ke(o, s, "left"), f), he(e, {
+                ye(e, "right" === t ? u.rightTop : u.outerTop, "right" === t ? u.rightBottom : u.outerBottom, r.fields.packageHeight, 1, m),
+                ye(e, u.junctionBottom, u.rightBottom, l, 1, m), ye(e, u.outerTop, u.junctionTop, c, -1, m);
+            } else o && (me(e, o, r.fields.packageHeight, ke(o, s, "left"), m), he(e, {
                 ...o,
                 left: o.left + (r.showSide ? a.sidePixels * i.scale : 0)
-            }, l, !0, f), r.showSide && function(e, t, a, r) {
+            }, l, !0, m), r.showSide && function(e, t, a, r) {
                 if (!d(r) || a < 8) return;
                 const n = Math.min(.3 * t.width, Math.max(30, a)), i = t.left + n, o = t.top - 30, s = t.left - 12, l = t.top + 12;
                 e.save(), e.strokeStyle = "#111", e.fillStyle = "#111", e.lineWidth = 3.5, pe(e, s, l, i, o),
@@ -3816,8 +3816,8 @@
                 e.rotate(Math.atan2(o - l, i - s)), e.font = "40px Arial", e.textAlign = "center",
                 e.textBaseline = "middle", e.fillText(ge(r), 0, 0), e.restore();
             }(e, o, a.sidePixels * i.scale, c));
-            h ? Se(e, h, r, "product", i, f) : s && (me(e, s, r.fields.productHeight, g, f),
-            he(e, s, r.fields.productLength, !1, f)), e.restore();
+            y ? Se(e, y, r, "product", i, m) : s && (me(e, s, r.fields.productHeight, g, m),
+            he(e, s, r.fields.productLength, f, m)), e.restore();
         }
         function Ae() {
             const e = document.createElement("canvas");
