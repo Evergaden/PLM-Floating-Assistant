@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.75
+// @version      2.8.76
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.75';
+  const SCRIPT_VERSION = '2.8.76';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.220';
+  const UI_ASSET_VERSION = '2.5.221';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;

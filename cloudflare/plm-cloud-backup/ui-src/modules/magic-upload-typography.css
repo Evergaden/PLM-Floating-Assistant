@@ -1,0 +1,88 @@
+/* Magic Upload owns one explicit type hierarchy within its page boundary. */
+#plm-floating-helper[data-view="magicUpload"] {
+  --pfh-magic-weight-body: var(--pfh-font-weight-regular);
+  --pfh-magic-weight-support: var(--pfh-font-weight-support);
+  --pfh-magic-weight-emphasis: 550;
+  --pfh-magic-weight-section: var(--pfh-font-weight-control);
+  --pfh-magic-weight-prominent: 650;
+  --pfh-magic-weight-heading: var(--pfh-font-weight-heading);
+  --pfh-magic-weight-strong: 750;
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-page,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-activity p,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-head span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-baseline,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-metrics,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-progress span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop > div > span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-processing,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head > strong,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-hint,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-meta,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stage,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-status,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-eta,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-footer,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item span,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-empty,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-empty,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-input {
+  font-weight: var(--pfh-magic-weight-body);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-input {
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file select,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-task .pfh-magic-task-meta,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-summary,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-task .pfh-magic-stage,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-lab-title em,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-pipeline,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-mode-tabs button,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file-badge,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-delete,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-metrics b {
+  font-weight: var(--pfh-magic-weight-support);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics {
+  font-weight: var(--pfh-magic-weight-emphasis);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview h3,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-head b,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-activity h3,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop strong,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head b,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-source,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-sku-text,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-title-text,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-progress-value,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item strong {
+  font-weight: var(--pfh-magic-weight-section);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat strong {
+  font-weight: var(--pfh-magic-weight-prominent);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-lab-title,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > strong {
+  font-weight: var(--pfh-magic-weight-heading);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics b {
+  font-weight: var(--pfh-magic-weight-strong);
+}

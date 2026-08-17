@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.220",
+  "version": "2.5.221",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 682407,
-      "maxImportant": 7385,
+      "maxBytes": 682081,
+      "maxImportant": 7383,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast"
@@ -19,10 +19,11 @@
     {
       "path": "compat/remaining-typography.css",
       "mode": "compat",
-      "maxBytes": 23678,
-      "maxImportant": 195,
+      "maxBytes": 17410,
+      "maxImportant": 137,
       "forbidSelectorFragments": [
-        ".pfh-home"
+        ".pfh-home",
+        "#plm-floating-helper[data-view=\"magicUpload\"]"
       ]
     },
     {
@@ -38,12 +39,16 @@
       "mode": "module"
     },
     {
+      "path": "modules/magic-upload-typography.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/toast.css",
       "mode": "module"
     }
   ],
   "budgets": {
-    "important": 7580,
+    "important": 7520,
     "duplicateSelectors": 525,
     "conflictingSelectors": 500
   }
