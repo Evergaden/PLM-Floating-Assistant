@@ -10,7 +10,8 @@ never be edited directly.
   must not be added to it.
 - `compat/` contains named, documented bridges that temporarily need legacy
   specificity or `!important`. `remaining-typography.css` is the explicit
-  migration queue for views that do not yet own canonical typography.
+  migration queue for views that do not yet own canonical typography. The
+  build rejects selectors for views that have already left that queue.
 - `modules/` contains canonical component and page styles. New development
   happens here.
 - `release.json` defines source order, the release version, and non-growth

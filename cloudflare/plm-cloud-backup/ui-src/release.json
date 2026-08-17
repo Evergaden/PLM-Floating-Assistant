@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.219",
+  "version": "2.5.220",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -19,8 +19,11 @@
     {
       "path": "compat/remaining-typography.css",
       "mode": "compat",
-      "maxBytes": 27933,
-      "maxImportant": 234
+      "maxBytes": 23678,
+      "maxImportant": 195,
+      "forbidSelectorFragments": [
+        ".pfh-home"
+      ]
     },
     {
       "path": "modules/typography.css",
@@ -31,12 +34,16 @@
       "mode": "module"
     },
     {
+      "path": "modules/home-typography.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/toast.css",
       "mode": "module"
     }
   ],
   "budgets": {
-    "important": 7619,
+    "important": 7580,
     "duplicateSelectors": 525,
     "conflictingSelectors": 500
   }
