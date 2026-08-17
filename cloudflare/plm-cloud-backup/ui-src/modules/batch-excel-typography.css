@@ -1,0 +1,4 @@
+/* Batch Excel uses a deliberately prominent final action group. */
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button {
+  font-weight: 850;
+}

@@ -2,9 +2,6 @@
 #plm-floating-helper-launcher {
         font-weight: 600
 }
-#plm-floating-helper-upload-progress b {
-        font-weight: 800
-}
 #plm-floating-helper:not([data-view="detail"]) .pfh-warning-note strong {
         font-weight: 700 !important
 }
@@ -28,12 +25,6 @@
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-product-title-copy strong {
         font-weight: 760 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-upload-side-card strong {
-        font-weight: 800 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-upload-guide b {
-        font-weight: 800 !important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-table-head {
         font-weight: 800 !important
@@ -97,12 +88,6 @@
 }
 #plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
         font-weight: 600
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-upload-title h3 {
-        font-weight: 600 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-upload-item b {
-        font-weight: 500 !important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-ledger-hero h3 {
         font-weight: 600 !important
@@ -222,8 +207,6 @@
 #plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-api-status {font-weight:700!important
 }
 #plm-floating-helper-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor-target-button.is-active {font-weight:800!important
-}
-#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-upload-sku-drop-target {font-weight:700!important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-detail-view-tabs button {font-weight:700!important
 }
@@ -351,9 +334,6 @@
 #plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day>h4 .pfh-ledger-day-count {font-weight:500!important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-ledger-main b {font-weight:650!important
-}
-#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button {
-  font-weight:850!important
 }
 #plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-sku-info-section .pfh-section-title h3 {
   font-weight:var(--pfh-font-weight-heading,700)!important
