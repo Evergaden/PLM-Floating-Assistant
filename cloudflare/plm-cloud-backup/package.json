@@ -16,6 +16,7 @@
     "brands:import": "node scripts/import-brand-compliance.cjs"
   },
   "devDependencies": {
+    "postcss": "^8.5.6",
     "wrangler": "^4.20.5"
   }
 }

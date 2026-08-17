@@ -1,0 +1,4 @@
+/* Temporary bridge for the legacy blanket `#plm-floating-helper *` weight reset. */
+#plm-floating-helper > .pfh-toast {
+  font-weight: var(--pfh-font-weight-control, 600) !important;
+}

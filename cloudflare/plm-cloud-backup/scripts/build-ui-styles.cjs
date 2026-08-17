@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const postcss = require('postcss');
 
 const root = path.resolve(__dirname, '..');
 const sourceRoot = path.join(root, 'ui-src');
@@ -17,30 +18,23 @@ if (!Array.isArray(release.sources) || !release.sources.length) {
 
 function parseRules(css) {
   const rules = [];
-  const clean = String(css || '').replace(/\/\*[\s\S]*?\*\//g, '');
-  const rulePattern = /([^{}]+)\{([^{}]*)\}/g;
-  let match;
-  while ((match = rulePattern.exec(clean))) {
-    const prelude = match[1].trim();
-    if (!prelude || prelude.startsWith('@') || /^(from|to|\d+%)$/.test(prelude)) continue;
+  const root = postcss.parse(String(css || ''));
+  root.walkRules((rule) => {
+    if (/^(from|to|\d+%)$/.test(rule.selector.trim())) return;
     const declarations = {};
-    match[2].split(';').forEach((declaration) => {
-      const separator = declaration.indexOf(':');
-      if (separator < 1) return;
-      const property = declaration.slice(0, separator).trim();
-      const value = declaration.slice(separator + 1).trim();
-      if (property && value) declarations[property] = value;
+    rule.walkDecls((declaration) => {
+      declarations[declaration.prop] = declaration.value + (declaration.important ? ' !important' : '');
     });
-    prelude.split(',').forEach((rawSelector) => {
+    rule.selectors.forEach((rawSelector) => {
       const selector = rawSelector.replace(/\s+/g, ' ').trim();
       if (selector) rules.push({ selector, declarations });
     });
-  }
+  });
   return rules;
 }
 
 function analyzeCss(css) {
-  const uncommented = String(css || '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const root = postcss.parse(String(css || ''));
   const bySelector = new Map();
   parseRules(css).forEach((rule) => {
     if (!bySelector.has(rule.selector)) bySelector.set(rule.selector, []);
@@ -62,8 +56,12 @@ function analyzeCss(css) {
       conflictingSelectors += 1;
     }
   });
+  let important = 0;
+  root.walkDecls((declaration) => {
+    if (declaration.important) important += 1;
+  });
   return {
-    important: (uncommented.match(/!important/g) || []).length,
+    important,
     duplicateSelectors,
     conflictingSelectors,
     uniqueSelectors: bySelector.size,
@@ -80,21 +78,31 @@ const parts = release.sources.map((source) => {
   }
   if (!fs.existsSync(absolutePath)) throw new Error(`Missing UI source: ${relativePath}`);
   const css = fs.readFileSync(absolutePath, 'utf8').trimEnd();
+  const parsedRules = parseRules(css);
   const sourceBytes = Buffer.byteLength(css);
-  const sourceImportant = (css.replace(/\/\*[\s\S]*?\*\//g, '').match(/!important/g) || []).length;
+  let sourceImportant = 0;
+  postcss.parse(css, { from: absolutePath }).walkDecls((declaration) => {
+    if (declaration.important) sourceImportant += 1;
+  });
   if (source.maxBytes != null && sourceBytes > Number(source.maxBytes)) {
     throw new Error(`UI source byte budget exceeded for ${relativePath}: ${sourceBytes} > ${source.maxBytes}`);
   }
   if (source.maxImportant != null && sourceImportant > Number(source.maxImportant)) {
     throw new Error(`UI source !important budget exceeded for ${relativePath}: ${sourceImportant} > ${source.maxImportant}`);
   }
+  (source.forbidSelectorFragments || []).forEach((fragment) => {
+    const match = parsedRules.find(({ selector }) => selector.includes(fragment));
+    if (match) {
+      throw new Error(`Migrated selector ${fragment} cannot return to ${relativePath}: ${match.selector}`);
+    }
+  });
   if (mode === 'module') {
     if (sourceImportant) throw new Error(`Canonical module cannot use !important: ${relativePath}`);
     if (/final(?:-final)? cascade/i.test(css)) {
       throw new Error(`Canonical module cannot add cascade patches: ${relativePath}`);
     }
-    parseRules(css).forEach(({ selector }) => {
-      if (canonicalOwners.has(selector)) {
+    parsedRules.forEach(({ selector }) => {
+      if (canonicalOwners.has(selector) && canonicalOwners.get(selector) !== relativePath) {
         throw new Error(`Canonical selector ${selector} is owned by both ${canonicalOwners.get(selector)} and ${relativePath}`);
       }
       canonicalOwners.set(selector, relativePath);

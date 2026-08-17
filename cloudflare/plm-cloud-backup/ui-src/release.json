@@ -1,24 +1,38 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.215",
+  "version": "2.5.216",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 719601,
-      "maxImportant": 7857
+      "maxBytes": 703465,
+      "maxImportant": 7639,
+      "forbidSelectorFragments": [
+        ".pfh-toast",
+        ".pfh-note-toast"
+      ]
     },
     {
       "path": "compat/detail-typography.css",
       "mode": "compat",
       "maxBytes": 1179,
       "maxImportant": 2
+    },
+    {
+      "path": "compat/toast-legacy-bridge.css",
+      "mode": "compat",
+      "maxBytes": 185,
+      "maxImportant": 1
+    },
+    {
+      "path": "modules/toast.css",
+      "mode": "module"
     }
   ],
   "budgets": {
-    "important": 7859,
-    "duplicateSelectors": 686,
-    "conflictingSelectors": 563
+    "important": 7642,
+    "duplicateSelectors": 636,
+    "conflictingSelectors": 517
   }
 }

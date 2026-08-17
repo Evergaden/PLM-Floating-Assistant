@@ -1,3 +1,6 @@
+/* Generated UI 2.5.216. Edit ui-src/, never this artifact. */
+
+/* source: legacy.css (legacy) */
 /* PLM floating helper UI 2.5.105 layout, hosted as a versioned static asset. */
 #plm-floating-helper {
         --pfh-color-primary: #6d35e8;
@@ -13477,4 +13480,185 @@ button[data-pfh-page-toy-copywriting]{display:inline-flex!important;align-items:
 #plm-floating-helper:not([data-view="magicUpload"]) .pfh-info-grid .pfh-row.is-carton-dim .pfh-value,
 #plm-floating-helper:not([data-view="magicUpload"]) .pfh-info-grid .pfh-row.is-product-dim .pfh-value {
   font-weight:var(--pfh-font-weight-support,500)!important;
+}
+
+/* source: compat/detail-typography.css (compat) */
+/*
+ * Compatibility boundary for the detail page.
+ *
+ * The doubled root id is temporary. It lets this one explicit boundary beat
+ * legacy !important declarations while the detail module is migrated. Remove
+ * it together with !important when the relevant legacy rules are deleted.
+ */
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] * {
+  font-weight:var(--pfh-font-weight-regular,400)!important;
+}
+
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] .pfh-detail-sku-badge,
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] .pfh-detail-sku-badge *,
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] .pfh-detail-product-title,
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] .pfh-sku-info-section > .pfh-section-title h3,
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] .pfh-graphic-section > .pfh-section-title h3,
+#plm-floating-helper#plm-floating-helper[data-pfh-theme][data-view="detail"] .pfh-infringement-section > .pfh-infringement-title h3 {
+  font-weight:var(--pfh-font-weight-heading,700)!important;
+}
+
+/* source: compat/toast-legacy-bridge.css (compat) */
+/* Temporary bridge for the legacy blanket `#plm-floating-helper *` weight reset. */
+#plm-floating-helper > .pfh-toast {
+  font-weight: var(--pfh-font-weight-control, 600) !important;
+}
+
+/* source: modules/toast.css (module) */
+/* Root-level status message. The inline note slot remains hidden for compatibility. */
+#plm-floating-helper .pfh-note-toast {
+  display: none;
+}
+
+#plm-floating-helper > .pfh-toast {
+  position: absolute;
+  z-index: 90;
+  right: 36px;
+  bottom: 58px;
+  left: auto;
+  display: none;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 36px));
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--pfh-theme-border, #d8deea);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--pfh-theme-surface, #fff), var(--pfh-theme-primary-soft, #f3efff));
+  box-shadow: 0 8px 20px var(--pfh-theme-shadow-soft, rgba(52, 42, 110, .14)), inset 0 1px 0 rgba(255, 255, 255, .9);
+  color: var(--pfh-theme-primary-hover, #5b21b6);
+  font-size: 11px;
+  font-weight: var(--pfh-font-weight-control, 600);
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(16px, 10px) scale(.94);
+  filter: blur(2px);
+  transition: opacity .24s ease, transform .48s cubic-bezier(.2, 1.45, .35, 1), filter .24s ease, visibility 0s linear .48s;
+}
+
+#plm-floating-helper > .pfh-toast::before {
+  content: "✓";
+  display: grid;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pfh-theme-primary-soft, #f3efff);
+  color: var(--pfh-theme-primary, #7c3aed);
+  font-size: 11px;
+  font-weight: var(--pfh-font-weight-heading, 700);
+  line-height: 1;
+}
+
+#plm-floating-helper > .pfh-toast::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  height: 1px;
+  border-radius: 999px;
+  background: var(--pfh-theme-border-strong, #b9a8ed);
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+#plm-floating-helper > .pfh-toast.is-mounted,
+#plm-floating-helper > .pfh-toast.is-visible,
+#plm-floating-helper > .pfh-toast.is-leaving {
+  display: flex;
+}
+
+#plm-floating-helper > .pfh-toast.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, 0) scale(1);
+  filter: blur(0);
+  transition-delay: 0s;
+}
+
+#plm-floating-helper > .pfh-toast.is-visible::after {
+  animation: pfh-toast-life var(--pfh-toast-life, 7000ms) linear both;
+}
+
+#plm-floating-helper > .pfh-toast.is-leaving {
+  opacity: 0;
+  visibility: visible;
+  transform: translate(16px, 8px) scale(.94);
+  filter: blur(1px);
+  transition: opacity .32s ease, transform .42s cubic-bezier(.55, .05, .8, .4), filter .32s ease, visibility 0s linear .42s;
+}
+
+#plm-floating-helper > .pfh-toast.is-leaving::after {
+  animation: none;
+  opacity: .25;
+  transform: scaleX(.18);
+}
+
+#plm-floating-helper > .pfh-toast.is-error {
+  border-color: rgba(217, 87, 112, .3);
+  background: linear-gradient(135deg, #fff8f9, #ffecef);
+  color: #b42318;
+}
+
+#plm-floating-helper > .pfh-toast.is-error::before {
+  content: "!";
+  background: #ffe1e7;
+  color: #b42318;
+}
+
+#plm-floating-helper > .pfh-toast.is-info::before,
+#plm-floating-helper > .pfh-toast.is-quiet::before {
+  content: "i";
+}
+
+@keyframes pfh-toast-life {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 540px) {
+  #plm-floating-helper > .pfh-toast {
+    right: 10px;
+    bottom: 58px;
+    max-width: calc(100vw - 24px);
+    transform: translate(12px, 8px) scale(.94);
+  }
+
+  #plm-floating-helper > .pfh-toast.is-visible {
+    transform: translate(0, 0) scale(1);
+  }
+
+  #plm-floating-helper > .pfh-toast.is-leaving {
+    transform: translate(12px, 7px) scale(.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #plm-floating-helper > .pfh-toast,
+  #plm-floating-helper > .pfh-toast.is-visible,
+  #plm-floating-helper > .pfh-toast.is-leaving {
+    filter: none;
+    transition-duration: .01ms;
+  }
+
+  #plm-floating-helper > .pfh-toast.is-visible::after {
+    animation: none;
+  }
 }
