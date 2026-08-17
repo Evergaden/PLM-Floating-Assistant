@@ -110,16 +110,6 @@
 #plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-empty strong {
         font-weight: 600 !important
 }
-#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-tools button {font-weight:800
-}
-#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-head button {font-weight:800
-}
-#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-stage.is-loading::after {font-weight:800
-}
-#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-status.is-error {font-weight:700
-}
-#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-diagnostics summary {font-weight:800
-}
 #plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-hero-actions button {
   font-weight: 700 !important
 }
@@ -153,8 +143,6 @@
 #plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-excel-form > button[data-action="excel-generate"] {font-weight:800!important
 }
 #plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-api-status {font-weight:700!important
-}
-#plm-floating-helper-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor-target-button.is-active {font-weight:800!important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-detail-view-tabs button {font-weight:700!important
 }

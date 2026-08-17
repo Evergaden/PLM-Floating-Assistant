@@ -1,0 +1,17 @@
+/* The manual parameter editor is a separate overlay with its own control hierarchy. */
+#plm-floating-helper-parameter-editor-overlay {
+  --pfh-parameter-editor-weight-heading: var(--pfh-font-weight-heading, 700);
+  --pfh-parameter-editor-weight-strong: 800;
+}
+
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-tools button,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-head button,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-stage.is-loading::after,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-diagnostics summary,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-target-button.is-active {
+  font-weight: var(--pfh-parameter-editor-weight-strong);
+}
+
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-status.is-error {
+  font-weight: var(--pfh-parameter-editor-weight-heading);
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.224",
+  "version": "2.5.225",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -19,8 +19,8 @@
     {
       "path": "compat/remaining-typography.css",
       "mode": "compat",
-      "maxBytes": 11619,
-      "maxImportant": 86,
+      "maxBytes": 10962,
+      "maxImportant": 85,
       "forbidSelectorFragments": [
         ".pfh-home",
         "#plm-floating-helper[data-view=\"magicUpload\"]",
@@ -28,7 +28,8 @@
         "upload-progress",
         ".pfh-batch-excel",
         "[data-view=\"batchExcel\"]",
-        ".pfh-ledger"
+        ".pfh-ledger",
+        "#plm-floating-helper-parameter-editor-overlay"
       ]
     },
     {
@@ -56,6 +57,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/parameter-editor-typography.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/ledger-typography.css",
       "mode": "module"
     },
@@ -65,7 +70,7 @@
     }
   ],
   "budgets": {
-    "important": 7460,
+    "important": 7459,
     "duplicateSelectors": 525,
     "conflictingSelectors": 500
   }
