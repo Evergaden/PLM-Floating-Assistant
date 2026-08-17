@@ -9,7 +9,8 @@ never be edited directly.
 - `legacy.css` is the frozen migration baseline. It may shrink, but new rules
   must not be added to it.
 - `compat/` contains named, documented bridges that temporarily need legacy
-  specificity or `!important`.
+  specificity or `!important`. `remaining-typography.css` is the explicit
+  migration queue for views that do not yet own canonical typography.
 - `modules/` contains canonical component and page styles. New development
   happens here.
 - `release.json` defines source order, the release version, and non-growth
@@ -29,3 +30,7 @@ The build rejects `!important` and `final cascade` in canonical modules. It
 also prevents the existing totals for `!important`, duplicate selectors, and
 conflicting selectors from increasing. Budgets should only move downward as
 legacy modules are migrated.
+
+A duplicate selector is counted only when it repeats the same property. This
+allows layout and typography to live in separate migration sources without
+hiding genuine cascade conflicts.

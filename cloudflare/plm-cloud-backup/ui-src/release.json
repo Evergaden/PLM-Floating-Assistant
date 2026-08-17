@@ -1,32 +1,33 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.218",
+  "version": "2.5.219",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 700229,
-      "maxImportant": 7638,
+      "maxBytes": 682407,
+      "maxImportant": 7385,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast"
       ],
-      "forbidDeclarations": [
-        {
-          "selector": "#plm-floating-helper *",
-          "property": "font-weight"
-        }
+      "forbidProperties": [
+        "font-weight"
       ]
     },
     {
-      "path": "compat/detail-typography.css",
+      "path": "compat/remaining-typography.css",
       "mode": "compat",
-      "maxBytes": 1179,
-      "maxImportant": 2
+      "maxBytes": 27933,
+      "maxImportant": 234
     },
     {
       "path": "modules/typography.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/detail-typography.css",
       "mode": "module"
     },
     {
@@ -35,8 +36,8 @@
     }
   ],
   "budgets": {
-    "important": 7640,
-    "duplicateSelectors": 635,
-    "conflictingSelectors": 511
+    "important": 7619,
+    "duplicateSelectors": 525,
+    "conflictingSelectors": 500
   }
 }

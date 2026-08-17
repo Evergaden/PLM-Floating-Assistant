@@ -1,0 +1,17 @@
+/* Detail content is body weight except for its six user-facing identity headings. */
+#plm-floating-helper[data-view="detail"] .pfh-full * {
+  font-weight: var(--pfh-font-weight-regular);
+}
+
+#plm-floating-helper[data-view="detail"] > .pfh-toast {
+  font-weight: var(--pfh-font-weight-regular);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge,
+#plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge *,
+#plm-floating-helper[data-view="detail"] .pfh-detail-product-title,
+#plm-floating-helper[data-view="detail"] .pfh-sku-info-section > .pfh-section-title h3,
+#plm-floating-helper[data-view="detail"] .pfh-graphic-section > .pfh-section-title h3,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-section > .pfh-infringement-title h3 {
+  font-weight: var(--pfh-font-weight-heading);
+}

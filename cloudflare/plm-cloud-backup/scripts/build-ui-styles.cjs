@@ -44,14 +44,18 @@ function analyzeCss(css) {
   let conflictingSelectors = 0;
   bySelector.forEach((declarationSets) => {
     if (declarationSets.length < 2) return;
-    duplicateSelectors += 1;
     const valuesByProperty = new Map();
+    const occurrencesByProperty = new Map();
     declarationSets.forEach((declarations) => {
       Object.entries(declarations).forEach(([property, value]) => {
         if (!valuesByProperty.has(property)) valuesByProperty.set(property, new Set());
         valuesByProperty.get(property).add(value);
+        occurrencesByProperty.set(property, (occurrencesByProperty.get(property) || 0) + 1);
       });
     });
+    if (Array.from(occurrencesByProperty.values()).some((count) => count > 1)) {
+      duplicateSelectors += 1;
+    }
     if (Array.from(valuesByProperty.values()).some((values) => values.size > 1)) {
       conflictingSelectors += 1;
     }
@@ -100,6 +104,12 @@ const parts = release.sources.map((source) => {
     const match = parsedRules.find((rule) => rule.selector === selector && Object.hasOwn(rule.declarations, property));
     if (match) {
       throw new Error(`Migrated declaration ${selector} { ${property} } cannot return to ${relativePath}`);
+    }
+  });
+  (source.forbidProperties || []).forEach((property) => {
+    const match = parsedRules.find((rule) => Object.hasOwn(rule.declarations, property));
+    if (match) {
+      throw new Error(`Migrated property ${property} cannot return to ${relativePath}: ${match.selector}`);
     }
   });
   if (mode === 'module') {

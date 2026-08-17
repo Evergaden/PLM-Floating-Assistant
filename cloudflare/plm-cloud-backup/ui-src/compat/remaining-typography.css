@@ -1,0 +1,652 @@
+/* Remaining legacy typography. Shrink this file as each view becomes canonical. */
+#plm-floating-helper-launcher {
+        font-weight: 600
+}
+#plm-floating-helper-upload-progress b {
+        font-weight: 800
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-warning-note strong {
+        font-weight: 700 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-warning-note p {
+        font-weight: 700 !important
+}
+#plm-floating-helper .pfh-heading strong::after {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home h2 {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-stats b {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-card small {
+        font-weight: 620 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-card strong {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-mini-tool-head small {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-mini-tool-card > label {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-mini-tool-result span {
+        font-weight: 700 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-product-title-copy span {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-product-title-copy strong {
+        font-weight: 760 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-upload-side-card strong {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-upload-guide b {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-table-head {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-log-head strong {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-info-grid .pfh-label {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-info-grid .pfh-value {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-info-grid .pfh-row.is-carton-dim .pfh-value {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-info-grid .pfh-row.is-product-dim .pfh-value {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-info-grid .pfh-row-actions button {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-info-grid .pfh-row.is-inline-editing [data-action="confirm-tail-seal"] {
+        font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-smart-recommend strong {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-smart-recommend span {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-smart-recommend span b {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-smart-recommend small {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-smart-recommend em {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open .pfh-export-menu-button {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-export-menu-list button {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-settings-hero h3 {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-settings-card-head strong {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-settings-page .pfh-log-head strong {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-list-head span {
+        font-weight: 400 !important
+}
+#plm-floating-helper .pfh-header .pfh-actions button::after {
+        font-weight: 600
+}
+#plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
+        font-weight: 600
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-upload-title h3 {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-upload-item b {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-hero h3 {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tabs button {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day h4 {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day h4 span {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-title-open-detail {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-main small {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-actions button {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-file-actions button {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]).is-narrow-panel .pfh-ledger-actions button {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-edit-time {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-search-result-toolbar button {
+        font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-search-result-toolbar span {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-block-head {
+        font-weight: 700 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-block-head button {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-alert strong {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-empty strong {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-month-label {
+        font-weight: 600 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-actions button.is-primary {
+        font-weight: 650 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-actions button.is-primary.is-finalize em { font-weight:400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-status {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]).is-narrow-panel .pfh-ledger-status {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags span {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-complete { font-weight:400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-more > button {
+        font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]).is-narrow-panel .pfh-ledger-more > button {
+        font-weight: 400 !important
+}
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-tools button {font-weight:800
+}
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-head button {font-weight:800
+}
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-stage.is-loading::after {font-weight:800
+}
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-status.is-error {font-weight:700
+}
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-diagnostics summary {font-weight:800
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-chart-tooltip span {
+  font-weight:650!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-feature-actions>span {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-home-feature-actions>button {
+  font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-secondary-label {
+  font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-home-entry-meta {
+  font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-hero-actions button {
+  font-weight: 700 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-toolbar label {
+  font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-block-head > span > strong {
+  font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-full-card .pfh-copywriting-block-head small {
+  font-weight: 500 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-block pre {
+  font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-full-card pre {
+  font-weight: 400 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-copied-note {
+  font-weight: 700 !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-alert button {
+  font-weight: 800 !important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-generate"] {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-excel-form.is-open > button[data-action="excel-generate"] {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-generate"] {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-excel-form > button[data-action="excel-generate"] {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-api-status {font-weight:700!important
+}
+#plm-floating-helper-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor-target-button.is-active {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-upload-sku-drop-target {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-view-tabs button {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-overflow-menu button.is-active {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-performance span {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-performance strong {font-weight:750!important
+}
+#plm-floating-helper .pfh-ledger-performance strong::after {font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-merge-groups summary {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-merge-group span {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags .is-extension {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags .is-performance-group {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags .is-series-excluded {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-toolbar .pfh-ledger-performance-merge {font-weight:650!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-artwork {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-dialog>nav button {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-thumb-copy strong {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-thumb.is-selected .pfh-ledger-ai-image-thumb-copy small {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-preview-actions button {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-name {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-meta button {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-generate {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-dialog>footer button {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags button.is-sku {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-trash-actions button.is-restore {font-weight:650!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-fullscreen-toggle {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-toolbar-actions button {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-smart-category-input {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-sku-badge {
+        font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-product-title {
+        font-weight:720!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-developer-value {
+        font-weight:650!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-view-button {
+        font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-view-button > span:last-child {font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-edit-button {
+        font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-detail-more-button {
+        font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-sku-data-log-trigger {
+  font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-data-change-actions button {
+  font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-title-copy h3 {font-weight:850!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-title-copy small {font-weight:550!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-history-button {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-subhead strong {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-image-caption strong {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-copy-head strong {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-infringement-copy-head small {font-weight:550!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-infringement-history-head small {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-sku-data-log-head small {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-infringement-history-version>header strong {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-sku-data-log-entry>header strong {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-infringement-history-version>header>span {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-sku-data-log-entry>header>span {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-infringement-history-copy>strong {font-weight:800!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-sku-data-log-change>span {font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-sku-data-log-change ins {font-weight:750!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview>h3 {font-weight:650!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat strong {font-weight:650!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop>div>span {font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head>strong {font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file select {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-edition-badge b {
+  font-weight:850!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-edition-badge small {
+  font-weight:800!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy>span {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy>strong {
+  font-weight:800!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics {
+  font-weight:550!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics b {
+  font-weight:750!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-infringement-section > .pfh-section-title.pfh-infringement-title h3 {
+  font-weight: var(--pfh-font-weight-heading, 700) !important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-trash-entry {font-weight:650!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-trash-entry small {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day>h4 .pfh-ledger-day-date {font-weight:700!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day>h4 .pfh-ledger-day-count {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-main b {font-weight:650!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-panel-title>span {
+  font-weight:450!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-home-entry-primary .pfh-home-entry-meta {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-task-panel>footer {
+  font-weight:450!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-home-task-panel>footer button {
+  font-weight:620!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-chart header p {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-metric>div span {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-compare span {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-metric>footer small {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-entry-copy small {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-task-name em {
+  font-weight:450!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-task-main>small {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-welcome h2 {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-welcome p {font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-welcome>span {font-weight:550!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-chart h3 {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-panel-title h3 {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-metric>small {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-metric>div strong {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-compare b {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-metric>footer b {font-weight:550!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-home-period-tabs button {font-weight:450!important
+}
+#plm-floating-helper:not([data-view="detail"])[data-pfh-theme] .pfh-home-period-tabs button.is-active {font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-entry-copy strong {
+  font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-entry-primary .pfh-home-entry-copy strong {
+  font-weight:600!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-entry-primary .pfh-home-entry-copy small {font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-entry-secondary .pfh-home-entry-copy strong {
+  font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-task-name b {font-weight:500!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-task-empty strong {font-weight:550!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-preview-badge {font-weight:550!important
+}
+#plm-floating-helper:not([data-view="detail"]) .pfh-home-entry-badge {font-weight:550!important
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button {
+  font-weight:850!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-task .pfh-magic-task-meta {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-task .pfh-magic-task-meta>span:last-child {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-summary {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-task .pfh-magic-stage {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-page {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-lab-title {
+  font-weight:700!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-lab-title em {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-pipeline {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-mode-tabs button {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file-badge {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-delete {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview h3 {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-head b {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-activity h3 {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop strong {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head b {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-source {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-sku-text {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-title-text {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-progress-value {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item strong {
+  font-weight:600!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-activity p {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-head span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-baseline {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-metrics {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-task-baseline {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-progress span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop > div > span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-processing {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head > strong {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-hint {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-meta {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stage {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-status {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-eta {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-footer {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item span {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-empty {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-empty {
+  font-weight:400!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-metrics b {
+  font-weight:500!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > strong {
+  font-weight:700!important
+}
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-input {
+  font-weight:400!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-sku-info-section .pfh-section-title h3 {
+  font-weight:var(--pfh-font-weight-heading,700)!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-graphic-section .pfh-section-title h3 {
+  font-weight:var(--pfh-font-weight-heading,700)!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-info-grid .pfh-label {
+  font-weight:var(--pfh-font-weight-regular,400)!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-info-grid .pfh-label span {
+  font-weight:var(--pfh-font-weight-regular,400)!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-info-grid .pfh-value {
+  font-weight:var(--pfh-font-weight-support,500)!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-info-grid .pfh-row.is-carton-dim .pfh-value {
+  font-weight:var(--pfh-font-weight-support,500)!important
+}
+#plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-info-grid .pfh-row.is-product-dim .pfh-value {
+  font-weight:var(--pfh-font-weight-support,500)!important
+}
