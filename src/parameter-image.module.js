@@ -415,8 +415,8 @@
       return '<section class="pfh-parameter-editor">' +
         '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，可自动判断纸盒/产品；判断不准时先选择对象 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
-          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px;font-weight:800">纸盒 ' + boxCount + '/2-3 边</span>' +
-          '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().secondarySoft + ';color:' + getActiveTheme().secondary + ';font-size:12px;font-weight:800">产品 ' + productCount + '/2 边</span>' +
+          '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px">纸盒 ' + boxCount + '/2-3 边</span>' +
+          '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().secondarySoft + ';color:' + getActiveTheme().secondary + ';font-size:12px">产品 ' + productCount + '/2 边</span>' +
           '<span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + getActiveTheme().border + ';border-radius:10px"><b style="padding:0 4px;color:' + getActiveTheme().muted + ';font-size:12px">下条线：</b>' + targetButtons + '</span>' +
           '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +

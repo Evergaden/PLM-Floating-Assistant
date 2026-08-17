@@ -1,4 +1,23 @@
-/* Batch Excel uses a deliberately prominent final action group. */
-#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button {
-  font-weight: 850;
+/* Batch Excel highlights the export destination, not every queue label. */
+#plm-floating-helper[data-view="batchExcel"] {
+  --pfh-batch-excel-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-batch-excel-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-batch-excel-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page * {
+  font-weight: var(--pfh-batch-excel-weight-body);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head h2 {
+  font-weight: var(--pfh-batch-excel-weight-heading);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head strong,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option b,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary strong,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row b,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-prepare,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-download {
+  font-weight: var(--pfh-batch-excel-weight-title);
 }

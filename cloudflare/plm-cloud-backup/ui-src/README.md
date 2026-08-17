@@ -9,9 +9,8 @@ never be edited directly.
 - `legacy.css` is the frozen migration baseline. It may shrink, but new rules
   must not be added to it.
 - `compat/` contains named, documented bridges that temporarily need legacy
-  specificity or `!important`. `remaining-typography.css` is the explicit
-  migration queue for views that do not yet own canonical typography. The
-  build rejects selectors for views that have already left that queue.
+  specificity or `!important`. Typography is now owned by the canonical
+  modules; new component rules must not be added to a compatibility bridge.
 - `modules/` contains canonical component and page styles. New development
   happens here.
 - `release.json` defines source order, the release version, and non-growth

@@ -1,82 +1,42 @@
-/* Home dashboard typography is scoped to the home view and owns its hierarchy. */
+/* Home keeps product identity visible without turning every metric into a heading. */
 #plm-floating-helper[data-view="home"] {
-  --pfh-home-weight-body: var(--pfh-font-weight-regular);
-  --pfh-home-weight-secondary: 450;
-  --pfh-home-weight-label: var(--pfh-font-weight-support);
-  --pfh-home-weight-emphasis: 550;
-  --pfh-home-weight-section: var(--pfh-font-weight-control);
-  --pfh-home-weight-action: 620;
-  --pfh-home-weight-tooltip: 650;
-  --pfh-home-weight-group: var(--pfh-font-weight-heading);
-  --pfh-home-weight-strong-action: 750;
-  --pfh-home-weight-hero: 760;
+  --pfh-home-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-home-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-home-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
-#plm-floating-helper[data-view="home"] .pfh-home h2,
-#plm-floating-helper[data-view="home"] .pfh-home-stats b,
-#plm-floating-helper[data-view="home"] .pfh-home-card strong {
-  font-weight: var(--pfh-home-weight-hero);
+#plm-floating-helper[data-view="home"] .pfh-home-dashboard * {
+  font-weight: var(--pfh-home-weight-body);
 }
 
-#plm-floating-helper[data-view="home"] .pfh-home-card small,
-#plm-floating-helper[data-view="home"] .pfh-home-task-panel > footer button {
-  font-weight: var(--pfh-home-weight-action);
+/* The welcome line is the page heading; panel headings stay one step quieter. */
+#plm-floating-helper[data-view="home"] .pfh-home-welcome h2 {
+  font-weight: var(--pfh-home-weight-heading);
 }
 
-#plm-floating-helper[data-view="home"] .pfh-home-feature-actions > button,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-meta {
-  font-weight: var(--pfh-home-weight-strong-action);
-}
-
-#plm-floating-helper[data-view="home"] .pfh-home-secondary-label {
-  font-weight: var(--pfh-home-weight-group);
-}
-
-#plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip span {
-  font-weight: var(--pfh-home-weight-tooltip);
-}
-
-#plm-floating-helper[data-view="home"] .pfh-home-feature-actions > span,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-primary .pfh-home-entry-meta,
-#plm-floating-helper[data-view="home"] .pfh-home-welcome h2,
 #plm-floating-helper[data-view="home"] .pfh-home-chart h3,
 #plm-floating-helper[data-view="home"] .pfh-home-panel-title h3,
+#plm-floating-helper[data-view="home"] .pfh-home-feature-actions > button,
+#plm-floating-helper[data-view="home"] .pfh-home-period-tabs button.is-active {
+  font-weight: var(--pfh-home-weight-title);
+}
+
+/* Product names, task identities and key metric values retain emphasis. */
 #plm-floating-helper[data-view="home"] .pfh-home-metric > div strong,
-#plm-floating-helper[data-view="home"] .pfh-home-period-tabs button.is-active,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-primary .pfh-home-entry-copy strong {
-  font-weight: var(--pfh-home-weight-section);
-}
-
-#plm-floating-helper[data-view="home"] .pfh-home-welcome > span,
-#plm-floating-helper[data-view="home"] .pfh-home-metric > footer b,
-#plm-floating-helper[data-view="home"] .pfh-home-task-empty strong,
-#plm-floating-helper[data-view="home"] .pfh-home-preview-badge,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-badge {
-  font-weight: var(--pfh-home-weight-emphasis);
-}
-
-#plm-floating-helper[data-view="home"] .pfh-home-metric > small,
-#plm-floating-helper[data-view="home"] .pfh-home-compare b,
 #plm-floating-helper[data-view="home"] .pfh-home-entry-copy strong,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-secondary .pfh-home-entry-copy strong,
-#plm-floating-helper[data-view="home"] .pfh-home-task-name b {
-  font-weight: var(--pfh-home-weight-label);
+#plm-floating-helper[data-view="home"] .pfh-home-task-name b,
+#plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip strong,
+#plm-floating-helper[data-view="home"] .pfh-home-metric > footer b {
+  font-weight: var(--pfh-home-weight-title);
 }
 
+#plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip span,
 #plm-floating-helper[data-view="home"] .pfh-home-panel-title > span,
 #plm-floating-helper[data-view="home"] .pfh-home-task-panel > footer,
 #plm-floating-helper[data-view="home"] .pfh-home-task-name em,
-#plm-floating-helper[data-view="home"] .pfh-home-period-tabs button {
-  font-weight: var(--pfh-home-weight-secondary);
-}
-
-#plm-floating-helper[data-view="home"] .pfh-home-chart header p,
-#plm-floating-helper[data-view="home"] .pfh-home-metric > div span,
-#plm-floating-helper[data-view="home"] .pfh-home-compare span,
-#plm-floating-helper[data-view="home"] .pfh-home-metric > footer small,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-copy small,
-#plm-floating-helper[data-view="home"] .pfh-home-task-main > small,
-#plm-floating-helper[data-view="home"] .pfh-home-welcome p,
-#plm-floating-helper[data-view="home"] .pfh-home-entry-primary .pfh-home-entry-copy small {
+#plm-floating-helper[data-view="home"] .pfh-home-period-tabs button,
+#plm-floating-helper[data-view="home"] .pfh-home-entry-meta,
+#plm-floating-helper[data-view="home"] .pfh-home-entry-badge,
+#plm-floating-helper[data-view="home"] .pfh-home-preview-badge {
   font-weight: var(--pfh-home-weight-body);
 }

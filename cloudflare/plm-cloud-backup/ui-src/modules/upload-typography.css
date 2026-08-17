@@ -1,28 +1,30 @@
-/* Upload page and detached upload progress typography. */
+/* Upload surfaces use the same restrained hierarchy as the rest of the app. */
 #plm-floating-helper[data-view="upload"] {
-  --pfh-upload-weight-item: var(--pfh-font-weight-support);
-  --pfh-upload-weight-title: var(--pfh-font-weight-control);
-  --pfh-upload-weight-drop: var(--pfh-font-weight-heading);
-  --pfh-upload-weight-strong: 800;
+  --pfh-upload-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-upload-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-upload-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
-#plm-floating-helper[data-view="upload"] .pfh-upload-title h3 {
+#plm-floating-helper[data-view="upload"] .pfh-upload-section * {
+  font-weight: var(--pfh-upload-weight-body);
+}
+
+#plm-floating-helper[data-view="upload"] .pfh-upload-title h3,
+#plm-floating-helper[data-view="upload"] .pfh-upload-guide-modal header h3 {
+  font-weight: var(--pfh-upload-weight-heading);
+}
+
+#plm-floating-helper[data-view="upload"] .pfh-upload-item b,
+#plm-floating-helper[data-view="upload"] .pfh-upload-sku-drop-target,
+#plm-floating-helper[data-view="upload"] .pfh-upload-guide-modal article b,
+#plm-floating-helper[data-view="upload"] .pfh-upload-guide-modal article footer button.is-danger {
   font-weight: var(--pfh-upload-weight-title);
 }
 
-#plm-floating-helper[data-view="upload"] .pfh-upload-item b {
-  font-weight: var(--pfh-upload-weight-item);
-}
-
-#plm-floating-helper[data-view="upload"] .pfh-upload-sku-drop-target {
-  font-weight: var(--pfh-upload-weight-drop);
-}
-
-#plm-floating-helper[data-view="upload"] .pfh-upload-side-card strong,
-#plm-floating-helper[data-view="upload"] .pfh-upload-guide b {
-  font-weight: var(--pfh-upload-weight-strong);
+#plm-floating-helper-upload-progress {
+  font-weight: var(--pfh-upload-weight-body, 400);
 }
 
 #plm-floating-helper-upload-progress b {
-  font-weight: 800;
+  font-weight: var(--pfh-upload-weight-title, 600);
 }

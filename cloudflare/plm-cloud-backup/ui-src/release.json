@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.226",
+  "version": "2.5.227",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -17,23 +17,11 @@
       ]
     },
     {
-      "path": "compat/remaining-typography.css",
-      "mode": "compat",
-      "maxBytes": 10962,
-      "maxImportant": 85,
-      "forbidSelectorFragments": [
-        ".pfh-home",
-        "#plm-floating-helper[data-view=\"magicUpload\"]",
-        ".pfh-upload",
-        "upload-progress",
-        ".pfh-batch-excel",
-        "[data-view=\"batchExcel\"]",
-        ".pfh-ledger",
-        "#plm-floating-helper-parameter-editor-overlay"
-      ]
+      "path": "modules/typography.css",
+      "mode": "module"
     },
     {
-      "path": "modules/typography.css",
+      "path": "modules/shared-typography.css",
       "mode": "module"
     },
     {

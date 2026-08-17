@@ -1,78 +1,38 @@
-/* Ledger owns the full workbench hierarchy; all rules are view-scoped. */
+/* Ledger keeps dates and work items legible without making every action heavy. */
 #plm-floating-helper[data-view="ledger"] {
-  --pfh-ledger-weight-body: var(--pfh-font-weight-regular);
-  --pfh-ledger-weight-support: var(--pfh-font-weight-support);
-  --pfh-ledger-weight-section: var(--pfh-font-weight-control);
-  --pfh-ledger-weight-emphasis: 650;
-  --pfh-ledger-weight-heading: var(--pfh-font-weight-heading);
-  --pfh-ledger-weight-strong: 750;
+  --pfh-ledger-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-ledger-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-ledger-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-main small,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-file-actions button,
-#plm-floating-helper[data-view="ledger"].is-narrow-panel .pfh-ledger-actions button,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-edit-time,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-status,
-#plm-floating-helper[data-view="ledger"].is-narrow-panel .pfh-ledger-status,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-day h4 span,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-tags span,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-complete,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-more > button,
-#plm-floating-helper[data-view="ledger"].is-narrow-panel .pfh-ledger-more > button {
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-page * {
   font-weight: var(--pfh-ledger-weight-body);
-}
-
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-tabs button,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-day h4,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-merge-group span,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-tags button.is-sku,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-trash-entry small,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4 .pfh-ledger-day-count {
-  font-weight: var(--pfh-ledger-weight-support);
 }
 
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-hero h3,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-month-label {
-  font-weight: var(--pfh-ledger-weight-section);
-}
-
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button.is-primary,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-toolbar .pfh-ledger-performance-merge,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-trash-actions button.is-restore,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-trash-entry,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-main b {
-  font-weight: var(--pfh-ledger-weight-emphasis);
-}
-
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4 .pfh-ledger-day-date,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-overflow-menu button.is-active,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-performance span,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-merge-groups summary,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-tags .is-extension,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-tags .is-performance-group,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-tags .is-series-excluded,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-dialog > nav button,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-fullscreen-toggle,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4 .pfh-ledger-day-date {
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-fullscreen-toggle {
   font-weight: var(--pfh-ledger-weight-heading);
 }
 
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-month-label,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-tabs button.is-active,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button.is-primary,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-toolbar .pfh-ledger-performance-merge,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-trash-actions button.is-restore,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-main b,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-performance strong,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-artwork,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-thumb-copy strong,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-thumb.is-selected .pfh-ledger-ai-image-thumb-copy small,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-preview-actions button,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-name,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-meta button,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-generate,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-dialog > footer button {
-  font-weight: var(--pfh-ledger-weight-strong);
+  font-weight: var(--pfh-ledger-weight-title);
 }
 
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button.is-primary.is-finalize em {
-  font-weight: var(--pfh-ledger-weight-body);
-}
-
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button.is-primary.is-finalize em,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-performance strong::after {
-  font-weight: var(--pfh-ledger-weight-section);
+  font-weight: var(--pfh-ledger-weight-body);
 }

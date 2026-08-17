@@ -1,10 +1,16 @@
-/* Detail content is body weight except for its six user-facing identity headings. */
+/* Detail content owns product identity while keeping data and workflow copy regular. */
+#plm-floating-helper[data-view="detail"] {
+  --pfh-detail-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-detail-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-detail-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
 #plm-floating-helper[data-view="detail"] .pfh-full * {
-  font-weight: var(--pfh-font-weight-regular);
+  font-weight: var(--pfh-detail-weight-body);
 }
 
 #plm-floating-helper[data-view="detail"] > .pfh-toast {
-  font-weight: var(--pfh-font-weight-regular);
+  font-weight: var(--pfh-detail-weight-body);
 }
 
 #plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge,
@@ -13,5 +19,92 @@
 #plm-floating-helper[data-view="detail"] .pfh-sku-info-section > .pfh-section-title h3,
 #plm-floating-helper[data-view="detail"] .pfh-graphic-section > .pfh-section-title h3,
 #plm-floating-helper[data-view="detail"] .pfh-infringement-section > .pfh-infringement-title h3 {
-  font-weight: var(--pfh-font-weight-heading);
+  font-weight: var(--pfh-detail-weight-heading);
+}
+
+#plm-floating-helper .pfh-detail-view-tabs button,
+#plm-floating-helper[data-view="detail"] .pfh-detail-developer-value,
+#plm-floating-helper[data-view="detail"] .pfh-detail-edit-button,
+#plm-floating-helper[data-view="detail"] .pfh-detail-more-button,
+#plm-floating-helper[data-view="detail"] .pfh-info-grid .pfh-row-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-info-grid .pfh-row.is-inline-editing [data-action="confirm-tail-seal"],
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-hero-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-trigger,
+#plm-floating-helper[data-view="detail"] .pfh-data-change-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-button {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-detail-view-button,
+#plm-floating-helper[data-view="detail"] .pfh-detail-view-button > span:last-child {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-detail-view-button.is-active {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+/* Copywriting is long-form content; only its block identity is emphasized. */
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > strong,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > b,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert strong,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-empty strong {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head small,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card .pfh-copywriting-block-head small,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block pre,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card pre,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert span,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label span,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-copied-note {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+/* Infringement and history views use one heading weight and quiet metadata. */
+#plm-floating-helper[data-view="detail"] .pfh-infringement-title-copy h3,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-head h3,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-head h3 {
+  font-weight: var(--pfh-detail-weight-heading);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-title-copy small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-head small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-version > header > span,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-copy > pre,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-head small,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-entry > header > span,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-change > span,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-change ins {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-subhead strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-image-caption strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-copy-head strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-version > header strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-copy > strong,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-entry > header strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-image-viewer-head strong,
+#plm-floating-helper[data-view="detail"] .pfh-edition-badge b {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-copy-head small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-version > header small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-copy-head > span,
+#plm-floating-helper[data-view="detail"] .pfh-edition-badge small {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-dialog,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-dialog,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-image-viewer-dialog {
+  font-weight: var(--pfh-detail-weight-body);
 }

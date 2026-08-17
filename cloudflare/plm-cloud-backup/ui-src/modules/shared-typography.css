@@ -1,0 +1,63 @@
+/* Shared shell and tool surfaces own the pieces that are not page-specific. */
+#plm-floating-helper-launcher {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-heading strong::after,
+#plm-floating-helper .pfh-header .pfh-actions button::after,
+#plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-warning-note strong,
+#plm-floating-helper .pfh-mini-tool-card > label,
+#plm-floating-helper .pfh-settings-card-head strong,
+#plm-floating-helper .pfh-settings-page .pfh-log-head strong,
+#plm-floating-helper .pfh-table-head,
+#plm-floating-helper .pfh-log-head strong,
+#plm-floating-helper .pfh-search-result-toolbar button,
+#plm-floating-helper .pfh-smart-recommend strong,
+#plm-floating-helper .pfh-smart-recommend span b {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-mini-tool-head h2,
+#plm-floating-helper .pfh-settings-hero h3,
+#plm-floating-helper .pfh-list-head strong {
+  font-weight: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper .pfh-warning-note p,
+#plm-floating-helper .pfh-mini-tool-head small,
+#plm-floating-helper .pfh-mini-tool-result span,
+#plm-floating-helper .pfh-product-title-copy span,
+#plm-floating-helper .pfh-product-title-copy strong,
+#plm-floating-helper .pfh-info-grid .pfh-label,
+#plm-floating-helper .pfh-info-grid .pfh-value,
+#plm-floating-helper .pfh-smart-recommend span,
+#plm-floating-helper .pfh-smart-recommend small,
+#plm-floating-helper .pfh-smart-recommend em,
+#plm-floating-helper .pfh-list-head span,
+#plm-floating-helper .pfh-search-result-toolbar span,
+#plm-floating-helper .pfh-api-status {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
+
+#plm-floating-helper .pfh-export-menu-button,
+#plm-floating-helper .pfh-export-menu-list button,
+#plm-floating-helper .pfh-smart-category-input,
+#plm-floating-helper .pfh-size-image-custom-field > span,
+#plm-floating-helper .pfh-size-image-custom-checks label,
+#plm-floating-helper .pfh-size-image-custom-foot button {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
+
+#plm-floating-helper .pfh-size-image-custom-button,
+#plm-floating-helper .pfh-size-image-custom-section-title,
+#plm-floating-helper .pfh-size-image-custom-foot button.is-primary {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-theme-option-download {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
