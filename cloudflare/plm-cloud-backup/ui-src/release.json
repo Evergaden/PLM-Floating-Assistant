@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "version": "2.5.215",
+  "outputDirectory": "static/assets/v15",
+  "sources": [
+    {
+      "path": "legacy.css",
+      "mode": "legacy",
+      "maxBytes": 719601,
+      "maxImportant": 7857
+    },
+    {
+      "path": "compat/detail-typography.css",
+      "mode": "compat",
+      "maxBytes": 1179,
+      "maxImportant": 2
+    }
+  ],
+  "budgets": {
+    "important": 7859,
+    "duplicateSelectors": 686,
+    "conflictingSelectors": 563
+  }
+}

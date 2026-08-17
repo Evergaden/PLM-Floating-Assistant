@@ -28,6 +28,9 @@
 - Treat PLM DOM selectors, upload flow, and drawer automation as fragile integrations. Do not broadly refactor them without browser verification.
 - Keep API keys, Worker secrets, local credential files, and `.dev.vars` out of source control and out of the userscript.
 - Do not run destructive Git commands such as `git reset --hard` or overwrite user data/cache files.
+- Treat `cloudflare/plm-cloud-backup/ui-src/` as the only editable source for hosted UI CSS. Never edit versioned `static/assets/v15/ui-*.css` files directly.
+- New canonical UI rules belong in `ui-src/modules/`; migrate complete component rule sets out of `ui-src/legacy.css` instead of appending overrides. Use `ui-src/compat/` only for documented temporary bridges.
+- Run `npm run ui:build` after changing UI source. The complexity budgets in `ui-src/release.json` must not be increased to make a build pass; reduce the underlying cascade debt instead.
 
 ## Commands
 
@@ -47,6 +50,8 @@ npm run dev
 npm run deploy
 npm run db:migrate:local
 npm run db:migrate:remote
+npm run ui:build
+npm run ui:check
 node --check src\index.js
 ```
 

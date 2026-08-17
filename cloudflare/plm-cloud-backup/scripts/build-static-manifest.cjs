@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, '..');
 const assetRoot = path.join(root, 'static', 'assets');
 const manifestPath = path.join(assetRoot, 'manifest.json');
 const manifestModulePath = path.join(root, 'src', 'generated-asset-manifest.js');
+const uiRelease = JSON.parse(fs.readFileSync(path.join(root, 'ui-src', 'release.json'), 'utf8'));
 const previous = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const dataVersion = String(process.argv[2] || previous.dataVersion || '').trim();
 if (!dataVersion) throw new Error('Pass a data version, for example: npm run assets:manifest -- 2026-07-19.2');
@@ -23,7 +24,7 @@ const definitions = {
   runtimeData: 'v1/runtime-data.json',
   excelTemplate: 'v1/excel-template.xlsx',
   icons: 'v1/icons.json',
-  uiStyles: 'v15/ui-2.5.214.css',
+  uiStyles: `v15/ui-${uiRelease.version}.css`,
 };
 const assets = {};
 for (const [name, relativePath] of Object.entries(definitions)) {
