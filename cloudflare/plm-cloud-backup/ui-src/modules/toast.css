@@ -145,8 +145,4 @@
     filter: none;
     transition-duration: .01ms;
   }
-
-  #plm-floating-helper > .pfh-toast.is-visible::after {
-    animation: none;
-  }
 }
