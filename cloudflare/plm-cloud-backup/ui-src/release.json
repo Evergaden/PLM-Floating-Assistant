@@ -1,16 +1,22 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.217",
+  "version": "2.5.218",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 703465,
-      "maxImportant": 7639,
+      "maxBytes": 700229,
+      "maxImportant": 7638,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast"
+      ],
+      "forbidDeclarations": [
+        {
+          "selector": "#plm-floating-helper *",
+          "property": "font-weight"
+        }
       ]
     },
     {
@@ -20,10 +26,8 @@
       "maxImportant": 2
     },
     {
-      "path": "compat/toast-legacy-bridge.css",
-      "mode": "compat",
-      "maxBytes": 185,
-      "maxImportant": 1
+      "path": "modules/typography.css",
+      "mode": "module"
     },
     {
       "path": "modules/toast.css",
@@ -31,8 +35,8 @@
     }
   ],
   "budgets": {
-    "important": 7642,
+    "important": 7640,
     "duplicateSelectors": 635,
-    "conflictingSelectors": 516
+    "conflictingSelectors": 511
   }
 }

@@ -1,0 +1,13 @@
+/* Semantic typography foundation. Component modules may override these tokens. */
+#plm-floating-helper {
+  --pfh-font-weight-regular: 400;
+  --pfh-font-weight-support: 500;
+  --pfh-font-weight-control: 600;
+  --pfh-font-weight-heading: 700;
+  font-weight: var(--pfh-font-weight-regular);
+}
+
+/* Reset browser b/strong/heading defaults without blocking component rules. */
+#plm-floating-helper * {
+  font-weight: inherit;
+}
