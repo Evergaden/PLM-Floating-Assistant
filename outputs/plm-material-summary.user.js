@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.77
+// @version      2.8.78
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.77';
+  const SCRIPT_VERSION = '2.8.78';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -68,6 +68,10 @@
   const COPYWRITING_CACHE_DEBOUNCE_MS = 120;
   const COPYWRITING_CHECK_WINDOW_MS = 30 * 60 * 1000;
   const SKU_LIST_PREFERENCE_VERSION = 1;
+  // SKU catalog entries are now added explicitly from a product code.  Keep
+  // the old project-assignment readers available for backward compatibility,
+  // but do not let them populate the catalog automatically.
+  const SKU_LIST_AUTO_SYNC_ENABLED = false;
   // Code 128 patterns, represented as alternating bar/space module widths.
   const CODE128_PATTERNS = ['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
   const apiProjectMaterialCache = Object.create(null);
@@ -2116,7 +2120,7 @@
   });
   const SETTINGS_KEY = 'plm-floating-helper:settings';
   const HOME_FEATURE_DEFINITIONS = Object.freeze([
-    Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '点击后先检查新的设计分配，自动加入本地列表和今日工作台。' }),
+    Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '先在顶部输入 SKU 编码并搜索，再从本地列表打开详情。' }),
     Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' }),
     Object.freeze({ id: 'upload', action: 'upload-toggle', icon: 'upload', title: '批量提审上传', description: '队列上传并记录状态' }),
     Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: 'ZIP 自动识别并上传', badge: 'BETA' }),
@@ -4616,7 +4620,7 @@
     invalidCm: '\u8bf7\u8f93\u5165\u6b63\u786e\u7684cm\u6570\u503c',
     search: '\u641c\u7d22',
     clearSearch: '\u6e05\u7a7a',
-    searchPlaceholder: '\u641c\u7d22\u4ea7\u54c1\u540d/SKU/\u7269\u6599\u7f16\u7801',
+    searchPlaceholder: '搜索产品名/SKU/物料编码；输入新 SKU 可直接添加',
     searchResult: '\u641c\u7d22\u7ed3\u679c',
     noSearchResult: '\u6ca1\u627e\u5230\u76f8\u5173\u4ea7\u54c1',
     pin: '\ud83d\udd1d',
@@ -4626,7 +4630,7 @@
     checkingMaterial: '\u5df2\u547d\u4e2d\u7f13\u5b58\uff0c\u6b63\u5728\u68c0\u67e5\u7269\u6599\u6e05\u5355\u5c3a\u5bf8...',
     noDrawer: '\u672a\u6253\u5f00\u9879\u76ee\u8be6\u60c5\uff0c\u53ef\u4ece\u5de6\u4fa7\u9009\u62e9\u5df2\u5b58\u50a8\u7f16\u7801\u67e5\u770b',
     scanDone: '\u672c\u8f6e\u8bc6\u522b\u5df2\u505c\u6b62',
-    emptyList: '\u6682\u65e0\u5b58\u50a8\u8bb0\u5f55',
+    emptyList: '暂无存储记录，请在顶部输入 SKU 编码后点击搜索添加',
     fileSection: '\u6587\u4ef6\u89c4\u683c',
     graphicSection: '\u56fe\u5305\u4fe1\u606f',
     item: '\u9879\u76ee',
@@ -5146,7 +5150,7 @@
     }
     const sku = getProjectDrawerHeaderSku(drawer);
     const tabName = compactText(tab.innerText || tab.textContent || '');
-    if (sku && tabName) {
+    if (sku && tabName && isSkuInCatalog(sku)) {
       state.observedDrawer = drawer;
       state.observedSku = sku;
       state.observedTab = tabName;
@@ -5216,12 +5220,14 @@
   }
 
   function scheduleProjectListPrefetch() {
+    if (!SKU_LIST_AUTO_SYNC_ENABLED) return;
     if (!state.settings.collectionEnabled || !/\/projectManagementChemicalNew/.test(location.pathname)) return;
     window.clearTimeout(state.projectListPrefetchTimer);
     state.projectListPrefetchTimer = window.setTimeout(prefetchProjectAllListData, 360);
   }
 
   function prefetchProjectAllListData() {
+    if (!SKU_LIST_AUTO_SYNC_ENABLED) return;
     state.projectListPrefetchTimer = 0;
     const activeWorkflowTab = getActiveProjectWorkflowTabText();
     if (!state.settings.collectionEnabled || !/^(?:\u5168\u90e8|\u8bbe\u8ba1\u4efb\u52a1)/.test(activeWorkflowTab)) return;
@@ -5239,6 +5245,9 @@
 
   function syncProjectListRowsToCache(rows, options) {
     const opts = options || {};
+    if (!SKU_LIST_AUTO_SYNC_ENABLED) {
+      return { fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true, manualOnly: true };
+    }
     const source = String(opts.source || 'project-all');
     const list = (Array.isArray(rows) ? rows : []).filter((row) => row && row.sku);
     if (!list.length) return { fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0 };
@@ -5416,6 +5425,9 @@
   }
 
   function syncAssignedDesignTasksFromApi(options) {
+    if (!SKU_LIST_AUTO_SYNC_ENABLED) {
+      return Promise.resolve({ fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true, manualOnly: true });
+    }
     if (!state.settings.collectionEnabled) return Promise.resolve({ fetchedCount: 0, changedCount: 0, addedCount: 0, ledgerChangedCount: 0, ledgerAddedCount: 0, disabled: true });
     if (state.assignedDesignTaskSyncPromise) return state.assignedDesignTaskSyncPromise;
     const now = Date.now();
@@ -5656,6 +5668,21 @@
     }
 
     const cached = sku ? loadData(sku) : null;
+    const indexed = sku ? isSkuInCatalog(sku) : false;
+    if (sku && !cached && !indexed) {
+      resetRound();
+      stopMaterialWatch();
+      state.drawer = drawer;
+      state.sku = sku;
+      state.selectedSku = sku;
+      state.data = normalizeData({ sku, name: cleanName((text.match(/\u5546\u54c1\u540d\u79f0[:\uff1a]\s*([^\n]+)/) || [])[1] || ''), projectStatus: extractProjectStatus(text) });
+      state.view = 'detail';
+      resetExcelState();
+      expandPanel();
+      renderShell('当前仅接受手动添加的 SKU，请先在顶部输入该编码并点击搜索。');
+      showToast('请先手动添加 ' + sku + ' 到 SKU 列表');
+      return;
+    }
     if (cached) {
       state.drawer = drawer;
       state.sku = sku || '';
@@ -5760,6 +5787,10 @@
     const targetSku = (state.data && state.data.sku) || state.selectedSku || '';
     if (!targetSku) {
       showToast(L.excelNeedData);
+      return;
+    }
+    if (!isSkuInCatalog(targetSku)) {
+      showToast('请先手动添加 ' + targetSku + ' 到 SKU 列表');
       return;
     }
 
@@ -5891,7 +5922,7 @@
     if (!drawer || state.scanRunning || !state.settings.collectionEnabled) return;
     const sku = getProjectDrawerHeaderSku(drawer);
     const tab = getActiveTabText(drawer);
-    if (!sku || !tab) return;
+    if (!sku || !tab || !isSkuInCatalog(sku)) return;
     if (drawer !== state.observedDrawer || sku !== state.observedSku) {
       state.observedDrawer = drawer;
       state.observedSku = sku;
@@ -5906,7 +5937,7 @@
 
   function readCurrentManualTab(drawer, sku, tab) {
     state.manualCollectTimer = 0;
-    if (!state.settings.collectionEnabled || state.scanRunning || drawer !== getProjectDrawerForSku(sku) || getActiveTabText(drawer) !== tab) return;
+    if (!state.settings.collectionEnabled || !isSkuInCatalog(sku) || state.scanRunning || drawer !== getProjectDrawerForSku(sku) || getActiveTabText(drawer) !== tab) return;
     const next = extractData(drawer, { forceSkuImage: tab === L.productTab });
     if (!next.sku || next.sku !== sku) return;
     const merged = mergeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }), next);
@@ -6002,7 +6033,7 @@
   function scheduleDrawerProductFlow(data, options) {
     const opts = options || {};
     const sku = String(data && data.sku || '');
-    if (!state.settings.collectionEnabled || !sku) return;
+    if (!state.settings.collectionEnabled || !sku || !isSkuInCatalog(sku)) return;
     if (!opts.replace && state.drawerTabFlowRunning && state.drawerTabFlowSku === sku) return;
     cancelDrawerTabFlow();
     const token = state.drawerTabFlowToken + 1;
@@ -10442,7 +10473,7 @@
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">\u5217\u8868</button>' +
       '<button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">\u7011\u5e03\u6d41</button></div>' +
       '<label class="pfh-sku-sort"><span>\u6392\u5e8f</span>' + listSortMenu + '</label></div>';
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span></div>' + listTools;
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="\u8fd4\u56de\u4e3b\u9875">' + iconHtml('backArrow') + '</button><strong>' + listTitle + '</strong><span>\u5171 ' + allItems.length + ' \u6761</span><button type="button" class="pfh-sku-add-guide" data-action="sku-add-guide" title="在顶部输入 SKU 编码后添加">添加编码</button></div>' + listTools;
     const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="sku-page-prev"' + (state.skuPage <= 1 ? ' disabled' : '') + '>\u2039</button>' + renderCompactPager('sku-page', state.skuPage, totalPages) + '<button type="button" data-action="sku-page-next"' + (state.skuPage >= totalPages ? ' disabled' : '') + '>\u203a</button></div></div>';
     if (!allItems.length) {
       return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="' + escapeHtml(skuScrollContext) + '"><div class="pfh-empty">' + escapeHtml(searchTokens.length ? L.noSearchResult : L.emptyList) + '</div></div>' + pager + '</div>';
@@ -13176,7 +13207,7 @@
     const currentDetailScroll = detail.querySelector('.pfh-detail-scroll');
     if (currentDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', ['ledger', mode, month].join('|'));
     const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
-    if (currentHeroNote) currentHeroNote.textContent = mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。';
+    if (currentHeroNote) currentHeroNote.textContent = mode === 'trash' ? '移除记录后不会显示在今日工作台，恢复后可继续使用。' : '按已添加 SKU 的出图日期整理，定稿后继续跟纸盒、标签和图包。';
     const currentRecordCount = page.querySelector('[data-ledger-record-count]');
     if (currentRecordCount) currentRecordCount.textContent = records.length + ' 条 / ' + month;
     tabs.setAttribute('data-active-tab', mode);
@@ -16827,7 +16858,7 @@
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
       return '<section class="pfh-ledger-day"><h4><span class="pfh-ledger-day-date">' + escapeHtml(formatLedgerDateLabel(group.date)) + '</span><span class="pfh-ledger-day-count">' + escapeHtml(String(group.items.length)) + ' 条</span>' + daySelect + '</h4>' + group.items.map((record) => mode === 'trash' ? ledgerTrashRowHtml(record) : ledgerRowHtml(record, mode, performanceGroupMaps.labels, performanceGroupMaps.recordGroupIds)).join('') + '</section>';
-    }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(records.length ? '当前筛选条件下没有记录。' : (mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。打开设计分配在本月的 PLM 详情后会自动加入。'))) + '</div>';
+    }).join('') : '<div class="pfh-ledger-empty">' + escapeHtml(records.length ? '当前筛选条件下没有记录。' : (mode === 'trash' ? '本月垃圾篓是空的。' : (mode === 'finalized' ? '本月还没有已定稿记录。' : '本月还没有出图记录。先在 SKU 列表手动添加编码，再打开详情。'))) + '</div>';
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     const toolsCollapsed = Boolean(state.ledgerToolsCollapsed);
@@ -16859,7 +16890,7 @@
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录后不会显示在今日工作台，恢复后可继续使用。' : '按已添加 SKU 的出图日期整理，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
            '<div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
              '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
              '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
@@ -20196,6 +20227,15 @@
     }
     if (action === 'refresh') {
       refreshSelectedData();
+      return;
+    }
+    if (action === 'sku-add-guide') {
+      const input = ensurePanel().querySelector('.pfh-search-input');
+      if (input) {
+        input.focus();
+        input.select();
+      }
+      showToast('请在顶部输入 SKU 编码后点击搜索');
       return;
     }
     if (action === 'search') {
@@ -24389,7 +24429,7 @@
     return String(sku || '') + ':' + String(kind || '');
   }
 
-  function runSearch(targetView) {
+  async function runSearch(targetView) {
     const requestedView = normalizeDetailViewTab(targetView || getCurrentDetailViewTab());
     const previousView = getCurrentDetailViewTab();
     const input = ensurePanel().querySelector('.pfh-search-input');
@@ -24397,6 +24437,22 @@
     state.searchQuery = input ? input.value.trim() : '';
     state.skuPage = 1;
     updateSearchClear();
+    const manualSkus = extractManualSkuCodes(state.searchQuery);
+    const missingManualSkus = manualSkus.filter((sku) => !state.index.some((item) => item && String(item.sku || '').toUpperCase() === sku));
+    let addedCount = 0;
+    let unenrichedCount = 0;
+    if (missingManualSkus.length) {
+      showToast('正在添加 ' + missingManualSkus.length + ' 个 SKU');
+      for (const sku of missingManualSkus) {
+        const result = await addSkuByCode(sku);
+        if (result && result.added) addedCount += 1;
+        if (result && result.added && !result.enriched) unenrichedCount += 1;
+      }
+      state.skuPage = 1;
+      if (addedCount) {
+        showToast('已手动添加 ' + addedCount + ' 个 SKU' + (unenrichedCount ? '，部分产品信息暂未读取' : ''));
+      }
+    }
     const matches = parseSearchTokens(state.searchQuery).length ? getSearchMatches(state.searchQuery) : [];
     if (matches.length) {
       const target = matches[0];
@@ -24447,6 +24503,10 @@
       showToast(L.excelNeedData);
       return;
     }
+    if (!isSkuInCatalog(sku)) {
+      showToast('请先手动添加 ' + sku + ' 到 SKU 列表');
+      return;
+    }
     const preserveCopywriting = Boolean(options && options.preserveCopywriting && state.copywritingMode && state.selectedSku === sku);
     state.ignoreOutsideClickUntil = Date.now() + 2500;
     if (preserveCopywriting) {
@@ -24489,42 +24549,22 @@
 
   function openFirstCachedDetail() {
     const first = state.index[0] && state.index[0].sku ? state.index[0].sku : '';
-    if (!first && !state.settings.collectionEnabled) {
-      showToast(L.emptyList);
-      return;
-    }
-    if (first) {
-      state.selectedSku = first;
-      state.data = normalizeData(loadData(first) || state.index[0]);
-    } else {
+    if (!first) {
       state.selectedSku = '';
       state.data = null;
+      state.view = 'detail';
+      state.copywritingMode = false;
+      expandPanel();
+      renderShell('请在顶部输入 SKU 编码后点击搜索，手动添加到列表。');
+      showToast('请先输入 SKU 编码后点击搜索');
+      return;
     }
+    state.selectedSku = first;
+    state.data = normalizeData(loadData(first) || state.index[0]);
     state.view = 'detail';
     state.copywritingMode = false;
     expandPanel();
-    renderShell(first ? '\u6b63\u5728\u540e\u53f0\u68c0\u67e5\u65b0\u7684\u8bbe\u8ba1\u5206\u914d...' : L.openingDetail);
-    if (!state.settings.collectionEnabled) return;
-    window.setTimeout(() => {
-      if (state.assignedDesignTaskSyncPromise) return;
-      syncAssignedDesignTasksFromApi({ deferRender: true }).then((syncResult) => {
-        if (syncResult && syncResult.skipped) {
-          showToast('\u4e94\u5206\u949f\u5185\u5df2\u67e5\u8be2\u8fc7\uff0c\u6682\u4e0d\u91cd\u590d\u8bf7\u6c42');
-          return;
-        }
-        if (state.view === 'detail' && !state.selectedSku && state.index[0] && state.index[0].sku) {
-          const nextSku = state.index[0].sku;
-          state.selectedSku = nextSku;
-          state.data = normalizeData(loadData(nextSku) || state.index[0]);
-        }
-        if (state.view === 'detail') renderShell();
-        const addedCount = Math.max(Number(syncResult && syncResult.addedCount || 0), Number(syncResult && syncResult.ledgerAddedCount || 0));
-        showToast(addedCount ? '\u5df2\u81ea\u52a8\u52a0\u5165 ' + addedCount + ' \u4e2a\u65b0\u5206\u914d\u4efb\u52a1' : '\u5df2\u68c0\u67e5\uff0c\u6682\u65e0\u65b0\u5206\u914d\u4efb\u52a1');
-      }).catch((error) => {
-        addLog('warn', '\u6211\u7684\u8be6\u60c5\u81ea\u52a8\u540c\u6b65\u5206\u914d\u4efb\u52a1\u5931\u8d25', formatErrorMessage(error));
-        showToast('\u5206\u914d\u4efb\u52a1\u67e5\u8be2\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u5f53\u524d\u8be6\u60c5', { tone: 'info' });
-      });
-    }, 0);
+    renderShell('当前仅显示已手动添加的 SKU；可在顶部输入编码后搜索添加。');
   }
 
   function findUploadRetryNotice() {
@@ -27346,6 +27386,81 @@
     return String(value || '').replace(/[\r\n,，;；、|/\\]+/g, ' ').replace(/\s+/g, ' ').trimStart();
   }
 
+  function extractManualSkuCodes(value) {
+    return Array.from(new Set((String(value || '').match(/\bSKU\d+\b/ig) || [])
+      .map((sku) => String(sku || '').trim().toUpperCase())
+      .filter((sku) => /^SKU\d+$/.test(sku))));
+  }
+
+  function buildManualSkuData(sku, existing, snapshot, isNew) {
+    const current = normalizeData({ ...(existing || {}), sku });
+    const nowMs = Date.now();
+    const nowText = new Date(nowMs).toLocaleString();
+    const imageUrl = String(snapshot && snapshot.productListImageUrl || '').trim();
+    const infringementImageUrls = snapshot && Array.isArray(snapshot.infringementImageUrls) && snapshot.infringementImageUrls.length
+      ? snapshot.infringementImageUrls
+      : current.infringementImageUrls;
+    return normalizeData({
+      ...current,
+      sku,
+      brand: snapshot && snapshot.brand || current.brand || '',
+      name: snapshot && snapshot.chineseName || current.name || '',
+      englishName: snapshot && snapshot.englishName || current.englishName || '',
+      productType: snapshot && snapshot.productType || current.productType || '',
+      plmCategory: snapshot && snapshot.plmCategory || current.plmCategory || '',
+      categoryId: snapshot && snapshot.categoryId || current.categoryId || '',
+      productId: snapshot && snapshot.productId || current.productId || '',
+      productVersionId: snapshot && snapshot.productVersionId || current.productVersionId || '',
+      packageNums: snapshot && (snapshot.outerPackageNums || snapshot.packageNums) || current.packageNums || null,
+      outerPackageNums: snapshot && (snapshot.outerPackageNums || snapshot.packageNums) || current.outerPackageNums || null,
+      innerPackageNums: snapshot && snapshot.innerPackageNums || current.innerPackageNums || null,
+      productNums: snapshot && snapshot.productNums || current.productNums || null,
+      productSizeText: snapshot && snapshot.productSizeText || current.productSizeText || '',
+      referenceUrl: snapshot && snapshot.referenceUrl || current.referenceUrl || '',
+      packQty: snapshot && snapshot.packQty || current.packQty || '',
+      purchasePrice: snapshot && snapshot.purchasePrice || current.purchasePrice || '',
+      productListImageUrl: imageUrl || current.productListImageUrl || '',
+      productListImageFallbackUrl: imageUrl || current.productListImageFallbackUrl || '',
+      infringementImageUrls: infringementImageUrls || [],
+      infringementImageUrl: snapshot && snapshot.infringementImageUrl || current.infringementImageUrl || '',
+      infringementImageSource: snapshot && snapshot.infringementImageSource || current.infringementImageSource || '',
+      infringementCopywriting: snapshot && snapshot.infringementCopywriting || current.infringementCopywriting || '',
+      apiFieldStates: snapshot && snapshot.apiFieldStates || current.apiFieldStates || {},
+      acquiredAt: current.acquiredAt || nowText,
+      acquiredAtMs: current.acquiredAtMs || nowMs,
+      skuListSource: current.skuListSource || (isNew ? 'manual-code' : ''),
+      manualSkuAddedAt: current.manualSkuAddedAt || (isNew ? nowText : ''),
+      manualSkuAddedAtMs: current.manualSkuAddedAtMs || (isNew ? nowMs : 0),
+      updatedAt: nowText,
+      updatedAtMs: nowMs,
+    });
+  }
+
+  async function addSkuByCode(value) {
+    const sku = String(value || '').trim().toUpperCase();
+    if (!/^SKU\d+$/.test(sku)) return { sku: '', added: false, enriched: false, error: '请输入有效的 SKU 编码' };
+    const cached = loadData(sku);
+    const indexed = state.index.find((item) => item && String(item.sku || '').toUpperCase() === sku) || null;
+    const existing = cached || indexed;
+    const isNew = !indexed;
+    let snapshot = null;
+    let apiError = '';
+    if (!cached) {
+      try {
+        snapshot = await fetchApiProductSnapshot({ sku });
+        if (!snapshot || !snapshot.found) apiError = String(snapshot && snapshot.reason || 'PLM 未返回商品信息');
+      } catch (error) {
+        apiError = formatErrorMessage(error);
+        addLog('warn', '手动添加 SKU 的产品信息读取失败', sku + ' | ' + apiError);
+      }
+    }
+    if (!isNew && cached && !snapshot) return { sku, data: normalizeData(cached), added: false, enriched: false, error: '' };
+    const data = buildManualSkuData(sku, existing, snapshot, isNew);
+    saveData(sku, data, { changeSource: isNew ? '手动添加编码' : '手动补充编码信息' });
+    addLog(isNew ? 'success' : 'info', isNew ? '已手动添加 SKU' : '已补充 SKU 信息', sku + (snapshot && snapshot.found ? ' | 已读取产品信息' : ' | ' + apiError));
+    return { sku, data, added: isNew, enriched: Boolean(snapshot && snapshot.found), error: apiError };
+  }
+
   function matchesSearchItem(item, tokens) {
     const queryTokens = Array.isArray(tokens) ? tokens : parseSearchTokens(tokens);
     if (!queryTokens.length) return true;
@@ -28687,7 +28802,7 @@
       saveDailyLedger();
       saveDailyLedgerTrash();
       renderShell();
-      showToast('已移入垃圾篓，不会再次自动加入');
+      showToast('已移入垃圾篓，暂不显示在今日工作台');
       return;
     }
     const today = getNowLedgerMinuteLabel();
@@ -28761,7 +28876,7 @@
     }
     saveDailyLedgerTrash();
     renderShell();
-    showToast(action === 'ledger-trash-restore' ? '已恢复到今日工作台' : '已从垃圾篓清除，仍会阻止自动加入');
+    showToast(action === 'ledger-trash-restore' ? '已恢复到今日工作台' : '已从垃圾篓清除，暂不显示在今日工作台');
   }
 
   function emptyLedgerTrashMonth(dateKey) {
@@ -28771,7 +28886,7 @@
     state.ledgerTrashRecords = (state.ledgerTrashRecords || []).map((item) => getMonthKeyFromDateKey(item.date) === month ? { ...item, purged: true } : item);
     saveDailyLedgerTrash();
     renderShell();
-    showToast('本月垃圾篓已清空，移除编码仍不会自动加入');
+    showToast('本月垃圾篓已清空，移除编码暂不显示在今日工作台');
   }
 
   function openLedgerFinalizedTimeEditor(sku, dateKey) {
@@ -30953,6 +31068,9 @@
         packageCode: compactBackupText(source.packageCode, 120),
         printCode: compactBackupText(source.printCode, 180),
         designAssignedAt: compactBackupText(source.designAssignedAt, 80),
+        acquiredAt: compactBackupText(source.acquiredAt, 80),
+        acquiredAtMs: Number(source.acquiredAtMs || 0) || 0,
+        skuListSource: compactBackupText(source.skuListSource, 40),
         pinned: Boolean(source.pinned),
         pinOrder: Number(source.pinOrder || 0) || 0,
         updatedAt: compactBackupText(source.updatedAt, 80),
@@ -31137,6 +31255,9 @@
         packageCode: item.packageCode,
         printCode: item.printCode,
         designAssignedAt: item.designAssignedAt,
+        acquiredAt: item.acquiredAt,
+        acquiredAtMs: item.acquiredAtMs,
+        skuListSource: item.skuListSource,
         updatedAt: item.updatedAt,
         updatedAtMs: item.updatedAtMs,
       };
@@ -33414,6 +33535,11 @@
     return state.settings && state.settings.skuListMode === 'waterfall' ? 'waterfall' : 'list';
   }
 
+  function isSkuInCatalog(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    return Boolean(normalizedSku && state.index.some((item) => item && String(item.sku || '').trim().toUpperCase() === normalizedSku));
+  }
+
   function getSkuListSort() {
     return state.settings && state.settings.skuListSort === 'acquired' ? 'acquired' : 'assigned';
   }
@@ -33450,7 +33576,9 @@
     const time = (record) => {
       const assigned = parseSkuListTime(record.designAssignedAt);
       const acquired = [record.acquiredAtMs, record.fetchedAtMs, record.listPrefetchedAtMs, record.updatedAtMs, record.firstSeenAtMs, record.listPrefetchedAt, record.updatedAt, record.createdAt].map(parseSkuListTime).find((value) => value > 0) || 0;
-      return sort === 'acquired' ? acquired : assigned;
+      // Manually added SKUs do not have a design-assignment timestamp, so
+      // fall back to their local acquisition time in the assignment view.
+      return sort === 'acquired' ? acquired : (assigned || acquired);
     };
     return records.map((entry) => ({ ...entry, time: time(entry.record) })).sort((a, b) => {
       if (a.item.pinned && b.item.pinned) return (a.item.pinOrder || 0) - (b.item.pinOrder || 0);
@@ -33505,6 +33633,9 @@
       toyLabelProductImageFallbackUrl: data.toyLabelProductImageFallbackUrl || '',
       benchmarkImageUrl: data.benchmarkImageUrl || '',
       benchmarkImageFallbackUrl: data.benchmarkImageFallbackUrl || '',
+      acquiredAt: data.acquiredAt || '',
+      acquiredAtMs: data.acquiredAtMs || 0,
+      skuListSource: data.skuListSource || '',
       updatedAt: data.updatedAt || new Date().toLocaleString(),
       updatedAtMs: data.updatedAtMs || Date.now(),
     };
