@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.80
+// @version      2.8.81
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.80';
+  const SCRIPT_VERSION = '2.8.81';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.222';
+  const UI_ASSET_VERSION = '2.5.223';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -27468,6 +27468,7 @@
       alibabaLink: optional.alibabaLink || current.alibabaLink || '',
       productListImageUrl: imageUrl || current.productListImageUrl || '',
       productListImageFallbackUrl: imageUrl || current.productListImageFallbackUrl || '',
+      designAssignedAt: current.designAssignedAt || (isNew ? nowText : ''),
       infringementImageUrls: infringementImageUrls || [],
       infringementImageUrl: snapshot && snapshot.infringementImageUrl || current.infringementImageUrl || '',
       infringementImageSource: snapshot && snapshot.infringementImageSource || current.infringementImageSource || '',
@@ -27505,6 +27506,15 @@
     if (!isNew && cached && !snapshot) return { sku, data: normalizeData(cached), added: false, enriched: false, error: '' };
     const data = buildManualSkuData(sku, existing, snapshot, isNew);
     saveData(sku, data, { changeSource: isNew ? '手动添加编码' : '手动补充编码信息' });
+    if (isNew) {
+      upsertDailyLedgerFromData(data, {
+        date: getTodayKey(),
+        status: '待定稿',
+        stage: '待定稿',
+        note: '手动添加自动加入今日工作台',
+      });
+      if (state.view === 'ledger') renderShell();
+    }
     addLog(isNew ? 'success' : 'info', isNew ? '已手动添加 SKU' : '已补充 SKU 信息', sku + (snapshot && snapshot.found ? ' | 已读取产品信息' : ' | ' + apiError));
     return { sku, data, added: isNew, enriched: Boolean(snapshot && snapshot.found), error: apiError };
   }
@@ -27747,7 +27757,7 @@
         if (!isSkuInCatalog(sku)) throw new Error('SKU 未能写入本地列表');
         updateManualSkuAddQueueEntry(sku, {
           status: result && result.enriched ? 'success' : 'partial',
-          step: result && result.enriched ? '产品 API 信息已读取并加入列表' : '已加入列表，但产品 API 未返回完整信息',
+          step: result && result.enriched ? '产品 API 信息已读取并加入列表及今日工作台' : '已加入列表和今日工作台，但产品 API 未返回完整信息',
           error: result && result.error || '',
         });
       } catch (error) {
