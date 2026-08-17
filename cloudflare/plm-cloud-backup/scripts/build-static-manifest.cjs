@@ -23,7 +23,7 @@ const definitions = {
   runtimeData: 'v1/runtime-data.json',
   excelTemplate: 'v1/excel-template.xlsx',
   icons: 'v1/icons.json',
-  uiStyles: 'v15/ui-2.5.206.css',
+  uiStyles: 'v15/ui-2.5.213.css',
 };
 const assets = {};
 for (const [name, relativePath] of Object.entries(definitions)) {

@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.64
+// @version      2.8.68
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.64';
+  const SCRIPT_VERSION = '2.8.68';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.206';
+  const UI_ASSET_VERSION = '2.5.213';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -4208,7 +4208,7 @@
       color: var(--pfh-theme-text, #514366);
       font-size: 15px;
       line-height: 1.4;
-      font-weight: 900;
+      font-weight: var(--pfh-font-weight-heading, 700);
     }
     #${PANEL_ID} .pfh-infringement-title small,
     #${PANEL_ID} .pfh-infringement-copy-head small {
@@ -4510,6 +4510,12 @@
       '--pfh-theme-text': theme.text,
       '--pfh-theme-muted': theme.muted,
       '--pfh-theme-header': theme.header,
+      // Typography is intentionally centralized here. Component styles consume
+      // these semantic weights instead of escalating selector specificity.
+      '--pfh-font-weight-regular': '400',
+      '--pfh-font-weight-support': '500',
+      '--pfh-font-weight-control': '600',
+      '--pfh-font-weight-heading': '700',
     };
     [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {
       if (!element) return;
