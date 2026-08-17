@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.223",
+  "version": "2.5.224",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 682081,
-      "maxImportant": 7383,
+      "maxBytes": 681978,
+      "maxImportant": 7374,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast"
@@ -19,15 +19,16 @@
     {
       "path": "compat/remaining-typography.css",
       "mode": "compat",
-      "maxBytes": 16676,
-      "maxImportant": 131,
+      "maxBytes": 11619,
+      "maxImportant": 86,
       "forbidSelectorFragments": [
         ".pfh-home",
         "#plm-floating-helper[data-view=\"magicUpload\"]",
         ".pfh-upload",
         "upload-progress",
         ".pfh-batch-excel",
-        "[data-view=\"batchExcel\"]"
+        "[data-view=\"batchExcel\"]",
+        ".pfh-ledger"
       ]
     },
     {
@@ -55,12 +56,16 @@
       "mode": "module"
     },
     {
+      "path": "modules/ledger-typography.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/toast.css",
       "mode": "module"
     }
   ],
   "budgets": {
-    "important": 7514,
+    "important": 7460,
     "duplicateSelectors": 525,
     "conflictingSelectors": 500
   }

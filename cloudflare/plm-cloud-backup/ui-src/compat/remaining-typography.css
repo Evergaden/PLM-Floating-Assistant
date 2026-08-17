@@ -89,35 +89,8 @@
 #plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
         font-weight: 600
 }
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-hero h3 {
-        font-weight: 600 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tabs button {
-        font-weight: 500 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day h4 {
-        font-weight: 500 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day h4 span {
-        font-weight: 400 !important
-}
 #plm-floating-helper:not([data-view="detail"]) .pfh-title-open-detail {
         font-weight: 600 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-main small {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-actions button {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-file-actions button {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]).is-narrow-panel .pfh-ledger-actions button {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-edit-time {
-        font-weight: 400 !important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-search-result-toolbar button {
         font-weight: 500 !important
@@ -136,31 +109,6 @@
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-empty strong {
         font-weight: 600 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-month-label {
-        font-weight: 600 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-actions button.is-primary {
-        font-weight: 650 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-actions button.is-primary.is-finalize em { font-weight:400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-status {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]).is-narrow-panel .pfh-ledger-status {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags span {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-complete { font-weight:400 !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-more > button {
-        font-weight: 400 !important
-}
-#plm-floating-helper:not([data-view="detail"]).is-narrow-panel .pfh-ledger-more > button {
-        font-weight: 400 !important
 }
 #plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-tools button {font-weight:800
 }
@@ -209,50 +157,6 @@
 #plm-floating-helper-parameter-editor-overlay[data-pfh-theme] .pfh-parameter-editor-target-button.is-active {font-weight:800!important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-detail-view-tabs button {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-overflow-menu button.is-active {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-performance span {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-performance strong {font-weight:750!important
-}
-#plm-floating-helper .pfh-ledger-performance strong::after {font-weight:600!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-merge-groups summary {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-merge-group span {font-weight:500!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags .is-extension {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags .is-performance-group {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags .is-series-excluded {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-toolbar .pfh-ledger-performance-merge {font-weight:650!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-artwork {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-dialog>nav button {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-thumb-copy strong {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-thumb.is-selected .pfh-ledger-ai-image-thumb-copy small {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-preview-actions button {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-name {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-meta button {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-generate {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-ai-image-dialog>footer button {font-weight:750!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-tags button.is-sku {font-weight:500!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-trash-actions button.is-restore {font-weight:650!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-fullscreen-toggle {font-weight:700!important
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-copywriting-toolbar-actions button {font-weight:700!important
 }
@@ -324,16 +228,6 @@
 }
 #plm-floating-helper:not([data-view="detail"]) .pfh-infringement-section > .pfh-section-title.pfh-infringement-title h3 {
   font-weight: var(--pfh-font-weight-heading, 700) !important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-trash-entry {font-weight:650!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-trash-entry small {font-weight:500!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day>h4 .pfh-ledger-day-date {font-weight:700!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-day>h4 .pfh-ledger-day-count {font-weight:500!important
-}
-#plm-floating-helper:not([data-view="detail"]) .pfh-ledger-main b {font-weight:650!important
 }
 #plm-floating-helper:not([data-view="detail"]):not([data-view="magicUpload"]) .pfh-sku-info-section .pfh-section-title h3 {
   font-weight:var(--pfh-font-weight-heading,700)!important
