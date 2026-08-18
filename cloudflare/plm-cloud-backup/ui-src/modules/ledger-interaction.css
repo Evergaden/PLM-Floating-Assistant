@@ -1,11 +1,12 @@
 /* PLM migrated static styles: ledger-interaction */
 #plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs {
   position: relative;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   padding: 4px;
   overflow: hidden;
   isolation: isolate;
+  border-radius: 999px;
   border-color: var(--pfh-theme-border);
   background: var(--pfh-theme-surface);
 }
@@ -15,10 +16,10 @@
   z-index: 0;
   top: 4px;
   left: 4px;
-  width: calc((100% - 8px) / 3);
+  width: calc((100% - 8px) / 2);
   height: calc(100% - 8px);
   border: 0;
-  border-radius: 99px;
+  border-radius: 999px;
   background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
   box-shadow: 0 8px 18px var(--pfh-theme-shadow-soft);
   pointer-events: none;
@@ -29,6 +30,7 @@
 #plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button {
   position: relative;
   z-index: 1;
+  border-radius: 999px;
   background: transparent;
   border: 0;
   color: var(--pfh-theme-muted);
@@ -46,7 +48,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 99px;
+  border-radius: 999px;
   background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .18) 0%, transparent 65%);
   opacity: 0;
   transition: opacity .25s;
@@ -60,6 +62,30 @@
 #plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button.is-active::after,
 #plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button.active::after {
   background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .28) 0%, transparent 65%);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-item.is-clickable > .pfh-ledger-thumb,
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-item.is-clickable > .pfh-ledger-thumb:hover {
+  overflow: hidden;
+  transform: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-item.is-clickable > .pfh-ledger-thumb .pfh-ledger-thumb-frame,
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-item.is-clickable > .pfh-ledger-thumb .pfh-ledger-thumb-frame:hover {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  box-shadow: none;
+  transition: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-thumb-preview {
+  display: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
