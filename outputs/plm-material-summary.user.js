@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.100
+// @version      2.8.101
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.100';
+  const SCRIPT_VERSION = '2.8.101';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -13710,6 +13710,22 @@
     return labels;
   }
 
+  function renderLoadingDetail(detail, statusText) {
+    const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
+    const loadingTip = detail && detail.firstElementChild && detail.firstElementChild.classList.contains('pfh-loading-tip')
+      ? detail.firstElementChild
+      : null;
+    if (loadingTip) {
+      const label = loadingTip.querySelector(':scope > span');
+      const tip = loadingTip.querySelector(':scope > strong');
+      if (label) label.textContent = openingDetail ? '加载中' : '识别中';
+      if (tip) tip.textContent = getCurrentLoadingTip();
+      if (!detail.querySelector(':scope > .pfh-detail-scroll')) detail.insertAdjacentHTML('beforeend', '<div class="pfh-detail-scroll"></div>');
+      return;
+    }
+    detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll"></div>';
+  }
+
   function renderDetail(panel, statusText) {
     const detail = panel.querySelector('.pfh-detail');
     const data = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
@@ -13720,14 +13736,14 @@
     if (openingDetail) {
       const main = panel.querySelector('.pfh-main');
       if (main) main.classList.remove('is-home');
-      detail.innerHTML = renderStatusHtml(L.openingDetail) + '<div class="pfh-detail-scroll"></div>';
+      renderLoadingDetail(detail, L.openingDetail);
       return;
     }
     if (!data) {
       if (loading) {
         const main = panel.querySelector('.pfh-main');
         if (main) main.classList.remove('is-home');
-        detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll"></div>';
+        renderLoadingDetail(detail, statusText);
       } else {
         detail.innerHTML = homeViewHtml(statusText, null);
       }
