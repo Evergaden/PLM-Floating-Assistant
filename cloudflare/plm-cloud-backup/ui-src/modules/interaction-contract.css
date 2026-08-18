@@ -1,0 +1,82 @@
+/* Shared interaction contract: movement belongs to buttons; cards only deepen color. */
+#plm-floating-helper:not(.pfh-interaction-disabled) {
+  --pfh-interaction-button-duration: 180ms;
+  --pfh-interaction-button-ease: cubic-bezier(.22, 1, .36, 1);
+  --pfh-interaction-button-hover-transform: translateY(-1px);
+  --pfh-interaction-button-active-transform: translateY(0) scale(.96);
+}
+
+/* Option A: a restrained button lift with a compact press state. */
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]) {
+  transition: transform var(--pfh-interaction-button-duration) var(--pfh-interaction-button-ease),
+    color var(--pfh-interaction-button-duration) ease,
+    background-color var(--pfh-interaction-button-duration) ease,
+    border-color var(--pfh-interaction-button-duration) ease,
+    box-shadow var(--pfh-interaction-button-duration) ease;
+}
+
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):hover {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):active {
+  transform: var(--pfh-interaction-button-active-transform);
+}
+
+/* A glyph is part of the button surface; it does not grow or rotate on hover. */
+#plm-floating-helper button:hover .pfh-icon,
+#plm-floating-helper button:hover .pfh-icon svg,
+#plm-floating-helper button:hover .pfh-icon svg * {
+  transform: none;
+}
+
+/* Non-button affordances keep their layout stable and communicate with color only. */
+#plm-floating-helper [role="button"]:not(button):hover,
+#plm-floating-helper .pfh-magic-task:hover,
+#plm-floating-helper .pfh-magic-history-item:hover,
+#plm-floating-helper .pfh-ledger-item.is-clickable:hover {
+  transform: none;
+}
+
+/* Magic Upload: explicit component ownership for the first migrated surface. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-back:hover:not(:disabled) {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-back:active:not(:disabled) {
+  transform: var(--pfh-interaction-button-active-transform);
+}
+
+#plm-floating-helper[data-view="magicUpload"] :is(
+  .pfh-magic-upload-drop:hover,
+  .pfh-magic-upload-drop.is-drag-over
+) {
+  transform: none;
+}
+
+#plm-floating-helper[data-view="magicUpload"] :is(.pfh-magic-task:hover) {
+  transform: none;
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button:hover:not(:disabled),
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button:hover,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header button:hover,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-delete:hover {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+/* Home navigation and task rows are real buttons and use the same lift. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry:hover:not(:disabled),
+#plm-floating-helper[data-pfh-theme] .pfh-home-task-row:hover:not(:disabled) {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry:active:not(:disabled),
+#plm-floating-helper[data-pfh-theme] .pfh-home-task-row:active:not(:disabled) {
+  transform: var(--pfh-interaction-button-active-transform);
+}
+
+/* Edit-mode cards are draggable list items, not buttons. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry-edit:hover:not(:disabled) {
+  transform: none;
+}
