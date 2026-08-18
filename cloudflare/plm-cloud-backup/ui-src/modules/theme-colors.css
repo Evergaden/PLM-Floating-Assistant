@@ -1,0 +1,24 @@
+/* Semantic theme surfaces: keep secondary controls and cards light in every skin. */
+#plm-floating-helper[data-pfh-theme] {
+  --pfh-theme-control-surface: color-mix(
+    in srgb,
+    var(--pfh-theme-surface) 94%,
+    var(--pfh-theme-primary-soft) 6%
+  );
+  --pfh-theme-control-hover: color-mix(
+    in srgb,
+    var(--pfh-theme-primary-soft) 76%,
+    var(--pfh-theme-surface) 24%
+  );
+  --pfh-theme-card-hover: color-mix(
+    in srgb,
+    var(--pfh-theme-primary-soft) 46%,
+    var(--pfh-theme-surface) 54%
+  );
+}
+
+/* A secondary control changes hue/contrast, never gets a brightness filter. */
+#plm-floating-helper[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"]:hover:not(:disabled),
+#plm-floating-helper[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]:hover:not(:disabled) {
+  filter: none;
+}
