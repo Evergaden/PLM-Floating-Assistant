@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.90
+// @version      2.8.94
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.90';
+  const SCRIPT_VERSION = '2.8.94';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -1023,7 +1023,7 @@
       const html = '<div class="pfh-parameter-scroll">' + context.detailViewTabs('parameterImage') + '<section class="pfh-parameter-page">' +
         '<header class="pfh-parameter-hero">' + heroThumb + '<div class="pfh-parameter-hero-copy"><small>PARAMETER IMAGE</small><h3>' + context.escapeHtml(data.sku) + ' 参数图</h3><p>' + context.escapeHtml([data.brand, data.name].filter(Boolean).join(' ')) + '</p></div></header>' +
         '<div class="pfh-parameter-workspace"><div class="pfh-parameter-controls">' +
-          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '><strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
+          '<button type="button" class="pfh-parameter-drop' + (session.busy ? ' is-busy' : '') + '" data-action="parameter-image-pick"' + (session.busy ? ' disabled' : '') + '>' + (session.busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : '') + '<strong>' + (session.busy ? '正在分析并生成…' : '点击、拖入或悬浮粘贴透明 PNG') + '</strong><span>仅支持透明 PNG（JPG / WebP 请先导出为透明 PNG）</span><span>一张图可同时包含纸盒与产品</span></button>' +
           (session.fileName ? '<small>已读取：' + context.escapeHtml(session.fileName) + '</small>' : '') +
           '<div class="pfh-parameter-fields">' +
             fieldHtml(session, 'englishName', '英文产品名', true) + fieldHtml(session, 'netContent', '净含量') + fieldHtml(session, 'grossWeight', '毛重') + fieldHtml(session, 'shelfLife', '保质期') + fieldHtml(session, 'features', 'FEATURES', true) +
@@ -1172,6 +1172,7 @@
       const boxWidth = component.width, boxHeight = component.height;
       if (boxWidth < 30 || boxHeight < 40) return null;
       const span = Math.max(1, Math.min(7, Math.floor(boxWidth / 100)));
+      const geometrySpread = Math.max(1, Math.min(4, Math.floor(boxWidth / 100)));
       const startX = component.left + Math.floor(boxWidth * .06), endX = component.right - 1 - Math.floor(boxWidth * .06);
       const startY = component.top + Math.floor(boxHeight * .04), endY = component.bottom - 1 - Math.floor(boxHeight * .04);
       const scored = [];
@@ -1188,7 +1189,17 @@
         }
         if (differences.length < Math.max(12, Math.floor(boxHeight / 10))) continue;
         const score = median(differences) * .72 + percentile(differences, .72) * .28;
-        scored.push({ score, x, side });
+        // A printed highlight, label, or product artwork can create a strong
+        // RGB seam without being a carton side.  A real side face also changes
+        // the alpha silhouette at the seam versus the outer edge (perspective
+        // top/bottom), so require a small but measurable contour delta.
+        const seamRange = alphaColumnRange(pixels, width, height, x, component.top, component.bottom, geometrySpread);
+        const outerX = side === 'left' ? component.left : component.right - 1;
+        const outerRange = alphaColumnRange(pixels, width, height, outerX, component.top, component.bottom, geometrySpread);
+        if (!seamRange || !outerRange) continue;
+        const shapeDelta = Math.abs(seamRange.top - outerRange.top) + Math.abs(seamRange.bottom - outerRange.bottom);
+        if (shapeDelta < Math.max(3, boxHeight * .005)) continue;
+        scored.push({ score, x, side, shapeDelta });
       }
       if (!scored.length) return null;
       scored.sort((a, b) => b.score - a.score);
@@ -1316,15 +1327,18 @@
       };
     }
 
-    function analyzeImage(image, session, rule) {
+    function analyzeImage(image, session, rule, pixelPayload) {
       const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
       const width = Math.max(1, Math.round(image.naturalWidth * scale));
       const height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(image, 0, 0, width, height);
-      const pixels = ctx.getImageData(0, 0, width, height).data;
+      let pixels = pixelPayload && pixelPayload.pixels;
+      if (!pixels) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(image, 0, 0, width, height);
+        pixels = ctx.getImageData(0, 0, width, height).data;
+      }
       if (session.singleBottle) {
         const upperBody = alphaBoundsRegion(pixels, width, height, 0, width, 0, Math.round(height * .74));
         const bottle = upperBody && alphaBoundsRegion(pixels, width, height, upperBody.left, upperBody.right, 0, height);
@@ -1334,7 +1348,7 @@
         return { box: null, product: convert(bottle), splitX: 0, sidePixels: 0, detectedSide: false, perspective: null, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
       }
       session.topologyApplied = false;
-      session.topologyMessage = topologyRuleStatus === 'ready' ? '未匹配到边拓扑模板，使用基础识别' : '云端边拓扑规则未加载，使用基础识别';
+      session.topologyMessage = (session.topologyRuleStatus || topologyRuleStatus) === 'ready' ? '未匹配到边拓扑模板，使用基础识别' : '云端边拓扑规则未加载，使用基础识别';
       const topologyAnalysis = analyzeTransparentTopology(pixels, width, height, session, rule, scale);
       if (topologyAnalysis && session.topologyApplied) return topologyAnalysis;
       const occupancy = [];
@@ -1365,6 +1379,100 @@
       if (session.showSide === null && !session.showSideOverride) session.showSide = detectedSide;
       session.productHeightSide = originalProduct.right <= originalBox.left ? 'left' : session.productHeightSide;
       return { box: originalBox, product: originalProduct, splitX: split * f, sidePixels, detectedSide, perspective, productHeightSide: originalProduct.right <= originalBox.left ? 'left' : 'right', sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight };
+    }
+
+    let parameterAnalysisWorkerSource = '';
+
+    function getParameterAnalysisWorkerSource() {
+      if (parameterAnalysisWorkerSource) return parameterAnalysisWorkerSource;
+      const functions = [
+        'const number = ' + number.toString() + ';',
+        alphaBoundsRegion,
+        alphaBounds,
+        median,
+        alphaColumnRange,
+        detectPerspectiveGeometry,
+        transparentObjectComponents,
+        transparentComponentUnion,
+        rgbaDistanceAt,
+        percentile,
+        detectTransparentFaceSeam,
+        sourcePoint,
+        matchTransparentTopologyTemplate,
+        analyzeTransparentTopology,
+        analyzeImage,
+      ].map((item) => typeof item === 'string' ? item : item.toString()).join('\n');
+      parameterAnalysisWorkerSource = `'use strict';\n${functions}\nself.onmessage = function(event) {\n  const payload = event.data || {};\n  try {\n    const pixels = new Uint8ClampedArray(payload.pixelBuffer);\n    const session = payload.session || {};\n    const image = { naturalWidth: Number(payload.sourceWidth) || 1, naturalHeight: Number(payload.sourceHeight) || 1 };\n    const analysis = analyzeImage(image, session, payload.rule || null, { pixels, width: Number(payload.width) || 1, height: Number(payload.height) || 1 });\n    self.postMessage({ ok: true, analysis, sessionPatch: { topologyApplied: Boolean(session.topologyApplied), topologyRuleVersion: String(session.topologyRuleVersion || ''), topologyMessage: String(session.topologyMessage || ''), frontIsLength: Boolean(session.frontIsLength), showSide: session.showSide, productHeightSide: String(session.productHeightSide || '') } });\n  } catch (error) {\n    self.postMessage({ ok: false, error: String(error && error.message || error || '参数图分析失败') });\n  }\n};`;
+      return parameterAnalysisWorkerSource;
+    }
+
+    function getParameterAnalysisPixels(image) {
+      const scale = Math.min(1, 900 / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0, width, height);
+      return { width, height, pixels: ctx.getImageData(0, 0, width, height).data };
+    }
+
+    async function runParameterImageAnalysis(image, session, rule) {
+      const canUseWorker = typeof Worker === 'function' && typeof Blob === 'function' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function';
+      if (!canUseWorker) return { analysis: analyzeImage(image, session, rule), worker: false };
+      let pixelPayload;
+      try {
+        pixelPayload = getParameterAnalysisPixels(image);
+        const sourceUrl = URL.createObjectURL(new Blob([getParameterAnalysisWorkerSource()], { type: 'application/javascript' }));
+        const worker = new Worker(sourceUrl);
+        const result = await new Promise((resolve, reject) => {
+          let settled = false;
+          const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            worker.terminate();
+            URL.revokeObjectURL(sourceUrl);
+            callback(value);
+          };
+          worker.onmessage = (event) => {
+            const payload = event && event.data || {};
+            if (!payload.ok) finish(reject, new Error(payload.error || '参数图分析失败'));
+            else finish(resolve, payload);
+          };
+          worker.onerror = (event) => finish(reject, new Error(event && event.message || '参数图 Worker 启动失败'));
+          try {
+            worker.postMessage({
+              pixelBuffer: pixelPayload.pixels.buffer,
+              width: pixelPayload.width,
+              height: pixelPayload.height,
+              sourceWidth: image.naturalWidth,
+              sourceHeight: image.naturalHeight,
+              rule,
+              session: {
+                singleBottle: Boolean(session.singleBottle),
+                frontIsLength: Boolean(session.frontIsLength),
+                showSide: session.showSide,
+                showSideOverride: Boolean(session.showSideOverride),
+                frontAxisOverride: Boolean(session.frontAxisOverride),
+                topologyRuleStatus,
+                productHeightSide: session.productHeightSide || '',
+                fields: {
+                  packageLength: session.fields && session.fields.packageLength || '',
+                  packageWidth: session.fields && session.fields.packageWidth || '',
+                  packageHeight: session.fields && session.fields.packageHeight || '',
+                },
+              },
+            }, [pixelPayload.pixels.buffer]);
+          } catch (error) {
+            finish(reject, error);
+          }
+        });
+        return { analysis: result.analysis, sessionPatch: result.sessionPatch || {}, worker: true };
+      } catch (error) {
+        // CSP or older userscript sandboxes may reject blob Workers. Preserve the
+        // existing behavior as a safe fallback instead of breaking generation.
+        return { analysis: analyzeImage(image, session, rule), worker: false, fallback: true };
+      }
     }
 
     function fitSource(image, analysis, area) {
@@ -1827,12 +1935,15 @@
         if (hasManualPath) editorLog(session, '生成阶段底图解码成功', { width: image.naturalWidth, height: image.naturalHeight });
         const [rule, logo] = await Promise.all([loadTopologyRule(), loadBrandLogo(data.brand)]);
         try {
-          session.analysis = analyzeImage(image, session, rule);
+          const analysisResult = await runParameterImageAnalysis(image, session, rule);
+          if (analysisResult.sessionPatch) Object.assign(session, analysisResult.sessionPatch);
+          session.analysis = analysisResult.analysis;
           if (hasManualPath) editorLog(session, '自动图像分析成功，手动路径将优先覆盖', {
             hasBox: Boolean(session.analysis && session.analysis.box),
             hasProduct: Boolean(session.analysis && session.analysis.product),
             topologyApplied: Boolean(session.analysis && session.analysis.transparentTopology),
             topologyRuleVersion: session.topologyRuleVersion || '',
+            worker: Boolean(analysisResult.worker),
           });
         } catch (analysisError) {
           session.analysis = manualFallbackAnalysis(image, session);
@@ -4902,6 +5013,8 @@
     detailViewPreviousTab: '',
     copywritingView: 'file',
     infringementImageViewer: null,
+    infringementHistoryOpen: false,
+    skuDataLogOpen: false,
     skuEditMode: false,
     copywritingLoading: false,
     copywritingChecking: false,
@@ -5818,6 +5931,8 @@
       departmentName: cached.departmentName || '',
       manualFieldOverrides: cached.manualFieldOverrides || {},
       recentFieldChanges: Array.isArray(cached.recentFieldChanges) ? cached.recentFieldChanges : [],
+      dataUpdateLog: Array.isArray(cached.dataUpdateLog) ? cached.dataUpdateLog : [],
+      infringementHistory: Array.isArray(cached.infringementHistory) ? cached.infringementHistory : [],
       projectRowId: cached.projectRowId || '',
       projectId: cached.projectId || '',
       copywriting: cached.copywriting || null,
@@ -6559,7 +6674,7 @@
   }
 
   function hasMeaningfulDataChange(previous, next) {
-    const ignored = new Set(['updatedAt', 'updatedAtMs', 'lastMissingDiagnostic', 'recentFieldChanges']);
+    const ignored = new Set(['updatedAt', 'updatedAtMs', 'infringementUpdatedAt', 'infringementUpdatedAtMs', 'lastMissingDiagnostic', 'recentFieldChanges', 'dataUpdateLog', 'infringementHistory']);
     const before = {};
     const after = {};
     Object.keys(previous || {}).forEach((key) => {
@@ -6576,6 +6691,13 @@
   }
 
   function normalizeTrackedDataValue(key, value) {
+    if (key === 'infringementImageUrls') {
+      const urls = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
+      return urls.length ? urls.length + ' 张图片' : '';
+    }
+    if (key === 'infringementCopywriting') {
+      return String(value || '').replace(/\r\n?/g, '\n').trim();
+    }
     const text = key === 'name' ? normalizeProductNameValue(value) : compactText(value);
     if (!isOrderInsensitiveTrackedField(key) || !text) return text;
     return text.split(/\s*[;；]\s*/).map((item) => item.trim()).filter(Boolean).sort().join(';');
@@ -6656,6 +6778,106 @@
     return next;
   }
 
+  const INFRINGEMENT_HISTORY_LIMIT = 24;
+  const DATA_UPDATE_LOG_LIMIT = 60;
+
+  function normalizeInfringementHistory(history) {
+    if (!Array.isArray(history)) return [];
+    return history.map((entry, index) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const imageUrls = Array.from(new Set([
+        ...(Array.isArray(entry.imageUrls) ? entry.imageUrls : []),
+        ...(Array.isArray(entry.images) ? entry.images : []),
+        entry.imageUrl,
+      ].map((value) => normalizeApiAssetUrl(value) || String(value || '').trim()).filter(Boolean))).slice(0, 20);
+      const copywriting = String(entry.copywriting || entry.infringementCopywriting || '').replace(/\r\n?/g, '\n').trim().slice(0, 24000);
+      if (!imageUrls.length && !copywriting) return null;
+      const updatedAtMs = Number(entry.updatedAtMs || entry.changedAtMs || 0) || 0;
+      const updatedAt = String(entry.updatedAt || entry.changedAt || '').trim();
+      return {
+        id: String(entry.id || ('infringement-version-' + (updatedAtMs || index))),
+        updatedAt,
+        updatedAtMs,
+        source: String(entry.source || 'PLM 接口').trim(),
+        imageUrls,
+        copywriting,
+        signature: String(entry.signature || JSON.stringify([imageUrls, copywriting])),
+      };
+    }).filter(Boolean).slice(-INFRINGEMENT_HISTORY_LIMIT);
+  }
+
+  function normalizeDataUpdateLog(log) {
+    if (!Array.isArray(log)) return [];
+    return log.map((entry, index) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const changes = Array.isArray(entry.changes)
+        ? entry.changes.map((change) => {
+          if (!change || !change.key) return null;
+          return {
+            key: String(change.key),
+            label: String(change.label || getSkuDataFieldLabel(change.key)),
+            before: String(change.before == null ? '' : change.before).slice(0, 2400),
+            after: String(change.after == null ? '' : change.after).slice(0, 2400),
+          };
+        }).filter(Boolean).slice(0, 30)
+        : [];
+      if (!changes.length) return null;
+      const changedAtMs = Number(entry.changedAtMs || entry.updatedAtMs || 0) || 0;
+      return {
+        id: String(entry.id || ('data-update-' + (changedAtMs || index))),
+        changedAt: String(entry.changedAt || entry.updatedAt || '').trim(),
+        changedAtMs,
+        source: String(entry.source || '自动获取').trim(),
+        changes,
+      };
+    }).filter(Boolean).slice(-DATA_UPDATE_LOG_LIMIT);
+  }
+
+  function getInfringementSnapshot(data) {
+    const imageUrls = Array.from(new Set([
+      ...(Array.isArray(data && data.infringementImageUrls) ? data.infringementImageUrls : []),
+      data && data.infringementImageUrl,
+    ].map((value) => normalizeApiAssetUrl(value) || String(value || '').trim()).filter(Boolean))).slice(0, 20);
+    const copywriting = String(data && data.infringementCopywriting || '').replace(/\r\n?/g, '\n').trim().slice(0, 24000);
+    return {
+      imageUrls,
+      copywriting,
+      updatedAt: String(data && (data.infringementUpdatedAt || data.updatedAt) || '').trim(),
+      updatedAtMs: Number(data && (data.infringementUpdatedAtMs || data.updatedAtMs) || 0) || 0,
+    };
+  }
+
+  function getInfringementSnapshotSignature(snapshot) {
+    return JSON.stringify([snapshot && snapshot.imageUrls || [], snapshot && snapshot.copywriting || '']);
+  }
+
+  function appendInfringementHistory(previous, next, options) {
+    const opts = options || {};
+    const previousHistory = previous && Array.isArray(previous.infringementHistory) && previous.infringementHistory.length
+      ? previous.infringementHistory
+      : (next && next.infringementHistory);
+    const history = normalizeInfringementHistory(previousHistory);
+    const add = (snapshot, source) => {
+      if (!snapshot || (!snapshot.imageUrls.length && !snapshot.copywriting)) return;
+      const signature = getInfringementSnapshotSignature(snapshot);
+      const last = history[history.length - 1];
+      if (last && last.signature === signature) return;
+      const updatedAtMs = Number(snapshot.updatedAtMs || Date.now()) || Date.now();
+      history.push({
+        id: 'infringement-version-' + updatedAtMs + '-' + Math.random().toString(36).slice(2, 7),
+        updatedAt: snapshot.updatedAt || new Date(updatedAtMs).toLocaleString(),
+        updatedAtMs,
+        source: String(source || opts.changeSource || 'PLM 接口'),
+        imageUrls: snapshot.imageUrls.slice(0, 20),
+        copywriting: snapshot.copywriting,
+        signature,
+      });
+    };
+    add(getInfringementSnapshot(previous), '历史版本');
+    add(getInfringementSnapshot(next), opts.changeSource || 'PLM 接口');
+    return history.slice(-INFRINGEMENT_HISTORY_LIMIT);
+  }
+
   function normalizeData(data) {
     const safe = data || {};
     safe.apiFieldStates = normalizeApiFieldStates(safe.apiFieldStates);
@@ -6726,6 +6948,8 @@
       infringementImageUrl: infringementImageUrls[0] || '',
       infringementImageSource,
       infringementCopywriting,
+      infringementHistory: normalizeInfringementHistory(safe.infringementHistory),
+      dataUpdateLog: normalizeDataUpdateLog(safe.dataUpdateLog),
       hasInnerCard,
       singleBottle,
       bottleNums,
@@ -9546,6 +9770,22 @@
       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-frame{position:absolute!important;right:0!important;top:0!important;z-index:141!important;width:188px!important;height:188px!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border-strong,#b7a6f4)!important;border-radius:15px!important;background:var(--pfh-theme-surface,#fff)!important;box-shadow:0 10px 26px var(--pfh-theme-shadow-soft,rgba(91,62,180,.16))!important;}
       @media(max-width:760px){#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-frame{width:164px!important;height:164px!important;}}
       #${PANEL_ID} .pfh-ledger-thumb-preview{display:none!important;}
+      #${PANEL_ID} .pfh-loading-scan{position:relative;display:inline-block;width:28px;height:19px;flex:0 0 28px;overflow:hidden;border:1px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 34%,transparent);border-radius:5px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 9%,transparent) 0 4px,transparent 4px 8px);vertical-align:middle;}
+      #${PANEL_ID} .pfh-loading-scan::after{position:absolute;top:1px;bottom:1px;left:-4px;width:3px;border-radius:3px;background:var(--pfh-theme-primary,#7c3aed);box-shadow:0 0 8px color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 74%,transparent);content:"";will-change:left;animation:pfh-loading-scan 1.15s ease-in-out infinite;}
+      #${PANEL_ID} .pfh-loading-ring{display:inline-block;width:22px;height:22px;flex:0 0 22px;border:3px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 15%,transparent);border-top-color:var(--pfh-theme-primary,#7c3aed);border-right-color:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 68%,transparent);border-radius:50%;vertical-align:middle;will-change:transform;transform:translateZ(0);animation:pfh-loading-ring 1s cubic-bezier(.4,0,.2,1) infinite;}
+      #${PANEL_ID} .pfh-loading-dots{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:24px;height:20px;flex:0 0 24px;vertical-align:middle;}
+      #${PANEL_ID} .pfh-loading-dots i{display:block;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.42;will-change:transform,opacity;animation:pfh-loading-dot 1s ease-in-out infinite;}
+      #${PANEL_ID} .pfh-loading-dots i:nth-child(2){animation-delay:.14s;}#${PANEL_ID} .pfh-loading-dots i:nth-child(3){animation-delay:.28s;}
+      #${PANEL_ID} .pfh-api-status .pfh-loading-ring{width:14px;height:14px;flex-basis:14px;border-width:2px;}
+      #${PANEL_ID} .pfh-loading-tip .pfh-loading-ring{width:18px;height:18px;flex-basis:18px;border-width:2px;}
+      #${PANEL_ID} .pfh-copywriting-empty .pfh-loading-ring{width:28px;height:28px;flex-basis:28px;margin-bottom:3px;}
+      #${PANEL_ID} .pfh-batch-excel-actions .pfh-loading-dots{margin-right:2px;}
+      @keyframes pfh-loading-scan{0%{left:-4px}50%,100%{left:calc(100% + 1px)}}
+      @keyframes pfh-loading-ring{to{transform:rotate(360deg)}}
+      @keyframes pfh-loading-dot{0%,100%{transform:translateY(3px);opacity:.42}50%{transform:translateY(-3px);opacity:1}}
+      .pfh-loading-ring-global{display:inline-block!important;width:16px!important;height:16px!important;flex:0 0 16px!important;border:2px solid rgba(124,58,237,.18)!important;border-top-color:#7c3aed!important;border-right-color:#a77af2!important;border-radius:50%!important;will-change:transform!important;transform:translateZ(0)!important;animation:pfh-loading-ring 1s cubic-bezier(.4,0,.2,1) infinite!important;}
+      @media(prefers-reduced-motion:reduce){#${PANEL_ID} .pfh-loading-scan::after,#${PANEL_ID} .pfh-loading-ring,#${PANEL_ID} .pfh-loading-dots i{animation-duration:2.4s;}}
+      @media(prefers-reduced-motion:reduce){.pfh-loading-ring-global{animation-duration:2.4s!important;}}
     `;
   }
 
@@ -9847,8 +10087,14 @@
       state.ledgerAiImageViewer = null;
       renderLedgerAiImageViewer(panel);
     }
-    if (state.view !== 'detail') state.infringementImageViewer = null;
+    if (state.view !== 'detail') {
+      state.infringementImageViewer = null;
+      state.infringementHistoryOpen = false;
+      state.skuDataLogOpen = false;
+    }
     renderInfringementImageViewer(panel);
+    renderInfringementHistoryViewer(panel);
+    renderSkuDataLogViewer(panel);
     if (state.view === 'home') {
       renderHome(panel, statusText);
       restorePanelScroll(panel, scrollSnapshot);
@@ -10781,6 +11027,39 @@
     detail.innerHTML = feedbackViewHtml();
   }
 
+  function compactMagicPackageOverview(root) {
+    if (!root || typeof root.querySelector !== 'function') return;
+    const tabs = root.querySelector('.pfh-magic-mode-tabs');
+    if (!tabs || String(tabs.dataset.activeMode || '') !== 'package') return;
+    const overview = root.querySelector('.pfh-magic-overview');
+    if (!overview) return;
+    const queue = Array.isArray(state.magicUploadQueue) ? state.magicUploadQueue : [];
+    const totalFiles = queue.reduce((sum, task) => sum + getMagicUploadTaskFileCount(task), 0);
+    const doneFiles = queue.reduce((sum, task) => sum + getMagicUploadTaskDoneFileCount(task), 0);
+    const doneTasks = queue.filter((task) => task && task.status === 'success').length;
+    const etaSeconds = getMagicUploadQueueEtaSeconds();
+    const baselineSeconds = getMagicUploadBaselineTaskSeconds(queue, totalFiles);
+    let queueDoneUnits = 0;
+    let queueTotalUnits = 0;
+    queue.forEach((task) => {
+      const totals = getMagicUploadTaskByteTotals(task);
+      if (totals.totalBytes > 0) {
+        queueTotalUnits += totals.totalBytes;
+        queueDoneUnits += Math.min(totals.totalBytes, totals.uploadedBytes + totals.currentBytes);
+      } else {
+        const taskFiles = getMagicUploadTaskFileCount(task);
+        queueTotalUnits += taskFiles;
+        queueDoneUnits += Math.min(taskFiles, getMagicUploadTaskDoneFileCount(task));
+      }
+    });
+    const queuePercent = queueTotalUnits > 0 ? Math.min(100, Math.max(0, queueDoneUnits / queueTotalUnits * 100)) : 0;
+    const etaLabel = etaSeconds > 0 ? formatMagicUploadDuration(etaSeconds) : (state.magicUploadRunning && queue.length ? '正在估算' : '—');
+    const baselineLabel = baselineSeconds > 0 ? '基准：' + baselineSeconds + ' 秒/任务' : '基准：按历史估算';
+    overview.classList.add('pfh-magic-overview-compact');
+    overview.setAttribute('aria-label', '上传进度概览');
+    overview.innerHTML = '<div class="pfh-magic-overview-head"><div class="pfh-magic-eta-copy"><span>预计剩余</span><strong data-magic-overall-eta>' + escapeHtml(etaLabel) + '</strong></div><span class="pfh-magic-task-baseline" data-magic-task-baseline>' + escapeHtml(baselineLabel) + '</span></div><div class="pfh-magic-queue-progress"><div class="pfh-magic-queue-progress-track"><div class="pfh-magic-queue-progress-bar" data-magic-queue-progress-bar style="width:' + queuePercent.toFixed(2) + '%"></div></div></div><div class="pfh-magic-overview-metrics"><span>队列 <b data-magic-queue-count>' + queue.length + '</b> 任务</span><span>完成 <b data-magic-done-tasks>' + doneTasks + '/' + queue.length + '</b></span><span>文件 <b data-magic-queue-progress-text>' + doneFiles + '/' + totalFiles + '</b></span></div>';
+  }
+
   function mountMagicUploadLayout(root) {
     if (!root || typeof root.querySelector !== 'function') return;
     const canvas = root.querySelector('.pfh-magic-canvas');
@@ -10821,6 +11100,7 @@
     }
     root.querySelectorAll('.pfh-magic-activity').forEach((element) => element.remove());
     const activeMode = String(modeTabs && modeTabs.dataset.activeMode || 'package');
+    compactMagicPackageOverview(root);
     const pipeline = root.querySelector('.pfh-magic-pipeline');
     if (pipeline) pipeline.textContent = activeMode === 'effect' ? '效果图上传' : (activeMode === 'toy-label' ? '标签生成' : '智能上传');
     const labelFlow = root.querySelector('.pfh-magic-toy-label-form-head > strong');
@@ -11199,6 +11479,14 @@
     return median(durations) * .7 + median(recent) * .3;
   }
 
+  function getMagicUploadBaselineTaskSeconds(queue, totalFiles) {
+    const taskCount = Array.isArray(queue) ? queue.filter(Boolean).length : 0;
+    const avgFileMs = getMagicUploadAvgFileDurationMs();
+    const fileCount = Math.max(0, Number(totalFiles) || 0);
+    if (!taskCount || !fileCount || !avgFileMs) return 0;
+    return Math.max(1, Math.round((avgFileMs / 1000) * fileCount / taskCount));
+  }
+
   function getMagicUploadTaskRemainingFileCount(task) {
     const entries = Array.isArray(task && task.files) ? task.files : [];
     const pendingEntries = entries.filter((entry) => entry && entry.status !== 'success').length;
@@ -11301,14 +11589,18 @@
     const eta = panel && panel.querySelector('[data-magic-overall-eta]');
     const bar = panel && panel.querySelector('[data-magic-queue-progress-bar]');
     const text = panel && panel.querySelector('[data-magic-queue-progress-text]');
+    const queueCount = panel && panel.querySelector('[data-magic-queue-count]');
+    const doneTasks = panel && panel.querySelector('[data-magic-done-tasks]');
+    const baseline = panel && panel.querySelector('[data-magic-task-baseline]');
     if (!eta) return;
-    const hasWork = (state.magicUploadQueue || []).some((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
+    const queue = Array.isArray(state.magicUploadQueue) ? state.magicUploadQueue : [];
+    const hasWork = queue.some((task) => task && (task.status === 'pending' || task.status === 'processing' || task.status === 'error'));
     const targetSeconds = getMagicUploadQueueEtaSeconds();
     let doneFiles = 0;
     let totalFiles = 0;
     let queueDoneBytes = 0;
     let queueTotalBytes = 0;
-    (state.magicUploadQueue || []).forEach((task) => {
+    queue.forEach((task) => {
       totalFiles += getMagicUploadTaskFileCount(task);
       doneFiles += getMagicUploadTaskDoneFileCount(task);
       const totals = getMagicUploadTaskByteTotals(task);
@@ -11323,8 +11615,14 @@
     });
     const queuePercent = queueTotalBytes > 0 ? Math.min(100, Math.max(0, queueDoneBytes / queueTotalBytes * 100)) : 0;
     if (bar) animateMagicUploadProgressBar(bar, queuePercent);
-    if (text) text.textContent = doneFiles + '/' + totalFiles + ' 文件';
-    eta.textContent = targetSeconds > 0 ? formatMagicUploadDuration(targetSeconds) : (state.magicUploadRunning && hasWork ? '正在建立估算' : '--');
+    if (text) text.textContent = doneFiles + '/' + totalFiles;
+    if (queueCount) queueCount.textContent = String(queue.length);
+    if (doneTasks) doneTasks.textContent = queue.filter((task) => task && task.status === 'success').length + '/' + queue.length;
+    if (baseline) {
+      const baselineSeconds = getMagicUploadBaselineTaskSeconds(queue, totalFiles);
+      baseline.textContent = baselineSeconds > 0 ? '基准：' + baselineSeconds + ' 秒/任务' : '基准：按历史估算';
+    }
+    eta.textContent = targetSeconds > 0 ? formatMagicUploadDuration(targetSeconds) : (state.magicUploadRunning && hasWork ? '正在估算' : '—');
   }
 
   function updateMagicUploadEtaDisplay() {
@@ -13285,7 +13583,12 @@
     const changes = getStoredDataChanges(data).slice(0, 8);
     if (!changes.length) return '';
     const rows = changes.map((change) => '<div class="pfh-data-change-item"><span>' + escapeHtml(change.label) + '</span><div class="pfh-data-change-values"><del>' + escapeHtml(change.before || '未识别') + '</del><i>→</i><ins>' + escapeHtml(change.after || '已清空') + '</ins></div></div>').join('');
-    return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><button type="button" data-action="sku-changes-ack">已核对</button></div><div class="pfh-data-change-list">' + rows + '</div></div>';
+    return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><div class="pfh-data-change-actions"><button type="button" data-action="sku-data-log-open">查看更新日志</button><button type="button" data-action="sku-changes-ack">已核对</button></div></div><div class="pfh-data-change-list">' + rows + '</div></div>';
+  }
+
+  function skuDataLogTriggerHtml(data) {
+    const count = getStoredDataUpdateLogs(data).length;
+    return '<button type="button" class="pfh-sku-data-log-trigger" data-action="sku-data-log-open"' + (!count ? ' data-empty="true"' : '') + '>' + iconHtml('history') + '<span>数据更新日志</span>' + (count ? '<em>' + count + '</em>' : '') + '</button>';
   }
 
   function materialDimensionUnitAlertHtml(data) {
@@ -13321,7 +13624,7 @@
     if (!status.sku || status.sku !== getActiveApiStatusSku() || status.phase === 'idle') return '';
     const phase = status.phase === 'error' ? 'error' : (status.phase === 'success' ? 'success' : 'loading');
     const icon = phase === 'loading'
-      ? '<i class="pfh-api-spinner" aria-hidden="true"></i>'
+      ? '<i class="pfh-loading-ring" aria-hidden="true"></i>'
       : '<span class="pfh-api-status-icon" aria-hidden="true">' + (phase === 'error' ? '!' : '✓') + '</span>';
     return '<span class="pfh-api-status is-' + phase + '" role="status" aria-live="polite">' + icon + '<span>' + escapeHtml(status.message || '正在读取 PLM 数据') + '</span></span>';
   }
@@ -13448,6 +13751,7 @@
       productHeroSectionHtml(state.data, false),
       skuDataChangeAlertHtml(state.data),
       '<section class="pfh-section pfh-sku-info-section">',
+      '<div class="pfh-section-title pfh-sku-info-title"><h3>SKU 数据</h3>' + skuDataLogTriggerHtml(state.data) + '</div>',
       '<div class="pfh-info-grid">',
       rowHtml('packageCode', L.packageCode, state.data.packageCode),
       rowHtml('printCode', L.printCode, state.data.printCode),
@@ -13539,20 +13843,25 @@
       ...(Array.isArray(data && data.infringementImageUrls) ? data.infringementImageUrls : []),
       data && data.infringementImageUrl,
     ];
-    return Array.from(new Set(candidates.map((value) => String(value || '').trim()).filter(Boolean))).slice(0, 20);
+    return Array.from(new Set(candidates.map((value) => normalizeApiAssetUrl(value) || String(value || '').trim()).filter(Boolean))).slice(0, 20);
   }
 
   function infringementSectionHtml(data) {
     const imageUrls = getInfringementImageUrls(data);
     const copywriting = String(data && data.infringementCopywriting || '').replace(/\r\n?/g, '\n').trim();
-    if (!imageUrls.length && !copywriting) return '';
+    const history = normalizeInfringementHistory(data && data.infringementHistory);
+    if (!imageUrls.length && !copywriting && !history.length) return '';
+    const updatedAt = formatNotificationTime(data && (data.infringementUpdatedAtMs || data.infringementUpdatedAt) || history.length && (history[history.length - 1].updatedAtMs || history[history.length - 1].updatedAt) || data && data.updatedAt) || String(data && data.infringementUpdatedAt || data && data.updatedAt || '');
+    const historyButton = history.length
+      ? '<button type="button" class="pfh-infringement-history-button" data-action="infringement-history-open">' + iconHtml('history') + '<span>历史版本</span><em>' + history.length + '</em></button>'
+      : '<span class="pfh-infringement-history-empty-label">暂未形成历史版本</span>';
     const imageHtml = imageUrls.length
-      ? imageUrls.map((url) => '<button type="button" class="pfh-infringement-image-card" data-action="infringement-image-open" data-image-url="' + escapeHtml(url) + '" data-image-label="侵权图" aria-label="点击放大查看侵权图"><img src="' + escapeHtml(url) + '" alt="侵权图" loading="lazy"></button>').join('')
-      : '<div class="pfh-infringement-empty">接口未返回侵权图片</div>';
+      ? imageUrls.map((url, index) => '<button type="button" class="pfh-infringement-image-card" data-action="infringement-image-open" data-image-url="' + escapeHtml(url) + '" data-image-label="侵权图 ' + (index + 1) + '" aria-label="点击放大查看侵权图 ' + (index + 1) + '"><span class="pfh-infringement-image-media"><img src="' + escapeHtml(url) + '" alt="侵权图 ' + (index + 1) + '" loading="lazy"></span><span class="pfh-infringement-image-caption"><strong>侵权图 ' + String(index + 1).padStart(2, '0') + '</strong><small>点击放大查看</small></span></button>').join('')
+      : '<div class="pfh-infringement-empty">当前版本未返回侵权图片</div>';
     const copywritingHtml = copywriting
       ? '<pre>' + escapeHtml(copywriting) + '</pre>'
-      : '<div class="pfh-infringement-empty">接口未返回产品文案修改</div>';
-    return '<section class="pfh-section pfh-infringement-section"><div class="pfh-section-title pfh-graphic-title pfh-infringement-title"><h3>侵权图</h3></div><div class="pfh-infringement-content"><div class="pfh-infringement-images">' + imageHtml + '</div><div class="pfh-infringement-copy"><div class="pfh-infringement-copy-head"><strong>产品文案修改</strong><small>保留 PLM 原始换行</small></div>' + copywritingHtml + '</div></div></section>';
+      : '<div class="pfh-infringement-empty">当前版本未返回产品文案修改</div>';
+    return '<section class="pfh-section pfh-infringement-section"><div class="pfh-section-title pfh-infringement-title"><div class="pfh-infringement-title-copy"><h3>侵权图</h3><small>产品正面文案核查与版本留存</small></div><div class="pfh-infringement-title-actions"><span class="pfh-infringement-updated-at">修改时间：' + escapeHtml(updatedAt || '暂无记录') + '</span>' + historyButton + '</div></div><div class="pfh-infringement-content"><div class="pfh-infringement-images"><div class="pfh-infringement-subhead"><strong>效果图制作参考</strong><span>' + imageUrls.length + ' 张</span></div>' + imageHtml + '</div><div class="pfh-infringement-copy"><div class="pfh-infringement-copy-head"><div><strong>产品文案修改</strong><small>保留 PLM 原始换行</small></div><span>当前版本</span></div>' + copywritingHtml + '</div></div></section>';
   }
 
   function closeInfringementImageViewer() {
@@ -13590,6 +13899,74 @@
     layer.innerHTML = '<section class="pfh-infringement-image-viewer-dialog" role="dialog" aria-modal="true" aria-label="' + escapeHtml(viewer.label) + '"><header class="pfh-infringement-image-viewer-head"><strong>' + escapeHtml(viewer.label) + '</strong><button type="button" class="pfh-infringement-image-viewer-close" data-action="infringement-image-viewer-close" aria-label="关闭图片预览">×</button></header><div class="pfh-infringement-image-viewer-stage"><img src="' + escapeHtml(viewer.url) + '" alt="' + escapeHtml(viewer.label) + '" loading="eager" decoding="async"></div></section>';
   }
 
+  function renderInfringementHistoryViewer(panel) {
+    if (!panel) return;
+    let layer = panel.querySelector('.pfh-infringement-history-layer');
+    if (state.view !== 'detail' || !state.infringementHistoryOpen) {
+      if (layer) layer.remove();
+      return;
+    }
+    const rawData = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
+    if (!rawData) {
+      if (layer) layer.remove();
+      return;
+    }
+    const data = normalizeData(rawData);
+    const history = normalizeInfringementHistory(data && data.infringementHistory).slice().reverse();
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-infringement-history-layer';
+      layer.setAttribute('data-action', 'infringement-history-close');
+      const full = panel.querySelector('.pfh-full');
+      if (full) full.appendChild(layer);
+      else panel.appendChild(layer);
+    }
+    const versionsHtml = history.length
+      ? history.map((entry, index) => {
+        const time = formatNotificationTime(entry.updatedAtMs || entry.updatedAt) || entry.updatedAt || '未知时间';
+        const versionLabel = index === 0 ? '当前版本' : '历史版本 ' + String(history.length - index);
+        const images = entry.imageUrls.map((url, imageIndex) => '<button type="button" class="pfh-infringement-history-image" data-action="infringement-image-open" data-image-url="' + escapeHtml(url) + '" data-image-label="' + escapeHtml('侵权图 · ' + versionLabel + ' · ' + (imageIndex + 1)) + '" aria-label="查看' + escapeHtml(versionLabel) + '侵权图"><img src="' + escapeHtml(url) + '" alt="' + escapeHtml(versionLabel) + '侵权图" loading="lazy"></button>').join('');
+        const copy = entry.copywriting
+          ? '<pre>' + escapeHtml(entry.copywriting) + '</pre>'
+          : '<span class="pfh-infringement-history-empty">该版本没有文案修改记录</span>';
+        return '<article class="pfh-infringement-history-version' + (index === 0 ? ' is-current' : '') + '"><header><div><strong>' + escapeHtml(versionLabel) + '</strong><small>' + escapeHtml(time) + ' · ' + escapeHtml(entry.source || 'PLM 接口') + '</small></div><span>' + entry.imageUrls.length + ' 张图</span></header><div class="pfh-infringement-history-version-body">' + (images ? '<div class="pfh-infringement-history-images">' + images + '</div>' : '<div class="pfh-infringement-history-empty">该版本没有侵权图片</div>') + '<div class="pfh-infringement-history-copy"><strong>产品文案修改</strong>' + copy + '</div></div></article>';
+      }).join('')
+      : '<div class="pfh-infringement-history-empty pfh-infringement-history-empty-panel">还没有可对比的侵权图版本</div>';
+    layer.innerHTML = '<section class="pfh-infringement-history-dialog" role="dialog" aria-modal="true" aria-label="侵权图历史版本"><header class="pfh-infringement-history-head"><div><small>VERSION HISTORY</small><h3>侵权图历史版本</h3><p>图片、修改文案和时间会按版本保留，便于后续核查。</p></div><button type="button" data-action="infringement-history-close" aria-label="关闭历史版本">×</button></header><div class="pfh-infringement-history-list">' + versionsHtml + '</div></section>';
+  }
+
+  function renderSkuDataLogViewer(panel) {
+    if (!panel) return;
+    let layer = panel.querySelector('.pfh-sku-data-log-layer');
+    if (state.view !== 'detail' || !state.skuDataLogOpen) {
+      if (layer) layer.remove();
+      return;
+    }
+    const rawData = state.data || (state.selectedSku ? loadData(state.selectedSku) : null);
+    if (!rawData) {
+      if (layer) layer.remove();
+      return;
+    }
+    const data = normalizeData(rawData);
+    const logs = getStoredDataUpdateLogs(data).slice().reverse();
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'pfh-sku-data-log-layer';
+      layer.setAttribute('data-action', 'sku-data-log-close');
+      const full = panel.querySelector('.pfh-full');
+      if (full) full.appendChild(layer);
+      else panel.appendChild(layer);
+    }
+    const logsHtml = logs.length
+      ? logs.map((log) => {
+        const time = formatNotificationTime(log.changedAtMs || log.changedAt) || log.changedAt || '未知时间';
+        const changes = log.changes.map((change) => '<div class="pfh-sku-data-log-change"><span>' + escapeHtml(change.label) + '</span><del>' + escapeHtml(change.before || '未识别') + '</del><i>→</i><ins>' + escapeHtml(change.after || '已清空') + '</ins></div>').join('');
+        return '<article class="pfh-sku-data-log-entry"><header><div><strong>' + escapeHtml(log.source || '自动获取') + '</strong><small>' + escapeHtml(time) + '</small></div><span>' + log.changes.length + ' 项</span></header><div class="pfh-sku-data-log-changes">' + changes + '</div></article>';
+      }).join('')
+      : '<div class="pfh-sku-data-log-empty">暂无字段更新记录</div>';
+    layer.innerHTML = '<section class="pfh-sku-data-log-dialog" role="dialog" aria-modal="true" aria-label="SKU 数据更新日志"><header class="pfh-sku-data-log-head"><div><small>DATA CHANGE LOG</small><h3>SKU 数据更新日志</h3><p>' + escapeHtml(data.sku || '') + ' · 保留最近 ' + DATA_UPDATE_LOG_LIMIT + ' 次更新</p></div><button type="button" data-action="sku-data-log-close" aria-label="关闭数据更新日志">×</button></header><div class="pfh-sku-data-log-list">' + logsHtml + '</div></section>';
+  }
+
   function copywritingViewHtml(data) {
     const record = getCopywritingDisplayRecord(data);
     const view = state.copywritingView === 'full' ? 'full' : 'file';
@@ -13600,7 +13977,7 @@
       (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
       '</div></div>';
     if (state.copywritingLoading && !(record && record.fullText)) {
-      return '<section class="pfh-copywriting-page is-loading">' + toolbarHtml + '<div class="pfh-copywriting-empty"><span class="pfh-copywriting-spinner"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
+      return '<section class="pfh-copywriting-page is-loading">' + toolbarHtml + '<div class="pfh-copywriting-empty"><span class="pfh-loading-ring" aria-hidden="true"></span><strong>正在读取产品文案</strong><p>' + escapeHtml(state.copywritingStatus || '正在定位产品信息里的 Word 附件...') + '</p></div></section>';
     }
     const errorHtml = state.copywritingError
       ? '<div class="pfh-copywriting-alert is-error"><strong>文案读取未完成</strong><span>' + escapeHtml(state.copywritingError) + '</span></div>'
@@ -13736,7 +14113,7 @@
     const busy = Boolean((state.pageToyCopywritingBusy && state.pageToyCopywritingSku === data.sku) || (state.toyCopywritingBusy && state.selectedSku === data.sku));
     const hasError = Boolean(state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
     const content = busy
-      ? '<span class="pfh-page-toy-copywriting-spinner" aria-hidden="true"></span><span>\u667a\u80fd\u8865\u5145\u4e2d</span>'
+      ? '<span class="pfh-page-toy-copywriting-spinner pfh-loading-ring-global" aria-hidden="true"></span><span>\u667a\u80fd\u8865\u5145\u4e2d</span>'
       : (hasError
         ? '<span aria-hidden="true">\u26a0</span><span>' + escapeHtml(label + '\u5931\u8d25') + '</span>'
         : '<span aria-hidden="true">\u2726</span><span>' + escapeHtml(label) + '</span>');
@@ -13826,7 +14203,7 @@
     const label = isFoodEntry ? '\u667a\u80fd\u8865\u5145\u98df\u54c1\u6587\u6848' : (isToy ? '\u667a\u80fd\u8865\u5145\u73a9\u5177\u6587\u6848' : '\u8865\u5168\u6210\u5206');
     const hasError = Boolean(data && data.sku && state.toyCopywritingErrorSku === data.sku && state.toyCopywritingError);
     return '<button type="button" class="pfh-toy-copywriting-button' + (state.toyCopywritingBusy ? ' is-busy' : '') + (hasError ? ' is-error' : '') + '" data-action="toy-copywriting-fill"' + (state.toyCopywritingBusy ? ' disabled' : '') + '>' +
-      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner"></span>' + (isIngredientOnly ? '\u6210\u5206\u8865\u5145\u4e2d' : '\u667a\u80fd\u8865\u5145\u4e2d') : (hasError && !isToy ? '\u26a0 ' + (isFoodEntry ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25') : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
+      (state.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner pfh-loading-ring" aria-hidden="true"></span>' + (isIngredientOnly ? '\u6210\u5206\u8865\u5145\u4e2d' : '\u667a\u80fd\u8865\u5145\u4e2d') : (hasError && !isToy ? '\u26a0 ' + (isFoodEntry ? '\u98df\u54c1\u6587\u6848\u8865\u5145\u5931\u8d25' : '\u6210\u5206\u8865\u5145\u5931\u8d25') : sparkleEntranceIconHtml() + '<span>' + label + '</span>')) + '</button>';
   }
 
   function sparkleEntranceIconHtml() {
@@ -14637,7 +15014,7 @@
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-batch-excel-page">' +
       '<div class="pfh-mini-tool-head pfh-batch-excel-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>BATCH EXCEL</small><h2>批量生成 Excel</h2><p>输入多个 SKU，补全资料后按需要分别下载或合并下载。</p></div></div>' +
       '<div class="pfh-batch-excel-top"><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-form"><label>SKU 编码</label><textarea class="pfh-batch-excel-input" placeholder="例如：SKU00046398\nSKU00046397\nSKU00046396\nSKU00046395">' + escapeHtml(state.batchExcelInput || '') + '</textarea><p class="pfh-batch-excel-hint">每行一个或直接粘贴一串编码，重复 SKU 会自动合并。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="batch-excel-clear-input">清空</button><button type="button" data-action="batch-excel-add">加入补全队列</button></div></div><div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-mode-card"><div class="pfh-batch-excel-mode-head"><strong>导出方式</strong><span>下载前可随时切换</span></div><div class="pfh-batch-excel-mode"><button type="button" data-action="batch-excel-mode" data-mode="separate" class="pfh-batch-excel-mode-option is-separate' + (mode === 'separate' ? ' is-active' : '') + '" aria-pressed="' + (mode === 'separate' ? 'true' : 'false') + '"' + modeDisabled + '>' + iconHtml('download') + '<span><b>分别下载</b><small>每个 SKU 一个文件</small></span></button><button type="button" data-action="batch-excel-mode" data-mode="merge" class="pfh-batch-excel-mode-option is-merge' + (mode === 'merge' ? ' is-active' : '') + '" aria-pressed="' + (mode === 'merge' ? 'true' : 'false') + '"' + modeDisabled + '>' + iconHtml('batchExcel') + '<span><b>合并下载</b><small>合成一个工作簿</small></span></button></div><p class="pfh-batch-excel-mode-hint">分别下载方便逐个发送；合并下载适合一次性整理。</p></div></div>' +
-      '<div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-queue-card"><div class="pfh-batch-excel-summary"><div><strong>补全与下载队列</strong><small>上下滑动浏览全部任务</small></div><span>共 ' + stats.total + ' 个 · 完整 ' + stats.ready + ' 个 · 可生成 ' + stats.partial + ' 个</span></div><div class="pfh-batch-excel-queue">' + getExcelBatchQueueRowsHtml(queue, running || downloading) + '</div><div class="pfh-batch-excel-footer"><p class="pfh-batch-excel-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" class="is-prepare" data-action="batch-excel-prepare"' + (running || downloading || !queue.length ? ' disabled' : '') + '>' + iconHtml('refresh') + (running ? '正在补全…' : '补全数据') + '</button><button type="button" class="is-download" data-action="batch-excel-download"' + (canDownload ? '' : ' disabled') + '>' + iconHtml('download') + (mode === 'merge' ? '合并下载 Excel' : '分别下载 Excel') + '</button><button type="button" class="is-clear" data-action="batch-excel-clear-completed"' + (stats.downloaded ? '' : ' disabled') + '>清除已下载</button></div></div></div>' +
+      '<div class="pfh-mini-tool-card pfh-batch-excel-card pfh-batch-excel-queue-card"><div class="pfh-batch-excel-summary"><div><strong>补全与下载队列</strong><small>上下滑动浏览全部任务</small></div><span>共 ' + stats.total + ' 个 · 完整 ' + stats.ready + ' 个 · 可生成 ' + stats.partial + ' 个</span></div><div class="pfh-batch-excel-queue">' + getExcelBatchQueueRowsHtml(queue, running || downloading) + '</div><div class="pfh-batch-excel-footer"><p class="pfh-batch-excel-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-batch-excel-actions"><button type="button" class="is-prepare" data-action="batch-excel-prepare"' + (running || downloading || !queue.length ? ' disabled' : '') + '>' + (running ? '<i class="pfh-loading-dots" aria-hidden="true"><i></i><i></i><i></i></i>' : iconHtml('refresh')) + (running ? '正在补全…' : '补全数据') + '</button><button type="button" class="is-download" data-action="batch-excel-download"' + (canDownload ? '' : ' disabled') + '>' + (downloading ? '<i class="pfh-loading-dots" aria-hidden="true"><i></i><i></i><i></i></i>' : iconHtml('download')) + (mode === 'merge' ? '合并下载 Excel' : '分别下载 Excel') + '</button><button type="button" class="is-clear" data-action="batch-excel-clear-completed"' + (stats.downloaded ? '' : ' disabled') + '>清除已下载</button></div></div></div>' +
       '</section></div>';
   }
 
@@ -15503,7 +15880,7 @@
         '<div class="pfh-size-image-spec"><span>\u5df2\u8bfb\u53d6\u89c4\u683c</span><b>' + escapeHtml(dimensionText) + '</b><small>\u7eb8\u76d2\u6309\u5200\u6a21\u8f6e\u5ed3\u8bc6\u522b\uff1b\u6807\u7b7e\u548c\u5370\u5237\u6309\u5bbd\u9ad8\u6bd4\u4f8b\u8bc6\u522b\u3002</small></div>' +
         '<div class="pfh-size-image-remark-editor"><span>\u6807\u9898\u5907\u6ce8</span><div>' + remarkInputs + '</div></div>' +
         '<div class="pfh-size-image-options">' + (labelSpecs.some((spec) => spec.kind === 'label') ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (session.includeRoundArc === false ? '' : ' checked') + transparentOptionAttrs + '><span>\u6807\u7b7e\u5706\u5f27</span></label>' : '') + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (session.includeBatchNumber === false ? '' : ' checked') + transparentOptionAttrs + '><span>\u6279\u6b21\u53f7</span></label></div>' +
-        '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-size-image-spinner"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e/\u5370\u5237\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
+        '<button type="button" class="pfh-size-image-drop' + (busy ? ' is-processing' : '') + '" data-action="size-image-pick"' + disabled + '>' + (busy ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : iconHtml('upload')) + '<strong>' + (busy ? escapeHtml(session.processingStep || '\u6b63\u5728\u5206\u6790\u5e76\u751f\u6210...') : '\u70b9\u51fb\u9009\u62e9\u6216\u62d6\u5165\u56fe\u7247') + '</strong><span>' + (busy ? '\u8bf7\u7a0d\u5019\uff0c\u5927\u5c3a\u5bf8\u56fe\u7247\u9700\u8981\u51e0\u79d2\u5904\u7406\u65f6\u95f4\u3002' : '\u9f20\u6807\u505c\u5728\u8fd9\u91cc\u53ef\u76f4\u63a5 Ctrl+V \u7c98\u8d34\u56fe\u7247\u3002\u7eb8\u76d2\u7528\u900f\u660e PNG\uff0c\u6807\u7b7e/\u5370\u5237\u652f\u6301 PNG / JPG\u3002') + '</span></button>' +
         (session.fileName ? '<p class="pfh-size-image-file">\u6700\u8fd1\u8bfb\u53d6\uff1a' + escapeHtml(session.fileName) + '</p>' : '') +
         '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (canRegenerate && !busy ? '' : ' disabled') + '>' + iconHtml('refresh') + '\u91cd\u65b0\u751f\u6210</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (resultCount && !busy ? '' : ' disabled') + '>' + iconHtml('download') + '\u53e6\u5b58\u5c3a\u5bf8\u56fe JPG</button></div>' +
         pendingMatch + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + status +
@@ -17227,7 +17604,7 @@
     const openingDetail = state.openingProjectDetail || statusText === L.openingDetail;
     if (openingDetail || state.scanRunning || statusText === L.scanning || statusText === L.checkingMaterial) {
       const tip = getCurrentLoadingTip();
-      return '<div class="pfh-status pfh-loading-tip"><span>' + (openingDetail ? '\u52a0\u8f7d\u4e2d' : '\u8bc6\u522b\u4e2d') + '</span><strong>' + escapeHtml(tip) + '</strong></div>';
+      return '<div class="pfh-status pfh-loading-tip"><i class="pfh-loading-ring" aria-hidden="true"></i><span>' + (openingDetail ? '\u52a0\u8f7d\u4e2d' : '\u8bc6\u522b\u4e2d') + '</span><strong>' + escapeHtml(tip) + '</strong></div>';
     }
     return '';
   }
@@ -17414,6 +17791,8 @@
       ingredientChinese: '中文成分',
       ingredientEnglish: '英文成分',
       referenceUrl: '对标链接',
+      infringementImageUrls: '侵权图',
+      infringementCopywriting: '侵权图文案',
     };
     return labels[key] || key;
   }
@@ -17421,6 +17800,15 @@
   function getStoredDataChanges(data) {
     return Array.isArray(data && data.recentFieldChanges)
       ? data.recentFieldChanges.filter((item) => item && item.key && !trackedDataValuesEqual(item.key, item.before, item.after)).slice(0, 20)
+      : [];
+  }
+
+  function getStoredDataUpdateLogs(data) {
+    const logs = normalizeDataUpdateLog(data && data.dataUpdateLog);
+    if (logs.length) return logs;
+    const changes = getStoredDataChanges(data);
+    return changes.length
+      ? [{ id: 'recent-data-changes', changedAt: changes[0].changedAt || String(data && data.updatedAt || ''), changedAtMs: Number(data && data.updatedAtMs || 0) || 0, source: changes[0].source || '自动获取', changes }]
       : [];
   }
 
@@ -19995,6 +20383,30 @@
     if (action === 'infringement-image-viewer-close') {
       if (actionTarget.classList.contains('pfh-infringement-image-viewer-layer') && event.target !== actionTarget) return;
       closeInfringementImageViewer();
+      return;
+    }
+    if (action === 'infringement-history-open') {
+      state.infringementHistoryOpen = true;
+      state.skuDataLogOpen = false;
+      renderInfringementHistoryViewer(ensurePanel());
+      return;
+    }
+    if (action === 'infringement-history-close') {
+      if (actionTarget.classList && actionTarget.classList.contains('pfh-infringement-history-layer') && event.target !== actionTarget) return;
+      state.infringementHistoryOpen = false;
+      renderInfringementHistoryViewer(ensurePanel());
+      return;
+    }
+    if (action === 'sku-data-log-open') {
+      state.skuDataLogOpen = true;
+      state.infringementHistoryOpen = false;
+      renderSkuDataLogViewer(ensurePanel());
+      return;
+    }
+    if (action === 'sku-data-log-close') {
+      if (actionTarget.classList && actionTarget.classList.contains('pfh-sku-data-log-layer') && event.target !== actionTarget) return;
+      state.skuDataLogOpen = false;
+      renderSkuDataLogViewer(ensurePanel());
       return;
     }
     if (action === 'infringement-image-open') {
@@ -31417,10 +31829,37 @@
     };
   }
 
+  function buildMinimalInfringementHistoryBackup(history) {
+    return normalizeInfringementHistory(history).slice(-8).map((entry) => ({
+      id: compactBackupText(entry.id, 80),
+      updatedAt: compactBackupText(entry.updatedAt, 80),
+      updatedAtMs: Number(entry.updatedAtMs || 0) || 0,
+      source: compactBackupText(entry.source, 80),
+      imageUrls: entry.imageUrls.slice(0, 8).map((url) => compactBackupText(url, 600)).filter(Boolean),
+      copywriting: compactBackupText(entry.copywriting, 2400),
+    })).filter((entry) => entry.imageUrls.length || entry.copywriting);
+  }
+
+  function buildMinimalDataUpdateLogBackup(log) {
+    return normalizeDataUpdateLog(log).slice(-20).map((entry) => ({
+      id: compactBackupText(entry.id, 80),
+      changedAt: compactBackupText(entry.changedAt, 80),
+      changedAtMs: Number(entry.changedAtMs || 0) || 0,
+      source: compactBackupText(entry.source, 80),
+      changes: entry.changes.slice(0, 12).map((change) => ({
+        key: compactBackupText(change.key, 80),
+        label: compactBackupText(change.label, 100),
+        before: compactBackupText(change.before, 700),
+        after: compactBackupText(change.after, 700),
+      })).filter((change) => change.key),
+    })).filter((entry) => entry.changes.length);
+  }
+
   const MINIMAL_BACKUP_ITEM_FIELDS = [
     'sku', 'brand', 'name', 'englishName', 'manualCategory', 'plmCategory', 'category', 'productType', 'aiCategory', 'aiProductType',
     'developerText', 'developerName', 'projectStatus', 'projectId', 'projectRowId', 'projectVersionId', 'apiMaterialSource',
-    'designType', 'artPriority', 'designAssignedAt', 'developmentAssignedAt', 'referenceUrl',
+    'designType', 'artPriority', 'designAssignedAt', 'developmentAssignedAt', 'acquiredAt', 'acquiredAtMs', 'skuListSource', 'referenceUrl',
+    'infringementImageUrls', 'infringementImageSource', 'infringementCopywriting', 'infringementUpdatedAt', 'infringementUpdatedAtMs',
     'packageSizeText', 'packageSizeLabel', 'packageCode', 'packageNums', 'manualFieldOverrides',
     'printSizeText', 'printSizeLabel', 'printCode',
     'tubeSegmentText', 'tubeTailSealLengthValue', 'tailSealLengthValue', 'tubeDiameter', 'tubeBody', 'tubeSpecKey', 'isTubePrintMaterial',
@@ -31446,14 +31885,20 @@
           print: issues.print ? { unit: 'm', raw: compactBackupText(issues.print.raw, 120) } : null,
         };
       } else if (Array.isArray(value)) {
-        compact[key] = value.slice(0, 12).map((entry) => typeof entry === 'number' ? entry : compactBackupText(entry, 120));
+        compact[key] = value.slice(0, 12).map((entry) => typeof entry === 'number'
+          ? entry
+          : compactBackupText(entry, key === 'infringementImageUrls' ? 600 : 120)).filter(Boolean);
       } else if (typeof value === 'string') {
-        compact[key] = compactBackupText(value, /ingredient/i.test(key) ? 1800 : (key === 'referenceUrl' ? 600 : 400));
+        compact[key] = compactBackupText(value, /ingredient/i.test(key) ? 1800 : (key === 'referenceUrl' ? 600 : (key === 'infringementCopywriting' ? 2400 : 400)));
       } else {
         compact[key] = value;
       }
     });
     compact.sku = compactBackupText(source.sku || sku, 80);
+    const infringementHistory = buildMinimalInfringementHistoryBackup(source.infringementHistory);
+    if (infringementHistory.length) compact.infringementHistory = infringementHistory;
+    const dataUpdateLog = buildMinimalDataUpdateLogBackup(source.dataUpdateLog);
+    if (dataUpdateLog.length) compact.dataUpdateLog = dataUpdateLog;
     if (source.copywriting) compact.copywriting = buildMinimalCopywritingBackup(source.copywriting);
     if (Array.isArray(source.ingredientItems)) {
       compact.ingredientItems = source.ingredientItems.slice(0, 20).map((itemValue) => {
@@ -34062,7 +34507,7 @@
   function collectTrackedDataChanges(previous, next, options) {
     if (!previous || !next) return [];
     const opts = options || {};
-    const tracked = ['brand', 'name', 'manualCategory', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight', 'englishName', 'ingredientChinese', 'ingredientEnglish', 'referenceUrl'];
+    const tracked = ['brand', 'name', 'manualCategory', 'packageCode', 'printCode', 'packageSizeText', 'printSizeText', 'packageLength', 'packageWidth', 'packageHeight', 'productLength', 'productWidth', 'productHeight', 'netContent', 'grossWeight', 'englishName', 'ingredientChinese', 'ingredientEnglish', 'referenceUrl', 'infringementImageUrls', 'infringementCopywriting'];
     const source = opts.changeSource || '自动获取';
     const changedAt = new Date().toLocaleString();
     return tracked.reduce((changes, key) => {
@@ -34079,7 +34524,19 @@
     const opts = options || {};
     const previous = loadData(sku);
     const previousNormalized = previous ? normalizeData(previous) : null;
-    const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || new Date().toLocaleString(), updatedAtMs: data.updatedAtMs || Date.now() });
+    const nowMs = Date.now();
+    const nowText = new Date(nowMs).toLocaleString();
+    const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || nowText, updatedAtMs: data.updatedAtMs || nowMs });
+    const previousInfringement = getInfringementSnapshot(previousNormalized);
+    const nextInfringement = getInfringementSnapshot(normalized);
+    const infringementChanged = !previousNormalized || getInfringementSnapshotSignature(previousInfringement) !== getInfringementSnapshotSignature(nextInfringement);
+    if (nextInfringement.imageUrls.length || nextInfringement.copywriting) {
+      if (infringementChanged || !normalized.infringementUpdatedAt) {
+        normalized.infringementUpdatedAt = nowText;
+        normalized.infringementUpdatedAtMs = nowMs;
+      }
+    }
+    normalized.infringementHistory = appendInfringementHistory(previousNormalized, normalized, opts);
     if (!opts.suppressChangeTracking && previousNormalized) {
       const storedChangesSource = Object.prototype.hasOwnProperty.call(data, 'recentFieldChanges') ? normalized : previousNormalized;
       normalized.recentFieldChanges = getStoredDataChanges(storedChangesSource);
@@ -34095,6 +34552,20 @@
         return true;
       }).slice(0, 20);
     }
+    const previousUpdateLog = previousNormalized && Array.isArray(previousNormalized.dataUpdateLog) && previousNormalized.dataUpdateLog.length
+      ? previousNormalized.dataUpdateLog
+      : normalized.dataUpdateLog;
+    const existingUpdateLog = normalizeDataUpdateLog(previousUpdateLog);
+    if (detectedChanges.length) {
+      existingUpdateLog.push({
+        id: 'data-update-' + nowMs + '-' + Math.random().toString(36).slice(2, 7),
+        changedAt: detectedChanges[0].changedAt || nowText,
+        changedAtMs: nowMs,
+        source: opts.changeSource || '自动获取',
+        changes: detectedChanges,
+      });
+    }
+    normalized.dataUpdateLog = normalizeDataUpdateLog(existingUpdateLog);
     try {
       saveDataDirect(sku, normalized);
       const viewingSku = state.selectedSku || (state.data && state.data.sku) || '';
