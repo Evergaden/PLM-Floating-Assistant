@@ -1,3 +1,6 @@
+/* Generated UI 2.5.233. Edit ui-src/, never this artifact. */
+
+/* source: legacy.css (legacy) */
 /* PLM floating helper UI 2.5.105 layout, hosted as a versioned static asset. */
 #plm-floating-helper {
         --pfh-color-primary: #6d35e8;
@@ -12958,3 +12961,741 @@ button[data-pfh-page-toy-copywriting]{display:inline-flex!important;align-items:
 /* UI 2.5.211: make magic-upload supporting text genuinely regular. */
 
 /* UI 2.5.212: keep the SKU detail data blocks lighter outside magic upload. */
+
+/* source: modules/typography.css (module) */
+/* Semantic typography foundation. Component modules may override these tokens. */
+#plm-floating-helper {
+  --pfh-font-weight-regular: 400;
+  --pfh-font-weight-support: 500;
+  --pfh-font-weight-control: 600;
+  --pfh-font-weight-heading: 700;
+  font-weight: var(--pfh-font-weight-regular);
+}
+
+/* Reset browser b/strong/heading defaults without blocking component rules. */
+#plm-floating-helper * {
+  font-weight: inherit;
+}
+
+/* source: modules/shared-typography.css (module) */
+/* Shared shell and tool surfaces own the pieces that are not page-specific. */
+#plm-floating-helper-launcher {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-heading strong::after,
+#plm-floating-helper .pfh-header .pfh-actions button::after,
+#plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-warning-note strong,
+#plm-floating-helper .pfh-mini-tool-card > label,
+#plm-floating-helper .pfh-settings-card-head strong,
+#plm-floating-helper .pfh-settings-page .pfh-log-head strong,
+#plm-floating-helper .pfh-table-head,
+#plm-floating-helper .pfh-log-head strong,
+#plm-floating-helper .pfh-search-result-toolbar button,
+#plm-floating-helper .pfh-smart-recommend strong,
+#plm-floating-helper .pfh-smart-recommend span b {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-mini-tool-head h2,
+#plm-floating-helper .pfh-settings-hero h3,
+#plm-floating-helper .pfh-list-head strong {
+  font-weight: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper .pfh-warning-note p,
+#plm-floating-helper .pfh-mini-tool-head small,
+#plm-floating-helper .pfh-mini-tool-result span,
+#plm-floating-helper .pfh-product-title-copy span,
+#plm-floating-helper .pfh-product-title-copy strong,
+#plm-floating-helper .pfh-info-grid .pfh-label,
+#plm-floating-helper .pfh-info-grid .pfh-value,
+#plm-floating-helper .pfh-smart-recommend span,
+#plm-floating-helper .pfh-smart-recommend small,
+#plm-floating-helper .pfh-smart-recommend em,
+#plm-floating-helper .pfh-list-head span,
+#plm-floating-helper .pfh-search-result-toolbar span,
+#plm-floating-helper .pfh-api-status {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
+
+#plm-floating-helper .pfh-export-menu-button,
+#plm-floating-helper .pfh-export-menu-list button,
+#plm-floating-helper .pfh-smart-category-input,
+#plm-floating-helper .pfh-size-image-custom-field > span,
+#plm-floating-helper .pfh-size-image-custom-checks label,
+#plm-floating-helper .pfh-size-image-custom-foot button {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
+
+#plm-floating-helper .pfh-size-image-custom-button,
+#plm-floating-helper .pfh-size-image-custom-section-title,
+#plm-floating-helper .pfh-size-image-custom-foot button.is-primary {
+  font-weight: var(--pfh-font-weight-control, 600);
+}
+
+#plm-floating-helper .pfh-theme-option-download {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
+
+/* source: modules/detail-typography.css (module) */
+/* Detail content owns product identity while keeping data and workflow copy regular. */
+#plm-floating-helper[data-view="detail"] {
+  --pfh-detail-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-detail-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-detail-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-full * {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] > .pfh-toast {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge,
+#plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge *,
+#plm-floating-helper[data-view="detail"] .pfh-detail-product-title,
+#plm-floating-helper[data-view="detail"] .pfh-sku-info-section > .pfh-section-title h3,
+#plm-floating-helper[data-view="detail"] .pfh-graphic-section > .pfh-section-title h3,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-section > .pfh-infringement-title h3 {
+  font-weight: var(--pfh-detail-weight-heading);
+}
+
+#plm-floating-helper .pfh-detail-view-tabs button,
+#plm-floating-helper[data-view="detail"] .pfh-detail-developer-value,
+#plm-floating-helper[data-view="detail"] .pfh-detail-edit-button,
+#plm-floating-helper[data-view="detail"] .pfh-detail-more-button,
+#plm-floating-helper[data-view="detail"] .pfh-info-grid .pfh-row-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-info-grid .pfh-row.is-inline-editing [data-action="confirm-tail-seal"],
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-hero-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-trigger,
+#plm-floating-helper[data-view="detail"] .pfh-data-change-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-button {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-detail-view-button,
+#plm-floating-helper[data-view="detail"] .pfh-detail-view-button > span:last-child {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-detail-view-button.is-active {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+/* Copywriting is long-form content; only its block identity is emphasized. */
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > strong,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > b,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert strong,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-empty strong {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head small,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card .pfh-copywriting-block-head small,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block pre,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card pre,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert span,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label span,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-copied-note {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+/* Infringement and history views use one heading weight and quiet metadata. */
+#plm-floating-helper[data-view="detail"] .pfh-infringement-title-copy h3,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-head h3,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-head h3 {
+  font-weight: var(--pfh-detail-weight-heading);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-title-copy small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-head small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-version > header > span,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-copy > pre,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-head small,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-entry > header > span,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-change > span,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-change ins {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-subhead strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-image-caption strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-copy-head strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-version > header strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-copy > strong,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-entry > header strong,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-image-viewer-head strong,
+#plm-floating-helper[data-view="detail"] .pfh-edition-badge b {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-copy-head small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-version > header small,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-copy-head > span,
+#plm-floating-helper[data-view="detail"] .pfh-edition-badge small {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-infringement-history-dialog,
+#plm-floating-helper[data-view="detail"] .pfh-sku-data-log-dialog,
+#plm-floating-helper[data-view="detail"] .pfh-infringement-image-viewer-dialog {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+/* source: modules/home-typography.css (module) */
+/* Home keeps product identity visible without turning every metric into a heading. */
+#plm-floating-helper[data-view="home"] {
+  --pfh-home-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-home-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-home-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="home"] .pfh-home-dashboard * {
+  font-weight: var(--pfh-home-weight-body);
+}
+
+/* The welcome line is the page heading; panel headings stay one step quieter. */
+#plm-floating-helper[data-view="home"] .pfh-home-welcome h2 {
+  font-weight: var(--pfh-home-weight-heading);
+}
+
+#plm-floating-helper[data-view="home"] .pfh-home-chart h3,
+#plm-floating-helper[data-view="home"] .pfh-home-panel-title h3,
+#plm-floating-helper[data-view="home"] .pfh-home-feature-actions > button,
+#plm-floating-helper[data-view="home"] .pfh-home-period-tabs button.is-active {
+  font-weight: var(--pfh-home-weight-title);
+}
+
+/* Product names, task identities and key metric values retain emphasis. */
+#plm-floating-helper[data-view="home"] .pfh-home-metric > div strong,
+#plm-floating-helper[data-view="home"] .pfh-home-entry-copy strong,
+#plm-floating-helper[data-view="home"] .pfh-home-task-name b,
+#plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip strong,
+#plm-floating-helper[data-view="home"] .pfh-home-metric > footer b {
+  font-weight: var(--pfh-home-weight-title);
+}
+
+#plm-floating-helper[data-view="home"] .pfh-home-chart-tooltip span,
+#plm-floating-helper[data-view="home"] .pfh-home-panel-title > span,
+#plm-floating-helper[data-view="home"] .pfh-home-task-panel > footer,
+#plm-floating-helper[data-view="home"] .pfh-home-task-name em,
+#plm-floating-helper[data-view="home"] .pfh-home-period-tabs button,
+#plm-floating-helper[data-view="home"] .pfh-home-entry-meta,
+#plm-floating-helper[data-view="home"] .pfh-home-entry-badge,
+#plm-floating-helper[data-view="home"] .pfh-home-preview-badge {
+  font-weight: var(--pfh-home-weight-body);
+}
+
+/* source: modules/magic-upload-typography.css (module) */
+/* Magic Upload keeps copy regular and reserves bold for clear structural emphasis. */
+#plm-floating-helper[data-view="magicUpload"] {
+  --pfh-magic-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-magic-weight-bold: var(--pfh-font-weight-heading, 700);
+}
+
+/* Reset the dense upload surface before opting individual roles back in. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-page * {
+  font-weight: var(--pfh-magic-weight-body);
+}
+
+/* Structural headings use the single bold tier. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-lab-title {
+  font-weight: var(--pfh-magic-weight-bold);
+}
+
+/* Section labels stay clear, while repeated task identity remains regular. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview h3,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-activity h3,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-head b,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head b,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item strong,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop strong {
+  font-weight: var(--pfh-magic-weight-bold);
+}
+
+/* Controls and numeric outcomes are the other intentional emphasis points. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button.is-primary,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat strong,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-progress-value,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > strong,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics b {
+  font-weight: var(--pfh-magic-weight-bold);
+}
+
+/* Repeated task identity, close/recovery buttons, and supporting labels stay regular. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-sku-text,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-source,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-title-text,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header button,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button:not(.is-primary),
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-file-badge,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-status,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-eta,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-meta,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-stage,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-footer,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head > strong {
+  font-weight: var(--pfh-magic-weight-body);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-input {
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* source: modules/upload-typography.css (module) */
+/* Upload surfaces use the same restrained hierarchy as the rest of the app. */
+#plm-floating-helper[data-view="upload"] {
+  --pfh-upload-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-upload-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-upload-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="upload"] .pfh-upload-section * {
+  font-weight: var(--pfh-upload-weight-body);
+}
+
+#plm-floating-helper[data-view="upload"] .pfh-upload-title h3,
+#plm-floating-helper[data-view="upload"] .pfh-upload-guide-modal header h3 {
+  font-weight: var(--pfh-upload-weight-heading);
+}
+
+#plm-floating-helper[data-view="upload"] .pfh-upload-item b,
+#plm-floating-helper[data-view="upload"] .pfh-upload-sku-drop-target,
+#plm-floating-helper[data-view="upload"] .pfh-upload-guide-modal article b,
+#plm-floating-helper[data-view="upload"] .pfh-upload-guide-modal article footer button.is-danger {
+  font-weight: var(--pfh-upload-weight-title);
+}
+
+#plm-floating-helper-upload-progress {
+  font-weight: var(--pfh-upload-weight-body, 400);
+}
+
+#plm-floating-helper-upload-progress b {
+  font-weight: var(--pfh-upload-weight-title, 600);
+}
+
+/* source: modules/batch-excel-typography.css (module) */
+/* Batch Excel highlights the export destination, not every queue label. */
+#plm-floating-helper[data-view="batchExcel"] {
+  --pfh-batch-excel-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-batch-excel-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-batch-excel-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page * {
+  font-weight: var(--pfh-batch-excel-weight-body);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head h2 {
+  font-weight: var(--pfh-batch-excel-weight-heading);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head strong,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option b,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary strong,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row b,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-prepare,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-download {
+  font-weight: var(--pfh-batch-excel-weight-title);
+}
+
+/* source: modules/parameter-editor-typography.css (module) */
+/* The parameter editor is a focused tool: labels stay regular, active controls stay clear. */
+#plm-floating-helper-parameter-editor-overlay {
+  --pfh-parameter-editor-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-parameter-editor-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-parameter-editor-weight-heading: var(--pfh-font-weight-heading, 700);
+  font-weight: var(--pfh-parameter-editor-weight-body);
+}
+
+#plm-floating-helper-parameter-editor-overlay * {
+  font-weight: var(--pfh-parameter-editor-weight-body);
+}
+
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-tools button,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-head button,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-diagnostics summary,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-target-button.is-active,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-box-progress,
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-product-progress {
+  font-weight: var(--pfh-parameter-editor-weight-title);
+}
+
+#plm-floating-helper-parameter-editor-overlay .pfh-parameter-editor-status.is-error {
+  font-weight: var(--pfh-parameter-editor-weight-title);
+}
+
+/* source: modules/ledger-typography.css (module) */
+/* Ledger keeps dates and work items legible without making every action heavy. */
+#plm-floating-helper[data-view="ledger"] {
+  --pfh-ledger-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-ledger-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-ledger-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-page * {
+  font-weight: var(--pfh-ledger-weight-body);
+}
+
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-hero h3,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4 .pfh-ledger-day-date,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-overflow-menu button.is-active,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-fullscreen-toggle {
+  font-weight: var(--pfh-ledger-weight-heading);
+}
+
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-month-label,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-tabs button.is-active,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button.is-primary,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-toolbar .pfh-ledger-performance-merge,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-trash-actions button.is-restore,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-main b,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-performance strong,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-artwork,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-thumb-copy strong,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-name,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-generate,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-ai-image-dialog > footer button {
+  font-weight: var(--pfh-ledger-weight-title);
+}
+
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-actions button.is-primary.is-finalize em,
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-performance strong::after {
+  font-weight: var(--pfh-ledger-weight-body);
+}
+
+/* source: modules/ledger-interaction.css (module) */
+/* PLM migrated static styles: ledger-interaction */
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs {
+  position: relative;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 4px;
+  overflow: hidden;
+  isolation: isolate;
+  border-color: var(--pfh-theme-border);
+  background: var(--pfh-theme-surface);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator {
+  position: absolute;
+  z-index: 0;
+  top: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  height: calc(100% - 8px);
+  border: 0;
+  border-radius: 99px;
+  background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
+  box-shadow: 0 8px 18px var(--pfh-theme-shadow-soft);
+  pointer-events: none;
+  will-change: left, width;
+  transition: left .6s cubic-bezier(.25, 1.2, .35, 1), width .6s cubic-bezier(.25, 1.2, .35, 1);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: 0;
+  color: var(--pfh-theme-muted);
+  transition: color .28s ease;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button.is-active,
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button.active {
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 99px;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .18) 0%, transparent 65%);
+  opacity: 0;
+  transition: opacity .25s;
+  pointer-events: none;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button:hover::after {
+  opacity: 1;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button.is-active::after,
+#plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button.active::after {
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .28) 0%, transparent 65%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs button,
+  #plm-floating-helper[data-pfh-theme] .pfh-ledger-tabs .pfh-ledger-tab-indicator {
+    transition: none;
+  }
+}
+#plm-floating-helper .pfh-ledger-list{isolation:isolate;}#plm-floating-helper .pfh-ledger-tabs{grid-template-columns:repeat(3,minmax(0,1fr));}#plm-floating-helper .pfh-ledger-day{position:relative;z-index:0;overflow:visible;}#plm-floating-helper .pfh-ledger-day:has(.pfh-ledger-item.is-menu-open){z-index:90;}#plm-floating-helper .pfh-ledger-item.is-clickable{position:relative;z-index:0;cursor:pointer;transform-origin:50% 55%;transition:border-color .3s cubic-bezier(.22,1,.36,1),background .3s cubic-bezier(.22,1,.36,1),box-shadow .44s cubic-bezier(.16,1,.3,1);}#plm-floating-helper .pfh-ledger-item.is-clickable:hover{z-index:2;border-color:#b9a7ff;background:linear-gradient(135deg,#fff,#faf7ff);box-shadow:0 15px 32px rgba(91,62,180,.15);transform:none;}#plm-floating-helper .pfh-ledger-item.is-clickable.is-menu-open,#plm-floating-helper .pfh-ledger-item.is-clickable.is-menu-open:hover{z-index:100;border-color:#ad98f8;box-shadow:0 18px 38px rgba(91,62,180,.18);}#plm-floating-helper .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:box-shadow .4s cubic-bezier(.16,1,.3,1);}#plm-floating-helper .pfh-ledger-item.is-clickable:hover .pfh-ledger-thumb{transform:none;box-shadow:0 7px 16px rgba(83,60,168,.12);}#plm-floating-helper .pfh-ledger-item.is-menu-open .pfh-ledger-more{position:relative;z-index:101;}#plm-floating-helper .pfh-ledger-item.is-menu-open .pfh-ledger-overflow-menu{z-index:102;pointer-events:auto;}#plm-floating-helper .pfh-ledger-overflow-menu button.is-active{background:#eee8ff;color:#6030cf;}#plm-floating-helper .pfh-ledger-page:has(.pfh-ledger-performance){grid-template-rows:auto auto auto auto minmax(0,1fr);}#plm-floating-helper .pfh-ledger-performance{display:grid;gap:8px;min-height:58px;padding:10px 16px;border:1px solid rgba(139,92,246,.20);border-radius:14px;background:linear-gradient(135deg,rgba(248,245,255,.96),rgba(255,255,255,.94));box-shadow:0 9px 24px rgba(91,62,180,.08);}#plm-floating-helper .pfh-ledger-performance-scores{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}#plm-floating-helper .pfh-ledger-performance-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;}#plm-floating-helper .pfh-ledger-performance-summary.is-today{padding-right:9px;border-right:1px solid rgba(139,92,246,.16);}#plm-floating-helper .pfh-ledger-performance-summary>div{display:grid;gap:3px;min-width:0;}#plm-floating-helper .pfh-ledger-performance span{color:#5e36cc;font-size:12px;}#plm-floating-helper .pfh-ledger-performance small{color:#8a83a3;font-size:10px;line-height:1.35;white-space:normal;}#plm-floating-helper .pfh-ledger-performance strong{flex:0 0 auto;color:#6d35e8;font-size:24px;line-height:1;letter-spacing:-.03em;}#plm-floating-helper .pfh-ledger-performance strong::after{content:" 分";margin-left:3px;color:#9b87db;font-size:10px;letter-spacing:0;}#plm-floating-helper .pfh-ledger-merge-groups{border-top:1px solid rgba(139,92,246,.13);padding-top:7px;}#plm-floating-helper .pfh-ledger-merge-groups summary{color:#6b4bc2;font-size:10px;cursor:pointer;}#plm-floating-helper .pfh-ledger-merge-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;max-height:88px;overflow:auto;}#plm-floating-helper .pfh-ledger-merge-group{display:flex;align-items:center;gap:7px;max-width:100%;padding:5px 8px;border:1px solid rgba(139,92,246,.17);border-radius:8px;background:rgba(255,255,255,.78);color:#756c88;font:inherit;font-size:9px;text-align:left;cursor:pointer;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;}#plm-floating-helper .pfh-ledger-merge-group:hover{border-color:#9f85f5;background:#f4f0ff;box-shadow:0 5px 14px rgba(91,62,180,.11);}#plm-floating-helper .pfh-ledger-merge-group b{flex:0 0 auto;color:#6336cd;font-size:9px;}#plm-floating-helper .pfh-ledger-merge-group span{overflow:hidden;color:#756c88;font-size:9px;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-item.is-group-highlighted{z-index:4;border-color:#7c3aed;background:linear-gradient(135deg,#f4efff,#fff);box-shadow:0 0 0 3px rgba(124,58,237,.18),0 16px 34px rgba(91,62,180,.20);}#plm-floating-helper .pfh-ledger-tags .is-extension,#plm-floating-helper .pfh-ledger-tags .is-performance-group,#plm-floating-helper .pfh-ledger-tags .is-series-excluded{border-color:#cabcf7;background:#f3efff;color:#6537ce;}#plm-floating-helper .pfh-ledger-toolbar .pfh-ledger-performance-merge{border-color:#a991f4;background:#f4f0ff;color:#6737d5;}#plm-floating-helper .pfh-ledger-toolbar .pfh-ledger-performance-merge:hover{border-color:#7c3aed;background:#ebe4ff;color:#5525c4;}#plm-floating-helper .pfh-ledger-toolbar .pfh-ledger-performance-merge:disabled{border-color:#ded9ed;background:#f5f4f8;color:#aaa5b7;cursor:not-allowed;opacity:.72;}#plm-floating-helper .pfh-ledger-item.is-clickable:focus-visible{outline:3px solid rgba(124,58,237,.22);outline-offset:2px;border-color:#9b7cf5;}#plm-floating-helper .pfh-full{position:relative;}#plm-floating-helper .pfh-ledger-file-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;}#plm-floating-helper .pfh-ledger-artwork{display:inline-flex;align-items:center;justify-content:center;min-width:86px;min-height:30px;padding:0 10px;border:1px solid #cfc4f7;border-radius:9px;background:#f8f5ff;color:#6941ce;font:inherit;font-size:11px;line-height:1;white-space:nowrap;cursor:pointer;transition:border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease;}#plm-floating-helper .pfh-ledger-artwork:hover{border-color:#9f85f5;background:#eee8ff;color:#5525c4;box-shadow:0 5px 14px rgba(91,62,180,.12);}#plm-floating-helper .pfh-ledger-artwork.is-ai-running{border-color:#e9c987;background:#fff9e9;color:#996b13;}#plm-floating-helper .pfh-ledger-artwork.is-ai-loading{cursor:wait;opacity:.72;}#plm-floating-helper .pfh-ledger-artwork.is-ai-success{border-color:#b8dfc2;background:#f0fbf2;color:#2e8750;}#plm-floating-helper .pfh-ledger-artwork.is-ai-error{border-color:#efbcc5;background:#fff2f4;color:#b34a5d;}#plm-floating-helper .pfh-ledger-artwork.is-ai-needs-copywriting{border-color:#efc98d;background:#fff8e8;color:#9a6b12;}#plm-floating-helper .pfh-ledger-artwork.is-ai-task-error{border-color:#efbcc5;background:#fff2f4;color:#b34a5d;}#plm-floating-helper .pfh-ledger-artwork.is-ai-result-missing{border-color:#efbcc5;background:#fff2f4;color:#b34a5d;}#plm-floating-helper .pfh-ledger-ai-image-layer{position:absolute;inset:0;z-index:160;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(34,26,66,.30);backdrop-filter:blur(6px);}#plm-floating-helper .pfh-ledger-ai-image-dialog{display:flex;flex-direction:column;width:min(900px,100%);max-height:calc(100% - 4px);overflow:hidden;border:1px solid rgba(143,121,220,.42);border-radius:18px;background:rgba(255,255,255,.98);box-shadow:0 24px 70px rgba(42,24,93,.28);color:#3d3552;}#plm-floating-helper .pfh-ledger-ai-image-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px 12px;border-bottom:1px solid #eee9fb;}#plm-floating-helper .pfh-ledger-ai-image-dialog>header h3{margin:0;color:#4f35a4;font-size:16px;line-height:1.25;}#plm-floating-helper .pfh-ledger-ai-image-status{margin:5px 0 0;color:#857a9c;font-size:11px;line-height:1.4;}#plm-floating-helper .pfh-ledger-ai-image-status.is-running{color:#9a7019;}#plm-floating-helper .pfh-ledger-ai-image-status.is-error{color:#b34a5d;}#plm-floating-helper .pfh-ledger-ai-image-close{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;padding:0;border:1px solid #ded7f2;border-radius:9px;background:#faf8ff;color:#735bb2;font-size:20px;line-height:1;cursor:pointer;}#plm-floating-helper .pfh-ledger-ai-image-dialog>nav{display:flex;gap:8px;padding:10px 18px 0;}#plm-floating-helper .pfh-ledger-ai-image-dialog>nav button{min-height:30px;padding:0 13px;border:1px solid #e0d9f4;border-radius:9px;background:#fff;color:#7d7290;font:inherit;font-size:11px;cursor:pointer;}#plm-floating-helper .pfh-ledger-ai-image-dialog>nav button.is-active{border-color:#b5a1f3;background:#f0ebff;color:#6232cf;}#plm-floating-helper .pfh-ledger-ai-image-dialog>nav em{margin-left:3px;font-style:normal;opacity:.72;}#plm-floating-helper .pfh-ledger-ai-image-workspace{display:grid;grid-template-columns:minmax(136px,176px) minmax(0,1fr);gap:14px;min-height:360px;overflow:hidden;padding:14px 18px;}#plm-floating-helper .pfh-ledger-ai-image-sidebar{display:flex;min-width:0;min-height:0;flex-direction:column;gap:8px;padding-right:12px;border-right:1px solid #eee9fb;}#plm-floating-helper .pfh-ledger-ai-image-sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 2px 2px;color:#665b78;font-size:11px;line-height:1.3;}#plm-floating-helper .pfh-ledger-ai-image-sidebar-head strong{color:#514366;font-size:12px;}#plm-floating-helper .pfh-ledger-ai-image-sidebar-head span{color:#a298ae;font-size:10px;}#plm-floating-helper .pfh-ledger-ai-image-thumbs{display:flex;min-height:0;flex:1 1 auto;flex-direction:column;gap:7px;overflow:auto;padding:2px;}#plm-floating-helper .pfh-ledger-ai-image-thumb{display:flex;width:100%;min-width:0;min-height:70px;align-items:center;gap:7px;padding:5px;border:1px solid #ebe6f8;border-radius:10px;background:#fff;color:#756b89;font:inherit;text-align:left;cursor:pointer;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease;}#plm-floating-helper .pfh-ledger-ai-image-thumb:hover{border-color:#b39cf0;background:#fbf9ff;box-shadow:0 5px 14px rgba(91,62,180,.1);}#plm-floating-helper .pfh-ledger-ai-image-thumb.is-selected{border-color:#8e6ce4;background:#f3efff;box-shadow:inset 0 0 0 1px #c9b9f6,0 5px 14px rgba(91,62,180,.12);}#plm-floating-helper .pfh-ledger-ai-image-thumb.is-retouched{border-color:#cdbcf9;background:linear-gradient(145deg,#fbf9ff,#fff);}#plm-floating-helper .pfh-ledger-ai-image-thumb.is-retouch-task{border-color:#ecd8a5;background:#fffdf5;}#plm-floating-helper .pfh-ledger-ai-image-thumb-media{display:flex;width:58px;height:58px;flex:0 0 58px;align-items:center;justify-content:center;overflow:hidden;border-radius:7px;background:#f6f3fc;}#plm-floating-helper .pfh-ledger-ai-image-thumb-media img{display:block;width:100%;height:100%;object-fit:cover;}#plm-floating-helper .pfh-ledger-ai-image-thumb-missing{color:#a18d65;font-size:9px;}#plm-floating-helper .pfh-ledger-ai-image-thumb-copy{display:flex;min-width:0;flex:1 1 auto;flex-direction:column;gap:4px;}#plm-floating-helper .pfh-ledger-ai-image-thumb-copy strong{display:block;overflow:hidden;color:#645879;font-size:10px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-thumb-copy small{display:block;overflow:hidden;color:#9b91ab;font-size:9px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-thumb.is-selected .pfh-ledger-ai-image-thumb-copy small{color:#7449d2;}#plm-floating-helper .pfh-ledger-ai-image-preview{display:flex;min-width:0;min-height:0;flex-direction:column;gap:10px;}#plm-floating-helper .pfh-ledger-ai-image-preview-stage{display:flex;min-width:0;min-height:270px;flex:1 1 auto;align-items:center;justify-content:center;overflow:hidden;padding:14px;border:1px solid #eee9fb;border-radius:14px;background:linear-gradient(145deg,#faf8ff,#f7f3fd);}#plm-floating-helper .pfh-ledger-ai-image-preview-link{display:flex;width:100%;height:100%;min-width:0;min-height:0;align-items:center;justify-content:center;text-decoration:none;}#plm-floating-helper .pfh-ledger-ai-image-preview-link img{display:block;max-width:100%;max-height:100%;object-fit:contain;border-radius:9px;box-shadow:0 10px 28px rgba(58,38,115,.12);}#plm-floating-helper .pfh-ledger-ai-image-preview-missing,#plm-floating-helper .pfh-ledger-ai-image-preview-empty{display:flex;min-height:220px;align-items:center;justify-content:center;color:#9b91ab;font-size:12px;text-align:center;}#plm-floating-helper .pfh-ledger-ai-image-preview-info{display:flex;min-width:0;flex-direction:column;gap:8px;padding:10px 2px 0;}#plm-floating-helper .pfh-ledger-ai-image-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;}#plm-floating-helper .pfh-ledger-ai-image-preview-heading>div{display:flex;min-width:0;align-items:center;gap:6px;}#plm-floating-helper .pfh-ledger-ai-image-preview-heading strong{overflow:hidden;color:#514366;font-size:14px;line-height:1.3;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-preview-heading>small{max-width:48%;overflow:hidden;color:#a298ae;font-size:9px;line-height:1.3;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-preview-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;}#plm-floating-helper .pfh-ledger-ai-image-preview-actions button{min-height:30px;padding:0 12px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:11px;cursor:pointer;}#plm-floating-helper .pfh-ledger-ai-image-preview-actions button:hover:not(:disabled){border-color:#9c82eb;background:#eee8ff;}#plm-floating-helper .pfh-ledger-ai-image-preview-actions button:disabled{cursor:wait;opacity:.58;}#plm-floating-helper .pfh-ledger-ai-image-item{display:flex;min-width:0;flex-direction:column;gap:6px;padding:7px;border:1px solid #ebe6f8;border-radius:11px;background:#fff;color:#756b89;text-decoration:none;transition:border-color .18s ease,box-shadow .18s ease;}#plm-floating-helper .pfh-ledger-ai-image-item:hover{transform:none;border-color:#b39cf0;box-shadow:0 8px 20px rgba(91,62,180,.12);}#plm-floating-helper .pfh-ledger-ai-image-item img{display:block;width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:7px;background:#f6f3fc;}#plm-floating-helper .pfh-ledger-ai-image-item span{overflow:hidden;font-size:10px;line-height:1.3;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-item.is-retouched{border-color:#cdbcf9;background:linear-gradient(145deg,#fbf9ff,#fff);}#plm-floating-helper .pfh-ledger-ai-image-item.is-retouch-task{border-color:#ecd8a5;background:#fffdf5;}#plm-floating-helper .pfh-ledger-ai-image-link{display:block;min-width:0;text-decoration:none;}#plm-floating-helper .pfh-ledger-ai-image-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;}#plm-floating-helper .pfh-ledger-ai-image-meta>div{display:flex;align-items:center;gap:4px;min-width:0;}#plm-floating-helper .pfh-ledger-ai-image-name{display:block;min-width:0;overflow:hidden;color:#645879;font-size:10px;line-height:1.3;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-variant{flex:0 0 auto;padding:2px 4px;border-radius:5px;background:#f0ebff;color:#7449d2;font-size:9px;font-style:normal;line-height:1.2;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-item.is-retouch-task .pfh-ledger-ai-image-variant{background:#fff2ce;color:#9b701b;}#plm-floating-helper .pfh-ledger-ai-image-actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex:0 0 auto;}#plm-floating-helper .pfh-ledger-ai-image-meta button{flex:0 0 auto;min-height:24px;padding:0 7px;border:1px solid #c7b4f7;border-radius:7px;background:#f7f3ff;color:#6737d2;font:inherit;font-size:9px;line-height:1;cursor:pointer;}#plm-floating-helper .pfh-ledger-ai-image-meta button:hover{border-color:#9c82eb;background:#eee8ff;}#plm-floating-helper .pfh-ledger-ai-image-meta button:disabled{cursor:wait;opacity:.6;}#plm-floating-helper .pfh-ledger-ai-image-prompt{display:block;overflow:hidden;color:#9b91ab;font-size:9px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap;}#plm-floating-helper .pfh-ledger-ai-image-missing{display:flex;aspect-ratio:1/1;align-items:center;justify-content:center;border-radius:7px;background:#f8f4e9;color:#a18d65;font-size:10px;text-align:center;}#plm-floating-helper .pfh-ledger-ai-image-empty{display:flex;grid-column:1/-1;min-height:150px;align-items:center;justify-content:center;color:#9389a8;font-size:12px;}#plm-floating-helper .pfh-ledger-ai-image-empty-state{display:flex;min-height:150px;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;color:#9389a8;font-size:12px;line-height:1.5;text-align:center;}#plm-floating-helper .pfh-ledger-ai-image-empty-state>span{max-width:320px;}#plm-floating-helper .pfh-ledger-ai-image-generate{min-height:32px;padding:0 15px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:11px;cursor:pointer;}#plm-floating-helper .pfh-ledger-ai-image-generate:hover:not(:disabled){border-color:#9c82eb;background:#eee8ff;}#plm-floating-helper .pfh-ledger-ai-image-generate:disabled{cursor:wait;opacity:.58;}#plm-floating-helper .pfh-ledger-ai-image-dialog>footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 18px 14px;border-top:1px solid #eee9fb;color:#9389a8;font-size:10px;line-height:1.4;}#plm-floating-helper .pfh-ledger-ai-image-dialog>footer>span{flex:1 1 auto;min-width:0;}#plm-floating-helper .pfh-ledger-ai-image-download-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex:0 0 auto;flex-wrap:wrap;}#plm-floating-helper .pfh-ledger-ai-image-dialog>footer button{flex:0 0 auto;min-height:30px;padding:0 12px;border:1px solid #b8a4f3;border-radius:9px;background:#f1ecff;color:#6232cf;font:inherit;font-size:11px;cursor:pointer;}#plm-floating-helper .pfh-ledger-ai-image-dialog>footer button:disabled{cursor:wait;opacity:.56;}#plm-floating-helper .pfh-ledger-tags button.is-sku{flex:0 1 auto;max-width:130px;height:21px;min-height:21px;padding:0 7px;overflow:hidden;border-radius:999px;font-size:10px;line-height:19px;text-overflow:ellipsis;white-space:nowrap;cursor:copy;transition:background .18s ease,border-color .18s ease;}#plm-floating-helper .pfh-ledger-tags button.is-sku:hover{border-color:#9f85f5;background:#f0ebff;color:#6036d8;}#plm-floating-helper .pfh-ledger-trash-actions{display:flex;align-items:center;gap:7px;margin-left:auto;}#plm-floating-helper .pfh-ledger-trash-actions button{min-height:30px;padding:0 12px;border:1px solid #d9d3e8;border-radius:9px;background:#fff;color:#6b647a;font-size:11px;cursor:pointer;}#plm-floating-helper .pfh-ledger-trash-actions button.is-restore{border-color:#bdaaf7;background:#f2edff;color:#6433d5;}#plm-floating-helper .pfh-ledger-trash-actions button.is-delete{color:#a44c5c;}#plm-floating-helper .pfh-ledger-item.is-trash{cursor:default;}#plm-floating-helper .pfh-ledger-hero-actions{display:flex;align-items:center;gap:8px;margin-left:auto;}#plm-floating-helper .pfh-ledger-hero-actions>span{white-space:nowrap;}#plm-floating-helper .pfh-ledger-fullscreen-toggle{min-height:30px;padding:0 10px;border:1px solid rgba(124,58,237,.28);border-radius:9px;background:#f4f0ff;color:#6232cf;font-size:11px;cursor:pointer;}#plm-floating-helper.is-ledger-fullscreen{position:fixed;inset:12px;width:calc(100vw - 24px);height:calc(100vh - 24px);max-width:none;max-height:none;z-index:2147483647;}#plm-floating-helper.is-ledger-fullscreen .pfh-resize-handle{display:none;}#plm-floating-helper.is-ledger-fullscreen .pfh-ledger-list{gap:10px;}#plm-floating-helper.is-ledger-fullscreen .pfh-ledger-day{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:9px;align-items:start;}#plm-floating-helper.is-ledger-fullscreen .pfh-ledger-day>h4{grid-column:1/-1;margin-bottom:0;}#plm-floating-helper.is-ledger-fullscreen .pfh-ledger-item{min-width:0;min-height:104px;padding:9px;}#plm-floating-helper.is-ledger-fullscreen .pfh-ledger-performance{padding:8px 13px;}@media(max-width:940px){#plm-floating-helper.is-ledger-fullscreen .pfh-ledger-day{grid-template-columns:minmax(0,1fr);}#plm-floating-helper .pfh-ledger-hero-actions>span{display:none;}}@media(max-width:560px){#plm-floating-helper .pfh-ledger-ai-image-layer{padding:8px;}#plm-floating-helper .pfh-ledger-ai-image-dialog>header{padding:12px;}#plm-floating-helper .pfh-ledger-ai-image-workspace{grid-template-columns:96px minmax(0,1fr);gap:8px;min-height:300px;padding:10px 12px;}#plm-floating-helper .pfh-ledger-ai-image-sidebar{padding-right:8px;}#plm-floating-helper .pfh-ledger-ai-image-thumb{min-height:62px;padding:4px;gap:4px;}#plm-floating-helper .pfh-ledger-ai-image-thumb-media{width:44px;height:44px;flex-basis:44px;}#plm-floating-helper .pfh-ledger-ai-image-thumb-copy strong{font-size:9px;}#plm-floating-helper .pfh-ledger-ai-image-thumb-copy small{font-size:8px;}#plm-floating-helper .pfh-ledger-ai-image-preview-stage{min-height:220px;padding:8px;}#plm-floating-helper .pfh-ledger-ai-image-preview-heading{align-items:flex-start;flex-direction:column;gap:4px;}#plm-floating-helper .pfh-ledger-ai-image-preview-heading>small{max-width:100%;}#plm-floating-helper .pfh-ledger-ai-image-preview-actions{justify-content:stretch;}#plm-floating-helper .pfh-ledger-ai-image-preview-actions button{flex:1 1 0;padding:0 8px;}#plm-floating-helper .pfh-ledger-ai-image-dialog>footer{align-items:stretch;flex-direction:column;padding:9px 12px 12px;}#plm-floating-helper .pfh-ledger-ai-image-download-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}#plm-floating-helper .pfh-ledger-ai-image-download-actions button{width:100%;}#plm-floating-helper .pfh-ledger-ai-image-download-actions button:last-child{grid-column:1/-1;}}@media(max-width:430px){#plm-floating-helper .pfh-ledger-performance-scores{grid-template-columns:minmax(0,1fr);}#plm-floating-helper .pfh-ledger-performance-summary.is-today{padding:0 0 8px;border-right:0;border-bottom:1px solid rgba(139,92,246,.16);}}@media (prefers-reduced-motion:reduce){#plm-floating-helper .pfh-ledger-item.is-clickable,#plm-floating-helper .pfh-ledger-item.is-clickable .pfh-ledger-thumb{transition:none;}}
+
+/* source: modules/interaction-contract.css (module) */
+/* Shared interaction contract: movement belongs to buttons; cards only deepen color. */
+#plm-floating-helper:not(.pfh-interaction-disabled) {
+  --pfh-interaction-button-duration: 180ms;
+  --pfh-interaction-button-ease: cubic-bezier(.22, 1, .36, 1);
+  --pfh-interaction-button-hover-transform: translateY(-1px);
+  --pfh-interaction-button-active-transform: translateY(0) scale(.96);
+}
+
+/* Option A: a restrained button lift with a compact press state. */
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]) {
+  transition: transform var(--pfh-interaction-button-duration) var(--pfh-interaction-button-ease),
+    color var(--pfh-interaction-button-duration) ease,
+    background-color var(--pfh-interaction-button-duration) ease,
+    border-color var(--pfh-interaction-button-duration) ease,
+    box-shadow var(--pfh-interaction-button-duration) ease;
+}
+
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):hover {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):active {
+  transform: var(--pfh-interaction-button-active-transform);
+}
+
+/* A glyph is part of the button surface; it does not grow or rotate on hover. */
+#plm-floating-helper button:hover .pfh-icon,
+#plm-floating-helper button:hover .pfh-icon svg,
+#plm-floating-helper button:hover .pfh-icon svg * {
+  transform: none;
+}
+
+/* Non-button affordances keep their layout stable and communicate with color only. */
+#plm-floating-helper [role="button"]:not(button):hover,
+#plm-floating-helper .pfh-magic-task:hover,
+#plm-floating-helper .pfh-magic-history-item:hover {
+  transform: none;
+}
+
+/* Magic Upload: explicit component ownership for the first migrated surface. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-back:hover:not(:disabled) {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-back:active:not(:disabled) {
+  transform: var(--pfh-interaction-button-active-transform);
+}
+
+#plm-floating-helper[data-view="magicUpload"] :is(
+  .pfh-magic-upload-drop:hover,
+  .pfh-magic-upload-drop.is-drag-over
+) {
+  transform: none;
+}
+
+#plm-floating-helper[data-view="magicUpload"] :is(.pfh-magic-task:hover) {
+  transform: none;
+}
+
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button:hover:not(:disabled),
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button:hover,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header button:hover,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-delete:hover {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+/* Home navigation and task rows are real buttons and use the same lift. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry:hover:not(:disabled),
+#plm-floating-helper[data-pfh-theme] .pfh-home-task-row:hover:not(:disabled) {
+  transform: var(--pfh-interaction-button-hover-transform);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry:active:not(:disabled),
+#plm-floating-helper[data-pfh-theme] .pfh-home-task-row:active:not(:disabled) {
+  transform: var(--pfh-interaction-button-active-transform);
+}
+
+/* The home navigation replay keeps its delayed rebound in the same contract. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry.is-click-bouncing {
+  box-shadow: 0 5px 13px var(--pfh-theme-shadow-soft);
+  transform: var(--pfh-interaction-button-active-transform);
+  transition: transform .12s cubic-bezier(.4, 0, .7, 1), box-shadow .12s ease;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry.is-click-releasing {
+  box-shadow: 0 11px 22px var(--pfh-theme-shadow-soft);
+  transform: var(--pfh-interaction-button-hover-transform);
+  transition: transform .41s cubic-bezier(.18, 1.36, .28, 1), box-shadow .34s ease;
+}
+
+/* Edit-mode cards are draggable list items, not buttons. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry-edit:hover:not(:disabled) {
+  transform: none;
+}
+
+/* source: modules/toast.css (module) */
+/* Root-level status message. The inline note slot remains hidden for compatibility. */
+#plm-floating-helper .pfh-note-toast {
+  display: none;
+}
+
+#plm-floating-helper > .pfh-toast {
+  position: absolute;
+  z-index: 90;
+  right: 36px;
+  bottom: 58px;
+  left: auto;
+  display: none;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 36px));
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--pfh-theme-border, #d8deea);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--pfh-theme-surface, #fff), var(--pfh-theme-primary-soft, #f3efff));
+  box-shadow: 0 8px 20px var(--pfh-theme-shadow-soft, rgba(52, 42, 110, .14)), inset 0 1px 0 rgba(255, 255, 255, .9);
+  color: var(--pfh-theme-primary-hover, #5b21b6);
+  font-size: 11px;
+  font-weight: var(--pfh-font-weight-control, 600);
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(16px, 10px) scale(.94);
+  filter: blur(2px);
+  transition: opacity .24s ease, transform .48s cubic-bezier(.2, 1.45, .35, 1), filter .24s ease, visibility 0s linear .48s;
+}
+
+#plm-floating-helper > .pfh-toast::before {
+  content: "✓";
+  display: grid;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pfh-theme-primary-soft, #f3efff);
+  color: var(--pfh-theme-primary, #7c3aed);
+  font-size: 11px;
+  font-weight: var(--pfh-font-weight-heading, 700);
+  line-height: 1;
+}
+
+#plm-floating-helper > .pfh-toast::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  height: 1px;
+  border-radius: 999px;
+  background: var(--pfh-theme-border-strong, #b9a8ed);
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+#plm-floating-helper > .pfh-toast.is-mounted,
+#plm-floating-helper > .pfh-toast.is-visible,
+#plm-floating-helper > .pfh-toast.is-leaving {
+  display: flex;
+}
+
+#plm-floating-helper > .pfh-toast.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, 0) scale(1);
+  filter: blur(0);
+  transition-delay: 0s;
+}
+
+#plm-floating-helper > .pfh-toast.is-visible::after {
+  animation: pfh-toast-life var(--pfh-toast-life, 7000ms) linear both;
+}
+
+#plm-floating-helper > .pfh-toast.is-leaving {
+  opacity: 0;
+  visibility: visible;
+  transform: translate(16px, 8px) scale(.94);
+  filter: blur(1px);
+  transition: opacity .32s ease, transform .42s cubic-bezier(.55, .05, .8, .4), filter .32s ease, visibility 0s linear .42s;
+}
+
+#plm-floating-helper > .pfh-toast.is-leaving::after {
+  animation: none;
+  opacity: .25;
+  transform: scaleX(.18);
+}
+
+#plm-floating-helper > .pfh-toast.is-error {
+  border-color: rgba(217, 87, 112, .3);
+  background: linear-gradient(135deg, #fff8f9, #ffecef);
+  color: #b42318;
+}
+
+#plm-floating-helper > .pfh-toast.is-error::before {
+  content: "!";
+  background: #ffe1e7;
+  color: #b42318;
+}
+
+#plm-floating-helper > .pfh-toast.is-info::before,
+#plm-floating-helper > .pfh-toast.is-quiet::before {
+  content: "i";
+}
+
+@keyframes pfh-toast-life {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 540px) {
+  #plm-floating-helper > .pfh-toast {
+    right: 10px;
+    bottom: 58px;
+    max-width: calc(100vw - 24px);
+    transform: translate(12px, 8px) scale(.94);
+  }
+
+  #plm-floating-helper > .pfh-toast.is-visible {
+    transform: translate(0, 0) scale(1);
+  }
+
+  #plm-floating-helper > .pfh-toast.is-leaving {
+    transform: translate(12px, 7px) scale(.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #plm-floating-helper > .pfh-toast,
+  #plm-floating-helper > .pfh-toast.is-visible,
+  #plm-floating-helper > .pfh-toast.is-leaving {
+    filter: none;
+    transition-duration: .01ms;
+  }
+}

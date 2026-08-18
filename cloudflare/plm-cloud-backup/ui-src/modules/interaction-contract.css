@@ -33,8 +33,7 @@
 /* Non-button affordances keep their layout stable and communicate with color only. */
 #plm-floating-helper [role="button"]:not(button):hover,
 #plm-floating-helper .pfh-magic-task:hover,
-#plm-floating-helper .pfh-magic-history-item:hover,
-#plm-floating-helper .pfh-ledger-item.is-clickable:hover {
+#plm-floating-helper .pfh-magic-history-item:hover {
   transform: none;
 }
 

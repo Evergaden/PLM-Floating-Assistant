@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.232",
+  "version": "2.5.233",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -50,6 +50,10 @@
     },
     {
       "path": "modules/ledger-typography.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/ledger-interaction.css",
       "mode": "module"
     },
     {
