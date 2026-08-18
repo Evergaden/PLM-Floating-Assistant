@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.99
+// @version      2.8.100
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.99';
+  const SCRIPT_VERSION = '2.8.100';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9678,8 +9678,7 @@
       @media(max-width:760px){#${PANEL_ID} .pfh-ledger-day{grid-template-columns:minmax(0,1fr)!important;}#${PANEL_ID} .pfh-ledger-content-anchor{padding-left:7px!important;padding-right:7px!important;}}
        #${PANEL_ID} .pfh-ledger-item.is-clickable,#${PANEL_ID} .pfh-ledger-item.is-clickable.is-finalized{position:relative!important;display:grid!important;grid-template-columns:minmax(0,1fr) 76px!important;grid-template-rows:auto auto!important;grid-template-areas:"main thumb" "actions actions"!important;align-items:stretch!important;min-height:110px!important;height:auto!important;padding:12px 14px!important;gap:10px 12px!important;border:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-left:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:15px!important;background:var(--pfh-theme-surface,#fff)!important;box-shadow:none!important;overflow:visible!important;text-align:left!important;touch-action:pan-y!important;transition:border-color .24s ease,background .24s ease,box-shadow .32s ease!important;}
       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-main{grid-area:main!important;min-width:0!important;width:100%!important;align-self:stretch!important;text-align:left!important;}
-       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{grid-area:thumb!important;align-self:start!important;justify-self:end!important;position:relative!important;z-index:3!important;width:68px!important;min-width:68px!important;height:68px!important;min-height:68px!important;margin:0!important;padding:0!important;display:grid!important;place-items:center!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:14px!important;background:var(--pfh-theme-surface-alt,#faf9ff)!important;box-shadow:none!important;transform:none!important;transition:border-color .24s ease,background .24s ease!important;}
-       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover{z-index:40!important;border-color:var(--pfh-theme-border-strong,#b7a6f4)!important;background:var(--pfh-theme-surface,#fff)!important;box-shadow:none!important;overflow:hidden!important;}
+       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{grid-area:thumb!important;align-self:start!important;justify-self:end!important;position:relative!important;z-index:3!important;width:68px!important;min-width:68px!important;height:68px!important;min-height:68px!important;margin:0!important;padding:0!important;display:grid!important;place-items:center!important;overflow:hidden!important;border:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:14px!important;background:var(--pfh-theme-surface-alt,#faf9ff)!important;box-shadow:none!important;transform:none!important;transition:none!important;}
       #${PANEL_ID} .pfh-ledger-thumb-frame{display:grid!important;place-items:center!important;width:100%!important;height:100%!important;overflow:hidden!important;border-radius:inherit!important;background:var(--pfh-theme-surface,#fff)!important;}
       #${PANEL_ID} .pfh-ledger-thumb-frame img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;border-radius:inherit!important;}
        #${PANEL_ID} .pfh-ledger-thumb-preview{display:none!important;}
@@ -9702,11 +9701,7 @@
       #${PANEL_ID} .pfh-ledger-item.is-clickable .pfh-ledger-more>button{position:relative!important;z-index:1!important;}
       #${PANEL_ID} .pfh-ledger-item.is-clickable.is-menu-open .pfh-ledger-more{z-index:1000!important;isolation:isolate!important;}
       #${PANEL_ID} .pfh-ledger-item.is-clickable.is-menu-open .pfh-ledger-more>button{z-index:1001!important;}
-      #${PANEL_ID} .pfh-ledger-day:has(.pfh-ledger-thumb:hover){position:relative!important;z-index:120!important;}
-      #${PANEL_ID} .pfh-ledger-day:has(.pfh-ledger-thumb:hover)>h4{z-index:1!important;}
-       #${PANEL_ID} .pfh-ledger-item.is-clickable:hover{z-index:1!important;}
-      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover{z-index:140!important;}
-      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-preview{z-index:141!important;}
+      #${PANEL_ID} .pfh-ledger-item.is-clickable:hover{z-index:1!important;}
        #${PANEL_ID} .pfh-ledger-item.is-clickable:hover:not(.is-selected){z-index:1!important;border-color:var(--pfh-theme-border-strong,#b7a6f4)!important;background:var(--pfh-theme-card-hover,var(--pfh-theme-surface,#fff))!important;box-shadow:0 14px 34px var(--pfh-theme-shadow-soft,rgba(91,62,180,.10)),inset 0 1px 0 rgba(255,255,255,.92)!important;transform:none!important;}
        #${PANEL_ID} .pfh-ledger-item.is-clickable.is-selected,#${PANEL_ID} .pfh-ledger-item.is-clickable[aria-pressed="true"]{z-index:131!important;border:1px solid var(--pfh-theme-primary,#7c3aed)!important;border-left:1px solid var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 18%,var(--pfh-theme-surface,#fff))!important;box-shadow:none!important;transform:none!important;}
        #${PANEL_ID} .pfh-ledger-item.is-clickable.is-selected::before,#${PANEL_ID} .pfh-ledger-item.is-clickable[aria-pressed="true"]::before{display:none!important;content:none!important;}
@@ -9743,7 +9738,7 @@
       #${PANEL_ID} .pfh-ledger-tools-body>.pfh-ledger-performance{margin:0!important;padding:8px 2px!important;border:0!important;border-bottom:1px solid var(--pfh-theme-border,#ddd6ef)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
       #${PANEL_ID} .pfh-ledger-tools-body>.pfh-ledger-controlbar{margin:0!important;padding:8px 0!important;border:0!important;border-bottom:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
       @media(max-width:760px){#${PANEL_ID} .pfh-ledger-hero{grid-template-columns:auto minmax(0,1fr)!important;grid-template-rows:auto auto auto!important;column-gap:9px!important;padding:11px 12px!important;}#${PANEL_ID} .pfh-ledger-hero>.pfh-ledger-hero-actions{grid-column:2!important;grid-row:2!important;justify-self:end!important;}#${PANEL_ID} .pfh-ledger-hero-tabs{grid-column:1/-1!important;grid-row:3!important;}#${PANEL_ID} .pfh-ledger-tools-toggle-copy small{display:none!important;}}
-      @media(max-width:760px){#${PANEL_ID} .pfh-ledger-item.is-clickable,#${PANEL_ID} .pfh-ledger-item.is-clickable.is-finalized{grid-template-columns:minmax(0,1fr) 64px!important;min-height:96px!important;padding:10px!important;gap:9px!important;}#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{width:58px!important;min-width:58px!important;height:58px!important;min-height:58px!important;}#${PANEL_ID} .pfh-ledger-thumb-preview{width:164px!important;height:164px!important;}#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-preview{width:164px!important;height:164px!important;}}
+      @media(max-width:760px){#${PANEL_ID} .pfh-ledger-item.is-clickable,#${PANEL_ID} .pfh-ledger-item.is-clickable.is-finalized{grid-template-columns:minmax(0,1fr) 64px!important;min-height:96px!important;padding:10px!important;gap:9px!important;}#${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{width:58px!important;min-width:58px!important;height:58px!important;min-height:58px!important;}}
       #${PANEL_ID}.is-ledger-card-dragging,#${PANEL_ID}.is-ledger-card-dragging *{user-select:none!important;cursor:grabbing!important;}
       /* Keep ledger switch geometry and collapse affordance aligned after themed CSS loads. */
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-hero-tabs{align-self:center!important;position:relative!important;top:-5px!important;}
@@ -9769,8 +9764,6 @@
       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb{overflow:hidden!important;}
       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb .pfh-ledger-thumb-frame{position:relative!important;overflow:hidden!important;transition:none!important;}
       #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb .pfh-ledger-thumb-frame img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}
-      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover{overflow:hidden!important;}
-      #${PANEL_ID} .pfh-ledger-item.is-clickable>.pfh-ledger-thumb:hover .pfh-ledger-thumb-frame{position:relative!important;right:auto!important;top:auto!important;z-index:auto!important;width:100%!important;height:100%!important;border:0!important;border-radius:inherit!important;background:transparent!important;box-shadow:none!important;transform:none!important;}
       #${PANEL_ID} .pfh-ledger-thumb-preview{display:none!important;}
       #${PANEL_ID} .pfh-loading-scan{position:relative;display:inline-block;width:28px;height:19px;flex:0 0 28px;overflow:hidden;border:1px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 34%,transparent);border-radius:5px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 9%,transparent) 0 4px,transparent 4px 8px);vertical-align:middle;}
       #${PANEL_ID} .pfh-loading-scan::after{position:absolute;top:1px;bottom:1px;left:-4px;width:3px;border-radius:3px;background:var(--pfh-theme-primary,#7c3aed);box-shadow:0 0 8px color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 74%,transparent);content:"";will-change:left;animation:pfh-loading-scan 1.15s ease-in-out infinite!important;animation-play-state:running!important;}
@@ -9841,7 +9834,6 @@
     panel.querySelector('[data-action="collapse"]').setAttribute('data-action', 'panel-close');
     panel.addEventListener('click', handleLedgerMoreClickCapture, true);
     panel.addEventListener('click', handlePanelClick);
-    panel.addEventListener('pointerover', handleLedgerThumbPointerOver);
     panel.addEventListener('contextmenu', handlePanelContextMenu);
     panel.addEventListener('keydown', handlePanelKeydown);
     panel.addEventListener('input', handlePanelInput);
@@ -17309,9 +17301,8 @@
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
     const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : (record.skuImageUrl || record.benchmarkImageUrl);
     const thumbnailUrl = getLedgerThumbnailUrl(thumbUrl);
-    const fullImageAttr = thumbnailUrl && thumbnailUrl !== thumbUrl ? ' data-ledger-full-src="' + escapeHtml(thumbUrl) + '"' : '';
     const thumb = thumbUrl
-      ? '<span class="pfh-ledger-thumb-frame"><img src="' + escapeHtml(thumbnailUrl || thumbUrl) + '" alt="" loading="lazy" decoding="async"' + fullImageAttr + '></span>'
+      ? '<span class="pfh-ledger-thumb-frame"><img src="' + escapeHtml(thumbnailUrl || thumbUrl) + '" alt="" loading="lazy" decoding="async"></span>'
       : '<span class="pfh-ledger-thumb-empty">' + iconHtml('image') + '</span>';
     const imageGenerated = Boolean(record.imageGeneratedAt);
     const workDate = mode === 'finalized' ? getLedgerFinalizedDate(record) : getLedgerDesignDate(record);
@@ -20232,37 +20223,6 @@
     // so one click cannot open the menu and immediately toggle it closed again.
     event.stopImmediatePropagation();
     handleLedgerMoreAction(button);
-  }
-
-  function handleLedgerThumbPointerOver(event) {
-    if (!event || state.view !== 'ledger') return;
-    const target = event.target;
-    const thumb = target && typeof target.closest === 'function'
-      ? target.closest('.pfh-ledger-thumb')
-      : null;
-    if (!thumb || !thumb.closest('#' + PANEL_ID)) return;
-    const relatedTarget = event.relatedTarget;
-    if (relatedTarget && relatedTarget.nodeType && thumb.contains(relatedTarget)) return;
-    const image = thumb.querySelector('img[data-ledger-full-src]');
-    if (!image) return;
-    const fullSrc = image.getAttribute('data-ledger-full-src');
-    if (!fullSrc) return;
-    const fallbackSrc = image.currentSrc || image.getAttribute('src') || '';
-    image.removeAttribute('data-ledger-full-src');
-    image.setAttribute('data-ledger-thumb-fallback-src', fallbackSrc);
-    image.onerror = () => {
-      const fallback = image.getAttribute('data-ledger-thumb-fallback-src');
-      image.removeAttribute('data-ledger-thumb-fallback-src');
-      image.onerror = null;
-      image.onload = null;
-      if (fallback) image.src = fallback;
-    };
-    image.onload = () => {
-      image.removeAttribute('data-ledger-thumb-fallback-src');
-      image.onerror = null;
-      image.onload = null;
-    };
-    image.src = fullSrc;
   }
 
   function handlePanelClick(event) {
