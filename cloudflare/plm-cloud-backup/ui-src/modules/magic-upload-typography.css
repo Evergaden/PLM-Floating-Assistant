@@ -1,8 +1,7 @@
-/* Magic Upload uses a calm body baseline with a small set of semantic exceptions. */
+/* Magic Upload keeps copy regular and reserves bold for clear structural emphasis. */
 #plm-floating-helper[data-view="magicUpload"] {
   --pfh-magic-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-magic-weight-title: var(--pfh-font-weight-control, 600);
-  --pfh-magic-weight-heading: var(--pfh-font-weight-heading, 700);
+  --pfh-magic-weight-bold: var(--pfh-font-weight-heading, 700);
 }
 
 /* Reset the dense upload surface before opting individual roles back in. */
@@ -10,35 +9,35 @@
   font-weight: var(--pfh-magic-weight-body);
 }
 
-/* Page identity remains the only top-level heading. */
+/* Structural headings use the single bold tier. */
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-lab-title {
-  font-weight: var(--pfh-magic-weight-heading);
+  font-weight: var(--pfh-magic-weight-bold);
 }
 
-/* Section labels and task identity are one step above body copy. */
+/* Section labels stay clear, while repeated task identity remains regular. */
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview h3,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-activity h3,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-queue-head b,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-toy-label-form-head b,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item strong,
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop strong,
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-sku-text,
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-source,
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-title-text {
-  font-weight: var(--pfh-magic-weight-title);
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-upload-drop strong {
+  font-weight: var(--pfh-magic-weight-bold);
 }
 
-/* Controls and numeric outcomes use the same restrained title weight. */
+/* Controls and numeric outcomes are the other intentional emphasis points. */
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button.is-primary,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat strong,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-progress-value,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > strong,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics b {
-  font-weight: var(--pfh-magic-weight-title);
+  font-weight: var(--pfh-magic-weight-bold);
 }
 
-/* Close/recovery buttons and all supporting labels stay regular. */
+/* Repeated task identity, close/recovery buttons, and supporting labels stay regular. */
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-sku-text,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-source,
+#plm-floating-helper[data-view="magicUpload"] .pfh-magic-package-title-text,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header button,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button:not(.is-primary),
