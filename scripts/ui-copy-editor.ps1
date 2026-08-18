@@ -140,7 +140,7 @@ function Get-ReplacementRows {
       throw '出现次数必须填写整数。'
     }
     if ($expected -lt 1) { throw '出现次数必须大于 0。' }
-    $items.Add([pscustomobject]@{ from = $from; to = $to; expected = $expected })
+    $null = $items.Add([pscustomobject]@{ from = $from; to = $to; expected = $expected })
   }
   if ($items.Count -eq 0) { throw '请至少填写一条文案修改。' }
   return ,$items
