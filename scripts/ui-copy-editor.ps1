@@ -124,7 +124,7 @@ $footer.Anchor = 'Bottom,Left,Right'
 $form.Controls.Add($footer)
 
 function Get-ReplacementRows {
-  $grid.EndEdit()
+  $null = $grid.EndEdit()
   $items = New-Object System.Collections.Generic.List[object]
   foreach ($row in $grid.Rows) {
     if ($row.IsNewRow) { continue }
