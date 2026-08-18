@@ -150,7 +150,8 @@ function Invoke-CopyTool([bool]$WriteChanges) {
   try {
     $items = Get-ReplacementRows
     $tempPath = Join-Path ([System.IO.Path]::GetTempPath()) ('plm-ui-copy-' + [guid]::NewGuid().ToString('N') + '.json')
-    $json = ConvertTo-Json -InputObject @($items) -Depth 4
+    $jsonInput = $items.ToArray()
+    $json = ConvertTo-Json -InputObject $jsonInput -Depth 4
     [System.IO.File]::WriteAllText($tempPath, $json, (New-Object System.Text.UTF8Encoding($false)))
 
     $arguments = @($toolPath, '--config', $tempPath)

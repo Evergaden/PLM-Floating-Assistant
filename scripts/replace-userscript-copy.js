@@ -31,8 +31,10 @@ function unicodeForms(character) {
   return '(?:' + literal + '|\\\\u' + high + '\\\\u' + low + '|\\\\u\\{' + hex + '\\})';
 }
 
-function copyPattern(text) {
-  return new RegExp(Array.from(text).map(unicodeForms).join(''), 'giu');
+function copyPattern(text, ignoreWhitespace) {
+  const chars = Array.from(ignoreWhitespace ? text.replace(/\s+/g, '') : text);
+  const source = chars.map((character, index) => (ignoreWhitespace && index ? '\\s*' : '') + unicodeForms(character)).join('');
+  return new RegExp(source, 'giu');
 }
 
 function lineNumberAt(source, index) {
@@ -91,8 +93,14 @@ for (const [index, item] of replacements.entries()) {
     throw new Error('Replacement #' + (index + 1) + ' has an invalid expected count');
   }
 
-  const pattern = copyPattern(item.from);
-  const matches = Array.from(updated.matchAll(pattern));
+  let pattern = copyPattern(item.from, false);
+  let matches = Array.from(updated.matchAll(pattern));
+  let matchedWithFlexibleWhitespace = false;
+  if (matches.length === 0) {
+    pattern = copyPattern(item.from, true);
+    matches = Array.from(updated.matchAll(pattern));
+    matchedWithFlexibleWhitespace = matches.length > 0;
+  }
   if (matches.length !== expected) {
     throw new Error(
       'Replacement #' + (index + 1) + ' expected ' + expected + ' match(es), found ' + matches.length + ': ' + item.from
@@ -101,6 +109,7 @@ for (const [index, item] of replacements.entries()) {
 
   const lines = matches.map((match) => lineNumberAt(updated, match.index));
   console.log('#' + (index + 1) + ' line ' + lines.join(', ') + ':');
+  if (matchedWithFlexibleWhitespace) console.log('  (matched after ignoring spacing differences)');
   console.log('  - ' + item.from);
   console.log('  + ' + item.to);
   updated = updated.replace(pattern, () => item.to);
