@@ -4,7 +4,10 @@ const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..');
 const sourcePath = path.join(root, 'outputs', 'plm-material-summary.user.js');
-const configPath = path.join(__dirname, 'ui-copy-replacements.js');
+const configArgIndex = process.argv.indexOf('--config');
+const configPath = configArgIndex >= 0 && process.argv[configArgIndex + 1]
+  ? path.resolve(process.argv[configArgIndex + 1])
+  : path.join(__dirname, 'ui-copy-replacements.js');
 const write = process.argv.includes('--write');
 
 function escapeRegExp(value) {
