@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.101
+// @version      2.8.102
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.101';
+  const SCRIPT_VERSION = '2.8.102';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9774,6 +9774,7 @@
       #${PANEL_ID} .pfh-api-status .pfh-loading-ring{width:14px;height:14px;flex-basis:14px;border-width:2px;}
       #${PANEL_ID} .pfh-loading-tip .pfh-loading-ring{width:18px;height:18px;flex-basis:18px;border-width:2px;}
       #${PANEL_ID} .pfh-loading-tip{display:grid!important;grid-template-columns:max-content max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;text-align:center!important;}
+      #${PANEL_ID}[data-pfh-theme] .pfh-loading-tip::before{content:none!important;display:none!important;width:0!important;height:0!important;margin:0!important;background:none!important;animation:none!important;}
       #${PANEL_ID} .pfh-loading-tip>.pfh-loading-ring{grid-column:1!important;grid-row:1!important;margin:0!important;}
       #${PANEL_ID} .pfh-loading-tip>span{grid-column:2!important;grid-row:1!important;}
       #${PANEL_ID} .pfh-loading-tip>strong{grid-column:1/-1!important;grid-row:2!important;margin:0!important;}
