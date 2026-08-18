@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.102
+// @version      2.8.103
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.102';
+  const SCRIPT_VERSION = '2.8.103';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9499,7 +9499,7 @@
       style.id = id;
       document.documentElement.appendChild(style);
     }
-    style.textContent = `
+    const text = `
       #${PANEL_ID} .pfh-cache-editor-layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(34,26,66,.35);backdrop-filter:blur(7px)}
       #${PANEL_ID} .pfh-cache-editor{display:flex;width:min(880px,100%);height:min(720px,calc(100% - 8px));min-height:0;flex-direction:column;overflow:hidden;border:1px solid rgba(143,121,220,.42);border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(42,24,93,.28);color:#3d3552}
       #${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;border-bottom:1px solid #eee9fb}
@@ -9773,13 +9773,13 @@
       #${PANEL_ID} .pfh-loading-dots i:nth-child(2){animation-delay:.14s;}#${PANEL_ID} .pfh-loading-dots i:nth-child(3){animation-delay:.28s;}
       #${PANEL_ID} .pfh-api-status .pfh-loading-ring{width:14px;height:14px;flex-basis:14px;border-width:2px;}
       #${PANEL_ID} .pfh-loading-tip .pfh-loading-ring{width:18px;height:18px;flex-basis:18px;border-width:2px;}
-      #${PANEL_ID} .pfh-loading-tip{display:grid!important;grid-template-columns:max-content max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;text-align:center!important;}
+      #${PANEL_ID} .pfh-loading-tip{display:grid!important;grid-template-columns:18px max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;text-align:center!important;}
       #${PANEL_ID}[data-pfh-theme] .pfh-loading-tip::before{content:none!important;display:none!important;width:0!important;height:0!important;margin:0!important;background:none!important;animation:none!important;}
       #${PANEL_ID} .pfh-loading-tip>.pfh-loading-ring{grid-column:1!important;grid-row:1!important;margin:0!important;}
       #${PANEL_ID} .pfh-loading-tip>span{grid-column:2!important;grid-row:1!important;}
       #${PANEL_ID} .pfh-loading-tip>strong{grid-column:1/-1!important;grid-row:2!important;margin:0!important;}
       #${PANEL_ID} .pfh-copywriting-empty .pfh-loading-ring{width:28px;height:28px;flex-basis:28px;margin-bottom:3px;}
-      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty{display:grid!important;grid-template-columns:max-content max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;}
+      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty{display:grid!important;grid-template-columns:28px max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;}
       #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>.pfh-loading-ring{grid-column:1!important;grid-row:1!important;margin:0!important;}
       #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>strong{grid-column:2!important;grid-row:1!important;}
       #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>p{grid-column:1/-1!important;grid-row:2!important;}
@@ -9792,6 +9792,7 @@
       @media(prefers-reduced-motion:reduce){#${PANEL_ID} .pfh-loading-scan::after,#${PANEL_ID} .pfh-loading-ring,#${PANEL_ID} .pfh-loading-dots i{animation-duration:2.4s!important;animation-play-state:running!important;}}
       @media(prefers-reduced-motion:reduce){.pfh-loading-ring-global{animation-duration:2.4s!important;animation-play-state:running!important;}}
     `;
+    if (style.textContent !== text) style.textContent = text;
   }
 
   function ensurePanel() {
