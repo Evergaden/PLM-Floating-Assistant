@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.103
+// @version      2.8.104
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.103';
+  const SCRIPT_VERSION = '2.8.104';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9773,15 +9773,15 @@
       #${PANEL_ID} .pfh-loading-dots i:nth-child(2){animation-delay:.14s;}#${PANEL_ID} .pfh-loading-dots i:nth-child(3){animation-delay:.28s;}
       #${PANEL_ID} .pfh-api-status .pfh-loading-ring{width:14px;height:14px;flex-basis:14px;border-width:2px;}
       #${PANEL_ID} .pfh-loading-tip .pfh-loading-ring{width:18px;height:18px;flex-basis:18px;border-width:2px;}
-      #${PANEL_ID} .pfh-loading-tip{display:grid!important;grid-template-columns:18px max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;text-align:center!important;}
+      #${PANEL_ID} .pfh-loading-tip{display:grid!important;grid-template-columns:minmax(0,1fr) 18px max-content minmax(0,1fr)!important;align-items:center!important;column-gap:8px!important;row-gap:8px!important;text-align:center!important;}
       #${PANEL_ID}[data-pfh-theme] .pfh-loading-tip::before{content:none!important;display:none!important;width:0!important;height:0!important;margin:0!important;background:none!important;animation:none!important;}
-      #${PANEL_ID} .pfh-loading-tip>.pfh-loading-ring{grid-column:1!important;grid-row:1!important;margin:0!important;}
-      #${PANEL_ID} .pfh-loading-tip>span{grid-column:2!important;grid-row:1!important;}
+      #${PANEL_ID} .pfh-loading-tip>.pfh-loading-ring{grid-column:2!important;grid-row:1!important;margin:0!important;}
+      #${PANEL_ID} .pfh-loading-tip>span{grid-column:3!important;grid-row:1!important;}
       #${PANEL_ID} .pfh-loading-tip>strong{grid-column:1/-1!important;grid-row:2!important;margin:0!important;}
       #${PANEL_ID} .pfh-copywriting-empty .pfh-loading-ring{width:28px;height:28px;flex-basis:28px;margin-bottom:3px;}
-      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty{display:grid!important;grid-template-columns:28px max-content!important;align-items:center!important;justify-content:center!important;column-gap:8px!important;row-gap:8px!important;}
-      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>.pfh-loading-ring{grid-column:1!important;grid-row:1!important;margin:0!important;}
-      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>strong{grid-column:2!important;grid-row:1!important;}
+      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty{display:grid!important;grid-template-columns:minmax(0,1fr) 28px max-content minmax(0,1fr)!important;align-items:center!important;column-gap:8px!important;row-gap:8px!important;}
+      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>.pfh-loading-ring{grid-column:2!important;grid-row:1!important;margin:0!important;}
+      #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>strong{grid-column:3!important;grid-row:1!important;}
       #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>p{grid-column:1/-1!important;grid-row:2!important;}
       #${PANEL_ID} .pfh-batch-excel-actions .pfh-loading-dots{margin-right:2px;}
       @keyframes pfh-loading-scan{0%{left:-4px}50%,100%{left:calc(100% + 1px)}}
