@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.104
+// @version      2.8.105
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.104';
+  const SCRIPT_VERSION = '2.8.105';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9767,7 +9767,7 @@
       #${PANEL_ID} .pfh-ledger-thumb-preview{display:none!important;}
       #${PANEL_ID} .pfh-loading-scan{position:relative;display:inline-block;width:28px;height:19px;flex:0 0 28px;overflow:hidden;border:1px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 34%,transparent);border-radius:5px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 9%,transparent) 0 4px,transparent 4px 8px);vertical-align:middle;}
       #${PANEL_ID} .pfh-loading-scan::after{position:absolute;top:1px;bottom:1px;left:-4px;width:3px;border-radius:3px;background:var(--pfh-theme-primary,#7c3aed);box-shadow:0 0 8px color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 74%,transparent);content:"";will-change:left;animation:pfh-loading-scan 1.15s ease-in-out infinite!important;animation-play-state:running!important;}
-      #${PANEL_ID} .pfh-loading-ring{display:inline-block;width:22px;height:22px;flex:0 0 22px;border:3px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 15%,transparent);border-top-color:var(--pfh-theme-primary,#7c3aed);border-right-color:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 68%,transparent);border-radius:50%;vertical-align:middle;will-change:transform;transform:translateZ(0);animation:pfh-loading-ring 1s cubic-bezier(.4,0,.2,1) infinite!important;animation-play-state:running!important;}
+      #${PANEL_ID} .pfh-loading-ring{display:inline-block;width:22px;height:22px;flex:0 0 22px;border:3px solid color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 15%,transparent);border-top-color:var(--pfh-theme-primary,#7c3aed);border-right-color:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 68%,transparent);border-radius:50%;vertical-align:middle;will-change:rotate;rotate:0deg;transform:translateZ(0);animation:pfh-loading-ring-v28105 1s cubic-bezier(.4,0,.2,1) infinite!important;animation-play-state:running!important;}
       #${PANEL_ID} .pfh-loading-dots{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:24px;height:20px;flex:0 0 24px;vertical-align:middle;}
       #${PANEL_ID} .pfh-loading-dots i{display:block;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.42;will-change:transform,opacity;animation:pfh-loading-dot 1s ease-in-out infinite!important;animation-play-state:running!important;}
       #${PANEL_ID} .pfh-loading-dots i:nth-child(2){animation-delay:.14s;}#${PANEL_ID} .pfh-loading-dots i:nth-child(3){animation-delay:.28s;}
@@ -9785,10 +9785,10 @@
       #${PANEL_ID} .pfh-copywriting-page.is-loading .pfh-copywriting-empty>p{grid-column:1/-1!important;grid-row:2!important;}
       #${PANEL_ID} .pfh-batch-excel-actions .pfh-loading-dots{margin-right:2px;}
       @keyframes pfh-loading-scan{0%{left:-4px}50%,100%{left:calc(100% + 1px)}}
-      @keyframes pfh-loading-ring{to{transform:rotate(360deg)}}
+      @keyframes pfh-loading-ring-v28105{to{rotate:360deg}}
       @keyframes pfh-loading-dot{0%,100%{transform:translateY(3px);opacity:.42}50%{transform:translateY(-3px);opacity:1}}
-      .pfh-loading-ring-global{display:inline-block!important;width:16px!important;height:16px!important;flex:0 0 16px!important;border:2px solid rgba(124,58,237,.18)!important;border-top-color:#7c3aed!important;border-right-color:#a77af2!important;border-radius:50%!important;will-change:transform!important;transform:translateZ(0)!important;animation:pfh-loading-ring 1s cubic-bezier(.4,0,.2,1) infinite!important;}
-      button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner.pfh-loading-ring-global{animation:pfh-loading-ring 1s cubic-bezier(.4,0,.2,1) infinite!important;animation-play-state:running!important;}
+      .pfh-loading-ring-global{display:inline-block!important;width:16px!important;height:16px!important;flex:0 0 16px!important;border:2px solid rgba(124,58,237,.18)!important;border-top-color:#7c3aed!important;border-right-color:#a77af2!important;border-radius:50%!important;will-change:rotate!important;rotate:0deg;transform:translateZ(0)!important;animation:pfh-loading-ring-v28105 1s cubic-bezier(.4,0,.2,1) infinite!important;}
+      button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner.pfh-loading-ring-global{animation:pfh-loading-ring-v28105 1s cubic-bezier(.4,0,.2,1) infinite!important;animation-play-state:running!important;}
       @media(prefers-reduced-motion:reduce){#${PANEL_ID} .pfh-loading-scan::after,#${PANEL_ID} .pfh-loading-ring,#${PANEL_ID} .pfh-loading-dots i{animation-duration:2.4s!important;animation-play-state:running!important;}}
       @media(prefers-reduced-motion:reduce){.pfh-loading-ring-global{animation-duration:2.4s!important;animation-play-state:running!important;}}
     `;
