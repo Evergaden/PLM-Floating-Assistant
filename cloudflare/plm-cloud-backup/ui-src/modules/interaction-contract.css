@@ -76,6 +76,19 @@
   transform: var(--pfh-interaction-button-active-transform);
 }
 
+/* The home navigation replay keeps its delayed rebound in the same contract. */
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry.is-click-bouncing {
+  box-shadow: 0 5px 13px var(--pfh-theme-shadow-soft);
+  transform: var(--pfh-interaction-button-active-transform);
+  transition: transform .12s cubic-bezier(.4, 0, .7, 1), box-shadow .12s ease;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry.is-click-releasing {
+  box-shadow: 0 11px 22px var(--pfh-theme-shadow-soft);
+  transform: var(--pfh-interaction-button-hover-transform);
+  transition: transform .41s cubic-bezier(.18, 1.36, .28, 1), box-shadow .34s ease;
+}
+
 /* Edit-mode cards are draggable list items, not buttons. */
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry-edit:hover:not(:disabled) {
   transform: none;
