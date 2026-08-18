@@ -143,7 +143,7 @@ function Get-ReplacementRows {
     $items.Add([pscustomobject]@{ from = $from; to = $to; expected = $expected })
   }
   if ($items.Count -eq 0) { throw '请至少填写一条文案修改。' }
-  return $items
+  return ,$items
 }
 
 function Invoke-CopyTool([bool]$WriteChanges) {
