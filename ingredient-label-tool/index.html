@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supplement Facts 成分表生成器</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">PLM PRODUCT ASSET TOOL</p>
+        <h1>Supplement Facts 成分表生成器</h1>
+        <p class="subtitle">输入 Serving Size、Servings Per Container 和成分行，导出与参考文件同版式的 A4 PDF。</p>
+      </div>
+      <div class="header-badge"><span class="status-dot"></span>本地运行 · 不上传数据</div>
+    </header>
+
+    <section class="workspace">
+      <form class="editor-card" id="editor-form">
+        <div class="card-heading">
+          <div>
+            <p class="section-kicker">01 / 基础信息</p>
+            <h2>表头与文件</h2>
+          </div>
+          <button type="button" class="ghost-button" id="load-sample">载入参考示例</button>
+        </div>
+
+        <div class="field-grid">
+          <label class="field field-wide">
+            <span>标题</span>
+            <input data-state="title" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Serving Size</span>
+            <input data-state="servingSize" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field">
+            <span>Servings Per Container</span>
+            <input data-state="servingsPerContainer" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="field field-wide">
+            <span>PDF 文件名</span>
+            <input data-state="filename" type="text" autocomplete="off" spellcheck="false">
+          </label>
+        </div>
+
+        <div class="card-heading ingredients-heading">
+          <div>
+            <p class="section-kicker">02 / 成分信息</p>
+            <h2>Amount Per Serving</h2>
+          </div>
+          <span class="row-limit">单页最多 18 行</span>
+        </div>
+
+        <div class="ingredient-table-head" aria-hidden="true">
+          <span>成分名称 / Ingredient</span>
+          <span>用量 / Amount</span>
+          <span>% Daily Value</span>
+          <span></span>
+        </div>
+        <div id="ingredient-rows" class="ingredient-rows"></div>
+        <button type="button" class="add-row-button" id="add-row">＋ 添加成分行</button>
+
+        <div class="form-footer">
+          <label class="check-field">
+            <input data-state="showFooter" type="checkbox">
+            <span>显示底部 “**Daily Value not established.” 说明</span>
+          </label>
+          <button type="submit" class="primary-button" id="generate-button">生成并下载 PDF <span>↗</span></button>
+        </div>
+        <p id="status" class="status-message" role="status"></p>
+      </form>
+
+      <section class="preview-card" aria-label="PDF 预览">
+        <div class="preview-heading">
+          <div>
+            <p class="section-kicker">LIVE PREVIEW</p>
+            <h2>版式预览</h2>
+          </div>
+          <span class="a4-chip">A4 · 595.25 × 841.85 pt</span>
+        </div>
+        <div class="preview-stage" id="preview-stage">
+          <div class="paper-wrap" id="paper-wrap">
+            <div class="paper" id="paper">
+              <div class="label-preview" id="label-preview"></div>
+            </div>
+          </div>
+        </div>
+        <p class="preview-note">预览按参考 PDF 的坐标绘制；最终 PDF 使用 Arial 字体，长成分名会在不破坏行高的前提下缩小字号。</p>
+      </section>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
