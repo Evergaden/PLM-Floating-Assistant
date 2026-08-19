@@ -53,6 +53,7 @@
   perspective: 520px;
   cursor: pointer;
   text-align: left;
+  user-select: none;
   transition: box-shadow 180ms ease, filter 180ms ease;
 }
 
@@ -88,7 +89,9 @@
   height: 17px;
   min-height: 17px;
   transform-style: preserve-3d;
+  transform-origin: center;
   transition: transform 560ms cubic-bezier(.22, .82, .25, 1);
+  will-change: transform;
   z-index: 1;
 }
 
@@ -152,12 +155,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #plm-floating-helper .pfh-edition-badge-viewport {
-    transition-duration: 1ms;
-  }
-
   #plm-floating-helper .pfh-edition-badge::after {
-    animation: pfh-edition-sheen 3.6s linear infinite;
+    animation: none;
   }
 }
 
