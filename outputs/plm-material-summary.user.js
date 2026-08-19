@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.105
+// @version      2.8.108
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.105';
+  const SCRIPT_VERSION = '2.8.108';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.235';
+  const UI_ASSET_VERSION = '2.5.236';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -13991,10 +13991,15 @@
   function copywritingViewHtml(data) {
     const record = getCopywritingDisplayRecord(data);
     const view = state.copywritingView === 'full' ? 'full' : 'file';
+    const visibleSections = record && record.sections ? record.sections.filter(isCopywritingFileViewSection) : [];
+    const collapsed = view === 'file' && visibleSections.length > 0 && Boolean(state.settings && state.settings.copywritingCollapsed);
+    const collapseButtonHtml = view === 'file' && visibleSections.length > 0
+      ? '<button type="button" data-action="copywriting-toggle-collapse" aria-expanded="' + (collapsed ? 'false' : 'true') + '" title="' + (collapsed ? '展开全部文案' : '折叠全部文案') + '">' + (collapsed ? '展开文案' : '折叠文案') + '</button>'
+      : '';
     const toolbarHtml = '<div class="pfh-copywriting-toolbar"><label><span>查看方式</span><select class="pfh-copywriting-view-select" aria-label="选择文案查看方式">' +
       '<option value="file"' + (view === 'file' ? ' selected' : '') + '>文件视图</option>' +
       '<option value="full"' + (view === 'full' ? ' selected' : '') + '>全文视图</option>' +
-      '</select></label><div class="pfh-copywriting-toolbar-actions"><button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
+      '</select></label><div class="pfh-copywriting-toolbar-actions">' + collapseButtonHtml + '<button type="button" data-action="copywriting-refresh"' + (state.copywritingLoading || state.copywritingChecking ? ' disabled' : '') + '>' + iconHtml('refresh') + '重新获取</button>' +
       (record && record.fullText ? '<button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button>' : '') +
       '</div></div>';
     if (state.copywritingLoading && !(record && record.fullText)) {
@@ -14007,7 +14012,6 @@
       return '<section class="pfh-copywriting-page">' + errorHtml + toolbarHtml + '<div class="pfh-copywriting-empty"><strong>还没有可展示的文案</strong><p>点击重新获取后，脚本会读取产品信息里的产品文案 Word。</p></div></section>';
     }
     const changed = new Set(record.changedSectionKeys || []);
-    const visibleSections = record.sections.filter(isCopywritingFileViewSection);
     const updateHtml = record.updatePending
       ? '<div class="pfh-copywriting-alert is-update"><strong>文案已更新</strong><span>' + escapeHtml(formatCopywritingUpdateSummary(record)) + '</span><button type="button" data-action="copywriting-ack">我知道了</button></div>'
       : '';
@@ -14022,14 +14026,14 @@
     const contentHtml = view === 'full'
       ? '<div class="pfh-copywriting-full-card"><div class="pfh-copywriting-block-head"><span><b>全文</b><small>全部文案内容</small></span><button type="button" data-action="copywriting-copy">' + copywritingCopyIconHtml() + '复制全文</button></div><pre>' + escapeHtml(record.fullText) + '</pre></div>'
       : visibleSections.map((section, index) => {
-          const netNotice = section.key === 'netContent'
+          const netNotice = !collapsed && section.key === 'netContent'
             ? '<small class="pfh-copywriting-net-notice" style="display:block;margin-top:7px;color:#a06a20;font-size:10px;line-height:1.45;">仅供参考，请注意审查</small>'
             : '';
           return '<div class="pfh-copywriting-block' + (changed.has(section.key) ? ' is-changed' : '') + '" data-copywriting-key="' + escapeHtml(section.key) + '">' +
             '<div class="pfh-copywriting-block-head"><span><b>' + String(index + 1).padStart(2, '0') + '</b><strong>' + escapeHtml(section.label || section.key) + '</strong></span><button type="button" data-action="copywriting-section-copy" data-copywriting-key="' + escapeHtml(section.key) + '">' + copywritingCopyIconHtml() + '复制本段</button></div>' +
             '<pre>' + escapeHtml(section.text) + '</pre>' + netNotice + '</div>';
         }).join('');
-    return '<section class="pfh-copywriting-page">' + errorHtml + loadingHtml + updateHtml + missingHtml + toolbarHtml + '<div class="pfh-copywriting-content is-' + view + '">' + contentHtml + '</div></section>';
+    return '<section class="pfh-copywriting-page' + (collapsed ? ' is-collapsed' : '') + '">' + errorHtml + loadingHtml + updateHtml + missingHtml + toolbarHtml + '<div class="pfh-copywriting-content is-' + view + (collapsed ? ' is-collapsed' : '') + '">' + contentHtml + '</div></section>';
   }
 
   function copywritingSectionCopyValue(section) {
@@ -20859,6 +20863,12 @@
     }
     if (action === 'toy-copywriting-fill') {
       fillToyCopywriting();
+      return;
+    }
+    if (action === 'copywriting-toggle-collapse') {
+      state.settings.copywritingCollapsed = !Boolean(state.settings.copywritingCollapsed);
+      saveSettings(state.settings);
+      renderShell();
       return;
     }
     if (action === 'copywriting-copy') {
@@ -33728,7 +33738,7 @@
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS) };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS) };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
@@ -33736,6 +33746,7 @@
       if (needsThemeMigration && (!saved || !saved.theme || saved.theme === 'default' || saved.theme === 'lulu')) settings.theme = DEFAULT_THEME_ID;
       settings.themeSkinVersion = THEME_SKIN_VERSION;
       settings.theme = normalizeThemeId(settings.theme);
+      settings.copywritingCollapsed = settings.copywritingCollapsed === true;
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       const needsSkuMigration = Number(saved && saved.skuListPreferenceVersion || 0) < SKU_LIST_PREFERENCE_VERSION;
       if (needsSkuMigration || needsThemeMigration) {
