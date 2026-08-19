@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.110
+// @version      2.8.111
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.110';
+  const SCRIPT_VERSION = '2.8.111';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -12040,6 +12040,27 @@
     };
   }
 
+  async function readMagicUploadPackingFromFile(file, sku, cachedPacking) {
+    const cached = normalizeMagicUploadExcelPacking(cachedPacking);
+    const parsed = await parseMagicUploadPackingExcel(file, sku, cached.standardPackingQuantity);
+    const result = { ...cached };
+    MAGIC_UPLOAD_PACKING_FIELDS.forEach((field) => {
+      const incoming = parsed[field.key];
+      if (!incoming) return;
+      if (result[field.key] && result[field.key] !== incoming) {
+        throw new Error('同一 SKU 的多个 Excel 中“' + field.label + '”不一致');
+      }
+      result[field.key] = incoming;
+    });
+    if (!result.sourceName) result.sourceName = parsed.sourceName;
+    result.parsedAt = parsed.parsedAt || result.parsedAt;
+    return {
+      ...result,
+      formulaResultUsed: Boolean(parsed.formulaResultUsed),
+      formulaFallbackUsed: Boolean(parsed.formulaFallbackUsed),
+    };
+  }
+
   async function readMagicUploadPackingFromTask(task) {
     const cached = normalizeMagicUploadExcelPacking(task && task.excelPacking);
     const entries = (task && task.files || []).filter((entry) => entry && /\.xlsx$/i.test(entry.name || ''));
@@ -12048,17 +12069,8 @@
     for (const entry of entries) {
       const file = await getUploadFile(entry.key);
       if (!file) throw new Error('Excel 文件已丢失：' + (entry.name || '未命名文件'));
-      const parsed = await parseMagicUploadPackingExcel(file, task && task.sku, result.standardPackingQuantity);
-      MAGIC_UPLOAD_PACKING_FIELDS.forEach((field) => {
-        const incoming = parsed[field.key];
-        if (!incoming) return;
-        if (result[field.key] && result[field.key] !== incoming) {
-          throw new Error('同一 SKU 的多个 Excel 中“' + field.label + '”不一致');
-        }
-        result[field.key] = incoming;
-      });
-      if (!result.sourceName) result.sourceName = parsed.sourceName;
-      result.parsedAt = parsed.parsedAt || result.parsedAt;
+      const parsed = await readMagicUploadPackingFromFile(file, task && task.sku, result);
+      result = parsed;
       if (parsed.formulaResultUsed || parsed.formulaFallbackUsed) {
         magicUploadLog('info', parsed.formulaFallbackUsed ? '已按 Excel 公式计算箱重' : '已读取 Excel 箱重缓存值', task.sku + ' | ' + parsed.sourceName + ' | 不使用公式文本');
       }
@@ -24389,7 +24401,9 @@ self.onmessage = async function(event) {
       await confirmBatchUpload();
       await verifyBatchImagesUploaded(item.sku);
       throwIfUploadRetryNoticeVisible();
-      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4fdd\u5b58\u8349\u7a3f');
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u8bfb\u53d6\u5e76\u586b\u5199\u88c5\u7bb1\u6570\u548c\u7bb1\u91cd');
+      const packingSummary = await fillBatchUploadPackingFields(item, xlsx);
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4fdd\u5b58\u8349\u7a3f', { excelPacking: packingSummary.source });
       const preReviewDraftSaved = await saveProductDraftBeforeClose();
       if (!preReviewDraftSaved) throw new Error('\u8349\u7a3f\u672a\u4fdd\u5b58\u6210\u529f');
       throwIfUploadRetryNoticeVisible();
@@ -24827,6 +24841,83 @@ self.onmessage = async function(event) {
     const drawer = Array.from(document.querySelectorAll('.pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer')).filter(isVisibleElement).pop();
     if (!drawer) return null;
     return getScopedProductFormItem(drawer, labelText);
+  }
+
+  function getBatchUploadPackingInput(field) {
+    const item = getProductFormItem(field.attrName);
+    if (!item) return null;
+    const input = Array.from(item.querySelectorAll('input'))
+      .find((element) => element && element.type !== 'hidden');
+    return input ? { item, input } : null;
+  }
+
+  async function fillBatchUploadPackingFields(task, xlsx) {
+    const controls = MAGIC_UPLOAD_PACKING_FIELDS.map((field) => ({ field, control: getBatchUploadPackingInput(field) }));
+    const missingControls = controls.filter((entry) => !entry.control).map((entry) => entry.field.attrName + '字段');
+    if (missingControls.length) {
+      throw new Error('PLM 未找到' + missingControls.join('、') + '输入框，已停止保存草稿和提审');
+    }
+
+    const current = controls.reduce((result, entry) => {
+      const value = entry.control.input.value;
+      result[entry.field.key] = entry.field.key === 'standardPackingQuantity'
+        ? normalizeMagicUploadPackingQuantity(value)
+        : normalizeMagicUploadBoxWeight(value);
+      return result;
+    }, { standardPackingQuantity: '', boxWeight: '' });
+    const needsSource = MAGIC_UPLOAD_PACKING_FIELDS.some((field) => !current[field.key]);
+    let source = normalizeMagicUploadExcelPacking(task && task.excelPacking);
+    let parsedMeta = null;
+    if (needsSource) {
+      parsedMeta = await readMagicUploadPackingFromFile(xlsx, task && task.sku, source);
+      source = normalizeMagicUploadExcelPacking(parsedMeta);
+      if (parsedMeta.formulaResultUsed || parsedMeta.formulaFallbackUsed) {
+        addLog('info', parsedMeta.formulaFallbackUsed ? '批量提审按 Excel 公式计算箱重' : '批量提审读取 Excel 箱重缓存值', task.sku + ' | ' + parsedMeta.sourceName + ' | 不使用公式文本');
+      }
+    }
+
+    const changed = [];
+    const retained = [];
+    const missing = [];
+    controls.forEach((entry) => {
+      const { field, control } = entry;
+      const input = control.input;
+      const existing = field.key === 'standardPackingQuantity'
+        ? normalizeMagicUploadPackingQuantity(input.value)
+        : normalizeMagicUploadBoxWeight(input.value);
+      if (existing) {
+        retained.push(field.attrName + '=' + existing);
+        return;
+      }
+      if (input.disabled || input.readOnly) {
+        missing.push(field.attrName + '输入框不可编辑');
+        return;
+      }
+      if (!source[field.key]) {
+        missing.push(field.attrName);
+        return;
+      }
+      control.item.scrollIntoView({ block: 'center', inline: 'nearest' });
+      setNativeInputValue(input, source[field.key]);
+      changed.push(field.attrName + '=' + source[field.key] + '(Excel)');
+    });
+    if (missing.length) {
+      throw new Error('PLM 缺少' + missing.join('、') + '，Excel 未提供有效值，已停止保存草稿和提审');
+    }
+
+    if (changed.length) await wait(180);
+    const notAccepted = controls.filter((entry) => changed.some((value) => value.indexOf(entry.field.attrName + '=') === 0))
+      .filter((entry) => {
+        const actual = entry.field.key === 'standardPackingQuantity'
+          ? normalizeMagicUploadPackingQuantity(entry.control.input.value)
+          : normalizeMagicUploadBoxWeight(entry.control.input.value);
+        return actual !== source[entry.field.key];
+      })
+      .map((entry) => entry.field.attrName);
+    if (notAccepted.length) {
+      throw new Error('PLM 未接受' + notAccepted.join('、') + '填写值，已停止保存草稿和提审');
+    }
+    return { changed, retained, source };
   }
 
   async function putFileIntoUploadItem(item, file, filename) {
