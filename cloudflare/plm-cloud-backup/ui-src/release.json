@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.236",
+  "version": "2.5.237",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -62,6 +62,10 @@
     },
     {
       "path": "modules/interaction-contract.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/edition-badge.css",
       "mode": "module"
     },
     {

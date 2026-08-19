@@ -1,0 +1,67 @@
+/* Clickable product-edition lockup. The two faces share one stable footprint. */
+#plm-floating-helper .pfh-edition-badge {
+  width: 82px;
+  min-width: 82px;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  appearance: none;
+  perspective: 520px;
+  cursor: pointer;
+  text-align: left;
+  transition: box-shadow 180ms ease, filter 180ms ease;
+}
+
+#plm-floating-helper .pfh-edition-badge:hover {
+  background: linear-gradient(115deg, var(--pfh-theme-primary-hover), var(--pfh-theme-primary) 54%, var(--pfh-theme-secondary));
+  filter: saturate(1.08) brightness(1.03);
+}
+
+#plm-floating-helper .pfh-edition-badge:focus-visible {
+  outline: 2px solid var(--pfh-theme-primary);
+  outline-offset: 2px;
+}
+
+#plm-floating-helper .pfh-edition-badge-viewport {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 560ms cubic-bezier(.22, .82, .25, 1);
+}
+
+#plm-floating-helper .pfh-edition-badge[data-edition="developer"] .pfh-edition-badge-viewport {
+  transform: rotateY(180deg);
+}
+
+#plm-floating-helper .pfh-edition-badge-face {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 7px 0 5px;
+  backface-visibility: hidden;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-edition-face-developer {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #plm-floating-helper .pfh-edition-badge-viewport {
+    transition-duration: 1ms;
+  }
+}
+
+@container (max-width: 620px) {
+  #plm-floating-helper .pfh-edition-badge {
+    width: 58px;
+    min-width: 58px;
+  }
+}

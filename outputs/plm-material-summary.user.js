@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.114
+// @version      2.8.115
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.114';
+  const SCRIPT_VERSION = '2.8.115';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,8 +57,12 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.236';
+  const UI_ASSET_VERSION = '2.5.237';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
+  const PRODUCT_EDITIONS = Object.freeze({
+    design: PRODUCT_EDITION,
+    developer: Object.freeze({ id: 'developer', label: '开发版', code: 'DEV' }),
+  });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
   const INGREDIENT_NORMALIZER_VERSION = '3';
@@ -5334,6 +5338,7 @@
     developerSettingsTapAt: 0,
     developerInsightsUnlocked: false,
     developerToolsOpen: false,
+    editionId: PRODUCT_EDITION.id,
     tutorialModalOpen: firstTutorial,
     tutorialEmptyKeyClickCount: 0,
     settingsReturnView: '',
@@ -10217,7 +10222,7 @@
     document.documentElement.appendChild(panel);
     panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6">P</button>');
     panel.dataset.edition = PRODUCT_EDITION.id;
-    panel.querySelector('.pfh-heading strong').insertAdjacentHTML('afterend', '<span class="pfh-edition-badge pfh-edition-' + escapeHtml(PRODUCT_EDITION.id) + '"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.2 10.8 10.7 3.3a1.55 1.55 0 0 1 2.2 0l.1.1a1.55 1.55 0 0 1 0 2.2l-7.5 7.5"></path><path d="m9.7 4.3 2 2"></path><path d="m2.4 13.7 3.4-.8-2.6-2.6-.8 3.4Z"></path></svg><b>' + escapeHtml(PRODUCT_EDITION.label) + '</b><small>' + escapeHtml(PRODUCT_EDITION.code) + '</small></span>');
+    panel.querySelector('.pfh-heading strong').insertAdjacentHTML('afterend', '<button type="button" class="pfh-edition-badge pfh-edition-' + escapeHtml(PRODUCT_EDITION.id) + '" data-action="toggle-edition" data-edition="' + escapeHtml(PRODUCT_EDITION.id) + '" aria-label="\u5207\u6362\u4e3a\u5f00\u53d1\u7248" aria-pressed="false" title="\u5207\u6362\u4e3a\u5f00\u53d1\u7248"><span class="pfh-edition-badge-viewport" aria-hidden="true"><span class="pfh-edition-badge-face pfh-edition-face-design"><svg viewBox="0 0 16 16"><path d="M3.2 10.8 10.7 3.3a1.55 1.55 0 0 1 2.2 0l.1.1a1.55 1.55 0 0 1 0 2.2l-7.5 7.5"></path><path d="m9.7 4.3 2 2"></path><path d="m2.4 13.7 3.4-.8-2.6-2.6-.8 3.4Z"></path></svg><b>\u8bbe\u8ba1\u7248</b><small>DESIGN</small></span><span class="pfh-edition-badge-face pfh-edition-face-developer"><svg viewBox="0 0 16 16"><path d="m5.5 4-4 4 4 4"></path><path d="m10.5 4 4 4-4 4"></path><path d="m9 2-2 12"></path></svg><b>\u5f00\u53d1\u7248</b><small>DEV</small></span></span></button>');
     panel.querySelector('strong').textContent = L.title;
     panel.querySelector('.pfh-search-input').placeholder = L.searchPlaceholder;
     panel.querySelector('.pfh-search-clear').textContent = '\u00d7';
@@ -10370,6 +10375,20 @@
     button.removeAttribute('title');
     button.setAttribute('aria-label', TOOLTIP.collapse);
     button.setAttribute('data-tooltip', TOOLTIP.collapse);
+  }
+
+  function updateEditionBadge(panel) {
+    const badge = panel && panel.querySelector('.pfh-edition-badge');
+    if (!badge) return;
+    const edition = PRODUCT_EDITIONS[state.editionId] || PRODUCT_EDITION;
+    const nextEdition = edition.id === PRODUCT_EDITION.id ? PRODUCT_EDITIONS.developer : PRODUCT_EDITION;
+    badge.dataset.edition = edition.id;
+    badge.classList.toggle('pfh-edition-design', edition.id === PRODUCT_EDITION.id);
+    badge.classList.toggle('pfh-edition-developer', edition.id === PRODUCT_EDITIONS.developer.id);
+    badge.setAttribute('aria-pressed', String(edition.id === PRODUCT_EDITIONS.developer.id));
+    badge.setAttribute('aria-label', '\u5207\u6362\u4e3a' + nextEdition.label);
+    badge.title = '\u5207\u6362\u4e3a' + nextEdition.label;
+    panel.dataset.edition = edition.id;
   }
 
   function updateSettingsNotice(panel) {
@@ -21361,6 +21380,13 @@ self.onmessage = async function(event) {
     if (!namingCard) closePackagingNamingCard(ensurePanel());
     const actionTarget = event.target && event.target.closest && event.target.closest('[data-action]');
     const action = actionTarget && actionTarget.getAttribute('data-action');
+    if (action === 'toggle-edition') {
+      event.preventDefault();
+      event.stopPropagation();
+      state.editionId = state.editionId === PRODUCT_EDITIONS.developer.id ? PRODUCT_EDITION.id : PRODUCT_EDITIONS.developer.id;
+      updateEditionBadge(ensurePanel());
+      return;
+    }
     if (action === 'ledger-more') {
       event.preventDefault();
       event.stopPropagation();
