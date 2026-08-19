@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.109
+// @version      2.8.110
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.109';
+  const SCRIPT_VERSION = '2.8.110';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2450,6 +2450,10 @@
     '图包素材': 'image_package_materials',
     '推品资料': 'promotion_materials',
   });
+  const MAGIC_UPLOAD_PACKING_FIELDS = Object.freeze([
+    Object.freeze({ key: 'standardPackingQuantity', variableName: 'standard_packing_quantity', attrName: '标准装箱数', attrId: 123, label: '装箱数' }),
+    Object.freeze({ key: 'boxWeight', variableName: 'box_weight', attrName: '箱重', attrId: 301, label: '箱重' }),
+  ]);
   const TOY_EFFECT_MAX_FILES = 3;
   const PROJECT_RESULT_MAX_PAGE_SIZE = 250;
   const TOY_EFFECT_CANDIDATE_CACHE_KEY = 'plm-floating-helper:toy-effect-candidates:v1';
@@ -11769,6 +11773,7 @@
       projectId: String(task.projectId || ''),
       productId: String(task.productId || ''),
       productVersionId: String(task.productVersionId || ''),
+      excelPacking: normalizeMagicUploadExcelPacking(task.excelPacking),
       files,
       totalBytes: Math.max(0, Number(task.totalBytes) || 0),
       uploadedBytes: Math.max(0, Number(task.uploadedBytes) || 0),
@@ -11875,6 +11880,194 @@
       reader.onerror = () => reject(reader.error || new Error('无法读取文件内容'));
       reader.readAsArrayBuffer(file);
     });
+  }
+
+  function formatMagicUploadDecimal(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return '';
+    return String(Math.round(number * 100000) / 100000);
+  }
+
+  function normalizeMagicUploadPackingQuantity(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim().replace(/,/g, '');
+    if (!text || /^=/.test(text)) return '';
+    const match = text.match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
+    if (!match) return '';
+    const number = Number(match[0]);
+    if (!Number.isFinite(number) || number <= 0 || !Number.isInteger(number) || number > 10000) return '';
+    return String(number);
+  }
+
+  function normalizeMagicUploadBoxWeight(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim().replace(/,/g, '');
+    if (!text || /^=/.test(text)) return '';
+    const match = text.match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*(kg|千克|公斤|g|克)?/i);
+    if (!match) return '';
+    let number = Number(match[0].replace(/\s*(kg|千克|公斤|g|克)\s*$/i, ''));
+    if (!Number.isFinite(number) || number <= 0 || number > 10000) return '';
+    if (/^(g|克)$/i.test(match[1] || '')) number /= 1000;
+    return formatMagicUploadDecimal(number);
+  }
+
+  function normalizeMagicUploadGrossWeightGrams(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim().replace(/,/g, '');
+    if (!text || /^=/.test(text)) return 0;
+    const match = text.match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*(kg|千克|公斤|g|克)?/i);
+    if (!match) return 0;
+    let number = Number(match[0].replace(/\s*(kg|千克|公斤|g|克)\s*$/i, ''));
+    if (!Number.isFinite(number) || number <= 0 || number > 1000000) return 0;
+    if (/^(kg|千克|公斤)$/i.test(match[1] || '')) number *= 1000;
+    return number;
+  }
+
+  function calculateMagicUploadFormulaBoxWeight(packValue, grossWeightValue) {
+    const quantity = Number(normalizeMagicUploadPackingQuantity(packValue));
+    const grossWeightGrams = normalizeMagicUploadGrossWeightGrams(grossWeightValue);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !grossWeightGrams) return '';
+    const boxWeight = quantity * grossWeightGrams / 1000 + 0.75;
+    return formatMagicUploadDecimal(Math.round(boxWeight * 100) / 100);
+  }
+
+  function normalizeMagicUploadExcelPacking(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      standardPackingQuantity: normalizeMagicUploadPackingQuantity(source.standardPackingQuantity || source.packQty || ''),
+      boxWeight: normalizeMagicUploadBoxWeight(source.boxWeight || ''),
+      sourceName: String(source.sourceName || '').slice(0, 180),
+      parsedAt: Number(source.parsedAt) || 0,
+    };
+  }
+
+  function getMagicUploadExcelCellRead(cell) {
+    const raw = cell && cell.value;
+    if (raw && typeof raw === 'object') {
+      if (raw.result !== undefined && raw.result !== null && raw.result !== '') {
+        return { value: raw.result, formula: String(raw.formula || '') };
+      }
+      if (Array.isArray(raw.richText)) {
+        return { value: raw.richText.map((item) => item && item.text || '').join(''), formula: '' };
+      }
+      if (raw.text !== undefined && raw.text !== null) {
+        const rawText = String(raw.text);
+        return /^=/.test(rawText.trim())
+          ? { value: '', formula: rawText.trim() }
+          : { value: raw.text, formula: String(raw.formula || '') };
+      }
+      if (raw.formula !== undefined) return { value: '', formula: String(raw.formula || '') };
+    }
+    const text = cell && typeof cell.text === 'string' ? cell.text : raw;
+    const value = text === null || text === undefined ? '' : text;
+    return /^=/.test(String(value).trim())
+      ? { value: '', formula: String(value).trim() }
+      : { value, formula: '' };
+  }
+
+  function normalizeMagicUploadExcelHeader(value) {
+    return compactText(value).replace(/[\s:：()（）【】\[\]]/g, '').toLowerCase();
+  }
+
+  function getMagicUploadExcelHeaderKey(value) {
+    const label = normalizeMagicUploadExcelHeader(value);
+    if (!label) return '';
+    if (/^(产品编码|商品编码|sku)$/.test(label)) return 'sku';
+    if (/^(装箱数|标准装箱数)$/.test(label)) return 'standardPackingQuantity';
+    if (/^(一箱重量|箱重|箱重量)$/.test(label)) return 'boxWeight';
+    if (/^(毛重|毛重约|产品毛重)$/.test(label)) return 'grossWeight';
+    return '';
+  }
+
+  async function parseMagicUploadPackingExcel(file, sku, cachedPackingQuantity) {
+    if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法读取装箱信息');
+    const workbook = new window.ExcelJS.Workbook();
+    await workbook.xlsx.load(await readMagicUploadArrayBuffer(file));
+    const worksheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
+    if (!worksheet) throw new Error('Excel 中没有可读取的工作表');
+
+    let header = null;
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
+      if (header) return;
+      const columns = {};
+      row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+        const key = getMagicUploadExcelHeaderKey(getMagicUploadExcelCellRead(cell).value);
+        if (key && columns[key] === undefined) columns[key] = columnNumber;
+      });
+      if (columns.standardPackingQuantity !== undefined && columns.boxWeight !== undefined && columns.sku !== undefined) {
+        header = { rowNumber: row.number, columns };
+      }
+    });
+    if (!header) throw new Error('Excel 未找到产品编码、装箱数和一箱重量表头');
+
+    const targetSku = String(sku || '').trim().toUpperCase();
+    let matchedRow = null;
+    for (let rowNumber = header.rowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+      const row = worksheet.getRow(rowNumber);
+      const rowSku = String(getMagicUploadExcelCellRead(row.getCell(header.columns.sku)).value || '').trim().toUpperCase();
+      if (rowSku === targetSku) {
+        matchedRow = row;
+        break;
+      }
+    }
+    if (!matchedRow) throw new Error('Excel 未找到 SKU：' + targetSku);
+
+    const quantityRead = getMagicUploadExcelCellRead(matchedRow.getCell(header.columns.standardPackingQuantity));
+    const weightRead = getMagicUploadExcelCellRead(matchedRow.getCell(header.columns.boxWeight));
+    const cellPackingQuantity = normalizeMagicUploadPackingQuantity(quantityRead.value);
+    const cachedQuantity = normalizeMagicUploadPackingQuantity(cachedPackingQuantity);
+    let parsed = normalizeMagicUploadExcelPacking({
+      standardPackingQuantity: cellPackingQuantity || cachedQuantity,
+      boxWeight: weightRead.value,
+      sourceName: file && file.name || '',
+      parsedAt: Date.now(),
+    });
+    let formulaFallbackUsed = false;
+    if (!parsed.boxWeight && header.columns.grossWeight !== undefined) {
+      const grossWeightRead = getMagicUploadExcelCellRead(matchedRow.getCell(header.columns.grossWeight));
+      const formulaBoxWeight = calculateMagicUploadFormulaBoxWeight(parsed.standardPackingQuantity, grossWeightRead.value);
+      if (formulaBoxWeight) {
+        parsed = { ...parsed, boxWeight: formulaBoxWeight };
+        formulaFallbackUsed = true;
+      }
+    }
+    if (!parsed.boxWeight) {
+      throw new Error(weightRead.formula
+        ? 'Excel 箱重公式没有缓存计算结果，且无法按装箱数和毛重约计算，已停止上传，避免把公式写入 PLM'
+        : 'Excel 未读取到箱重，且无法按装箱数和毛重约计算，已停止上传');
+    }
+    return {
+      ...parsed,
+      formulaResultUsed: Boolean(weightRead.formula && parsed.boxWeight),
+      formulaFallbackUsed,
+    };
+  }
+
+  async function readMagicUploadPackingFromTask(task) {
+    const cached = normalizeMagicUploadExcelPacking(task && task.excelPacking);
+    const entries = (task && task.files || []).filter((entry) => entry && /\.xlsx$/i.test(entry.name || ''));
+    if (!entries.length) return cached;
+    let result = cached;
+    for (const entry of entries) {
+      const file = await getUploadFile(entry.key);
+      if (!file) throw new Error('Excel 文件已丢失：' + (entry.name || '未命名文件'));
+      const parsed = await parseMagicUploadPackingExcel(file, task && task.sku, result.standardPackingQuantity);
+      MAGIC_UPLOAD_PACKING_FIELDS.forEach((field) => {
+        const incoming = parsed[field.key];
+        if (!incoming) return;
+        if (result[field.key] && result[field.key] !== incoming) {
+          throw new Error('同一 SKU 的多个 Excel 中“' + field.label + '”不一致');
+        }
+        result[field.key] = incoming;
+      });
+      if (!result.sourceName) result.sourceName = parsed.sourceName;
+      result.parsedAt = parsed.parsedAt || result.parsedAt;
+      if (parsed.formulaResultUsed || parsed.formulaFallbackUsed) {
+        magicUploadLog('info', parsed.formulaFallbackUsed ? '已按 Excel 公式计算箱重' : '已读取 Excel 箱重缓存值', task.sku + ' | ' + parsed.sourceName + ' | 不使用公式文本');
+      }
+    }
+    task.excelPacking = result;
+    task.updatedAt = Date.now();
+    saveMagicUploadQueue(state.magicUploadQueue);
+    magicUploadLog('info', 'Excel 装箱信息读取完成', task.sku + ' | 装箱数=' + (result.standardPackingQuantity || '空') + ' | 箱重=' + (result.boxWeight || '空'));
+    return result;
   }
 
   // ZIP 内文件名编码兼容：Windows 中文压缩工具生成的 zip 常用 GBK 编码且不设置
@@ -13118,6 +13311,67 @@
     return values.find((item) => compactText(item && item.attr_name).includes(compactText(category))) || null;
   }
 
+  function findMagicUploadProductAttributeByVariable(values, variableName, attrName, attrId) {
+    const exactVariable = (values || []).find((item) => String(item && item.variable_name || '') === variableName && Number(item && item.language_id) === 1);
+    if (exactVariable) return exactVariable;
+    const anyVariable = (values || []).find((item) => String(item && item.variable_name || '') === variableName);
+    if (anyVariable) return anyVariable;
+    const exactId = (values || []).find((item) => String(item && item.attr_id) === String(attrId) && Number(item && item.language_id) === 1);
+    if (exactId) return exactId;
+    const anyId = (values || []).find((item) => String(item && item.attr_id) === String(attrId));
+    if (anyId) return anyId;
+    return (values || []).find((item) => compactText(item && item.attr_name) === compactText(attrName) && Number(item && item.language_id) === 1)
+      || (values || []).find((item) => compactText(item && item.attr_name) === compactText(attrName))
+      || null;
+  }
+
+  function getMagicUploadPackingFieldState(values) {
+    return MAGIC_UPLOAD_PACKING_FIELDS.reduce((result, field) => {
+      const target = findMagicUploadProductAttributeByVariable(values, field.variableName, field.attrName, field.attrId);
+      const value = target && target.value;
+      result[field.key] = field.key === 'standardPackingQuantity'
+        ? normalizeMagicUploadPackingQuantity(value)
+        : normalizeMagicUploadBoxWeight(value);
+      return result;
+    }, { standardPackingQuantity: '', boxWeight: '' });
+  }
+
+  function applyMagicUploadExcelPacking(values, excelPacking) {
+    const source = normalizeMagicUploadExcelPacking(excelPacking);
+    const changed = [];
+    const retained = [];
+    const missing = [];
+    MAGIC_UPLOAD_PACKING_FIELDS.forEach((field) => {
+      const target = findMagicUploadProductAttributeByVariable(values, field.variableName, field.attrName, field.attrId);
+      if (!target) {
+        missing.push(field.label + '字段');
+        return;
+      }
+      const language = (values || []).find((item) => String(item && item.attr_id) === String(target.attr_id) && Number(item && item.language_id) === 1);
+      if (!language) {
+        missing.push(field.label + '中文字段');
+        return;
+      }
+      const current = field.key === 'standardPackingQuantity'
+        ? normalizeMagicUploadPackingQuantity(language.value)
+        : normalizeMagicUploadBoxWeight(language.value);
+      if (current) {
+        retained.push(field.label + '=' + current);
+        return;
+      }
+      if (!source[field.key]) {
+        missing.push(field.label);
+        return;
+      }
+      language.value = source[field.key];
+      changed.push(field.label + '=' + source[field.key] + '(Excel)');
+    });
+    if (missing.length) {
+      throw new Error('PLM 缺少' + missing.join('、') + '，Excel 未提供有效值，已停止保存草稿和提审');
+    }
+    return { changed, retained };
+  }
+
   function collectMagicUploadFileVersionIds(task) {
     const byCategory = Object.create(null);
     const add = (category, value) => {
@@ -13154,7 +13408,7 @@
     });
   }
 
-  function buildMagicUploadProductDraft(task, productContext, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload) {
+  function buildMagicUploadProductDraft(task, productContext, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, excelPacking) {
     const info = getMagicUploadPayloadData(infoPayload);
     const price = getMagicUploadPayloadData(pricePayload);
     const invoice = getMagicUploadPayloadData(invoicePayload);
@@ -13180,6 +13434,8 @@
       language.value = existing;
       changed.push(category + ':' + additions[category].length + (replaceCategories.has(category) ? '(replace)' : ''));
     });
+    const packingSummary = applyMagicUploadExcelPacking(values, excelPacking);
+    packingSummary.changed.forEach((item) => changed.push(item));
     const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
     const procurementPrice = price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price;
     const invoiceItemName = invoice.invoice_item_name === undefined ? field('invoice_item_name', null) : invoice.invoice_item_name;
@@ -13217,6 +13473,7 @@
       srs_store_supplier: field('srs_store_supplier', null),
       attr_values: values.map((item) => ({ attr_id: item.attr_id, language_id: item.language_id, value: cloneMagicUploadDraftValue(item.value) })),
       _magicUploadChangedFields: changed,
+      _magicUploadPackingSummary: packingSummary,
     };
   }
 
@@ -13237,10 +13494,16 @@
     ]);
     const latestReplacement = getMagicUploadReplacementSnapshot(task, contentPayload);
     applyMagicUploadReplacementSnapshot(task, latestReplacement, 'ready', '');
-    const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload);
+    const currentPacking = getMagicUploadPackingFieldState(flattenMagicUploadProductAttributes(contentPayload));
+    const excelPacking = currentPacking.standardPackingQuantity && currentPacking.boxWeight
+      ? currentPacking
+      : await readMagicUploadPackingFromTask(task);
+    const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, excelPacking);
     const changedFields = draft._magicUploadChangedFields || [];
+    const packingSummary = draft._magicUploadPackingSummary || { changed: [], retained: [] };
     delete draft._magicUploadChangedFields;
-    magicUploadLog('info', '准备保存商品草稿', task.sku + ' | attr_values=' + draft.attr_values.length + ' | 文件字段=' + changedFields.join('；'));
+    delete draft._magicUploadPackingSummary;
+    magicUploadLog('info', '准备保存商品草稿', task.sku + ' | attr_values=' + draft.attr_values.length + ' | 文件字段=' + changedFields.join('；') + ' | 装箱字段=' + (packingSummary.changed.join('；') || '无（保留 PLM 原值）') + ' | 保留=' + (packingSummary.retained.join('；') || '无'));
     return fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
   }
 
