@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.112
+// @version      2.8.113
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.112';
+  const SCRIPT_VERSION = '2.8.113';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -261,7 +261,9 @@
           manualTargetMode: 'auto',
           manualPoints: { box: [], product: [] },
           manualLineTypes: { box: [], product: [] },
+          manualLineLayouts: { box: [], product: [] },
           manualPointHistory: [],
+          manualAutoInitialized: false,
           editorImage: null,
           editorSourceUrl: '',
           editorDragging: null,
@@ -293,10 +295,14 @@
       const session = sessions[sku];
       if (!session.manualPoints) session.manualPoints = { box: [], product: [] };
       if (!session.manualLineTypes) session.manualLineTypes = { box: [], product: [] };
+      if (!session.manualLineLayouts) session.manualLineLayouts = { box: [], product: [] };
       if (!['auto', 'box', 'product'].includes(session.manualTargetMode)) session.manualTargetMode = 'auto';
       if (!Array.isArray(session.manualLineTypes.box)) session.manualLineTypes.box = [];
       if (!Array.isArray(session.manualLineTypes.product)) session.manualLineTypes.product = [];
+      if (!Array.isArray(session.manualLineLayouts.box)) session.manualLineLayouts.box = [];
+      if (!Array.isArray(session.manualLineLayouts.product)) session.manualLineLayouts.product = [];
       if (!Array.isArray(session.manualPointHistory)) session.manualPointHistory = [];
+      if (typeof session.manualAutoInitialized !== 'boolean') session.manualAutoInitialized = Boolean(session.manualPoints.box.length || session.manualPoints.product.length);
       if (typeof session.showSideOverride !== 'boolean') session.showSideOverride = false;
       if (typeof session.frontAxisOverride !== 'boolean') session.frontAxisOverride = false;
       if (typeof session.topologyApplied !== 'boolean') session.topologyApplied = false;
@@ -393,6 +399,73 @@
       if (type === 'length') return session.fields.packageLength;
       if (type === 'height') return session.fields.packageHeight;
       return session.fields.packageWidth;
+    }
+
+    function sourcePointOrNull(point) {
+      const x = Number(point && point.x), y = Number(point && point.y);
+      return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+    }
+
+    function appendManualEdge(points, edge) {
+      const start = sourcePointOrNull(edge && edge.start), end = sourcePointOrNull(edge && edge.end);
+      if (start && end) points.push(start, end);
+    }
+
+    function autoManualPoints(session, target) {
+      const analysis = session.analysis || {};
+      const points = [];
+      if (target === 'product') {
+        const product = analysis.product;
+        if (!product) return points;
+        const heightSide = analysis.productHeightSide || session.productHeightSide || 'right';
+        const heightX = heightSide === 'left' ? product.left : product.right;
+        const horizontalY = session.showSide ? product.top : product.bottom;
+        appendManualEdge(points, { start: { x: heightX, y: product.top }, end: { x: heightX, y: product.bottom } });
+        appendManualEdge(points, { start: { x: product.left, y: horizontalY }, end: { x: product.right, y: horizontalY } });
+        return points;
+      }
+
+      const box = analysis.box, product = analysis.product;
+      const topology = analysis.transparentTopology;
+      if (session.topologyApplied && topology) {
+        const heightSide = cartonHeightSide(box, product, topology.sideFace === 'left' ? 'left' : 'right');
+        appendManualEdge(points, cartonTopologyHeightEdge(topology, heightSide));
+        appendManualEdge(points, topology.frontEdge);
+        if (session.showSide && topology.depthEdge) appendManualEdge(points, topology.depthEdge);
+        return points;
+      }
+
+      const perspective = analysis.perspective;
+      if (session.showSide && perspective) {
+        const heightSide = cartonHeightSide(box, product, 'left');
+        appendManualEdge(points, heightSide === 'right'
+          ? { start: perspective.rightTop, end: perspective.rightBottom }
+          : { start: perspective.outerTop, end: perspective.outerBottom });
+        appendManualEdge(points, { start: perspective.junctionBottom, end: perspective.rightBottom });
+        appendManualEdge(points, { start: perspective.outerTop, end: perspective.junctionTop });
+        return points;
+      }
+
+      if (!box) return points;
+      const heightSide = cartonHeightSide(box, product, 'left');
+      const heightX = heightSide === 'left' ? box.left : box.right;
+      appendManualEdge(points, { start: { x: heightX, y: box.top }, end: { x: heightX, y: box.bottom } });
+      appendManualEdge(points, { start: { x: box.left, y: box.bottom }, end: { x: box.right, y: box.bottom } });
+      return points;
+    }
+
+    function seedManualPointsFromAnalysis(session) {
+      if (session.manualAutoInitialized) return false;
+      const seeded = { box: autoManualPoints(session, 'box'), product: autoManualPoints(session, 'product') };
+      session.manualPoints = seeded;
+      session.manualLineTypes = { box: [], product: [] };
+      session.manualLineLayouts = { box: [], product: [] };
+      session.manualPointHistory = [];
+      ['box', 'product'].forEach((target) => {
+        seeded[target].forEach(() => session.manualPointHistory.push(target));
+      });
+      session.manualAutoInitialized = true;
+      return Boolean(seeded.box.length || seeded.product.length);
     }
 
     function manualLineGeometry(session, target, index) {
@@ -517,18 +590,18 @@
         ['product', '产品'],
       ].map(([mode, label]) => '<button type="button" class="pfh-parameter-editor-target-button' + (targetMode === mode ? ' is-active' : '') + '" data-action="parameter-editor-target-mode" data-target-mode="' + mode + '" aria-pressed="' + (targetMode === mode ? 'true' : 'false') + '">' + label + '</button>').join('');
       return '<section class="pfh-parameter-editor">' +
-        '<header class="pfh-parameter-editor-head"><h3>手动标注独立尺寸边</h3><span>直接画线，可自动判断纸盒/产品；判断不准时先选择对象 · Ctrl+Z 撤回端点 · Ctrl 吸附横/竖线</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
+        '<header class="pfh-parameter-editor-head"><h3>手动调整尺寸标注</h3><span>自动尺寸和数值已保留 · 拖动端点调整线，拖动黑色尺寸线/数值调整位置 · Ctrl+Z 撤回端点</span><button type="button" data-action="parameter-editor-close">关闭</button></header>' +
         '<div class="pfh-parameter-editor-tools">' +
           '<span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().primarySoft + ';color:' + getActiveTheme().primary + ';font-size:12px">纸盒 ' + boxCount + '/2-3 边</span>' +
           '<span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + getActiveTheme().secondarySoft + ';color:' + getActiveTheme().secondary + ';font-size:12px">产品 ' + productCount + '/2 边</span>' +
           '<span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + getActiveTheme().border + ';border-radius:10px"><b style="padding:0 4px;color:' + getActiveTheme().muted + ';font-size:12px">下条线：</b>' + targetButtons + '</span>' +
-          '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">全部重画</button>' +
+          '<button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">清空线条</button>' +
           '<button type="button" data-action="parameter-editor-retry">重新载入底图</button>' +
           '<button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button>' +
           '<div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + manualAllCalibrationHtml(session) + '</div>' +
         '</div>' +
         '<div class="pfh-parameter-editor-stage' + (!session.editorImage && !session.editorLoadError ? ' is-loading' : '') + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div>' +
-        '<footer class="pfh-parameter-editor-foot"><span>默认自动判断；也可先选纸盒/产品，每条尺寸边点击“起点 → 终点”</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualOverallProgressText(session) + '</span></footer>' +
+        '<footer class="pfh-parameter-editor-foot"><span>自动标注可直接微调；清空线条后再点击图片重新画线</span><span class="pfh-parameter-editor-status' + statusClass + '">' + context.escapeHtml(session.editorStatus || '等待载入底图') + '</span><span class="pfh-parameter-editor-progress">' + manualOverallProgressText(session) + '</span></footer>' +
         '<details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + context.escapeHtml(editorLogText(session)) + '</pre></details>' +
       '</section>';
     }
@@ -538,7 +611,7 @@
     }
 
     function editorCanvasPadding(image) {
-      return Math.round(68 * editorScale(image));
+      return Math.round(112 * editorScale(image));
     }
 
     function fitEditorCanvas(canvas) {
@@ -554,22 +627,102 @@
       return { scale, width, height, stageWidth: stage.clientWidth, stageHeight: stage.clientHeight };
     }
 
+    function editorDimensionScale(image) {
+      const width = Number(image && (image.naturalWidth || image.width) || 0);
+      const height = Number(image && (image.naturalHeight || image.height) || 0);
+      const maxSide = Math.max(width, height);
+      return maxSide ? Math.max(.65, Math.min(2, maxSide / 1600)) : 1;
+    }
+
+    function manualLineLayout(session, target, index) {
+      const stored = session.manualLineLayouts && session.manualLineLayouts[target] && session.manualLineLayouts[target][index];
+      const offsetValue = Number(stored && stored.offset);
+      const offset = Number.isFinite(offsetValue) ? Math.max(8, offsetValue) : 36;
+      const labelOffsetValue = Number(stored && stored.labelOffset);
+      const labelOffset = Number.isFinite(labelOffsetValue) ? Math.max(8, labelOffsetValue) : offset;
+      const tangentValue = Number(stored && stored.tangentShift);
+      const tangentShift = Number.isFinite(tangentValue) ? tangentValue : 0;
+      return { offset, labelOffset, tangentShift };
+    }
+
+    function manualDimensionOptions(session, target, index, options, sourceScale) {
+      const stored = session.manualLineLayouts && session.manualLineLayouts[target] && session.manualLineLayouts[target][index];
+      if (!stored) return options;
+      const layout = manualLineLayout(session, target, index);
+      const scale = Number(sourceScale) || 1;
+      return { ...(options || {}), offset: layout.offset * scale, labelOffset: layout.labelOffset * scale, tangentShift: layout.tangentShift * scale, manualPlacement: true };
+    }
+
+    function editorDimensionGeometry(ctx, start, end, value, normalSign, layout, fontScale) {
+      if (!number(value)) return null;
+      const dx = end.x - start.x, dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      if (length < 8) return null;
+      const safeScale = Math.max(.65, Number(fontScale) || 1);
+      const nx = (-dy / length) * normalSign, ny = (dx / length) * normalSign;
+      const tx = dx / length, ty = dy / length;
+      const label = dimensionLabel(value);
+      let labelWidth = label.length * 23 * safeScale;
+      if (ctx) {
+        ctx.save(); ctx.font = '42px Arial';
+        labelWidth = ctx.measureText(label).width * safeScale;
+        ctx.restore();
+      }
+      const textGap = length > labelWidth + 48 * safeScale ? 26 * safeScale : 46 * safeScale;
+      const lineOffset = Number(layout && layout.offset) || 36;
+      const labelOffset = Number(layout && layout.labelOffset) || lineOffset;
+      const tangentShift = Number(layout && layout.tangentShift) || 0;
+      const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      const lineStart = { x: start.x + nx * lineOffset, y: start.y + ny * lineOffset };
+      const lineEnd = { x: end.x + nx * lineOffset, y: end.y + ny * lineOffset };
+      const labelCenter = {
+        x: middle.x + nx * (labelOffset + textGap) + tx * tangentShift,
+        y: middle.y + ny * (labelOffset + textGap) + ty * tangentShift,
+      };
+      let angle = Math.atan2(dy, dx);
+      if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+      return { label, fontScale: safeScale, lineStart, lineEnd, labelCenter, labelWidth, angle, normal: { x: nx, y: ny }, tangent: { x: tx, y: ty } };
+    }
+
+    function drawEditorDimension(ctx, geometry) {
+      if (!geometry) return;
+      const scale = geometry.fontScale;
+      const tick = 16 * scale;
+      ctx.save();
+      ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineWidth = 3.5 * scale;
+      ctx.setLineDash([]);
+      line(ctx, geometry.lineStart.x, geometry.lineStart.y, geometry.lineEnd.x, geometry.lineEnd.y);
+      line(ctx, geometry.lineStart.x - geometry.normal.x * tick, geometry.lineStart.y - geometry.normal.y * tick, geometry.lineStart.x + geometry.normal.x * tick, geometry.lineStart.y + geometry.normal.y * tick);
+      line(ctx, geometry.lineEnd.x - geometry.normal.x * tick, geometry.lineEnd.y - geometry.normal.y * tick, geometry.lineEnd.x + geometry.normal.x * tick, geometry.lineEnd.y + geometry.normal.y * tick);
+      ctx.translate(geometry.labelCenter.x, geometry.labelCenter.y);
+      ctx.rotate(geometry.angle);
+      ctx.font = Math.round(42 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(geometry.label, 0, 0);
+      ctx.restore();
+    }
+
     function drawEditorLines(ctx, session, target, color, active, scale, offsetX, offsetY) {
       const points = session.manualPoints[target] || [];
       if (!points.length) return;
       const displayPoints = points.map((point) => ({ x: point.x + (offsetX || 0), y: point.y + (offsetY || 0) }));
+      const center = manualPathCenter(displayPoints);
       const effective = autoAssignedManualTypes(session, target);
       const overrides = session.manualLineTypes[target] || [];
+      const dimensionScale = editorDimensionScale({ naturalWidth: ctx.canvas.width, naturalHeight: ctx.canvas.height });
       ctx.save();
       ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = (active ? 5 : 3) * scale;
       ctx.setLineDash(active ? [] : [10 * scale, 7 * scale]);
       for (let index = 0; index < displayPoints.length; index += 2) {
         const start = displayPoints[index], end = displayPoints[index + 1];
         if (!start || !end) continue;
+        const lineIndex = index / 2;
+        const value = manualDimensionValue(session, target, effective[lineIndex]);
+        const dimension = editorDimensionGeometry(ctx, start, end, value, outwardNormalSign(start, end, center), manualLineLayout(session, target, lineIndex), dimensionScale);
+        drawEditorDimension(ctx, dimension);
         ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y); ctx.stroke();
         const middleX = (start.x + end.x) / 2, middleY = (start.y + end.y) / 2;
         ctx.fillStyle = color; ctx.font = '700 ' + Math.round(18 * scale) + 'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText('第' + (index / 2 + 1) + '条 · ' + manualDimensionLabel(effective[index / 2]) + (overrides[index / 2] ? '（已校准）' : '（智能）'), middleX, middleY - 15 * scale);
+        ctx.fillText('第' + (lineIndex + 1) + '条 · ' + manualDimensionLabel(effective[lineIndex]) + (overrides[lineIndex] ? '（已校准）' : '（智能）'), middleX, middleY - 15 * scale);
       }
       ctx.setLineDash([]);
       displayPoints.forEach((point, index) => {
@@ -581,6 +734,46 @@
         }
       });
       ctx.restore();
+    }
+
+    function distanceToSegment(point, start, end) {
+      const dx = end.x - start.x, dy = end.y - start.y;
+      const lengthSquared = dx * dx + dy * dy;
+      if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+      const ratio = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+      return Math.hypot(point.x - (start.x + dx * ratio), point.y - (start.y + dy * ratio));
+    }
+
+    function findManualAnnotationHit(session, displayPoint, image, offsetX, offsetY) {
+      let best = null;
+      const scale = editorDimensionScale(image);
+      ['box', 'product'].forEach((target) => {
+        const points = session.manualPoints[target] || [];
+        const displayPoints = points.map((point) => ({ x: point.x + (offsetX || 0), y: point.y + (offsetY || 0) }));
+        const center = manualPathCenter(displayPoints);
+        const effective = autoAssignedManualTypes(session, target);
+        for (let index = 0; index < displayPoints.length; index += 2) {
+          const start = displayPoints[index], end = displayPoints[index + 1];
+          if (!start || !end) continue;
+          const lineIndex = index / 2;
+          const value = manualDimensionValue(session, target, effective[lineIndex]);
+          const geometry = editorDimensionGeometry(null, start, end, value, outwardNormalSign(start, end, center), manualLineLayout(session, target, lineIndex), scale);
+          if (!geometry) continue;
+          const lineDistance = distanceToSegment(displayPoint, geometry.lineStart, geometry.lineEnd);
+          const labelDistance = Math.hypot(displayPoint.x - geometry.labelCenter.x, displayPoint.y - geometry.labelCenter.y);
+          const lineRadius = 16 * scale;
+          const labelRadius = Math.max(28 * scale, geometry.labelWidth / 2 + 14 * scale);
+          if (lineDistance <= lineRadius && (!best || lineDistance < best.distance)) best = { kind: 'line', target, index: lineIndex, distance: lineDistance, geometry };
+          else if (labelDistance <= labelRadius && (!best || labelDistance < best.distance)) best = { kind: 'label', target, index: lineIndex, distance: labelDistance, geometry };
+        }
+      });
+      return best;
+    }
+
+    function updateManualLineLayout(session, target, index, patch) {
+      const current = manualLineLayout(session, target, index);
+      session.manualLineLayouts[target][index] = { ...current, ...(patch || {}) };
+      return session.manualLineLayouts[target][index];
     }
 
     function drawManualEditorCanvas(canvas, image, session) {
@@ -678,6 +871,7 @@
       if (!target || !session.manualPoints[target] || !session.manualPoints[target].length) return { target: '', removed: null };
       const removed = session.manualPoints[target].pop();
       session.manualLineTypes[target] = session.manualLineTypes[target].slice(0, Math.ceil(session.manualPoints[target].length / 2));
+      session.manualLineLayouts[target] = session.manualLineLayouts[target].slice(0, Math.ceil(session.manualPoints[target].length / 2));
       session.manualTarget = target;
       session.editorStatus = '已撤回最近的' + (target === 'box' ? '纸盒' : '产品') + '端点';
       return { target, removed };
@@ -862,7 +1056,9 @@
         return;
       }
       session.editorLoadError = '';
-      session.editorStatus = '底图已显示，可开始标注';
+      session.editorStatus = session.manualPoints.box.length || session.manualPoints.product.length
+        ? '自动尺寸和数值已显示，可直接调整'
+        : '底图已显示，可开始标注';
       const stage = root.querySelector('.pfh-parameter-editor-stage');
       if (stage) stage.classList.remove('is-loading');
       if (session.editorResizeObserver) {
@@ -882,6 +1078,26 @@
         let point = canvasPoint(event, canvas, session.editorImage);
         const radius = 28 * editorScale(session.editorImage);
         const hit = findManualPointHit(session, point, radius);
+        const padding = editorCanvasPadding(session.editorImage);
+        const displayPoint = { x: point.x + padding, y: point.y + padding };
+        const annotationHit = hit ? null : findManualAnnotationHit(session, displayPoint, session.editorImage, padding, padding);
+        if (annotationHit) {
+          session.manualTarget = annotationHit.target;
+          session.editorStatus = annotationHit.kind === 'label'
+            ? '正在调整第' + (annotationHit.index + 1) + '条尺寸数据位置'
+            : '正在调整第' + (annotationHit.index + 1) + '条尺寸线位置';
+          session.editorDragging = {
+            kind: 'annotation',
+            annotationKind: annotationHit.kind,
+            target: annotationHit.target,
+            index: annotationHit.index,
+            geometry: annotationHit.geometry,
+            lastDisplayPoint: displayPoint,
+          };
+          try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+          redraw();
+          return;
+        }
         const target = hit ? hit.target : autoManualTarget(session, point);
         if (!target) {
           session.editorStatus = '纸盒和产品尺寸边都已画完，可校准后应用生成';
@@ -912,15 +1128,38 @@
           }
         }
         if (index < 0) return;
-        session.editorDragging = { target, index, snapAxis };
+        session.editorDragging = { kind: 'point', target, index, snapAxis };
         try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
         redraw();
       };
       canvas.onpointermove = (event) => {
         const dragging = session.editorDragging;
-        if (!dragging || !session.manualPoints[dragging.target] || !session.manualPoints[dragging.target][dragging.index]) return;
-        const points = session.manualPoints[dragging.target];
         const rawPoint = canvasPoint(event, canvas, session.editorImage);
+        if (!dragging) return;
+        if (dragging.kind === 'annotation') {
+          const padding = editorCanvasPadding(session.editorImage);
+          const displayPoint = { x: rawPoint.x + padding, y: rawPoint.y + padding };
+          const dx = displayPoint.x - dragging.lastDisplayPoint.x, dy = displayPoint.y - dragging.lastDisplayPoint.y;
+          const normalDelta = dx * dragging.geometry.normal.x + dy * dragging.geometry.normal.y;
+          const tangentDelta = dx * dragging.geometry.tangent.x + dy * dragging.geometry.tangent.y;
+          const layout = manualLineLayout(session, dragging.target, dragging.index);
+          if (dragging.annotationKind === 'line') {
+            updateManualLineLayout(session, dragging.target, dragging.index, {
+              offset: layout.offset + normalDelta,
+              labelOffset: layout.labelOffset + normalDelta,
+            });
+          } else {
+            updateManualLineLayout(session, dragging.target, dragging.index, {
+              labelOffset: layout.labelOffset + normalDelta,
+              tangentShift: layout.tangentShift + tangentDelta,
+            });
+          }
+          dragging.lastDisplayPoint = displayPoint;
+          redraw();
+          return;
+        }
+        if (!session.manualPoints[dragging.target] || !session.manualPoints[dragging.target][dragging.index]) return;
+        const points = session.manualPoints[dragging.target];
         const constrained = constrainEditorPoint(rawPoint, points, dragging.index, event.ctrlKey);
         points[dragging.index] = constrained.point;
         dragging.snapAxis = constrained.axis;
@@ -928,10 +1167,21 @@
       };
       const release = (event) => {
         const dragging = session.editorDragging;
+        if (dragging && dragging.kind === 'annotation') {
+          const layout = manualLineLayout(session, dragging.target, dragging.index);
+          editorLog(session, '完成尺寸位置调整', {
+            target: dragging.target,
+            line: dragging.index + 1,
+            part: dragging.annotationKind,
+            offset: Math.round(layout.offset),
+            labelOffset: Math.round(layout.labelOffset),
+            tangentShift: Math.round(layout.tangentShift),
+          });
+        }
         const finalPoint = dragging && session.manualPoints[dragging.target] && session.manualPoints[dragging.target][dragging.index];
         session.editorDragging = null;
         try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
-        if (dragging && finalPoint) editorLog(session, '完成标注点定位', {
+        if (dragging && dragging.kind !== 'annotation' && finalPoint) editorLog(session, '完成标注点定位', {
           target: dragging.target,
           index: dragging.index + 1,
           x: Math.round(finalPoint.x),
@@ -997,10 +1247,17 @@
       const session = ensureSession(data);
       if (!session.file) return;
       session.editorOpen = true;
+      const seeded = seedManualPointsFromAnalysis(session);
       session.editorLoadError = '';
       session.editorStatus = session.editorImage ? '正在恢复底图…' : '正在读取底图…';
       session.error = '';
-      editorLog(session, '打开全屏工作区', { sku: data && data.sku || '', hasCachedImage: Boolean(session.editorImage) });
+      editorLog(session, '打开全屏工作区', {
+        sku: data && data.sku || '',
+        hasCachedImage: Boolean(session.editorImage),
+        retainedAutoAnnotations: seeded,
+        boxLines: completedManualLines(session, 'box'),
+        productLines: completedManualLines(session, 'product'),
+      });
       renderManualEditor(data);
     }
 
@@ -1402,7 +1659,18 @@
         analyzeTransparentTopology,
         analyzeImage,
       ].map((item) => typeof item === 'string' ? item : item.toString()).join('\n');
-      parameterAnalysisWorkerSource = `'use strict';\n${functions}\nself.onmessage = function(event) {\n  const payload = event.data || {};\n  try {\n    const pixels = new Uint8ClampedArray(payload.pixelBuffer);\n    const session = payload.session || {};\n    const image = { naturalWidth: Number(payload.sourceWidth) || 1, naturalHeight: Number(payload.sourceHeight) || 1 };\n    const analysis = analyzeImage(image, session, payload.rule || null, { pixels, width: Number(payload.width) || 1, height: Number(payload.height) || 1 });\n    self.postMessage({ ok: true, analysis, sessionPatch: { topologyApplied: Boolean(session.topologyApplied), topologyRuleVersion: String(session.topologyRuleVersion || ''), topologyMessage: String(session.topologyMessage || ''), frontIsLength: Boolean(session.frontIsLength), showSide: session.showSide, productHeightSide: String(session.productHeightSide || '') } });\n  } catch (error) {\n    self.postMessage({ ok: false, error: String(error && error.message || error || '参数图分析失败') });\n  }\n};`;
+      parameterAnalysisWorkerSource = `'use strict';\n${functions}\nself.onmessage = function(event) {
+  const payload = event.data || {};
+  try {
+    const pixels = new Uint8ClampedArray(payload.pixelBuffer);
+    const session = payload.session || {};
+    const image = { naturalWidth: Number(payload.sourceWidth) || 1, naturalHeight: Number(payload.sourceHeight) || 1 };
+    const analysis = analyzeImage(image, session, payload.rule || null, { pixels, width: Number(payload.width) || 1, height: Number(payload.height) || 1 });
+    self.postMessage({ ok: true, analysis, sessionPatch: { topologyApplied: Boolean(session.topologyApplied), topologyRuleVersion: String(session.topologyRuleVersion || ''), topologyMessage: String(session.topologyMessage || ''), frontIsLength: Boolean(session.frontIsLength), showSide: session.showSide, productHeightSide: String(session.productHeightSide || '') } });
+  } catch (error) {
+    self.postMessage({ ok: false, error: String(error && error.message || error || '参数图分析失败') });
+  }
+};`;
       return parameterAnalysisWorkerSource;
     }
 
@@ -1533,6 +1801,16 @@
       const textGap = length > ctx.measureText(label).width + 48 ? 26 : 46;
       const labelWidth = ctx.measureText(label).width;
       ctx.restore();
+      if (options && options.manualPlacement) {
+        const labelOffset = Number(options.labelOffset);
+        const tangentShift = Number(options.tangentShift);
+        return {
+          lineOffset: baseOffset,
+          labelOffset: Number.isFinite(labelOffset) ? Math.max(8, labelOffset) : baseOffset,
+          textGap,
+          tangentShift: Number.isFinite(tangentShift) ? tangentShift : 0,
+        };
+      }
       // Keep the measurement geometry anchored to the detected edge.  Layout
       // avoidance is allowed to move the value label, but never the dimension
       // line itself; otherwise the line can appear detached from the product.
@@ -1680,7 +1958,7 @@
       types.forEach((type, index) => {
         const start = points[index * 2], end = points[index * 2 + 1];
         const value = manualDimensionValue(session, target, type);
-        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), layout);
+        if (start && end) drawAngledDimension(ctx, start, end, value, outwardNormalSign(start, end, center), manualDimensionOptions(session, target, index, layout, fit.scale));
       });
     }
 
@@ -2000,7 +2278,9 @@
       }
       session.manualPoints = { box: [], product: [] };
       session.manualLineTypes = { box: [], product: [] };
+      session.manualLineLayouts = { box: [], product: [] };
       session.manualPointHistory = [];
+      session.manualAutoInitialized = false;
       const oldEditor = document.getElementById(editorOverlayId);
       if (oldEditor) {
         oldEditor.remove();
@@ -2117,9 +2397,11 @@
         const removedCount = session.manualPoints.box.length + session.manualPoints.product.length;
         session.manualPoints = { box: [], product: [] };
         session.manualLineTypes = { box: [], product: [] };
+        session.manualLineLayouts = { box: [], product: [] };
         session.manualPointHistory = [];
+        session.manualAutoInitialized = true;
         session.editorStatus = '标注已全部清空，可重新直接画线';
-        editorLog(session, '全部重画', { removedCount });
+        editorLog(session, '清空自动尺寸线', { removedCount });
         renderManualEditor(data);
         return true;
       }
