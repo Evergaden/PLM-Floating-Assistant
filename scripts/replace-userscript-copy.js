@@ -41,6 +41,20 @@ function lineNumberAt(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
 }
 
+function matchExcerpt(source, index, length) {
+  const lineStart = source.lastIndexOf('\n', index - 1) + 1;
+  const lineEndIndex = source.indexOf('\n', index);
+  const lineEnd = lineEndIndex < 0 ? source.length : lineEndIndex;
+  const line = source.slice(lineStart, lineEnd).trim();
+  const localIndex = Math.max(0, index - lineStart);
+  const radius = 72;
+  const start = Math.max(0, localIndex - radius);
+  const end = Math.min(line.length, localIndex + length + radius);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < line.length ? '…' : '';
+  return prefix + line.slice(start, end) + suffix;
+}
+
 function nextPatchVersion(version) {
   const parts = version.split('.').map(Number);
   if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) {
@@ -102,8 +116,12 @@ for (const [index, item] of replacements.entries()) {
     matchedWithFlexibleWhitespace = matches.length > 0;
   }
   if (matches.length !== expected) {
+    const locations = matches.map((match, matchIndex) => (
+      '  ' + (matchIndex + 1) + '. line ' + lineNumberAt(updated, match.index) + ': ' + matchExcerpt(updated, match.index, item.from.length)
+    ));
     throw new Error(
-      'Replacement #' + (index + 1) + ' expected ' + expected + ' match(es), found ' + matches.length + ': ' + item.from
+      'Replacement #' + (index + 1) + ' expected ' + expected + ' match(es), found ' + matches.length + ': ' + item.from +
+      (locations.length ? '\nMatching locations:\n' + locations.join('\n') : '')
     );
   }
 
