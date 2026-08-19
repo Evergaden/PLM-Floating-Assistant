@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.108
+// @version      2.8.109
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.108';
+  const SCRIPT_VERSION = '2.8.109';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -16051,6 +16051,24 @@
     return new Promise((resolve) => window.requestAnimationFrame(() => window.setTimeout(resolve, 0)));
   }
 
+  function createSizeImageCanvas(width, height) {
+    if (typeof document !== 'undefined' && document.createElement) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      return canvas;
+    }
+    if (typeof OffscreenCanvas === 'function') return new OffscreenCanvas(width, height);
+    throw new Error('当前环境不支持 Canvas');
+  }
+
+  function getSizeImageSourceDimensions(image) {
+    const width = Number(image && (image.naturalWidth || image.width));
+    const height = Number(image && (image.naturalHeight || image.height));
+    if (!(width > 0) || !(height > 0)) throw new Error('无法读取图片尺寸');
+    return { width, height };
+  }
+
   async function setSizeImageProcessingStep(session, text) {
     session.processingStep = text;
     const panel = document.getElementById(PANEL_ID);
@@ -16087,9 +16105,56 @@
     if (!silent) await yieldSizeImageUi();
     const sourceUrl = URL.createObjectURL(file);
     try {
-      const image = await loadSizeImageSource(sourceUrl);
       await setSizeImageProcessingStep(session, '\u6b63\u5728\u8bc6\u522b\u7eb8\u76d2\u6216\u6807\u7b7e...');
       const preferredLabelKey = String(preferredType || '').startsWith('label:') ? String(preferredType).slice(6) : '';
+      const workerResult = await runSizeImageWorker(file, preferredType, cartonSpec, labelSpecs, data, session);
+      if (workerResult) {
+        if (workerResult.status === 'pending') {
+          const pendingId = 'pending-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+          session.pendingLabelMatches = session.pendingLabelMatches.filter((item) => item.file !== file);
+          session.pendingLabelMatches.push({ id: pendingId, file });
+          session.error = '';
+          if (!silent) showToast('\u4e24\u4e2a\u5c3a\u5bf8\u6bd4\u4f8b\u592a\u63a5\u8fd1\uff0c\u8bf7\u624b\u52a8\u9009\u62e9\u5bf9\u5e94\u5c3a\u5bf8');
+          return 'pending';
+        }
+        const workerMatchedLabelSpec = workerResult.detectedType === 'label'
+          ? labelSpecs.find((spec) => spec.key === workerResult.matchedLabelKey) || null
+          : null;
+        if (workerResult.detectedType === 'label' && !workerMatchedLabelSpec) {
+          throw new Error('\u9009\u62e9\u7684\u6807\u7b7e\u5c3a\u5bf8\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002');
+        }
+        await setSizeImageProcessingStep(session, '\u8bc6\u522b\u5b8c\u6210\uff0c\u6b63\u5728\u56de\u586b Worker \u751f\u6210\u7684 3000 \u00d7 3000 JPG...');
+        if (workerResult.transparent) {
+          session.includeRoundArc = false;
+          session.includeBatchNumber = false;
+        }
+        if (workerResult.detectedType === 'carton') {
+          session.cartonResultDataUrl = workerResult.dataUrl;
+          session.cartonFile = file;
+        } else {
+          const spec = workerMatchedLabelSpec;
+          session.flatResults[spec.key] = { dataUrl: workerResult.dataUrl, kind: spec.kind, code: spec.code };
+          session.flatFiles[spec.key] = file;
+          session.pendingLabelMatches = session.pendingLabelMatches.filter((item) => item.file !== file);
+          if (labelSpecs.length === 1) {
+            session.labelResultDataUrl = workerResult.dataUrl;
+            session.labelResultKind = spec.kind;
+            session.labelFile = file;
+          }
+        }
+        session.error = '';
+        if (!data.isCustomSizeImage) {
+          if (workerResult.detectedType === 'carton') {
+            updateDailyLedgerForSku(sku, { boxFileState: 'done', boxFileDone: true }, getTodayKey());
+          } else {
+            updateDailyLedgerForSku(sku, { labelFileState: 'done', labelFileDone: true }, getTodayKey());
+          }
+        }
+        recordSizeImageUsage(true);
+        if (!silent) showToast('\u5df2\u81ea\u52a8\u8bc6\u522b\u4e3a' + (workerResult.detectedType === 'carton' ? '\u7eb8\u76d2' : (workerMatchedLabelSpec.kind === 'print' ? '\u5370\u5237' : '\u6807\u7b7e')) + '\u5e76\u751f\u6210\u5c3a\u5bf8\u56fe');
+        return true;
+      }
+      const image = await loadSizeImageSource(sourceUrl);
       let detectedType = preferredType === 'carton' ? 'carton' : (preferredType === 'label' || preferredLabelKey ? 'label' : '');
       let matchedLabelSpec = null;
       let geometry = null;
@@ -16217,12 +16282,11 @@
 
   function analyzeSizeImageGeometry(image, spec) {
     const maxSide = 1800;
-    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
-    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    const source = getSizeImageSourceDimensions(image);
+    const ratio = Math.min(1, maxSide / Math.max(source.width, source.height));
+    const width = Math.max(1, Math.round(source.width * ratio));
+    const height = Math.max(1, Math.round(source.height * ratio));
+    const canvas = createSizeImageCanvas(width, height);
     const context = canvas.getContext('2d', { willReadFrequently: true });
     context.drawImage(image, 0, 0, width, height);
     const pixels = context.getImageData(0, 0, width, height).data;
@@ -16310,10 +16374,10 @@
       throw new Error('\u900f\u660e\u8f6e\u5ed3\u4e0d\u7b26\u5408\u201c\u8fde\u7eed\u4e3b\u4f53 + \u7b2c\u4e8c\u9762\u9876\u76d6 + \u7b2c\u56db\u9762\u5e95\u76d6\u201d\u7ed3\u6784\u3002');
     }
     return {
-      bodyLeft: bodyLeft * image.naturalWidth / width,
-      bodyTop: bestStart * image.naturalHeight / height,
-      pixelsPerCmX: scaleX * image.naturalWidth / width,
-      pixelsPerCmY: scaleY * image.naturalHeight / height,
+      bodyLeft: bodyLeft * source.width / width,
+      bodyTop: bestStart * source.height / height,
+      pixelsPerCmX: scaleX * source.width / width,
+      pixelsPerCmY: scaleY * source.height / height,
     };
   }
 
@@ -16338,12 +16402,11 @@
 
   function analyzeLabelSizeImageGeometry(image, spec, allowMismatch) {
     const maxSide = 1600;
-    const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
-    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
-    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    const source = getSizeImageSourceDimensions(image);
+    const ratio = Math.min(1, maxSide / Math.max(source.width, source.height));
+    const width = Math.max(1, Math.round(source.width * ratio));
+    const height = Math.max(1, Math.round(source.height * ratio));
+    const canvas = createSizeImageCanvas(width, height);
     const context = canvas.getContext('2d', { willReadFrequently: true });
     context.drawImage(image, 0, 0, width, height);
     const pixels = context.getImageData(0, 0, width, height).data;
@@ -16379,27 +16442,26 @@
       throw new Error('\u56fe\u7247\u6bd4\u4f8b\u4e0e PLM \u6807\u7b7e\u5c3a\u5bf8 ' + formatSizeImageNumber(spec.width) + ' \u00d7 ' + formatSizeImageNumber(spec.height) + ' cm \u4e0d\u5339\u914d\u3002');
     }
     return {
-      cropX: left * image.naturalWidth / width,
-      cropY: top * image.naturalHeight / height,
-      cropWidth: cropWidth * image.naturalWidth / width,
-      cropHeight: cropHeight * image.naturalHeight / height,
+      cropX: left * source.width / width,
+      cropY: top * source.height / height,
+      cropWidth: cropWidth * source.width / width,
+      cropHeight: cropHeight * source.height / height,
       rotated: ratioMatch.rotated,
       panelCount: ratioMatch.panelCount,
       matchDelta: ratioMatch.matchDelta,
     };
   }
 
-  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, customRemark) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 3000;
-    canvas.height = 3000;
+  function generateSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, customRemark, renderOptions) {
+    const canvas = createSizeImageCanvas(3000, 3000);
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
     context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText(getSizeImageTitle('carton', data, includeRemark, includeRoundArc, customRemark), 505, 140);
+    const titleText = renderOptions && renderOptions.titleText || getSizeImageTitle('carton', data, includeRemark, includeRoundArc, customRemark);
+    context.fillText(titleText, 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     const extraSizeText = (spec.extraWidths || []).map((value) => 'X' + formatSizeImageNumber(value)).join('');
     context.fillText('\u89c4\u683c\u5c3a\u5bf8\uff1a\u957f' + formatSizeImageNumber(spec.length) + 'X\u5bbd' + formatSizeImageNumber(spec.width) + 'X\u9ad8' + formatSizeImageNumber(spec.height) + extraSizeText + 'CM', 505, 260);
@@ -16429,7 +16491,8 @@
     context.imageSmoothingQuality = 'high';
     const imageX = artX - geometry.bodyLeft / geometry.pixelsPerCmX * drawScale;
     const imageY = bodyTop - geometry.bodyTop / geometry.pixelsPerCmY * drawScale;
-    context.drawImage(image, imageX, imageY, image.naturalWidth / geometry.pixelsPerCmX * drawScale, image.naturalHeight / geometry.pixelsPerCmY * drawScale);
+    const source = getSizeImageSourceDimensions(image);
+    context.drawImage(image, imageX, imageY, source.width / geometry.pixelsPerCmX * drawScale, source.height / geometry.pixelsPerCmY * drawScale);
     context.restore();
     traceCartonSizeImageOutline(context, artX, artY, drawScale, spec);
     context.strokeStyle = '#000000';
@@ -16474,7 +16537,7 @@
         cursorX = nextX;
       });
     }
-    return canvas.toDataURL('image/jpeg', 0.96);
+    return renderOptions && renderOptions.returnCanvas ? canvas : canvas.toDataURL('image/jpeg', 0.96);
   }
 
   function getCartonBodyWidths(spec) {
@@ -16504,17 +16567,16 @@
     context.closePath();
   }
 
-  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, includeBatchNumber, customRemark) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 3000;
-    canvas.height = 3000;
+  function generateLabelSizeImageJpeg(image, geometry, spec, data, includeRemark, includeRoundArc, includeBatchNumber, customRemark, renderOptions) {
+    const canvas = createSizeImageCanvas(3000, 3000);
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.textBaseline = 'top';
     context.fillStyle = '#000000';
     context.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
-    context.fillText(getSizeImageTitle(spec.kind === 'print' ? 'print' : 'label', data, includeRemark, includeRoundArc, customRemark), 505, 140);
+    const titleText = renderOptions && renderOptions.titleText || getSizeImageTitle(spec.kind === 'print' ? 'print' : 'label', data, includeRemark, includeRoundArc, customRemark);
+    context.fillText(titleText, 505, 140);
     context.font = '78px "Microsoft YaHei", "PingFang SC", sans-serif';
     const panelCount = Math.max(1, Number(geometry.panelCount) || 1);
     const artworkWidth = spec.width * panelCount;
@@ -16525,7 +16587,7 @@
     if (includeBatchNumber) {
       context.fillStyle = '#ee1410';
       context.font = '76px "Microsoft YaHei", "PingFang SC", sans-serif';
-      const batchNote = shouldUseFullLabelDateRemark(data) ? '\uff08\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7\uff09' : '\uff08\u6279\u6b21\u53f7\uff09';
+      const batchNote = renderOptions && renderOptions.batchNoteText || (shouldUseFullLabelDateRemark(data) ? '\uff08\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7\uff09' : '\uff08\u6279\u6b21\u53f7\uff09');
       context.fillText(batchNote, 469, 370);
     }
 
@@ -16597,7 +16659,187 @@
     } else {
       context.fillText(formatSizeImageNumber(spec.width) + 'cm', artX + artWidth / 2, bottomY + 34);
     }
-    return canvas.toDataURL('image/jpeg', 0.96);
+    return renderOptions && renderOptions.returnCanvas ? canvas : canvas.toDataURL('image/jpeg', 0.96);
+  }
+
+  let sizeImageWorkerSource = '';
+
+  function getSizeImageWorkerSource() {
+    if (sizeImageWorkerSource) return sizeImageWorkerSource;
+    const pureFunctions = [
+      'const clamp = ' + clamp.toString() + ';',
+      'const trimNumber = ' + trimNumber.toString() + ';',
+      'const formatSizeImageNumber = ' + formatSizeImageNumber.toString() + ';',
+      createSizeImageCanvas,
+      getSizeImageSourceDimensions,
+      getCartonBodyWidths,
+      drawSizeImageLine,
+      traceSizeImageRoundedRect,
+      traceCartonSizeImageOutline,
+      matchFlatSizeImageRatio,
+      analyzeSizeImageGeometry,
+      analyzeLabelSizeImageGeometry,
+      generateSizeImageJpeg,
+      generateLabelSizeImageJpeg,
+    ].map((item) => typeof item === 'string' ? item : item.toString()).join('\n');
+    sizeImageWorkerSource = `'use strict';
+${pureFunctions}
+
+async function canvasToBlob(canvas) {
+  if (!canvas || typeof canvas.convertToBlob !== 'function') throw new Error('当前浏览器不支持 Worker 图片导出');
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: .96 });
+}
+
+self.onmessage = async function(event) {
+  const payload = event.data || {};
+  let image = null;
+  try {
+    if (typeof OffscreenCanvas !== 'function' || typeof createImageBitmap !== 'function') throw new Error('当前浏览器不支持 Worker 尺寸图生成');
+    image = await createImageBitmap(payload.file);
+    const cartonSpec = payload.cartonSpec || null;
+    const labelSpecs = Array.isArray(payload.labelSpecs) ? payload.labelSpecs : [];
+    const preferredType = String(payload.preferredType || '');
+    const preferredLabelKey = preferredType.startsWith('label:') ? preferredType.slice(6) : '';
+    const isPng = String(payload.fileName || '').toLowerCase().endsWith('.png') || payload.fileType === 'image/png';
+    let detectedType = preferredType === 'carton' ? 'carton' : (preferredType === 'label' || preferredLabelKey ? 'label' : '');
+    let geometry = null;
+    let matchedLabelSpec = null;
+    let cartonError = null;
+    if ((!detectedType || detectedType === 'carton') && cartonSpec && isPng) {
+      try {
+        geometry = analyzeSizeImageGeometry(image, cartonSpec);
+        detectedType = 'carton';
+      } catch (error) {
+        cartonError = error;
+        if (preferredType === 'carton') throw error;
+      }
+    }
+    if (!detectedType || detectedType === 'label') {
+      if (!labelSpecs.length) throw cartonError || new Error('当前 SKU 没有可用的标签尺寸');
+      if (preferredLabelKey) {
+        matchedLabelSpec = labelSpecs.find((spec) => spec.key === preferredLabelKey) || null;
+        if (!matchedLabelSpec) throw new Error('选择的标签尺寸已失效，请重新选择');
+        geometry = analyzeLabelSizeImageGeometry(image, matchedLabelSpec, true);
+      } else {
+        const matches = labelSpecs.map((spec) => {
+          try { return { spec, geometry: analyzeLabelSizeImageGeometry(image, spec) }; } catch (_) { return null; }
+        }).filter(Boolean).sort((a, b) => a.geometry.matchDelta - b.geometry.matchDelta);
+        if (!matches.length && labelSpecs.length === 1) throw new Error('图片比例与 PLM 中的标签或印刷尺寸不匹配');
+        const first = matches[0];
+        const second = matches[1];
+        const confident = first && (!second || second.geometry.matchDelta - first.geometry.matchDelta >= .012);
+        if (!confident) {
+          self.postMessage({ ok: true, status: 'pending', matches: matches.map((item) => ({ key: item.spec.key, matchDelta: item.geometry.matchDelta })) });
+          return;
+        }
+        matchedLabelSpec = first.spec;
+        geometry = first.geometry;
+      }
+      detectedType = 'label';
+    }
+    const key = detectedType === 'carton' ? 'carton' : matchedLabelSpec.key;
+    const transparent = detectedType === 'label' && Array.isArray(payload.transparentLabelKeys) && payload.transparentLabelKeys.includes(key);
+    const renderOptions = detectedType === 'carton'
+      ? ((payload.renderMeta && payload.renderMeta.carton) || {})
+      : ((payload.renderMeta && payload.renderMeta.labels && payload.renderMeta.labels[key]) || {});
+    const includeRoundArc = transparent ? false : Boolean(payload.includeRoundArc);
+    const includeBatchNumber = transparent ? false : Boolean(payload.includeBatchNumber);
+    const canvas = detectedType === 'carton'
+      ? generateSizeImageJpeg(image, geometry, cartonSpec, {}, Boolean(payload.includeRemark), includeRoundArc, payload.cartonRemarkText || '', { ...renderOptions, returnCanvas: true })
+      : generateLabelSizeImageJpeg(image, geometry, matchedLabelSpec, {}, Boolean(payload.includeRemark), includeRoundArc, includeBatchNumber, payload.labelRemarkText || '', { ...renderOptions, returnCanvas: true });
+    const blob = await canvasToBlob(canvas);
+    self.postMessage({ ok: true, status: 'ready', detectedType, matchedLabelKey: matchedLabelSpec ? matchedLabelSpec.key : '', geometry, transparent, blob });
+  } catch (error) {
+    self.postMessage({ ok: false, error: String(error && error.message || error || '尺寸图生成失败') });
+  } finally {
+    if (image && typeof image.close === 'function') image.close();
+  }
+};`;
+    return sizeImageWorkerSource;
+  }
+
+  function sizeImageBlobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      if (!blob) { reject(new Error('Worker 未返回尺寸图')); return; }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('尺寸图结果读取失败'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function runSizeImageWorker(file, preferredType, cartonSpec, labelSpecs, data, session) {
+    const canUseWorker = typeof Worker === 'function'
+      && typeof Blob === 'function'
+      && typeof OffscreenCanvas === 'function'
+      && typeof createImageBitmap === 'function'
+      && typeof URL !== 'undefined'
+      && typeof URL.createObjectURL === 'function';
+    if (!canUseWorker) return null;
+    const transparentLabelKeys = labelSpecs.filter((spec) => isTransparentSizeImageLabel(data, spec)).map((spec) => spec.key);
+    const renderMeta = { carton: null, labels: {} };
+    if (cartonSpec) {
+      renderMeta.carton = { titleText: getSizeImageTitle('carton', data, session.includeRemark, session.includeRoundArc, session.cartonRemarkText) };
+    }
+    labelSpecs.forEach((spec) => {
+      const transparent = transparentLabelKeys.includes(spec.key);
+      const includeRoundArc = transparent ? false : session.includeRoundArc;
+      const includeBatchNumber = transparent ? false : session.includeBatchNumber;
+      renderMeta.labels[spec.key] = {
+        titleText: getSizeImageTitle(spec.kind === 'print' ? 'print' : 'label', data, session.includeRemark, includeRoundArc, session.labelRemarkTexts[spec.key]),
+        batchNoteText: includeBatchNumber ? (shouldUseFullLabelDateRemark(data) ? '\uff08\u751f\u4ea7\u65e5\u671f+\u622a\u6b62\u65e5\u671f+\u6279\u6b21\u53f7\uff09' : '\uff08\u6279\u6b21\u53f7\uff09') : '',
+      };
+    });
+    let worker = null;
+    let sourceUrl = '';
+    try {
+      sourceUrl = URL.createObjectURL(new Blob([getSizeImageWorkerSource()], { type: 'application/javascript' }));
+      worker = new Worker(sourceUrl);
+      const result = await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (callback, value) => {
+          if (settled) return;
+          settled = true;
+          callback(value);
+        };
+        worker.onmessage = (event) => {
+          const payload = event && event.data || {};
+          if (!payload.ok) finish(reject, new Error(payload.error || '尺寸图 Worker 失败'));
+          else finish(resolve, payload);
+        };
+        worker.onerror = (event) => finish(reject, new Error(event && event.message || '尺寸图 Worker 启动失败'));
+        worker.postMessage({
+          file,
+          fileName: file.name || '',
+          fileType: file.type || '',
+          preferredType,
+          cartonSpec,
+          labelSpecs,
+          includeRemark: session.includeRemark,
+          includeRoundArc: session.includeRoundArc,
+          includeBatchNumber: session.includeBatchNumber,
+          cartonRemarkText: session.cartonRemarkText || '',
+          labelRemarkText: '',
+          transparentLabelKeys,
+          renderMeta,
+        });
+      });
+      if (result.status === 'pending') return { worker: true, status: 'pending', matches: result.matches || [] };
+      return {
+        worker: true,
+        status: 'ready',
+        detectedType: result.detectedType,
+        matchedLabelKey: result.matchedLabelKey || '',
+        geometry: result.geometry,
+        transparent: Boolean(result.transparent),
+        dataUrl: await sizeImageBlobToDataUrl(result.blob),
+      };
+    } catch (_) {
+      return null;
+    } finally {
+      if (worker) worker.terminate();
+      if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+    }
   }
 
   function shouldUseFullLabelDateRemark(data) {
