@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.113
+// @version      2.8.114
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.113';
+  const SCRIPT_VERSION = '2.8.114';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2508,6 +2508,82 @@
     splitWidth: 237,
   });
   const SETTINGS_KEY = 'plm-floating-helper:settings';
+  const SUPPLEMENT_FACTS_KEY = 'plm-floating-helper:supplement-facts:v1';
+  const SUPPLEMENT_FACTS_DEFAULT_ROWS = Object.freeze([
+    Object.freeze({ name: 'Vitamin B6 (as Pyridoxine Hydrochloride)', amount: '10 mg', dailyValue: '588%' }),
+    Object.freeze({ name: 'Vitamin D3 (as Cholecalciferol)', amount: '25 mcg (1,000 IU)', dailyValue: '125%' }),
+    Object.freeze({ name: 'Zinc (as Zinc Citrate)', amount: '15 mg', dailyValue: '136%' }),
+    Object.freeze({ name: 'Selenium (as L-Selenomethionine)', amount: '100 mcg', dailyValue: '182%' }),
+    Object.freeze({ name: 'Boron (as Boron Citrate)', amount: '3 mg', dailyValue: '**' }),
+    Object.freeze({ name: 'Shilajit Extract (standardized to 20% Fulvic Acid)', amount: '250 mg', dailyValue: '**' }),
+    Object.freeze({ name: 'Maca Root Extract (10:1)', amount: '200 mg', dailyValue: '**' }),
+    Object.freeze({ name: 'Ginseng Extract (Panax ginseng, 10% Ginsenosides)', amount: '100 mg', dailyValue: '**' }),
+  ]);
+  const SUPPLEMENT_FACTS_DEFAULT_DRAFT = Object.freeze({
+    title: 'Supplement Facts',
+    servingSize: '2 Capsules',
+    servingsPerContainer: '30',
+    filename: 'supplement-facts.pdf',
+    showFooter: true,
+    rows: SUPPLEMENT_FACTS_DEFAULT_ROWS,
+  });
+
+  function cloneSupplementFactsDefaultDraft() {
+    return {
+      title: SUPPLEMENT_FACTS_DEFAULT_DRAFT.title,
+      servingSize: SUPPLEMENT_FACTS_DEFAULT_DRAFT.servingSize,
+      servingsPerContainer: SUPPLEMENT_FACTS_DEFAULT_DRAFT.servingsPerContainer,
+      filename: SUPPLEMENT_FACTS_DEFAULT_DRAFT.filename,
+      showFooter: SUPPLEMENT_FACTS_DEFAULT_DRAFT.showFooter,
+      rows: SUPPLEMENT_FACTS_DEFAULT_ROWS.map((row) => ({ ...row })),
+    };
+  }
+
+  function normalizeSupplementFactsDraft(value) {
+    let source = value && typeof value === 'object' ? value : {};
+    if (typeof value === 'string') {
+      try { source = JSON.parse(value); } catch (error) { source = {}; }
+    }
+    const rawRows = Array.isArray(source.rows) && source.rows.length
+      ? source.rows
+      : SUPPLEMENT_FACTS_DEFAULT_ROWS;
+    const rows = rawRows.map((row) => ({
+      name: String(row && row.name || '').trim(),
+      amount: String(row && row.amount || '').trim(),
+      dailyValue: String(row && row.dailyValue || '').trim(),
+    }));
+    return {
+      title: String(source.title == null ? SUPPLEMENT_FACTS_DEFAULT_DRAFT.title : source.title).trim() || SUPPLEMENT_FACTS_DEFAULT_DRAFT.title,
+      servingSize: String(source.servingSize == null ? SUPPLEMENT_FACTS_DEFAULT_DRAFT.servingSize : source.servingSize).trim() || SUPPLEMENT_FACTS_DEFAULT_DRAFT.servingSize,
+      servingsPerContainer: String(source.servingsPerContainer == null ? SUPPLEMENT_FACTS_DEFAULT_DRAFT.servingsPerContainer : source.servingsPerContainer).trim() || SUPPLEMENT_FACTS_DEFAULT_DRAFT.servingsPerContainer,
+      filename: String(source.filename == null ? SUPPLEMENT_FACTS_DEFAULT_DRAFT.filename : source.filename).trim() || SUPPLEMENT_FACTS_DEFAULT_DRAFT.filename,
+      showFooter: source.showFooter !== false,
+      rows,
+    };
+  }
+
+  function loadSupplementFactsDraft() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(SUPPLEMENT_FACTS_KEY, null)
+        : JSON.parse(localStorage.getItem(SUPPLEMENT_FACTS_KEY) || 'null');
+      return saved ? normalizeSupplementFactsDraft(saved) : cloneSupplementFactsDefaultDraft();
+    } catch (error) {
+      return cloneSupplementFactsDefaultDraft();
+    }
+  }
+
+  function saveSupplementFactsDraft(value) {
+    const draft = normalizeSupplementFactsDraft(value);
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(SUPPLEMENT_FACTS_KEY, draft);
+      else localStorage.setItem(SUPPLEMENT_FACTS_KEY, JSON.stringify(draft));
+    } catch (error) {
+      // Storage is optional; the editor remains usable for the current page.
+    }
+    return draft;
+  }
+
   const HOME_FEATURE_DEFINITIONS = Object.freeze([
     Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: '点击后先检查新的设计分配，自动加入本地列表和今日工作台。' }),
     Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量生成 Excel', description: '多个 SKU 自动补全并成表' }),
@@ -2515,7 +2591,7 @@
     Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: 'ZIP 自动识别并上传', badge: 'BETA' }),
     Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '尺寸图与英文参数图', badge: 'BETA' }),
     Object.freeze({ id: 'ledger', action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '记录定稿和流程' }),
-    Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '换算与编码整理' }),
+    Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '换算、编码与成分表 PDF' }),
     Object.freeze({ id: 'feedback', action: 'home-feedback', icon: 'messageCircle', title: '提交反馈', description: '建议与问题反馈' }),
   ]);
   const DEFAULT_HOME_FEATURE_GROUPS = Object.freeze({
@@ -5422,6 +5498,7 @@
     cmConverterInput: '',
     codeFormatterInput: '',
     toolsActiveTool: 'unit',
+    supplementFactsDraft: loadSupplementFactsDraft(),
     cloudBackupRunning: false,
     cloudBackupQueued: false,
     cloudBackupStatus: '',
@@ -10077,6 +10154,45 @@
       button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner.pfh-loading-ring-global{animation:pfh-loading-ring-v28105 1s cubic-bezier(.4,0,.2,1) infinite!important;animation-play-state:running!important;}
       @media(prefers-reduced-motion:reduce){#${PANEL_ID} .pfh-loading-scan::after,#${PANEL_ID} .pfh-loading-ring,#${PANEL_ID} .pfh-loading-dots i{animation-duration:2.4s!important;animation-play-state:running!important;}}
       @media(prefers-reduced-motion:reduce){.pfh-loading-ring-global{animation-duration:2.4s!important;animation-play-state:running!important;}}
+      #${PANEL_ID} .pfh-supplement-facts-tool{min-width:0!important;padding:12px!important;overflow:hidden!important;}
+      #${PANEL_ID} .pfh-supplement-facts-head{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:12px!important;margin-bottom:12px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-head small{display:block!important;color:var(--pfh-theme-primary,#7c3aed)!important;font-size:10px!important;font-weight:800!important;letter-spacing:.14em!important;}
+      #${PANEL_ID} .pfh-supplement-facts-head h3{margin:4px 0 3px!important;color:var(--pfh-theme-text,#1f2937)!important;font-size:18px!important;line-height:1.2!important;}
+      #${PANEL_ID} .pfh-supplement-facts-head p{margin:0!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:11px!important;line-height:1.5!important;}
+      #${PANEL_ID} .pfh-supplement-facts-chip{flex:0 0 auto!important;padding:5px 8px!important;color:var(--pfh-theme-muted,#64748b)!important;border:1px solid var(--pfh-theme-border,#d8deea)!important;border-radius:7px!important;background:var(--pfh-theme-surface-alt,#f7f8fc)!important;font-size:10px!important;font-weight:800!important;}
+      #${PANEL_ID} .pfh-supplement-facts-layout{display:grid!important;grid-template-columns:minmax(270px,.9fr) minmax(300px,1.1fr)!important;align-items:start!important;gap:10px!important;min-width:0!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor,#${PANEL_ID} .pfh-supplement-facts-preview-card{min-width:0!important;border:1px solid var(--pfh-theme-border,#d8deea)!important;border-radius:10px!important;background:var(--pfh-theme-surface,#fff)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor{padding:10px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-fields{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-field{display:grid!important;gap:4px!important;min-width:0!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:10px!important;font-weight:700!important;}
+      #${PANEL_ID} .pfh-supplement-facts-field:first-child{grid-column:1/-1!important;}
+      #${PANEL_ID} .pfh-supplement-facts-field input,#${PANEL_ID} .pfh-supplement-facts-row input{box-sizing:border-box!important;width:100%!important;min-width:0!important;height:30px!important;padding:0 7px!important;color:var(--pfh-theme-text,#1f2937)!important;border:1px solid var(--pfh-theme-border,#d8deea)!important;border-radius:6px!important;outline:none!important;background:var(--pfh-theme-surface-alt,#f7f8fc)!important;font:12px/1.2 Arial,sans-serif!important;}
+      #${PANEL_ID} .pfh-supplement-facts-field input:focus,#${PANEL_ID} .pfh-supplement-facts-row input:focus{border-color:var(--pfh-theme-primary,#7c3aed)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 16%,transparent)!important;background:var(--pfh-theme-surface,#fff)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-section-title{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;margin:12px 0 6px!important;padding-top:10px!important;border-top:1px solid var(--pfh-theme-border,#d8deea)!important;color:var(--pfh-theme-text,#1f2937)!important;font-size:11px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-section-title span,#${PANEL_ID} .pfh-supplement-facts-preview-head span{color:var(--pfh-theme-muted,#64748b)!important;font-size:10px!important;font-weight:500!important;}
+      #${PANEL_ID} .pfh-supplement-facts-row-head,#${PANEL_ID} .pfh-supplement-facts-row{display:grid!important;grid-template-columns:minmax(0,1fr) 76px 52px 24px!important;gap:5px!important;align-items:center!important;}
+      #${PANEL_ID} .pfh-supplement-facts-row-head{padding:0 5px 4px!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:9px!important;font-weight:700!important;}
+      #${PANEL_ID} .pfh-supplement-facts-row-head span:nth-child(2),#${PANEL_ID} .pfh-supplement-facts-row-head span:nth-child(3){text-align:center!important;}
+      #${PANEL_ID} .pfh-supplement-facts-rows{display:grid!important;gap:5px!important;max-height:330px!important;overflow:auto!important;padding-right:2px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-row button{width:24px!important;height:24px!important;padding:0!important;color:var(--pfh-theme-muted,#64748b)!important;border:1px solid transparent!important;border-radius:6px!important;background:transparent!important;font-size:17px!important;line-height:1!important;cursor:pointer!important;}
+      #${PANEL_ID} .pfh-supplement-facts-row button:hover{color:#c04f68!important;border-color:#f0d6dd!important;background:#fff7f8!important;}
+      #${PANEL_ID} .pfh-supplement-facts-add{width:100%!important;height:30px!important;margin-top:7px!important;color:var(--pfh-theme-primary,#7c3aed)!important;border:1px dashed color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 42%,var(--pfh-theme-border,#d8deea))!important;border-radius:6px!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;font-size:11px!important;font-weight:700!important;cursor:pointer!important;}
+      #${PANEL_ID} .pfh-supplement-facts-add:hover{background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 10%,var(--pfh-theme-surface,#fff))!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor-footer{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:8px!important;margin-top:10px!important;padding-top:10px!important;border-top:1px solid var(--pfh-theme-border,#d8deea)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-check{display:flex!important;align-items:flex-start!important;gap:5px!important;min-width:0!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:10px!important;line-height:1.4!important;}
+      #${PANEL_ID} .pfh-supplement-facts-check input{margin:1px 0 0!important;accent-color:var(--pfh-theme-primary,#7c3aed)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor-footer .pfh-mini-tool-actions{flex:0 0 auto!important;gap:5px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor-footer button{min-height:28px!important;padding:0 8px!important;border:1px solid var(--pfh-theme-border,#d8deea)!important;border-radius:6px!important;background:var(--pfh-theme-surface-alt,#f7f8fc)!important;color:var(--pfh-theme-muted,#64748b)!important;font-size:10px!important;white-space:nowrap!important;cursor:pointer!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor-footer button.is-primary{color:#fff!important;border-color:var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary,#7c3aed)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor-footer button:hover{border-color:var(--pfh-theme-primary,#7c3aed)!important;color:var(--pfh-theme-primary,#7c3aed)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-editor-footer button.is-primary:hover{color:#fff!important;background:var(--pfh-theme-primary-hover,#5b21b6)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-preview-card{overflow:hidden!important;}
+      #${PANEL_ID} .pfh-supplement-facts-preview-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding:9px 10px!important;border-bottom:1px solid var(--pfh-theme-border,#d8deea)!important;color:var(--pfh-theme-text,#1f2937)!important;font-size:11px!important;}
+      #${PANEL_ID} .pfh-supplement-facts-preview-head div{display:flex!important;align-items:baseline!important;gap:7px!important;min-width:0!important;}
+      #${PANEL_ID} .pfh-supplement-facts-preview{display:flex!important;align-items:flex-start!important;justify-content:center!important;min-height:430px!important;max-height:610px!important;overflow:auto!important;padding:10px!important;background:var(--pfh-theme-surface-alt,#f7f8fc)!important;}
+      #${PANEL_ID} .pfh-supplement-facts-preview .pfh-supplement-facts-svg{display:block!important;width:100%!important;max-width:595.25px!important;height:auto!important;flex:0 0 auto!important;background:#fff!important;box-shadow:0 8px 20px rgba(31,41,55,.13)!important;}
+      @media(max-width:760px){#${PANEL_ID} .pfh-supplement-facts-layout{grid-template-columns:minmax(0,1fr)!important;}#${PANEL_ID} .pfh-supplement-facts-preview{max-height:520px!important;}}
+      @media(max-width:520px){#${PANEL_ID} .pfh-supplement-facts-fields{grid-template-columns:minmax(0,1fr)!important;}#${PANEL_ID} .pfh-supplement-facts-field:first-child{grid-column:auto!important;}#${PANEL_ID} .pfh-supplement-facts-editor-footer{flex-direction:column!important;}#${PANEL_ID} .pfh-supplement-facts-editor-footer .pfh-mini-tool-actions{width:100%!important;}#${PANEL_ID} .pfh-supplement-facts-editor-footer .pfh-mini-tool-actions button{flex:1!important;}}
     `;
     if (style.textContent !== text) style.textContent = text;
   }
@@ -15523,7 +15639,9 @@
 
   function normalizeToolsActiveTool(value) {
     const tool = String(value || '').trim().toLowerCase();
-    return tool === 'code' || tool === 'copywriting' ? tool : 'unit';
+    if (tool === 'code' || tool === 'copywriting') return tool;
+    if (tool === 'supplementfacts') return 'supplementFacts';
+    return 'unit';
   }
 
   function unitConverterToolPanelHtml() {
@@ -15540,20 +15658,197 @@
       '<div class="pfh-mini-tool-actions"><button type="button" data-action="code-formatter-clear">清空</button><button type="button" data-action="code-formatter-copy"' + (result ? '' : ' disabled') + '>复制结果</button></div></section>';
   }
 
+  const SUPPLEMENT_FACTS_PAGE_WIDTH = 595.25;
+  const SUPPLEMENT_FACTS_PAGE_HEIGHT = 841.85;
+  const SUPPLEMENT_FACTS_OUTER_LEFT = 53.88;
+  const SUPPLEMENT_FACTS_OUTER_TOP = 71.88;
+  const SUPPLEMENT_FACTS_OUTER_WIDTH = 484.68;
+  const SUPPLEMENT_FACTS_BASE_HEIGHT = 361.08;
+  const SUPPLEMENT_FACTS_ROW_HEIGHT = 30.84;
+  const SUPPLEMENT_FACTS_BASE_FINAL_THICK = 400.08;
+  const SUPPLEMENT_FACTS_BASE_FOOTER = 413.22;
+  const SUPPLEMENT_FACTS_BODY_FONT = 10.812;
+  const SUPPLEMENT_FACTS_TITLE_FONT = 24.45;
+  const SUPPLEMENT_FACTS_NAME_X = 68.51;
+  const SUPPLEMENT_FACTS_AMOUNT_X = 465.66;
+  const SUPPLEMENT_FACTS_DAILY_VALUE_X = 524.94;
+  let supplementFactsMeasureCanvas = null;
+
+  function supplementFactsTextWidth(value, fontSize, bold) {
+    const text = String(value || '');
+    if (!text) return 0;
+    try {
+      if (!supplementFactsMeasureCanvas) supplementFactsMeasureCanvas = document.createElement('canvas');
+      const context = supplementFactsMeasureCanvas.getContext('2d');
+      if (context) {
+        context.font = (bold ? '700 ' : '400 ') + fontSize + 'px Arial';
+        return context.measureText(text).width;
+      }
+    } catch (error) {
+      // Fall back to a conservative estimate when canvas is unavailable.
+    }
+    return text.length * fontSize * 0.55;
+  }
+
+  function fitSupplementFactsIngredient(value, amount) {
+    const name = String(value || '').trim();
+    const amountWidth = supplementFactsTextWidth(amount, SUPPLEMENT_FACTS_BODY_FONT, false);
+    const availableWidth = Math.max(120, Math.min(
+      350,
+      SUPPLEMENT_FACTS_AMOUNT_X - SUPPLEMENT_FACTS_NAME_X - amountWidth - 8
+    ));
+    let fontSize = SUPPLEMENT_FACTS_BODY_FONT;
+    while (fontSize > 6.6 && supplementFactsTextWidth(name, fontSize, false) > availableWidth) fontSize -= 0.2;
+    let text = name;
+    if (supplementFactsTextWidth(text, fontSize, false) > availableWidth) {
+      while (text.length > 4 && supplementFactsTextWidth(text + '...', fontSize, false) > availableWidth) text = text.slice(0, -1);
+      text = text.trim() + '...';
+    }
+    return { text, fontSize };
+  }
+
+  function supplementFactsSvgText(x, top, value, options) {
+    const config = options || {};
+    const fontSize = Number(config.fontSize || SUPPLEMENT_FACTS_BODY_FONT);
+    const baseline = top + fontSize * 0.79;
+    const anchor = config.anchor ? ' text-anchor="' + config.anchor + '"' : '';
+    const weight = config.bold ? ' font-weight="700"' : '';
+    return '<text x="' + Number(x).toFixed(2) + '" y="' + baseline.toFixed(2) + '" font-size="' + fontSize.toFixed(3) + '"' + anchor + weight + '>' + escapeHtml(value) + '</text>';
+  }
+
+  function renderSupplementFactsSvg(value) {
+    const draft = normalizeSupplementFactsDraft(value);
+    const rows = Array.isArray(draft.rows) && draft.rows.length
+      ? draft.rows
+      : [{ name: '', amount: '', dailyValue: '' }];
+    const delta = (rows.length - 8) * SUPPLEMENT_FACTS_ROW_HEIGHT;
+    const outerHeight = SUPPLEMENT_FACTS_BASE_HEIGHT + delta;
+    const finalThickTop = SUPPLEMENT_FACTS_BASE_FINAL_THICK + delta;
+    const footerTop = SUPPLEMENT_FACTS_BASE_FOOTER + delta;
+    const line = (x, top, width, height) => '<rect x="' + Number(x).toFixed(2) + '" y="' + Number(top).toFixed(2) + '" width="' + Number(width).toFixed(2) + '" height="' + Number(height).toFixed(2) + '" fill="#000"></rect>';
+    const parts = [
+      '<svg class="pfh-supplement-facts-svg" xmlns="http://www.w3.org/2000/svg" width="' + SUPPLEMENT_FACTS_PAGE_WIDTH + '" height="' + SUPPLEMENT_FACTS_PAGE_HEIGHT + '" viewBox="0 0 ' + SUPPLEMENT_FACTS_PAGE_WIDTH + ' ' + SUPPLEMENT_FACTS_PAGE_HEIGHT + '" role="img" aria-label="Supplement Facts" shape-rendering="geometricPrecision">',
+      '<rect x="' + SUPPLEMENT_FACTS_OUTER_LEFT + '" y="' + SUPPLEMENT_FACTS_OUTER_TOP + '" width="' + SUPPLEMENT_FACTS_OUTER_WIDTH + '" height="' + outerHeight.toFixed(2) + '" fill="#fff" stroke="#000" stroke-width="0.6"></rect>',
+      '<g font-family="Arial, Helvetica, sans-serif" fill="#000">',
+      supplementFactsSvgText(70.45, 80.42, draft.title, { fontSize: SUPPLEMENT_FACTS_TITLE_FONT, bold: true }),
+      supplementFactsSvgText(70.45, 104.08, 'Serving Size ' + draft.servingSize),
+      supplementFactsSvgText(70.45, 116.91, 'Serving Per Container ' + draft.servingsPerContainer),
+      line(65.76, 129.84, 460.92, 1.8),
+      supplementFactsSvgText(68.51, 139.58, 'Amount Per Serving', { bold: true }),
+      supplementFactsSvgText(445.08, 139.58, '% Daily Value', { bold: true }),
+      line(66.36, 153.96, 459.72, 0.6),
+    ];
+    rows.forEach((row, index) => {
+      const top = 166.02 + index * SUPPLEMENT_FACTS_ROW_HEIGHT;
+      const fit = fitSupplementFactsIngredient(row.name, row.amount);
+      if (index < rows.length - 1) parts.push(line(66.36, 184.80 + index * SUPPLEMENT_FACTS_ROW_HEIGHT, 459.72, 0.6));
+      parts.push(supplementFactsSvgText(SUPPLEMENT_FACTS_NAME_X, top, fit.text, { fontSize: fit.fontSize }));
+      parts.push(supplementFactsSvgText(SUPPLEMENT_FACTS_AMOUNT_X, top, row.amount, { anchor: 'end' }));
+      parts.push(supplementFactsSvgText(SUPPLEMENT_FACTS_DAILY_VALUE_X, top, row.dailyValue || '**', { anchor: 'end' }));
+    });
+    parts.push(line(65.76, finalThickTop, 460.92, 1.8));
+    if (draft.showFooter) parts.push(supplementFactsSvgText(68.51, footerTop, '**Daily Value not established.'));
+    parts.push('</g></svg>');
+    return parts.join('');
+  }
+
+  function supplementFactsVisibleRows(draft) {
+    return Array.isArray(draft.rows) && draft.rows.length
+      ? draft.rows
+      : [{ name: '', amount: '', dailyValue: '**' }];
+  }
+
+  function supplementFactsFieldHtml(key, label, value, placeholder) {
+    return '<label class="pfh-supplement-facts-field"><span>' + label + '</span><input type="text" data-supplement-facts-state="' + key + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(placeholder || '') + '" spellcheck="false"></label>';
+  }
+
+  function supplementFactsToolPanelHtml() {
+    const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
+    state.supplementFactsDraft = draft;
+    const rows = supplementFactsVisibleRows(draft);
+    const rowMarkup = rows.map((row, index) => '<div class="pfh-supplement-facts-row"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="name" value="' + escapeHtml(row.name) + '" placeholder="Vitamin B6 (as ...)" spellcheck="false"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="amount" value="' + escapeHtml(row.amount) + '" placeholder="10 mg" spellcheck="false"><input type="text" data-supplement-facts-row-index="' + index + '" data-supplement-facts-row-field="dailyValue" value="' + escapeHtml(row.dailyValue) + '" placeholder="**" spellcheck="false"><button type="button" data-action="supplement-facts-remove-row" data-index="' + index + '" aria-label="删除这一行">×</button></div>').join('');
+    return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-supplement-facts-tool"><div class="pfh-supplement-facts-head"><div><small>SUPPLEMENT FACTS</small><h3>成分表 PDF</h3><p>填写标签字段后，按参考文件的 A4 版式预览并打印保存。</p></div><span class="pfh-supplement-facts-chip">A4</span></div><div class="pfh-supplement-facts-layout"><div class="pfh-supplement-facts-editor">' +
+      '<div class="pfh-supplement-facts-fields">' + supplementFactsFieldHtml('title', '标题', draft.title, 'Supplement Facts') + supplementFactsFieldHtml('servingSize', 'Serving Size', draft.servingSize, '2 Capsules') + supplementFactsFieldHtml('servingsPerContainer', 'Serving Per Container', draft.servingsPerContainer, '30') + supplementFactsFieldHtml('filename', 'PDF 文件名', draft.filename, 'supplement-facts.pdf') + '</div>' +
+      '<div class="pfh-supplement-facts-section-title"><strong>成分行</strong><span>最多 18 行</span></div><div class="pfh-supplement-facts-row-head"><span>成分名称</span><span>每份含量</span><span>% DV</span><span></span></div><div class="pfh-supplement-facts-rows">' + rowMarkup + '</div><button type="button" class="pfh-supplement-facts-add" data-action="supplement-facts-add-row">＋ 添加成分行</button>' +
+      '<div class="pfh-supplement-facts-editor-footer"><label class="pfh-supplement-facts-check"><input type="checkbox" data-supplement-facts-state="showFooter"' + (draft.showFooter ? ' checked' : '') + '><span>显示 “**Daily Value not established.”</span></label><div class="pfh-mini-tool-actions"><button type="button" data-action="supplement-facts-load-sample">载入示例</button><button type="button" class="is-primary" data-action="supplement-facts-print">打印 / 保存 PDF</button></div></div></div>' +
+      '<div class="pfh-supplement-facts-preview-card"><div class="pfh-supplement-facts-preview-head"><div><strong>实时预览</strong><span>打印时选择“另存为 PDF”</span></div><span>595 × 842 pt</span></div><div class="pfh-supplement-facts-preview">' + renderSupplementFactsSvg(draft) + '</div></div></div></section>';
+  }
+
+  function renderSupplementFactsPreviewInline() {
+    const panel = ensurePanel();
+    const preview = panel.querySelector('.pfh-supplement-facts-preview');
+    if (preview) preview.innerHTML = renderSupplementFactsSvg(state.supplementFactsDraft);
+  }
+
+  function supplementFactsFilename(value) {
+    let filename = String(value || '').trim().replace(/[\\/:*?"<>|]+/g, '-');
+    if (!filename) filename = 'supplement-facts.pdf';
+    if (!/\.pdf$/i.test(filename)) filename += '.pdf';
+    return filename;
+  }
+
+  function getSupplementFactsExportDraft() {
+    const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
+    const rows = draft.rows.filter((row) => row.name || row.amount || (row.dailyValue && row.dailyValue !== '**'));
+    if (!rows.length) {
+      showToast('请至少填写一行成分');
+      return null;
+    }
+    if (rows.length > 18) {
+      showToast('单页最多支持 18 行成分');
+      return null;
+    }
+    for (let index = 0; index < rows.length; index += 1) {
+      if (!rows[index].name) {
+        showToast('第 ' + (index + 1) + ' 行缺少成分名称');
+        return null;
+      }
+      if (!rows[index].amount) {
+        showToast('第 ' + (index + 1) + ' 行缺少每份含量');
+        return null;
+      }
+    }
+    return {
+      ...draft,
+      filename: supplementFactsFilename(draft.filename),
+      rows: rows.map((row) => ({ ...row, dailyValue: row.dailyValue || '**' })),
+    };
+  }
+
+  function printSupplementFactsPdf() {
+    const draft = getSupplementFactsExportDraft();
+    if (!draft) return;
+    const popup = window.open('', '_blank', 'width=900,height=900,scrollbars=yes');
+    if (!popup) {
+      showToast('打印窗口被浏览器拦截，请允许弹出窗口后重试');
+      return;
+    }
+    const title = escapeHtml(draft.filename);
+    popup.document.open();
+    popup.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' + title + '</title><style>@page{size:A4;margin:0}html,body{margin:0;padding:0;width:595.25pt;min-height:841.85pt;background:#fff}body{overflow:hidden}.pfh-supplement-facts-svg{display:block;width:595.25pt;height:841.85pt;background:#fff}</style></head><body>' + renderSupplementFactsSvg(draft) + '</body></html>');
+    popup.document.close();
+    popup.focus();
+    window.setTimeout(() => {
+      try { popup.print(); } catch (error) { showToast('打印窗口已打开，请手动选择打印或另存为 PDF'); }
+    }, 450);
+    showToast('已打开打印窗口，请选择“另存为 PDF”');
+  }
+
   function toolsViewHtml() {
     const activeTool = normalizeToolsActiveTool(state.toolsActiveTool);
     state.toolsActiveTool = activeTool;
     const navItems = [
       ['unit', 'calculator', '厘米换算英寸'],
       ['code', 'tag', '编码格式化'],
+      ['supplementFacts', 'batchExcel', '成分表 PDF'],
       ['copywriting', 'sparkle', '批量文案补全'],
     ];
     const content = activeTool === 'unit'
       ? unitConverterToolPanelHtml()
-      : (activeTool === 'code' ? codeFormatterToolPanelHtml() : toyCopywritingBatchCardHtml());
+      : (activeTool === 'code' ? codeFormatterToolPanelHtml() : (activeTool === 'supplementFacts' ? supplementFactsToolPanelHtml() : toyCopywritingBatchCardHtml()));
     const nav = navItems.map((item) => '<button type="button" data-action="tools-select" data-tool="' + item[0] + '" class="' + (item[0] === activeTool ? 'is-active' : '') + '" aria-current="' + (item[0] === activeTool ? 'page' : 'false') + '">' + iconHtml(item[1]) + '<span>' + item[2] + '</span></button>').join('');
     return '<div class="pfh-detail-scroll"><section class="pfh-mini-tool-page pfh-tools-page">' +
-      '<div class="pfh-mini-tool-head pfh-tools-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>厘米换算、编码格式化和批量玩具文案补全，统一在这里切换。</p></div></div>' +
+      '<div class="pfh-mini-tool-head pfh-tools-head"><button type="button" class="pfh-upload-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div><small>QUICK TOOLS</small><h2>小工具</h2><p>厘米换算、编码格式化、成分表 PDF 和批量玩具文案补全，统一在这里切换。</p></div></div>' +
       '<div class="pfh-tools-workbench"><aside class="pfh-tools-sidebar"><div class="pfh-tools-sidebar-head"><small>TOOLS</small><strong>工具列表</strong></div><nav class="pfh-tools-nav" aria-label="小工具列表">' + nav + '</nav></aside><main class="pfh-tools-content">' + content + '</main></div>' +
       '</section></div>';
   }
@@ -21845,6 +22140,40 @@ self.onmessage = async function(event) {
       }
       return;
     }
+    if (action === 'supplement-facts-add-row') {
+      const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
+      if (draft.rows.length >= 18) {
+        showToast('单页最多支持 18 行成分');
+        return;
+      }
+      draft.rows.push({ name: '', amount: '', dailyValue: '**' });
+      state.supplementFactsDraft = saveSupplementFactsDraft(draft);
+      renderShell();
+      const panel = ensurePanel();
+      const inputs = panel.querySelectorAll('[data-supplement-facts-row-field="name"]');
+      const input = inputs[inputs.length - 1];
+      if (input) input.focus();
+      return;
+    }
+    if (action === 'supplement-facts-remove-row') {
+      const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
+      const index = Number(actionTarget.getAttribute('data-index'));
+      if (Number.isInteger(index) && index >= 0 && index < draft.rows.length) draft.rows.splice(index, 1);
+      if (!draft.rows.length) draft.rows.push({ name: '', amount: '', dailyValue: '**' });
+      state.supplementFactsDraft = saveSupplementFactsDraft(draft);
+      renderShell();
+      return;
+    }
+    if (action === 'supplement-facts-load-sample') {
+      state.supplementFactsDraft = saveSupplementFactsDraft(cloneSupplementFactsDefaultDraft());
+      renderShell();
+      showToast('已载入成分表示例');
+      return;
+    }
+    if (action === 'supplement-facts-print') {
+      printSupplementFactsPdf();
+      return;
+    }
     if (action === 'magic-upload-pick') {
       const input = ensurePanel().querySelector('.pfh-magic-upload-file');
       if (input) input.click();
@@ -22648,6 +22977,25 @@ self.onmessage = async function(event) {
           input.setSelectionRange(input.value.length, input.value.length);
         }
       }, 260);
+      return;
+    }
+    if (event.target && event.target.getAttribute && event.target.getAttribute('data-supplement-facts-state')) {
+      const key = event.target.getAttribute('data-supplement-facts-state');
+      const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
+      if (Object.prototype.hasOwnProperty.call(draft, key)) draft[key] = event.target.type === 'checkbox' ? Boolean(event.target.checked) : event.target.value;
+      state.supplementFactsDraft = saveSupplementFactsDraft(draft);
+      renderSupplementFactsPreviewInline();
+      return;
+    }
+    if (event.target && event.target.getAttribute && event.target.getAttribute('data-supplement-facts-row-index') != null) {
+      const index = Number(event.target.getAttribute('data-supplement-facts-row-index'));
+      const field = event.target.getAttribute('data-supplement-facts-row-field');
+      const draft = normalizeSupplementFactsDraft(state.supplementFactsDraft);
+      if (Number.isInteger(index) && draft.rows[index] && (field === 'name' || field === 'amount' || field === 'dailyValue')) {
+        draft.rows[index][field] = event.target.value;
+        state.supplementFactsDraft = saveSupplementFactsDraft(draft);
+        renderSupplementFactsPreviewInline();
+      }
       return;
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-unit-converter-input')) {
