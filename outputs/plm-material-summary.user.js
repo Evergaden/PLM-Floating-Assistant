@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.111
+// @version      2.8.112
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.111';
+  const SCRIPT_VERSION = '2.8.112';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -30883,10 +30883,12 @@ self.onmessage = async function(event) {
     }
   }
 
-  async function prepareLedgerAiImageGenerationPayload(sku) {
+  async function prepareLedgerAiImageGenerationPayload(sku, suppliedPreparation) {
     const normalizedSku = String(sku || '').trim();
     if (!normalizedSku) throw new Error('缺少 SKU，无法开始 AI 生图');
-    const prepared = await loadLedgerAiImagePreparation(normalizedSku, true);
+    const prepared = suppliedPreparation && !suppliedPreparation.loading
+      ? suppliedPreparation
+      : await loadLedgerAiImagePreparation(normalizedSku, true);
     return getLedgerAiImagePreparationPayload(prepared);
   }
 
@@ -31704,8 +31706,12 @@ self.onmessage = async function(event) {
       showToast('这个 SKU 的 AI 生图正在处理中，请等待结果');
       return;
     }
+    let preparation = null;
     try {
-      const preparation = await loadLedgerAiImagePreparation(sku, true);
+      const preparationKey = getLedgerAiPreparationKey(sku);
+      preparation = state.ledgerAiImagePreparations[preparationKey] || null;
+      if (preparation && !preparation.loading) preparation = collectLedgerAiImagePreparationForm(sku) || preparation;
+      if (!preparation || preparation.loading) preparation = await loadLedgerAiImagePreparation(sku, false);
       const missing = getLedgerAiPreparationMissing(preparation);
       if (missing.length) {
         const blocked = updateLedgerAiImageRecord(sku, dateKey, {
@@ -31725,9 +31731,12 @@ self.onmessage = async function(event) {
       return;
     }
     queryLedgerAiImageStatus(sku, dateKey, {
-      openViewer: true,
+      openViewer: false,
+      reopenViewerOnUpdate: false,
+      poll: false,
       submit: true,
       generationKind: normalizedKind,
+      preparation,
     });
   }
 
@@ -32035,13 +32044,15 @@ self.onmessage = async function(event) {
     const current = findLedgerRecord(normalizedSku, dateKey);
     if (!current) return null;
     const shouldSubmit = Boolean(opts.submit);
+    const allowPolling = opts.poll !== false;
+    if (shouldSubmit && !allowPolling) clearLedgerAiImagePoll(normalizedSku);
     let taskExists = null;
     let loadingRecord = current;
     if (normalizeLedgerAiImageStatus(current.aiImageStatus) !== 'loading') {
       loadingRecord = updateLedgerAiImageRecord(normalizedSku, dateKey, {
         aiImageStatus: 'loading',
         aiImageMessage: shouldSubmit
-          ? '正在准备产品文案并提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）…'
+          ? '正在提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）；不会自动查询结果…'
           : '正在检查这个 SKU 是否已有生图历史；不会提交生成请求…',
       }, false) || current;
       refreshLedgerCard(loadingRecord);
@@ -32079,12 +32090,14 @@ self.onmessage = async function(event) {
             return ready;
           }
         }
-        const requestBody = shouldSubmit ? await prepareLedgerAiImageGenerationPayload(normalizedSku) : { code: normalizedSku };
+        const requestBody = shouldSubmit
+          ? await prepareLedgerAiImageGenerationPayload(normalizedSku, opts.preparation)
+          : { code: normalizedSku };
         if (shouldSubmit) {
           const preparing = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
           const preparingUpdated = updateLedgerAiImageRecord(normalizedSku, dateKey, {
             aiImageStatus: 'loading',
-            aiImageMessage: '产品文案已准备，正在提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）…',
+            aiImageMessage: '生图资料已准备，正在提交 PLM AI 生图（' + (opts.generationKind === 'detail' ? '详情图' : '主图') + '入口）；不会自动查询结果…',
           }, true) || preparing;
           refreshLedgerCard(preparingUpdated);
           if (opts.openViewer) openLedgerAiImageViewer(preparingUpdated);
@@ -32104,13 +32117,14 @@ self.onmessage = async function(event) {
         if (changed) patch.aiImageCheckedAtMs = Date.now();
         const updated = changed ? (updateLedgerAiImageRecord(normalizedSku, dateKey, patch, true) || latest) : latest;
         if (changed) refreshLedgerCard(updated);
-        if (result.status === 'running') scheduleLedgerAiImagePoll(normalizedSku, dateKey);
+        if (result.status === 'running' && allowPolling) scheduleLedgerAiImagePoll(normalizedSku, dateKey);
         else clearLedgerAiImagePoll(normalizedSku);
-        if (opts.openViewer || (state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) {
+        if (opts.openViewer || (opts.reopenViewerOnUpdate !== false && state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) {
           openLedgerAiImageViewer(updated);
         }
-        if (result.status === 'success' && getLedgerDetail3Image(updated)) auditLedgerDetail3(normalizedSku, dateKey, false);
+        if (!shouldSubmit && result.status === 'success' && getLedgerDetail3Image(updated)) auditLedgerDetail3(normalizedSku, dateKey, false);
         if (result.status === 'empty' && opts.openViewer) showToast(normalizedSku + ' 暂无可查看的 AI 生图');
+        if (shouldSubmit) showToast(normalizedSku + ' AI 生图已提交，后台生成中；本次不会自动轮询。');
         return updated;
       } catch (error) {
         const latest = findLedgerRecord(normalizedSku, dateKey) || loadingRecord;
@@ -32145,7 +32159,7 @@ self.onmessage = async function(event) {
         }, true) || latest;
         clearLedgerAiImagePoll(normalizedSku);
         refreshLedgerCard(updated);
-        if (opts.openViewer || (state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) openLedgerAiImageViewer(updated);
+        if (opts.openViewer || (opts.reopenViewerOnUpdate !== false && state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) openLedgerAiImageViewer(updated);
         if (status === 'needs-prerequisites') {
           showToast(normalizedSku + ' 缺少产品文案或 SKU 效果图，已拦截生图请求');
         } else if (status === 'needs-sku-image') {
