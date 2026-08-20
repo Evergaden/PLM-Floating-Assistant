@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.132
+// @version      2.8.133
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.132';
+  const SCRIPT_VERSION = '2.8.133';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -12829,10 +12829,10 @@
         const statusText = item.step || item.status || '等待上传';
         const progress = /成功/.test(item.status || '') ? 100 : (/进行中/.test(item.status || '') ? 45 : 0);
         const statusClass = /失败/.test(item.status || '') ? 'is-error' : (/成功/.test(item.status || '') ? 'is-success' : '');
-        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button>' + (/失败/.test(item.status || '') ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-effect-retry" data-upload-id="' + escapeHtml(item.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>商品草稿 / BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button>' + (/失败/.test(item.status || '') ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-effect-retry" data-upload-id="' + escapeHtml(item.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
       }).join('') : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>';
-      const effectHistoryHtml = effectHistoryOpen ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + iconHtml('history') + ' 效果图历史 · ' + effectHistory.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (effectHistory.length ? effectHistory.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status || '已完成') + '</strong><span>' + escapeHtml(entry.name || entry.sourceName || '效果图任务') + ' · ' + getToyEffectUploadEntries(entry).length + ' 张 · ' + escapeHtml(entry.completedAt || entry.updatedAt || '') + '</span></div></div>').join('') : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + '</div></section></div>' : '';
-      return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div>' + effectHistoryHtml + '</div></section></div>';
+      const effectHistoryHtml = effectHistoryOpen ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + iconHtml('history') + ' 效果图历史 · ' + effectHistory.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (effectHistory.length ? effectHistory.slice(0, 40).map((entry) => { const detail = entry.step || entry.skipReason || ''; return '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status || '已完成') + '</strong><span title="' + escapeHtml(detail) + '">' + escapeHtml(entry.name || entry.sourceName || '效果图任务') + ' · ' + getToyEffectUploadEntries(entry).length + ' 张 · ' + escapeHtml(entry.completedAt || entry.updatedAt || '') + (detail ? ' · ' + escapeHtml(detail) : '') + '</span></div></div>'; }).join('') : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + '</div></section></div>' : '';
+      return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">PRODUCT / BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 手动商品保存到商品图片，设计任务保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div>' + effectHistoryHtml + '</div></section></div>';
     }
     const queue = state.magicUploadQueue || [];
     const running = Boolean(state.magicUploadRunning);
@@ -24872,6 +24872,10 @@ self.onmessage = async function(event) {
     return getProjectIdForMaterialApi(data) || String(data && (data.projectRowId || data.projectId || data.id) || '');
   }
 
+  function isManualSkuProductEffectRoute(data) {
+    return Boolean(data && (data.skuListSource === 'manual-code' || data.manualSkuAddedAt || data.manualSkuAddedAtMs));
+  }
+
   async function resolveToyEffectProjectData(item) {
     const sku = String(item && item.sku || '').trim().toUpperCase();
     const cached = loadData(sku) || (state.index || []).find((entry) => entry.sku === sku) || {};
@@ -24932,11 +24936,100 @@ self.onmessage = async function(event) {
     });
   }
 
-  async function uploadToyEffectFileByApi(item, data, entry, file, index, total) {
+  function buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, productContext, objectNames) {
+    const info = getMagicUploadPayloadData(infoPayload);
+    const price = getMagicUploadPayloadData(pricePayload);
+    const invoice = getMagicUploadPayloadData(invoicePayload);
+    const values = flattenMagicUploadProductAttributes(contentPayload);
+    if (!values.length) throw new Error('未读取到商品模板字段，无法保存商品效果图');
+    const target = values.find((item) => Number(item && item.attr_id) === 148 && Number(item && item.language_id) === 1)
+      || values.find((item) => compactText(item && item.attr_name) === '图片' && Number(item && item.language_id) === 1);
+    if (!target) throw new Error('商品模板中未找到图片字段 attr_id=148');
+    const paths = (Array.isArray(objectNames) ? objectNames : [objectNames])
+      .map(normalizeMagicUploadEffectPath)
+      .filter(Boolean)
+      .map((path) => '/' + path);
+    if (!paths.length) throw new Error('商品效果图 OSS 路径为空');
+    target.value = paths;
+    const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
+    const procureFallback = Array.isArray(info.product_procure_infos) ? info.product_procure_infos : [];
+    return {
+      procurement_price: price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price,
+      invoice_item_name: invoice.invoice_item_name === undefined ? field('invoice_item_name', null) : invoice.invoice_item_name,
+      invoice_category: invoice.invoice_category === undefined ? field('invoice_category', null) : invoice.invoice_category,
+      product_procure_infos: sanitizeMagicUploadProcureInfos(getMagicUploadProcureList(procurePayload, procureFallback)),
+      is_need_to_process_product_procure_infos: true,
+      product_version_id: Number(info.product_version_id || productContext.productVersionId) || info.product_version_id || productContext.productVersionId,
+      product_id: Number(productContext.productId) || productContext.productId,
+      code: field('code', productContext.productCode),
+      language_config: field('language_config', []),
+      product_type: field('product_type', 1),
+      same_style_code: field('same_style_code', null),
+      style_code: field('style_code', productContext.productCode),
+      is_AMZ: field('is_AMZ', false),
+      brand_id: field('brand_id', null),
+      category_id: field('category_id', null),
+      product_group_id: field('product_group_id', null),
+      virtual_classification: field('virtual_classification', null),
+      financial_settlement_classification: field('financial_settlement_classification', null),
+      jst_old_code: field('jst_old_code', null),
+      basic_unit_id: field('basic_unit_id', null),
+      purchase_unit_id: field('purchase_unit_id', null),
+      sale_unit_id: field('sale_unit_id', null),
+      purchase_conversion: field('purchase_conversion', null),
+      sale_conversion: field('sale_conversion', null),
+      is_SRS: field('is_SRS', false),
+      srs_code: field('srs_code', null),
+      data_source: field('data_source', null),
+      srs_product_code: field('srs_product_code', null),
+      srs_store_information: field('srs_store_information', null),
+      srs_store_supplier: field('srs_store_supplier', null),
+      attr_values: values.map((item) => ({ attr_id: item.attr_id, language_id: item.language_id, value: cloneMagicUploadDraftValue(item.value) })),
+    };
+  }
+
+  async function saveToyEffectPicturesToProductByApi(item, data, objectNames, productContext) {
+    const context = productContext || await resolveMagicUploadProductContext(item);
+    const infoPath = '/api/Product/GetDetailInfoByEdit?product_id=' + encodeURIComponent(context.productId) + '&product_version_id=' + encodeURIComponent(context.productVersionId);
+    const infoPayload = await fetchPlmJson(infoPath);
+    const info = getMagicUploadPayloadData(infoPayload);
+    const categoryId = info.category_id || context.categoryId;
+    if (!categoryId) throw new Error('目标商品缺少 category_id，无法保存效果图');
+    const withVersion = (path) => path + '&product_version_id=' + encodeURIComponent(context.productVersionId);
+    const [contentPayload, pricePayload, invoicePayload, procurePayload] = await Promise.all([
+      fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(context.productId) + '&category_id=' + encodeURIComponent(categoryId) + '&product_version_id=' + encodeURIComponent(context.productVersionId)),
+      fetchPlmJson(withVersion('/api/Product/GetProductPriceInfo?type=1')),
+      fetchPlmJson(withVersion('/api/Product/GetProductInvoiceInfo?type=1')),
+      fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(context.sku)),
+    ]);
+    const draft = buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, context, objectNames);
+    await fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
+    await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(context.productId) || context.productId });
+    const firstPath = (Array.isArray(objectNames) ? objectNames : [objectNames]).map(normalizeMagicUploadEffectPath).find(Boolean) || '';
+    const imageUrl = firstPath ? buildApiArchiveFileUrl(firstPath) : '';
+    const next = normalizeData({
+      ...(data || {}),
+      productId: String(context.productId || data && data.productId || ''),
+      productVersionId: String(context.productVersionId || data && data.productVersionId || ''),
+      skuImageUrl: imageUrl || data && data.skuImageUrl || '',
+      skuImageFallbackUrl: imageUrl || data && data.skuImageFallbackUrl || '',
+      skuImageSource: imageUrl ? 'effectImage' : data && data.skuImageSource || '',
+      updatedAt: new Date().toLocaleString(),
+      updatedAtMs: Date.now(),
+    });
+    saveData(context.sku, next, { changeSource: '魔法上传商品效果图' });
+    upsertDailyLedgerFromData(next, { status: '待定稿', stage: '待定稿' });
+    return next;
+  }
+
+  async function uploadToyEffectFileByApi(item, data, entry, file, index, total, options) {
+    const opts = options || {};
+    const uploadFileType = Number(opts.uploadFileType) || 40;
+    const routeLabel = uploadFileType === 30 ? '商品效果图' : 'BOM 效果图';
     const extension = getMagicUploadFileExtension(file.name || entry.name);
     if (!/\.(?:jpe?g|png|bmp)$/i.test(extension)) throw new Error('效果图仅支持 JPG / PNG / BMP：' + (entry.name || file.name));
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u83b7\u53d6\u6548\u679c\u56fe OSS \u6388\u6743 ' + index + '/' + total);
-    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: 40 });
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u83b7\u53d6' + routeLabel + ' OSS \u6388\u6743 ' + index + '/' + total);
+    const secretPayload = await fetchPlmApiJson('/api/Common/GetOssClientSecretKey', { upload_file_type: uploadFileType });
     const secret = secretPayload && secretPayload.data;
     if (!secret || !secret.bucket || !secret.file_directory) throw new Error('未获取到效果图 OSS 临时授权');
     const uploadMaxBytes = Number(secret.max_file_size) || (20 * 1024 * 1024);
@@ -24952,7 +25045,7 @@ self.onmessage = async function(event) {
       const completedParts = checkpoint && Array.isArray(checkpoint.doneParts) ? checkpoint.doneParts.length : 0;
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u7f51\u7edc\u6ce2\u52a8\uff0c\u81ea\u52a8\u91cd\u8bd5 ' + retryCount + '/' + OSS_UPLOAD_RETRY_MAX + ' · \u5df2\u5b8c\u6210\u5206\u7247 ' + completedParts + ' · ' + Math.round(delay / 1000) + '\u79d2\u540e\u7ee7\u7eed');
     });
-    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: 40, oss_path: objectName, original_file_name: file.name || entry.name });
+    await fetchPlmApiJson('/api/Common/SaveUploadFileInfo', { upload_file_type: uploadFileType, oss_path: objectName, original_file_name: file.name || entry.name });
     return objectName;
   }
 
@@ -24963,7 +25056,17 @@ self.onmessage = async function(event) {
       markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u73a9\u5177\u6548\u679c\u56fe\u6587\u4ef6');
       return;
     }
-    const data = await resolveToyEffectProjectData(item);
+    const cached = normalizeData(loadData(item.sku) || (state.index || []).find((entry) => entry.sku === item.sku) || { sku: item.sku });
+    const productRoute = isManualSkuProductEffectRoute(cached) || !/^\d+$/.test(getToyEffectProjectId(cached));
+    let productContext = null;
+    let data = cached;
+    if (productRoute) {
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u624b\u52a8 SKU \u6b63\u5728\u8bfb\u53d6\u5546\u54c1\u7248\u672c');
+      productContext = await resolveMagicUploadProductContext(item);
+      data = normalizeData({ ...data, productId: productContext.productId, productVersionId: productContext.productVersionId });
+    } else {
+      data = await resolveToyEffectProjectData(item);
+    }
     const files = [];
     for (const entry of entries) {
       const file = await getUploadFile(entry.key);
@@ -24973,20 +25076,21 @@ self.onmessage = async function(event) {
       }
       files.push({ entry, file });
     }
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u901a\u8fc7 API \u4e0a\u4f20 BOM \u6548\u679c\u56fe');
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', productRoute ? '\u6309 HAR \u65b9\u5f0f\u4e0a\u4f20\u5546\u54c1\u6548\u679c\u56fe' : '\u901a\u8fc7 API \u4e0a\u4f20 BOM \u6548\u679c\u56fe', { effectUploadRoute: productRoute ? 'product-draft' : 'project-bom' });
     state.selectedSku = data.sku;
     state.sku = data.sku;
     state.data = data;
     const uploadedPaths = [];
     for (let index = 0; index < files.length; index += 1) {
       const current = files[index];
-      uploadedPaths.push(await uploadToyEffectFileByApi(item, data, current.entry, current.file, index + 1, files.length));
+      uploadedPaths.push(await uploadToyEffectFileByApi(item, data, current.entry, current.file, index + 1, files.length, { uploadFileType: productRoute ? 30 : 40 }));
     }
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
-    await saveToyEffectPicturesByApi(data, uploadedPaths);
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', productRoute ? '\u4fdd\u5b58\u5546\u54c1\u8349\u7a3f\u5e76\u63d0\u5ba1' : '\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
+    if (productRoute) await saveToyEffectPicturesToProductByApi(item, data, uploadedPaths, productContext);
+    else await saveToyEffectPicturesByApi(data, uploadedPaths);
     archiveUploadItem(item);
-    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f', data.sku + ' | ' + uploadedPaths.length + ' 张');
-    showToast(data.sku + ' \u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f');
+    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f', data.sku + ' | ' + (productRoute ? '\u5546\u54c1\u8349\u7a3f' : 'BOM') + ' | ' + uploadedPaths.length + ' 张');
+    showToast(data.sku + ' \u6548\u679c\u56fe\u4e0a\u4f20\u5e76\u63d0\u5ba1\u6210\u529f');
   }
 
   async function runCopyrightUploadQueueItem(item) {
@@ -35397,7 +35501,13 @@ self.onmessage = async function(event) {
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const queueSource = latestQueue.length ? latestQueue : (state.uploadQueue || []);
-    const completed = queueSource.filter((item) => (!targetMode || getUploadItemMode(item) === targetMode) && /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(item.status || '') && !/\u8fdb\u884c\u4e2d/.test(item.status || ''));
+    const completed = queueSource.filter((item) => {
+      if (targetMode && getUploadItemMode(item) !== targetMode) return false;
+      const status = String(item && item.status || '');
+      if (/\u8fdb\u884c\u4e2d/.test(status)) return false;
+      if (item && item.kind === 'toy-effect' && /\u5931\u8d25/.test(status)) return false;
+      return /\u6210\u529f|\u5931\u8d25|\u8df3\u8fc7|\u5df2\u6709\u5185\u5bb9/.test(status);
+    });
     if (!completed.length) return;
     const additionsByProduct = new Map();
     completed.forEach((item) => {
