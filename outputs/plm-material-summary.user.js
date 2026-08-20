@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.130
+// @version      2.8.131
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.130';
+  const SCRIPT_VERSION = '2.8.131';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2693,6 +2693,7 @@
   const MANUAL_SKU_ADD_DELAY_MS = 1100;
   const MANUAL_SKU_ADD_MAX_ITEMS = 500;
   let manualSkuAddWorkerPromise = null;
+  let manualSkuImageRefreshPromise = null;
   const UPLOAD_HISTORY_KEY = 'plm-floating-helper:upload-history';
   const UPLOAD_WORKER_KEY = 'plm-floating-helper:upload-worker-running';
   const UPLOAD_WORKER_STATES_KEY = 'plm-floating-helper:upload-worker-states';
@@ -5598,6 +5599,7 @@
   ensurePageToyCopywritingButton();
   scheduleProjectListPrefetch();
   scheduleLegacyManualSkuLedgerMigration(1800);
+  scheduleMissingManualSkuImageRefresh(2600);
   window.setTimeout(() => startManualSkuAddQueue(), 700);
   if (shouldStartUploadWorkerOnLoad()) {
     window.setTimeout(() => processUploadQueue(), 1200);
@@ -18388,7 +18390,7 @@ self.onmessage = async function(event) {
   function ledgerRowHtml(record, mode, performanceGroupLabels, performanceRecordGroupIds) {
     const sku = record.sku || '';
     const title = [record.brand, record.name].filter(Boolean).join(' ') || sku;
-    const thumbUrl = mode === 'design' ? record.benchmarkImageUrl : (record.skuImageUrl || record.benchmarkImageUrl);
+    const thumbUrl = record.skuImageUrl || record.benchmarkImageUrl;
     const thumbnailUrl = getLedgerThumbnailUrl(thumbUrl);
     const thumb = thumbUrl
       ? '<span class="pfh-ledger-thumb-frame"><img src="' + escapeHtml(thumbnailUrl || thumbUrl) + '" alt="" loading="lazy" decoding="async"></span>'
@@ -29045,6 +29047,16 @@ self.onmessage = async function(event) {
       .filter((sku) => /^SKU\d+$/.test(sku))));
   }
 
+  async function fetchManualSkuProjectImage(sku, data) {
+    const current = normalizeData({ ...(data || {}), sku });
+    const project = await fetchApiProjectSnapshot(current, { force: true });
+    const projectId = String(project && project.projectId || '').trim() || getProjectIdForMaterialApi(current);
+    if (!projectId || !/^\d+$/.test(projectId)) return { project, projectId: '', imageUrl: '' };
+    const effectPayload = await fetchPlmJson('/api/ChemicalNew/GetProjectEffectPicture?id=' + encodeURIComponent(projectId));
+    const imageUrl = getMagicToyLabelEffectPicturePaths(effectPayload).map(getMagicToyLabelImageUrl).find(Boolean) || '';
+    return { project, projectId, imageUrl };
+  }
+
   function buildManualSkuData(sku, existing, snapshot, isNew) {
     const current = normalizeData({ ...(existing || {}), sku });
     const metrics = snapshot && snapshot.contentPayload ? extractApiProductMetrics(snapshot.contentPayload) : {};
@@ -29119,19 +29131,91 @@ self.onmessage = async function(event) {
       }
     }
     if (!isNew && cached && !snapshot) return { sku, data: normalizeData(cached), added: false, enriched: false, error: '' };
-    const data = buildManualSkuData(sku, existing, snapshot, isNew);
-    saveData(sku, data, { changeSource: isNew ? '手动添加编码' : '手动补充编码信息' });
-    if (isNew) {
-      upsertDailyLedgerFromData(data, {
-        date: getTodayKey(),
-        status: '待定稿',
-        stage: '待定稿',
-        note: '手动添加自动加入今日工作台',
-      });
-      if (state.view === 'ledger') renderShell();
+    let data = buildManualSkuData(sku, existing, snapshot, isNew);
+    let projectImage = null;
+    try {
+      projectImage = await fetchManualSkuProjectImage(sku, data);
+    } catch (error) {
+      addLog('info', '手动添加 SKU 的项目效果图读取失败，继续使用商品图', sku + ' | ' + formatErrorMessage(error));
     }
+    const productImageUrl = String(data.productListImageUrl || data.productListImageFallbackUrl || '').trim();
+    const existingEffectImageUrl = data.skuImageSource === 'effectImage'
+      ? String(data.skuImageUrl || data.skuImageFallbackUrl || '').trim()
+      : '';
+    const effectImageUrl = String(projectImage && projectImage.imageUrl || '').trim() || existingEffectImageUrl;
+    const resolvedImageUrl = effectImageUrl || productImageUrl || String(data.skuImageUrl || data.skuImageFallbackUrl || '').trim();
+    const project = projectImage && projectImage.project;
+    data = normalizeData({
+      ...data,
+      projectRowId: String(projectImage && projectImage.projectId || data.projectRowId || ''),
+      projectId: String(projectImage && projectImage.projectId || data.projectId || ''),
+      brand: data.brand || project && project.brand || '',
+      name: data.name || project && project.name || '',
+      referenceUrl: project && project.referenceUrl || data.referenceUrl || '',
+      infringementImageUrls: project && Array.isArray(project.infringementImageUrls) && project.infringementImageUrls.length
+        ? project.infringementImageUrls
+        : data.infringementImageUrls,
+      infringementImageUrl: project && project.infringementImageUrl || data.infringementImageUrl || '',
+      infringementImageSource: project && project.infringementImageSource || data.infringementImageSource || '',
+      infringementCopywriting: project && project.infringementCopywriting || data.infringementCopywriting || '',
+      skuImageUrl: resolvedImageUrl,
+      skuImageFallbackUrl: resolvedImageUrl,
+      skuImageSource: effectImageUrl ? 'effectImage' : (productImageUrl ? 'productListImage' : data.skuImageSource || ''),
+      manualSkuImageCheckedAtMs: Date.now(),
+    });
+    saveData(sku, data, { changeSource: isNew ? '手动添加编码' : '手动补充编码信息' });
+    upsertDailyLedgerFromData(data, {
+      date: getTodayKey(),
+      status: '待定稿',
+      stage: '待定稿',
+      note: isNew ? '手动添加自动加入今日工作台' : undefined,
+    });
+    if (state.view === 'ledger' && !opts.background && !renderLedgerTabContent(ensurePanel())) renderShell();
     addLog(isNew ? 'success' : 'info', isNew ? '已手动添加 SKU' : '已补充 SKU 信息', sku + (snapshot && snapshot.found ? ' | 已读取产品信息' : ' | ' + apiError));
-    return { sku, data, added: isNew, enriched: Boolean(snapshot && snapshot.found), error: apiError };
+    return { sku, data, added: isNew, enriched: Boolean(snapshot && snapshot.found), effectImageFound: Boolean(effectImageUrl), error: apiError };
+  }
+
+  function scheduleMissingManualSkuImageRefresh(delayMs) {
+    window.setTimeout(() => {
+      if (manualSkuAddWorkerPromise) {
+        scheduleMissingManualSkuImageRefresh(1500);
+        return;
+      }
+      if (manualSkuImageRefreshPromise) return;
+      manualSkuImageRefreshPromise = refreshMissingManualSkuImages().catch((error) => {
+        addLog('warn', '手动 SKU 图片后台补全失败', formatErrorMessage(error));
+        return 0;
+      }).finally(() => {
+        manualSkuImageRefreshPromise = null;
+      });
+    }, Math.max(0, Number(delayMs) || 0));
+  }
+
+  async function refreshMissingManualSkuImages() {
+    syncDailyLedgerBeforeMutation();
+    const currentMonth = getMonthKeyFromDateKey(getTodayKey());
+    const candidates = Array.from(new Set((state.ledgerRecords || []).filter((record) => {
+      if (!record || getMonthKeyFromDateKey(record.date) !== currentMonth || isLedgerFinalizedRecord(record)) return false;
+      if (String(record.skuImageUrl || '').trim()) return false;
+      const sku = String(record.sku || '').trim().toUpperCase();
+      if (!sku) return false;
+      const cached = normalizeData(loadData(sku) || state.index.find((item) => item && String(item.sku || '').toUpperCase() === sku) || { sku });
+      return cached.skuListSource === 'manual-code' || Boolean(cached.manualSkuAddedAt || cached.manualSkuAddedAtMs);
+    }).map((record) => String(record.sku || '').trim().toUpperCase()).filter(Boolean))).slice(0, 80);
+    if (!candidates.length) return 0;
+    let updatedCount = 0;
+    for (const sku of candidates) {
+      try {
+        const result = await addSkuByCode(sku, { force: true, background: true });
+        if (result && result.data && String(result.data.skuImageUrl || result.data.skuImageFallbackUrl || '').trim()) updatedCount += 1;
+      } catch (error) {
+        addLog('info', '手动 SKU 图片后台补全跳过', sku + ' | ' + formatErrorMessage(error));
+      }
+      await wait(450);
+    }
+    if (updatedCount && state.view === 'ledger' && !renderLedgerTabContent(ensurePanel())) renderShell();
+    addLog('info', '手动 SKU 图片后台补全完成', '检查 ' + candidates.length + ' 个，更新 ' + updatedCount + ' 个');
+    return updatedCount;
   }
 
   function getManualSkuAddQueueStats(queue) {
@@ -29260,7 +29344,7 @@ self.onmessage = async function(event) {
     const queue = loadManualSkuAddQueue();
     const next = queue.slice();
     let addedCount = 0;
-    let skippedCount = 0;
+    let refreshCount = 0;
     skus.slice(0, MANUAL_SKU_ADD_MAX_ITEMS).forEach((sku) => {
       const existingIndex = next.findIndex((entry) => entry.sku === sku);
       const previous = existingIndex >= 0 ? next[existingIndex] : null;
@@ -29268,21 +29352,21 @@ self.onmessage = async function(event) {
       const item = {
         ...(previous || {}),
         sku,
-        status: inCatalog ? 'skipped' : 'pending',
-        step: inCatalog ? 'SKU 已在列表中，无需重复添加' : '等待后台读取产品信息',
+        status: 'pending',
+        step: inCatalog ? '等待刷新产品信息和效果图' : '等待后台读取产品信息和效果图',
         error: '',
         updatedAt: Date.now(),
       };
-      if (inCatalog) skippedCount += 1;
+      if (inCatalog) refreshCount += 1;
       else addedCount += existingIndex >= 0 ? 0 : 1;
       if (existingIndex >= 0) next[existingIndex] = item;
       else next.push(item);
     });
     state.manualSkuAddInput = '';
-    state.manualSkuAddStatus = '已加入 ' + skus.slice(0, MANUAL_SKU_ADD_MAX_ITEMS).length + ' 个 SKU，等待后台逐个读取';
+    state.manualSkuAddStatus = '已加入 ' + skus.slice(0, MANUAL_SKU_ADD_MAX_ITEMS).length + ' 个 SKU，等待后台逐个读取产品信息和效果图';
     saveManualSkuAddQueue(next);
     refreshManualSkuAddUi();
-    showToast(skippedCount && !addedCount ? '所选 SKU 已在列表中' : state.manualSkuAddStatus);
+    showToast(refreshCount && !addedCount ? '已加入刷新队列：' + refreshCount + ' 个 SKU' : state.manualSkuAddStatus);
     startManualSkuAddQueue();
   }
 
@@ -29365,14 +29449,16 @@ self.onmessage = async function(event) {
       if (!entry) break;
       const sku = entry.sku;
       state.manualSkuAddCurrentSku = sku;
-      state.manualSkuAddStatus = '正在读取 ' + sku + ' 的产品信息';
-      updateManualSkuAddQueueEntry(sku, { status: 'processing', step: '正在读取 PLM 产品接口', error: '' });
+      state.manualSkuAddStatus = '正在读取 ' + sku + ' 的产品信息和效果图';
+      updateManualSkuAddQueueEntry(sku, { status: 'processing', step: '正在读取 PLM 产品和项目效果图', error: '' });
       try {
         const result = await addSkuByCode(sku, { force: true });
         if (!isSkuInCatalog(sku)) throw new Error('SKU 未能写入本地列表');
         updateManualSkuAddQueueEntry(sku, {
           status: result && result.enriched ? 'success' : 'partial',
-          step: result && result.enriched ? '产品 API 信息已读取并加入列表及今日工作台' : '已加入列表和今日工作台，但产品 API 未返回完整信息',
+          step: result && result.enriched
+            ? (result.effectImageFound ? '产品信息和效果图已更新，并同步今日工作台' : '产品信息已更新，未找到效果图，已使用商品图')
+            : '已加入列表和今日工作台，但产品 API 未返回完整信息',
           error: result && result.error || '',
         });
       } catch (error) {
