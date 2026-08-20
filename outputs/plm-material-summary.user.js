@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.137
+// @version      2.8.138
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.137';
+  const SCRIPT_VERSION = '2.8.138';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -16065,24 +16065,46 @@
     const skus = Array.from(new Set((entries || []).map((entry) => String(entry && entry.sku || '').trim().toUpperCase()).filter(Boolean)));
     const routes = new Map();
     if (!skus.length) return routes;
+    const projectSkus = [];
+    skus.forEach((sku) => {
+      const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item && item.sku === sku) || {});
+      const isManual = Boolean(cached.skuListSource === 'manual-code' || cached.manualSkuAddedAt || cached.manualSkuAddedAtMs);
+      const projectStatus = compactText(cached.projectStatus || '');
+      const route = {
+        projectStatus: isManual ? '' : projectStatus,
+        projectRowId: String(cached.projectRowId || cached.projectId || ''),
+        completed: isManual || /已完成/.test(projectStatus),
+      };
+      routes.set(sku, route);
+      if (isManual) {
+        updateToyCopywritingBatchEntry(sku, {
+          projectStatus: '',
+          projectRowId: '',
+          step: '手动添加 SKU，准备从商品管理打开',
+        });
+      } else {
+        projectSkus.push(sku);
+      }
+    });
+    if (!projectSkus.length) return routes;
     if (!(await ensureNewProductProjectPage())) throw new Error('未能进入新品开发页面读取项目状态');
     if (!(await ensureProjectAllTab())) throw new Error('未能切换到新品开发「全部」页签读取项目状态');
     const input = findInputByPlaceholder('搜索商品编码');
     const button = findButtonByText('查询');
     if (!input || !button) throw new Error('未找到新品开发「全部」页签的商品编码搜索框');
-    updateToyCopywritingBatchEntry(skus[0], { step: '正在新品开发「全部」中批量读取项目状态' });
-    setNativeInputValue(input, skus.join(' '));
+    updateToyCopywritingBatchEntry(projectSkus[0], { step: '正在新品开发「全部」中批量读取项目状态' });
+    setNativeInputValue(input, projectSkus.join(' '));
     clickElement(button);
     const loaded = await waitFor(() => {
       if (isProjectResultLoading()) return '';
-      const rows = collectProjectAllListRows().filter((row) => skus.includes(row.sku));
+      const rows = collectProjectAllListRows().filter((row) => projectSkus.includes(row.sku));
       return rows.length || hasProjectResultEmptyState() ? rows : '';
     }, 20000, 180);
     if (!loaded && !hasProjectResultEmptyState()) throw new Error('新品开发「全部」项目状态加载超时');
-    await expandProjectResultPageSize(skus.length);
+    await expandProjectResultPageSize(projectSkus.length);
     await wait(350);
-    const rowMap = new Map(collectProjectAllListRows().filter((row) => skus.includes(row.sku)).map((row) => [row.sku, row]));
-    skus.forEach((sku) => {
+    const rowMap = new Map(collectProjectAllListRows().filter((row) => projectSkus.includes(row.sku)).map((row) => [row.sku, row]));
+    projectSkus.forEach((sku) => {
       const row = rowMap.get(sku);
       const cached = normalizeData(loadData(sku) || {});
       const projectStatus = compactText(row && row.projectStatus || cached.projectStatus || '');
@@ -16374,19 +16396,35 @@
     const currentDrawer = getToyCopywritingDrawerForSku('') || getProjectDrawer();
     const currentSku = currentDrawer && getProjectDrawerHeaderSku(currentDrawer);
     if (currentDrawer && currentSku !== sku) await closeToyCopywritingDrawerForSku(currentSku).catch(() => {});
-    if (route && route.completed) {
-      updateToyCopywritingBatchEntry(sku, { step: '项目已完成，正在商品管理中搜索编码' });
+    const openFromProductManagement = async (step) => {
+      updateToyCopywritingBatchEntry(sku, { step: step || '项目未找到设计任务编辑入口，正在商品管理中搜索编码' });
       await ensureProductManagementPage();
       await searchProductManagementSku(sku);
       await openProductEditDrawer(sku);
       return ensureToyCopywritingDrawerFromProductEdit(sku);
+    };
+    if (route && route.completed) {
+      return openFromProductManagement('项目已完成，正在商品管理中搜索编码');
     }
-    if (!(await ensureNewProductProjectPage())) throw new Error('未能进入新品开发页面');
-    if (!(await ensureDesignTaskTab())) throw new Error('未能进入设计任务页签');
+    if (!(await ensureNewProductProjectPage())) {
+      addLog('info', '批量玩具文案：未能打开新品开发，改用商品管理', sku);
+      return openFromProductManagement('新品开发不可用，正在商品管理中搜索编码');
+    }
+    if (!(await ensureDesignTaskTab())) {
+      addLog('info', '批量玩具文案：未能进入设计任务，改用商品管理', sku);
+      return openFromProductManagement('设计任务不可用，正在商品管理中搜索编码');
+    }
     let rowId = route && route.projectRowId || seed && (seed.projectRowId || seed.projectId) || '';
     if (!rowId || !findOperationButtonByRowId(rowId, '编辑')) rowId = await queryDesignTaskRowIdBySku(sku);
-    if (!rowId) throw new Error('未找到对应 SKU 的编辑入口');
-    if (!(await clickProjectEditByRowId(rowId, sku))) throw new Error('已找到对应 SKU 的编辑入口，但编辑抽屉未打开');
+    if (!rowId) {
+      addLog('info', '批量玩具文案：设计任务未找到编辑入口，改用商品管理', sku);
+      return openFromProductManagement();
+    }
+    if (!(await clickProjectEditByRowId(rowId, sku))) {
+      addLog('info', '批量玩具文案：设计任务编辑抽屉未打开，改用商品管理', sku);
+      await closeToyCopywritingDrawerForSku(sku).catch(() => {});
+      return openFromProductManagement();
+    }
     cacheProjectRowId(sku, rowId);
     const drawer = await waitFor(() => getToyCopywritingDrawerForSku(sku), 15000, 150);
     if (!drawer) throw new Error('编辑抽屉未加载');
