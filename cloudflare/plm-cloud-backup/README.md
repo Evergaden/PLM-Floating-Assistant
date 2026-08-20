@@ -1,6 +1,6 @@
 # PLM Cloud Backup Worker
 
-Cloudflare Worker + D1 backend for PLM helper cloud backup, shared carton pack-count recommendations, cloud insight logs, and AI summaries.
+Cloudflare Worker + D1 backend for PLM helper cloud backup, cloud insight logs, AI summaries, and hosted assets.
 
 ## Setup
 
@@ -144,9 +144,6 @@ installed userscripts compatible when a newer cloud UI is deployed.
 - `GET /backup/load?backupId=...` (legacy `backupKey` is still accepted)
 - `POST /backup/chunk`
 - `GET /backup/load-chunk?backupId=...&snapshotId=...&chunkIndex=...`
-- `POST /pack/record`
-- `GET /pack/recommend?boxKey=...`
-- `POST /pack/ai-estimate`
 - `POST /ingredients/normalize`
 - `POST /toy-copywriting/complete`
 - `POST /insights/record`
@@ -167,7 +164,7 @@ Backups written by userscript 2.6.105 and later use browser-side AES-GCM encrypt
 
 ## Behavior
 
-- `/pack/ai-estimate` first checks existing history. If no record exists, it calculates the maximum pack count locally from the default outer carton size and stores the result.
+- Pack counts are calculated silently in the userscript from the current package dimensions and are not uploaded to the Worker.
 - `/assets/*` is served directly by Worker Static Assets. The manifest is short-cached; versioned objects are immutable and long-cached.
 - `/brand-compliance` returns the current D1-maintained brand address data for the userscript.
 - `/insights/record` stores price history, product type, and data-quality issues from the userscript.

@@ -36,7 +36,7 @@ const DEFAULT_LOADING_TIPS = [
   '多个编码可以一行一个粘进搜索框，脚本会自动拆开。',
   '双击紫色 SKU 可以直接复制编码，核对文件名时最省手。',
   '右下角刷新会重新读取详情，适合页面刚加载完的产品。',
-  '相同纸盒尺寸填过装箱数，下次生成 Excel 会自动推荐。',
+  '装箱数会根据当前纸盒尺寸在本地按公式静默计算。',
   '采购信息为空时，队列会先保存草稿再继续，不要手动打断。',
   '设置页的运行日志能看出卡在哪一步，比只看弹窗更准。',
   '玩具标签固定生成 4x3cm 印刷图，不跟随普通印刷尺寸跑。',
@@ -95,50 +95,6 @@ function json(data, status = 200) {
       'content-type': 'application/json; charset=utf-8',
     },
   });
-}
-
-function normalizeBoxKey(value) {
-  const normalizedParts = String(value || '')
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace(/[\u00d7*]/g, 'x')
-    .replace(/\u5398\u7c73|\u516c\u5206/g, 'cm')
-    .split('x')
-    .map((part) => {
-      const cmPart = part.split('/')[0].replace(/cm/g, '');
-      const match = cmPart.match(/\d+(?:\.\d+)?/);
-      if (!match) return '';
-      const number = Number(match[0]);
-      return Number.isFinite(number) && number > 0 ? String(Number(number.toFixed(3))) : '';
-    })
-    .filter(Boolean);
-  return normalizedParts.length === 3 ? normalizedParts.join('x') : '';
-}
-
-function parseBoxDims(boxKey) {
-  const dims = normalizeBoxKey(boxKey)
-    .split('x')
-    .map((part) => Number(part))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  return dims.length === 3 ? dims : null;
-}
-
-function calculateMaxPackCount(itemDims, cartonDims = [56, 36, 21]) {
-  if (!Array.isArray(itemDims) || itemDims.length !== 3) return 0;
-  const permutations = [
-    [itemDims[0], itemDims[1], itemDims[2]],
-    [itemDims[0], itemDims[2], itemDims[1]],
-    [itemDims[1], itemDims[0], itemDims[2]],
-    [itemDims[1], itemDims[2], itemDims[0]],
-    [itemDims[2], itemDims[0], itemDims[1]],
-    [itemDims[2], itemDims[1], itemDims[0]],
-  ];
-  return permutations.reduce((best, dims) => {
-    const count = Math.floor(cartonDims[0] / dims[0])
-      * Math.floor(cartonDims[1] / dims[1])
-      * Math.floor(cartonDims[2] / dims[2]);
-    return Math.max(best, count);
-  }, 0);
 }
 
 function getZhipuModel(env) {
@@ -421,38 +377,6 @@ async function callGeminiText(config, options) {
     model: config.model,
     text: parts.map((part) => part && part.text ? part.text : '').join('').trim(),
   };
-}
-
-async function getPackRecommendation(env, boxKey) {
-  const row = await env.DB.prepare(`
-    SELECT pack_count, COUNT(*) AS votes, MAX(created_at) AS latest_at
-    FROM pack_records
-    WHERE box_key = ?
-    GROUP BY pack_count
-    ORDER BY votes DESC, latest_at DESC
-    LIMIT 1
-  `).bind(boxKey).first();
-
-  const candidates = await env.DB.prepare(`
-    SELECT pack_count, COUNT(*) AS votes, MAX(created_at) AS latest_at
-    FROM pack_records
-    WHERE box_key = ?
-    GROUP BY pack_count
-    ORDER BY votes DESC, latest_at DESC
-    LIMIT 5
-  `).bind(boxKey).all();
-
-  return {
-    row,
-    candidates: candidates.results || [],
-  };
-}
-
-async function recordPackCount(env, boxKey, packCount, source, sku) {
-  await env.DB.prepare(`
-    INSERT INTO pack_records (box_key, pack_count, source, sku)
-    VALUES (?, ?, ?, ?)
-  `).bind(boxKey, packCount, source, sku || '').run();
 }
 
 async function sha256Hex(value) {
@@ -892,134 +816,6 @@ async function handleBackupChunkLoad(request, env) {
     chunkIndex,
     chunkCount: row.chunk_count,
     data: row.chunk_data,
-  });
-}
-
-async function handlePackRecord(request, env) {
-  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const body = await parseJson(request);
-  const boxKey = normalizeBoxKey(body && body.boxKey);
-  const packCount = Number(body && body.packCount);
-  const sku = String((body && body.sku) || '').slice(0, 80);
-  const source = String((body && body.source) || 'plm-helper').slice(0, 80);
-
-  if (!boxKey) return json({ error: 'boxKey required' }, 400);
-  if (!Number.isInteger(packCount) || packCount <= 0 || packCount > 999999) {
-    return json({ error: 'invalid packCount' }, 400);
-  }
-
-  await recordPackCount(env, boxKey, packCount, source, sku);
-
-  return json({ ok: true, boxKey, packCount });
-}
-
-async function handlePackRecommend(request, env) {
-  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const url = new URL(request.url);
-  const boxKey = normalizeBoxKey(url.searchParams.get('boxKey'));
-  if (!boxKey) return json({ error: 'boxKey required' }, 400);
-
-  const { row, candidates } = await getPackRecommendation(env, boxKey);
-
-  return json({
-    boxKey,
-    found: Boolean(row),
-    packCount: row ? row.pack_count : null,
-    votes: row ? row.votes : 0,
-    candidates,
-  });
-}
-
-function parseAiPackCount(text) {
-  const raw = String(text || '').trim();
-  if (!raw) return 0;
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      const data = JSON.parse(jsonMatch[0]);
-      const value = Number(data.packCount || data.count || data.maxCount);
-      if (Number.isInteger(value) && value > 0) return value;
-    } catch (error) {
-      // Fall back to number extraction below.
-    }
-  }
-  const match = raw.match(/\d+/);
-  const value = match ? Number(match[0]) : 0;
-  return Number.isInteger(value) && value > 0 ? value : 0;
-}
-
-async function callZhipuPackEstimator(env, boxKey) {
-  const apiKey = env.ZHIPU_API_KEY;
-  if (!apiKey) throw new Error('ZHIPU_API_KEY not configured');
-  const itemDims = parseBoxDims(boxKey);
-  if (!itemDims) throw new Error('invalid boxKey');
-  const localCount = calculateMaxPackCount(itemDims);
-  if (!localCount) throw new Error('invalid calculated pack count');
-  const model = getZhipuModel(env);
-  const prompt = [
-    '外箱内径 56x36x21cm，货物 ' + itemDims.join('x') + 'cm。',
-    '请遍历长宽高全部 6 种摆放方向，计算每个方向 floor(56/a)*floor(36/b)*floor(21/c)，直接给出一箱最多可装数量。',
-    '只输出 JSON：{"packCount":数字,"orientation":"a x b x c","reason":"简短说明"}，不要输出 Markdown。'
-  ].join('\n');
-
-  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-    method: 'POST',
-    signal: AbortSignal.timeout(12000),
-    headers: {
-      authorization: 'Bearer ' + apiKey,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0,
-      messages: [
-        { role: 'system', content: '你是严谨的装箱数计算器，只做整数装箱数量计算。' },
-        { role: 'user', content: prompt },
-      ],
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data && data.error && data.error.message ? data.error.message : 'zhipu HTTP ' + response.status);
-  }
-  const text = data && data.choices && data.choices[0] && data.choices[0].message
-    ? data.choices[0].message.content
-    : '';
-  const aiCount = parseAiPackCount(text);
-  return {
-    packCount: aiCount || localCount,
-    aiCount,
-    localCount,
-    model,
-    raw: text,
-  };
-}
-
-async function handlePackAiEstimate(request, env) {
-  if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
-  const body = await parseJson(request);
-  const boxKey = normalizeBoxKey(body && body.boxKey);
-  const sku = String((body && body.sku) || '').slice(0, 80);
-  if (!boxKey) return json({ error: 'boxKey required' }, 400);
-
-  const { row } = await getPackRecommendation(env, boxKey);
-  if (row) {
-    return json({ ok: true, boxKey, found: true, packCount: row.pack_count, source: 'history' });
-  }
-
-  const itemDims = parseBoxDims(boxKey);
-  const packCount = calculateMaxPackCount(itemDims);
-  if (!Number.isInteger(packCount) || packCount <= 0 || packCount > 999999) {
-    return json({ ok: false, boxKey, error: 'invalid calculated packCount' }, 422);
-  }
-  await recordPackCount(env, boxKey, packCount, 'local-calc', sku);
-  return json({
-    ok: true,
-    boxKey,
-    found: false,
-    packCount,
-    source: 'local-calc',
-    localCount: packCount,
   });
 }
 
@@ -4917,9 +4713,6 @@ export default {
     if (url.pathname === '/backup/load-chunk' && request.method === 'GET') return handleBackupChunkLoad(request, env);
     if (url.pathname === '/backup/save' && request.method === 'POST') return handleBackupSave(request, env);
     if (url.pathname === '/backup/load' && request.method === 'GET') return handleBackupLoad(request, env);
-    if (url.pathname === '/pack/record' && request.method === 'POST') return handlePackRecord(request, env);
-    if (url.pathname === '/pack/recommend' && request.method === 'GET') return handlePackRecommend(request, env);
-    if (url.pathname === '/pack/ai-estimate' && request.method === 'POST') return handlePackAiEstimate(request, env);
     if (url.pathname === '/ingredients/normalize' && request.method === 'POST') return handleIngredientNormalize(request, env);
     if (url.pathname === '/ai-image/ingredient-audit' && request.method === 'POST') return handleIngredientAudit(request, env);
     if (url.pathname === '/ai-image/copywriting-complete' && request.method === 'POST') return handleAiImageCopywritingComplete(request, env);

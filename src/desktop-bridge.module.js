@@ -407,7 +407,7 @@
         packageCode: String(data.packageCode || row.packageCode || ''),
         printCode: String(data.printCode || row.printCode || ''),
         purchasePrice: String(data.purchasePrice || row.purchasePrice || ''),
-        packQty: String(data.packQty || data.packCount || data.cartonQty || ''),
+        packQty: getLocalPackQty(data),
         boxFileState: String(row.boxFileState || data.boxFileState || ''),
         labelFileState: String(row.labelFileState || data.labelFileState || ''),
         imagePackState: String(row.imagePackState || data.imagePackState || ''),
@@ -555,12 +555,12 @@
       extra = prepared.extra || buildCachedExcelExtraData(data);
       excelData = normalizeData(prepared.excelData || data);
     }
-    const packQty = normalizePackQty(state.excelPackQty || excelData.packQty || excelData.packCount || excelData.cartonQty || '');
+    const packQty = normalizePackQty(getLocalPackQty(excelData));
     const purchasePrice = String(state.excelPurchasePrice || excelData.purchasePrice || '6');
     if (!packQty) {
       const packBoxKey = buildPackBoxKey(excelData);
       if (!packBoxKey) throw new Error(sku + ' 缺少完整包装尺寸，无法计算装箱数');
-      throw new Error(sku + ' 的包装尺寸为 ' + packBoxKey + '，但装箱推荐服务未返回结果');
+      throw new Error(sku + ' 的包装尺寸为 ' + packBoxKey + '，本地公式无法计算有效装箱数');
     }
     if (!extra.isSkuDesignImage || !(extra.skuImageUrl || extra.imageUrl || extra.skuImageFallbackUrl || extra.imageFallbackUrl)) {
       throw new Error(sku + ' 未能读取 SKU 设计图，请确认项目详情中的产品图可预览');

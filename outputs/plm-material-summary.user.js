@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.120
+// @version      2.8.121
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.120';
+  const SCRIPT_VERSION = '2.8.121';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4113,7 +4113,7 @@
          packageCode: String(data.packageCode || row.packageCode || ''),
         printCode: String(data.printCode || row.printCode || ''),
         purchasePrice: String(data.purchasePrice || row.purchasePrice || ''),
-        packQty: String(data.packQty || data.packCount || data.cartonQty || ''),
+        packQty: getLocalPackQty(data),
         boxFileState: String(row.boxFileState || data.boxFileState || ''),
         labelFileState: String(row.labelFileState || data.labelFileState || ''),
         imagePackState: String(row.imagePackState || data.imagePackState || ''),
@@ -4261,12 +4261,12 @@
       extra = prepared.extra || buildCachedExcelExtraData(data);
       excelData = normalizeData(prepared.excelData || data);
     }
-    const packQty = normalizePackQty(state.excelPackQty || excelData.packQty || excelData.packCount || excelData.cartonQty || '');
+    const packQty = normalizePackQty(getLocalPackQty(excelData));
     const purchasePrice = String(state.excelPurchasePrice || excelData.purchasePrice || '6');
     if (!packQty) {
       const packBoxKey = buildPackBoxKey(excelData);
       if (!packBoxKey) throw new Error(sku + ' 缺少完整包装尺寸，无法计算装箱数');
-      throw new Error(sku + ' 的包装尺寸为 ' + packBoxKey + '，但装箱推荐服务未返回结果');
+      throw new Error(sku + ' 的包装尺寸为 ' + packBoxKey + '，本地公式无法计算有效装箱数');
     }
     if (!extra.isSkuDesignImage || !(extra.skuImageUrl || extra.imageUrl || extra.skuImageFallbackUrl || extra.imageFallbackUrl)) {
       throw new Error(sku + ' 未能读取 SKU 设计图，请确认项目详情中的产品图可预览');
@@ -5515,8 +5515,6 @@
     cloudBackupQueued: false,
     cloudBackupStatus: '',
     classificationRules: [],
-    packAiEstimatingKeys: new Set(),
-    packAiFailedAt: {},
     logs: loadLogs(),
     logSyncDedup: {},
     insights: loadInsights(),
@@ -26973,7 +26971,7 @@ self.onmessage = async function(event) {
     const data = normalizeData(loadData(normalizedSku) || indexed || { sku: normalizedSku });
     const extra = buildCachedExcelExtraData(data);
     const missing = getExcelMissingFields(data, extra);
-    const packQty = normalizePackQty(data.packQty || data.packCount || data.cartonQty || '');
+    const packQty = normalizePackQty(getLocalPackQty(data));
     if (!packQty) missing.push('\u88c5\u7bb1\u6570');
     return {
       data,
@@ -27166,7 +27164,7 @@ self.onmessage = async function(event) {
       extra = buildCachedExcelExtraData(data);
       state.data = data;
       state.selectedSku = sku;
-      state.excelPackQty = normalizePackQty(data.packQty || data.packCount || data.cartonQty || '');
+      state.excelPackQty = '';
       state.excelPurchasePrice = String(data.purchasePrice || '6');
       await fillRecommendedPackQty(data);
       data = normalizeData(loadData(sku) || data);
@@ -27175,7 +27173,7 @@ self.onmessage = async function(event) {
       data = normalizeData(loadData(sku) || data);
       extra = buildCachedExcelExtraData(data);
       const missing = getExcelMissingFields(data, extra);
-      const packQty = normalizePackQty(state.excelPackQty || data.packQty || data.packCount || data.cartonQty || '');
+      const packQty = normalizePackQty(getLocalPackQty(data));
       if (!packQty) missing.push('\u88c5\u7bb1\u6570');
       return {
         data,
@@ -27361,7 +27359,7 @@ self.onmessage = async function(event) {
         data: snapshot.data,
         extra: snapshot.extra,
         missing: snapshot.missing,
-        packQty: normalizePackQty(entry.packQty || snapshot.packQty),
+        packQty: normalizePackQty(getLocalPackQty(snapshot.data)),
         purchasePrice: String(entry.purchasePrice || snapshot.purchasePrice || '6'),
       };
     }).filter((item) => item.entry.status !== 'preparing');
@@ -27483,7 +27481,6 @@ self.onmessage = async function(event) {
       return;
     }
     syncExcelInputs();
-    const packQty = normalizePackQty(state.excelPackQty);
     const purchasePrice = state.excelPurchasePrice === '' ? '6' : state.excelPurchasePrice;
     if (!state.excelExtra || !state.excelExtra.excelData || state.excelExtra.excelData.sku !== data.sku || state.excelMissing.length) {
       addLog('info', '生成 Excel 前自动准备数据', data.sku + ' | ' + (state.excelMissing.length ? '上次仍缺：' + state.excelMissing.join('、') : '当前没有匹配的表格数据快照'));
@@ -27504,6 +27501,14 @@ self.onmessage = async function(event) {
     try {
       const extra = state.excelExtra.extra;
       const excelData = state.excelExtra.excelData;
+      const packQty = normalizePackQty(getLocalPackQty(excelData));
+      state.excelPackQty = packQty;
+      if (!packQty) {
+        const packBoxKey = buildPackBoxKey(excelData);
+        throw new Error(packBoxKey
+          ? excelData.sku + ' 的包装尺寸为 ' + packBoxKey + '，本地公式无法计算有效装箱数'
+          : excelData.sku + ' 缺少完整包装尺寸，无法计算装箱数');
+      }
       const fileName = sanitizeExcelFileName(buildExcelFileName(excelData, extra));
       const saveTarget = await chooseExcelSaveTarget(fileName);
       if (!saveTarget) {
@@ -27557,17 +27562,6 @@ self.onmessage = async function(event) {
         renderShell();
         const imageId = workbook.addImage({ base64: imageInfo.dataUrl, extension: imageInfo.extension });
         sheet.addImage(imageId, getExcelImageAnchor(imageInfo));
-      }
-      const packBoxKey = buildPackBoxKey(excelData);
-      if (packBoxKey) {
-        const recommended = await fetchPackRecommendation(packBoxKey).catch(() => null);
-        if (recommended && recommended.packCount) {
-          state.excelStatus = '推荐装箱数: ' + recommended.packCount;
-          renderShell();
-        }
-        if (packQty) {
-          await savePackRecord(packBoxKey, packQty, data.sku).catch((error) => console.warn('PLM floating helper pack record failed:', error));
-        }
       }
       const buffer = await workbook.xlsx.writeBuffer();
       state.excelStatus = L.excelDownloading + ' ' + fileName;
@@ -28548,47 +28542,13 @@ self.onmessage = async function(event) {
     return /pcs$/i.test(text) ? text.toUpperCase() : text + 'PCS';
   }
 
-  function formatPackSourceLabel(source) {
-    const text = compactText(source);
-    if (!text) return '';
-    if (/local-calc|本地计算/i.test(text)) return '本地';
-    if (/cache|缓存/i.test(text)) return '缓存';
-    return text.length > 10 ? text.slice(0, 10) + '…' : text;
-  }
-
-  function formatPackQtyStatus(count, source, verb) {
-    const sourceLabel = formatPackSourceLabel(source);
-    return '装箱数' + (verb ? verb : '') + ' ' + String(count || '') + (sourceLabel ? ' · ' + sourceLabel : '');
-  }
-
   async function fillRecommendedPackQty(data) {
-    if (state.excelPackQty) return false;
     const boxKey = buildPackBoxKey(data);
-    if (!boxKey) return false;
-    const cachedCount = normalizePackCountValue(data && (data.packQty || data.packCount || data.cartonQty));
-    const cachedBoxKey = String(data && data.packQtyBoxKey || '');
-    if (cachedCount && (!cachedBoxKey || cachedBoxKey === boxKey)) {
-      state.excelPackQty = cachedCount;
-      state.excelStatus = formatPackQtyStatus(cachedCount, '缓存');
-      return true;
-    }
-    let recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
-    if (!recommendation || !recommendation.packCount) {
-      recommendation = await requestPackAiEstimate(boxKey, data && data.sku).catch((error) => {
-        addLog('warn', '装箱数计算失败', formatErrorMessage(error));
-        return null;
-      });
-    }
-    if (!recommendation || !recommendation.packCount) {
-      recommendation = calculateLocalPackRecommendation(boxKey);
-    }
+    const recommendation = calculateLocalPackRecommendation(boxKey);
     const count = recommendation && recommendation.packCount ? String(recommendation.packCount) : '';
-    if (!count) return false;
     state.excelPackQty = count;
-    const sourceText = recommendation.source || '历史推荐';
-    state.excelStatus = formatPackQtyStatus(count, sourceText);
-    cachePackRecommendation(data, boxKey, recommendation);
-    addLog('success', '已补全装箱数', String(data && data.sku || '') + ' ' + boxKey + ' → ' + count + '（' + sourceText + '）');
+    if (!count) return false;
+    state.excelStatus = '装箱数已按当前尺寸本地计算：' + count;
     return true;
   }
 
@@ -33788,6 +33748,7 @@ self.onmessage = async function(event) {
     if (!(options && options.silent)) showToast(L.cloudBackupSaving);
     try {
       const payload = buildCachePayload();
+      payload.insights = sanitizeInsightsForCloudBackup(payload.insights);
       if (!payload.backupOwnerName) throw new Error(L.cloudBackupOwnerMissing);
       const backupId = await getCloudBackupId(backupKey);
       const backupAttempts = [
@@ -33897,11 +33858,6 @@ self.onmessage = async function(event) {
     return parts.length === 3 ? parts.join('x') : '';
   }
 
-  function normalizePackCountValue(value) {
-    const count = Number.parseInt(String(value || '').replace(/[^0-9]/g, ''), 10);
-    return Number.isInteger(count) && count > 0 ? String(count) : '';
-  }
-
   function calculateLocalPackRecommendation(boxKey) {
     const itemDims = String(boxKey || '')
       .split('x')
@@ -33932,26 +33888,10 @@ self.onmessage = async function(event) {
     };
   }
 
-  function cachePackRecommendation(data, boxKey, recommendation) {
-    const sku = String(data && data.sku || '').trim();
-    const count = normalizePackCountValue(recommendation && recommendation.packCount);
-    if (!sku || !boxKey || !count) return;
-    const current = normalizeData(loadData(sku) || data);
-    if (
-      normalizePackCountValue(current.packQty || current.packCount || current.cartonQty) === count
-      && String(current.packQtyBoxKey || '') === boxKey
-    ) return;
-    saveData(sku, {
-      ...current,
-      packQty: count,
-      packCount: count,
-      packQtyBoxKey: boxKey,
-      packQtySource: String(recommendation.source || 'recommendation'),
-      packQtyUpdatedAt: new Date().toLocaleString(),
-    }, {
-      suppressChangeTracking: true,
-      changeSource: '装箱数推荐',
-    });
+  function getLocalPackQty(data) {
+    const boxKey = buildPackBoxKey(data);
+    const recommendation = calculateLocalPackRecommendation(boxKey);
+    return recommendation && recommendation.packCount ? String(recommendation.packCount) : '';
   }
 
   function shouldUseProductSizeForPacking(data) {
@@ -33973,99 +33913,6 @@ self.onmessage = async function(event) {
     if (!match) return '';
     const number = Number(match[0]);
     return Number.isFinite(number) && number > 0 ? trimNumber(number) : '';
-  }
-
-  async function fetchPackRecommendation(boxKey) {
-    return cloudRequest('/pack/recommend?boxKey=' + encodeURIComponent(boxKey), { method: 'GET' });
-  }
-
-  function schedulePackAiEstimate(data) {
-    const boxKey = buildPackBoxKey(data);
-    if (!boxKey) {
-      if (hasPackDimensionInput(data)) showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u5c3a\u5bf8\u4e0d\u5b8c\u6574');
-      return;
-    }
-    if (state.packAiEstimatingKeys.has(boxKey)) {
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u8ba1\u7b97\u4e2d');
-      return;
-    }
-    const failedAt = state.packAiFailedAt && state.packAiFailedAt[boxKey] || 0;
-    if (failedAt && Date.now() - failedAt < 10 * 60 * 1000) {
-      showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u521a\u5931\u8d25\uff0c10\u5206\u949f\u540e\u91cd\u8bd5');
-      return;
-    }
-    state.packAiEstimatingKeys.add(boxKey);
-    window.setTimeout(() => runPackAiEstimate(data, boxKey).catch((error) => {
-      console.warn('PLM floating helper pack AI estimate failed:', error);
-      showPackAiToast('\u88c5\u7bb1\u6570\u8ba1\u7b97\u5931\u8d25');
-      state.packAiFailedAt[boxKey] = Date.now();
-    }).finally(() => {
-      state.packAiEstimatingKeys.delete(boxKey);
-    }), 100);
-  }
-
-  async function runPackAiEstimate(data, boxKey) {
-    const recommendation = await fetchPackRecommendation(boxKey).catch(() => null);
-    if (recommendation && recommendation.found && recommendation.packCount) {
-      showPackAiToast(formatPackQtyStatus(recommendation.packCount, '\u5386\u53f2', '\u5df2\u53d6\u7528'));
-      cachePackRecommendation(data, boxKey, recommendation);
-      return recommendation;
-    }
-    showPackAiToast('\u88c5\u7bb1\u6570\uff1a\u540e\u53f0\u8ba1\u7b97\u4e2d');
-    let estimated = await requestPackAiEstimate(boxKey, data && data.sku).catch((error) => {
-      addLog('warn', '在线装箱推荐不可用，改用本地计算', String(data && data.sku || '') + ' ' + formatErrorMessage(error));
-      return null;
-    });
-    if (!estimated || !estimated.packCount) estimated = calculateLocalPackRecommendation(boxKey);
-    if (estimated && estimated.packCount) {
-      const sourceText = estimated.source || '';
-      const shortStatus = formatPackQtyStatus(estimated.packCount, sourceText, '\u5df2\u5199\u5165');
-      showPackAiToast(shortStatus);
-      cachePackRecommendation(data, boxKey, estimated);
-      if (state.excelPanelOpen && state.data && data && state.data.sku === data.sku && !state.excelPackQty) {
-        state.excelPackQty = String(estimated.packCount);
-        state.excelStatus = shortStatus;
-        renderShell();
-      }
-      return estimated;
-    }
-    return null;
-  }
-
-  function hasPackDimensionInput(data) {
-    if (!data) return false;
-    return shouldUseProductSizeForPacking(data)
-      ? Boolean(data.productLength || data.productWidth || data.productHeight || data.productNums)
-      : Boolean(data.packageLength || data.packageWidth || data.packageHeight || data.packageSizeText);
-  }
-
-  function showPackAiToast(text) {
-    showToast(text);
-  }
-
-  async function requestPackAiEstimate(boxKey, sku) {
-    return cloudRequest('/pack/ai-estimate', {
-      method: 'POST',
-      body: {
-        boxKey,
-        sku: String(sku || ''),
-      },
-    });
-  }
-
-  async function savePackRecord(boxKey, packCount, sku) {
-    const count = Number.parseInt(String(packCount || '').replace(/[^0-9]/g, ''), 10);
-    if (!boxKey || !Number.isInteger(count) || count <= 0) return false;
-    const response = await cloudRequest('/pack/record', {
-      method: 'POST',
-      body: {
-        boxKey,
-        packCount: count,
-        sku: String(sku || ''),
-        source: 'plm-helper',
-      },
-    });
-    return Boolean(response && response.ok);
   }
 
   function syncInsightEvent(eventType, payload) {
@@ -34637,6 +34484,15 @@ self.onmessage = async function(event) {
     return clean;
   }
 
+  function sanitizeInsightsForCloudBackup(value) {
+    const clean = sanitizeInsights(value);
+    clean.priceHistory = clean.priceHistory.map((item) => {
+      const { packQty, ...rest } = item;
+      return rest;
+    });
+    return clean;
+  }
+
   function sanitizeFieldDiagnostics(value) {
     if (!Array.isArray(value)) return [];
     return value.slice(0, 20).map((item) => ({
@@ -34906,7 +34762,8 @@ self.onmessage = async function(event) {
     state.insights = insight;
     saveInsights();
     addLog('success', '\u5df2\u8bb0\u5f55\u4ef7\u683c/\u7c7b\u578b\u5386\u53f2', data.sku + ' ' + productType + ' ' + item.price);
-    syncInsightEvent('price', item);
+    const { packQty, ...cloudItem } = item;
+    syncInsightEvent('price', cloudItem);
     queueCloudBackup();
   }
 
@@ -35930,9 +35787,6 @@ self.onmessage = async function(event) {
       if (!opts.suppressDataQuality) recordDataQuality(normalized, 'saveData');
       queueCloudBackup();
       scheduleDesktopBridgeSnapshot();
-      const previousPackKey = previousNormalized ? buildPackBoxKey(previousNormalized) : '';
-      const nextPackKey = buildPackBoxKey(normalized);
-      if (nextPackKey && nextPackKey !== previousPackKey) schedulePackAiEstimate(normalized);
       if (detectedChanges.length) {
         addLog('warn', 'SKU 数据发生变化', sku + ' | ' + detectedChanges.map((item) => item.label + '：' + (item.before || '未识别') + ' → ' + (item.after || '已清空')).join('；'));
       }
