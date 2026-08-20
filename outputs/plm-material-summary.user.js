@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.136
+// @version      2.8.137
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.136';
+  const SCRIPT_VERSION = '2.8.137';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -17825,14 +17825,51 @@ self.onmessage = async function(event) {
     return groups;
   }
 
+  function getLedgerManualSeriesGroupId(groupId, part) {
+    const source = String(groupId || '');
+    let hash = 0;
+    for (let index = 0; index < source.length; index += 1) hash = ((hash * 31) + source.charCodeAt(index)) >>> 0;
+    return 'manual-series-' + hash.toString(36) + '-' + String(part);
+  }
+
+  function getLedgerManualSeriesGroups(records) {
+    const byGroup = new Map();
+    (records || []).forEach((record) => {
+      const groupId = String(record && record.performanceGroupId || '').trim();
+      const isLegacyManualGroup = /^performance-manual-/.test(groupId);
+      if (!groupId || (record.performanceGroupMode !== 'series' && !isLegacyManualGroup)) return;
+      if (!byGroup.has(groupId)) byGroup.set(groupId, []);
+      byGroup.get(groupId).push(record);
+    });
+    const groups = [];
+    byGroup.forEach((items, groupId) => {
+      items.sort((a, b) => getLedgerSkuSortValue(a.sku) - getLedgerSkuSortValue(b.sku) || String(a.sku || '').localeCompare(String(b.sku || '')));
+      for (let offset = 0, part = 1; offset < items.length; offset += 5, part += 1) {
+        const members = items.slice(offset, offset + 5);
+        groups.push({
+          id: getLedgerManualSeriesGroupId(groupId, part),
+          source: 'manual-series',
+          seriesKey: '手动按编码',
+          kind: 'series',
+          points: 1,
+          records: members,
+          recordKeys: members.map(getLedgerSelectionKey),
+          skus: members.map((record) => String(record.sku || '')).filter(Boolean),
+        });
+      }
+    });
+    return groups;
+  }
+
   function summarizeLedgerPerformance(records) {
     const summary = { design: 0, logo: 0, void: 0, extension: 0, series: 0, mergedGroups: 0, autoSeriesGroups: 0, groups: [], total: 0 };
     const units = new Map();
     const weight = { extension: 3, void: 5, logo: 10, design: 14 };
+    const manualSeriesGroups = getLedgerManualSeriesGroups(records);
     const automaticGroups = getLedgerAutomaticSeriesGroups(records);
-    const automaticRecordKeys = new Set(automaticGroups.flatMap((group) => group.recordKeys));
+    const groupedRecordKeys = new Set(manualSeriesGroups.concat(automaticGroups).flatMap((group) => group.recordKeys));
     (records || []).forEach((record, index) => {
-      if (automaticRecordKeys.has(getLedgerSelectionKey(record))) return;
+      if (groupedRecordKeys.has(getLedgerSelectionKey(record))) return;
       const groupId = String(record && record.performanceGroupId || '').trim();
       const unitKey = groupId ? 'group:' + groupId : 'record:' + getLedgerSelectionKey(record) + ':' + index;
       const kind = getLedgerPerformanceKind(record);
@@ -17858,6 +17895,10 @@ self.onmessage = async function(event) {
         });
       }
     });
+    manualSeriesGroups.forEach((group) => {
+      summary.series += 1;
+      summary.groups.push(group);
+    });
     automaticGroups.forEach((group) => {
       summary.series += 1;
       summary.autoSeriesGroups += 1;
@@ -17882,12 +17923,19 @@ self.onmessage = async function(event) {
   function ledgerPerformanceHtml(summary, todayValue) {
     const value = summary || summarizeLedgerPerformance([]);
     const today = todayValue || getLedgerTodayPerformanceSummary();
-    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5 · 延伸 ' + value.extension + ' × 0.3 · 玩具系列 ' + value.series + ' × 1';
+    const breakdown = '设计 ' + value.design + ' × 1.4 · 换/无 Logo ' + value.logo + ' × 1 · 作废 ' + value.void + ' × 0.5 · 延伸 ' + value.extension + ' × 0.3 · 系列编组 ' + value.series + ' × 1（每 5 个）';
     const kindLabels = { design: '设计 1.4 分', logo: '换/无 Logo 1 分', void: '作废 0.5 分', extension: '延伸 0.3 分' };
     const groups = Array.isArray(value.groups) ? value.groups : [];
     const groupHtml = groups.length
       ? '<details class="pfh-ledger-merge-groups"><summary>绩效分组 ' + escapeHtml(String(groups.length)) + ' 组，点击展开组合明细</summary><div class="pfh-ledger-merge-list">' +
-        groups.map((group) => '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + escapeHtml(group.id) + '" title="高亮这一组的产品卡片"><b>' + escapeHtml(group.source === 'auto-series' ? getLedgerPerformanceGroupLabel(group, groups) + ' · 玩具 1 分 · ' + String((group.skus || []).length) + ' 个' : getLedgerPerformanceGroupLabel(group, groups) + ' · ' + (kindLabels[group.kind] || '')) + '</b><span>' + escapeHtml((group.seriesKey ? group.seriesKey + '：' : '') + (group.skus || []).join(' + ')) + '</span></button>').join('') +
+        groups.map((group) => {
+          const isSeriesGroup = group.source === 'auto-series' || group.source === 'manual-series';
+          const seriesLabel = group.source === 'manual-series' ? '手动系列' : '玩具系列';
+          const title = isSeriesGroup
+            ? getLedgerPerformanceGroupLabel(group, groups) + ' · ' + seriesLabel + ' 1 分 · ' + String((group.skus || []).length) + ' 个'
+            : getLedgerPerformanceGroupLabel(group, groups) + ' · ' + (kindLabels[group.kind] || '');
+          return '<button type="button" class="pfh-ledger-merge-group" data-action="ledger-highlight-performance-group" data-group-id="' + escapeHtml(group.id) + '" title="高亮这一组的产品卡片"><b>' + escapeHtml(title) + '</b><span>' + escapeHtml((group.seriesKey ? group.seriesKey + '：' : '') + (group.skus || []).join(' + ')) + '</span></button>';
+        }).join('') +
         '</div></details>'
       : '';
     return '<div class="pfh-ledger-performance" aria-live="polite"><div class="pfh-ledger-performance-scores"><div class="pfh-ledger-performance-summary is-today"><div><span>当天绩效</span><small>今天已定稿 ' + escapeHtml(String(today.count || 0)) + ' 条</small></div><strong>' + escapeHtml(formatLedgerPerformance(today.summary && today.summary.total)) + '</strong></div><div class="pfh-ledger-performance-summary"><div><span>当月总绩效</span><small>' + escapeHtml(breakdown) + '</small></div><strong>' + escapeHtml(formatLedgerPerformance(value.total)) + '</strong></div></div>' + groupHtml + '</div>';
@@ -17903,9 +17951,12 @@ self.onmessage = async function(event) {
   }
 
   function getLedgerPerformanceGroupLabel(group, groups) {
-    const source = group && group.source === 'auto-series' ? 'auto-series' : 'manual';
-    const position = (groups || []).filter((item) => (item && item.source === 'auto-series' ? 'auto-series' : 'manual') === source).indexOf(group) + 1;
-    return source === 'auto-series' ? '自动系列 ' + position : '合并组 ' + position;
+    const source = group && (group.source === 'auto-series' || group.source === 'manual-series') ? group.source : 'manual';
+    const position = (groups || []).filter((item) => {
+      const itemSource = item && (item.source === 'auto-series' || item.source === 'manual-series') ? item.source : 'manual';
+      return itemSource === source;
+    }).indexOf(group) + 1;
+    return source === 'auto-series' ? '自动系列 ' + position : (source === 'manual-series' ? '手动系列 ' + position : '合并组 ' + position);
   }
 
   function getLedgerPerformanceGroupMaps(summary) {
@@ -30291,6 +30342,7 @@ self.onmessage = async function(event) {
       designAssignedAt: String(item.designAssignedAt || '').slice(0, 80),
       developmentAssignedAt: String(item.developmentAssignedAt || '').slice(0, 80),
       performanceGroupId: String(item.performanceGroupId || '').slice(0, 80),
+      performanceGroupMode: item.performanceGroupMode === 'series' ? 'series' : '',
       performanceType: item.performanceType === 'extension' ? 'extension' : '',
       seriesExcluded: Boolean(item.seriesExcluded),
       isToy: Boolean(item.isToy),
@@ -30751,7 +30803,7 @@ self.onmessage = async function(event) {
     const merged = { ...winner };
     [
       'brand', 'name', 'skuImageUrl', 'benchmarkImageUrl', 'designType', 'artPriority',
-      'referenceUrl', 'developerName', 'developmentAssignedAt', 'performanceGroupId',
+      'referenceUrl', 'developerName', 'developmentAssignedAt', 'performanceGroupId', 'performanceGroupMode',
       'packageCode', 'printCode', 'purchasePrice', 'imageGeneratedAt', 'imageGeneratedAtMs',
       'aiImageStatus', 'aiImageMessage', 'aiImageJobId', 'aiImageCheckedAtMs', 'aiMainImages', 'aiDetailImages',
       'aiMainRetouchedImages', 'aiDetailRetouchedImages', 'aiMainRetouchTasks', 'aiDetailRetouchTasks',
@@ -30935,6 +30987,9 @@ self.onmessage = async function(event) {
       imagePackDone: normalizeLedgerFileState(opts.imagePackState !== undefined ? opts.imagePackState : (existing && existing.imagePackState), opts.imagePackDone !== undefined ? opts.imagePackDone : (existing && existing.imagePackDone)) === 'done',
       filesAutoCompleted: opts.filesAutoCompleted !== undefined ? Boolean(opts.filesAutoCompleted) : Boolean(existing && existing.filesAutoCompleted),
       performanceType: opts.performanceType !== undefined ? (opts.performanceType === 'extension' ? 'extension' : '') : ((existing && existing.performanceType) || ''),
+      performanceGroupMode: opts.performanceGroupMode !== undefined
+        ? (opts.performanceGroupMode === 'series' ? 'series' : '')
+        : ((existing && existing.performanceGroupMode) || ''),
       seriesExcluded: opts.seriesExcluded !== undefined ? Boolean(opts.seriesExcluded) : (Boolean(existing && existing.seriesExcluded) || Boolean(state.ledgerSeriesExcludedSkus && state.ledgerSeriesExcludedSkus.has(sku))),
       status: preserveFinalizedState ? normalizeLedgerStatus(existing.status || '已定稿') : normalizeLedgerStatus(opts.status || (existing && existing.status) || '待定稿'),
       stage: preserveFinalizedState ? (existing.stage || '已定稿') : (opts.stage || (existing && existing.stage) || '待定稿'),
@@ -31127,7 +31182,7 @@ self.onmessage = async function(event) {
     const nowText = new Date().toLocaleString();
     const nowMs = Date.now();
     state.ledgerRecords = (state.ledgerRecords || []).map((record) => targetKeys.has(getLedgerSelectionKey(record))
-      ? { ...record, performanceGroupId: groupId, updatedAt: nowText, updatedAtMs: nowMs }
+      ? { ...record, performanceGroupId: groupId, performanceGroupMode: '', updatedAt: nowText, updatedAtMs: nowMs }
       : record);
     state.ledgerSelectedKeys = [];
     saveDailyLedger();
@@ -31186,7 +31241,7 @@ self.onmessage = async function(event) {
     state.ledgerRecords = (state.ledgerRecords || []).map((record) => {
       if (!targetKeys.has(getLedgerSelectionKey(record))) return record;
       changedCount += 1;
-      return { ...record, performanceGroupId: groupId, updatedAt: nowText, updatedAtMs: nowMs };
+      return { ...record, performanceGroupId: groupId, performanceGroupMode: 'series', updatedAt: nowText, updatedAtMs: nowMs };
     });
     state.ledgerSelectedKeys = [];
     saveDailyLedger();
