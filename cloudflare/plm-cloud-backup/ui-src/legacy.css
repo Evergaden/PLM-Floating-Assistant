@@ -11306,6 +11306,127 @@ button[data-pfh-page-toy-copywriting]{display:inline-flex!important;align-items:
   #plm-floating-helper .pfh-sku-data-log-change del{grid-column:2!important;}
 }
 
+/* Product edition lockup: keep the edition visually tied to the product title. */
+#plm-floating-helper .pfh-header{
+  grid-template-rows:minmax(20px,auto) 18px!important;
+  column-gap:10px!important;
+  row-gap:2px!important;
+}
+#plm-floating-helper .pfh-collection-mark{
+  grid-row:1 / 3!important;
+}
+#plm-floating-helper .pfh-heading strong{
+  grid-column:2!important;
+  grid-row:1!important;
+  align-self:end!important;
+  line-height:1.12!important;
+}
+#plm-floating-helper .pfh-edition-badge{
+  position:relative;
+  isolation:isolate;
+  grid-column:2;
+  grid-row:2;
+  align-self:start;
+  justify-self:start;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  height:17px;
+  max-width:100%;
+  padding:0 7px 0 5px;
+  overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--pfh-theme-primary) 68%,#fff);
+  border-radius:999px;
+  color:#fff!important;
+  background:linear-gradient(115deg,var(--pfh-theme-primary-hover),var(--pfh-theme-primary) 54%,var(--pfh-theme-secondary));
+  box-shadow:0 4px 11px var(--pfh-theme-shadow),inset 0 1px 0 rgba(255,255,255,.35);
+  font-style:normal;
+  line-height:1;
+  white-space:nowrap;
+}
+#plm-floating-helper .pfh-edition-badge::after{
+  content:"";
+  position:absolute;
+  z-index:0;
+  top:-9px;
+  left:-28px;
+  width:22px;
+  height:36px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.82),transparent);
+  transform:translateX(0) rotate(20deg);
+  animation:pfh-edition-sheen 2.2s cubic-bezier(.2,.65,.35,1) infinite;
+}
+#plm-floating-helper .pfh-edition-badge i{
+  position:relative;
+  z-index:1;
+  width:9px;
+  height:3px;
+  flex:0 0 9px;
+  border:1.4px solid currentColor;
+  border-radius:1px;
+  transform:rotate(-42deg);
+}
+#plm-floating-helper .pfh-edition-badge i::before{
+  content:"";
+  position:absolute;
+  top:-1.4px;
+  left:1px;
+  height:3px;
+  border-left:1px solid currentColor;
+}
+#plm-floating-helper .pfh-edition-badge i::after{
+  content:"";
+  position:absolute;
+  top:-1.4px;
+  right:-4px;
+  width:0;
+  height:0;
+  border-top:2.9px solid transparent;
+  border-bottom:2.9px solid transparent;
+  border-left:4px solid currentColor;
+}
+#plm-floating-helper .pfh-edition-badge svg{
+  position:relative;
+  z-index:1;
+  width:10px;
+  height:10px;
+  flex:0 0 10px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.65;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#plm-floating-helper .pfh-edition-badge b{
+  position:relative;
+  z-index:1;
+  color:inherit!important;
+  font-size:9px!important;
+}
+#plm-floating-helper .pfh-edition-badge small{
+  position:relative;
+  z-index:1;
+  color:rgba(255,255,255,.76)!important;
+  font-size:6px!important;
+  letter-spacing:.08em!important;
+}
+#plm-floating-helper .pfh-search,
+#plm-floating-helper .pfh-header .pfh-actions{
+  grid-row:1 / 3!important;
+}
+@keyframes pfh-edition-sheen{
+  0%{transform:translateX(0) rotate(20deg);opacity:.15;}
+  10%{opacity:1;}
+  58%{transform:translateX(145px) rotate(20deg);opacity:.78;}
+  68%,100%{transform:translateX(145px) rotate(20deg);opacity:0;}
+}
+@media(prefers-reduced-motion:reduce){
+  #plm-floating-helper .pfh-edition-badge::after{animation:pfh-edition-sheen 3.6s linear infinite!important;}
+}
+@container (max-width:620px){
+  #plm-floating-helper .pfh-edition-badge small{display:none;}
+}
+
 /* Keep the archive count in the same top-right position for every theme. */
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry-primary .pfh-home-entry-meta{
   top:18px!important;
