@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.138
+// @version      2.8.139
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.138';
+  const SCRIPT_VERSION = '2.8.139';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -16398,7 +16398,7 @@
     if (currentDrawer && currentSku !== sku) await closeToyCopywritingDrawerForSku(currentSku).catch(() => {});
     const openFromProductManagement = async (step) => {
       updateToyCopywritingBatchEntry(sku, { step: step || '项目未找到设计任务编辑入口，正在商品管理中搜索编码' });
-      await ensureProductManagementPage();
+      await ensureProductManagementPageInPlace();
       await searchProductManagementSku(sku);
       await openProductEditDrawer(sku);
       return ensureToyCopywritingDrawerFromProductEdit(sku);
@@ -25571,6 +25571,47 @@ self.onmessage = async function(event) {
       await waitUntil(() => /\/productManagementProduct/.test(location.pathname), 15000, 300);
     }
     await waitUntil(() => document.body && document.body.innerText.includes('\u5546\u54c1\u7ba1\u7406'), 20000, 300);
+  }
+
+  function isToyCopywritingProductManagementPageReady() {
+    return /\/productManagementProduct/.test(location.pathname)
+      && Boolean(findProductSearchInput() && findVisibleButton('\u67e5\u8be2'));
+  }
+
+  function findToyCopywritingProductManagementMenuLeaf() {
+    const expected = compactText('\u5546\u54c1\u7ba1\u7406');
+    const candidates = Array.from(document.querySelectorAll('[data-menu-id], .ant-menu-item, [role="menuitem"]')).filter(isVisibleElement);
+    return candidates.find((el) => (el.getAttribute('data-menu-id') || '') === '/productManagementProduct')
+      || candidates.find((el) => !el.matches('.ant-menu-submenu-title') && compactText(el.innerText || el.textContent) === expected)
+      || null;
+  }
+
+  async function ensureProductManagementPageInPlace() {
+    if (isToyCopywritingProductManagementPageReady()) return true;
+    addLog('info', '\u6279\u91cf\u73a9\u5177\u6587\u6848\uff1a\u7ad9\u5185\u5207\u6362\u5230\u5546\u54c1\u7ba1\u7406');
+    const tabButton = findTopTabByText('\u5546\u54c1\u7ba1\u7406');
+    if (tabButton) {
+      clickElement(tabButton);
+      const readyFromTab = await waitFor(() => isToyCopywritingProductManagementPageReady(), 8000, 150);
+      if (readyFromTab) return true;
+    }
+    let menuItem = findToyCopywritingProductManagementMenuLeaf();
+    if (!menuItem) {
+      const menuRoot = Array.from(document.querySelectorAll('.ant-menu-submenu-title'))
+        .filter(isVisibleElement)
+        .find((el) => compactText(el.innerText || el.textContent) === compactText('\u5546\u54c1\u7ba1\u7406')) || null;
+      if (menuRoot) {
+        clickElement(menuRoot);
+        menuItem = await waitFor(() => findToyCopywritingProductManagementMenuLeaf(), 2000, 100);
+      }
+    }
+    if (menuItem) {
+      clickElement(menuItem);
+      const readyFromMenu = await waitFor(() => isToyCopywritingProductManagementPageReady(), 10000, 150);
+      if (readyFromMenu) return true;
+    }
+    addLog('error', '\u6279\u91cf\u73a9\u5177\u6587\u6848\uff1a\u672a\u80fd\u65e0\u5237\u65b0\u5207\u6362\u5230\u5546\u54c1\u7ba1\u7406');
+    throw new Error('\u672a\u80fd\u65e0\u5237\u65b0\u5207\u6362\u5230\u5546\u54c1\u7ba1\u7406');
   }
 
   async function searchProductManagementSku(sku) {
