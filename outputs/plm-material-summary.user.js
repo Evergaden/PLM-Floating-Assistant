@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.135
+// @version      2.8.136
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.135';
+  const SCRIPT_VERSION = '2.8.136';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -6316,6 +6316,7 @@
       departmentName: cached.departmentName || '',
       manualFieldOverrides: cached.manualFieldOverrides || {},
       recentFieldChanges: Array.isArray(cached.recentFieldChanges) ? cached.recentFieldChanges : [],
+      recentFieldChangesAcknowledgedSignature: cached.recentFieldChangesAcknowledgedSignature || '',
       dataUpdateLog: Array.isArray(cached.dataUpdateLog) ? cached.dataUpdateLog : [],
       infringementHistory: Array.isArray(cached.infringementHistory) ? cached.infringementHistory : [],
       projectRowId: cached.projectRowId || '',
@@ -14165,7 +14166,7 @@
   }
 
   function skuDataChangeAlertHtml(data) {
-    const changes = getStoredDataChanges(data).slice(0, 8);
+    const changes = getVisibleStoredDataChanges(data).slice(0, 8);
     if (!changes.length) return '';
     const rows = changes.map((change) => '<div class="pfh-data-change-item"><span>' + escapeHtml(change.label) + '</span><div class="pfh-data-change-values"><del>' + escapeHtml(change.before || '未识别') + '</del><i>→</i><ins>' + escapeHtml(change.after || '已清空') + '</ins></div></div>').join('');
     return '<div class="pfh-data-change-alert" role="status"><div class="pfh-data-change-head"><strong>SKU 数据有更新，请核对</strong><div class="pfh-data-change-actions"><button type="button" data-action="sku-data-log-open">查看更新日志</button><button type="button" data-action="sku-changes-ack">已核对</button></div></div><div class="pfh-data-change-list">' + rows + '</div></div>';
@@ -18970,6 +18971,28 @@ self.onmessage = async function(event) {
       : [];
   }
 
+  function getDataChangeSignature(changes) {
+    const normalized = (Array.isArray(changes) ? changes : [])
+      .filter((item) => item && item.key && !trackedDataValuesEqual(item.key, item.before, item.after))
+      .map((item) => [
+        String(item.key),
+        normalizeTrackedDataValue(item.key, item.before),
+        normalizeTrackedDataValue(item.key, item.after),
+      ])
+      .sort((left, right) => {
+        const leftText = JSON.stringify(left);
+        const rightText = JSON.stringify(right);
+        return leftText < rightText ? -1 : (leftText > rightText ? 1 : 0);
+      });
+    return normalized.length ? JSON.stringify(normalized) : '';
+  }
+
+  function getVisibleStoredDataChanges(data) {
+    const changes = getStoredDataChanges(data);
+    const acknowledged = String(data && data.recentFieldChangesAcknowledgedSignature || '').trim();
+    return acknowledged && getDataChangeSignature(changes) === acknowledged ? [] : changes;
+  }
+
   function getStoredDataUpdateLogs(data) {
     const logs = normalizeDataUpdateLog(data && data.dataUpdateLog);
     if (logs.length) return logs;
@@ -19071,7 +19094,11 @@ self.onmessage = async function(event) {
   function acknowledgeSkuDataChanges() {
     const data = normalizeData(state.data || (state.selectedSku ? loadData(state.selectedSku) : null));
     if (!data || !data.sku) return;
-    const next = { ...data, recentFieldChanges: [] };
+    const next = {
+      ...data,
+      recentFieldChanges: [],
+      recentFieldChangesAcknowledgedSignature: getDataChangeSignature(getStoredDataChanges(data)),
+    };
     saveData(data.sku, next, { suppressChangeTracking: true });
     renderShell();
     showToast('已确认本次数据更新');
@@ -36167,6 +36194,9 @@ self.onmessage = async function(event) {
     const nowMs = Date.now();
     const nowText = new Date(nowMs).toLocaleString();
     const normalized = normalizeData({ ...data, updatedAt: data.updatedAt || nowText, updatedAtMs: data.updatedAtMs || nowMs });
+    if (previousNormalized && !Object.prototype.hasOwnProperty.call(data, 'recentFieldChangesAcknowledgedSignature')) {
+      normalized.recentFieldChangesAcknowledgedSignature = String(previousNormalized.recentFieldChangesAcknowledgedSignature || '');
+    }
     const previousInfringement = getInfringementSnapshot(previousNormalized);
     const nextInfringement = getInfringementSnapshot(normalized);
     const infringementChanged = !previousNormalized || getInfringementSnapshotSignature(previousInfringement) !== getInfringementSnapshotSignature(nextInfringement);
@@ -36183,6 +36213,7 @@ self.onmessage = async function(event) {
     }
     const detectedChanges = opts.suppressChangeTracking ? [] : collectTrackedDataChanges(previousNormalized, normalized, opts);
     if (detectedChanges.length) {
+      normalized.recentFieldChangesAcknowledgedSignature = '';
       const combined = detectedChanges.concat(getStoredDataChanges(normalized));
       const seen = new Set();
       normalized.recentFieldChanges = combined.filter((item) => {
