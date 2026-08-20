@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.114
+// @version      2.8.118
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.114';
+  const SCRIPT_VERSION = '2.8.118';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5451,6 +5451,7 @@
     ledgerFilterQuery: '',
     ledgerFilterStatus: 'all',
     ledgerFilterImage: 'all',
+    ledgerFilterWorkflow: 'all',
     ledgerDisplayMode: 'cards',
     ledgerFilterTimer: 0,
     ledgerTimeEditor: null,
@@ -10119,6 +10120,8 @@
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-tools-toggle-chevron::before{content:""!important;display:block!important;width:7px!important;height:7px!important;color:currentColor!important;border-right:1.6px solid currentColor!important;border-bottom:1.6px solid currentColor!important;transform:rotate(45deg) translate(-1px,-1px)!important;}
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable.is-selected,#${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable[aria-pressed="true"]{z-index:131!important;border:1px solid var(--pfh-theme-primary,#7c3aed)!important;border-left:1px solid var(--pfh-theme-primary,#7c3aed)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 18%,var(--pfh-theme-surface,#fff))!important;box-shadow:none!important;transform:none!important;}
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable.is-selected:hover,#${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable[aria-pressed="true"]:hover{z-index:132!important;border-color:var(--pfh-theme-primary-hover,#6036d8)!important;border-left-color:var(--pfh-theme-primary-hover,#6036d8)!important;background:var(--pfh-theme-primary-soft,#f3efff)!important;background:color-mix(in srgb,var(--pfh-theme-primary,#7c3aed) 20%,var(--pfh-theme-surface,#fff))!important;box-shadow:none!important;transform:none!important;}
+      #${PANEL_ID} .pfh-ledger-filter-workflow{min-width:112px!important;}
+      #${PANEL_ID} .pfh-ledger-selection-count{display:inline-flex!important;align-items:center!important;min-height:30px!important;padding:0 4px!important;color:var(--pfh-theme-muted,#8a94ae)!important;font-size:10px!important;font-weight:650!important;white-space:nowrap!important;}
       #${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable.is-menu-open,#${PANEL_ID}[data-pfh-theme][data-view="ledger"] .pfh-ledger-item.is-clickable.is-menu-open:hover{z-index:1000!important;transform:none!important;}
        @media(max-width:560px){#${PANEL_ID} .pfh-cache-editor-layer{padding:8px}#${PANEL_ID} .pfh-cache-editor>header,#${PANEL_ID} .pfh-cache-editor>footer{padding:10px 12px}#${PANEL_ID} .pfh-cache-editor-summary,#${PANEL_ID} .pfh-cache-editor-body{padding-left:12px;padding-right:12px}#${PANEL_ID} .pfh-cache-editor-search{width:100%}#${PANEL_ID} .pfh-cache-field-head{flex-direction:column}#${PANEL_ID} .pfh-cache-field-key{max-width:none;min-width:0}#${PANEL_ID} .pfh-cache-field-control{width:100%;grid-template-columns:74px minmax(0,1fr)}#${PANEL_ID} .pfh-cache-children{padding-left:12px}#${PANEL_ID} .pfh-cache-editor>footer{align-items:flex-start;flex-direction:column}}
       /* Keep card thumbnails fixed; open the product detail from the card instead of enlarging on hover. */
@@ -18055,11 +18058,75 @@ self.onmessage = async function(event) {
     current.outerHTML = ledgerPerformanceMergeButtonHtml(records, new Set(state.ledgerSelectedKeys || []));
   }
 
+  function getLedgerWorkflowFilterForMode(mode) {
+    const value = String(state.ledgerFilterWorkflow || 'all');
+    const allowed = mode === 'design'
+      ? ['all', 'not-generated', 'generated-not-finalized']
+      : (mode === 'finalized' ? ['all', 'box-pending', 'label-pending', 'image-pack-pending', 'any-file-pending'] : ['all']);
+    return allowed.includes(value) ? value : 'all';
+  }
+
+  function ledgerWorkflowFilterHtml(mode) {
+    if (mode === 'trash') return '';
+    const selected = getLedgerWorkflowFilterForMode(mode);
+    const options = mode === 'design'
+      ? [
+        ['all', '全部待定稿'],
+        ['not-generated', '未出图'],
+        ['generated-not-finalized', '出图未定稿'],
+      ]
+      : [
+        ['all', '全部已定稿'],
+        ['box-pending', '纸盒未做'],
+        ['label-pending', '标签未做'],
+        ['image-pack-pending', '图包未做'],
+        ['any-file-pending', '任一文件未做'],
+      ];
+    return '<select class="pfh-ledger-filter-workflow" aria-label="' + escapeHtml(mode === 'design' ? '出图流程筛选' : '文件制作筛选') + '">' + options.map(([value, label]) => '<option value="' + escapeHtml(value) + '"' + (selected === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('') + '</select>';
+  }
+
+  function isLedgerFilePending(value, doneFallback) {
+    return normalizeLedgerFileState(value, doneFallback) === 'pending';
+  }
+
+  function matchesLedgerWorkflowFilter(record, mode, filter) {
+    if (filter === 'all') return true;
+    if (mode === 'design') {
+      const imageGenerated = Boolean(record && record.imageGeneratedAt);
+      return filter === 'not-generated' ? !imageGenerated : (filter === 'generated-not-finalized' ? imageGenerated : true);
+    }
+    if (mode !== 'finalized') return true;
+    if (filter === 'box-pending') return isLedgerFilePending(record && record.boxFileState, record && record.boxFileDone);
+    if (filter === 'label-pending') return isLedgerFilePending(record && record.labelFileState, record && record.labelFileDone);
+    if (filter === 'image-pack-pending') return isLedgerFilePending(record && record.imagePackState, record && record.imagePackDone);
+    if (filter === 'any-file-pending') return [['boxFileState', 'boxFileDone'], ['labelFileState', 'labelFileDone'], ['imagePackState', 'imagePackDone']].some(([field, doneField]) => isLedgerFilePending(record && record[field], record && record[doneField]));
+    return true;
+  }
+
+  function getLedgerStatusFilterForMode(mode) {
+    const value = String(state.ledgerFilterStatus || 'all');
+    const allowed = mode === 'design'
+      ? ['all', '待出图', '待定稿', '异常', 'ai-error']
+      : (mode === 'finalized' ? ['all', '已定稿', '已完成', '作废', '异常', 'ai-error'] : ['all', '异常', 'ai-error']);
+    return allowed.includes(value) ? value : 'all';
+  }
+
+  function ledgerStatusFilterHtml(mode) {
+    const selected = getLedgerStatusFilterForMode(mode);
+    const options = mode === 'design'
+      ? [['all', '全部状态'], ['待出图', '待出图'], ['待定稿', '待定稿'], ['异常', '异常'], ['ai-error', 'AI 异常']]
+      : (mode === 'finalized'
+        ? [['all', '全部状态'], ['已定稿', '已定稿'], ['已完成', '已完成'], ['作废', '作废'], ['异常', '异常'], ['ai-error', 'AI 异常']]
+        : [['all', '全部状态'], ['待出图', '待出图'], ['待定稿', '待定稿'], ['已定稿', '已定稿'], ['已完成', '已完成'], ['异常', '异常'], ['ai-error', 'AI 异常']]);
+    return '<select class="pfh-ledger-filter-status" aria-label="状态筛选">' + options.map(([value, label]) => '<option value="' + escapeHtml(value) + '"' + (selected === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('') + '</select>';
+  }
+
   function filterLedgerWorkbenchRecords(records, mode) {
     const query = String(state.ledgerFilterQuery || '').trim().toLowerCase();
     const tokens = parseSearchTokens(query);
-    const statusFilter = String(state.ledgerFilterStatus || 'all');
+    const statusFilter = getLedgerStatusFilterForMode(mode);
     const imageFilter = String(state.ledgerFilterImage || 'all');
+    const workflowFilter = getLedgerWorkflowFilterForMode(mode);
     return (records || []).filter((record) => {
       if (tokens.length) {
         const haystack = [record.sku, record.brand, record.name, record.designType, record.artPriority, record.packageCode, record.printCode, record.developerName].filter(Boolean).join(' ').toLowerCase();
@@ -18073,6 +18140,7 @@ self.onmessage = async function(event) {
           if (!/^(?:error|needs-|task-error|result-missing)/.test(normalizeLedgerAiImageStatus(record.aiImageStatus, record.aiImageMessage))) return false;
         } else if (workflow !== statusFilter) return false;
       }
+      if (!matchesLedgerWorkflowFilter(record, mode, workflowFilter)) return false;
       const preferredImage = mode === 'design' ? record.benchmarkImageUrl : record.skuImageUrl;
       if (imageFilter === 'benchmark' && !record.benchmarkImageUrl) return false;
       if (imageFilter === 'effect' && !record.skuImageUrl) return false;
@@ -18352,6 +18420,16 @@ self.onmessage = async function(event) {
     }
   }
 
+  function ledgerSelectionToolbarHtml(records, selectedKeys) {
+    const selected = selectedKeys instanceof Set ? selectedKeys : new Set(selectedKeys || []);
+    const visibleRecords = Array.isArray(records) ? records : [];
+    const selectedCount = visibleRecords.filter((record) => selected.has(getLedgerSelectionKey(record))).length;
+    const total = visibleRecords.length;
+    return '<span class="pfh-ledger-selection-count" aria-live="polite">已选 ' + escapeHtml(String(selectedCount)) + ' / ' + escapeHtml(String(total)) + '</span>' +
+      '<button type="button" data-action="ledger-select-all"' + (total ? '' : ' disabled') + '>全选</button>' +
+      '<button type="button" data-action="ledger-clear-selection"' + (selected.size ? '' : ' disabled') + '>取消全选</button>';
+  }
+
   function ledgerViewContentHtml(records) {
     const mode = state.ledgerView === 'trash' ? 'trash' : (state.ledgerView === 'finalized' ? 'finalized' : 'design');
     const filteredRecords = filterLedgerWorkbenchRecords(records, mode);
@@ -18361,6 +18439,7 @@ self.onmessage = async function(event) {
     const performanceGroupMaps = getLedgerPerformanceGroupMaps(performanceSummary);
     const selectedKeys = new Set(state.ledgerSelectedKeys || []);
     const mergePerformanceHtml = mode === 'finalized' ? ledgerPerformanceMergeButtonHtml(records, selectedKeys) : '';
+    const selectionToolbarHtml = mode === 'finalized' ? ledgerSelectionToolbarHtml(filteredRecords, selectedKeys) : '';
     const rows = groups.length ? groups.map((group) => {
       const allSelected = mode === 'finalized' && group.items.length && group.items.every((record) => selectedKeys.has(getLedgerSelectionKey(record)));
       const daySelect = mode === 'finalized' ? '<button type="button" class="pfh-ledger-day-select' + (allSelected ? ' is-selected' : '') + '" data-action="ledger-select-date" data-date="' + escapeHtml(group.date) + '">' + (allSelected ? '取消当天' : '选择当天') + '</button>' : '';
@@ -18382,11 +18461,12 @@ self.onmessage = async function(event) {
         (mode === 'trash'
           ? '<button type="button" data-action="ledger-trash-empty"' + (records.length ? '' : ' disabled') + '>清空本月垃圾篓</button>'
           : mergePerformanceHtml +
+            selectionToolbarHtml +
             '<button type="button" data-action="ledger-copy" title="导出已定稿内容到登记表">导出到登记</button>' +
             '<button type="button" data-action="ledger-copy-selected" title="复制当前勾选的产品编码">复制选中编码</button>' +
             '<button type="button" data-action="ledger-copy-video" title="复制选中产品的视频申请内容">制作视频</button>') +
       '</div>' +
-      '<div class="pfh-ledger-filterbar"><input type="search" class="pfh-ledger-filter-query" value="' + escapeHtml(state.ledgerFilterQuery || '') + '" placeholder="筛选 SKU / 品牌 / 品名 / 编码"><select class="pfh-ledger-filter-status"><option value="all">全部状态</option><option value="待出图"' + (state.ledgerFilterStatus === '待出图' ? ' selected' : '') + '>待出图</option><option value="待定稿"' + (state.ledgerFilterStatus === '待定稿' ? ' selected' : '') + '>待定稿</option><option value="已定稿"' + (state.ledgerFilterStatus === '已定稿' ? ' selected' : '') + '>已定稿</option><option value="已完成"' + (state.ledgerFilterStatus === '已完成' ? ' selected' : '') + '>已完成</option><option value="异常"' + (state.ledgerFilterStatus === '异常' ? ' selected' : '') + '>异常</option><option value="ai-error"' + (state.ledgerFilterStatus === 'ai-error' ? ' selected' : '') + '>AI 异常</option></select><select class="pfh-ledger-filter-image"><option value="all">全部图片</option><option value="benchmark"' + (state.ledgerFilterImage === 'benchmark' ? ' selected' : '') + '>有对标图</option><option value="effect"' + (state.ledgerFilterImage === 'effect' ? ' selected' : '') + '>有效果图</option><option value="missing"' + (state.ledgerFilterImage === 'missing' ? ' selected' : '') + '>缺当前图</option></select><button type="button" data-action="ledger-copy-filtered-skus">复制当前编码</button><button type="button" data-action="ledger-copy-filtered-table">复制当前表格</button><div class="pfh-ledger-view-switch"><button type="button" data-action="ledger-display-mode" data-mode="cards" class="' + (state.ledgerDisplayMode === 'cards' ? 'is-active' : '') + '">卡片</button><button type="button" data-action="ledger-display-mode" data-mode="table" class="' + (state.ledgerDisplayMode === 'table' ? 'is-active' : '') + '">表格</button></div></div></div>' +
+      '<div class="pfh-ledger-filterbar"><input type="search" class="pfh-ledger-filter-query" value="' + escapeHtml(state.ledgerFilterQuery || '') + '" placeholder="筛选 SKU / 品牌 / 品名 / 编码">' + ledgerStatusFilterHtml(mode) + ledgerWorkflowFilterHtml(mode) + '<select class="pfh-ledger-filter-image"><option value="all">全部图片</option><option value="benchmark"' + (state.ledgerFilterImage === 'benchmark' ? ' selected' : '') + '>有对标图</option><option value="effect"' + (state.ledgerFilterImage === 'effect' ? ' selected' : '') + '>有效果图</option><option value="missing"' + (state.ledgerFilterImage === 'missing' ? ' selected' : '') + '>缺当前图</option></select><button type="button" data-action="ledger-copy-filtered-skus">复制当前编码</button><button type="button" data-action="ledger-copy-filtered-table">复制当前表格</button><div class="pfh-ledger-view-switch"><button type="button" data-action="ledger-display-mode" data-mode="cards" class="' + (state.ledgerDisplayMode === 'cards' ? 'is-active' : '') + '">卡片</button><button type="button" data-action="ledger-display-mode" data-mode="table" class="' + (state.ledgerDisplayMode === 'table' ? 'is-active' : '') + '">表格</button></div></div></div>' +
       '</div></section>' +
       (state.ledgerDisplayMode === 'table' ? ledgerTableRowsHtml(filteredRecords, mode) : '<div class="pfh-ledger-list" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '">' + rows + '</div>') +
       ledgerTimeEditorHtml();
@@ -22421,6 +22501,14 @@ self.onmessage = async function(event) {
       copySelectedFinalizedLedgerSkus();
       return;
     }
+    if (action === 'ledger-select-all') {
+      setLedgerVisibleSelection(true);
+      return;
+    }
+    if (action === 'ledger-clear-selection') {
+      setLedgerVisibleSelection(false);
+      return;
+    }
     if (action === 'ledger-copy-video') {
       copySelectedLedgerVideoRows();
       return;
@@ -23337,6 +23425,11 @@ self.onmessage = async function(event) {
     }
     if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-filter-image')) {
       state.ledgerFilterImage = event.target.value || 'all';
+      if (!renderLedgerTabContent(ensurePanel())) renderShell();
+      return;
+    }
+    if (event.target && event.target.classList && event.target.classList.contains('pfh-ledger-filter-workflow')) {
+      state.ledgerFilterWorkflow = event.target.value || 'all';
       if (!renderLedgerTabContent(ensurePanel())) renderShell();
       return;
     }
@@ -30620,6 +30713,18 @@ self.onmessage = async function(event) {
 
   function getLedgerSelectionKey(record) {
     return normalizeLedgerDate(record && record.date || '') + '::' + String(record && record.sku || '');
+  }
+
+  function setLedgerVisibleSelection(selectAll) {
+    if (state.ledgerView === 'trash') return;
+    const records = getVisibleLedgerWorkbenchRecords();
+    if (selectAll && !records.length) {
+      showToast('当前筛选没有可选择的记录');
+      return;
+    }
+    state.ledgerSelectedKeys = selectAll ? Array.from(new Set(records.map(getLedgerSelectionKey))) : [];
+    if (!renderLedgerTabContent(ensurePanel())) renderShell();
+    showToast(selectAll ? '已全选当前筛选的 ' + records.length + ' 条记录' : '已取消全选');
   }
 
   function toggleLedgerSelection(sku, dateKey) {
