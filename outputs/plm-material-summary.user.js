@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.134
+// @version      2.8.135
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.134';
+  const SCRIPT_VERSION = '2.8.135';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2774,6 +2774,7 @@
   const MAGIC_UPLOAD_QUEUE_KEY = 'plm-floating-helper:magic-upload-queue:v1';
   const MAGIC_UPLOAD_HISTORY_KEY = 'plm-floating-helper:magic-upload-history:v1';
   const MAGIC_UPLOAD_METRICS_KEY = 'plm-floating-helper:magic-upload-metrics:v1';
+  const MANUAL_TOY_EFFECT_PACKING_KEY = 'plm-floating-helper:manual-toy-effect-packing:v1';
   const MAGIC_TOY_LABEL_QUEUE_KEY = 'plm-floating-helper:magic-toy-label-queue:v1';
   const MAGIC_TOY_LABEL_HISTORY_KEY = 'plm-floating-helper:magic-toy-label-history:v1';
   const MAGIC_UPLOAD_CONCURRENCY = 3;
@@ -5444,7 +5445,10 @@
     magicUploadQueue: loadMagicUploadQueue(),
     magicUploadHistory: loadMagicUploadHistory(),
     magicUploadMetrics: loadMagicUploadMetrics(),
+    manualToyEffectPacking: loadManualToyEffectPacking(),
+    manualToyEffectPackingOpen: false,
     magicUploadHistoryOpen: false,
+    magicEffectHistoryOpen: false,
     magicUploadRunning: false,
     magicUploadEtaDisplaySeconds: 0,
     magicUploadFileInputOpen: false,
@@ -11413,6 +11417,48 @@
     } catch (_) { return []; }
   }
 
+  function normalizeManualToyEffectPacking(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      standardPackingQuantity: normalizeMagicUploadPackingQuantity(source.standardPackingQuantity || source.packQty || ''),
+      boxWeight: normalizeMagicUploadBoxWeight(source.boxWeight || source.grossWeight || source.totalWeight || ''),
+    };
+  }
+
+  function hasManualToyEffectPacking(value) {
+    const normalized = normalizeManualToyEffectPacking(value);
+    return Boolean(normalized.standardPackingQuantity && normalized.boxWeight);
+  }
+
+  function manualToyEffectPackingSummary(value) {
+    const normalized = normalizeManualToyEffectPacking(value);
+    if (!hasManualToyEffectPacking(normalized)) return '未设置装箱数和总重';
+    return '装箱数 ' + normalized.standardPackingQuantity + ' · 总重 ' + normalized.boxWeight + ' kg';
+  }
+
+  function loadManualToyEffectPacking() {
+    try {
+      const saved = typeof GM_getValue === 'function'
+        ? GM_getValue(MANUAL_TOY_EFFECT_PACKING_KEY, null)
+        : JSON.parse(localStorage.getItem(MANUAL_TOY_EFFECT_PACKING_KEY) || 'null');
+      return normalizeManualToyEffectPacking(saved);
+    } catch (_) {
+      return { standardPackingQuantity: '', boxWeight: '' };
+    }
+  }
+
+  function saveManualToyEffectPacking(value) {
+    const normalized = normalizeManualToyEffectPacking(value);
+    state.manualToyEffectPacking = normalized;
+    try {
+      if (typeof GM_setValue === 'function') GM_setValue(MANUAL_TOY_EFFECT_PACKING_KEY, normalized);
+      else localStorage.setItem(MANUAL_TOY_EFFECT_PACKING_KEY, JSON.stringify(normalized));
+    } catch (error) {
+      console.warn('PLM manual effect packing save failed:', error);
+    }
+    return normalized;
+  }
+
   function saveMagicUploadQueue(queue) {
     // Keep runtime task/file references intact. Upload workers continue to
     // update those objects after a save; only the persisted snapshot is cloned
@@ -12819,6 +12865,9 @@
       const queue = uploadQueue.filter((item) => item.kind === 'toy-effect' && !/\u6210\u529f/.test(item.status || ''));
       const effectHistory = loadUploadHistory().filter((item) => item.kind === 'toy-effect');
       const effectHistoryOpen = Boolean(state.magicEffectHistoryOpen);
+      const manualPacking = normalizeManualToyEffectPacking(state.manualToyEffectPacking);
+      const manualPackingSummary = manualToyEffectPackingSummary(manualPacking);
+      const manualPackingModal = state.manualToyEffectPackingOpen ? '<div class="pfh-magic-history-modal pfh-manual-effect-packing-modal" data-action="magic-effect-packing-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="手动产品装箱信息"><header><span>手动产品提审设置</span><button type="button" data-action="magic-effect-packing-close" aria-label="关闭">×</button></header><div class="pfh-magic-history-list" style="display:grid;gap:12px;padding:16px 17px 18px"><p style="margin:0;color:#8990a6;font-size:11px;line-height:1.5">仅手动添加的产品效果图提审会使用这里的值；BOM 设计任务不受影响。</p><label style="display:grid;gap:6px;color:#1d2232;font-size:11px">装箱数（标准装箱数）<input type="number" min="1" max="10000" step="1" data-manual-toy-effect-packing-field="standardPackingQuantity" value="' + escapeHtml(manualPacking.standardPackingQuantity) + '" placeholder="例如 5" style="width:100%;box-sizing:border-box;border:1px solid rgba(112,86,232,.18);border-radius:10px;background:#fff;color:#1d2232;padding:9px 10px;outline:none"></label><label style="display:grid;gap:6px;color:#1d2232;font-size:11px">总重 / 箱重（kg）<input type="number" min="0.001" max="10000" step="0.01" data-manual-toy-effect-packing-field="boxWeight" value="' + escapeHtml(manualPacking.boxWeight) + '" placeholder="例如 1.13" style="width:100%;box-sizing:border-box;border:1px solid rgba(112,86,232,.18);border-radius:10px;background:#fff;color:#1d2232;padding:9px 10px;outline:none"></label><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:2px"><button type="button" data-action="magic-effect-packing-close" style="min-height:34px;border:0;border-radius:10px;background:rgba(29,34,50,.07);color:#1d2232;padding:7px 12px;font-size:11px;cursor:pointer">取消</button><button type="button" class="is-primary" data-action="magic-effect-packing-save" style="min-height:34px;border:0;border-radius:10px;background:linear-gradient(135deg,#7056e8,#4636a8);color:#fff;padding:7px 12px;font-size:11px;cursor:pointer">保存设置</button></div></div></section></div>' : '';
       const running = loadUploadWorkerRunning('toy-effect');
       const totalFiles = queue.reduce((sum, item) => sum + getToyEffectUploadEntries(item).length, 0);
       const doneCount = effectHistory.filter((item) => /成功/.test(item.status || '')).length;
@@ -12832,7 +12881,7 @@
         return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>商品草稿 / BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button>' + (/失败/.test(item.status || '') ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-effect-retry" data-upload-id="' + escapeHtml(item.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
       }).join('') : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>';
       const effectHistoryHtml = effectHistoryOpen ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + iconHtml('history') + ' 效果图历史 · ' + effectHistory.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (effectHistory.length ? effectHistory.slice(0, 40).map((entry) => { const detail = entry.step || entry.skipReason || ''; return '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status || '已完成') + '</strong><span title="' + escapeHtml(detail) + '">' + escapeHtml(entry.name || entry.sourceName || '效果图任务') + ' · ' + getToyEffectUploadEntries(entry).length + ' 张 · ' + escapeHtml(entry.completedAt || entry.updatedAt || '') + (detail ? ' · ' + escapeHtml(detail) : '') + '</span></div></div>'; }).join('') : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + '</div></section></div>' : '';
-      return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">PRODUCT / BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 手动商品保存到商品图片，设计任务保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div>' + effectHistoryHtml + '</div></section></div>';
+      return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">PRODUCT / BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 手动商品保存到商品图片，设计任务保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" data-action="magic-effect-packing-open">手动设置装箱数/总重</button><span style="align-self:center;color:#8990a6;font-size:10px;white-space:nowrap" title="仅手动产品使用">' + escapeHtml(manualPackingSummary) + '</span><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div>' + effectHistoryHtml + manualPackingModal + '</div></section></div>';
     }
     const queue = state.magicUploadQueue || [];
     const running = Boolean(state.magicUploadRunning);
@@ -13613,6 +13662,31 @@
       throw new Error('PLM 缺少' + missing.join('、') + '，Excel 未提供有效值，已停止保存草稿和提审');
     }
     return { changed, retained };
+  }
+
+  function applyManualToyEffectPacking(values, manualPacking) {
+    const source = normalizeManualToyEffectPacking(manualPacking);
+    if (!hasManualToyEffectPacking(source)) {
+      throw new Error('请先点击“手动设置装箱数/总重”填写有效的装箱数和总重');
+    }
+    const changed = [];
+    const missing = [];
+    MAGIC_UPLOAD_PACKING_FIELDS.forEach((field) => {
+      const target = findMagicUploadProductAttributeByVariable(values, field.variableName, field.attrName, field.attrId);
+      if (!target) {
+        missing.push(field.label + '字段');
+        return;
+      }
+      const language = (values || []).find((item) => String(item && item.attr_id) === String(target.attr_id) && Number(item && item.language_id) === 1);
+      if (!language) {
+        missing.push(field.label + '中文字段');
+        return;
+      }
+      language.value = source[field.key];
+      changed.push(field.label + '=' + source[field.key] + '(手动设置)');
+    });
+    if (missing.length) throw new Error('商品模板中缺少' + missing.join('、') + '，无法保存手动产品效果图');
+    return { changed, source };
   }
 
   function collectMagicUploadFileVersionIds(task) {
@@ -21375,6 +21449,38 @@ self.onmessage = async function(event) {
       startMagicEffectQueueInline();
       return true;
     }
+    if (action === 'magic-effect-packing-open') {
+      state.manualToyEffectPacking = normalizeManualToyEffectPacking(state.manualToyEffectPacking);
+      state.manualToyEffectPackingOpen = true;
+      if (!renderMagicUploadModeContent(ensurePanel())) renderShell();
+      return true;
+    }
+    if (action === 'magic-effect-packing-close') {
+      if (actionTarget.classList && actionTarget.classList.contains('pfh-magic-history-modal') && event.target !== actionTarget) return true;
+      state.manualToyEffectPackingOpen = false;
+      if (!renderMagicUploadModeContent(ensurePanel())) renderShell();
+      return true;
+    }
+    if (action === 'magic-effect-packing-save') {
+      const panel = ensurePanel();
+      const quantityInput = panel.querySelector('[data-manual-toy-effect-packing-field="standardPackingQuantity"]');
+      const weightInput = panel.querySelector('[data-manual-toy-effect-packing-field="boxWeight"]');
+      const next = normalizeManualToyEffectPacking({
+        standardPackingQuantity: quantityInput && quantityInput.value,
+        boxWeight: weightInput && weightInput.value,
+      });
+      if (!next.standardPackingQuantity || !next.boxWeight) {
+        showToast('请填写有效的装箱数和总重（箱重）');
+        const invalid = !next.standardPackingQuantity ? quantityInput : weightInput;
+        if (invalid && typeof invalid.focus === 'function') invalid.focus();
+        return true;
+      }
+      saveManualToyEffectPacking(next);
+      state.manualToyEffectPackingOpen = false;
+      if (!renderMagicUploadModeContent(panel)) renderShell();
+      showToast('手动产品装箱数和总重已保存，队列提审时自动带入');
+      return true;
+    }
     if (action === 'magic-effect-retry') {
       retryMagicEffectQueueItem(actionTarget.getAttribute('data-upload-id') || '');
       return true;
@@ -24937,7 +25043,7 @@ self.onmessage = async function(event) {
     return { replacedCount: previousPaths.length, savedCount: effectPictureFiles.length };
   }
 
-  function buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, productContext, objectNames) {
+  function buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, productContext, objectNames, manualPacking) {
     const info = getMagicUploadPayloadData(infoPayload);
     const price = getMagicUploadPayloadData(pricePayload);
     const invoice = getMagicUploadPayloadData(invoicePayload);
@@ -24953,10 +25059,12 @@ self.onmessage = async function(event) {
     if (!paths.length) throw new Error('商品效果图 OSS 路径为空');
     const replacedCount = magicUploadDraftValueList(target.value).filter(Boolean).length;
     target.value = paths;
+    const packingSummary = manualPacking ? applyManualToyEffectPacking(values, manualPacking) : { changed: [], source: null };
     const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
     const procureFallback = Array.isArray(info.product_procure_infos) ? info.product_procure_infos : [];
     return {
       _toyEffectReplacedCount: replacedCount,
+      _toyEffectPackingSummary: packingSummary,
       procurement_price: price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price,
       invoice_item_name: invoice.invoice_item_name === undefined ? field('invoice_item_name', null) : invoice.invoice_item_name,
       invoice_category: invoice.invoice_category === undefined ? field('invoice_category', null) : invoice.invoice_category,
@@ -24991,7 +25099,7 @@ self.onmessage = async function(event) {
     };
   }
 
-  async function saveToyEffectPicturesToProductByApi(item, data, objectNames, productContext) {
+  async function saveToyEffectPicturesToProductByApi(item, data, objectNames, productContext, manualPacking) {
     const context = productContext || await resolveMagicUploadProductContext(item);
     const infoPath = '/api/Product/GetDetailInfoByEdit?product_id=' + encodeURIComponent(context.productId) + '&product_version_id=' + encodeURIComponent(context.productVersionId);
     const infoPayload = await fetchPlmJson(infoPath);
@@ -25005,9 +25113,11 @@ self.onmessage = async function(event) {
       fetchPlmJson(withVersion('/api/Product/GetProductInvoiceInfo?type=1')),
       fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(context.sku)),
     ]);
-    const draft = buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, context, objectNames);
+    const draft = buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, context, objectNames, manualPacking);
     const replacedCount = Number(draft._toyEffectReplacedCount) || 0;
+    const packingSummary = draft._toyEffectPackingSummary || { changed: [], source: null };
     delete draft._toyEffectReplacedCount;
+    delete draft._toyEffectPackingSummary;
     await fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
     await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(context.productId) || context.productId });
     const firstPath = (Array.isArray(objectNames) ? objectNames : [objectNames]).map(normalizeMagicUploadEffectPath).find(Boolean) || '';
@@ -25024,7 +25134,7 @@ self.onmessage = async function(event) {
     });
     saveData(context.sku, next, { changeSource: '魔法上传商品效果图' });
     upsertDailyLedgerFromData(next, { status: '待定稿', stage: '待定稿' });
-    return { data: next, replacedCount, savedCount: (Array.isArray(objectNames) ? objectNames : [objectNames]).filter(Boolean).length };
+    return { data: next, replacedCount, packingSummary, savedCount: (Array.isArray(objectNames) ? objectNames : [objectNames]).filter(Boolean).length };
   }
 
   async function uploadToyEffectFileByApi(item, data, entry, file, index, total, options) {
@@ -25062,7 +25172,15 @@ self.onmessage = async function(event) {
       return;
     }
     const cached = normalizeData(loadData(item.sku) || (state.index || []).find((entry) => entry.sku === item.sku) || { sku: item.sku });
-    const productRoute = isManualSkuProductEffectRoute(cached) || !/^\d+$/.test(getToyEffectProjectId(cached));
+    const manualProductRoute = isManualSkuProductEffectRoute(cached);
+    const productRoute = manualProductRoute || !/^\d+$/.test(getToyEffectProjectId(cached));
+    const manualPacking = manualProductRoute ? normalizeManualToyEffectPacking(state.manualToyEffectPacking) : null;
+    if (manualProductRoute && !hasManualToyEffectPacking(manualPacking)) {
+      const message = '请先点击“手动设置装箱数/总重”填写装箱数和总重，再处理手动产品效果图';
+      markUploadQueueBlocked(item, L.uploadFailed, message);
+      showToast(item.sku + ' ' + message);
+      return;
+    }
     let productContext = null;
     let data = cached;
     if (productRoute) {
@@ -25092,7 +25210,7 @@ self.onmessage = async function(event) {
     }
     updateUploadItem(item, '\u8fdb\u884c\u4e2d', productRoute ? '\u4fdd\u5b58\u5546\u54c1\u8349\u7a3f\u5e76\u63d0\u5ba1' : '\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
     const saveResult = productRoute
-      ? await saveToyEffectPicturesToProductByApi(item, data, uploadedPaths, productContext)
+      ? await saveToyEffectPicturesToProductByApi(item, data, uploadedPaths, productContext, manualProductRoute ? manualPacking : null)
       : await saveToyEffectPicturesByApi(data, uploadedPaths);
     const replacedCount = Number(saveResult && saveResult.replacedCount) || 0;
     updateUploadItem(item, '\u8fdb\u884c\u4e2d', replacedCount ? '\u5df2\u66ff\u6362 ' + replacedCount + ' \u5f20\u65e7\u6548\u679c\u56fe' : '\u6548\u679c\u56fe\u5df2\u4fdd\u5b58', { effectReplacedCount: replacedCount });
