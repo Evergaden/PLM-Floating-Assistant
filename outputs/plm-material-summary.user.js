@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.123
+// @version      2.8.124
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.123';
+  const SCRIPT_VERSION = '2.8.124';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -10002,7 +10002,7 @@
     if (!codec) return '';
     try {
       const bytes = new Uint8Array(base64ToArrayBuffer(encoded));
-      getWorkflowPatchCssText.cache = codec.strFromU8(codec.gunzipSync(bytes)).split('$' + '{PANEL_ID}').join('#' + PANEL_ID);
+      getWorkflowPatchCssText.cache = codec.strFromU8(codec.gunzipSync(bytes)).split('#$' + '{PANEL_ID}').join('#' + PANEL_ID);
       return getWorkflowPatchCssText.cache;
     } catch (error) {
       console.warn('PLM floating helper workflow patch decode failed:', error);
