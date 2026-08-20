@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.118
+// @version      2.8.119
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.118';
+  const SCRIPT_VERSION = '2.8.119';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2823,6 +2823,10 @@
   const CLOUD_AUTH_TOKEN_SKEW_MS = 2 * 60 * 1000;
   const CLOUD_AUTH_TOKEN_WAIT_MS = 8000;
   const CLOUD_AUTH_EXCHANGE_TIMEOUT_MS = 15000;
+  // Bootstrap schedules cloud requests before the later function definitions execute.
+  // Initialize the auth state here so those requests never observe its TDZ.
+  let cloudAuthState = null;
+  let cloudAuthExchangePromise = null;
   const CLOUD_BACKUP_DEBOUNCE_MS = 8000;
   const CLOUD_BACKUP_KDF_ITERATIONS = 180000;
   const CLOUD_BACKUP_INLINE_LIMIT = 760000;
@@ -34247,9 +34251,6 @@ self.onmessage = async function(event) {
       if (state.view === 'home') renderShell();
     }
   }
-
-  let cloudAuthState = null;
-  let cloudAuthExchangePromise = null;
 
   function parseCloudAuthExpiry(value) {
     const numeric = Number(value);
