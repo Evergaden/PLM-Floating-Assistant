@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.119
+// @version      2.8.120
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.119';
+  const SCRIPT_VERSION = '2.8.120';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -811,13 +811,21 @@
       }
     }
 
-    function canvasPoint(event, canvas, image) {
+    function canvasDisplayPoint(event, canvas) {
       const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width),
+        y: (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height),
+      };
+    }
+
+    function canvasPoint(event, canvas, image) {
+      const displayPoint = canvasDisplayPoint(event, canvas);
       const padding = editorCanvasPadding(image);
       const width = Number(image.naturalWidth || image.width || 0);
       const height = Number(image.naturalHeight || image.height || 0);
-      const rawX = (event.clientX - rect.left) * canvas.width / Math.max(1, rect.width) - padding;
-      const rawY = (event.clientY - rect.top) * canvas.height / Math.max(1, rect.height) - padding;
+      const rawX = displayPoint.x - padding;
+      const rawY = displayPoint.y - padding;
       return {
         x: Math.max(0, Math.min(width, rawX)),
         y: Math.max(0, Math.min(height, rawY)),
@@ -1075,11 +1083,11 @@
       const redraw = () => { drawManualEditorCanvas(canvas, session.editorImage, session); refreshEditorProgress(session); };
       canvas.onpointerdown = (event) => {
         event.preventDefault();
+        const displayPoint = canvasDisplayPoint(event, canvas);
         let point = canvasPoint(event, canvas, session.editorImage);
         const radius = 28 * editorScale(session.editorImage);
         const hit = findManualPointHit(session, point, radius);
         const padding = editorCanvasPadding(session.editorImage);
-        const displayPoint = { x: point.x + padding, y: point.y + padding };
         const annotationHit = hit ? null : findManualAnnotationHit(session, displayPoint, session.editorImage, padding, padding);
         if (annotationHit) {
           session.manualTarget = annotationHit.target;
@@ -1134,11 +1142,9 @@
       };
       canvas.onpointermove = (event) => {
         const dragging = session.editorDragging;
-        const rawPoint = canvasPoint(event, canvas, session.editorImage);
         if (!dragging) return;
         if (dragging.kind === 'annotation') {
-          const padding = editorCanvasPadding(session.editorImage);
-          const displayPoint = { x: rawPoint.x + padding, y: rawPoint.y + padding };
+          const displayPoint = canvasDisplayPoint(event, canvas);
           const dx = displayPoint.x - dragging.lastDisplayPoint.x, dy = displayPoint.y - dragging.lastDisplayPoint.y;
           const normalDelta = dx * dragging.geometry.normal.x + dy * dragging.geometry.normal.y;
           const tangentDelta = dx * dragging.geometry.tangent.x + dy * dragging.geometry.tangent.y;
@@ -1158,6 +1164,7 @@
           redraw();
           return;
         }
+        const rawPoint = canvasPoint(event, canvas, session.editorImage);
         if (!session.manualPoints[dragging.target] || !session.manualPoints[dragging.target][dragging.index]) return;
         const points = session.manualPoints[dragging.target];
         const constrained = constrainEditorPoint(rawPoint, points, dragging.index, event.ctrlKey);
