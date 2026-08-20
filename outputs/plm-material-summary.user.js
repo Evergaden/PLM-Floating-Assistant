@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.124
+// @version      2.8.125
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.124';
+  const SCRIPT_VERSION = '2.8.125';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5587,6 +5587,7 @@
   window.addEventListener('resize', () => positionLauncher(document.getElementById(LAUNCHER_ID)));
   startDrawerWatcher();
   startDailyLedgerSync();
+  migrateLegacyManualSkuLedger();
   startDesktopBridge();
   startUploadQueueSync();
   handleDrawerState();
@@ -30464,6 +30465,52 @@ self.onmessage = async function(event) {
     state.ledgerRecords = [reconciled].concat((state.ledgerRecords || []).filter((item) => !(getLedgerSkuKey(item.sku) === getLedgerSkuKey(sku) && getMonthKeyFromDateKey(item.date) === dateMonth))).slice(0, 1200);
     if (!opts.deferSave) saveDailyLedger();
     return reconciled;
+  }
+
+  function migrateLegacyManualSkuLedger() {
+    const candidates = (Array.isArray(state.index) ? state.index.slice() : []).map((indexItem) => {
+      const sku = String(indexItem && indexItem.sku || '').trim().toUpperCase();
+      if (!sku) return null;
+      const cached = loadData(sku);
+      const data = normalizeData(cached || indexItem || { sku });
+      const isManual = data.skuListSource === 'manual-code' || Boolean(data.manualSkuAddedAt);
+      if (!isManual) return null;
+      const addedAtMs = Number(data.manualSkuAddedAtMs || 0) || 0;
+      const addedAt = String(data.manualSkuAddedAt || data.designAssignedAt || '').trim()
+        || (addedAtMs ? new Date(addedAtMs).toLocaleString() : new Date().toLocaleString());
+      const next = data.designAssignedAt ? data : normalizeData({ ...data, designAssignedAt: addedAt });
+      if (!data.designAssignedAt) {
+        saveData(sku, next, {
+          changeSource: '历史手动添加补充分配时间',
+          suppressChangeTracking: true,
+          suppressDataQuality: true,
+        });
+      }
+      return {
+        data: next,
+        date: addedAtMs ? formatLocalDate(new Date(addedAtMs)) : (parseLedgerDateFromText(addedAt) || getTodayKey()),
+      };
+    }).filter(Boolean);
+    if (!candidates.length) return;
+    syncDailyLedgerBeforeMutation();
+    let changedCount = 0;
+    candidates.forEach((candidate) => {
+      const before = (state.ledgerRecords || []).find((item) => item.sku === candidate.data.sku && getMonthKeyFromDateKey(item.date) === getMonthKeyFromDateKey(candidate.date));
+      const record = upsertDailyLedgerFromData(candidate.data, {
+        date: candidate.date,
+        status: '待定稿',
+        stage: '待定稿',
+        note: before ? undefined : '历史手动添加自动补录',
+        deferSave: true,
+        skipStorageSync: true,
+        skipUnchanged: true,
+      });
+      if (record && record !== before) changedCount += 1;
+    });
+    if (!changedCount) return;
+    saveDailyLedger();
+    addLog('info', '历史手动 SKU 已补录今日工作台', changedCount + ' 个');
+    if (state.view === 'ledger') renderShell();
   }
 
   function updateDailyLedgerForSku(sku, patch, dateKey) {
