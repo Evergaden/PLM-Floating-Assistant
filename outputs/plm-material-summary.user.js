@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.133
+// @version      2.8.134
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.133';
+  const SCRIPT_VERSION = '2.8.134';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -24919,6 +24919,7 @@ self.onmessage = async function(event) {
     ]);
     const materials = Array.isArray(materialsPayload && materialsPayload.data) ? materialsPayload.data : [];
     if (!materials.length) throw new Error('未读取到 BOM 物料列表，无法保存效果图');
+    const previousPaths = getMagicToyLabelEffectPicturePaths(existingPayload);
     const effectPictureFiles = [];
     const seen = new Set();
     const addPath = (value) => {
@@ -24927,13 +24928,13 @@ self.onmessage = async function(event) {
       seen.add(normalized);
       effectPictureFiles.push(normalized);
     };
-    (Array.isArray(existingPayload && existingPayload.data) ? existingPayload.data : []).forEach(addPath);
     paths.forEach(addPath);
     await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
       project_id: Number(projectId) || projectId,
       materials: materials.map(buildMagicUploadBomMaterialPayload),
       effect_picture_files: effectPictureFiles,
     });
+    return { replacedCount: previousPaths.length, savedCount: effectPictureFiles.length };
   }
 
   function buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, productContext, objectNames) {
@@ -24950,10 +24951,12 @@ self.onmessage = async function(event) {
       .filter(Boolean)
       .map((path) => '/' + path);
     if (!paths.length) throw new Error('商品效果图 OSS 路径为空');
+    const replacedCount = magicUploadDraftValueList(target.value).filter(Boolean).length;
     target.value = paths;
     const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
     const procureFallback = Array.isArray(info.product_procure_infos) ? info.product_procure_infos : [];
     return {
+      _toyEffectReplacedCount: replacedCount,
       procurement_price: price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price,
       invoice_item_name: invoice.invoice_item_name === undefined ? field('invoice_item_name', null) : invoice.invoice_item_name,
       invoice_category: invoice.invoice_category === undefined ? field('invoice_category', null) : invoice.invoice_category,
@@ -25003,6 +25006,8 @@ self.onmessage = async function(event) {
       fetchPlmJson('/api/ProductProcureInfo/GetProductProcureInfo?type=1&product_version_id=' + encodeURIComponent(context.productVersionId) + '&code=' + encodeURIComponent(context.sku)),
     ]);
     const draft = buildToyEffectProductDraft(infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, context, objectNames);
+    const replacedCount = Number(draft._toyEffectReplacedCount) || 0;
+    delete draft._toyEffectReplacedCount;
     await fetchPlmApiJson('/api/Product/SaveProductDraftByEdit', draft);
     await fetchPlmApiJson('/api/Product/Arraign', { product_id: Number(context.productId) || context.productId });
     const firstPath = (Array.isArray(objectNames) ? objectNames : [objectNames]).map(normalizeMagicUploadEffectPath).find(Boolean) || '';
@@ -25019,7 +25024,7 @@ self.onmessage = async function(event) {
     });
     saveData(context.sku, next, { changeSource: '魔法上传商品效果图' });
     upsertDailyLedgerFromData(next, { status: '待定稿', stage: '待定稿' });
-    return next;
+    return { data: next, replacedCount, savedCount: (Array.isArray(objectNames) ? objectNames : [objectNames]).filter(Boolean).length };
   }
 
   async function uploadToyEffectFileByApi(item, data, entry, file, index, total, options) {
@@ -25086,11 +25091,14 @@ self.onmessage = async function(event) {
       uploadedPaths.push(await uploadToyEffectFileByApi(item, data, current.entry, current.file, index + 1, files.length, { uploadFileType: productRoute ? 30 : 40 }));
     }
     updateUploadItem(item, '\u8fdb\u884c\u4e2d', productRoute ? '\u4fdd\u5b58\u5546\u54c1\u8349\u7a3f\u5e76\u63d0\u5ba1' : '\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
-    if (productRoute) await saveToyEffectPicturesToProductByApi(item, data, uploadedPaths, productContext);
-    else await saveToyEffectPicturesByApi(data, uploadedPaths);
+    const saveResult = productRoute
+      ? await saveToyEffectPicturesToProductByApi(item, data, uploadedPaths, productContext)
+      : await saveToyEffectPicturesByApi(data, uploadedPaths);
+    const replacedCount = Number(saveResult && saveResult.replacedCount) || 0;
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', replacedCount ? '\u5df2\u66ff\u6362 ' + replacedCount + ' \u5f20\u65e7\u6548\u679c\u56fe' : '\u6548\u679c\u56fe\u5df2\u4fdd\u5b58', { effectReplacedCount: replacedCount });
     archiveUploadItem(item);
     addLog('success', '\u73a9\u5177\u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f', data.sku + ' | ' + (productRoute ? '\u5546\u54c1\u8349\u7a3f' : 'BOM') + ' | ' + uploadedPaths.length + ' 张');
-    showToast(data.sku + ' \u6548\u679c\u56fe\u4e0a\u4f20\u5e76\u63d0\u5ba1\u6210\u529f');
+    showToast(data.sku + (replacedCount ? ' \u5df2\u66ff\u6362\u65e7\u6548\u679c\u56fe\u5e76\u63d0\u5ba1\u6210\u529f' : ' \u6548\u679c\u56fe\u4e0a\u4f20\u5e76\u63d0\u5ba1\u6210\u529f'));
   }
 
   async function runCopyrightUploadQueueItem(item) {
