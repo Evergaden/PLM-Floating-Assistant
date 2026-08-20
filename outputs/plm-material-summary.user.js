@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.131
+// @version      2.8.132
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.131';
+  const SCRIPT_VERSION = '2.8.132';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -12829,7 +12829,7 @@
         const statusText = item.step || item.status || '等待上传';
         const progress = /成功/.test(item.status || '') ? 100 : (/进行中/.test(item.status || '') ? 45 : 0);
         const statusClass = /失败/.test(item.status || '') ? 'is-error' : (/成功/.test(item.status || '') ? 'is-success' : '');
-        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button><strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
+        return '<article class="pfh-magic-task ' + statusClass + '"><div class="pfh-magic-task-main"><div class="pfh-magic-task-icon">✦</div><div class="pfh-magic-task-copy"><div class="pfh-magic-task-title"><span class="pfh-magic-sku-text" title="' + escapeHtml(item.sku || '待确认 SKU') + '">' + escapeHtml(item.sku || '待确认 SKU') + '</span><span class="pfh-magic-task-source" title="' + escapeHtml(getUploadDisplayName(item) || item.name || '') + '">' + escapeHtml(getUploadDisplayName(item) || item.name || '效果图任务') + '</span><span class="pfh-magic-file-badge">' + files.length + ' 张图</span></div><div class="pfh-magic-task-meta"><span>效果图</span><span>BOM API + OSS</span></div><div class="pfh-magic-progress-line"><div class="pfh-magic-progress-track"><div class="pfh-magic-progress-bar" style="width:' + progress + '%"></div></div></div></div><div class="pfh-magic-task-side"><button type="button" class="pfh-magic-task-delete" data-action="upload-remove" data-upload-id="' + escapeHtml(item.id) + '">删除</button>' + (/失败/.test(item.status || '') ? '<button type="button" class="pfh-magic-task-delete" data-action="magic-effect-retry" data-upload-id="' + escapeHtml(item.id) + '">重试</button>' : '') + '<strong class="pfh-magic-progress-value">' + progress + '%</strong><span class="pfh-magic-status ' + statusClass + '" title="' + escapeHtml(statusText) + '">' + escapeHtml(statusText) + '</span></div></div></article>';
       }).join('') : '<div class="pfh-magic-empty">拖入 JPG / PNG 效果图，按文件名或 SKU 自动匹配商品后上传到 BOM 效果图</div>';
       const effectHistoryHtml = effectHistoryOpen ? '<div class="pfh-magic-history-modal" data-action="magic-effect-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="效果图历史"><header><span>' + iconHtml('history') + ' 效果图历史 · ' + effectHistory.length + ' 条</span><button type="button" data-action="magic-effect-history-close">×</button></header><div class="pfh-magic-history-list">' + (effectHistory.length ? effectHistory.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status || '已完成') + '</strong><span>' + escapeHtml(entry.name || entry.sourceName || '效果图任务') + ' · ' + getToyEffectUploadEntries(entry).length + ' 张 · ' + escapeHtml(entry.completedAt || entry.updatedAt || '') + '</span></div></div>').join('') : '<div class="pfh-magic-history-empty">还没有效果图历史</div>') + '</div></section></div>' : '';
       return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">BOM EFFECT API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(queue.length).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + totalFiles + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + waitingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + doneCount + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + escapeHtml(state.toyEffectMatchStatus || '等待效果图进入队列') + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + iconHtml('image') + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 按 SKU 或产品名匹配 · API 保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (running || !queue.some(isUploadItemReady) ? ' disabled' : '') + '>' + iconHtml('upload') + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-effect-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + iconHtml('history') + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + queue.length + ' 个商品 · ' + totalFiles + ' 张图</span></div><div class="pfh-magic-queue">' + rows + '</div>' + effectHistoryHtml + '</div></section></div>';
@@ -21375,6 +21375,10 @@ self.onmessage = async function(event) {
       startMagicEffectQueueInline();
       return true;
     }
+    if (action === 'magic-effect-retry') {
+      retryMagicEffectQueueItem(actionTarget.getAttribute('data-upload-id') || '');
+      return true;
+    }
     if (action === 'magic-effect-pause') {
       state.uploadMode = 'toy-effect';
       pauseUploadQueue();
@@ -24363,6 +24367,25 @@ self.onmessage = async function(event) {
     window.setTimeout(() => processUploadQueue(mode), 80);
   }
 
+  function retryMagicEffectQueueItem(id) {
+    const queue = loadUploadQueue();
+    let found = false;
+    state.uploadQueue = queue.map((item) => {
+      if (item.id !== id || getUploadItemMode(item) !== 'toy-effect') return item;
+      found = true;
+      return {
+        ...item,
+        status: isUploadItemReady(item) ? '\u5f85\u4e0a\u4f20\u6548\u679c\u56fe' : '\u7f3a\u6587\u4ef6',
+        step: isUploadItemReady(item) ? '\u7b49\u5f85\u91cd\u8bd5\uff0c\u5c06\u91cd\u65b0\u67e5\u8be2\u9879\u76ee ID' : getMissingUploadText(item),
+        skipReason: '',
+        updatedAt: new Date().toLocaleString(),
+      };
+    });
+    if (!found) return;
+    saveUploadQueue();
+    startMagicEffectQueueInline();
+  }
+
   function clearMagicEffectQueue() {
     const queue = loadUploadQueue();
     const removed = queue.filter((item) => getUploadItemMode(item) === 'toy-effect');
@@ -24849,6 +24872,38 @@ self.onmessage = async function(event) {
     return getProjectIdForMaterialApi(data) || String(data && (data.projectRowId || data.projectId || data.id) || '');
   }
 
+  async function resolveToyEffectProjectData(item) {
+    const sku = String(item && item.sku || '').trim().toUpperCase();
+    const cached = loadData(sku) || (state.index || []).find((entry) => entry.sku === sku) || {};
+    let data = normalizeData({
+      ...cached,
+      sku: cached.sku || sku,
+      name: cached.name || (item && item.name) || '',
+      projectRowId: cached.projectRowId || (item && item.projectRowId) || '',
+    });
+    let projectId = getToyEffectProjectId(data);
+    let project = null;
+    if (!projectId || !/^\d+$/.test(projectId)) {
+      updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u6b63\u5728\u6309 SKU \u67e5\u8be2\u9879\u76ee ID');
+      project = await fetchApiProjectSnapshot(data, { force: true });
+      projectId = String(project && project.projectId || '').trim();
+    }
+    if (!projectId || !/^\d+$/.test(projectId)) throw new Error('\u672a\u627e\u5230 ' + sku + ' \u5bf9\u5e94\u7684\u9879\u76ee ID\uff0c\u65e0\u6cd5\u4fdd\u5b58 BOM \u6548\u679c\u56fe');
+    data = normalizeData({
+      ...data,
+      projectRowId: projectId,
+      projectId,
+      brand: data.brand || project && project.brand || '',
+      name: data.name || project && project.name || '',
+      referenceUrl: project && project.referenceUrl || data.referenceUrl || '',
+      updatedAt: new Date().toLocaleString(),
+      updatedAtMs: Date.now(),
+    });
+    saveData(sku, data, { changeSource: '\u9b54\u6cd5\u4e0a\u4f20\u8865\u5168\u9879\u76ee ID' });
+    if (item) updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u5df2\u5339\u914d\u9879\u76ee ID\uff1a' + projectId, { projectRowId: projectId });
+    return data;
+  }
+
   async function saveToyEffectPicturesByApi(data, objectNames) {
     const projectId = getToyEffectProjectId(data);
     if (!projectId) throw new Error('缺少项目 ID，无法保存 BOM 效果图');
@@ -24903,18 +24958,12 @@ self.onmessage = async function(event) {
 
   async function runToyEffectQueueItem(item) {
     if (!hasApiUploadAccess()) throw new Error('当前账号没有 API 上传权限，效果图 API 队列已停止');
-    const cached = loadData(item && item.sku) || (state.index || []).find((entry) => entry.sku === (item && item.sku)) || {};
-    const data = normalizeData({
-      ...cached,
-      sku: cached.sku || (item && item.sku) || '',
-      name: cached.name || (item && item.name) || '',
-      projectRowId: cached.projectRowId || (item && item.projectRowId) || '',
-    });
     const entries = getToyEffectUploadEntries(item);
-    if (!data.sku || !entries.length) {
+    if (!item || !item.sku || !entries.length) {
       markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u73a9\u5177\u6548\u679c\u56fe\u6587\u4ef6');
       return;
     }
+    const data = await resolveToyEffectProjectData(item);
     const files = [];
     for (const entry of entries) {
       const file = await getUploadFile(entry.key);
@@ -29162,6 +29211,7 @@ self.onmessage = async function(event) {
       skuImageFallbackUrl: resolvedImageUrl,
       skuImageSource: effectImageUrl ? 'effectImage' : (productImageUrl ? 'productListImage' : data.skuImageSource || ''),
       manualSkuImageCheckedAtMs: Date.now(),
+      manualSkuImageRefreshVersion: SCRIPT_VERSION,
     });
     saveData(sku, data, { changeSource: isNew ? '手动添加编码' : '手动补充编码信息' });
     upsertDailyLedgerFromData(data, {
@@ -29196,11 +29246,14 @@ self.onmessage = async function(event) {
     const currentMonth = getMonthKeyFromDateKey(getTodayKey());
     const candidates = Array.from(new Set((state.ledgerRecords || []).filter((record) => {
       if (!record || getMonthKeyFromDateKey(record.date) !== currentMonth || isLedgerFinalizedRecord(record)) return false;
-      if (String(record.skuImageUrl || '').trim()) return false;
       const sku = String(record.sku || '').trim().toUpperCase();
       if (!sku) return false;
       const cached = normalizeData(loadData(sku) || state.index.find((item) => item && String(item.sku || '').toUpperCase() === sku) || { sku });
-      return cached.skuListSource === 'manual-code' || Boolean(cached.manualSkuAddedAt || cached.manualSkuAddedAtMs);
+      const isManual = cached.skuListSource === 'manual-code' || Boolean(cached.manualSkuAddedAt || cached.manualSkuAddedAtMs);
+      if (!isManual) return false;
+      const hasProjectId = /^\d+$/.test(getProjectIdForMaterialApi(cached));
+      const hasEffectImage = cached.skuImageSource === 'effectImage' && Boolean(String(cached.skuImageUrl || cached.skuImageFallbackUrl || '').trim());
+      return (!hasProjectId || !hasEffectImage) && cached.manualSkuImageRefreshVersion !== SCRIPT_VERSION;
     }).map((record) => String(record.sku || '').trim().toUpperCase()).filter(Boolean))).slice(0, 80);
     if (!candidates.length) return 0;
     let updatedCount = 0;
