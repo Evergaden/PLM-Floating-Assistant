@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.125
+// @version      2.8.126
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.125';
+  const SCRIPT_VERSION = '2.8.126';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -30495,12 +30495,13 @@ self.onmessage = async function(event) {
     syncDailyLedgerBeforeMutation();
     let changedCount = 0;
     candidates.forEach((candidate) => {
-      const before = (state.ledgerRecords || []).find((item) => item.sku === candidate.data.sku && getMonthKeyFromDateKey(item.date) === getMonthKeyFromDateKey(candidate.date));
+      const existing = (state.ledgerRecords || []).find((item) => getLedgerSkuKey(item.sku) === getLedgerSkuKey(candidate.data.sku));
+      if (existing) return;
       const record = upsertDailyLedgerFromData(candidate.data, {
         date: candidate.date,
         status: '待定稿',
         stage: '待定稿',
-        note: before ? undefined : '历史手动添加自动补录',
+        note: '历史手动添加自动补录',
         deferSave: true,
         skipStorageSync: true,
         skipUnchanged: true,
