@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.141
+// @version      2.8.142
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.141';
+  const SCRIPT_VERSION = '2.8.142';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -14103,7 +14103,7 @@
     const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
     if (currentHeroNote) currentHeroNote.textContent = mode === 'trash'
       ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。'
-      : (mode === 'finalized' ? '默认只显示图包未完成；点击图包标记为已完成后会自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。');
+      : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。');
     const currentRecordCount = page.querySelector('[data-ledger-record-count]');
     if (currentRecordCount) currentRecordCount.textContent = records.length + ' 条 / ' + month;
     tabs.setAttribute('data-active-tab', mode);
@@ -18484,7 +18484,7 @@ self.onmessage = async function(event) {
     const visibleRecords = Array.isArray(records) ? records : [];
     const selectedCount = visibleRecords.filter((record) => selected.has(getLedgerSelectionKey(record))).length;
     const total = visibleRecords.length;
-    return '<span class="pfh-ledger-selection-count" aria-live="polite">已选 ' + escapeHtml(String(selectedCount)) + ' / ' + escapeHtml(String(total)) + '</span>' +
+    return '<span class="pfh-ledger-selection-count" aria-live="polite" title="选中多个产品后，点击任一卡片的纸盒、标签或图包按钮，会同步对应状态">已选 ' + escapeHtml(String(selectedCount)) + ' / ' + escapeHtml(String(total)) + '</span>' +
       '<button type="button" data-action="ledger-select-all"' + (total ? '' : ' disabled') + '>全选</button>' +
       '<button type="button" data-action="ledger-clear-selection"' + (selected.size ? '' : ' disabled') + '>取消全选</button>';
   }
@@ -18537,7 +18537,7 @@ self.onmessage = async function(event) {
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；点击图包标记为已完成后会自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。')) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；选中多个产品后，点击纸盒、标签或图包会同步选中产品，图包完成后自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。')) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
            '<div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
              '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
              '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
@@ -31556,6 +31556,14 @@ self.onmessage = async function(event) {
     if (minuteInput) minuteInput.value = String(date.getMinutes()).padStart(2, '0');
   }
 
+  function getSelectedLedgerWorkFlagRecords(sku, dateKey) {
+    const selected = new Set(state.ledgerSelectedKeys || []);
+    const key = normalizeLedgerDate(dateKey);
+    if (!sku || !key || !selected.has(getLedgerSelectionKey({ sku, date: key }))) return [];
+    return getLedgerRecordsForMonth('finalized', getCurrentLedgerMonth())
+      .filter((record) => selected.has(getLedgerSelectionKey(record)));
+  }
+
   function toggleLedgerWorkFlag(action, sku, dateKey) {
     if (!sku) return;
     syncDailyLedgerBeforeMutation();
@@ -31570,6 +31578,21 @@ self.onmessage = async function(event) {
     const label = field === 'boxFileState' ? '\u7eb8\u76d2\u6587\u4ef6' : (field === 'labelFileState' ? '\u6807\u7b7e\u5370\u5237\u6587\u4ef6' : '\u56fe\u5305');
     const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
     if (action === 'ledger-toggle-image-pack' && nextValue !== 'pending') state.ledgerFilterWorkflow = 'image-pack-pending';
+    const selectedRecords = getSelectedLedgerWorkFlagRecords(sku, key);
+    if (selectedRecords.length > 1) {
+      const patch = { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue), skipStorageSync: true, deferSave: true, skipUnchanged: true };
+      let changedCount = 0;
+      selectedRecords.forEach((record) => {
+        const updatedRecord = updateDailyLedgerForSku(record.sku, patch, record.date);
+        if (updatedRecord !== record) changedCount += 1;
+      });
+      if (changedCount) saveDailyLedger();
+      if (state.view === 'ledger' && !renderLedgerTabContent(ensurePanel())) renderShell();
+      refreshLedgerPerformanceSummary();
+      scheduleDesktopBridgeSnapshot();
+      showToast('已同步 ' + selectedRecords.length + ' 个选中产品的' + label + '：' + ledgerFileStateLabel(nextValue));
+      return;
+    }
     const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue), skipStorageSync: true }, key);
     refreshLedgerCard(updatedRecord);
     scheduleDesktopBridgeSnapshot();
