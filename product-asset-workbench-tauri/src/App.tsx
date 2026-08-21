@@ -1859,7 +1859,7 @@ export default function App() {
               <p>按悬浮助手今日工作台的图包完成状态显示；图包完成后自动收纳。</p>
             </div>
             <div className="panel-controls">
-              <button className="secondary" onClick={requestSnapshot} disabled={syncing}>
+              <button className="primary refresh-products-button" onClick={requestSnapshot} disabled={syncing}>
                 <RefreshCw size={17} className={syncing ? "spin" : ""} />刷新定稿数据
               </button>
               <label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索 SKU、品牌或产品名" /></label>
