@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.145
+// @version      2.8.147
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.145';
+  const SCRIPT_VERSION = '2.8.147';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2821,6 +2821,8 @@
     Object.freeze({ key: 'standardPackingQuantity', variableName: 'standard_packing_quantity', attrName: '标准装箱数', attrId: 123, label: '装箱数' }),
     Object.freeze({ key: 'boxWeight', variableName: 'box_weight', attrName: '箱重', attrId: 301, label: '箱重' }),
   ]);
+  const MAGIC_UPLOAD_CARTON_GAUGE_FIELD = Object.freeze({ key: 'cartonSpec', variableName: 'box_gauge', attrName: '箱规', attrId: 149, label: '箱规' });
+  const MAGIC_UPLOAD_EXCEL_PACKING_FIELDS = Object.freeze(MAGIC_UPLOAD_PACKING_FIELDS.concat([MAGIC_UPLOAD_CARTON_GAUGE_FIELD]));
   const TOY_EFFECT_MAX_FILES = 3;
   const PROJECT_RESULT_MAX_PAGE_SIZE = 250;
   const TOY_EFFECT_CANDIDATE_CACHE_KEY = 'plm-floating-helper:toy-effect-candidates:v1';
@@ -12203,11 +12205,20 @@
     return formatMagicUploadDecimal(Math.round(boxWeight * 100) / 100);
   }
 
+  function normalizeMagicUploadExcelCartonSpec(value) {
+    const text = String(value === null || value === undefined ? '' : value)
+      .replace(/[\u00a0\u2000-\u200b\u202f\u205f\u3000]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return !text || /^=/.test(text) ? '' : text.slice(0, 180);
+  }
+
   function normalizeMagicUploadExcelPacking(value) {
     const source = value && typeof value === 'object' ? value : {};
     return {
       standardPackingQuantity: normalizeMagicUploadPackingQuantity(source.standardPackingQuantity || source.packQty || ''),
       boxWeight: normalizeMagicUploadBoxWeight(source.boxWeight || ''),
+      cartonSpec: normalizeMagicUploadExcelCartonSpec(source.cartonSpec || source.cartonSpecText || source.outerCartonSpec || source.boxSpec || ''),
       sourceName: String(source.sourceName || '').slice(0, 180),
       parsedAt: Number(source.parsedAt) || 0,
     };
@@ -12245,6 +12256,7 @@
     const label = normalizeMagicUploadExcelHeader(value);
     if (!label) return '';
     if (/^(产品编码|商品编码|sku)$/.test(label)) return 'sku';
+    if (/^(?:箱规|箱规尺寸|外箱规格|外箱尺寸)(?:cm|厘米)?$/.test(label)) return 'cartonSpec';
     if (/^(装箱数|标准装箱数)$/.test(label)) return 'standardPackingQuantity';
     if (/^(一箱重量|箱重|箱重量)$/.test(label)) return 'boxWeight';
     if (/^(毛重|毛重约|产品毛重)$/.test(label)) return 'grossWeight';
@@ -12286,11 +12298,15 @@
 
     const quantityRead = getMagicUploadExcelCellRead(matchedRow.getCell(header.columns.standardPackingQuantity));
     const weightRead = getMagicUploadExcelCellRead(matchedRow.getCell(header.columns.boxWeight));
+    const cartonSpecRead = header.columns.cartonSpec === undefined
+      ? { value: '', formula: '' }
+      : getMagicUploadExcelCellRead(matchedRow.getCell(header.columns.cartonSpec));
     const cellPackingQuantity = normalizeMagicUploadPackingQuantity(quantityRead.value);
     const cachedQuantity = normalizeMagicUploadPackingQuantity(cachedPackingQuantity);
     let parsed = normalizeMagicUploadExcelPacking({
       standardPackingQuantity: cellPackingQuantity || cachedQuantity,
       boxWeight: weightRead.value,
+      cartonSpec: cartonSpecRead.value,
       sourceName: file && file.name || '',
       parsedAt: Date.now(),
     });
@@ -12319,7 +12335,7 @@
     const cached = normalizeMagicUploadExcelPacking(cachedPacking);
     const parsed = await parseMagicUploadPackingExcel(file, sku, cached.standardPackingQuantity);
     const result = { ...cached };
-    MAGIC_UPLOAD_PACKING_FIELDS.forEach((field) => {
+    MAGIC_UPLOAD_EXCEL_PACKING_FIELDS.forEach((field) => {
       const incoming = parsed[field.key];
       if (!incoming) return;
       if (result[field.key] && result[field.key] !== incoming) {
@@ -12353,7 +12369,7 @@
     task.excelPacking = result;
     task.updatedAt = Date.now();
     saveMagicUploadQueue(state.magicUploadQueue);
-    magicUploadLog('info', 'Excel 装箱信息读取完成', task.sku + ' | 装箱数=' + (result.standardPackingQuantity || '空') + ' | 箱重=' + (result.boxWeight || '空'));
+    magicUploadLog('info', 'Excel 装箱信息读取完成', task.sku + ' | 装箱数=' + (result.standardPackingQuantity || '空') + ' | 箱规=' + (result.cartonSpec || '空') + ' | 箱重=' + (result.boxWeight || '空'));
     return result;
   }
 
@@ -13615,18 +13631,96 @@
       || null;
   }
 
-  function getMagicUploadPackingFieldState(values) {
-    return MAGIC_UPLOAD_PACKING_FIELDS.reduce((result, field) => {
-      const target = findMagicUploadProductAttributeByVariable(values, field.variableName, field.attrName, field.attrId);
-      const value = target && target.value;
-      result[field.key] = field.key === 'standardPackingQuantity'
-        ? normalizeMagicUploadPackingQuantity(value)
-        : normalizeMagicUploadBoxWeight(value);
-      return result;
-    }, { standardPackingQuantity: '', boxWeight: '' });
+  function findMagicUploadProductAttributeDefinition(contentPayload, variableName, attrName, attrId) {
+    const groups = contentPayload && Array.isArray(contentPayload.data) ? contentPayload.data : [];
+    const attrs = groups.reduce((result, group) => result.concat(Array.isArray(group && group.category_template_attrs) ? group.category_template_attrs : []), []);
+    return attrs.find((attr) => String(attr && attr.variable_name || '') === variableName)
+      || attrs.find((attr) => String(attr && attr.attr_id) === String(attrId))
+      || attrs.find((attr) => compactText(attr && attr.attr_name) === compactText(attrName))
+      || null;
   }
 
-  function applyMagicUploadExcelPacking(values, excelPacking) {
+  function normalizeMagicUploadBoxGaugeValue(value) {
+    let source = value;
+    if (typeof source === 'string') {
+      const text = source.trim();
+      if (!text) return [];
+      try {
+        source = JSON.parse(text);
+      } catch (_) {
+        source = text.split(/[,，、\s]+/);
+      }
+    }
+    const list = Array.isArray(source) ? source : (source === null || source === undefined || source === '' ? [] : [source]);
+    return list.map((item) => {
+      if (item && typeof item === 'object') return item.id === undefined ? item.value : item.id;
+      return item;
+    }).map((item) => String(item === null || item === undefined ? '' : item).trim()).filter(Boolean);
+  }
+
+  function getMagicUploadBoxGaugeOptions(definition) {
+    const configs = Array.isArray(definition && definition.multi_attr_value_options_json)
+      ? definition.multi_attr_value_options_json
+      : [];
+    const config = configs.find((item) => Number(item && item.language_id) === 1) || configs[0];
+    return (config && Array.isArray(config.options) ? config.options : []).map((option) => {
+      const rawId = option && (option.id === undefined ? option.value : option.id);
+      const id = normalizeMagicUploadFileVersionValue(rawId);
+      return id === null ? null : {
+        id,
+        name: String(option && (option.mult_attr_value_name || option.label || option.name) || '').trim(),
+        enabled: option && option.is_enabled !== false,
+      };
+    }).filter(Boolean);
+  }
+
+  function getMagicUploadCartonDimensions(value) {
+    const numbers = String(value === null || value === undefined ? '' : value)
+      .replace(/,/g, '')
+      .match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/g) || [];
+    return numbers.map(Number).filter((item) => Number.isFinite(item)).slice(-3);
+  }
+
+  function normalizeMagicUploadCartonSpecCompareText(value) {
+    return normalizeMagicUploadExcelCartonSpec(value)
+      .toLowerCase()
+      .replace(/[×＊*]/g, 'x')
+      .replace(/[\s:：()（）]/g, '');
+  }
+
+  function findMagicUploadBoxGaugeOption(sourceSpec, definition) {
+    const sourceDimensions = getMagicUploadCartonDimensions(sourceSpec);
+    const options = getMagicUploadBoxGaugeOptions(definition).filter((option) => option.enabled);
+    if (sourceDimensions.length === 3) {
+      const sameDimensions = options.find((option) => {
+        const optionDimensions = getMagicUploadCartonDimensions(option.name);
+        return optionDimensions.length === 3 && optionDimensions.every((value, index) => Math.abs(value - sourceDimensions[index]) <= 0.01);
+      });
+      if (sameDimensions) return sameDimensions;
+    }
+    const sourceText = normalizeMagicUploadCartonSpecCompareText(sourceSpec);
+    if (!sourceText) return null;
+    return options.find((option) => {
+      const optionText = normalizeMagicUploadCartonSpecCompareText(option.name);
+      return optionText === sourceText || optionText.endsWith(sourceText) || sourceText.endsWith(optionText);
+    }) || null;
+  }
+
+  function getMagicUploadPackingFieldState(values) {
+    const result = MAGIC_UPLOAD_PACKING_FIELDS.reduce((state, field) => {
+      const target = findMagicUploadProductAttributeByVariable(values, field.variableName, field.attrName, field.attrId);
+      const value = target && target.value;
+      state[field.key] = field.key === 'standardPackingQuantity'
+        ? normalizeMagicUploadPackingQuantity(value)
+        : normalizeMagicUploadBoxWeight(value);
+      return state;
+    }, { standardPackingQuantity: '', boxWeight: '' });
+    const cartonTarget = findMagicUploadProductAttributeByVariable(values, MAGIC_UPLOAD_CARTON_GAUGE_FIELD.variableName, MAGIC_UPLOAD_CARTON_GAUGE_FIELD.attrName, MAGIC_UPLOAD_CARTON_GAUGE_FIELD.attrId);
+    result.boxGauge = normalizeMagicUploadBoxGaugeValue(cartonTarget && cartonTarget.value);
+    return result;
+  }
+
+  function applyMagicUploadExcelPacking(values, excelPacking, contentPayload) {
     const source = normalizeMagicUploadExcelPacking(excelPacking);
     const changed = [];
     const retained = [];
@@ -13656,8 +13750,39 @@
       language.value = source[field.key];
       changed.push(field.label + '=' + source[field.key] + '(Excel)');
     });
+    const cartonField = MAGIC_UPLOAD_CARTON_GAUGE_FIELD;
+    const cartonDefinition = findMagicUploadProductAttributeDefinition(contentPayload, cartonField.variableName, cartonField.attrName, cartonField.attrId);
+    const cartonTarget = findMagicUploadProductAttributeByVariable(values, cartonField.variableName, cartonField.attrName, cartonField.attrId);
+    if (cartonDefinition || cartonTarget) {
+      if (!cartonTarget) {
+        if (cartonDefinition && cartonDefinition.is_must) missing.push(cartonField.label + '字段');
+      } else {
+        const language = (values || []).find((item) => String(item && item.attr_id) === String(cartonTarget.attr_id) && Number(item && item.language_id) === 1);
+        if (!language) {
+          if (cartonDefinition && cartonDefinition.is_must) missing.push(cartonField.label + '中文字段');
+        } else {
+          const current = normalizeMagicUploadBoxGaugeValue(language.value);
+          const options = getMagicUploadBoxGaugeOptions(cartonDefinition);
+          const optionIds = new Set(options.map((option) => String(option.id)));
+          const currentValid = current.length && (!options.length || current.every((id) => optionIds.has(String(id))));
+          if (currentValid) {
+            retained.push(cartonField.label + '=' + current.join(','));
+          } else if (source.cartonSpec) {
+            const matched = findMagicUploadBoxGaugeOption(source.cartonSpec, cartonDefinition);
+            if (!matched) {
+              missing.push(cartonField.label + '（Excel 值“' + source.cartonSpec + '”未匹配 PLM 选项）');
+            } else {
+              language.value = [matched.id];
+              changed.push(cartonField.label + '=' + (matched.name || matched.id) + '(Excel)');
+            }
+          } else if (cartonDefinition.is_must || current.length) {
+            missing.push(cartonField.label);
+          }
+        }
+      }
+    }
     if (missing.length) {
-      throw new Error('PLM 缺少' + missing.join('、') + '，Excel 未提供有效值，已停止保存草稿和提审');
+      throw new Error('PLM 缺少' + missing.join('、') + '，未找到有效匹配值，已停止保存草稿和提审');
     }
     return { changed, retained };
   }
@@ -13749,7 +13874,7 @@
       language.value = existing;
       changed.push(category + ':' + additions[category].length + (replaceCategories.has(category) ? '(replace)' : ''));
     });
-    const packingSummary = applyMagicUploadExcelPacking(values, excelPacking);
+    const packingSummary = applyMagicUploadExcelPacking(values, excelPacking, contentPayload);
     packingSummary.changed.forEach((item) => changed.push(item));
     const field = (key, fallback) => info[key] === undefined ? fallback : cloneMagicUploadDraftValue(info[key]);
     const procurementPrice = price.procurement_price === undefined ? field('procurement_price', null) : price.procurement_price;
@@ -13810,7 +13935,7 @@
     const latestReplacement = getMagicUploadReplacementSnapshot(task, contentPayload);
     applyMagicUploadReplacementSnapshot(task, latestReplacement, 'ready', '');
     const currentPacking = getMagicUploadPackingFieldState(flattenMagicUploadProductAttributes(contentPayload));
-    const excelPacking = currentPacking.standardPackingQuantity && currentPacking.boxWeight
+    const excelPacking = currentPacking.standardPackingQuantity && currentPacking.boxWeight && currentPacking.boxGauge.length
       ? currentPacking
       : await readMagicUploadPackingFromTask(task);
     const draft = buildMagicUploadProductDraft(task, context, infoPayload, pricePayload, invoicePayload, procurePayload, contentPayload, excelPacking);
