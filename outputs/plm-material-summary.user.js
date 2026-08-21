@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.149
+// @version      2.8.150
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.149';
+  const SCRIPT_VERSION = '2.8.150';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -32403,14 +32403,19 @@ self.onmessage = async function(event) {
     return { code: preparation.sku, copywrite: normalizeLedgerAiImageCopywriteItems(preparation.copywrite), ...(preparation.ingredients || {}) };
   }
 
-  function ledgerAiImageLoadingHtml(title, detail) {
-    return '<div class="pfh-ledger-ai-image-loading" role="status" aria-live="polite"><span class="pfh-ledger-ai-loading-spinner" aria-hidden="true"></span><div><strong>' + escapeHtml(title || '正在读取生图资料') + '</strong><p>' + escapeHtml(detail || '正在从 PLM 读取资料，请稍候…') + '</p><small>这是后台读取和校验，不会自动提交生图；网络较慢时仍可继续等待。</small></div></div>';
+  function ledgerAiImageLoadingHtml(title, detail, options) {
+    const submitting = Boolean(options && options.submitting);
+    const note = submitting
+      ? '已开始向 PLM 提交生图请求，请勿重复点击；提交完成后会显示“生图中”，可手动刷新查看结果。'
+      : '这是后台读取和校验，不会自动提交生图；网络较慢时仍可继续等待。';
+    return '<div class="pfh-ledger-ai-image-loading" role="status" aria-live="polite"><span class="pfh-ledger-ai-loading-spinner" aria-hidden="true"></span><div><strong>' + escapeHtml(title || '正在读取生图资料') + '</strong><p>' + escapeHtml(detail || '正在从 PLM 读取资料，请稍候…') + '</p><small>' + escapeHtml(note) + '</small></div></div>';
   }
 
   function ledgerAiImagePreparationHtml(record, kind) {
     const preparation = state.ledgerAiImagePreparations[getLedgerAiPreparationKey(record && record.sku)];
-    if (!preparation) return ledgerAiImageLoadingHtml('正在准备生图资料', '页面会依次读取产品文案、商品详情和 SKU 效果图，请稍候…');
-    if (preparation.loading) return ledgerAiImageLoadingHtml(preparation.loadingStage || '正在读取生图资料', preparation.loadingDetail || '正在从 PLM 读取生图前置资料，请稍候…');
+    const submitting = /(?:准备提交|提交 PLM AI 生图|已开始提交|生图请求)/i.test(String(record && record.aiImageMessage || ''));
+    if (!preparation) return ledgerAiImageLoadingHtml('正在准备生图资料', '页面会依次读取产品文案、商品详情和 SKU 效果图，请稍候…', { submitting });
+    if (preparation.loading) return ledgerAiImageLoadingHtml(preparation.loadingStage || '正在读取生图资料', preparation.loadingDetail || '正在从 PLM 读取生图前置资料，请稍候…', { submitting });
     const rows = LEDGER_AI_IMAGE_REQUIRED_COPYWRITE_FIELDS.map((rule) => {
       const item = ensureLedgerAiPreparationCopyItem(preparation, rule);
       const values = getLedgerAiImageCopywriteValues(item);
@@ -33229,6 +33234,8 @@ self.onmessage = async function(event) {
       || String(state.ledgerAiImageDownloadKey || '').indexOf(getLedgerAiImageDownloadKey(record.sku, record.date, tab) + '|item|') === 0;
     const retouchTasks = getLedgerAiImageRetouchTasks(record, tab);
     const detail3Audit = normalizeLedgerDetail3Audit(record.aiDetail3Audit);
+    const message = String(record.aiImageMessage || meta.title || '').trim();
+    const isSubmissionLoading = meta.status === 'loading' && /(?:准备提交|提交 PLM AI 生图|已开始提交|生图请求)/i.test(message);
     const getEntryViewState = (entry) => {
       const item = entry && entry.item;
       const task = entry && entry.task;
@@ -33274,7 +33281,7 @@ self.onmessage = async function(event) {
     const selectedView = selectedEntry ? getEntryViewState(selectedEntry) : null;
     const targetLabel = tab === 'detail' ? '详情图' : '主图';
     const emptyMessage = meta.status === 'loading'
-      ? '正在检查这个 SKU 是否已有生图历史，不会自动提交生图。'
+      ? (isSubmissionLoading ? '正在提交 AI 生图请求；提交完成后会显示“生图中”，本次不会自动轮询。' : '正在检查这个 SKU 是否已有生图历史，不会自动提交生图。')
       : (meta.status === 'running'
         ? '图片还在生成，当前只跟踪这个 SKU。'
       : (meta.status === 'task-error'
@@ -33295,7 +33302,7 @@ self.onmessage = async function(event) {
     const emptyStateHtml = showPreparation
       ? ledgerAiImagePreparationHtml(record, tab)
       : (meta.status === 'loading'
-        ? ledgerAiImageLoadingHtml(meta.label || '正在检查生图历史', emptyMessage)
+        ? ledgerAiImageLoadingHtml(meta.label || '正在检查生图历史', emptyMessage, { submitting: isSubmissionLoading })
         : '<div class="pfh-ledger-ai-image-empty-state"><span>' + escapeHtml(emptyMessage) + '</span>' + ledgerAiImageGenerateButtonHtml(record, tab, meta.status) + '</div>');
     const thumbnailHtml = entries.length
       ? entries.map((entry) => {
@@ -33329,7 +33336,6 @@ self.onmessage = async function(event) {
     const previewHtml = selectedView
       ? '<div class="pfh-ledger-ai-image-preview-stage">' + previewImageHtml + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + escapeHtml(selectedView.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + escapeHtml(selectedView.variantLabel) + '</em></div><small title="' + escapeHtml(selectedView.title) + '">' + escapeHtml(selectedView.sourceFilename || '保留原图文件名') + '</small></div>' + (selectedView.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + escapeHtml(selectedView.prompt) + '">提示词：' + escapeHtml(selectedView.prompt) + '</p>' : '') + detail3AuditHtml + previewActionHtml + '</div>'
       : '<div class="pfh-ledger-ai-image-preview-empty">' + emptyStateHtml + '</div>';
-    const message = String(record.aiImageMessage || meta.title || '').trim();
     const downloadButtonHtml = (kind, count, label, downloadKey) => {
       const busy = state.ledgerAiImageDownloadKey === downloadKey;
       const disabled = !count || Boolean(state.ledgerAiImageDownloadKey);
@@ -33387,6 +33393,14 @@ self.onmessage = async function(event) {
       showToast('这个 SKU 的 AI 生图正在处理中，请等待结果');
       return;
     }
+    const preparing = updateLedgerAiImageRecord(sku, dateKey, {
+      aiImageStatus: 'loading',
+      aiImageMessage: '正在准备并提交 PLM AI 生图（' + (normalizedKind === 'detail' ? '详情图' : '主图') + '）；请勿重复点击…',
+      aiImageCheckedAtMs: Date.now(),
+    }, false) || record;
+    refreshLedgerCard(preparing);
+    if (isLedgerAiImageViewerFor(sku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
+    showToast(sku + ' 已开始准备提交 AI 生图，请稍候；提交成功后会显示“生图中”');
     let preparation = null;
     try {
       const preparationKey = getLedgerAiPreparationKey(sku);
@@ -33407,8 +33421,15 @@ self.onmessage = async function(event) {
         return;
       }
     } catch (error) {
-      showToast('无法确认生图资料，已停止提交：' + (formatErrorMessage(error) || '接口异常'));
-      openLedgerAiImageViewer(record);
+      const message = formatErrorMessage(error) || '接口异常';
+      const failed = updateLedgerAiImageRecord(sku, dateKey, {
+        aiImageStatus: 'error',
+        aiImageMessage: '生图资料检查失败：' + message,
+        aiImageCheckedAtMs: Date.now(),
+      }, true) || findLedgerRecord(sku, dateKey) || record;
+      refreshLedgerCard(failed);
+      openLedgerAiImageViewer(failed);
+      showToast('无法确认生图资料，已停止提交：' + message);
       return;
     }
     queryLedgerAiImageStatus(sku, dateKey, {
@@ -33720,6 +33741,7 @@ self.onmessage = async function(event) {
     if (existingRequest) {
       const current = findLedgerRecord(normalizedSku, dateKey);
       if (opts.openViewer && current) openLedgerAiImageViewer(current);
+      else if (current && isLedgerAiImageViewerFor(normalizedSku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
       return existingRequest;
     }
     const current = findLedgerRecord(normalizedSku, dateKey);
@@ -33739,6 +33761,7 @@ self.onmessage = async function(event) {
       refreshLedgerCard(loadingRecord);
     }
     if (opts.openViewer) openLedgerAiImageViewer(loadingRecord);
+    else if (isLedgerAiImageViewerFor(normalizedSku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
     const request = (async () => {
       try {
         if (!shouldSubmit) {
@@ -33752,6 +33775,7 @@ self.onmessage = async function(event) {
               }, true) || loadingRecord;
               refreshLedgerCard(failed);
               if (opts.openViewer) openLedgerAiImageViewer(failed);
+              else if (isLedgerAiImageViewerFor(normalizedSku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
               showToast(normalizedSku + ' 生图历史查询失败，未提交任何生图请求');
               return failed;
             }
@@ -33768,6 +33792,7 @@ self.onmessage = async function(event) {
             }, true) || loadingRecord;
             refreshLedgerCard(ready);
             if (opts.openViewer) openLedgerAiImageViewer(ready);
+            else if (isLedgerAiImageViewerFor(normalizedSku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
             return ready;
           }
         }
@@ -33782,6 +33807,7 @@ self.onmessage = async function(event) {
           }, true) || preparing;
           refreshLedgerCard(preparingUpdated);
           if (opts.openViewer) openLedgerAiImageViewer(preparingUpdated);
+          else if (isLedgerAiImageViewerFor(normalizedSku, dateKey)) renderLedgerAiImageViewer(ensurePanel());
         }
         const payload = await fetchPlmApiJson(LEDGER_AI_IMAGE_RESULT_ENDPOINT, requestBody);
         const result = parseLedgerAiImageResult(payload);
@@ -33800,8 +33826,11 @@ self.onmessage = async function(event) {
         if (changed) refreshLedgerCard(updated);
         if (result.status === 'running' && allowPolling) scheduleLedgerAiImagePoll(normalizedSku, dateKey);
         else clearLedgerAiImagePoll(normalizedSku);
+        const viewerMatches = isLedgerAiImageViewerFor(normalizedSku, dateKey);
         if (opts.openViewer || (opts.reopenViewerOnUpdate !== false && state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) {
           openLedgerAiImageViewer(updated);
+        } else if (viewerMatches) {
+          renderLedgerAiImageViewer(ensurePanel());
         }
         if (!shouldSubmit && result.status === 'success' && getLedgerDetail3Image(updated)) auditLedgerDetail3(normalizedSku, dateKey, false);
         if (result.status === 'empty' && opts.openViewer) showToast(normalizedSku + ' 暂无可查看的 AI 生图');
@@ -33840,7 +33869,9 @@ self.onmessage = async function(event) {
         }, true) || latest;
         clearLedgerAiImagePoll(normalizedSku);
         refreshLedgerCard(updated);
+        const viewerMatches = isLedgerAiImageViewerFor(normalizedSku, dateKey);
         if (opts.openViewer || (opts.reopenViewerOnUpdate !== false && state.ledgerAiImageViewer && getLedgerSkuKey(state.ledgerAiImageViewer.sku) === getLedgerSkuKey(normalizedSku))) openLedgerAiImageViewer(updated);
+        else if (viewerMatches) renderLedgerAiImageViewer(ensurePanel());
         if (status === 'needs-prerequisites') {
           showToast(normalizedSku + ' 缺少产品文案或 SKU 效果图，已拦截生图请求');
         } else if (status === 'needs-sku-image') {
