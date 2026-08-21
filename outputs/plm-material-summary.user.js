@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.150
+// @version      2.8.151
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.150';
+  const SCRIPT_VERSION = '2.8.151';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -19433,7 +19433,10 @@ self.onmessage = async function(event) {
     });
 
     const packageKeys = ['packageLength', 'packageWidth', 'packageHeight'];
-    const packageChanged = packageKeys.some((key) => compactText(values[key]) !== compactText(data[key]));
+    // Dimension inputs use plain centimetre numbers, while stored fields include
+    // the formatted cm/inch text. Compare the same input representation so that
+    // editing packageSizeText alone is not overwritten by the old dimensions.
+    const packageChanged = packageKeys.some((key) => compactText(values[key]) !== compactText(getSkuEditInputValue(data, key)));
     if (packageChanged) {
       const packageNums = packageKeys.map((key) => firstNumber(values[key]));
       if (!packageNums.every((value) => Number.isFinite(value) && value > 0)) {
@@ -19453,7 +19456,7 @@ self.onmessage = async function(event) {
     }
 
     const productKeys = ['productLength', 'productWidth', 'productHeight'];
-    const productChanged = productKeys.some((key) => compactText(values[key]) !== compactText(data[key]));
+    const productChanged = productKeys.some((key) => compactText(values[key]) !== compactText(getSkuEditInputValue(data, key)));
     if (productChanged) {
       const productNums = productKeys.map((key) => firstNumber(values[key]));
       if (!productNums.every((value) => Number.isFinite(value) && value > 0)) {
