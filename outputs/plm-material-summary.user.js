@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.148
+// @version      2.8.149
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.148';
+  const SCRIPT_VERSION = '2.8.149';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -25091,25 +25091,51 @@ self.onmessage = async function(event) {
     await ensureToyLabelExportRun(signature);
     const prepared = state.toyLabelBatchRows || {};
     if (state.toyLabelBatchPreparedSignature === signature && skus.every((sku) => prepared[sku] && prepared[sku].productImageUrl)) return true;
-    if (!(await ensureNewProductProjectPage()) || !(await ensureDesignTaskTab())) {
-      addLog('error', '玩具标签：无法进入设计任务批量搜索', skus.join(' '));
-      return false;
+    // Manually added products have no design-task row; their cached effect image is enough for the local label package.
+    const cachedManualRows = new Map();
+    const searchSkus = [];
+    skus.forEach((sku) => {
+      const cached = normalizeData(loadData(sku) || (state.index || []).find((entry) => entry && entry.sku === sku) || { sku });
+      const cachedImageUrl = getManualToyLabelCachedEffectImage(cached);
+      if (cachedImageUrl) cachedManualRows.set(sku, {
+        sku,
+        rowId: String(cached.projectRowId || cached.projectId || '').trim(),
+        brand: cached.brand || '',
+        name: cached.name || '',
+        productImageUrl: cachedImageUrl,
+        source: 'cached-effect-image',
+      });
+      else searchSkus.push(sku);
+    });
+    let rows = [];
+    let searchUnavailable = false;
+    if (searchSkus.length) {
+      if (!(await ensureNewProductProjectPage()) || !(await ensureDesignTaskTab())) {
+        searchUnavailable = true;
+        addLog(cachedManualRows.size ? 'warn' : 'error', cachedManualRows.size ? '玩具标签：设计任务不可用，继续使用手动 SKU 缓存效果图' : '玩具标签：无法进入设计任务批量搜索', searchSkus.join(' '));
+      } else {
+        const input = findInputByPlaceholder('\u641c\u7d22\u5546\u54c1\u7f16\u7801');
+        const button = findButtonByText('\u67e5\u8be2');
+        if (!input || !button) {
+          searchUnavailable = true;
+          addLog(cachedManualRows.size ? 'warn' : 'error', cachedManualRows.size ? '玩具标签：未找到设计任务搜索框，继续使用手动 SKU 缓存效果图' : '玩具标签：未找到商品编码批量搜索框', '');
+        } else {
+          addLog('info', '玩具标签：批量搜索设计任务', searchSkus.length + '个编码');
+          setNativeInputValue(input, searchSkus.join(' '));
+          clickElement(button);
+          await wait(450);
+          await waitFor(() => collectToyLabelBatchRows(searchSkus).length > 0 || (!isProjectResultLoading() && hasProjectResultEmptyState()), 12000, 180);
+          await expandProjectResultPageSize(searchSkus.length);
+          await wait(350);
+          rows = collectToyLabelBatchRows(searchSkus);
+        }
+      }
     }
-    const input = findInputByPlaceholder('\u641c\u7d22\u5546\u54c1\u7f16\u7801');
-    const button = findButtonByText('\u67e5\u8be2');
-    if (!input || !button) {
-      addLog('error', '玩具标签：未找到商品编码批量搜索框', '');
-      return false;
-    }
-    addLog('info', '玩具标签：批量搜索设计任务', skus.length + '个编码');
-    setNativeInputValue(input, skus.join(' '));
-    clickElement(button);
-    await wait(450);
-    await waitFor(() => collectToyLabelBatchRows(skus).length > 0 || (!isProjectResultLoading() && hasProjectResultEmptyState()), 12000, 180);
-    await expandProjectResultPageSize(skus.length);
-    await wait(350);
-    const rows = collectToyLabelBatchRows(skus);
+    if (searchUnavailable && !cachedManualRows.size) return false;
     const rowMap = {};
+    cachedManualRows.forEach((row, sku) => {
+      rowMap[sku] = row;
+    });
     rows.forEach((row) => {
       rowMap[row.sku] = row;
       const previous = normalizeData(loadData(row.sku) || { sku: row.sku });
@@ -25133,10 +25159,13 @@ self.onmessage = async function(event) {
     state.uploadQueue = loadUploadQueue().map((entry) => {
       if (entry.kind !== 'toy-label' || !rowMap[entry.sku] || !rowMap[entry.sku].productImageUrl) return entry;
       const cached = loadData(entry.sku);
+      const cachedRow = rowMap[entry.sku];
+      const usesCachedEffectImage = cachedRow.source === 'cached-effect-image';
       return {
         ...entry,
         name: buildUploadDisplayName(cached, '', entry.sku),
-        step: '\u5df2\u83b7\u53d6\u5546\u54c1\u56fe\u7247\uff0c\u7b49\u5f85\u4e0a\u4f20 BOM',
+        manualPackageOnly: usesCachedEffectImage || Boolean(entry.manualPackageOnly),
+        step: usesCachedEffectImage ? '\u5df2\u8bfb\u53d6\u7f13\u5b58\u6548\u679c\u56fe\uff0c\u7b49\u5f85\u751f\u6210\u6807\u7b7e\u96c6\u5408\u5305' : '\u5df2\u83b7\u53d6\u5546\u54c1\u56fe\u7247\uff0c\u7b49\u5f85\u4e0a\u4f20 BOM',
         updatedAt: new Date().toLocaleString(),
       };
     });
@@ -25145,7 +25174,7 @@ self.onmessage = async function(event) {
     const missing = skus.filter((sku) => !rowMap[sku]);
     const missingImage = rows.filter((row) => !row.productImageUrl).map((row) => row.sku);
     const unavailable = new Map();
-    missing.forEach((sku) => unavailable.set(sku, '\u8bbe\u8ba1\u4efb\u52a1\u6279\u91cf\u641c\u7d22\u672a\u627e\u5230\u5546\u54c1\u884c'));
+    missing.forEach((sku) => unavailable.set(sku, searchUnavailable ? '\u8bbe\u8ba1\u4efb\u52a1\u4e0d\u53ef\u7528\uff0c\u65e0\u6cd5\u8bfb\u53d6\u5546\u54c1\u884c' : '\u8bbe\u8ba1\u4efb\u52a1\u6279\u91cf\u641c\u7d22\u672a\u627e\u5230\u5546\u54c1\u884c'));
     missingImage.forEach((sku) => unavailable.set(sku, '\u8bbe\u8ba1\u4efb\u52a1\u4e2d\u672a\u627e\u5230 SKU \u5546\u54c1\u56fe'));
     if (unavailable.size) {
       const fallbackReason = '\u8bbe\u8ba1\u4efb\u52a1\u6279\u91cf\u641c\u7d22\u672a\u627e\u5230\u5546\u54c1\u56fe\u7247\u6216\u884c\u6570\u636e';
@@ -25158,9 +25187,12 @@ self.onmessage = async function(event) {
     const diagnostics = [];
     if (missing.length) diagnostics.push('\u672a\u627e\u5230 ' + missing.join(' '));
     if (missingImage.length) diagnostics.push('\u7f3a\u5c11 SKU \u56fe ' + missingImage.join(' '));
-    addLog(diagnostics.length ? 'warn' : 'success', '玩具标签：设计任务批量数据已读取', rows.length + '/' + skus.length + (diagnostics.length ? '\uff0c' + diagnostics.join('\uff0c') : ''));
+    const cachedEffectSkus = Array.from(cachedManualRows.keys());
+    const notices = cachedEffectSkus.length ? ['\u624b\u52a8 SKU \u4f7f\u7528\u7f13\u5b58\u6548\u679c\u56fe ' + cachedEffectSkus.join(' ')] : [];
+    const detail = diagnostics.concat(notices);
+    addLog(diagnostics.length ? 'warn' : 'success', '玩具标签：批量数据已读取', rows.length + cachedEffectSkus.length + '/' + skus.length + (detail.length ? '\uff0c' + detail.join('\uff0c') : ''));
     renderShell();
-    return rows.some((row) => Boolean(row.productImageUrl));
+    return rows.some((row) => Boolean(row.productImageUrl)) || cachedManualRows.size > 0;
   }
 
   async function prepareAndDownloadToyLabelBatch(items, signature) {
@@ -25168,8 +25200,9 @@ self.onmessage = async function(event) {
     for (const item of items || []) {
       const sku = String(item && item.sku || '').toUpperCase();
       if (!sku || manifest.files.filter((entry) => entry.sku === sku).length >= 3) continue;
-      const data = normalizeData(loadData(sku) || {});
+      const data = normalizeData(loadData(sku) || (state.index || []).find((entry) => entry && entry.sku === sku) || {});
       if (!data.sku) continue;
+      const manualPackageOnly = isManualSkuProductEffectRoute(data);
       updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u751f\u6210\u6807\u7b7e\u6253\u5305\u6587\u4ef6');
       state.selectedSku = data.sku;
       state.sku = data.sku;
@@ -25184,7 +25217,7 @@ self.onmessage = async function(event) {
         batchRowOnly: true,
       });
       if (!generated) markUploadQueueBlocked(item, L.uploadFailed, '\u73a9\u5177\u6807\u7b7e\u6587\u4ef6\u751f\u6210\u5931\u8d25');
-      else updateUploadItem(item, '\u5f85\u4e0a\u4f20', '\u5df2\u6253\u5305\uff0c\u7b49\u5f85\u4e0a\u4f20 BOM');
+      else updateUploadItem(item, '\u5f85\u4e0a\u4f20', manualPackageOnly ? '\u5df2\u751f\u6210\u6807\u7b7e\u96c6\u5408\u5305\uff0c\u624b\u52a8 SKU \u8df3\u8fc7 BOM \u4e0a\u4f20' : '\u5df2\u6253\u5305\uff0c\u7b49\u5f85\u4e0a\u4f20 BOM');
       manifest = loadToyLabelExportManifest();
     }
     if (!manifest.files.length || manifest.downloaded) return;
@@ -25362,25 +25395,33 @@ self.onmessage = async function(event) {
   }
 
   async function runToyLabelQueueItem(item) {
-    const data = normalizeData(loadData(item && item.sku) || {});
+    const data = normalizeData(loadData(item && item.sku) || (state.index || []).find((entry) => entry && entry.sku === (item && item.sku)) || {});
     if (!data.sku) {
       markUploadQueueBlocked(item, L.uploadFailed, '\u8bbe\u8ba1\u4efb\u52a1\u6279\u91cf\u641c\u7d22\u4e2d\u672a\u627e\u5230\u8be5 SKU');
       return;
     }
-    if (!data.projectRowId || !(data.toyLabelProductImageUrl || data.toyLabelProductImageFallbackUrl || data.productListImageUrl || data.productListImageFallbackUrl || getProductThumbUrl(data))) {
-      markUploadQueueBlocked(item, L.uploadFailed, '\u8bbe\u8ba1\u4efb\u52a1\u641c\u7d22\u7ed3\u679c\u4e2d\u672a\u627e\u5230\u5546\u54c1\u56fe\u7247\u6216\u884c\u6807\u8bc6');
+    const manualPackageOnly = isManualSkuProductEffectRoute(data);
+    const hasProductImage = Boolean(data.toyLabelProductImageUrl || data.toyLabelProductImageFallbackUrl || data.productListImageUrl || data.productListImageFallbackUrl || getProductThumbUrl(data));
+    if ((!manualPackageOnly && !data.projectRowId) || !hasProductImage) {
+      markUploadQueueBlocked(item, L.uploadFailed, manualPackageOnly ? '\u624b\u52a8 SKU \u7f3a\u5c11\u7f13\u5b58\u6548\u679c\u56fe' : '\u8bbe\u8ba1\u4efb\u52a1\u641c\u7d22\u7ed3\u679c\u4e2d\u672a\u627e\u5230\u5546\u54c1\u56fe\u7247\u6216\u884c\u6807\u8bc6');
       return;
     }
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4f7f\u7528\u8bbe\u8ba1\u4efb\u52a1\u5546\u54c1\u56fe\u7247');
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', manualPackageOnly ? '\u4f7f\u7528\u7f13\u5b58\u6548\u679c\u56fe\u751f\u6210\u6807\u7b7e\u96c6\u5408\u5305' : '\u4f7f\u7528\u8bbe\u8ba1\u4efb\u52a1\u5546\u54c1\u56fe\u7247', manualPackageOnly ? { manualPackageOnly: true } : undefined);
     state.selectedSku = data.sku;
     state.sku = data.sku;
     state.data = data;
     state.view = 'detail';
     resetExcelState();
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', '\u4e0a\u4f20\u5df2\u6253\u5305\u7684\u6807\u7b7e\u5230 BOM');
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', manualPackageOnly ? '\u5df2\u6253\u5305\uff0c\u624b\u52a8 SKU \u65e0\u9700\u4e0a\u4f20 BOM' : '\u4e0a\u4f20\u5df2\u6253\u5305\u7684\u6807\u7b7e\u5230 BOM');
     const stagedPreview = await getStagedToyLabelPreview(data.sku);
     let completed = false;
-    if (stagedPreview) {
+    if (manualPackageOnly) {
+      completed = Boolean(stagedPreview);
+      if (!completed) {
+        completed = await generateToyLabelFromCurrent({ collectFiles: state.toyLabelBatchFiles, batchSignature: state.toyLabelBatchPreparedSignature, skipExcelPrepare: true, skipBomUpload: true, batchRowOnly: true });
+        if (completed) await downloadToyLabelBatchArchive({ keepStagedFiles: true });
+      }
+    } else if (stagedPreview) {
       try {
         await uploadToyLabelPreviewToBom(data, stagedPreview.blob, stagedPreview.filename, { batchRowOnly: true });
         completed = true;
@@ -25395,7 +25436,7 @@ self.onmessage = async function(event) {
       return;
     }
     archiveUploadItem(item);
-    addLog('success', '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\u5b8c\u6210', data.sku);
+    addLog('success', manualPackageOnly ? '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\u96c6\u5408\u5305\u5b8c\u6210' : '\u6279\u91cf\u73a9\u5177\u6807\u7b7e\u5b8c\u6210', data.sku);
   }
 
   async function getStagedToyLabelPreview(sku) {
@@ -25412,6 +25453,13 @@ self.onmessage = async function(event) {
 
   function isManualSkuProductEffectRoute(data) {
     return Boolean(data && (data.skuListSource === 'manual-code' || data.manualSkuAddedAt || data.manualSkuAddedAtMs));
+  }
+
+  function getManualToyLabelCachedEffectImage(data) {
+    if (!isManualSkuProductEffectRoute(data) || data.skuImageSource !== 'effectImage') return '';
+    return [data.skuImageUrl, data.skuImageFallbackUrl]
+      .map((value) => stripOssResizeParams(String(value || '').trim()))
+      .find((value) => value && !/^data:image\//i.test(value)) || '';
   }
 
   async function resolveToyEffectProjectData(item) {
@@ -36141,7 +36189,7 @@ self.onmessage = async function(event) {
     const additionsByProduct = new Map();
     completed.forEach((item) => {
       const uploadSucceeded = /\u6210\u529f/.test(item.status || '');
-      const successStatus = item.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (item.kind === 'toy-effect' ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess));
+      const successStatus = item.kind === 'toy-label' ? (item.manualPackageOnly ? '\u6807\u7b7e\u96c6\u5408\u5305\u751f\u6210\u6210\u529f' : '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f') : (item.kind === 'toy-effect' ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f' : (item.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess));
       const archived = {
         ...item,
         status: uploadSucceeded ? successStatus : (item.status || L.uploadFailed),
@@ -36168,7 +36216,7 @@ self.onmessage = async function(event) {
     const latestQueue = loadUploadQueue();
     const latestHistory = loadUploadHistory();
     const latestItem = latestQueue.find((entry) => entry.id === item.id) || item;
-    const successText = latestItem.kind === 'toy-label' ? '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'toy-effect' ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess));
+    const successText = latestItem.kind === 'toy-label' ? (latestItem.manualPackageOnly ? '\u6807\u7b7e\u96c6\u5408\u5305\u751f\u6210\u6210\u529f' : '\u6807\u7b7e\u4e0a\u4f20\u6210\u529f') : (latestItem.kind === 'toy-effect' ? '\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f' : (latestItem.kind === 'copyright' ? '\u7248\u6743\u56fe\u4e0a\u4f20\u6210\u529f' : L.uploadSuccess));
     const archived = { ...latestItem, status: successText, step: successText, completedAt, updatedAt: completedAt, xlsxKey: '', zipKey: '', copyrightFiles: getCopyrightUploadEntries(latestItem).map((entry) => ({ ...entry, key: '' })), effectFiles: getToyEffectUploadEntries(latestItem).map((entry) => ({ ...entry, key: '' })) };
     const archivedProductKey = uploadHistoryProductKey(archived);
     state.uploadQueue = latestQueue.filter((entry) => entry.id !== item.id && uploadHistoryProductKey(entry) !== archivedProductKey);
@@ -36176,7 +36224,7 @@ self.onmessage = async function(event) {
     cleanupUploadFiles(latestItem);
     saveUploadQueueAndHistory(state.uploadQueue, state.uploadHistory);
     if ((archived.kind || 'standard') === 'standard') syncInsightEvent('image_pack_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
-    if (archived.kind === 'toy-label' && /\u6210\u529f/.test(archived.status || '')) syncInsightEvent('toy_label_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
+    if (archived.kind === 'toy-label' && !archived.manualPackageOnly && /\u6210\u529f/.test(archived.status || '')) syncInsightEvent('toy_label_upload_success', { sku: archived.sku || '', name: archived.name || '', source: 'upload-queue' });
     if (archived.sku) {
       if ((archived.kind || 'standard') === 'standard') {
         updateDailyLedgerForSku(archived.sku, { status: '已完成', stage: '完成', note: '上传成功', imagePackState: 'done', imagePackDone: true }, getTodayKey());
