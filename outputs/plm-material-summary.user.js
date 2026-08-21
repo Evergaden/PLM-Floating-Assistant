@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.142
+// @version      2.8.143
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.142';
+  const SCRIPT_VERSION = '2.8.143';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -15771,7 +15771,7 @@
     const stats = getToyCopywritingBatchStats(queue);
     const running = Boolean(state.toyCopywritingBatchRunning);
     const applying = Boolean(state.toyCopywritingApplyRunning);
-    const downloadReviewing = applying && state.toyCopywritingApplyMode === 'download-review';
+    const downloadReviewing = applying && isToyCopywritingDownloadOnlyMode(state.toyCopywritingApplyMode);
     const locked = running || applying;
     const canStart = !locked && queue.some((entry) => entry.status === 'pending' || entry.status === 'error');
     const canApply = !locked && queue.some((entry) => {
@@ -15783,7 +15783,7 @@
     return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-toy-copywriting-batch-page">' +
       '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
       '<div class="pfh-toy-copywriting-batch-card pfh-toy-copywriting-batch-form"><label>SKU 编码</label><textarea class="pfh-toy-copywriting-batch-input" placeholder="例如：SKU00047214\nSKU00047213\nSKU00047212">' + escapeHtml(state.toyCopywritingBatchInput || '') + '</textarea><p class="pfh-toy-copywriting-batch-hint">支持每行一个，也支持空格、逗号或直接粘贴一串文本；重复编码会自动合并。非玩具、基础卖点缺失或保存失败的编码会停在失败列表中。</p><div class="pfh-mini-tool-actions"><button type="button" data-action="toy-copywriting-batch-clear-input">清空</button><button type="button" data-action="toy-copywriting-batch-add">加入文案队列</button></div></div>' +
-      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, locked) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (canApply ? '' : ' disabled') + '>' + (applying && !downloadReviewing ? '正在全部应用并提审…' : '批量全部应用并提审') + '</button><button type="button" data-action="toy-copywriting-batch-download-review" title="下载主图和详情图后直接提交审批，不点击全部应用"' + (canApply ? '' : ' disabled') + '>' + (downloadReviewing ? '正在下载并提审…' : '下载后直接提审') + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done && !locked ? '' : ' disabled') + '>清除已完成</button></div></div>' +
+      '<div class="pfh-toy-copywriting-batch-card"><div class="pfh-toy-copywriting-batch-summary"><strong>文案补全队列</strong><span>共 ' + stats.total + ' 个 · 已完成 ' + stats.done + ' 个 · 待处理 ' + stats.pending + ' 个 · 失败 ' + stats.error + ' 个</span></div><div class="pfh-toy-copywriting-batch-queue">' + getToyCopywritingBatchRowsHtml(queue, locked) + '</div><p class="pfh-toy-copywriting-batch-progress">' + escapeHtml(progressText) + '</p><div class="pfh-mini-tool-actions pfh-toy-copywriting-batch-actions"><button type="button" data-action="toy-copywriting-batch-start"' + (canStart ? '' : ' disabled') + '>' + (running ? '正在补全…' : '开始补全文案') + '</button><button type="button" data-action="toy-copywriting-batch-pause"' + (running ? '' : ' disabled') + '>暂停</button><button type="button" data-action="toy-copywriting-batch-apply"' + (canApply ? '' : ' disabled') + '>' + (applying && !downloadReviewing ? '正在全部应用并提审…' : '批量全部应用并提审') + '</button><button type="button" data-action="toy-copywriting-batch-download-review" title="通过生图 API 查询并按主图、详情图顺序下载，不全部应用、不提审"' + (canApply ? '' : ' disabled') + '>' + (downloadReviewing ? '正在下载生图…' : '下载全部主图和详情图') + '</button><button type="button" data-action="toy-copywriting-batch-clear-completed"' + (stats.done && !locked ? '' : ' disabled') + '>清除已完成</button></div></div>' +
       '</section>';
   }
 
@@ -15859,11 +15859,13 @@
   function getToyCopywritingBatchEntryStatus(entry) {
     const status = String(entry && entry.status || 'pending');
     const applyStatus = String(entry && entry.applyStatus || '');
-    if (applyStatus === 'applying') return { kind: 'running', text: entry.applyMode === 'download-review' ? '下载并提审中' : '应用中' };
-    if (applyStatus === 'applied') return { kind: 'running', text: entry.applyMode === 'download-review' ? '下载完成，提审中' : '应用完成，提审中' };
+    const downloadOnly = isToyCopywritingDownloadOnlyMode(entry && entry.applyMode);
+    if (applyStatus === 'applying') return { kind: 'running', text: downloadOnly ? '下载生图中' : '应用中' };
+    if (applyStatus === 'applied') return { kind: 'running', text: downloadOnly ? '下载完成' : '应用完成，提审中' };
+    if (applyStatus === 'downloaded') return { kind: 'done', text: '已下载生图' };
     if (applyStatus === 'submitted') return { kind: 'done', text: '已提审' };
     if (applyStatus === 'error' && (status === 'success' || status === 'noop')) {
-      return { kind: 'error', text: entry.applyMode === 'download-review' ? '下载/提审失败' : '应用失败' };
+      return { kind: 'error', text: downloadOnly ? '下载生图失败' : '应用失败' };
     }
     if (status === 'processing') return { kind: 'running', text: '补全中' };
     if (status === 'success') return { kind: 'done', text: '已完成' };
@@ -15880,7 +15882,10 @@
       const title = entry.name || data.name || '等待读取产品名称';
       const generatedImages = Number(entry.generatedImages) || 0;
       const submitted = entry.applyStatus === 'submitted';
-      const detail = submitted
+      const downloaded = entry.applyStatus === 'downloaded';
+      const detail = downloaded
+        ? '主图/详情图已下载（未全部应用，未提审）'
+        : submitted
         ? (entry.applyMode === 'download-review' ? '主图/详情图已下载并提审（未全部应用）' : '主图/详情图已全部应用并提审')
         : (entry.status === 'success'
           ? (/已生成/.test(entry.step || '')
@@ -16308,11 +16313,80 @@
     return true;
   }
 
+  function isToyCopywritingDownloadOnlyMode(mode) {
+    return mode === 'download' || mode === 'download-review';
+  }
+
+  function ensureToyCopywritingLedgerRecord(sku, entry, dateKey) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const normalizedDate = normalizeLedgerDate(dateKey) || getTodayKey();
+    const existing = findLedgerRecord(normalizedSku, normalizedDate);
+    if (existing) return existing;
+    const cached = normalizeData(loadData(normalizedSku) || { sku: normalizedSku });
+    const data = {
+      ...cached,
+      sku: normalizedSku,
+      name: cached.name || String(entry && entry.name || '').trim(),
+    };
+    return upsertDailyLedgerFromData(data, { date: normalizedDate, isToy: true });
+  }
+
+  async function queryToyGeneratedImagesForDownload(sku, entry) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const dateKey = getTodayKey();
+    ensureToyCopywritingLedgerRecord(normalizedSku, entry, dateKey);
+    for (let attempt = 0; attempt < LEDGER_AI_IMAGE_MAX_POLLS; attempt += 1) {
+      const result = await queryLedgerAiImageStatus(normalizedSku, dateKey, {
+        openViewer: false,
+        reopenViewerOnUpdate: false,
+        poll: false,
+      });
+      const record = findLedgerRecord(normalizedSku, dateKey);
+      const status = normalizeLedgerAiImageStatus(record && record.aiImageStatus, record && record.aiImageMessage);
+      const mainCount = normalizeLedgerAiImageItems(record && record.aiMainImages, 12).length;
+      const detailCount = normalizeLedgerAiImageItems(record && record.aiDetailImages, 20).length;
+      if (status === 'success' && (mainCount || detailCount)) return record;
+      if (['error', 'task-error', 'result-missing', 'empty', 'needs-copywriting', 'needs-sku-image', 'needs-prerequisites'].includes(status)) {
+        const message = String(record && record.aiImageMessage || (result && result.aiImageMessage) || '未返回可下载的生图结果').trim();
+        throw new Error('生图 API 查询失败：' + message);
+      }
+      updateToyCopywritingBatchEntry(normalizedSku, { step: 'API 查询生图结果中（第 ' + (attempt + 1) + ' 次）' });
+      state.toyCopywritingBatchStatus = normalizedSku + '：API 查询生图结果中（第 ' + (attempt + 1) + ' 次）';
+      renderShell();
+      if (attempt + 1 < LEDGER_AI_IMAGE_MAX_POLLS) await wait(LEDGER_AI_IMAGE_POLL_DELAY_MS);
+    }
+    throw new Error('生图 API 查询超时，暂未返回主图和详情图');
+  }
+
+  async function downloadToyGeneratedImagesForBatch(sku, entry) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const dateKey = getTodayKey();
+    updateToyCopywritingBatchEntry(normalizedSku, { step: '正在通过 API 查询已生成图片' });
+    state.toyCopywritingBatchStatus = normalizedSku + '：正在通过 API 查询已生成图片';
+    renderShell();
+    const record = await queryToyGeneratedImagesForDownload(normalizedSku, entry);
+    const downloadKinds = [
+      { kind: 'main', label: '主图', count: normalizeLedgerAiImageItems(record.aiMainImages, 12).length },
+      { kind: 'detail', label: '详情图', count: normalizeLedgerAiImageItems(record.aiDetailImages, 20).length },
+    ];
+    const missing = downloadKinds.filter((item) => !item.count).map((item) => item.label);
+    if (missing.length) throw new Error('生图 API 未返回' + missing.join('、') + '，无法完成全部下载');
+    for (const item of downloadKinds) {
+      updateToyCopywritingBatchEntry(normalizedSku, { step: '正在下载全部' + item.label + '（' + item.count + ' 张）' });
+      state.toyCopywritingBatchStatus = normalizedSku + '：正在下载全部' + item.label + '（' + item.count + ' 张）';
+      renderShell();
+      if (!(await downloadLedgerAiImageZip(normalizedSku, dateKey, item.kind))) {
+        throw new Error('下载全部' + item.label + '失败');
+      }
+    }
+    return downloadKinds;
+  }
+
   async function startToyCopywritingApplyBatch(options) {
     const opts = options || {};
     const skipApply = Boolean(opts.skipApply);
-    const actionLabel = skipApply ? '批量下载后直接提审' : '批量全部应用并提审';
-    const applyMode = skipApply ? 'download-review' : 'apply';
+    const actionLabel = skipApply ? '批量下载生成图片' : '批量全部应用并提审';
+    const applyMode = skipApply ? 'download' : 'apply';
     if (state.toyCopywritingBatchRunning || state.toyCopywritingApplyRunning) return;
     state.toyCopywritingBatchQueue = loadToyCopywritingBatchQueue();
     const eligible = state.toyCopywritingBatchQueue.filter((entry) => {
@@ -16327,16 +16401,18 @@
     state.toyCopywritingApplyMode = applyMode;
     state.toyCopywritingBatchStatus = '开始' + actionLabel;
     renderShell();
-    let routeMap;
-    try {
-      routeMap = await prepareToyCopywritingBatchRoutes(eligible);
-    } catch (error) {
-      state.toyCopywritingApplyRunning = false;
-      state.toyCopywritingApplyMode = '';
-      state.toyCopywritingBatchStatus = actionLabel + '前读取项目状态失败：' + formatErrorMessage(error);
-      addLog('error', '玩具生成图片：读取项目状态失败', formatErrorMessage(error));
-      renderShell();
-      return;
+    let routeMap = new Map();
+    if (!skipApply) {
+      try {
+        routeMap = await prepareToyCopywritingBatchRoutes(eligible);
+      } catch (error) {
+        state.toyCopywritingApplyRunning = false;
+        state.toyCopywritingApplyMode = '';
+        state.toyCopywritingBatchStatus = actionLabel + '前读取项目状态失败：' + formatErrorMessage(error);
+        addLog('error', '玩具生成图片：读取项目状态失败', formatErrorMessage(error));
+        renderShell();
+        return;
+      }
     }
     for (const entry of eligible) {
       const sku = entry.sku;
@@ -16347,25 +16423,36 @@
       renderShell();
       try {
         const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item.sku === sku) || { sku });
-        drawer = await openToyCopywritingBatchDrawer(sku, cached, routeMap.get(sku));
-        for (const label of ['主图', '详情图']) {
-          updateToyCopywritingBatchEntry(sku, { step: '正在处理' + label + '生成图片' });
-          state.toyCopywritingBatchStatus = sku + '：正在下载' + label + (skipApply ? '，跳过全部应用' : '并全部应用');
+        if (skipApply) {
+          await downloadToyGeneratedImagesForBatch(sku, cached);
+          updateToyCopywritingBatchEntry(sku, {
+            applyStatus: 'downloaded',
+            applyMode: 'download',
+            applyError: '',
+            step: '主图和详情图已下载（未全部应用，未提审）',
+          });
+          addLog('success', '玩具生成图片下载成功（未提审）', sku);
+        } else {
+          drawer = await openToyCopywritingBatchDrawer(sku, cached, routeMap.get(sku));
+          for (const label of ['主图', '详情图']) {
+            updateToyCopywritingBatchEntry(sku, { step: '正在处理' + label + '生成图片' });
+            state.toyCopywritingBatchStatus = sku + '：正在下载' + label + '并全部应用';
+            renderShell();
+            await applyToyGeneratedImage(drawer, sku, label, { skipApply: false });
+          }
+          updateToyCopywritingBatchEntry(sku, { applyStatus: 'applied', applyMode, step: '主图和详情图已全部应用，正在提审' });
+          state.toyCopywritingBatchStatus = sku + '：正在提审';
           renderShell();
-          await applyToyGeneratedImage(drawer, sku, label, { skipApply });
+          await submitProductReview();
+          await closeTopProductDrawer({ skipDraftSave: true, allowReviewResultModal: true });
+          updateToyCopywritingBatchEntry(sku, {
+            applyStatus: 'submitted',
+            applyMode,
+            applyError: '',
+            step: '主图和详情图已全部应用并提审',
+          });
+          addLog('success', '玩具生成图片' + actionLabel + '成功', sku);
         }
-        updateToyCopywritingBatchEntry(sku, { applyStatus: 'applied', applyMode, step: skipApply ? '主图和详情图已下载，正在提审' : '主图和详情图已全部应用，正在提审' });
-        state.toyCopywritingBatchStatus = sku + '：正在提审';
-        renderShell();
-        await submitProductReview();
-        await closeTopProductDrawer({ skipDraftSave: true, allowReviewResultModal: true });
-        updateToyCopywritingBatchEntry(sku, {
-          applyStatus: 'submitted',
-          applyMode,
-          applyError: '',
-          step: skipApply ? '主图和详情图已下载并提审（未全部应用）' : '主图和详情图已全部应用并提审',
-        });
-        addLog('success', '玩具生成图片' + actionLabel + '成功', sku);
       } catch (error) {
         const message = formatErrorMessage(error) || actionLabel + '失败';
         updateToyCopywritingBatchEntry(sku, { applyStatus: 'error', applyMode, applyError: message, step: actionLabel + '失败' });
@@ -32657,20 +32744,20 @@ self.onmessage = async function(event) {
 
   function downloadLedgerAiImageZip(sku, dateKey, kind) {
     const normalizedKind = kind === 'detail' ? 'detail' : 'main';
-    if (state.ledgerAiImageDownloadKey) return;
+    if (state.ledgerAiImageDownloadKey) return Promise.resolve(false);
     const record = findLedgerRecord(sku, dateKey);
-    if (!record) return;
+    if (!record) return Promise.resolve(false);
     const images = getLedgerAiImageDownloadItems(record, normalizedKind);
     const label = normalizedKind === 'detail' ? '详情图' : '主图';
     if (!images.length) {
       showToast('当前没有可下载的' + label);
-      return;
+      return Promise.resolve(false);
     }
     const downloadKey = getLedgerAiImageDownloadKey(record.sku, record.date, normalizedKind);
     state.ledgerAiImageDownloadKey = downloadKey;
     state.ledgerAiImageDownloadProgress = '准备并发下载 ' + images.length + ' 张' + label + '（' + LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY + ' 路）…';
     renderLedgerAiImageViewer(ensurePanel());
-    (async () => {
+    return (async () => {
       const downloaded = new Array(images.length);
       const workerCount = Math.min(LEDGER_AI_IMAGE_DOWNLOAD_CONCURRENCY, images.length);
       let nextIndex = 0;
@@ -32718,8 +32805,10 @@ self.onmessage = async function(event) {
       });
       downloadBlob(zip, String(record.sku || 'SKU') + '-' + label + '.zip');
       showToast(record.sku + ' 的' + label + '已下载');
+      return true;
     })().catch((error) => {
       showToast('下载' + label + '失败：' + (formatErrorMessage(error) || '网络请求失败'));
+      return false;
     }).finally(() => {
       if (state.ledgerAiImageDownloadKey === downloadKey) {
         state.ledgerAiImageDownloadKey = '';
@@ -35720,9 +35809,9 @@ self.onmessage = async function(event) {
     const validStatuses = new Set(['pending', 'processing', 'success', 'noop', 'error']);
     let status = validStatuses.has(String(entry && entry.status || '')) ? String(entry.status) : 'pending';
     if (resetProcessing && status === 'processing') status = 'pending';
-    const validApplyStatuses = new Set(['applying', 'applied', 'submitted', 'error']);
+    const validApplyStatuses = new Set(['applying', 'applied', 'downloaded', 'submitted', 'error']);
     let applyStatus = validApplyStatuses.has(String(entry && entry.applyStatus || '')) ? String(entry.applyStatus) : '';
-    const validApplyModes = new Set(['apply', 'download-review']);
+    const validApplyModes = new Set(['apply', 'download', 'download-review']);
     const applyMode = validApplyModes.has(String(entry && entry.applyMode || '')) ? String(entry.applyMode) : '';
     if (resetProcessing && (applyStatus === 'applying' || applyStatus === 'applied')) applyStatus = 'error';
     return {
