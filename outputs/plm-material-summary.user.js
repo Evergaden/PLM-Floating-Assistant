@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.140
+// @version      2.8.141
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.140';
+  const SCRIPT_VERSION = '2.8.141';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -3710,7 +3710,6 @@
   const DESKTOP_BRIDGE_TOKEN_KEY = 'plm_desktop_bridge_token';
   let desktopBridgeSocket = null;
   let desktopBridgeReconnectTimer = 0;
-  let desktopBridgeSnapshotTimer = 0;
   let desktopBridgeStatus = '未配对';
   let desktopBridgeExcelQueue = Promise.resolve();
   const desktopUploadTransfers = new Map();
@@ -4151,9 +4150,9 @@
   }
 
   function scheduleDesktopBridgeSnapshot() {
-    if (!isDesktopBridgeConnected()) return;
-    window.clearTimeout(desktopBridgeSnapshotTimer);
-    desktopBridgeSnapshotTimer = window.setTimeout(() => sendDesktopBridgeSnapshot(), 700);
+    // Finalized products are sent only after the desktop refresh button is
+    // clicked. Keep this hook for existing mutation paths without pushing
+    // snapshots on every local data change.
   }
 
   function countHashDistance(left, right) {

@@ -931,6 +931,8 @@ export default function App() {
   const [packLogs, setPackLogs] = useState<string[]>(["等待添加图包 ZIP。"]);
   const autoRunning = useRef(new Set<string>());
   const autoAttempts = useRef(new Map<string, string>());
+  const manualSnapshotPending = useRef(false);
+  const manualSnapshotTimeout = useRef<number | null>(null);
   const bridgeRef = useRef(bridge);
   const workspaceOrderRef = useRef(workspaceOrder);
   const workspaceTabPressRef = useRef<{
@@ -1033,7 +1035,15 @@ export default function App() {
         setBridge(event.payload);
         if (event.payload.connected) notify("PLM 悬浮助手已连接");
       }),
-      listen("snapshot-updated", () => loadProducts()),
+      listen("snapshot-updated", () => {
+        if (!manualSnapshotPending.current) return;
+        manualSnapshotPending.current = false;
+        if (manualSnapshotTimeout.current) window.clearTimeout(manualSnapshotTimeout.current);
+        manualSnapshotTimeout.current = null;
+        loadProducts().catch(console.error);
+        setSyncing(false);
+        notify("定稿数据已刷新");
+      }),
       listen<{ sku: string; state: string; message: string }>("asset-job", (event) => {
         const { sku, state, message } = event.payload;
         setJobs((current) => ({ ...current, [sku]: { state: state as RowJob["state"], message } }));
@@ -1058,7 +1068,12 @@ export default function App() {
         }
       }),
     ]).then((items) => cleaners.push(...items));
-    return () => cleaners.forEach((clean) => clean());
+    return () => {
+      cleaners.forEach((clean) => clean());
+      if (manualSnapshotTimeout.current) window.clearTimeout(manualSnapshotTimeout.current);
+      manualSnapshotTimeout.current = null;
+      manualSnapshotPending.current = false;
+    };
   }, [loadProducts, notify]);
 
   useEffect(() => {
@@ -1697,12 +1712,24 @@ export default function App() {
       notify("请先连接 PLM 悬浮助手");
       return;
     }
+    if (manualSnapshotPending.current) return;
+    manualSnapshotPending.current = true;
     setSyncing(true);
     try {
       await invoke("request_snapshot");
-      notify("已向悬浮助手请求最新定稿数据");
-    } finally {
-      window.setTimeout(() => setSyncing(false), 800);
+      notify("正在刷新定稿数据…");
+      if (manualSnapshotTimeout.current) window.clearTimeout(manualSnapshotTimeout.current);
+      manualSnapshotTimeout.current = window.setTimeout(() => {
+        if (!manualSnapshotPending.current) return;
+        manualSnapshotPending.current = false;
+        manualSnapshotTimeout.current = null;
+        setSyncing(false);
+        notify("刷新请求未收到响应，请确认悬浮助手页面已打开");
+      }, 8000);
+    } catch (error) {
+      manualSnapshotPending.current = false;
+      setSyncing(false);
+      notify(String(error));
     }
   }
 
@@ -1790,9 +1817,6 @@ export default function App() {
           </div>
           <div className="hero-actions">
             <button className="secondary" onClick={chooseRoot}><FolderOpen size={17} />{root ? "更换产品根目录" : "选择产品根目录"}</button>
-            <button className="primary" onClick={requestSnapshot} disabled={syncing}>
-              <RefreshCw size={17} className={syncing ? "spin" : ""} />同步已定稿产品
-            </button>
           </div>
           {root && <button className="path-chip" onClick={() => openPath(root)} title={root}><FolderOpen size={14} />{root}</button>}
         </section>}
@@ -1835,6 +1859,9 @@ export default function App() {
               <p>按悬浮助手今日工作台的图包完成状态显示；图包完成后自动收纳。</p>
             </div>
             <div className="panel-controls">
+              <button className="secondary" onClick={requestSnapshot} disabled={syncing}>
+                <RefreshCw size={17} className={syncing ? "spin" : ""} />刷新定稿数据
+              </button>
               <label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索 SKU、品牌或产品名" /></label>
               <label className="toggle"><input type="checkbox" checked={overwrite} onChange={(event) => setOverwrite(event.target.checked)} /><span />覆盖已有文件</label>
             </div>

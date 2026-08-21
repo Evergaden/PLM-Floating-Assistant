@@ -661,11 +661,9 @@ async fn run_bridge(app: AppHandle, state: BridgeState) {
             }
             emit_bridge_status(&app, &state);
             match role {
-                BridgeRole::Assistant => {
-                    let _ = outgoing.send(Message::Text(
-                        json!({"type":"snapshot.request"}).to_string().into(),
-                    ));
-                }
+                // Finalized products are fetched only when the desktop refresh
+                // button invokes `request_snapshot`; do not query on connect.
+                BridgeRole::Assistant => {}
                 BridgeRole::Photoshop => {
                     let _ = outgoing.send(Message::Text(
                         json!({
