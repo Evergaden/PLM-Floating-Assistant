@@ -385,9 +385,7 @@ function isWorktableOperationDone(state: string, done: boolean) {
 
 function isWorktableComplete(row: ProductPreview) {
   const product = row.product;
-  return isWorktableOperationDone(product.boxFileState, product.boxFileDone)
-    && isWorktableOperationDone(product.labelFileState, product.labelFileDone)
-    && isWorktableOperationDone(product.imagePackState, product.imagePackDone);
+  return isWorktableOperationDone(product.imagePackState, product.imagePackDone);
 }
 
 function readMappings(): Record<string, string> {
@@ -450,7 +448,7 @@ function statusFor(row: ProductPreview, job?: RowJob) {
   if (row.ambiguousFolders.length > 1) return { label: `同名目录 ${row.ambiguousFolders.length} 个，请手动选择`, tone: "warning" };
   if (!row.folder) return { label: "待指定目录", tone: "danger" };
   if (row.missing.length) return { label: `缺少 ${row.missing.join("、")}`, tone: "warning" };
-  if (isWorktableComplete(row)) return { label: "三项操作完成，已收纳", tone: "neutral" };
+  if (isWorktableComplete(row)) return { label: "图包已完成，已收纳", tone: "neutral" };
   return { label: "可以生成", tone: "success" };
 }
 
@@ -985,6 +983,7 @@ export default function App() {
       const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
       result.filter((row) =>
         row.product.finalizedDate === today
+        && !isWorktableComplete(row)
         && row.folder
         && !row.missing.length
         && !(row.excelExists && row.skuImageExists)
@@ -1825,7 +1824,7 @@ export default function App() {
           <article><span>全部定稿</span><strong>{rows.length}</strong><small>来自悬浮助手</small></article>
           <article className="green"><span>可以生成</span><strong>{counts.ready}</strong><small>资料与目录已就绪</small></article>
           <article className="amber"><span>需要确认</span><strong>{counts.missing}</strong><small>缺图、参数或目录</small></article>
-          <article className="violet"><span>已完成收纳</span><strong>{counts.complete}</strong><small>纸盒、标签、图包均已操作</small></article>
+          <article className="violet"><span>已完成收纳</span><strong>{counts.complete}</strong><small>脚本今日工作台图包已完成</small></article>
         </section>
 
         <section className={`work-panel ${workspaceView !== "assets" ? "is-hidden" : ""}`}>
@@ -1833,7 +1832,7 @@ export default function App() {
             <div>
               <span className="eyebrow">FINALIZED QUEUE</span>
               <h2>定稿生产队列</h2>
-              <p>先预览目录与缺失项，再选择本次需要生成的产品。</p>
+              <p>按悬浮助手今日工作台的图包完成状态显示；图包完成后自动收纳。</p>
             </div>
             <div className="panel-controls">
               <label className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索 SKU、品牌或产品名" /></label>
@@ -1896,7 +1895,7 @@ export default function App() {
               <div className="empty-state">
                 {queueView === "complete" ? <Check size={28} /> : <CircleAlert size={28} />}
                 <strong>{queueView === "complete" ? "还没有已完成产品" : (root ? "待处理队列已清空" : "请先选择产品文件夹根目录")}</strong>
-                <span>{queueView === "complete" ? "今日工作台中的纸盒、标签和图包都操作过后会自动收纳到这里" : (root ? "纸盒、标签、图包三项都完成的产品已移入“已完成收纳”" : "工作台会扫描其中的 SKU 产品文件夹")}</span>
+                <span>{queueView === "complete" ? "脚本今日工作台中标记图包已完成的产品会自动收纳到这里" : (root ? "图包已完成的产品已移入“已完成收纳”" : "工作台会扫描其中的 SKU 产品文件夹")}</span>
               </div>
             )}
           </div>

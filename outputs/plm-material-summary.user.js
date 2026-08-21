@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.139
+// @version      2.8.140
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.139';
+  const SCRIPT_VERSION = '2.8.140';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5469,7 +5469,7 @@
     ledgerFilterQuery: '',
     ledgerFilterStatus: 'all',
     ledgerFilterImage: 'all',
-    ledgerFilterWorkflow: 'all',
+    ledgerFilterWorkflow: 'image-pack-pending',
     ledgerDisplayMode: 'cards',
     ledgerFilterTimer: 0,
     ledgerTimeEditor: null,
@@ -14102,7 +14102,9 @@
     const currentDetailScroll = detail.querySelector('.pfh-detail-scroll');
     if (currentDetailScroll) currentDetailScroll.setAttribute('data-scroll-context', ['ledger', mode, month].join('|'));
     const currentHeroNote = page.querySelector('[data-ledger-hero-note]');
-    if (currentHeroNote) currentHeroNote.textContent = mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。';
+    if (currentHeroNote) currentHeroNote.textContent = mode === 'trash'
+      ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。'
+      : (mode === 'finalized' ? '默认只显示图包未完成；点击图包标记为已完成后会自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。');
     const currentRecordCount = page.querySelector('[data-ledger-record-count]');
     if (currentRecordCount) currentRecordCount.textContent = records.length + ' 条 / ' + month;
     tabs.setAttribute('data-active-tab', mode);
@@ -18134,10 +18136,10 @@ self.onmessage = async function(event) {
         ['generated-not-finalized', '出图未定稿'],
       ]
       : [
+        ['image-pack-pending', '图包未做'],
         ['all', '全部已定稿'],
         ['box-pending', '纸盒未做'],
         ['label-pending', '标签未做'],
-        ['image-pack-pending', '图包未做'],
         ['any-file-pending', '任一文件未做'],
       ];
     return '<select class="pfh-ledger-filter-workflow" aria-label="' + escapeHtml(mode === 'design' ? '出图流程筛选' : '文件制作筛选') + '">' + options.map(([value, label]) => '<option value="' + escapeHtml(value) + '"' + (selected === value ? ' selected' : '') + '>' + escapeHtml(label) + '</option>').join('') + '</select>';
@@ -18536,7 +18538,7 @@ self.onmessage = async function(event) {
     const month = getCurrentLedgerMonth();
     const ledgerScrollContext = ['ledger', mode, month].join('|');
     return '<div class="pfh-detail-scroll" data-scroll-context="' + escapeHtml(ledgerScrollContext) + '"><section class="pfh-ledger-page">' +
-      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。') + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
+      '<div class="pfh-ledger-hero"><button type="button" class="pfh-upload-back pfh-ledger-back" data-action="home-back" aria-label="返回主页">' + iconHtml('backArrow') + '</button><div class="pfh-ledger-hero-copy"><h3>今日工作台</h3><p data-ledger-hero-note>' + escapeHtml(mode === 'trash' ? '移除记录会阻止 PLM 再次自动加入，恢复后才解除拦截。' : (mode === 'finalized' ? '默认只显示图包未完成；点击图包标记为已完成后会自动收纳。' : '按设计分配日期整理出图，定稿后继续跟纸盒、标签和图包。')) + '</p></div><div class="pfh-ledger-hero-actions"><span data-ledger-record-count>' + escapeHtml(records.length + ' 条 / ' + month) + '</span><button type="button" class="pfh-ledger-fullscreen-toggle" data-action="ledger-fullscreen-toggle" aria-pressed="' + (state.ledgerFullscreen ? 'true' : 'false') + '" title="' + (state.ledgerFullscreen ? '返回悬浮窗' : '打开专注工作区') + '">' + (state.ledgerFullscreen ? '退出工作区' : '全屏工作区') + '</button></div><div class="pfh-ledger-hero-tabs"><div class="pfh-ledger-tabs-shell">' +
            '<div class="pfh-ledger-tabs-main"><div class="pfh-ledger-tabs" data-active-tab="' + mode + '">' +
              '<span class="pfh-ledger-tab-indicator" aria-hidden="true"></span>' +
              '<button type="button" class="' + (mode === 'design' ? 'is-active active' : '') + '" data-action="ledger-view-design">待定稿</button>' +
@@ -18625,6 +18627,10 @@ self.onmessage = async function(event) {
     if ((mode === 'finalized' && !finalized) || (mode === 'design' && finalized)) {
       if (card) card.remove();
       else renderShell();
+      return;
+    }
+    if (!filterLedgerWorkbenchRecords([record], mode).length) {
+      if (!renderLedgerTabContent(panel)) renderShell();
       return;
     }
     if (!card) {
@@ -31564,6 +31570,7 @@ self.onmessage = async function(event) {
       : (action === 'ledger-toggle-label-file' ? 'labelFileDone' : 'imagePackDone');
     const label = field === 'boxFileState' ? '\u7eb8\u76d2\u6587\u4ef6' : (field === 'labelFileState' ? '\u6807\u7b7e\u5370\u5237\u6587\u4ef6' : '\u56fe\u5305');
     const nextValue = nextLedgerFileState(existing && existing[field], existing && existing[doneField]);
+    if (action === 'ledger-toggle-image-pack' && nextValue !== 'pending') state.ledgerFilterWorkflow = 'image-pack-pending';
     const updatedRecord = updateDailyLedgerForSku(sku, { [field]: nextValue, [doneField]: nextValue === 'done', note: label + ledgerFileStateLabel(nextValue), skipStorageSync: true }, key);
     refreshLedgerCard(updatedRecord);
     scheduleDesktopBridgeSnapshot();
