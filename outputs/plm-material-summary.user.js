@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.143
+// @version      2.8.144
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.143';
+  const SCRIPT_VERSION = '2.8.144';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -2008,11 +2008,9 @@
       const perspective = analysis.perspective && Object.fromEntries(Object.entries(analysis.perspective).map(([key, point]) => [key, mapPoint(point, fit)]));
       const topology = analysis.transparentTopology;
       const productHeightSide = analysis.productHeightSide || session.productHeightSide || 'right';
-      // A product in a front-only composition has no perspective edge above it.
-      // Anchor its horizontal measurement to the bottom edge, matching the
-      // carton front edge and leaving the product face unobstructed.  Keep the
-      // established upper placement when a visible carton side is present.
-      const productWidthBelow = !session.showSide;
+      // Keep product width above the product. The carton front width is the
+      // measurement that belongs below the carton, so the two labels do not
+      // collide in front-only compositions.
       const dimensionLayout = Number(area.width) < 600 ? {
         avoidBoxes: [],
         bounds: { left: Number(area.clipLeft) || area.x - 100, top: area.y - 80, right: area.x + area.width + 100, bottom: area.y + area.height + 80 },
@@ -2023,7 +2021,7 @@
         if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit, dimensionLayout);
         else if (product) {
           drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide, dimensionLayout);
-          drawHorizontalDimension(ctx, product, session.fields.productLength, productWidthBelow, dimensionLayout);
+          drawHorizontalDimension(ctx, product, session.fields.productLength, false, dimensionLayout);
         }
         ctx.restore();
         return;
@@ -2047,7 +2045,7 @@
       if (manualProduct) drawManualDimensionPath(ctx, manualProduct, session, 'product', fit, dimensionLayout);
       else if (product) {
         drawVerticalDimension(ctx, product, session.fields.productHeight, productHeightSide, dimensionLayout);
-        drawHorizontalDimension(ctx, product, session.fields.productLength, productWidthBelow, dimensionLayout);
+        drawHorizontalDimension(ctx, product, session.fields.productLength, false, dimensionLayout);
       }
       ctx.restore();
     }
