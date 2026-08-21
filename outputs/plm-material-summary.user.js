@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.144
+// @version      2.8.145
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.144';
+  const SCRIPT_VERSION = '2.8.145';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -9196,7 +9196,7 @@
     const text = String(row || '');
     if (/说明书|使用说明/.test(text)) return false;
     const excludedPackaging = /(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(text);
-    const hasExplicitPrintSize = /\u5370\u5237\u5c3a\u5bf8\s*[:\uff1a]?\s*\d/i.test(text) && hasPrintDimensionText(text);
+    const hasExplicitPrintSize = /\u5370\u5237\u5c3a\u5bf8\s*[:\uff1a]?\s*(?:\u957f|\u5bbd|\u9ad8)?\s*\d/i.test(text) && hasPrintDimensionText(text);
     // PLM categories are sometimes entered as "printed bag" even when the material description clearly identifies a tube.
     // A real printed bag with an explicitly labeled print size is both packaging and a printable material.
     if (excludedPackaging && !isTubePrintRow(text) && !hasExplicitPrintSize) return false;
