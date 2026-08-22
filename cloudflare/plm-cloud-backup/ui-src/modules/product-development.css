@@ -1,4 +1,50 @@
 /* Product development mode owns an isolated workspace inside the shared shell. */
+#plm-floating-helper .pfh-home-feature-viewport {
+  min-width: 0;
+  overflow: hidden;
+}
+
+#plm-floating-helper .pfh-home-feature-track {
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  transform: translateX(0);
+}
+
+#plm-floating-helper .pfh-home-feature-track.is-product-development {
+  transform: translateX(-100%);
+}
+
+#plm-floating-helper .pfh-home-feature-page {
+  min-width: 100%;
+  flex: 0 0 100%;
+  box-sizing: border-box;
+}
+
+#plm-floating-helper .pfh-home-feature-page-product {
+  padding-bottom: 1px;
+}
+
+@keyframes pfh-home-feature-slide-to-product {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes pfh-home-feature-slide-to-daily {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #plm-floating-helper .pfh-home-feature-track.is-to-product {
+    animation: pfh-home-feature-slide-to-product .48s cubic-bezier(.25, 1.2, .35, 1) both;
+  }
+
+  #plm-floating-helper .pfh-home-feature-track.is-to-daily {
+    animation: pfh-home-feature-slide-to-daily .48s cubic-bezier(.25, 1.2, .35, 1) both;
+  }
+}
+
 #plm-floating-helper .pfh-work-mode-switch {
   display: flex;
   width: fit-content;

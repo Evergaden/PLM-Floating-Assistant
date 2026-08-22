@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.3.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.4.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -996,11 +996,14 @@
   }
 
   function setProductDevelopmentWorkMode(mode) {
+    const previous = normalizeProductDevelopmentWorkMode(state.workMode);
     const next = normalizeProductDevelopmentWorkMode(mode);
+    if (previous !== next) state.homeModeTransition = next === 'product-development' ? 'to-product' : 'to-daily';
     state.workMode = next;
     state.productDevelopmentView = 'home';
     state.settings.workMode = next;
     saveSettings(state.settings);
+    state.homeFeatureEditMode = false;
     if (next === 'product-development') {
       state.view = 'home';
       state.copywritingMode = false;
@@ -1010,7 +1013,20 @@
       state.productDevelopmentError = '';
     }
     expandPanel();
-    renderShell();
+    if (state.view === 'home') {
+      const panel = ensurePanel();
+      const scrollSnapshot = capturePanelScroll(panel);
+      renderHome(panel);
+      restorePanelScroll(panel, scrollSnapshot);
+    } else {
+      renderShell();
+    }
+    if (previous !== next) {
+      const transition = state.homeModeTransition;
+      window.setTimeout(() => {
+        if (state.homeModeTransition === transition) state.homeModeTransition = '';
+      }, 520);
+    }
   }
 
   function productDevelopmentModeSwitchHtml() {
@@ -1027,8 +1043,9 @@
     return '<article class="pfh-product-development-context"><div class="pfh-product-development-context-icon">' + iconHtml('package') + '</div><div><small>当前 PLM SKU</small><strong>' + escapeHtml(sku) + '</strong><p>' + escapeHtml(data.name || '等待读取产品资料') + '</p></div><button type="button" data-action="product-development-context-refresh">刷新资料</button></article>';
   }
 
-  function productDevelopmentHistoryHtml() {
-    const history = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).slice(0, 4);
+  function productDevelopmentHistoryHtml(limit) {
+    const maxItems = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(PRODUCT_DEVELOPMENT_MAX_HISTORY, Number(limit))) : 4;
+    const history = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).slice(0, maxItems);
     if (!history.length) return '<div class="pfh-product-development-history-empty">本地历史记录会显示在这里</div>';
     return history.map((item) => '<button type="button" class="pfh-product-development-history-row" data-action="product-development-history-open" data-history-id="' + escapeHtml(item.id) + '" title="打开本地历史"><span class="pfh-product-development-history-kind">' + escapeHtml(item.kind === 'review' ? '图' : '文') + '</span><div><strong>' + escapeHtml(item.sku) + '</strong><small>' + escapeHtml(item.createdAt) + ' · ' + escapeHtml(item.fileName || '') + '</small></div><em>' + (item.kind === 'review' ? item.itemCount + ' 个风险项' : 'A-D') + '</em></button>').join('');
   }
@@ -1066,6 +1083,13 @@
       state.productDevelopmentStatus = '文案历史目前只保存生成记录，请在此页面重新生成 DOCX';
     }
     renderShell();
+  }
+
+  function productDevelopmentHistoryViewHtml() {
+    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
+      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>LOCAL HISTORY</small><h2>本地历史</h2></div></header>' +
+      '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div><span>最多保留 ' + PRODUCT_DEVELOPMENT_MAX_HISTORY + ' 条</span></header><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section>' +
+      '<p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史目前只保存生成记录，打开后可重新生成 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>';
   }
 
   function productDevelopmentEvidenceHtml(snapshot) {
@@ -1148,7 +1172,8 @@
     const view = state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : 'home');
     if (view === 'review') return productDevelopmentReviewHtml(statusText);
     if (view === 'copywriting') return productDevelopmentCopywritingHtml(statusText);
-    return productDevelopmentHomeHtml(statusText);
+    if (state.productDevelopmentView === 'history') return productDevelopmentHistoryViewHtml(statusText);
+    return homeViewHtml(statusText);
   }
 
   function productDevelopmentHandleAction(action, actionTarget) {
@@ -1158,6 +1183,12 @@
     }
     if (action === 'product-development-home') {
       state.productDevelopmentView = 'home';
+      state.productDevelopmentError = '';
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-history-view') {
+      state.productDevelopmentView = 'history';
       state.productDevelopmentError = '';
       renderShell();
       return true;
