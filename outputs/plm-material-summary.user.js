@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.157
+// @version      2.8.158
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.157';
+  const SCRIPT_VERSION = '2.8.158';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.242';
+  const UI_ASSET_VERSION = '2.5.243';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -5101,11 +5101,11 @@
     '实验认证', '认证', '疾病', '药品', '处方', '诊断',
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
-    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字，生成红框编号的中英文修改对照图', action: 'product-development-review-open', icon: 'image', badge: 'V1' }),
-    Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel', badge: 'V1' }),
-    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价，后续接入配置化规则', action: '', icon: 'calculator', badge: '后续' }),
-    Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box', badge: '后续' }),
-    Object.freeze({ id: 'packaging', title: '包装与成分表', subtitle: '规格、标签尺寸、成分表模板和审核', action: '', icon: 'box', badge: '后续' }),
+    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字，生成红框编号的中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
+    Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
+    Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
+    Object.freeze({ id: 'packaging', title: '包装与成分表', subtitle: '规格、标签尺寸、成分表模板和审核', action: '', icon: 'box' }),
   ]);
 
   function normalizeProductDevelopmentWorkMode(value) {
@@ -6081,6 +6081,7 @@
   function setProductDevelopmentWorkMode(mode) {
     const previous = normalizeProductDevelopmentWorkMode(state.workMode);
     const next = normalizeProductDevelopmentWorkMode(mode);
+    const wasEditing = Boolean(state.homeFeatureEditMode);
     if (previous !== next) state.homeModeTransition = next === 'product-development' ? 'to-product' : 'to-daily';
     state.workMode = next;
     state.productDevelopmentView = 'home';
@@ -6096,14 +6097,16 @@
       state.productDevelopmentError = '';
     }
     expandPanel();
-    if (state.view === 'home') {
+    const updatedInPlace = state.view === 'home' && !wasEditing && updateProductDevelopmentHomeModeDom(next);
+    if (!updatedInPlace && state.view === 'home') {
       const panel = ensurePanel();
       const scrollSnapshot = capturePanelScroll(panel);
       renderHome(panel);
       restorePanelScroll(panel, scrollSnapshot);
-    } else {
+    } else if (!updatedInPlace) {
       renderShell();
     }
+    if (updatedInPlace) state.homeModeTransition = '';
     if (previous !== next) {
       const transition = state.homeModeTransition;
       window.setTimeout(() => {
@@ -6192,10 +6195,10 @@
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
     const cards = PRODUCT_DEVELOPMENT_FEATURES.map((feature) => {
       const disabled = !feature.action;
-      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span><i>' + escapeHtml(feature.badge) + '</i></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (!sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>已记录规则，后续接入</small>') + '</article>';
+      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (!sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>功能占位</small>') + '</article>';
     }).join('');
     return '<div class="pfh-product-development">' + productDevelopmentModeSwitchHtml() +
-      '<section class="pfh-product-development-hero"><div><small>PRODUCT DEVELOPMENT / V' + escapeHtml(PRODUCT_DEVELOPMENT_VERSION) + '</small><h2>产品开发工作台</h2><p>开发资料、风险筛查和文案输出独立管理，结果只在本地生成，不向 PLM 写入。</p></div><span class="pfh-product-development-readonly">只读 PLM</span></section>' +
+      '<section class="pfh-product-development-hero"><div><small>PRODUCT DEVELOPMENT</small><h2>产品开发工作台</h2><p>开发资料、风险筛查和文案输出独立管理，结果只在本地生成，不向 PLM 写入。</p></div><span class="pfh-product-development-readonly">只读 PLM</span></section>' +
       productDevelopmentSkuSummaryHtml(snapshot) +
       productDevelopmentEvidenceHtml(snapshot) +
       '<section class="pfh-product-development-section"><header><div><small>FUNCTION MAP</small><h3>开发功能</h3></div><span>共用浮窗布局，和日常工作分区</span></header><div class="pfh-product-development-grid">' + cards + '</div></section>' +
@@ -16952,7 +16955,6 @@
       icon: feature.icon,
       title: feature.title,
       description: feature.subtitle,
-      badge: feature.badge,
       disabled: !feature.action || !sku,
     })).concat([{
       id: 'product-development-history',
@@ -16970,6 +16972,27 @@
       '<div class="pfh-home-feature-layout">' + homeFeatureEntryHtml(primary, 'pfh-home-entry-primary') + '<div class="pfh-home-quick-grid">' + quickEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-quick')).join('') + '</div></div>' +
       '<div class="pfh-home-secondary-label">其他开发功能 · ' + escapeHtml(productMeta) + '</div><div class="pfh-home-secondary-grid">' + secondaryEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-secondary')).join('') + '</div>' +
       '</div>';
+  }
+
+  function updateProductDevelopmentHomeModeDom(mode) {
+    const next = normalizeProductDevelopmentWorkMode(mode);
+    const panel = document.getElementById(PANEL_ID);
+    const track = panel && panel.querySelector('.pfh-home-feature-track');
+    if (!track) return false;
+    track.classList.remove('is-product-development', 'is-daily', 'is-to-product', 'is-to-daily');
+    void track.offsetWidth;
+    track.classList.add(next === 'product-development' ? 'is-product-development' : 'is-daily');
+    const title = panel.querySelector('[data-work-mode-title]');
+    if (title) title.textContent = next === 'product-development' ? '开发功能' : '常用功能';
+    const actions = panel.querySelector('.pfh-home-feature-actions');
+    if (actions) actions.innerHTML = next === 'product-development'
+      ? '<span>产品开发功能区</span>'
+      : '<span>可自定义常用入口</span><button type="button" data-action="home-feature-edit-toggle">编辑</button>';
+    panel.classList.toggle('is-product-development', next === 'product-development');
+    panel.querySelectorAll('.pfh-work-mode-switch button[data-work-mode]').forEach((button) => {
+      button.classList.toggle('is-active', button.getAttribute('data-work-mode') === next);
+    });
+    return true;
   }
 
   function homeFeatureEditGroupHtml(label, description, entries, group) {
@@ -17055,7 +17078,7 @@
         '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>' +
       '</div>' +
       '<div class="pfh-home-lower">' +
-        '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
+        '<section class="pfh-home-panel pfh-home-feature-panel' + (state.homeFeatureEditMode ? ' is-editing' : '') + (isProductDevelopment ? ' is-product-development' : '') + '"><div class="pfh-home-panel-title"><h3 data-work-mode-title>' + (isProductDevelopment ? '开发功能' : '常用功能') + '</h3>' + featureEditActions + '</div>' +
           '<div class="pfh-home-feature-viewport"><div class="' + featureTrackClass + '">' + dailyFeaturePage + productDevelopmentHomeFeaturePageHtml() + '</div></div>' +
           '</section>' +
         homeTaskPanelHtml() +

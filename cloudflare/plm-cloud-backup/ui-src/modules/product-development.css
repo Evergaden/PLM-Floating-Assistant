@@ -4,11 +4,17 @@
   overflow: hidden;
 }
 
+#plm-floating-helper .pfh-home-scroll > .pfh-work-mode-switch {
+  margin: 0 0 18px 2px;
+}
+
 #plm-floating-helper .pfh-home-feature-track {
   display: flex;
   width: 100%;
   align-items: stretch;
   transform: translateX(0);
+  transition: transform .62s cubic-bezier(.25, 1.2, .35, 1);
+  will-change: transform;
 }
 
 #plm-floating-helper .pfh-home-feature-track.is-product-development {

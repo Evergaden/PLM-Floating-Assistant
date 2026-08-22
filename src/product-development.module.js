@@ -18,11 +18,11 @@
     '实验认证', '认证', '疾病', '药品', '处方', '诊断',
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
-    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字，生成红框编号的中英文修改对照图', action: 'product-development-review-open', icon: 'image', badge: 'V1' }),
-    Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel', badge: 'V1' }),
-    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价，后续接入配置化规则', action: '', icon: 'calculator', badge: '后续' }),
-    Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box', badge: '后续' }),
-    Object.freeze({ id: 'packaging', title: '包装与成分表', subtitle: '规格、标签尺寸、成分表模板和审核', action: '', icon: 'box', badge: '后续' }),
+    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字，生成红框编号的中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
+    Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
+    Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
+    Object.freeze({ id: 'packaging', title: '包装与成分表', subtitle: '规格、标签尺寸、成分表模板和审核', action: '', icon: 'box' }),
   ]);
 
   function normalizeProductDevelopmentWorkMode(value) {
@@ -998,6 +998,7 @@
   function setProductDevelopmentWorkMode(mode) {
     const previous = normalizeProductDevelopmentWorkMode(state.workMode);
     const next = normalizeProductDevelopmentWorkMode(mode);
+    const wasEditing = Boolean(state.homeFeatureEditMode);
     if (previous !== next) state.homeModeTransition = next === 'product-development' ? 'to-product' : 'to-daily';
     state.workMode = next;
     state.productDevelopmentView = 'home';
@@ -1013,14 +1014,16 @@
       state.productDevelopmentError = '';
     }
     expandPanel();
-    if (state.view === 'home') {
+    const updatedInPlace = state.view === 'home' && !wasEditing && updateProductDevelopmentHomeModeDom(next);
+    if (!updatedInPlace && state.view === 'home') {
       const panel = ensurePanel();
       const scrollSnapshot = capturePanelScroll(panel);
       renderHome(panel);
       restorePanelScroll(panel, scrollSnapshot);
-    } else {
+    } else if (!updatedInPlace) {
       renderShell();
     }
+    if (updatedInPlace) state.homeModeTransition = '';
     if (previous !== next) {
       const transition = state.homeModeTransition;
       window.setTimeout(() => {
@@ -1109,10 +1112,10 @@
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
     const cards = PRODUCT_DEVELOPMENT_FEATURES.map((feature) => {
       const disabled = !feature.action;
-      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span><i>' + escapeHtml(feature.badge) + '</i></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (!sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>已记录规则，后续接入</small>') + '</article>';
+      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (!sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>功能占位</small>') + '</article>';
     }).join('');
     return '<div class="pfh-product-development">' + productDevelopmentModeSwitchHtml() +
-      '<section class="pfh-product-development-hero"><div><small>PRODUCT DEVELOPMENT / V' + escapeHtml(PRODUCT_DEVELOPMENT_VERSION) + '</small><h2>产品开发工作台</h2><p>开发资料、风险筛查和文案输出独立管理，结果只在本地生成，不向 PLM 写入。</p></div><span class="pfh-product-development-readonly">只读 PLM</span></section>' +
+      '<section class="pfh-product-development-hero"><div><small>PRODUCT DEVELOPMENT</small><h2>产品开发工作台</h2><p>开发资料、风险筛查和文案输出独立管理，结果只在本地生成，不向 PLM 写入。</p></div><span class="pfh-product-development-readonly">只读 PLM</span></section>' +
       productDevelopmentSkuSummaryHtml(snapshot) +
       productDevelopmentEvidenceHtml(snapshot) +
       '<section class="pfh-product-development-section"><header><div><small>FUNCTION MAP</small><h3>开发功能</h3></div><span>共用浮窗布局，和日常工作分区</span></header><div class="pfh-product-development-grid">' + cards + '</div></section>' +
