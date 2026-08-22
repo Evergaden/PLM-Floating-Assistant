@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.160
+// @version      2.8.161
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.160';
+  const SCRIPT_VERSION = '2.8.161';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.5.1';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.5.2';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -6096,9 +6096,14 @@
       state.view = 'home';
       state.productDevelopmentError = '';
     }
-    expandPanel();
-    const updatedInPlace = state.view === 'home' && !wasEditing && updateProductDevelopmentHomeModeDom(next);
+    const existingPanel = document.getElementById(PANEL_ID);
+    const canUpdateInPlace = state.view === 'home'
+      && !wasEditing
+      && existingPanel
+      && existingPanel.querySelector('.pfh-home-feature-track');
+    const updatedInPlace = canUpdateInPlace && updateProductDevelopmentHomeModeDom(next);
     if (!updatedInPlace && state.view === 'home') {
+      expandPanel();
       const panel = ensurePanel();
       const scrollSnapshot = capturePanelScroll(panel);
       renderHome(panel);
@@ -6108,6 +6113,7 @@
         if (renderedTrack) playProductDevelopmentHomeFeatureRailAnimation(renderedTrack, next === 'product-development', true);
       }
     } else if (!updatedInPlace) {
+      expandPanel();
       renderShell();
     }
     if (updatedInPlace) state.homeModeTransition = '';
