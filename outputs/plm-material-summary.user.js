@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.153
+// @version      2.8.154
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.153';
+  const SCRIPT_VERSION = '2.8.154';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.238';
+  const UI_ASSET_VERSION = '2.5.239';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.1.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.2.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -5271,11 +5271,78 @@
     };
   }
 
+  function productDevelopmentReadImageValue(value) {
+    if (!value) return '';
+    if (typeof value === 'object') {
+      return productDevelopmentReadImageValue(value.url || value.src || value.imageUrl || value.image_url || value.fileUrl || value.file_url);
+    }
+    return String(value || '').trim();
+  }
+
+  function productDevelopmentGetBenchmarkImageSource(data) {
+    const candidates = [
+      { imageUrl: data && data.benchmarkImageUrl, imageFallbackUrl: data && data.benchmarkImageFallbackUrl, source: 'PLM 只读对标图片' },
+      { imageUrl: data && data.benchmarkImageFallbackUrl, imageFallbackUrl: data && data.benchmarkImageUrl, source: 'PLM 只读对标图片' },
+      { imageUrl: data && data.referenceImageUrl, imageFallbackUrl: data && data.referenceImageFallbackUrl, source: 'PLM 只读参考图片' },
+      { imageUrl: data && data.referenceImageFallbackUrl, imageFallbackUrl: data && data.referenceImageUrl, source: 'PLM 只读参考图片' },
+      { imageUrl: data && data.benchmarkImage, imageFallbackUrl: data && data.benchmarkImageFallback, source: 'PLM 只读对标图片' },
+    ];
+    const listCandidates = [data && data.benchmarkImages, data && data.referenceImages]
+      .filter(Array.isArray)
+      .flatMap((list) => list.slice(0, 5).map((item) => ({ imageUrl: item, imageFallbackUrl: item, source: 'PLM 只读对标图片' })));
+    for (const candidate of candidates.concat(listCandidates)) {
+      const imageUrl = productDevelopmentReadImageValue(candidate.imageUrl);
+      if (!imageUrl) continue;
+      const imageFallbackUrl = productDevelopmentReadImageValue(candidate.imageFallbackUrl) || imageUrl;
+      return { imageUrl, imageFallbackUrl, source: candidate.source };
+    }
+    return { imageUrl: '', imageFallbackUrl: '', source: 'PLM 对标图片字段为空' };
+  }
+
+  async function productDevelopmentFetchImage(imageUrl, fallbackUrl) {
+    const target = String(imageUrl || '').trim();
+    if (!/^data:image\//i.test(target)) return fetchImageForExcel(target, fallbackUrl);
+    const size = typeof getImageSize === 'function'
+      ? await getImageSize(target).catch(() => ({ width: 118, height: 64 }))
+      : { width: 118, height: 64 };
+    const extension = (target.match(/^data:image\/([^;,]+)/i) || [])[1] || 'png';
+    return { dataUrl: target, extension, width: size.width, height: size.height };
+  }
+
+  function productDevelopmentReadFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      if (typeof FileReader !== 'function') {
+        reject(new Error('当前浏览器不支持本地图片读取'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('对标图片读取失败'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function importProductDevelopmentBenchmarkImage(file) {
+    if (!file || !/^image\//i.test(String(file.type || ''))) throw new Error('请选择 PNG、JPG 或其他图片文件');
+    if (Number(file.size || 0) > 15 * 1024 * 1024) throw new Error('对标图片不能超过 15 MB');
+    const dataUrl = await productDevelopmentReadFileAsDataUrl(file);
+    if (!/^data:image\//i.test(dataUrl)) throw new Error('对标图片格式无法识别');
+    state.productDevelopmentBenchmarkImageDataUrl = dataUrl;
+    state.productDevelopmentBenchmarkImageName = String(file.name || '本地对标图片').slice(0, 180);
+    state.productDevelopmentSnapshot = null;
+    state.productDevelopmentReview = null;
+    state.productDevelopmentError = '';
+    state.productDevelopmentStatus = '已选择本地对标图片：' + state.productDevelopmentBenchmarkImageName;
+    renderShell();
+  }
+
   async function loadProductDevelopmentSnapshot(sku, force, options) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const requireIngredients = !(options && options.requireIngredients === false);
+    const imageKind = options && options.imageKind === 'benchmark' ? 'benchmark' : 'product';
     if (!normalizedSku) throw new Error('请先在日常工作中选择一个 SKU');
     if (!force && state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === normalizedSku
+      && state.productDevelopmentSnapshot.imageKind === imageKind
       && (!requireIngredients || Array.isArray(state.productDevelopmentSnapshot.ingredients) && state.productDevelopmentSnapshot.ingredients.length)) return state.productDevelopmentSnapshot;
     const seed = getProductDevelopmentSeedData(normalizedSku);
     const snapshot = await fetchApiProductSnapshot(seed, { force: true }).catch(() => null);
@@ -5319,9 +5386,14 @@
       cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
     });
     if (requireIngredients && !ingredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
-    let imageSource = typeof getExcelImageSource === 'function' ? getExcelImageSource(data) : { imageUrl: '', imageFallbackUrl: '' };
+    const manualBenchmarkImage = imageKind === 'benchmark' ? productDevelopmentReadImageValue(state.productDevelopmentBenchmarkImageDataUrl) : '';
+    let imageSource = imageKind === 'benchmark'
+      ? (manualBenchmarkImage
+        ? { imageUrl: manualBenchmarkImage, imageFallbackUrl: manualBenchmarkImage, source: '本地手动选择的对标图片' }
+        : productDevelopmentGetBenchmarkImageSource(data))
+      : (typeof getExcelImageSource === 'function' ? getExcelImageSource(data) : { imageUrl: '', imageFallbackUrl: '' });
     let skuImage = null;
-    if (typeof fetchLedgerAiImageSkuPreflight === 'function') {
+    if (imageKind !== 'benchmark' && typeof fetchLedgerAiImageSkuPreflight === 'function') {
       skuImage = await fetchLedgerAiImageSkuPreflight(normalizedSku, data).catch(() => null);
       if (skuImage && skuImage.status === 'available' && skuImage.url) {
         imageSource = { imageUrl: skuImage.url, imageFallbackUrl: skuImage.url };
@@ -5352,10 +5424,17 @@
       },
       imageUrl: String(imageSource && imageSource.imageUrl || ''),
       imageFallbackUrl: String(imageSource && imageSource.imageFallbackUrl || imageSource && imageSource.imageUrl || ''),
-      imageSource: skuImage && skuImage.source || data.skuImageSource || 'PLM read-only product image',
+      imageKind,
+      imageSource: imageKind === 'benchmark'
+        ? imageSource.source || 'PLM 只读对标图片'
+        : skuImage && skuImage.source || data.skuImageSource || 'PLM read-only product image',
       updatedAt: new Date().toLocaleString(),
     };
-    if (!result.imageUrl) throw new Error('当前 SKU 没有可读取的主产品效果图');
+    if (!result.imageUrl) {
+      throw new Error(imageKind === 'benchmark'
+        ? '当前 SKU 没有可读取的对标图片，请在页面上方手动选择对标图片'
+        : '当前 SKU 没有可读取的主产品效果图');
+    }
     state.productDevelopmentSnapshot = result;
     return result;
   }
@@ -5560,13 +5639,13 @@
     }
     state.productDevelopmentReviewBusy = true;
     state.productDevelopmentError = '';
-    state.productDevelopmentStatus = '正在读取 PLM 产品资料和主效果图…';
+    state.productDevelopmentStatus = '正在读取当前 SKU 的对标图片…';
     renderShell();
     try {
-      const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false });
+      const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false, imageKind: 'benchmark' });
       state.productDevelopmentStatus = '正在提交一次图片风险分析…';
       renderShell();
-      const image = await fetchImageForExcel(snapshot.imageUrl, snapshot.imageFallbackUrl);
+      const image = await productDevelopmentFetchImage(snapshot.imageUrl, snapshot.imageFallbackUrl);
       const response = await cloudRequest('/ai-image/product-development-review', {
         method: 'POST',
         timeoutMs: 150000,
@@ -6075,7 +6154,7 @@
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以对标图片中的文字为主要证据，读取文字后筛查品牌、禁词和夸大风险；不要求成分。原图保留，修改后可人工调整。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，读取图片文字后筛查品牌、禁词和夸大风险；不要求成分。原图保留，修改后可人工调整。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + escapeHtml(state.productDevelopmentBenchmarkImageName ? '已手动选择：' + state.productDevelopmentBenchmarkImageName : '自动读取当前 SKU 对标图片；读取不到时可手动选择') + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       preview + list +
@@ -6214,7 +6293,7 @@
     if (action === 'product-development-context-refresh') {
       const sku = getProductDevelopmentCurrentSku();
       state.productDevelopmentSnapshot = null;
-      if (sku) loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false }).then(() => { state.productDevelopmentStatus = '当前 SKU 资料已刷新'; renderShell(); }).catch((error) => { state.productDevelopmentError = formatErrorMessage(error); renderShell(); });
+      if (sku) loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false, imageKind: 'benchmark' }).then(() => { state.productDevelopmentStatus = '当前 SKU 资料已刷新'; renderShell(); }).catch((error) => { state.productDevelopmentError = formatErrorMessage(error); renderShell(); });
       return true;
     }
     if (action === 'product-development-template-reset') {
@@ -6226,9 +6305,14 @@
 
   function productDevelopmentHandleChange(event) {
     const target = event && event.target;
-    if (!target || !target.classList || !target.classList.contains('pfh-product-development-template-input')) return false;
+    if (!target || !target.classList) return false;
     const files = Array.from(target.files || []);
     target.value = '';
+    if (target.classList.contains('pfh-product-development-benchmark-input')) {
+      if (files[0]) importProductDevelopmentBenchmarkImage(files[0]).catch((error) => showToast(formatErrorMessage(error)));
+      return true;
+    }
+    if (!target.classList.contains('pfh-product-development-template-input')) return false;
     if (files[0]) importProductDevelopmentTemplate(files[0]).catch((error) => showToast(formatErrorMessage(error)));
     return true;
   }
@@ -6534,6 +6618,8 @@
     workMode: 'daily',
     productDevelopmentView: 'home',
     productDevelopmentSnapshot: null,
+    productDevelopmentBenchmarkImageDataUrl: '',
+    productDevelopmentBenchmarkImageName: '',
     productDevelopmentReview: null,
     productDevelopmentReviewBusy: false,
     productDevelopmentCopywriting: null,
