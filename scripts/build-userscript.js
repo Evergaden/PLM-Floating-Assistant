@@ -11,6 +11,7 @@ const modules = [
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
   { name: 'desktop-bridge', file: path.join(root, 'src', 'desktop-bridge.module.js') },
   { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
+  { name: 'product-development', file: path.join(root, 'src', 'product-development.module.js') },
   { name: 'magic-upload-actions', file: path.join(root, 'src', 'magic-upload-actions.module.js') },
 ];
 const requestedModules = new Set(process.argv.slice(2));

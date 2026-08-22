@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.236",
+  "version": "2.5.237",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -34,6 +34,10 @@
     },
     {
       "path": "modules/home-typography.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/product-development.css",
       "mode": "module"
     },
     {

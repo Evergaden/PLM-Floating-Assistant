@@ -105,6 +105,17 @@ function getZhipuModel(env) {
 
 const DEFAULT_MODELSCOPE_MODEL = 'Qwen/Qwen3.5-397B-A17B';
 const DETAIL3_INGREDIENT_AUDIT_MODEL = 'Qwen/Qwen3-VL-8B-Instruct';
+const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
+  'natural', 'nature', 'naturally', '天然', '自然',
+  'organic', '有机', 'vegan', '素食主义者',
+  'crueltyfree', 'cruelty free', '无残忍',
+  'biodegradable', '可生物降解', 'environmentally friendly',
+  'reduce', 'remove', 'repair', 'treatment', 'therapy', 'instantly',
+  'prevent', 'prevention', 'cure', 'clinical', 'clinically',
+  'medical grade', 'medical-grade', '医疗级', '治疗', '疗效', '治愈',
+  '全效', '特效', '速效', '第一', '最佳', '顶级', '百分百',
+  '实验认证', '认证', '疾病', '药品', '处方', '诊断',
+]);
 
 function getModelScopeModel(env) {
   return String((env && env.MODELSCOPE_MODEL) || DEFAULT_MODELSCOPE_MODEL).trim() || DEFAULT_MODELSCOPE_MODEL;
@@ -1490,6 +1501,306 @@ async function handleAiImageCopywritingComplete(request, env) {
       error: cleanText(error && error.message, 500) || 'copywriting completion failed',
     }), 502);
   }
+}
+
+function productDevelopmentNormalizedClaimText(value) {
+  return String(value || '').toLowerCase().normalize('NFKC').replace(/[\s_\-–—·.,:;!?()［］【】「」『』]/g, '');
+}
+
+function productDevelopmentFindBannedTerm(value, brand) {
+  const normalized = productDevelopmentNormalizedClaimText(value);
+  if (!normalized) return '';
+  const terms = PRODUCT_DEVELOPMENT_BANNED_TERMS.concat(brand ? [brand] : []);
+  return terms.map((term) => String(term || '').trim()).filter(Boolean).find((term) => {
+    const candidate = productDevelopmentNormalizedClaimText(term);
+    return candidate && normalized.includes(candidate);
+  }) || '';
+}
+
+function parseProductDevelopmentJson(value) {
+  const raw = String(value || '').replace(/^\uFEFF/, '').trim();
+  const fencePattern = String.fromCharCode(96) + '{3}(?:json)?\\s*([\\s\\S]*?)' + String.fromCharCode(96) + '{3}';
+  const fenced = (raw.match(new RegExp(fencePattern, 'i')) || [])[1] || '';
+  const firstBrace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  const candidates = [raw, fenced, firstBrace >= 0 && lastBrace > firstBrace ? raw.slice(firstBrace, lastBrace + 1) : ''];
+  let lastError = null;
+  for (const candidate of candidates.filter(Boolean)) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastError = error;
+      try {
+        return JSON.parse(candidate.replace(/[\u201c\u201d]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/,\s*([}\]])/g, '$1'));
+      } catch (repairError) {
+        lastError = repairError;
+      }
+    }
+  }
+  throw new Error('product development response is not JSON: ' + cleanText(lastError && lastError.message, 160));
+}
+
+function normalizeProductDevelopmentIngredientInput(value) {
+  const source = Array.isArray(value) ? value : [];
+  return source.map((item) => {
+    const row = item && typeof item === 'object' ? item : {};
+    return {
+      en: cleanText(row.en || row.english || row.ingredientEn, 300),
+      cn: cleanText(row.cn || row.chinese || row.ingredientCn, 300),
+    };
+  }).filter((item) => item.en || item.cn).slice(0, 100);
+}
+
+function normalizeProductDevelopmentBbox(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const x = Number(source.x);
+  const y = Number(source.y);
+  const width = Number(source.w !== undefined ? source.w : source.width);
+  const height = Number(source.h !== undefined ? source.h : source.height);
+  if (![x, y, width, height].every(Number.isFinite)) return null;
+  const safeX = Math.max(0, Math.min(1, x));
+  const safeY = Math.max(0, Math.min(1, y));
+  const safeW = Math.max(0, Math.min(1 - safeX, width));
+  const safeH = Math.max(0, Math.min(1 - safeY, height));
+  if (safeW < 0.001 || safeH < 0.001) return null;
+  return { x: safeX, y: safeY, w: safeW, h: safeH };
+}
+
+function sanitizeProductDevelopmentReviewCandidate(value, brand) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(value.items)) {
+    throw new Error('product image review response has no items array');
+  }
+  const allowedRiskTypes = new Set(['banned', 'exaggeration', 'medical', 'brand', 'unsupported', 'other']);
+  const seen = new Set();
+  const items = value.items.map((item, index) => {
+    const source = item && typeof item === 'object' ? item : {};
+    const sourceText = cleanText(source.sourceText || source.originalText || source.text, 240);
+    const replacementEn = cleanText(source.replacementEn || source.modifiedEnglish || source.english, 300);
+    const replacementZh = cleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation, 300);
+    const bbox = normalizeProductDevelopmentBbox(source.bbox || source.box);
+    const key = [sourceText.toLowerCase(), bbox && bbox.x.toFixed(4), bbox && bbox.y.toFixed(4)].join('|');
+    if (!sourceText || !replacementEn || !replacementZh || !bbox || seen.has(key)) return null;
+    const banned = productDevelopmentFindBannedTerm(replacementEn + ' ' + replacementZh, brand);
+    if (banned || replacementEn.includes('*') || replacementZh.includes('*') || /\n\s*\n/.test(replacementEn + '\n' + replacementZh)) {
+      throw new Error('product image review replacement contains a restricted term: ' + (banned || 'format'));
+    }
+    seen.add(key);
+    return {
+      id: cleanText(source.id || String(index + 1), 40),
+      sourceText,
+      bbox,
+      riskTypes: Array.from(new Set((Array.isArray(source.riskTypes) ? source.riskTypes : [source.riskType])
+        .map((risk) => String(risk || '').trim().toLowerCase())
+        .filter((risk) => allowedRiskTypes.has(risk)))).slice(0, 4),
+      replacementEn,
+      replacementZh,
+      confidence: Math.max(0, Math.min(1, Number(source.confidence) || 0)),
+    };
+  }).filter(Boolean).slice(0, 30);
+  return {
+    items,
+    warnings: Array.isArray(value.warnings) ? value.warnings.map((item) => cleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
+  };
+}
+
+async function handleProductDevelopmentReview(request, env) {
+  if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized', items: [] }, 401);
+  const body = await parseJson(request);
+  if (!body) return json({ ok: false, error: 'application/json body required', items: [] }, 400);
+  const sku = cleanText(body.sku, 80);
+  const name = cleanText(body.name, 300);
+  const productType = cleanText(body.productType, 180);
+  const brand = cleanText(body.brand, 160);
+  const image = cleanModelScopeImages([body.imageDataUrl])[0] || '';
+  const ingredients = normalizeProductDevelopmentIngredientInput(body.ingredients);
+  const sellingPoints = body.sellingPoints && typeof body.sellingPoints === 'object' ? body.sellingPoints : {};
+  const efficacy = body.efficacy && typeof body.efficacy === 'object' ? body.efficacy : {};
+  if (!sku) return json({ ok: false, error: 'sku required', items: [] }, 400);
+  if (!image) return json({ ok: false, error: 'imageDataUrl must be a supported base64 image', items: [] }, 400);
+  try {
+    const options = {
+      model: getModelScopeModel(env),
+      temperature: 0,
+      maxTokens: 3500,
+      primaryTimeoutMs: 50000,
+      fallbackTimeoutMs: 90000,
+      geminiFallbackModels: [
+        String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'),
+        'gemini-2.5-flash-lite',
+      ],
+      responseMimeType: 'application/json',
+      images: [image],
+      system: [
+        '你是产品包装文字风险初筛助手，不是法律意见提供者。',
+        '请读取图片中清晰可见的包装文字，找出可能涉及品牌、绝对化、夸大、医疗、疾病、认证、环境属性或未经证据支持的高风险表达。',
+        '坐标必须使用相对图片左上角的归一化 x、y、w、h，范围 0 到 1，覆盖对应原文字。',
+        '不要修改原图，不要输出清除文字后的包装图。每个风险项只提供原文字、风险类型和更保守的英文/简体中文替换建议。',
+        '替换建议不能出现品牌名称、Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、治疗等词语或同类表达。',
+        '只使用提供的产品类型、成分和卖点作为事实依据，不要补写未提供的成分、数值、认证、疾病或疗效。',
+        '没有可靠风险时返回空 items；看不清的文字不要猜测。所有内容必须是一个 JSON 对象，不要 Markdown。',
+      ].join(' '),
+      prompt: [
+        'SKU: ' + sku,
+        'Product name: ' + name,
+        'Product type: ' + productType,
+        'Brand to avoid in replacements: ' + brand,
+        'Ingredients evidence: ' + JSON.stringify(ingredients),
+        'Selling points evidence: ' + JSON.stringify(sellingPoints),
+        'Efficacy evidence: ' + JSON.stringify(efficacy),
+        'Return exactly: {"items":[{"id":"1","sourceText":"...","bbox":{"x":0.1,"y":0.1,"w":0.2,"h":0.05},"riskTypes":["banned"],"replacementEn":"...","replacementZh":"...","confidence":0.9}],"warnings":["..."]}.',
+        '风险类型只能使用 banned、exaggeration、medical、brand、unsupported、other。',
+      ].join('\n'),
+    };
+    const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeProductDevelopmentReviewCandidate(parseProductDevelopmentJson(candidate.text), brand));
+    return json({
+      ok: true,
+      ...preferred.value,
+      provider: preferred.result.provider || preferred.result.source || '',
+      model: preferred.result.model || '',
+      source: 'product-development-review-v1',
+    });
+  } catch (error) {
+    const message = cleanText(error && error.message, 500) || 'product image review failed';
+    const imageError = /too large|supported base64|image/i.test(message);
+    const retryable = !imageError && /insufficient balance|timeout|aborted|overload|high demand|429|5\d\d/i.test(message);
+    return json({ ok: false, error: message, retryable, items: [] }, imageError ? 422 : (retryable ? 503 : 502));
+  }
+}
+
+function productDevelopmentChineseCount(value) {
+  return String(value || '').replace(/[^\u3400-\u9fff]/g, '').length;
+}
+
+function productDevelopmentEnglishWordCount(value) {
+  return (String(value || '').match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g) || []).length;
+}
+
+function normalizeProductDevelopmentPair(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    en: cleanText(source.en || source.english, 500),
+    cn: cleanText(source.cn || source.chinese, 500),
+  };
+}
+
+function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredients, brand) {
+  const source = value && typeof value === 'object' ? value.sections || value : {};
+  const list = (key) => Array.isArray(source[key]) ? source[key] : [];
+  const efficacy = list('efficacy').map(normalizeProductDevelopmentPair);
+  const advantages = list('advantages').map(normalizeProductDevelopmentPair);
+  const sellingPoints = list('sellingPoints').map((item) => {
+    const row = item && typeof item === 'object' ? item : { cn: item };
+    return {
+      titleEn: cleanText(row.titleEn || row.title_en, 100),
+      titleCn: cleanText(row.titleCn || row.title_cn, 100),
+      en: cleanText(row.en || row.english, 500),
+      cn: cleanText(row.cn || row.chinese, 500),
+    };
+  });
+  const ingredientFunctions = list('ingredientFunctions').map((item) => {
+    const row = item && typeof item === 'object' ? item : {};
+    return {
+      ingredientEn: cleanText(row.ingredientEn || row.englishName || row.enName, 300),
+      ingredientCn: cleanText(row.ingredientCn || row.chineseName || row.cnName, 300),
+      en: cleanText(row.en || row.english, 500),
+      cn: cleanText(row.cn || row.chinese, 500),
+    };
+  });
+  if (efficacy.length !== 4) throw new Error('A efficacy must contain exactly 4 items');
+  if (advantages.length !== 4) throw new Error('B advantages must contain exactly 4 items');
+  if (sellingPoints.length !== 15) throw new Error('C selling points must contain exactly 15 items');
+  if (ingredientFunctions.length !== expectedIngredients.length) throw new Error('D ingredient functions must cover every active ingredient');
+  const allText = [];
+  efficacy.forEach((item, index) => {
+    if (!item.en || !item.cn) throw new Error('A item ' + (index + 1) + ' must be bilingual');
+    if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 20) throw new Error('A item ' + (index + 1) + ' exceeds length');
+    allText.push(item.en, item.cn);
+  });
+  advantages.forEach((item, index) => {
+    if (!item.en || !item.cn) throw new Error('B item ' + (index + 1) + ' must be bilingual');
+    if (productDevelopmentChineseCount(item.cn) > 15 || productDevelopmentEnglishWordCount(item.en) > 8) throw new Error('B item ' + (index + 1) + ' exceeds length');
+    allText.push(item.en, item.cn);
+  });
+  sellingPoints.forEach((item, index) => {
+    if (!item.en || !item.cn) throw new Error('C item ' + (index + 1) + ' must be bilingual');
+    if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) throw new Error('C item ' + (index + 1) + ' exceeds length');
+    if (item.titleEn && (productDevelopmentEnglishWordCount(item.titleEn) < 3 || productDevelopmentEnglishWordCount(item.titleEn) > 4)) throw new Error('C title ' + (index + 1) + ' must contain 3 to 4 words');
+    allText.push(item.titleEn, item.titleCn, item.en, item.cn);
+  });
+  ingredientFunctions.forEach((item, index) => {
+    const expected = expectedIngredients[index] || {};
+    const expectedKey = productDevelopmentNormalizedClaimText(expected.en || expected.cn);
+    const candidateKey = productDevelopmentNormalizedClaimText(item.ingredientEn || item.ingredientCn);
+    if (!item.en || !item.cn || !candidateKey || candidateKey !== expectedKey) throw new Error('D ingredient ' + (index + 1) + ' does not match PLM input');
+    if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 18) throw new Error('D item ' + (index + 1) + ' exceeds length');
+    allText.push(item.ingredientEn, item.ingredientCn, item.en, item.cn);
+  });
+  const restricted = allText.find((text) => productDevelopmentFindBannedTerm(text, brand) || String(text || '').includes('*') || /\n\s*\n/.test(String(text || '')));
+  if (restricted) throw new Error('copywriting contains restricted term, brand, asterisk or blank line');
+  return { efficacy, advantages, sellingPoints, ingredientFunctions };
+}
+
+async function handleProductDevelopmentCopywriting(request, env) {
+  if (!requireApiKey(request, env)) return json({ ok: false, error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  if (!body) return json({ ok: false, error: 'application/json body required' }, 400);
+  const sku = cleanText(body.sku, 80);
+  const name = cleanText(body.name, 300);
+  const brand = cleanText(body.brand, 160);
+  const ingredients = normalizeProductDevelopmentIngredientInput(body.ingredients);
+  if (!sku) return json({ ok: false, error: 'sku required' }, 400);
+  if (!name) return json({ ok: false, error: 'name required' }, 400);
+  if (!ingredients.length) return json({ ok: false, error: 'active ingredients required' }, 400);
+  const basePayload = {
+    sku,
+    name,
+    productType: cleanText(body.productType, 180),
+    brand,
+    ingredients,
+    ingredientSummary: body.ingredientSummary && typeof body.ingredientSummary === 'object' ? body.ingredientSummary : {},
+    ingredientFunctions: body.ingredientFunctions && typeof body.ingredientFunctions === 'object' ? body.ingredientFunctions : {},
+    sourceCopywriting: body.sourceCopywriting && typeof body.sourceCopywriting === 'object' ? body.sourceCopywriting : {},
+  };
+  const system = [
+    '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
+    '只生成 A-D 四个部分：A 产品功效 4 条，B 产品优势 4 条，C 产品卖点 15 条，D 当前输入的全部有效成分功能。',
+    '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
+    '不要写品牌名称。不得使用 Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、实验认证以及同类禁词。',
+    'A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字且英文不超过 8 个词；C 共 15 条，前 1-4 条可带 3-4 个英文词的小标题，正文简洁；D 成分名称必须逐个按输入顺序原样返回并给出保守功能说明。',
+    '英文使用自然、简短的欧美电商表达，不要添加标题、解释或星号。只返回 JSON。',
+  ].join(' ');
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const options = {
+        model: getModelScopeModel(env),
+        temperature: 0,
+        maxTokens: 5000,
+        timeoutMs: 60000,
+        fallbackTimeoutMs: 100000,
+        responseMimeType: 'application/json',
+        system,
+        prompt: [
+          JSON.stringify(basePayload),
+          '严格返回：{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}。',
+          attempt ? '上一次输出未通过校验。请修正所有条数、顺序、字数、禁词、品牌词和成分名称，并只返回 JSON。' : '',
+        ].join('\n'),
+      };
+      const preferred = await callPreferredAiText(env, options, (candidate) => normalizeProductDevelopmentCopywritingCandidate(parseProductDevelopmentJson(candidate.text), ingredients, brand));
+      return json({
+        ok: true,
+        sections: preferred.value,
+        warnings: [],
+        provider: preferred.result.provider || preferred.result.source || '',
+        model: preferred.result.model || '',
+        templateVersion: cleanText(body.templateVersion, 80),
+        source: 'product-development-copywriting-v1',
+      });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  return json({ ok: false, error: cleanText(lastError && lastError.message, 500) || 'product development copywriting failed', retryable: true }, 502);
 }
 
 function parseToyCopywritingAiJson(value) {
@@ -4716,6 +5027,8 @@ export default {
     if (url.pathname === '/ingredients/normalize' && request.method === 'POST') return handleIngredientNormalize(request, env);
     if (url.pathname === '/ai-image/ingredient-audit' && request.method === 'POST') return handleIngredientAudit(request, env);
     if (url.pathname === '/ai-image/copywriting-complete' && request.method === 'POST') return handleAiImageCopywritingComplete(request, env);
+    if (url.pathname === '/ai-image/product-development-review' && request.method === 'POST') return handleProductDevelopmentReview(request, env);
+    if (url.pathname === '/ai-image/product-development-copywriting' && request.method === 'POST') return handleProductDevelopmentCopywriting(request, env);
     if (url.pathname === '/toy-copywriting/complete' && request.method === 'POST') return handleToyCopywritingComplete(request, env);
     if (url.pathname === '/insights/record' && request.method === 'POST') return handleInsightRecord(request, env);
     if (url.pathname === '/insights/summary' && request.method === 'GET') return handleInsightSummary(request, env);
