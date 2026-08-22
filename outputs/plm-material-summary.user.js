@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.159
+// @version      2.8.160
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.159';
+  const SCRIPT_VERSION = '2.8.160';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.5.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.5.1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -6103,6 +6103,10 @@
       const scrollSnapshot = capturePanelScroll(panel);
       renderHome(panel);
       restorePanelScroll(panel, scrollSnapshot);
+      if (previous !== next) {
+        const renderedTrack = panel.querySelector('.pfh-home-feature-track');
+        if (renderedTrack) playProductDevelopmentHomeFeatureRailAnimation(renderedTrack, next === 'product-development', true);
+      }
     } else if (!updatedInPlace) {
       renderShell();
     }
@@ -17064,6 +17068,44 @@
       '</div>';
   }
 
+  function playProductDevelopmentHomeFeatureRailAnimation(track, nextIsProduct, hasModeChange) {
+    if (!track || !hasModeChange) return;
+    track.classList.remove('is-to-product', 'is-to-daily');
+    const previousAnimation = track.__pfhHomeFeatureRailAnimation;
+    if (previousAnimation && typeof previousAnimation.cancel === 'function') {
+      try { previousAnimation.cancel(); } catch (_) {}
+    }
+    track.__pfhHomeFeatureRailAnimation = null;
+    const from = nextIsProduct ? 'translateX(0)' : 'translateX(-100%)';
+    const to = nextIsProduct ? 'translateX(-100%)' : 'translateX(0)';
+    const easing = 'cubic-bezier(.25, 1.2, .35, 1)';
+    if (typeof track.animate === 'function') {
+      const animation = track.animate(
+        [{ transform: from }, { transform: to }],
+        { duration: 620, easing, fill: 'both' },
+      );
+      track.__pfhHomeFeatureRailAnimation = animation;
+      const cleanup = () => {
+        if (track.__pfhHomeFeatureRailAnimation !== animation) return;
+        track.__pfhHomeFeatureRailAnimation = null;
+        try { animation.cancel(); } catch (_) {}
+      };
+      animation.onfinish = cleanup;
+      animation.oncancel = cleanup;
+      return;
+    }
+    track.style.setProperty('transition', 'none');
+    track.style.setProperty('transform', from);
+    void track.offsetWidth;
+    track.style.setProperty('transition', 'transform .62s cubic-bezier(.25, 1.2, .35, 1)');
+    track.style.setProperty('transform', to);
+    window.setTimeout(() => {
+      if (!track.isConnected) return;
+      track.style.removeProperty('transform');
+      track.style.removeProperty('transition');
+    }, 700);
+  }
+
   function updateProductDevelopmentHomeModeDom(mode) {
     const next = normalizeProductDevelopmentWorkMode(mode);
     const panel = document.getElementById(PANEL_ID);
@@ -17072,19 +17114,12 @@
     const nextIsProduct = next === 'product-development';
     const wasProduct = track.classList.contains('is-product-development');
     const hasModeChange = wasProduct !== nextIsProduct;
-    track.classList.remove('is-to-product', 'is-to-daily');
     track.style.setProperty('transition', 'none');
     track.classList.toggle('is-product-development', nextIsProduct);
     track.classList.toggle('is-daily', !nextIsProduct);
     void track.offsetWidth;
     track.style.removeProperty('transition');
-    if (hasModeChange) {
-      const animationClass = nextIsProduct ? 'is-to-product' : 'is-to-daily';
-      track.classList.add(animationClass);
-      window.setTimeout(() => {
-        if (track.isConnected) track.classList.remove(animationClass);
-      }, 650);
-    }
+    playProductDevelopmentHomeFeatureRailAnimation(track, nextIsProduct, hasModeChange);
     const title = panel.querySelector('[data-work-mode-title]');
     if (title) title.textContent = nextIsProduct ? '开发功能' : '常用功能';
     const actions = panel.querySelector('.pfh-home-feature-actions');
