@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.2.1';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.3.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -1030,7 +1030,42 @@
   function productDevelopmentHistoryHtml() {
     const history = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).slice(0, 4);
     if (!history.length) return '<div class="pfh-product-development-history-empty">本地历史记录会显示在这里</div>';
-    return history.map((item) => '<div class="pfh-product-development-history-row"><span class="pfh-product-development-history-kind">' + escapeHtml(item.kind === 'review' ? '图' : '文') + '</span><div><strong>' + escapeHtml(item.sku) + '</strong><small>' + escapeHtml(item.createdAt) + ' · ' + escapeHtml(item.fileName || '') + '</small></div><em>' + (item.kind === 'review' ? item.itemCount + ' 个风险项' : 'A-D') + '</em></div>').join('');
+    return history.map((item) => '<button type="button" class="pfh-product-development-history-row" data-action="product-development-history-open" data-history-id="' + escapeHtml(item.id) + '" title="打开本地历史"><span class="pfh-product-development-history-kind">' + escapeHtml(item.kind === 'review' ? '图' : '文') + '</span><div><strong>' + escapeHtml(item.sku) + '</strong><small>' + escapeHtml(item.createdAt) + ' · ' + escapeHtml(item.fileName || '') + '</small></div><em>' + (item.kind === 'review' ? item.itemCount + ' 个风险项' : 'A-D') + '</em></button>').join('');
+  }
+
+  function productDevelopmentOpenHistory(item) {
+    if (!item) {
+      showToast('本地历史记录不存在或已被清理');
+      return;
+    }
+    state.workMode = 'product-development';
+    state.settings.workMode = 'product-development';
+    saveSettings(state.settings);
+    state.productDevelopmentError = '';
+    if (item.kind === 'review' && item.comparisonDataUrl) {
+      state.productDevelopmentView = 'review';
+      state.productDevelopmentReview = {
+        id: item.id,
+        sku: item.sku,
+        comparisonDataUrl: item.comparisonDataUrl,
+        items: [],
+        warnings: item.warnings || [],
+        fileName: item.fileName || productDevelopmentFileName(item.sku, 'infringement-comparison', 'png'),
+        createdAt: item.createdAt,
+        sourceImageDataUrl: '',
+        fromHistory: true,
+      };
+      state.productDevelopmentStatus = '已打开本地历史对照图，可滚动查看或下载 PNG';
+    } else if (item.kind === 'review') {
+      state.productDevelopmentView = 'review';
+      state.productDevelopmentReview = null;
+      state.productDevelopmentStatus = '这条历史只保存了索引，没有可预览的对照图，请重新分析';
+    } else {
+      state.productDevelopmentView = 'copywriting';
+      state.productDevelopmentCopywriting = null;
+      state.productDevelopmentStatus = '文案历史目前只保存生成记录，请在此页面重新生成 DOCX';
+    }
+    renderShell();
   }
 
   function productDevelopmentEvidenceHtml(snapshot) {
@@ -1064,10 +1099,14 @@
   function productDevelopmentReviewHtml() {
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
-    const items = result && result.sku === sku ? result.items || [] : [];
+    const resultMatchesCurrentSku = Boolean(result && result.sku === sku);
+    const canShowResult = Boolean(result && (resultMatchesCurrentSku || result.fromHistory));
+    const items = canShowResult ? result.items || [] : [];
     const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
-    const list = result && result.sku === sku
-      ? productDevelopmentReviewEditorHtml(result, items)
+    const list = canShowResult
+      ? (result.fromHistory
+        ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字或红框，请重新分析当前对标图片。</p></section>'
+        : productDevelopmentReviewEditorHtml(result, items))
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
@@ -1121,6 +1160,12 @@
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
       renderShell();
+      return true;
+    }
+    if (action === 'product-development-history-open') {
+      const historyId = String(actionTarget && actionTarget.getAttribute('data-history-id') || '');
+      const item = normalizeProductDevelopmentHistory(state.productDevelopmentHistory).find((record) => record.id === historyId);
+      productDevelopmentOpenHistory(item);
       return true;
     }
     if (action === 'product-development-review-open') {
