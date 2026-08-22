@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.158
+// @version      2.8.159
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.158';
+  const SCRIPT_VERSION = '2.8.159';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.4.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.5.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -6649,6 +6649,19 @@
     'productLength', 'productWidth', 'productHeight',
     'netContent', 'grossWeight',
   ];
+
+  const PRODUCT_DEVELOPMENT_HOME_FEATURE_IDS = Object.freeze([
+    'product-development-review',
+    'product-development-copywriting',
+    'product-development-pricing',
+    'product-development-stocking',
+    'product-development-packaging',
+    'product-development-history',
+  ]);
+  const DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS = Object.freeze({
+    common: Object.freeze(['product-development-review', 'product-development-copywriting', 'product-development-pricing', 'product-development-stocking']),
+    more: Object.freeze(['product-development-packaging', 'product-development-history']),
+  });
 
   const state = {
     drawer: null,
@@ -16912,6 +16925,30 @@
     return true;
   }
 
+  function moveProductDevelopmentFeatureCard(featureId, targetGroup, targetCard, event) {
+    const id = String(featureId || '').trim();
+    const group = targetGroup === 'more' ? 'more' : 'common';
+    if (!PRODUCT_DEVELOPMENT_HOME_FEATURE_IDS.includes(id)) return false;
+    const groups = getProductDevelopmentFeatureGroups();
+    const targetId = targetCard && targetCard.getAttribute('data-home-feature-id');
+    const source = groups.common.includes(id) ? 'common' : (groups.more.includes(id) ? 'more' : '');
+    if (!source) return false;
+    groups.common = groups.common.filter((item) => item !== id);
+    groups.more = groups.more.filter((item) => item !== id);
+    const targetList = groups[group];
+    let index = targetList.length;
+    const targetIndex = targetList.indexOf(targetId);
+    if (targetIndex >= 0) {
+      const rect = targetCard.getBoundingClientRect();
+      index = targetIndex + (event && Number(event.clientY) > rect.top + rect.height / 2 ? 1 : 0);
+    }
+    targetList.splice(Math.max(0, Math.min(index, targetList.length)), 0, id);
+    saveProductDevelopmentFeatureGroups(groups);
+    state.homeFeatureDragId = '';
+    renderShell();
+    return true;
+  }
+
   function getHomeFeatureEntries() {
     const magicLocked = !state.magicUploadAccessEnabled;
     return HOME_FEATURE_DEFINITIONS.map((definition) => {
@@ -16947,9 +16984,40 @@
       '</' + tag + '>';
   }
 
-  function productDevelopmentHomeFeaturePageHtml() {
+  function normalizeProductDevelopmentFeatureGroups(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const known = new Set(PRODUCT_DEVELOPMENT_HOME_FEATURE_IDS);
+    const seen = new Set();
+    const groups = { common: [], more: [] };
+    const append = (group, item) => {
+      const id = String(item || '').trim();
+      if (!known.has(id) || seen.has(id)) return;
+      seen.add(id);
+      groups[group].push(id);
+    };
+    (Array.isArray(source.common) ? source.common : []).forEach((id) => append('common', id));
+    (Array.isArray(source.more) ? source.more : []).forEach((id) => append('more', id));
+    DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS.common.forEach((id) => append('common', id));
+    DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS.more.forEach((id) => append('more', id));
+    return groups;
+  }
+
+  function getProductDevelopmentFeatureGroups() {
+    const groups = normalizeProductDevelopmentFeatureGroups(state.settings && state.settings.productDevelopmentFeatureGroups);
+    if (state.settings) state.settings.productDevelopmentFeatureGroups = groups;
+    return groups;
+  }
+
+  function saveProductDevelopmentFeatureGroups(groups) {
+    const normalized = normalizeProductDevelopmentFeatureGroups(groups);
+    state.settings.productDevelopmentFeatureGroups = normalized;
+    saveSettings(state.settings);
+    return normalized;
+  }
+
+  function productDevelopmentHomeFeatureEntries() {
     const sku = getProductDevelopmentCurrentSku();
-    const featureEntries = PRODUCT_DEVELOPMENT_FEATURES.map((feature) => ({
+    return PRODUCT_DEVELOPMENT_FEATURES.map((feature) => ({
       id: 'product-development-' + feature.id,
       action: feature.action || 'product-development-placeholder',
       icon: feature.icon,
@@ -16964,12 +17032,34 @@
       description: '查看已生成的对照图和文案记录',
       meta: normalizeProductDevelopmentHistory(state.productDevelopmentHistory).length + ' 条记录',
     }]);
-    const primary = featureEntries[0];
-    const quickEntries = featureEntries.slice(1, 5);
-    const secondaryEntries = featureEntries.slice(5);
+  }
+
+  function productDevelopmentHomeFeatureEditHtml(entries) {
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+    const groups = getProductDevelopmentFeatureGroups();
+    const common = groups.common.map((id) => byId.get(id)).filter(Boolean);
+    const more = groups.more.map((id) => byId.get(id)).filter(Boolean);
+    return '<div class="pfh-home-feature-edit-groups">' +
+      homeFeatureEditGroupHtml('开发常用功能', '上面区域会优先展示', common, 'common') +
+      homeFeatureEditGroupHtml('其他开发功能', '不常用入口放在这里', more, 'more') +
+      '</div>';
+  }
+
+  function productDevelopmentHomeFeaturePageHtml() {
+    const sku = getProductDevelopmentCurrentSku();
+    const featureEntries = productDevelopmentHomeFeatureEntries();
+    if (state.homeFeatureEditMode) {
+      return '<div class="pfh-home-feature-page pfh-home-feature-page-product">' + productDevelopmentHomeFeatureEditHtml(featureEntries) + '</div>';
+    }
+    const byId = new Map(featureEntries.map((entry) => [entry.id, entry]));
+    const groups = getProductDevelopmentFeatureGroups();
+    const commonEntries = groups.common.map((id) => byId.get(id)).filter(Boolean);
+    const secondaryEntries = groups.more.map((id) => byId.get(id)).filter(Boolean);
+    const primary = commonEntries[0] || null;
+    const quickEntries = commonEntries.slice(1);
     const productMeta = sku ? '当前 SKU：' + sku : '请先在日常工作中打开一个 SKU';
     return '<div class="pfh-home-feature-page pfh-home-feature-page-product">' +
-      '<div class="pfh-home-feature-layout">' + homeFeatureEntryHtml(primary, 'pfh-home-entry-primary') + '<div class="pfh-home-quick-grid">' + quickEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-quick')).join('') + '</div></div>' +
+      '<div class="pfh-home-feature-layout">' + (primary ? homeFeatureEntryHtml(primary, 'pfh-home-entry-primary') : '<div class="pfh-home-feature-empty">暂无开发入口</div>') + '<div class="pfh-home-quick-grid">' + quickEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-quick')).join('') + '</div></div>' +
       '<div class="pfh-home-secondary-label">其他开发功能 · ' + escapeHtml(productMeta) + '</div><div class="pfh-home-secondary-grid">' + secondaryEntries.map((entry) => homeFeatureEntryHtml(entry, 'pfh-home-entry-secondary')).join('') + '</div>' +
       '</div>';
   }
@@ -16979,16 +17069,29 @@
     const panel = document.getElementById(PANEL_ID);
     const track = panel && panel.querySelector('.pfh-home-feature-track');
     if (!track) return false;
-    track.classList.remove('is-product-development', 'is-daily', 'is-to-product', 'is-to-daily');
+    const nextIsProduct = next === 'product-development';
+    const wasProduct = track.classList.contains('is-product-development');
+    const hasModeChange = wasProduct !== nextIsProduct;
+    track.classList.remove('is-to-product', 'is-to-daily');
+    track.style.setProperty('transition', 'none');
+    track.classList.toggle('is-product-development', nextIsProduct);
+    track.classList.toggle('is-daily', !nextIsProduct);
     void track.offsetWidth;
-    track.classList.add(next === 'product-development' ? 'is-product-development' : 'is-daily');
+    track.style.removeProperty('transition');
+    if (hasModeChange) {
+      const animationClass = nextIsProduct ? 'is-to-product' : 'is-to-daily';
+      track.classList.add(animationClass);
+      window.setTimeout(() => {
+        if (track.isConnected) track.classList.remove(animationClass);
+      }, 650);
+    }
     const title = panel.querySelector('[data-work-mode-title]');
-    if (title) title.textContent = next === 'product-development' ? '开发功能' : '常用功能';
+    if (title) title.textContent = nextIsProduct ? '开发功能' : '常用功能';
     const actions = panel.querySelector('.pfh-home-feature-actions');
-    if (actions) actions.innerHTML = next === 'product-development'
-      ? '<span>产品开发功能区</span>'
+    if (actions) actions.innerHTML = nextIsProduct
+      ? '<span>可自定义开发入口</span><button type="button" data-action="home-feature-edit-toggle">编辑</button>'
       : '<span>可自定义常用入口</span><button type="button" data-action="home-feature-edit-toggle">编辑</button>';
-    panel.classList.toggle('is-product-development', next === 'product-development');
+    panel.classList.toggle('is-product-development', nextIsProduct);
     panel.querySelectorAll('.pfh-work-mode-switch button[data-work-mode]').forEach((button) => {
       button.classList.toggle('is-active', button.getAttribute('data-work-mode') === next);
     });
@@ -17060,7 +17163,7 @@
     const isProductDevelopment = state.workMode === 'product-development';
     const featureEditActions = '<div class="pfh-home-feature-actions">' +
       (isProductDevelopment
-        ? '<span>产品开发功能区</span>'
+        ? (state.homeFeatureEditMode ? '<span>拖动卡片调整位置</span><button type="button" data-action="home-feature-edit-toggle" class="is-done">完成</button>' : '<span>可自定义开发入口</span><button type="button" data-action="home-feature-edit-toggle">编辑</button>')
         : (state.homeFeatureEditMode ? '<span>拖动卡片调整位置</span><button type="button" data-action="home-feature-edit-toggle" class="is-done">完成</button>' : '<span>可自定义常用入口</span><button type="button" data-action="home-feature-edit-toggle">编辑</button>')) +
       '</div>';
     const dailyFeaturePage = '<div class="pfh-home-feature-page pfh-home-feature-page-daily">' +
@@ -25465,7 +25568,10 @@ self.onmessage = async function(event) {
       event.preventDefault();
       const panel = event.currentTarget;
       if (panel && panel.querySelectorAll) panel.querySelectorAll('.is-drag-over,.is-drop-target').forEach((item) => item.classList.remove('is-drag-over', 'is-drop-target'));
-      moveHomeFeatureCard(featureId, homeGroup.getAttribute('data-home-feature-group'), event.target.closest('[data-home-feature-card]'), event);
+      const moved = state.workMode === 'product-development'
+        ? moveProductDevelopmentFeatureCard(featureId, homeGroup.getAttribute('data-home-feature-group'), event.target.closest('[data-home-feature-card]'), event)
+        : moveHomeFeatureCard(featureId, homeGroup.getAttribute('data-home-feature-group'), event.target.closest('[data-home-feature-card]'), event);
+      if (!moved) state.homeFeatureDragId = '';
       return;
     }
     if (state.view === 'magicUpload' && event.target && event.target.closest && event.target.closest('.pfh-magic-upload-drop')) {
@@ -37377,7 +37483,7 @@ self.onmessage = async function(event) {
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, workMode: 'daily', homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS) };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, workMode: 'daily', homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS), productDevelopmentFeatureGroups: normalizeProductDevelopmentFeatureGroups(DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS) };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
@@ -37388,6 +37494,7 @@ self.onmessage = async function(event) {
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
+      settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);
       const needsSkuMigration = Number(saved && saved.skuListPreferenceVersion || 0) < SKU_LIST_PREFERENCE_VERSION;
       if (needsSkuMigration || needsThemeMigration) {
         if (needsSkuMigration) {
