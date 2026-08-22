@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.152
+// @version      2.8.153
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.152';
+  const SCRIPT_VERSION = '2.8.153';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.237';
+  const UI_ASSET_VERSION = '2.5.238';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.0.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.1.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -5271,10 +5271,12 @@
     };
   }
 
-  async function loadProductDevelopmentSnapshot(sku, force) {
+  async function loadProductDevelopmentSnapshot(sku, force, options) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
+    const requireIngredients = !(options && options.requireIngredients === false);
     if (!normalizedSku) throw new Error('请先在日常工作中选择一个 SKU');
-    if (!force && state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === normalizedSku) return state.productDevelopmentSnapshot;
+    if (!force && state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === normalizedSku
+      && (!requireIngredients || Array.isArray(state.productDevelopmentSnapshot.ingredients) && state.productDevelopmentSnapshot.ingredients.length)) return state.productDevelopmentSnapshot;
     const seed = getProductDevelopmentSeedData(normalizedSku);
     const snapshot = await fetchApiProductSnapshot(seed, { force: true }).catch(() => null);
     let liveCopyPayload = null;
@@ -5300,7 +5302,7 @@
       name: (snapshot && snapshot.chineseName) || seed.name,
       productType: (snapshot && snapshot.productType) || seed.productType || seed.manualCategory,
     });
-    if ((!data.ingredientEnglish && !data.ingredientChinese) && typeof hydrateIngredientPdfForSku === 'function') {
+    if (requireIngredients && (!data.ingredientEnglish && !data.ingredientChinese) && typeof hydrateIngredientPdfForSku === 'function') {
       const hydrated = await hydrateIngredientPdfForSku(normalizedSku, { preferApi: true, silent: true }).catch(() => null);
       if (hydrated && hydrated.sku) data = normalizeData(hydrated);
     }
@@ -5316,7 +5318,7 @@
       en: liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish,
       cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
     });
-    if (!ingredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
+    if (requireIngredients && !ingredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
     let imageSource = typeof getExcelImageSource === 'function' ? getExcelImageSource(data) : { imageUrl: '', imageFallbackUrl: '' };
     let skuImage = null;
     if (typeof fetchLedgerAiImageSkuPreflight === 'function') {
@@ -5561,7 +5563,7 @@
     state.productDevelopmentStatus = '正在读取 PLM 产品资料和主效果图…';
     renderShell();
     try {
-      const snapshot = await loadProductDevelopmentSnapshot(sku, true);
+      const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false });
       state.productDevelopmentStatus = '正在提交一次图片风险分析…';
       renderShell();
       const image = await fetchImageForExcel(snapshot.imageUrl, snapshot.imageFallbackUrl);
@@ -5573,7 +5575,6 @@
           name: snapshot.name,
           productType: snapshot.productType,
           brand: snapshot.brand,
-          ingredients: snapshot.ingredients,
           sellingPoints: snapshot.sourceCopywriting.sellingPoints,
           efficacy: snapshot.sourceCopywriting.efficacy,
           imageDataUrl: image.dataUrl,
@@ -5611,6 +5612,84 @@
       });
       state.productDevelopmentStatus = validated.items.length ? '已生成对照图，请人工确认风险和修改理由' : '未检测到风险文字，可下载留档并继续人工检查';
       showToast('侵权对照图已生成');
+    } catch (error) {
+      state.productDevelopmentError = formatErrorMessage(error);
+      state.productDevelopmentStatus = '';
+      showToast(state.productDevelopmentError);
+    } finally {
+      state.productDevelopmentReviewBusy = false;
+      renderShell();
+    }
+  }
+
+  function productDevelopmentReviewItemIncomplete(item) {
+    const source = item && typeof item === 'object' ? item : {};
+    const bbox = source.bbox || {};
+    const x = Number(bbox.x);
+    const y = Number(bbox.y);
+    const w = Number(bbox.w);
+    const h = Number(bbox.h);
+    return !String(source.sourceText || '').trim()
+      || !String(source.replacementEn || '').trim()
+      || !String(source.replacementZh || '').trim()
+      || ![x, y, w, h].every(Number.isFinite)
+      || x < 0 || y < 0 || w <= 0.001 || h <= 0.001 || x + w > 1 || y + h > 1;
+  }
+
+  function productDevelopmentReviewEditorHtml(result, items) {
+    const rows = (Array.isArray(items) ? items : []).map((item, index) => {
+      const bbox = item && item.bbox || { x: 0.08, y: 0.08, w: 0.2, h: 0.08 };
+      const riskText = Array.isArray(item && item.riskTypes) && item.riskTypes.length ? item.riskTypes.join('、') : '人工添加';
+      return '<article class="pfh-product-development-review-editor-row"><div class="pfh-product-development-review-editor-head"><b>' + (index + 1) + '</b><span>风险类型：' + escapeHtml(riskText) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + index + '">删除</button></div>' +
+        '<label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="sourceText" value="' + escapeHtml(item.sourceText) + '"></label>' +
+        '<label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementEn" rows="2">' + escapeHtml(item.replacementEn) + '</textarea></label>' +
+        '<label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementZh" rows="2">' + escapeHtml(item.replacementZh) + '</textarea></label>' +
+        '<div class="pfh-product-development-review-bbox"><small>红框位置（归一化 0-1）</small>' +
+        ['x', 'y', 'w', 'h'].map((key) => '<label>' + key + '<input type="number" min="0" max="1" step="0.01" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="bbox.' + key + '" value="' + escapeHtml(String(Number(bbox[key]) || 0)) + '"></label>').join('') +
+        '</div></article>';
+    }).join('');
+    const empty = rows ? '' : '<div class="pfh-product-development-result-empty">未检测到可靠风险文字，可手动添加需要核对的图片文字。</div>';
+    return '<section class="pfh-product-development-review-editor"><header><div><small>MANUAL REVIEW</small><h3>人工修改对照内容</h3></div><span>修改后点击重新生成</span></header>' + empty + '<div class="pfh-product-development-review-editor-list">' + rows + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!result || state.productDevelopmentReviewBusy ? ' disabled' : '') + '>按修改重新生成对照图</button></div></section>';
+  }
+
+  async function recomposeProductDevelopmentReview() {
+    const result = state.productDevelopmentReview;
+    if (!result || !result.sourceImageDataUrl) {
+      showToast('请先完成一次图片文字分析');
+      return;
+    }
+    const items = Array.isArray(result.items) ? result.items : [];
+    if (items.some(productDevelopmentReviewItemIncomplete)) {
+      showToast('请补全原图文字、英文修改、中文修改和红框位置');
+      return;
+    }
+    const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === result.sku
+      ? state.productDevelopmentSnapshot
+      : { sku: result.sku, brand: '' };
+    state.productDevelopmentReviewBusy = true;
+    state.productDevelopmentError = '';
+    state.productDevelopmentStatus = '正在按人工修改重新生成对照图…';
+    renderShell();
+    try {
+      const validated = productDevelopmentValidateReview({ items, warnings: result.warnings }, snapshot);
+      const comparison = await composeProductDevelopmentComparison(result.sourceImageDataUrl, validated.items, snapshot);
+      result.items = validated.items;
+      result.comparisonDataUrl = comparison.dataUrl;
+      result.warnings = validated.warnings;
+      result.manualEditedAt = new Date().toLocaleString();
+      saveProductDevelopmentHistory({
+        id: result.id,
+        sku: result.sku,
+        name: snapshot.name || result.sku,
+        kind: 'review',
+        createdAt: result.createdAt,
+        fileName: result.fileName,
+        itemCount: result.items.length,
+        comparisonDataUrl: result.comparisonDataUrl,
+        warnings: result.warnings,
+      });
+      state.productDevelopmentStatus = '已按人工修改重新生成对照图';
+      showToast('人工修改已应用');
     } catch (error) {
       state.productDevelopmentError = formatErrorMessage(error);
       state.productDevelopmentStatus = '';
@@ -5991,14 +6070,16 @@
     const sku = getProductDevelopmentCurrentSku();
     const items = result && result.sku === sku ? result.items || [] : [];
     const preview = result && result.comparisonDataUrl ? '<div class="pfh-product-development-preview"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"><button type="button" data-action="product-development-review-download">下载 PNG</button></div>' : '';
-    const list = items.length ? '<div class="pfh-product-development-risk-list">' + items.map((item, index) => '<div><b>' + (index + 1) + '</b><span><strong>' + escapeHtml(item.sourceText) + '</strong><small>' + escapeHtml(item.replacementEn) + ' / ' + escapeHtml(item.replacementZh) + '</small></span></div>').join('') + '</div>' : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原文字、风险类型和修改内容。</div>';
+    const list = result && result.sku === sku
+      ? productDevelopmentReviewEditorHtml(result, items)
+      : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>左侧保留 PLM 原图，右侧列出修改后的英文和中文；原图风险位置用红框和编号标注。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以对标图片中的文字为主要证据，读取文字后筛查品牌、禁词和夸大风险；不要求成分。原图保留，修改后可人工调整。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       preview + list +
-      '<p class="pfh-product-development-note">本功能只发送当前图片给已配置的 AI 服务用于分析，不访问 WIPO 或其他外部查询网站，不修改原图，不发起 PLM 写入请求。</p></div>';
+      '<p class="pfh-product-development-note">本功能只发送当前图片给已配置的 AI 服务用于读取图片文字和风险初筛，不读取成分，不访问 WIPO 或其他外部查询网站，不修改原图，不发起 PLM 写入请求。</p></div>';
   }
 
   function productDevelopmentCopywritingPreviewHtml(content) {
@@ -6060,6 +6141,44 @@
       runProductDevelopmentReview();
       return true;
     }
+    if (action === 'product-development-review-add') {
+      const result = state.productDevelopmentReview;
+      if (!result) {
+        showToast('请先完成一次图片文字分析');
+        return true;
+      }
+      if (!Array.isArray(result.items)) result.items = [];
+      if (result.items.length >= 30) {
+        showToast('最多保留 30 个风险文字项');
+        return true;
+      }
+      result.items.push({
+        id: 'manual-' + Date.now().toString(36),
+        sourceText: '',
+        bbox: { x: 0.08, y: 0.08, w: 0.24, h: 0.08 },
+        riskTypes: ['other'],
+        replacementEn: '',
+        replacementZh: '',
+        confidence: 0,
+      });
+      state.productDevelopmentStatus = '已添加手动文字项，请填写内容和红框位置';
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-review-remove') {
+      const result = state.productDevelopmentReview;
+      const index = Number(actionTarget && actionTarget.getAttribute('data-review-index'));
+      if (result && Array.isArray(result.items) && Number.isInteger(index) && result.items[index]) {
+        result.items.splice(index, 1);
+        state.productDevelopmentStatus = '已移除当前风险文字项，请重新生成对照图';
+        renderShell();
+      }
+      return true;
+    }
+    if (action === 'product-development-review-recompose') {
+      recomposeProductDevelopmentReview();
+      return true;
+    }
     if (action === 'product-development-review-download') {
       const result = state.productDevelopmentReview;
       if (!result || !result.comparisonDataUrl) {
@@ -6095,7 +6214,7 @@
     if (action === 'product-development-context-refresh') {
       const sku = getProductDevelopmentCurrentSku();
       state.productDevelopmentSnapshot = null;
-      if (sku) loadProductDevelopmentSnapshot(sku, true).then(() => { state.productDevelopmentStatus = '当前 SKU 资料已刷新'; renderShell(); }).catch((error) => { state.productDevelopmentError = formatErrorMessage(error); renderShell(); });
+      if (sku) loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false }).then(() => { state.productDevelopmentStatus = '当前 SKU 资料已刷新'; renderShell(); }).catch((error) => { state.productDevelopmentError = formatErrorMessage(error); renderShell(); });
       return true;
     }
     if (action === 'product-development-template-reset') {
@@ -6111,6 +6230,29 @@
     const files = Array.from(target.files || []);
     target.value = '';
     if (files[0]) importProductDevelopmentTemplate(files[0]).catch((error) => showToast(formatErrorMessage(error)));
+    return true;
+  }
+
+  function productDevelopmentHandleInput(event) {
+    const target = event && event.target;
+    if (!target || !target.classList || !target.classList.contains('pfh-product-development-review-input')) return false;
+    const result = state.productDevelopmentReview;
+    const index = Number(target.getAttribute('data-review-index'));
+    const field = String(target.getAttribute('data-review-field') || '');
+    const item = result && Array.isArray(result.items) && Number.isInteger(index) ? result.items[index] : null;
+    if (!item) return true;
+    if (field === 'sourceText' || field === 'replacementEn' || field === 'replacementZh') {
+      item[field] = String(target.value || '').slice(0, 500);
+      return true;
+    }
+    if (field.indexOf('bbox.') === 0) {
+      const key = field.slice(5);
+      if (['x', 'y', 'w', 'h'].includes(key)) {
+        const value = Number(target.value);
+        if (Number.isFinite(value)) item.bbox[key] = Math.max(0, Math.min(1, value));
+      }
+      return true;
+    }
     return true;
   }
   // </product-development-module>
@@ -24551,6 +24693,7 @@ self.onmessage = async function(event) {
   }
 
   function handlePanelInput(event) {
+    if (productDevelopmentHandleInput(event)) return;
     if (event.target && event.target.classList && event.target.classList.contains('pfh-cache-editor-search')) {
       filterSkuCacheEditorFields(event.target.value);
       return;
