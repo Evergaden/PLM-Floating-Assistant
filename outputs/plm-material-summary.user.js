@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.154
+// @version      2.8.155
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.154';
+  const SCRIPT_VERSION = '2.8.155';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.239';
+  const UI_ASSET_VERSION = '2.5.240';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.2.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.2.1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -6148,7 +6148,7 @@
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
     const items = result && result.sku === sku ? result.items || [] : [];
-    const preview = result && result.comparisonDataUrl ? '<div class="pfh-product-development-preview"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"><button type="button" data-action="product-development-review-download">下载 PNG</button></div>' : '';
+    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = result && result.sku === sku
       ? productDevelopmentReviewEditorHtml(result, items)
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';

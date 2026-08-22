@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.2.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.2.1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -1065,7 +1065,7 @@
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
     const items = result && result.sku === sku ? result.items || [] : [];
-    const preview = result && result.comparisonDataUrl ? '<div class="pfh-product-development-preview"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"><button type="button" data-action="product-development-review-download">下载 PNG</button></div>' : '';
+    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = result && result.sku === sku
       ? productDevelopmentReviewEditorHtml(result, items)
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
