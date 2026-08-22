@@ -4,8 +4,9 @@
   overflow: hidden;
 }
 
-#plm-floating-helper .pfh-home-scroll > .pfh-work-mode-switch {
-  margin: 0 0 18px 2px;
+#plm-floating-helper .pfh-home-welcome > .pfh-work-mode-switch {
+  align-self: flex-end;
+  margin: 0;
 }
 
 #plm-floating-helper .pfh-home-feature-track {

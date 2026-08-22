@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.161
+// @version      2.8.162
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.161';
+  const SCRIPT_VERSION = '2.8.162';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.243';
+  const UI_ASSET_VERSION = '2.5.244';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -17215,8 +17215,9 @@
     const featureTrackClass = 'pfh-home-feature-track ' + (isProductDevelopment ? 'is-product-development' : 'is-daily') + (state.homeModeTransition ? ' is-' + escapeHtml(state.homeModeTransition) : '');
     const chartSummary = '近 ' + period + ' 日共新分配 ' + stats.total + ' 个任务';
     const status = statusText || greeting.subtitle || '常用功能与今日进度集中在这里';
-    return '<div class="pfh-detail-scroll pfh-home-scroll">' + productDevelopmentModeSwitchHtml() + '<section class="pfh-home-dashboard">' +
-      '<header class="pfh-home-welcome"><div><h2>' + escapeHtml(greeting.title) + '</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div><span>今日新分配 ' + stats.today + ' 个任务</span></header>' +
+    const modeSwitch = productDevelopmentModeSwitchHtml();
+    return '<div class="pfh-detail-scroll pfh-home-scroll"><section class="pfh-home-dashboard">' +
+      '<header class="pfh-home-welcome"><div><h2>' + escapeHtml(greeting.title) + '</h2><p>' + escapeHtml(dateText) + ' · ' + escapeHtml(status) + '</p></div>' + modeSwitch + '</header>' +
       '<div class="pfh-home-analytics">' +
         '<article class="pfh-home-metric"><small>今日新分配</small><div><strong>' + stats.today + '</strong><span>个任务</span></div><p class="pfh-home-compare' + compareClass + '"><b>' + escapeHtml(compareBadge) + '</b><span>' + escapeHtml(compareText) + '</span></p><footer><span><small>昨日</small><b>' + stats.yesterday + '</b></span><span><small>今日已定稿</small><b>' + stats.finalizedToday + '</b></span><span><small>完成率</small><b>' + (stats.today ? stats.completionRate + '%' : '--') + '</b></span></footer></article>' +
         '<article class="pfh-home-chart"><header><div><h3>新任务趋势</h3><p>' + escapeHtml(chartSummary) + '</p></div><div class="pfh-home-period-tabs"><button type="button" data-action="home-chart-period" data-period="7" class="' + (period === 7 ? 'is-active' : '') + '">7日</button><button type="button" data-action="home-chart-period" data-period="30" class="' + (period === 30 ? 'is-active' : '') + '">30日</button></div></header><div class="pfh-home-chart-canvas"><div class="pfh-home-chart-plot"><svg viewBox="0 0 620 130" preserveAspectRatio="none" role="img" aria-label="新任务趋势图"><defs><linearGradient id="pfh-home-chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pfh-theme-primary)" stop-opacity=".25"></stop><stop offset="1" stop-color="var(--pfh-theme-primary)" stop-opacity="0"></stop></linearGradient></defs><line x1="0" y1="26" x2="620" y2="26"></line><line x1="0" y1="68" x2="620" y2="68"></line><line x1="0" y1="110" x2="620" y2="110"></line><path class="pfh-home-chart-area" d="' + chart.area + '"></path><path class="pfh-home-chart-line" d="' + chart.line + '"></path></svg><div class="pfh-home-chart-points">' + homeChartPointsHtml(stats, chart) + '</div><div class="pfh-home-chart-tooltip" role="status"><strong></strong><span></span></div></div><div class="pfh-home-chart-labels">' + homeChartLabelsHtml(stats.days, period) + '</div></div></article>' +
