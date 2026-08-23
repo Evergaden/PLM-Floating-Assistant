@@ -22,9 +22,12 @@
 }
 
 #plm-floating-helper .pfh-mini-tool-head h2,
-#plm-floating-helper .pfh-settings-hero h3,
-#plm-floating-helper .pfh-list-head strong {
+#plm-floating-helper .pfh-settings-hero h3 {
   font-weight: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper .pfh-list-head strong {
+  font-weight: var(--pfh-font-weight-control, 600);
 }
 
 #plm-floating-helper .pfh-warning-note p,

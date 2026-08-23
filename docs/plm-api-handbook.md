@@ -1,6 +1,6 @@
 # PLM API 手册
 
-更新日期：2026-08-03
+更新日期：2026-08-16
 
 站点：`https://plm.westmonth.com`
 
@@ -95,6 +95,51 @@ GET /api/Product/GetDetailContent?is_edit=false&product_id={product_id}&product_
 | `detail_image` | 详情图 |
 
 数值通常在 `attr_language_config_json[].value`；单位可参考 `attr_display_unit_id`，例如 `3` 通常为 g，`4` 通常为 ml。
+
+### 物料行没有尺寸时回查产品主数据
+
+2026-08-16 的物料查询 HAR（`plm.westmonth.com物料查询.har`）确认：有些物料行的“规格型号”只有数量或包装规格，例如牙胶行只显示 `50g/袋`，尺寸不在 `pms[]` 物料字段里。此时不能用纸盒尺寸减 0.2cm 推算，也不能把 `specification` 当成尺寸；应使用物料行中的产品编码回查产品主数据。
+
+以 `EE-A01-0117-05` 为例，网页实际请求链路为：
+
+```http
+GET /api/Product/GetProductList?page=1&pageSize=20&codes=EE-A01-0117-05
+GET /api/Product/GetProductVersionList?code=EE-A01-0117-05
+GET /api/Product/GetMeteringUnitSelectOption
+GET /api/Product/GetDetailInfo?product_id=47598&product_version_id=255452
+GET /api/Product/GetDetailContent?is_edit=false&product_id=47598&product_version_id=255452&category_id=302
+```
+
+其中：
+
+1. `GetProductList` 根据物料行产品编码取得 `product_id`、`product_version_id`；若列表没有版本信息，可用 `GetProductVersionList` 选择正式版本。
+2. `GetDetailInfo` 取得 `category_id`，本例为 `302`。
+3. `GetDetailContent` 返回产品模板属性，仍需遍历 `data[].category_template_attrs[]` 和 `attr_language_config_json[]`。
+4. `GetMeteringUnitSelectOption` 将 `attr_display_unit_id` 映射为单位。本例 `id=6` 为 `cm`。
+
+本例返回的关键字段如下：
+
+| `variable_name` | `attr_id` | 值 | 单位 | 含义 |
+|---|---:|---:|---|---|
+| `long_outer_packaging` | 133 | `7` | `cm` | 外包装长 |
+| `wide_outer_packaging` | 134 | `7` | `cm` | 外包装宽 |
+| `high_outer_packaging` | 135 | `0.5` | `cm` | 外包装高 |
+| `volume_outer_packaging` | 136 | `24.5` | `cm3` | 体积，仅作校验 |
+| `long_inner_packing_materials` | 178 | `null` | `cm` | 内包材长，未填写 |
+| `wide_inner_packing_materials` | 179 | `null` | `cm` | 内包材宽，未填写 |
+| `high_inner_packing_materials` | 180 | `null` | `cm` | 内包材高，未填写 |
+
+因此应清洗为 `7x7x0.5cm`。`specification=50g/袋` 只表示规格和净含量，不参与尺寸解析；`benchmark_product_dimensions` 为空时也不能作为回退来源。内包材三个字段均为 `null` 时必须保持空值，不能按外包装或纸盒尺寸自动估算。
+
+通用回查顺序：
+
+1. 先读 `pms[]` 当前物料自己的尺寸字段和规格文字；
+2. 当前物料没有尺寸，且编码能在产品主数据中命中时，按上面的产品详情链路回查；
+3. 优先使用 `long_outer_packaging`、`wide_outer_packaging`、`high_outer_packaging` 组成三维尺寸；
+4. 如果只填写了部分维度，只保留已填写的维度；不要补算；
+5. 产品主数据也没有尺寸时，标记为“未填写”，不要把纸盒尺寸、体积或图片尺寸当作产品尺寸。
+
+这条回查只适用于能关联到产品主数据的产品/半成品编码；普通 `MTL...` 包材编码仍应优先从项目 `pms[]` 的物料自身字段和 `properties_value` 读取。产品主数据尺寸与物料行尺寸同时存在且冲突时，应保留两份来源并标记冲突，交给后续人工确认。
 
 ## 文件和图包上传
 

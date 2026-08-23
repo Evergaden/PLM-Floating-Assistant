@@ -12344,7 +12344,7 @@
     const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
     state.skuPage = clamp(state.skuPage || 1, 1, totalPages);
     const items = allItems.slice((state.skuPage - 1) * pageSize, state.skuPage * pageSize);
-    const listTitle = state.view === 'sizeImage' ? '\u5c3a\u5bf8\u56fe SKU' : (state.view === 'parameterImage' ? '\u53c2\u6570\u56fe SKU' : 'SKU\u5217\u8868');
+    const listTitle = 'SKU\u5217\u8868';
     const listSort = getSkuListSort();
     const skuScrollContext = ['sku', state.view, listMode, listSort, state.skuPage, query].join('|');
     const listSortLabel = listSort === 'acquired' ? '\u83b7\u53d6\u65f6\u95f4' : '\u5206\u914d\u65f6\u95f4';

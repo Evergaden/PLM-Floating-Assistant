@@ -40,6 +40,9 @@ const files = {
   zyvarn: 'Zyvarn bk.svg',
   zephoco: 'zephoco.svg',
 };
+const pngFiles = {
+  hikmarion: path.join(root, 'assets', 'parameter-logos', 'hikmarion.png'),
+};
 
 const existingWorkerSource = fs.existsSync(workerOutputPath)
   ? fs.readFileSync(workerOutputPath, 'utf8')
@@ -58,6 +61,10 @@ function readExistingAsset(key) {
 }
 
 const assets = {};
+for (const [key, filePath] of Object.entries(pngFiles)) {
+  if (!fs.existsSync(filePath)) throw new Error(`Missing logo: ${filePath}`);
+  assets[key] = `data:image/png;base64,${fs.readFileSync(filePath).toString('base64')}`;
+}
 for (const [key, fileName] of Object.entries(files)) {
   const filePath = path.join(sourceRoot, fileName);
   if (fs.existsSync(filePath)) {
