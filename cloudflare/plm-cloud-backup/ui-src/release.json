@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2.5.244",
+  "version": "2.5.247",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -15,6 +15,10 @@
       "forbidProperties": [
         "font-weight"
       ]
+    },
+    {
+      "path": "modules/console-sidebar.css",
+      "mode": "module"
     },
     {
       "path": "modules/typography.css",
