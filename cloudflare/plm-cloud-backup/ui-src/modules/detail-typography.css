@@ -1,7 +1,7 @@
 /* Detail content owns product identity while keeping data and workflow copy regular. */
 #plm-floating-helper[data-view="detail"] {
   --pfh-detail-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-detail-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-detail-weight-title: var(--pfh-font-weight-control, 400);
   --pfh-detail-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
@@ -22,7 +22,6 @@
   font-weight: var(--pfh-detail-weight-heading);
 }
 
-#plm-floating-helper .pfh-detail-view-tabs button,
 #plm-floating-helper[data-view="detail"] .pfh-detail-developer-value,
 #plm-floating-helper[data-view="detail"] .pfh-detail-edit-button,
 #plm-floating-helper[data-view="detail"] .pfh-detail-more-button,

@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.163
+// @version      2.8.164
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.163';
+  const SCRIPT_VERSION = '2.8.164';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.247';
+  const UI_ASSET_VERSION = '2.5.248';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -4431,12 +4431,12 @@
     html.pfh-ui-fallback #${PANEL_ID}::after{
       content:"正在加载界面资源…";position:absolute;left:50%;bottom:18px;z-index:5;display:block;min-width:210px;padding:8px 13px;
       border:1px solid #DDD5F4;border-radius:999px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(52,38,95,.10);
-      color:#6D35E8;font-size:11px;font-weight:700;text-align:center;transform:translateX(-50%);visibility:visible;
+      color:#6D35E8;font-size:11px;font-weight:400;text-align:center;transform:translateX(-50%);visibility:visible;
     }
     html.pfh-ui-waiting #${PANEL_ID}::after{content:"网络较慢，正在继续加载完整界面…"}
     html.pfh-ui-error #${PANEL_ID}::after{content:"界面资源暂时不可用，正在等待恢复";border-color:var(--pfh-theme-border-strong,#D8DEEA);background:var(--pfh-theme-surface-alt,#F7F8FC);color:var(--pfh-theme-primary,#6D35E8)}
     html.pfh-ui-offline #${PANEL_ID}::after{content:"当前无网络，联网后会自动恢复完整界面";border-color:var(--pfh-theme-border-strong,#F2D4A6);background:var(--pfh-theme-surface-alt,#FFFAEB);color:var(--pfh-theme-primary,#B54708)}
-    #${LAUNCHER_ID}{position:fixed;z-index:2147483647;display:inline-flex;width:86px;height:34px;align-items:center;justify-content:center;border:1px solid #D8DEEA;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(35,25,70,.14);color:#403657;cursor:pointer;font:600 13px/1 "Microsoft YaHei",sans-serif}
+    #${LAUNCHER_ID}{position:fixed;z-index:2147483647;display:inline-flex;width:86px;height:34px;align-items:center;justify-content:center;border:1px solid #D8DEEA;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(35,25,70,.14);color:#403657;cursor:pointer;font:400 13px/1 "Microsoft YaHei",sans-serif}
     @keyframes pfh-ui-skeleton-sweep{from{background-position:130% 0}to{background-position:-130% 0}}
     @media(max-width:620px){
       html.pfh-ui-fallback #${PANEL_ID} .pfh-full::before{
@@ -4476,7 +4476,7 @@
       box-shadow: 0 5px 14px rgba(124,58,237,.08);
       cursor: pointer;
       font-size: 11px;
-      font-weight: 760;
+      font-weight: 400;
       white-space: nowrap;
     }
     #${PANEL_ID} .pfh-size-image-custom-button:hover {
@@ -4557,7 +4557,7 @@
     #${PANEL_ID} .pfh-size-image-custom-section-title {
       color: #4e4379;
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 700;
     }
     #${PANEL_ID} .pfh-size-image-custom-grid {
       display: grid;
@@ -4575,7 +4575,7 @@
     #${PANEL_ID} .pfh-size-image-custom-field > span {
       color: #746b96;
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 400;
     }
     #${PANEL_ID} .pfh-size-image-custom-field input,
     #${PANEL_ID} .pfh-size-image-custom-field select {
@@ -4613,7 +4613,7 @@
       gap: 5px;
       color: #574b80;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 400;
     }
     #${PANEL_ID} .pfh-size-image-custom-checks input {
       width: 14px;
@@ -4634,7 +4634,7 @@
       border-radius: 9px;
       cursor: pointer;
       font-size: 11px;
-      font-weight: 760;
+      font-weight: 400;
     }
     #${PANEL_ID} .pfh-size-image-custom-foot button.is-secondary {
       color: #6d35e8;
@@ -4667,7 +4667,7 @@
       margin-top: auto;
       color: #bd6a20 !important;
       font-size: 10px;
-      font-weight: 800;
+      font-weight: 400;
       line-height: 1.2;
     }
     #${PANEL_ID}[data-pfh-theme] .pfh-theme-option-lulu.is-selected .pfh-theme-option-download {
@@ -4705,7 +4705,7 @@
     #${PANEL_ID} .pfh-infringement-copy-head small {
       color: var(--pfh-theme-muted, #968aa9);
       font-size: 9px;
-      font-weight: 500;
+      font-weight: 400;
     }
     #${PANEL_ID} .pfh-infringement-content {
       display: flex;
@@ -5004,8 +5004,8 @@
       // Typography is intentionally centralized here. Component styles consume
       // these semantic weights instead of escalating selector specificity.
       '--pfh-font-weight-regular': '400',
-      '--pfh-font-weight-support': '500',
-      '--pfh-font-weight-control': '600',
+      '--pfh-font-weight-support': '400',
+      '--pfh-font-weight-control': '400',
       '--pfh-font-weight-heading': '700',
     };
     [document.getElementById(PANEL_ID), document.getElementById(LAUNCHER_ID), document.getElementById(PANEL_ID + '-upload-progress'), document.getElementById(PANEL_ID + '-parameter-editor-overlay')].forEach((element) => {

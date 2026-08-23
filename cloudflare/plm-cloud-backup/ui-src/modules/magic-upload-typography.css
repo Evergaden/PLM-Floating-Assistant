@@ -25,13 +25,13 @@
   font-weight: var(--pfh-magic-weight-bold);
 }
 
-/* Controls and numeric outcomes are the other intentional emphasis points. */
+/* Controls and numeric outcomes remain regular; only structural headings are bold. */
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button.is-primary,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-stat strong,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-progress-value,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-eta-copy > strong,
 #plm-floating-helper[data-view="magicUpload"] .pfh-magic-overview-compact .pfh-magic-overview-metrics b {
-  font-weight: var(--pfh-magic-weight-bold);
+  font-weight: var(--pfh-magic-weight-body);
 }
 
 /* Repeated task identity, close/recovery buttons, and supporting labels stay regular. */

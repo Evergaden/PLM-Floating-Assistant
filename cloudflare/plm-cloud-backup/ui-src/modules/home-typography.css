@@ -1,7 +1,7 @@
 /* Home keeps product identity visible without turning every metric into a heading. */
 #plm-floating-helper[data-view="home"] {
   --pfh-home-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-home-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-home-weight-title: var(--pfh-font-weight-control, 400);
   --pfh-home-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 

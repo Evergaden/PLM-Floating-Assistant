@@ -1,7 +1,7 @@
 /* The parameter editor is a focused tool: labels stay regular, active controls stay clear. */
 #plm-floating-helper-parameter-editor-overlay {
   --pfh-parameter-editor-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-parameter-editor-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-parameter-editor-weight-title: var(--pfh-font-weight-control, 400);
   --pfh-parameter-editor-weight-heading: var(--pfh-font-weight-heading, 700);
   font-weight: var(--pfh-parameter-editor-weight-body);
 }

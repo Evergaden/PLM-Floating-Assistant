@@ -10,7 +10,8 @@ New UI rules belong here, grouped by page or component. A canonical module:
 - must replace, not override, the corresponding rules in `legacy.css`.
 
 `typography.css` owns the shared weight tokens and the inheriting 400 baseline.
-Components select a semantic token; they must not introduce another global
+Ordinary copy, controls, labels, and numbers stay at 400; only structural
+titles use the 700 heading token. Components must not introduce another global
 font-weight reset.
 
 During migration, delete a complete component rule set from `legacy.css` and

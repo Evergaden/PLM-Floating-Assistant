@@ -24,7 +24,8 @@ never be edited directly.
 4. Run `npm run ui:check` and the userscript syntax checks.
 5. Update `UI_ASSET_VERSION` and both userscript versions together.
 6. Run `npm run assets:manifest -- <data-version>`.
-7. Verify the affected states in the logged-in browser before deployment.
+7. Ask the user to update the installed userscript and complete the logged-in
+   browser verification; keep that verification pending until they do.
 
 The build rejects `!important` and `final cascade` in canonical modules. It
 also prevents the existing totals for `!important`, duplicate selectors, and
@@ -32,6 +33,10 @@ conflicting selectors from increasing. Exact debt baselines are enforced, so
 every reduction must tighten the matching source and aggregate budgets in the
 same change. Source byte baselines normalize CRLF to LF before comparison.
 Budgets should only move downward as legacy modules are migrated.
+
+Typography has two permitted tiers: ordinary content, controls, labels, and
+numbers use 400; only structural titles may use 700. Numeric weights outside
+those tiers and heavy `font` shorthand are rejected during the build.
 
 A duplicate selector is counted only when it repeats the same property. This
 allows layout and typography to live in separate migration sources without

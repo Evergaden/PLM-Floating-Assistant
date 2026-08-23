@@ -34,6 +34,25 @@ function parseRules(css) {
   return rules;
 }
 
+function assertFontWeightPolicy(css, label) {
+  const parsed = postcss.parse(String(css || ''), { from: label });
+  parsed.walkDecls((declaration) => {
+    if (declaration.prop === 'font-weight') {
+      if (/^(?:bold|bolder)$/i.test(declaration.value.trim())) {
+        throw new Error(`Font weight policy requires explicit 400 or 700 tiers in ${label}: ${declaration.toString()}`);
+      }
+      const numericWeights = Array.from(declaration.value.matchAll(/(?:^|[\s,(])([1-9]\d{2})(?=$|[\s,)])/g), (match) => Number(match[1]));
+      const invalidWeight = numericWeights.find((weight) => weight !== 400 && weight !== 700);
+      if (invalidWeight) {
+        throw new Error(`Font weight policy allows only 400 and 700 in ${label}: ${declaration.toString()}`);
+      }
+    }
+    if (declaration.prop === 'font' && /(?:^|\s)(?:(?!400\b)[1-9]\d{2}|bold|bolder)(?=\s)/.test(declaration.value)) {
+      throw new Error(`Font shorthand must use weight 400 in ${label}; use an explicit title font-weight: ${declaration.toString()}`);
+    }
+  });
+}
+
 function analyzeCss(css) {
   const root = postcss.parse(String(css || ''));
   const bySelector = new Map();
@@ -83,6 +102,7 @@ const parts = release.sources.map((source) => {
   }
   if (!fs.existsSync(absolutePath)) throw new Error(`Missing UI source: ${relativePath}`);
   const css = fs.readFileSync(absolutePath, 'utf8').trimEnd();
+  assertFontWeightPolicy(css, absolutePath);
   const parsedRules = parseRules(css);
   const sourceBytes = Buffer.byteLength(css.replace(/\r\n/g, '\n'));
   let sourceImportant = 0;
@@ -105,6 +125,11 @@ const parts = release.sources.map((source) => {
     const match = parsedRules.find(({ selector }) => selector.includes(fragment));
     if (match) {
       throw new Error(`Migrated selector ${fragment} cannot return to ${relativePath}: ${match.selector}`);
+    }
+  });
+  (source.forbidTextFragments || []).forEach((fragment) => {
+    if (css.includes(fragment)) {
+      throw new Error(`Removed UI source fragment cannot return to ${relativePath}: ${fragment}`);
     }
   });
   (source.forbidDeclarations || []).forEach(({ selector, property }) => {

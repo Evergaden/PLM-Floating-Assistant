@@ -1,21 +1,26 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.247",
+  "version": "2.5.248",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 642729,
-      "maxImportant": 6596,
+      "maxBytes": 638448,
+      "maxImportant": 6507,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
-        ".pfh-sku-data-log-trigger"
+        ".pfh-sku-data-log-trigger",
+        ".pfh-detail-view-tabs",
+        ".pfh-detail-view-indicator"
       ],
       "forbidProperties": [
         "font-weight"
+      ],
+      "forbidTextFragments": [
+        "PLM migrated static styles: continuous-list-scroll"
       ]
     },
     {
@@ -28,6 +33,10 @@
     },
     {
       "path": "modules/data-log-trigger.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/detail-view-tabs.css",
       "mode": "module"
     },
     {
@@ -84,8 +93,8 @@
     }
   ],
   "budgets": {
-    "important": 6596,
-    "duplicateSelectors": 525,
-    "conflictingSelectors": 500
+    "important": 6507,
+    "duplicateSelectors": 522,
+    "conflictingSelectors": 499
   }
 }

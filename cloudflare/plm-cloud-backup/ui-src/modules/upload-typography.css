@@ -1,7 +1,7 @@
 /* Upload surfaces use the same restrained hierarchy as the rest of the app. */
 #plm-floating-helper[data-view="upload"] {
   --pfh-upload-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-upload-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-upload-weight-title: var(--pfh-font-weight-control, 400);
   --pfh-upload-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
@@ -26,5 +26,5 @@
 }
 
 #plm-floating-helper-upload-progress b {
-  font-weight: var(--pfh-upload-weight-title, 600);
+  font-weight: var(--pfh-upload-weight-title, 400);
 }

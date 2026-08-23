@@ -1,7 +1,7 @@
 /* Ledger keeps dates and work items legible without making every action heavy. */
 #plm-floating-helper[data-view="ledger"] {
   --pfh-ledger-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-ledger-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-ledger-weight-title: var(--pfh-font-weight-control, 400);
   --pfh-ledger-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
@@ -11,9 +11,7 @@
 
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-hero h3,
 #plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4 .pfh-ledger-day-date,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-overflow-menu button.is-active,
-#plm-floating-helper[data-view="ledger"] .pfh-ledger-fullscreen-toggle {
+#plm-floating-helper[data-view="ledger"] .pfh-ledger-day > h4 .pfh-ledger-day-date {
   font-weight: var(--pfh-ledger-weight-heading);
 }
 

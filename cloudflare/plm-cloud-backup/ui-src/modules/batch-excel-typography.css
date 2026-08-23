@@ -1,7 +1,7 @@
 /* Batch Excel highlights the export destination, not every queue label. */
 #plm-floating-helper[data-view="batchExcel"] {
   --pfh-batch-excel-weight-body: var(--pfh-font-weight-regular, 400);
-  --pfh-batch-excel-weight-title: var(--pfh-font-weight-control, 600);
+  --pfh-batch-excel-weight-title: var(--pfh-font-weight-control, 400);
   --pfh-batch-excel-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 

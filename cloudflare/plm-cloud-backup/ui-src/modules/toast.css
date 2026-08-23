@@ -25,7 +25,7 @@
   box-shadow: 0 8px 20px var(--pfh-theme-shadow-soft, rgba(52, 42, 110, .14)), inset 0 1px 0 rgba(255, 255, 255, .9);
   color: var(--pfh-theme-primary-hover, #5b21b6);
   font-size: 11px;
-  font-weight: var(--pfh-font-weight-control, 600);
+  font-weight: var(--pfh-font-weight-control, 400);
   line-height: 1.4;
   text-align: left;
   white-space: normal;
@@ -50,7 +50,7 @@
   background: var(--pfh-theme-primary-soft, #f3efff);
   color: var(--pfh-theme-primary, #7c3aed);
   font-size: 11px;
-  font-weight: var(--pfh-font-weight-heading, 700);
+  font-weight: var(--pfh-font-weight-regular, 400);
   line-height: 1;
 }
 

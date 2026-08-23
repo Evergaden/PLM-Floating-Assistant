@@ -1,12 +1,12 @@
 /* Shared shell and tool surfaces own the pieces that are not page-specific. */
 #plm-floating-helper-launcher {
-  font-weight: var(--pfh-font-weight-control, 600);
+  font-weight: var(--pfh-font-weight-control, 400);
 }
 
 #plm-floating-helper .pfh-heading strong::after,
 #plm-floating-helper .pfh-header .pfh-actions button::after,
 #plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
-  font-weight: var(--pfh-font-weight-control, 600);
+  font-weight: var(--pfh-font-weight-control, 400);
 }
 
 #plm-floating-helper .pfh-warning-note strong,
@@ -18,7 +18,7 @@
 #plm-floating-helper .pfh-search-result-toolbar button,
 #plm-floating-helper .pfh-smart-recommend strong,
 #plm-floating-helper .pfh-smart-recommend span b {
-  font-weight: var(--pfh-font-weight-control, 600);
+  font-weight: var(--pfh-font-weight-control, 400);
 }
 
 #plm-floating-helper .pfh-mini-tool-head h2,
@@ -27,7 +27,7 @@
 }
 
 #plm-floating-helper .pfh-list-head strong {
-  font-weight: var(--pfh-font-weight-control, 600);
+  font-weight: var(--pfh-font-weight-control, 400);
 }
 
 #plm-floating-helper .pfh-warning-note p,
@@ -58,7 +58,7 @@
 #plm-floating-helper .pfh-size-image-custom-button,
 #plm-floating-helper .pfh-size-image-custom-section-title,
 #plm-floating-helper .pfh-size-image-custom-foot button.is-primary {
-  font-weight: var(--pfh-font-weight-control, 600);
+  font-weight: var(--pfh-font-weight-control, 400);
 }
 
 #plm-floating-helper .pfh-theme-option-download {
