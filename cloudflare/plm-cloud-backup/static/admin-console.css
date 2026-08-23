@@ -122,7 +122,7 @@ main.wrap:has(.admin-sidebar) .admin-sidebar {
   position: relative;
   min-height: 47px;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   padding: 7px 9px;
@@ -188,6 +188,7 @@ main.wrap:has(.admin-sidebar) .admin-sidebar {
 }
 
 .admin-nav-badge {
+  flex: 0 0 auto;
   min-width: 21px;
   height: 21px;
   display: inline-grid;
@@ -200,6 +201,7 @@ main.wrap:has(.admin-sidebar) .admin-sidebar {
   font-size: 10px;
   font-weight: 760;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .admin-nav-copy {
@@ -1018,7 +1020,7 @@ main.wrap:has(.admin-sidebar) .admin-content {
   .admin-nav-link {
     min-height: 38px;
     flex: 0 0 auto;
-    grid-template-columns: 27px auto;
+    grid-template-columns: 27px minmax(0, 1fr) auto;
     gap: 7px;
     padding: 5px 8px 5px 5px;
     border-radius: 11px;
