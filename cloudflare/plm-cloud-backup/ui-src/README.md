@@ -41,3 +41,8 @@ those tiers and heavy `font` shorthand are rejected during the build.
 A duplicate selector is counted only when it repeats the same property. This
 allows layout and typography to live in separate migration sources without
 hiding genuine cascade conflicts.
+
+The build also requires `supersededImportantDeclarations` to remain zero. A
+legacy `!important` declaration is superseded when the same selector and
+at-rule context assign the same property again later; only the final effective
+declaration may remain.

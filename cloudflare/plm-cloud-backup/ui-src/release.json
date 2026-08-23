@@ -1,20 +1,22 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.248",
+  "version": "2.5.249",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 638448,
-      "maxImportant": 6507,
+      "maxBytes": 611006,
+      "maxImportant": 5965,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
         ".pfh-sku-data-log-trigger",
         ".pfh-detail-view-tabs",
-        ".pfh-detail-view-indicator"
+        ".pfh-detail-view-indicator",
+        ".pfh-sku-view-switch",
+        ".pfh-sku-view-indicator"
       ],
       "forbidProperties": [
         "font-weight"
@@ -33,6 +35,10 @@
     },
     {
       "path": "modules/data-log-trigger.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/sku-view-switch.css",
       "mode": "module"
     },
     {
@@ -93,8 +99,9 @@
     }
   ],
   "budgets": {
-    "important": 6507,
-    "duplicateSelectors": 522,
-    "conflictingSelectors": 499
+    "important": 5965,
+    "supersededImportantDeclarations": 0,
+    "duplicateSelectors": 470,
+    "conflictingSelectors": 451
   }
 }

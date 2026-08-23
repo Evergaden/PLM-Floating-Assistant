@@ -56,6 +56,7 @@ function assertFontWeightPolicy(css, label) {
 function analyzeCss(css) {
   const root = postcss.parse(String(css || ''));
   const bySelector = new Map();
+  const importantDeclarationKeys = new Set();
   parseRules(css).forEach((rule) => {
     if (!bySelector.has(rule.selector)) bySelector.set(rule.selector, []);
     bySelector.get(rule.selector).push(rule.declarations);
@@ -81,11 +82,29 @@ function analyzeCss(css) {
     }
   });
   let important = 0;
+  let supersededImportantDeclarations = 0;
   root.walkDecls((declaration) => {
-    if (declaration.important) important += 1;
+    if (!declaration.important) return;
+    important += 1;
+    const rule = declaration.parent;
+    if (!rule || rule.type !== 'rule') return;
+    const atRuleContext = [];
+    for (let parent = rule.parent; parent && parent.type !== 'root'; parent = parent.parent) {
+      if (parent.type === 'atrule') {
+        atRuleContext.push(`@${parent.name} ${String(parent.params || '').replace(/\s+/g, ' ').trim()}`);
+      }
+    }
+    const selector = String(rule.selector || '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*([>+~])\s*/g, '$1')
+      .trim();
+    const key = [atRuleContext.reverse().join('|'), selector, declaration.prop].join('\0');
+    if (importantDeclarationKeys.has(key)) supersededImportantDeclarations += 1;
+    importantDeclarationKeys.add(key);
   });
   return {
     important,
+    supersededImportantDeclarations,
     duplicateSelectors,
     conflictingSelectors,
     uniqueSelectors: bySelector.size,
