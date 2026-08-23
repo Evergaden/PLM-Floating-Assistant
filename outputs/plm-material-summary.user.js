@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.165
+// @version      2.8.166
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.165';
+  const SCRIPT_VERSION = '2.8.166';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -6219,6 +6219,7 @@
   function productDevelopmentReviewHtml() {
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
+    const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
     const resultMatchesCurrentSku = Boolean(result && result.sku === sku);
     const canShowResult = Boolean(result && (resultMatchesCurrentSku || result.fromHistory));
     const items = canShowResult ? result.items || [] : [];
@@ -6227,14 +6228,23 @@
       ? (result.fromHistory
         ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字或红框，请重新分析当前对标图片。</p></section>'
         : productDevelopmentReviewEditorHtml(result, items))
-      : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
-    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，读取图片文字后筛查品牌、禁词和夸大风险；不要求成分。原图保留，修改后可人工调整。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + escapeHtml(state.productDevelopmentBenchmarkImageName ? '已手动选择：' + state.productDevelopmentBenchmarkImageName : '自动读取当前 SKU 对标图片；读取不到时可手动选择') + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      : '<div class="pfh-product-development-result-empty"><span>' + iconHtml('sparkle') + '</span><strong>结果工作区还在等待</strong><p>完成分析后，这里会展开对照图、风险类型和中英文修改建议。</p><div><em>红框编号</em><em>风险分类</em><em>人工编辑</em><em>PNG 导出</em></div></div>';
+    const sourceState = state.productDevelopmentBenchmarkImageName
+      ? '已选择：' + state.productDevelopmentBenchmarkImageName
+      : '默认读取当前 SKU 的对标图片，读取不到时可手动选择';
+    const readyText = state.productDevelopmentReviewBusy ? 'AI 正在读取图片' : (sku ? '已就绪，可以开始' : '请先选择当前 SKU');
+    const resultTitle = canShowResult ? '筛查结果与人工复核' : '等待生成筛查结果';
+    const resultHint = canShowResult
+      ? (result.fromHistory ? '已打开本地结果，可查看或下载 PNG' : (items.length + ' 个风险项，可继续人工调整'))
+      : '分析后自动生成红框编号与中英文修改建议';
+    return '<div class="pfh-product-development pfh-product-development-subview pfh-product-development-review-view">' + productDevelopmentModeSwitchHtml() +
+      '<header class="pfh-product-development-subview-head pfh-product-development-review-head"><button type="button" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('back') + '</button><div><small>IMAGE REVIEW · BETA</small><h2>产品图风险筛查</h2><p>从对标图中识别品牌、禁词与夸大宣称，生成可继续编辑的修改对照图。</p></div><span><i></i>只读分析</span></header>' +
+      productDevelopmentSkuSummaryHtml(snapshot) +
+      '<section class="pfh-product-development-review-launch"><div class="pfh-product-development-review-launch-main"><div class="pfh-product-development-step-title"><span>01</span><div><small>INPUT SOURCE</small><h3>选择要检查的产品图</h3></div></div><p>以当前 SKU 的对标图片为唯一来源。原图不会被修改，识别结果可在生成后人工调整。</p><div class="pfh-product-development-review-source"><span class="pfh-product-development-review-source-icon">' + iconHtml('image') + '</span><div><strong>对标图片</strong><small>' + escapeHtml(sourceState) + '</small></div><label class="pfh-product-development-benchmark-picker">' + iconHtml('upload') + '<span>' + (state.productDevelopmentBenchmarkImageName ? '替换图片' : '手动选择') + '</span><input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><aside class="pfh-product-development-review-action"><span class="pfh-product-development-review-ready' + (state.productDevelopmentReviewBusy ? ' is-busy' : '') + '"><i></i>' + escapeHtml(readyText) + '</span><strong>品牌与宣称风险初筛</strong><ul><li>' + iconHtml('check') + '读取图片中的可见文字</li><li>' + iconHtml('check') + '标注品牌、禁词与夸大风险</li><li>' + iconHtml('check') + '输出中英文替换建议</li></ul><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + iconHtml(state.productDevelopmentReviewBusy ? 'refresh' : 'sparkle') + '<span>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始分析') + '</span></button><small>通常需要 30-60 秒</small></aside></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
-      preview + list +
-      '<p class="pfh-product-development-note">本功能只发送当前图片给已配置的 AI 服务用于读取图片文字和风险初筛，不读取成分，不访问 WIPO 或其他外部查询网站，不修改原图，不发起 PLM 写入请求。</p></div>';
+      '<section class="pfh-product-development-review-results"><header><div class="pfh-product-development-step-title"><span>02</span><div><small>REVIEW &amp; EXPORT</small><h3>' + resultTitle + '</h3></div></div><p>' + resultHint + '</p></header><div class="pfh-product-development-review-workspace">' + preview + list + '</div></section>' +
+      '<div class="pfh-product-development-trust-note"><span>' + iconHtml('lock') + '</span><p><strong>安全边界</strong>仅将当前图片发送给已配置的 AI 服务；不读取成分，不访问 WIPO，不修改原图，也不会向 PLM 写入。</p></div></div>';
   }
 
   function productDevelopmentCopywritingPreviewHtml(content) {
