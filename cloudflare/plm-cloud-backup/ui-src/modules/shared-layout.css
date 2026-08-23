@@ -1,0 +1,734 @@
+/*  Shared icon, panel, heading, and navigation layout rules migrated from the legacy cascade.  */
+      #plm-floating-helper .pfh-section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 6px;
+      }
+      #plm-floating-helper .pfh-section-title h3 {
+        margin: 0;
+        flex: 0 0 auto;
+      }
+      #plm-floating-helper .pfh-warning-note .pfh-icon {
+        width: 26px;
+        height: 26px;
+        border: 0;
+        background: transparent;
+        color: #d81e06;
+      }
+      #plm-floating-helper .pfh-warning-note .pfh-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
+        stroke: none;
+      }
+      #plm-floating-helper .pfh-actions button:hover .pfh-icon,
+#plm-floating-helper .pfh-toolrow button:hover .pfh-icon {
+        background: var(--pfh-theme-control-hover, #f3f6fb);
+        filter: none;
+      }
+      #plm-floating-helper .pfh-icon {
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        border: 1px solid #d6dfeb;
+        border-radius: 5px;
+        background: #fff;
+      }
+      #plm-floating-helper .pfh-icon svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #plm-floating-helper .pfh-icon-settings { color: #566381; }
+      #plm-floating-helper .pfh-icon-folder { color: #ffb22c; }
+      #plm-floating-helper .pfh-icon-upload { color: #2882eb; }
+      #plm-floating-helper .pfh-icon-collapse { color: #7175b4; }
+      #plm-floating-helper .pfh-icon-refresh { color: #566381; }
+      #plm-floating-helper .pfh-list-head {
+        display: flex;
+        align-items: center;
+        margin: 0 0 14px;
+      }
+      #plm-floating-helper .pfh-list-head strong {
+        color: #0b1120;
+        font-size: 16px;
+      }
+      #plm-floating-helper .pfh-list-head span {
+        margin-left: auto;
+        color: #647491;
+        font-size: 12px;
+      }
+      #plm-floating-helper .pfh-list-head button {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 0;
+        color: #2e3f65;
+        background: transparent;
+      }
+      #plm-floating-helper .pfh-section-title {
+        margin-bottom: 10px;
+      }
+      #plm-floating-helper .pfh-section-title h3 {
+        color: #0b1120;
+        font-size: 15px;
+      }
+      #plm-floating-helper .pfh-file-section .pfh-section-title {
+        margin-bottom: 10px;
+      }
+      #plm-floating-helper .pfh-label .pfh-icon {
+        width: 16px;
+        height: 16px;
+        border: 0;
+        background: transparent;
+        color: currentColor;
+      }
+      #plm-floating-helper .pfh-label .pfh-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      #plm-floating-helper [data-copy-key] .pfh-icon {
+        width: auto;
+        height: auto;
+        border: 0;
+        background: transparent;
+      }
+      #plm-floating-helper .pfh-note button .pfh-icon {
+        width: 18px;
+        height: 18px;
+        border: 0;
+        color: #566381;
+      }
+      #plm-floating-helper .pfh-excel-controls > button[data-action="excel-prepare"] .pfh-icon {
+        width: 16px;
+        height: 16px;
+        border: 0;
+        color: #566381;
+      }
+      #plm-floating-helper .pfh-icon {
+        border-color: #dfe7f2;
+      }
+      #plm-floating-helper .pfh-icon svg {
+        stroke-width: 1.75;
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon {
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
+      }
+      #plm-floating-helper .pfh-icon-settings svg,
+#plm-floating-helper .pfh-icon-folder svg,
+#plm-floating-helper .pfh-icon-upload svg,
+#plm-floating-helper .pfh-icon-pin svg {
+        fill: currentColor;
+        stroke: none;
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon svg {
+        display: block;
+        transform-origin: 50% 50%;
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon-settings svg {
+        width: 16px;
+        height: 16px;
+        transform: translateY(0.2px);
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon-folder svg {
+        width: 16px;
+        height: 16px;
+        transform: translateY(0.2px);
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon-upload svg {
+        width: 16px;
+        height: 16px;
+        transform: translateY(-0.4px);
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon-collapse svg {
+        width: 15px;
+        height: 15px;
+        transform: translateY(0.2px);
+      }
+      #plm-floating-helper .pfh-icon-settings { color: #566381; }
+      #plm-floating-helper .pfh-icon-folder { color: #ffb944; }
+      #plm-floating-helper .pfh-icon-upload { color: #80ed99; }
+      #plm-floating-helper .pfh-icon-pin { color: #1b4965; }
+      #plm-floating-helper .pfh-icon-close {
+        color: #515151;
+        background: transparent;
+        border-color: transparent;
+      }
+      #plm-floating-helper .pfh-icon-close svg {
+        fill: currentColor;
+        stroke: none;
+        opacity: 1;
+      }
+      #plm-floating-helper .pfh-detail-scroll {
+        min-height: 0;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      #plm-floating-helper .pfh-sku em .pfh-icon {
+        width: 14px;
+        height: 14px;
+        border: 0;
+        background: transparent;
+      }
+      #plm-floating-helper .pfh-actions button.is-panel-pinned .pfh-icon-pin svg {
+        transform: rotate(180deg);
+      }
+      #plm-floating-helper .pfh-icon-refresh svg {
+        fill: currentColor;
+        stroke: none;
+      }
+      #plm-floating-helper .pfh-excel-controls > button[data-action="excel-prepare"] .pfh-icon,
+#plm-floating-helper .pfh-note button .pfh-icon {
+        background: transparent;
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon,
+#plm-floating-helper .pfh-toolrow .pfh-icon {
+        border: 1px solid rgba(183, 172, 255, 0.34);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        color: #7c3aed;
+        background: rgba(248,245,255,.9);
+        border-color: rgba(167,139,250,.28);
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
+        stroke: currentColor;
+      }
+      #plm-floating-helper .pfh-mini-tool-head > button .pfh-icon {
+        width: 24px;
+        height: 24px;
+        color: inherit;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+      #plm-floating-helper .pfh-mini-tool-head > button .pfh-icon svg {
+        width: 24px;
+        height: 24px;
+        color: inherit;
+        fill: currentColor;
+        stroke: none;
+      }
+      #plm-floating-helper .pfh-product-thumb.is-empty .pfh-icon {
+        border: 0;
+        background: transparent;
+        color: #7c3aed;
+      }
+      #plm-floating-helper .pfh-section-title .pfh-excel-controls > button[data-action="excel-prepare"] {
+        min-width: 82px;
+        height: 34px;
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      #plm-floating-helper .pfh-section-title .pfh-excel-controls > button[data-action="excel-prepare"] .pfh-icon {
+        width: 14px;
+        height: 14px;
+      }
+      #plm-floating-helper .pfh-section-title .pfh-excel-controls > button[data-action="excel-prepare"] svg {
+        width: 14px;
+        height: 14px;
+      }
+      #plm-floating-helper .pfh-detail-scroll {
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-bottom: 12px;
+      }
+      #plm-floating-helper .pfh-detail > .pfh-detail-scroll {
+        min-height: 0;
+      }
+      #plm-floating-helper .pfh-list-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+      #plm-floating-helper .pfh-list-head span {
+        margin-left: 8px;
+        color: #6b7897;
+        font-size: 12px;
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon {
+        display: grid;
+        place-items: center;
+        padding: 0;
+        line-height: 1;
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon svg {
+        display: block;
+        margin: auto;
+        fill: currentColor;
+        stroke: currentColor;
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon svg path {
+        fill: currentColor;
+        stroke: none;
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon-tools svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 64px;
+      }
+      #plm-floating-helper .pfh-home-card .pfh-icon-tools svg rect {
+        fill: none;
+        stroke: currentColor;
+      }
+      #plm-floating-helper .pfh-list-head {
+        background: transparent;
+        backdrop-filter: none;
+      }
+      #plm-floating-helper > .pfh-full {
+        position: relative;
+        height: 100%;
+        max-height: inherit;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: inherit;
+        background:
+          radial-gradient(circle at 16% 0%, rgba(124, 58, 237, 0.10), transparent 34%),
+          radial-gradient(circle at 86% 100%, rgba(14, 165, 233, 0.10), transparent 34%),
+          rgba(255,255,255,.84);
+      }
+      #plm-floating-helper .pfh-detail-scroll {
+        background: transparent;
+      }
+      #plm-floating-helper .pfh-detail-scroll {
+        padding: 12px 14px 0;
+      }
+      #plm-floating-helper .pfh-section-title {
+        margin: 0 0 8px;
+      }
+      #plm-floating-helper .pfh-info-grid .pfh-label .pfh-icon {
+        display: none;
+      }
+      #plm-floating-helper > .pfh-full {
+        min-height: 0;
+      }
+      #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title {
+        display: flex;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0 0 6px;
+      }
+      #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title h3 {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+      }
+      #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title .pfh-excel-controls {
+        flex: 0 0 auto;
+        margin-left: auto;
+        gap: 5px;
+      }
+      #plm-floating-helper .pfh-graphic-section > .pfh-excel-options-row > .pfh-excel-form.is-open > button[data-action="excel-prepare"] .pfh-icon {
+        width: 16px;
+        height: 16px;
+        margin: 0 auto;
+        color: #566381;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+      }
+      #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title {
+        grid-row: 1;
+        grid-column: 1 / -1;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"] {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        min-height: 36px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        color: #675f86;
+        box-shadow: none;
+        overflow: visible;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]:hover {
+        color: #6d35e8;
+        border-color: rgba(124, 58, 237, .16);
+        background: rgba(124, 58, 237, .10);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 18px rgba(124,58,237,.10);
+      }
+      #plm-floating-helper .pfh-header .pfh-actions button > span:not(.pfh-icon),
+#plm-floating-helper .pfh-list-head button[data-action="home-back"] > span:not(.pfh-icon) {
+        display: none;
+      }
+      #plm-floating-helper .pfh-header .pfh-actions .pfh-icon,
+#plm-floating-helper .pfh-list-head button[data-action="home-back"] .pfh-icon {
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: currentColor;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"] .pfh-icon-backArrow {
+        width: 20px;
+        height: 20px;
+        line-height: 0;
+      }
+      #plm-floating-helper .pfh-header .pfh-actions .pfh-icon svg,
+#plm-floating-helper .pfh-list-head button[data-action="home-back"] .pfh-icon svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+        color: currentColor;
+        fill: currentColor;
+        stroke: currentColor;
+        stroke-width: 1.8;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 50%;
+        top: calc(100% + 7px);
+        z-index: 120;
+        min-width: max-content;
+        max-width: 130px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        color: #fff;
+        background: #1f2937;
+        box-shadow: 0 10px 24px rgba(31,41,55,.18);
+        font-size: 12px;
+        line-height: 1.2;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -4px);
+        transition: opacity 140ms ease, transform 140ms ease;
+        white-space: nowrap;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]:hover::after {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
+        left: 0;
+        transform: translate(0, -4px);
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]:hover::after {
+        transform: translate(0, 0);
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]::after,
+#plm-floating-helper .pfh-list-head button[data-action="home-back"]:hover::after {
+        display: none;
+        content: none;
+      }
+      #plm-floating-helper .pfh-product-thumb.is-empty .pfh-icon {
+        width: 22px;
+        height: 22px;
+        color: #7c3aed;
+      }
+      #plm-floating-helper .pfh-product-thumb.is-empty .pfh-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
+      }
+      #plm-floating-helper .pfh-title-actions {
+        justify-self: start;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      #plm-floating-helper .pfh-title-open-detail .pfh-icon {
+        width: 14px;
+        height: 14px;
+      }
+      #plm-floating-helper .pfh-title-open-detail .pfh-icon {
+        display: none;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"] {
+        display: grid;
+        place-items: center;
+        line-height: 0;
+        transform: none;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"] .pfh-icon,
+#plm-floating-helper .pfh-list-head button[data-action="home-back"] .pfh-icon-backArrow {
+        display: grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        margin: 0;
+      }
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"] .pfh-icon svg {
+        width: 18px;
+        height: 18px;
+      }
+      #plm-floating-helper .pfh-list-head {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto 24px;
+        align-items: center;
+        column-gap: 10px;
+        min-height: 36px;
+      }
+      #plm-floating-helper .pfh-list-head strong,
+#plm-floating-helper .pfh-list-head span {
+        align-self: center;
+        margin: 0;
+      }
+      #plm-floating-helper .pfh-list-head span {
+        justify-self: end;
+        white-space: nowrap;
+      }
+      #plm-floating-helper .pfh-size-image-drop .pfh-icon {
+        width: 34px;
+        height: 34px;
+        color: #7c3aed;
+      }
+      #plm-floating-helper .pfh-size-image-drop span:not(.pfh-icon) {
+        color: #8a91ae;
+        font-size: 11px;
+      }
+      #plm-floating-helper .pfh-size-image-actions .pfh-icon {
+        width: 15px;
+        height: 15px;
+        flex: 0 0 15px;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      #plm-floating-helper .pfh-size-image-actions .pfh-icon svg {
+        width: 15px;
+        height: 15px;
+      }
+      #plm-floating-helper .pfh-size-image-placeholder .pfh-icon {
+        width: 48px;
+        height: 48px;
+        color: #9b86dc;
+      }
+      #plm-floating-helper .pfh-size-image-placeholder span:not(.pfh-icon) {
+        font-size: 11px;
+      }
+      #plm-floating-helper .pfh-size-image-placeholder.is-compact .pfh-icon {
+        width: 28px;
+        height: 28px;
+      }
+      #plm-floating-helper .pfh-size-image-placeholder.is-compact span:not(.pfh-icon) {
+        font-size: 10px;
+      }
+      #plm-floating-helper .pfh-sku-waterfall-thumb .pfh-icon {
+        width: 24px;
+        height: 24px;
+      }
+      #plm-floating-helper .pfh-actions .pfh-icon-notification svg,
+#plm-floating-helper .pfh-actions .pfh-icon-home svg {
+        fill: currentColor;
+        stroke: none;
+      }
+      #plm-floating-helper[data-pfh-theme] .pfh-home-entry-icon>.pfh-icon{
+  display:grid;
+  place-items:center;
+  width:18px;
+  min-width:0;
+  height:18px;
+  min-height:0;
+  margin:0;
+  padding:0;
+  color:inherit;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+      #plm-floating-helper[data-pfh-theme] .pfh-home-entry-icon>.pfh-icon svg,
+#plm-floating-helper[data-pfh-theme] .pfh-home-entry-icon>.pfh-icon svg *{
+  color:inherit;
+  fill:none;
+  stroke:currentColor;
+}
+      #plm-floating-helper .pfh-home-entry-secondary .pfh-home-entry-icon .pfh-icon{width:14px;height:14px;}
+      #plm-floating-helper .pfh-home-task-icon .pfh-icon{width:15px;height:15px;}
+      #plm-floating-helper .pfh-home-task-empty>span .pfh-icon{width:21px;height:21px;}
+      #plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon,
+#plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon svg,
+#plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon svg *{
+  color:inherit;
+  stroke:currentColor;
+}
+      #plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon-home svg,
+#plm-floating-helper[data-pfh-theme] .pfh-header .pfh-actions .pfh-icon-notification svg{
+  fill:currentColor;
+  stroke:none;
+}
+      #plm-floating-helper[data-pfh-theme] .pfh-full,
+#plm-floating-helper[data-pfh-theme] .pfh-detail-scroll{background:var(--pfh-theme-page);color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] :where(h1,h2,h3,h4,strong,b,.pfh-list-head strong,.pfh-section-title h3,.pfh-home-card strong,.pfh-product-title-copy h2){color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] :where(svg,.pfh-icon){color:inherit;}
+      #plm-floating-helper[data-pfh-theme] .pfh-icon{color:var(--pfh-theme-primary);border-color:var(--pfh-theme-border);background:var(--pfh-theme-primary-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-icon svg{color:var(--pfh-theme-primary);fill:none;stroke:currentColor;}
+      #plm-floating-helper[data-pfh-theme] .pfh-icon svg *{color:inherit;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;}
+      #plm-floating-helper .pfh-icon svg{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+      #plm-floating-helper .pfh-icon svg *{fill:none;stroke:currentColor;stroke-width:inherit;stroke-linecap:round;stroke-linejoin:round;}
+      #plm-floating-helper .pfh-home-card .pfh-icon svg,
+#plm-floating-helper .pfh-home-card .pfh-icon-tools svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;}
+      #plm-floating-helper .pfh-home-card .pfh-icon svg *,
+#plm-floating-helper .pfh-home-card .pfh-icon svg path,
+#plm-floating-helper .pfh-home-card .pfh-icon svg rect,
+#plm-floating-helper .pfh-home-card .pfh-icon svg circle,
+#plm-floating-helper .pfh-home-card .pfh-icon svg line,
+#plm-floating-helper .pfh-home-card .pfh-icon-tools svg *,
+#plm-floating-helper .pfh-home-card .pfh-icon-tools svg rect{fill:none;stroke:currentColor;stroke-width:inherit;}
+      #plm-floating-helper[data-pfh-theme] .pfh-detail-card-meta .pfh-icon{color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-detail-link-value .pfh-icon{color:var(--pfh-theme-primary);}
+      #plm-floating-helper .pfh-list-head > button[data-action="home-back"]{display:grid;place-items:center;box-sizing:border-box;width:30px;min-width:30px;height:30px;min-height:30px;margin:0;padding:0;flex:0 0 30px;border:0;border-radius:0;background:transparent;color:var(--pfh-theme-primary,#6d35e8);box-shadow:none;cursor:pointer;transition:color .18s ease;}
+      #plm-floating-helper .pfh-list-head > button[data-action="home-back"]:hover:not(:disabled){border-color:transparent;background:transparent;color:var(--pfh-theme-primary-hover,#5422c9);box-shadow:none;}
+      #plm-floating-helper .pfh-list-head > button[data-action="home-back"]:focus-visible{outline:2px solid var(--pfh-theme-primary-soft,rgba(109,53,232,.22));outline-offset:3px;}
+      #plm-floating-helper .pfh-list-head > button[data-action="home-back"] .pfh-icon,
+#plm-floating-helper .pfh-mini-tool-head > button[data-action="home-back"] .pfh-icon{display:grid;place-items:center;width:24px;min-width:24px;height:24px;min-height:24px;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;box-shadow:none;}
+      #plm-floating-helper .pfh-list-head > button[data-action="home-back"] .pfh-icon svg,
+#plm-floating-helper .pfh-mini-tool-head > button[data-action="home-back"] .pfh-icon svg{display:block;width:22px;height:22px;color:inherit;fill:currentColor;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+      #plm-floating-helper[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"] .pfh-icon,
+#plm-floating-helper[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"] .pfh-icon{color:var(--pfh-theme-primary);fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;background:transparent;}
+      #plm-floating-helper[data-pfh-theme] .pfh-title-actions .pfh-title-edit-data{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-primary);box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-title-actions .pfh-title-edit-data:hover{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper[data-view="tools"] .pfh-tools-nav button .pfh-icon{display:grid;place-items:center;flex:0 0 26px;width:26px;min-width:26px;height:26px;min-height:26px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:8px;background:var(--pfh-theme-surface,#fff);color:var(--pfh-theme-primary,#7c3aed);}
+      #plm-floating-helper[data-view="tools"] .pfh-tools-nav button .pfh-icon svg{width:15px;height:15px;}
+      #plm-floating-helper[data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon{border-color:var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-primary,#7c3aed);color:#fff;}
+      #plm-floating-helper[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon{border-color:var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-primary,#7c3aed);color:#fff;}
+      #plm-floating-helper[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon svg,
+#plm-floating-helper[data-pfh-theme][data-view="tools"] .pfh-tools-nav button.is-active .pfh-icon svg *{color:#fff;stroke:#fff;}
+      #plm-floating-helper .pfh-title-actions{flex-wrap:wrap;justify-content:flex-start;}
+      #plm-floating-helper .pfh-title-actions .is-primary{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper .pfh-title-actions .pfh-title-edit-data{display:inline-flex;width:34px;min-width:34px;padding:0;align-items:center;justify-content:center;border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-primary);box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 6px 14px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper .pfh-title-actions .pfh-title-edit-data:hover{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper .pfh-title-actions .pfh-title-edit-data .pfh-icon{display:inline-flex;flex:0 0 16px;width:16px;min-width:16px;height:16px;margin:0;padding:0;align-items:center;justify-content:center;border:0;border-radius:0;background:transparent;color:inherit;line-height:1;box-sizing:content-box;}
+      #plm-floating-helper .pfh-title-actions .pfh-title-edit-data .pfh-icon svg{display:block;width:16px;height:16px;}
+      #plm-floating-helper .pfh-title-actions .pfh-title-edit-data .pfh-icon svg,
+#plm-floating-helper .pfh-title-actions .pfh-title-edit-data .pfh-icon svg *{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+      #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title{margin-top:0;min-height:34px;gap:10px;}
+      #plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title .pfh-toy-copywriting-button,
+#plm-floating-helper .pfh-graphic-section > .pfh-section-title.pfh-graphic-title .pfh-excel-controls > button[data-action="excel-prepare"]{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:34px;min-height:34px;min-width:0;flex:0 1 auto;padding:0 12px;border-radius:12px;line-height:1;white-space:nowrap;}
+      #plm-floating-helper .pfh-detail-sku-badge .pfh-icon{
+        display:inline-flex;
+        flex:0 0 17px;
+        width:17px;
+        height:17px;
+        min-width:17px;
+        min-height:17px;
+        padding:0;
+        border:0;
+        background:transparent;
+        color:currentColor;
+      }
+      #plm-floating-helper .pfh-detail-sku-badge .pfh-icon svg{width:17px;height:17px;}
+      #plm-floating-helper .pfh-detail-card-meta .pfh-icon{
+        display:inline-flex;
+        flex:0 0 14px;
+        width:14px;
+        height:14px;
+        min-width:14px;
+        min-height:14px;
+        padding:0;
+        border:0;
+        background:transparent;
+        color:#8165ce;
+      }
+      #plm-floating-helper .pfh-detail-card-meta .pfh-icon svg{width:14px;height:14px;}
+      #plm-floating-helper .pfh-detail-link-value .pfh-icon{display:inline-flex;flex:0 0 16px;width:16px;height:16px;min-width:16px;padding:0;border:0;background:transparent;color:#8165ce;}
+      #plm-floating-helper .pfh-detail-link-value .pfh-icon svg{width:16px;height:16px;}
+      #plm-floating-helper .pfh-detail-edit-button .pfh-icon{display:inline-flex;width:17px;height:17px;min-width:17px;padding:0;border:0;background:transparent;color:currentColor;}
+      #plm-floating-helper .pfh-detail-edit-button .pfh-icon svg{width:17px;height:17px;}
+      @media(max-width:430px){
+        #plm-floating-helper .pfh-detail-card-meta .pfh-icon{width:13px;height:13px;min-width:13px;}
+        #plm-floating-helper .pfh-detail-card-meta .pfh-icon svg{width:13px;height:13px;}
+      }
+      @media(min-width:761px){
+      #plm-floating-helper.is-narrow-panel .pfh-detail-sku-badge .pfh-icon{width:15px;height:15px;min-width:15px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-sku-badge .pfh-icon svg{width:15px;height:15px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-card-meta .pfh-icon{width:13px;height:13px;min-width:13px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-card-meta .pfh-icon svg{width:13px;height:13px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-link-value .pfh-icon{width:14px;height:14px;min-width:14px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-link-value .pfh-icon svg{width:14px;height:14px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-edit-button .pfh-icon{width:15px;height:15px;min-width:15px;}
+      #plm-floating-helper.is-narrow-panel .pfh-detail-edit-button .pfh-icon svg{width:15px;height:15px;}
+      }
+      #plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button .pfh-icon{width:14px;height:14px;min-width:14px;padding:0;border:0;background:transparent;color:inherit;}
+      #plm-floating-helper[data-pfh-theme] .pfh-infringement-history-button .pfh-icon svg{width:14px;height:14px;fill:none;stroke:currentColor;}
+      #plm-floating-helper .pfh-infringement-section > .pfh-section-title.pfh-infringement-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin: 0 0 10px;
+}
+      #plm-floating-helper .pfh-infringement-section > .pfh-section-title.pfh-infringement-title h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]:hover:not(:disabled){
+  transform:translateY(-1px);
+}
+      #plm-floating-helper .pfh-list-head button[data-action="home-back"]:active:not(:disabled){
+  transform:translateY(0) scale(.96);
+}
+
+/*  Rules consolidated from shared-typography.css.  */
+
+#plm-floating-helper .pfh-list-head button[data-action="home-back"]::after {
+  font-weight: var(--pfh-font-weight-control, 400);
+}
+
+#plm-floating-helper .pfh-list-head strong {
+  font-weight: var(--pfh-font-weight-control, 400);
+}
+
+#plm-floating-helper .pfh-list-head span {
+  font-weight: var(--pfh-font-weight-regular, 400);
+}
+
+/*  Rules consolidated from detail-typography.css.  */
+
+#plm-floating-helper[data-view="detail"] .pfh-full * {
+  font-weight: var(--pfh-detail-weight-body);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-sku-info-section > .pfh-section-title h3,
+#plm-floating-helper[data-view="detail"] .pfh-graphic-section > .pfh-section-title h3 {
+  font-weight: var(--pfh-detail-weight-heading);
+}
+
+/*  Rules consolidated from interaction-contract.css.  */
+#plm-floating-helper button:hover .pfh-icon,
+#plm-floating-helper button:hover .pfh-icon svg,
+#plm-floating-helper button:hover .pfh-icon svg * {
+  transform: none;
+}

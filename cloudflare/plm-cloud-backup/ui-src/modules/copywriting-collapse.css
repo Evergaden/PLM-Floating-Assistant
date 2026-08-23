@@ -1,8 +1,0 @@
-/* Copywriting collapse keeps the block identity visible while hiding long-form text. */
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-page.is-collapsed .pfh-copywriting-block-head {
-  margin-bottom: 0;
-}
-
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-content.is-collapsed .pfh-copywriting-block > pre {
-  display: none;
-}

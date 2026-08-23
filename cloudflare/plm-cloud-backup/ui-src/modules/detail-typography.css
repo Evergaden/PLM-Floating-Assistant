@@ -5,10 +5,6 @@
   --pfh-detail-weight-heading: var(--pfh-font-weight-heading, 700);
 }
 
-#plm-floating-helper[data-view="detail"] .pfh-full * {
-  font-weight: var(--pfh-detail-weight-body);
-}
-
 #plm-floating-helper[data-view="detail"] > .pfh-toast {
   font-weight: var(--pfh-detail-weight-body);
 }
@@ -16,8 +12,6 @@
 #plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge,
 #plm-floating-helper[data-view="detail"] .pfh-detail-sku-badge *,
 #plm-floating-helper[data-view="detail"] .pfh-detail-product-title,
-#plm-floating-helper[data-view="detail"] .pfh-sku-info-section > .pfh-section-title h3,
-#plm-floating-helper[data-view="detail"] .pfh-graphic-section > .pfh-section-title h3,
 #plm-floating-helper[data-view="detail"] .pfh-infringement-section > .pfh-infringement-title h3 {
   font-weight: var(--pfh-detail-weight-heading);
 }
@@ -27,10 +21,6 @@
 #plm-floating-helper[data-view="detail"] .pfh-detail-more-button,
 #plm-floating-helper[data-view="detail"] .pfh-info-grid .pfh-row-actions button,
 #plm-floating-helper[data-view="detail"] .pfh-info-grid .pfh-row.is-inline-editing [data-action="confirm-tail-seal"],
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head button,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert button,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-hero-actions button,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar-actions button,
 #plm-floating-helper[data-view="detail"] .pfh-sku-data-log-trigger,
 #plm-floating-helper[data-view="detail"] .pfh-data-change-actions button,
 #plm-floating-helper[data-view="detail"] .pfh-infringement-history-button {
@@ -47,24 +37,6 @@
 }
 
 /* Copywriting is long-form content; only its block identity is emphasized. */
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > strong,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > b,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert strong,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-empty strong {
-  font-weight: var(--pfh-detail-weight-title);
-}
-
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head small,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card .pfh-copywriting-block-head small,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-block pre,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card pre,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert span,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label span,
-#plm-floating-helper[data-view="detail"] .pfh-copywriting-copied-note {
-  font-weight: var(--pfh-detail-weight-body);
-}
 
 /* Infringement and history views use one heading weight and quiet metadata. */
 #plm-floating-helper[data-view="detail"] .pfh-infringement-title-copy h3,

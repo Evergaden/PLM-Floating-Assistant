@@ -1,0 +1,546 @@
+/*  Copywriting layout and interaction rules migrated from the legacy cascade.  */
+      #plm-floating-helper .pfh-copywriting-scroll {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        padding-bottom: 12px;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-section {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-actions button {
+        border: 1px solid rgba(211,204,255,.58);
+        background: rgba(255,255,255,.74);
+        color: #675f86;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
+        font-size: 11px;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-actions button:hover {
+        border-color: rgba(124,58,237,.34);
+        background: rgba(244,241,255,.88);
+        color: #6d35e8;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-actions button.is-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 28px;
+        min-width: 28px;
+        padding: 0;
+      }
+      #plm-floating-helper .pfh-copywriting-hero-actions button.is-icon .pfh-icon,
+#plm-floating-helper .pfh-copywriting-hero-actions button.is-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+      #plm-floating-helper .pfh-copywriting-page {
+        align-content: start;
+        min-width: 0;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      #plm-floating-helper .pfh-copywriting-content {
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139,126,181,.24) transparent;
+      }
+      #plm-floating-helper .pfh-copywriting-content::-webkit-scrollbar {
+        width: 5px;
+      }
+      #plm-floating-helper .pfh-copywriting-content::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(139,126,181,.24);
+      }
+      #plm-floating-helper .pfh-copywriting-block {
+        margin: 0;
+        padding: 0;
+        border-radius: 8px;
+        transition: background .18s ease, box-shadow .18s ease;
+      }
+      #plm-floating-helper .pfh-copywriting-block-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      #plm-floating-helper .pfh-copywriting-block-head button {
+        border: 1px solid rgba(124,58,237,.20);
+        background: rgba(244,241,255,.72);
+        color: #6d35e8;
+      }
+      #plm-floating-helper .pfh-copywriting-block-head button:hover {
+        border-color: rgba(124,58,237,.42);
+        background: rgba(233,226,255,.92);
+      }
+      #plm-floating-helper .pfh-copywriting-block pre {
+        max-width: 100%;
+        margin: 0;
+        overflow: visible;
+        color: #24213f;
+        background: transparent;
+        font-family: Arial, "Microsoft YaHei", sans-serif;
+        font-size: 13px;
+        line-height: 1.65;
+        letter-spacing: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: normal;
+      }
+      #plm-floating-helper .pfh-copywriting-alert {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 8px 10px;
+        border: 1px solid rgba(211,204,255,.44);
+        border-radius: 10px;
+        background: rgba(248,250,252,.78);
+        color: #64748b;
+        font-size: 11px;
+      }
+      #plm-floating-helper .pfh-copywriting-alert strong {
+        flex: 0 0 auto;
+        color: #30285e;
+        font-size: 11px;
+      }
+      #plm-floating-helper .pfh-copywriting-alert span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #plm-floating-helper .pfh-copywriting-alert.is-update {
+        border-color: rgba(234,179,8,.30);
+        background: rgba(254,249,195,.56);
+        color: #854d0e;
+      }
+      #plm-floating-helper .pfh-copywriting-alert.is-error {
+        border-color: rgba(248,113,113,.26);
+        background: rgba(254,242,242,.72);
+        color: #b42318;
+      }
+      #plm-floating-helper .pfh-copywriting-alert.is-warning {
+        border-color: rgba(251,191,36,.26);
+        background: rgba(255,251,235,.72);
+        color: #92400e;
+      }
+      #plm-floating-helper .pfh-copywriting-empty {
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+        min-height: 220px;
+        height: 100%;
+        padding: 24px;
+        border: 1px dashed rgba(124,58,237,.24);
+        border-radius: 15px;
+        background: rgba(255,255,255,.62);
+        color: #7d86a8;
+        text-align: center;
+      }
+      #plm-floating-helper .pfh-copywriting-empty strong {
+        color: #30285e;
+        font-size: 14px;
+      }
+      #plm-floating-helper .pfh-copywriting-empty p {
+        max-width: 360px;
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+      #plm-floating-helper .pfh-copywriting-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid rgba(124,58,237,.18);
+        border-top-color: #7c3aed;
+        border-radius: 50%;
+        animation: pfh-copywriting-spin .8s linear infinite;
+      }
+      #plm-floating-helper .pfh-copywriting-scroll {
+  gap: 14px;
+}
+      #plm-floating-helper .pfh-copywriting-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions {
+  gap: 6px;
+  margin-top: 8px;
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 9px;
+  line-height: 1;
+  white-space: nowrap;
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions button.is-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, #8b5cf6, #6d35e8);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(109, 53, 232, .24);
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions button.is-primary:hover {
+  background: linear-gradient(135deg, #7c4df0, #5d2dca);
+  color: #fff;
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions button .pfh-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions button .pfh-icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+      #plm-floating-helper .pfh-copywriting-hero-actions svg,
+#plm-floating-helper .pfh-copywriting-block-head button svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+      #plm-floating-helper .pfh-copywriting-copy-icon rect,
+#plm-floating-helper .pfh-copywriting-copy-icon path {
+  fill: none;
+  stroke: currentColor;
+}
+      #plm-floating-helper .pfh-copywriting-toolbar {
+  min-height: 42px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid rgba(211, 204, 255, .46);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.96);
+}
+      #plm-floating-helper .pfh-copywriting-toolbar label {
+  align-items: center;
+  gap: 8px;
+  color: #30285e;
+  font-size: 12px;
+  white-space: nowrap;
+}
+      #plm-floating-helper .pfh-copywriting-view-select {
+  height: 30px;
+  padding: 0 28px 0 10px;
+  border: 1px solid rgba(124, 58, 237, .26);
+  border-radius: 9px;
+  outline: none;
+  background-color: #f7f4ff;
+  color: #6736d5;
+  font: 400 12px/1 Arial, "Microsoft YaHei", sans-serif;
+  cursor: pointer;
+}
+      #plm-floating-helper .pfh-copywriting-view-select:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, .12);
+}
+      #plm-floating-helper .pfh-copywriting-progress {
+  min-width: 0;
+  overflow: hidden;
+  color: #7d86a8;
+  font-size: 11px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+      #plm-floating-helper .pfh-copywriting-content {
+  flex: 1 1 auto;
+  height: auto;
+  padding: 4px 3px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+      #plm-floating-helper .pfh-copywriting-block,
+#plm-floating-helper .pfh-copywriting-full-card {
+  position: relative;
+  margin: 0 2px;
+  padding: 15px 17px;
+  overflow: hidden;
+  border: 1px solid rgba(211, 204, 255, .5);
+  border-radius: 15px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 8px 24px rgba(63, 48, 121, .055), inset 0 1px 0 rgba(255,255,255,.95);
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+      #plm-floating-helper .pfh-copywriting-block:hover,
+#plm-floating-helper .pfh-copywriting-full-card:hover {
+  border-color: rgba(124, 58, 237, .34);
+  box-shadow: 0 10px 28px rgba(63, 48, 121, .09), inset 0 1px 0 rgba(255,255,255,.98);
+}
+      #plm-floating-helper .pfh-copywriting-block + .pfh-copywriting-block {
+  margin-top: 10px;
+}
+      #plm-floating-helper .pfh-copywriting-block.is-changed {
+  margin-left: 2px;
+  margin-right: 2px;
+  padding: 15px 17px;
+  border-color: rgba(234, 179, 8, .42);
+  background: linear-gradient(135deg, rgba(255,251,235,.94), rgba(255,255,255,.86));
+  box-shadow: inset 4px 0 0 #eab308, 0 8px 24px rgba(113, 83, 12, .06);
+}
+      #plm-floating-helper .pfh-copywriting-block.is-copied,
+#plm-floating-helper .pfh-copywriting-full-card.is-copied {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, rgba(248,246,255,.98), rgba(255,255,255,.9));
+  box-shadow: inset 4px 0 0 #7c3aed, 0 10px 28px rgba(109, 53, 232, .12);
+}
+      #plm-floating-helper .pfh-copywriting-block-head {
+  min-height: 32px;
+  margin-bottom: 10px;
+  color: #30285e;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+      #plm-floating-helper .pfh-copywriting-block-head > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+      #plm-floating-helper .pfh-copywriting-block .pfh-copywriting-block-head > span > b:first-child:not(:only-child) {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #f1edff, #e9e2ff);
+  color: #7443e7;
+  font-size: 12px;
+}
+      #plm-floating-helper .pfh-copywriting-block-head > span > strong {
+  min-width: 0;
+  color: #24213f;
+  font-size: 13px;
+}
+      #plm-floating-helper .pfh-copywriting-full-card .pfh-copywriting-block-head span {
+  align-items: baseline;
+}
+      #plm-floating-helper .pfh-copywriting-full-card .pfh-copywriting-block-head b {
+  color: #24213f;
+  font-size: 14px;
+}
+      #plm-floating-helper .pfh-copywriting-full-card .pfh-copywriting-block-head small {
+  color: #8a93ad;
+  font-size: 10px;
+}
+      #plm-floating-helper .pfh-copywriting-block-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 28px;
+  white-space: nowrap;
+}
+      #plm-floating-helper .pfh-copywriting-block.is-copied .pfh-copywriting-block-head button,
+#plm-floating-helper .pfh-copywriting-full-card.is-copied .pfh-copywriting-block-head button {
+  border-color: rgba(34, 197, 94, .22);
+  background: rgba(240, 253, 244, .92);
+  color: #22a95a;
+}
+      #plm-floating-helper .pfh-copywriting-copied-icon circle {
+  fill: #2cc66d;
+  stroke: none;
+}
+      #plm-floating-helper .pfh-copywriting-copied-icon path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+      #plm-floating-helper .pfh-copywriting-block pre,
+#plm-floating-helper .pfh-copywriting-full-card pre {
+  max-width: 100%;
+  margin: 0;
+  overflow: visible;
+  color: #24213f;
+  background: transparent;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  line-height: 1.68;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+      #plm-floating-helper .pfh-copywriting-copied-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(124,58,237,.12);
+  color: #7545df;
+  font-size: 10px;
+}
+      #plm-floating-helper .pfh-copywriting-copied-note svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+      #plm-floating-helper .pfh-copywriting-alert button {
+  flex: 0 0 auto;
+  height: 26px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid rgba(180, 83, 9, .2);
+  border-radius: 8px;
+  background: rgba(255,255,255,.74);
+  color: #92400e;
+  font-size: 10px;
+  white-space: nowrap;
+}
+      #plm-floating-helper .pfh-copywriting-alert button:hover {
+  border-color: rgba(180, 83, 9, .36);
+  background: #fff;
+}
+      @media (max-width: 620px) {
+  #plm-floating-helper .pfh-copywriting-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 5px;
+  }
+  #plm-floating-helper .pfh-copywriting-progress {
+    text-align: left;
+  }
+  #plm-floating-helper .pfh-copywriting-block,
+#plm-floating-helper .pfh-copywriting-full-card,
+#plm-floating-helper .pfh-copywriting-block.is-changed {
+    padding: 12px;
+  }
+}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-hero-actions button{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-primary);box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 5px 12px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-hero-actions button:hover{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-hero-actions button.is-primary{border-color:var(--pfh-theme-primary);background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover));color:#fff;box-shadow:0 8px 18px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-hero-actions button.is-primary:hover{border-color:var(--pfh-theme-primary-hover);background:var(--pfh-theme-primary-hover);color:#fff;}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-toolbar{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface);color:var(--pfh-theme-text);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 16px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-toolbar label{color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-view-select{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-view-select:focus{border-color:var(--pfh-theme-border-strong);box-shadow:0 0 0 3px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-content{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 10px 28px var(--pfh-theme-shadow-soft);scrollbar-color:var(--pfh-theme-border-strong) transparent;}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface-alt);box-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 8px 20px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block:hover,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card:hover{border-color:var(--pfh-theme-border-strong);box-shadow:inset 0 1px 0 rgba(255,255,255,.94),0 10px 24px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block.is-changed{border-color:var(--pfh-theme-border-strong);background:linear-gradient(135deg,var(--pfh-theme-primary-soft),var(--pfh-theme-surface-alt));box-shadow:inset 4px 0 0 var(--pfh-theme-primary),0 10px 24px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block-head{color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block .pfh-copywriting-block-head > span > b:first-child:not(:only-child){background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block-head > span > strong,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card .pfh-copywriting-block-head b{color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card .pfh-copywriting-block-head small{color:var(--pfh-theme-muted);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block-head button{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface);color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block-head button:hover{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block.is-copied,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card.is-copied{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);box-shadow:inset 4px 0 0 var(--pfh-theme-primary),0 10px 24px var(--pfh-theme-shadow-soft);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block.is-copied .pfh-copywriting-block-head button,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card.is-copied .pfh-copywriting-block-head button{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-surface);color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-copied-icon circle{fill:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-block pre,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-full-card pre{color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-copied-note{border-top-color:var(--pfh-theme-border);color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-muted);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert strong{color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert button{border-color:var(--pfh-theme-border);background:var(--pfh-theme-surface);color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert button:hover{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert.is-update,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert.is-warning{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert.is-update strong,
+#plm-floating-helper[data-pfh-theme] .pfh-copywriting-alert.is-warning strong{color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-empty{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-muted);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-empty strong{color:var(--pfh-theme-text);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-spinner{border-color:var(--pfh-theme-primary-soft);border-top-color:var(--pfh-theme-primary);}
+      #plm-floating-helper[data-pfh-theme] .pfh-copywriting-content::-webkit-scrollbar-thumb{background:var(--pfh-theme-border-strong);}
+      #plm-floating-helper .pfh-copywriting-toolbar{display:grid;grid-template-columns:minmax(0,1fr) max-content;justify-content:initial;align-items:center;flex-direction:row;flex-wrap:nowrap;gap:8px;min-width:0;overflow:hidden;}
+      #plm-floating-helper .pfh-copywriting-toolbar label{display:inline-flex;flex:0 1 auto;min-width:0;overflow:hidden;}
+      #plm-floating-helper .pfh-copywriting-view-select{width:112px;min-width:112px;max-width:112px;flex:0 0 112px;}
+      #plm-floating-helper .pfh-copywriting-toolbar-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;min-width:0;white-space:nowrap;}
+      #plm-floating-helper .pfh-copywriting-toolbar-actions button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:0 10px;border:1px solid var(--pfh-theme-border);border-radius:9px;background:var(--pfh-theme-surface-alt);color:var(--pfh-theme-primary);font:inherit;font-size:11px;line-height:1;white-space:nowrap;cursor:pointer;}
+      #plm-floating-helper .pfh-copywriting-toolbar-actions button:hover{border-color:var(--pfh-theme-border-strong);background:var(--pfh-theme-primary-soft);color:var(--pfh-theme-primary-hover);}
+      #plm-floating-helper .pfh-copywriting-toolbar-actions button:disabled{cursor:wait;opacity:.56;}
+      #plm-floating-helper .pfh-copywriting-toolbar-actions button .pfh-icon{display:inline-flex;width:14px;height:14px;flex:0 0 14px;align-items:center;justify-content:center;padding:0;border:0;border-radius:0;background:transparent;color:inherit;}
+      #plm-floating-helper .pfh-copywriting-toolbar-actions button svg{width:14px;height:14px;flex:0 0 14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+      button[data-pfh-page-toy-copywriting]{display:inline-flex;align-items:center;justify-content:center;gap:5px;box-sizing:border-box;height:28px;min-height:28px;margin:0 0 0 8px;padding:0 10px;border:1px solid #7c3aed;border-radius:5px;background:#fff;color:#6d28d9;font:inherit;font-size:13px;line-height:26px;white-space:nowrap;vertical-align:middle;cursor:pointer;transition:border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease;}
+      button[data-pfh-page-toy-copywriting]:hover:not(:disabled){border-color:#5b21b6;background:#f5f3ff;color:#5b21b6;box-shadow:0 2px 8px rgba(109,40,217,.16);}
+      button[data-pfh-page-toy-copywriting]:disabled{cursor:wait;opacity:.78;}
+      button[data-pfh-page-toy-copywriting].is-error{border-color:#ef4444;color:#dc2626;background:#fff7f7;}
+      button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner{width:13px;height:13px;box-sizing:border-box;border:2px solid rgba(109,40,217,.22);border-top-color:#6d28d9;border-radius:50%;animation:pfh-page-toy-copywriting-spin .8s linear infinite;}
+      @media(prefers-reduced-motion:reduce){button[data-pfh-page-toy-copywriting] .pfh-page-toy-copywriting-spinner{animation:none;}}
+
+/* Copywriting collapse keeps the block identity visible while hiding long-form text. */
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-page.is-collapsed .pfh-copywriting-block-head {
+  margin-bottom: 0;
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-content.is-collapsed .pfh-copywriting-block > pre {
+  display: none;
+}
+
+/*  Rules consolidated from detail-typography.css.  */
+
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-hero-actions button,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar-actions button {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > strong,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head > span > b,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert strong,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-empty strong {
+  font-weight: var(--pfh-detail-weight-title);
+}
+
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block-head small,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card .pfh-copywriting-block-head small,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-block pre,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-full-card pre,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-alert span,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-toolbar label span,
+#plm-floating-helper[data-view="detail"] .pfh-copywriting-copied-note {
+  font-weight: var(--pfh-detail-weight-body);
+}

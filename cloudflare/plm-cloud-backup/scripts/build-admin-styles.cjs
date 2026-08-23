@@ -10,6 +10,9 @@ const checkOnly = process.argv.includes('--check');
 const source = fs.readFileSync(sourcePath, 'utf8').trimEnd();
 const parsed = postcss.parse(source, { from: sourcePath });
 parsed.walkDecls((declaration) => {
+  if (declaration.important) {
+    throw new Error(`Admin canonical CSS cannot use !important: ${declaration.toString()}`);
+  }
   if (declaration.prop === 'font-weight') {
     if (/^(?:bold|bolder)$/i.test(declaration.value.trim())) {
       throw new Error(`Admin font weight policy requires explicit 400 or 700 tiers: ${declaration.toString()}`);

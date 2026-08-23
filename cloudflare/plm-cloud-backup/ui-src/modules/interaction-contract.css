@@ -24,45 +24,13 @@
 }
 
 /* A glyph is part of the button surface; it does not grow or rotate on hover. */
-#plm-floating-helper button:hover .pfh-icon,
-#plm-floating-helper button:hover .pfh-icon svg,
-#plm-floating-helper button:hover .pfh-icon svg * {
-  transform: none;
-}
 
 /* Non-button affordances keep their layout stable and communicate with color only. */
-#plm-floating-helper [role="button"]:not(button):hover,
-#plm-floating-helper .pfh-magic-task:hover,
-#plm-floating-helper .pfh-magic-history-item:hover {
+#plm-floating-helper [role="button"]:not(button):hover {
   transform: none;
 }
 
 /* Magic Upload: explicit component ownership for the first migrated surface. */
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-back:hover:not(:disabled) {
-  transform: var(--pfh-interaction-button-hover-transform);
-}
-
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-back:active:not(:disabled) {
-  transform: var(--pfh-interaction-button-active-transform);
-}
-
-#plm-floating-helper[data-view="magicUpload"] :is(
-  .pfh-magic-upload-drop:hover,
-  .pfh-magic-upload-drop.is-drag-over
-) {
-  transform: none;
-}
-
-#plm-floating-helper[data-view="magicUpload"] :is(.pfh-magic-task:hover) {
-  transform: none;
-}
-
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-actions button:hover:not(:disabled),
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-item button:hover,
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-history-dialog header button:hover,
-#plm-floating-helper[data-view="magicUpload"] .pfh-magic-task-delete:hover {
-  transform: var(--pfh-interaction-button-hover-transform);
-}
 
 /* Home navigation and task rows are real buttons and use the same lift. */
 #plm-floating-helper[data-pfh-theme] .pfh-home-entry:hover:not(:disabled),

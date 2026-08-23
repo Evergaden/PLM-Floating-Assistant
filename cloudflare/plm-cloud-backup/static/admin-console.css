@@ -1141,7 +1141,7 @@ main.wrap:has(.admin-sidebar) .admin-content {
   .admin-metrics-panel .metric,
   .admin-chart-line,
   .admin-chart-tooltip {
-    animation: none !important;
+    animation: none;
     transition: none;
   }
 }

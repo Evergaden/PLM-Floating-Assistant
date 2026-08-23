@@ -1,0 +1,544 @@
+/*  Batch Excel layout and interaction rules migrated from the legacy cascade.  */
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page{display:flex;flex-direction:column;gap:12px;padding:14px 16px 22px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head{flex:0 0 auto;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-card{display:flex;flex-direction:column;gap:10px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-form{display:flex;flex-direction:column;gap:8px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-form label{font-size:11px;letter-spacing:.02em;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-input{width:100%;min-height:104px;max-height:190px;resize:vertical;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-hint{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.55;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode button{min-height:36px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:10px;background:var(--pfh-theme-surface-alt,#f7f8fc);color:var(--pfh-theme-muted,#64748b);cursor:pointer;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode button.is-active{border-color:var(--pfh-theme-primary,#7c3aed);background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary-hover,#5b21b6);box-shadow:0 0 0 2px var(--pfh-theme-shadow-soft,rgba(124,58,237,.12));}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--pfh-theme-muted,#64748b);font-size:10px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary strong{color:var(--pfh-theme-text,#1f2937);font-size:12px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue{display:flex;flex-direction:column;gap:7px;max-height:310px;overflow:auto;padding-right:2px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:11px;background:var(--pfh-theme-surface-alt,#f7f8fc);}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row-main{display:flex;flex:1 1 auto;min-width:0;flex-direction:column;gap:2px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row-main b{overflow:hidden;color:var(--pfh-theme-text,#1f2937);font-size:11px;text-overflow:ellipsis;white-space:nowrap;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row-main small{overflow:hidden;color:var(--pfh-theme-muted,#64748b);font-size:9px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-status{flex:0 0 auto;font-size:9px;white-space:nowrap;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-status.is-ready{color:#16803c;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-status.is-error{color:#c2410c;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-status.is-pending{color:#9a6700;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row button{flex:0 0 auto;width:24px;height:24px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--pfh-theme-muted,#64748b);cursor:pointer;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row button:hover{background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary,#7c3aed);}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-empty{padding:18px 10px;border:1px dashed var(--pfh-theme-border,#d8deea);border-radius:11px;color:var(--pfh-theme-muted,#64748b);font-size:11px;text-align:center;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions{display:flex;gap:7px;flex-wrap:wrap;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button{flex:1 1 120px;min-width:0;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-progress{margin:0;color:var(--pfh-theme-primary-hover,#5b21b6);font-size:10px;line-height:1.5;}
+@media(max-width:430px){#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page{padding-left:11px;padding-right:11px;}#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row{align-items:flex-start;}#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-status{white-space:normal;text-align:right;}}
+#plm-floating-helper[data-view="batchExcel"] .pfh-detail-scroll{
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page{
+  width:min(100%,880px);
+  height:100%;
+  min-height:0;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  overflow:hidden;
+  padding:12px 14px 14px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head{
+  min-height:42px;
+  margin:0;
+  flex:0 0 auto;
+  gap:9px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head h2{
+  margin:1px 0 3px;
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:19px;
+  line-height:1.15;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head p{
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:10px;
+  line-height:1.35;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top{
+  display:grid;
+  grid-template-columns:minmax(0,1.12fr) minmax(220px,.88fr);
+  gap:10px;
+  min-height:0;
+  flex:0 0 auto;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top>.pfh-mini-tool-card{
+  min-width:0;
+  min-height:0;
+  padding:12px;
+  gap:7px;
+  border-color:var(--pfh-theme-border,#d8deea);
+  border-radius:16px;
+  background:linear-gradient(145deg,var(--pfh-theme-surface,rgba(255,255,255,.95)),var(--pfh-theme-surface-alt,rgba(247,248,252,.78)));
+  box-shadow:0 9px 24px var(--pfh-theme-shadow-soft,rgba(45,37,100,.07)),inset 0 1px 0 rgba(255,255,255,.9);
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-form>label{
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:11px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-input{
+  min-height:64px;
+  height:64px;
+  max-height:64px;
+  resize:none;
+  padding:8px 10px;
+  border-color:var(--pfh-theme-border-strong,var(--pfh-theme-border,#d8deea));
+  border-radius:11px;
+  background:var(--pfh-theme-surface,rgba(255,255,255,.86));
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:11px;
+  line-height:1.45;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-hint{
+  overflow:hidden;
+  margin:0;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top .pfh-mini-tool-actions{
+  gap:6px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top .pfh-mini-tool-actions button{
+  min-width:82px;
+  height:30px;
+  padding:0 11px;
+  border-radius:9px;
+  font-size:10px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-card{
+  align-content:start;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head strong{
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:11px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head span{
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option{
+  display:flex;
+  min-width:0;
+  min-height:57px;
+  align-items:center;
+  justify-content:flex-start;
+  gap:7px;
+  padding:7px 8px;
+  border:1px solid var(--pfh-theme-border,#d8deea);
+  border-radius:11px;
+  background:var(--pfh-theme-surface,rgba(255,255,255,.68));
+  color:var(--pfh-theme-muted,#64748b);
+  text-align:left;
+  cursor:pointer;
+  transition:background .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option:hover:not(:disabled){
+  border-color:var(--pfh-theme-border-strong,var(--pfh-theme-border,#d8deea));
+  box-shadow:0 6px 14px var(--pfh-theme-shadow-soft,rgba(45,37,100,.09));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option>.pfh-icon{
+  display:grid;
+  width:27px;
+  min-width:27px;
+  height:27px;
+  min-height:27px;
+  place-items:center;
+  border:0;
+  border-radius:9px;
+  background:var(--pfh-theme-surface-alt,#f7f8fc);
+  color:var(--pfh-theme-muted,#64748b);
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option>.pfh-icon svg{
+  width:16px;
+  height:16px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option>span:last-child{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  gap:2px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option b{
+  overflow:hidden;
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:10px;
+  line-height:1.15;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option small{
+  overflow:hidden;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:8px;
+  line-height:1.15;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option.is-separate.is-active{
+  border-color:var(--pfh-theme-secondary,#0891b2);
+  background:var(--pfh-theme-secondary-soft,#e8f7fa);
+  box-shadow:0 0 0 2px var(--pfh-theme-secondary-soft,rgba(8,145,178,.13));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option.is-separate.is-active>.pfh-icon{
+  background:var(--pfh-theme-surface,#fff);
+  color:var(--pfh-theme-secondary,#0891b2);
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option.is-merge.is-active{
+  border-color:var(--pfh-theme-primary,#7c3aed);
+  background:var(--pfh-theme-primary-soft,#f3efff);
+  box-shadow:0 0 0 2px var(--pfh-theme-primary-soft,rgba(124,58,237,.13));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option.is-merge.is-active>.pfh-icon{
+  background:var(--pfh-theme-surface,#fff);
+  color:var(--pfh-theme-primary,#7c3aed);
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-hint{
+  margin:0;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+  line-height:1.3;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue-card{
+  display:flex;
+  overflow:hidden;
+  padding:12px;
+  gap:7px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary{
+  min-height:26px;
+  flex:0 0 auto;
+  align-items:center;
+  gap:8px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary>div{
+  display:flex;
+  min-width:0;
+  align-items:baseline;
+  gap:7px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary strong{
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:12px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary small{
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary>span{
+  overflow:hidden;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue{
+  grid-auto-rows:minmax(36px,1fr);
+  overflow:hidden;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row{
+  padding:6px 8px;
+  border-radius:10px;
+  background:var(--pfh-theme-surface-alt,rgba(247,248,252,.72));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row-main small{
+  font-size:8px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-status{
+  font-size:9px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-pager{
+  min-height:27px;
+  flex:0 0 27px;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding-top:6px;
+  border-top:1px solid var(--pfh-theme-border,rgba(26,35,68,.08));
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-pager>div{
+  display:flex;
+  gap:4px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-pager button{
+  display:grid;
+  width:24px;
+  height:22px;
+  min-width:24px;
+  min-height:22px;
+  place-items:center;
+  padding:0;
+  border:1px solid var(--pfh-theme-border,#d8deea);
+  border-radius:7px;
+  background:var(--pfh-theme-surface,#fff);
+  color:var(--pfh-theme-primary-hover,#5b21b6);
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-pager button:hover:not(:disabled){
+  border-color:var(--pfh-theme-primary,#7c3aed);
+  background:var(--pfh-theme-primary-soft,#f3efff);
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-pager button:disabled{
+  cursor:not-allowed;
+  opacity:.35;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-footer{
+  display:flex;
+  min-width:0;
+  flex:0 0 auto;
+  align-items:center;
+  gap:8px;
+  padding-top:7px;
+  border-top:1px solid var(--pfh-theme-border,rgba(26,35,68,.08));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-progress{
+  min-width:0;
+  flex:1 1 auto;
+  max-height:29px;
+  overflow:hidden;
+  margin:0;
+  color:var(--pfh-theme-primary-hover,#5b21b6);
+  font-size:9px;
+  line-height:1.35;
+  text-overflow:ellipsis;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions{
+  display:flex;
+  flex:0 0 auto;
+  flex-wrap:nowrap;
+  gap:6px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button{
+  display:inline-flex;
+  min-width:0;
+  height:34px;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  padding:0 10px;
+  border-radius:9px;
+  font-size:10px;
+  white-space:nowrap;
+  transition:box-shadow .22s ease,background .22s ease,border-color .22s ease;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button>.pfh-icon{
+  width:14px;
+  min-width:14px;
+  height:14px;
+  min-height:14px;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download{
+  min-width:132px;
+  border:1px solid var(--pfh-theme-primary,#7c3aed);
+  background:linear-gradient(135deg,var(--pfh-theme-primary,#8b5cf6),var(--pfh-theme-primary-hover,#6d28d9));
+  color:#fff;
+  box-shadow:0 8px 18px var(--pfh-theme-shadow,rgba(124,58,237,.24));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download:hover:not(:disabled){
+  box-shadow:0 12px 24px var(--pfh-theme-shadow,rgba(124,58,237,.3));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-clear{
+  border:1px solid rgba(217,87,112,.28);
+  background:rgba(217,87,112,.09);
+  color:#d95770;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-clear:hover:not(:disabled){
+  border-color:rgba(217,87,112,.5);
+  background:rgba(217,87,112,.14);
+  box-shadow:0 7px 16px rgba(217,87,112,.14);
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button:disabled{
+  cursor:not-allowed;
+  opacity:.4;
+  box-shadow:none;
+}
+@media(max-width:620px){
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page{padding:10px 11px 12px;gap:8px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top{grid-template-columns:minmax(0,1fr) minmax(205px,.9fr);gap:7px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top>.pfh-mini-tool-card{padding:9px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-input{height:58px;min-height:58px;max-height:58px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions{gap:4px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button{padding:0 7px;font-size:9px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download{min-width:118px;}
+}
+@media(max-width:480px){
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top{grid-template-columns:1fr;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:8px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head{display:block;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head span,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-hint{display:none;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode{min-width:0;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-footer{align-items:stretch;flex-direction:column;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-progress{width:100%;max-height:22px;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions{width:100%;}
+  #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button{flex:1 1 0;}
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue{
+  display:flex;
+  flex-direction:column;
+  align-content:normal;
+  overflow-x:hidden;
+  overflow-y:auto;
+  gap:6px;
+  padding:0 5px 2px 0;
+  scrollbar-width:thin;
+  scrollbar-color:var(--pfh-theme-border-strong,var(--pfh-theme-border,#d8deea)) transparent;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue::-webkit-scrollbar{width:6px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue::-webkit-scrollbar-track{background:transparent;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue::-webkit-scrollbar-thumb{border-radius:999px;background:var(--pfh-theme-border-strong,var(--pfh-theme-border,#d8deea));}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue::-webkit-scrollbar-thumb:hover{background:var(--pfh-theme-primary,#7c3aed);}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row{flex:0 0 auto;min-height:42px;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-pager{display:none;}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare{
+  border:1px solid var(--pfh-theme-border,#d8deea);
+  background:var(--pfh-theme-surface,#fff);
+  color:var(--pfh-theme-primary,#7c3aed);
+  box-shadow:0 2px 8px var(--pfh-theme-shadow-soft,rgba(45,37,100,.06));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare>.pfh-icon{
+  display:grid;
+  width:16px;
+  min-width:16px;
+  height:16px;
+  min-height:16px;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:inherit;
+  box-shadow:none;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare>.pfh-icon svg,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare>.pfh-icon.pfh-icon-refresh svg{
+  display:block;
+  width:16px;
+  height:16px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare:hover:not(:disabled){
+  border-color:var(--pfh-theme-border-strong,#b9c6d8);
+  background:var(--pfh-theme-primary-soft,#f3efff);
+  color:var(--pfh-theme-primary-hover,#5b21b6);
+  box-shadow:0 8px 16px var(--pfh-theme-shadow-soft,rgba(45,37,100,.11));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare:hover:not(:disabled)>.pfh-icon{
+  background:transparent;
+  color:inherit;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare:active:not(:disabled){
+  box-shadow:0 3px 8px var(--pfh-theme-shadow-soft,rgba(45,37,100,.08));
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue-card{
+  height:100%;
+  min-height:0;
+  flex:1 1 0;
+  box-sizing:border-box;
+  justify-content:flex-start;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue{
+  height:auto;
+  min-height:0;
+  flex:1 1 0;
+  align-self:stretch;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-footer{
+  align-self:stretch;
+  margin-top:auto;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download>.pfh-icon,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare>.pfh-icon{
+  display:grid;
+  width:16px;
+  min-width:16px;
+  height:16px;
+  min-height:16px;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:inherit;
+  box-shadow:none;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download>.pfh-icon svg,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-prepare>.pfh-icon svg{
+  display:block;
+  width:16px;
+  height:16px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-queue{
+  max-height:none;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download>.pfh-icon svg,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download>.pfh-icon svg *{
+  color:#fff;
+  fill:none;
+  stroke:#fff;
+  stroke-width:2;
+}
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-download>.pfh-icon{
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  color:#fff;
+}
+
+/* Batch Excel highlights the export destination, not every queue label. */
+#plm-floating-helper[data-view="batchExcel"] {
+  --pfh-batch-excel-weight-body: var(--pfh-font-weight-regular, 400);
+  --pfh-batch-excel-weight-title: var(--pfh-font-weight-control, 400);
+  --pfh-batch-excel-weight-heading: var(--pfh-font-weight-heading, 700);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-page * {
+  font-weight: var(--pfh-batch-excel-weight-body);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-head h2 {
+  font-weight: var(--pfh-batch-excel-weight-heading);
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-head strong,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-mode-option b,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-summary strong,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-row b,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-prepare,
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-download {
+  font-weight: var(--pfh-batch-excel-weight-title);
+}

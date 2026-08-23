@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.250",
+  "version": "2.5.251",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 611006,
-      "maxImportant": 5965,
+      "maxBytes": 300400,
+      "maxImportant": 2177,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -16,7 +16,13 @@
         ".pfh-detail-view-tabs",
         ".pfh-detail-view-indicator",
         ".pfh-sku-view-switch",
-        ".pfh-sku-view-indicator"
+        ".pfh-sku-view-indicator",
+        ".pfh-magic-",
+        ".pfh-batch-excel-",
+        ".pfh-ledger-",
+        ".pfh-upload-",
+        ".pfh-copywriting-",
+        "data-pfh-page-toy-copywriting"
       ],
       "forbidProperties": [
         "font-weight"
@@ -34,6 +40,10 @@
       "mode": "module"
     },
     {
+      "path": "modules/shared-layout.css",
+      "mode": "module"
+    },
+    {
       "path": "modules/data-log-trigger.css",
       "mode": "module"
     },
@@ -46,11 +56,11 @@
       "mode": "module"
     },
     {
-      "path": "modules/detail-typography.css",
+      "path": "modules/copywriting-layout.css",
       "mode": "module"
     },
     {
-      "path": "modules/copywriting-collapse.css",
+      "path": "modules/detail-typography.css",
       "mode": "module"
     },
     {
@@ -62,15 +72,15 @@
       "mode": "module"
     },
     {
-      "path": "modules/magic-upload-typography.css",
+      "path": "modules/magic-upload-layout.css",
       "mode": "module"
     },
     {
-      "path": "modules/upload-typography.css",
+      "path": "modules/upload-layout.css",
       "mode": "module"
     },
     {
-      "path": "modules/batch-excel-typography.css",
+      "path": "modules/batch-excel-layout.css",
       "mode": "module"
     },
     {
@@ -78,11 +88,7 @@
       "mode": "module"
     },
     {
-      "path": "modules/ledger-typography.css",
-      "mode": "module"
-    },
-    {
-      "path": "modules/ledger-interaction.css",
+      "path": "modules/ledger-layout.css",
       "mode": "module"
     },
     {
@@ -99,9 +105,9 @@
     }
   ],
   "budgets": {
-    "important": 5965,
+    "important": 2177,
     "supersededImportantDeclarations": 0,
     "duplicateSelectors": 470,
-    "conflictingSelectors": 451
+    "conflictingSelectors": 437
   }
 }
