@@ -326,3 +326,50 @@ CREATE TABLE IF NOT EXISTS home_greetings (
 
 CREATE INDEX IF NOT EXISTS idx_home_greetings_enabled_sort
 ON home_greetings(enabled, sort_order);
+
+-- Mobile remote workbench. Passwords and raw backup keys are never stored:
+-- sessions are signed by the Worker and every durable row is scoped by the
+-- existing SHA-256 backup identity.
+CREATE TABLE IF NOT EXISTS remote_devices (
+  user_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  device_name TEXT NOT NULL DEFAULT '',
+  app_version TEXT NOT NULL DEFAULT '',
+  capabilities_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, device_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_remote_devices_user_seen
+ON remote_devices(user_id, last_seen_at);
+
+CREATE TABLE IF NOT EXISTS remote_tasks (
+  task_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  created_by_name TEXT NOT NULL DEFAULT '',
+  task_type TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  payload_json TEXT NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'queued',
+  device_id TEXT NOT NULL DEFAULT '',
+  result_json TEXT NOT NULL DEFAULT '{}',
+  error_text TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  claimed_at TEXT,
+  finished_at TEXT,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_remote_tasks_user_created
+ON remote_tasks(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_remote_tasks_user_status_created
+ON remote_tasks(user_id, status, created_at);
+
+CREATE TABLE IF NOT EXISTS remote_login_attempts (
+  client_key TEXT PRIMARY KEY,
+  failures INTEGER NOT NULL DEFAULT 0,
+  locked_until INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

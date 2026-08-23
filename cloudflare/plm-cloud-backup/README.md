@@ -2,6 +2,20 @@
 
 Cloudflare Worker + D1 backend for PLM helper cloud backup, cloud insight logs, AI summaries, and hosted assets.
 
+## 手机远程工作台
+
+部署后访问 `https://velvet.qzz.io/remote/`，可作为 PWA 添加到手机桌面。用户用云备份姓名和备份密码登录；Worker 只用密码计算现有备份身份并签发 7 天远程会话，不保存原始密码。产品备份仍在手机浏览器内通过 PBKDF2 + AES-GCM 解密。
+
+手机端不上传文件。它只把生成资产、刷新定稿、扫描本机 XLSX + ZIP 并加入魔法上传、文字提醒等指令写入 D1。桌面资产工作台在线时每 5 秒主动领取一条指令，按电脑已配置的产品根目录查找文件，并回传成功或失败结果。电脑关闭时任务保留在队列中。
+
+升级现有环境时先重跑 `schema.sql`，再部署 Worker 和静态资源。远程会话复用现有的 `WORKER_TOKEN_SECRET`，无需新增密钥：
+
+```powershell
+npm run db:migrate:remote
+npm run ui:build
+npm run deploy
+```
+
 ## Setup
 
 ```powershell
@@ -130,6 +144,13 @@ Invoke-RestMethod -Uri 'https://velvet.qzz.io/insights/rules' -Method Get -Heade
 ## Endpoints
 
 - `GET /health`
+- `GET /remote/` (可安装手机 PWA)
+- `POST /remote-api/login`
+- `GET /remote-api/backup`
+- `GET /remote-api/overview`
+- `GET|POST /remote-api/tasks`
+- `POST /remote-api/device/poll`
+- `POST /remote-api/device/result`
 - `POST /auth/exchange` (PLM Bearer session to short-lived Worker token)
 - `GET /assets/manifest.json`
 - `GET /assets/v1/runtime-data.json`

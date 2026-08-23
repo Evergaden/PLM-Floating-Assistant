@@ -14,6 +14,9 @@ const MAX_BACKUP_CHUNKS = 64;
 const PLM_USERINFO_URL = 'https://api-x.westmonth.com/umc/user/info';
 const WORKER_TOKEN_ISSUER = 'plm-floating-helper';
 const WORKER_TOKEN_TTL_SECONDS = 8 * 60 * 60;
+const REMOTE_TOKEN_ISSUER = 'plm-remote-workbench';
+const REMOTE_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+const REMOTE_TASK_TYPES = new Set(['generate-assets', 'sync-products', 'scan-upload', 'note']);
 const requestAuthContexts = new WeakMap();
 
 const FEEDBACK_TYPES = Object.freeze({
@@ -477,6 +480,55 @@ async function verifyWorkerAccessToken(token, env) {
   const exp = Number(payload.exp);
   const subject = String(payload.sub || '').trim();
   if (!subject || !Number.isFinite(exp) || exp <= Math.floor(Date.now() / 1000)) return null;
+  const key = await importWorkerTokenKey(env, ['verify']);
+  if (!key) return null;
+  const normalized = String(parts[2]).replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+  let signature;
+  try {
+    signature = Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+  } catch (_) {
+    return null;
+  }
+  try {
+    const valid = await crypto.subtle.verify('HMAC', key, signature, new TextEncoder().encode(parts[0] + '.' + parts[1]));
+    return valid ? payload : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isRemoteTokenHeader(header) {
+  return Boolean(header && header.alg === 'HS256' && header.kid === 'plm-remote-v1');
+}
+
+async function createRemoteAccessToken(userId, userName, env) {
+  const key = await importWorkerTokenKey(env, ['sign']);
+  if (!key) return '';
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: REMOTE_TOKEN_ISSUER,
+    ver: 1,
+    scope: 'remote-workbench',
+    sub: String(userId || '').slice(0, 64),
+    userName: normalizeBackupOwnerName(userName),
+    iat: issuedAt,
+    exp: issuedAt + REMOTE_TOKEN_TTL_SECONDS,
+  };
+  const headerPart = base64UrlText(JSON.stringify({ alg: 'HS256', typ: 'JWT', kid: 'plm-remote-v1' }));
+  const payloadPart = base64UrlText(JSON.stringify(payload));
+  const signingInput = headerPart + '.' + payloadPart;
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signingInput));
+  return signingInput + '.' + base64Url(signature);
+}
+
+async function verifyRemoteAccessToken(token, env) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3 || parts.some((part) => !part) || String(token).length > 4096) return null;
+  const header = parseJwtPart(parts[0]);
+  const payload = parseJwtPart(parts[1]);
+  if (!isRemoteTokenHeader(header) || !payload || payload.iss !== REMOTE_TOKEN_ISSUER || Number(payload.ver) !== 1 || payload.scope !== 'remote-workbench') return null;
+  if (!normalizeBackupId(payload.sub) || Number(payload.exp) <= Math.floor(Date.now() / 1000)) return null;
   const key = await importWorkerTokenKey(env, ['verify']);
   if (!key) return null;
   const normalized = String(parts[2]).replace(/-/g, '+').replace(/_/g, '/');
@@ -1381,6 +1433,278 @@ function listFillableAiImageCopywritingPaths(fields) {
     const [key, language] = path.split('.');
     return hasAiImageCopywritingBasis(fields, key, language);
   });
+}
+
+async function ensureRemoteWorkbenchSchema(env) {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS remote_devices (
+      user_id TEXT NOT NULL, device_id TEXT NOT NULL, device_name TEXT NOT NULL DEFAULT '',
+      app_version TEXT NOT NULL DEFAULT '', capabilities_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, device_id)
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS remote_tasks (
+      task_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_by_name TEXT NOT NULL DEFAULT '',
+      task_type TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'queued', device_id TEXT NOT NULL DEFAULT '',
+      result_json TEXT NOT NULL DEFAULT '{}', error_text TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, claimed_at TEXT, finished_at TEXT,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS remote_login_attempts (
+      client_key TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0,
+      locked_until INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_remote_devices_user_seen ON remote_devices(user_id, last_seen_at)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_remote_tasks_user_created ON remote_tasks(user_id, created_at DESC)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_remote_tasks_user_status_created ON remote_tasks(user_id, status, created_at)'),
+  ]);
+}
+
+function remoteClientAddress(request) {
+  return String(request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim().slice(0, 80);
+}
+
+async function remoteAuthClaims(request, env) {
+  const claims = await verifyRemoteAccessToken(getBearerToken(request), env);
+  return claims && normalizeBackupId(claims.sub) ? claims : null;
+}
+
+function remoteTaskTitle(taskType, payload) {
+  const sku = cleanText(payload && payload.sku, 80).toUpperCase();
+  if (taskType === 'generate-assets') return sku ? `生成 ${sku} 资产` : '生成产品资产';
+  if (taskType === 'sync-products') return '刷新定稿产品';
+  if (taskType === 'scan-upload') return sku ? `扫描并上传 ${sku}` : '扫描并上传新图包';
+  return cleanText(payload && payload.note, 60) || '手机端指令';
+}
+
+function normalizeRemoteTaskPayload(taskType, input) {
+  const payload = input && typeof input === 'object' ? input : {};
+  if (taskType === 'generate-assets') {
+    const sku = cleanText(payload.sku, 80).toUpperCase();
+    if (!/^SKU[A-Z0-9_-]{2,60}$/.test(sku)) return { error: 'valid sku required' };
+    return { value: { sku, overwrite: Boolean(payload.overwrite) } };
+  }
+  if (taskType === 'scan-upload') {
+    const sku = cleanText(payload.sku, 80).toUpperCase();
+    if (sku && !/^SKU[A-Z0-9_-]{2,60}$/.test(sku)) return { error: 'sku invalid' };
+    return { value: { sku, autoStart: payload.autoStart !== false } };
+  }
+  if (taskType === 'note') {
+    const note = cleanText(payload.note, 1000);
+    if (!note) return { error: 'note required' };
+    return { value: { note } };
+  }
+  return { value: {} };
+}
+
+function serializeRemoteTask(row) {
+  if (!row) return null;
+  let payload = {};
+  let result = {};
+  try { payload = JSON.parse(row.payload_json || '{}'); } catch (_) { payload = {}; }
+  try { result = JSON.parse(row.result_json || '{}'); } catch (_) { result = {}; }
+  return {
+    taskId: row.task_id,
+    type: row.task_type,
+    title: row.title,
+    payload,
+    status: row.status,
+    deviceId: row.device_id || '',
+    result,
+    error: row.error_text || '',
+    createdAt: row.created_at,
+    claimedAt: row.claimed_at,
+    finishedAt: row.finished_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function handleRemoteLogin(request, env) {
+  if (!String(env.WORKER_TOKEN_SECRET || '').trim()) return json({ error: 'remote session service unavailable' }, 503);
+  await ensureRemoteWorkbenchSchema(env);
+  const body = await parseJson(request);
+  const name = normalizeBackupOwnerName(body && body.name);
+  const backupKey = String(body && body.backupKey || '');
+  if (!name || backupKey.length < 4 || backupKey.length > 256) return json({ error: 'name and backup password required' }, 400);
+  const clientKey = await sha256Hex(remoteClientAddress(request) + '|' + name.toLocaleLowerCase());
+  const now = Math.floor(Date.now() / 1000);
+  const attempts = await env.DB.prepare('SELECT failures, locked_until FROM remote_login_attempts WHERE client_key = ?').bind(clientKey).first();
+  if (Number(attempts && attempts.locked_until || 0) > now) {
+    return json({ error: 'too many attempts', retryAfter: Number(attempts.locked_until) - now }, 429);
+  }
+  const userId = await sha256Hex(backupKey);
+  const row = await env.DB.prepare('SELECT payload, version, updated_at FROM user_backups WHERE user_id = ?').bind(userId).first();
+  const ownerName = getBackupOwnerNameFromPayload(row && row.payload);
+  const valid = Boolean(row && ownerName && ownerName.toLocaleLowerCase() === name.toLocaleLowerCase());
+  if (!valid) {
+    const failures = Number(attempts && attempts.failures || 0) + 1;
+    const lockedUntil = failures >= 5 ? now + 15 * 60 : 0;
+    await env.DB.prepare(`INSERT INTO remote_login_attempts (client_key, failures, locked_until, updated_at)
+      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(client_key) DO UPDATE SET failures=excluded.failures, locked_until=excluded.locked_until, updated_at=CURRENT_TIMESTAMP`)
+      .bind(clientKey, failures >= 5 ? 0 : failures, lockedUntil).run();
+    return json({ error: 'name or backup password incorrect' }, 401);
+  }
+  await env.DB.prepare('DELETE FROM remote_login_attempts WHERE client_key = ?').bind(clientKey).run();
+  const token = await createRemoteAccessToken(userId, ownerName, env);
+  return json({
+    ok: true,
+    token,
+    tokenType: 'Bearer',
+    expiresAt: new Date((now + REMOTE_TOKEN_TTL_SECONDS) * 1000).toISOString(),
+    user: { name: ownerName },
+    backup: { version: row.version || '', updatedAt: row.updated_at || '' },
+  });
+}
+
+async function loadRemoteBackupEnvelope(env, userId) {
+  const row = await env.DB.prepare('SELECT payload, version, updated_at FROM user_backups WHERE user_id = ?').bind(userId).first();
+  if (!row) return null;
+  const payload = parseStoredBackupPayload(row.payload);
+  if (!payload) return { error: 'stored backup invalid' };
+  if (payload.chunked) {
+    const snapshotId = normalizeBackupSnapshotId(payload.snapshotId);
+    const chunkCount = Number(payload.chunkCount || 0);
+    if (!snapshotId || !Number.isInteger(chunkCount) || chunkCount <= 0 || chunkCount > MAX_BACKUP_CHUNKS) return { error: 'backup chunk manifest invalid' };
+    const chunks = await env.DB.prepare(`SELECT chunk_index, chunk_data FROM user_backup_chunks
+      WHERE user_id = ? AND snapshot_id = ? ORDER BY chunk_index ASC`).bind(userId, snapshotId).all();
+    const rows = chunks && chunks.results || [];
+    if (rows.length !== chunkCount || rows.some((item, index) => Number(item.chunk_index) !== index || !item.chunk_data)) return { error: 'backup chunks incomplete' };
+    payload.data = rows.map((item) => String(item.chunk_data)).join('');
+    delete payload.chunked;
+    delete payload.snapshotId;
+    delete payload.chunkCount;
+    delete payload.chunkSize;
+  }
+  return { payload, version: row.version || '', updatedAt: row.updated_at || '' };
+}
+
+async function handleRemoteBackup(request, env) {
+  const claims = await remoteAuthClaims(request, env);
+  if (!claims) return json({ error: 'unauthorized' }, 401);
+  const record = await loadRemoteBackupEnvelope(env, claims.sub);
+  if (!record) return json({ found: false }, 404);
+  if (record.error) return json({ error: record.error }, 500);
+  return json({ found: true, ...record });
+}
+
+async function handleRemoteOverview(request, env) {
+  const claims = await remoteAuthClaims(request, env);
+  if (!claims) return json({ error: 'unauthorized' }, 401);
+  await ensureRemoteWorkbenchSchema(env);
+  const [devices, counts] = await Promise.all([
+    env.DB.prepare(`SELECT device_id, device_name, app_version, capabilities_json, last_seen_at,
+      CASE WHEN last_seen_at >= datetime('now', '-45 seconds') THEN 1 ELSE 0 END AS online
+      FROM remote_devices WHERE user_id = ? ORDER BY last_seen_at DESC LIMIT 8`).bind(claims.sub).all(),
+    env.DB.prepare(`SELECT status, COUNT(*) AS count FROM remote_tasks WHERE user_id = ? GROUP BY status`).bind(claims.sub).all(),
+  ]);
+  return json({
+    ok: true,
+    user: { name: claims.userName || '' },
+    devices: (devices.results || []).map((row) => {
+      let capabilities = {};
+      try { capabilities = JSON.parse(row.capabilities_json || '{}'); } catch (_) { capabilities = {}; }
+      return { deviceId: row.device_id, name: row.device_name, appVersion: row.app_version, capabilities, online: Boolean(Number(row.online)), lastSeenAt: row.last_seen_at };
+    }),
+    counts: Object.fromEntries((counts.results || []).map((row) => [row.status, Number(row.count || 0)])),
+  });
+}
+
+async function handleRemoteTasks(request, env) {
+  const claims = await remoteAuthClaims(request, env);
+  if (!claims) return json({ error: 'unauthorized' }, 401);
+  await ensureRemoteWorkbenchSchema(env);
+  if (request.method === 'GET') {
+    const limit = Math.max(1, Math.min(100, Number(new URL(request.url).searchParams.get('limit') || 50)));
+    const result = await env.DB.prepare('SELECT * FROM remote_tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ?').bind(claims.sub, limit).all();
+    return json({ ok: true, tasks: (result.results || []).map(serializeRemoteTask) });
+  }
+  const body = await parseJson(request);
+  const taskType = cleanText(body && body.type, 40);
+  if (!REMOTE_TASK_TYPES.has(taskType)) return json({ error: 'unsupported task type' }, 400);
+  const normalized = normalizeRemoteTaskPayload(taskType, body && body.payload);
+  if (normalized.error) return json({ error: normalized.error }, 400);
+  const taskId = crypto.randomUUID();
+  const title = remoteTaskTitle(taskType, normalized.value);
+  await env.DB.prepare(`INSERT INTO remote_tasks
+    (task_id, user_id, created_by_name, task_type, title, payload_json, status, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP)`)
+    .bind(taskId, claims.sub, claims.userName || '', taskType, title, JSON.stringify(normalized.value)).run();
+  await env.DB.prepare(`DELETE FROM remote_tasks WHERE user_id=? AND task_id IN (
+    SELECT task_id FROM remote_tasks WHERE user_id=? ORDER BY created_at DESC LIMIT -1 OFFSET 500
+  )`).bind(claims.sub, claims.sub).run();
+  const row = await env.DB.prepare('SELECT * FROM remote_tasks WHERE task_id = ?').bind(taskId).first();
+  return json({ ok: true, task: serializeRemoteTask(row) }, 201);
+}
+
+async function handleRemoteTaskCancel(request, env) {
+  const claims = await remoteAuthClaims(request, env);
+  if (!claims) return json({ error: 'unauthorized' }, 401);
+  const taskId = cleanText(new URL(request.url).searchParams.get('taskId'), 80);
+  const result = await env.DB.prepare(`UPDATE remote_tasks SET status='cancelled', finished_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+    WHERE task_id=? AND user_id=? AND status='queued'`).bind(taskId, claims.sub).run();
+  return json({ ok: true, cancelled: Number(result.meta && result.meta.changes || 0) > 0 });
+}
+
+async function handleRemoteDevicePoll(request, env) {
+  const claims = await remoteAuthClaims(request, env);
+  if (!claims) return json({ error: 'unauthorized' }, 401);
+  await ensureRemoteWorkbenchSchema(env);
+  const body = await parseJson(request);
+  const deviceId = cleanText(body && body.deviceId, 80);
+  const deviceName = cleanText(body && body.deviceName, 100) || 'PLM 产品资产工作台';
+  const appVersion = cleanText(body && body.appVersion, 40);
+  if (!/^[A-Za-z0-9_-]{8,80}$/.test(deviceId)) return json({ error: 'device id invalid' }, 400);
+  const capabilities = body && body.capabilities && typeof body.capabilities === 'object' ? body.capabilities : {};
+  const capabilitiesJson = JSON.stringify({
+    bridgeConnected: Boolean(capabilities.bridgeConnected),
+    assetRootReady: Boolean(capabilities.assetRootReady),
+    productCount: Math.max(0, Number(capabilities.productCount || 0)),
+    taskTypes: Array.isArray(capabilities.taskTypes) ? capabilities.taskTypes.map((item) => cleanText(item, 40)).filter((item) => REMOTE_TASK_TYPES.has(item)) : [],
+  });
+  await env.DB.prepare(`INSERT INTO remote_devices
+    (user_id, device_id, device_name, app_version, capabilities_json, last_seen_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id, device_id) DO UPDATE SET device_name=excluded.device_name,
+      app_version=excluded.app_version, capabilities_json=excluded.capabilities_json, last_seen_at=CURRENT_TIMESTAMP`)
+    .bind(claims.sub, deviceId, deviceName, appVersion, capabilitiesJson).run();
+  await env.DB.prepare(`UPDATE remote_tasks SET status='queued', device_id='', claimed_at=NULL,
+    error_text='', updated_at=CURRENT_TIMESTAMP
+    WHERE user_id=? AND status='running' AND updated_at < datetime('now', '-60 minutes')`).bind(claims.sub).run();
+  if (body && body.acceptTasks === false) return json({ ok: true, task: null });
+  const candidate = await env.DB.prepare(`SELECT * FROM remote_tasks
+    WHERE user_id=? AND status='queued' ORDER BY created_at ASC LIMIT 1`).bind(claims.sub).first();
+  if (!candidate) return json({ ok: true, task: null });
+  const claimed = await env.DB.prepare(`UPDATE remote_tasks SET status='running', device_id=?, claimed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+    WHERE task_id=? AND user_id=? AND status='queued'`).bind(deviceId, candidate.task_id, claims.sub).run();
+  if (!Number(claimed.meta && claimed.meta.changes || 0)) return json({ ok: true, task: null });
+  candidate.status = 'running';
+  candidate.device_id = deviceId;
+  candidate.claimed_at = new Date().toISOString();
+  return json({ ok: true, task: serializeRemoteTask(candidate) });
+}
+
+async function handleRemoteDeviceResult(request, env) {
+  const claims = await remoteAuthClaims(request, env);
+  if (!claims) return json({ error: 'unauthorized' }, 401);
+  const body = await parseJson(request);
+  const taskId = cleanText(body && body.taskId, 80);
+  const deviceId = cleanText(body && body.deviceId, 80);
+  const status = body && body.status === 'succeeded' ? 'succeeded' : 'failed';
+  const message = cleanText(body && body.message, 1000);
+  const rawResult = body && body.result && typeof body.result === 'object' ? body.result : {};
+  const resultJson = JSON.stringify({
+    message: cleanText(rawResult.message || message, 1000),
+    count: Math.max(0, Math.min(500, Number(rawResult.count || 0))),
+    sku: cleanText(rawResult.sku, 80),
+    skus: Array.isArray(rawResult.skus) ? rawResult.skus.map((item) => cleanText(item, 80)).filter(Boolean).slice(0, 100) : [],
+  });
+  const updated = await env.DB.prepare(`UPDATE remote_tasks SET status=?, result_json=?, error_text=?, finished_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+    WHERE task_id=? AND user_id=? AND device_id=? AND status='running'`)
+    .bind(status, resultJson, status === 'failed' ? message : '', taskId, claims.sub, deviceId).run();
+  if (!Number(updated.meta && updated.meta.changes || 0)) return json({ error: 'task not running on this device' }, 409);
+  return json({ ok: true });
 }
 
 function parseAiImageCopywritingJson(value) {
@@ -5397,6 +5721,13 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
     if (url.pathname === '/auth/exchange' && request.method === 'POST') return handleAuthExchange(request, env);
+    if (url.pathname === '/remote-api/login' && request.method === 'POST') return handleRemoteLogin(request, env);
+    if (url.pathname === '/remote-api/backup' && request.method === 'GET') return handleRemoteBackup(request, env);
+    if (url.pathname === '/remote-api/overview' && request.method === 'GET') return handleRemoteOverview(request, env);
+    if (url.pathname === '/remote-api/tasks' && (request.method === 'GET' || request.method === 'POST')) return handleRemoteTasks(request, env);
+    if (url.pathname === '/remote-api/tasks/cancel' && request.method === 'POST') return handleRemoteTaskCancel(request, env);
+    if (url.pathname === '/remote-api/device/poll' && request.method === 'POST') return handleRemoteDevicePoll(request, env);
+    if (url.pathname === '/remote-api/device/result' && request.method === 'POST') return handleRemoteDeviceResult(request, env);
     if (url.pathname === '/assets/manifest.json' && (request.method === 'GET' || request.method === 'HEAD')) {
       return handleAssetManifest(request, env, url);
     }

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BridgeInfo, FinalizedProduct, ProductPreview, RowJob, UploadPair } from "./types";
 
-const APP_VERSION = "0.1.19";
+const APP_VERSION = "0.2.0";
 
 const ROOT_KEY = "plm-workbench.asset-root";
 const WORKSPACE_ROOTS_KEY = "plm-workbench.workspace-roots-v1";
@@ -33,12 +33,24 @@ const VIDEO_THREADS_KEY = "plm-workbench.video-threads";
 const COMPACT_TOP_KEY = "plm-workbench.compact-top";
 const RANDOM_OUTPUT_KEY = "plm-workbench.random-output-dir";
 const LABEL_CHECK_TARGET_KEY = "plm-workbench.label-check-target-folder";
+const REMOTE_API_BASE = "https://velvet.qzz.io";
+const REMOTE_SESSION_KEY = "plm-workbench.remote-session-v1";
+const REMOTE_USER_KEY = "plm-workbench.remote-user-v1";
+const REMOTE_DEVICE_KEY = "plm-workbench.remote-device-v1";
 const PARAMETER_RULE_MANIFEST_URL_KEY = "plm-workbench.parameter-rule-manifest-url";
 const PARAMETER_RULE_CACHE_KEY = "plm-workbench.parameter-rule-cache-v1";
 const DEFAULT_PARAMETER_RULE_MANIFEST_URL = "https://velvet.qzz.io/assets/v1/parameter-layout-rules.manifest.json";
 const DEFAULT_LABEL_CHECK_TARGET = "03 纸盒标签";
 const LEGACY_LABEL_CHECK_TARGET = "03 纸盒标签文件夹";
 type WorkspaceView = "assets" | "packs" | "videos" | "upload" | "random" | "organize" | "parameter-samples" | "label-check";
+
+interface RemoteTask {
+  taskId: string;
+  type: "generate-assets" | "sync-products" | "scan-upload" | "note" | string;
+  title: string;
+  payload: { sku?: string; overwrite?: boolean; autoStart?: boolean; note?: string };
+  status: string;
+}
 const DEFAULT_WORKSPACE_ORDER: WorkspaceView[] = ["assets", "packs", "random", "organize", "parameter-samples", "label-check", "upload", "videos"];
 const DEFAULT_PACK_RULES = `# 图包重命名规则：正则 | 新名称
 ^input-main-prompt-1-[a-zA-Z0-9]{8}$|主图1
@@ -867,6 +879,12 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [overwrite, setOverwrite] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [remoteToken, setRemoteToken] = useState(() => localStorage.getItem(REMOTE_SESSION_KEY) || "");
+  const [remoteUser, setRemoteUser] = useState(() => localStorage.getItem(REMOTE_USER_KEY) || "");
+  const [remotePassword, setRemotePassword] = useState("");
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [remoteOnline, setRemoteOnline] = useState(false);
+  const [remoteLastTask, setRemoteLastTask] = useState("");
   const [toast, setToast] = useState("");
   const [queueView, setQueueView] = useState<"active" | "complete">("active");
   const [zipPaths, setZipPaths] = useState<string[]>([]);
@@ -933,6 +951,14 @@ export default function App() {
   const autoAttempts = useRef(new Map<string, string>());
   const manualSnapshotPending = useRef(false);
   const manualSnapshotTimeout = useRef<number | null>(null);
+  const remoteAssetTasks = useRef(new Map<string, string>());
+  const remoteDeviceId = useRef((() => {
+    const saved = localStorage.getItem(REMOTE_DEVICE_KEY);
+    if (saved) return saved;
+    const created = crypto.randomUUID().replace(/-/g, "");
+    localStorage.setItem(REMOTE_DEVICE_KEY, created);
+    return created;
+  })());
   const bridgeRef = useRef(bridge);
   const workspaceOrderRef = useRef(workspaceOrder);
   const workspaceTabPressRef = useRef<{
@@ -1046,6 +1072,7 @@ export default function App() {
       }),
       listen<{ sku: string; state: string; message: string }>("asset-job", (event) => {
         const { sku, state, message } = event.payload;
+        const remoteTaskId = remoteAssetTasks.current.get(sku.toUpperCase());
         setJobs((current) => ({ ...current, [sku]: { state: state as RowJob["state"], message } }));
         if (state === "done") {
           const wasAuto = autoRunning.current.has(sku);
@@ -1061,9 +1088,17 @@ export default function App() {
             completed[sku] = completedSignature;
             localStorage.setItem(AUTO_DONE_KEY, JSON.stringify(completed));
           }
+          if (remoteTaskId) {
+            remoteAssetTasks.current.delete(sku.toUpperCase());
+            reportRemoteTask(remoteTaskId, "succeeded", `${sku} 资产生成完成`, { sku }).catch(console.error);
+          }
           loadProducts().catch(console.error);
         } else if (state === "error") {
           autoRunning.current.delete(sku);
+          if (remoteTaskId) {
+            remoteAssetTasks.current.delete(sku.toUpperCase());
+            reportRemoteTask(remoteTaskId, "failed", message || `${sku} 资产生成失败`, { sku }).catch(console.error);
+          }
           loadProducts().catch(console.error);
         }
       }),
@@ -1074,7 +1109,61 @@ export default function App() {
       manualSnapshotTimeout.current = null;
       manualSnapshotPending.current = false;
     };
-  }, [loadProducts, notify]);
+  }, [loadProducts, notify, remoteToken]);
+
+  useEffect(() => {
+    if (!remoteToken) return;
+    let active = true;
+    let polling = false;
+    const poll = async () => {
+      if (!active || polling) return;
+      polling = true;
+      try {
+        const data = await remoteRequest<{ task: RemoteTask | null }>("/remote-api/device/poll", {
+          method: "POST",
+          body: {
+            deviceId: remoteDeviceId.current,
+            deviceName: "PLM 产品资产工作台",
+            appVersion: APP_VERSION,
+            acceptTasks: remoteAssetTasks.current.size === 0,
+            capabilities: {
+              bridgeConnected: bridge.connected,
+              assetRootReady: Boolean(assetRoot),
+              productCount: products.length,
+              taskTypes: ["generate-assets", "sync-products", "scan-upload", "note"],
+            },
+          },
+        });
+        if (!active) return;
+        setRemoteOnline(true);
+        if (data.task) {
+          try {
+            await executeRemoteTask(data.task);
+          } catch (error) {
+            const message = String(error instanceof Error ? error.message : error);
+            await reportRemoteTask(data.task.taskId, "failed", message);
+            notify(`手机任务失败：${message}`);
+          }
+        }
+      } catch (error) {
+        if (!active) return;
+        setRemoteOnline(false);
+        if ((error as Error & { status?: number }).status === 401) {
+          setRemoteToken("");
+          localStorage.removeItem(REMOTE_SESSION_KEY);
+          notify("手机远程会话已过期，请重新启用");
+        }
+      } finally {
+        polling = false;
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [assetRoot, bridge.connected, products.length, remoteToken, rows]);
 
   useEffect(() => {
     let clean: (() => void) | undefined;
@@ -1706,6 +1795,114 @@ export default function App() {
     localStorage.setItem(MAP_KEY, JSON.stringify(next));
   }
 
+  async function remoteRequest<T>(path: string, options: { method?: string; body?: unknown; token?: string } = {}): Promise<T> {
+    const token = options.token ?? remoteToken;
+    const response = await fetch(`${REMOTE_API_BASE}${path}`, {
+      method: options.method || "GET",
+      headers: {
+        ...(options.body ? { "content-type": "application/json" } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+    const data = await response.json().catch(() => ({})) as T & { error?: string };
+    if (!response.ok) {
+      const error = new Error(data.error || `远程服务请求失败 (${response.status})`);
+      (error as Error & { status?: number }).status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  async function connectRemoteWorkbench() {
+    if (!remoteUser.trim() || remotePassword.length < 4) return notify("请输入姓名和备份密码");
+    setRemoteBusy(true);
+    try {
+      const data = await remoteRequest<{ token: string; user: { name: string } }>("/remote-api/login", {
+        method: "POST",
+        token: "",
+        body: { name: remoteUser.trim(), backupKey: remotePassword },
+      });
+      setRemoteToken(data.token);
+      setRemoteUser(data.user.name);
+      setRemotePassword("");
+      localStorage.setItem(REMOTE_SESSION_KEY, data.token);
+      localStorage.setItem(REMOTE_USER_KEY, data.user.name);
+      notify("手机远程工作台已启用");
+    } catch (error) {
+      notify(String(error).includes("incorrect") ? "姓名或备份密码不正确" : String(error));
+    } finally {
+      setRemoteBusy(false);
+    }
+  }
+
+  function disconnectRemoteWorkbench() {
+    setRemoteToken("");
+    setRemoteOnline(false);
+    setRemoteLastTask("");
+    remoteAssetTasks.current.clear();
+    localStorage.removeItem(REMOTE_SESSION_KEY);
+    notify("已停用手机远程连接");
+  }
+
+  async function reportRemoteTask(taskId: string, status: "succeeded" | "failed", message: string, result: Record<string, unknown> = {}) {
+    if (!remoteToken) return;
+    try {
+      await remoteRequest("/remote-api/device/result", {
+        method: "POST",
+        body: { taskId, deviceId: remoteDeviceId.current, status, message, result: { ...result, message } },
+      });
+      setRemoteLastTask(message);
+    } catch (error) {
+      console.error("Remote task result failed", error);
+    }
+  }
+
+  async function executeRemoteTask(task: RemoteTask) {
+    const sku = String(task.payload && task.payload.sku || "").toUpperCase();
+    setRemoteLastTask(`正在执行：${task.title}`);
+    if (task.type === "note") {
+      const note = String(task.payload && task.payload.note || "").trim();
+      notify(note ? `手机指令：${note}` : "收到一条手机指令");
+      await reportRemoteTask(task.taskId, "succeeded", "电脑工作台已收到文字指令");
+      return;
+    }
+    if (task.type === "sync-products") {
+      if (!bridge.connected) throw new Error("PLM 悬浮助手未连接，无法刷新定稿数据");
+      await invoke("request_snapshot");
+      await reportRemoteTask(task.taskId, "succeeded", "已请求悬浮助手刷新定稿产品");
+      return;
+    }
+    if (task.type === "generate-assets") {
+      if (!bridge.connected) throw new Error("PLM 悬浮助手未连接，无法生成资产");
+      const row = rows.find((item) => item.product.sku.toUpperCase() === sku);
+      if (!row) throw new Error(`电脑工作台没有找到 ${sku}`);
+      if (!row.folder) throw new Error(`${sku} 尚未匹配本机产品目录`);
+      remoteAssetTasks.current.set(sku, task.taskId);
+      try {
+        await invoke("request_excel", { product: row.product, folder: row.folder, overwrite: Boolean(task.payload.overwrite), auto: false });
+      } catch (error) {
+        remoteAssetTasks.current.delete(sku);
+        throw error;
+      }
+      return;
+    }
+    if (task.type === "scan-upload") {
+      if (!bridge.connected) throw new Error("PLM 悬浮助手未连接，无法加入魔法上传");
+      if (!assetRoot) throw new Error("电脑工作台尚未配置定稿资产根目录");
+      const pairs = await invoke<UploadPair[]>("scan_upload_pairs", { root: assetRoot });
+      const targets = pairs.filter((item) => item.status === "ready" && (!sku || item.sku.toUpperCase() === sku) && item.xlsxPath && item.zipPath);
+      if (!targets.length) throw new Error(sku ? `${sku} 没有找到完整的 XLSX + ZIP` : "没有找到新的完整 XLSX + ZIP");
+      const count = await invoke<number>("queue_upload_pairs", {
+        pairs: targets.map((item) => ({ sku: item.sku, xlsxPath: item.xlsxPath, zipPath: item.zipPath, signature: item.signature })),
+        autoStart: task.payload.autoStart !== false,
+      });
+      await reportRemoteTask(task.taskId, "succeeded", `已找到并提交 ${count} 个图包上传任务`, { count, skus: targets.map((item) => item.sku) });
+      return;
+    }
+    throw new Error(`当前版本不支持远程任务：${task.type}`);
+  }
+
   async function requestSnapshot() {
     if (!bridge.connected) {
       setShowConnect(true);
@@ -1803,6 +2000,10 @@ export default function App() {
           <button className={`connection-pill ${bridge.connected ? "online" : ""}`} onClick={() => setShowConnect(true)}>
             {bridge.connected ? <Link2 size={15} /> : <Unplug size={15} />}
             {bridge.connected ? `助手已连接 ${bridge.scriptVersion || ""}` : "连接悬浮助手"}
+          </button>
+          <button className={`connection-pill remote-pill ${remoteToken && remoteOnline ? "online" : ""}`} onClick={() => setShowConnect(true)}>
+            {remoteToken && remoteOnline ? <Check size={15} /> : <Unplug size={15} />}
+            {remoteToken ? (remoteOnline ? "手机远程在线" : "手机远程重连中") : "启用手机远程"}
           </button>
           <button className="icon-button" onClick={() => setShowConnect(true)} aria-label="连接设置"><Settings2 size={19} /></button>
         </div>
@@ -2373,6 +2574,24 @@ export default function App() {
               <div><strong>{bridge.connected ? "已建立安全连接" : "等待悬浮助手连接"}</strong><span>{bridge.url}</span></div>
             </div>
             <small className="privacy-note">连接仅监听本机 127.0.0.1，不读取 PLM 密码、Cookie 或云备份密钥。</small>
+            <div className="remote-link-card">
+              <div className="remote-link-heading">
+                <div><span className="eyebrow">PHONE REMOTE</span><strong>手机远程工作台</strong><small>电脑打开时主动领取手机指令，不开放本机端口</small></div>
+                <span className={`remote-link-status ${remoteToken && remoteOnline ? "online" : ""}`}>{remoteToken ? (remoteOnline ? "在线" : "连接中") : "未启用"}</span>
+              </div>
+              {!remoteToken ? <>
+                <div className="remote-login-fields">
+                  <label><span>姓名</span><input value={remoteUser} onChange={(event) => setRemoteUser(event.target.value)} placeholder="与云备份姓名一致" /></label>
+                  <label><span>备份密码</span><input type="password" value={remotePassword} onChange={(event) => setRemotePassword(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") connectRemoteWorkbench(); }} placeholder="只用于换取安全会话" /></label>
+                </div>
+                <button className="primary remote-enable" onClick={connectRemoteWorkbench} disabled={remoteBusy}>{remoteBusy ? <LoaderCircle size={15} className="spin" /> : <Link2 size={15} />}{remoteBusy ? "正在启用…" : "启用手机远程"}</button>
+              </> : <>
+                <div className="remote-link-summary"><div><span>手机访问地址</span><strong>https://velvet.qzz.io/remote/</strong></div><button onClick={() => navigator.clipboard.writeText("https://velvet.qzz.io/remote/").then(() => notify("手机地址已复制"))}><Copy size={14} />复制</button></div>
+                <div className="remote-last-task"><span>最近状态</span><strong>{remoteLastTask || "等待手机下达任务"}</strong></div>
+                <button className="remote-disable" onClick={disconnectRemoteWorkbench}>停用这台电脑的远程连接</button>
+              </>}
+              <small className="privacy-note">姓名和备份密码只在启用时通过 HTTPS 验证；电脑仅保存 7 天会话令牌，不保存备份密码。</small>
+            </div>
           </section>
         </div>
       )}

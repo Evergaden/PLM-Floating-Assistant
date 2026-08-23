@@ -216,3 +216,17 @@ if (checkOnly) {
 
 console.log(`${checkOnly ? 'Verified' : 'Built'} ${path.relative(root, outputPath)}`);
 console.log(`UI metrics: ${JSON.stringify(metrics)}`);
+
+const remoteSourcePath = path.join(sourceRoot, 'remote-workbench.css');
+const remoteOutputPath = path.join(root, 'static', 'remote', 'app.css');
+if (!fs.existsSync(remoteSourcePath)) throw new Error('Missing UI source: remote-workbench.css');
+const remoteOutput = fs.readFileSync(remoteSourcePath, 'utf8').replace(/\r\n/g, '\n');
+assertFontWeightPolicy(remoteOutput, remoteSourcePath);
+if (checkOnly) {
+  if (!fs.existsSync(remoteOutputPath)) throw new Error('Missing generated remote UI asset: static/remote/app.css');
+  if (fs.readFileSync(remoteOutputPath, 'utf8') !== remoteOutput) throw new Error('Generated remote UI asset is stale: static/remote/app.css');
+} else {
+  fs.mkdirSync(path.dirname(remoteOutputPath), { recursive: true });
+  fs.writeFileSync(remoteOutputPath, remoteOutput, 'utf8');
+}
+console.log(`${checkOnly ? 'Verified' : 'Built'} ${path.relative(root, remoteOutputPath)}`);

@@ -31,6 +31,8 @@ button { cursor: pointer; }
 .top-actions { margin-left: auto; display: flex; gap: 10px; }
 .connection-pill, .icon-button { border: 1px solid var(--line); background: white; color: #596579; display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 13px; border-radius: 11px; }
 .connection-pill.online { color: var(--green); border-color: #bfe8d4; background: var(--green-soft); }
+.connection-pill.remote-pill { color: #6854d4; border-color: #ded8fb; background: #f7f5ff; }
+.connection-pill.remote-pill.online { color: var(--green); border-color: #bfe8d4; background: var(--green-soft); }
 .icon-button { width: 38px; padding: 0; justify-content: center; }
 
 main { width: min(1540px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 40px; }
@@ -425,6 +427,28 @@ button.secondary { color: white; background: rgba(255,255,255,.11); border: 1px 
 .connection-summary > div { display: grid; gap: 2px; }
 .connection-summary strong { font-size: 12px; }
 .connection-summary span { font-size: 10px; opacity: .75; }
+.remote-link-card { margin-top: 15px; padding: 14px; border: 1px solid #ddd7fb; border-radius: 14px; background: linear-gradient(145deg,#faf9ff,#f4f2ff); }
+.remote-link-heading { display: flex; align-items: start; gap: 12px; }
+.remote-link-heading > div { min-width: 0; display: grid; gap: 3px; }
+.remote-link-heading strong { color: #3d4760; font-size: 13px; }
+.remote-link-heading small { color: #887fa0; font-size: 9px; }
+.remote-link-status { margin-left: auto; flex: 0 0 auto; padding: 5px 8px; border-radius: 20px; color: #8a839a; background: #ebe8f3; font-size: 9px; font-weight: 700; }
+.remote-link-status.online { color: var(--green); background: var(--green-soft); }
+.remote-login-fields { display: grid; grid-template-columns: .75fr 1.25fr; gap: 8px; margin-top: 12px; }
+.remote-login-fields label { display: grid; gap: 5px; }
+.remote-login-fields label > span { color: #756e89; font-size: 9px; font-weight: 700; }
+.remote-login-fields input { width: 100%; height: 35px; min-width: 0; padding: 0 9px; outline: 0; border: 1px solid #dcd7f1; border-radius: 9px; color: #465168; background: white; font-size: 10px; }
+.remote-login-fields input:focus { border-color: #a99bf2; box-shadow: 0 0 0 3px rgba(101,71,245,.08); }
+button.remote-enable { width: 100%; min-height: 37px; margin-top: 9px; }
+.remote-link-summary { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 10px; border: 1px solid #e3def9; border-radius: 10px; background: white; }
+.remote-link-summary > div { min-width: 0; display: grid; gap: 2px; }
+.remote-link-summary span, .remote-last-task span { color: #9189a3; font-size: 8px; }
+.remote-link-summary strong { overflow: hidden; color: #5e4bca; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.remote-link-summary button { margin-left: auto; flex: 0 0 auto; min-height: 29px; display: flex; align-items: center; gap: 4px; padding: 0 8px; border: 1px solid #d9d2fa; border-radius: 8px; color: #6651d5; background: #f5f3ff; font-size: 9px; }
+.remote-last-task { display: grid; gap: 3px; margin-top: 8px; padding: 9px 10px; border-radius: 9px; color: #536077; background: rgba(255,255,255,.68); }
+.remote-last-task strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.remote-disable { margin-top: 8px; padding: 0; border: 0; color: #a15a66; background: transparent; font-size: 9px; }
+.remote-link-card > .privacy-note { display: block; margin-top: 9px; }
 .privacy-note { display: block; margin-top: 13px; color: #929baa; line-height: 1.6; }
 .asset-preview-backdrop { padding: 24px; }
 .asset-preview-modal { width: min(1040px,88vw); height: min(760px,84vh); overflow: hidden; display: grid; grid-template-rows: 68px minmax(0,1fr); border-radius: 22px; background: white; box-shadow: 0 30px 90px rgba(12,18,31,.32); }

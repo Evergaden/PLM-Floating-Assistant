@@ -1,0 +1,13 @@
+{
+  "name": "PLM 远程工作台",
+  "short_name": "PLM 工作台",
+  "description": "远程查看产品资料并向电脑资产工作台下达任务",
+  "start_url": "/remote/",
+  "scope": "/remote/",
+  "display": "standalone",
+  "background_color": "#f7f7fc",
+  "theme_color": "#7057f5",
+  "icons": [
+    { "src": "/remote/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
