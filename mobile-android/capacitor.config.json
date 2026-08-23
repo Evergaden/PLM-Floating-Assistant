@@ -1,0 +1,18 @@
+{
+  "appId": "com.violet.plmremote",
+  "appName": "PLM 远程工作台",
+  "webDir": "www",
+  "server": {
+    "url": "https://velvet.qzz.io/remote/",
+    "cleartext": false,
+    "allowNavigation": [
+      "velvet.qzz.io"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#F7F7FC",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}
