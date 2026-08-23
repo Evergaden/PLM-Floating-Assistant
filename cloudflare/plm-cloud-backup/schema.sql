@@ -140,6 +140,30 @@ CREATE TABLE IF NOT EXISTS plm_users (
 CREATE INDEX IF NOT EXISTS idx_plm_users_last_seen
 ON plm_users(last_seen_at);
 
+-- Daily activity snapshots used by the admin operations dashboard.
+CREATE TABLE IF NOT EXISTS plm_user_activity_daily (
+  activity_date TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  heartbeat_count INTEGER NOT NULL DEFAULT 0,
+  last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (activity_date, user_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_plm_user_activity_daily_date
+ON plm_user_activity_daily(activity_date);
+
+-- Daily counters for metrics that are currently stored as cumulative user totals.
+CREATE TABLE IF NOT EXISTS admin_metric_daily (
+  metric_date TEXT NOT NULL,
+  metric_key TEXT NOT NULL,
+  metric_value INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (metric_date, metric_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_metric_daily_key_date
+ON admin_metric_daily(metric_key, metric_date);
+
 CREATE TABLE IF NOT EXISTS notifications (
   notification_id TEXT PRIMARY KEY,
   title TEXT NOT NULL,

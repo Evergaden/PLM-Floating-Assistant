@@ -2160,6 +2160,27 @@ async function handleFeatureAccessSave(request, env) {
   return adminRedirect('/admin');
 }
 
+async function ensureAdminTrendTables(env) {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS plm_user_activity_daily (
+      activity_date TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      heartbeat_count INTEGER NOT NULL DEFAULT 0,
+      last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (activity_date, user_name)
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_plm_user_activity_daily_date ON plm_user_activity_daily(activity_date)'),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_metric_daily (
+      metric_date TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      metric_value INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (metric_date, metric_key)
+    )`),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_admin_metric_daily_key_date ON admin_metric_daily(metric_key, metric_date)'),
+  ]);
+}
+
 async function handleUserHeartbeat(request, env) {
   if (!requireApiKey(request, env)) return json({ error: 'unauthorized' }, 401);
   const body = await parseJson(request) || {};
@@ -2178,6 +2199,14 @@ async function handleUserHeartbeat(request, env) {
       heartbeat_count=plm_users.heartbeat_count+1,
       last_seen_at=CURRENT_TIMESTAMP
   `).bind(name, instanceId, version, skuCount).run();
+  await ensureAdminTrendTables(env);
+  await env.DB.prepare(`
+    INSERT INTO plm_user_activity_daily (activity_date, user_name, heartbeat_count, last_seen_at)
+    VALUES (date('now', '+8 hours'), ?, 1, CURRENT_TIMESTAMP)
+    ON CONFLICT(activity_date, user_name) DO UPDATE SET
+      heartbeat_count = plm_user_activity_daily.heartbeat_count + 1,
+      last_seen_at = CURRENT_TIMESTAMP
+  `).bind(name).run();
   await ensureMagicUploadAccessColumn(env);
   const row = await env.DB.prepare('SELECT size_image_enabled, magic_upload_enabled FROM feature_access WHERE user_name=?').bind(name).first();
   return json({ ok: true, sizeImageEnabled: Boolean(row && Number(row.size_image_enabled)), magicUploadEnabled: Boolean(row && Number(row.magic_upload_enabled)) });
@@ -2517,7 +2546,18 @@ async function handleSizeImageUsage(request, env) {
   if (!name) return json({ ok: false }, 400);
   const success = body.success !== false;
   const column = success ? 'size_image_success' : 'size_image_failure';
-  await env.DB.prepare('UPDATE plm_users SET ' + column + '=' + column + '+1, last_seen_at=CURRENT_TIMESTAMP WHERE user_name=?').bind(name).run();
+  const metricKey = success ? 'size_image_success' : 'size_image_failure';
+  await ensureAdminTrendTables(env);
+  await env.DB.batch([
+    env.DB.prepare('UPDATE plm_users SET ' + column + '=' + column + '+1, last_seen_at=CURRENT_TIMESTAMP WHERE user_name=?').bind(name),
+    env.DB.prepare(`
+      INSERT INTO admin_metric_daily (metric_date, metric_key, metric_value, updated_at)
+      VALUES (date('now', '+8 hours'), ?, 1, CURRENT_TIMESTAMP)
+      ON CONFLICT(metric_date, metric_key) DO UPDATE SET
+        metric_value = admin_metric_daily.metric_value + 1,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(metricKey),
+  ]);
   return json({ ok: true });
 }
 
@@ -3737,14 +3777,139 @@ async function handleAdminBrandComplianceDelete(request, env) {
   return adminRedirect('/admin?saved=brands-deleted#brand-compliance');
 }
 
+const ADMIN_TREND_SERIES = Object.freeze([
+  Object.freeze({ key: 'active_users', label: '活跃用户', unit: '人', color: '#7041e8', source: 'activity' }),
+  Object.freeze({ key: 'excel_generated', label: '表格生成', unit: '次', color: '#0f9f91', source: 'events', eventField: 'excel_generated' }),
+  Object.freeze({ key: 'image_pack_upload_success', label: '图包上传', unit: '次', color: '#e58b3c', source: 'events', eventField: 'image_pack_upload_success' }),
+  Object.freeze({ key: 'toy_label_upload_success', label: '玩具标签', unit: '次', color: '#d25c91', source: 'events', eventField: 'toy_label_upload_success' }),
+  Object.freeze({ key: 'toy_copywriting_supplement_success', label: '文案补充', unit: '次', color: '#3978d8', source: 'events', eventField: 'toy_copywriting_supplement_success' }),
+  Object.freeze({ key: 'size_image_success', label: '尺寸图成功', unit: '张', color: '#46a86f', source: 'daily_metric', metricKey: 'size_image_success' }),
+  Object.freeze({ key: 'size_image_failure', label: '尺寸图失败', unit: '张', color: '#d95b63', source: 'daily_metric', metricKey: 'size_image_failure' }),
+]);
+
+function formatAdminDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date).reduce((result, item) => {
+    result[item.type] = item.value;
+    return result;
+  }, {});
+  return parts.year + '-' + parts.month + '-' + parts.day;
+}
+
+function shiftAdminDateKey(dateKey, offset) {
+  const date = new Date(String(dateKey || '') + 'T00:00:00Z');
+  if (!Number.isFinite(date.getTime())) return '';
+  date.setUTCDate(date.getUTCDate() + Number(offset || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function sumAdminTrendValues(values, start, end) {
+  return (values || []).slice(start, end).reduce((sum, item) => sum + (item.value == null ? 0 : Number(item.value || 0)), 0);
+}
+
+function buildAdminTrendPeriods(series) {
+  const periodTotals = {};
+  const previousPeriodTotals = {};
+  [7, 30, 90].forEach((days) => {
+    const currentStart = Math.max(0, (series[0] && series[0].values || []).length - days);
+    const previousStart = Math.max(0, currentStart - days);
+    const current = {};
+    const previous = {};
+    series.forEach((item) => {
+      current[item.key] = sumAdminTrendValues(item.values, currentStart, currentStart + days);
+      previous[item.key] = sumAdminTrendValues(item.values, previousStart, currentStart);
+    });
+    periodTotals[String(days)] = current;
+    previousPeriodTotals[String(days)] = previous;
+  });
+  return { periodTotals, previousPeriodTotals };
+}
+
+async function loadAdminTrendData(env) {
+  const [eventRows, activityRows, metricRows] = await Promise.all([
+    env.DB.prepare(`
+      SELECT date(created_at, '+8 hours') AS metric_date,
+        SUM(CASE WHEN event_type='excel_generated' THEN 1 ELSE 0 END) AS excel_generated,
+        SUM(CASE WHEN event_type='image_pack_upload_success' THEN 1 ELSE 0 END) AS image_pack_upload_success,
+        SUM(CASE WHEN event_type='toy_label_upload_success' THEN 1 ELSE 0 END) AS toy_label_upload_success,
+        SUM(CASE WHEN event_type='toy_copywriting_supplement_success' THEN 1 ELSE 0 END) AS toy_copywriting_supplement_success
+      FROM insight_events
+      WHERE datetime(created_at) >= datetime('now', '-180 days')
+      GROUP BY metric_date
+      ORDER BY metric_date ASC
+    `).all(),
+    env.DB.prepare(`
+      SELECT activity_date AS metric_date, COUNT(*) AS active_users
+      FROM plm_user_activity_daily
+      WHERE activity_date >= date('now', '+8 hours', '-180 days')
+      GROUP BY activity_date
+      ORDER BY activity_date ASC
+    `).all(),
+    env.DB.prepare(`
+      SELECT metric_date, metric_key, SUM(metric_value) AS metric_value
+      FROM admin_metric_daily
+      WHERE metric_date >= date('now', '+8 hours', '-180 days')
+      GROUP BY metric_date, metric_key
+      ORDER BY metric_date ASC
+    `).all(),
+  ]);
+  const today = formatAdminDateKey(new Date());
+  const dates = [];
+  for (let offset = -179; offset <= 0; offset += 1) dates.push(shiftAdminDateKey(today, offset));
+  const eventByDate = new Map((eventRows.results || []).map((row) => [row.metric_date, row]));
+  const activityByDate = new Map((activityRows.results || []).map((row) => [row.metric_date, Number(row.active_users || 0)]));
+  const metricByDate = new Map();
+  (metricRows.results || []).forEach((row) => {
+    if (!metricByDate.has(row.metric_date)) metricByDate.set(row.metric_date, {});
+    metricByDate.get(row.metric_date)[row.metric_key] = Number(row.metric_value || 0);
+  });
+  const activityStart = (activityRows.results || []).map((row) => row.metric_date).filter(Boolean).sort()[0] || '';
+  const metricStart = (metricRows.results || []).map((row) => row.metric_date).filter(Boolean).sort()[0] || '';
+  const series = ADMIN_TREND_SERIES.map((definition) => ({
+    key: definition.key,
+    label: definition.label,
+    unit: definition.unit,
+    color: definition.color,
+    source: definition.source,
+    availableFrom: definition.source === 'activity' ? (activityStart || null) : (definition.source === 'daily_metric' ? (metricStart || null) : dates[0]),
+    values: dates.map((date) => {
+      if (definition.source === 'events') {
+        const row = eventByDate.get(date);
+        return { date, value: Number(row && row[definition.eventField] || 0) };
+      }
+      if (definition.source === 'activity') {
+        return { date, value: activityStart && date >= activityStart ? Number(activityByDate.get(date) || 0) : null };
+      }
+      return { date, value: metricStart && date >= metricStart ? Number((metricByDate.get(date) || {})[definition.metricKey] || 0) : null };
+    }),
+  }));
+  const periods = buildAdminTrendPeriods(series);
+  const generatedAt = new Date().toISOString();
+  return {
+    timezone: 'Asia/Shanghai',
+    generatedAt,
+    lastUpdatedAt: generatedAt,
+    series,
+    periodTotals: periods.periodTotals,
+    previousPeriodTotals: periods.previousPeriodTotals,
+  };
+}
+
 async function handleAdminPage(request, env) {
   if (!await isAdminSession(request, env)) return adminRedirect('/admin/login');
+  await ensureAdminTrendTables(env);
   await ensureMagicUploadAccessColumn(env);
   await ensureNotificationTables(env);
   await ensureBrandComplianceTables(env);
   await ensureFeedbackTables(env);
   await ensureHomeGreetingsTable(env);
-  const [users, dashboard, usageTotals, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings] = await Promise.all([
+  const [users, dashboard, usageTotals, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings] = await Promise.all([
     env.DB.prepare('SELECT u.*, COALESCE(a.size_image_enabled,0) AS size_image_enabled, COALESCE(a.magic_upload_enabled,0) AS magic_upload_enabled, a.updated_at AS access_updated_at FROM plm_users u LEFT JOIN feature_access a ON a.user_name=u.user_name UNION SELECT a.user_name, NULL, NULL, 0, 0, 0, 0, NULL, a.updated_at, a.updated_at, a.size_image_enabled, a.magic_upload_enabled, a.updated_at FROM feature_access a WHERE NOT EXISTS (SELECT 1 FROM plm_users u WHERE u.user_name=a.user_name) ORDER BY last_seen_at DESC LIMIT 500').all(),
     env.DB.prepare(`SELECT
       COUNT(*) AS users,
@@ -3761,6 +3926,7 @@ async function handleAdminPage(request, env) {
       SUM(CASE WHEN event_type='toy_label_upload_success' THEN 1 ELSE 0 END) AS toy_label_upload_success_total,
       SUM(CASE WHEN event_type='toy_copywriting_supplement_success' THEN 1 ELSE 0 END) AS toy_copywriting_supplement_success_total
       FROM insight_events`).first(),
+    loadAdminTrendData(env),
     env.DB.prepare('SELECT * FROM loading_tip_campaigns ORDER BY sort_order ASC LIMIT 200').all(),
     env.DB.prepare('SELECT * FROM holiday_calendar ORDER BY start_date ASC LIMIT 100').all(),
     listParameterFeatureRules(env, true),
@@ -3789,7 +3955,7 @@ async function handleAdminPage(request, env) {
     }));
   }
   const saved = new URL(request.url).searchParams.get('saved') || '';
-  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), feedbackEntries.results || [], homeGreetings, saved));
+  return htmlResponse(renderAdminDashboardPage(users.results || [], { ...(dashboard || {}), ...(usageTotals || {}) }, trendData || {}, campaignRows, holidays.results || [], featureRules, notifications.results || [], notificationReads.results || [], (brands.results || []).map(brandComplianceFromRow), feedbackEntries.results || [], homeGreetings, saved));
 }
 
 function renderBrandRepresentativeFields(label, prefix, representative) {
@@ -3852,20 +4018,20 @@ const ADMIN_NAV_GROUPS = Object.freeze([
     Object.freeze({ target: 'overview', title: '数据总览', description: '运行概况', icon: 'overview' }),
   ]) }),
   Object.freeze({ label: '运营管理', items: Object.freeze([
-    Object.freeze({ target: 'notifications', title: '系统通知', description: '发布与阅读情况', icon: 'notifications' }),
+    Object.freeze({ target: 'notifications', title: '系统通知', description: '发布与阅读情况', icon: 'notifications', badgeKey: 'enabledNotifications' }),
     Object.freeze({ target: 'tips', title: '轮播小提示', description: '新增推送内容', icon: 'tips' }),
     Object.freeze({ target: 'home-greetings', title: '主页问候语', description: '首页文案时段', icon: 'greetings' }),
   ]) }),
   Object.freeze({ label: '用户与权限', items: Object.freeze([
-    Object.freeze({ target: 'users', title: '使用人与权限', description: '账号与功能开关', icon: 'users' }),
+    Object.freeze({ target: 'users', title: '使用人与权限', description: '账号与功能开关', icon: 'users', badgeKey: 'userCount' }),
   ]) }),
   Object.freeze({ label: '业务配置', items: Object.freeze([
-    Object.freeze({ target: 'brand-compliance', title: '品牌合规', description: 'REP 与分销商', icon: 'brand' }),
+    Object.freeze({ target: 'brand-compliance', title: '品牌合规', description: 'REP 与分销商', icon: 'brand', badgeKey: 'brandCount' }),
     Object.freeze({ target: 'parameter-features', title: '参数图词典', description: 'FEATURES 规则', icon: 'features' }),
     Object.freeze({ target: 'holidays', title: '法定节假日', description: '提醒日期配置', icon: 'holidays' }),
   ]) }),
   Object.freeze({ label: '反馈中心', items: Object.freeze([
-    Object.freeze({ target: 'feedback', title: '意见反馈', description: '查看并处理建议', icon: 'feedback' }),
+    Object.freeze({ target: 'feedback', title: '意见反馈', description: '查看并处理建议', icon: 'feedback', badgeKey: 'pendingFeedback' }),
   ]) }),
 ]);
 
@@ -3884,12 +4050,205 @@ function renderAdminNavIcon(icon) {
   return '<svg viewBox="0 0 24 24" aria-hidden="true">' + (paths[icon] || paths.overview) + '</svg>';
 }
 
-function renderAdminSidebar() {
-  const groups = ADMIN_NAV_GROUPS.map((group) => '<section class="admin-nav-group"><div class="admin-nav-label">' + htmlEscape(group.label) + '</div><div class="admin-nav-list">' + group.items.map((item) => '<a class="admin-nav-link" href="#' + htmlEscape(item.target) + '" data-admin-target="' + htmlEscape(item.target) + '"><span class="admin-nav-icon">' + renderAdminNavIcon(item.icon) + '</span><span class="admin-nav-copy"><strong>' + htmlEscape(item.title) + '</strong><small>' + htmlEscape(item.description) + '</small></span></a>').join('') + '</div></section>').join('');
+function renderAdminSidebar(counts) {
+  const badgeCounts = counts || {};
+  const groups = ADMIN_NAV_GROUPS.map((group) => '<section class="admin-nav-group"><div class="admin-nav-label">' + htmlEscape(group.label) + '</div><div class="admin-nav-list">' + group.items.map((item) => {
+    const badgeValue = item.badgeKey ? Number(badgeCounts[item.badgeKey] || 0) : 0;
+    const badge = badgeValue > 0 ? '<span class="admin-nav-badge">' + htmlEscape(badgeValue) + '</span>' : '';
+    return '<a class="admin-nav-link" href="#' + htmlEscape(item.target) + '" data-admin-target="' + htmlEscape(item.target) + '"><span class="admin-nav-icon">' + renderAdminNavIcon(item.icon) + '</span><span class="admin-nav-copy"><strong>' + htmlEscape(item.title) + '</strong><small>' + htmlEscape(item.description) + '</small></span>' + badge + '</a>';
+  }).join('') + '</div></section>').join('');
   return '<aside class="admin-sidebar" aria-label="后台导航"><div class="admin-sidebar-head"><span class="admin-brand-mark">P</span><span class="admin-brand-copy"><strong>PLM 助手</strong><span>Cloud Console</span></span></div><div class="admin-sidebar-rule"></div><nav class="admin-nav">' + groups + '</nav><div class="admin-sidebar-foot"><div class="admin-live-pill"><i class="admin-live-dot"></i><span>云端数据中心</span></div><div class="admin-sidebar-foot-note">保存后的配置会按页面提示同步到用户端。</div></div></aside>';
 }
 
-function renderAdminDashboardPage(users, dashboard, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings, saved) {
+function serializeAdminDashboardData(data) {
+  return JSON.stringify(data || {})
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
+function renderAdminOverviewSection(metrics, dashboard, trendData, campaigns, notifications, feedbackEntries, brands) {
+  const pendingFeedback = (feedbackEntries || []).filter((entry) => normalizeFeedbackStatus(entry.status) !== 'resolved').length;
+  const activeNotifications = (notifications || []).filter((notice) => Number(notice.enabled)).length;
+  const activities = [
+    ...(notifications || []).slice(0, 5).map((notice) => ({ kind: '通知', text: notice.title || '未命名通知', time: notice.published_at || notice.created_at || '', tone: 'violet' })),
+    ...(feedbackEntries || []).slice(0, 5).map((entry) => ({ kind: '反馈', text: (entry.user_name || '未命名用户') + '提交了' + (FEEDBACK_TYPES[normalizeFeedbackType(entry.feedback_type) || 'other'] || '反馈'), time: entry.created_at || '', tone: 'orange' })),
+    ...(brands || []).slice(0, 4).map((brand) => ({ kind: '品牌', text: (brand.brand || '未命名品牌') + '资料已更新', time: brand.updated_at || '', tone: 'green' })),
+  ].filter((item) => item.time).sort((a, b) => String(b.time).localeCompare(String(a.time))).slice(0, 5);
+  const activityHtml = activities.length
+    ? activities.map((item) => '<li><i class="admin-activity-dot ' + htmlEscape(item.tone) + '"></i><span><b>' + htmlEscape(item.kind) + '</b>' + htmlEscape(item.text) + '<small>' + htmlEscape(formatBeijingDateTime(item.time) || item.time) + '</small></span></li>').join('')
+    : '<li class="admin-empty-row">暂无最近活动</li>';
+  const seriesButtons = [
+    ['active_users', '活跃用户'],
+    ['excel_generated', '表格生成'],
+    ['image_pack_upload_success', '图包上传'],
+    ['toy_label_upload_success', '玩具标签'],
+    ['toy_copywriting_supplement_success', '文案补充'],
+    ['size_image', '尺寸图成功/失败'],
+  ].map((item, index) => '<button type="button" class="admin-series-button' + (index === 1 ? ' is-active' : '') + '" data-admin-series="' + item[0] + '" aria-pressed="' + (index === 1 ? 'true' : 'false') + '">' + item[1] + '</button>').join('');
+  const sidebarCounts = {
+    enabledNotifications: activeNotifications,
+    userCount: Number(dashboard.users || 0),
+    brandCount: (brands || []).length,
+    pendingFeedback,
+  };
+  const lastUpdated = formatBeijingDateTime(trendData && trendData.lastUpdatedAt) || '刚刚';
+  return '<section class="admin-overview" id="overview">' +
+    '<div class="admin-overview-hero"><div><span class="admin-eyebrow">运营工作台 · LIVE</span><h2>今天的云端运行得怎么样？</h2><p>把活跃、产出、上传和待处理事项放在一个视野里，先看趋势，再处理配置。</p></div><div class="admin-hero-stats"><span>今日活跃</span><strong>' + htmlEscape(Number(dashboard.active_today || 0)) + '</strong><small>近 7 日 ' + htmlEscape(Number(dashboard.active_week || 0)) + ' 人</small></div></div>' +
+    '<div class="admin-quick-actions"><a class="admin-quick-action violet" href="#notifications"><span>＋</span><b>发布通知</b><small>把重要变化同步给团队</small></a><a class="admin-quick-action orange" href="#feedback"><span>✦</span><b>处理反馈</b><small>' + htmlEscape(pendingFeedback ? pendingFeedback + ' 条待跟进' : '目前没有待跟进') + '</small></a><a class="admin-quick-action green" href="#brand-compliance"><span>◇</span><b>维护品牌</b><small>' + htmlEscape((brands || []).length) + ' 个品牌资料</small></a><a class="admin-quick-action blue" href="#holidays"><span>▣</span><b>维护节假日</b><small>更新提醒日历</small></a></div>' +
+    '<div class="admin-section-kicker"><div><span class="admin-eyebrow">核心指标</span><h2>一眼掌握后台健康度</h2></div><span class="admin-section-meta">数据更新于 ' + htmlEscape(lastUpdated) + '</span></div>' +
+    '<div class="admin-metrics-panel"><div class="metrics">' + metrics + '</div></div>' +
+    '<div class="admin-overview-grid"><section class="card admin-trend-card" id="trend"><div class="cardhead admin-trend-head"><div><span class="admin-eyebrow">运营趋势</span><h2>关键动作正在怎么变化？</h2><div class="sub">默认展示最近 30 天，可切换周期与指标；曲线数据按北京时间统计。</div></div><div class="admin-trend-actions"><div class="admin-period-switch" role="group" aria-label="趋势时间范围"><button type="button" data-admin-range="7">7天</button><button type="button" class="is-active" data-admin-range="30">30天</button><button type="button" data-admin-range="90">90天</button></div><button type="button" class="btn ghost" id="admin-trend-export">导出 CSV</button></div></div><div class="admin-series-switch" role="group" aria-label="趋势指标">' + seriesButtons + '</div><div class="admin-trend-body"><div class="admin-chart-shell"><div class="admin-chart-wrap"><svg id="admin-trend-chart" viewBox="0 0 760 300" role="img" aria-label="运营趋势曲线"></svg><div class="admin-chart-tooltip" id="admin-trend-tooltip" role="status" aria-live="polite"></div><div class="admin-chart-empty" id="admin-trend-empty" hidden>这个指标还没有足够的历史数据</div></div><div class="admin-chart-axis-note" id="admin-trend-caption">正在读取趋势数据…</div></div><aside class="admin-trend-summary"><div><span>周期总量</span><strong id="admin-trend-total">—</strong></div><div><span>峰值日期</span><strong id="admin-trend-peak">—</strong></div><div><span>较上周期</span><strong id="admin-trend-change">—</strong></div><div><span>数据覆盖</span><strong id="admin-trend-coverage">—</strong></div></aside></div><div class="admin-trend-table-wrap"><table id="admin-trend-data-table" class="admin-sr-table"></table></div></section><section class="card admin-activity-card"><div class="cardhead"><span class="admin-eyebrow">待处理与动态</span><h2>现在值得看什么？</h2><div class="sub">用最短路径找到需要关注的事项。</div></div><div class="admin-status-stack"><div class="admin-status-row"><span class="admin-status-icon orange">!</span><span><b>' + htmlEscape(pendingFeedback) + ' 条反馈待跟进</b><small>' + (pendingFeedback ? '建议先处理用户反馈，再回到配置区。' : '反馈队列保持清爽。') + '</small></span><a href="#feedback">查看</a></div><div class="admin-status-row"><span class="admin-status-icon violet">◌</span><span><b>' + htmlEscape(activeNotifications) + ' 条通知正在生效</b><small>可以在通知记录中查看阅读情况。</small></span><a href="#notifications">查看</a></div><div class="admin-status-row"><span class="admin-status-icon green">✓</span><span><b>' + htmlEscape(Number(dashboard.backup_users || 0)) + ' 位用户已云备份</b><small>云端 SKU 汇总 ' + htmlEscape(Number(dashboard.sku_total || 0)) + '</small></span><a href="#users">查看</a></div></div><div class="admin-activity-heading"><span>最近活动</span><small>最多显示 5 条</small></div><ol class="admin-activity-list">' + activityHtml + '</ol></section></div>' +
+    '<script type="application/json" id="admin-dashboard-data">' + serializeAdminDashboardData(trendData || {}) + '</script>' +
+    '</section>';
+}
+
+function renderAdminDashboardScripts() {
+  return '<script>' + String.raw`
+(function () {
+  var dataNode = document.getElementById('admin-dashboard-data');
+  var data = {};
+  try { data = JSON.parse(dataNode ? dataNode.textContent || '{}' : '{}'); } catch (error) { data = {}; }
+  var chart = document.getElementById('admin-trend-chart');
+  var chartWrap = document.querySelector('.admin-chart-wrap');
+  var tooltip = document.getElementById('admin-trend-tooltip');
+  var empty = document.getElementById('admin-trend-empty');
+  var selectedSeries = 'excel_generated';
+  var selectedRange = 30;
+  var chartWidth = 760;
+  var chartHeight = 300;
+  var chartLeft = 44;
+  var chartRight = 18;
+  var chartTop = 22;
+  var chartBottom = 38;
+  var seriesMap = {};
+  (data.series || []).forEach(function (item) { seriesMap[item.key] = item; });
+  function setText(id, value) { var node = document.getElementById(id); if (node) node.textContent = value; }
+  function numberText(value) { return new Intl.NumberFormat('zh-CN').format(Number(value || 0)); }
+  function dateText(value) { return value ? String(value).slice(5).replace('-', '/') : '—'; }
+  function fullDateText(value) { return value ? String(value).replace(/-/g, '/') : '—'; }
+  function keysForSelection() { return selectedSeries === 'size_image' ? ['size_image_success', 'size_image_failure'] : [selectedSeries]; }
+  function labelsForKeys(keys) { return keys.map(function (key) { return seriesMap[key] ? seriesMap[key].label : key; }); }
+  function pointsForSeries(item) { return (item && item.values || []).slice(-selectedRange); }
+  function visibleRows(keys) {
+    var base = seriesMap[keys[0]];
+    var points = pointsForSeries(base);
+    return points.map(function (point, index) {
+      return { date: point.date, values: keys.map(function (key) { var current = pointsForSeries(seriesMap[key])[index]; return current ? current.value : null; }) };
+    });
+  }
+  function valueText(value, key) { return value == null ? '暂无' : numberText(value) + ' ' + ((seriesMap[key] && seriesMap[key].unit) || '次'); }
+  function pathForValues(values, min, max, innerWidth, innerHeight) {
+    var path = '';
+    var open = false;
+    var step = values.length > 1 ? innerWidth / (values.length - 1) : innerWidth;
+    values.forEach(function (value, index) {
+      if (value == null) { open = false; return; }
+      var x = chartLeft + step * index;
+      var y = chartTop + innerHeight - ((Number(value) - min) / (max - min || 1)) * innerHeight;
+      path += (open ? 'L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
+      open = true;
+    });
+    return path.trim();
+  }
+  function renderTable(rows, keys) {
+    var table = document.getElementById('admin-trend-data-table');
+    if (!table) return;
+    var head = '<caption>运营趋势数据</caption><thead><tr><th>日期</th>' + labelsForKeys(keys).map(function (label) { return '<th>' + label + '</th>'; }).join('') + '</tr></thead><tbody>';
+    var body = rows.map(function (row) { return '<tr><td>' + fullDateText(row.date) + '</td>' + row.values.map(function (value, index) { return '<td>' + valueText(value, keys[index]) + '</td>'; }).join('') + '</tr>'; }).join('');
+    table.innerHTML = head + body + '</tbody>';
+  }
+  function renderChart() {
+    if (!chart) return;
+    var keys = keysForSelection();
+    var rows = visibleRows(keys);
+    var values = rows.reduce(function (all, row) { return all.concat(row.values.filter(function (value) { return value != null; })); }, []);
+    var hasData = values.length > 0;
+    if (empty) empty.hidden = hasData;
+    if (!hasData) { chart.innerHTML = ''; setText('admin-trend-caption', '当前指标暂无可用历史采样，产生新数据后会自动出现曲线。'); renderTable(rows, keys); updateSummary(rows, keys); return; }
+    var min = Math.min.apply(Math, values.concat([0]));
+    var max = Math.max.apply(Math, values.concat([1]));
+    if (max === min) max = min + 1;
+    var innerWidth = chartWidth - chartLeft - chartRight;
+    var innerHeight = chartHeight - chartTop - chartBottom;
+    var svg = '<g class="admin-chart-grid">';
+    for (var gridIndex = 0; gridIndex <= 4; gridIndex += 1) {
+      var gridY = chartTop + (innerHeight / 4) * gridIndex;
+      var gridValue = max - ((max - min) / 4) * gridIndex;
+      svg += '<line x1="' + chartLeft + '" y1="' + gridY.toFixed(2) + '" x2="' + (chartWidth - chartRight) + '" y2="' + gridY.toFixed(2) + '"></line><text x="' + (chartLeft - 10) + '" y="' + (gridY + 4).toFixed(2) + '" text-anchor="end">' + numberText(gridValue) + '</text>';
+    }
+    svg += '</g>';
+    keys.forEach(function (key) {
+      var item = seriesMap[key];
+      var itemValues = rows.map(function (row) { return row.values[keys.indexOf(key)]; });
+      var path = pathForValues(itemValues, min, max, innerWidth, innerHeight);
+      if (!path) return;
+      svg += '<path class="admin-chart-area" d="' + path + ' L ' + (chartWidth - chartRight) + ' ' + (chartTop + innerHeight) + ' L ' + chartLeft + ' ' + (chartTop + innerHeight) + ' Z" fill="' + item.color + '"></path><path class="admin-chart-line" pathLength="1" d="' + path + '" stroke="' + item.color + '"></path>';
+    });
+    svg += '<line class="admin-chart-crosshair" id="admin-chart-crosshair" x1="0" y1="' + chartTop + '" x2="0" y2="' + (chartTop + innerHeight) + '"></line><rect class="admin-chart-hitarea" x="' + chartLeft + '" y="' + chartTop + '" width="' + innerWidth + '" height="' + innerHeight + '"></rect>';
+    chart.innerHTML = svg;
+    renderTable(rows, keys);
+    var available = rows.filter(function (row) { return row.values.some(function (value) { return value != null; }); }).length;
+    setText('admin-trend-caption', '横轴为北京时间 · ' + available + '/' + rows.length + ' 天有数据 · 悬停查看当日明细');
+    updateSummary(rows, keys);
+  }
+  function updateSummary(rows, keys) {
+    var totals = data.periodTotals && data.periodTotals[String(selectedRange)] || {};
+    var previous = data.previousPeriodTotals && data.previousPeriodTotals[String(selectedRange)] || {};
+    var total = keys.reduce(function (sum, key) { return sum + Number(totals[key] || 0); }, 0);
+    var previousTotal = keys.reduce(function (sum, key) { return sum + Number(previous[key] || 0); }, 0);
+    var peak = null;
+    rows.forEach(function (row) { var value = keys.reduce(function (sum, key, index) { return sum + Number(row.values[index] || 0); }, 0); if (value > 0 && (!peak || value > peak.value)) peak = { date: row.date, value: value }; });
+    var change = previousTotal ? ((total - previousTotal) / previousTotal * 100) : null;
+    setText('admin-trend-total', numberText(total) + ' ' + (keys.length > 1 ? '张' : ((seriesMap[keys[0]] && seriesMap[keys[0]].unit) || '次')));
+    setText('admin-trend-peak', peak ? dateText(peak.date) + ' · ' + numberText(peak.value) : '暂无');
+    setText('admin-trend-change', change == null ? '暂无对比' : (change > 0 ? '↑ ' : (change < 0 ? '↓ ' : '→ ')) + Math.abs(change).toFixed(1) + '%');
+    setText('admin-trend-coverage', rows.filter(function (row) { return row.values.some(function (value) { return value != null; }); }).length + '/' + rows.length + ' 天');
+  }
+  function showTooltip(event) {
+    var keys = keysForSelection();
+    var rows = visibleRows(keys);
+    if (!rows.length || !chartWrap || !tooltip) return;
+    var rect = chart.getBoundingClientRect();
+    var localX = (event.clientX - rect.left) / rect.width * chartWidth;
+    var innerWidth = chartWidth - chartLeft - chartRight;
+    var index = Math.max(0, Math.min(rows.length - 1, Math.round((localX - chartLeft) / (innerWidth / Math.max(1, rows.length - 1)))));
+    var row = rows[index];
+    var crosshair = document.getElementById('admin-chart-crosshair');
+    if (crosshair) { var crossX = chartLeft + (innerWidth / Math.max(1, rows.length - 1)) * index; crosshair.setAttribute('x1', crossX); crosshair.setAttribute('x2', crossX); crosshair.setAttribute('visibility', 'visible'); }
+    tooltip.innerHTML = '<b>' + fullDateText(row.date) + '</b>' + row.values.map(function (value, valueIndex) { return '<span><i style="background:' + seriesMap[keys[valueIndex]].color + '"></i>' + seriesMap[keys[valueIndex]].label + '：' + valueText(value, keys[valueIndex]) + '</span>'; }).join('');
+    tooltip.hidden = false;
+    var wrapRect = chartWrap.getBoundingClientRect();
+    tooltip.style.left = Math.max(8, Math.min(wrapRect.width - tooltip.offsetWidth - 8, event.clientX - wrapRect.left + 12)) + 'px';
+    tooltip.style.top = Math.max(8, event.clientY - wrapRect.top - tooltip.offsetHeight - 12) + 'px';
+  }
+  function hideTooltip() { if (tooltip) tooltip.hidden = true; var crosshair = document.getElementById('admin-chart-crosshair'); if (crosshair) crosshair.setAttribute('visibility', 'hidden'); }
+  function exportCsv() {
+    var keys = keysForSelection();
+    var rows = visibleRows(keys);
+    var csv = [['日期'].concat(labelsForKeys(keys)).concat(['单位']).join(',')].concat(rows.map(function (row) { return [row.date].concat(row.values.map(function (value, index) { return value == null ? '' : value; })).concat([keys.length > 1 ? '张' : ((seriesMap[keys[0]] && seriesMap[keys[0]].unit) || '次')]).join(','); })).join('\n');
+    var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'plm-admin-trend-' + selectedRange + 'd.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+  }
+  document.querySelectorAll('[data-admin-range]').forEach(function (button) { button.addEventListener('click', function () { selectedRange = Number(button.getAttribute('data-admin-range')) || 30; document.querySelectorAll('[data-admin-range]').forEach(function (item) { item.classList.toggle('is-active', item === button); }); renderChart(); }); });
+  document.querySelectorAll('[data-admin-series]').forEach(function (button) { button.addEventListener('click', function () { selectedSeries = button.getAttribute('data-admin-series') || 'excel_generated'; document.querySelectorAll('[data-admin-series]').forEach(function (item) { var active = item === button; item.classList.toggle('is-active', active); item.setAttribute('aria-pressed', active ? 'true' : 'false'); }); renderChart(); }); });
+  if (chart) { chart.addEventListener('mousemove', showTooltip); chart.addEventListener('mouseleave', hideTooltip); }
+  if (document.getElementById('admin-trend-export')) document.getElementById('admin-trend-export').addEventListener('click', exportCsv);
+  var refresh = document.getElementById('admin-refresh');
+  if (refresh) refresh.addEventListener('click', function () { refresh.disabled = true; refresh.textContent = '刷新中…'; window.location.reload(); });
+  renderChart();
+})();
+` + '</script>';
+}
+
+function renderAdminDashboardPage(users, dashboard, trendData, campaigns, holidays, featureRules, notifications, notificationReads, brands, feedbackEntries, homeGreetings, saved) {
   const knownUserNames = Array.from(new Set(users.map((user) => String(user.user_name || '').trim()).filter(Boolean)));
   const readsByNotification = new Map();
   (notificationReads || []).forEach((row) => {
@@ -3936,17 +4295,25 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
     ['玩具标签上传成功', dashboard.toy_label_upload_success_total || 0], ['生成尺寸图总量', dashboard.size_success || 0],
     ['文案智能补充总数', dashboard.toy_copywriting_supplement_success_total || 0], ['尺寸图失败', dashboard.size_failure || 0], ['提示数量', campaigns.length],
   ].map((item) => '<div class="metric"><span>' + htmlEscape(item[0]) + '</span><b>' + htmlEscape(item[1]) + '</b></div>').join('');
+  const pendingFeedback = (feedbackEntries || []).filter((entry) => normalizeFeedbackStatus(entry.status) !== 'resolved').length;
+  const sidebarCounts = {
+    enabledNotifications: (notifications || []).filter((notice) => Number(notice.enabled)).length,
+    userCount: Number(dashboard.users || 0),
+    brandCount: (brands || []).length,
+    pendingFeedback,
+  };
+  const overviewSection = renderAdminOverviewSection(metrics, dashboard, trendData || {}, campaigns, notifications, feedbackEntries, brands);
   const notificationAdminSection = '<section class="card" id="notifications"><div class="cardhead"><h2>发布通知</h2><div class="sub">发送给所有安装新版脚本的用户；标题或内容包含“新版本 / 版本更新 / 更新提示 / 脚本更新”时，用户端会自动弹出并显示“去更新”。</div></div>' +
     '<form class="form" method="post" action="/admin/notifications/save"><label><span>标题</span><input name="title" maxlength="120" required placeholder="例如：版本更新提示 v2.5.160"></label><label><span>通知内容</span><textarea name="content" maxlength="4000" required placeholder="输入需要发送的通知内容"></textarea></label><div class="row"><label class="checks"><input type="hidden" name="enabled" value="0"><input type="checkbox" name="enabled" value="1" checked>立即启用</label></div><div class="actions"><button type="submit">发送通知</button></div></form>' +
     '<div class="form"><div class="cardhead" style="padding:0"><h2>通知记录（' + (notifications || []).length + '）</h2><div class="sub">展开后可编辑、停用、重新发布、清空阅读记录，并查看已读和未读用户。</div></div><div class="tiplist">' + (notificationEditorRows || '<div class="sub">暂无通知</div>') + '</div></div></section>';
   const feedbackAdminSection = renderFeedbackAdminSection(feedbackEntries || []);
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLM 管理后台</title><link rel="stylesheet" href="/admin-console.css"><style>.tiptext,.tipbody textarea{font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Microsoft YaHei",sans-serif}' +
     ':root{--line:#e7e1fb;--text:#261f3d;--muted:#7d728f;--accent:#7c3aed}*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#fbfaff,#eef7ff);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--text)}.wrap{max-width:1260px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}h1{margin:0;font-size:24px}h2{margin:0;font-size:17px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.notice{margin:0 0 14px;padding:11px 14px;border:1px solid #a7ead1;border-radius:12px;background:#ecfdf5;color:#087c59;font-size:13px;font-weight:600}.grid{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric,.card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:17px;box-shadow:0 16px 50px rgba(76,60,132,.08)}.metric{padding:16px}.metric span{display:block;color:var(--muted);font-size:12px}.metric b{display:block;font-size:25px;margin-top:5px}.card{overflow:hidden}.cardhead{padding:17px 18px}.form{padding:0 18px 18px;display:grid;gap:12px}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.row.two{grid-template-columns:1fr 1fr}input,textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;font-size:13px;color:var(--text)}textarea{min-height:150px;resize:vertical;line-height:1.5}label>span{display:block;color:var(--muted);font-size:12px;margin:0 0 5px}button,.btn{height:36px;border:0;border-radius:10px;padding:0 15px;background:var(--accent);color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap;min-width:max-content}button:disabled{opacity:.65;cursor:wait}.ghost{background:#fff;color:var(--accent);border:1px solid var(--line)}.actions{display:flex;gap:8px}.tiplist{display:grid;gap:8px}.tipitem{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.tipitem summary{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}.tipselect{width:16px;height:16px;min-height:0;margin:0;padding:0;flex:0 0 auto}.tipno{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#f1edff;color:var(--accent);font-size:12px}.tiptext{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tipstate{font-size:12px;color:var(--muted)}.tipbody{padding:12px;border-top:1px solid var(--line);display:grid;gap:11px;background:#fcfbff}.tipbody textarea{min-height:74px}.danger{color:#dc2626}.tablebox{overflow:auto;max-height:440px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 14px;border-top:1px solid #eeeaf9;text-align:left;white-space:nowrap}th{color:#695d80;background:#faf9ff}.switch input{display:none}.switch span{display:block;width:42px;height:24px;border-radius:99px;background:#d8d3e5;position:relative;cursor:pointer}.switch span:after{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #999;transition:.18s}.switch input:checked+span{background:var(--accent)}.switch input:checked+span:after{transform:translateX(18px)}.checks{display:flex;align-items:center;align-self:end;gap:8px;height:36px;font-size:13px;white-space:nowrap}.checks input{width:16px;height:16px;min-height:0;margin:0;padding:0}.weekdays{grid-column:1/-1}.brandform,.brandbase{display:grid;gap:11px}.brandbase{grid-template-columns:2fr 2fr 100px}.brandbase .wide{grid-column:1/-1}.brandbase textarea{min-height:70px}.repgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.repbox{min-width:0;border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:9px}.repbox legend{padding:0 6px;color:var(--accent);font-weight:600;font-size:13px}.repbox textarea{min-height:85px}.branditem .tipbody{gap:14px}@media(max-width:800px){.wrap{padding:12px}.metrics{grid-template-columns:1fr 1fr}.row,.row.two,.brandbase,.repgrid{grid-template-columns:1fr}.head{align-items:flex-start}.tablebox{max-height:360px}}</style></head><body><main class="wrap">' +
-    renderAdminSidebar() +
-    '<div class="admin-content"><header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">用户、权限、云端数据与轮播小提示</div></div><a class="btn ghost" href="/admin/logout">退出登录</a></header>' +
+    renderAdminSidebar(sidebarCounts) +
+    '<div class="admin-content"><header class="head"><div><h1>PLM 助手控制台</h1><div class="sub">运营工作台 · 用户、权限、云端数据与轮播小提示</div></div><div class="admin-head-actions"><span class="admin-last-updated">数据更新于 ' + htmlEscape(formatBeijingDateTime(trendData && trendData.lastUpdatedAt) || '刚刚') + '</span><button type="button" class="btn ghost" id="admin-refresh">刷新数据</button><a class="btn ghost" href="/admin/logout">退出登录</a></div></header>' +
     (saved === 'home-greetings' ? '<div class="notice">主页问候语已保存，用户刷新页面后生效</div>' : '') +
     (saved && saved !== 'home-greetings' ? '<div class="notice">' + (saved === 'notifications' ? '通知已保存' : (saved === 'feedback' ? '反馈处理结果已保存' : (saved === 'brands' ? '品牌地址已保存，用户刷新页面后生效' : (saved === 'brands-deleted' ? '品牌地址已删除' : (saved === 'brands-duplicate' ? '品牌名与现有数据重复，未保存' : (saved === 'brands-error' ? '品牌名不能为空' : (saved === 'holidays' ? '节假日设置已保存' : (saved === 'features' ? '参数图 FEATURES 词典已保存' : (saved === 'added' ? '新提示已添加' : '轮播小提示与推送条件已保存'))))))))) + '</div>' : '') +
-    '<section class="metrics" id="overview">' + metrics + '</section><div class="grid" style="margin-top:18px">' +
+    overviewSection + '<div class="grid" style="margin-top:18px">' +
     homeGreetingAdminSection +
     notificationAdminSection +
     feedbackAdminSection +
@@ -3955,7 +4322,7 @@ function renderAdminDashboardPage(users, dashboard, campaigns, holidays, feature
     '<section class="card" id="tips"><div class="cardhead"><h2>新增轮播小提示</h2><div class="sub">每行一条，可同时设置本次新增提示的推送条件</div></div><form class="form" method="post" action="/admin/tips/bulk-save"><textarea name="texts" placeholder="在这里输入新提示，每行一条"></textarea><div class="row"><label><span>权重</span><input type="number" name="weight" min="1" max="20" value="1"></label><label><span>每日展示上限</span><input type="number" name="dailyLimit" min="1" max="20" value="3"></label><label><span>冷却分钟</span><input type="number" name="cooldownMinutes" min="0" value="60"></label><label><span>尺寸图权限</span><select name="accessMode"><option value="">不限</option><option value="enabled">已开通</option><option value="disabled">未开通</option></select></label></div><div class="row two"><label><span>指定姓名（逗号分隔）</span><input name="includeNames"></label><label><span>排除姓名</span><input name="excludeNames"></label></div><div class="row"><label><span>开始日期</span><input type="date" name="startDate"></label><label><span>结束日期</span><input type="date" name="endDate"></label><label><span>开始时间</span><input type="time" name="startTime"></label><label><span>结束时间</span><input type="time" name="endTime"></label></div><div class="row"><label><span>脚本版本包含</span><input name="versionRule"></label><label><span>星期（0周日，逗号分隔）</span><input name="weekdays" placeholder="1,2,3,4,5"></label><label class="checks"><input type="checkbox" name="holidayEve" value="1">仅法定节假日前一天</label></div><div class="actions"><button type="submit">添加提示</button></div></form></section>' +
     '<section class="card" id="saved-tips"><div class="cardhead"><h2>已保存的小提示（' + campaigns.length + '）</h2><div class="sub">勾选可批量删除；展开任意一条可维护详细条件</div></div><form class="form tip-manage-form" method="post" action="/admin/tips/manage-save"><input type="hidden" name="tipCount" value="' + campaigns.length + '"><div class="actions"><button class="ghost" type="button" data-tip-select="all">全选</button><button class="ghost" type="button" data-tip-select="none">取消全选</button><button type="submit" data-delete-selected="1">删除选中</button></div><div class="tiplist">' + tipEditorRows + '</div><div class="actions"><button type="submit">保存全部修改</button></div></form></section>' +
     '<section class="card" id="parameter-features"><div class="cardhead"><h2>参数图 FEATURES 词典</h2><div class="sub">每行：品类|匹配关键词（逗号分隔）|英文短句|优先级</div></div><form class="form" method="post" action="/admin/parameter-features/save"><textarea name="rules" placeholder="精华|精华,serum|Anti-wrinkle & glow|100">' + htmlEscape(featureRuleTexts) + '</textarea><div class="actions"><button type="submit">保存 FEATURES 词典</button></div></form></section>' +
-    '<section class="card" id="holidays"><div class="cardhead"><h2>法定节假日</h2><div class="sub">每行格式：节日名称|放假开始日期，提醒日期自动取前一天</div></div><form class="form" method="post" action="/admin/holidays/bulk-save"><textarea name="holidays" placeholder="国庆节|2026-10-01">' + htmlEscape(holidayTexts) + '</textarea><div class="actions"><button type="submit">保存节假日</button></div></form></section></div></div></main><script>var adminLinks=Array.prototype.slice.call(document.querySelectorAll("[data-admin-target]"));var adminTargets=adminLinks.map(function(link){return document.getElementById(link.getAttribute("data-admin-target"));}).filter(Boolean);function updateAdminNav(){var threshold=160;var current=adminTargets[0]||null;var nearest=Infinity;adminTargets.forEach(function(target){var distance=threshold-target.getBoundingClientRect().top;if(distance>=0&&distance<nearest){nearest=distance;current=target;}});adminLinks.forEach(function(link){link.classList.toggle("is-active",Boolean(current&&link.getAttribute("data-admin-target")===current.id));});}adminLinks.forEach(function(link){link.addEventListener("click",function(){adminLinks.forEach(function(item){item.classList.remove("is-active")});link.classList.add("is-active");});});window.addEventListener("scroll",updateAdminNav,{passive:true});window.addEventListener("load",updateAdminNav);updateAdminNav();</script><script>document.querySelectorAll("[data-tip-select]").forEach(function(button){button.addEventListener("click",function(){var checked=button.dataset.tipSelect==="all";document.querySelectorAll(".tipselect").forEach(function(input){input.checked=checked})})});document.querySelectorAll("form").forEach(function(form){form.addEventListener("submit",function(event){var button=event.submitter||form.querySelector("button[type=submit],button:not([type])");if(button&&button.dataset.deleteSelected){var count=document.querySelectorAll(".tipselect:checked").length;if(!count){event.preventDefault();alert("请先勾选要删除的小提示");return}if(!confirm("确定删除选中的 "+count+" 条小提示吗？")){event.preventDefault();return}}if(button){button.disabled=true;button.textContent="保存中..."}})});</script></body></html>';
+    '<section class="card" id="holidays"><div class="cardhead"><h2>法定节假日</h2><div class="sub">每行格式：节日名称|放假开始日期，提醒日期自动取前一天</div></div><form class="form" method="post" action="/admin/holidays/bulk-save"><textarea name="holidays" placeholder="国庆节|2026-10-01">' + htmlEscape(holidayTexts) + '</textarea><div class="actions"><button type="submit">保存节假日</button></div></form></section></div></div></main><script>var adminLinks=Array.prototype.slice.call(document.querySelectorAll("[data-admin-target]"));var adminTargets=adminLinks.map(function(link){return document.getElementById(link.getAttribute("data-admin-target"));}).filter(Boolean);function updateAdminNav(){var threshold=160;var current=adminTargets[0]||null;var nearest=Infinity;adminTargets.forEach(function(target){var distance=threshold-target.getBoundingClientRect().top;if(distance>=0&&distance<nearest){nearest=distance;current=target;}});adminLinks.forEach(function(link){link.classList.toggle("is-active",Boolean(current&&link.getAttribute("data-admin-target")===current.id));});}adminLinks.forEach(function(link){link.addEventListener("click",function(){adminLinks.forEach(function(item){item.classList.remove("is-active")});link.classList.add("is-active");});});window.addEventListener("scroll",updateAdminNav,{passive:true});window.addEventListener("load",updateAdminNav);updateAdminNav();</script><script>document.querySelectorAll("[data-tip-select]").forEach(function(button){button.addEventListener("click",function(){var checked=button.dataset.tipSelect==="all";document.querySelectorAll(".tipselect").forEach(function(input){input.checked=checked})})});document.querySelectorAll("form").forEach(function(form){form.addEventListener("submit",function(event){var button=event.submitter||form.querySelector("button[type=submit],button:not([type])");if(button&&button.dataset.deleteSelected){var count=document.querySelectorAll(".tipselect:checked").length;if(!count){event.preventDefault();alert("请先勾选要删除的小提示");return}if(!confirm("确定删除选中的 "+count+" 条小提示吗？")){event.preventDefault();return}}if(button){button.disabled=true;button.textContent="保存中..."}})});</script>' + renderAdminDashboardScripts() + '</body></html>';
 }
 
 function renderAdminPage(accessRows, tips) {
