@@ -28,8 +28,10 @@ never be edited directly.
 
 The build rejects `!important` and `final cascade` in canonical modules. It
 also prevents the existing totals for `!important`, duplicate selectors, and
-conflicting selectors from increasing. Budgets should only move downward as
-legacy modules are migrated.
+conflicting selectors from increasing. Exact debt baselines are enforced, so
+every reduction must tighten the matching source and aggregate budgets in the
+same change. Source byte baselines normalize CRLF to LF before comparison.
+Budgets should only move downward as legacy modules are migrated.
 
 A duplicate selector is counted only when it repeats the same property. This
 allows layout and typography to live in separate migration sources without

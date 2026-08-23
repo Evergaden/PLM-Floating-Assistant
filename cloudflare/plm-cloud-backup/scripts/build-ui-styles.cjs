@@ -7,6 +7,7 @@ const sourceRoot = path.join(root, 'ui-src');
 const releasePath = path.join(sourceRoot, 'release.json');
 const release = JSON.parse(fs.readFileSync(releasePath, 'utf8'));
 const checkOnly = process.argv.includes('--check');
+const enforceExactDebtBaselines = release.enforceExactDebtBaselines === true;
 
 if (release.schemaVersion !== 1) throw new Error('Unsupported UI release schema');
 if (!/^\d+\.\d+\.\d+$/.test(String(release.version || ''))) {
@@ -83,7 +84,7 @@ const parts = release.sources.map((source) => {
   if (!fs.existsSync(absolutePath)) throw new Error(`Missing UI source: ${relativePath}`);
   const css = fs.readFileSync(absolutePath, 'utf8').trimEnd();
   const parsedRules = parseRules(css);
-  const sourceBytes = Buffer.byteLength(css);
+  const sourceBytes = Buffer.byteLength(css.replace(/\r\n/g, '\n'));
   let sourceImportant = 0;
   postcss.parse(css, { from: absolutePath }).walkDecls((declaration) => {
     if (declaration.important) sourceImportant += 1;
@@ -91,8 +92,14 @@ const parts = release.sources.map((source) => {
   if (source.maxBytes != null && sourceBytes > Number(source.maxBytes)) {
     throw new Error(`UI source byte budget exceeded for ${relativePath}: ${sourceBytes} > ${source.maxBytes}`);
   }
+  if (enforceExactDebtBaselines && source.maxBytes != null && sourceBytes !== Number(source.maxBytes)) {
+    throw new Error(`UI source normalized byte baseline must match ${relativePath}: ${source.maxBytes} != ${sourceBytes}`);
+  }
   if (source.maxImportant != null && sourceImportant > Number(source.maxImportant)) {
     throw new Error(`UI source !important budget exceeded for ${relativePath}: ${sourceImportant} > ${source.maxImportant}`);
+  }
+  if (enforceExactDebtBaselines && source.maxImportant != null && sourceImportant !== Number(source.maxImportant)) {
+    throw new Error(`UI source !important baseline must match ${relativePath}: ${source.maxImportant} != ${sourceImportant}`);
   }
   (source.forbidSelectorFragments || []).forEach((fragment) => {
     const match = parsedRules.find(({ selector }) => selector.includes(fragment));
@@ -138,6 +145,9 @@ Object.entries(release.budgets || {}).forEach(([name, limit]) => {
   if (!(name in metrics)) throw new Error(`Unknown UI budget: ${name}`);
   if (metrics[name] > Number(limit)) {
     throw new Error(`UI budget exceeded for ${name}: ${metrics[name]} > ${limit}`);
+  }
+  if (enforceExactDebtBaselines && metrics[name] !== Number(limit)) {
+    throw new Error(`UI debt baseline must match ${name}: ${limit} != ${metrics[name]}`);
   }
 });
 
