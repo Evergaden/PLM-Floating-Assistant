@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.163
+// @version      2.8.162
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.163';
+  const SCRIPT_VERSION = '2.8.162';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.247';
+  const UI_ASSET_VERSION = '2.5.246';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -2603,24 +2603,6 @@
     common: Object.freeze(['detail', 'batchExcel', 'upload', 'magicUpload', 'parameterImage']),
     more: Object.freeze(['ledger', 'tools', 'feedback']),
   });
-  const CONSOLE_SIDEBAR_GROUPS = Object.freeze([
-    Object.freeze({ label: '工作台', items: Object.freeze([
-      Object.freeze({ id: 'home', action: 'home-main', icon: 'home', title: '总览', description: '今日概况' }),
-      Object.freeze({ id: 'detail', action: 'open-first-detail', icon: 'folder', title: '我的详情', description: 'SKU 项目' }),
-      Object.freeze({ id: 'ledger', action: 'ledger-open', icon: 'taskPlan', title: '今日工作台', description: '设计与定稿' }),
-      Object.freeze({ id: 'productDevelopment', action: 'work-mode', mode: 'product-development', icon: 'sparkle', title: '产品开发', description: '文案与风险' }),
-    ]) }),
-    Object.freeze({ label: '生产工具', items: Object.freeze([
-      Object.freeze({ id: 'upload', action: 'upload-toggle', icon: 'upload', title: '批量提审', description: '上传队列' }),
-      Object.freeze({ id: 'magicUpload', action: 'home-magic-upload', icon: 'upload', title: '魔法上传', description: 'ZIP 自动处理', badge: 'BETA' }),
-      Object.freeze({ id: 'batchExcel', action: 'home-batch-excel', icon: 'batchExcel', title: '批量 Excel', description: '补全并导出' }),
-      Object.freeze({ id: 'parameterImage', action: 'home-parameter-image', icon: 'image', title: '生成参数图', description: '尺寸与英文', badge: 'BETA' }),
-    ]) }),
-    Object.freeze({ label: '效率工具', items: Object.freeze([
-      Object.freeze({ id: 'tools', action: 'home-tools', icon: 'tools', title: '小工具', description: '换算与 PDF' }),
-      Object.freeze({ id: 'feedback', action: 'home-feedback', icon: 'messageCircle', title: '意见反馈', description: '建议与问题' }),
-    ]) }),
-  ]);
   function normalizeHomeFeatureGroups(value) {
     const source = value && typeof value === 'object' ? value : {};
     const known = new Set(HOME_FEATURE_DEFINITIONS.map((item) => item.id));
@@ -11452,7 +11434,7 @@
     panel = document.createElement('div');
     panel.id = PANEL_ID;
     panel.dataset.version = SCRIPT_VERSION;
-    panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" name="plm-sku-search" role="searchbox" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="home-main"></button><button type="button" data-action="notifications"></button><button type="button" data-action="about"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-console-sidebar" hidden></aside><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
+    panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" name="plm-sku-search" role="searchbox" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="home-main"></button><button type="button" data-action="notifications"></button><button type="button" data-action="about"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
     document.documentElement.appendChild(panel);
     panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6">P</button>');
     panel.dataset.edition = PRODUCT_EDITION.id;
@@ -11703,51 +11685,6 @@
     const tabs = detail && detail.querySelector('.pfh-detail-view-tabs');
     if (!detail || !tabs || tabs.parentNode === detail) return;
     detail.insertBefore(tabs, detail.firstChild);
-  }
-
-  function getConsoleSidebarActiveId() {
-    if (state.view === 'about') return 'settings';
-    if (state.view === 'ledger') return 'ledger';
-    if (state.view === 'upload') return 'upload';
-    if (state.view === 'magicUpload') return 'magicUpload';
-    if (state.view === 'batchExcel') return 'batchExcel';
-    if (state.view === 'tools') return 'tools';
-    if (state.view === 'feedback') return 'feedback';
-    if (state.view === 'parameterImage') return 'parameterImage';
-    if (state.view === 'detail' || state.view === 'sizeImage' || state.copywritingMode) return 'detail';
-    if (state.workMode === 'product-development') return 'productDevelopment';
-    return 'home';
-  }
-
-  function consoleSidebarItemHtml(item, activeId) {
-    const active = item.id === activeId;
-    const modeAttr = item.mode ? ' data-work-mode="' + escapeHtml(item.mode) + '"' : '';
-    return '<button type="button" class="pfh-console-nav-item' + (active ? ' is-active' : '') + '" data-action="' + escapeHtml(item.action) + '"' + modeAttr + ' aria-current="' + (active ? 'page' : 'false') + '" aria-label="' + escapeHtml(item.title) + '">' +
-      '<span class="pfh-console-nav-icon" aria-hidden="true">' + iconHtml(item.icon) + '</span>' +
-      '<span class="pfh-console-nav-copy"><span>' + escapeHtml(item.title) + '</span><span class="pfh-console-nav-description">' + escapeHtml(item.description) + '</span></span>' +
-      (item.badge ? '<i class="pfh-console-nav-badge">' + escapeHtml(item.badge) + '</i>' : '') +
-      '<span class="pfh-console-nav-arrow" aria-hidden="true">›</span>' +
-      '</button>';
-  }
-
-  function renderConsoleSidebar(panel, visible) {
-    const sidebar = panel && panel.querySelector('.pfh-console-sidebar');
-    if (!sidebar) return;
-    if (!visible) {
-      sidebar.hidden = true;
-      sidebar.innerHTML = '';
-      return;
-    }
-    const activeId = getConsoleSidebarActiveId();
-    const collapsed = Boolean(state.settings && state.settings.consoleSidebarCollapsed);
-    const groups = CONSOLE_SIDEBAR_GROUPS.map((group) => '<section class="pfh-console-nav-group"><div class="pfh-console-nav-group-label">' + escapeHtml(group.label) + '</div><div class="pfh-console-nav-items">' + group.items.map((item) => consoleSidebarItemHtml(item, activeId)).join('') + '</div></section>').join('');
-    const collectionEnabled = Boolean(state.settings && state.settings.collectionEnabled);
-    sidebar.hidden = false;
-    sidebar.classList.toggle('is-collapsed', collapsed);
-    sidebar.setAttribute('aria-label', '控制台导航');
-    sidebar.innerHTML = '<div class="pfh-console-sidebar-head"><div class="pfh-console-brand"><span class="pfh-console-brand-mark">P</span><span class="pfh-console-brand-copy"><span>PLM 助手</span><small>工作控制台</small></span></div><button type="button" class="pfh-console-sidebar-toggle" data-action="console-sidebar-toggle" aria-label="' + (collapsed ? '展开侧边栏' : '收起侧边栏') + '" aria-expanded="' + String(!collapsed) + '"><span class="pfh-console-sidebar-toggle-glyph" aria-hidden="true">‹</span><span class="pfh-console-sidebar-toggle-copy">' + (collapsed ? '展开' : '收起') + '</span></button></div>' +
-      '<div class="pfh-console-nav-scroll">' + groups + '</div>' +
-      '<div class="pfh-console-sidebar-foot"><div class="pfh-console-sidebar-status"><i class="pfh-console-status-dot' + (collectionEnabled ? ' is-on' : '') + '"></i><span class="pfh-console-sidebar-foot-copy"><span>' + (collectionEnabled ? '数据采集中' : '数据采集已暂停') + '</span><small>' + state.index.length + ' 个本地 SKU</small></span></div><button type="button" class="pfh-console-settings' + (activeId === 'settings' ? ' is-active' : '') + '" data-action="about" aria-current="' + (activeId === 'settings' ? 'page' : 'false') + '">' + iconHtml('settings') + '<span class="pfh-console-sidebar-foot-copy">设置</span></button></div>';
   }
 
   function renderShell(statusText) {
@@ -23971,12 +23908,6 @@ self.onmessage = async function(event) {
     if (action === 'panel-close') {
       suppressPanelTooltips(actionTarget);
       collapsePanel(true);
-      return;
-    }
-    if (action === 'console-sidebar-toggle') {
-      state.settings.consoleSidebarCollapsed = !Boolean(state.settings.consoleSidebarCollapsed);
-      saveSettings(state.settings);
-      renderShell();
       return;
     }
     if (action === 'theme-resource-enable') {
@@ -37594,7 +37525,7 @@ self.onmessage = async function(event) {
   }
 
   function loadSettings() {
-    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, workMode: 'daily', consoleSidebarCollapsed: false, homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS), productDevelopmentFeatureGroups: normalizeProductDevelopmentFeatureGroups(DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS) };
+    const defaults = { excelKeywordMode: 'english', excelDownloadMode: 'picker', backgroundNoticeSeen: false, collectionEnabled: true, insightAiModel: 'glm-4.7-flash', skuListMode: 'waterfall', skuListSort: 'assigned', skuListPreferenceVersion: SKU_LIST_PREFERENCE_VERSION, theme: DEFAULT_THEME_ID, themeSkinVersion: THEME_SKIN_VERSION, copywritingCollapsed: false, workMode: 'daily', homeFeatureGroups: normalizeHomeFeatureGroups(DEFAULT_HOME_FEATURE_GROUPS), productDevelopmentFeatureGroups: normalizeProductDevelopmentFeatureGroups(DEFAULT_PRODUCT_DEVELOPMENT_FEATURE_GROUPS) };
     try {
       const saved = typeof GM_getValue === 'function' ? GM_getValue(SETTINGS_KEY, null) : JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
       const settings = { ...defaults, ...(saved || {}) };
@@ -37603,7 +37534,6 @@ self.onmessage = async function(event) {
       settings.themeSkinVersion = THEME_SKIN_VERSION;
       settings.theme = normalizeThemeId(settings.theme);
       settings.copywritingCollapsed = settings.copywritingCollapsed === true;
-      settings.consoleSidebarCollapsed = settings.consoleSidebarCollapsed === true;
       settings.workMode = normalizeProductDevelopmentWorkMode(settings.workMode);
       settings.homeFeatureGroups = normalizeHomeFeatureGroups(settings.homeFeatureGroups);
       settings.productDevelopmentFeatureGroups = normalizeProductDevelopmentFeatureGroups(settings.productDevelopmentFeatureGroups);

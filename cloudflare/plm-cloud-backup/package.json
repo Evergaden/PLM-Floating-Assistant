@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predeploy": "npm run ui:check",
+    "predeploy": "npm run ui:check && npm run admin:check",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "db:create": "wrangler d1 create plm-cloud-backup-db",
@@ -12,6 +12,8 @@
     "db:migrate:local": "wrangler d1 execute plm-cloud-backup-db --local --file=./schema.sql",
     "ui:build": "node scripts/build-ui-styles.cjs",
     "ui:check": "node scripts/build-ui-styles.cjs --check",
+    "admin:build": "node scripts/build-admin-styles.cjs",
+    "admin:check": "node scripts/build-admin-styles.cjs --check",
     "assets:manifest": "npm run ui:check && node scripts/build-static-manifest.cjs",
     "brands:import": "node scripts/import-brand-compliance.cjs"
   },
