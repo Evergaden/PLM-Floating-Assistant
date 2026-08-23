@@ -26,6 +26,7 @@
 - For the 今日工作台 tabs, preserve the existing `.pfh-ledger-tabs` and `.pfh-ledger-tab-indicator` DOM nodes during tab changes; refresh only the content below the tabs. Keep the indicator motion on `left`/`width` with `cubic-bezier(.25,1.2,.35,1)`, and do not restore full `renderShell()` tab redraws, transform-based tab animations, or the legacy `.is-tab-transition` class.
 - Use `apply_patch` for manual edits. Prefer ASCII in code; Chinese UI/document text is acceptable where needed.
 - Treat PLM DOM selectors, upload flow, and drawer automation as fragile integrations. Do not broadly refactor them without browser verification.
+- Do not run browser verification for userscript changes. The user must manually update the installed userscript first and will perform the browser checks; report that verification as pending instead.
 - Keep API keys, Worker secrets, local credential files, and `.dev.vars` out of source control and out of the userscript.
 - Do not run destructive Git commands such as `git reset --hard` or overwrite user data/cache files.
 - Treat `cloudflare/plm-cloud-backup/ui-src/` as the only editable source for hosted UI CSS. Never edit versioned `static/assets/v15/ui-*.css` files directly.
