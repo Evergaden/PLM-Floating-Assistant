@@ -1,0 +1,60 @@
+/* SKU data history is a self-contained detail action with a compact count badge. */
+#plm-floating-helper[data-pfh-theme] .pfh-sku-data-log-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 9px;
+  background: var(--pfh-theme-surface-alt);
+  color: var(--pfh-theme-primary);
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-sku-data-log-trigger:hover {
+  border-color: var(--pfh-theme-border-strong);
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary-hover);
+  box-shadow: 0 6px 14px var(--pfh-theme-shadow-soft);
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-sku-data-log-trigger .pfh-icon {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-sku-data-log-trigger .pfh-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-sku-data-log-trigger em {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary-hover);
+  font-size: 9px;
+  font-style: normal;
+}
+
+#plm-floating-helper[data-pfh-theme] .pfh-sku-data-log-trigger[data-empty="true"] {
+  color: var(--pfh-theme-muted);
+}
