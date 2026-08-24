@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.176
+// @version      2.8.177
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.176';
+  const SCRIPT_VERSION = '2.8.177';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5205,6 +5205,48 @@
   const PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE = 100;
   const PRODUCT_DEVELOPMENT_TASK_MAX_PAGES = 100;
   const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+  const PRODUCT_DEVELOPMENT_TASK_TABS = Object.freeze([
+    { id: 'detail', label: '详情' },
+    { id: 'review', label: '侵权图' },
+    { id: 'copywriting', label: '编辑文案' },
+    { id: 'placeholder', label: '尺寸图' },
+  ]);
+
+  function normalizeProductDevelopmentTaskTab(value) {
+    const tab = String(value || '').trim();
+    return PRODUCT_DEVELOPMENT_TASK_TABS.some((item) => item.id === tab) ? tab : 'detail';
+  }
+
+  function productDevelopmentTaskTabsHtml(activeView) {
+    const active = normalizeProductDevelopmentTaskTab(activeView || state.productDevelopmentTaskView);
+    const buttons = PRODUCT_DEVELOPMENT_TASK_TABS.map((tab) => '<button type="button" role="tab" data-action="product-development-task-tab" data-product-development-tab="' + tab.id + '" class="' + (tab.id === active ? 'is-active' : '') + '" aria-selected="' + String(tab.id === active) + '">' + escapeHtml(tab.label) + '</button>').join('');
+    return '<nav class="pfh-detail-view-tabs pfh-product-development-task-tabs" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="开发 SKU 视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
+  }
+
+  function setupProductDevelopmentTaskTabs(panel) {
+    const tabs = panel && panel.querySelector('.pfh-product-development-task-tabs');
+    const indicator = tabs && tabs.querySelector('.pfh-detail-view-indicator');
+    const activeButton = tabs && tabs.querySelector('button.is-active');
+    if (!tabs || !indicator || !activeButton) return;
+    const transition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    };
+    const previous = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskPreviousTab);
+    const previousButton = previous !== activeButton.getAttribute('data-product-development-tab')
+      ? tabs.querySelector('button[data-product-development-tab="' + previous + '"]')
+      : null;
+    indicator.style.setProperty('transition', 'none', 'important');
+    moveIndicator(previousButton || activeButton);
+    window.requestAnimationFrame(() => {
+      if (!indicator.isConnected) return;
+      indicator.style.setProperty('transition', transition, 'important');
+      moveIndicator(activeButton);
+    });
+    state.productDevelopmentTaskPreviousTab = '';
+  }
 
   function productDevelopmentTaskUserKey(value) {
     return productDevelopmentCleanText(value, 80).replace(/[\s\u3000]+/g, '').toLowerCase();
@@ -5383,6 +5425,8 @@
     state.productDevelopmentBenchmarkImageName = '';
     state.productDevelopmentReview = null;
     state.productDevelopmentCopywriting = null;
+    state.productDevelopmentTaskView = 'detail';
+    state.productDevelopmentTaskPreviousTab = '';
     state.productDevelopmentError = '';
     if (!(options && options.render === false)) renderShell();
     if (!(options && options.hydrate === false)) {
@@ -5394,25 +5438,38 @@
   }
 
   function productDevelopmentTaskListHtml() {
-    const tasks = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : [];
-    const pageSize = 10;
+    const tasks = Array.isArray(state.productDevelopmentTasks) ? sortSkuListItems(state.productDevelopmentTasks) : [];
+    const listMode = getSkuListMode();
+    const pageSize = listMode === 'waterfall' ? 20 : 10;
     const totalPages = Math.max(1, Math.ceil(tasks.length / pageSize));
     state.productDevelopmentTaskPage = Math.max(1, Math.min(totalPages, Number(state.productDevelopmentTaskPage) || 1));
     const page = state.productDevelopmentTaskPage;
     const items = tasks.slice((page - 1) * pageSize, page * pageSize);
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>';
+    const listSort = getSkuListSort();
+    const listSortLabel = listSort === 'acquired' ? '获取时间' : '分配时间';
+    const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
+      '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
+      '<div class="pfh-export-menu-list"><button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + (listSort === 'assigned' ? 'is-active' : '') + '">分配时间</button><button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + (listSort === 'acquired' ? 'is-active' : '') + '">获取时间</button></div></div>';
+    const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
+      '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div>' +
+      '<label class="pfh-sku-sort"><span>排序</span>' + listSortMenu + '</label></div>';
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>' + listTools;
     const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-list-note">开发人员：' + escapeHtml(state.productDevelopmentTaskUserName) + '</div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
     if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">当前用户暂无开发人员字段匹配的产品任务</div></div></div>';
     const cards = items.map((item) => {
-      const active = item.sku === state.productDevelopmentTaskSelectedSku ? ' is-active' : '';
-      const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
-      const subtitle = [item.name || '未命名产品', item.projectStatus || '开发任务'].filter(Boolean).join(' · ');
-      return '<button type="button" class="pfh-sku' + active + '" data-action="product-development-task-select" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '"><span><b>' + escapeHtml(item.sku) + '</b>' + (item.artPriority ? '<em>' + escapeHtml(item.artPriority) + '</em>' : '') + '</span><small>' + escapeHtml(subtitle) + '</small></button>';
+      const data = productDevelopmentTaskSeedData(item);
+      const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
+      return skuListCardHtml(item, listMode, state.productDevelopmentTaskSelectedSku, {
+        action: 'product-development-task-select',
+        data,
+        image,
+        productName: item.name || data.name || '未命名产品',
+      });
     }).join('');
-    const pager = totalPages > 1 ? '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button><b>' + page + '</b><button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>' : '';
-    return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="product-development-tasks|' + page + '">' + cards + '</div>' + pager + '</div>';
+    const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('product-development-task-page', page, totalPages) + '<button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
+    return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="product-development-tasks|' + listMode + '|' + page + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
   function productDevelopmentTaskActionsHtml(task) {
@@ -5420,7 +5477,44 @@
     const detail = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[source.sku];
     const referenceUrl = String(source.referenceUrl || detail && detail.referenceUrl || '').trim();
     const reference = referenceUrl ? '<a href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer">打开对标链接</a>' : '<span>暂无对标链接</span>';
-    return '<section class="pfh-section pfh-product-development-task-section"><div class="pfh-section-title"><h3>产品开发资料</h3><span>只读 PLM · 开发人员：' + escapeHtml(source.developerName || state.productDevelopmentTaskUserName || '当前用户') + '</span></div><div class="pfh-info-grid"><div class="pfh-row"><span class="pfh-label">项目编码</span><span class="pfh-value">' + escapeHtml(source.projectCode || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发任务状态</span><span class="pfh-value">' + escapeHtml(source.projectStatus || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发分配时间</span><span class="pfh-value">' + escapeHtml(source.developmentAssignedAt || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">对标链接</span><span class="pfh-value">' + reference + '</span></div></div><div class="pfh-about-actions"><button type="button" data-action="product-development-review-open">制作侵权对照图</button><button type="button" data-action="product-development-copywriting-open">生成 A-D 文案 DOCX</button></div><p class="pfh-note">侵权图使用当前任务的对标图片；文案功能再读取当前 SKU 的成分和卖点。所有结果只在本地生成，不向 PLM 回写。</p></section>';
+    return '<section class="pfh-section pfh-product-development-task-section"><div class="pfh-section-title"><h3>产品开发资料</h3><span>只读 PLM · 开发人员：' + escapeHtml(source.developerName || state.productDevelopmentTaskUserName || '当前用户') + '</span></div><div class="pfh-info-grid"><div class="pfh-row"><span class="pfh-label">项目编码</span><span class="pfh-value">' + escapeHtml(source.projectCode || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发任务状态</span><span class="pfh-value">' + escapeHtml(source.projectStatus || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发分配时间</span><span class="pfh-value">' + escapeHtml(source.developmentAssignedAt || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">对标链接</span><span class="pfh-value">' + reference + '</span></div></div><p class="pfh-note">侵权图使用当前任务的对标图片；编辑文案会读取当前 SKU 的成分和卖点。所有结果只在本地生成，不向 PLM 回写。</p></section>';
+  }
+
+  function productDevelopmentTaskEmbeddedViewHtml(view, statusText) {
+    const source = view === 'review' ? productDevelopmentReviewHtml(statusText) : productDevelopmentCopywritingHtml(statusText);
+    const template = document.createElement('template');
+    template.innerHTML = source;
+    const root = template.content.firstElementChild;
+    if (!root) return '';
+    const modeSwitch = root.querySelector('.pfh-work-mode-switch');
+    const subviewHead = root.querySelector('.pfh-product-development-subview-head');
+    if (modeSwitch) modeSwitch.remove();
+    if (subviewHead) subviewHead.remove();
+    root.classList.remove('pfh-product-development-subview');
+    return root.outerHTML;
+  }
+
+  function renderProductDevelopmentTaskDetail(panel, statusText, task) {
+    const detail = panel && panel.querySelector('.pfh-detail');
+    if (!detail) return;
+    const view = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+    state.productDevelopmentTaskView = view;
+    if (view === 'detail') {
+      state.copywritingMode = false;
+      renderDetail(panel, statusText);
+      const scroll = detail.querySelector('.pfh-detail-scroll');
+      if (!scroll) return;
+      const dailyTabs = scroll.querySelector('.pfh-detail-view-tabs');
+      if (dailyTabs) dailyTabs.remove();
+      scroll.insertAdjacentHTML('afterbegin', productDevelopmentTaskTabsHtml(view));
+      scroll.insertAdjacentHTML('beforeend', productDevelopmentTaskActionsHtml(task));
+      return;
+    }
+    const embedded = view === 'placeholder'
+      ? '<section class="pfh-section pfh-product-development-task-placeholder"><div class="pfh-section-title"><h3>功能占位</h3><span>后续开发</span></div><div class="pfh-empty">该功能暂未开放，后续会在这里接入。</div></section>'
+      : productDevelopmentTaskEmbeddedViewHtml(view, statusText);
+    detail.classList.remove('is-loading');
+    detail.innerHTML = '<div class="pfh-detail-scroll pfh-product-development-task-scroll">' + productDevelopmentTaskTabsHtml(view) + embedded + '</div>';
   }
 
   function renderProductDevelopmentTaskWorkspace(panel, statusText) {
@@ -5436,9 +5530,7 @@
     }
     state.data = productDevelopmentTaskSeedData(task);
     state.selectedSku = task.sku;
-    renderDetail(panel, statusText);
-    const scroll = detail.querySelector('.pfh-detail-scroll');
-    if (scroll) scroll.insertAdjacentHTML('beforeend', productDevelopmentTaskActionsHtml(task));
+    renderProductDevelopmentTaskDetail(panel, statusText, task);
   }
 
   async function loadProductDevelopmentTasks(options) {
@@ -5486,6 +5578,8 @@
     state.settings.workMode = 'product-development';
     saveSettings(state.settings);
     state.productDevelopmentView = 'home';
+    state.productDevelopmentTaskView = 'detail';
+    state.productDevelopmentTaskPreviousTab = '';
     state.view = 'productDevelopmentTasks';
     state.copywritingMode = false;
     state.skuEditMode = false;
@@ -6618,12 +6712,27 @@
       if (!task) showToast('开发任务不存在或已刷新');
       return true;
     }
-    if (action === 'product-development-task-page') {
-      const totalPages = Math.max(1, Math.ceil((Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.length : 0) / 10));
+    if (action === 'product-development-task-tab') {
+      const next = normalizeProductDevelopmentTaskTab(actionTarget && actionTarget.getAttribute('data-product-development-tab'));
+      const current = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+      if (next === current) return true;
+      state.productDevelopmentTaskPreviousTab = current;
+      state.productDevelopmentTaskView = next;
+      state.productDevelopmentError = '';
+      state.productDevelopmentStatus = '';
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-task-page' || action === 'product-development-task-page-goto') {
+      const pageSize = getSkuListMode() === 'waterfall' ? 20 : 10;
+      const totalPages = Math.max(1, Math.ceil((Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.length : 0) / pageSize));
       const current = Number(state.productDevelopmentTaskPage) || 1;
-      state.productDevelopmentTaskPage = actionTarget && actionTarget.getAttribute('data-page') === 'prev'
-        ? Math.max(1, current - 1)
-        : Math.min(totalPages, current + 1);
+      const requested = Number(actionTarget && actionTarget.getAttribute('data-page'));
+      state.productDevelopmentTaskPage = Number.isInteger(requested) && requested > 0
+        ? Math.max(1, Math.min(totalPages, requested))
+        : (actionTarget && actionTarget.getAttribute('data-page') === 'prev'
+          ? Math.max(1, current - 1)
+          : Math.min(totalPages, current + 1));
       renderShell();
       return true;
     }
@@ -7073,6 +7182,8 @@
     productDevelopmentTasksLoadedAt: 0,
     productDevelopmentTaskRequestPromise: null,
     productDevelopmentTaskSelectedSku: '',
+    productDevelopmentTaskView: 'detail',
+    productDevelopmentTaskPreviousTab: '',
     productDevelopmentSelectedTask: null,
     productDevelopmentTaskDetailData: Object.create(null),
     productDevelopmentTaskPage: 1,
@@ -12152,7 +12263,7 @@
     }
     if (state.view === 'productDevelopmentTasks' && typeof renderProductDevelopmentTaskWorkspace === 'function') {
       renderProductDevelopmentTaskWorkspace(panel, statusText);
-      setupDetailViewTabs(panel);
+      setupProductDevelopmentTaskTabs(panel);
       restorePanelScroll(panel, scrollSnapshot);
       return;
     }
@@ -12748,26 +12859,32 @@
     const searchToolbar = searchTokens.length
       ? '<div class="pfh-search-result-toolbar"><button type="button" data-action="pin-search-results">全部置顶</button><span>' + escapeHtml(L.searchResult + ': ' + allItems.length) + '</span></div>'
       : '';
-    const cards = items.map((item) => {
-      const active = item.sku === state.selectedSku ? ' is-active' : '';
-      const pinned = item.pinned ? ' is-pinned' : '';
-      const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
-      const pinTitle = item.pinned ? TOOLTIP.unpin : TOOLTIP.pin;
-      const pinControl = active ? '<em data-pin-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(pinTitle) + '">' + iconHtml('pin') + '</em>' : '';
-      if (listMode === 'waterfall') {
-        const data = normalizeData(loadData(item.sku) || item);
-        const image = getSkuListImageUrl(data);
-        const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
-        const productName = data.name || item.name || '\u672a\u547d\u540d\u4ea7\u54c1';
-        return '<button type="button" class="pfh-sku-waterfall-card' + active + pinned + '" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '">' +
-          '<span class="pfh-sku-waterfall-thumb">' + imageHtml + '</span><span class="pfh-sku-waterfall-meta"><b>' + escapeHtml(productName) + '</b></span></button>';
-      }
-      return '<button type="button" class="pfh-sku' + active + pinned + '" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '">' +
-        '<span><b>' + escapeHtml(item.sku) + '</b>' + pinControl + '</span>' +
-        ([item.brand, item.name].filter(Boolean).join(' ') ? '<small>' + escapeHtml([item.brand, item.name].filter(Boolean).join(' ')) + '</small>' : '') +
-        '</button>';
-    }).join('');
+    const cards = items.map((item) => skuListCardHtml(item, listMode, state.selectedSku)).join('');
     return listHead + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="' + escapeHtml(skuScrollContext) + '">' + searchToolbar + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
+  }
+
+  function skuListCardHtml(item, listMode, activeSku, options) {
+    const source = item || {};
+    const opts = options || {};
+    const sku = String(source.sku || '').trim().toUpperCase();
+    const active = sku && sku === String(activeSku || '').trim().toUpperCase() ? ' is-active' : '';
+    const pinned = source.pinned ? ' is-pinned' : '';
+    const title = [source.brand, source.name, sku].filter(Boolean).join(' ');
+    const action = opts.action ? ' data-action="' + escapeHtml(opts.action) + '"' : '';
+    const dataSku = ' data-sku="' + escapeHtml(sku) + '"';
+    const data = opts.data || normalizeData(loadData(sku) || source);
+    const image = String(opts.image || getSkuListImageUrl(data) || '').trim();
+    const imageHtml = image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy" decoding="async">' : iconHtml('image');
+    if (listMode === 'waterfall') {
+      const productName = String(opts.productName || data.name || source.name || '\u672a\u547d\u540d\u4ea7\u54c1');
+      return '<button type="button" class="pfh-sku-waterfall-card' + active + pinned + '"' + action + dataSku + ' title="' + escapeHtml(title) + '">' +
+        '<span class="pfh-sku-waterfall-thumb">' + imageHtml + '</span><span class="pfh-sku-waterfall-meta"><b>' + escapeHtml(productName) + '</b></span></button>';
+    }
+    const pinTitle = source.pinned ? TOOLTIP.unpin : TOOLTIP.pin;
+    const pinControl = active && !opts.action ? '<em data-pin-sku="' + escapeHtml(sku) + '" title="' + escapeHtml(pinTitle) + '">' + iconHtml('pin') + '</em>' : '';
+    const subtitle = [source.brand, source.name].filter(Boolean).join(' ');
+    return '<button type="button" class="pfh-sku' + active + pinned + '"' + action + dataSku + ' title="' + escapeHtml(title) + '">' +
+      '<span><b>' + escapeHtml(sku) + '</b>' + pinControl + '</span>' + (subtitle ? '<small>' + escapeHtml(subtitle) + '</small>' : '') + '</button>';
   }
 
   function renderSkuListContent(panel) {
@@ -24442,8 +24559,13 @@ self.onmessage = async function(event) {
       const mode = actionTarget.getAttribute('data-mode') === 'waterfall' ? 'waterfall' : 'list';
       state.settings.skuListMode = mode;
       state.skuPage = 1;
+      if (state.view === 'productDevelopmentTasks') state.productDevelopmentTaskPage = 1;
       state.skuSortMenuOpen = false;
       saveSettings(state.settings);
+      if (state.view === 'productDevelopmentTasks') {
+        renderShell();
+        return;
+      }
       if (!renderSkuListContent(ensurePanel())) renderShell();
       return;
     }
