@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.252",
+  "version": "2.5.253",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
@@ -109,7 +109,7 @@
   "budgets": {
     "important": 2171,
     "supersededImportantDeclarations": 0,
-    "duplicateSelectors": 470,
-    "conflictingSelectors": 437
+    "duplicateSelectors": 469,
+    "conflictingSelectors": 436
   }
 }
