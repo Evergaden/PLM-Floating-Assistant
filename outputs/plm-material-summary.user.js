@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.174
+// @version      2.8.175
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.174';
+  const SCRIPT_VERSION = '2.8.175';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -8375,6 +8375,7 @@
       // A generic printed-size row must remain a normal print material.
       isTubePrintMaterial: isTubePrint,
       packageNums,
+      isPrintedBagOuterPackage: Boolean(packaging.isPrintedBagOuterPackage),
       productNums: inner.productNums || productNums,
       plmProductNums: inner.productNums,
       bottleNums: singleBottle ? outer.packageNums : null,
@@ -9918,13 +9919,13 @@
 
   function isApiBoxCategory(value) {
     const category = compactText(value);
-    return /包材/.test(category) && /纸盒|彩盒|纸箱|包装盒|外盒/.test(category);
+    return /包材/.test(category) && isPaperBoxMaterialText(category);
   }
 
   function isApiBoxMaterial(item) {
     const name = compactText(item && (item.name || item.material_name || item.materialName));
     const category = item && (item.category_name || item.categoryName);
-    return isApiBoxCategory(category) || /纸盒|彩盒|纸箱|包装盒|外盒/.test(name);
+    return isApiBoxCategory(category) || isPaperBoxMaterialText(name);
   }
 
   function extractApiMaterialPackaging(payload) {
@@ -9938,23 +9939,33 @@
       const materialClassText = name + ' ' + category;
       const isPackagingCategory = /包材/.test(text);
       const isBoxCategory = isApiBoxMaterial(item);
+      const isPrintedBagMaterial = isPrintedBagMaterialText(materialClassText);
       // Keep the DOM material-row rule as the source of truth for print
       // classification, while an explicit/name-level box remains packaging.
       const isPrintMaterial = !isBoxCategory && isPrintMaterialRow(text);
       const unitIssue = getApiMaterialUnitIssue(item);
       const dimensions = getApiMaterialDimensions(item, 3, true);
       let score = 0;
-      if (/纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子/.test(materialClassText)) score += 160;
+      if (isPaperBoxMaterialText(materialClassText) || isPrintedBagMaterial) score += 160;
       if (isPackagingCategory) score += 20;
       if (isPrintMaterial) score -= 100;
       if (/瓶|旋盖|泵头|喷头|罐|软管|滴管|刷头|盖子/.test(name)) score -= 180;
       if (dimensions && dimensions.length >= 3) score += 40;
       else if (unitIssue) score += 25;
-      return { item, index, name, category, text, dimensions, unitIssue, score, isPackagingCategory, isPrintMaterial, displayName: getApiPackageDisplayName(item) };
+      return { item, index, name, category, text, dimensions, unitIssue, score, isPackagingCategory, isBoxCategory, isPrintedBagMaterial, isPrintMaterial, displayName: getApiPackageDisplayName(item) };
     });
     const candidates = packageCandidates.filter((item) => item.isPackagingCategory && !item.isPrintMaterial && item.score > 0 && ((item.dimensions && item.dimensions.length >= 3) || item.unitIssue))
       .sort((a, b) => b.score - a.score || a.index - b.index);
-    const packageItem = candidates[0] || packageCandidates
+    // A printed self-standing bag is the outer package when no paper box
+    // exists. It can still contain an explicit "印刷尺寸" field, so it must
+    // be considered before the generic print-material filter in that case.
+    const boxCandidates = packageCandidates
+      .filter((item) => item.isPackagingCategory && item.isBoxCategory && item.score > 0 && !/说明书|使用说明/.test(item.text))
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+    const printedBagCandidates = packageCandidates
+      .filter((item) => item.isPackagingCategory && item.isPrintedBagMaterial && !item.isBoxCategory && item.score > 0 && !/说明书|使用说明/.test(item.text))
+      .sort((a, b) => b.score - a.score || a.index - b.index);
+    const packageItem = boxCandidates[0] || printedBagCandidates[0] || candidates[0] || packageCandidates
       .filter((item) => item.score > 0 && item.isPackagingCategory && !item.isPrintMaterial && !/说明书|使用说明/.test(item.text))
       .sort((a, b) => b.score - a.score || a.index - b.index)[0];
     const printItems = items.map((item, index) => {
@@ -10001,6 +10012,7 @@
       packageSizeLabel,
       packageCode,
       packageNums,
+      isPrintedBagOuterPackage: Boolean(packageItem && packageItem.isPrintedBagMaterial && !packageItem.isBoxCategory),
       hasInnerCard: items.some((item) => /内卡/.test(getApiMaterialSourceText(item))),
       printSizeText,
       printSizeLabel,
@@ -10054,6 +10066,9 @@
         merged[key] = Array.isArray(source[key]) ? [] : '';
       }
     });
+    if (source.apiMaterialSource && Object.prototype.hasOwnProperty.call(source, 'isPrintedBagOuterPackage')) {
+      merged.isPrintedBagOuterPackage = Boolean(source.isPrintedBagOuterPackage);
+    }
     if (source.apiFieldStates && typeof source.apiFieldStates === 'object') {
       merged.apiFieldStates = mergeApiFieldStates(merged.apiFieldStates, source.apiFieldStates);
     }
@@ -10541,7 +10556,12 @@
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map((item) => item.row);
     const printRows = rows.filter(isPrintMaterialRow);
-    const packageRow = packageRows[0] || '';
+    // Keep a real paper box first. If there is no box, a self-standing
+    // printed bag is still the outer package and fills the package field.
+    const packageRow = packageRows.find((row) => isPaperBoxMaterialText(row))
+      || packageRows.find((row) => isPrintedBagMaterialText(row))
+      || packageRows[0]
+      || '';
     const packageUnitIssue = detectMaterialDimensionUnitIssue(packageRow);
     const packageDim = packageUnitIssue ? '' : extractDimensionString(packageRow);
     const packageRawDim = packageUnitIssue ? packageUnitIssue.raw : '';
@@ -10567,6 +10587,7 @@
       packageSizeLabel: packageName || '',
       packageCode: extractMaterialCode(packageRow),
       packageNums,
+      isPrintedBagOuterPackage: Boolean(packageRow && !isPaperBoxMaterialText(packageRow) && isPrintedBagMaterialText(packageRow)),
       hasInnerCard: /\u5185\u5361/.test(packageRow),
       printSizeText: printItems.join('\uff1b'),
       printSizeLabel: getCombinedPrintLabel(printRows),
@@ -10661,8 +10682,16 @@
   // Keep only the recognized packaging kind so unrelated text is not shown as a box remark.
   function getPackageMaterialKind(value) {
     const text = compactText(value);
-    const match = text.match(/(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/);
+    const match = text.match(/(纸盒|彩盒|纸箱|包装盒|外盒|印刷自立袋|自立印刷袋|自立袋|印刷袋|包装袋|铝箔袋|自封袋|袋子)/);
     return match ? match[1] : '';
+  }
+
+  function isPaperBoxMaterialText(value) {
+    return /(?:纸盒|彩盒|纸箱|包装盒|外盒)/.test(compactText(value));
+  }
+
+  function isPrintedBagMaterialText(value) {
+    return /(?:印刷自立袋|自立印刷袋|自立袋|印刷袋|包装袋|铝箔袋|自封袋|软袋|袋子|袋\/膜类)/.test(compactText(value));
   }
 
   function cleanPackageDisplayLabel(value) {
@@ -11019,10 +11048,10 @@
     const text = String(row || '');
     if (!/\u5305\u6750/.test(text)) return 0;
     const name = extractMaterialName(text);
-    const bagPattern = /(\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/;
+    const bagPattern = /(?:\u5370\u5237\u81ea\u7acb\u888b|\u81ea\u7acb\u5370\u5237\u888b|\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u8f6f\u888b|\u888b\u5b50|\u888b\/\u819c\u7c7b)/;
     let score = 0;
-    if (/\u7eb8\u76d2/.test(name)) score += 140;
-    else if (bagPattern.test(name)) score += 120;
+    if (isPaperBoxMaterialText(name)) score += 140;
+    else if (isPrintedBagMaterialText(name)) score += 120;
     if (/\u5305\u6750\s*-\s*\u7eb8\u76d2/.test(text)) score += 80;
     else if (new RegExp('\\u5305\\u6750\\s*-\\s*[^;]{0,36}' + bagPattern.source).test(text)) score += 35;
     if (/\u767d\u5361|\u9ed1\u5361|\u725b\u76ae\u7eb8|\u74e6\u695e/.test(text)) score += 10;
@@ -11044,7 +11073,7 @@
   }
 
   function emptyPackaging() {
-    return { packageSizeText: '', packageSizeLabel: '', packageCode: '', packageNums: null, hasInnerCard: false, printSizeText: '', printSizeLabel: '', printCode: '', printRawText: '', materialDimensionUnitIssues: { package: null, print: null }, netContent: '', infringementImageUrls: [], infringementImageUrl: '', infringementImageSource: '', infringementCopywriting: '', apiFieldStates: {} };
+    return { packageSizeText: '', packageSizeLabel: '', packageCode: '', packageNums: null, isPrintedBagOuterPackage: false, hasInnerCard: false, printSizeText: '', printSizeLabel: '', printCode: '', printRawText: '', materialDimensionUnitIssues: { package: null, print: null }, netContent: '', infringementImageUrls: [], infringementImageUrl: '', infringementImageSource: '', infringementCopywriting: '', apiFieldStates: {} };
   }
 
   function extractFoodSemiFinished(root) {
@@ -18523,6 +18552,7 @@
   }
 
   function isPrintedBagSizeImageData(data) {
+    if (data && data.isPrintedBagOuterPackage) return true;
     const source = [
       data && data.printRawText,
       data && data.printSizeLabel,
@@ -18532,6 +18562,7 @@
   }
 
   function isPrintedBagPackageDimensionData(data) {
+    if (data && data.isPrintedBagOuterPackage) return true;
     const packageLabel = String(data && data.packageSizeLabel || '').trim();
     const printLabel = String(data && data.printSizeLabel || '').trim();
     const label = [packageLabel, printLabel].filter(Boolean).join(' ');
