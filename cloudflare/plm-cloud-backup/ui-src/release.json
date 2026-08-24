@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.251",
+  "version": "2.5.252",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 300400,
-      "maxImportant": 2177,
+      "maxBytes": 299873,
+      "maxImportant": 2171,
       "forbidSelectorFragments": [
         ".pfh-toast",
         ".pfh-note-toast",
@@ -22,7 +22,9 @@
         ".pfh-ledger-",
         ".pfh-upload-",
         ".pfh-copywriting-",
-        "data-pfh-page-toy-copywriting"
+        "data-pfh-page-toy-copywriting",
+        "[data-pfh-theme] :where(button)",
+        "[data-pfh-theme] :where(button:hover:not(:disabled)"
       ],
       "forbidProperties": [
         "font-weight"
@@ -105,7 +107,7 @@
     }
   ],
   "budgets": {
-    "important": 2177,
+    "important": 2171,
     "supersededImportantDeclarations": 0,
     "duplicateSelectors": 470,
     "conflictingSelectors": 437

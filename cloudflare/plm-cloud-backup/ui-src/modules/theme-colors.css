@@ -17,6 +17,24 @@
   );
 }
 
+/* Generic theme controls stay below component-owned segmented buttons and indicators. */
+#plm-floating-helper[data-pfh-theme] :where(button) {
+  border-color: var(--pfh-theme-border);
+  background: var(--pfh-theme-control-surface, var(--pfh-theme-surface));
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper[data-pfh-theme] :where(
+  button:hover:not(:disabled),
+  input:focus,
+  select:focus,
+  textarea:focus
+) {
+  border-color: var(--pfh-theme-border-strong);
+  background: var(--pfh-theme-control-hover, var(--pfh-theme-primary-soft));
+  color: var(--pfh-theme-primary-hover);
+}
+
 /* A secondary control changes hue/contrast, never gets a brightness filter. */
 #plm-floating-helper[data-pfh-theme] .pfh-excel-controls > button[data-action="excel-prepare"]:hover:not(:disabled),
 #plm-floating-helper[data-pfh-theme] .pfh-excel-form > button[data-action="excel-prepare"]:hover:not(:disabled) {
