@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.5.2';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.5.3';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -18,6 +18,7 @@
     '实验认证', '认证', '疾病', '药品', '处方', '诊断',
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
+    Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '按当前 PLM 用户筛选本人负责的产品 SKU，查看右侧详情', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字，生成红框编号的中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
     Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
@@ -102,13 +103,314 @@
   }
 
   function getProductDevelopmentCurrentSku() {
-    const candidates = [
+    const taskCandidates = [
+      state && state.productDevelopmentSelectedTask && state.productDevelopmentSelectedTask.sku,
+      state && state.productDevelopmentTaskSelectedSku,
+    ];
+    const taskSku = taskCandidates.map((value) => String(value || '').trim().toUpperCase()).find(Boolean) || '';
+    if (state && normalizeProductDevelopmentWorkMode(state.workMode) === 'product-development') return taskSku;
+    const candidates = taskCandidates.concat([
       state && state.selectedSku,
       state && state.data && state.data.sku,
       state && state.sku,
       state && state.observedSku,
-    ];
+    ]);
     return candidates.map((value) => String(value || '').trim().toUpperCase()).find(Boolean) || '';
+  }
+
+  const PRODUCT_DEVELOPMENT_TASK_ENDPOINT = '/api/ChemicalNewAll/GetList';
+  const PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE = 100;
+  const PRODUCT_DEVELOPMENT_TASK_MAX_PAGES = 100;
+  const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+
+  function productDevelopmentTaskUserKey(value) {
+    return productDevelopmentCleanText(value, 80).replace(/[\s\u3000]+/g, '').toLowerCase();
+  }
+
+  function getProductDevelopmentTaskUserName() {
+    const candidates = [
+      typeof findCurrentPlmUserName === 'function' ? findCurrentPlmUserName() : '',
+      state && state.productDevelopmentTaskUserName,
+    ];
+    return candidates.map((value) => productDevelopmentCleanText(value, 80)).find(Boolean) || '';
+  }
+
+  function productDevelopmentNormalizeTaskRow(item) {
+    if (!item || typeof item !== 'object') return null;
+    const sku = String(item.product_code || item.productCode || item.sku || item.sku_code || item.skuCode || '').trim().toUpperCase();
+    if (!sku) return null;
+    const projectId = String(item.id || item.project_id || item.chemical_id || item.project_row_id || item.projectRowId || '').trim();
+    const developerName = productDevelopmentCleanText(item.dev_work_user_name || '', 80);
+    const benchmarkImageUrl = typeof getApiAssetUrl === 'function'
+      ? getApiAssetUrl(item.main_pic || item.mainPic || '', 0)
+      : productDevelopmentReadImageValue(item.main_pic || item.mainPic);
+    const productListImageUrl = typeof getApiAssetUrl === 'function'
+      ? getApiAssetUrl(item.pic || item.product_pic || item.product_image || '', 0)
+      : productDevelopmentReadImageValue(item.pic || item.product_pic || item.product_image);
+    const cleanCell = (value) => typeof cleanProjectListCell === 'function'
+      ? cleanProjectListCell(value)
+      : productDevelopmentCleanText(value, 240);
+    return {
+      sku,
+      rowId: projectId,
+      projectId,
+      projectCode: productDevelopmentCleanText(item.code, 80),
+      productId: String(item.product_id || '').trim(),
+      productVersionId: String(item.product_main_id || item.product_version_id || '').trim(),
+      developerName,
+      developerUsername: productDevelopmentCleanText(item.dev_work_user_username || item.dev_work_user_userName || '', 80),
+      developerText: [developerName, productDevelopmentCleanText(item.dev_work_user_jobtitlename || '', 80)].filter(Boolean).join(' '),
+      brand: productDevelopmentCleanText(item.brand_name || item.product_brand_name || '', 160),
+      name: typeof normalizeProductNameValue === 'function'
+        ? normalizeProductNameValue(item.product_name || item.dev_product_name || '')
+        : productDevelopmentCleanText(item.product_name || item.dev_product_name || '', 240),
+      benchmarkImageUrl,
+      referenceUrl: productDevelopmentCleanText(item.main_url || item.reference_url || item.referenceUrl || '', 1200),
+      developmentAdvice: cleanCell(item.dev_proposals || item.remark),
+      artPriority: cleanCell(item.priority_label),
+      projectStatus: cleanCell(item.status_format || item.status),
+      designType: cleanCell(item.design_type_label),
+      productListImageUrl,
+      developmentAssignedAt: productDevelopmentCleanText(item.dev_assign_at || item.devAssignAt || '', 80),
+      projectCreatedAt: productDevelopmentCleanText(item.create_at || item.audit_at || '', 80),
+      departmentName: cleanCell(item.dev_work_user_department_name),
+      projectOwnerName: cleanCell(item.dev_work_user_name),
+      promotionStatus: cleanCell(item.promote_status_format),
+      listingStatus: cleanCell(item.sale_status_format),
+      bomStatus: cleanCell(item.bom_status_format),
+      requiresPlanStock: item.is_plan_stock === true || item.is_plan_stock === 1 ? '是' : (item.is_plan_stock === false || item.is_plan_stock === 0 ? '否' : cleanCell(item.is_plan_stock)),
+      plmCategory: cleanCell(item.category_name || item.project_series_name),
+      productType: cleanCell(item.product_type_format || item.product_type),
+      productTypeValue: item.product_type,
+    };
+  }
+
+  function productDevelopmentTaskTime(value) {
+    const raw = String(value || '').trim();
+    if (typeof parseSkuListTime === 'function') return parseSkuListTime(raw);
+    const parsed = Date.parse(raw.replace(/-/g, '/'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  async function fetchProductDevelopmentTaskRows() {
+    const currentUserName = getProductDevelopmentTaskUserName();
+    if (!currentUserName) throw new Error('暂时无法识别当前 PLM 用户姓名，请确认页面右上角已登录');
+    state.productDevelopmentTaskUserName = currentUserName;
+    const rows = [];
+    let total = 0;
+    for (let page = 1; page <= PRODUCT_DEVELOPMENT_TASK_MAX_PAGES; page += 1) {
+      const payload = await fetchPlmJson(PRODUCT_DEVELOPMENT_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE);
+      if (payload && payload.success === false) {
+        throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '开发任务 API 返回失败');
+      }
+      const pageRows = typeof getApiListItems === 'function' ? getApiListItems(payload) : [];
+      total = typeof getApiListTotal === 'function' ? getApiListTotal(payload) || total : total;
+      rows.push(...pageRows);
+      if (!pageRows.length || (total && rows.length >= total) || (!total && pageRows.length < PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE)) break;
+    }
+    const currentUserKey = productDevelopmentTaskUserKey(currentUserName);
+    const deduped = new Map();
+    rows.forEach((item) => {
+      const row = productDevelopmentNormalizeTaskRow(item);
+      if (!row || !row.developerName || productDevelopmentTaskUserKey(row.developerName) !== currentUserKey) return;
+      const previous = deduped.get(row.sku);
+      if (!previous || productDevelopmentTaskTime(row.developmentAssignedAt || row.projectCreatedAt) >= productDevelopmentTaskTime(previous.developmentAssignedAt || previous.projectCreatedAt)) deduped.set(row.sku, row);
+    });
+    return Array.from(deduped.values()).sort((a, b) => productDevelopmentTaskTime(b.developmentAssignedAt || b.projectCreatedAt) - productDevelopmentTaskTime(a.developmentAssignedAt || a.projectCreatedAt));
+  }
+
+  function getProductDevelopmentTaskBySku(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    return (Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : []).find((item) => item && item.sku === normalizedSku) || null;
+  }
+
+  function productDevelopmentTaskSeedData(task) {
+    const row = task || {};
+    const sku = String(row.sku || '').trim().toUpperCase();
+    const detail = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku]
+      ? state.productDevelopmentTaskDetailData[sku]
+      : {};
+    const cached = state && state.data && String(state.data.sku || '').trim().toUpperCase() === sku ? state.data : loadData(sku);
+    return normalizeData({
+      ...(cached || {}),
+      ...detail,
+      sku,
+      brand: row.brand || detail.brand || cached && cached.brand || '',
+      name: row.name || detail.name || cached && cached.name || '',
+      projectRowId: row.projectId || detail.projectRowId || cached && cached.projectRowId || '',
+      projectId: row.projectId || detail.projectId || cached && cached.projectId || '',
+      projectCode: row.projectCode || detail.projectCode || '',
+      productId: row.productId || detail.productId || cached && cached.productId || '',
+      productVersionId: row.productVersionId || detail.productVersionId || cached && cached.productVersionId || '',
+      developerName: row.developerName || detail.developerName || '',
+      developerText: row.developerText || detail.developerText || '',
+      benchmarkImageUrl: row.benchmarkImageUrl || detail.benchmarkImageUrl || cached && cached.benchmarkImageUrl || '',
+      benchmarkImageFallbackUrl: row.benchmarkImageUrl || detail.benchmarkImageFallbackUrl || cached && cached.benchmarkImageFallbackUrl || '',
+      referenceUrl: row.referenceUrl || detail.referenceUrl || cached && cached.referenceUrl || '',
+      developmentAdvice: row.developmentAdvice || detail.developmentAdvice || '',
+      artPriority: row.artPriority || detail.artPriority || '',
+      projectStatus: row.projectStatus || detail.projectStatus || '',
+      designType: row.designType || detail.designType || '',
+      departmentName: row.departmentName || detail.departmentName || '',
+      projectOwnerName: row.projectOwnerName || detail.projectOwnerName || '',
+      promotionStatus: row.promotionStatus || detail.promotionStatus || '',
+      listingStatus: row.listingStatus || detail.listingStatus || '',
+      bomStatus: row.bomStatus || detail.bomStatus || '',
+      requiresPlanStock: row.requiresPlanStock || detail.requiresPlanStock || '',
+      plmCategory: row.plmCategory || detail.plmCategory || '',
+      productType: row.productType || detail.productType || '',
+      productTypeValue: row.productTypeValue || detail.productTypeValue || '',
+    });
+  }
+
+  async function hydrateProductDevelopmentTaskDetail(task) {
+    if (!task || !task.sku) return null;
+    const sku = task.sku;
+    const seed = productDevelopmentTaskSeedData(task);
+    const [project, product] = await Promise.all([
+      typeof fetchApiProjectSnapshot === 'function' ? fetchApiProjectSnapshot(seed, { force: true }).catch(() => null) : Promise.resolve(null),
+      typeof fetchApiProductSnapshot === 'function' ? fetchApiProductSnapshot(seed, { force: true }).catch(() => null) : Promise.resolve(null),
+    ]);
+    const next = normalizeData({
+      ...seed,
+      ...(project || {}),
+      ...(product || {}),
+      ...productDevelopmentTaskSeedData(task),
+      sku,
+    });
+    if (!state.productDevelopmentTaskDetailData || typeof state.productDevelopmentTaskDetailData !== 'object') state.productDevelopmentTaskDetailData = Object.create(null);
+    state.productDevelopmentTaskDetailData[sku] = next;
+    if (state.productDevelopmentTaskSelectedSku === sku) {
+      state.data = next;
+      state.selectedSku = sku;
+    }
+    return next;
+  }
+
+  function selectProductDevelopmentTask(sku, options) {
+    const task = getProductDevelopmentTaskBySku(sku);
+    if (!task) return null;
+    const normalizedSku = task.sku;
+    state.productDevelopmentSelectedTask = task;
+    state.productDevelopmentTaskSelectedSku = normalizedSku;
+    state.selectedSku = normalizedSku;
+    state.data = productDevelopmentTaskSeedData(task);
+    state.productDevelopmentSnapshot = null;
+    state.productDevelopmentBenchmarkImageDataUrl = '';
+    state.productDevelopmentBenchmarkImageName = '';
+    state.productDevelopmentReview = null;
+    state.productDevelopmentCopywriting = null;
+    state.productDevelopmentError = '';
+    if (!(options && options.render === false)) renderShell();
+    if (!(options && options.hydrate === false)) {
+      hydrateProductDevelopmentTaskDetail(task).then(() => {
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === normalizedSku) renderShell();
+      }).catch(() => {});
+    }
+    return task;
+  }
+
+  function productDevelopmentTaskListHtml() {
+    const tasks = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : [];
+    const pageSize = 10;
+    const totalPages = Math.max(1, Math.ceil(tasks.length / pageSize));
+    state.productDevelopmentTaskPage = Math.max(1, Math.min(totalPages, Number(state.productDevelopmentTaskPage) || 1));
+    const page = state.productDevelopmentTaskPage;
+    const items = tasks.slice((page - 1) * pageSize, page * pageSize);
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>';
+    const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-list-note">开发人员：' + escapeHtml(state.productDevelopmentTaskUserName) + '</div>' : '';
+    if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
+    if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
+    if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">当前用户暂无开发人员字段匹配的产品任务</div></div></div>';
+    const cards = items.map((item) => {
+      const active = item.sku === state.productDevelopmentTaskSelectedSku ? ' is-active' : '';
+      const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
+      const subtitle = [item.name || '未命名产品', item.projectStatus || '开发任务'].filter(Boolean).join(' · ');
+      return '<button type="button" class="pfh-sku' + active + '" data-action="product-development-task-select" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '"><span><b>' + escapeHtml(item.sku) + '</b>' + (item.artPriority ? '<em>' + escapeHtml(item.artPriority) + '</em>' : '') + '</span><small>' + escapeHtml(subtitle) + '</small></button>';
+    }).join('');
+    const pager = totalPages > 1 ? '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button><b>' + page + '</b><button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>' : '';
+    return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="product-development-tasks|' + page + '">' + cards + '</div>' + pager + '</div>';
+  }
+
+  function productDevelopmentTaskActionsHtml(task) {
+    const source = task || {};
+    const detail = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[source.sku];
+    const referenceUrl = String(source.referenceUrl || detail && detail.referenceUrl || '').trim();
+    const reference = referenceUrl ? '<a href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer">打开对标链接</a>' : '<span>暂无对标链接</span>';
+    return '<section class="pfh-section pfh-product-development-task-section"><div class="pfh-section-title"><h3>产品开发资料</h3><span>只读 PLM · 开发人员：' + escapeHtml(source.developerName || state.productDevelopmentTaskUserName || '当前用户') + '</span></div><div class="pfh-info-grid"><div class="pfh-row"><span class="pfh-label">项目编码</span><span class="pfh-value">' + escapeHtml(source.projectCode || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发任务状态</span><span class="pfh-value">' + escapeHtml(source.projectStatus || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发分配时间</span><span class="pfh-value">' + escapeHtml(source.developmentAssignedAt || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">对标链接</span><span class="pfh-value">' + reference + '</span></div></div><div class="pfh-about-actions"><button type="button" data-action="product-development-review-open">制作侵权对照图</button><button type="button" data-action="product-development-copywriting-open">生成 A-D 文案 DOCX</button></div><p class="pfh-note">侵权图使用当前任务的对标图片；文案功能再读取当前 SKU 的成分和卖点。所有结果只在本地生成，不向 PLM 回写。</p></section>';
+  }
+
+  function renderProductDevelopmentTaskWorkspace(panel, statusText) {
+    const list = panel && panel.querySelector('.pfh-list');
+    const detail = panel && panel.querySelector('.pfh-detail');
+    if (list) list.innerHTML = productDevelopmentTaskListHtml();
+    if (!detail) return;
+    const task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
+    if (!task) {
+      detail.classList.remove('is-loading');
+      detail.innerHTML = '<div class="pfh-detail-scroll"><section class="pfh-section pfh-product-development-task-empty"><div class="pfh-section-title"><h3>我的开发任务</h3><span>按当前 PLM 用户筛选</span></div><div class="pfh-empty">选择左侧开发 SKU 后显示详情。</div><div class="pfh-about-actions"><button type="button" data-action="product-development-tasks-refresh">刷新任务</button><button type="button" data-action="product-development-tasks-home">返回开发功能</button></div></section></div>';
+      return;
+    }
+    state.data = productDevelopmentTaskSeedData(task);
+    state.selectedSku = task.sku;
+    renderDetail(panel, statusText);
+    const scroll = detail.querySelector('.pfh-detail-scroll');
+    if (scroll) scroll.insertAdjacentHTML('beforeend', productDevelopmentTaskActionsHtml(task));
+  }
+
+  async function loadProductDevelopmentTasks(options) {
+    const opts = options || {};
+    if (state.productDevelopmentTaskRequestPromise) return state.productDevelopmentTaskRequestPromise;
+    const now = Date.now();
+    if (!opts.force && state.productDevelopmentTasksLoadedAt && now - state.productDevelopmentTasksLoadedAt < PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS && Array.isArray(state.productDevelopmentTasks) && state.productDevelopmentTasks.length) return state.productDevelopmentTasks;
+    state.productDevelopmentTasksLoading = true;
+    state.productDevelopmentTaskError = '';
+    if (!opts.silent || state.view === 'productDevelopmentTasks') renderShell('正在读取本人开发任务…');
+    const request = (async () => {
+      const rows = await fetchProductDevelopmentTaskRows();
+      state.productDevelopmentTasks = rows;
+      state.productDevelopmentTasksLoadedAt = Date.now();
+      state.productDevelopmentTaskPage = 1;
+      const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || (opts.silent ? null : rows[0]);
+      if (selected) {
+        selectProductDevelopmentTask(selected.sku, { render: false, hydrate: false });
+      } else {
+        state.productDevelopmentSelectedTask = null;
+        state.productDevelopmentTaskSelectedSku = '';
+      }
+      if (state.workMode === 'product-development' && (state.view === 'productDevelopmentTasks' || (!opts.silent && state.view === 'home'))) renderShell();
+      if (selected) hydrateProductDevelopmentTaskDetail(selected).then(() => {
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === selected.sku) renderShell();
+      }).catch(() => {});
+      return rows;
+    })().catch((error) => {
+      state.productDevelopmentTaskError = formatErrorMessage(error);
+      state.productDevelopmentTasks = [];
+      state.productDevelopmentSelectedTask = null;
+      state.productDevelopmentTaskSelectedSku = '';
+      if (state.workMode === 'product-development' && (state.view === 'home' || state.view === 'productDevelopmentTasks')) renderShell();
+      throw error;
+    }).finally(() => {
+      state.productDevelopmentTasksLoading = false;
+      state.productDevelopmentTaskRequestPromise = null;
+    });
+    state.productDevelopmentTaskRequestPromise = request;
+    return request;
+  }
+
+  function openProductDevelopmentTaskWorkspace() {
+    state.workMode = 'product-development';
+    state.settings.workMode = 'product-development';
+    saveSettings(state.settings);
+    state.productDevelopmentView = 'home';
+    state.view = 'productDevelopmentTasks';
+    state.copywritingMode = false;
+    state.skuEditMode = false;
+    state.productDevelopmentError = '';
+    state.productDevelopmentTaskError = '';
+    expandPanel();
+    renderShell('正在读取本人开发任务…');
+    loadProductDevelopmentTasks({ force: true }).catch(() => {});
   }
 
   function getProductDevelopmentSeedData(sku) {
@@ -116,7 +418,8 @@
     const source = state && state.data && String(state.data.sku || '').trim().toUpperCase() === normalizedSku
       ? state.data
       : loadData(normalizedSku);
-    return normalizeData(source || { sku: normalizedSku });
+    const task = getProductDevelopmentTaskBySku(normalizedSku);
+    return task ? productDevelopmentTaskSeedData(task) : normalizeData(source || { sku: normalizedSku });
   }
 
   function productDevelopmentCleanText(value, maxLength) {
@@ -1009,6 +1312,7 @@
       state.view = 'home';
       state.copywritingMode = false;
       state.productDevelopmentError = '';
+      if (typeof loadProductDevelopmentTasks === 'function') loadProductDevelopmentTasks({ silent: true }).catch(() => {});
     } else {
       state.view = 'home';
       state.productDevelopmentError = '';
@@ -1195,8 +1499,38 @@
       return true;
     }
     if (action === 'product-development-home') {
+      state.view = 'home';
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-tasks-open') {
+      openProductDevelopmentTaskWorkspace();
+      return true;
+    }
+    if (action === 'product-development-tasks-home') {
+      state.view = 'home';
+      state.productDevelopmentView = 'home';
+      state.productDevelopmentError = '';
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-tasks-refresh') {
+      loadProductDevelopmentTasks({ force: true }).catch((error) => showToast(formatErrorMessage(error)));
+      return true;
+    }
+    if (action === 'product-development-task-select') {
+      const task = selectProductDevelopmentTask(actionTarget && actionTarget.getAttribute('data-sku'));
+      if (!task) showToast('开发任务不存在或已刷新');
+      return true;
+    }
+    if (action === 'product-development-task-page') {
+      const totalPages = Math.max(1, Math.ceil((Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.length : 0) / 10));
+      const current = Number(state.productDevelopmentTaskPage) || 1;
+      state.productDevelopmentTaskPage = actionTarget && actionTarget.getAttribute('data-page') === 'prev'
+        ? Math.max(1, current - 1)
+        : Math.min(totalPages, current + 1);
       renderShell();
       return true;
     }
@@ -1217,6 +1551,7 @@
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
       state.productDevelopmentView = 'review';
+      state.view = 'home';
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       renderShell();
@@ -1278,6 +1613,7 @@
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
       state.productDevelopmentView = 'copywriting';
+      state.view = 'home';
       state.productDevelopmentError = '';
       state.productDevelopmentStatus = '';
       renderShell();
