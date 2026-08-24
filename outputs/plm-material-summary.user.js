@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.173
+// @version      2.8.174
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.173';
+  const SCRIPT_VERSION = '2.8.174';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -18385,7 +18385,7 @@
     });
     const cartonSpec = getSizeImageSpec(customData);
     const labelSpecs = getLabelSizeImageSpecs(customData);
-    if (packageSizeText && !cartonSpec) {
+    if (packageSizeText && !cartonSpec && !isPrintedBagPackageDimensionData(customData)) {
       showToast('纸盒尺寸格式不正确，请填写 3 个或 5 个数字');
       return;
     }
@@ -18508,7 +18508,7 @@
   function getSizeImageSpec(data) {
     // A manually entered carton size may not have the derived material label.
     // The dimensions themselves are sufficient to identify the size-image input.
-    if (!data || getMaterialDimensionUnitIssue(data, 'package')) return null;
+    if (!data || getMaterialDimensionUnitIssue(data, 'package') || isPrintedBagPackageDimensionData(data)) return null;
     const sourceNums = Array.isArray(data.packageNums) && data.packageNums.length
       ? data.packageNums
       : parseDimension(data.packageSizeText, 3);
@@ -18528,7 +18528,36 @@
       data && data.printSizeLabel,
       data && data.packageSizeLabel,
     ].filter(Boolean).join(' ');
-    return /(?:\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\/\u819c\u7c7b)/.test(source);
+    return /(?:\u5370\u5237\u81ea\u7acb\u888b|\u81ea\u7acb\u5370\u5237\u888b|\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u8f6f\u888b|\u888b\u5b50|\u888b\/\u819c\u7c7b)/.test(source);
+  }
+
+  function isPrintedBagPackageDimensionData(data) {
+    const packageLabel = String(data && data.packageSizeLabel || '').trim();
+    const printLabel = String(data && data.printSizeLabel || '').trim();
+    const label = [packageLabel, printLabel].filter(Boolean).join(' ');
+    if (!label) return false;
+    if (/(?:\u7eb8\u76d2|\u5f69\u76d2|\u7eb8\u7bb1|\u5305\u88c5\u76d2|\u5916\u76d2)/.test(packageLabel)) return false;
+    return /(?:\u5370\u5237\u81ea\u7acb\u888b|\u81ea\u7acb\u5370\u5237\u888b|\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\/\u819c\u7c7b|\u8f6f\u888b|\u888b\u5b50)/.test(label)
+      && !/(?:\u7eb8\u76d2|\u5f69\u76d2|\u7eb8\u7bb1|\u5305\u88c5\u76d2|\u5916\u76d2)/.test(packageLabel);
+  }
+
+  function getPrintedBagFlatDimensionPair(data) {
+    // Printed self-standing bags may be stored as width x gusset x height;
+    // naming and flat-image matching use only the two visible dimensions.
+    if (!data || !isPrintedBagSizeImageData(data)) return null;
+    const sources = [data.printSizeText, data.packageSizeText, data.printRawText];
+    const pattern = /\d+(?:\.\d+)?\s*[xX\u00d7*]\s*\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){0,3}\s*(?:cm|mm)?/i;
+    for (const source of sources) {
+      const match = String(source || '').match(pattern);
+      if (!match) continue;
+      const numbers = (match[0].match(/\d+(?:\.\d+)?/g) || []).map(Number);
+      if (numbers.length < 2) continue;
+      const divisor = /mm/i.test(match[0]) ? 10 : 1;
+      const pair = numbers.length >= 3 ? [numbers[0], numbers[2]] : [numbers[0], numbers[1]];
+      const result = pair.map((value) => value / divisor);
+      if (result.every((value) => Number.isFinite(value) && value > 0)) return result;
+    }
+    return null;
   }
 
   function getLabelSizeImageSpecs(data) {
@@ -18541,16 +18570,23 @@
     const printedBag = isPrintedBagSizeImageData(data);
     const rawPrintLabel = /\u6807\u7b7e/.test(String(data.printRawText || '')) ? '\u6807\u7b7e' : '';
     const dimensions = [];
+    const printedBagPair = printedBag ? getPrintedBagFlatDimensionPair(data) : null;
     const pattern = /(\d+(?:\.\d+)?)\s*[xX\u00d7*]\s*(\d+(?:\.\d+)?)\s*(cm|mm)?/ig;
-    let match;
-    while ((match = pattern.exec(String(data.printSizeText || '')))) {
-      const divisor = String(match[3] || '').toLowerCase() === 'mm' ? 10 : 1;
-      const width = Number(match[1]) / divisor;
-      const height = Number(match[2]) / divisor;
-      if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) dimensions.push({ width, height });
+    if (printedBagPair) {
+      dimensions.push({ width: printedBagPair[0], height: printedBagPair[1] });
+    } else {
+      let match;
+      while ((match = pattern.exec(String(data.printSizeText || '')))) {
+        const divisor = String(match[3] || '').toLowerCase() === 'mm' ? 10 : 1;
+        const width = Number(match[1]) / divisor;
+        const height = Number(match[2]) / divisor;
+        if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) dimensions.push({ width, height });
+      }
     }
+    const fallbackLabel = labels[0] || rawPrintLabel || (printedBag ? compactText(data.packageSizeLabel || '\u5370\u5237\u81ea\u7acb\u888b') : '');
+    const fallbackCode = codes[0] || (printedBag ? compactText(data.packageCode || '') : '');
     return dimensions.map((dimension, index) => {
-      const labelText = labels[index] || labels[0] || rawPrintLabel;
+      const labelText = labels[index] || fallbackLabel;
       const customKind = data.sizeImageCustomFlatKind === 'label' || data.sizeImageCustomFlatKind === 'print' ? data.sizeImageCustomFlatKind : '';
       const kind = customKind || (/\u6807\u7b7e/.test([labelText, data.printSizeLabel, data.printRawText].filter(Boolean).join(' ')) && !data.isTubePrint ? 'label' : 'print');
       return {
@@ -18559,7 +18595,7 @@
         kind,
         index,
         key: 'flat-' + index + '-' + formatSizeImageNumber(dimension.width) + 'x' + formatSizeImageNumber(dimension.height),
-        code: codes[index] || '',
+        code: codes[index] || fallbackCode,
         labelText,
         remark: collectSizeImageRemark(labelText, []),
         printedBag: kind === 'print' && printedBag,
@@ -21144,14 +21180,18 @@ self.onmessage = async function(event) {
   function packagingNamingEntries(data, key) {
     if (!data) return [];
     if (key === 'packageSizeText') {
-      const values = Array.isArray(data.packageNums) ? data.packageNums.slice(0, 3).map(Number) : parseDimension(data.packageSizeText, 3);
-      if (!values || values.length < 3 || values.slice(0, 3).some((value) => !Number.isFinite(value))) return [];
+      const printedBag = isPrintedBagPackageDimensionData(data);
+      const printedBagValues = printedBag ? getPrintedBagFlatDimensionPair(data) : null;
+      if (printedBag && (!printedBagValues || printedBagValues.length < 2)) return [];
+      const values = printedBagValues || (Array.isArray(data.packageNums) ? data.packageNums.slice(0, 3).map(Number) : parseDimension(data.packageSizeText, 3));
+      const requiredCount = printedBag ? 2 : 3;
+      if (!values || values.length < requiredCount || values.slice(0, requiredCount).some((value) => !Number.isFinite(value))) return [];
       const codes = namingCodes(data.packageCode);
       return [{
-        type: 'package',
-        label: compactText(data.packageSizeLabel || '纸盒'),
-        values: values.slice(0, 3),
-        size: namingSizeText(values.slice(0, 3)),
+        type: printedBag ? 'printed-bag' : 'package',
+        label: compactText(data.packageSizeLabel || (printedBag ? '印刷自立袋' : '纸盒')),
+        values: printedBag ? printedBagValues : values.slice(0, 3),
+        size: namingSizeText(printedBag ? printedBagValues : values.slice(0, 3)),
         code: codes[0] || compactText(data.packageCode || ''),
       }];
     }
@@ -21250,7 +21290,8 @@ self.onmessage = async function(event) {
     card.className = 'pfh-packaging-naming-card';
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-label', '包材命名与历史编码');
-    card.innerHTML = '<header><div><b>' + (key === 'packageSizeText' ? '纸盒命名' : '标签 / 印刷命名') + '</b><span>点击内容即可复制</span></div><button type="button" data-naming-close aria-label="关闭">×</button></header>' +
+    const namingTitle = key === 'packageSizeText' && entries.some((entry) => entry.type === 'printed-bag') ? '印刷自立袋命名' : (key === 'packageSizeText' ? '纸盒命名' : '标签 / 印刷命名');
+    card.innerHTML = '<header><div><b>' + namingTitle + '</b><span>点击内容即可复制</span></div><button type="button" data-naming-close aria-label="关闭">×</button></header>' +
       '<div class="pfh-packaging-naming-current-list">' + entryHtml + '</div>' +
       '<div class="pfh-packaging-naming-subtitle"><b>历史相近文件编码</b><span>同 Logo 优先 · 偏差 ≤ 0.5cm</span></div>' +
       '<div class="pfh-packaging-naming-history-list">' + recommendationHtml + '</div>';
