@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.177
+// @version      2.8.178
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.256';
+  const UI_ASSET_VERSION = '2.5.257';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '设计版', code: 'DESIGN' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -5081,7 +5081,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.5.3';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.6.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -5656,6 +5656,28 @@
     };
   }
 
+  function productDevelopmentPetAudience(snapshot) {
+    const source = [snapshot && snapshot.brand, snapshot && snapshot.productType, snapshot && snapshot.category, snapshot && snapshot.plmCategory].filter(Boolean).join(' ');
+    if (!/kriath/i.test(source) || !/(宠物|犬|狗|猫|pet|dog|cat)/i.test(source)) return '';
+    const hasDog = /犬|狗|dog/i.test(source);
+    const hasCat = /猫|cat/i.test(source);
+    if (hasDog && hasCat) return 'FOR DOGS & CATS';
+    if (hasDog) return 'FOR DOGS';
+    if (hasCat) return 'FOR CATS';
+    return 'FOR DOGS & CATS';
+  }
+
+  function productDevelopmentStandardNetContent(value) {
+    const raw = productDevelopmentCleanText(value, 120);
+    if (!raw) return '';
+    if (typeof normalizeNetContentValue === 'function') {
+      const normalized = normalizeNetContentValue(raw);
+      if (normalized) return normalized.toUpperCase();
+    }
+    const match = raw.match(/(\d+(?:\.\d+)?)\s*(ML|L|G|KG|PCS?|CAPSULES?|GUMMIES?|TABLETS?)/i);
+    return match ? (match[1] + match[2]).toUpperCase() : raw.toUpperCase();
+  }
+
   function productDevelopmentCopywriteValues(copyPayload) {
     const source = copyPayload && typeof copyPayload === 'object' ? copyPayload : {};
     return {
@@ -5803,6 +5825,14 @@
       englishName: productDevelopmentCleanText(snapshot && snapshot.englishName, 300),
       brand: productDevelopmentCleanText(snapshot && snapshot.brand || data.brand, 160),
       productType: productDevelopmentCleanText(snapshot && snapshot.productType || data.productType || data.manualCategory, 180),
+      category: productDevelopmentCleanText(snapshot && (snapshot.category || snapshot.plmCategory) || data.category || data.plmCategory || data.manualCategory, 180),
+      plmCategory: productDevelopmentCleanText(snapshot && snapshot.plmCategory || data.plmCategory, 180),
+      netContent: productDevelopmentStandardNetContent(snapshot && snapshot.netContent || data.netContent),
+      petAudience: productDevelopmentPetAudience({
+        brand: snapshot && snapshot.brand || data.brand,
+        productType: snapshot && snapshot.productType || data.productType || data.manualCategory,
+        category: snapshot && (snapshot.category || snapshot.plmCategory) || data.category || data.plmCategory || data.manualCategory,
+      }),
       referenceUrl: productDevelopmentCleanText(snapshot && snapshot.referenceUrl || data.referenceUrl || data.benchmarkLink, 1000),
       ingredients,
       ingredientSummary: {
@@ -5857,33 +5887,49 @@
 
   function productDevelopmentNormalizeRiskItems(value) {
     const source = value && typeof value === 'object' ? value : {};
-    const list = Array.isArray(source.items) ? source.items : [];
+    const list = Array.isArray(source.texts) ? source.texts : (Array.isArray(source.items) ? source.items : []);
     const seen = new Set();
     return list.map((item, index) => {
       const sourceItem = item && typeof item === 'object' ? item : {};
       const bboxSource = sourceItem.bbox || sourceItem.box || {};
-      const x = Math.max(0, Math.min(1, Number(bboxSource.x)));
-      const y = Math.max(0, Math.min(1, Number(bboxSource.y)));
-      const w = Math.max(0, Math.min(1 - x, Number(bboxSource.w !== undefined ? bboxSource.w : bboxSource.width)));
-      const h = Math.max(0, Math.min(1 - y, Number(bboxSource.h !== undefined ? bboxSource.h : bboxSource.height)));
       const sourceText = productDevelopmentCleanText(sourceItem.sourceText || sourceItem.originalText || sourceItem.text, 240);
-      const replacementEn = productDevelopmentCleanText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english, 300);
-      const replacementZh = productDevelopmentCleanText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation, 300);
-      const key = [sourceText.toLowerCase(), x.toFixed(4), y.toFixed(4)].join('|');
-      if (!sourceText || !replacementEn || !replacementZh || !Number.isFinite(x) || !Number.isFinite(y) || w <= 0.001 || h <= 0.001 || seen.has(key)) return null;
+      const replacementEn = productDevelopmentCleanText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
+      const replacementZh = productDevelopmentCleanText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation || sourceItem.translationZh, 300);
+      const xValue = Number(bboxSource.x);
+      const yValue = Number(bboxSource.y);
+      const wValue = Number(bboxSource.w !== undefined ? bboxSource.w : bboxSource.width);
+      const hValue = Number(bboxSource.h !== undefined ? bboxSource.h : bboxSource.height);
+      const hasBbox = [xValue, yValue, wValue, hValue].every(Number.isFinite) && wValue > 0.001 && hValue > 0.001;
+      const x = hasBbox ? Math.max(0, Math.min(1, xValue)) : null;
+      const y = hasBbox ? Math.max(0, Math.min(1, yValue)) : null;
+      const w = hasBbox ? Math.max(0, Math.min(1 - x, wValue)) : null;
+      const h = hasBbox ? Math.max(0, Math.min(1 - y, hValue)) : null;
+      const key = [String(sourceItem.id || ''), sourceText.toLowerCase()].join('|');
+      if (!sourceText || !replacementEn || seen.has(key)) return null;
       seen.add(key);
+      const options = (Array.isArray(sourceItem.replacementOptions) ? sourceItem.replacementOptions : Array.isArray(sourceItem.alternatives) ? sourceItem.alternatives : [])
+        .map((option) => ({
+          en: productDevelopmentCleanText(option && (option.en || option.english || option.replacementEn), 300),
+          zh: productDevelopmentCleanText(option && (option.zh || option.cn || option.chinese || option.translation), 300),
+        }))
+        .filter((option) => option.en || option.zh)
+        .slice(0, 3);
       return {
         id: String(sourceItem.id || index + 1),
         sourceText,
-        bbox: { x, y, w, h },
+        bbox: hasBbox && x + w <= 1 && y + h <= 1 ? { x, y, w, h } : null,
+        textRole: String(sourceItem.textRole || sourceItem.role || '').trim().toLowerCase(),
         riskTypes: Array.from(new Set((Array.isArray(sourceItem.riskTypes) ? sourceItem.riskTypes : [sourceItem.riskType])
           .map((type) => String(type || '').trim().toLowerCase())
           .filter((type) => ['banned', 'exaggeration', 'medical', 'brand', 'unsupported', 'other'].includes(type)))).slice(0, 4),
         replacementEn,
         replacementZh,
+        translationZh: productDevelopmentCleanText(sourceItem.translationZh || sourceItem.translation || sourceItem.chinese, 300),
+        riskReason: productDevelopmentCleanText(sourceItem.riskReason || sourceItem.reason || sourceItem.warning, 400),
+        replacementOptions: options,
         confidence: Math.max(0, Math.min(1, Number(sourceItem.confidence) || 0)),
       };
-    }).filter(Boolean).slice(0, 30);
+    }).filter(Boolean).slice(0, 80);
   }
 
   function productDevelopmentNormalizedClaimText(value) {
@@ -5904,9 +5950,15 @@
     const items = productDevelopmentNormalizeRiskItems(result);
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
     for (const item of items) {
+      if (item.textRole === 'netcontent' && snapshot && snapshot.netContent) item.replacementEn = snapshot.netContent;
+      if (item.textRole === 'petaudience' && snapshot && snapshot.petAudience) item.replacementEn = snapshot.petAudience.toUpperCase();
       const term = productDevelopmentFindBannedTerm(item.replacementEn + ' ' + item.replacementZh, brand);
       if (term) throw new Error('侵权对照图修改内容含风险词：' + term);
       if (item.replacementEn.includes('*') || item.replacementZh.includes('*')) throw new Error('侵权对照图修改内容不能含星号');
+      (item.replacementOptions || []).forEach((option) => {
+        const optionTerm = productDevelopmentFindBannedTerm((option.en || '') + ' ' + (option.zh || ''), brand);
+        if (optionTerm || String(option.en || '').includes('*') || String(option.zh || '').includes('*')) throw new Error('侵权替换备选含风险词：' + (optionTerm || 'format'));
+      });
     }
     return {
       items,
@@ -5944,8 +5996,8 @@
     const rightWidth = 760;
     const imageAreaWidth = leftWidth - padding * 2;
     const imageAreaHeight = Math.max(640, Math.min(1500, ih * imageAreaWidth / iw));
-    const rowHeight = 118;
-    const rows = Math.max(1, Math.min(20, items.length));
+    const rowHeight = 124;
+    const rows = Math.max(1, Math.min(80, items.length));
     const height = Math.max(headerHeight + imageAreaHeight + padding * 2, headerHeight + rows * rowHeight + padding * 2);
     const canvas = document.createElement('canvas');
     canvas.width = leftWidth + rightWidth + padding * 3;
@@ -5972,27 +6024,11 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(padding, padding, leftWidth, canvas.height - padding * 2);
     ctx.strokeRect(padding * 2 + leftWidth, padding, rightWidth, canvas.height - padding * 2);
-    const displayItems = items.slice(0, 20);
+    const displayItems = items.slice(0, 80);
     displayItems.forEach((item, index) => {
-      const box = item.bbox;
-      const x = drawX + box.x * drawWidth;
-      const y = drawY + box.y * drawHeight;
-      const w = box.w * drawWidth;
-      const h = box.h * drawHeight;
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = Math.max(3, Math.round(Math.min(drawWidth, drawHeight) / 260));
-      ctx.strokeRect(x, y, w, h);
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath();
-      ctx.arc(Math.max(drawX + 18, x), Math.max(drawY + 18, y), 17, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '700 18px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(String(index + 1), Math.max(drawX + 18, x), Math.max(drawY + 24, y + 6));
-      ctx.textAlign = 'left';
       const rowY = padding + headerHeight + 34 + index * rowHeight;
-      ctx.fillStyle = '#ef4444';
+      const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length > 0;
+      ctx.fillStyle = isRisk ? '#ef4444' : '#667085';
       ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
       ctx.fillText(String(index + 1) + '.', padding * 2 + leftWidth + 22, rowY);
       ctx.fillStyle = '#344054';
@@ -6000,7 +6036,12 @@
       productDevelopmentWrapCanvasText(ctx, item.replacementEn, padding * 2 + leftWidth + 62, rowY, rightWidth - 100, 27, 2);
       ctx.fillStyle = '#667085';
       ctx.font = '18px Arial, Microsoft YaHei, sans-serif';
-      productDevelopmentWrapCanvasText(ctx, '中文：' + item.replacementZh, padding * 2 + leftWidth + 62, rowY + 58, rightWidth - 100, 25, 2);
+      productDevelopmentWrapCanvasText(ctx, '中文：' + (item.replacementZh || item.translationZh || ''), padding * 2 + leftWidth + 62, rowY + 58, rightWidth - 100, 25, 2);
+      if (isRisk) {
+        ctx.fillStyle = '#b42318';
+        ctx.font = '14px Arial, Microsoft YaHei, sans-serif';
+        ctx.fillText('风险提醒：' + item.riskTypes.join('、'), padding * 2 + leftWidth + 62, rowY + 96);
+      }
     });
     if (!displayItems.length) {
       ctx.fillStyle = '#667085';
@@ -6009,7 +6050,7 @@
     }
     ctx.fillStyle = '#98a2b3';
     ctx.font = '16px Arial, Microsoft YaHei, sans-serif';
-    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 原图保留 · 仅生成审核对照稿', padding * 2, canvas.height - 18);
+    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 原图保留 · 未使用不可靠红框 · 仅生成审核对照稿', padding * 2, canvas.height - 18);
     return {
       dataUrl: canvas.toDataURL('image/png'),
       width: canvas.width,
@@ -6053,11 +6094,17 @@
           brand: snapshot.brand,
           sellingPoints: snapshot.sourceCopywriting.sellingPoints,
           efficacy: snapshot.sourceCopywriting.efficacy,
+          category: snapshot.category,
+          plmCategory: snapshot.plmCategory,
+          netContentStandard: snapshot.netContent,
+          petAudience: snapshot.petAudience,
+          petAudienceRule: 'Kriath 宠物入口：FOR DOGS & CATS / FOR DOGS / FOR CATS 必须全大写',
           imageDataUrl: image.dataUrl,
           referenceUrl: snapshot.referenceUrl,
         },
       });
       const validated = productDevelopmentValidateReview(response, snapshot);
+      const riskCount = validated.items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length;
       state.productDevelopmentStatus = '正在生成左图右文的本地对照图…';
       renderShell();
       const comparison = await composeProductDevelopmentComparison(image.dataUrl, validated.items, snapshot);
@@ -6083,10 +6130,11 @@
         createdAt: state.productDevelopmentReview.createdAt,
         fileName,
         itemCount: validated.items.length,
+        riskItemCount: riskCount,
         comparisonDataUrl: comparison.dataUrl,
         warnings: validated.warnings,
       });
-      state.productDevelopmentStatus = validated.items.length ? '已生成对照图，请人工确认风险和修改理由' : '未检测到风险文字，可下载留档并继续人工检查';
+      state.productDevelopmentStatus = riskCount ? '已识别 ' + riskCount + ' 个风险文字，并提取全部 ' + validated.items.length + ' 项文字，请人工确认' : '已提取全部 ' + validated.items.length + ' 项文字，未检测到可靠风险，可继续人工检查';
       showToast('侵权对照图已生成');
     } catch (error) {
       state.productDevelopmentError = formatErrorMessage(error);
@@ -6100,32 +6148,28 @@
 
   function productDevelopmentReviewItemIncomplete(item) {
     const source = item && typeof item === 'object' ? item : {};
-    const bbox = source.bbox || {};
-    const x = Number(bbox.x);
-    const y = Number(bbox.y);
-    const w = Number(bbox.w);
-    const h = Number(bbox.h);
     return !String(source.sourceText || '').trim()
       || !String(source.replacementEn || '').trim()
-      || !String(source.replacementZh || '').trim()
-      || ![x, y, w, h].every(Number.isFinite)
-      || x < 0 || y < 0 || w <= 0.001 || h <= 0.001 || x + w > 1 || y + h > 1;
+      || !String(source.replacementZh || source.translationZh || '').trim();
   }
 
   function productDevelopmentReviewEditorHtml(result, items) {
     const rows = (Array.isArray(items) ? items : []).map((item, index) => {
-      const bbox = item && item.bbox || { x: 0.08, y: 0.08, w: 0.2, h: 0.08 };
-      const riskText = Array.isArray(item && item.riskTypes) && item.riskTypes.length ? item.riskTypes.join('、') : '人工添加';
-      return '<article class="pfh-product-development-review-editor-row"><div class="pfh-product-development-review-editor-head"><b>' + (index + 1) + '</b><span>风险类型：' + escapeHtml(riskText) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + index + '">删除</button></div>' +
-        '<label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="sourceText" value="' + escapeHtml(item.sourceText) + '"></label>' +
-        '<label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementEn" rows="2">' + escapeHtml(item.replacementEn) + '</textarea></label>' +
-        '<label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementZh" rows="2">' + escapeHtml(item.replacementZh) + '</textarea></label>' +
-        '<div class="pfh-product-development-review-bbox"><small>红框位置（归一化 0-1）</small>' +
-        ['x', 'y', 'w', 'h'].map((key) => '<label>' + key + '<input type="number" min="0" max="1" step="0.01" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="bbox.' + key + '" value="' + escapeHtml(String(Number(bbox[key]) || 0)) + '"></label>').join('') +
-        '</div></article>';
+      const riskTypes = Array.isArray(item && item.riskTypes) ? item.riskTypes.filter(Boolean) : [];
+      const riskText = riskTypes.length ? riskTypes.join('、') : '未发现风险词';
+      const riskClass = riskTypes.length ? ' is-risk' : ' is-clear';
+      const options = Array.isArray(item && item.replacementOptions) ? item.replacementOptions : [];
+      const optionHtml = options.length
+        ? '<div class="pfh-product-development-review-options"><small>建议替换备选（可编辑）</small>' + options.map((option, optionIndex) => '<div class="pfh-product-development-review-option"><input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementOptions.' + optionIndex + '.en" value="' + escapeHtml(option.en || '') + '" aria-label="第 ' + (optionIndex + 1) + ' 个英文替换备选"><textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementOptions.' + optionIndex + '.zh" rows="1" aria-label="第 ' + (optionIndex + 1) + ' 个中文替换备选">' + escapeHtml(option.zh || '') + '</textarea></div>').join('') + '</div>'
+        : '<div class="pfh-product-development-review-options is-empty"><small>暂无可靠备选，建议人工补充</small></div>';
+      return '<article class="pfh-product-development-review-editor-row' + riskClass + '"><div class="pfh-product-development-review-editor-head"><b>' + (index + 1) + '</b><span>风险提醒：' + escapeHtml(riskText) + (item.riskReason ? ' · ' + escapeHtml(item.riskReason) : '') + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + index + '">删除</button></div>' +
+        '<div class="pfh-product-development-review-editor-columns"><label>对标图文字（可编辑）<input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="sourceText" value="' + escapeHtml(item.sourceText) + '"></label>' +
+        '<label>英文建议（可编辑）<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementEn" rows="2">' + escapeHtml(item.replacementEn) + '</textarea></label>' +
+        '<label>中文翻译（可编辑）<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementZh" rows="2">' + escapeHtml(item.replacementZh || item.translationZh || '') + '</textarea></label></div>' + optionHtml + '</article>';
     }).join('');
-    const empty = rows ? '' : '<div class="pfh-product-development-result-empty">未检测到可靠风险文字，可手动添加需要核对的图片文字。</div>';
-    return '<section class="pfh-product-development-review-editor"><header><div><small>MANUAL REVIEW</small><h3>人工修改对照内容</h3></div><span>修改后点击重新生成</span></header>' + empty + '<div class="pfh-product-development-review-editor-list">' + rows + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!result || state.productDevelopmentReviewBusy ? ' disabled' : '') + '>按修改重新生成对照图</button></div></section>';
+    const empty = rows ? '' : '<div class="pfh-product-development-result-empty">未识别到可靠文字，可手动添加需要核对的内容。</div>';
+    const warnings = result && Array.isArray(result.warnings) && result.warnings.length ? '<div class="pfh-product-development-review-warnings"><strong>识别提醒</strong>' + result.warnings.map((warning) => '<span>' + escapeHtml(warning) + '</span>').join('') + '</div>' : '';
+    return '<section class="pfh-product-development-review-editor"><header><div><small>EDITABLE TEXT REVIEW</small><h3>对标图全部文字</h3></div><span>共 ' + (Array.isArray(items) ? items.length : 0) + ' 项 · 修改后点击重新生成</span></header>' + warnings + empty + '<div class="pfh-product-development-review-editor-list">' + rows + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!result || state.productDevelopmentReviewBusy ? ' disabled' : '') + '>按修改重新生成对照图</button></div></section>';
   }
 
   async function recomposeProductDevelopmentReview() {
@@ -6621,7 +6665,7 @@
     const resultMatchesCurrentSku = Boolean(result && result.sku === sku);
     const canShowResult = Boolean(result && (resultMatchesCurrentSku || result.fromHistory));
     const items = canShowResult ? result.items || [] : [];
-    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
+    const preview = result && (result.sourceImageDataUrl || result.comparisonDataUrl) ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对标图原图</strong><small>原图保留；坐标不可靠时不绘制红框，避免误标</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.sourceImageDataUrl || result.comparisonDataUrl) + '" alt="对标图原图"></div><div class="pfh-product-development-preview-note">风险提醒和替换建议在右侧编辑区显示，所有识别文字均可修改。</div><button type="button" data-action="product-development-review-download">下载双语对照 PNG</button></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
         ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字或红框，请重新分析当前对标图片。</p></section>'
@@ -6633,8 +6677,8 @@
     const readyText = state.productDevelopmentReviewBusy ? 'AI 正在读取图片' : (sku ? '已就绪，可以开始' : '请先选择当前 SKU');
     const resultTitle = canShowResult ? '筛查结果与人工复核' : '等待生成筛查结果';
     const resultHint = canShowResult
-      ? (result.fromHistory ? '已打开本地结果，可查看或下载 PNG' : (items.length + ' 个风险项，可继续人工调整'))
-      : '分析后自动生成红框编号与中英文修改建议';
+      ? (result.fromHistory ? '已打开本地结果，可查看或下载 PNG' : (items.filter((item) => Array.isArray(item.riskTypes) && item.riskTypes.length).length + ' 个风险项 · 共识别 ' + items.length + ' 项文字，可继续人工调整'))
+      : '分析后提取全部可编辑文字，并给出风险提醒、中英文替换建议';
     return '<div class="pfh-product-development pfh-product-development-subview pfh-product-development-review-view">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head pfh-product-development-review-head"><button type="button" data-action="product-development-home" aria-label="返回产品开发主页">' + iconHtml('back') + '</button><div><small>IMAGE REVIEW · BETA</small><h2>产品图风险筛查</h2><p>从对标图中识别品牌、禁词与夸大宣称，生成可继续编辑的修改对照图。</p></div><span><i></i>只读分析</span></header>' +
       productDevelopmentSkuSummaryHtml(snapshot) +
@@ -6777,13 +6821,17 @@
       result.items.push({
         id: 'manual-' + Date.now().toString(36),
         sourceText: '',
-        bbox: { x: 0.08, y: 0.08, w: 0.24, h: 0.08 },
+        bbox: null,
+        textRole: 'manual',
         riskTypes: ['other'],
         replacementEn: '',
         replacementZh: '',
+        translationZh: '',
+        riskReason: '人工添加，待核对',
+        replacementOptions: [],
         confidence: 0,
       });
-      state.productDevelopmentStatus = '已添加手动文字项，请填写内容和红框位置';
+      state.productDevelopmentStatus = '已添加手动文字项，请填写原文、英文建议和中文翻译';
       renderShell();
       return true;
     }
@@ -6871,6 +6919,14 @@
     if (!item) return true;
     if (field === 'sourceText' || field === 'replacementEn' || field === 'replacementZh') {
       item[field] = String(target.value || '').slice(0, 500);
+      return true;
+    }
+    const optionMatch = field.match(/^replacementOptions\.(\d+)\.(en|zh)$/);
+    if (optionMatch) {
+      const optionIndex = Number(optionMatch[1]);
+      if (!Array.isArray(item.replacementOptions)) item.replacementOptions = [];
+      if (!item.replacementOptions[optionIndex]) item.replacementOptions[optionIndex] = { en: '', zh: '' };
+      item.replacementOptions[optionIndex][optionMatch[2]] = String(target.value || '').slice(0, 500);
       return true;
     }
     if (field.indexOf('bbox.') === 0) {

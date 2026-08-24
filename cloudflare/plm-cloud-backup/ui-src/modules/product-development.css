@@ -886,7 +886,7 @@
 
 #plm-floating-helper .pfh-product-development-review-workspace {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(210px, .78fr) minmax(0, 1.72fr);
   min-width: 0;
   gap: 12px;
 }
@@ -1435,6 +1435,11 @@
     grid-column: 1 / -1;
   }
 
+  #plm-floating-helper .pfh-product-development-review-editor-columns,
+  #plm-floating-helper .pfh-product-development-review-option {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   #plm-floating-helper .pfh-product-development-review-view .pfh-product-development-review-head {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -1491,4 +1496,80 @@
   #plm-floating-helper .pfh-product-development-review-view .pfh-product-development-review-action > button:disabled .pfh-icon-refresh {
     animation: none;
   }
+}
+
+#plm-floating-helper .pfh-product-development-review-view .pfh-product-development-preview-scroll {
+  max-height: min(720px, calc(100vh - 430px));
+}
+
+#plm-floating-helper .pfh-product-development-preview-note {
+  padding: 7px 8px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 8px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor-warnings,
+#plm-floating-helper .pfh-product-development-review-warnings {
+  display: grid;
+  gap: 4px;
+  padding: 8px 9px;
+  border: 1px solid rgba(239, 68, 68, .24);
+  border-radius: 9px;
+  background: #fff7f7;
+  color: #9f2f3f;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+#plm-floating-helper .pfh-product-development-review-warnings strong {
+  font-size: 10px;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor-row.is-clear .pfh-product-development-review-editor-head b {
+  background: #94a3b8;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor-row.is-risk {
+  border-color: rgba(239, 68, 68, .38);
+  background: linear-gradient(145deg, #fffafa, var(--pfh-theme-control-surface));
+}
+
+.pfh-product-development-review-editor-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#plm-floating-helper .pfh-product-development-review-editor-columns > label {
+  display: grid;
+  gap: 4px;
+  color: var(--pfh-theme-muted);
+  font-size: 10px;
+}
+
+.pfh-product-development-review-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+  color: var(--pfh-theme-muted);
+  font-size: 10px;
+}
+
+#plm-floating-helper .pfh-product-development-review-options {
+  display: grid;
+  gap: 5px;
+  padding-top: 2px;
+}
+
+#plm-floating-helper .pfh-product-development-review-options > small {
+  color: #9f2f3f;
+  font-size: 9px;
+}
+
+#plm-floating-helper .pfh-product-development-review-options.is-empty > small {
+  color: var(--pfh-theme-muted);
 }

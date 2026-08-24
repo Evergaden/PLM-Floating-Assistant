@@ -1890,39 +1890,63 @@ function normalizeProductDevelopmentBbox(value) {
   return { x: safeX, y: safeY, w: safeW, h: safeH };
 }
 
-function sanitizeProductDevelopmentReviewCandidate(value, brand) {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(value.items)) {
-    throw new Error('product image review response has no items array');
+function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || (!Array.isArray(value.texts) && !Array.isArray(value.items))) {
+    throw new Error('product image review response has no texts array');
   }
   const allowedRiskTypes = new Set(['banned', 'exaggeration', 'medical', 'brand', 'unsupported', 'other']);
   const seen = new Set();
-  const items = value.items.map((item, index) => {
+  const sourceItems = Array.isArray(value.texts) ? value.texts : value.items;
+  const items = sourceItems.map((item, index) => {
     const source = item && typeof item === 'object' ? item : {};
     const sourceText = cleanText(source.sourceText || source.originalText || source.text, 240);
-    const replacementEn = cleanText(source.replacementEn || source.modifiedEnglish || source.english, 300);
-    const replacementZh = cleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation, 300);
+    let replacementEn = cleanText(source.replacementEn || source.modifiedEnglish || source.english || sourceText, 300);
+    const replacementZh = cleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation || source.translationZh || sourceText, 300);
     const bbox = normalizeProductDevelopmentBbox(source.bbox || source.box);
-    const key = [sourceText.toLowerCase(), bbox && bbox.x.toFixed(4), bbox && bbox.y.toFixed(4)].join('|');
-    if (!sourceText || !replacementEn || !replacementZh || !bbox || seen.has(key)) return null;
+    const textRole = cleanText(source.textRole || source.role, 40).toLowerCase();
+    if (textRole === 'netcontent' && rules.netContentStandard) replacementEn = cleanText(rules.netContentStandard, 120).toUpperCase();
+    if (textRole === 'petaudience' && rules.petAudience) replacementEn = cleanText(rules.petAudience, 80).toUpperCase();
+    const key = [cleanText(source.id || String(index + 1), 40), sourceText.toLowerCase()].join('|');
+    if (!sourceText || !replacementEn || !replacementZh || seen.has(key)) return null;
     const banned = productDevelopmentFindBannedTerm(replacementEn + ' ' + replacementZh, brand);
+    const riskTypes = Array.from(new Set((Array.isArray(source.riskTypes) ? source.riskTypes : [source.riskType])
+      .map((risk) => String(risk || '').trim().toLowerCase())
+      .filter((risk) => allowedRiskTypes.has(risk)))).slice(0, 4);
     if (banned || replacementEn.includes('*') || replacementZh.includes('*') || /\n\s*\n/.test(replacementEn + '\n' + replacementZh)) {
       throw new Error('product image review replacement contains a restricted term: ' + (banned || 'format'));
     }
     seen.add(key);
+    const replacementOptions = (Array.isArray(source.replacementOptions) ? source.replacementOptions : Array.isArray(source.alternatives) ? source.alternatives : [])
+      .map((option) => {
+        const optionSource = option && typeof option === 'object' ? option : {};
+        return {
+          en: cleanText(optionSource.en || optionSource.english || optionSource.replacementEn, 300),
+          zh: cleanText(optionSource.zh || optionSource.cn || optionSource.chinese || optionSource.translation, 300),
+        };
+      })
+      .filter((option) => option.en || option.zh)
+      .slice(0, 3);
+    const optionBanned = replacementOptions.map((option) => productDevelopmentFindBannedTerm(option.en + ' ' + option.zh, brand)).find(Boolean);
+    if (optionBanned || replacementOptions.some((option) => option.en.includes('*') || option.zh.includes('*'))) {
+      throw new Error('product image review alternative contains a restricted term: ' + (optionBanned || 'format'));
+    }
     return {
       id: cleanText(source.id || String(index + 1), 40),
       sourceText,
       bbox,
-      riskTypes: Array.from(new Set((Array.isArray(source.riskTypes) ? source.riskTypes : [source.riskType])
-        .map((risk) => String(risk || '').trim().toLowerCase())
-        .filter((risk) => allowedRiskTypes.has(risk)))).slice(0, 4),
+      textRole,
+      riskTypes,
+      riskReason: cleanText(source.riskReason || source.reason || source.warning, 400),
       replacementEn,
       replacementZh,
+      translationZh: cleanText(source.translationZh || source.translation || source.chinese, 300),
+      replacementOptions,
       confidence: Math.max(0, Math.min(1, Number(source.confidence) || 0)),
     };
-  }).filter(Boolean).slice(0, 30);
+  }).filter(Boolean).slice(0, 80);
   return {
-    items,
+    texts: items,
+    items: items.filter((item) => item.riskTypes.length),
     warnings: Array.isArray(value.warnings) ? value.warnings.map((item) => cleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
   };
 }
@@ -1935,6 +1959,9 @@ async function handleProductDevelopmentReview(request, env) {
   const name = cleanText(body.name, 300);
   const productType = cleanText(body.productType, 180);
   const brand = cleanText(body.brand, 160);
+  const category = cleanText(body.category || body.plmCategory, 180);
+  const netContentStandard = cleanText(body.netContentStandard, 120).toUpperCase();
+  const petAudience = cleanText(body.petAudience, 80).toUpperCase();
   const image = cleanModelScopeImages([body.imageDataUrl])[0] || '';
   const ingredients = normalizeProductDevelopmentIngredientInput(body.ingredients);
   const sellingPoints = body.sellingPoints && typeof body.sellingPoints === 'object' ? body.sellingPoints : {};
@@ -1956,33 +1983,39 @@ async function handleProductDevelopmentReview(request, env) {
       images: [image],
       system: [
         '你是产品包装文字风险初筛助手，不是法律意见提供者。',
-        '请先逐字读取对标图片中清晰可见的包装文字，再根据这些图片文字筛查可能涉及品牌、绝对化、夸大、医疗、疾病、认证、环境属性或未经证据支持的高风险表达。图片文字是主要证据。',
-        '坐标必须使用相对图片左上角的归一化 x、y、w、h，范围 0 到 1，覆盖对应原文字。',
-        '不要修改原图，不要输出清除文字后的包装图。每个风险项只提供原文字、风险类型和更保守的英文/简体中文替换建议。',
+        '请先逐字读取对标图片中清晰可见的全部包装文字，包括品牌、品名、卖点、规格、净含量、适用对象和包装底部文字；再筛查可能涉及品牌、绝对化、夸大、医疗、疾病、认证、环境属性或未经证据支持的高风险表达。图片文字是主要证据。',
+        '所有清晰可见文字都必须进入 texts，全部带可编辑的英文版本和简体中文翻译；看不清、无法确认的文字不要猜测。',
+        '坐标只有在可靠时才填写相对图片左上角的归一化 x、y、w、h，范围 0 到 1；不可靠时 bbox 必须为 null，前端不会画红框。',
+        '不要修改原图，不要输出清除文字后的包装图。风险文字需要 riskTypes、riskReason、至少两个更保守的英文/简体中文替换备选（若确实无法提供则为空数组）。',
         '替换建议不能出现品牌名称、Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、治疗等词语或同类表达。',
+        '净含量属于 netContent 文本时，textRole 必须为 netContent，英文 replacementEn 必须严格使用提供的净含量规范值，不得自行换算或添加单位；当前规范值为空时保留图片原文并标记需要人工确认。',
+        '当品牌为 Kriath 且类目/产品类型属于宠物入口时，适用对象文本 textRole 必须为 petAudience，英文 replacementEn 只能使用全大写 FOR DOGS & CATS、FOR DOGS 或 FOR CATS。',
         '成分证据可以为空；不要因为没有成分而停止图片文字风险筛查，也不要从图片或常识虚构成分。只使用提供的产品类型、成分（如有）和卖点作为补充事实依据，不要补写未提供的数值、认证、疾病或疗效。',
         '不要访问 WIPO 或其他外部查询网站；本接口只做图片文字读取和风险初筛。',
-        '没有可靠风险时返回空 items；看不清的文字不要猜测。所有内容必须是一个 JSON 对象，不要 Markdown。',
+        '没有可靠风险时仍返回清晰可见文字，但 riskTypes 为空；看不清的文字不要猜测。所有内容必须是一个 JSON 对象，不要 Markdown。',
       ].join(' '),
       prompt: [
         'SKU: ' + sku,
         'Product name: ' + name,
         'Product type: ' + productType,
+        'Category: ' + category,
         'Brand to avoid in replacements: ' + brand,
+        'Net content standard: ' + netContentStandard,
+        'Pet audience rule value: ' + petAudience,
         'Ingredients evidence: ' + JSON.stringify(ingredients),
         'Selling points evidence: ' + JSON.stringify(sellingPoints),
         'Efficacy evidence: ' + JSON.stringify(efficacy),
-        'Return exactly: {"items":[{"id":"1","sourceText":"...","bbox":{"x":0.1,"y":0.1,"w":0.2,"h":0.05},"riskTypes":["banned"],"replacementEn":"...","replacementZh":"...","confidence":0.9}],"warnings":["..."]}.',
+        'Return exactly: {"texts":[{"id":"1","sourceText":"...","bbox":null,"textRole":"","riskTypes":[],"riskReason":"","replacementEn":"...","replacementZh":"...","translationZh":"...","replacementOptions":[{"en":"...","zh":"..."},{"en":"...","zh":"..."}],"confidence":0.9}],"warnings":["..."]}.',
         '风险类型只能使用 banned、exaggeration、medical、brand、unsupported、other。',
       ].join('\n'),
     };
-    const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeProductDevelopmentReviewCandidate(parseProductDevelopmentJson(candidate.text), brand));
+    const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeProductDevelopmentReviewCandidate(parseProductDevelopmentJson(candidate.text), brand, { netContentStandard, petAudience }));
     return json({
       ok: true,
       ...preferred.value,
       provider: preferred.result.provider || preferred.result.source || '',
       model: preferred.result.model || '',
-      source: 'product-development-review-v1',
+      source: 'product-development-review-v2',
     });
   } catch (error) {
     const message = cleanText(error && error.message, 500) || 'product image review failed';
