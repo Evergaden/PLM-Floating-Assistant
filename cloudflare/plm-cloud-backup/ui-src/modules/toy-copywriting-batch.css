@@ -1,0 +1,249 @@
+/* Toy copywriting batch tool: one themed, bounded control system. */
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-page{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:14px 16px 22px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-card{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-form{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-form label{
+  font-size:11px;
+  letter-spacing:.02em;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-input{
+  width:100%;
+  min-height:92px;
+  max-height:180px;
+  resize:vertical;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-hint{
+  margin:0;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:10px;
+  line-height:1.55;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:10px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-summary strong{
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:12px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-queue{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  max-height:310px;
+  overflow:auto;
+  padding-right:2px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  padding:8px 9px;
+  border:1px solid var(--pfh-theme-border,#d8deea);
+  border-radius:11px;
+  background:var(--pfh-theme-surface-alt,#f7f8fc);
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main{
+  display:flex;
+  flex:1 1 auto;
+  min-width:0;
+  flex-direction:column;
+  gap:2px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main b{
+  overflow:hidden;
+  color:var(--pfh-theme-text,#1f2937);
+  font-size:11px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main small{
+  overflow:hidden;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:9px;
+  line-height:1.35;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status{
+  flex:0 0 auto;
+  font-size:9px;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-done{color:#16803c;}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-error{color:#c2410c;}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-running{color:#5b21b6;}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-pending{color:#9a6700;}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row button{
+  flex:0 0 auto;
+  width:24px;
+  height:24px;
+  padding:0;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:var(--pfh-theme-muted,#64748b);
+  cursor:pointer;
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row button:hover{
+  background:var(--pfh-theme-primary-soft,#f3efff);
+  color:var(--pfh-theme-primary,#7c3aed);
+}
+#plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-empty{
+  padding:18px 10px;
+  border:1px dashed var(--pfh-theme-border,#d8deea);
+  border-radius:11px;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:11px;
+  text-align:center;
+}
+
+/* The form row keeps both controls in the same theme and the same box. */
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions > button{
+  display:inline-flex;
+  width:100%;
+  min-width:0;
+  height:40px;
+  min-height:40px;
+  box-sizing:border-box;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  padding:0 12px;
+  border:1px solid var(--pfh-theme-border);
+  border-radius:12px;
+  background:var(--pfh-theme-surface);
+  color:var(--pfh-theme-primary);
+  font:inherit;
+  font-size:11px;
+  line-height:1;
+  text-align:center;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions > button:hover:not(:disabled){
+  border-color:var(--pfh-theme-border-strong);
+  background:var(--pfh-theme-primary-soft);
+  color:var(--pfh-theme-primary-hover);
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions > button:last-child{
+  border-color:var(--pfh-theme-primary);
+  background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover));
+  color:#fff;
+  box-shadow:0 8px 18px var(--pfh-theme-shadow-soft);
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-form .pfh-mini-tool-actions > button:last-child:hover:not(:disabled){
+  border-color:var(--pfh-theme-primary-hover);
+  background:var(--pfh-theme-primary-hover);
+  color:#fff;
+  box-shadow:0 12px 24px var(--pfh-theme-shadow);
+}
+
+/* The five batch controls use a fixed four-track grid; the clear action gets a full track. */
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions > button{
+  display:inline-flex;
+  width:100%;
+  min-width:0;
+  height:36px;
+  min-height:36px;
+  box-sizing:border-box;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  padding:0 8px;
+  border:1px solid var(--pfh-theme-border);
+  border-radius:10px;
+  background:var(--pfh-theme-surface);
+  color:var(--pfh-theme-primary);
+  font:inherit;
+  font-size:10px;
+  line-height:1;
+  text-align:center;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  box-shadow:0 2px 8px var(--pfh-theme-shadow-soft);
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions > button:hover:not(:disabled){
+  border-color:var(--pfh-theme-border-strong);
+  background:var(--pfh-theme-primary-soft);
+  color:var(--pfh-theme-primary-hover);
+  box-shadow:0 8px 16px var(--pfh-theme-shadow-soft);
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions > button:last-child{
+  grid-column:1 / -1;
+  border-color:var(--pfh-theme-primary);
+  background:linear-gradient(135deg,var(--pfh-theme-primary),var(--pfh-theme-primary-hover));
+  color:#fff;
+  box-shadow:0 8px 18px var(--pfh-theme-shadow-soft);
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions > button:last-child:hover:not(:disabled){
+  border-color:var(--pfh-theme-primary-hover);
+  background:var(--pfh-theme-primary-hover);
+  color:#fff;
+  box-shadow:0 12px 24px var(--pfh-theme-shadow);
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions > button:disabled{
+  border-color:var(--pfh-theme-border);
+  background:var(--pfh-theme-surface-alt);
+  color:var(--pfh-theme-muted);
+  cursor:not-allowed;
+  opacity:.48;
+  box-shadow:none;
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-progress{
+  margin:0;
+  color:var(--pfh-theme-primary-hover,#5b21b6);
+  font-size:10px;
+  line-height:1.5;
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-head{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-head h3{margin:2px 0 0;}
+#plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-head p{
+  margin:0;
+  color:var(--pfh-theme-muted,#64748b);
+  font-size:10px;
+  line-height:1.5;
+}
+@media(max-width:430px){
+  #plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions:where(.pfh-toy-copywriting-batch-actions){
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:340px){
+  #plm-floating-helper[data-view="tools"] .pfh-tools-panel.pfh-toy-copywriting-batch-page .pfh-toy-copywriting-batch-actions:is(.pfh-toy-copywriting-batch-actions){
+    grid-template-columns:minmax(0,1fr);
+  }
+}

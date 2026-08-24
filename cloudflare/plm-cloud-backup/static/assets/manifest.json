@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "dataVersion": "2026-08-23.2",
+  "dataVersion": "2026-08-24.1",
   "minimumClientVersion": "2.5.105",
   "assets": {
     "runtimeData": {
@@ -19,9 +19,9 @@
       "sha256": "c612ee5b7df3d79bb6c15ffea30c5748c4a9dd9cd2086d3384bac8eea456eb50"
     },
     "uiStyles": {
-      "path": "v15/ui-2.5.255.css",
-      "bytes": 689264,
-      "sha256": "790ac7753a0d749c0ce02cf44cefcc439ba5dc4b8f79a6e664216de87b14041e"
+      "path": "v15/ui-2.5.256.css",
+      "bytes": 694040,
+      "sha256": "487c931a0c3ef2235f926421b2d788f918da8f5066f48c0b8fa7d290dfc816c0"
     },
     "uiStyleVersions": {
       "2.5.108": {
@@ -194,10 +194,10 @@
         "bytes": 654608,
         "sha256": "81019b78e62aea3f5d51fb8f1596e85946b678105cb554dd87e18ce04406669b"
       },
-      "2.5.255": {
-        "path": "v15/ui-2.5.255.css",
-        "bytes": 689264,
-        "sha256": "790ac7753a0d749c0ce02cf44cefcc439ba5dc4b8f79a6e664216de87b14041e"
+      "2.5.256": {
+        "path": "v15/ui-2.5.256.css",
+        "bytes": 694040,
+        "sha256": "487c931a0c3ef2235f926421b2d788f918da8f5066f48c0b8fa7d290dfc816c0"
       }
     }
   }

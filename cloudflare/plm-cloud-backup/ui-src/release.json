@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "enforceExactDebtBaselines": true,
-  "version": "2.5.255",
+  "version": "2.5.256",
   "outputDirectory": "static/assets/v15",
   "sources": [
     {
       "path": "legacy.css",
       "mode": "legacy",
-      "maxBytes": 299873,
+      "maxBytes": 295710,
       "maxImportant": 2171,
       "forbidSelectorFragments": [
         ".pfh-toast",
@@ -19,6 +19,7 @@
         ".pfh-sku-view-indicator",
         ".pfh-magic-",
         ".pfh-batch-excel-",
+        ".pfh-toy-copywriting-batch-",
         ".pfh-ledger-",
         ".pfh-upload-",
         ".pfh-copywriting-",
@@ -83,6 +84,10 @@
     },
     {
       "path": "modules/batch-excel-layout.css",
+      "mode": "module"
+    },
+    {
+      "path": "modules/toy-copywriting-batch.css",
       "mode": "module"
     },
     {

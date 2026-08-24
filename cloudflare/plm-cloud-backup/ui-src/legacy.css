@@ -5994,30 +5994,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
     @media(max-width:430px){#plm-floating-helper[data-pfh-theme] .pfh-theme-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 
 /* PLM migrated static styles: batch-and-tools */
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-page{display:flex;flex-direction:column;gap:12px;padding:14px 16px 22px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-card{display:flex;flex-direction:column;gap:10px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-form{display:flex;flex-direction:column;gap:8px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-form label{font-size:11px;letter-spacing:.02em;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-input{width:100%;min-height:92px;max-height:180px;resize:vertical;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-hint{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.55;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--pfh-theme-muted,#64748b);font-size:10px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-summary strong{color:var(--pfh-theme-text,#1f2937);font-size:12px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-queue{display:flex;flex-direction:column;gap:7px;max-height:310px;overflow:auto;padding-right:2px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 9px;border:1px solid var(--pfh-theme-border,#d8deea);border-radius:11px;background:var(--pfh-theme-surface-alt,#f7f8fc);}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main{display:flex;flex:1 1 auto;min-width:0;flex-direction:column;gap:2px;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main b{overflow:hidden;color:var(--pfh-theme-text,#1f2937);font-size:11px;text-overflow:ellipsis;white-space:nowrap;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row-main small{overflow:hidden;color:var(--pfh-theme-muted,#64748b);font-size:9px;line-height:1.35;text-overflow:ellipsis;white-space:nowrap;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status{flex:0 0 auto;font-size:9px;white-space:nowrap;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-done{color:#16803c;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-error{color:#c2410c;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-running{color:#5b21b6;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-status.is-pending{color:#9a6700;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row button{flex:0 0 auto;width:24px;height:24px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--pfh-theme-muted,#64748b);cursor:pointer;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-row button:hover{background:var(--pfh-theme-primary-soft,#f3efff);color:var(--pfh-theme-primary,#7c3aed);}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-empty{padding:18px 10px;border:1px dashed var(--pfh-theme-border,#d8deea);border-radius:11px;color:var(--pfh-theme-muted,#64748b);font-size:11px;text-align:center;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-actions{display:flex;gap:7px;flex-wrap:wrap;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-actions button{flex:1 1 120px;min-width:0;}
-    #plm-floating-helper[data-view="tools"] .pfh-toy-copywriting-batch-progress{margin:0;color:var(--pfh-theme-primary-hover,#5b21b6);font-size:10px;line-height:1.5;}
     #plm-floating-helper[data-view="tools"] .pfh-tools-page{display:flex;flex-direction:column;gap:12px;min-height:100%;padding:14px 16px 22px;}
     #plm-floating-helper[data-view="tools"] .pfh-tools-head{display:flex;align-items:flex-start;gap:10px;flex:0 0 auto;}
     #plm-floating-helper[data-view="tools"] .pfh-tools-head>div:last-child{min-width:0;}
@@ -6048,9 +6024,6 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
     #plm-floating-helper[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-result strong{display:block;overflow:auto;max-height:86px;color:var(--pfh-theme-text,#1f2937);font-size:12px;line-height:1.5;word-break:break-word;white-space:pre-wrap;}
     #plm-floating-helper[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-actions{display:flex;gap:7px;flex-wrap:wrap;}
     #plm-floating-helper[data-view="tools"] .pfh-tools-panel .pfh-mini-tool-actions button{flex:1 1 110px;min-width:0;}
-    #plm-floating-helper[data-view="tools"] .pfh-tools-panel .pfh-toy-copywriting-batch-head{display:flex;flex-direction:column;gap:2px;}
-    #plm-floating-helper[data-view="tools"] .pfh-tools-panel .pfh-toy-copywriting-batch-head h3{margin:2px 0 0;}
-    #plm-floating-helper[data-view="tools"] .pfh-tools-panel .pfh-toy-copywriting-batch-head p{margin:0;color:var(--pfh-theme-muted,#64748b);font-size:10px;line-height:1.5;}
     #plm-floating-helper[data-view="feedback"] .pfh-feedback-page{display:flex;flex-direction:column;gap:12px;min-height:100%;padding:14px 16px 22px;}
     #plm-floating-helper[data-view="feedback"] .pfh-feedback-submit-card{order:0;margin-top:0;}
     #plm-floating-helper[data-view="feedback"] .pfh-feedback-history-card{order:1;}
