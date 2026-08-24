@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.178
+// @version      2.8.179
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.178';
+  const SCRIPT_VERSION = '2.8.179';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -3012,7 +3012,7 @@
         return originalSend.apply(this, arguments);
       };
     }
-    root.PLMApiMonitor = { status: () => ({ enabled: Boolean(plmApiMonitorState.enabled), count: plmApiMonitorState.entries.length }), entries: () => plmApiMonitorState.entries.slice(), clear: () => { plmApiMonitorState.entries = []; savePlmApiMonitorState(); }, export: () => downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-api-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json') };
+    root.PLMApiMonitor = { status: () => ({ enabled: Boolean(plmApiMonitorState.enabled), count: plmApiMonitorState.entries.length }), entries: () => plmApiMonitorState.entries.slice(), clear: () => { plmApiMonitorState.entries = []; savePlmApiMonitorState(); }, export: () => downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-data-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json') };
   }
   // <cloud-assets-module>
 
@@ -5376,7 +5376,7 @@
     for (let page = 1; page <= PRODUCT_DEVELOPMENT_TASK_MAX_PAGES; page += 1) {
       const payload = await fetchPlmJson(PRODUCT_DEVELOPMENT_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE + '&sort_field=create_at&sort_asc=false');
       if (payload && payload.success === false) {
-        throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '开发任务 API 返回失败');
+        throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '开发任务数据读取失败');
       }
       const pageRows = typeof getApiListItems === 'function' ? getApiListItems(payload) : [];
       total = typeof getApiListTotal === 'function' ? getApiListTotal(payload) || total : total;
@@ -7210,19 +7210,19 @@
   const initialNotificationCache = loadNotificationCache();
   const initialHomeGreetingCache = loadHomeGreetingCache();
   if (typeof GM_registerMenuCommand === 'function') {
-    GM_registerMenuCommand(plmApiMonitorState.enabled ? '关闭 PLM API 监听' : '开启 PLM API 监听', () => {
+    GM_registerMenuCommand(plmApiMonitorState.enabled ? '关闭 PLM 数据监听' : '开启 PLM 数据监听', () => {
       plmApiMonitorState.enabled = !plmApiMonitorState.enabled;
       savePlmApiMonitorState();
-      const message = plmApiMonitorState.enabled ? 'API 监听已开启，请刷新页面后操作 PLM' : 'API 监听已关闭';
-      console.info('[PLM API监听]', message);
+      const message = plmApiMonitorState.enabled ? '数据监听已开启，请刷新页面后操作 PLM' : '数据监听已关闭';
+      console.info('[PLM 数据监听]', message);
       try { showToast(message); } catch (_) { /* panel may not exist yet */ }
       window.alert(message);
     });
-    GM_registerMenuCommand('导出 PLM API 监听结果', () => {
-      downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-api-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json');
-      console.info('[PLM API监听] 已导出 ' + plmApiMonitorState.entries.length + ' 条记录');
+    GM_registerMenuCommand('导出 PLM 数据监听结果', () => {
+      downloadBlob(new Blob([JSON.stringify(plmApiMonitorState.entries, null, 2)], { type: 'application/json' }), 'plm-data-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json');
+      console.info('[PLM 数据监听] 已导出 ' + plmApiMonitorState.entries.length + ' 条记录');
     });
-    GM_registerMenuCommand('清空 PLM API 监听结果', () => {
+    GM_registerMenuCommand('清空 PLM 数据监听结果', () => {
       plmApiMonitorState.entries = [];
       savePlmApiMonitorState();
     });
@@ -7873,7 +7873,7 @@
         + '&sort_field=' + encodeURIComponent(ASSIGNED_DESIGN_TASK_SORT_FIELD)
         + '&sort_asc=' + String(ASSIGNED_DESIGN_TASK_SORT_ASC));
       if (payload && payload.success === false) {
-        throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '\u8bbe\u8ba1\u4efb\u52a1 API \u8fd4\u56de\u5931\u8d25');
+        throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '\u8bbe\u8ba1\u4efb\u52a1\u6570\u636e\u8bfb\u53d6\u5931\u8d25');
       }
       const pageRows = getApiListItems(payload);
       total = getApiListTotal(payload) || total;
@@ -8644,7 +8644,7 @@
           updatedAtMs: Date.now(),
         });
         if (apiPackagingFinal.packageSizeText || apiPackagingFinal.printSizeText || apiPackagingFinal.netContent || apiPackagingFinal.grossWeight) {
-          addLog('success', '已用 PLM 接口更新产品与包材数据', sku + ' | 纸盒 ' + (apiPackagingFinal.packageSizeText || '无') + ' | 标签/印刷 ' + (apiPackagingFinal.printSizeText || '无') + ' | 净含量 ' + (apiPackagingFinal.netContent || '无') + ' | 毛重 ' + (apiPackagingFinal.grossWeight || '无'));
+          addLog('success', '已用 PLM 数据服务更新产品与包材数据', sku + ' | 纸盒 ' + (apiPackagingFinal.packageSizeText || '无') + ' | 标签/印刷 ' + (apiPackagingFinal.printSizeText || '无') + ' | 净含量 ' + (apiPackagingFinal.netContent || '无') + ' | 毛重 ' + (apiPackagingFinal.grossWeight || '无'));
         }
       }
       const apiDomesticThirdTierPrice = extractApiDomesticThirdTierPrice([apiPackagingFinal, apiPackagingFinal && apiPackagingFinal.apiProject]);
@@ -8655,10 +8655,10 @@
           purchasePriceSource: 'plm-api-domestic-third-tier',
           purchasePriceUpdatedAt: new Date().toLocaleString(),
         });
-        addLog('success', '已用 PLM 接口读取国内三档价格', sku + ' | ' + apiDomesticThirdTierPrice);
+        addLog('success', '已用 PLM 数据服务读取国内三档价格', sku + ' | ' + apiDomesticThirdTierPrice);
       }
       if (!isDrawerProductFlowCurrent(sku, token, drawer)) return;
-      saveData(sku, merged, { changeSource: 'PLM 接口' });
+      saveData(sku, merged, { changeSource: 'PLM 数据服务' });
       apiDataSaved = true;
       if (state.selectedSku === sku) state.data = normalizeData(loadData(sku) || merged);
       if (includeScanTabs && !shouldSkipLedgerDrawer(drawer)) {
@@ -9151,7 +9151,7 @@
         id: String(entry.id || ('infringement-version-' + (updatedAtMs || index))),
         updatedAt,
         updatedAtMs,
-        source: String(entry.source || 'PLM 接口').trim(),
+        source: String(entry.source || 'PLM 数据服务').trim(),
         imageUrls,
         copywriting,
         signature: String(entry.signature || JSON.stringify([imageUrls, copywriting])),
@@ -9220,14 +9220,14 @@
         id: 'infringement-version-' + updatedAtMs + '-' + Math.random().toString(36).slice(2, 7),
         updatedAt: snapshot.updatedAt || new Date(updatedAtMs).toLocaleString(),
         updatedAtMs,
-        source: String(source || opts.changeSource || 'PLM 接口'),
+        source: String(source || opts.changeSource || 'PLM 数据服务'),
         imageUrls: snapshot.imageUrls.slice(0, 20),
         copywriting: snapshot.copywriting,
         signature,
       });
     };
     add(getInfringementSnapshot(previous), '历史版本');
-    add(getInfringementSnapshot(next), opts.changeSource || 'PLM 接口');
+    add(getInfringementSnapshot(next), opts.changeSource || 'PLM 数据服务');
     return history.slice(-INFRINGEMENT_HISTORY_LIMIT);
   }
 
@@ -9910,13 +9910,13 @@
               .then((payload) => ({ payload, error: '' }))
               .catch((error) => {
                 const message = formatErrorMessage(error);
-                addLog('warn', 'Excel 产品详情 API 读取失败', sku + ' | ' + message);
+                addLog('warn', 'Excel 产品详情读取失败', sku + ' | ' + message);
                 return { payload: null, error: message };
               }),
             fetchPlmJson('/api/Product/GetDetailInfo?product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId))
               .then((payload) => ({ payload, error: '' }))
               .catch((error) => {
-                addLog('info', 'Excel 产品基础信息 API 不可用，继续使用产品列表', sku + ' | ' + formatErrorMessage(error));
+                addLog('info', 'Excel 产品基础信息暂不可用，继续使用产品列表', sku + ' | ' + formatErrorMessage(error));
                 return { payload: null, error: formatErrorMessage(error) };
               }),
           ]);
@@ -9982,7 +9982,7 @@
             const referenceUrl = String(referenceValue || '').match(/https?:\/\/[^\s]+/i)?.[0] || '';
             detailReferenceState = getApiFieldState(referenceUrl, true);
             if (referenceUrl) {
-              addLog('info', 'Excel 项目详情 API 已补到对标链接', sku + ' | projectId=' + existingId);
+              addLog('info', 'Excel 项目详情已补到对标链接', sku + ' | projectId=' + existingId);
               return {
                 found: true,
                 sku,
@@ -10052,7 +10052,7 @@
             lastError = error;
           }
         }
-        if (lastError) addLog('info', 'Excel 项目列表 API 未命中，继续使用产品/页面数据', sku + ' | ' + formatErrorMessage(lastError));
+        if (lastError) addLog('info', 'Excel 项目列表未命中，继续使用产品/页面数据', sku + ' | ' + formatErrorMessage(lastError));
         if (existingId) return {
           found: true,
           sku,
@@ -10296,7 +10296,7 @@
     if (options && options.force) delete apiCopywritingFileCache[sku];
     if (!apiCopywritingFileCache[sku]) {
       const request = (async () => {
-        addLog('info', '产品文案 API：开始读取产品关联', sku);
+        addLog('info', '产品文案：开始读取产品关联', sku);
         const productPayload = await fetchPlmJson('/api/Product/GetProductList?page=1&pageSize=20&codes=' + encodeURIComponent(sku));
         const list = productPayload && productPayload.data && Array.isArray(productPayload.data.list) ? productPayload.data.list : [];
         const product = list.find((item) => String(item && (item.product_code || item.code) || '').trim() === sku) || list[0] || {};
@@ -10306,14 +10306,14 @@
         if (!productId || !productVersionId || !categoryId) {
           throw new Error('产品列表缺少详情关联');
         }
-        addLog('info', '产品文案 API：读取产品详情字段', sku + ' | product_id=' + productId + ' | category_id=' + categoryId);
+        addLog('info', '产品文案：读取产品详情字段', sku + ' | product_id=' + productId + ' | category_id=' + categoryId);
         const contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId));
         const ids = extractApiCopywritingFileIds(contentPayload);
         if (!ids.length) {
-          addLog('info', '产品文案 API：详情中没有关联 Word', sku);
+          addLog('info', '产品文案：详情中没有关联 Word', sku);
           return { found: false, reason: '产品文案字段没有附件 ID' };
         }
-        addLog('info', '产品文案 API：找到文案附件 ID', sku + ' | ids=' + ids.join(','));
+        addLog('info', '产品文案：找到文案附件 ID', sku + ' | ids=' + ids.join(','));
         const filePayload = await fetchPlmApiJson('/api/Product/GetArchiveFileVersionListByFileVersionId', { ids: ids.map((id) => Number(id)) });
         const records = getApiArchiveFileRecords(filePayload)
           .filter((item) => item && !Number(item.is_invalid || 0))
@@ -10326,13 +10326,13 @@
           return bStamp.localeCompare(aStamp);
         })[0];
         if (!file) {
-          addLog('info', '产品文案 API：附件列表中没有 docx', sku + ' | records=' + records.length);
+          addLog('info', '产品文案：附件列表中没有 docx', sku + ' | records=' + records.length);
           return { found: false, reason: '附件列表中没有 docx' };
         }
         const url = buildApiArchiveFileUrl(file.file_path);
         if (!url) throw new Error('文案附件缺少 file_path');
         const fileName = String(file.file_name || '').trim();
-        addLog('info', '产品文案 API：命中文案 Word', sku + ' | ' + fileName + ' | ' + redactCopywritingUrl(url));
+        addLog('info', '产品文案：命中文案 Word', sku + ' | ' + fileName + ' | ' + redactCopywritingUrl(url));
         return {
           found: true,
           fileName,
@@ -10781,7 +10781,7 @@
     const text = response && typeof response.responseText === 'string' ? response.responseText : await response.text();
     if (status < 200 || status >= 300) throw new Error('HTTP ' + status);
     const payload = JSON.parse(text || '{}');
-    if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM API 返回失败');
+    if (payload && payload.success === false) throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || 'PLM 数据读取失败');
     return payload;
   }
 
@@ -10790,7 +10790,7 @@
     const projectId = getProjectIdForMaterialApi(data);
     if (!projectId || !window.fetch) {
       if (sku) {
-        addLog('warn', '详情自动读取物料接口跳过', sku + ' | 未找到项目 ID');
+        addLog('warn', '详情自动读取物料数据已跳过', sku + ' | 未找到项目 ID');
         setApiReadStatus(sku, 'error', '未找到项目 ID');
       }
       return emptyPackaging();
@@ -10798,7 +10798,7 @@
     setApiReadStatus(sku, 'loading', '正在读取 PLM 数据');
     if (options && options.force) delete apiProjectMaterialCache[projectId];
     if (!apiProjectMaterialCache[projectId]) {
-      addLog('info', '详情自动读取 PLM 物料接口', sku + ' | projectId=' + projectId);
+      addLog('info', '详情自动读取 PLM 物料数据', sku + ' | projectId=' + projectId);
       const prefetchedProjectPayload = options && options.projectPayload;
       const prefetchedProduct = options && options.productSnapshot && options.productSnapshot.product;
       const projectRequest = prefetchedProjectPayload
@@ -10814,7 +10814,7 @@
           infringement: extractApiInfringementData(payload),
         }))
         .catch((error) => {
-          addLog('warn', 'PLM 项目物料读取失败，继续读取产品接口', sku + ' | ' + formatErrorMessage(error));
+          addLog('warn', 'PLM 项目物料读取失败，继续读取产品数据', sku + ' | ' + formatErrorMessage(error));
           return { result: emptyPackaging(), project: {}, infringement: { infringementImageUrls: [], infringementImageUrl: '', infringementImageSource: '', infringementCopywriting: '', apiFieldStates: {} } };
         });
       const productSku = sku;
@@ -10866,7 +10866,7 @@
             });
         })
         .then((result) => {
-          addLog('info', 'PLM 接口读取完成', sku + ' | 纸盒=' + (result.packageSizeText || '无') + ' | 标签/印刷=' + (result.printSizeText || '无') + ' | 净含量=' + (result.netContent || '无') + ' | 毛重=' + (result.grossWeight || '无'));
+          addLog('info', 'PLM 数据读取完成', sku + ' | 纸盒=' + (result.packageSizeText || '无') + ' | 标签/印刷=' + (result.printSizeText || '无') + ' | 净含量=' + (result.netContent || '无') + ' | 毛重=' + (result.grossWeight || '无'));
           setApiReadStatus(sku, 'success', hasApiPackagingResult(result) ? 'PLM 数据读取完成' : 'PLM 读取完成，暂无可用字段');
           return result;
         })
@@ -10874,7 +10874,7 @@
           const detail = /HTTP 401/.test(formatErrorMessage(error))
             ? formatErrorMessage(error) + ' | 请刷新 PLM 页面后重试，或检查当前账号项目权限'
             : formatErrorMessage(error);
-          addLog('warn', 'PLM 物料接口读取失败', sku + ' | ' + detail);
+          addLog('warn', 'PLM 物料数据读取失败', sku + ' | ' + detail);
           setApiReadStatus(sku, 'error', 'PLM 读取失败');
           return emptyPackaging();
         });
@@ -10905,7 +10905,7 @@
         updatedAt: new Date().toLocaleString(),
         updatedAtMs: Date.now(),
       });
-      saveData(sku, merged, { changeSource: 'PLM 接口' });
+      saveData(sku, merged, { changeSource: 'PLM 数据服务' });
       setApiReadStatus(sku, 'success', 'PLM 数据读取完成');
       if (state.selectedSku === sku) {
         state.data = merged;
@@ -10914,7 +10914,7 @@
       }
     } catch (error) {
       setApiReadStatus(sku, 'error', 'PLM 读取失败');
-      addLog('warn', '搜索 SKU 自动 API 刷新失败', sku + ' | ' + formatErrorMessage(error));
+      addLog('warn', '搜索 SKU 自动刷新失败', sku + ' | ' + formatErrorMessage(error));
       if (state.selectedSku === sku) showToast('PLM 刷新失败，请稍后重试', { quiet: true });
     }
   }
@@ -10928,11 +10928,11 @@
     let project = null;
     [product, project] = await Promise.all([
       fetchApiProductSnapshot({ sku }, opts).catch((error) => {
-        addLog('warn', 'Excel 产品 API 补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
+        addLog('warn', 'Excel 产品数据补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
         return null;
       }),
       fetchApiProjectSnapshot(current, opts).catch((error) => {
-        addLog('info', 'Excel 项目 API 补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
+        addLog('info', 'Excel 项目数据补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
         return null;
       }),
     ]);
@@ -10968,7 +10968,7 @@
           imageFallbackUrl = image.url;
         }
       } catch (error) {
-        addLog('info', 'Excel 产品图片附件 API 读取失败，继续使用页面图片', sku + ' | ' + formatErrorMessage(error));
+        addLog('info', 'Excel 产品图片附件读取失败，继续使用页面图片', sku + ' | ' + formatErrorMessage(error));
       }
     }
     const apiProductFound = Boolean(product && product.found);
@@ -11028,7 +11028,7 @@
           productSnapshot: product,
         });
       } catch (error) {
-        addLog('warn', 'Excel 物料 API 补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
+        addLog('warn', 'Excel 物料数据补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
       }
     }
     const projectDetail = material && material.apiProject || {};
@@ -11100,7 +11100,7 @@
       try {
         ingredientFile = await findApiIngredientPdfFromContent(product.contentPayload, sku);
       } catch (error) {
-        addLog('info', 'Excel 成分表附件 API 读取失败，继续使用页面附件', sku + ' | ' + formatErrorMessage(error));
+        addLog('info', 'Excel 成分表附件读取失败，继续使用页面附件', sku + ' | ' + formatErrorMessage(error));
       }
     }
     const apiDataAvailable = Boolean(product && product.found || project && project.found || hasApiPackagingResult(material));
@@ -12046,6 +12046,7 @@
         panel = null;
       } else {
         panel.dataset.version = SCRIPT_VERSION;
+        installVisibleTechnicalTextNeutralizer(panel);
         applyThemeToView();
         return panel;
       }
@@ -12097,6 +12098,7 @@
     panel.addEventListener('dragover', handlePanelDragOver);
     panel.addEventListener('drop', handlePanelDrop);
     panel.querySelector('.pfh-import-file').addEventListener('change', handleImportFile);
+    installVisibleTechnicalTextNeutralizer(panel);
     makeDraggable(panel, panel.querySelector('.pfh-header'));
     makeSplitterDraggable(panel, panel.querySelector('.pfh-splitter'));
     makePanelResizable(panel);
@@ -13146,7 +13148,7 @@
 
   function feedbackErrorText(error) {
     const message = formatErrorMessage(error);
-    if (Number(error && error.status) === 404 || /(?:not found|\b404\b)/i.test(message)) return '反馈接口尚未部署，请更新 Worker 后再试。';
+    if (Number(error && error.status) === 404 || /(?:not found|\b404\b)/i.test(message)) return '反馈服务尚未部署，请更新 Worker 后再试。';
     if (/name required/i.test(message)) return '未识别当前 PLM 用户，请先登录后再提交反馈。';
     if (/invalid feedback type/i.test(message)) return '反馈类型无效，请重新选择。';
     if (/content required/i.test(message)) return '请填写反馈内容。';
@@ -14871,11 +14873,11 @@
     const historyHtml = historyOpen ? '<div class="pfh-magic-history-modal" data-action="magic-toy-label-history-close"><section class="pfh-magic-history-dialog" role="dialog" aria-modal="true" aria-label="玩具标签历史"><header><span>' + iconHtml('history') + ' 玩具标签历史 · ' + history.length + ' 条</span><button type="button" data-action="magic-toy-label-history-close">×</button></header><div class="pfh-magic-history-list">' + (history.length ? history.slice(0, 40).map((entry) => '<div class="pfh-magic-history-item"><div><strong>' + escapeHtml(entry.sku || '待确认 SKU') + ' · ' + escapeHtml(entry.status === 'success' ? '成功' : '失败') + '</strong><span>' + escapeHtml(entry.name || '标签尺寸说明图') + ' · ' + escapeHtml(entry.materialCode || '标签物料') + ' · ' + escapeHtml(entry.finishedAt ? new Date(entry.finishedAt).toLocaleString() : '') + '</span></div>' + (entry.status === 'success' ? '' : '<button type="button" data-action="magic-toy-label-history-retry" data-magic-toy-label-history-id="' + escapeHtml(entry.id) + '">' + iconHtml('refresh') + '恢复</button>') + '</div>').join('') : '<div class="pfh-magic-history-empty">还没有玩具标签历史</div>') + '</div></section></div>' : '';
     const activity = queue.filter((task) => task.status === 'processing' || task.status === 'success' || task.status === 'error').slice(0, 3);
     const activityHtml = activity.length ? activity.map((task) => '<p><i></i><span>' + escapeHtml(task.sku + ' · ' + magicToyLabelStatusLabel(task)) + '</span></p>').join('') : '<p><i></i><span>' + escapeHtml(state.magicToyLabelStatus || '等待 SKU 进入队列') + '</span></p>';
-    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL API</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + successCount + '/' + queue.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + pendingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM API</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + escapeHtml(state.magicToyLabelInput || '') + '</textarea><p class="pfh-magic-toy-label-hint">玩具标签固定按宽4×高3cm生成，不读取 BOM 或普通印刷尺寸；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-toy-label-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + iconHtml('history') + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + queue.length + ' 个 SKU · API 写入标签物料</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
+    return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">TOY LABEL FLOW</span></div>' + modeTabs + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(activeCount).padStart(2, '0') + '</strong></div><div class="pfh-magic-stat"><span>已写入 BOM</span><strong>' + successCount + '/' + queue.length + '</strong></div><div class="pfh-magic-stat"><span>待处理/失败</span><strong>' + pendingCount + '/' + errorCount + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (running ? 'ON' : '--') + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3>' + activityHtml + '</div></section><section class="pfh-magic-toy-label-form"><div class="pfh-magic-toy-label-form-head"><div><b>批量输入 SKU</b><span>每行一个，也支持空格、逗号或分号分隔</span></div><strong>尺寸图 → OSS → BOM 写入</strong></div><textarea class="pfh-magic-toy-label-input" rows="4" placeholder="SKU12345678\nSKU12345679">' + escapeHtml(state.magicToyLabelInput || '') + '</textarea><p class="pfh-magic-toy-label-hint">玩具标签固定按宽4×高3cm生成，不读取 BOM 或普通印刷尺寸；生成 3000×3000 PNG 后，按 HAR 中的 upload_file_type 40 上传，并回写对应标签物料。</p></section><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-toy-label-add">加入队列</button><button type="button" class="is-primary" data-action="magic-toy-label-start"' + (running || !pendingCount ? ' disabled' : '') + '>' + iconHtml('upload') + '开始生成并上传</button><button type="button" data-action="magic-toy-label-pause"' + (!running ? ' disabled' : '') + '>' + iconHtml(running ? 'pause' : 'play') + (running ? '暂停' : '继续') + '</button><button type="button" data-action="magic-toy-label-clear"' + (!queue.length ? ' disabled' : '') + '>清空队列</button><button type="button" class="pfh-magic-history-toggle" data-action="magic-toy-label-history-toggle">' + iconHtml('history') + '历史</button></div><div class="pfh-magic-queue-head"><b>玩具标签队列</b><span>' + queue.length + ' 个 SKU · 后台写入标签物料</span></div><div class="pfh-magic-queue">' + rows + '</div>' + historyHtml + '</div></section></div>';
   }
 
   function magicUploadViewHtml() {
-    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">API PIPELINE</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></div></div></section></div>';
+    if (!state.magicUploadAccessEnabled) return '<div class="pfh-detail-scroll"><section class="pfh-magic-page is-locked"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + iconHtml('back') + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">后台流程</span></div><div class="pfh-magic-main-card"><div class="pfh-magic-hero"><div><small>MAGIC UPLOAD / AURORA GLASS</small><h2>极光投放</h2><p>' + escapeHtml(state.magicUploadAccessLoading ? '正在检查权限…' : '该功能暂未开放，请联系管理员开通。') + '</p></div></div></div></div></section></div>';
     const magicMode = state.magicUploadMode === 'effect' ? 'effect' : (state.magicUploadMode === 'toy-label' ? 'toy-label' : 'package');
     const modeTabs = '<div class="pfh-magic-mode-tabs ' + (magicMode === 'effect' ? 'is-effect' : (magicMode === 'toy-label' ? 'is-toy-label' : '')) + '" data-active-mode="' + magicMode + '"><i class="pfh-magic-mode-indicator" aria-hidden="true"></i><button type="button" data-action="magic-upload-mode" data-magic-mode="package" class="' + (magicMode === 'package' ? 'is-active' : '') + '">图包上传</button><button type="button" data-action="magic-upload-mode" data-magic-mode="effect" class="' + (magicMode === 'effect' ? 'is-active' : '') + '">效果图</button><button type="button" data-action="magic-upload-mode" data-magic-mode="toy-label" class="' + (magicMode === 'toy-label' ? 'is-active' : '') + '">玩具标签</button></div>';
     if (magicMode === 'toy-label') return magicToyLabelViewHtml(modeTabs);
@@ -16402,7 +16404,7 @@
   }
 
   function getDataChangeLabels(previous, next) {
-    return collectTrackedDataChanges(previous, next, { changeSource: 'PLM 接口' })
+    return collectTrackedDataChanges(previous, next, { changeSource: 'PLM 数据服务' })
       .map((item) => item.label)
       .filter((label, index, labels) => label && labels.indexOf(label) === index);
   }
@@ -18654,21 +18656,21 @@
       if (status === 'success' && (mainCount || detailCount)) return record;
       if (['error', 'task-error', 'result-missing', 'empty', 'needs-copywriting', 'needs-sku-image', 'needs-prerequisites'].includes(status)) {
         const message = String(record && record.aiImageMessage || (result && result.aiImageMessage) || '未返回可下载的生图结果').trim();
-        throw new Error('生图 API 查询失败：' + message);
+        throw new Error('生图后台查询失败：' + message);
       }
-      updateToyCopywritingBatchEntry(normalizedSku, { step: 'API 查询生图结果中（第 ' + (attempt + 1) + ' 次）' });
-      state.toyCopywritingBatchStatus = normalizedSku + '：API 查询生图结果中（第 ' + (attempt + 1) + ' 次）';
+      updateToyCopywritingBatchEntry(normalizedSku, { step: '后台查询生图结果中（第 ' + (attempt + 1) + ' 次）' });
+      state.toyCopywritingBatchStatus = normalizedSku + '：后台查询生图结果中（第 ' + (attempt + 1) + ' 次）';
       renderShell();
       if (attempt + 1 < LEDGER_AI_IMAGE_MAX_POLLS) await wait(LEDGER_AI_IMAGE_POLL_DELAY_MS);
     }
-    throw new Error('生图 API 查询超时，暂未返回主图和详情图');
+    throw new Error('生图后台查询超时，暂未返回主图和详情图');
   }
 
   async function downloadToyGeneratedImagesForBatch(sku, entry) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const dateKey = getTodayKey();
-    updateToyCopywritingBatchEntry(normalizedSku, { step: '正在通过 API 查询已生成图片' });
-    state.toyCopywritingBatchStatus = normalizedSku + '：正在通过 API 查询已生成图片';
+    updateToyCopywritingBatchEntry(normalizedSku, { step: '正在通过后台服务查询已生成图片' });
+    state.toyCopywritingBatchStatus = normalizedSku + '：正在通过后台服务查询已生成图片';
     renderShell();
     const record = await queryToyGeneratedImagesForDownload(normalizedSku, entry);
     const downloadKinds = [
@@ -18676,7 +18678,7 @@
       { kind: 'detail', label: '详情图', count: normalizeLedgerAiImageItems(record.aiDetailImages, 20).length },
     ];
     const missing = downloadKinds.filter((item) => !item.count).map((item) => item.label);
-    if (missing.length) throw new Error('生图 API 未返回' + missing.join('、') + '，无法完成全部下载');
+    if (missing.length) throw new Error('生图后台未返回' + missing.join('、') + '，无法完成全部下载');
     for (const item of downloadKinds) {
       updateToyCopywritingBatchEntry(normalizedSku, { step: '正在下载全部' + item.label + '（' + item.count + ' 张）' });
       state.toyCopywritingBatchStatus = normalizedSku + '：正在下载全部' + item.label + '（' + item.count + ' 张）';
@@ -22358,7 +22360,7 @@ self.onmessage = async function(event) {
       updateStatus('正在通过 PLM API 定位产品文案 Word...');
       file = await fetchApiCopywritingFile(workingData, { force: Boolean(opts.force) });
     } catch (error) {
-      addLog('warn', '产品文案 API：定位失败，改用页面下载', normalizedSku + ' | ' + formatErrorMessage(error));
+      addLog('warn', '产品文案：定位失败，改用页面下载', normalizedSku + ' | ' + formatErrorMessage(error));
       return { handled: false, error };
     }
     if (!file || !file.found) return { handled: false, noFile: true };
@@ -22369,24 +22371,24 @@ self.onmessage = async function(event) {
       && compactText(cached.fileName).toLowerCase() === compactText(fileName).toLowerCase());
     if (!opts.force && sameFile) {
       const next = markCopywritingCheckedAt(workingData, cached, Date.now());
-      addLog('info', '产品文案 API：命中历史缓存', normalizedSku + ' | ' + fileName);
+      addLog('info', '产品文案：命中历史缓存', normalizedSku + ' | ' + fileName);
       return { handled: true, skipped: true, data: next, file };
     }
     if (!opts.force && cached && cached.fileTimestamp && fileTimestamp && fileTimestamp < cached.fileTimestamp) {
       const next = markCopywritingCheckedAt(workingData, cached, Date.now());
-      addLog('warn', '产品文案 API：当前 Word 早于缓存，保留较新文案', normalizedSku + ' | ' + fileName + ' < ' + cached.fileName);
+      addLog('warn', '产品文案：当前 Word 早于缓存，保留较新文案', normalizedSku + ' | ' + fileName + ' < ' + cached.fileName);
       return { handled: true, skipped: true, older: true, data: next, file };
     }
     try {
       updateStatus('正在通过 API 下载 Word ' + fileName);
       const arrayBuffer = await withCopywritingTimeout(downloadCopywritingDocument(file.url), 18000, 'API Word 文件读取');
-      if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('API 返回内容不是有效 Word 文件');
+      if (!isCopywritingDocxBuffer(arrayBuffer)) throw new Error('后台返回内容不是有效 Word 文件');
       updateStatus('正在解析 API Word 表格...');
-      addLog('info', '产品文案 API：开始解析 Word', normalizedSku + ' | ' + fileName + ' | ' + arrayBuffer.byteLength + 'B');
+      addLog('info', '产品文案：开始解析 Word', normalizedSku + ' | ' + fileName + ' | ' + arrayBuffer.byteLength + 'B');
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
       const parsedDocument = await withCopywritingTimeout(parseCopywritingDocxRows(arrayBuffer), 20000, 'API Word 表格解析');
       const built = buildMainstreamCopywriting(parsedDocument, workingData);
-      if (!built.sections.length) throw new Error('API Word 中未识别到主流版文案字段');
+      if (!built.sections.length) throw new Error('后台 Word 中未识别到主流版文案字段');
       const nextRecord = buildCopywritingRecord(fileName, fileTimestamp, fileHash, built, cached);
       const next = mergeCopywritingCacheIntoData(workingData, nextRecord);
       saveData(normalizedSku, next);
@@ -22395,10 +22397,10 @@ self.onmessage = async function(event) {
         || nextRecord.fileName !== cached.fileName
         || nextRecord.fullText !== cached.fullText
       ));
-      addLog('info', updated ? '产品文案 API：检测到更新' : '产品文案 API：读取成功', normalizedSku + ' | ' + fileName + ' | ' + built.sections.length + '段');
+      addLog('info', updated ? '产品文案：检测到更新' : '产品文案：读取成功', normalizedSku + ' | ' + fileName + ' | ' + built.sections.length + '段');
       return { handled: true, data: next, updated, file };
     } catch (error) {
-      addLog('warn', '产品文案 API：Word 读取失败，改用页面下载', normalizedSku + ' | ' + formatErrorMessage(error));
+      addLog('warn', '产品文案：Word 读取失败，改用页面下载', normalizedSku + ' | ' + formatErrorMessage(error));
       return { handled: false, error, file };
     }
   }
@@ -22475,7 +22477,7 @@ self.onmessage = async function(event) {
         state.copywritingChecking = false;
         state.copywritingStatus = '';
         state.copywritingError = '';
-        addLog('info', '产品文案：API 未找到 Word，不再读取页面附件', sku);
+        addLog('info', '产品文案：未找到 Word，不再读取页面附件', sku);
         renderShell();
         return;
       }
@@ -22703,20 +22705,20 @@ self.onmessage = async function(event) {
     try {
       if (!file) file = await fetchApiIngredientPdfFile({ sku }, { force: Boolean(opts.force) });
     } catch (error) {
-      addLog('warn', '成分表 API：定位失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
+      addLog('warn', '成分表：定位失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
       return { handled: false, error };
     }
     if (!file || !file.found) return { handled: false, noFile: true };
-    if (!file.url) throw new Error('成分表 API 附件缺少下载地址');
+    if (!file.url) throw new Error('成分表附件缺少下载地址');
     const cached = normalizeData(loadData(sku) || (state.data && state.data.sku === sku ? state.data : { sku }));
     const fileName = String(file.fileName || ('ingredient-' + sku + '.pdf')).trim();
     if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfFileName === fileName && cached.ingredientEnglish && cached.ingredientChinese) {
-      addLog('info', '成分表 API：命中历史缓存', sku + ' | ' + fileName);
+      addLog('info', '成分表：命中历史缓存', sku + ' | ' + fileName);
       return { handled: true, skipped: true, data: cached, file };
     }
     try {
       const arrayBuffer = await withCopywritingTimeout(downloadCopywritingDocument(file.url), 18000, 'API 成分表 PDF 读取');
-      if (!isPdfBuffer(arrayBuffer)) throw new Error('API 返回内容不是有效 PDF');
+      if (!isPdfBuffer(arrayBuffer)) throw new Error('后台返回内容不是有效 PDF');
       const fileHash = await hashCopywritingBuffer(arrayBuffer);
       if (!opts.force && cached.ingredientNormalizerVersion === INGREDIENT_NORMALIZER_VERSION && cached.ingredientPdfHash === fileHash && cached.ingredientEnglish && cached.ingredientChinese) {
         const next = cached.ingredientPdfFileName === fileName ? cached : normalizeData({ ...cached, ingredientPdfFileName: fileName, ingredientSource: 'ingredientPdfApi' });
@@ -22727,14 +22729,14 @@ self.onmessage = async function(event) {
       try {
         rawText = await withCopywritingTimeout(extractIngredientPdfText(arrayBuffer), 20000, 'API 成分表 PDF 解析');
       } catch (error) {
-        addLog('warn', '成分表 API：PDF 文本层不可用', sku + ' | 将转为图片交给 AI | ' + formatErrorMessage(error));
+        addLog('warn', '成分表：PDF 文本层不可用', sku + ' | 将转为图片交给 AI | ' + formatErrorMessage(error));
       }
       const requestBody = { sku, fileName, rawText };
       if (!rawText || rawText.length < 20) {
         try {
           requestBody.pageImages = await withCopywritingTimeout(renderIngredientPdfImages(arrayBuffer), 25000, 'API 成分表 PDF 转图片');
         } catch (error) {
-          addLog('warn', '成分表 API：PDF 转图片失败，改用 AI 直接读取 PDF', sku + ' | ' + formatErrorMessage(error));
+          addLog('warn', '成分表：PDF 转图片失败，改用 AI 直接读取 PDF', sku + ' | ' + formatErrorMessage(error));
         }
         requestBody.pdfBase64 = arrayBufferToBase64(arrayBuffer);
       }
@@ -22762,10 +22764,10 @@ self.onmessage = async function(event) {
         showToast('成分表缓存已获取，现在可以重试智能补充食品文案');
       }
       delete state.ingredientHydrateFailedAt[sku];
-      addLog('success', '成分表 API 缓存完成', sku + ' | ' + next.ingredientEnglish);
+      addLog('success', '成分表缓存完成', sku + ' | ' + next.ingredientEnglish);
       return { handled: true, data: next, file };
     } catch (error) {
-      addLog('warn', '成分表 API：读取失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
+      addLog('warn', '成分表：读取失败，改用页面附件', sku + ' | ' + formatErrorMessage(error));
       return { handled: false, error, file };
     }
   }
@@ -27141,7 +27143,7 @@ self.onmessage = async function(event) {
     state.view = 'magicUpload';
     state.magicUploadMode = 'effect';
     renderShell();
-    showToast('效果图 API 队列已开始');
+    showToast('效果图后台队列已开始');
     window.setTimeout(() => processUploadQueue(mode), 80);
   }
 
@@ -27552,8 +27554,8 @@ self.onmessage = async function(event) {
         if (!accessReady || !hasApiUploadAccess()) {
           state.uploadRunning = false;
           saveUploadWorkerRunning(workerMode, false);
-          addLog('warn', 'API 效果图队列已拦截', '当前账号没有 API 上传权限；普通图包表格仍可使用旧脚本流程');
-          showToast('当前账号没有 API 上传权限，已停止效果图 API 队列');
+          addLog('warn', '后台效果图队列已拦截', '当前账号没有后台上传权限；普通图包表格仍可使用旧脚本流程');
+          showToast('当前账号没有后台上传权限，已停止效果图后台队列');
           renderShell();
           return;
         }
@@ -27885,7 +27887,7 @@ self.onmessage = async function(event) {
   }
 
   async function runToyEffectQueueItem(item) {
-    if (!hasApiUploadAccess()) throw new Error('当前账号没有 API 上传权限，效果图 API 队列已停止');
+    if (!hasApiUploadAccess()) throw new Error('当前账号没有后台上传权限，效果图后台队列已停止');
     const entries = getToyEffectUploadEntries(item);
     if (!item || !item.sku || !entries.length) {
       markUploadQueueBlocked(item, L.uploadFailed, '\u7f3a\u5c11\u73a9\u5177\u6548\u679c\u56fe\u6587\u4ef6');
@@ -27919,7 +27921,7 @@ self.onmessage = async function(event) {
       }
       files.push({ entry, file });
     }
-    updateUploadItem(item, '\u8fdb\u884c\u4e2d', productRoute ? '\u6309 HAR \u65b9\u5f0f\u4e0a\u4f20\u5546\u54c1\u6548\u679c\u56fe' : '\u901a\u8fc7 API \u4e0a\u4f20 BOM \u6548\u679c\u56fe', { effectUploadRoute: productRoute ? 'product-draft' : 'project-bom' });
+    updateUploadItem(item, '\u8fdb\u884c\u4e2d', productRoute ? '\u6309 HAR \u65b9\u5f0f\u4e0a\u4f20\u5546\u54c1\u6548\u679c\u56fe' : '\u901a\u8fc7\u540e\u53f0\u670d\u52a1\u4e0a\u4f20 BOM \u6548\u679c\u56fe', { effectUploadRoute: productRoute ? 'product-draft' : 'project-bom' });
     state.selectedSku = data.sku;
     state.sku = data.sku;
     state.data = data;
@@ -27935,7 +27937,7 @@ self.onmessage = async function(event) {
     const replacedCount = Number(saveResult && saveResult.replacedCount) || 0;
     updateUploadItem(item, '\u8fdb\u884c\u4e2d', replacedCount ? '\u5df2\u66ff\u6362 ' + replacedCount + ' \u5f20\u65e7\u6548\u679c\u56fe' : '\u6548\u679c\u56fe\u5df2\u4fdd\u5b58', { effectReplacedCount: replacedCount });
     archiveUploadItem(item);
-    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe API \u4e0a\u4f20\u6210\u529f', data.sku + ' | ' + (productRoute ? '\u5546\u54c1\u8349\u7a3f' : 'BOM') + ' | ' + uploadedPaths.length + ' 张');
+    addLog('success', '\u73a9\u5177\u6548\u679c\u56fe\u4e0a\u4f20\u6210\u529f', data.sku + ' | ' + (productRoute ? '\u5546\u54c1\u8349\u7a3f' : 'BOM') + ' | ' + uploadedPaths.length + ' 张');
     showToast(data.sku + (replacedCount ? ' \u5df2\u66ff\u6362\u65e7\u6548\u679c\u56fe\u5e76\u63d0\u5ba1\u6210\u529f' : ' \u6548\u679c\u56fe\u4e0a\u4f20\u5e76\u63d0\u5ba1\u6210\u529f'));
   }
 
@@ -31075,14 +31077,14 @@ self.onmessage = async function(event) {
         }
         extra = buildExcelExtraFromApi(apiLiveData, apiResult, extra);
         extra.liveData = apiLiveData;
-        saveData(sku, apiLiveData, { suppressDataQuality: true, changeSource: 'Excel PLM API' });
+        saveData(sku, apiLiveData, { suppressDataQuality: true, changeSource: 'Excel PLM 数据同步' });
         if (state.selectedSku === sku) state.data = apiLiveData;
         const apiMissing = getExcelMissingFields(apiLiveData, extra);
-        addLog(apiMissing.length ? 'info' : 'success', 'Excel PLM API 补全结果', sku + ' | ' + (apiMissing.length ? '仍缺：' + apiMissing.join('、') : '已取得生成所需字段'));
+        addLog(apiMissing.length ? 'info' : 'success', 'Excel PLM 数据补全结果', sku + ' | ' + (apiMissing.length ? '仍缺：' + apiMissing.join('、') : '已取得生成所需字段'));
         if (!getExcelDrawerFallbackMissingFields(apiLiveData, extra).length) return extra;
       }
     } catch (error) {
-      addLog('warn', 'Excel PLM API 补全异常，改用现有页面读取', sku + ' | ' + formatErrorMessage(error));
+      addLog('warn', 'Excel PLM 数据补全异常，改用现有页面读取', sku + ' | ' + formatErrorMessage(error));
     }
     if (!drawer) return extra;
     drawer = await waitForExcelProjectDrawerReady(sku, 12000) || drawer;
@@ -31547,7 +31549,7 @@ self.onmessage = async function(event) {
         return true;
       }
     } catch (error) {
-      addLog('info', '\u56fd\u5185\u4e09\u6863\u4ef7\u683c API \u8bfb\u53d6\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u4ef7\u683c', (data && data.sku || '') + ' | ' + formatErrorMessage(error));
+      addLog('info', '\u56fd\u5185\u4e09\u6863\u4ef7\u683c\u8bfb\u53d6\u5931\u8d25\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u4ef7\u683c', (data && data.sku || '') + ' | ' + formatErrorMessage(error));
     }
     const productType = getProductTypeForInsight(data, extra);
     // 2026-08-07: 停用云端推荐价格 API（fetchInsightRecommendation 推荐价格不准，会写入 Excel）。
@@ -32306,7 +32308,7 @@ self.onmessage = async function(event) {
     const canSubmit = Boolean(String(state.manualSkuAddInput || '').trim());
     return '<div class="pfh-manual-sku-add-layer" data-action="sku-manual-add-close"><section class="pfh-manual-sku-add-dialog" role="dialog" aria-modal="true" aria-label="手动添加 SKU" data-manual-sku-add-dialog="true">' +
       '<header><div><h3>手动添加 SKU</h3><p>不经过搜索，逐个从 PLM 产品接口读取并加入 SKU 列表。</p></div><button type="button" data-action="sku-manual-add-close" aria-label="关闭">×</button></header>' +
-      '<div class="pfh-manual-sku-add-body"><textarea class="pfh-manual-sku-add-input" placeholder="粘贴多个 SKU，例如：SKU00046398\nSKU00046397\nSKU00046396">' + escapeHtml(state.manualSkuAddInput || '') + '</textarea><p class="pfh-manual-sku-add-hint">支持换行、空格、逗号分隔；每次只处理 1 个 SKU，间隔约 1.1 秒，避免连续请求触发接口限制。</p>' +
+      '<div class="pfh-manual-sku-add-body"><textarea class="pfh-manual-sku-add-input" placeholder="粘贴多个 SKU，例如：SKU00046398\nSKU00046397\nSKU00046396">' + escapeHtml(state.manualSkuAddInput || '') + '</textarea><p class="pfh-manual-sku-add-hint">支持换行、空格、逗号分隔；每次只处理 1 个 SKU，间隔约 1.1 秒，避免连续读取触发限制。</p>' +
       '<div class="pfh-manual-sku-add-summary"><strong>添加队列</strong><span>共 ' + stats.total + '</span><span>等待 ' + stats.pending + '</span><span>读取中 ' + stats.processing + '</span><span>完成 ' + (stats.success + stats.skipped) + '</span><span>待重试 ' + retryCount + '</span></div>' +
       '<div class="pfh-manual-sku-add-queue">' + rows + '</div><div class="pfh-mini-tool-actions"><button type="button" class="is-primary" data-action="sku-manual-add-submit"' + (canSubmit ? '' : ' disabled') + '>加入后台队列</button></div></div>' +
       '<footer><span title="' + escapeHtml(progress) + '">' + escapeHtml(progress) + (state.manualSkuAddCurrentSku ? '：' + escapeHtml(state.manualSkuAddCurrentSku) : '') + '</span><div>' +
@@ -34673,8 +34675,8 @@ self.onmessage = async function(event) {
     const preparationNotice = preparation.error || preparation.plmDetailError
       ? (preparation.error || preparation.plmDetailError) + '；当前按 PLM 资料不完整处理。'
       : (missing.length
-        ? 'PLM API 检测缺少：' + missing.join('、') + '。填写后请点击“保存到 PLM 草稿”；没有 SKU 效果图时不会允许开始 AI 生图。'
-        : 'PLM 草稿已保存且 API 回读完整；提交前还会再次校验文案和 SKU 效果图。');
+        ? 'PLM 数据检测缺少：' + missing.join('、') + '。填写后请点击“保存到 PLM 草稿”；没有 SKU 效果图时不会允许开始 AI 生图。'
+        : 'PLM 草稿已保存且后台回读完整；提交前还会再次校验文案和 SKU 效果图。');
     return '<div class="pfh-ledger-ai-preparation"><div class="pfh-ledger-ai-prep-head"><div><strong>生图资料</strong><span class="' + (missing.length ? 'is-missing' : 'is-ready') + '">' + escapeHtml(missing.length ? 'PLM 还缺 ' + missing.length + ' 项' : 'PLM 资料已完整') + '</span></div><p>' + escapeHtml(imageStatus) + '</p></div><div class="pfh-ledger-ai-prep-grid">' + rows + ingredientRows + '</div><div class="pfh-ledger-ai-prep-actions"><button type="button" data-action="ledger-ai-prep-save" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (saving ? ' disabled' : '') + '>' + (saving ? '正在保存…' : '保存到 PLM 草稿') + '</button><button type="button" data-action="ledger-ai-prep-refresh" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '">重新检测</button><button type="button" data-action="ledger-ai-prep-autofill" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (busy || saving ? ' disabled' : '') + '>' + (busy ? '正在补齐并保存…' : 'AI 补齐并保存草稿') + '</button><button type="button" class="is-primary pfh-ledger-ai-prep-submit" data-action="ledger-ai-image-generate" data-kind="' + (kind === 'detail' ? 'detail' : 'main') + '" data-sku="' + escapeHtml(record.sku) + '" data-date="' + escapeHtml(record.date) + '"' + (missing.length || saving ? ' disabled' : '') + '>PLM 资料完整，提交 AI 生图</button></div><p class="pfh-ledger-ai-prep-missing">' + escapeHtml(preparationNotice) + '</p></div>';
   }
 
@@ -35952,14 +35954,14 @@ self.onmessage = async function(event) {
       });
       if (!response || !response.ok) throw new Error(response && response.error || 'AI 未返回可用文案');
       const filledCount = await applyLedgerAiPreparationToPlmDraft(sku, response.fields || {});
-      showToast('PLM 草稿保存成功，正在通过 API 回读校验…');
+      showToast('PLM 草稿保存成功，正在通过后台服务回读校验…');
       await wait(500);
       const verified = await loadLedgerAiImagePreparation(sku, true);
       renderLedgerAiImageViewer(ensurePanel());
       const missing = getLedgerAiPreparationMissing(verified);
       showToast(missing.length
-        ? '草稿已保存，但 PLM API 回读仍缺 ' + missing.length + ' 项：' + missing.join('、')
-        : '已补齐 ' + filledCount + ' 个字段、保存 PLM 草稿并通过 API 完整性校验');
+        ? '草稿已保存，但 PLM 后台回读仍缺 ' + missing.length + ' 项：' + missing.join('、')
+        : '已补齐 ' + filledCount + ' 个字段、保存 PLM 草稿并通过后台完整性校验');
       return verified;
     })();
     state.ledgerAiImageAutofillRequests[key] = request;
@@ -37544,6 +37546,48 @@ self.onmessage = async function(event) {
     return error && error.message ? error.message : String(error || '\u672a\u77e5\u9519\u8bef');
   }
 
+  function neutralizeTechnicalTerms(value) {
+    return String(value || '')
+      .replace(/\bAPI\b/gi, '\u540e\u53f0\u670d\u52a1')
+      .replace(/\u63a5\u53e3/g, '\u6570\u636e\u670d\u52a1');
+  }
+
+  function neutralizeVisibleTechnicalText(root) {
+    if (!root || typeof document === 'undefined') return;
+    const walker = document.createTreeWalker(root, 4);
+    let node = walker.nextNode();
+    while (node) {
+      const next = walker.nextNode();
+      const text = neutralizeTechnicalTerms(node.nodeValue);
+      if (text !== node.nodeValue) node.nodeValue = text;
+      node = next;
+    }
+    if (root.querySelectorAll) {
+      root.querySelectorAll('[title], [aria-label]').forEach((element) => {
+        ['title', 'aria-label'].forEach((attribute) => {
+          if (element.hasAttribute(attribute)) {
+            const value = neutralizeTechnicalTerms(element.getAttribute(attribute));
+            if (value !== element.getAttribute(attribute)) element.setAttribute(attribute, value);
+          }
+        });
+      });
+    }
+  }
+
+  function installVisibleTechnicalTextNeutralizer(panel) {
+    if (!panel || panel.__pfhTechnicalTextNeutralizer || typeof MutationObserver === 'undefined') return;
+    panel.__pfhTechnicalTextNeutralizer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'characterData') neutralizeVisibleTechnicalText(mutation.target.parentElement || panel);
+        else mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1 || node.nodeType === 3) neutralizeVisibleTechnicalText(node.nodeType === 3 ? node.parentElement : node);
+        });
+      });
+    });
+    panel.__pfhTechnicalTextNeutralizer.observe(panel, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['title', 'aria-label'] });
+    neutralizeVisibleTechnicalText(panel);
+  }
+
   function formatCopyAll(data) {
     if (!data) return '';
     return [
@@ -37579,7 +37623,7 @@ self.onmessage = async function(event) {
 
   function showToast(text, options) {
     const panel = ensurePanel();
-    const message = String(text || '');
+    const message = neutralizeTechnicalTerms(text);
     const quiet = Boolean(options && options.quiet);
     const requestedTone = String(options && options.tone || '').trim();
     const tone = requestedTone || (quiet ? 'quiet' : (/失败|错误|异常|不可用|无法|不能为空|请先|缺少|拦截|未找到|没有可/.test(message) ? 'error' : 'success'));
@@ -37620,7 +37664,7 @@ self.onmessage = async function(event) {
   }
 
   function addLog(level, message, detail) {
-    const text = [message, detail].filter(Boolean).join(' | ');
+    const text = neutralizeTechnicalTerms([message, detail].filter(Boolean).join(' | '));
     const item = {
       time: new Date().toLocaleTimeString(),
       level: level || 'info',
