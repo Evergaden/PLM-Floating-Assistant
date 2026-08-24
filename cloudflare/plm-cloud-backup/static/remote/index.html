@@ -26,7 +26,7 @@
       <form id="login-form" class="login-form">
         <label><span>你的名字</span><input id="login-name" name="name" autocomplete="username" maxlength="64" placeholder="与云备份姓名一致" required></label>
         <label><span>备份密码</span><input id="login-key" name="backupKey" type="password" autocomplete="current-password" maxlength="256" placeholder="云备份使用的密码" required></label>
-        <button id="login-button" class="primary-button" type="submit"><span>进入远程工作台</span><b>→</b></button>
+        <button id="login-button" class="primary-button" type="submit"><span>进入远程工作台</span><span class="button-icon" data-icon="arrow-right"></span></button>
       </form>
       <div id="login-error" class="form-error" role="alert"></div>
       <div class="privacy-line"><i></i><span>密码仅用于本次解锁，不会保存在云端或手机本地</span></div>
@@ -36,7 +36,7 @@
   <div id="app-view" class="app-view" hidden>
     <header class="app-header">
       <div class="app-brand"><div class="mini-orb">P</div><div><strong>远程工作台</strong><span id="welcome-name">你好</span></div></div>
-      <button id="refresh-button" class="icon-button" type="button" aria-label="刷新状态">↻</button>
+      <button id="refresh-button" class="icon-button" type="button" aria-label="刷新状态"><span data-icon="refresh"></span></button>
     </header>
 
     <main class="screen-stack">
@@ -49,10 +49,10 @@
 
         <div class="section-heading"><div><span>QUICK ACTIONS</span><h2>远程指令</h2></div><small>电脑执行</small></div>
         <section class="quick-grid">
-          <button class="quick-card violet" type="button" data-command="sync-products"><i>↻</i><strong>刷新定稿</strong><span>同步最新产品资料</span><b>→</b></button>
-          <button class="quick-card cyan" type="button" data-command="scan-upload"><i>⌁</i><strong>扫描并上传</strong><span>寻找本机图包和表格</span><b>→</b></button>
-          <button class="quick-card peach" type="button" data-open-products><i>▦</i><strong>生成资产</strong><span>选择 SKU 远程生成</span><b>→</b></button>
-          <button class="quick-card blue" type="button" data-open-note><i>✦</i><strong>下达任务</strong><span>给电脑发送文字指令</span><b>→</b></button>
+          <button class="quick-card violet" type="button" data-command="sync-products"><span class="quick-icon" data-icon="refresh"></span><strong>刷新定稿</strong><span>同步最新产品资料</span><span class="quick-arrow" data-icon="arrow-right"></span></button>
+          <button class="quick-card cyan" type="button" data-command="scan-upload"><span class="quick-icon" data-icon="scan"></span><strong>扫描并上传</strong><span>寻找本机图包和表格</span><span class="quick-arrow" data-icon="arrow-right"></span></button>
+          <button class="quick-card peach" type="button" data-open-products><span class="quick-icon" data-icon="file-output"></span><strong>生成资产</strong><span>选择 SKU 远程生成</span><span class="quick-arrow" data-icon="arrow-right"></span></button>
+          <button class="quick-card blue" type="button" data-open-note><span class="quick-icon" data-icon="sparkles"></span><strong>下达任务</strong><span>给电脑发送文字指令</span><span class="quick-arrow" data-icon="arrow-right"></span></button>
         </section>
 
         <div class="section-heading compact"><div><span>RECENT TASKS</span><h2>最近动态</h2></div><button type="button" data-nav-target="tasks">全部</button></div>
@@ -61,52 +61,92 @@
 
       <section id="screen-products" class="screen" data-screen="products">
         <div class="page-title"><div><span>PRODUCT LIBRARY</span><h1>产品资料</h1><p id="backup-time">来自加密云备份</p></div><strong id="product-total-badge">0</strong></div>
-        <label class="search-box"><i>⌕</i><input id="product-search" type="search" placeholder="搜索 SKU、产品名或品牌"><button id="clear-search" type="button" aria-label="清空搜索">×</button></label>
+        <label class="search-box"><span data-icon="search"></span><input id="product-search" type="search" placeholder="搜索 SKU、产品名或品牌"><button id="clear-search" type="button" aria-label="清空搜索"><span data-icon="x"></span></button></label>
         <div class="filter-row"><button class="is-active" data-filter="all">全部</button><button data-filter="finalized">已定稿</button><button data-filter="incomplete">待完善</button></div>
         <section id="product-list" class="product-list"></section>
       </section>
 
       <section id="screen-tasks" class="screen" data-screen="tasks">
-        <div class="page-title"><div><span>COMMAND CENTER</span><h1>任务记录</h1><p>手机下达，电脑领取并回传结果</p></div><button id="new-note-button" class="round-action" type="button">＋</button></div>
+        <div class="page-title"><div><span>COMMAND CENTER</span><h1>任务记录</h1><p>手机下达，电脑领取并回传结果</p></div><button id="new-note-button" class="round-action" type="button" aria-label="新建任务"><span data-icon="plus"></span></button></div>
         <div class="task-summary"><div><span>等待</span><strong id="summary-queued">0</strong></div><div><span>执行中</span><strong id="summary-running">0</strong></div><div><span>已完成</span><strong id="summary-succeeded">0</strong></div></div>
         <section id="task-list" class="task-list"></section>
       </section>
 
       <section id="screen-profile" class="screen" data-screen="profile">
         <div class="page-title"><div><span>REMOTE SETTINGS</span><h1>连接与安全</h1><p>远程会话只属于当前手机</p></div></div>
-        <section class="profile-card"><div class="avatar" id="profile-avatar">P</div><div><strong id="profile-name">—</strong><span>云备份身份已验证</span></div><i>✓</i></section>
+        <section class="profile-card"><div class="avatar" id="profile-avatar">P</div><div><strong id="profile-name">—</strong><span>云备份身份已验证</span></div><span class="profile-verified" data-icon="shield"></span></section>
         <section class="settings-card">
           <div><span>电脑工作台</span><strong id="profile-device">未连接</strong></div>
           <div><span>悬浮助手</span><strong id="profile-bridge">未连接</strong></div>
           <div><span>产品根目录</span><strong id="profile-root">未配置</strong></div>
           <div><span>备份更新时间</span><strong id="profile-backup">—</strong></div>
         </section>
-        <section class="security-note"><i>◇</i><div><strong>端到端解锁产品资料</strong><span>云端只保存加密备份。产品内容在手机浏览器内使用备份密码解密，密码不会写入任务或数据库。</span></div></section>
+        <section class="security-note"><span class="security-icon" data-icon="shield"></span><div><strong>端到端解锁产品资料</strong><span>云端只保存加密备份。产品内容在手机浏览器内使用备份密码解密，密码不会写入任务或数据库。</span></div></section>
         <button id="logout-button" class="logout-button" type="button">退出并清除本次会话</button>
       </section>
     </main>
 
     <nav class="bottom-nav" aria-label="主导航">
-      <button class="is-active" type="button" data-nav="home"><i>⌂</i><span>首页</span></button>
-      <button type="button" data-nav="products"><i>▦</i><span>产品</span></button>
-      <button type="button" data-nav="tasks"><i>✓</i><span>任务</span><b id="task-nav-badge" hidden>0</b></button>
-      <button type="button" data-nav="profile"><i>◎</i><span>我的</span></button>
+      <button class="is-active" type="button" data-nav="home"><span data-icon="home"></span><span>首页</span></button>
+      <button type="button" data-nav="products"><span data-icon="archive"></span><span>产品</span></button>
+      <button type="button" data-nav="tasks"><span data-icon="clipboard-list"></span><span>任务</span><b id="task-nav-badge" hidden>0</b></button>
+      <button type="button" data-nav="profile"><span data-icon="settings"></span><span>我的</span></button>
     </nav>
   </div>
 
   <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
   <section id="product-sheet" class="bottom-sheet" hidden aria-modal="true" role="dialog">
-    <div class="sheet-handle"></div><button class="sheet-close" data-close-sheet type="button">×</button>
+    <div class="sheet-handle"></div><button class="sheet-close" data-close-sheet type="button" aria-label="关闭"><span data-icon="x"></span></button>
     <div id="product-sheet-content"></div>
   </section>
   <section id="note-sheet" class="bottom-sheet note-sheet" hidden aria-modal="true" role="dialog">
-    <div class="sheet-handle"></div><button class="sheet-close" data-close-sheet type="button">×</button>
+    <div class="sheet-handle"></div><button class="sheet-close" data-close-sheet type="button" aria-label="关闭"><span data-icon="x"></span></button>
     <span class="eyebrow">NEW COMMAND</span><h2>下达一条任务</h2><p>文字会显示在电脑端工作台，由它确认收到并留在任务记录中。</p>
     <textarea id="note-input" maxlength="1000" placeholder="例如：先处理 SKU00012345 的图包，完成后检查上传…"></textarea>
-    <button id="send-note-button" class="primary-button" type="button"><span>发送到电脑</span><b>→</b></button>
+    <button id="send-note-button" class="primary-button" type="button"><span>发送到电脑</span><span class="button-icon" data-icon="arrow-right"></span></button>
   </section>
 
   <div id="toast" class="toast" role="status"></div>
+  <script>
+/* REMOTE_LUCIDE_ICONS_START */
+/* Generated by scripts/build-remote-icons.cjs. Do not hand-edit SVG paths. */
+(() => {
+  const ICONS = {
+  "arrow-right": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-arrow-right lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path></svg>",
+  "archive": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-archive lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"20\" height=\"5\" x=\"2\" y=\"3\" rx=\"1\"></rect><path d=\"M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8\"></path><path d=\"M10 12h4\"></path></svg>",
+  "check": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 6 9 17l-5-5\"></path></svg>",
+  "chevron-right": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-right lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m9 18 6-6-6-6\"></path></svg>",
+  "circle-user-round": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-user-round lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 20a6 6 0 0 0-12 0\"></path><circle cx=\"12\" cy=\"10\" r=\"4\"></circle><circle cx=\"12\" cy=\"12\" r=\"10\"></circle></svg>",
+  "clipboard-list": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-clipboard-list lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\" ry=\"1\"></rect><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"></path><path d=\"M12 11h4\"></path><path d=\"M12 16h4\"></path><path d=\"M8 11h.01\"></path><path d=\"M8 16h.01\"></path></svg>",
+  "file-output": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-output lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"></path><path d=\"M4 7V4a2 2 0 0 1 2-2 2 2 0 0 0-2 2\"></path><path d=\"M4.063 20.999a2 2 0 0 0 2 1L18 22a2 2 0 0 0 2-2V7l-5-5H6\"></path><path d=\"m5 11-3 3\"></path><path d=\"m5 17-3-3h10\"></path></svg>",
+  "home": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-house lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"></path><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"></path></svg>",
+  "plus": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-plus lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path></svg>",
+  "refresh": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-refresh-cw lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"></path><path d=\"M21 3v5h-5\"></path><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"></path><path d=\"M8 16H3v5\"></path></svg>",
+  "scan": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scan-line lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7V5a2 2 0 0 1 2-2h2\"></path><path d=\"M17 3h2a2 2 0 0 1 2 2v2\"></path><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\"></path><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\"></path><path d=\"M7 12h10\"></path></svg>",
+  "search": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-search lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"11\" cy=\"11\" r=\"8\"></circle><path d=\"m21 21-4.3-4.3\"></path></svg>",
+  "settings": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings2 lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 7h-9\"></path><path d=\"M14 17H5\"></path><circle cx=\"17\" cy=\"17\" r=\"3\"></circle><circle cx=\"7\" cy=\"7\" r=\"3\"></circle></svg>",
+  "shield": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-shield-check lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z\"></path><path d=\"m9 12 2 2 4-4\"></path></svg>",
+  "sparkles": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-sparkles lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"></path><path d=\"M20 3v4\"></path><path d=\"M22 5h-4\"></path><path d=\"M4 17v2\"></path><path d=\"M5 18H3\"></path></svg>",
+  "upload": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-upload lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"></path><polyline points=\"17 8 12 3 7 8\"></polyline><line x1=\"12\" x2=\"12\" y1=\"3\" y2=\"15\"></line></svg>",
+  "x": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-x lucide-icon\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg>"
+};
+  const api = {
+    svg(name) {
+      return ICONS[name] || ICONS.sparkles;
+    },
+    mount(root = document) {
+      root.querySelectorAll('[data-icon]').forEach((node) => {
+        const name = node.getAttribute('data-icon');
+        node.innerHTML = api.svg(name);
+        node.classList.add('ui-icon');
+        node.setAttribute('aria-hidden', 'true');
+      });
+    },
+  };
+  window.PLMIcons = Object.freeze(api);
+})();
+/* REMOTE_LUCIDE_ICONS_END */
+  </script>
   <script src="/remote/app.js" defer></script>
 </body>
 </html>

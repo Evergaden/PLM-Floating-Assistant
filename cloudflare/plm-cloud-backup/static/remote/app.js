@@ -19,6 +19,7 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const iconMarkup = (name) => window.PLMIcons ? window.PLMIcons.svg(name) : '';
 
   function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -197,30 +198,30 @@
     const products = visibleProducts();
     const root = $('#product-list');
     if (!products.length) {
-      root.innerHTML = '<div class="empty-block"><i>⌕</i><strong>没有找到匹配产品</strong><span>换个 SKU、产品名或品牌试试</span></div>';
+      root.innerHTML = `<div class="empty-block"><span class="empty-icon">${iconMarkup('search')}</span><strong>没有找到匹配产品</strong><span>换个 SKU、产品名或品牌试试</span></div>`;
       return;
     }
     root.innerHTML = products.map((product, index) => `<button class="product-card" type="button" data-product-sku="${escapeHtml(product.sku)}" style="animation-delay:${Math.min(index, 8) * 25}ms">
-      ${productThumb(product)}<div><small>${escapeHtml(product.sku)}</small><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.brand)} · ${escapeHtml(product.status)}</span></div><i>›</i>
+      ${productThumb(product)}<div><small>${escapeHtml(product.sku)}</small><strong>${escapeHtml(product.name)}</strong><span>${escapeHtml(product.brand)} · ${escapeHtml(product.status)}</span></div><span class="product-chevron">${iconMarkup('chevron-right')}</span>
     </button>`).join('');
   }
 
   const TASK_LABELS = {
-    'generate-assets': ['▦', '生成资产'],
-    'sync-products': ['↻', '刷新定稿'],
-    'scan-upload': ['⌁', '扫描并上传'],
-    note: ['✦', '文字指令'],
+    'generate-assets': ['file-output', '生成资产'],
+    'sync-products': ['refresh', '刷新定稿'],
+    'scan-upload': ['scan', '扫描并上传'],
+    note: ['sparkles', '文字指令'],
   };
   const STATUS_LABELS = { queued: '等待电脑', running: '执行中', succeeded: '已完成', failed: '失败', cancelled: '已取消' };
 
   function taskHtml(task) {
-    const meta = TASK_LABELS[task.type] || ['◇', '远程任务'];
+    const meta = TASK_LABELS[task.type] || ['archive', '远程任务'];
     const detail = task.error || task.result && task.result.message || `${meta[1]} · ${formatTime(task.createdAt, true)}`;
-    return `<article class="task-row"><i class="task-icon">${meta[0]}</i><div><strong>${escapeHtml(task.title || meta[1])}</strong><small>${escapeHtml(detail)}</small></div><span class="task-state ${escapeHtml(task.status)}">${escapeHtml(STATUS_LABELS[task.status] || task.status)}</span></article>`;
+    return `<article class="task-row"><span class="task-icon">${iconMarkup(meta[0])}</span><div><strong>${escapeHtml(task.title || meta[1])}</strong><small>${escapeHtml(detail)}</small></div><span class="task-state ${escapeHtml(task.status)}">${escapeHtml(STATUS_LABELS[task.status] || task.status)}</span></article>`;
   }
 
   function renderTasks() {
-    const html = state.tasks.length ? state.tasks.map(taskHtml).join('') : '<div class="empty-block"><i>✓</i><strong>还没有远程任务</strong><span>从首页或产品详情下达第一条指令</span></div>';
+    const html = state.tasks.length ? state.tasks.map(taskHtml).join('') : `<div class="empty-block"><span class="empty-icon">${iconMarkup('clipboard-list')}</span><strong>还没有远程任务</strong><span>从首页或产品详情下达第一条指令</span></div>`;
     $('#task-list').innerHTML = html;
     $('#home-task-list').innerHTML = state.tasks.length ? state.tasks.slice(0, 3).map(taskHtml).join('') : '<div class="empty-block"><strong>任务记录会显示在这里</strong></div>';
     $('#summary-queued').textContent = String(Number(state.counts.queued || 0));
@@ -283,7 +284,8 @@
         <div><span>包装编码</span><strong>${escapeHtml(product.packageCode || '未填写')}</strong></div>
         <div><span>印刷编码</span><strong>${escapeHtml(product.printCode || '未填写')}</strong></div>
       </div>
-      <div class="sheet-actions"><button class="primary-button" type="button" data-generate-sku="${escapeHtml(product.sku)}"><span>让电脑生成全部资产</span><b>→</b></button><button class="sheet-secondary" type="button" data-upload-sku="${escapeHtml(product.sku)}">扫描该 SKU 并加入上传</button></div>`;
+      <div class="sheet-actions"><button class="primary-button" type="button" data-generate-sku="${escapeHtml(product.sku)}"><span>让电脑生成全部资产</span><span class="button-icon" data-icon="arrow-right"></span></button><button class="sheet-secondary" type="button" data-upload-sku="${escapeHtml(product.sku)}"><span data-icon="scan"></span>扫描该 SKU 并加入上传</button></div>`;
+    window.PLMIcons?.mount($('#product-sheet-content'));
     openSheet('#product-sheet');
   }
 
@@ -379,6 +381,7 @@
 
   function init() {
     $('#login-name').value = localStorage.getItem('plm-remote.last-name') || '';
+    window.PLMIcons?.mount();
     bindEvents();
     renderProducts();
     renderTasks();
