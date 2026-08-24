@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.177';
+  const SCRIPT_VERSION = '2.8.178';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5202,9 +5202,10 @@
   }
 
   const PRODUCT_DEVELOPMENT_TASK_ENDPOINT = '/api/ChemicalNewAll/GetList';
-  const PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE = 100;
-  const PRODUCT_DEVELOPMENT_TASK_MAX_PAGES = 100;
+  const PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE = 20;
+  const PRODUCT_DEVELOPMENT_TASK_MAX_PAGES = 1;
   const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
+  const PRODUCT_DEVELOPMENT_TASK_CACHE_KEY = 'plm-floating-helper:product-development-tasks:v1';
   const PRODUCT_DEVELOPMENT_TASK_TABS = Object.freeze([
     { id: 'detail', label: '详情' },
     { id: 'review', label: '侵权图' },
@@ -5248,16 +5249,65 @@
     state.productDevelopmentTaskPreviousTab = '';
   }
 
+  function normalizeProductDevelopmentCachedTask(item) {
+    if (!item || typeof item !== 'object') return null;
+    const sku = String(item.sku || item.product_code || item.productCode || '').trim().toUpperCase();
+    if (!/^SKU\d+$/.test(sku)) return null;
+    return {
+      ...item,
+      sku,
+      rowId: String(item.rowId || item.projectId || item.id || '').trim(),
+      projectId: String(item.projectId || item.rowId || item.id || '').trim(),
+      developerName: productDevelopmentCleanText(item.developerName || item.dev_work_user_name || '', 80),
+      developerUsername: productDevelopmentCleanText(item.developerUsername || item.dev_work_user_username || '', 80),
+      name: productDevelopmentCleanText(item.name || item.product_name || item.dev_product_name || '', 240),
+      projectStatus: productDevelopmentCleanText(item.projectStatus || item.status_format || item.status || '', 120),
+      developmentAssignedAt: productDevelopmentCleanText(item.developmentAssignedAt || item.dev_assign_at || '', 80),
+      projectCreatedAt: productDevelopmentCleanText(item.projectCreatedAt || item.create_at || '', 80),
+    };
+  }
+
+  function loadProductDevelopmentTaskCache() {
+    const value = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_CACHE_KEY, null);
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      userName: productDevelopmentCleanText(source.userName || '', 80),
+      fetchedAt: Number(source.fetchedAt) || 0,
+      rows: (Array.isArray(source.rows) ? source.rows : []).map(normalizeProductDevelopmentCachedTask).filter(Boolean).slice(0, 20),
+    };
+  }
+
+  function saveProductDevelopmentTaskCache(rows, userName) {
+    const cache = {
+      userName: productDevelopmentCleanText(userName || '', 80),
+      fetchedAt: Date.now(),
+      rows: (Array.isArray(rows) ? rows : []).map(normalizeProductDevelopmentCachedTask).filter(Boolean).slice(0, 20),
+    };
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_CACHE_KEY, cache);
+    return cache;
+  }
+
   function productDevelopmentTaskUserKey(value) {
     return productDevelopmentCleanText(value, 80).replace(/[\s\u3000]+/g, '').toLowerCase();
   }
 
   function getProductDevelopmentTaskUserName() {
+    const cached = loadProductDevelopmentTaskCache();
     const candidates = [
       typeof findCurrentPlmUserName === 'function' ? findCurrentPlmUserName() : '',
       state && state.productDevelopmentTaskUserName,
+      cached.userName,
     ];
     return candidates.map((value) => productDevelopmentCleanText(value, 80)).find(Boolean) || '';
+  }
+
+  async function waitForProductDevelopmentTaskUserName() {
+    let userName = getProductDevelopmentTaskUserName();
+    for (let attempt = 0; attempt < 6 && !userName; attempt += 1) {
+      await wait(250);
+      userName = getProductDevelopmentTaskUserName();
+    }
+    return userName;
   }
 
   function productDevelopmentNormalizeTaskRow(item) {
@@ -5318,13 +5368,13 @@
   }
 
   async function fetchProductDevelopmentTaskRows() {
-    const currentUserName = getProductDevelopmentTaskUserName();
+    const currentUserName = await waitForProductDevelopmentTaskUserName();
     if (!currentUserName) throw new Error('暂时无法识别当前 PLM 用户姓名，请确认页面右上角已登录');
     state.productDevelopmentTaskUserName = currentUserName;
     const rows = [];
     let total = 0;
     for (let page = 1; page <= PRODUCT_DEVELOPMENT_TASK_MAX_PAGES; page += 1) {
-      const payload = await fetchPlmJson(PRODUCT_DEVELOPMENT_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE);
+      const payload = await fetchPlmJson(PRODUCT_DEVELOPMENT_TASK_ENDPOINT + '?page=' + page + '&pageSize=' + PRODUCT_DEVELOPMENT_TASK_PAGE_SIZE + '&sort_field=create_at&sort_asc=false');
       if (payload && payload.success === false) {
         throw new Error(formatPlmApiMessage(payload.msg) || formatPlmApiMessage(payload.message) || '开发任务 API 返回失败');
       }
@@ -5341,7 +5391,9 @@
       const previous = deduped.get(row.sku);
       if (!previous || productDevelopmentTaskTime(row.developmentAssignedAt || row.projectCreatedAt) >= productDevelopmentTaskTime(previous.developmentAssignedAt || previous.projectCreatedAt)) deduped.set(row.sku, row);
     });
-    return Array.from(deduped.values()).sort((a, b) => productDevelopmentTaskTime(b.developmentAssignedAt || b.projectCreatedAt) - productDevelopmentTaskTime(a.developmentAssignedAt || a.projectCreatedAt));
+    const result = Array.from(deduped.values()).sort((a, b) => productDevelopmentTaskTime(b.projectCreatedAt) - productDevelopmentTaskTime(a.projectCreatedAt));
+    saveProductDevelopmentTaskCache(result, currentUserName);
+    return result;
   }
 
   function getProductDevelopmentTaskBySku(sku) {
@@ -5438,7 +5490,13 @@
   }
 
   function productDevelopmentTaskListHtml() {
-    const tasks = Array.isArray(state.productDevelopmentTasks) ? sortSkuListItems(state.productDevelopmentTasks) : [];
+    const tasks = (Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : [])
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => {
+        const timeDiff = productDevelopmentTaskTime(b.item && b.item.projectCreatedAt) - productDevelopmentTaskTime(a.item && a.item.projectCreatedAt);
+        return timeDiff || a.index - b.index;
+      })
+      .map((entry) => entry.item);
     const listMode = getSkuListMode();
     const pageSize = listMode === 'waterfall' ? 20 : 10;
     const totalPages = Math.max(1, Math.ceil(tasks.length / pageSize));
@@ -5453,7 +5511,7 @@
     const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="SKU列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div>' +
       '<label class="pfh-sku-sort"><span>排序</span>' + listSortMenu + '</label></div>';
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>' + listTools;
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">' + iconHtml('refresh') + '</button></div>' + listTools;
     const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-list-note">开发人员：' + escapeHtml(state.productDevelopmentTaskUserName) + '</div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
@@ -5520,7 +5578,10 @@
   function renderProductDevelopmentTaskWorkspace(panel, statusText) {
     const list = panel && panel.querySelector('.pfh-list');
     const detail = panel && panel.querySelector('.pfh-detail');
-    if (list) list.innerHTML = productDevelopmentTaskListHtml();
+    if (list) {
+      list.innerHTML = productDevelopmentTaskListHtml();
+      setupSkuViewFusion(list);
+    }
     if (!detail) return;
     const task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
     if (!task) {
@@ -5560,9 +5621,13 @@
       return rows;
     })().catch((error) => {
       state.productDevelopmentTaskError = formatErrorMessage(error);
-      state.productDevelopmentTasks = [];
-      state.productDevelopmentSelectedTask = null;
-      state.productDevelopmentTaskSelectedSku = '';
+      // Keep the last successful result visible when a refresh is interrupted
+      // by a temporarily unavailable PLM user name or session.
+      const cached = loadProductDevelopmentTaskCache();
+      if (!Array.isArray(state.productDevelopmentTasks) || !state.productDevelopmentTasks.length) {
+        state.productDevelopmentTasks = cached.rows;
+      }
+      if (!state.productDevelopmentTaskUserName && cached.userName) state.productDevelopmentTaskUserName = cached.userName;
       if (state.workMode === 'product-development' && (state.view === 'home' || state.view === 'productDevelopmentTasks')) renderShell();
       throw error;
     }).finally(() => {
@@ -7184,6 +7249,7 @@
     common: Object.freeze(['product-development-tasks', 'product-development-review', 'product-development-copywriting', 'product-development-pricing']),
     more: Object.freeze(['product-development-stocking', 'product-development-packaging', 'product-development-history']),
   });
+  const initialProductDevelopmentTaskCache = loadProductDevelopmentTaskCache();
 
   const state = {
     drawer: null,
@@ -7231,11 +7297,11 @@
     settings: loadSettings(),
     workMode: 'daily',
     productDevelopmentView: 'home',
-    productDevelopmentTasks: [],
-    productDevelopmentTaskUserName: '',
+    productDevelopmentTasks: initialProductDevelopmentTaskCache.rows,
+    productDevelopmentTaskUserName: initialProductDevelopmentTaskCache.userName,
     productDevelopmentTasksLoading: false,
     productDevelopmentTaskError: '',
-    productDevelopmentTasksLoadedAt: 0,
+    productDevelopmentTasksLoadedAt: initialProductDevelopmentTaskCache.fetchedAt,
     productDevelopmentTaskRequestPromise: null,
     productDevelopmentTaskSelectedSku: '',
     productDevelopmentTaskView: 'detail',
@@ -36854,8 +36920,17 @@ self.onmessage = async function(event) {
     )).filter(isVisibleElement);
     for (const element of candidates) {
       const ownText = Array.from(element.childNodes || []).filter((node) => node.nodeType === 3).map((node) => node.textContent || '').join(' ').trim();
-      const value = String(element.getAttribute('data-user-name') || element.getAttribute('data-username') || ownText || element.innerText || element.textContent || '').trim().replace(/\s+/g, ' ');
-      if (/^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z ._-]{1,30}$/.test(value) && !/^(PLM|\u7528\u6237|\u8d26\u53f7|\u6211\u7684)$/.test(value) && !/\u9000\u51fa|\u767b\u5f55|\u8bbe\u7f6e|\u5e2e\u52a9/.test(value)) return value;
+      const rawValues = [
+        element.getAttribute('data-user-name'),
+        element.getAttribute('data-username'),
+        ownText,
+        ...String(element.innerText || element.textContent || '').split(/[\r\n]+/),
+      ];
+      for (const rawValue of rawValues) {
+        const value = String(rawValue || '').trim().replace(/\s+/g, ' ');
+        const name = value.replace(/\s+(?:(?:开发|设计|供应链|运营|采购|销售|品控|产品|项目|高级|储备)[^\s]{0,12}(?:主管|经理|专员|工程师|助理|总监|组长|负责人)?).*$/i, '').trim();
+        if (/^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z ._-]{1,30}$/.test(name) && !/^(PLM|\u7528\u6237|\u8d26\u53f7|\u6211\u7684|\u5f53\u524d\u7528\u6237)$/.test(name) && !/\u9000\u51fa|\u767b\u5f55|\u8bbe\u7f6e|\u5e2e\u52a9/.test(name)) return name;
+      }
     }
     return '';
   }

@@ -8699,6 +8699,64 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 
 /* source: modules/product-development.css (module) */
 /* Product development mode owns an isolated workspace inside the shared shell. */
+#plm-floating-helper .pfh-product-development .pfh-icon {
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  line-height: 1;
+}
+
+#plm-floating-helper .pfh-product-development .pfh-icon svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-sku-view-switch button {
+  color: var(--pfh-theme-muted, #7a82a0);
+  -webkit-text-fill-color: var(--pfh-theme-muted, #7a82a0);
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-sku-view-switch button.is-active {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-sku-add-button .pfh-icon {
+  display: grid;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: currentColor;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-sku-add-button .pfh-icon-refresh svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+}
+
 #plm-floating-helper .pfh-home-feature-viewport {
   min-width: 0;
   overflow: hidden;
