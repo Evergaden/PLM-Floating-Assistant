@@ -10686,7 +10686,12 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 
 #plm-floating-helper .pfh-product-development-material-list {
   display: grid;
+  grid-template-columns: var(--pfh-product-development-material-list-columns, repeat(2, minmax(0, 1fr)));
   gap: 10px;
+}
+
+#plm-floating-helper .pfh-product-development-material-list > .pfh-product-development-material-card.is-instruction {
+  grid-column: 1 / -1;
 }
 
 #plm-floating-helper .pfh-product-development-material-card {
@@ -11030,6 +11035,7 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   }
 
   #plm-floating-helper .pfh-product-development-material-planner {
+    --pfh-product-development-material-list-columns: minmax(0, 1fr);
     --pfh-product-development-material-wide-column: auto;
   }
 
