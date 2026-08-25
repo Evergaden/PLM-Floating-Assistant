@@ -3121,7 +3121,6 @@
       allText.push(item.titleEn, item.titleCn, item.en, item.cn);
       if (!item.en || !item.cn) errors.push('C 第 ' + (index + 1) + ' 条中英文不完整');
       if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) errors.push('C 第 ' + (index + 1) + ' 条超出长度');
-      if (item.titleEn && (productDevelopmentEnglishWordCount(item.titleEn) < 3 || productDevelopmentEnglishWordCount(item.titleEn) > 4)) errors.push('C 第 ' + (index + 1) + ' 条小标题词数异常');
     });
     result.ingredientFunctions.forEach((item, index) => {
       allText.push(item.ingredientEn, item.ingredientCn, item.en, item.cn);
@@ -3206,9 +3205,11 @@
     renderShell();
     try {
       const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: true, includeImage: false });
+      state.productDevelopmentStatus = '正在一次性生成完整 A-D 文案，最长等待约 5 分钟…';
+      renderShell();
       const response = await cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
-        timeoutMs: 240000,
+        timeoutMs: 420000,
         body: {
           sku: snapshot.sku,
           name: snapshot.name,

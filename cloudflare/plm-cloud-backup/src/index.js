@@ -241,11 +241,10 @@ async function callModelScopeText(config, options) {
     ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
   ] : (options.prompt || '');
   // The route-specific timeout must win over the legacy 25s provider default.
-  // The old min(options, config) cap made the product-copywriting route abort
-  // at 25 seconds even though it advertised a 90 second Qwen timeout.
+  // Product copywriting is allowed to wait for a complete single response.
   const timeoutMs = Math.max(12000, Math.min(
     Number(options.timeoutMs || config.timeoutMs || 25000) || 25000,
-    120000
+    300000
   ));
   const response = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
     method: 'POST',
@@ -308,7 +307,7 @@ async function callPreferredAiText(env, options, validate) {
     .filter((model) => /^gemini-/i.test(model))));
   const fallbackTimeoutMs = Math.max(12000, Math.min(
     Number(requestOptions.fallbackTimeoutMs || requestOptions.timeoutMs || 30000) || 30000,
-    120000
+    180000
   ));
   const perGeminiTimeoutMs = geminiModels.length > 1
     ? Math.max(12000, Math.floor(fallbackTimeoutMs / geminiModels.length))
@@ -2205,7 +2204,6 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
   if (requiredSections.has('sellingPoints')) sellingPoints.forEach((item, index) => {
     if (!item.en || !item.cn) throw new Error('C item ' + (index + 1) + ' must be bilingual');
     if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) throw new Error('C item ' + (index + 1) + ' exceeds length');
-    if (item.titleEn && (productDevelopmentEnglishWordCount(item.titleEn) < 3 || productDevelopmentEnglishWordCount(item.titleEn) > 4)) throw new Error('C title ' + (index + 1) + ' must contain 3 to 4 words');
     allText.push(item.titleEn, item.titleCn, item.en, item.cn);
   });
   if (requiredSections.has('ingredientFunctions')) ingredientFunctions.forEach((item, index) => {
@@ -2250,77 +2248,45 @@ async function handleProductDevelopmentCopywriting(request, env) {
     '每一个返回条目都必须同时有非空的 en 和 cn；en 只能写英文，cn 只能写中文。若输入只有一种语言，先忠实翻译后再返回，绝不能返回 null、空字符串或只写一种语言。',
     '英文使用自然、简短的欧美电商表达，不要添加标题、解释或星号，只返回一个 JSON 对象。',
   ].join(' ');
-  const chunkSpecs = [
-    {
-      id: 'ab',
-      sections: ['efficacy', 'advantages'],
-      maxTokens: 1600,
-      instruction: '只生成 A 产品功效 4 条和 B 产品优势 4 条。A 每条中文不超过 20 个汉字、英文不超过 20 个词；B 每条中文不超过 15 个汉字、英文不超过 8 个词。',
-      schema: '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}]}}',
-    },
-    {
-      id: 'c',
-      sections: ['sellingPoints'],
-      maxTokens: 2300,
-      instruction: '只生成 C 产品卖点 15 条。前 1-4 条可以有 3-4 个英文词的小标题，并同时返回 titleEn/titleCn；其余条目标题留空。每条中文不超过 22 个汉字、英文不超过 14 个词。',
-      schema: '{"sections":{"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}]}}',
-    },
-    {
-      id: 'd',
-      sections: ['ingredientFunctions'],
-      maxTokens: 1800,
-      instruction: '只生成 D 成分功能。必须按输入 ingredients 的顺序逐个返回，不能漏项、改名或添加成分；ingredientEn/ingredientCn 返回对应原成分名称，功能说明分别写在 en/cn，每条中文不超过 20 个汉字、英文不超过 18 个词。',
-      schema: '{"sections":{"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
-    },
-  ];
   const configuredGemini = String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite').trim();
-  const generateChunk = async (spec) => {
-    const options = {
-      primaryModel: getProductDevelopmentPrimaryQwenModel(env),
-      model: getProductDevelopmentPrimaryQwenModel(env),
-      temperature: 0,
-      maxTokens: spec.maxTokens,
-      primaryTimeoutMs: 15000,
-      fallbackTimeoutMs: 12000,
-      // Keep one request per chunk below the edge timeout while preserving
-      // Qwen as the first provider. The smaller prompt makes Qwen much more
-      // likely to finish with a complete JSON object.
-      geminiFallbackModels: [configuredGemini || 'gemini-3.1-flash-lite'],
-      responseMimeType: 'application/json',
-      system: commonSystem + ' 本次只生成指定字段，不要生成其他字段。',
-      prompt: [
-        JSON.stringify({ ...basePayload, targetSections: spec.sections }),
-        '本次目标：' + spec.instruction,
-        '严格返回以下 JSON 结构，不要 Markdown、代码围栏或解释：' + spec.schema,
-      ].join('\n'),
-    };
+  const system = [
+    commonSystem,
+    '一次性完整生成 A-D 四个部分，不要拆分、不要省略、不要用占位符。',
+    'A 产品功效必须正好 4 条；B 产品优势必须正好 4 条；C 产品卖点必须正好 15 条；D 成分功能必须覆盖输入 ingredients 的全部成分，并保持输入顺序。',
+    '标题 3-4 个英文词不是硬性校验，可以按自然表达生成，也可以留空；但 C 的 15 条正文一条都不能少。',
+    'A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字；C 每条中文不超过 22 个汉字；D 每条中文不超过 20 个汉字。英文保持简洁自然，不因标题词数不足而省略条目。',
+  ].join(' ');
+  const options = {
+    primaryModel: getProductDevelopmentPrimaryQwenModel(env),
+    model: getProductDevelopmentPrimaryQwenModel(env),
+    temperature: 0,
+    maxTokens: 6000,
+    primaryTimeoutMs: 240000,
+    fallbackTimeoutMs: 120000,
+    geminiFallbackModels: [configuredGemini || 'gemini-3.1-flash-lite'],
+    responseMimeType: 'application/json',
+    system,
+    prompt: [
+      JSON.stringify(basePayload),
+      '严格返回完整 JSON，不要 Markdown、代码围栏或解释：',
+      '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
+      '再次检查：A=4、B=4、C=15、D=输入成分总数；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',
+    ].join('\n'),
+  };
+  try {
     const preferred = await callPreferredAiText(env, options, (candidate) => normalizeProductDevelopmentCopywritingCandidate(
       parseProductDevelopmentJson(candidate.text),
       ingredients,
-      brand,
-      { requiredSections: spec.sections }
+      brand
     ));
-    return { value: preferred.value, result: preferred.result };
-  };
-  try {
-    const chunks = await Promise.all(chunkSpecs.map(generateChunk));
-    const merged = {
-      efficacy: chunks[0].value.efficacy,
-      advantages: chunks[0].value.advantages,
-      sellingPoints: chunks[1].value.sellingPoints,
-      ingredientFunctions: chunks[2].value.ingredientFunctions,
-    };
-    const sections = normalizeProductDevelopmentCopywritingCandidate({ sections: merged }, ingredients, brand);
-    const providers = Array.from(new Set(chunks.map((chunk) => chunk.result.provider || chunk.result.source || '').filter(Boolean)));
-    const models = Array.from(new Set(chunks.map((chunk) => chunk.result.model || '').filter(Boolean)));
     return json({
       ok: true,
-      sections,
+      sections: preferred.value,
       warnings: [],
-      provider: providers.join(' + '),
-      model: models.join(' + '),
+      provider: preferred.result.provider || preferred.result.source || '',
+      model: preferred.result.model || '',
       templateVersion: cleanText(body.templateVersion, 80),
-      source: 'product-development-copywriting-v3-chunked-qwen-first',
+      source: 'product-development-copywriting-v4-single-qwen-first',
     });
   } catch (error) {
     return json({ ok: false, error: cleanText(error && error.message, 500) || 'product development copywriting failed', retryable: true }, 502);
