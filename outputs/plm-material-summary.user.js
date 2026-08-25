@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.206
+// @version      2.8.207
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.206';
+  const SCRIPT_VERSION = '2.8.207';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -13850,6 +13850,12 @@
     panel.dataset.view = state.view || 'home';
     if (state.view === 'productDevelopmentTasks') panel.style.setProperty('overflow', 'visible', 'important');
     else panel.style.removeProperty('overflow');
+    const taskSidebar = panel.querySelector('.pfh-product-development-task-sidebar');
+    if (taskSidebar) {
+      const taskViewActive = state.view === 'productDevelopmentTasks';
+      taskSidebar.hidden = !taskViewActive;
+      taskSidebar.setAttribute('aria-hidden', taskViewActive ? 'false' : 'true');
+    }
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
