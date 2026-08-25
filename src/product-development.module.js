@@ -168,6 +168,9 @@
   const PRODUCT_DEVELOPMENT_TASK_MAX_PAGES = 100;
   const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_TASK_CACHE_KEY = 'plm-floating-helper:product-development-tasks:v1';
+  const PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY = 'plm-floating-helper:product-development-detail:v1';
+  const PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT = 20;
+  const productDevelopmentDetailCacheWriteTimers = Object.create(null);
   const PRODUCT_DEVELOPMENT_TASK_TABS = Object.freeze([
     { id: 'detail', label: '详情' },
     { id: 'review', label: '侵权图' },
@@ -247,6 +250,93 @@
     };
     writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_CACHE_KEY, cache);
     return cache;
+  }
+
+  function productDevelopmentReadonlyDetailCopy(detail) {
+    if (!detail || typeof detail !== 'object') return null;
+    try {
+      return JSON.parse(JSON.stringify(detail));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function productDevelopmentReadonlyDetailForCache(detail) {
+    const copy = productDevelopmentReadonlyDetailCopy(detail);
+    if (!copy) return null;
+    ['requiredFields', 'baseFields', 'priceFields', 'productFields'].forEach((key) => {
+      if (!Array.isArray(copy[key])) return;
+      copy[key] = copy[key].map((field) => {
+        if (!field || typeof field !== 'object') return field;
+        const next = { ...field };
+        delete next.attr;
+        return next;
+      });
+    });
+    delete copy.cacheSource;
+    copy.cachedAt = Date.now();
+    return copy;
+  }
+
+  function loadProductDevelopmentReadonlyDetailCache() {
+    const value = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY, null);
+    const source = value && typeof value === 'object' && value.entries && typeof value.entries === 'object'
+      ? value.entries
+      : {};
+    const entries = Object.create(null);
+    Object.keys(source).forEach((key) => {
+      const sku = String(key || '').trim().toUpperCase();
+      const raw = source[key];
+      const detail = raw && typeof raw === 'object' && raw.detail && typeof raw.detail === 'object' ? raw.detail : raw;
+      if (!sku || !detail || typeof detail !== 'object' || detail.error) return;
+      entries[sku] = {
+        detail,
+        cachedAt: Number(raw && raw.cachedAt) || Number(detail.cachedAt) || 0,
+      };
+    });
+    return entries;
+  }
+
+  function getProductDevelopmentReadonlyDetailCache(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return null;
+    const entries = loadProductDevelopmentReadonlyDetailCache();
+    const entry = entries[normalizedSku];
+    const detail = entry && entry.detail ? productDevelopmentReadonlyDetailCopy(entry.detail) : null;
+    if (!detail) return null;
+    detail.cacheSource = 'local-cache';
+    return detail;
+  }
+
+  function saveProductDevelopmentReadonlyDetailCache(sku, detail) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const cachedDetail = productDevelopmentReadonlyDetailForCache(detail);
+    if (!normalizedSku || !cachedDetail || cachedDetail.error) return;
+    const entries = loadProductDevelopmentReadonlyDetailCache();
+    entries[normalizedSku] = { detail: cachedDetail, cachedAt: Date.now() };
+    const storedEntries = {};
+    Object.entries(entries)
+      .sort((a, b) => Number(b[1] && b[1].cachedAt) - Number(a[1] && a[1].cachedAt))
+      .slice(0, PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT)
+      .forEach(([key, value]) => { storedEntries[key] = value; });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY, { version: 1, entries: storedEntries });
+  }
+
+  function scheduleProductDevelopmentReadonlyDetailCache(sku, detail) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku || !detail) return;
+    if (productDevelopmentDetailCacheWriteTimers[normalizedSku]) window.clearTimeout(productDevelopmentDetailCacheWriteTimers[normalizedSku]);
+    productDevelopmentDetailCacheWriteTimers[normalizedSku] = window.setTimeout(() => {
+      delete productDevelopmentDetailCacheWriteTimers[normalizedSku];
+      saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+    }, 250);
+  }
+
+  function clearProductDevelopmentReadonlyDetailCacheWriteTimer(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku || !productDevelopmentDetailCacheWriteTimers[normalizedSku]) return;
+    window.clearTimeout(productDevelopmentDetailCacheWriteTimers[normalizedSku]);
+    delete productDevelopmentDetailCacheWriteTimers[normalizedSku];
   }
 
   function productDevelopmentTaskUserKey(value) {
@@ -393,9 +483,42 @@
     });
   }
 
-  async function hydrateProductDevelopmentTaskDetail(task) {
+  function productDevelopmentReadonlyDetailForTask(task) {
+    const sku = String(task && task.sku || '').trim().toUpperCase();
+    if (!sku) return null;
+    const inMemory = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    if (inMemory && typeof inMemory === 'object' && !inMemory.error) return inMemory;
+    return getProductDevelopmentReadonlyDetailCache(sku);
+  }
+
+  function productDevelopmentApplyReadonlyDetailState(task, readOnlyDetail, next) {
+    const sku = String(task && task.sku || '').trim().toUpperCase();
+    if (!sku || !readOnlyDetail) return next || null;
+    if (!state.productDevelopmentTaskDetailData || typeof state.productDevelopmentTaskDetailData !== 'object') state.productDevelopmentTaskDetailData = Object.create(null);
+    if (!state.productDevelopmentTaskFormData || typeof state.productDevelopmentTaskFormData !== 'object') state.productDevelopmentTaskFormData = Object.create(null);
+    if (next) state.productDevelopmentTaskDetailData[sku] = next;
+    state.productDevelopmentTaskFormData[sku] = readOnlyDetail;
+    if (state.productDevelopmentTaskSelectedSku === sku) {
+      if (next) state.data = next;
+      state.selectedSku = sku;
+    }
+    return next || state.productDevelopmentTaskDetailData[sku] || null;
+  }
+
+  async function hydrateProductDevelopmentTaskDetail(task, options) {
     if (!task || !task.sku) return null;
+    const opts = options || {};
     const sku = task.sku;
+    if (!opts.force) {
+      const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
+      if (cachedDetail) {
+        const current = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku];
+        const next = current || normalizeData({ ...productDevelopmentTaskSeedData(task), sku });
+        return productDevelopmentApplyReadonlyDetailState(task, cachedDetail, next);
+      }
+    } else {
+      clearProductDevelopmentReadonlyDetailCacheWriteTimer(sku);
+    }
     const seed = productDevelopmentTaskSeedData(task);
     const [project, product] = await Promise.all([
       typeof fetchApiProjectSnapshot === 'function' ? fetchApiProjectSnapshot(seed, { force: true }).catch(() => null) : Promise.resolve(null),
@@ -419,14 +542,11 @@
       ...productDevelopmentTaskSeedData(task),
       sku,
     });
-    if (!state.productDevelopmentTaskDetailData || typeof state.productDevelopmentTaskDetailData !== 'object') state.productDevelopmentTaskDetailData = Object.create(null);
-    if (!state.productDevelopmentTaskFormData || typeof state.productDevelopmentTaskFormData !== 'object') state.productDevelopmentTaskFormData = Object.create(null);
-    state.productDevelopmentTaskDetailData[sku] = next;
-    state.productDevelopmentTaskFormData[sku] = readOnlyDetail;
-    if (state.productDevelopmentTaskSelectedSku === sku) {
-      state.data = next;
-      state.selectedSku = sku;
+    if (readOnlyDetail && !readOnlyDetail.error) {
+      readOnlyDetail.cacheSource = 'plm';
+      saveProductDevelopmentReadonlyDetailCache(sku, readOnlyDetail);
     }
+    productDevelopmentApplyReadonlyDetailState(task, readOnlyDetail, next);
     return next;
   }
 
@@ -446,6 +566,11 @@
     state.productDevelopmentTaskView = 'detail';
     state.productDevelopmentTaskPreviousTab = '';
     state.productDevelopmentError = '';
+    const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
+    if (cachedDetail) {
+      if (!state.productDevelopmentTaskFormData || typeof state.productDevelopmentTaskFormData !== 'object') state.productDevelopmentTaskFormData = Object.create(null);
+      state.productDevelopmentTaskFormData[normalizedSku] = cachedDetail;
+    }
     if (!(options && options.render === false)) renderShell();
     if (!(options && options.hydrate === false)) {
       hydrateProductDevelopmentTaskDetail(task).then(() => {
@@ -924,14 +1049,16 @@
       { title: '价格信息（采购价和三档价格人工确认）', key: 'price', fields: detail.priceFields || [] },
     ];
     const attachments = (detail.attachments || []).map((item, index) => productDevelopmentReadonlyAttachmentHtml(item, index, formSku)).join('');
-    return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>只读数据源 · 可本地填写 · 更新时间 ' + escapeHtml(detail.loadedAt || '') + '</span></header>' +
+    const sourceHint = detail.cacheSource === 'local-cache'
+      ? '本地缓存 · 点击“刷新资料”重新读取 PLM'
+      : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
+    return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>' + escapeHtml(sourceHint) + '</span></header>' +
       '<div class="pfh-product-development-detail-banner"><strong>当前只展示、预填和人工确认，不调用任何 PLM 写入 API。</strong><span>已填字段来自 PLM / BOM / 计算；空白字段和本地填写内容都不会写回 PLM。</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
       (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
       fieldGroups.map((group) => '<section class="pfh-product-development-form-section"><h4>' + escapeHtml(group.title) + '</h4><div class="pfh-product-development-form-grid">' + group.fields.map((field) => productDevelopmentReadonlyFieldHtml({ ...field, formGroup: group.key }, formSku)).join('') + '</div></section>').join('') +
       productFieldSections +
       '<section class="pfh-product-development-form-section"><h4>BOM 绑定数据（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项，可编辑）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>' +
-      '<section class="pfh-product-development-form-section"><h4>建品资料字段（可编辑文件值 / 路径）</h4><div class="pfh-product-development-file-list">' + (attachments || '<span>暂无资料字段</span>') + '</div></section>' +
-      '<p class="pfh-product-development-form-note">采购价、三档价格、重量、装箱数、剂量和功效文案均需人工复核；表单可先本地填写参考，刷新后重新读取 PLM 当前数据，不会保存或提交。</p></section>';
+      '<section class="pfh-product-development-form-section"><h4>建品资料字段（可编辑文件值 / 路径）</h4><div class="pfh-product-development-file-list">' + (attachments || '<span>暂无资料字段</span>') + '</div></section></section>';
   }
 
   function productDevelopmentTaskActionsHtml(task) {
@@ -2399,8 +2526,14 @@
     }
     if (action === 'product-development-context-refresh') {
       const sku = getProductDevelopmentCurrentSku();
+      const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask;
       state.productDevelopmentSnapshot = null;
-      if (sku) loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false, imageKind: 'benchmark' }).then(() => { state.productDevelopmentStatus = '当前 SKU 资料已刷新'; renderShell(); }).catch((error) => { state.productDevelopmentError = formatErrorMessage(error); renderShell(); });
+      state.productDevelopmentStatus = '正在重新读取当前 SKU 的 PLM 资料…';
+      renderShell();
+      const requests = [];
+      if (sku) requests.push(loadProductDevelopmentSnapshot(sku, true, { requireIngredients: false, imageKind: 'benchmark' }));
+      if (task && task.sku) requests.push(hydrateProductDevelopmentTaskDetail(task, { force: true }));
+      if (requests.length) Promise.all(requests).then(() => { state.productDevelopmentStatus = '当前 SKU 资料已刷新'; renderShell(); }).catch((error) => { state.productDevelopmentError = formatErrorMessage(error); renderShell(); });
       return true;
     }
     if (action === 'product-development-template-reset') {
@@ -2432,6 +2565,11 @@
       const group = String(target.getAttribute('data-form-group') || 'required').trim();
       const key = String(target.getAttribute('data-form-key') || '').trim();
       const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+      const persistDetail = () => {
+        if (!detail) return;
+        detail.cacheSource = 'local-cache';
+        scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
+      };
       let field = null;
       if (detail && group === 'bom') {
         const match = key.match(/^(\d+)\.(.+)$/);
@@ -2439,6 +2577,7 @@
         const rowKey = match && match[2];
         if (row && rowKey && Object.prototype.hasOwnProperty.call(row, rowKey)) {
           row[rowKey] = String(target.value || '').slice(0, 800);
+          persistDetail();
           return true;
         }
       }
@@ -2448,6 +2587,7 @@
         if (item) {
           item.displayValue = String(target.value || '').slice(0, 800);
           item.status = item.displayValue.trim() ? '已填写（本地）' : '未读取';
+          persistDetail();
           return true;
         }
       }
@@ -2464,6 +2604,7 @@
         field.displayValue = field.value;
         field.status = field.value.trim() ? '已填写（本地）' : '待补充';
         field.source = field.value.trim() ? '本地人工填写（未写入）' : '待人工补充';
+        persistDetail();
       }
       return true;
     }
