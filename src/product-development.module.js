@@ -205,6 +205,7 @@
   }
 
   function saveProductDevelopmentReviewDraft(result) {
+    if (!result || result.fromHistory) return;
     const draft = productDevelopmentReviewDraftValue(result);
     if (!draft) return;
     const entries = loadProductDevelopmentReviewDrafts();

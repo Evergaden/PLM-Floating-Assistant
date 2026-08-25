@@ -2059,6 +2059,7 @@
         }), a;
     }
     function yn(e) {
+        if (!e || e.fromHistory) return;
         const t = mn(e);
         if (!t) return;
         const a = hn();
