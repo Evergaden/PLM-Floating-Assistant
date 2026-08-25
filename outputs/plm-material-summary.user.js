@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.208
+// @version      2.8.209
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.208';
+  const SCRIPT_VERSION = '2.8.209';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5045,6 +5045,8 @@
   const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_TASK_CACHE_KEY = 'plm-floating-helper:product-development-tasks:v1';
   const PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY = 'plm-floating-helper:product-development-detail:v1';
+  const PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION = 2;
+  const PRODUCT_DEVELOPMENT_DETAIL_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT = 20;
   const productDevelopmentDetailCacheWriteTimers = Object.create(null);
   const PRODUCT_DEVELOPMENT_TASK_TABS = Object.freeze([
@@ -5194,6 +5196,7 @@
     const source = value && typeof value === 'object' && value.entries && typeof value.entries === 'object'
       ? value.entries
       : {};
+    const version = Number(value && value.version) || 0;
     const entries = Object.create(null);
     Object.keys(source).forEach((key) => {
       const sku = String(key || '').trim().toUpperCase();
@@ -5203,12 +5206,13 @@
       entries[sku] = {
         detail,
         cachedAt: Number(raw && raw.cachedAt) || Number(detail.cachedAt) || 0,
+        version: Number(raw && raw.version) || version,
       };
     });
     return entries;
   }
 
-  function getProductDevelopmentReadonlyDetailCache(sku) {
+  function getProductDevelopmentReadonlyDetailCacheEntry(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     if (!normalizedSku) return null;
     const entries = loadProductDevelopmentReadonlyDetailCache();
@@ -5216,21 +5220,32 @@
     const detail = entry && entry.detail ? productDevelopmentReadonlyDetailCopy(entry.detail) : null;
     if (!detail) return null;
     detail.cacheSource = 'local-cache';
-    return detail;
+    return {
+      detail,
+      cachedAt: Number(entry.cachedAt) || Number(detail.cachedAt) || 0,
+      version: Number(entry.version) || 0,
+    };
+  }
+
+  function getProductDevelopmentReadonlyDetailCache(sku) {
+    const entry = getProductDevelopmentReadonlyDetailCacheEntry(sku);
+    return entry ? entry.detail : null;
   }
 
   function saveProductDevelopmentReadonlyDetailCache(sku, detail) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const cachedDetail = productDevelopmentReadonlyDetailForCache(detail);
     if (!normalizedSku || !cachedDetail || cachedDetail.error) return;
+    const cachedAt = Date.now();
+    cachedDetail.cachedAt = cachedAt;
     const entries = loadProductDevelopmentReadonlyDetailCache();
-    entries[normalizedSku] = { detail: cachedDetail, cachedAt: Date.now() };
+    entries[normalizedSku] = { detail: cachedDetail, cachedAt, version: PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION };
     const storedEntries = {};
     Object.entries(entries)
       .sort((a, b) => Number(b[1] && b[1].cachedAt) - Number(a[1] && a[1].cachedAt))
       .slice(0, PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT)
       .forEach(([key, value]) => { storedEntries[key] = value; });
-    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY, { version: 1, entries: storedEntries });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY, { version: PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION, entries: storedEntries });
   }
 
   function scheduleProductDevelopmentReadonlyDetailCache(sku, detail) {
@@ -5433,10 +5448,21 @@
     const opts = options || {};
     const sku = task.sku;
     const previousDetail = productDevelopmentReadonlyDetailForTask(task);
+    const cacheEntry = getProductDevelopmentReadonlyDetailCacheEntry(sku);
+    const inMemoryDetail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    const cachedDetail = inMemoryDetail && typeof inMemoryDetail === 'object' && !inMemoryDetail.error
+      ? inMemoryDetail
+      : cacheEntry && cacheEntry.detail;
+    const cacheAge = cacheEntry && cacheEntry.cachedAt ? Date.now() - cacheEntry.cachedAt : Infinity;
+    const hasFreshDetailCache = Boolean(
+      cachedDetail &&
+      cacheEntry &&
+      cacheEntry.version === PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION &&
+      cacheAge >= 0 &&
+      cacheAge < PRODUCT_DEVELOPMENT_DETAIL_SYNC_COOLDOWN_MS,
+    );
     if (!opts.force) {
-      const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
-      const hasBomSnapshot = cachedDetail && Array.isArray(cachedDetail.bomRows) && cachedDetail.bomRows.length > 0;
-      if (cachedDetail && hasBomSnapshot) {
+      if (hasFreshDetailCache) {
         const current = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku];
         const next = current || normalizeData({ ...productDevelopmentTaskSeedData(task), sku });
         return productDevelopmentApplyReadonlyDetailState(task, cachedDetail, next);
@@ -5505,7 +5531,12 @@
     if (!(options && options.hydrate === false)) {
       hydrateProductDevelopmentTaskDetail(task).then(() => {
         if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === normalizedSku) renderShell();
-      }).catch(() => {});
+      }).catch((error) => {
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === normalizedSku) {
+          state.productDevelopmentError = formatErrorMessage(error);
+          renderShell();
+        }
+      });
     }
     return task;
   }
@@ -6591,7 +6622,7 @@
     ];
     const attachments = (detail.attachments || []).map((item, index) => productDevelopmentReadonlyAttachmentHtml(item, index, formSku)).join('');
     const sourceHint = detail.cacheSource === 'local-cache'
-      ? '本地缓存 · 点击“刷新资料”重新读取 PLM'
+      ? '本地缓存 · 5分钟内免重复读取'
       : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
     return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>' + escapeHtml(sourceHint) + '</span></header>' +
       '<div class="pfh-product-development-detail-banner"><strong>默认只展示、预填和人工确认；只有点击 BOM 区域“保存到 PLM”才执行写入。</strong><span>产品详情、侵权图、文案和本地 BOM 内容不会自动写回；其它字段仍仅保存在本地。</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
@@ -6770,7 +6801,12 @@
       if (state.workMode === 'product-development' && (state.view === 'productDevelopmentTasks' || (!opts.silent && state.view === 'home'))) renderShell();
       if (selected) hydrateProductDevelopmentTaskDetail(selected).then(() => {
         if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === selected.sku) renderShell();
-      }).catch(() => {});
+      }).catch((error) => {
+        if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === selected.sku) {
+          state.productDevelopmentError = formatErrorMessage(error);
+          renderShell();
+        }
+      });
       return rows;
     })().catch((error) => {
       state.productDevelopmentTaskError = formatErrorMessage(error);
