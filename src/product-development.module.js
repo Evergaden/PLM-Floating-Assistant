@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.9.2';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.9.3';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
@@ -22,6 +22,24 @@
     'medical grade', 'medical-grade', '医疗级', '治疗', '疗效', '治愈',
     '全效', '特效', '速效', '第一', '最佳', '顶级', '百分百',
     '实验认证', '认证', '疾病', '药品', '处方', '诊断',
+  ]);
+  const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v1';
+  const PRODUCT_DEVELOPMENT_REVIEW_ACTIONS = Object.freeze({
+    remove: 'remove',
+    replaceLogo: 'replace-logo',
+    replacePhrase: 'replace-phrase',
+    standardizeCount: 'standardize-count',
+    standardizeNetContent: 'standardize-net-content',
+  });
+  const PRODUCT_DEVELOPMENT_REVIEW_FIXED_PHRASES = Object.freeze([
+    Object.freeze({ pattern: /\bMAGNESIUM\s+COMPLEX\b/i, replacementEn: 'Magnesium Blend', replacementZh: '镁混合物' }),
+    Object.freeze({ pattern: /\bMAXIMUM\s+BENEFITS\b/i, replacementEn: 'Balanced Benefits', replacementZh: '均衡功效' }),
+    Object.freeze({ pattern: /\bNATURAL\s+SUPPORT\b/i, replacementEn: 'Nutrition Support', replacementZh: '营养支持' }),
+  ]);
+  const PRODUCT_DEVELOPMENT_REVIEW_COUNT_UNITS = Object.freeze([
+    Object.freeze({ pattern: /\bCAPSULES?\b/i, en: 'CAPSULES', zh: '粒胶囊' }),
+    Object.freeze({ pattern: /\bSOFTGELS?\b/i, en: 'SOFTGELS', zh: '粒软胶囊' }),
+    Object.freeze({ pattern: /\bGUMM(?:Y|IES)\b/i, en: 'GUMMIES', zh: '粒软糖' }),
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
     Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
@@ -154,12 +172,14 @@
         w: Number(source.bbox.w !== undefined ? source.bbox.w : source.bbox.width) || 0,
         h: Number(source.bbox.h !== undefined ? source.bbox.h : source.bbox.height) || 0,
       } : null,
+      textRole: productDevelopmentCleanText(source.textRole || source.role, 40).toLowerCase(),
       riskTypes: Array.isArray(source.riskTypes) ? source.riskTypes.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 4) : [],
       riskTerms: Array.isArray(source.riskTerms) ? source.riskTerms.map((item) => productDevelopmentCleanText(item, 100)).filter(Boolean).slice(0, 8) : [],
       riskReason: productDevelopmentCleanText(source.riskReason || source.reason || source.warning, 400),
       replacementEn: productDevelopmentCleanText(source.replacementEn || source.modifiedEnglish || source.english, 300),
       replacementZh: productDevelopmentCleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation || source.translationZh, 300),
       translationZh: productDevelopmentCleanText(source.translationZh || source.translation || source.chinese, 300),
+      revisionAction: productDevelopmentNormalizeReviewAction(source.revisionAction || source.action || source.editAction),
       replacementOptions: Array.isArray(source.replacementOptions) ? source.replacementOptions.map((item) => ({
         en: productDevelopmentCleanText(item && (item.en || item.english || item.replacementEn), 300),
         zh: productDevelopmentCleanText(item && (item.zh || item.chinese || item.translation), 300),
@@ -2560,6 +2580,106 @@
     };
   }
 
+  function productDevelopmentNormalizeReviewAction(value) {
+    const normalized = String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
+    if (!normalized) return '';
+    if (['remove', 'delete', 'omit', 'remove-from-packaging', '删除', '去掉'].includes(normalized)) return PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove;
+    if (['replace-logo', 'replace-brand', 'logo', '换logo', '换-logo'].includes(normalized)) return PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo;
+    if (['replace-phrase', 'phrase', 'fixed-phrase'].includes(normalized)) return PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replacePhrase;
+    if (['standardize-count', 'count', '数量统一'].includes(normalized)) return PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeCount;
+    if (['standardize-net-content', 'net-content', '净含量规范'].includes(normalized)) return PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeNetContent;
+    return '';
+  }
+
+  function productDevelopmentHasHerbalEvidence(snapshot) {
+    const source = snapshot && typeof snapshot === 'object' ? snapshot : {};
+    const evidence = [
+      source.name,
+      source.productType,
+      source.ingredientSummary && source.ingredientSummary.en,
+      source.ingredientSummary && source.ingredientSummary.cn,
+      Array.isArray(source.ingredients) ? source.ingredients.map((item) => item && (item.en || item.cn)).join(' ') : '',
+    ].filter(Boolean).join(' ');
+    return /\b(?:herbal|botanical|cinnamon|sage|leaf|root|extract)\b|草本|植物|肉桂|鼠尾草|叶|根|提取物/i.test(evidence);
+  }
+
+  function productDevelopmentReplaceApprovedPhrase(value, rule) {
+    return String(value || '').replace(rule.pattern, (match) => {
+      if (match === match.toUpperCase()) return rule.replacementEn.toUpperCase();
+      if (match === match.toLowerCase()) return rule.replacementEn.toLowerCase();
+      return rule.replacementEn;
+    });
+  }
+
+  function productDevelopmentApprovedCountPair(sourceText, replacementEn, replacementZh) {
+    const source = String(sourceText || '');
+    const combined = source + '\n' + String(replacementEn || '');
+    const match = combined.match(/\b(\d+(?:\.\d+)?)\s*(CAPSULES?|SOFTGELS?|GUMM(?:Y|IES))\b/i);
+    if (!match || Number(match[1]) === 60) return null;
+    const unit = PRODUCT_DEVELOPMENT_REVIEW_COUNT_UNITS.find((item) => item.pattern.test(match[2]));
+    if (!unit) return null;
+    const hasSupplement = /\bDIETARY\s+SUPPLEMENT\b/i.test(source + '\n' + String(replacementEn || ''));
+    let nextEn = String(replacementEn || '').replace(/\b\d+(?:\.\d+)?\s*(CAPSULES?|SOFTGELS?|GUMM(?:Y|IES))\b/i, '60 ' + unit.en);
+    if (!nextEn || nextEn === String(replacementEn || '')) nextEn = '60 ' + unit.en;
+    nextEn = nextEn.replace(/\s*(?:\bA\s+)?\bDIETARY\s+SUPPLEMENT\b/i, '\nDIETARY SUPPLEMENT');
+    if (hasSupplement && !/\bDIETARY\s+SUPPLEMENT\b/i.test(nextEn)) nextEn += '\nDIETARY SUPPLEMENT';
+    let nextZh = String(replacementZh || '').replace(/\d+(?:\.\d+)?\s*(粒胶囊|粒软胶囊|粒软糖)/, '60$1');
+    if (!nextZh || nextZh === String(replacementZh || '')) nextZh = '60' + unit.zh;
+    nextZh = nextZh.replace(/\s*膳食补充剂/, '\n膳食补充剂');
+    if (hasSupplement && !/膳食补充剂/.test(nextZh)) nextZh += '\n膳食补充剂';
+    return { replacementEn: nextEn, replacementZh: nextZh, action: PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeCount };
+  }
+
+  function productDevelopmentApplyApprovedReviewRules(sourceItem, sourceText, replacementEn, replacementZh, options) {
+    const item = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+    const opts = options || {};
+    const textRole = String(item.textRole || item.role || '').trim().toLowerCase();
+    const rawTypes = Array.isArray(item.riskTypes) ? item.riskTypes : [item.riskType];
+    const hasBrandRisk = rawTypes.map((value) => String(value || '').trim().toLowerCase()).includes('brand');
+    let action = productDevelopmentNormalizeReviewAction(item.revisionAction || item.action || item.editAction);
+    let nextEn = String(replacementEn || '').trim();
+    let nextZh = String(replacementZh || '').trim();
+    if (textRole === 'brand' || textRole === 'logo' || item.isLogo === true || action === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo || hasBrandRisk) {
+      return {
+        replacementEn: 'REPLACE WITH OWN LOGO',
+        replacementZh: '更换为自有 Logo',
+        action: PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo,
+      };
+    }
+    for (const rule of PRODUCT_DEVELOPMENT_REVIEW_FIXED_PHRASES) {
+      if (!rule.pattern.test(sourceText)) continue;
+      nextEn = productDevelopmentReplaceApprovedPhrase(nextEn, rule);
+      if (!nextZh || nextZh.toLowerCase() === sourceText.toLowerCase() || sourceText.replace(rule.pattern, '').trim() === '') nextZh = rule.replacementZh;
+      if (rule.replacementZh === '均衡功效') nextZh = nextZh.replace(/最大(?:功效|好处|益处)/g, rule.replacementZh);
+      if (rule.replacementZh === '营养支持') nextZh = nextZh.replace(/(?:天然|自然)支持/g, rule.replacementZh);
+      action = action || PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replacePhrase;
+    }
+    const countPair = productDevelopmentApprovedCountPair(sourceText, nextEn, nextZh);
+    if (countPair) {
+      nextEn = countPair.replacementEn;
+      nextZh = countPair.replacementZh;
+      action = countPair.action;
+    }
+    const replacementBanned = productDevelopmentFindBannedTerm(nextEn + ' ' + nextZh, opts.brand);
+    if (replacementBanned) {
+      const naturalClaim = /\b(?:100\s*%\s*)?NATURAL\b/i.test(sourceText);
+      if (naturalClaim && productDevelopmentHasHerbalEvidence(opts.snapshot)) {
+        nextEn = 'HERBAL';
+        nextZh = '草本';
+        action = PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replacePhrase;
+      } else {
+        nextEn = 'OMIT FROM PACKAGING';
+        nextZh = '从包装中删除';
+        action = PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove;
+      }
+    }
+    if (action === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove) {
+      nextEn = 'OMIT FROM PACKAGING';
+      nextZh = '从包装中删除';
+    }
+    return { replacementEn: nextEn, replacementZh: nextZh, action };
+  }
+
   function productDevelopmentNormalizeRiskItems(value, options) {
     const source = value && typeof value === 'object' ? value : {};
     const list = Array.isArray(source.items) ? source.items : [];
@@ -2578,10 +2698,10 @@
       const w = hasBbox ? Math.max(0, Math.min(1 - x, rawW)) : 0;
       const h = hasBbox ? Math.max(0, Math.min(1 - y, rawH)) : 0;
       const sourceText = productDevelopmentCleanText(sourceItem.sourceText || sourceItem.originalText || sourceItem.text, 240);
-      const replacementEn = productDevelopmentCleanText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
-      const replacementZh = productDevelopmentCleanText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation || sourceItem.translationZh || sourceText, 300);
+      const rawReplacementEn = productDevelopmentCleanText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
+      const rawReplacementZh = productDevelopmentCleanText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation || sourceItem.translationZh || sourceText, 300);
       const key = [sourceText.toLowerCase(), hasBbox ? x.toFixed(4) + '|' + y.toFixed(4) : 'no-bbox'].join('|');
-      if (!sourceText || !replacementEn || !replacementZh || seen.has(key)) return null;
+      if (!sourceText || !rawReplacementEn || !rawReplacementZh || seen.has(key)) return null;
       seen.add(key);
       const detected = productDevelopmentDetectSourceRisks(sourceText, brand);
       const riskTypes = Array.from(new Set((Array.isArray(sourceItem.riskTypes) ? sourceItem.riskTypes : [sourceItem.riskType])
@@ -2590,16 +2710,25 @@
         .concat(detected.types))).slice(0, 4);
       const riskTerms = Array.from(new Set((Array.isArray(sourceItem.riskTerms) ? sourceItem.riskTerms : [])
         .map((term) => productDevelopmentCleanText(term, 100)).filter(Boolean).concat(detected.terms))).slice(0, 8);
+      const approved = productDevelopmentApplyApprovedReviewRules(sourceItem, sourceText, rawReplacementEn, rawReplacementZh, {
+        brand,
+        snapshot: options && options.snapshot,
+      });
+      if (approved.action && !riskTypes.length) {
+        riskTypes.push(approved.action === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo ? 'brand' : 'other');
+      }
       return {
         id: String(sourceItem.id || index + 1),
         sourceText,
         bbox: hasBbox && w > 0.001 && h > 0.001 ? { x, y, w, h } : null,
+        textRole: productDevelopmentCleanText(sourceItem.textRole || sourceItem.role, 40).toLowerCase(),
         riskTypes,
         riskTerms,
         riskReason: productDevelopmentCleanText(sourceItem.riskReason || sourceItem.reason || sourceItem.warning, 400) || (riskTerms.length ? '原文检测到：' + riskTerms.join('、') : ''),
-        replacementEn,
-        replacementZh,
-        translationZh: productDevelopmentCleanText(sourceItem.translationZh || sourceItem.translation || sourceItem.chinese || replacementZh, 300),
+        replacementEn: approved.replacementEn,
+        replacementZh: approved.replacementZh,
+        translationZh: productDevelopmentCleanText(sourceItem.translationZh || sourceItem.translation || sourceItem.chinese || approved.replacementZh, 300),
+        revisionAction: approved.action,
         replacementOptions: Array.isArray(sourceItem.replacementOptions) ? sourceItem.replacementOptions : [],
         confidence: Math.max(0, Math.min(1, Number(sourceItem.confidence) || 0)),
       };
@@ -2624,7 +2753,7 @@
     const source = result && typeof result === 'object' ? result : {};
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
     const sourceItems = Array.isArray(source.texts) && source.texts.length ? source.texts : source.items;
-    const extractedTexts = productDevelopmentNormalizeRiskItems({ items: sourceItems }, { brand });
+    const extractedTexts = productDevelopmentNormalizeRiskItems({ items: sourceItems }, { brand, snapshot });
     const items = extractedTexts;
     for (const item of extractedTexts) {
       const term = productDevelopmentFindBannedTerm(item.replacementEn + ' ' + item.replacementZh, brand);
@@ -2831,6 +2960,7 @@
           sellingPoints: snapshot.sourceCopywriting.sellingPoints,
           efficacy: snapshot.sourceCopywriting.efficacy,
           namingExamples: PRODUCT_DEVELOPMENT_NAME_EXAMPLES,
+          reviewRuleVersion: PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION,
           namingRule: '英文产品名取对标图上清晰可见的产品主标题；中文产品名使用适用对象、朦胧作用/状态和剂型组合，不使用医疗、预防、治疗、绝对化或夸大表达。',
           imageDataUrl: image.dataUrl,
           referenceUrl: snapshot.referenceUrl,
@@ -2895,7 +3025,14 @@
   function productDevelopmentReviewEditorHtml(result, items) {
     const rows = (Array.isArray(items) ? items : []).map((item, index) => {
       const isRisk = Array.isArray(item && item.riskTypes) && item.riskTypes.length;
-      const riskText = isRisk ? item.riskTypes.join('、') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '') : '';
+      const actionLabel = item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove
+        ? '删除禁词'
+        : item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replaceLogo
+          ? '更换 Logo'
+          : item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeCount
+            ? '数量统一为 60'
+            : '';
+      const riskText = isRisk ? item.riskTypes.join('、') + (actionLabel ? ' · ' + actionLabel : '') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '') : '';
       const rowClass = isRisk ? ' is-risk' : ' is-clear';
       return '<article class="pfh-product-development-review-editor-row' + rowClass + '"><div class="pfh-product-development-review-editor-head"><b>' + (index + 1) + '</b><span>' + escapeHtml(riskText) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + index + '">删除</button></div>' +
         '<label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="sourceText" value="' + escapeHtml(item.sourceText) + '"></label>' +
@@ -3069,13 +3206,23 @@
     return {
       efficacy: list('efficacy').map((item) => productDevelopmentPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
       advantages: list('advantages').map((item) => productDevelopmentPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
-      sellingPoints: list('sellingPoints').map((item) => {
+      sellingPoints: list('sellingPoints').map((item, index) => {
         const sourceItem = item && typeof item === 'object' ? item : { cn: item };
+        const titleEn = productDevelopmentNormalizeCopywritingTitle(sourceItem.titleEn || sourceItem.title_en || sourceItem.titleEnglish);
+        const titleCn = productDevelopmentNormalizeCopywritingTitle(sourceItem.titleCn || sourceItem.title_cn || sourceItem.titleChinese);
+        const rawEn = productDevelopmentCleanText(sourceItem.en || sourceItem.english, 400);
+        const rawCn = productDevelopmentCleanText(sourceItem.cn || sourceItem.chinese, 400);
+        const en = index < 4 && titleEn && rawEn.toLowerCase().startsWith(titleEn.toLowerCase())
+          ? rawEn.slice(titleEn.length).replace(/^[:：]\s*/, '').trim()
+          : rawEn;
+        const cn = index < 4 && titleCn && rawCn.startsWith(titleCn)
+          ? rawCn.slice(titleCn.length).replace(/^[:：]\s*/, '').trim()
+          : rawCn;
         return {
-          titleEn: productDevelopmentNormalizeCopywritingTitle(sourceItem.titleEn || sourceItem.title_en || sourceItem.titleEnglish),
-          titleCn: productDevelopmentNormalizeCopywritingTitle(sourceItem.titleCn || sourceItem.title_cn || sourceItem.titleChinese),
-          en: productDevelopmentCleanText(sourceItem.en || sourceItem.english, 400),
-          cn: productDevelopmentCleanText(sourceItem.cn || sourceItem.chinese, 400),
+          titleEn: index < 4 ? titleEn : '',
+          titleCn: index < 4 ? titleCn : '',
+          en,
+          cn,
         };
       }).filter((item) => item.cn || item.en),
       ingredientFunctions: list('ingredientFunctions').map((item) => {
@@ -3139,8 +3286,8 @@
         const titleWords = productDevelopmentEnglishWordCount(item.titleEn);
         if (titleWords < 3 || titleWords > 4) errors.push('C 第 ' + (index + 1) + ' 条英文小标题需为 3-4 个词');
         if (titleHasIngredient) errors.push('C 第 ' + (index + 1) + ' 条小标题不能写成分');
-        if (productDevelopmentChineseCount(item.titleCn + item.cn) > 20 || productDevelopmentChineseCount(item.cn) < 8) {
-          errors.push('C 第 ' + (index + 1) + ' 条标题和正文超出中文长度规则');
+        if (productDevelopmentChineseCount(item.cn) > 24 || productDevelopmentChineseCount(item.cn) < 8) {
+          errors.push('C 第 ' + (index + 1) + ' 条正文超出中文长度规则');
         }
       } else {
         if (item.titleEn || item.titleCn) errors.push('C 第 ' + (index + 1) + ' 条不能有小标题');
