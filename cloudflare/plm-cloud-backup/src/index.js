@@ -131,6 +131,15 @@ function isModelScopeModel(value) {
     || /^qwen3\.5-397b-a17b$/i.test(model);
 }
 
+// Product-development generation must stay Qwen-first even if a legacy
+// AI_MODEL/AI_PROVIDER setting points the general insight routes elsewhere.
+// A configured ModelScope model is honored; a non-Qwen MODELSCOPE_MODEL is
+// ignored for these two routes so it cannot silently change their provider.
+function getProductDevelopmentPrimaryQwenModel(env) {
+  const configured = String(env && env.MODELSCOPE_MODEL || '').trim();
+  return isModelScopeModel(configured) ? configured : DEFAULT_MODELSCOPE_MODEL;
+}
+
 function normalizeInsightAiModel(value, env) {
   const raw = String(value || (env && (env.INSIGHT_AI_MODEL || env.AI_MODEL || env.ZHIPU_MODEL)) || 'glm-4.7-flash').trim();
   if (/^qwen\//i.test(raw)) return raw;
@@ -2019,7 +2028,8 @@ async function handleProductDevelopmentReview(request, env) {
   if (!image) return json({ ok: false, error: 'imageDataUrl must be a supported base64 image', items: [] }, 400);
   try {
     const options = {
-      model: getModelScopeModel(env),
+      primaryModel: getProductDevelopmentPrimaryQwenModel(env),
+      model: getProductDevelopmentPrimaryQwenModel(env),
       temperature: 0,
       maxTokens: 5000,
       primaryTimeoutMs: 50000,
@@ -2072,7 +2082,7 @@ async function handleProductDevelopmentReview(request, env) {
       ...preferred.value,
       provider: preferred.result.provider || preferred.result.source || '',
       model: preferred.result.model || '',
-      source: 'product-development-review-v3',
+      source: 'product-development-review-v4-qwen-first',
     });
   } catch (error) {
     const message = cleanText(error && error.message, 500) || 'product image review failed';
@@ -2188,7 +2198,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const options = {
-        model: getModelScopeModel(env),
+        primaryModel: getProductDevelopmentPrimaryQwenModel(env),
+        model: getProductDevelopmentPrimaryQwenModel(env),
         temperature: 0,
         maxTokens: 5000,
         timeoutMs: 60000,
@@ -2209,7 +2220,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
         provider: preferred.result.provider || preferred.result.source || '',
         model: preferred.result.model || '',
         templateVersion: cleanText(body.templateVersion, 80),
-        source: 'product-development-copywriting-v1',
+        source: 'product-development-copywriting-v2-qwen-first',
       });
     } catch (error) {
       lastError = error;

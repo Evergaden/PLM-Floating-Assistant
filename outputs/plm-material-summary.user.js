@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.199
+// @version      2.8.200
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.199';
+  const SCRIPT_VERSION = '2.8.200';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7017,7 +7017,17 @@
       const blob = await buildProductDevelopmentDocx(content, state.productDevelopmentTemplateBase64);
       const id = 'pd-copywriting-' + Date.now().toString(36);
       const fileName = productDevelopmentFileName(snapshot.sku, 'copywriting-A-D', 'docx');
-      state.productDevelopmentCopywriting = { id, sku: snapshot.sku, content, blob, fileName, templateVersion: state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION, createdAt: new Date().toLocaleString() };
+      state.productDevelopmentCopywriting = {
+        id,
+        sku: snapshot.sku,
+        content,
+        blob,
+        fileName,
+        provider: productDevelopmentCleanText(response.provider, 80),
+        model: productDevelopmentCleanText(response.model, 120),
+        templateVersion: state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION,
+        createdAt: new Date().toLocaleString(),
+      };
       saveProductDevelopmentHistory({
         id,
         sku: snapshot.sku,
@@ -7230,6 +7240,7 @@
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
     const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + extractedTexts.length + ' 项，识别风险 ' + riskCount + ' 项。</strong><span>全部原文：' + extractedTexts.map((item, index) => (index + 1) + '. ' + escapeHtml(item.sourceText)).join(' · ') + '</span></div>' : '';
+    const aiSummary = canShowResult ? productDevelopmentAiModelNote(result) : '';
     const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>预览按容器自适应，下载 PNG 保留大字版</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
@@ -7241,10 +7252,18 @@
       '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，先逐字读取全部可见英文，再筛查品牌、禁词和夸大风险；不要求成分。PNG 按“对标图｜英文原文｜对照翻译”三列生成，原图保留，文字可人工修改。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + escapeHtml(state.productDevelopmentBenchmarkImageName ? '已手动选择：' + state.productDevelopmentBenchmarkImageName : '自动读取当前 SKU 对标图片；读取不到时可手动选择') + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
-      extractedSummary +
+      extractedSummary + aiSummary +
       (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
       preview + list +
       '<p class="pfh-product-development-note">本功能只发送当前图片给已配置的 AI 服务用于读取图片文字和风险初筛，不读取成分，不访问 WIPO 或其他外部查询网站，不修改原图，不发起 PLM 写入请求。</p></div>';
+  }
+
+  function productDevelopmentAiModelNote(result) {
+    const source = result && typeof result === 'object' ? result : {};
+    const provider = productDevelopmentCleanText(source.provider, 80);
+    const model = productDevelopmentCleanText(source.model, 120);
+    if (!provider && !model) return '';
+    return '<div class="pfh-product-development-preview-note"><strong>AI 路由：Qwen 优先</strong><span>实际模型：' + escapeHtml([provider, model].filter(Boolean).join(' / ')) + '</span></div>';
   }
 
   function productDevelopmentCopywritingPreviewHtml(content) {
@@ -7269,6 +7288,7 @@
       '<section class="pfh-product-development-template-card"><div><small>模板版本</small><strong>' + escapeHtml(templateVersion) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">恢复内置模板</button><span>当前有效成分：' + escapeHtml(String(ingredientCount)) + ' 个</span></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
+      productDevelopmentAiModelNote(state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.sku === sku ? state.productDevelopmentCopywriting : null) +
       (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + escapeHtml(state.productDevelopmentCopywriting.fileName) + '</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>' : '') +
       productDevelopmentCopywritingPreviewHtml(content) +
       '<p class="pfh-product-development-note">内置模板为版本化四列表格；可以替换为你们的 DOCX 样式模板。生成结果只下载到本地，暂不自动上传或回写 PLM。</p></div>';
