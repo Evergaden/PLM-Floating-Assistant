@@ -11039,6 +11039,10 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 }
 
 /* The development SKU picker floats outside the assistant so the detail workspace keeps its full width. */
+#plm-floating-helper .pfh-product-development-task-sidebar {
+  display: none;
+}
+
 #plm-floating-helper[data-view="productDevelopmentTasks"] {
   overflow: visible;
 }
@@ -11072,12 +11076,14 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar {
   position: absolute;
   top: 14px;
-  right: calc(100% + 10px);
+  right: auto;
+  left: calc(100% + 10px);
   bottom: 14px;
   z-index: 140;
   width: 34px;
   min-width: 34px;
   max-width: calc(100vw - 24px);
+  display: block;
   transition: width .28s cubic-bezier(.25, 1.2, .35, 1);
 }
 
@@ -11102,8 +11108,8 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   box-shadow: 0 18px 44px var(--pfh-theme-shadow, rgba(47, 32, 104, .18)), inset 0 1px 0 rgba(255, 255, 255, .86);
   opacity: 0;
   pointer-events: none;
-  transform: translateX(8px) scale(.985);
-  transform-origin: right center;
+  transform: translateX(-8px) scale(.985);
+  transform-origin: left center;
   transition: opacity .18s ease, transform .28s cubic-bezier(.25, 1.2, .35, 1);
 }
 
