@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.205
+// @version      2.8.206
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.205';
+  const SCRIPT_VERSION = '2.8.206';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -6917,10 +6917,6 @@
     };
   }
 
-  function productDevelopmentNamingExamplesText() {
-    return PRODUCT_DEVELOPMENT_NAME_EXAMPLES.join('、');
-  }
-
   function productDevelopmentReadImageValue(value) {
     if (!value) return '';
     if (typeof value === 'object') {
@@ -7037,11 +7033,8 @@
       cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
     });
     if (requireIngredients && !ingredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
-    const manualBenchmarkImage = imageKind === 'benchmark' ? productDevelopmentReadImageValue(state.productDevelopmentBenchmarkImageDataUrl) : '';
     let imageSource = imageKind === 'benchmark'
-      ? (manualBenchmarkImage
-        ? { imageUrl: manualBenchmarkImage, imageFallbackUrl: manualBenchmarkImage, source: '本地手动选择的对标图片' }
-        : productDevelopmentGetBenchmarkImageSource(data))
+      ? productDevelopmentGetBenchmarkImageSource(data)
       : (typeof getExcelImageSource === 'function' ? getExcelImageSource(data) : { imageUrl: '', imageFallbackUrl: '' });
     let skuImage = null;
     if (imageKind !== 'benchmark' && typeof fetchLedgerAiImageSkuPreflight === 'function') {
@@ -7083,7 +7076,7 @@
     };
     if (!result.imageUrl) {
       throw new Error(imageKind === 'benchmark'
-        ? '当前 SKU 没有可读取的对标图片，请在页面上方手动选择对标图片'
+        ? '当前 SKU 没有可读取的对标图片'
         : '当前 SKU 没有可读取的主产品效果图');
     }
     state.productDevelopmentSnapshot = result;
@@ -7475,14 +7468,13 @@
   function productDevelopmentProductNamingHtml(result) {
     const naming = productDevelopmentNormalizeProductNaming(result && result.productNaming);
     if (!naming.chineseProductName && !naming.englishProductName && !naming.functionSummary) return '';
-    return '<section class="pfh-product-development-product-naming"><header><div><small>PRODUCT NAMING</small><h3>产品名建议</h3></div><span>来源：对标图主标题和可见作用</span></header>' +
+    return '<section class="pfh-product-development-product-naming"><header><div><small>PRODUCT NAMING</small><h3>产品名建议</h3></div></header>' +
       '<div class="pfh-product-development-product-naming-grid">' +
       '<label>中文产品名（朦胧作用）<input type="text" class="pfh-product-development-name-input" data-name-field="chineseProductName" value="' + escapeHtml(naming.chineseProductName) + '"></label>' +
       '<label>英文产品名（包装大标题）<input type="text" class="pfh-product-development-name-input" data-name-field="englishProductName" value="' + escapeHtml(naming.englishProductName) + '"></label>' +
       '</div>' +
       (naming.functionSummary ? '<p><strong>识别的产品作用：</strong>' + escapeHtml(naming.functionSummary) + '</p>' : '') +
-      (naming.evidenceText ? '<p><strong>英文标题依据：</strong>' + escapeHtml(naming.evidenceText) + '</p>' : '') +
-      '<small>名称只在本地结果中展示，可手动修改；不会写入 PLM。命名参考：' + escapeHtml(productDevelopmentNamingExamplesText()) + '</small></section>';
+      '</section>';
   }
 
   async function recomposeProductDevelopmentReview() {
@@ -8004,8 +7996,7 @@
     const items = canShowResult ? result.items || [] : [];
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
-    const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + extractedTexts.length + ' 项，识别风险 ' + riskCount + ' 项。</strong><span>全部原文：' + extractedTexts.map((item, index) => (index + 1) + '. ' + escapeHtml(item.sourceText)).join(' · ') + '</span></div>' : '';
-    const aiSummary = canShowResult ? productDevelopmentAiModelNote(result) : '';
+    const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已读取 ' + extractedTexts.length + ' 项文字，识别风险 ' + riskCount + ' 项。</strong></div>' : '';
     const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>预览按容器自适应，下载 PNG 保留大字版</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
@@ -8014,21 +8005,13 @@
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，先逐字读取全部可见英文，再筛查品牌、禁词和夸大风险；不要求成分。PNG 按“对标图｜英文原文｜对照翻译”三列生成，原图保留，文字可人工修改。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + escapeHtml(state.productDevelopmentBenchmarkImageName ? '已手动选择：' + state.productDevelopmentBenchmarkImageName : '自动读取当前 SKU 对标图片；读取不到时可手动选择') + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>使用当前 SKU 的对标图片生成三列对照图。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
-      extractedSummary + aiSummary +
+      extractedSummary +
       (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
       preview + list +
-      '<p class="pfh-product-development-note">本功能只发送当前图片给已配置的 AI 服务用于读取图片文字和风险初筛，不读取成分，不访问 WIPO 或其他外部查询网站，不修改原图，不发起 PLM 写入请求。</p></div>';
-  }
-
-  function productDevelopmentAiModelNote(result) {
-    const source = result && typeof result === 'object' ? result : {};
-    const provider = productDevelopmentCleanText(source.provider, 80);
-    const model = productDevelopmentCleanText(source.model, 120);
-    if (!provider && !model) return '';
-    return '<div class="pfh-product-development-preview-note"><strong>AI 路由：Qwen 优先</strong><span>实际模型：' + escapeHtml([provider, model].filter(Boolean).join(' / ')) + '</span></div>';
+      '<p class="pfh-product-development-note">结果仅在本地生成，不修改原图或写入 PLM。</p></div>';
   }
 
   function productDevelopmentCopywritingPreviewHtml(content) {
@@ -8053,7 +8036,6 @@
       '<section class="pfh-product-development-template-card"><div><small>模板版本</small><strong>' + escapeHtml(templateVersion) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">恢复内置模板</button><span>当前有效成分：' + escapeHtml(String(ingredientCount)) + ' 个</span></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
-      productDevelopmentAiModelNote(state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.sku === sku ? state.productDevelopmentCopywriting : null) +
       (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + escapeHtml(state.productDevelopmentCopywriting.fileName) + '</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>' : '') +
       productDevelopmentCopywritingPreviewHtml(content) +
       '<p class="pfh-product-development-note">内置模板为版本化四列表格；可以替换为你们的 DOCX 样式模板。生成结果只下载到本地，暂不自动上传或回写 PLM。</p></div>';
