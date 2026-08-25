@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.209
+// @version      2.8.210
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.209';
+  const SCRIPT_VERSION = '2.8.210';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.266';
+  const UI_ASSET_VERSION = '2.5.267';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -13624,6 +13624,9 @@
     panel.dataset.version = SCRIPT_VERSION;
     panel.innerHTML = '<div class="pfh-full"><div class="pfh-header"><div class="pfh-heading"><strong></strong><div class="pfh-search"><span class="pfh-search-box"><input type="search" name="plm-sku-search" role="searchbox" class="pfh-search-input" autocomplete="off" autocapitalize="off" spellcheck="false" data-form-type="other" data-lpignore="true" data-1p-ignore="true"><button type="button" class="pfh-search-clear" data-action="clear-search"></button></span><button type="button" data-action="search"></button></div></div><div class="pfh-actions"><button type="button" data-action="home-main"></button><button type="button" data-action="notifications"></button><button type="button" data-action="about"></button><button type="button" data-action="collapse"></button></div></div><div class="pfh-main"><aside class="pfh-list"></aside><aside class="pfh-product-development-task-sidebar" aria-label="开发 SKU 列表"><button type="button" class="pfh-product-development-task-sidebar-rail" data-action="product-development-task-list-toggle" aria-expanded="false" title="悬浮展开开发 SKU 列表"><span>开发 SKU</span><i aria-hidden="true">›</i></button><div class="pfh-product-development-task-sidebar-body"></div></aside><div class="pfh-splitter" title="\u62d6\u52a8\u8c03\u6574\u5de6\u53f3\u5bbd\u5ea6"></div><div class="pfh-detail"></div></div><input type="file" class="pfh-import-file" accept="application/json,.json"><div class="pfh-resize-handle pfh-resize-n" data-resize-dir="n"></div><div class="pfh-resize-handle pfh-resize-e" data-resize-dir="e"></div><div class="pfh-resize-handle pfh-resize-s" data-resize-dir="s"></div><div class="pfh-resize-handle pfh-resize-w" data-resize-dir="w"></div><div class="pfh-resize-handle pfh-resize-ne" data-resize-dir="ne"></div><div class="pfh-resize-handle pfh-resize-nw" data-resize-dir="nw"></div><div class="pfh-resize-handle pfh-resize-se" data-resize-dir="se" title="\u62d6\u52a8\u8c03\u6574\u7a97\u53e3\u5927\u5c0f"></div><div class="pfh-resize-handle pfh-resize-sw" data-resize-dir="sw"></div></div>';
     document.documentElement.appendChild(panel);
+    const full = panel.querySelector('.pfh-full');
+    const taskSidebar = panel.querySelector('.pfh-product-development-task-sidebar');
+    if (full && taskSidebar) full.after(taskSidebar);
     panel.querySelector('.pfh-heading').insertAdjacentHTML('afterbegin', '<button type="button" class="pfh-collection-mark" data-action="toggle-collection" role="switch" aria-label="\u6570\u636e\u91c7\u96c6">P</button>');
     panel.dataset.edition = PRODUCT_EDITION.id;
     panel.querySelector('.pfh-heading strong').insertAdjacentHTML('afterend', '<span class="pfh-edition-badge pfh-edition-' + escapeHtml(PRODUCT_EDITION.id) + '"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3.2 10.8 10.7 3.3a1.55 1.55 0 0 1 2.2 0l.1.1a1.55 1.55 0 0 1 0 2.2l-7.5 7.5"></path><path d="m9.7 4.3 2 2"></path><path d="m2.4 13.7 3.4-.8-2.6-2.6-.8 3.4Z"></path></svg><b>' + escapeHtml(PRODUCT_EDITION.label) + '</b><small>' + escapeHtml(PRODUCT_EDITION.code) + '</small></span>');
@@ -13891,6 +13894,11 @@
       const taskViewActive = state.view === 'productDevelopmentTasks';
       taskSidebar.hidden = !taskViewActive;
       taskSidebar.setAttribute('aria-hidden', taskViewActive ? 'false' : 'true');
+      if (taskViewActive) {
+        const header = panel.querySelector('.pfh-header');
+        const headerHeight = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+        if (headerHeight > 0) panel.style.setProperty('--pfh-product-development-task-sidebar-top', (headerHeight + 14) + 'px');
+      }
     }
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));

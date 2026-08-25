@@ -2348,7 +2348,8 @@
 }
 
 #plm-floating-helper[data-view="productDevelopmentTasks"] > .pfh-full {
-  overflow: visible;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main {
@@ -2357,7 +2358,7 @@
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main > .pfh-list,
@@ -2375,7 +2376,7 @@
 
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar {
   position: absolute;
-  top: 14px;
+  top: var(--pfh-product-development-task-sidebar-top, 90px);
   right: auto;
   left: calc(100% + 10px);
   bottom: 14px;
