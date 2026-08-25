@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS feature_access (
   user_name TEXT PRIMARY KEY,
   size_image_enabled INTEGER NOT NULL DEFAULT 0,
   magic_upload_enabled INTEGER NOT NULL DEFAULT 0,
+  parameter_image_enabled INTEGER NOT NULL DEFAULT 0,
+  lulu_theme_enabled INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -123,6 +125,12 @@ ON feature_access(size_image_enabled, updated_at);
 
 CREATE INDEX IF NOT EXISTS idx_feature_access_magic_upload
 ON feature_access(magic_upload_enabled, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_feature_access_parameter_image
+ON feature_access(parameter_image_enabled, updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_feature_access_lulu_theme
+ON feature_access(lulu_theme_enabled, updated_at);
 
 CREATE TABLE IF NOT EXISTS plm_users (
   user_name TEXT PRIMARY KEY,
