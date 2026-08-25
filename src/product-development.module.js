@@ -2621,7 +2621,7 @@
     const sourceNeedsNormalization = sourceMatch && Number(sourceMatch[1]) !== 60;
     const replacementNeedsNormalization = replacementMatch && Number(replacementMatch[1]) !== 60;
     if (!sourceNeedsNormalization && !replacementNeedsNormalization) return null;
-    const unitMatch = replacementMatch || sourceMatch;
+    const unitMatch = sourceMatch || replacementMatch;
     const unit = PRODUCT_DEVELOPMENT_REVIEW_COUNT_UNITS.find((item) => item.pattern.test(unitMatch[2]));
     if (!unit) return null;
     const hasSupplement = /\bDIETARY\s+SUPPLEMENT\b/i.test(source + '\n' + String(replacementEn || ''));
@@ -2635,7 +2635,7 @@
     const chineseCountPattern = /\d+(?:\.\d+)?\s*(粒胶囊|粒软胶囊|粒软糖)/;
     const chineseMatch = nextChinese.match(chineseCountPattern);
     let nextZh = chineseMatch
-      ? nextChinese.replace(chineseCountPattern, '60$1')
+      ? nextChinese.replace(chineseCountPattern, '60' + unit.zh)
       : '60' + unit.zh + (nextChinese ? '\n' + nextChinese : '');
     nextZh = nextZh.replace(/^\n+/, '').replace(/\s*膳食补充剂/, '\n膳食补充剂');
     nextZh = nextZh.replace(/^\n+/, '');
