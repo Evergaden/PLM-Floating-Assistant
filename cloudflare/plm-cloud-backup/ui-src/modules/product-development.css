@@ -1945,8 +1945,8 @@
 /* Local BOM material planning stays separate from the raw PLM BOM rows. */
 #plm-floating-helper .pfh-product-development-material-planner {
   display: grid;
-  gap: 10px;
-  padding: 15px;
+  gap: 8px;
+  padding: 11px;
   border: 1px solid var(--pfh-theme-border-strong);
   border-radius: 16px;
   background: linear-gradient(140deg, var(--pfh-theme-surface), var(--pfh-theme-control-surface));
@@ -1991,8 +1991,8 @@
 
 #plm-floating-helper .pfh-product-development-material-card {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 12px;
   background: var(--pfh-theme-surface);
@@ -2033,17 +2033,57 @@
   font-weight: 700;
 }
 
+#plm-floating-helper .pfh-product-development-material-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+#plm-floating-helper .pfh-product-development-material-card-actions button,
+#plm-floating-helper .pfh-product-development-material-card > header > button {
+  min-height: 25px;
+  padding: 0 7px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 7px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-muted);
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-product-development-material-card-actions button:hover,
+#plm-floating-helper .pfh-product-development-material-card > header > button:hover {
+  border-color: var(--pfh-theme-primary);
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-material-card.is-disabled {
+  gap: 6px;
+  border-style: dashed;
+  background: var(--pfh-theme-control-surface);
+}
+
+#plm-floating-helper .pfh-product-development-material-card.is-disabled p {
+  margin: 0;
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
 #plm-floating-helper .pfh-product-development-material-grid,
 #plm-floating-helper .pfh-product-development-material-option-grid {
   display: grid;
   grid-template-columns: var(--pfh-product-development-material-columns, repeat(2, minmax(0, 1fr)));
-  gap: 8px;
+  gap: 6px;
 }
 
 #plm-floating-helper .pfh-product-development-material-field {
   display: grid;
   min-width: 0;
-  gap: 4px;
+  gap: 3px;
   color: var(--pfh-theme-muted);
   font-size: 10px;
 }
@@ -2069,9 +2109,9 @@
 #plm-floating-helper .pfh-product-development-material-field select {
   width: 100%;
   min-width: 0;
-  min-height: 32px;
+  min-height: 28px;
   box-sizing: border-box;
-  padding: 0 9px;
+  padding: 0 8px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 8px;
   outline: 0;
@@ -2097,8 +2137,8 @@
 #plm-floating-helper .pfh-product-development-material-options,
 #plm-floating-helper .pfh-product-development-material-defaults {
   display: grid;
-  gap: 7px;
-  padding-top: 9px;
+  gap: 6px;
+  padding-top: 7px;
   border-top: 1px dashed var(--pfh-theme-border);
 }
 
@@ -2120,8 +2160,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 32px;
-  padding: 0 9px;
+  min-height: 28px;
+  padding: 0 8px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 8px;
   background: var(--pfh-theme-control-surface);
@@ -2144,12 +2184,80 @@
 }
 
 #plm-floating-helper .pfh-product-development-material-binding-defaults {
-  padding: 7px 8px;
+  padding: 6px 8px;
   border-radius: 8px;
   background: var(--pfh-theme-control-surface);
   color: var(--pfh-theme-muted);
   font-size: 9px;
   line-height: 1.5;
+}
+
+#plm-floating-helper .pfh-product-development-product-binding {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 10px;
+  background: var(--pfh-theme-control-surface);
+}
+
+#plm-floating-helper .pfh-product-development-product-binding > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#plm-floating-helper .pfh-product-development-product-binding > header > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+#plm-floating-helper .pfh-product-development-product-binding strong {
+  color: var(--pfh-theme-text);
+  font-size: 12px;
+}
+
+#plm-floating-helper .pfh-product-development-product-binding header span,
+#plm-floating-helper .pfh-product-development-product-binding p,
+#plm-floating-helper .pfh-product-development-product-binding small {
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+#plm-floating-helper .pfh-product-development-product-binding em {
+  flex: 0 0 auto;
+  color: var(--pfh-theme-primary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+#plm-floating-helper .pfh-product-development-product-binding em.is-missing {
+  color: #b42318;
+}
+
+#plm-floating-helper .pfh-product-development-binding-grid {
+  display: grid;
+  grid-template-columns: var(--pfh-product-development-binding-columns, repeat(4, minmax(0, 1fr)));
+  gap: 6px;
+}
+
+#plm-floating-helper .pfh-product-development-binding-grid > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+#plm-floating-helper .pfh-product-development-binding-grid b {
+  overflow: hidden;
+  color: var(--pfh-theme-text);
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #plm-floating-helper .pfh-product-development-material-header-actions {
@@ -2223,5 +2331,9 @@
 
   #plm-floating-helper .pfh-product-development-material-planner {
     --pfh-product-development-material-wide-column: auto;
+  }
+
+  #plm-floating-helper .pfh-product-development-product-binding {
+    --pfh-product-development-binding-columns: repeat(2, minmax(0, 1fr));
   }
 }

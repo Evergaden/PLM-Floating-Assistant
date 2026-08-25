@@ -1,9 +1,10 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.9.1';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.9.2';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
   const PRODUCT_DEVELOPMENT_TASK_META_KEY = 'plm-floating-helper:product-development-task-meta:v1';
+  const PRODUCT_DEVELOPMENT_TASK_SIDEBAR_KEY = 'plm-floating-helper:product-development-task-sidebar:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY = 'plm-floating-helper:product-development-template-version:v1';
   const PRODUCT_DEVELOPMENT_MAX_HISTORY = 8;
@@ -95,6 +96,15 @@
     } catch (error) {
       // Local history is optional; the current result remains available.
     }
+  }
+
+  function loadProductDevelopmentTaskListOpen() {
+    const value = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_SIDEBAR_KEY, null);
+    return value === null || value === undefined ? true : value !== false && value !== 'false';
+  }
+
+  function saveProductDevelopmentTaskListOpen(open) {
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_SIDEBAR_KEY, Boolean(open));
   }
 
   function normalizeProductDevelopmentHistory(value) {
@@ -602,7 +612,8 @@
       projectId,
       projectCode: productDevelopmentCleanText(item.code, 80),
       productId: String(item.product_id || '').trim(),
-      productVersionId: String(item.product_main_id || item.product_version_id || '').trim(),
+      productMainId: String(item.product_main_id || item.productMainId || item.product_version_id || item.productVersionId || '').trim(),
+      productVersionId: String(item.product_version_id || item.productVersionId || item.product_main_id || item.productMainId || '').trim(),
       developerName,
       developerUsername: productDevelopmentCleanText(item.dev_work_user_username || item.dev_work_user_userName || '', 80),
       developerText: [developerName, productDevelopmentCleanText(item.dev_work_user_jobtitlename || '', 80)].filter(Boolean).join(' '),
@@ -689,6 +700,7 @@
       projectId: row.projectId || detail.projectId || cached && cached.projectId || '',
       projectCode: row.projectCode || detail.projectCode || '',
       productId: row.productId || detail.productId || cached && cached.productId || '',
+      productMainId: row.productMainId || detail.productMainId || cached && cached.productMainId || '',
       productVersionId: row.productVersionId || detail.productVersionId || cached && cached.productVersionId || '',
       developerName: row.developerName || detail.developerName || '',
       developerText: row.developerText || detail.developerText || '',
@@ -750,7 +762,8 @@
     const previousDetail = productDevelopmentReadonlyDetailForTask(task);
     if (!opts.force) {
       const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
-      if (cachedDetail) {
+      const hasBomSnapshot = cachedDetail && Array.isArray(cachedDetail.bomRows) && cachedDetail.bomRows.length > 0;
+      if (cachedDetail && hasBomSnapshot) {
         const current = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[sku];
         const next = current || normalizeData({ ...productDevelopmentTaskSeedData(task), sku });
         return productDevelopmentApplyReadonlyDetailState(task, cachedDetail, next);
@@ -773,6 +786,7 @@
       priceFields: [],
       attachments: [],
       bomRows: [],
+      bomReadState: 'error',
       materialDrafts: previousDetail && previousDetail.materialDrafts || null,
     }));
     const next = normalizeData({
@@ -839,7 +853,9 @@
     const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="开发 SKU 列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
       '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div>' +
       '<label class="pfh-sku-sort"><span>排序</span>' + listSortMenu + '</label></div>';
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>' + listTools;
+    const taskListOpen = state.productDevelopmentTaskListOpen !== false;
+    const sidebarToggle = '<button type="button" class="pfh-product-development-task-sidebar-collapse" data-action="product-development-task-list-toggle" aria-expanded="' + (taskListOpen ? 'true' : 'false') + '" title="' + (taskListOpen ? '收起开发 SKU 列表' : '固定开发 SKU 列表') + '">' + (taskListOpen ? '‹' : '›') + '</button>';
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button>' + sidebarToggle + '</div>' + listTools;
     const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-list-note">开发人员：' + escapeHtml(state.productDevelopmentTaskUserName) + '</div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
@@ -864,12 +880,30 @@
   }
 
   function productDevelopmentReadonlyList(payload) {
-    if (typeof getApiListItems === 'function') return getApiListItems(payload);
-    const data = payload && payload.data !== undefined ? payload.data : payload;
-    if (Array.isArray(data)) return data;
-    if (data && Array.isArray(data.list)) return data.list;
-    if (data && Array.isArray(data.rows)) return data.rows;
-    return [];
+    if (typeof getApiListItems === 'function') {
+      try {
+        const items = getApiListItems(payload);
+        if (Array.isArray(items) && items.length) return items;
+      } catch (error) {
+        // Fall through to the product-development response shapes below.
+      }
+    }
+    const collectionKeys = [
+      'list', 'rows', 'items', 'records', 'materials', 'material_list',
+      'project_pm_join_list', 'projectPMJoinList', 'project_material_list',
+      'projectMaterialList', 'bom', 'bomRows', 'data',
+    ];
+    const findCollection = (value, depth) => {
+      if (Array.isArray(value)) return value;
+      if (!value || typeof value !== 'object' || depth > 4) return [];
+      for (const key of collectionKeys) {
+        if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
+        const result = findCollection(value[key], depth + 1);
+        if (result.length || Array.isArray(value[key])) return result;
+      }
+      return [];
+    };
+    return findCollection(payload, 0);
   }
 
   function productDevelopmentReadonlyAttrGroups(payload) {
@@ -1063,6 +1097,7 @@
     };
     const draft = {
       kind,
+      enabled: raw.enabled !== false && raw.removed !== true,
       label: defaults.label,
       materialType: defaults.materialType,
       categoryId: String(raw.categoryId || defaults.categoryId),
@@ -1123,6 +1158,28 @@
     return { value: normalized, changed: previous !== next };
   }
 
+  function productDevelopmentSetMaterialEnabled(sku, kind, enabled) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku || !['box', 'label'].includes(kind)) return false;
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+    if (!detail) return false;
+    const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
+    productDevelopmentEnsureMaterialDrafts(detail, task);
+    const draft = detail.materialDrafts && detail.materialDrafts[kind];
+    if (!draft) return false;
+    draft.enabled = Boolean(enabled);
+    detail.bomDraftDirty = true;
+    detail.bomDraftSaveState = 'dirty';
+    detail.bomPlmSaveState = '';
+    detail.bomPlmSaveMessage = '';
+    detail.cacheSource = 'local-cache';
+    scheduleProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+    state.productDevelopmentStatus = (enabled ? '已恢复' : '已移除') + (kind === 'box' ? '纸盒' : '标签') + '本地填写卡片';
+    showToast(state.productDevelopmentStatus);
+    renderShell();
+    return true;
+  }
+
   function productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task) {
     if (!draft) return;
     const baseName = productDevelopmentMaterialBaseName(task, detail);
@@ -1173,7 +1230,10 @@
 
   function productDevelopmentMaterialBatchPayload(row) {
     const joinId = productDevelopmentApiNumber(row && row.joinId, null);
-    if (joinId === null || !row || !row.code) return null;
+    if (joinId === null || !row) return null;
+    const isFinishedProduct = Number(row.typeValue) === 1 || row.type === '成品';
+    const code = productDevelopmentCleanText(row.code || (isFinishedProduct ? row.productCode : ''), 100);
+    if (!code) return null;
     const materialId = productDevelopmentApiNumber(row.materialId, null);
     const productMainId = productDevelopmentApiNumber(row.productMainId, null);
     const materialType = row.materialType === '' || row.materialType === null || row.materialType === undefined
@@ -1184,7 +1244,7 @@
     return {
       id: joinId,
       pics: row.pics === null ? null : (Array.isArray(row.pics) ? row.pics.slice(0, 20) : []),
-      code: row.code,
+      code,
       material_id: materialId,
       material_type: materialType,
       usage_value: productDevelopmentApiNumber(row.usage, 1),
@@ -1207,14 +1267,15 @@
   }
 
   function productDevelopmentApiList(payload) {
-    if (payload && payload.data && Array.isArray(payload.data.list)) return payload.data.list;
     return productDevelopmentReadonlyList(payload);
   }
 
   async function productDevelopmentResolveProductMainId(task, detail, rows) {
     const existing = (Array.isArray(rows) ? rows : []).find((row) => row && (Number(row.typeValue) === 1 || row.type === '成品') && row.productMainId);
     if (existing && existing.productMainId) return String(existing.productMainId);
-    const direct = detail && (detail.productMainId || detail.product_main_id);
+    const direct = detail && (detail.productMainId || detail.product_main_id)
+      || task && (task.productMainId || task.product_main_id)
+      || state.data && (state.data.productMainId || state.data.product_main_id);
     if (direct) return String(direct);
     const sku = String(detail && detail.sku || task && task.sku || '').trim().toUpperCase();
     if (!sku) return '';
@@ -1225,8 +1286,26 @@
   }
 
   async function productDevelopmentReadBomRows(projectId) {
-    const payload = await fetchPlmJson('/api/ChemicalNewDevTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId));
-    return productDevelopmentReadonlyList(payload).map(productDevelopmentReadonlyBomRow).filter((row) => row.code || row.name);
+    const paths = [
+      '/api/ChemicalNewDevTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId),
+      '/api/ChemicalNewAll/GetProjectPMJoinList?id=' + encodeURIComponent(projectId),
+    ];
+    const results = await Promise.allSettled(paths.map((path) => fetchPlmJson(path)));
+    const fulfilled = results.filter((result) => result.status === 'fulfilled');
+    if (!fulfilled.length) throw (results[0] && results[0].reason) || new Error('BOM 读取接口不可用');
+    const rows = [];
+    const seen = new Set();
+    fulfilled.forEach((result) => {
+      productDevelopmentReadonlyList(result.value).forEach((source) => {
+        const row = productDevelopmentReadonlyBomRow(source);
+        if (!row.code && !row.name) return;
+        const key = row.joinId || [row.typeValue, row.materialId, row.productMainId, row.code, row.name].join('|');
+        if (seen.has(key)) return;
+        seen.add(key);
+        rows.push(row);
+      });
+    });
+    return rows;
   }
 
   async function productDevelopmentSaveBomToPlm(sku) {
@@ -1241,7 +1320,7 @@
     const drafts = [
       ['box', detail.materialDrafts.box],
       ['label', detail.materialDrafts.label],
-    ];
+    ].filter(([, draft]) => draft && draft.enabled !== false);
     const missing = drafts.flatMap(([kind, draft]) => productDevelopmentMaterialDraftMissingFields(kind, draft));
     if (missing.length) throw new Error('请先补充 BOM：' + missing.join('、'));
     let rows = Array.isArray(detail.bomRows) ? detail.bomRows.slice() : [];
@@ -1285,6 +1364,8 @@
     });
     const batchMaterials = rows.map(productDevelopmentMaterialBatchPayload).filter(Boolean);
     const savedDraftJoinIds = drafts.map(([, draft]) => String(draft.joinId || '').trim()).filter(Boolean);
+    const productBinding = batchMaterials.find((item) => Number(item.type) === 1);
+    if (!productBinding) throw new Error('未读取到成品绑定行，物料未提交，请刷新 BOM 后重试');
     if (savedDraftJoinIds.some((joinId) => !batchMaterials.some((item) => String(item.id) === joinId))) throw new Error('PLM 已保存物料，但未读取到对应 BOM 绑定行，请刷新后重试');
     const syncPayload = await fetchPlmApiJson('/api/ChemicalNewBom/MaterialBatchSaveAndSyncToProduct', {
       project_id: productDevelopmentApiNumber(projectId, projectId),
@@ -1332,7 +1413,7 @@
   function productDevelopmentRunBomPlmSave(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     if (!normalizedSku || state.productDevelopmentBomSaveSku) return;
-    if (typeof window.confirm === 'function' && !window.confirm('确认将当前纸盒和标签 BOM 保存到 PLM？此操作会创建或更新物料并绑定到项目。')) return;
+    if (typeof window.confirm === 'function' && !window.confirm('确认将当前启用的 BOM 物料和成品绑定保存到 PLM？已移除的纸盒/标签不会新建；已有 PLM 绑定不会自动删除。')) return;
     state.productDevelopmentBomSaveSku = normalizedSku;
     state.productDevelopmentStatus = '正在保存 BOM 到 PLM…';
     state.productDevelopmentError = '';
@@ -1362,26 +1443,37 @@
 
   function productDevelopmentReadonlyBomRow(row) {
     const source = row && typeof row === 'object' ? row : {};
+    const value = (...keys) => {
+      for (const key of keys) {
+        if (source[key] !== undefined && source[key] !== null && source[key] !== '') return source[key];
+      }
+      return '';
+    };
+    const rawPics = source.pics !== undefined ? source.pics : value('picture_files', 'pictureFiles');
+    let pics = rawPics;
+    if (typeof rawPics === 'string') {
+      try { pics = JSON.parse(rawPics); } catch (error) { pics = []; }
+    }
     return {
-      joinId: String(source.id || '').trim(),
-      productId: String(source.product_id || '').trim(),
-      productMainId: String(source.product_main_id || '').trim(),
-      materialId: String(source.material_id || '').trim(),
-      pics: source.pics === null ? null : (Array.isArray(source.pics) ? source.pics.slice(0, 20) : []),
-      typeValue: source.type === null || source.type === undefined || source.type === '' ? '' : Number(source.type),
-      type: Number(source.type) === 1 ? '成品' : '物料',
-      code: productDevelopmentCleanText(source.code, 100),
-      name: productDevelopmentCleanText(source.name, 180),
-      category: productDevelopmentCleanText(source.category_name || source.categoryName, 180),
-      specification: productDevelopmentCleanText(source.properties_value || source.propertiesValue, 220),
-      usage: source.usage_value === undefined || source.usage_value === null ? '' : String(source.usage_value),
-      materialType: source.material_type === null || source.material_type === undefined ? '' : String(source.material_type),
-      supplier: productDevelopmentCleanText(source.default_supplier_name || source.defaultSupplierName, 180),
-      supplierId: String(source.default_supplier_id || source.defaultSupplierId || '').trim(),
-      price: source.sale_price === null || source.sale_price === undefined ? '' : String(source.sale_price),
-      length: source.material_length,
-      width: source.material_width,
-      height: source.material_height,
+      joinId: String(value('id', 'join_id', 'joinId')).trim(),
+      productId: String(value('product_id', 'productId')).trim(),
+      productMainId: String(value('product_main_id', 'productMainId', 'product_version_id', 'productVersionId')).trim(),
+      materialId: String(value('material_id', 'materialId')).trim(),
+      pics: rawPics === null ? null : (Array.isArray(pics) ? pics.slice(0, 20) : []),
+      typeValue: value('type', 'type_value', 'typeValue') === '' ? '' : Number(value('type', 'type_value', 'typeValue')),
+      type: Number(value('type', 'type_value', 'typeValue')) === 1 ? '成品' : '物料',
+      code: productDevelopmentCleanText(value('code', 'material_code', 'materialCode'), 100),
+      name: productDevelopmentCleanText(value('name', 'material_name', 'materialName', 'product_name', 'productName'), 180),
+      category: productDevelopmentCleanText(value('category_name', 'categoryName', 'category'), 180),
+      specification: productDevelopmentCleanText(value('properties_value', 'propertiesValue', 'specification'), 220),
+      usage: value('usage_value', 'usageValue', 'usage') === '' ? '' : String(value('usage_value', 'usageValue', 'usage')),
+      materialType: value('material_type', 'materialType') === '' ? '' : String(value('material_type', 'materialType')),
+      supplier: productDevelopmentCleanText(value('default_supplier_name', 'defaultSupplierName', 'supplier'), 180),
+      supplierId: String(value('default_supplier_id', 'defaultSupplierId', 'supplierId')).trim(),
+      price: value('sale_price', 'salePrice', 'purchase_price', 'purchasePrice') === '' ? '' : String(value('sale_price', 'salePrice', 'purchase_price', 'purchasePrice')),
+      length: value('material_length', 'materialLength', 'length'),
+      width: value('material_width', 'materialWidth', 'width'),
+      height: value('material_height', 'materialHeight', 'height'),
     };
   }
 
@@ -1521,7 +1613,10 @@
     const source = task || {};
     const info = productDevelopmentReadonlyPayloadData(infoPayload);
     const attrs = productDevelopmentReadonlyAttrs(contentPayload);
-    const bomRows = productDevelopmentReadonlyList(bomPayload).map(productDevelopmentReadonlyBomRow).filter((row) => row.code || row.name);
+    const rawBomRows = Array.isArray(bomPayload) ? bomPayload : productDevelopmentReadonlyList(bomPayload);
+    const bomRows = rawBomRows.map((row) => row && Object.prototype.hasOwnProperty.call(row, 'joinId') && Object.prototype.hasOwnProperty.call(row, 'typeValue')
+      ? row
+      : productDevelopmentReadonlyBomRow(row)).filter((row) => row.code || row.name);
     const categoryId = String(categoryIdOverride || info.category_id || source.categoryId || productSnapshot && productSnapshot.categoryId || '').trim();
     const categoryName = productDevelopmentCleanText(info.category_name || source.plmCategory || productSnapshot && productSnapshot.plmCategory, 180);
     const requiredDefinitions = attrs.filter((attr) => attr && attr.is_must).map((attr) => ({
@@ -1535,11 +1630,13 @@
     const productNameEn = productDevelopmentCleanText((info.language_config || []).find((item) => Number(item && item.language_id) === 2)?.product_name || productSnapshot && productSnapshot.englishName, 180);
     const productId = String(info.product_id || source.productId || productSnapshot && productSnapshot.productId || '').trim();
     const productVersionId = String(info.product_version_id || source.productVersionId || productSnapshot && productSnapshot.productVersionId || '').trim();
+    const productMainId = String(info.product_main_id || info.productMainId || source.productMainId || source.product_main_id || productSnapshot && (productSnapshot.productMainId || productSnapshot.product_main_id) || (bomRows.find((row) => row.type === '成品') || {}).productMainId || '').trim();
     const baseFields = productDevelopmentReadonlyBaseFields([
       { key: 'sku', label: 'SKU', value: source.sku, source: '开发任务' },
       { key: 'projectCode', label: '项目编码', value: source.projectCode, source: '开发任务' },
       { key: 'projectId', label: '项目 ID', value: source.projectId || source.rowId, source: '开发任务' },
       { key: 'productId', label: '产品 ID', value: productId, source: 'PLM 建品详情' },
+      { key: 'productMainId', label: '成品主产品 ID', value: productMainId, source: 'PLM 建品详情 / BOM 成品绑定' },
       { key: 'productVersionId', label: '产品版本 ID', value: productVersionId, source: 'PLM 建品详情' },
       { key: 'categoryId', label: '分类 ID', value: categoryId, source: 'PLM 建品详情' },
       { key: 'categoryName', label: '分类名称', value: categoryName, source: 'PLM 建品详情' },
@@ -1553,6 +1650,7 @@
     const materialDraftDetail = {
       sku: source.sku,
       projectId: String(source.projectId || source.rowId || '').trim(),
+      productMainId,
       productNameCn,
       productNameEn,
       name: source.name || productNameCn,
@@ -1566,6 +1664,7 @@
       categoryId,
       categoryName,
       productId: String(info.product_id || source.productId || productSnapshot && productSnapshot.productId || '').trim(),
+      productMainId,
       productVersionId: String(info.product_version_id || source.productVersionId || productSnapshot && productSnapshot.productVersionId || '').trim(),
       productNameCn,
       productNameEn,
@@ -1579,6 +1678,8 @@
       attachments: productDevelopmentReadonlyAttachmentFields(attrs),
       bomRows,
       materialDrafts: productDevelopmentNormalizeMaterialDrafts(null, materialDraftDetail, source),
+      bomReadState: 'loaded',
+      bomLoadedAt: Date.now(),
       readonly: true,
       loadedAt: new Date().toLocaleString(),
     };
@@ -1629,9 +1730,9 @@
     const source = task || {};
     const projectId = String(source.projectId || source.rowId || '').trim();
     if (!/^\d+$/.test(projectId)) throw new Error('当前开发任务缺少项目 ID');
-    const [infoPayload, bomPayload] = await Promise.all([
+    const [infoPayload, bomRows] = await Promise.all([
       fetchPlmJson('/api/ChemicalNewDevTask/GetProductDetailInfo?id=' + encodeURIComponent(projectId)),
-      fetchPlmJson('/api/ChemicalNewDevTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
+      productDevelopmentReadBomRows(projectId),
     ]);
     const info = productDevelopmentReadonlyPayloadData(infoPayload);
     const resolvedCategoryId = await productDevelopmentFindCategoryIdByName(source, info, productSnapshot).catch(() => '');
@@ -1655,7 +1756,7 @@
         // Try the next known category candidate.
       }
     }
-    return productDevelopmentNormalizeReadonlyDetail(source, infoPayload, contentPayload, bomPayload, productSnapshot, categoryId);
+    return productDevelopmentNormalizeReadonlyDetail(source, infoPayload, contentPayload, bomRows, productSnapshot, categoryId);
   }
 
   function productDevelopmentReadonlyFieldHtml(field, formSku) {
@@ -1715,10 +1816,26 @@
     return '<div class="pfh-product-development-material-option-group"><span>' + escapeHtml(label) + '</span><div><label><input type="radio" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" name="pd-material-' + escapeHtml(kind) + '-' + escapeHtml(field) + '-' + escapeHtml(sku) + '" value="true"' + (value ? ' checked' : '') + '>是</label><label><input type="radio" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" name="pd-material-' + escapeHtml(kind) + '-' + escapeHtml(field) + '-' + escapeHtml(sku) + '" value="false"' + (!value ? ' checked' : '') + '>否</label></div></div>';
   }
 
+  function productDevelopmentFinishedProductBindingHtml(detail, task) {
+    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
+    const row = rows.find((item) => item && (Number(item.typeValue) === 1 || item.type === '成品')) || null;
+    const sku = String(detail && detail.sku || task && task.sku || '').trim().toUpperCase();
+    const productMainId = String(row && row.productMainId || detail && detail.productMainId || task && task.productMainId || '').trim();
+    const code = productDevelopmentCleanText(row && row.code || sku, 100);
+    const name = productDevelopmentCleanText(row && row.name || detail && detail.productNameCn || task && task.name || '当前 SKU 成品', 180);
+    const specification = productDevelopmentCleanText(row && row.specification || productDevelopmentMaterialPackSpec(detail), 160);
+    const status = row && row.joinId ? '已绑定' : (productMainId ? '待保存' : '未读取主产品');
+    const statusClass = status === '已绑定' ? ' is-ready' : (status === '未读取主产品' ? ' is-missing' : '');
+    return '<article class="pfh-product-development-product-binding"><header><div><strong>成品绑定</strong><span>type=1 · 与纸盒、标签一起提交</span></div><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>成品主产品 ID</small><b>' + escapeHtml(productMainId || '保存时按 SKU 查找') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '按 PLM 成品记录') + '</b></div></div><p>只读绑定参考；保存到 PLM 时会校验成品绑定行。</p></article>';
+  }
+
   function productDevelopmentMaterialCardHtml(kind, draft, sku, baseName) {
     const isBox = kind === 'box';
     const title = isBox ? '纸盒' : '标签';
     const materialType = isBox ? '0' : '1';
+    if (!draft || draft.enabled === false) {
+      return '<article class="pfh-product-development-material-card is-disabled"><header><div><strong>' + escapeHtml(title) + '（本地不需要）</strong><span>已从本地 BOM 填写和新建流程中移除</span></div><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true">恢复' + escapeHtml(title) + '</button></header><p>已有 PLM 绑定不会自动删除；如需重新填写，可点击恢复。</p></article>';
+    }
     const priceText = draft.price || '填写尺寸后自动计算';
     const dimensionFields = isBox
       ? [
@@ -1738,12 +1855,12 @@
         productDevelopmentMaterialRadioHtml(sku, kind, 'thicken', '是否需加厚', draft.thicken) +
         '</div></div>'
       : '<div class="pfh-product-development-material-defaults"><strong>标签默认规则</strong><span>圆弧 · 玻璃加粘 · 食品两年 · 用量 1</span></div>';
-    return '<article class="pfh-product-development-material-card" data-material-card="' + escapeHtml(kind) + '"><header><div><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(baseName || sku) + ' · material_type=' + materialType + '</span></div><em data-material-price-label="' + escapeHtml(kind) + '">采购价：' + escapeHtml(priceText) + (draft.price ? ' 元' : '') + '</em></header><div class="pfh-product-development-material-grid">' +
+    return '<article class="pfh-product-development-material-card" data-material-card="' + escapeHtml(kind) + '"><header><div><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(baseName || sku) + ' · material_type=' + materialType + '</span></div><div class="pfh-product-development-material-card-actions"><em data-material-price-label="' + escapeHtml(kind) + '">采购价：' + escapeHtml(priceText) + (draft.price ? ' 元' : '') + '</em><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="false">移除</button></div></header><div class="pfh-product-development-material-grid">' +
       productDevelopmentMaterialInputHtml(sku, kind, 'materialName', '物料名称', draft.materialName, { wide: true, required: true }) +
-      productDevelopmentMaterialInputHtml(sku, kind, 'categoryPath', '物料分类（默认）', draft.categoryPath, { wide: true, readonly: true }) +
-      productDevelopmentMaterialInputHtml(sku, kind, 'specification', '规格型号', draft.specification, { wide: true, required: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'categoryPath', '物料分类（默认）', draft.categoryPath, { readonly: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'specification', '规格型号', draft.specification, { required: true }) +
       dimensionFields +
-      productDevelopmentMaterialInputHtml(sku, kind, 'supplier', '默认供应商', draft.supplier, { wide: true, readonly: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'supplier', '默认供应商', draft.supplier, { readonly: true }) +
       productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（自动）', priceText, { readonly: true }) +
       '</div>' + calculatorOptions + '<div class="pfh-product-development-material-binding-defaults">PLM 绑定默认：project_id=' + escapeHtml(draft.projectId || '当前项目') + ' · product_code=' + escapeHtml(draft.productCode || sku) + ' · category_id=' + escapeHtml(draft.categoryId) + ' · usage_value=' + escapeHtml(draft.usage || '1') + ' · type=2 · pics=[]</div></article>';
   }
@@ -1763,7 +1880,7 @@
     const saveStatusClass = detail.bomDraftDirty ? ' is-dirty' : (detail.bomDraftSaveState === 'error' ? ' is-error' : (detail.bomDraftSavedAt ? ' is-saved' : ''));
     const plmBusy = state.productDevelopmentBomSaveSku === formSku;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM FORM · LOCAL / PLM</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存 BOM（本地）</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">先在上方“产品本地填写”填写产品中文名；纸盒和标签物料名称会按该名称生成。尺寸、规格型号和计算器选项可手动调整。保存到 PLM 会创建或更新纸盒、标签物料并绑定当前项目。</p>' + plmStatus + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + '</div><p class="pfh-product-development-material-note">HAR 默认：纸盒分类“包材 / 纸盒 / 白卡 / 白卡”，标签分类“包材 / 标签 / 标签 / 标签”；供应商、用量 1、物料类型、type=2 和 pics=[] 自动带出。</p></section>';
+    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM FORM · LOCAL / PLM</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存 BOM（本地）</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">纸盒、标签可按产品需要移除；成品绑定会随启用的物料一起提交。尺寸、规格型号和计算器选项可手动调整。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + '</div></section>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
@@ -1932,8 +2049,15 @@
 
   function renderProductDevelopmentTaskWorkspace(panel, statusText) {
     const list = panel && panel.querySelector('.pfh-list');
+    const sidebar = panel && panel.querySelector('.pfh-product-development-task-sidebar');
+    const sidebarBody = sidebar && sidebar.querySelector('.pfh-product-development-task-sidebar-body');
     const detail = panel && panel.querySelector('.pfh-detail');
-    if (list) list.innerHTML = productDevelopmentTaskListHtml();
+    if (list) {
+      list.innerHTML = '';
+      list.setAttribute('aria-hidden', 'true');
+    }
+    if (sidebar) sidebar.classList.toggle('is-open', state.productDevelopmentTaskListOpen !== false);
+    if (sidebarBody) sidebarBody.innerHTML = productDevelopmentTaskListHtml();
     if (!detail) return;
     const task = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || state.productDevelopmentSelectedTask;
     if (!task) {
@@ -3305,6 +3429,12 @@
       if (!task) showToast('开发任务不存在或已刷新');
       return true;
     }
+    if (action === 'product-development-task-list-toggle') {
+      state.productDevelopmentTaskListOpen = state.productDevelopmentTaskListOpen === false;
+      saveProductDevelopmentTaskListOpen(state.productDevelopmentTaskListOpen);
+      renderShell();
+      return true;
+    }
     if (action === 'product-development-task-meta-save') {
       const sku = getProductDevelopmentCurrentSku();
       const meta = getProductDevelopmentTaskMeta(state.productDevelopmentSelectedTask, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
@@ -3321,6 +3451,15 @@
     }
     if (action === 'product-development-bom-save-plm') {
       productDevelopmentRunBomPlmSave(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
+      return true;
+    }
+    if (action === 'product-development-bom-toggle-material') {
+      const enabled = actionTarget && actionTarget.getAttribute('data-material-enabled') === 'true';
+      productDevelopmentSetMaterialEnabled(
+        actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku(),
+        actionTarget && actionTarget.getAttribute('data-material-kind') || '',
+        enabled,
+      );
       return true;
     }
     if (action === 'product-development-task-tab') {
