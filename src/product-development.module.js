@@ -3072,8 +3072,8 @@
       sellingPoints: list('sellingPoints').map((item) => {
         const sourceItem = item && typeof item === 'object' ? item : { cn: item };
         return {
-          titleEn: productDevelopmentCleanText(sourceItem.titleEn || sourceItem.title_en, 100),
-          titleCn: productDevelopmentCleanText(sourceItem.titleCn || sourceItem.title_cn, 100),
+          titleEn: productDevelopmentNormalizeCopywritingTitle(sourceItem.titleEn || sourceItem.title_en || sourceItem.titleEnglish),
+          titleCn: productDevelopmentNormalizeCopywritingTitle(sourceItem.titleCn || sourceItem.title_cn || sourceItem.titleChinese),
           en: productDevelopmentCleanText(sourceItem.en || sourceItem.english, 400),
           cn: productDevelopmentCleanText(sourceItem.cn || sourceItem.chinese, 400),
         };
@@ -3098,6 +3098,13 @@
     return (String(value || '').match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g) || []).length;
   }
 
+  function productDevelopmentNormalizeCopywritingTitle(value) {
+    return productDevelopmentCleanText(value, 100)
+      .replace(/^\s*\d+\s*[.)、:：-]?\s*/, '')
+      .replace(/[:：]\s*$/, '')
+      .trim();
+  }
+
   function productDevelopmentValidateCopywriting(value, snapshot) {
     const result = productDevelopmentNormalizeCopywriting(value);
     const expected = Array.isArray(snapshot && snapshot.ingredients) ? snapshot.ingredients : [];
@@ -3120,7 +3127,30 @@
     result.sellingPoints.forEach((item, index) => {
       allText.push(item.titleEn, item.titleCn, item.en, item.cn);
       if (!item.en || !item.cn) errors.push('C 第 ' + (index + 1) + ' 条中英文不完整');
-      if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) errors.push('C 第 ' + (index + 1) + ' 条超出长度');
+      const ingredientKeys = expected.flatMap((ingredient) => [ingredient && ingredient.en, ingredient && ingredient.cn])
+        .map(productDevelopmentNormalizedClaimText)
+        .filter(Boolean);
+      const titleHasIngredient = [item.titleEn, item.titleCn].some((title) => {
+        const normalizedTitle = productDevelopmentNormalizedClaimText(title);
+        return normalizedTitle && ingredientKeys.some((key) => normalizedTitle.includes(key));
+      });
+      if (index < 4) {
+        if (!item.titleEn || !item.titleCn) errors.push('C 第 ' + (index + 1) + ' 条必须有中英文小标题');
+        const titleWords = productDevelopmentEnglishWordCount(item.titleEn);
+        if (titleWords < 3 || titleWords > 4) errors.push('C 第 ' + (index + 1) + ' 条英文小标题需为 3-4 个词');
+        if (titleHasIngredient) errors.push('C 第 ' + (index + 1) + ' 条小标题不能写成分');
+        if (productDevelopmentChineseCount(item.titleCn + item.cn) > 20 || productDevelopmentChineseCount(item.cn) < 8) {
+          errors.push('C 第 ' + (index + 1) + ' 条标题和正文超出中文长度规则');
+        }
+      } else {
+        if (item.titleEn || item.titleCn) errors.push('C 第 ' + (index + 1) + ' 条不能有小标题');
+        if (productDevelopmentChineseCount(item.cn) < 12 || productDevelopmentChineseCount(item.cn) > 22) {
+          errors.push('C 第 ' + (index + 1) + ' 条正文应接近 20 个汉字');
+        }
+      }
+      if (productDevelopmentEnglishWordCount(item.en) < 6 || productDevelopmentEnglishWordCount(item.en) > 14) {
+        errors.push('C 第 ' + (index + 1) + ' 条英文正文超出长度');
+      }
     });
     result.ingredientFunctions.forEach((item, index) => {
       allText.push(item.ingredientEn, item.ingredientCn, item.en, item.cn);
@@ -3140,6 +3170,9 @@
 
   function productDevelopmentFriendlyCopywritingError(error) {
     const message = formatErrorMessage(error);
+    if (/C item|C 第|sellingPoints|小标题|title must|must not have a title|about 20 Chinese/i.test(message)) {
+      return '文案生成未完成：C 产品卖点必须为 15 条，前 4 条有 3-4 词小标题，后 11 条不带小标题且正文不能过短，请再次生成。';
+    }
     if (/ModelScope|Gemini|timeout|timed out|aborted|bilingual|中英文不完整|copywriting completion|must contain/i.test(message)) {
       return '文案生成未完成：AI 响应超时或中英文内容不完整，请再次点击生成。系统会自动切换备用模型。';
     }
@@ -3476,7 +3509,7 @@
       ['C 产品卖点', content.sellingPoints],
       ['D 成分功能', content.ingredientFunctions],
     ];
-    return '<div class="pfh-product-development-copywriting-preview">' + rows.map((row) => '<section><h4>' + escapeHtml(row[0]) + '</h4><div><ol>' + row[1].map((item) => '<li><span>' + escapeHtml(item.en || item.ingredientEn) + '</span><em>' + escapeHtml(item.cn || item.ingredientCn) + '</em></li>').join('') + '</ol></div></section>').join('') + '</div>';
+    return '<div class="pfh-product-development-copywriting-preview">' + rows.map((row) => '<section><h4>' + escapeHtml(row[0]) + '</h4><div><ol>' + row[1].map((item) => '<li><span>' + escapeHtml((row[0] === 'C 产品卖点' && item.titleEn ? item.titleEn + ': ' : '') + (item.en || item.ingredientEn)) + '</span><em>' + escapeHtml((row[0] === 'C 产品卖点' && item.titleCn ? item.titleCn + '：' : '') + (item.cn || item.ingredientCn)) + '</em></li>').join('') + '</ol></div></section>').join('') + '</div>';
   }
 
   function productDevelopmentCopywritingHtml() {

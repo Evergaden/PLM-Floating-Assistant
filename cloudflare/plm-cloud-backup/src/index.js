@@ -2147,6 +2147,13 @@ function normalizeProductDevelopmentPair(value) {
   };
 }
 
+function normalizeProductDevelopmentTitle(value) {
+  return cleanText(value, 100)
+    .replace(/^\s*\d+\s*[.)、:：-]?\s*/, '')
+    .replace(/[:：]\s*$/, '')
+    .trim();
+}
+
 function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredients, brand, options) {
   const requiredSections = new Set(
     options && Array.isArray(options.requiredSections) && options.requiredSections.length
@@ -2170,8 +2177,8 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
     const row = item && typeof item === 'object' ? item : { cn: item };
     const pair = normalizeProductDevelopmentPair(row);
     return {
-      titleEn: cleanText(readProductDevelopmentField(row, ['titleEn', 'title_en', 'titleEnglish', '英文标题']), 100),
-      titleCn: cleanText(readProductDevelopmentField(row, ['titleCn', 'title_cn', 'titleChinese', '中文标题']), 100),
+      titleEn: normalizeProductDevelopmentTitle(readProductDevelopmentField(row, ['titleEn', 'title_en', 'titleEnglish', '英文标题'])),
+      titleCn: normalizeProductDevelopmentTitle(readProductDevelopmentField(row, ['titleCn', 'title_cn', 'titleChinese', '中文标题'])),
       en: pair.en,
       cn: pair.cn,
     };
@@ -2203,7 +2210,31 @@ function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredie
   });
   if (requiredSections.has('sellingPoints')) sellingPoints.forEach((item, index) => {
     if (!item.en || !item.cn) throw new Error('C item ' + (index + 1) + ' must be bilingual');
-    if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) throw new Error('C item ' + (index + 1) + ' exceeds length');
+    const titleKeys = expectedIngredients
+      .flatMap((ingredient) => [ingredient && ingredient.en, ingredient && ingredient.cn])
+      .map(productDevelopmentNormalizedClaimText)
+      .filter(Boolean);
+    const titleHasIngredient = [item.titleEn, item.titleCn].some((title) => {
+      const normalizedTitle = productDevelopmentNormalizedClaimText(title);
+      return normalizedTitle && titleKeys.some((key) => normalizedTitle.includes(key));
+    });
+    if (index < 4) {
+      if (!item.titleEn || !item.titleCn) throw new Error('C item ' + (index + 1) + ' must have a bilingual title');
+      const titleWords = productDevelopmentEnglishWordCount(item.titleEn);
+      if (titleWords < 3 || titleWords > 4) throw new Error('C item ' + (index + 1) + ' title must contain 3 to 4 English words');
+      if (titleHasIngredient) throw new Error('C item ' + (index + 1) + ' title must not mention an ingredient');
+      if (productDevelopmentChineseCount(item.titleCn + item.cn) > 20 || productDevelopmentChineseCount(item.cn) < 8) {
+        throw new Error('C item ' + (index + 1) + ' title and body exceed the Chinese length rule');
+      }
+    } else {
+      if (item.titleEn || item.titleCn) throw new Error('C item ' + (index + 1) + ' must not have a title');
+      if (productDevelopmentChineseCount(item.cn) < 12 || productDevelopmentChineseCount(item.cn) > 22) {
+        throw new Error('C item ' + (index + 1) + ' body should be about 20 Chinese characters');
+      }
+    }
+    if (productDevelopmentEnglishWordCount(item.en) < 6 || productDevelopmentEnglishWordCount(item.en) > 14) {
+      throw new Error('C item ' + (index + 1) + ' English body exceeds length');
+    }
     allText.push(item.titleEn, item.titleCn, item.en, item.cn);
   });
   if (requiredSections.has('ingredientFunctions')) ingredientFunctions.forEach((item, index) => {
@@ -2253,8 +2284,8 @@ async function handleProductDevelopmentCopywriting(request, env) {
     commonSystem,
     '一次性完整生成 A-D 四个部分，不要拆分、不要省略、不要用占位符。',
     'A 产品功效必须正好 4 条；B 产品优势必须正好 4 条；C 产品卖点必须正好 15 条；D 成分功能必须覆盖输入 ingredients 的全部成分，并保持输入顺序。',
-    '标题 3-4 个英文词不是硬性校验，可以按自然表达生成，也可以留空；但 C 的 15 条正文一条都不能少。',
-    'A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字；C 每条中文不超过 22 个汉字；D 每条中文不超过 20 个汉字。英文保持简洁自然，不因标题词数不足而省略条目。',
+    'C 必须严格按模板：第 1-4 条必须有 titleEn 和 titleCn，titleEn 为 3-4 个英文单词，两个标题不得写成分；title 字段不要带编号或冒号，系统会在 Word 中统一补冒号。第 5-15 条 titleEn 和 titleCn 必须为空，不能再写任何小标题，正文要完整，中文至少 12 个汉字并尽量接近 20 个汉字。',
+    'C 第 1-4 条标题加正文的中文合计不超过 20 个汉字，正文至少 8 个汉字；所有 C 正文英文写 6-14 个单词。A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字；D 每条中文不超过 20 个汉字。不要为了缩短而省略第 5-15 条。',
   ].join(' ');
   const options = {
     primaryModel: getProductDevelopmentPrimaryQwenModel(env),
@@ -2270,7 +2301,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
       JSON.stringify(basePayload),
       '严格返回完整 JSON，不要 Markdown、代码围栏或解释：',
       '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
-      '再次检查：A=4、B=4、C=15、D=输入成分总数；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',
+      '再次检查：A=4、B=4、C=15、D=输入成分总数；C 的前 4 条有双语标题，后 11 条标题字段为空；每一项 en 和 cn 都必须是非空字符串；不要输出星号、品牌词、禁词或空行。',
     ].join('\n'),
   };
   try {
