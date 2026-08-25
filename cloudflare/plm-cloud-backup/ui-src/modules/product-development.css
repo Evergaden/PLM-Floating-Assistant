@@ -1986,8 +1986,8 @@
 
 #plm-floating-helper .pfh-product-development-material-list {
   display: grid;
-  grid-template-columns: var(--pfh-product-development-material-list-columns, repeat(2, minmax(0, 1fr)));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 #plm-floating-helper .pfh-product-development-material-list > .pfh-product-development-material-card.is-instruction {
@@ -1996,8 +1996,9 @@
 
 #plm-floating-helper .pfh-product-development-material-card {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  min-width: 0;
+  gap: 6px;
+  padding: 8px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 12px;
   background: var(--pfh-theme-surface);
@@ -2082,15 +2083,15 @@
 #plm-floating-helper .pfh-product-development-material-option-grid {
   display: grid;
   grid-template-columns: var(--pfh-product-development-material-columns, repeat(2, minmax(0, 1fr)));
-  gap: 6px;
+  gap: 5px;
 }
 
 #plm-floating-helper .pfh-product-development-material-field {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
   color: var(--pfh-theme-muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 #plm-floating-helper .pfh-product-development-material-field.is-wide {
@@ -2114,9 +2115,9 @@
 #plm-floating-helper .pfh-product-development-material-field select {
   width: 100%;
   min-width: 0;
-  min-height: 28px;
+  min-height: 24px;
   box-sizing: border-box;
-  padding: 0 8px;
+  padding: 0 7px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 8px;
   outline: 0;
@@ -2142,8 +2143,8 @@
 #plm-floating-helper .pfh-product-development-material-options,
 #plm-floating-helper .pfh-product-development-material-defaults {
   display: grid;
-  gap: 6px;
-  padding-top: 7px;
+  gap: 4px;
+  padding-top: 5px;
   border-top: 1px dashed var(--pfh-theme-border);
 }
 
@@ -2155,7 +2156,7 @@
 
 #plm-floating-helper .pfh-product-development-material-option-group {
   display: grid;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
   color: var(--pfh-theme-muted);
   font-size: 10px;
@@ -2164,9 +2165,9 @@
 #plm-floating-helper .pfh-product-development-material-option-group > div {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 28px;
-  padding: 0 8px;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0 7px;
   border: 1px solid var(--pfh-theme-border);
   border-radius: 8px;
   background: var(--pfh-theme-control-surface);
@@ -2335,7 +2336,6 @@
   }
 
   #plm-floating-helper .pfh-product-development-material-planner {
-    --pfh-product-development-material-list-columns: minmax(0, 1fr);
     --pfh-product-development-material-wide-column: auto;
   }
 
