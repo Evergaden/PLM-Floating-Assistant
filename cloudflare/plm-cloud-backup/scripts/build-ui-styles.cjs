@@ -120,7 +120,7 @@ const parts = release.sources.map((source) => {
     throw new Error(`UI source escapes ui-src: ${relativePath}`);
   }
   if (!fs.existsSync(absolutePath)) throw new Error(`Missing UI source: ${relativePath}`);
-  const css = fs.readFileSync(absolutePath, 'utf8').trimEnd();
+  const css = fs.readFileSync(absolutePath, 'utf8').replace(/\r\n/g, '\n').trimEnd();
   assertFontWeightPolicy(css, absolutePath);
   const parsedRules = parseRules(css);
   const sourceBytes = Buffer.byteLength(css.replace(/\r\n/g, '\n'));
