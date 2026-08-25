@@ -2337,3 +2337,184 @@
     --pfh-product-development-binding-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The development SKU picker floats outside the assistant so the detail workspace keeps its full width. */
+#plm-floating-helper[data-view="productDevelopmentTasks"] {
+  overflow: visible;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] > .pfh-full {
+  overflow: visible;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main {
+  display: block;
+  overflow: visible;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-detail {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar {
+  position: absolute;
+  top: 14px;
+  right: calc(100% + 10px);
+  bottom: 14px;
+  z-index: 140;
+  width: 34px;
+  min-width: 34px;
+  max-width: calc(100vw - 24px);
+  transition: width .28s cubic-bezier(.25, 1.2, .35, 1);
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar.is-open,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:hover,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:focus-within {
+  width: clamp(260px, 30vw, 320px);
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 14px;
+  background: var(--pfh-theme-surface);
+  box-shadow: 0 18px 44px var(--pfh-theme-shadow, rgba(47, 32, 104, .18)), inset 0 1px 0 rgba(255, 255, 255, .86);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px) scale(.985);
+  transform-origin: right center;
+  transition: opacity .18s ease, transform .28s cubic-bezier(.25, 1.2, .35, 1);
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar.is-open .pfh-product-development-task-sidebar-body,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:hover .pfh-product-development-task-sidebar-body,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:focus-within .pfh-product-development-task-sidebar-body {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  width: 34px;
+  min-width: 34px;
+  height: 100%;
+  min-height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 16px 7px;
+  border: 1px solid var(--pfh-theme-border-strong);
+  border-radius: 14px;
+  background: var(--pfh-theme-surface);
+  color: var(--pfh-theme-primary);
+  box-shadow: 0 12px 30px var(--pfh-theme-shadow-soft, rgba(47, 32, 104, .14));
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.15;
+  writing-mode: vertical-rl;
+  transition: opacity .16s ease, background .16s ease, border-color .16s ease;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail:hover,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail:focus-visible {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-primary-soft);
+  outline: none;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-rail i {
+  display: block;
+  color: var(--pfh-theme-primary-hover);
+  font-size: 18px;
+  font-style: normal;
+  line-height: 1;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar.is-open .pfh-product-development-task-sidebar-rail,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:hover .pfh-product-development-task-sidebar-rail,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar:focus-within .pfh-product-development-task-sidebar-rail {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-head {
+  gap: 6px;
+  min-height: 34px;
+  margin: 0 0 10px;
+  padding: 0 2px;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-head strong {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-collapse {
+  display: grid;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--pfh-theme-border);
+  border-radius: 8px;
+  background: var(--pfh-theme-surface-alt);
+  color: var(--pfh-theme-primary);
+  font-size: 17px;
+  line-height: 1;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-collapse:hover,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-collapse:focus-visible {
+  border-color: var(--pfh-theme-border-strong);
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary-hover);
+  outline: none;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-sku-list-content {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-sku-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px 5px 10px 0;
+}
+
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-product-development-task-sidebar-body .pfh-list-pager {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px solid var(--pfh-theme-border);
+}

@@ -13866,6 +13866,8 @@
       state.toolsActiveTool = 'unit';
     }
     panel.dataset.view = state.view || 'home';
+    if (state.view === 'productDevelopmentTasks') panel.style.setProperty('overflow', 'visible', 'important');
+    else panel.style.removeProperty('overflow');
     panel.dataset.uploadMode = normalizeUploadMode(state.uploadMode);
     panel.classList.toggle('is-ledger-fullscreen', state.view === 'ledger' && Boolean(state.ledgerFullscreen));
     const main = panel.querySelector('.pfh-main');
