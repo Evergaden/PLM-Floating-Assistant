@@ -240,9 +240,16 @@ async function callModelScopeText(config, options) {
     { type: 'text', text: options.prompt || '' },
     ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
   ] : (options.prompt || '');
+  // The route-specific timeout must win over the legacy 25s provider default.
+  // The old min(options, config) cap made the product-copywriting route abort
+  // at 25 seconds even though it advertised a 90 second Qwen timeout.
+  const timeoutMs = Math.max(12000, Math.min(
+    Number(options.timeoutMs || config.timeoutMs || 25000) || 25000,
+    120000
+  ));
   const response = await fetch('https://api-inference.modelscope.cn/v1/chat/completions', {
     method: 'POST',
-    signal: AbortSignal.timeout(Math.min(Number(options.timeoutMs || 25000), Number(config.timeoutMs || 25000))),
+    signal: AbortSignal.timeout(timeoutMs),
     headers: {
       authorization: 'Bearer ' + config.apiKey,
       'content-type': 'application/json',
@@ -2101,63 +2108,111 @@ function productDevelopmentEnglishWordCount(value) {
   return (String(value || '').match(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g) || []).length;
 }
 
+function readProductDevelopmentField(source, aliases) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return '';
+  const values = Object.keys(source).reduce((map, key) => {
+    const normalized = String(key).toLowerCase().replace(/[\s_-]/g, '');
+    if (!Object.prototype.hasOwnProperty.call(map, normalized)) map[normalized] = source[key];
+    return map;
+  }, Object.create(null));
+  for (const alias of Array.isArray(aliases) ? aliases : []) {
+    const value = values[String(alias).toLowerCase().replace(/[\s_-]/g, '')];
+    if (value !== undefined && value !== null && String(value).trim()) return value;
+  }
+  return '';
+}
+
+function normalizeProductDevelopmentPairText(value) {
+  const text = cleanText(value, 500);
+  if (!text) return { en: '', cn: '' };
+  const labeled = text.match(/(?:^|\s)(?:en|english|英文)\s*[:：]\s*([\s\S]*?)(?:\s+(?:cn|chinese|中文)\s*[:：]\s*([\s\S]*))$/i);
+  if (labeled) return { en: cleanText(labeled[1], 500), cn: cleanText(labeled[2], 500) };
+  const separated = text.split(/\s*(?:\||→|=>)\s*/);
+  if (separated.length === 2 && /[\u3400-\u9fff]/.test(separated[1]) && !/[\u3400-\u9fff]/.test(separated[0])) {
+    return { en: cleanText(separated[0], 500), cn: cleanText(separated[1], 500) };
+  }
+  return { en: '', cn: text };
+}
+
 function normalizeProductDevelopmentPair(value) {
+  if (typeof value === 'string') return normalizeProductDevelopmentPairText(value);
   const source = value && typeof value === 'object' ? value : {};
+  const rawEn = readProductDevelopmentField(source, ['en', 'english', '英文', 'englishText', 'textEn', 'enText', 'valueEn', 'valueEnglish']);
+  const rawCn = readProductDevelopmentField(source, ['cn', 'chinese', '中文', 'chineseText', 'textCn', 'cnText', 'valueCn', 'valueChinese']);
+  const fallback = (!rawEn || !rawCn)
+    ? normalizeProductDevelopmentPairText(readProductDevelopmentField(source, ['value', 'text', 'content', 'copy']))
+    : { en: '', cn: '' };
   return {
-    en: cleanText(source.en || source.english, 500),
-    cn: cleanText(source.cn || source.chinese, 500),
+    en: cleanText(rawEn || fallback.en, 500),
+    cn: cleanText(rawCn || fallback.cn, 500),
   };
 }
 
-function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredients, brand) {
-  const source = value && typeof value === 'object' ? value.sections || value : {};
-  const list = (key) => Array.isArray(source[key]) ? source[key] : [];
-  const efficacy = list('efficacy').map(normalizeProductDevelopmentPair);
-  const advantages = list('advantages').map(normalizeProductDevelopmentPair);
-  const sellingPoints = list('sellingPoints').map((item) => {
+function normalizeProductDevelopmentCopywritingCandidate(value, expectedIngredients, brand, options) {
+  const requiredSections = new Set(
+    options && Array.isArray(options.requiredSections) && options.requiredSections.length
+      ? options.requiredSections
+      : ['efficacy', 'advantages', 'sellingPoints', 'ingredientFunctions']
+  );
+  const rawSource = value && typeof value === 'object' ? value : {};
+  const source = rawSource.sections && typeof rawSource.sections === 'object'
+    ? rawSource.sections
+    : rawSource.data && typeof rawSource.data === 'object' ? rawSource.data
+      : rawSource.result && typeof rawSource.result === 'object' ? rawSource.result : rawSource;
+  const list = (aliases) => {
+    const candidate = readProductDevelopmentField(source, aliases);
+    if (Array.isArray(candidate)) return candidate;
+    if (candidate && typeof candidate === 'object' && Array.isArray(candidate.items)) return candidate.items;
+    return [];
+  };
+  const efficacy = list(['efficacy', 'productEfficacy', 'productEffects', 'functions', 'A', '产品功效']).map(normalizeProductDevelopmentPair);
+  const advantages = list(['advantages', 'productAdvantages', 'benefits', 'B', '产品优势']).map(normalizeProductDevelopmentPair);
+  const sellingPoints = list(['sellingPoints', 'sellingpoints', 'salesPoints', 'highlights', 'C', '产品卖点']).map((item) => {
     const row = item && typeof item === 'object' ? item : { cn: item };
+    const pair = normalizeProductDevelopmentPair(row);
     return {
-      titleEn: cleanText(row.titleEn || row.title_en, 100),
-      titleCn: cleanText(row.titleCn || row.title_cn, 100),
-      en: cleanText(row.en || row.english, 500),
-      cn: cleanText(row.cn || row.chinese, 500),
+      titleEn: cleanText(readProductDevelopmentField(row, ['titleEn', 'title_en', 'titleEnglish', '英文标题']), 100),
+      titleCn: cleanText(readProductDevelopmentField(row, ['titleCn', 'title_cn', 'titleChinese', '中文标题']), 100),
+      en: pair.en,
+      cn: pair.cn,
     };
   });
-  const ingredientFunctions = list('ingredientFunctions').map((item) => {
+  const ingredientFunctions = list(['ingredientFunctions', 'ingredient_functions', 'ingredientBenefits', 'D', '成分功能']).map((item) => {
     const row = item && typeof item === 'object' ? item : {};
+    const pair = normalizeProductDevelopmentPair(row);
     return {
-      ingredientEn: cleanText(row.ingredientEn || row.englishName || row.enName, 300),
-      ingredientCn: cleanText(row.ingredientCn || row.chineseName || row.cnName, 300),
-      en: cleanText(row.en || row.english, 500),
-      cn: cleanText(row.cn || row.chinese, 500),
+      ingredientEn: cleanText(readProductDevelopmentField(row, ['ingredientEn', 'englishName', 'enName', 'ingredientEnglish', '成分英文']), 300),
+      ingredientCn: cleanText(readProductDevelopmentField(row, ['ingredientCn', 'chineseName', 'cnName', 'ingredientChinese', '成分中文']), 300),
+      en: pair.en,
+      cn: pair.cn,
     };
   });
-  if (efficacy.length !== 4) throw new Error('A efficacy must contain exactly 4 items');
-  if (advantages.length !== 4) throw new Error('B advantages must contain exactly 4 items');
-  if (sellingPoints.length !== 15) throw new Error('C selling points must contain exactly 15 items');
-  if (ingredientFunctions.length !== expectedIngredients.length) throw new Error('D ingredient functions must cover every active ingredient');
+  if (requiredSections.has('efficacy') && efficacy.length !== 4) throw new Error('A efficacy must contain exactly 4 items');
+  if (requiredSections.has('advantages') && advantages.length !== 4) throw new Error('B advantages must contain exactly 4 items');
+  if (requiredSections.has('sellingPoints') && sellingPoints.length !== 15) throw new Error('C selling points must contain exactly 15 items');
+  if (requiredSections.has('ingredientFunctions') && ingredientFunctions.length !== expectedIngredients.length) throw new Error('D ingredient functions must cover every active ingredient');
   const allText = [];
-  efficacy.forEach((item, index) => {
+  if (requiredSections.has('efficacy')) efficacy.forEach((item, index) => {
     if (!item.en || !item.cn) throw new Error('A item ' + (index + 1) + ' must be bilingual');
     if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 20) throw new Error('A item ' + (index + 1) + ' exceeds length');
     allText.push(item.en, item.cn);
   });
-  advantages.forEach((item, index) => {
+  if (requiredSections.has('advantages')) advantages.forEach((item, index) => {
     if (!item.en || !item.cn) throw new Error('B item ' + (index + 1) + ' must be bilingual');
     if (productDevelopmentChineseCount(item.cn) > 15 || productDevelopmentEnglishWordCount(item.en) > 8) throw new Error('B item ' + (index + 1) + ' exceeds length');
     allText.push(item.en, item.cn);
   });
-  sellingPoints.forEach((item, index) => {
+  if (requiredSections.has('sellingPoints')) sellingPoints.forEach((item, index) => {
     if (!item.en || !item.cn) throw new Error('C item ' + (index + 1) + ' must be bilingual');
     if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) throw new Error('C item ' + (index + 1) + ' exceeds length');
     if (item.titleEn && (productDevelopmentEnglishWordCount(item.titleEn) < 3 || productDevelopmentEnglishWordCount(item.titleEn) > 4)) throw new Error('C title ' + (index + 1) + ' must contain 3 to 4 words');
     allText.push(item.titleEn, item.titleCn, item.en, item.cn);
   });
-  ingredientFunctions.forEach((item, index) => {
+  if (requiredSections.has('ingredientFunctions')) ingredientFunctions.forEach((item, index) => {
     const expected = expectedIngredients[index] || {};
-    const expectedKey = productDevelopmentNormalizedClaimText(expected.en || expected.cn);
-    const candidateKey = productDevelopmentNormalizedClaimText(item.ingredientEn || item.ingredientCn);
-    if (!item.en || !item.cn || !candidateKey || candidateKey !== expectedKey) throw new Error('D ingredient ' + (index + 1) + ' does not match PLM input');
+    const expectedKeys = [expected.en, expected.cn].map(productDevelopmentNormalizedClaimText).filter(Boolean);
+    const candidateKeys = [item.ingredientEn, item.ingredientCn].map(productDevelopmentNormalizedClaimText).filter(Boolean);
+    if (!item.en || !item.cn || !candidateKeys.some((candidateKey) => expectedKeys.includes(candidateKey))) throw new Error('D ingredient ' + (index + 1) + ' does not match PLM input');
     if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 18) throw new Error('D item ' + (index + 1) + ' exceeds length');
     allText.push(item.ingredientEn, item.ingredientCn, item.en, item.cn);
   });
@@ -2187,54 +2242,89 @@ async function handleProductDevelopmentCopywriting(request, env) {
     ingredientFunctions: body.ingredientFunctions && typeof body.ingredientFunctions === 'object' ? body.ingredientFunctions : {},
     sourceCopywriting: body.sourceCopywriting && typeof body.sourceCopywriting === 'object' ? body.sourceCopywriting : {},
   };
-  const system = [
+  const commonSystem = [
     '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
-    '只生成 A-D 四个部分：A 产品功效 4 条，B 产品优势 4 条，C 产品卖点 15 条，D 当前输入的全部有效成分功能。',
-    '本任务只使用提交的产品资料、成分和已有卖点生成文字，不读取、不分析也不要求产品效果图。',
-    '每一个 A、B、C、D 条目都必须同时返回非空的 en 和 cn；en 只能写英文，cn 只能写中文。若输入只有一种语言，先忠实翻译后再返回，绝不能返回 null、空字符串或只写一种语言的条目。',
+    '本任务只使用提交的产品资料、成分和已有卖点，不读取、不分析也不要求产品效果图。',
     '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
     '不要写品牌名称。不得使用 Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、实验认证以及同类禁词。',
-    'A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字且英文不超过 8 个词；C 共 15 条，前 1-4 条可带 3-4 个英文词的小标题，正文简洁；D 成分名称必须逐个按输入顺序原样返回并给出保守功能说明。',
-    '英文使用自然、简短的欧美电商表达，不要添加标题、解释或星号。只返回 JSON。',
+    '每一个返回条目都必须同时有非空的 en 和 cn；en 只能写英文，cn 只能写中文。若输入只有一种语言，先忠实翻译后再返回，绝不能返回 null、空字符串或只写一种语言。',
+    '英文使用自然、简短的欧美电商表达，不要添加标题、解释或星号，只返回一个 JSON 对象。',
   ].join(' ');
-  let lastError = null;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const options = {
-        primaryModel: getProductDevelopmentPrimaryQwenModel(env),
-        model: getProductDevelopmentPrimaryQwenModel(env),
-        temperature: 0,
-        maxTokens: 4200,
-        primaryTimeoutMs: 90000,
-        fallbackTimeoutMs: 60000,
-        skipPrimary: attempt > 0,
-        geminiFallbackModels: [
-          String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'),
-          'gemini-2.5-flash-lite',
-        ],
-        responseMimeType: 'application/json',
-        system,
-        prompt: [
-          JSON.stringify(basePayload),
-          '严格返回：{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}。',
-          attempt ? '上一次输出未通过校验，失败原因：' + cleanText(lastError && lastError.message, 500) + '。请修正所有条数、顺序、双语字段、字数、禁词、品牌词和成分名称；每个条目的 en 和 cn 都必须是非空字符串，并且只返回 JSON。' : '',
-        ].join('\n'),
-      };
-      const preferred = await callPreferredAiText(env, options, (candidate) => normalizeProductDevelopmentCopywritingCandidate(parseProductDevelopmentJson(candidate.text), ingredients, brand));
-      return json({
-        ok: true,
-        sections: preferred.value,
-        warnings: [],
-        provider: preferred.result.provider || preferred.result.source || '',
-        model: preferred.result.model || '',
-        templateVersion: cleanText(body.templateVersion, 80),
-        source: 'product-development-copywriting-v2-qwen-first',
-      });
-    } catch (error) {
-      lastError = error;
-    }
+  const chunkSpecs = [
+    {
+      id: 'ab',
+      sections: ['efficacy', 'advantages'],
+      maxTokens: 1600,
+      instruction: '只生成 A 产品功效 4 条和 B 产品优势 4 条。A 每条中文不超过 20 个汉字、英文不超过 20 个词；B 每条中文不超过 15 个汉字、英文不超过 8 个词。',
+      schema: '{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}]}}',
+    },
+    {
+      id: 'c',
+      sections: ['sellingPoints'],
+      maxTokens: 2300,
+      instruction: '只生成 C 产品卖点 15 条。前 1-4 条可以有 3-4 个英文词的小标题，并同时返回 titleEn/titleCn；其余条目标题留空。每条中文不超过 22 个汉字、英文不超过 14 个词。',
+      schema: '{"sections":{"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}]}}',
+    },
+    {
+      id: 'd',
+      sections: ['ingredientFunctions'],
+      maxTokens: 1800,
+      instruction: '只生成 D 成分功能。必须按输入 ingredients 的顺序逐个返回，不能漏项、改名或添加成分；ingredientEn/ingredientCn 返回对应原成分名称，功能说明分别写在 en/cn，每条中文不超过 20 个汉字、英文不超过 18 个词。',
+      schema: '{"sections":{"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}',
+    },
+  ];
+  const configuredGemini = String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite').trim();
+  const generateChunk = async (spec) => {
+    const options = {
+      primaryModel: getProductDevelopmentPrimaryQwenModel(env),
+      model: getProductDevelopmentPrimaryQwenModel(env),
+      temperature: 0,
+      maxTokens: spec.maxTokens,
+      primaryTimeoutMs: 15000,
+      fallbackTimeoutMs: 12000,
+      // Keep one request per chunk below the edge timeout while preserving
+      // Qwen as the first provider. The smaller prompt makes Qwen much more
+      // likely to finish with a complete JSON object.
+      geminiFallbackModels: [configuredGemini || 'gemini-3.1-flash-lite'],
+      responseMimeType: 'application/json',
+      system: commonSystem + ' 本次只生成指定字段，不要生成其他字段。',
+      prompt: [
+        JSON.stringify({ ...basePayload, targetSections: spec.sections }),
+        '本次目标：' + spec.instruction,
+        '严格返回以下 JSON 结构，不要 Markdown、代码围栏或解释：' + spec.schema,
+      ].join('\n'),
+    };
+    const preferred = await callPreferredAiText(env, options, (candidate) => normalizeProductDevelopmentCopywritingCandidate(
+      parseProductDevelopmentJson(candidate.text),
+      ingredients,
+      brand,
+      { requiredSections: spec.sections }
+    ));
+    return { value: preferred.value, result: preferred.result };
+  };
+  try {
+    const chunks = await Promise.all(chunkSpecs.map(generateChunk));
+    const merged = {
+      efficacy: chunks[0].value.efficacy,
+      advantages: chunks[0].value.advantages,
+      sellingPoints: chunks[1].value.sellingPoints,
+      ingredientFunctions: chunks[2].value.ingredientFunctions,
+    };
+    const sections = normalizeProductDevelopmentCopywritingCandidate({ sections: merged }, ingredients, brand);
+    const providers = Array.from(new Set(chunks.map((chunk) => chunk.result.provider || chunk.result.source || '').filter(Boolean)));
+    const models = Array.from(new Set(chunks.map((chunk) => chunk.result.model || '').filter(Boolean)));
+    return json({
+      ok: true,
+      sections,
+      warnings: [],
+      provider: providers.join(' + '),
+      model: models.join(' + '),
+      templateVersion: cleanText(body.templateVersion, 80),
+      source: 'product-development-copywriting-v3-chunked-qwen-first',
+    });
+  } catch (error) {
+    return json({ ok: false, error: cleanText(error && error.message, 500) || 'product development copywriting failed', retryable: true }, 502);
   }
-  return json({ ok: false, error: cleanText(lastError && lastError.message, 500) || 'product development copywriting failed', retryable: true }, 502);
 }
 
 function parseToyCopywritingAiJson(value) {
