@@ -11048,11 +11048,22 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
 }
 
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main {
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
   overflow: visible;
 }
 
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main > .pfh-list,
+#plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-main > .pfh-splitter {
+  display: none;
+}
+
 #plm-floating-helper[data-view="productDevelopmentTasks"] .pfh-detail {
+  grid-column: 1;
+  grid-row: 1;
   width: 100%;
   min-width: 0;
   height: 100%;
