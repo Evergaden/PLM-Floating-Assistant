@@ -1,5 +1,5 @@
 
-  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v1';
+  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v2';
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
   const CLOUD_ASSET_REFRESH_MS = 24 * 60 * 60 * 1000;
   const FALLBACK_TUBE_SIZE_RULES = [

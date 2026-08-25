@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.207
+// @version      2.8.208
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.207';
+  const SCRIPT_VERSION = '2.8.208';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -3020,7 +3020,7 @@
   }
   // <cloud-assets-module>
 
-  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v1';
+  const CLOUD_ASSET_CACHE_KEY = 'plm-floating-helper:cloud-assets:v2';
   const CLOUD_ASSET_CACHE_SCHEMA = 1;
   const CLOUD_ASSET_REFRESH_MS = 24 * 60 * 60 * 1000;
   const FALLBACK_TUBE_SIZE_RULES = [
