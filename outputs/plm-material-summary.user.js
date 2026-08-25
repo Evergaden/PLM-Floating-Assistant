@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.193
+// @version      2.8.194
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.193';
+  const SCRIPT_VERSION = '2.8.194';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -57,7 +57,7 @@
   const UPLOAD_PAGE_IDLE_TIMEOUT_MS = 12000;
   const UPLOAD_PAGE_IDLE_STABLE_MS = 1200;
   // Bump with the versioned cloud stylesheet so incompatible cached UI is never rendered.
-  const UI_ASSET_VERSION = '2.5.263';
+  const UI_ASSET_VERSION = '2.5.264';
   const PRODUCT_EDITION = Object.freeze({ id: 'design', label: '测试版', code: 'TEST' });
   const HOME_ENTRY_PRESS_MS = 120;
   const HOME_ENTRY_RELEASE_MS = 410;
@@ -4739,7 +4739,7 @@
     Object.freeze({ attrId: 155, key: 'second_price', label: '国内二档价格' }),
     Object.freeze({ attrId: 156, key: 'third_price', label: '国内三档价格' }),
   ]);
-  const PRODUCT_DEVELOPMENT_PURCHASE_PRICE_FIELD = Object.freeze({ attrId: 0, key: 'purchase_price', label: '采购价（含税运）' });
+  const PRODUCT_DEVELOPMENT_PURCHASE_PRICE_FIELD = Object.freeze({ attrId: 152, key: 'procurement_rice', label: '采购价（含税运）' });
 
   function normalizeProductDevelopmentWorkMode(value) {
     return String(value || '').trim() === 'product-development' ? 'product-development' : 'daily';
@@ -5129,25 +5129,38 @@
   }
 
   function productDevelopmentTaskListHtml() {
-    const tasks = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks : [];
-    const pageSize = 10;
+    const tasks = Array.isArray(state.productDevelopmentTasks) ? sortSkuListItems(state.productDevelopmentTasks) : [];
+    const listMode = getSkuListMode();
+    const pageSize = listMode === 'waterfall' ? 20 : 10;
     const totalPages = Math.max(1, Math.ceil(tasks.length / pageSize));
     state.productDevelopmentTaskPage = Math.max(1, Math.min(totalPages, Number(state.productDevelopmentTaskPage) || 1));
     const page = state.productDevelopmentTaskPage;
     const items = tasks.slice((page - 1) * pageSize, page * pageSize);
-    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>';
+    const listSort = getSkuListSort();
+    const listSortLabel = listSort === 'acquired' ? '获取时间' : '分配时间';
+    const listSortMenu = '<div class="pfh-export-menu pfh-sku-sort-menu' + (state.skuSortMenuOpen ? ' is-open' : '') + '">' +
+      '<button type="button" class="pfh-export-menu-button" data-action="sku-sort-toggle" aria-expanded="' + (state.skuSortMenuOpen ? 'true' : 'false') + '"><span>' + escapeHtml(listSortLabel) + '</span><i></i></button>' +
+      '<div class="pfh-export-menu-list"><button type="button" data-action="sku-list-sort" data-sort="assigned" class="' + (listSort === 'assigned' ? 'is-active' : '') + '">分配时间</button><button type="button" data-action="sku-list-sort" data-sort="acquired" class="' + (listSort === 'acquired' ? 'is-active' : '') + '">获取时间</button></div></div>';
+    const listTools = '<div class="pfh-sku-list-toolbar"><div class="pfh-sku-view-switch" data-active-mode="' + listMode + '" role="group" aria-label="开发 SKU 列表视图"><span class="pfh-sku-view-indicator" aria-hidden="true"></span>' +
+      '<button type="button" data-action="sku-list-mode" data-mode="list" class="' + (listMode === 'list' ? 'is-active' : '') + '">列表</button><button type="button" data-action="sku-list-mode" data-mode="waterfall" class="' + (listMode === 'waterfall' ? 'is-active' : '') + '">瀑布流</button></div>' +
+      '<label class="pfh-sku-sort"><span>排序</span>' + listSortMenu + '</label></div>';
+    const listHead = '<div class="pfh-list-head"><button type="button" class="pfh-upload-back" data-action="product-development-tasks-home" aria-label="返回开发主页">' + iconHtml('backArrow') + '</button><strong>开发 SKU</strong><span>共 ' + tasks.length + ' 条</span><button type="button" class="pfh-sku-add-button" data-action="product-development-tasks-refresh" title="刷新本人开发任务" aria-label="刷新本人开发任务">↻</button></div>' + listTools;
     const userNote = state.productDevelopmentTaskUserName ? '<div class="pfh-list-note">开发人员：' + escapeHtml(state.productDevelopmentTaskUserName) + '</div>' : '';
     if (state.productDevelopmentTasksLoading && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">正在读取本人开发任务…</div></div></div>';
     if (state.productDevelopmentTaskError && !tasks.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">' + escapeHtml(state.productDevelopmentTaskError) + '</div></div></div>';
     if (!items.length) return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll"><div class="pfh-empty">当前用户暂无开发人员字段匹配的产品任务</div></div></div>';
     const cards = items.map((item) => {
-      const active = item.sku === state.productDevelopmentTaskSelectedSku ? ' is-active' : '';
-      const title = [item.brand, item.name, item.sku].filter(Boolean).join(' ');
-      const subtitle = [item.name || '未命名产品', item.projectStatus || '开发任务'].filter(Boolean).join(' · ');
-      return '<button type="button" class="pfh-sku' + active + '" data-action="product-development-task-select" data-sku="' + escapeHtml(item.sku) + '" title="' + escapeHtml(title) + '"><span><b>' + escapeHtml(item.sku) + '</b>' + (item.artPriority ? '<em>' + escapeHtml(item.artPriority) + '</em>' : '') + '</span><small>' + escapeHtml(subtitle) + '</small></button>';
+      const data = productDevelopmentTaskSeedData(item);
+      const image = item.productListImageUrl || item.benchmarkImageUrl || data.productListImageUrl || data.benchmarkImageUrl || '';
+      return skuListCardHtml(item, listMode, state.productDevelopmentTaskSelectedSku, {
+        action: 'product-development-task-select',
+        data,
+        image,
+        productName: item.name || data.name || '未命名产品',
+      });
     }).join('');
-    const pager = totalPages > 1 ? '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button><b>' + page + '</b><button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>' : '';
-    return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll" data-scroll-context="product-development-tasks|' + page + '">' + cards + '</div>' + pager + '</div>';
+    const pager = '<div class="pfh-list-pager"><div><button type="button" data-action="product-development-task-page" data-page="prev"' + (page <= 1 ? ' disabled' : '') + '>‹</button>' + renderCompactPager('product-development-task-page-goto', page, totalPages) + '<button type="button" data-action="product-development-task-page" data-page="next"' + (page >= totalPages ? ' disabled' : '') + '>›</button></div></div>';
+    return listHead + userNote + '<div class="pfh-sku-list-content"><div class="pfh-sku-scroll' + (listMode === 'waterfall' ? ' is-waterfall' : '') + '" data-scroll-context="product-development-tasks|' + listMode + '|' + page + '">' + (listMode === 'waterfall' ? '<div class="pfh-sku-waterfall-grid">' + cards + '</div>' : cards) + '</div>' + pager + '</div>';
   }
 
   function productDevelopmentReadonlyPayloadData(payload) {
@@ -5297,9 +5310,12 @@
     return definitions.map((definition) => {
       const attr = attrs.find((item) => Number(item && item.attr_id) === Number(definition.attrId)
         || String(item && item.variable_name || '') === definition.key);
-      let value = attr ? productDevelopmentReadonlyAttrValue(attr, 1) : info && info[definition.key];
-      if (!attr && definition.key === 'purchase_price' && info) {
-        value = info.purchase_price !== undefined ? info.purchase_price : info.purchasePrice !== undefined ? info.purchasePrice : info.procurement_price;
+      let value = attr ? productDevelopmentReadonlyAttrValue(attr, 1) : '';
+      if (!productDevelopmentReadonlyValueText(value, attr) && info) {
+        const infoValue = definition.key === 'procurement_rice'
+          ? (info.procurement_rice !== undefined ? info.procurement_rice : info.purchase_price !== undefined ? info.purchase_price : info.purchasePrice !== undefined ? info.purchasePrice : info.procurement_price)
+          : info[definition.key];
+        if (infoValue !== undefined && infoValue !== null && infoValue !== '') value = infoValue;
       }
       return {
         ...definition,
@@ -5350,7 +5366,7 @@
         is_must: true,
         value: '',
       }));
-    const priceAttrIds = new Set(PRODUCT_DEVELOPMENT_PRICE_FIELD_FALLBACKS.map((definition) => Number(definition.attrId)));
+    const priceAttrIds = new Set([Number(PRODUCT_DEVELOPMENT_PURCHASE_PRICE_FIELD.attrId)].concat(PRODUCT_DEVELOPMENT_PRICE_FIELD_FALLBACKS.map((definition) => Number(definition.attrId))));
     const seen = new Set();
     return sourceAttrs.map((attr) => {
       const attrId = Number(attr && attr.attr_id);
@@ -5378,12 +5394,12 @@
     }).filter(Boolean);
   }
 
-  function productDevelopmentNormalizeReadonlyDetail(task, infoPayload, contentPayload, bomPayload, productSnapshot) {
+  function productDevelopmentNormalizeReadonlyDetail(task, infoPayload, contentPayload, bomPayload, productSnapshot, categoryIdOverride) {
     const source = task || {};
     const info = productDevelopmentReadonlyPayloadData(infoPayload);
     const attrs = productDevelopmentReadonlyAttrs(contentPayload);
     const bomRows = productDevelopmentReadonlyList(bomPayload).map(productDevelopmentReadonlyBomRow).filter((row) => row.code || row.name);
-    const categoryId = String(info.category_id || source.categoryId || productSnapshot && productSnapshot.categoryId || '').trim();
+    const categoryId = String(categoryIdOverride || info.category_id || source.categoryId || productSnapshot && productSnapshot.categoryId || '').trim();
     const categoryName = productDevelopmentCleanText(info.category_name || source.plmCategory || productSnapshot && productSnapshot.plmCategory, 180);
     const requiredDefinitions = attrs.filter((attr) => attr && attr.is_must).map((attr) => ({
       attrId: Number(attr.attr_id),
@@ -5434,6 +5450,47 @@
     };
   }
 
+  function productDevelopmentCategoryNames(task, info, productSnapshot) {
+    const raw = [
+      task && task.plmCategory,
+      task && task.categoryName,
+      info && info.category_name,
+      productSnapshot && productSnapshot.plmCategory,
+      productSnapshot && productSnapshot.categoryName,
+    ].map((value) => productDevelopmentCleanText(value, 180)).filter(Boolean).join('/');
+    return Array.from(new Set(raw.split(/[\\/\\>＞|]+/).map((value) => value.trim()).filter(Boolean))).sort((a, b) => b.length - a.length);
+  }
+
+  async function productDevelopmentFindCategoryIdByName(task, info, productSnapshot) {
+    const names = productDevelopmentCategoryNames(task, info, productSnapshot);
+    if (!names.length) return '';
+    const targetName = names[0];
+    const visited = new Set();
+    const pendingParents = [0];
+    while (pendingParents.length && visited.size < 80) {
+      const parentId = pendingParents.shift();
+      if (visited.has(parentId)) continue;
+      visited.add(parentId);
+      let nodes = [];
+      try {
+        const payload = await fetchPlmJson('/api/ProjectFormData/GetCategorySelectOptionNew?types=1&parent_id=' + encodeURIComponent(parentId));
+        nodes = productDevelopmentReadonlyList(payload);
+      } catch (error) {
+        continue;
+      }
+      for (const node of nodes) {
+        const nodeName = productDevelopmentCleanText(node && node.name, 180);
+        if (nodeName && (nodeName === targetName || targetName.endsWith('/' + nodeName))) return String(node.id || '').trim();
+        const children = Array.isArray(node && node.children) ? node.children : [];
+        children.forEach((child) => {
+          if (child && child.id !== undefined) pendingParents.push(Number(child.id));
+        });
+        if (node && Number(node.exists_child) === 1 && node.id !== undefined) pendingParents.push(Number(node.id));
+      }
+    }
+    return '';
+  }
+
   async function fetchProductDevelopmentReadonlyDetail(task, productSnapshot) {
     const source = task || {};
     const projectId = String(source.projectId || source.rowId || '').trim();
@@ -5443,12 +5500,28 @@
       fetchPlmJson('/api/ChemicalNewDevTask/GetProjectPMJoinList?id=' + encodeURIComponent(projectId)),
     ]);
     const info = productDevelopmentReadonlyPayloadData(infoPayload);
-    const categoryId = String(info.category_id || source.categoryId || productSnapshot && productSnapshot.categoryId || '').trim();
+    const resolvedCategoryId = await productDevelopmentFindCategoryIdByName(source, info, productSnapshot).catch(() => '');
+    const categoryCandidates = Array.from(new Set([
+      resolvedCategoryId,
+      info.category_id,
+      source.categoryId,
+      productSnapshot && productSnapshot.categoryId,
+    ].map((value) => String(value || '').trim()).filter((value) => /^\d+$/.test(value))));
     let contentPayload = null;
-    if (/^\d+$/.test(categoryId)) {
-      contentPayload = await fetchPlmJson('/api/ChemicalNewDevTask/GetProductDetailContent?id=' + encodeURIComponent(projectId) + '&category_id=' + encodeURIComponent(categoryId));
+    let categoryId = '';
+    for (const candidate of categoryCandidates) {
+      try {
+        const candidatePayload = await fetchPlmJson('/api/ChemicalNewDevTask/GetProductDetailContent?id=' + encodeURIComponent(projectId) + '&category_id=' + encodeURIComponent(candidate));
+        if (productDevelopmentReadonlyAttrs(candidatePayload).length) {
+          contentPayload = candidatePayload;
+          categoryId = candidate;
+          break;
+        }
+      } catch (error) {
+        // Try the next known category candidate.
+      }
     }
-    return productDevelopmentNormalizeReadonlyDetail(source, infoPayload, contentPayload, bomPayload, productSnapshot);
+    return productDevelopmentNormalizeReadonlyDetail(source, infoPayload, contentPayload, bomPayload, productSnapshot, categoryId);
   }
 
   function productDevelopmentReadonlyFieldHtml(field, formSku) {
@@ -5487,12 +5560,12 @@
     ];
     const list = Array.isArray(rows) ? rows : [];
     if (!list.length) return '<div class="pfh-product-development-form-empty">暂无 BOM 记录，可先在本地补充。</div>';
-    return '<div class="pfh-product-development-file-list">' + list.map((row, index) => '<article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><span>BOM ' + (index + 1) + '</span><i>' + escapeHtml(row.type || '未分类') + '</i></div><div class="pfh-product-development-form-grid">' + definitions.map((definition) => productDevelopmentReadonlyBomFieldHtml(row, index, definition[0], definition[1], formSku)).join('') + '</div></article>').join('') + '</div>';
+    return '<div class="pfh-product-development-file-list">' + list.map((row, index) => '<article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><strong>BOM ' + (index + 1) + '</strong><i>' + escapeHtml(row.type || '未分类') + '</i></div><div class="pfh-product-development-form-grid">' + definitions.map((definition) => productDevelopmentReadonlyBomFieldHtml(row, index, definition[0], definition[1], formSku)).join('') + '</div></article>').join('') + '</div>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
     const status = item && item.status ? item.status : '未读取';
-    return '<article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><span>' + escapeHtml(item && item.label || '资料字段') + '</span><i class="' + (status === '已读取' ? 'is-ready' : 'is-missing') + '">' + escapeHtml(status) + '</i></div><div class="pfh-product-development-form-grid">' + productDevelopmentReadonlyFieldHtml({
+    return '<article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><strong>' + escapeHtml(item && item.label || '资料字段') + '</strong><i class="' + (status === '已读取' ? 'is-ready' : 'is-missing') + '">' + escapeHtml(status) + '</i></div><div class="pfh-product-development-form-grid">' + productDevelopmentReadonlyFieldHtml({
       key: String(index) + '.displayValue',
       label: '文件值 / 路径',
       displayValue: item && item.displayValue || '',
@@ -6861,12 +6934,16 @@
       renderShell();
       return true;
     }
-    if (action === 'product-development-task-page') {
-      const totalPages = Math.max(1, Math.ceil((Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.length : 0) / 10));
+    if (action === 'product-development-task-page' || action === 'product-development-task-page-goto') {
+      const pageSize = getSkuListMode() === 'waterfall' ? 20 : 10;
+      const totalPages = Math.max(1, Math.ceil((Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.length : 0) / pageSize));
       const current = Number(state.productDevelopmentTaskPage) || 1;
-      state.productDevelopmentTaskPage = actionTarget && actionTarget.getAttribute('data-page') === 'prev'
-        ? Math.max(1, current - 1)
-        : Math.min(totalPages, current + 1);
+      const requested = Number(actionTarget && actionTarget.getAttribute('data-page'));
+      state.productDevelopmentTaskPage = Number.isInteger(requested) && requested > 0
+        ? Math.max(1, Math.min(totalPages, requested))
+        : (actionTarget && actionTarget.getAttribute('data-page') === 'prev'
+          ? Math.max(1, current - 1)
+          : Math.min(totalPages, current + 1));
       renderShell();
       return true;
     }
