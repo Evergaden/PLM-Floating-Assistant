@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.200
+// @version      2.8.201
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.200';
+  const SCRIPT_VERSION = '2.8.201';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4671,7 +4671,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.7.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.8.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
@@ -5044,6 +5044,41 @@
     { id: 'placeholder', label: '尺寸图' },
   ]);
 
+  const PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS = Object.freeze({
+    box: Object.freeze({
+      label: '纸盒',
+      categoryId: '114',
+      categoryPath: '包材 / 纸盒 / 白卡 / 白卡',
+      materialType: 0,
+      supplierId: '80000249',
+      supplier: '广州美多印刷有限公司-纸盒',
+      usage: '1',
+      shelfLife: '食品两年',
+    }),
+    label: Object.freeze({
+      label: '标签',
+      categoryId: '119',
+      categoryPath: '包材 / 标签 / 标签 / 标签',
+      materialType: 1,
+      supplierId: '80000173',
+      supplier: '汕头市柠彩文化传媒有限公司-标签',
+      usage: '1',
+      labelShape: '圆弧',
+      adhesive: '玻璃加粘',
+      shelfLife: '食品两年',
+    }),
+  });
+
+  const PRODUCT_DEVELOPMENT_BOX_QUANTITY_OPTIONS = Object.freeze([
+    Object.freeze({ value: 1, label: '0–1999 个', factor: 4.5, minPrice: 0.18 }),
+    Object.freeze({ value: 2, label: '2000–4999 个', factor: 4, minPrice: 0.14 }),
+    Object.freeze({ value: 3, label: '5000–9999 个', factor: 3.5, minPrice: 0.11 }),
+    Object.freeze({ value: 4, label: '10000–19999 个', factor: 3, minPrice: 0.072 }),
+    Object.freeze({ value: 5, label: '20000–49999 个', factor: 3, minPrice: 0.07 }),
+    Object.freeze({ value: 6, label: '50000–99999 个', factor: 3, minPrice: 0.068 }),
+    Object.freeze({ value: 7, label: '100000 个以上', factor: 3, minPrice: 0.065 }),
+  ]);
+
   function normalizeProductDevelopmentTaskTab(value) {
     const tab = String(value || '').trim();
     return PRODUCT_DEVELOPMENT_TASK_TABS.some((item) => item.id === tab) ? tab : 'detail';
@@ -5376,6 +5411,7 @@
     if (!task || !task.sku) return null;
     const opts = options || {};
     const sku = task.sku;
+    const previousDetail = productDevelopmentReadonlyDetailForTask(task);
     if (!opts.force) {
       const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
       if (cachedDetail) {
@@ -5401,6 +5437,7 @@
       priceFields: [],
       attachments: [],
       bomRows: [],
+      materialDrafts: previousDetail && previousDetail.materialDrafts || null,
     }));
     const next = normalizeData({
       ...seed,
@@ -5410,6 +5447,7 @@
       sku,
     });
     if (readOnlyDetail && !readOnlyDetail.error) {
+      if (previousDetail && previousDetail.materialDrafts) readOnlyDetail.materialDrafts = previousDetail.materialDrafts;
       readOnlyDetail.cacheSource = 'plm';
       saveProductDevelopmentReadonlyDetailCache(sku, readOnlyDetail);
     }
@@ -5561,6 +5599,200 @@
     const text = productDevelopmentCleanText(value, 200);
     const match = text.match(/(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)/i);
     return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+  }
+
+  function productDevelopmentMaterialNumber(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim().replace(/,/g, '');
+    if (!text) return null;
+    const number = Number(text);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  function productDevelopmentMaterialNumberText(value, digits) {
+    const number = productDevelopmentMaterialNumber(value);
+    if (number === null) return '';
+    const precision = Number.isInteger(digits) ? digits : 6;
+    return String(Number(number.toFixed(precision)));
+  }
+
+  function productDevelopmentMaterialDimensions(value) {
+    const text = productDevelopmentCleanText(value, 240);
+    const match = text.match(/(\d+(?:\.\d+)?)\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?)(?:\s*(?:x|×|\*)\s*(\d+(?:\.\d+)?))?/i);
+    if (!match) return { length: '', width: '', height: '' };
+    return {
+      length: match[1] || '',
+      width: match[2] || '',
+      height: match[3] || '',
+    };
+  }
+
+  function productDevelopmentMaterialExistingRow(detail, kind) {
+    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
+    return rows.find((row) => {
+      if (!row) return false;
+      const materialType = Number(row.materialType);
+      const text = [row.name, row.category, row.specification].map((value) => String(value || '')).join(' ');
+      return kind === 'box'
+        ? materialType === 0 || /纸盒/.test(text)
+        : materialType === 1 || /标签/.test(text);
+    }) || null;
+  }
+
+  function productDevelopmentMaterialBaseName(task, detail) {
+    const meta = getProductDevelopmentTaskMeta(task, detail);
+    return productDevelopmentCleanText(
+      meta.productNameCn || detail && detail.productNameCn || task && task.name || detail && detail.name || detail && detail.sku,
+      180,
+    );
+  }
+
+  function productDevelopmentMaterialPackSpec(detail) {
+    const rows = detail && Array.isArray(detail.bomRows) ? detail.bomRows : [];
+    const finishedProduct = rows.find((row) => row && row.type === '成品' && row.specification);
+    if (finishedProduct) return productDevelopmentCleanText(finishedProduct.specification, 160);
+    const specification = Array.isArray(detail && detail.requiredFields)
+      ? detail.requiredFields.find((field) => field && field.key === 'specification')
+      : null;
+    return productDevelopmentCleanText(specification && (specification.displayValue || specification.value), 160);
+  }
+
+  function productDevelopmentMaterialDefaultName(kind, baseName, draft) {
+    const base = productDevelopmentCleanText(baseName, 180);
+    const shelfLife = productDevelopmentCleanText(draft.shelfLife || '食品两年', 40);
+    if (kind === 'label') {
+      const shape = productDevelopmentCleanText(draft.labelShape || '圆弧', 40);
+      return [base, '标签（' + shape + ' ' + shelfLife + '）'].filter(Boolean).join('');
+    }
+    const insertCard = draft.insertCard ? '内卡 ' : '';
+    return [base, '纸盒（' + insertCard + shelfLife + '）'].filter(Boolean).join('');
+  }
+
+  function productDevelopmentMaterialDefaultSpecification(kind, draft) {
+    const packSpec = productDevelopmentCleanText(draft.packSpec, 160);
+    const length = productDevelopmentMaterialNumberText(draft.length, 2);
+    const width = productDevelopmentMaterialNumberText(draft.width, 2);
+    const height = productDevelopmentMaterialNumberText(draft.height, 2);
+    const dimensionText = kind === 'box'
+      ? (length && width && height ? length + 'x' + width + 'x' + height + 'cm' : '')
+      : (length && width ? length + 'x' + width + 'cm（' + productDevelopmentCleanText(draft.adhesive || '玻璃加粘', 60) + '）' : '');
+    return [packSpec, dimensionText].filter(Boolean).join('，');
+  }
+
+  function productDevelopmentCalculatePaperBoxPrice(draft) {
+    const length = productDevelopmentMaterialNumber(draft && draft.length);
+    const width = productDevelopmentMaterialNumber(draft && draft.width);
+    const height = productDevelopmentMaterialNumber(draft && draft.height);
+    const quantity = Number(draft && draft.quantity || 0);
+    const rule = PRODUCT_DEVELOPMENT_BOX_QUANTITY_OPTIONS.find((item) => item.value === quantity);
+    if (length === null || width === null || height === null || !rule) return '';
+    const front = 2 * (length + width) + 1.5;
+    const side = height + 2 * width + 3;
+    const raw = front * side / 10000 * rule.factor;
+    let price = Math.max(raw, rule.minPrice);
+    if (draft.thicken) price *= 1.2;
+    if (draft.insertCard) price *= 2;
+    if (draft.multiPage) price += 0.02;
+    return String(Number(price.toFixed(2)));
+  }
+
+  function productDevelopmentCalculateLabelPrice(draft) {
+    const length = productDevelopmentMaterialNumber(draft && draft.length);
+    const width = productDevelopmentMaterialNumber(draft && draft.width);
+    if (length === null || width === null) return '';
+    const price = Math.max((length / 100) * (width / 100) * 9, 0.04);
+    return String(Number(price.toFixed(6)));
+  }
+
+  function productDevelopmentCalculateMaterialPrice(kind, draft) {
+    return kind === 'box'
+      ? productDevelopmentCalculatePaperBoxPrice(draft)
+      : productDevelopmentCalculateLabelPrice(draft);
+  }
+
+  function productDevelopmentNormalizeMaterialDraft(rawValue, kind, detail, task) {
+    const defaults = PRODUCT_DEVELOPMENT_MATERIAL_DEFAULTS[kind];
+    const raw = rawValue && typeof rawValue === 'object' ? rawValue : {};
+    const existing = productDevelopmentMaterialExistingRow(detail, kind);
+    const dimensions = productDevelopmentMaterialDimensions(existing && existing.specification);
+    const baseName = productDevelopmentMaterialBaseName(task, detail);
+    const packSpec = productDevelopmentCleanText(raw.packSpec || productDevelopmentMaterialPackSpec(detail), 160);
+    const hasName = Object.prototype.hasOwnProperty.call(raw, 'materialName');
+    const hasSpecification = Object.prototype.hasOwnProperty.call(raw, 'specification');
+    const nameSource = String(raw.nameSource || (hasName ? 'manual' : existing && existing.name ? 'plm' : 'generated'));
+    const specificationSource = String(raw.specificationSource || (hasSpecification ? 'manual' : 'generated'));
+    const dimensionValue = (rawKey, existingValue, parsedValue) => {
+      if (raw[rawKey] !== undefined && raw[rawKey] !== null && String(raw[rawKey]).trim() !== '') return raw[rawKey];
+      if (existingValue !== undefined && existingValue !== null && String(existingValue).trim() !== '') return existingValue;
+      return parsedValue;
+    };
+    const draft = {
+      kind,
+      label: defaults.label,
+      materialType: defaults.materialType,
+      categoryId: String(raw.categoryId || defaults.categoryId),
+      categoryPath: productDevelopmentCleanText(raw.categoryPath || defaults.categoryPath, 160),
+      supplierId: String(raw.supplierId || defaults.supplierId),
+      supplier: productDevelopmentCleanText(raw.supplier || defaults.supplier, 180),
+      usage: String(raw.usage || defaults.usage || '1'),
+      projectId: String(raw.projectId || detail && detail.projectId || task && task.projectId || ''),
+      productCode: String(raw.productCode || detail && detail.sku || task && task.sku || '').trim().toUpperCase(),
+      code: productDevelopmentCleanText(raw.code || existing && existing.code, 100),
+      joinId: productDevelopmentCleanText(raw.joinId || existing && existing.joinId, 100),
+      pics: Array.isArray(raw.pics) ? raw.pics.slice(0, 3) : [],
+      packSpec,
+      shelfLife: productDevelopmentCleanText(raw.shelfLife || defaults.shelfLife, 40),
+      labelShape: productDevelopmentCleanText(raw.labelShape || defaults.labelShape, 40),
+      adhesive: productDevelopmentCleanText(raw.adhesive || defaults.adhesive, 60),
+      length: productDevelopmentMaterialNumberText(dimensionValue('length', existing && existing.length, dimensions.length), 2),
+      width: productDevelopmentMaterialNumberText(dimensionValue('width', existing && existing.width, dimensions.width), 2),
+      height: kind === 'box'
+        ? productDevelopmentMaterialNumberText(dimensionValue('height', existing && existing.height, dimensions.height), 2)
+        : '',
+      quantity: kind === 'box' ? Math.max(1, Math.min(7, Number(raw.quantity || 1) || 1)) : '',
+      multiPage: kind === 'box' ? Boolean(raw.multiPage) : false,
+      insertCard: kind === 'box' ? (raw.insertCard !== undefined ? Boolean(raw.insertCard) : Boolean(existing && /内卡/.test(existing.name || ''))) : false,
+      thicken: kind === 'box' ? Boolean(raw.thicken) : false,
+      nameSource,
+      specificationSource,
+      materialName: hasName
+        ? productDevelopmentCleanText(raw.materialName, 240)
+        : productDevelopmentCleanText(existing && existing.name, 240),
+      specification: hasSpecification
+        ? productDevelopmentCleanText(raw.specification, 240)
+        : productDevelopmentCleanText(existing && existing.specification, 240),
+      price: productDevelopmentCleanText(raw.price !== undefined ? raw.price : existing && existing.price, 40),
+    };
+    if (!draft.materialName && draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
+    if (!draft.specification && draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
+    const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
+    if (calculatedPrice !== '') draft.price = calculatedPrice;
+    return draft;
+  }
+
+  function productDevelopmentNormalizeMaterialDrafts(value, detail, task) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      box: productDevelopmentNormalizeMaterialDraft(source.box, 'box', detail, task),
+      label: productDevelopmentNormalizeMaterialDraft(source.label, 'label', detail, task),
+    };
+  }
+
+  function productDevelopmentEnsureMaterialDrafts(detail, task) {
+    if (!detail || typeof detail !== 'object') return { value: { box: {}, label: {} }, changed: false };
+    const normalized = productDevelopmentNormalizeMaterialDrafts(detail.materialDrafts, detail, task);
+    const previous = JSON.stringify(detail.materialDrafts || null);
+    const next = JSON.stringify(normalized);
+    if (previous !== next) detail.materialDrafts = normalized;
+    return { value: normalized, changed: previous !== next };
+  }
+
+  function productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task) {
+    if (!draft) return;
+    const baseName = productDevelopmentMaterialBaseName(task, detail);
+    const calculatedPrice = productDevelopmentCalculateMaterialPrice(kind, draft);
+    draft.price = calculatedPrice;
+    if (draft.nameSource !== 'manual') draft.materialName = productDevelopmentMaterialDefaultName(kind, baseName, draft);
+    if (draft.specificationSource !== 'manual') draft.specification = productDevelopmentMaterialDefaultSpecification(kind, draft);
   }
 
   function productDevelopmentReadonlyBomRow(row) {
@@ -5748,6 +5980,15 @@
       { key: 'developerName', label: '开发人员', value: source.developerName, source: '开发任务' },
       { key: 'projectStatus', label: '开发任务状态', value: source.projectStatus, source: '开发任务' },
     ]);
+    const materialDraftDetail = {
+      sku: source.sku,
+      projectId: String(source.projectId || source.rowId || '').trim(),
+      productNameCn,
+      productNameEn,
+      name: source.name || productNameCn,
+      bomRows,
+      requiredFields,
+    };
     return {
       sku: source.sku,
       projectId: String(source.projectId || source.rowId || '').trim(),
@@ -5767,6 +6008,7 @@
       priceFields: productDevelopmentReadonlyPriceFields(attrs, info, []),
       attachments: productDevelopmentReadonlyAttachmentFields(attrs),
       bomRows,
+      materialDrafts: productDevelopmentNormalizeMaterialDrafts(null, materialDraftDetail, source),
       readonly: true,
       loadedAt: new Date().toLocaleString(),
     };
@@ -5885,6 +6127,69 @@
     return '<div class="pfh-product-development-file-list">' + list.map((row, index) => '<article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><strong>BOM ' + (index + 1) + '</strong><i>' + escapeHtml(row.type || '未分类') + '</i></div><div class="pfh-product-development-form-grid">' + definitions.map((definition) => productDevelopmentReadonlyBomFieldHtml(row, index, definition[0], definition[1], formSku)).join('') + '</div></article>').join('') + '</div>';
   }
 
+  function productDevelopmentMaterialInputHtml(sku, kind, field, label, value, options) {
+    const config = options || {};
+    const type = config.type || 'text';
+    const readonly = config.readonly ? ' readonly' : '';
+    const required = config.required ? ' <i>需确认</i>' : '';
+    const inputValue = value === null || value === undefined ? '' : String(value);
+    return '<label class="pfh-product-development-material-field' + (config.wide ? ' is-wide' : '') + (config.readonly ? ' is-readonly' : '') + '"><span>' + escapeHtml(label) + required + '</span><input type="' + escapeHtml(type) + '" inputmode="decimal" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" value="' + escapeHtml(inputValue) + '"' + readonly + (config.placeholder ? ' placeholder="' + escapeHtml(config.placeholder) + '"' : '') + '></label>';
+  }
+
+  function productDevelopmentMaterialSelectHtml(sku, kind, field, label, value, options) {
+    const choices = Array.isArray(options) ? options : [];
+    return '<label class="pfh-product-development-material-field"><span>' + escapeHtml(label) + '</span><select class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '">' + choices.map((option) => '<option value="' + escapeHtml(option.value) + '"' + (String(option.value) === String(value) ? ' selected' : '') + '>' + escapeHtml(option.label) + '</option>').join('') + '</select></label>';
+  }
+
+  function productDevelopmentMaterialRadioHtml(sku, kind, field, label, value) {
+    return '<div class="pfh-product-development-material-option-group"><span>' + escapeHtml(label) + '</span><div><label><input type="radio" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" name="pd-material-' + escapeHtml(kind) + '-' + escapeHtml(field) + '-' + escapeHtml(sku) + '" value="true"' + (value ? ' checked' : '') + '>是</label><label><input type="radio" class="pfh-product-development-material-input" data-material-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-field="' + escapeHtml(field) + '" name="pd-material-' + escapeHtml(kind) + '-' + escapeHtml(field) + '-' + escapeHtml(sku) + '" value="false"' + (!value ? ' checked' : '') + '>否</label></div></div>';
+  }
+
+  function productDevelopmentMaterialCardHtml(kind, draft, sku, baseName) {
+    const isBox = kind === 'box';
+    const title = isBox ? '纸盒' : '标签';
+    const materialType = isBox ? '0' : '1';
+    const priceText = draft.price || '填写尺寸后自动计算';
+    const dimensionFields = isBox
+      ? [
+        productDevelopmentMaterialInputHtml(sku, kind, 'length', '长（正面，cm）', draft.length, { type: 'number', required: true }),
+        productDevelopmentMaterialInputHtml(sku, kind, 'width', '宽（侧面，cm）', draft.width, { type: 'number', required: true }),
+        productDevelopmentMaterialInputHtml(sku, kind, 'height', '高（cm）', draft.height, { type: 'number', required: true }),
+      ].join('')
+      : [
+        productDevelopmentMaterialInputHtml(sku, kind, 'length', '长（cm）', draft.length, { type: 'number', required: true }),
+        productDevelopmentMaterialInputHtml(sku, kind, 'width', '宽（cm）', draft.width, { type: 'number', required: true }),
+      ].join('');
+    const calculatorOptions = isBox
+      ? '<div class="pfh-product-development-material-options"><strong>纸盒计算器选项</strong><div class="pfh-product-development-material-option-grid">' +
+        productDevelopmentMaterialSelectHtml(sku, kind, 'quantity', '采购数量', draft.quantity, PRODUCT_DEVELOPMENT_BOX_QUANTITY_OPTIONS) +
+        productDevelopmentMaterialRadioHtml(sku, kind, 'multiPage', '是否多页', draft.multiPage) +
+        productDevelopmentMaterialRadioHtml(sku, kind, 'insertCard', '是否需内卡', draft.insertCard) +
+        productDevelopmentMaterialRadioHtml(sku, kind, 'thicken', '是否需加厚', draft.thicken) +
+        '</div></div>'
+      : '<div class="pfh-product-development-material-defaults"><strong>标签默认规则</strong><span>圆弧 · 玻璃加粘 · 食品两年 · 用量 1</span></div>';
+    return '<article class="pfh-product-development-material-card" data-material-card="' + escapeHtml(kind) + '"><header><div><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(baseName || sku) + ' · material_type=' + materialType + '</span></div><em data-material-price-label="' + escapeHtml(kind) + '">采购价：' + escapeHtml(priceText) + (draft.price ? ' 元' : '') + '</em></header><div class="pfh-product-development-material-grid">' +
+      productDevelopmentMaterialInputHtml(sku, kind, 'materialName', '物料名称', draft.materialName, { wide: true, required: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'categoryPath', '物料分类（默认）', draft.categoryPath, { wide: true, readonly: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'specification', '规格型号', draft.specification, { wide: true, required: true }) +
+      dimensionFields +
+      productDevelopmentMaterialInputHtml(sku, kind, 'supplier', '默认供应商', draft.supplier, { wide: true, readonly: true }) +
+      productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（自动）', priceText, { readonly: true }) +
+      '</div>' + calculatorOptions + '<div class="pfh-product-development-material-binding-defaults">PLM 绑定默认：project_id=' + escapeHtml(draft.projectId || '当前项目') + ' · product_code=' + escapeHtml(draft.productCode || sku) + ' · category_id=' + escapeHtml(draft.categoryId) + ' · usage_value=' + escapeHtml(draft.usage || '1') + ' · type=2 · pics=[]</div></article>';
+  }
+
+  function productDevelopmentMaterialPlannerHtml(detail, task) {
+    const formSku = String(detail && detail.sku || '').trim().toUpperCase();
+    if (!formSku) return '';
+    const ensured = productDevelopmentEnsureMaterialDrafts(detail, task);
+    if (ensured.changed) {
+      detail.cacheSource = 'local-cache';
+      scheduleProductDevelopmentReadonlyDetailCache(formSku, detail);
+    }
+    const baseName = productDevelopmentMaterialBaseName(task, detail);
+    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM MATERIAL PREVIEW</small><h3>纸盒 / 标签物料预填</h3></div><span>结合 PLM HAR 默认字段，仅本地参考，不写入 PLM</span></header><p class="pfh-product-development-material-note">按图一命名和规格规则生成物料名称、规格型号；纸盒填写三维尺寸并使用纸盒计算器，标签填写二维尺寸并按标签公式计算采购价。物料名称和规格型号仍可手动修改。</p><div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + '</div><p class="pfh-product-development-material-note">HAR 对应默认：纸盒分类为“包材 / 纸盒 / 白卡 / 白卡”、标签分类为“包材 / 标签 / 标签 / 标签”；供应商、用量 1、物料类型和图片字段按 PLM 默认带出。</p></section>';
+  }
+
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
     const status = item && item.status ? item.status : '未读取';
     return '<article class="pfh-product-development-card"><div class="pfh-product-development-card-head"><strong>' + escapeHtml(item && item.label || '资料字段') + '</strong><i class="' + (status === '已读取' ? 'is-ready' : 'is-missing') + '">' + escapeHtml(status) + '</i></div><div class="pfh-product-development-form-grid">' + productDevelopmentReadonlyFieldHtml({
@@ -5899,6 +6204,7 @@
   function productDevelopmentReadonlyDetailHtml(detail) {
     if (!detail) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段，未执行任何写入。</div></section>';
     const formSku = String(detail.sku || '').trim().toUpperCase();
+    const task = getProductDevelopmentTaskBySku(formSku) || state.productDevelopmentSelectedTask || {};
     const localNaming = state.productDevelopmentReview && state.productDevelopmentReview.sku === formSku
       ? productDevelopmentNormalizeProductNaming(state.productDevelopmentReview.productNaming)
       : null;
@@ -5922,9 +6228,11 @@
     const sourceHint = detail.cacheSource === 'local-cache'
       ? '本地缓存 · 点击“刷新资料”重新读取 PLM'
       : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
+    const materialPlanner = productDevelopmentMaterialPlannerHtml(detail, task);
     return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>' + escapeHtml(sourceHint) + '</span></header>' +
       '<div class="pfh-product-development-detail-banner"><strong>当前只展示、预填和人工确认，不调用任何 PLM 写入 API。</strong><span>已填字段来自 PLM / BOM / 计算；空白字段和本地填写内容都不会写回 PLM。</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
       (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
+      materialPlanner +
       fieldGroups.map((group) => '<section class="pfh-product-development-form-section"><h4>' + escapeHtml(group.title) + '</h4><div class="pfh-product-development-form-grid">' + group.fields.map((field) => productDevelopmentReadonlyFieldHtml({ ...field, formGroup: group.key }, formSku)).join('') + '</div></section>').join('') +
       productFieldSections +
       '<section class="pfh-product-development-form-section"><h4>BOM 绑定数据（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项，可编辑）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>' +
@@ -5950,6 +6258,56 @@
     const detail = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[source.sku];
     const formDetail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[source.sku];
     return productDevelopmentTaskLocalMetaHtml(source, formDetail) + productDevelopmentReadonlyDetailHtml(formDetail);
+  }
+
+  function productDevelopmentMaterialInputElements(sku, kind) {
+    return Array.from(document.querySelectorAll('.pfh-product-development-material-input')).filter((element) => (
+      String(element.getAttribute('data-material-sku') || '').trim().toUpperCase() === String(sku || '').trim().toUpperCase() &&
+      String(element.getAttribute('data-material-kind') || '') === String(kind || '')
+    ));
+  }
+
+  function productDevelopmentSyncMaterialDraftDom(sku, kind, draft) {
+    const elements = productDevelopmentMaterialInputElements(sku, kind);
+    const setValue = (field, value) => {
+      const element = elements.find((item) => item.getAttribute('data-material-field') === field);
+      if (element && element.value !== String(value === null || value === undefined ? '' : value)) element.value = String(value === null || value === undefined ? '' : value);
+    };
+    if (draft.nameSource !== 'manual') setValue('materialName', draft.materialName);
+    if (draft.specificationSource !== 'manual') setValue('specification', draft.specification);
+    setValue('price', draft.price || '填写尺寸后自动计算');
+    const card = elements[0] && elements[0].closest('[data-material-card]');
+    const priceLabel = card && card.querySelector('[data-material-price-label]');
+    if (priceLabel) priceLabel.textContent = '采购价：' + (draft.price ? draft.price + ' 元' : '填写尺寸后自动计算');
+  }
+
+  function productDevelopmentHandleMaterialField(target) {
+    if (!target || !target.classList || !target.classList.contains('pfh-product-development-material-input')) return false;
+    if (target.type === 'radio' && !target.checked) return true;
+    const sku = String(target.getAttribute('data-material-sku') || '').trim().toUpperCase();
+    const kind = String(target.getAttribute('data-material-kind') || '').trim();
+    const field = String(target.getAttribute('data-material-field') || '').trim();
+    const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask || {};
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    if (!sku || !detail || !['box', 'label'].includes(kind)) return true;
+    productDevelopmentEnsureMaterialDrafts(detail, task);
+    const draft = detail.materialDrafts && detail.materialDrafts[kind];
+    if (!draft || ['categoryPath', 'supplier', 'price'].includes(field)) return true;
+    if (['multiPage', 'insertCard', 'thicken'].includes(field)) draft[field] = target.value === 'true';
+    else if (field === 'quantity') draft.quantity = Math.max(1, Math.min(7, Number(target.value) || 1));
+    else if (['length', 'width', 'height'].includes(field)) draft[field] = productDevelopmentMaterialNumberText(target.value, 2);
+    else if (field === 'materialName') {
+      draft.materialName = productDevelopmentCleanText(target.value, 240);
+      draft.nameSource = 'manual';
+    } else if (field === 'specification') {
+      draft.specification = productDevelopmentCleanText(target.value, 240);
+      draft.specificationSource = 'manual';
+    } else return true;
+    productDevelopmentRecalculateMaterialDraft(kind, draft, detail, task);
+    detail.cacheSource = 'local-cache';
+    scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
+    productDevelopmentSyncMaterialDraftDom(sku, kind, draft);
+    return true;
   }
 
   function productDevelopmentTaskHeroHtml(task) {
@@ -7515,6 +7873,7 @@
       if (files[0]) importProductDevelopmentBenchmarkImage(files[0]).catch((error) => showToast(formatErrorMessage(error)));
       return true;
     }
+    if (productDevelopmentHandleMaterialField(target)) return true;
     if (!target.classList.contains('pfh-product-development-template-input')) return false;
     target.value = '';
     if (files[0]) importProductDevelopmentTemplate(files[0]).catch((error) => showToast(formatErrorMessage(error)));
@@ -7524,6 +7883,7 @@
   function productDevelopmentHandleInput(event) {
     const target = event && event.target;
     if (!target || !target.classList) return false;
+    if (productDevelopmentHandleMaterialField(target)) return true;
     if (target.classList.contains('pfh-product-development-form-input')) {
       const sku = String(target.getAttribute('data-form-sku') || '').trim().toUpperCase();
       const group = String(target.getAttribute('data-form-group') || 'required').trim();
@@ -7582,6 +7942,16 @@
         state.productDevelopmentTaskMeta[sku] = meta;
         saveProductDevelopmentTaskMeta(sku, meta);
         scheduleProductDevelopmentTaskMetaSave(sku, meta);
+        if (field === 'productNameCn') {
+          const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+          if (detail) {
+            productDevelopmentEnsureMaterialDrafts(detail, state.productDevelopmentSelectedTask || {});
+            ['box', 'label'].forEach((kind) => productDevelopmentRecalculateMaterialDraft(kind, detail.materialDrafts[kind], detail, state.productDevelopmentSelectedTask || {}));
+            detail.cacheSource = 'local-cache';
+            scheduleProductDevelopmentReadonlyDetailCache(sku, detail);
+            ['box', 'label'].forEach((kind) => productDevelopmentSyncMaterialDraftDom(sku, kind, detail.materialDrafts[kind]));
+          }
+        }
       }
       return true;
     }
