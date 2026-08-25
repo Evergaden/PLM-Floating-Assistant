@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.192
+// @version      2.8.193
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.192';
+  const SCRIPT_VERSION = '2.8.193';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4841,6 +4841,48 @@
   const PRODUCT_DEVELOPMENT_TASK_MAX_PAGES = 100;
   const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_TASK_CACHE_KEY = 'plm-floating-helper:product-development-tasks:v1';
+  const PRODUCT_DEVELOPMENT_TASK_TABS = Object.freeze([
+    { id: 'detail', label: '详情' },
+    { id: 'review', label: '侵权图' },
+    { id: 'copywriting', label: '编辑文案' },
+    { id: 'placeholder', label: '尺寸图' },
+  ]);
+
+  function normalizeProductDevelopmentTaskTab(value) {
+    const tab = String(value || '').trim();
+    return PRODUCT_DEVELOPMENT_TASK_TABS.some((item) => item.id === tab) ? tab : 'detail';
+  }
+
+  function productDevelopmentTaskTabsHtml(activeView) {
+    const active = normalizeProductDevelopmentTaskTab(activeView || state.productDevelopmentTaskView);
+    const buttons = PRODUCT_DEVELOPMENT_TASK_TABS.map((tab) => '<button type="button" role="tab" data-action="product-development-task-tab" data-product-development-tab="' + tab.id + '" class="' + (tab.id === active ? 'is-active' : '') + '" aria-selected="' + String(tab.id === active) + '">' + escapeHtml(tab.label) + '</button>').join('');
+    return '<nav class="pfh-detail-view-tabs pfh-product-development-task-tabs" data-active-view="' + escapeHtml(active) + '" role="tablist" aria-label="开发 SKU 视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + buttons + '</nav>';
+  }
+
+  function setupProductDevelopmentTaskTabs(panel) {
+    const tabs = panel && panel.querySelector('.pfh-product-development-task-tabs');
+    const indicator = tabs && tabs.querySelector('.pfh-detail-view-indicator');
+    const activeButton = tabs && tabs.querySelector('button.is-active');
+    if (!tabs || !indicator || !activeButton) return;
+    const transition = 'left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)';
+    const moveIndicator = (button) => {
+      if (!button) return;
+      indicator.style.setProperty('left', button.offsetLeft + 'px', 'important');
+      indicator.style.setProperty('width', button.offsetWidth + 'px', 'important');
+    };
+    const previous = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskPreviousTab);
+    const previousButton = previous !== activeButton.getAttribute('data-product-development-tab')
+      ? tabs.querySelector('button[data-product-development-tab="' + previous + '"]')
+      : null;
+    indicator.style.setProperty('transition', 'none', 'important');
+    moveIndicator(previousButton || activeButton);
+    window.requestAnimationFrame(() => {
+      if (!indicator.isConnected) return;
+      indicator.style.setProperty('transition', transition, 'important');
+      moveIndicator(activeButton);
+    });
+    state.productDevelopmentTaskPreviousTab = '';
+  }
 
   function normalizeProductDevelopmentCachedTask(item) {
     if (!item || typeof item !== 'object') return null;
@@ -4870,14 +4912,26 @@
     };
   }
 
+  function saveProductDevelopmentTaskCache(rows, userName) {
+    const cache = {
+      userName: productDevelopmentCleanText(userName || '', 80),
+      fetchedAt: Date.now(),
+      rows: (Array.isArray(rows) ? rows : []).map(normalizeProductDevelopmentCachedTask).filter(Boolean).slice(0, 20),
+    };
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_CACHE_KEY, cache);
+    return cache;
+  }
+
   function productDevelopmentTaskUserKey(value) {
     return productDevelopmentCleanText(value, 80).replace(/[\s\u3000]+/g, '').toLowerCase();
   }
 
   function getProductDevelopmentTaskUserName() {
+    const cached = loadProductDevelopmentTaskCache();
     const candidates = [
       typeof findCurrentPlmUserName === 'function' ? findCurrentPlmUserName() : '',
       state && state.productDevelopmentTaskUserName,
+      cached.userName,
     ];
     return candidates.map((value) => productDevelopmentCleanText(value, 80)).find(Boolean) || '';
   }
@@ -5062,6 +5116,8 @@
     state.productDevelopmentBenchmarkImageName = '';
     state.productDevelopmentReview = null;
     state.productDevelopmentCopywriting = null;
+    state.productDevelopmentTaskView = 'detail';
+    state.productDevelopmentTaskPreviousTab = '';
     state.productDevelopmentError = '';
     if (!(options && options.render === false)) renderShell();
     if (!(options && options.hydrate === false)) {
@@ -5496,6 +5552,38 @@
     return '<section class="pfh-section pfh-file-section pfh-product-development-task-hero"><div class="pfh-product-hero"><div class="pfh-title-meta pfh-sku-detail-card">' + productThumbHtml(data) + '<div class="pfh-detail-card-content"><div class="pfh-detail-card-heading"><span class="pfh-detail-sku-badge" title="当前开发 SKU">' + iconHtml('tag') + '<span>' + escapeHtml(sku) + '</span></span><strong class="pfh-detail-product-title" title="产品开发详情">' + escapeHtml(title) + '</strong></div><div class="pfh-detail-card-meta"><span class="is-design-type" title="产品开发任务">' + iconHtml('tag') + '<span>产品开发</span></span><span class="is-design-type" title="开发状态">' + iconHtml('info') + '<span>' + escapeHtml(status) + '</span></span></div></div></div></div></section>';
   }
 
+  function productDevelopmentTaskEmbeddedViewHtml(view, statusText) {
+    const source = view === 'review' ? productDevelopmentReviewHtml(statusText) : productDevelopmentCopywritingHtml(statusText);
+    const template = document.createElement('template');
+    template.innerHTML = source;
+    const root = template.content.firstElementChild;
+    if (!root) return '';
+    const modeSwitch = root.querySelector('.pfh-work-mode-switch');
+    const subviewHead = root.querySelector('.pfh-product-development-subview-head');
+    if (modeSwitch) modeSwitch.remove();
+    if (subviewHead) subviewHead.remove();
+    root.classList.remove('pfh-product-development-subview');
+    return root.outerHTML;
+  }
+
+  function renderProductDevelopmentTaskDetail(panel, statusText, task) {
+    const detail = panel && panel.querySelector('.pfh-detail');
+    if (!detail) return;
+    const view = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+    state.productDevelopmentTaskView = view;
+    if (view === 'detail') {
+      state.copywritingMode = false;
+      detail.classList.remove('is-loading');
+      detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll pfh-product-development-task-detail-scroll">' + productDevelopmentTaskTabsHtml(view) + productDevelopmentTaskHeroHtml(task) + productDevelopmentTaskActionsHtml(task) + '</div>';
+      return;
+    }
+    const embedded = view === 'placeholder'
+      ? '<section class="pfh-section pfh-product-development-task-placeholder"><div class="pfh-section-title"><h3>功能占位</h3><span>后续开发</span></div><div class="pfh-empty">该功能暂未开放，后续会在这里接入。</div></section>'
+      : productDevelopmentTaskEmbeddedViewHtml(view, statusText);
+    detail.classList.remove('is-loading');
+    detail.innerHTML = '<div class="pfh-detail-scroll pfh-product-development-task-scroll">' + productDevelopmentTaskTabsHtml(view) + embedded + '</div>';
+  }
+
   function renderProductDevelopmentTaskWorkspace(panel, statusText) {
     const list = panel && panel.querySelector('.pfh-list');
     const detail = panel && panel.querySelector('.pfh-detail');
@@ -5509,8 +5597,7 @@
     }
     state.data = productDevelopmentTaskSeedData(task);
     state.selectedSku = task.sku;
-    detail.classList.remove('is-loading');
-    detail.innerHTML = renderStatusHtml(statusText) + '<div class="pfh-detail-scroll pfh-product-development-task-detail-scroll">' + productDevelopmentTaskHeroHtml(task) + productDevelopmentTaskActionsHtml(task) + '</div>';
+    renderProductDevelopmentTaskDetail(panel, statusText, task);
   }
 
   async function loadProductDevelopmentTasks(options) {
@@ -5518,11 +5605,15 @@
     if (state.productDevelopmentTaskRequestPromise) return state.productDevelopmentTaskRequestPromise;
     const now = Date.now();
     if (!opts.force && state.productDevelopmentTasksLoadedAt && now - state.productDevelopmentTasksLoadedAt < PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS && Array.isArray(state.productDevelopmentTasks) && state.productDevelopmentTasks.length) return state.productDevelopmentTasks;
+    const existingTasks = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.slice() : [];
     state.productDevelopmentTasksLoading = true;
     state.productDevelopmentTaskError = '';
     if (!opts.silent || state.view === 'productDevelopmentTasks') renderShell('正在读取本人开发任务…');
     const request = (async () => {
-      const rows = await fetchProductDevelopmentTaskRows();
+      const fetchedRows = await fetchProductDevelopmentTaskRows();
+      const rows = fetchedRows.length ? fetchedRows : existingTasks;
+      if (fetchedRows.length) saveProductDevelopmentTaskCache(fetchedRows, state.productDevelopmentTaskUserName);
+      else if (existingTasks.length) state.productDevelopmentTaskError = '本次未读取到新任务，已保留上次任务缓存';
       state.productDevelopmentTasks = rows;
       state.productDevelopmentTasksLoadedAt = Date.now();
       state.productDevelopmentTaskPage = 1;
@@ -5540,9 +5631,18 @@
       return rows;
     })().catch((error) => {
       state.productDevelopmentTaskError = formatErrorMessage(error);
-      state.productDevelopmentTasks = [];
-      state.productDevelopmentSelectedTask = null;
-      state.productDevelopmentTaskSelectedSku = '';
+      const cached = loadProductDevelopmentTaskCache();
+      if (!Array.isArray(state.productDevelopmentTasks) || !state.productDevelopmentTasks.length) state.productDevelopmentTasks = existingTasks.length ? existingTasks : cached.rows;
+      if (!state.productDevelopmentTaskUserName && cached.userName) state.productDevelopmentTaskUserName = cached.userName;
+      const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku);
+      if (!selected) {
+        const fallback = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks[0] : null;
+        if (fallback) selectProductDevelopmentTask(fallback.sku, { render: false, hydrate: false });
+        else {
+          state.productDevelopmentSelectedTask = null;
+          state.productDevelopmentTaskSelectedSku = '';
+        }
+      }
       if (state.workMode === 'product-development' && (state.view === 'home' || state.view === 'productDevelopmentTasks')) renderShell();
       throw error;
     }).finally(() => {
@@ -5558,6 +5658,8 @@
     state.settings.workMode = 'product-development';
     saveSettings(state.settings);
     state.productDevelopmentView = 'home';
+    state.productDevelopmentTaskView = 'detail';
+    state.productDevelopmentTaskPreviousTab = '';
     state.view = 'productDevelopmentTasks';
     state.copywritingMode = false;
     state.skuEditMode = false;
@@ -6748,6 +6850,17 @@
       if (!task) showToast('开发任务不存在或已刷新');
       return true;
     }
+    if (action === 'product-development-task-tab') {
+      const next = normalizeProductDevelopmentTaskTab(actionTarget && actionTarget.getAttribute('data-product-development-tab'));
+      const current = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+      if (next === current) return true;
+      state.productDevelopmentTaskPreviousTab = current;
+      state.productDevelopmentTaskView = next;
+      state.productDevelopmentError = '';
+      state.productDevelopmentStatus = '';
+      renderShell();
+      return true;
+    }
     if (action === 'product-development-task-page') {
       const totalPages = Math.max(1, Math.ceil((Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks.length : 0) / 10));
       const current = Number(state.productDevelopmentTaskPage) || 1;
@@ -6773,6 +6886,14 @@
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
+      if (state.view === 'productDevelopmentTasks') {
+        state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+        state.productDevelopmentTaskView = 'review';
+        state.productDevelopmentError = '';
+        state.productDevelopmentStatus = '';
+        renderShell();
+        return true;
+      }
       state.productDevelopmentView = 'review';
       state.view = 'home';
       state.productDevelopmentError = '';
@@ -6835,6 +6956,14 @@
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
+      if (state.view === 'productDevelopmentTasks') {
+        state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
+        state.productDevelopmentTaskView = 'copywriting';
+        state.productDevelopmentError = '';
+        state.productDevelopmentStatus = '';
+        renderShell();
+        return true;
+      }
       state.productDevelopmentView = 'copywriting';
       state.view = 'home';
       state.productDevelopmentError = '';
