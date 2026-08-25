@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.194
+// @version      2.8.195
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.194";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.195";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -77,7 +77,7 @@
         const a = t.replace(/[^a-z0-9\u3400-\u9fff\uac00-\ud7af]+/g, "");
         return w[t] || w[a] || a;
     }
-    const S = "plm-floating-helper:data:", v = "plm-floating-helper:index", x = "plm-floating-helper:position", A = "plm-floating-helper:launcher-position", I = "plm-floating-helper:split-width", M = "plm-floating-helper:size", T = 890, C = 943, E = Object.freeze({
+    const S = "plm-floating-helper:data:", v = "plm-floating-helper:index", x = "plm-floating-helper:position", A = "plm-floating-helper:launcher-position", I = "plm-floating-helper:split-width", T = "plm-floating-helper:size", M = 890, C = 943, E = Object.freeze({
         panelLeftRatio: 67 / 1920,
         panelTopRatio: 129 / 1080,
         launcherLeftRatio: 674 / 1920,
@@ -721,7 +721,7 @@
     }), Object.freeze({
         pattern: /^input-detail-scene-prompt(?:-.+)?$/,
         name: "详情图10"
-    }) ]), Se = "files", ve = "plm-floating-helper:magic-upload-queue:v1", xe = "plm-floating-helper:magic-upload-history:v1", Ae = "plm-floating-helper:magic-upload-metrics:v1", Ie = "plm-floating-helper:manual-toy-effect-packing:v1", Me = "plm-floating-helper:magic-toy-label-queue:v1", Te = "plm-floating-helper:magic-toy-label-history:v1", Ce = 104857600, Ee = 157286400, Le = 52428800, Pe = 209715200, Ne = 12e4;
+    }) ]), Se = "files", ve = "plm-floating-helper:magic-upload-queue:v1", xe = "plm-floating-helper:magic-upload-history:v1", Ae = "plm-floating-helper:magic-upload-metrics:v1", Ie = "plm-floating-helper:manual-toy-effect-packing:v1", Te = "plm-floating-helper:magic-toy-label-queue:v1", Me = "plm-floating-helper:magic-toy-label-history:v1", Ce = 104857600, Ee = 157286400, Le = 52428800, Pe = 209715200, Ne = 12e4;
     let Ue = null, _e = null, De = 0;
     const Fe = new Map, Be = new WeakMap;
     let Re = !1, ze = null;
@@ -936,10 +936,10 @@
             return null;
         }
     }(), It = null;
-    function Mt(e) {
+    function Tt(e) {
         "function" == typeof GM_setValue ? GM_setValue(ht, e) : localStorage.setItem(ht, JSON.stringify(e));
     }
-    function Tt(e) {
+    function Mt(e) {
         const t = e && e.runtimeData;
         return Boolean(Number(e && e.schemaVersion) === yt && t && Array.isArray(t.brands) && t.brands.length && Array.isArray(t.tubeRules) && t.tubeRules.length && Array.isArray(t.tubeSpecs) && t.tubeSpecs.length && "string" == typeof e.templateBase64 && e.templateBase64.length > 1e3 && e.icons && "object" == typeof e.icons && Object.keys(e.icons).length);
     }
@@ -972,7 +972,7 @@
                 brands: t
             },
             brandComplianceUpdatedAt: String(e.updatedAt || (new Date).toISOString())
-        }, Mt(At)), t;
+        }, Tt(At)), t;
     }
     function Nt(t) {
         return It || (It = async function(t) {
@@ -982,7 +982,7 @@
                 const a = t.find(e => "AMZ" === String(e && e.brand || "").trim().toUpperCase());
                 return Boolean(a && (!a.us_rep || !Qm(a.us_rep.company)));
             }(At), o = String(At && At.uiAssetVersion || "") !== r;
-            if (!t && !i && !o && Tt(At) && n && a - Number(At.checkedAt || 0) < bt) return At;
+            if (!t && !i && !o && Mt(At) && n && a - Number(At.checkedAt || 0) < bt) return At;
             const s = await _t("/assets/manifest.json", "json");
             if (!s || Number(s.schemaVersion) !== yt || !s.assets) throw new Error("unsupported cloud asset manifest");
             const l = s.assets.runtimeData, c = s.assets.excelTemplate, u = s.assets.icons, d = s.assets.uiStyles;
@@ -990,10 +990,10 @@
             if (p = d, !Boolean(p && Lt(p.path))) throw new Error("cloud UI asset version mismatch");
             var p;
             const g = String(At && At.uiAssetHash || "").toLowerCase(), f = String(d.sha256 || "").toLowerCase(), m = String(At && At.uiAssetPath || "") === String(d.path || "") && Boolean(g && f && g === f);
-            if (!t && !i && Tt(At) && n && m && At.dataVersion === s.dataVersion) return At = {
+            if (!t && !i && Mt(At) && n && m && At.dataVersion === s.dataVersion) return At = {
                 ...At,
                 checkedAt: a
-            }, Mt(At), At;
+            }, Tt(At), At;
             const h = await Ut(d, "text");
             if ("string" != typeof h || h.length < 1e4 || !h.includes("#" + e)) throw new Error("cloud UI stylesheet is invalid");
             qa(h), At = {
@@ -1005,7 +1005,7 @@
                 uiAssetHash: String(d.sha256 || "").toLowerCase(),
                 uiCss: h,
                 uiCssUpdatedAt: new Date(a).toISOString()
-            }, Mt(At);
+            }, Tt(At);
             const [y, b, w] = await Promise.all([ Ut(l, "text"), Ut(c, "arraybuffer"), Ut(u, "text") ]), k = JSON.parse(y), S = JSON.parse(w);
             if (!(k && Number(k.schemaVersion) === yt && Array.isArray(k.brands) && Array.isArray(k.tubeRules) && Array.isArray(k.tubeSpecs))) throw new Error("cloud runtime data is invalid");
             if (!S || Number(S.schemaVersion) !== yt || !S.icons || "object" != typeof S.icons) throw new Error("cloud icon data is invalid");
@@ -1022,10 +1022,10 @@
                 icons: S.icons,
                 uiCss: h
             };
-            if (!Tt(v)) throw new Error("cloud asset cache is incomplete");
-            Mt(v), At = v, Ct(v);
+            if (!Mt(v)) throw new Error("cloud asset cache is incomplete");
+            Tt(v), At = v, Ct(v);
             const x = document.getElementById(e);
-            x && (ql(x) || Tl());
+            x && (ql(x) || Ml());
             return sA("success", "云端资源已更新", v.dataVersion), v;
         }(Boolean(t)).finally(() => {
             It = null;
@@ -1287,7 +1287,7 @@
                     try {
                         "function" == typeof GM_setValue ? GM_setValue(qt, e) : localStorage.setItem(qt, JSON.stringify(e));
                     } catch (e) {}
-                }(), "home" === Vr.view && Tl(), e && oA("主页问候语已更新");
+                }(), "home" === Vr.view && Ml(), e && oA("主页问候语已更新");
             } catch (t) {
                 sA("warn", "主页问候语同步失败：" + eA(t)), e && oA("暂时无法更新主页问候语");
             } finally {
@@ -1298,7 +1298,7 @@
     async function na(t) {
         if (Vr.notificationsLoading) return;
         const n = vx(), r = Bx();
-        Vr.notificationsLoading = !0, Vr.notificationsError = "", Vr.notificationModalOpen && Tl();
+        Vr.notificationsLoading = !0, Vr.notificationsError = "", Vr.notificationModalOpen && Ml();
         try {
             await ta(n, r);
             const e = await Yx("/notifications?name=" + encodeURIComponent(n || "") + "&instanceId=" + encodeURIComponent(r) + "&version=" + encodeURIComponent(a), {
@@ -1389,7 +1389,7 @@
                     } catch (e) {
                         return;
                     }
-                    if ("snapshot.request" === t.type) return void Ma();
+                    if ("snapshot.request" === t.type) return void Ta();
                     if ("excel.generate" === t.type) return void (ua = ua.then(() => async function(e) {
                         const t = String(e && e.sku || "").toUpperCase(), a = String(e && e.jobId || "");
                         if (!/^SKU\d{8}$/.test(t) || !a) throw new Error("Excel 任务参数无效");
@@ -1615,7 +1615,7 @@
             }
         }
         Vr.uploadQueue = a, jA(), Vr.uploadExpanded = !0, Vr.uploadMode = "standard", Vr.uploadView = "queue",
-        Vr.uploadPage = 1, Tl(), r && oA("已检查并加入 " + r + " 个图包上传任务"), o.length && oA("上传文件检查失败：" + o.slice(0, 2).join("；")),
+        Vr.uploadPage = 1, Ml(), r && oA("已检查并加入 " + r + " 个图包上传任务"), o.length && oA("上传文件检查失败：" + o.slice(0, 2).join("；")),
         ka({
             type: "upload.queue.ack",
             requestId: String(e.requestId || ""),
@@ -1678,7 +1678,7 @@
             }))
         } : null;
     }
-    function Ma() {
+    function Ta() {
         const e = function() {
             gS();
             const e = wS(Vr.ledgerRecords || dS()).filter(e => e.finalizedAt && "作废" !== e.status).sort((e, t) => Number(t.finalizedAtMs || 0) - Number(e.finalizedAtMs || 0)), t = new Set;
@@ -1742,8 +1742,8 @@
             successfulUploadSkus: r
         }), ma("已同步 " + e.length + " 个定稿 SKU"), sA("success", "桌面工作台同步完成", e.length + " 个已定稿 SKU");
     }
-    function Ta() {
-        fa() && (window.clearTimeout(la), la = window.setTimeout(() => Ma(), 700));
+    function Ma() {
+        fa() && (window.clearTimeout(la), la = window.setTimeout(() => Ta(), 700));
     }
     async function Ca(e) {
         const t = await async function(e) {
@@ -2166,7 +2166,7 @@
         }).catch(() => null) ]), i = await async function(e, t) {
             const a = e || {}, n = String(a.projectId || a.rowId || "").trim();
             if (!/^\d+$/.test(n)) throw new Error("当前开发任务缺少项目 ID");
-            const [r, i] = await Promise.all([ Ko("/api/ChemicalNewDevTask/GetProductDetailInfo?id=" + encodeURIComponent(n)), Ko("/api/ChemicalNewDevTask/GetProjectPMJoinList?id=" + encodeURIComponent(n)) ]), o = Tn(r), s = await async function(e, t, a) {
+            const [r, i] = await Promise.all([ Ko("/api/ChemicalNewDevTask/GetProductDetailInfo?id=" + encodeURIComponent(n)), Ko("/api/ChemicalNewDevTask/GetProjectPMJoinList?id=" + encodeURIComponent(n)) ]), o = Mn(r), s = await async function(e, t, a) {
                 const n = function(e, t, a) {
                     const n = [ e && e.plmCategory, e && e.categoryName, t && t.category_name, a && a.plmCategory, a && a.categoryName ].map(e => Vn(e, 180)).filter(Boolean).join("/");
                     return Array.from(new Set(n.split(/[\\/\\>＞|]+/).map(e => e.trim()).filter(Boolean))).sort((e, t) => t.length - e.length);
@@ -2202,7 +2202,7 @@
                 }
             } catch (e) {}
             return function(e, t, a, n, r, i) {
-                const o = e || {}, s = Tn(t), l = En(a), c = Cn(n).map(Nn).filter(e => e.code || e.name), u = String(i || s.category_id || o.categoryId || r && r.categoryId || "").trim(), d = Vn(s.category_name || o.plmCategory || r && r.plmCategory, 180), p = l.filter(e => e && e.is_must).map(e => ({
+                const o = e || {}, s = Mn(t), l = En(a), c = Cn(n).map(Nn).filter(e => e.code || e.name), u = String(i || s.category_id || o.categoryId || r && r.categoryId || "").trim(), d = Vn(s.category_name || o.plmCategory || r && r.plmCategory, 180), p = l.filter(e => e && e.is_must).map(e => ({
                     attrId: Number(e.attr_id),
                     key: String(e.variable_name || "attr_" + e.attr_id),
                     label: Vn(e.attr_name || "字段 " + e.attr_id, 100)
@@ -2327,7 +2327,7 @@
         Vr.productDevelopmentTaskSelectedSku === t && (Vr.data = o, Vr.selectedSku = t),
         o;
     }
-    function Mn(e, t) {
+    function Tn(e, t) {
         const a = xn(e);
         if (!a) return null;
         const n = a.sku;
@@ -2335,12 +2335,12 @@
         Vr.selectedSku = n, Vr.data = An(a), Vr.productDevelopmentSnapshot = null, Vr.productDevelopmentBenchmarkImageDataUrl = "",
         Vr.productDevelopmentBenchmarkImageName = "", Vr.productDevelopmentReview = null,
         Vr.productDevelopmentCopywriting = null, Vr.productDevelopmentTaskView = "detail",
-        Vr.productDevelopmentTaskPreviousTab = "", Vr.productDevelopmentError = "", t && !1 === t.render || Tl(),
+        Vr.productDevelopmentTaskPreviousTab = "", Vr.productDevelopmentError = "", t && !1 === t.render || Ml(),
         t && !1 === t.hydrate || In(a).then(() => {
-            "productDevelopmentTasks" === Vr.view && Vr.productDevelopmentTaskSelectedSku === n && Tl();
+            "productDevelopmentTasks" === Vr.view && Vr.productDevelopmentTaskSelectedSku === n && Ml();
         }).catch(() => {}), a;
     }
-    function Tn(e) {
+    function Mn(e) {
         return po(e);
     }
     function Cn(e) {
@@ -2505,7 +2505,7 @@
     }
     function Bn(e, t) {
         const a = !String(e.displayValue || "").trim(), n = "待人工补充" === e.displayValue || "待人工填写" === e.displayValue ? "" : e.displayValue || "";
-        return '<label class="pfh-product-development-form-field' + (a ? " is-missing" : "") + '"><span>' + jI(e.label) + (e.required ? " <i>必填</i>" : "") + '</span><input type="text" class="pfh-product-development-form-input" data-form-sku="' + jI(t || "") + '" data-form-group="' + jI(e.formGroup || "required") + '" data-form-key="' + jI(e.key || "") + '" value="' + jI(n) + '" placeholder="' + jI(a ? e.displayValue || "待人工补充" : "") + '"><small>' + jI(e.source) + " · 仅本地参考，不写入 PLM</small></label>";
+        return '<label class="pfh-product-development-form-field' + (a ? " is-missing" : "") + '"><span>' + jI(e.label) + (e.required ? " <i>必填</i>" : "") + '</span><input type="text" class="pfh-product-development-form-input" data-form-sku="' + jI(t || "") + '" data-form-group="' + jI(e.formGroup || "required") + '" data-form-key="' + jI(e.key || "") + '" value="' + jI(n) + '" placeholder="' + jI(a ? e.displayValue || "待人工补充" : "") + '"></label>';
     }
     function Rn(e, t) {
         const a = [ [ "joinId", "绑定 ID" ], [ "type", "BOM 类型" ], [ "code", "物料 / 成品编码" ], [ "name", "物料 / 成品名称" ], [ "category", "物料分类" ], [ "specification", "规格 / 属性" ], [ "materialType", "物料类型" ], [ "supplier", "默认供应商" ], [ "supplierId", "供应商 ID" ], [ "price", "采购 / 销售价" ], [ "usage", "用量" ], [ "length", "长度" ], [ "width", "宽度" ], [ "height", "高度" ] ], n = Array.isArray(e) ? e : [];
@@ -2566,7 +2566,7 @@
             return '<section class="pfh-section pfh-product-development-task-section"><div class="pfh-section-title"><h3>产品开发流程</h3><span>第一步：侵权图和文案 · 第二步：详情预填</span></div><div class="pfh-info-grid"><div class="pfh-row"><span class="pfh-label">项目编码</span><span class="pfh-value">' + jI(t.projectCode || "未提供") + '</span></div><div class="pfh-row"><span class="pfh-label">开发任务状态</span><span class="pfh-value">' + jI(t.projectStatus || "未提供") + '</span></div><div class="pfh-row"><span class="pfh-label">开发分配时间</span><span class="pfh-value">' + jI(t.developmentAssignedAt || "未提供") + '</span></div><div class="pfh-row"><span class="pfh-label">对标链接</span><span class="pfh-value">' + i + '</span></div></div><div class="pfh-about-actions"><button type="button" data-action="product-development-review-open">① 制作侵权对照图</button><button type="button" data-action="product-development-copywriting-open">② 生成 A-D 文案 DOCX</button></div><p class="pfh-note">侵权图先读取对标图片全部文字并识别作用、中文产品名和英文主标题；文案和详情均只生成本地参考结果，不向 PLM 回写。</p></section>' + zn(n);
         }(a) + "</div>");
         const i = "placeholder" === r ? '<section class="pfh-section pfh-product-development-task-placeholder"><div class="pfh-section-title"><h3>功能占位</h3><span>后续开发</span></div><div class="pfh-empty">该功能暂未开放，后续会在这里接入。</div></section>' : function(e) {
-            const t = "review" === e ? Ir() : Mr(), a = document.createElement("template");
+            const t = "review" === e ? Ir() : Tr(), a = document.createElement("template");
             a.innerHTML = t;
             const n = a.content.firstElementChild;
             if (!n) return "";
@@ -2606,7 +2606,7 @@
         const a = Date.now();
         if (!t.force && Vr.productDevelopmentTasksLoadedAt && a - Vr.productDevelopmentTasksLoadedAt < gn && Array.isArray(Vr.productDevelopmentTasks) && Vr.productDevelopmentTasks.length) return Vr.productDevelopmentTasks;
         const n = Array.isArray(Vr.productDevelopmentTasks) ? Vr.productDevelopmentTasks.slice() : [];
-        Vr.productDevelopmentTasksLoading = !0, Vr.productDevelopmentTaskError = "", t.silent && "productDevelopmentTasks" !== Vr.view || Tl("正在读取本人开发任务…");
+        Vr.productDevelopmentTasksLoading = !0, Vr.productDevelopmentTaskError = "", t.silent && "productDevelopmentTasks" !== Vr.view || Ml("正在读取本人开发任务…");
         const r = (async () => {
             const e = await vn(), a = e.length ? e : n;
             e.length ? function(e, t) {
@@ -2620,13 +2620,13 @@
             Vr.productDevelopmentTasks = a, Vr.productDevelopmentTasksLoadedAt = Date.now(),
             Vr.productDevelopmentTaskPage = 1;
             const r = xn(Vr.productDevelopmentTaskSelectedSku) || (t.silent ? null : a[0]);
-            return r ? Mn(r.sku, {
+            return r ? Tn(r.sku, {
                 render: !1,
                 hydrate: !1
             }) : (Vr.productDevelopmentSelectedTask = null, Vr.productDevelopmentTaskSelectedSku = ""),
-            "product-development" !== Vr.workMode || "productDevelopmentTasks" !== Vr.view && (t.silent || "home" !== Vr.view) || Tl(),
+            "product-development" !== Vr.workMode || "productDevelopmentTasks" !== Vr.view && (t.silent || "home" !== Vr.view) || Ml(),
             r && In(r).then(() => {
-                "productDevelopmentTasks" === Vr.view && Vr.productDevelopmentTaskSelectedSku === r.sku && Tl();
+                "productDevelopmentTasks" === Vr.view && Vr.productDevelopmentTaskSelectedSku === r.sku && Ml();
             }).catch(() => {}), a;
         })().catch(e => {
             Vr.productDevelopmentTaskError = eA(e);
@@ -2635,12 +2635,12 @@
             !Vr.productDevelopmentTaskUserName && t.userName && (Vr.productDevelopmentTaskUserName = t.userName);
             if (!xn(Vr.productDevelopmentTaskSelectedSku)) {
                 const e = Array.isArray(Vr.productDevelopmentTasks) ? Vr.productDevelopmentTasks[0] : null;
-                e ? Mn(e.sku, {
+                e ? Tn(e.sku, {
                     render: !1,
                     hydrate: !1
                 }) : (Vr.productDevelopmentSelectedTask = null, Vr.productDevelopmentTaskSelectedSku = "");
             }
-            throw "product-development" !== Vr.workMode || "home" !== Vr.view && "productDevelopmentTasks" !== Vr.view || Tl(),
+            throw "product-development" !== Vr.workMode || "home" !== Vr.view && "productDevelopmentTasks" !== Vr.view || Ml(),
             e;
         }).finally(() => {
             Vr.productDevelopmentTasksLoading = !1, Vr.productDevelopmentTaskRequestPromise = null;
@@ -2694,7 +2694,7 @@
         Vr.productDevelopmentBenchmarkImageDataUrl = t, Vr.productDevelopmentBenchmarkImageName = String(e.name || "本地对标图片").slice(0, 180),
         Vr.productDevelopmentSnapshot = null, Vr.productDevelopmentReview = null, Vr.productDevelopmentError = "",
         Vr.productDevelopmentStatus = "已选择本地对标图片：" + Vr.productDevelopmentBenchmarkImageName,
-        Tl();
+        Ml();
     }
     async function Jn(e, t, a) {
         const n = String(e || "").trim().toUpperCase(), r = !(a && !1 === a.requireIngredients), i = a && "benchmark" === a.imageKind ? "benchmark" : "product";
@@ -2862,26 +2862,43 @@
             return n === String(t || "").toLowerCase() || n === a || n.includes(String(t || "").toLowerCase()) || n.includes(a) || i && (String(i.label || "").toLowerCase() === n || Array.isArray(i.types) && i.types.some(e => String(e).toLowerCase() === n) || Array.isArray(i.labels) && i.labels.some(e => n.includes(String(e).toLowerCase())));
         }) || null;
     }
-    function Yn(e) {
-        const t = e && "object" == typeof e ? e : {}, a = Array.isArray(t.items) ? t.items : [], n = new Set;
-        return a.map((e, t) => {
-            const a = e && "object" == typeof e ? e : {}, r = a.bbox || a.box || {}, i = Math.max(0, Math.min(1, Number(r.x))), o = Math.max(0, Math.min(1, Number(r.y))), s = Math.max(0, Math.min(1 - i, Number(void 0 !== r.w ? r.w : r.width))), l = Math.max(0, Math.min(1 - o, Number(void 0 !== r.h ? r.h : r.height))), c = Vn(a.sourceText || a.originalText || a.text, 240), u = Vn(a.replacementEn || a.modifiedEnglish || a.english, 300), d = Vn(a.replacementZh || a.chinese || a.translation, 300), p = [ c.toLowerCase(), i.toFixed(4), o.toFixed(4) ].join("|");
-            return !c || !u || !d || !Number.isFinite(i) || !Number.isFinite(o) || s <= .001 || l <= .001 || n.has(p) ? null : (n.add(p),
-            {
+    function Yn(e, t) {
+        const a = e && "object" == typeof e ? e : {}, n = Array.isArray(a.items) ? a.items : [], r = t && t.brand, i = new Set;
+        return n.map((e, t) => {
+            const a = e && "object" == typeof e ? e : {}, n = a.bbox || a.box || {}, o = Number(n.x), s = Number(n.y), l = Number(void 0 !== n.w ? n.w : n.width), c = Number(void 0 !== n.h ? n.h : n.height), u = [ o, s, l, c ].every(Number.isFinite) && l > .001 && c > .001, d = u ? Math.max(0, Math.min(1, o)) : 0, p = u ? Math.max(0, Math.min(1, s)) : 0, g = u ? Math.max(0, Math.min(1 - d, l)) : 0, f = u ? Math.max(0, Math.min(1 - p, c)) : 0, m = Vn(a.sourceText || a.originalText || a.text, 240), h = Vn(a.replacementEn || a.modifiedEnglish || a.english || m, 300), y = Vn(a.replacementZh || a.chinese || a.translation || a.translationZh || m, 300), b = [ m.toLowerCase(), u ? d.toFixed(4) + "|" + p.toFixed(4) : "no-bbox" ].join("|");
+            if (!m || !h || !y || i.has(b)) return null;
+            i.add(b);
+            const w = function(e, t) {
+                const a = $n(e);
+                if (!a) return {
+                    types: [],
+                    terms: []
+                };
+                const n = (Array.isArray(t) ? t : [ t ]).map(e => Vn(e, 120)).filter(Boolean).filter((e, t, a) => a.indexOf(e) === t).filter(e => a.includes($n(e))), r = Za.filter(e => a.includes($n(e))).slice(0, 6);
+                return {
+                    types: (n.length ? [ "brand" ] : []).concat(r.length ? [ "banned" ] : []),
+                    terms: n.concat(r).slice(0, 8)
+                };
+            }(m, r), k = Array.from(new Set((Array.isArray(a.riskTypes) ? a.riskTypes : [ a.riskType ]).map(e => String(e || "").trim().toLowerCase()).filter(e => [ "banned", "exaggeration", "medical", "brand", "unsupported", "other" ].includes(e)).concat(w.types))).slice(0, 4), S = Array.from(new Set((Array.isArray(a.riskTerms) ? a.riskTerms : []).map(e => Vn(e, 100)).filter(Boolean).concat(w.terms))).slice(0, 8);
+            return {
                 id: String(a.id || t + 1),
-                sourceText: c,
-                bbox: {
-                    x: i,
-                    y: o,
-                    w: s,
-                    h: l
-                },
-                riskTypes: Array.from(new Set((Array.isArray(a.riskTypes) ? a.riskTypes : [ a.riskType ]).map(e => String(e || "").trim().toLowerCase()).filter(e => [ "banned", "exaggeration", "medical", "brand", "unsupported", "other" ].includes(e)))).slice(0, 4),
-                replacementEn: u,
-                replacementZh: d,
+                sourceText: m,
+                bbox: u && g > .001 && f > .001 ? {
+                    x: d,
+                    y: p,
+                    w: g,
+                    h: f
+                } : null,
+                riskTypes: k,
+                riskTerms: S,
+                riskReason: Vn(a.riskReason || a.reason || a.warning, 400) || (S.length ? "原文检测到：" + S.join("、") : ""),
+                replacementEn: h,
+                replacementZh: y,
+                translationZh: Vn(a.translationZh || a.translation || a.chinese || y, 300),
+                replacementOptions: Array.isArray(a.replacementOptions) ? a.replacementOptions : [],
                 confidence: Math.max(0, Math.min(1, Number(a.confidence) || 0))
-            });
-        }).filter(Boolean).slice(0, 30);
+            };
+        }).filter(Boolean).slice(0, 80);
     }
     function $n(e) {
         return String(e || "").toLowerCase().normalize("NFKC").replace(/[\s_\-–—·.,:;!?()［］【】「」『』]/g, "");
@@ -2895,18 +2912,20 @@
         }) || "";
     }
     function tr(e, t) {
-        const a = e && "object" == typeof e ? e : {}, n = Yn(a), r = Array.isArray(a.texts) ? Yn({
-            items: a.texts
-        }) : n, i = t && t.brand ? [ t.brand ] : [];
+        const a = e && "object" == typeof e ? e : {}, n = t && t.brand ? [ t.brand ] : [], r = Yn({
+            items: Array.isArray(a.texts) && a.texts.length ? a.texts : a.items
+        }, {
+            brand: n
+        }), i = r;
         for (const e of r) {
-            const t = er(e.replacementEn + " " + e.replacementZh, i);
+            const t = er(e.replacementEn + " " + e.replacementZh, n);
             if (t) throw new Error("侵权对照图修改内容含风险词：" + t);
             if (e.replacementEn.includes("*") || e.replacementZh.includes("*")) throw new Error("侵权对照图修改内容不能含星号");
         }
-        const o = Wn(e), s = o.chineseProductName + " " + o.englishProductName, l = er(s, i);
+        const o = Wn(e), s = o.chineseProductName + " " + o.englishProductName, l = er(s, n);
         if (l || s.includes("*")) throw new Error("AI 产品名称含风险词：" + (l || "星号"));
         return {
-            items: n,
+            items: i,
             extractedTexts: r,
             warnings: Array.isArray(a.warnings) ? a.warnings.map(e => String(e || "").trim()).filter(Boolean).slice(0, 12) : [],
             provider: String(a.provider || ""),
@@ -2924,36 +2943,39 @@
         u.length;
     }
     async function nr(e, t, a) {
-        const n = await Uw(e), r = n.naturalWidth || n.width || 1, i = n.naturalHeight || n.height || 1, o = 32, s = Math.max(760, Math.min(1180, r)), l = 760, c = s - 64, u = Math.max(640, Math.min(1500, i * c / r)), d = Math.max(1, Math.min(20, t.length)), p = Math.max(92 + u + 64, 92 + 118 * d + 64), g = document.createElement("canvas");
-        g.width = s + l + 96, g.height = Math.ceil(p);
-        const f = g.getContext("2d");
-        if (!f) throw new Error("无法创建对照图画布");
-        f.fillStyle = "#f6f8fb", f.fillRect(0, 0, g.width, g.height), f.fillStyle = "#ffffff",
-        f.fillRect(o, o, s, g.height - 64), f.fillRect(64 + s, o, l, g.height - 64);
-        f.font = "700 30px Arial, Microsoft YaHei, sans-serif", f.fillStyle = "#172033",
-        f.fillText("Original Product Image", 64, 80), f.fillText("Revised Bilingual Copy", 64 + s, 80);
-        const m = Math.min(c / r, u / i), h = r * m, y = i * m, b = o + (s - h) / 2, w = 124 + (u - y) / 2;
-        f.drawImage(n, b, w, h, y), f.strokeStyle = "#d7dee9", f.lineWidth = 2, f.strokeRect(o, o, s, g.height - 64),
-        f.strokeRect(64 + s, o, l, g.height - 64);
-        const k = t.slice(0, 20);
-        return k.forEach((e, t) => {
-            const a = e.bbox, n = b + a.x * h, r = w + a.y * y, i = a.w * h, o = a.h * y;
-            f.strokeStyle = "#ef4444", f.lineWidth = Math.max(3, Math.round(Math.min(h, y) / 260)),
-            f.strokeRect(n, r, i, o), f.fillStyle = "#ef4444", f.beginPath(), f.arc(Math.max(b + 18, n), Math.max(w + 18, r), 17, 0, 2 * Math.PI),
-            f.fill(), f.fillStyle = "#ffffff", f.font = "700 18px Arial, sans-serif", f.textAlign = "center",
-            f.fillText(String(t + 1), Math.max(b + 18, n), Math.max(w + 24, r + 6)), f.textAlign = "left";
-            const l = 158 + 118 * t;
-            f.fillStyle = "#ef4444", f.font = "700 22px Arial, Microsoft YaHei, sans-serif",
-            f.fillText(String(t + 1) + ".", 64 + s + 22, l), f.fillStyle = "#344054", f.font = "600 20px Arial, Microsoft YaHei, sans-serif",
-            ar(f, e.replacementEn, 64 + s + 62, l, 660, 27, 2), f.fillStyle = "#667085", f.font = "18px Arial, Microsoft YaHei, sans-serif",
-            ar(f, "中文：" + e.replacementZh, 64 + s + 62, l + 58, 660, 25, 2);
-        }), k.length || (f.fillStyle = "#667085", f.font = "20px Arial, Microsoft YaHei, sans-serif",
-        f.fillText("未检测到需要修改的风险文字", 64 + s + 24, 182)), f.fillStyle = "#98a2b3", f.font = "16px Arial, Microsoft YaHei, sans-serif",
-        f.fillText("SKU " + String(a && a.sku || "") + " · 原图保留 · 仅生成审核对照稿", 64, g.height - 18),
+        const n = await Uw(e), r = n.naturalWidth || n.width || 1, i = n.naturalHeight || n.height || 1, o = 32, s = Math.max(760, Math.min(1180, r)), l = 760, c = s - 64, u = Math.max(640, Math.min(1500, i * c / r)), d = (Array.isArray(t) ? t : []).slice(0, 80), p = Math.max(1, d.length), g = Math.max(92 + u + 64, 92 + 166 * p + 64), f = document.createElement("canvas");
+        f.width = s + l + 96, f.height = Math.ceil(g);
+        const m = f.getContext("2d");
+        if (!m) throw new Error("无法创建对照图画布");
+        m.fillStyle = "#f6f8fb", m.fillRect(0, 0, f.width, f.height), m.fillStyle = "#ffffff",
+        m.fillRect(o, o, s, f.height - 64), m.fillRect(64 + s, o, l, f.height - 64);
+        m.font = "700 30px Arial, Microsoft YaHei, sans-serif", m.fillStyle = "#172033",
+        m.fillText("Original Product Image", 64, 80), m.fillText("Original Text & Revised Copy", 64 + s, 80);
+        const h = Math.min(c / r, u / i), y = r * h, b = i * h, w = o + (s - y) / 2, k = 124 + (u - b) / 2;
+        return m.drawImage(n, w, k, y, b), m.strokeStyle = "#d7dee9", m.lineWidth = 2, m.strokeRect(o, o, s, f.height - 64),
+        m.strokeRect(64 + s, o, l, f.height - 64), d.forEach((e, t) => {
+            const a = e.bbox, n = a && Number.isFinite(Number(a.x)) && Number.isFinite(Number(a.y)) && Number.isFinite(Number(a.w)) && Number.isFinite(Number(a.h)), r = Array.isArray(e.riskTypes) && e.riskTypes.length, i = r ? "#ef4444" : "#98a2b3";
+            if (n) {
+                const e = w + a.x * y, n = k + a.y * b, o = a.w * y, s = a.h * b;
+                m.strokeStyle = i, m.lineWidth = Math.max(3, Math.round(Math.min(y, b) / 260)),
+                r || m.setLineDash([ 8, 6 ]), m.strokeRect(e, n, o, s), m.setLineDash([]), m.fillStyle = i,
+                m.beginPath(), m.arc(Math.max(w + 18, e), Math.max(k + 18, n), 17, 0, 2 * Math.PI),
+                m.fill(), m.fillStyle = "#ffffff", m.font = "700 18px Arial, sans-serif", m.textAlign = "center",
+                m.fillText(String(t + 1), Math.max(w + 18, e), Math.max(k + 24, n + 6)), m.textAlign = "left";
+            }
+            const o = 154 + 166 * t;
+            m.fillStyle = i, m.font = "700 17px Arial, Microsoft YaHei, sans-serif", m.fillText(String(t + 1) + ". " + (r ? "风险：" + e.riskTypes.join("、") : "未检测到风险，保留原文"), 64 + s + 22, o),
+            m.fillStyle = "#667085", m.font = "15px Arial, Microsoft YaHei, sans-serif", ar(m, "原文：" + e.sourceText, 64 + s + 22, o + 26, 704, 19, 2),
+            m.fillStyle = "#344054", m.font = "600 18px Arial, Microsoft YaHei, sans-serif",
+            ar(m, "英文：" + e.replacementEn, 64 + s + 22, o + 66, 704, 23, 2), m.fillStyle = "#667085",
+            m.font = "16px Arial, Microsoft YaHei, sans-serif", ar(m, "中文：" + e.replacementZh, 64 + s + 22, o + 112, 704, 21, 2);
+        }), d.length || (m.fillStyle = "#667085", m.font = "20px Arial, Microsoft YaHei, sans-serif",
+        m.fillText("未提取到可确认的图片文字", 64 + s + 24, 182)), m.fillStyle = "#98a2b3", m.font = "16px Arial, Microsoft YaHei, sans-serif",
+        m.fillText("SKU " + String(a && a.sku || "") + " · 原图保留 · 仅生成审核对照稿", 64, f.height - 18),
         {
-            dataUrl: g.toDataURL("image/png"),
-            width: g.width,
-            height: g.height
+            dataUrl: f.toDataURL("image/png"),
+            width: f.width,
+            height: f.height
         };
     }
     function rr(e, t, a) {
@@ -2963,13 +2985,13 @@
         const e = cn();
         if (e) {
             Vr.productDevelopmentReviewBusy = !0, Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "正在读取当前 SKU 的对标图片…",
-            Tl();
+            Ml();
             try {
                 const t = await Jn(e, !0, {
                     requireIngredients: !1,
                     imageKind: "benchmark"
                 });
-                Vr.productDevelopmentStatus = "正在提交一次图片风险分析…", Tl();
+                Vr.productDevelopmentStatus = "正在提交一次图片风险分析…", Ml();
                 const a = await async function(e, t) {
                     const a = String(e || "").trim();
                     if (!/^data:image\//i.test(a)) return Nk(a, t);
@@ -3000,7 +3022,7 @@
                         referenceUrl: t.referenceUrl
                     }
                 }), t);
-                Vr.productDevelopmentStatus = "正在生成左图右文的本地对照图…", Tl();
+                Vr.productDevelopmentStatus = "正在生成左图右文的本地对照图…", Ml();
                 const r = await nr(a.dataUrl, n.items, t), i = "pd-review-" + Date.now().toString(36), o = rr(t.sku, "infringement-comparison", "png");
                 Vr.productDevelopmentReview = {
                     id: i,
@@ -3035,12 +3057,14 @@
             } catch (e) {
                 Vr.productDevelopmentError = eA(e), Vr.productDevelopmentStatus = "", oA(Vr.productDevelopmentError);
             } finally {
-                Vr.productDevelopmentReviewBusy = !1, Tl();
+                Vr.productDevelopmentReviewBusy = !1, Ml();
             }
         } else oA("请先在设计任务中打开或选择当前 SKU");
     }
     function or(e) {
-        const t = e && "object" == typeof e ? e : {}, a = t.bbox || {}, n = Number(a.x), r = Number(a.y), i = Number(a.w), o = Number(a.h);
+        const t = e && "object" == typeof e ? e : {}, a = t.bbox;
+        if (null == a) return !String(t.sourceText || "").trim() || !String(t.replacementEn || "").trim() || !String(t.replacementZh || "").trim();
+        const n = Number(a.x), r = Number(a.y), i = Number(a.w), o = Number(a.h);
         return !String(t.sourceText || "").trim() || !String(t.replacementEn || "").trim() || !String(t.replacementZh || "").trim() || ![ n, r, i, o ].every(Number.isFinite) || n < 0 || r < 0 || i <= .001 || o <= .001 || n + i > 1 || r + o > 1;
     }
     function sr(e) {
@@ -3164,7 +3188,7 @@
         const e = cn();
         if (e) {
             Vr.productDevelopmentCopywritingBusy = !0, Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "正在读取当前 SKU 的成分和卖点…",
-            Tl();
+            Ml();
             try {
                 const t = await Jn(e, !0), a = wr(await Yx("/ai-image/product-development-copywriting", {
                     method: "POST",
@@ -3181,7 +3205,7 @@
                         templateVersion: Vr.productDevelopmentTemplateVersion || Ha
                     }
                 }), t);
-                Vr.productDevelopmentStatus = "正在按四列表格模板生成 DOCX…", Tl();
+                Vr.productDevelopmentStatus = "正在按四列表格模板生成 DOCX…", Ml();
                 const n = await async function(e, t) {
                     if ("function" != typeof JSZip) throw new Error("DOCX 组件未加载");
                     const a = t ? Pk(t) : await ur(), n = await JSZip.loadAsync(a), r = n.file("word/document.xml");
@@ -3236,7 +3260,7 @@
             } catch (e) {
                 Vr.productDevelopmentError = eA(e), Vr.productDevelopmentStatus = "", oA(Vr.productDevelopmentError);
             } finally {
-                Vr.productDevelopmentCopywritingBusy = !1, Tl();
+                Vr.productDevelopmentCopywritingBusy = !1, Ml();
             }
         } else oA("请先在设计任务中打开或选择当前 SKU");
     }
@@ -3251,7 +3275,7 @@
             on(Ka, a), on(Wa, String(t || "local-template").slice(0, 80)), Vr.productDevelopmentTemplateBase64 = a,
             Vr.productDevelopmentTemplateVersion = String(t || "local-template").slice(0, 80);
         }(xm(t), "local-" + String(e.name || "template").replace(/[^A-Za-z0-9\u3400-\u9fff]+/g, "-").slice(0, 45)),
-        Vr.productDevelopmentStatus = "已保存本地模板：" + e.name, oA("本地 DOCX 模板已保存"), Tl();
+        Vr.productDevelopmentStatus = "已保存本地模板：" + e.name, oA("本地 DOCX 模板已保存"), Ml();
     }
     function vr(t) {
         const a = nn(Vr.workMode), n = nn(t), r = Boolean(Vr.homeFeatureEditMode);
@@ -3276,7 +3300,7 @@
                 e.classList.toggle("is-active", e.getAttribute("data-work-mode") === a);
             }), !0;
         }(n);
-        if (o || "home" !== Vr.view) o || (fl(), Tl()); else {
+        if (o || "home" !== Vr.view) o || (fl(), Ml()); else {
             fl();
             const e = pl(), t = El(e);
             if (Ql(e), Pl(e, t), a !== n) {
@@ -3301,60 +3325,55 @@
     function Ir() {
         const e = Vr.productDevelopmentReview, t = cn(), a = Boolean(e && e.sku === t), n = Boolean(e && (a || e.fromHistory)), r = n && e.items || [], i = n && Array.isArray(e.extractedTexts) ? e.extractedTexts : [], o = r.filter(e => Array.isArray(e && e.riskTypes) && e.riskTypes.length).length, s = i.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + i.length + " 项，识别风险 " + o + " 项。</strong><span>全部原文：" + i.map((e, t) => t + 1 + ". " + jI(e.sourceText)).join(" · ") + "</span></div>" : "", l = e && e.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + jI(e.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : "", c = n ? e.fromHistory ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字或红框，请重新分析当前对标图片。</p></section>' : function(e, t) {
             const a = (Array.isArray(t) ? t : []).map((e, t) => {
-                const a = e && e.bbox || {
-                    x: .08,
-                    y: .08,
-                    w: .2,
-                    h: .08
-                }, n = Array.isArray(e && e.riskTypes) && e.riskTypes.length ? e.riskTypes.join("、") : "人工添加";
-                return '<article class="pfh-product-development-review-editor-row"><div class="pfh-product-development-review-editor-head"><b>' + (t + 1) + "</b><span>风险类型：" + jI(n) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + t + '">删除</button></div><label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="sourceText" value="' + jI(e.sourceText) + '"></label><label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementEn" rows="2">' + jI(e.replacementEn) + '</textarea></label><label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementZh" rows="2">' + jI(e.replacementZh) + '</textarea></label><div class="pfh-product-development-review-bbox"><small>红框位置（归一化 0-1）</small>' + [ "x", "y", "w", "h" ].map(e => "<label>" + e + '<input type="number" min="0" max="1" step="0.01" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="bbox.' + e + '" value="' + jI(String(Number(a[e]) || 0)) + '"></label>').join("") + "</div></article>";
+                const a = e && e.bbox, n = Array.isArray(e && e.riskTypes) && e.riskTypes.length, r = n ? e.riskTypes.join("、") + (Array.isArray(e.riskTerms) && e.riskTerms.length ? " · " + e.riskTerms.join("、") : "") : "未检测到风险，保留原文";
+                return '<article class="pfh-product-development-review-editor-row' + (n ? " is-risk" : " is-clear") + '"><div class="pfh-product-development-review-editor-head"><b>' + (t + 1) + "</b><span>" + jI(r) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + t + '">删除</button></div><label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="sourceText" value="' + jI(e.sourceText) + '"></label><label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementEn" rows="2">' + jI(e.replacementEn) + '</textarea></label><label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementZh" rows="2">' + jI(e.replacementZh) + '</textarea></label><div class="pfh-product-development-review-bbox"><small>红框位置（归一化 0-1）</small>' + [ "x", "y", "w", "h" ].map(e => "<label>" + e + '<input type="number" min="0" max="1" step="0.01" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="bbox.' + e + '" value="' + jI(a && Number.isFinite(Number(a[e])) ? String(Number(a[e])) : "") + '"></label>').join("") + "</div></article>";
             }).join("");
             return '<section class="pfh-product-development-review-editor"><header><div><small>MANUAL REVIEW</small><h3>人工修改对照内容</h3></div><span>修改后点击重新生成</span></header>' + (a ? "" : '<div class="pfh-product-development-result-empty">未检测到可靠风险文字，可手动添加需要核对的图片文字。</div>') + '<div class="pfh-product-development-review-editor-list">' + a + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!e || Vr.productDevelopmentReviewBusy ? " disabled" : "") + ">按修改重新生成对照图</button></div></section>";
         }(e, r) : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
         return '<div class="pfh-product-development pfh-product-development-subview">' + xr() + '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header><section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，读取图片文字后筛查品牌、禁词和夸大风险；不要求成分。原图保留，修改后可人工调整。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + jI(Vr.productDevelopmentBenchmarkImageName ? "已手动选择：" + Vr.productDevelopmentBenchmarkImageName : "自动读取当前 SKU 对标图片；读取不到时可手动选择") + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (Vr.productDevelopmentReviewBusy || !t ? " disabled" : "") + ">" + (Vr.productDevelopmentReviewBusy ? "正在分析…" : "开始一次分析") + "</button></section>" + (Vr.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + jI(Vr.productDevelopmentStatus) + "</p>" : "") + (Vr.productDevelopmentError ? '<p class="pfh-product-development-error">' + jI(Vr.productDevelopmentError) + "</p>" : "") + s + (n ? sr(e) : "") + l + c + '<p class="pfh-product-development-note">本功能只发送当前图片给已配置的 AI 服务用于读取图片文字和风险初筛，不读取成分，不访问 WIPO 或其他外部查询网站，不修改原图，不发起 PLM 写入请求。</p></div>';
     }
-    function Mr() {
+    function Tr() {
         const e = cn(), t = Vr.productDevelopmentCopywriting && Vr.productDevelopmentCopywriting.sku === e ? Vr.productDevelopmentCopywriting.content : null, a = Vr.productDevelopmentTemplateVersion || Ha + "（内置）", n = Vr.productDevelopmentSnapshot && Vr.productDevelopmentSnapshot.sku === e ? Vr.productDevelopmentSnapshot.ingredients.length : "--";
         return '<div class="pfh-product-development pfh-product-development-subview">' + xr() + '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>DOCX COPYWRITING</small><h2>A-D 双语文案 DOCX</h2></div></header><section class="pfh-product-development-work-card"><div><h3>只生成 A-D 字段</h3><p>英文放第二列，中文放第三列，第四列留白；成分功能覆盖当前 PLM 读取到的全部有效成分。</p></div><button type="button" data-action="product-development-copywriting-run"' + (Vr.productDevelopmentCopywritingBusy || !e ? " disabled" : "") + ">" + (Vr.productDevelopmentCopywritingBusy ? "正在生成…" : "生成 DOCX") + '</button></section><section class="pfh-product-development-template-card"><div><small>模板版本</small><strong>' + jI(a) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">恢复内置模板</button><span>当前有效成分：' + jI(String(n)) + " 个</span></section>" + (Vr.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + jI(Vr.productDevelopmentStatus) + "</p>" : "") + (Vr.productDevelopmentError ? '<p class="pfh-product-development-error">' + jI(Vr.productDevelopmentError) + "</p>" : "") + (Vr.productDevelopmentCopywriting && Vr.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + jI(Vr.productDevelopmentCopywriting.fileName) + "</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>" : "") + function(e) {
             return e ? '<div class="pfh-product-development-copywriting-preview">' + [ [ "A 产品功效", e.efficacy ], [ "B 产品优势", e.advantages ], [ "C 产品卖点", e.sellingPoints ], [ "D 成分功能", e.ingredientFunctions ] ].map(e => "<section><h4>" + jI(e[0]) + "</h4><div><ol>" + e[1].map(e => "<li><span>" + jI(e.en || e.ingredientEn) + "</span><em>" + jI(e.cn || e.ingredientCn) + "</em></li>").join("") + "</ol></div></section>").join("") + "</div>" : '<div class="pfh-product-development-result-empty">生成后显示 A-D 四个字段的中英文条目。</div>';
         }(t) + '<p class="pfh-product-development-note">内置模板为版本化四列表格；可以替换为你们的 DOCX 样式模板。生成结果只下载到本地，暂不自动上传或回写 PLM。</p></div>';
     }
-    function Tr(e) {
+    function Mr(e) {
         const t = "review" === Vr.productDevelopmentView ? "review" : "copywriting" === Vr.productDevelopmentView ? "copywriting" : "home";
-        return "review" === t ? Ir() : "copywriting" === t ? Mr() : "history" === Vr.productDevelopmentView ? '<div class="pfh-product-development pfh-product-development-subview">' + xr() + '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>LOCAL HISTORY</small><h2>本地历史</h2></div></header><section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div><span>最多保留 ' + Qa + " 条</span></header><div>" + Ar(Qa) + '</div></section><p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史目前只保存生成记录，打开后可重新生成 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>' : ep(e);
+        return "review" === t ? Ir() : "copywriting" === t ? Tr() : "history" === Vr.productDevelopmentView ? '<div class="pfh-product-development pfh-product-development-subview">' + xr() + '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>LOCAL HISTORY</small><h2>本地历史</h2></div></header><section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div><span>最多保留 ' + Qa + " 条</span></header><div>" + Ar(Qa) + '</div></section><p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史目前只保存生成记录，打开后可重新生成 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>' : ep(e);
     }
     function Cr(e, t) {
         if ("work-mode" === e) return vr(t && t.getAttribute("data-work-mode")), !0;
         if ("product-development-home" === e) return Vr.view = "home", Vr.productDevelopmentView = "home",
-        Vr.productDevelopmentError = "", Tl(), !0;
+        Vr.productDevelopmentError = "", Ml(), !0;
         if ("product-development-tasks-open" === e) return Vr.workMode = "product-development",
         Vr.settings.workMode = "product-development", CA(Vr.settings), Vr.productDevelopmentView = "home",
         Vr.productDevelopmentTaskView = "detail", Vr.productDevelopmentTaskPreviousTab = "",
         Vr.view = "productDevelopmentTasks", Vr.copywritingMode = !1, Vr.skuEditMode = !1,
-        Vr.productDevelopmentError = "", Vr.productDevelopmentTaskError = "", fl(), Tl("正在读取本人开发任务…"),
+        Vr.productDevelopmentError = "", Vr.productDevelopmentTaskError = "", fl(), Ml("正在读取本人开发任务…"),
         qn({
             force: !0
         }).catch(() => {}), !0;
         if ("product-development-tasks-home" === e) return Vr.view = "home", Vr.productDevelopmentView = "home",
-        Vr.productDevelopmentError = "", Tl(), !0;
+        Vr.productDevelopmentError = "", Ml(), !0;
         if ("product-development-tasks-refresh" === e) return qn({
             force: !0
         }).catch(e => oA(eA(e))), !0;
         if ("product-development-task-select" === e) {
-            return Mn(t && t.getAttribute("data-sku")) || oA("开发任务不存在或已刷新"), !0;
+            return Tn(t && t.getAttribute("data-sku")) || oA("开发任务不存在或已刷新"), !0;
         }
         if ("product-development-task-tab" === e) {
             const e = hn(t && t.getAttribute("data-product-development-tab")), a = hn(Vr.productDevelopmentTaskView);
             return e === a || (Vr.productDevelopmentTaskPreviousTab = a, Vr.productDevelopmentTaskView = e,
-            Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "", Tl()), !0;
+            Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "", Ml()), !0;
         }
         if ("product-development-task-page" === e || "product-development-task-page-goto" === e) {
             const e = "waterfall" === gI() ? 20 : 10, a = Math.max(1, Math.ceil((Array.isArray(Vr.productDevelopmentTasks) ? Vr.productDevelopmentTasks.length : 0) / e)), n = Number(Vr.productDevelopmentTaskPage) || 1, r = Number(t && t.getAttribute("data-page"));
             return Vr.productDevelopmentTaskPage = Number.isInteger(r) && r > 0 ? Math.max(1, Math.min(a, r)) : t && "prev" === t.getAttribute("data-page") ? Math.max(1, n - 1) : Math.min(a, n + 1),
-            Tl(), !0;
+            Ml(), !0;
         }
         if ("product-development-history-view" === e) return Vr.productDevelopmentView = "history",
-        Vr.productDevelopmentError = "", Tl(), !0;
+        Vr.productDevelopmentError = "", Ml(), !0;
         if ("product-development-history-open" === e) {
             const e = String(t && t.getAttribute("data-history-id") || "");
             return function(e) {
@@ -3381,18 +3400,18 @@
                 }, Vr.productDevelopmentStatus = "已打开本地历史对照图，可滚动查看或下载 PNG") : "review" === e.kind ? (Vr.productDevelopmentView = "review",
                 Vr.productDevelopmentReview = null, Vr.productDevelopmentStatus = "这条历史只保存了索引，没有可预览的对照图，请重新分析") : (Vr.productDevelopmentView = "copywriting",
                 Vr.productDevelopmentCopywriting = null, Vr.productDevelopmentStatus = "文案历史目前只保存生成记录，请在此页面重新生成 DOCX"),
-                Tl()) : oA("本地历史记录不存在或已被清理");
+                Ml()) : oA("本地历史记录不存在或已被清理");
             }(sn(Vr.productDevelopmentHistory).find(t => t.id === e)), !0;
         }
         if ("product-development-review-open" === e) return Vr.workMode = "product-development",
         Vr.settings.workMode = "product-development", CA(Vr.settings), "productDevelopmentTasks" === Vr.view ? (Vr.productDevelopmentTaskPreviousTab = hn(Vr.productDevelopmentTaskView),
         Vr.productDevelopmentTaskView = "review", Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "",
-        Tl(), !0) : (Vr.productDevelopmentView = "review", Vr.view = "home", Vr.productDevelopmentError = "",
-        Vr.productDevelopmentStatus = "", Tl(), !0);
+        Ml(), !0) : (Vr.productDevelopmentView = "review", Vr.view = "home", Vr.productDevelopmentError = "",
+        Vr.productDevelopmentStatus = "", Ml(), !0);
         if ("product-development-review-run" === e) return ir(), !0;
         if ("product-development-review-add" === e) {
             const e = Vr.productDevelopmentReview;
-            return e ? (Array.isArray(e.items) || (e.items = []), e.items.length >= 30 ? (oA("最多保留 30 个风险文字项"),
+            return e ? (Array.isArray(e.items) || (e.items = []), e.items.length >= 80 ? (oA("最多保留 80 个图片文字项"),
             !0) : (e.items.push({
                 id: "manual-" + Date.now().toString(36),
                 sourceText: "",
@@ -3406,13 +3425,13 @@
                 replacementEn: "",
                 replacementZh: "",
                 confidence: 0
-            }), Vr.productDevelopmentStatus = "已添加手动文字项，请填写内容和红框位置", Tl(), !0)) : (oA("请先完成一次图片文字分析"),
+            }), Vr.productDevelopmentStatus = "已添加手动文字项，请填写内容和红框位置", Ml(), !0)) : (oA("请先完成一次图片文字分析"),
             !0);
         }
         if ("product-development-review-remove" === e) {
             const e = Vr.productDevelopmentReview, a = Number(t && t.getAttribute("data-review-index"));
             return e && Array.isArray(e.items) && Number.isInteger(a) && e.items[a] && (e.items.splice(a, 1),
-            Vr.productDevelopmentStatus = "已移除当前风险文字项，请重新生成对照图", Tl()), !0;
+            Vr.productDevelopmentStatus = "已移除当前风险文字项，请重新生成对照图", Ml()), !0;
         }
         if ("product-development-review-recompose" === e) return async function() {
             const e = Vr.productDevelopmentReview;
@@ -3424,7 +3443,7 @@
                 brand: ""
             };
             Vr.productDevelopmentReviewBusy = !0, Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "正在按人工修改重新生成对照图…",
-            Tl();
+            Ml();
             try {
                 const n = tr({
                     items: t,
@@ -3450,7 +3469,7 @@
             } catch (e) {
                 Vr.productDevelopmentError = eA(e), Vr.productDevelopmentStatus = "", oA(Vr.productDevelopmentError);
             } finally {
-                Vr.productDevelopmentReviewBusy = !1, Tl();
+                Vr.productDevelopmentReviewBusy = !1, Ml();
             }
         }(), !0;
         if ("product-development-review-download" === e) {
@@ -3465,9 +3484,9 @@
         if ("product-development-copywriting-open" === e) return Vr.workMode = "product-development",
         Vr.settings.workMode = "product-development", CA(Vr.settings), "productDevelopmentTasks" === Vr.view ? (Vr.productDevelopmentTaskPreviousTab = hn(Vr.productDevelopmentTaskView),
         Vr.productDevelopmentTaskView = "copywriting", Vr.productDevelopmentError = "",
-        Vr.productDevelopmentStatus = "", Tl(), !0) : (Vr.productDevelopmentView = "copywriting",
+        Vr.productDevelopmentStatus = "", Ml(), !0) : (Vr.productDevelopmentView = "copywriting",
         Vr.view = "home", Vr.productDevelopmentError = "", Vr.productDevelopmentStatus = "",
-        Tl(), !0);
+        Ml(), !0);
         if ("product-development-copywriting-run" === e) return kr(), !0;
         if ("product-development-copywriting-download" === e) {
             const e = Vr.productDevelopmentCopywriting;
@@ -3480,9 +3499,9 @@
                 requireIngredients: !1,
                 imageKind: "benchmark"
             }).then(() => {
-                Vr.productDevelopmentStatus = "当前 SKU 资料已刷新", Tl();
+                Vr.productDevelopmentStatus = "当前 SKU 资料已刷新", Ml();
             }).catch(e => {
-                Vr.productDevelopmentError = eA(e), Tl();
+                Vr.productDevelopmentError = eA(e), Ml();
             }), !0;
         }
         return "product-development-template-reset" === e && (function() {
@@ -3491,7 +3510,7 @@
                 localStorage.removeItem(Wa));
             } catch (e) {}
             Vr.productDevelopmentTemplateBase64 = "", Vr.productDevelopmentTemplateVersion = "",
-            oA("已恢复内置四列表格模板"), Tl();
+            oA("已恢复内置四列表格模板"), Ml();
         }(), !0);
     }
     const Er = 1 / 2.54, Lr = .2, Pr = .5, Nr = 1e4, Ur = {
@@ -3765,20 +3784,20 @@
         }(),
         panelSize: function() {
             try {
-                const e = "function" == typeof GM_getValue ? GM_getValue(M, null) : JSON.parse(localStorage.getItem(M) || "null");
+                const e = "function" == typeof GM_getValue ? GM_getValue(T, null) : JSON.parse(localStorage.getItem(T) || "null");
                 return e && Number.isFinite(e.width) && Number.isFinite(e.height) ? 686 === Number(e.width) && 906 === Number(e.height) ? {
-                    width: T,
+                    width: M,
                     height: Math.min(C, EI())
                 } : {
                     width: e.width,
                     height: e.height
                 } : {
-                    width: T,
+                    width: M,
                     height: Math.min(C, EI())
                 };
             } catch (e) {
                 return {
-                    width: T,
+                    width: M,
                     height: Math.min(C, EI())
                 };
             }
@@ -4001,7 +4020,7 @@
         magicUploadReplaceId: "",
         magicToyLabelQueue: function() {
             try {
-                const e = "function" == typeof GM_getValue ? GM_getValue(Me, null) : JSON.parse(localStorage.getItem(Me) || "null");
+                const e = "function" == typeof GM_getValue ? GM_getValue(Te, null) : JSON.parse(localStorage.getItem(Te) || "null");
                 return Array.isArray(e) ? e.map(e => dc(e)).filter(Boolean).slice(0, 300) : [];
             } catch (e) {
                 return [];
@@ -4009,7 +4028,7 @@
         }(),
         magicToyLabelHistory: function() {
             try {
-                const e = "function" == typeof GM_getValue ? GM_getValue(Te, null) : JSON.parse(localStorage.getItem(Te) || "null");
+                const e = "function" == typeof GM_getValue ? GM_getValue(Me, null) : JSON.parse(localStorage.getItem(Me) || "null");
                 return Array.isArray(e) ? e.slice(0, 300) : [];
             } catch (e) {
                 return [];
@@ -4550,16 +4569,16 @@
                 height: "高"
             }[e] || "未识别";
         }
-        function M(e) {
+        function T(e) {
             return 2 * A(e).length;
         }
-        function T(e, t) {
+        function M(e, t) {
             const a = e.manualPoints && e.manualPoints[t] || [];
             return Math.min(A(t).length, Math.floor(a.length / 2));
         }
         function C(e, t) {
             const a = e.manualPoints && e.manualPoints[t];
-            return Array.isArray(a) && a.length % 2 == 0 && T(e, t) >= function(e) {
+            return Array.isArray(a) && a.length % 2 == 0 && M(e, t) >= function(e) {
                 return "box" === e ? 2 : A(e).length;
             }(t);
         }
@@ -4664,7 +4683,7 @@
             return 2 * (1 - Math.abs(n.horizontal - n.vertical)) + .35 * n.horizontal;
         }
         function D(e, t) {
-            const a = T(e, t), n = A(t), r = e.manualLineTypes && e.manualLineTypes[t] || [], i = new Array(a).fill(""), o = new Set;
+            const a = M(e, t), n = A(t), r = e.manualLineTypes && e.manualLineTypes[t] || [], i = new Array(a).fill(""), o = new Set;
             for (let e = 0; e < a; e += 1) {
                 const t = r[e];
                 n.includes(t) && !o.has(t) && (i[e] = t, o.add(t));
@@ -4701,12 +4720,12 @@
             return p(0, i.slice(), l), c;
         }
         function F(e) {
-            const t = T(e, "box"), a = T(e, "product"), n = [ "box", "product" ].find(t => (e.manualPoints[t] || []).length % 2 == 1);
+            const t = M(e, "box"), a = M(e, "product"), n = [ "box", "product" ].find(t => (e.manualPoints[t] || []).length % 2 == 1);
             return "纸盒 " + t + "/2-3 · 产品 " + a + "/2" + (n ? " · 正在画" + ("box" === n ? "纸盒" : "产品") + "终点" : "");
         }
         function B(e) {
-            return [ "box", "product" ].filter(t => T(e, t)).map(t => '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + ("box" === t ? G().primary : G().secondary) + ';font-size:12px">' + ("box" === t ? "纸盒" : "产品") + "</strong>" + function(e, t) {
-                const a = T(e, t), n = D(e, t), r = e.manualLineTypes[t] || [];
+            return [ "box", "product" ].filter(t => M(e, t)).map(t => '<span style="display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap"><strong style="color:' + ("box" === t ? G().primary : G().secondary) + ';font-size:12px">' + ("box" === t ? "纸盒" : "产品") + "</strong>" + function(e, t) {
+                const a = M(e, t), n = D(e, t), r = e.manualLineTypes[t] || [];
                 return a ? Array.from({
                     length: a
                 }, (e, a) => {
@@ -4789,19 +4808,19 @@
             }, I = {
                 x: a.x + p * w,
                 y: a.y + g * w
-            }, M = {
+            }, T = {
                 x: v + p * (k + b) + f * S,
                 y: x + g * (k + b) + m * S
             };
-            let T = Math.atan2(l, s);
-            return (T > Math.PI / 2 || T < -Math.PI / 2) && (T += Math.PI), {
+            let M = Math.atan2(l, s);
+            return (M > Math.PI / 2 || M < -Math.PI / 2) && (M += Math.PI), {
                 label: h,
                 fontScale: u,
                 lineStart: A,
                 lineEnd: I,
-                labelCenter: M,
+                labelCenter: T,
                 labelWidth: y,
-                angle: T,
+                angle: M,
                 normal: {
                     x: p,
                     y: g
@@ -5089,8 +5108,8 @@
             const c = () => {
                 Z(i, a.editorImage, a), function(e) {
                     const t = document.getElementById(r), a = t && t.querySelector(".pfh-parameter-editor-progress"), n = t && t.querySelector(".pfh-parameter-editor-calibration"), i = t && t.querySelector(".pfh-parameter-editor-box-progress"), o = t && t.querySelector(".pfh-parameter-editor-product-progress"), s = t && t.querySelectorAll(".pfh-parameter-editor-target-button");
-                    a && (a.textContent = F(e)), n && (n.innerHTML = B(e)), i && (i.textContent = "纸盒 " + T(e, "box") + "/2-3 边"),
-                    o && (o.textContent = "产品 " + T(e, "product") + "/2 边"), s && s.forEach(t => {
+                    a && (a.textContent = F(e)), n && (n.innerHTML = B(e)), i && (i.textContent = "纸盒 " + M(e, "box") + "/2-3 边"),
+                    o && (o.textContent = "产品 " + M(e, "product") + "/2 边"), s && s.forEach(t => {
                         const a = t.getAttribute("data-target-mode") === e.manualTargetMode;
                         t.classList.toggle("is-active", a), t.setAttribute("aria-pressed", a ? "true" : "false");
                     });
@@ -5161,7 +5180,7 @@
                     const a = [ "box", "product" ].find(t => (e.manualPoints[t] || []).length % 2 == 1);
                     if (a) return a;
                     if (e.singleBottle) return "product";
-                    const n = [ "box", "product" ].filter(t => (e.manualPoints[t] || []).length < M(t));
+                    const n = [ "box", "product" ].filter(t => (e.manualPoints[t] || []).length < T(t));
                     if (1 === n.length) return n[0];
                     if (!n.length) return "";
                     if (e.manualTargetMode && "auto" !== e.manualTargetMode && n.includes(e.manualTargetMode)) return e.manualTargetMode;
@@ -5175,7 +5194,7 @@
                 a.manualTarget = u;
                 const p = a.manualPoints[u];
                 let g = o ? o.index : -1, f = "";
-                if (g < 0 && p.length < M(u)) {
+                if (g < 0 && p.length < T(u)) {
                     const t = te(n, p, p.length, e.ctrlKey);
                     if (n = t.point, f = t.axis, p.push(n), g = p.length - 1, a.manualPointHistory.push(u),
                     R(a, "新增标注点", {
@@ -5283,7 +5302,7 @@
                 "Escape" === e.key ? (e.preventDefault(), se(a, "escape")) : !e.ctrlKey && !e.metaKey || e.shiftKey || "z" !== String(e.key).toLowerCase() || (e.preventDefault(),
                 et("parameter-editor-undo", null, t));
             })), n.innerHTML = function(t) {
-                const a = T(t, "box"), n = T(t, "product"), r = t.editorLoadError ? " is-error" : "", i = [ "auto", "box", "product" ].includes(t.manualTargetMode) ? t.manualTargetMode : "auto", o = [ [ "auto", "自动判断" ], [ "box", "纸盒" ], [ "product", "产品" ] ].map(([e, t]) => '<button type="button" class="pfh-parameter-editor-target-button' + (i === e ? " is-active" : "") + '" data-action="parameter-editor-target-mode" data-target-mode="' + e + '" aria-pressed="' + (i === e ? "true" : "false") + '">' + t + "</button>").join("");
+                const a = M(t, "box"), n = M(t, "product"), r = t.editorLoadError ? " is-error" : "", i = [ "auto", "box", "product" ].includes(t.manualTargetMode) ? t.manualTargetMode : "auto", o = [ [ "auto", "自动判断" ], [ "box", "纸盒" ], [ "product", "产品" ] ].map(([e, t]) => '<button type="button" class="pfh-parameter-editor-target-button' + (i === e ? " is-active" : "") + '" data-action="parameter-editor-target-mode" data-target-mode="' + e + '" aria-pressed="' + (i === e ? "true" : "false") + '">' + t + "</button>").join("");
                 return '<section class="pfh-parameter-editor"><header class="pfh-parameter-editor-head"><h3>手动调整尺寸标注</h3><span>自动尺寸和数值已保留 · 拖动端点调整线，拖动黑色尺寸线/数值调整位置 · Ctrl+Z 撤回端点</span><button type="button" data-action="parameter-editor-close">关闭</button></header><div class="pfh-parameter-editor-tools"><span class="pfh-parameter-editor-box-progress" style="padding:7px 10px;border-radius:9px;background:' + G().primarySoft + ";color:" + G().primary + ';font-size:12px">纸盒 ' + a + '/2-3 边</span><span class="pfh-parameter-editor-product-progress" style="padding:7px 10px;border-radius:9px;background:' + G().secondarySoft + ";color:" + G().secondary + ';font-size:12px">产品 ' + n + '/2 边</span><span class="pfh-parameter-editor-target-picker" style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px;border:1px solid ' + G().border + ';border-radius:10px"><b style="padding:0 4px;color:' + G().muted + ';font-size:12px">下条线：</b>' + o + '</span><button type="button" data-action="parameter-editor-undo">撤销一点（Ctrl+Z）</button><button type="button" data-action="parameter-editor-reset">清空线条</button><button type="button" data-action="parameter-editor-retry">重新载入底图</button><button type="button" class="pfh-parameter-editor-apply" data-action="parameter-editor-apply">应用并生成</button><div class="pfh-parameter-editor-calibration" style="display:flex;flex:1 0 100%;align-items:center;gap:12px;flex-wrap:wrap">' + B(t) + '</div></div><div class="pfh-parameter-editor-stage' + (t.editorImage || t.editorLoadError ? "" : " is-loading") + '"><canvas class="pfh-parameter-editor-canvas"></canvas></div><footer class="pfh-parameter-editor-foot"><span>自动标注可直接微调；清空线条后再点击图片重新画线</span><span class="pfh-parameter-editor-status' + r + '">' + e.escapeHtml(t.editorStatus || "等待载入底图") + '</span><span class="pfh-parameter-editor-progress">' + F(t) + '</span></footer><details class="pfh-parameter-editor-diagnostics"><summary>诊断日志（测试异常时请展开并复制）</summary><pre>' + e.escapeHtml(z(t)) + "</pre></details></section>";
             }(a), n.focus({
                 preventScroll: !0
@@ -5314,8 +5333,8 @@
                 sku: e && e.sku || "",
                 hasCachedImage: Boolean(t.editorImage),
                 retainedAutoAnnotations: a,
-                boxLines: T(t, "box"),
-                productLines: T(t, "product")
+                boxLines: M(t, "box"),
+                productLines: M(t, "product")
             }), le(e);
         }
         function ue(e) {
@@ -5524,17 +5543,17 @@
             }), I = v({
                 x: b,
                 y: S.bottom
-            }), M = v({
+            }), T = v({
                 x: y,
                 y: k.bottom
-            }), T = [ x, A, I, M ], C = "left" === g ? {
+            }), M = [ x, A, I, T ], C = "left" === g ? {
                 start: A,
                 end: I
             } : {
                 start: x,
-                end: M
+                end: T
             }, E = {
-                start: M,
+                start: T,
                 end: I
             };
             let L = [], P = null;
@@ -5548,7 +5567,7 @@
                     L = [ t, e, v({
                         x: n,
                         y: r.bottom
-                    }), "left" === g ? M : I ], P = {
+                    }), "left" === g ? T : I ], P = {
                         start: t,
                         end: e
                     };
@@ -5572,7 +5591,7 @@
                 boxPosition: u,
                 sideFace: g,
                 confidence: D,
-                frontCorners: T,
+                frontCorners: M,
                 sideCorners: L,
                 heightEdge: C,
                 frontEdge: E,
@@ -5656,7 +5675,7 @@
             }), k = w(h), S = w(y), v = t.frontIsLength ? d(t.fields.packageLength) : d(t.fields.packageWidth), x = d(t.fields.packageHeight), A = me(s, i, o, h, v, x), I = e => ({
                 x: e.x * b,
                 y: e.y * b
-            }), M = A ? Object.fromEntries(Object.entries(A).map(([e, t]) => [ e, I(t) ])) : null, T = x && v ? k.height * v / x : k.width, C = Math.max(0, k.width - T), E = C > .18 * k.width;
+            }), T = A ? Object.fromEntries(Object.entries(A).map(([e, t]) => [ e, I(t) ])) : null, M = x && v ? k.height * v / x : k.width, C = Math.max(0, k.width - M), E = C > .18 * k.width;
             return null !== t.showSide || t.showSideOverride || (t.showSide = E), t.productHeightSide = S.right <= k.left ? "left" : t.productHeightSide,
             {
                 box: k,
@@ -5664,20 +5683,20 @@
                 splitX: f * b,
                 sidePixels: C,
                 detectedSide: E,
-                perspective: M,
+                perspective: T,
                 productHeightSide: S.right <= k.left ? "left" : "right",
                 sourceWidth: e.naturalWidth,
                 sourceHeight: e.naturalHeight
             };
         }
         let Ie = "";
-        function Me() {
+        function Te() {
             if (Ie) return Ie;
             const e = [ "const number = " + d.toString() + ";", de, pe, ge, fe, me, he, ye, be, we, ke, Se, ve, xe, Ae ].map(e => "string" == typeof e ? e : e.toString()).join("\n");
             return Ie = `'use strict';\n${e}\nself.onmessage = function(event) {\n  const payload = event.data || {};\n  try {\n    const pixels = new Uint8ClampedArray(payload.pixelBuffer);\n    const session = payload.session || {};\n    const image = { naturalWidth: Number(payload.sourceWidth) || 1, naturalHeight: Number(payload.sourceHeight) || 1 };\n    const analysis = analyzeImage(image, session, payload.rule || null, { pixels, width: Number(payload.width) || 1, height: Number(payload.height) || 1 });\n    self.postMessage({ ok: true, analysis, sessionPatch: { topologyApplied: Boolean(session.topologyApplied), topologyRuleVersion: String(session.topologyRuleVersion || ''), topologyMessage: String(session.topologyMessage || ''), frontIsLength: Boolean(session.frontIsLength), showSide: session.showSide, productHeightSide: String(session.productHeightSide || '') } });\n  } catch (error) {\n    self.postMessage({ ok: false, error: String(error && error.message || error || '参数图分析失败') });\n  }\n};`,
             Ie;
         }
-        async function Te(e, t, a) {
+        async function Me(e, t, a) {
             if (!("function" == typeof Worker && "function" == typeof Blob && "undefined" != typeof URL && "function" == typeof URL.createObjectURL)) return {
                 analysis: Ae(e, t, a),
                 worker: !1
@@ -5696,7 +5715,7 @@
                         pixels: i.getImageData(0, 0, a, n).data
                     };
                 }(e);
-                const r = URL.createObjectURL(new Blob([ Me() ], {
+                const r = URL.createObjectURL(new Blob([ Te() ], {
                     type: "application/javascript"
                 })), i = new Worker(r), o = await new Promise((o, s) => {
                     let l = !1;
@@ -5974,7 +5993,7 @@
                     right: r.x + r.width + 100,
                     bottom: r.y + r.height + 80
                 }
-            } : null, h = C(n, "box") ? n.manualPoints.box.slice(0, M("box")) : null, y = C(n, "product") ? n.manualPoints.product.slice(0, M("product")) : null;
+            } : null, h = C(n, "box") ? n.manualPoints.box.slice(0, T("box")) : null, y = C(n, "product") ? n.manualPoints.product.slice(0, T("product")) : null;
             if (n.singleBottle) return y ? je(e, y, n, "product", i, m) : s && (Ue(e, s, n.fields.productHeight, g, m),
             _e(e, s, n.fields.productLength, f, m)), void e.restore();
             if (h) je(e, h, n, "box", i, m); else if (n.topologyApplied && p && function(e, t, a, n, r, i, o) {
@@ -6155,7 +6174,7 @@
                 });
                 const [a, s] = await Promise.all([ S(), Ke(t.brand) ]);
                 try {
-                    const t = await Te(e, n, a);
+                    const t = await Me(e, n, a);
                     t.sessionPatch && Object.assign(n, t.sessionPatch), n.analysis = t.analysis, i && R(n, "自动图像分析成功，手动路径将优先覆盖", {
                         hasBox: Boolean(n.analysis && n.analysis.box),
                         hasProduct: Boolean(n.analysis && n.analysis.product),
@@ -6262,7 +6281,7 @@
             }
             if ("parameter-editor-line-type" === t) {
                 const e = a && "product" === a.getAttribute("data-object") ? "product" : "box", t = Number(a && a.getAttribute("data-line-index")), i = String(a && a.getAttribute("data-dimension") || "auto"), o = A(e);
-                if (!Number.isInteger(t) || t < 0 || t >= T(r, e)) return !0;
+                if (!Number.isInteger(t) || t < 0 || t >= M(r, e)) return !0;
                 "auto" === i ? r.manualLineTypes[e][t] = "" : o.includes(i) && (r.manualLineTypes[e] = Array.from({
                     length: o.length
                 }, (a, n) => {
@@ -6450,12 +6469,12 @@
         cloudRequest: Yx,
         cloudAssetRequest: _t,
         collectExtra: zw,
-        getSaveFilePicker: Mk,
+        getSaveFilePicker: Tk,
         saveImageFiles: Ek,
         showToast: oA,
         applyTheme: K,
         render: () => {
-            "parameterImage" === Vr.view && Tl();
+            "parameterImage" === Vr.view && Ml();
         },
         focusSaveButton: () => n("parameter-image-save", "parameterImage")
     });
@@ -6479,9 +6498,9 @@
         e && (Vr.openingProjectDetail = !0, Vr.openingProjectDetailSku = e, Vr.view = "detail",
         Vr.selectedSku = e, Vr.data = Fi(t || {
             sku: e
-        }), tw(), Df(e), fl(), Tl(Ur.openingDetail), window.setTimeout(() => {
+        }), tw(), Df(e), fl(), Ml(Ur.openingDetail), window.setTimeout(() => {
             Vr.openingProjectDetail && Vr.openingProjectDetailSku === e && (Vr.openingProjectDetail = !1,
-            Vr.openingProjectDetailSku = "", Tl());
+            Vr.openingProjectDetailSku = "", Ml());
         }, 7e3));
     }
     function Wr(e) {
@@ -6590,8 +6609,8 @@
             }) : m;
             y && AI(e.sku, w), kI(w), Vr.data && Vr.data.sku === e.sku && (Vr.data = w), i += 1;
         }), s && (pS(), !1 !== a.ledgerLog && sA("info", a.ledgerLog || "设计分配任务已同步到今日工作台", s + "/" + c + "个编码")),
-        i || s ? (i && (Mx(), !1 !== a.cacheLog && sA("info", a.cacheLog || "新品开发列表基础信息已静默缓存", i + "/" + r.length + "个编码")),
-        !1 === a.render || "home" !== Vr.view && "detail" !== Vr.view && "ledger" !== Vr.view || Tl(),
+        i || s ? (i && (Tx(), !1 !== a.cacheLog && sA("info", a.cacheLog || "新品开发列表基础信息已静默缓存", i + "/" + r.length + "个编码")),
+        !1 === a.render || "home" !== Vr.view && "detail" !== Vr.view && "ledger" !== Vr.view || Ml(),
         {
             fetchedCount: r.length,
             changedCount: i,
@@ -6763,7 +6782,7 @@
                 stage: "待定稿",
                 note: "打开详情自动记录",
                 requireCurrentMonth: !0
-            }), Tl(Ur.scanning), void gi(Vr.data, {
+            }), Ml(Ur.scanning), void gi(Vr.data, {
                 reason: "cached-open",
                 includeScanTabs: !0
             });
@@ -6774,7 +6793,7 @@
             projectStatus: as(a)
         }) : null, Vr.selectedSku = n || "", Vr.view = "detail", tw(), fl(), Vr.settings.collectionEnabled) return ii(),
         Vr.scanTargetSku = n || "", void oi();
-        Tl();
+        Ml();
     }
     function ii() {
         li(), Wr(), Vr.scanRunning = !1, Vr.scanTargetSku = "", Vr.scanData = null;
@@ -6797,7 +6816,7 @@
         Df(o || Vr.selectedSku || ""), Vr.scanRunning = !0, function() {
             const t = document.getElementById(e);
             return Boolean(t && t.querySelector(".pfh-detail.is-loading .pfh-loading-tip"));
-        }() || Tl(Ur.scanning), gi(Vr.scanData || {
+        }() || Ml(Ur.scanning), gi(Vr.scanData || {
             sku: o
         }, {
             reason: "scan",
@@ -6813,8 +6832,8 @@
         Vr.view = "detail", pi(), li(), fl();
         let t = ki();
         const a = t ? NI(t) : "";
-        if (!(t && a.includes(e) || (Tl("正在打开正确编码详情..."), await Ib(), t = await ew(() => zb(e), 5e3, 150),
-        t))) return oA(Ur.openDetailFailed), void Tl();
+        if (!(t && a.includes(e) || (Ml("正在打开正确编码详情..."), await Ib(), t = await ew(() => zb(e), 5e3, 150),
+        t))) return oA(Ur.openDetailFailed), void Ml();
         Vr.drawer = t, Vr.sku = e, Vr.selectedSku = e, Vr.data = function(e) {
             const t = Fi(SI(e) || {}), a = /^(?:effectImage|productListImage)$/.test(t.skuImageSource || "") ? t.skuImageSource : "";
             return Fi({
@@ -6869,7 +6888,7 @@
                 skuImageFallbackUrl: a && t.skuImageFallbackUrl || "",
                 skuImageSource: a
             });
-        }(e), tw(), ii(), Vr.scanTargetSku = e, Tl(Ur.scanning), oi({
+        }(e), tw(), ii(), Vr.scanTargetSku = e, Ml(Ur.scanning), oi({
             forceAllTabs: !0
         });
     }
@@ -6893,7 +6912,7 @@
         }), n);
         xi(Fi(SI(t) || (Vr.data && Vr.data.sku === t ? Vr.data : {
             sku: t
-        })), r) && (xI(t, r), Vr.selectedSku === t && Tl()), a === Ur.productTab && gi(r, {
+        })), r) && (xI(t, r), Vr.selectedSku === t && Ml()), a === Ur.productTab && gi(r, {
             reason: "manual-product-tab",
             includeScanTabs: !1,
             replace: !0
@@ -6914,13 +6933,13 @@
             ci(), Vr.scanLoadingTipTimer = window.setTimeout(() => {
                 Vr.scanLoadingTipTimer = 0, Vr.scanRunning && Vr.drawerTabFlowToken === t && Vr.drawerTabFlowSku === e && (Vr.scanRunning = !1,
                 Vr.apiReadStatus && Vr.apiReadStatus.sku === e && "loading" === Vr.apiReadStatus.phase && rd(e, "loading", "正在后台读取 PLM 数据"),
-                Vr.selectedSku === e && "detail" === Vr.view && Tl(), sA("info", "详情前台提示超时，已切换为后台读取", e + " | " + Nr + "ms"));
+                Vr.selectedSku === e && "detail" === Vr.view && Ml(), sA("info", "详情前台提示超时，已切换为后台读取", e + " | " + Nr + "ms"));
             }, Nr);
         }(n, r)), Vr.drawerTabFlowTimer = window.setTimeout(() => {
             Vr.drawerTabFlowTimer = 0, async function(e, t, a) {
                 const n = Boolean(a && a.includeScanTabs), r = zb(e), i = r && await mi(r, e, 5e3);
                 if (!i || Vr.drawerTabFlowToken !== t || Vr.drawerTabFlowSku !== e) return void (Vr.drawerTabFlowToken === t && (n && (li(),
-                Vr.scanTargetSku = "", Vr.scanData = null, Tl(Ur.openDetailFailed)), Vr.drawerTabFlowRunning = !1,
+                Vr.scanTargetSku = "", Vr.scanData = null, Ml(Ur.openDetailFailed)), Vr.drawerTabFlowRunning = !1,
                 Vr.drawerTabFlowSku = "", Vr.drawerTabFlowDrawer = null));
                 Vr.drawerTabFlowRunning = !0, Vr.drawerTabFlowDrawer = r;
                 const o = n && Vr.scanData && Vr.scanData.sku === e ? Vr.scanData : null;
@@ -6987,7 +7006,7 @@
                         updatedAt: (new Date).toLocaleString(),
                         updatedAtMs: Date.now()
                     }), (p.packageSizeText || p.printSizeText || p.netContent || p.grossWeight) && sA("success", "已用 PLM 数据服务更新产品与包材数据", e + " | 纸盒 " + (p.packageSizeText || "无") + " | 标签/印刷 " + (p.printSizeText || "无") + " | 净含量 " + (p.netContent || "无") + " | 毛重 " + (p.grossWeight || "无")));
-                    const g = To([ p, p && p.apiProject ]);
+                    const g = Mo([ p, p && p.apiProject ]);
                     if (g && !_S(c.purchasePrice) && (c = Fi({
                         ...c,
                         purchasePrice: g,
@@ -7038,7 +7057,7 @@
                         flowToken: t,
                         timeout: 4500
                     }).catch(() => !1), Vr.drawerTabFlowToken === t && (n ? (li(), Vr.scanTargetSku = "",
-                    Vr.scanData = null, Tl(Ur.scanDone)) : Vr.selectedSku === e && Tl(Ur.cached), d && Vr.selectedSku === e && ld(e, u, c),
+                    Vr.scanData = null, Ml(Ur.scanDone)) : Vr.selectedSku === e && Ml(Ur.cached), d && Vr.selectedSku === e && ld(e, u, c),
                     Vr.drawerTabFlowRunning = !1, Vr.drawerTabFlowSku = "", Vr.drawerTabFlowDrawer = null);
                 }
             }(n, r, a).catch(e => {
@@ -7222,7 +7241,7 @@
             referenceUrl: ns(n),
             designAssignedAt: es(n, "设计分配时间"),
             developmentAssignedAt: es(n, "开发分配时间"),
-            netContent: Fs((M = e, Bs(M) || m.netContent || p.netContent)),
+            netContent: Fs((T = e, Bs(T) || m.netContent || p.netContent)),
             grossWeight: Ks(e),
             skuImageUrl: h.isSkuDesignImage && h.imageUrl || "",
             skuImageFallbackUrl: h.isSkuDesignImage && h.imageFallbackUrl || "",
@@ -7232,7 +7251,7 @@
             updatedAt: (new Date).toLocaleString(),
             updatedAtMs: Date.now()
         };
-        var M;
+        var T;
     }
     function vi(e, t) {
         if (!e) return Fi(t);
@@ -7260,9 +7279,9 @@
     function xi(e, t) {
         const a = new Set([ "updatedAt", "updatedAtMs", "infringementUpdatedAt", "infringementUpdatedAtMs", "lastMissingDiagnostic", "recentFieldChanges", "dataUpdateLog", "infringementHistory" ]), n = {}, r = {};
         return Object.keys(e || {}).forEach(t => {
-            a.has(t) || (n[t] = Mi(t, e[t]));
+            a.has(t) || (n[t] = Ti(t, e[t]));
         }), Object.keys(t || {}).forEach(e => {
-            a.has(e) || (r[e] = Mi(e, t[e]));
+            a.has(e) || (r[e] = Ti(e, t[e]));
         }), JSON.stringify(n) !== JSON.stringify(r);
     }
     function Ai(e) {
@@ -7277,10 +7296,10 @@
         const a = "name" === e ? $s(t) : DI(t);
         return Ai(e) && a ? a.split(/\s*[;；]\s*/).map(e => e.trim()).filter(Boolean).sort().join(";") : a;
     }
-    function Mi(e, t) {
+    function Ti(e, t) {
         return Ai(e) ? Ii(e, t) : t;
     }
-    function Ti(e, t, a) {
+    function Mi(e, t, a) {
         return Ii(e, t) === Ii(e, a);
     }
     function Ci(e) {
@@ -7313,7 +7332,7 @@
             const a = document.getElementById(e), n = a && a.querySelector(".pfh-upload-drop:hover, .pfh-upload-drop:focus"), r = "copyright" === Vr.uploadMode ? wh(t) : "toy-effect" === Vr.uploadMode ? kh(t) : hh(t);
             if (!n || !r.length) return;
             return t.preventDefault(), t.stopPropagation(), n.classList.add("is-paste-received"),
-            window.setTimeout(() => n.classList.remove("is-paste-received"), 360), void ("copyright" === Vr.uploadMode ? Eh(r) : "toy-effect" === Vr.uploadMode ? Gh(r) : Mh(r));
+            window.setTimeout(() => n.classList.remove("is-paste-received"), 360), void ("copyright" === Vr.uploadMode ? Eh(r) : "toy-effect" === Vr.uploadMode ? Gh(r) : Th(r));
         }
         if ("parameterImage" === Vr.view) {
             const a = document.getElementById(e), n = a && a.querySelector(".pfh-parameter-drop:hover");
@@ -7386,7 +7405,7 @@
                 Vr.pageToyCopywritingBusy = !1, Vr.pageToyCopywritingSku = "", Ad();
             }
         }(t);
-    }, !0), gl(), Tl(Ur.noDrawer), Fx(!1), Gr = 50, window.setTimeout(async () => {
+    }, !0), gl(), Ml(Ur.noDrawer), Fx(!1), Gr = 50, window.setTimeout(async () => {
         try {
             await Nt(!1);
         } catch (e) {
@@ -7405,7 +7424,7 @@
         window.clearTimeout(Vr.homeGreetingRefreshTimer), Vr.homeGreetingRefreshTimer = window.setTimeout(async () => {
             await aa(!1), e(9e5);
         }, Math.max(0, Number(t) || 0));
-    }(700), window.addEventListener("resize", () => MI(document.getElementById(t))),
+    }(700), window.addEventListener("resize", () => TI(document.getElementById(t))),
     function() {
         let e = 0;
         new MutationObserver(() => {
@@ -7419,7 +7438,7 @@
                     Vr.observedSku = t, void (Vr.observedTab = a);
                     if (a === Vr.observedTab) return;
                     Vr.observedTab = a, ui(), Vr.manualCollectTimer = window.setTimeout(() => di(e, t, a), 420);
-                }(), Jr(), MI(document.getElementById(t));
+                }(), Jr(), TI(document.getElementById(t));
             }, 120);
         }).observe(document.body, {
             childList: !0,
@@ -7427,12 +7446,12 @@
         });
     }(), function() {
         "function" == typeof GM_addValueChangeListener && (GM_addValueChangeListener(ce, (e, t, a, n) => {
-            n && (Vr.ledgerRecords = bS(a), "ledger" === Vr.view && Tl());
+            n && (Vr.ledgerRecords = bS(a), "ledger" === Vr.view && Ml());
         }), GM_addValueChangeListener(ue, (e, t, a, n) => {
-            n && (Vr.ledgerTrashRecords = hS(a), Vr.ledgerRecords = bS(Vr.ledgerRecords), "ledger" === Vr.view && Tl());
+            n && (Vr.ledgerTrashRecords = hS(a), Vr.ledgerRecords = bS(Vr.ledgerRecords), "ledger" === Vr.view && Ml());
         }), GM_addValueChangeListener(de, (e, t, a, n) => {
             n && (Vr.ledgerSeriesExcludedSkus = new Set((Array.isArray(a) ? a : []).map(e => String(e || "").trim().toUpperCase()).filter(Boolean)),
-            "ledger" === Vr.view && Tl());
+            "ledger" === Vr.view && Ml());
         }));
         window.addEventListener("storage", e => {
             if ("function" != typeof GM_getValue) try {
@@ -7443,7 +7462,7 @@
                     if (e.key !== ce) return;
                     Vr.ledgerRecords = bS(JSON.parse(e.newValue || "[]"));
                 }
-                "ledger" === Vr.view && Tl();
+                "ledger" === Vr.view && Ml();
             } catch (e) {}
         });
     }(), ca = pa() ? "等待连接工作台" : "未配对", "function" == typeof GM_registerMenuCommand && GM_registerMenuCommand("连接 PLM 产品资产工作台", () => {
@@ -7461,7 +7480,7 @@
         const t = () => {
             Vr.uploadQueue = LA(), Vr.uploadHistory = OA();
             const e = YA() ? $A() : JA(Vr.uploadMode);
-            Vr.uploadWorkerMode = e, Vr.uploadRunning = aI(e), "upload" === Vr.view ? ql(pl()) || Tl() : Vr.uploadExpanded && Tl();
+            Vr.uploadWorkerMode = e, Vr.uploadRunning = aI(e), "upload" === Vr.view ? ql(pl()) || Ml() : Vr.uploadExpanded && Ml();
         }, a = a => {
             a && "history" === Vr.uploadView && (Vr.uploadHistoryPage = 1), window.clearTimeout(e),
             e = window.setTimeout(t, 0);
@@ -7469,10 +7488,10 @@
         "function" == typeof GM_addValueChangeListener && (GM_addValueChangeListener(Q, (e, t, n, r) => {
             !r && YA() || a(!1);
         }), GM_addValueChangeListener(ee, () => {
-            a(!0), Ta();
+            a(!0), Ma();
         }), GM_addValueChangeListener(te, () => a(!1)), GM_addValueChangeListener(ae, () => a(!1)));
         window.addEventListener("storage", e => {
-            e.key !== Q && e.key !== ee && e.key !== te && e.key !== ae || t(), e.key === ee && Ta();
+            e.key !== Q && e.key !== ee && e.key !== te && e.key !== ae || t(), e.key === ee && Ma();
         }), window.setInterval(t, 5e3);
     }(), ri(), Ad(), Jr(), function(e) {
         if (function() {
@@ -7519,7 +7538,7 @@
                             skipStorageSync: !0,
                             skipUnchanged: !0
                         }) && (t.add(n), a += 1);
-                    }), a && (pS(), sA("info", "历史手动 SKU 已补录今日工作台", a + " 个"), "ledger" !== Vr.view || Yu(pl()) || Tl());
+                    }), a && (pS(), sA("info", "历史手动 SKU 已补录今日工作台", a + " 个"), "ledger" !== Vr.view || Yu(pl()) || Ml());
                     QS();
                 }();
             } catch (e) {
@@ -7555,7 +7574,7 @@
                     }
                     await Ok(450);
                 }
-                n && "ledger" === Vr.view && !Yu(pl()) && Tl();
+                n && "ledger" === Vr.view && !Yu(pl()) && Ml();
                 return sA("info", "手动 SKU 图片后台补全完成", "检查 " + t.length + " 个，更新 " + n + " 个"), n;
             }().catch(e => (sA("warn", "手动 SKU 图片后台补全失败", eA(e)), 0)).finally(() => {
                 $ = null;
@@ -8306,7 +8325,7 @@
             state: n ? a ? "value" : "empty" : ""
         };
     }
-    function Mo(e) {
+    function To(e) {
         const t = Io(e, "suttle"), a = Io(e, "rough_weight"), n = ro(e), r = {};
         return t.state && (r.netContent = t.state), a.state && (r.grossWeight = a.state),
         n.apiFieldStates.infringementImage && (r.infringementImage = n.apiFieldStates.infringementImage),
@@ -8334,7 +8353,7 @@
             apiFieldStates: r
         };
     }
-    function To(e) {
+    function Mo(e) {
         const t = [];
         (e || []).forEach(e => {
             e && "object" == typeof e && !Array.isArray(e) && t.push(e);
@@ -8524,7 +8543,7 @@
                 isPrintMaterial: !u && $o(r),
                 displayName: jo(e)
             };
-        }).filter(e => (!s || e.index !== s.index) && !e.isBoxCategory && !/说明书|使用说明/.test(e.text) && e.isPrintMaterial), c = s && s.dimensions ? s.dimensions : null, u = s && s.unitIssue ? s.unitIssue : null, d = l.find(e => e.tubeSpec), p = d && d.tubeSpec, g = u ? u.raw : Bo(c), f = s ? s.displayName : "", m = s ? No(s.item) : "", h = p ? p.printSizeText : l.map(e => e.unitIssue ? e.unitIssue.raw : Bo(e.dimensions)).filter(Boolean).join("；"), y = p ? "印刷" : l.map(e => e.displayName).filter(Boolean).filter((e, t, a) => a.indexOf(e) === t).join("；"), b = l.map(e => No(e.item)).filter(Boolean).join("；"), w = (s ? Ts(s.text) : "") || (l[0] ? Ts(l[0].text) : ""), k = a ? {
+        }).filter(e => (!s || e.index !== s.index) && !e.isBoxCategory && !/说明书|使用说明/.test(e.text) && e.isPrintMaterial), c = s && s.dimensions ? s.dimensions : null, u = s && s.unitIssue ? s.unitIssue : null, d = l.find(e => e.tubeSpec), p = d && d.tubeSpec, g = u ? u.raw : Bo(c), f = s ? s.displayName : "", m = s ? No(s.item) : "", h = p ? p.printSizeText : l.map(e => e.unitIssue ? e.unitIssue.raw : Bo(e.dimensions)).filter(Boolean).join("；"), y = p ? "印刷" : l.map(e => e.displayName).filter(Boolean).filter((e, t, a) => a.indexOf(e) === t).join("；"), b = l.map(e => No(e.item)).filter(Boolean).join("；"), w = (s ? Ms(s.text) : "") || (l[0] ? Ms(l[0].text) : ""), k = a ? {
             material: t.length ? "value" : "empty",
             materialSize: Ki([ g, h ].filter(Boolean), !0),
             packageSize: Ki(g, !0),
@@ -8787,7 +8806,7 @@
                 u;
                 const p = t && t.productSnapshot && t.productSnapshot.contentPayload;
                 return (p ? Promise.resolve(p) : Ko("/api/Product/GetDetailContent?is_edit=false&product_id=" + encodeURIComponent(r.product_id || s) + "&product_version_id=" + encodeURIComponent(r.product_version_id || l) + "&category_id=" + encodeURIComponent(d))).then(e => {
-                    const t = Mo(e);
+                    const t = To(e);
                     return {
                         ...u,
                         ...t,
@@ -8845,7 +8864,7 @@
             });
             xI(e, a, {
                 changeSource: "PLM 数据服务"
-            }), rd(e, "success", "PLM 数据读取完成"), Vr.selectedSku === e && (Vr.data = a, Tl("已刷新 PLM 数据"),
+            }), rd(e, "success", "PLM 数据读取完成"), Vr.selectedSku === e && (Vr.data = a, Ml("已刷新 PLM 数据"),
             ld(e, n, a));
         } catch (t) {
             rd(e, "error", "PLM 读取失败"), sA("warn", "搜索 SKU 自动刷新失败", e + " | " + eA(t)), Vr.selectedSku === e && oA("PLM 刷新失败，请稍后重试", {
@@ -8863,7 +8882,7 @@
         }, r).catch(e => (sA("warn", "Excel 产品数据补全失败，继续使用页面读取", n + " | " + eA(e)), null)), xo(a, r).catch(e => (sA("info", "Excel 项目数据补全失败，继续使用页面读取", n + " | " + eA(e)),
         null)) ]);
         const s = String(i && (i.productId || i.product && (i.product.product_id || i.product.id)) || ""), l = String(i && (i.productVersionId || i.product && (i.product.product_version_id || i.product.product_main_id)) || ""), c = String(i && (i.categoryId || i.category_id) || o && o.categoryId || ""), u = String(o && o.projectId || a.projectRowId || a.projectId || "").trim(), d = i && i.optional || {}, p = Object.keys(d).reduce((e, t) => (Vi(d[t]) && (e[t] = d[t]),
-        e), {}), g = i && i.contentPayload ? Mo(i.contentPayload) : {}, f = Qi(i && i.apiFieldStates, g.apiFieldStates), m = Qi(o && o.apiFieldStates, o && o.found && o.referenceUrl ? {
+        e), {}), g = i && i.contentPayload ? To(i.contentPayload) : {}, f = Qi(i && i.apiFieldStates, g.apiFieldStates), m = Qi(o && o.apiFieldStates, o && o.found && o.referenceUrl ? {
             benchmarkLink: "value"
         } : {});
         let h = i && i.productListImageUrl || "", y = h;
@@ -8944,12 +8963,12 @@
         } catch (e) {
             sA("warn", "Excel 物料数据补全失败，继续使用页面读取", n + " | " + eA(e));
         }
-        const x = v && v.apiProject || {}, A = o && o.projectPayload ? po(o.projectPayload) : null, I = [ o, o && o.raw, o && o.projectPayload, A, A && A.project, x, x && x.project ], M = lo(I, [ "carton_spec", "cartonSpec", "outer_carton_spec", "outerCartonSpec", "carton_size", "cartonSize", "outer_box_spec", "outerBoxSpec", "box_spec", "boxSpec" ]), T = lo(I, [ "package_material", "packageMaterial", "packaging_material", "packagingMaterial", "material" ]), C = lo(I, [ "lead_time", "leadTime", "delivery_text", "deliveryText", "delivery_note", "deliveryNote", "delivery_time", "deliveryTime", "shipping_time", "shippingTime" ]), E = lo(I, [ "alibaba_link", "alibabaLink", "1688_link", "1688Link", "alibaba_url", "alibabaUrl" ]).match(/https?:\/\/[^\s]+/i)?.[0] || "", L = Boolean(i && i.found || o && o.found || x && Object.keys(x).length), P = {
-            cartonSpec: Ki(S.cartonSpec || M, L),
-            packageMaterial: Ki(S.packageMaterial || T, L),
+        const x = v && v.apiProject || {}, A = o && o.projectPayload ? po(o.projectPayload) : null, I = [ o, o && o.raw, o && o.projectPayload, A, A && A.project, x, x && x.project ], T = lo(I, [ "carton_spec", "cartonSpec", "outer_carton_spec", "outerCartonSpec", "carton_size", "cartonSize", "outer_box_spec", "outerBoxSpec", "box_spec", "boxSpec" ]), M = lo(I, [ "package_material", "packageMaterial", "packaging_material", "packagingMaterial", "material" ]), C = lo(I, [ "lead_time", "leadTime", "delivery_text", "deliveryText", "delivery_note", "deliveryNote", "delivery_time", "deliveryTime", "shipping_time", "shippingTime" ]), E = lo(I, [ "alibaba_link", "alibabaLink", "1688_link", "1688Link", "alibaba_url", "alibabaUrl" ]).match(/https?:\/\/[^\s]+/i)?.[0] || "", L = Boolean(i && i.found || o && o.found || x && Object.keys(x).length), P = {
+            cartonSpec: Ki(S.cartonSpec || T, L),
+            packageMaterial: Ki(S.packageMaterial || M, L),
             leadTimeText: Ki(S.leadTimeText || C, L),
             alibabaLink: Ki(S.alibabaLink || E, L)
-        }, N = To(I), U = lo(I, [ "reference_url", "referenceUrl", "benchmark_url", "benchmarkUrl", "benchmark_link", "benchmarkLink", "alibaba_link", "alibabaLink" ]).match(/https?:\/\/[^\s]+/i)?.[0] || "", _ = pk(lo(I, [ "pack_qty", "packQty", "pack_count", "packCount", "carton_qty", "cartonQty" ])), D = Fi({
+        }, N = Mo(I), U = lo(I, [ "reference_url", "referenceUrl", "benchmark_url", "benchmarkUrl", "benchmark_link", "benchmarkLink", "alibaba_link", "alibabaLink" ]).match(/https?:\/\/[^\s]+/i)?.[0] || "", _ = pk(lo(I, [ "pack_qty", "packQty", "pack_count", "packCount", "carton_qty", "cartonQty" ])), D = Fi({
             ...Go(S, v),
             ...k ? {
                 packageNums: k,
@@ -8961,8 +8980,8 @@
             packageSource: k ? "plm-product-detail" : Ho(S, v),
             referenceUrl: S.referenceUrl || U || a.referenceUrl || "",
             benchmarkLink: S.benchmarkLink || U || a.benchmarkLink || "",
-            cartonSpec: S.cartonSpec || M || a.cartonSpec || "",
-            packageMaterial: S.packageMaterial || T || a.packageMaterial || "",
+            cartonSpec: S.cartonSpec || T || a.cartonSpec || "",
+            packageMaterial: S.packageMaterial || M || a.packageMaterial || "",
             leadTimeText: S.leadTimeText || C || a.leadTimeText || "",
             alibabaLink: S.alibabaLink || E || a.alibabaLink || "",
             packQty: S.packQty || _ || a.packQty || "",
@@ -9032,7 +9051,7 @@
             },
             isTubePrintMaterial: n.some(bs),
             printRawText: n.join("；").slice(0, 1e3),
-            netContent: Ts(r) || Ts(n[0] || "")
+            netContent: Ms(r) || Ms(n[0] || "")
         };
     }
     function $o(e) {
@@ -9222,9 +9241,9 @@
         return a.includes(".") ? a : a + ".0";
     }
     function Is(e) {
-        return Array.from(e.querySelectorAll('tr, .ant-table-row, [role="row"]')).filter(BI).map(e => DI(e.innerText || e.textContent || "")).flatMap(Ms).filter((e, t, a) => e && a.indexOf(e) === t);
+        return Array.from(e.querySelectorAll('tr, .ant-table-row, [role="row"]')).filter(BI).map(e => DI(e.innerText || e.textContent || "")).flatMap(Ts).filter((e, t, a) => e && a.indexOf(e) === t);
     }
-    function Ms(e) {
+    function Ts(e) {
         const t = String(e || ""), a = Array.from(t.matchAll(/\bMTL\d+\b/gi));
         if (a.length < 2) return [ t ];
         const n = [];
@@ -9234,7 +9253,7 @@
             t !== r && n.push(Number(e.index) || 0), r = t;
         }), n.length < 2 ? [ t ] : n.map((e, a) => t.slice(e, n[a + 1] || t.length).trim()).filter(Boolean);
     }
-    function Ts(e) {
+    function Ms(e) {
         const t = String(e || "").match(/(\d+(?:\.\d+)?)\s*\u7247\s*(?:\/\s*(?:\u76d2|\u74f6|\u888b))?/i);
         if (t) return FI(Number(t[1])) + "TABLETS";
         const a = String(e || "").match(/(\d+(?:\.\d+)?)\s*(PCS?)\s*(?:\/\s*(?:\u4ef6|\u76d2|\u74f6|\u888b))?/i);
@@ -9359,7 +9378,7 @@
         return FI(Number(e)) + "cm/" + FI(Number(e) * Er) + "inch";
     }
     function Os(e, t) {
-        const a = Array.from(t.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(BI).filter(t => MA(t.textContent) === e);
+        const a = Array.from(t.querySelectorAll('label, .ant-form-item-label, .ant-descriptions-item-label, [class*="label"], [class*="Label"]')).filter(BI).filter(t => TA(t.textContent) === e);
         for (const t of a) {
             const a = t.closest(".ant-form-item") || t.parentElement;
             if (!a || !BI(a)) continue;
@@ -9377,7 +9396,7 @@
             if (!a || !BI(a)) continue;
             const n = Vs(a);
             if (n) return n;
-            const r = Ws(DI(a.innerText || a.textContent || "").replace(new RegExp("^" + RI(MA(t.textContent)) + "\\*?\\s*"), "").replace(new RegExp("^" + RI(e) + "(?:\\s*[\\uff08(][^\\uff09)]*[\\uff09)])?\\*?\\s*"), "").trim());
+            const r = Ws(DI(a.innerText || a.textContent || "").replace(new RegExp("^" + RI(TA(t.textContent)) + "\\*?\\s*"), "").replace(new RegExp("^" + RI(e) + "(?:\\s*[\\uff08(][^\\uff09)]*[\\uff09)])?\\*?\\s*"), "").trim());
             if (r) return r;
         }
         return Os(e, t);
@@ -9390,7 +9409,7 @@
         return a ? Ws(a.innerText || a.textContent || "") : "";
     }
     function Hs(e) {
-        return MA(e).replace(/\*?(?:\u70b9\u51fb)?\u67e5\u770b\u98ce\u9669$/g, "").replace(/[\uff08(]\s*(?:mm|cm|kg|g|ml|l|\u6beb\u7c73|\u5398\u7c73|\u5343\u514b|\u514b|\u6beb\u5347|\u5347)\s*[\uff09)]/gi, "").replace(/\s+/g, "").trim();
+        return TA(e).replace(/\*?(?:\u70b9\u51fb)?\u67e5\u770b\u98ce\u9669$/g, "").replace(/[\uff08(]\s*(?:mm|cm|kg|g|ml|l|\u6beb\u7c73|\u5398\u7c73|\u5343\u514b|\u514b|\u6beb\u5347|\u5347)\s*[\uff09)]/gi, "").replace(/\s+/g, "").trim();
     }
     function Gs(e) {
         if (!e) return "";
@@ -9589,7 +9608,7 @@
         t.addEventListener("pointerdown", bf), t.addEventListener("pointermove", wf), t.addEventListener("pointerup", kf),
         t.addEventListener("pointercancel", kf), t.addEventListener("pointerdown", ll),
         t.addEventListener("pointermove", cl), t.addEventListener("pointerup", ul), t.addEventListener("pointercancel", ul),
-        t.addEventListener("scroll", Tf, !0), t.addEventListener("dragstart", vh), t.addEventListener("dragend", xh),
+        t.addEventListener("scroll", Mf, !0), t.addEventListener("dragstart", vh), t.addEventListener("dragend", xh),
         t.addEventListener("dragover", Ah), t.addEventListener("drop", Ih), t.querySelector(".pfh-import-file").addEventListener("change", bx),
         nA(t), function(e, t) {
             let a = 0, n = 0, r = 0, i = 0, o = !1;
@@ -9653,7 +9672,7 @@
                     };
                     Vr.panelSize = a;
                     try {
-                        "function" == typeof GM_setValue ? GM_setValue(M, a) : localStorage.setItem(M, JSON.stringify(a));
+                        "function" == typeof GM_setValue ? GM_setValue(T, a) : localStorage.setItem(T, JSON.stringify(a));
                     } catch (e) {
                         console.warn("PLM floating helper size save failed:", e);
                     }
@@ -9674,7 +9693,7 @@
                 }
             }();
             if (!t) {
-                const t = PI(Vr.panelSize?.width || T, 520, Math.min(1180, window.innerWidth - 24)), a = PI(Vr.panelSize?.height || C, 520, EI()), n = PI(Math.round(window.innerWidth * E.panelLeftRatio), 8, Math.max(8, window.innerWidth - t - 8)), r = PI(Math.round(window.innerHeight * E.panelTopRatio), 8, Math.max(8, window.innerHeight - a - 8));
+                const t = PI(Vr.panelSize?.width || M, 520, Math.min(1180, window.innerWidth - 24)), a = PI(Vr.panelSize?.height || C, 520, EI()), n = PI(Math.round(window.innerWidth * E.panelLeftRatio), 8, Math.max(8, window.innerWidth - t - 8)), r = PI(Math.round(window.innerHeight * E.panelTopRatio), 8, Math.max(8, window.innerHeight - a - 8));
                 return e.style.right = Math.max(8, window.innerWidth - t - n) + "px", void (e.style.bottom = Math.max(8, window.innerHeight - a - r) + "px");
             }
             Number.isFinite(t.right) && (e.style.right = t.right + "px");
@@ -9718,7 +9737,7 @@
                     });
                 }
             });
-        }(e)), MI(e), K(), e;
+        }(e)), TI(e), K(), e;
     }
     function fl() {
         Vr.expanded = !0, Vr.userCollapsedPanel = !1, Vr.manuallyCollapsedForSku = "", Vr.ignoreOutsideClickUntil = Date.now() + 250;
@@ -9726,7 +9745,7 @@
         e.style.display = "block", e.classList.remove("is-collapsed", "is-hover-resetting"),
         window.clearTimeout(Vr.tooltipSuppressTimer), Vr.tooltipSuppressTimer = window.setTimeout(() => {
             e.classList.remove("is-tooltip-suppressed");
-        }, 260), gl(), Tl();
+        }, 260), gl(), Ml();
     }
     function ml() {
         !function() {
@@ -9748,7 +9767,7 @@
         Vr.expanded = !1;
         const a = pl();
         a.classList.add("is-collapsed", "is-tooltip-suppressed", "is-hover-resetting"),
-        bl(a), a.style.display = "none", gl(), Tl(Ur.noDrawer), wl(a), window.clearTimeout(Vr.hoverResetTimer),
+        bl(a), a.style.display = "none", gl(), Ml(Ur.noDrawer), wl(a), window.clearTimeout(Vr.hoverResetTimer),
         Vr.hoverResetTimer = window.setTimeout(() => {
             const t = document.getElementById(e);
             t && t.classList.remove("is-hover-resetting");
@@ -9802,7 +9821,7 @@
         }).join("");
         return '<nav class="pfh-detail-view-tabs" data-active-view="' + jI(t) + '" role="tablist" aria-label="SKU详情视图"><span class="pfh-detail-view-indicator" aria-hidden="true"></span>' + o + "</nav>";
     }
-    function Ml(e) {
+    function Tl(e) {
         const t = e && e.querySelector(".pfh-detail-view-tabs"), a = t && t.querySelector(".pfh-detail-view-indicator"), n = t && t.querySelector("button.is-active");
         if (!t || !a || !n) return;
         const r = "left .6s cubic-bezier(.25,1.2,.35,1),width .6s cubic-bezier(.25,1.2,.35,1)", i = e => {
@@ -9820,7 +9839,7 @@
             });
         }), Vr.detailViewPreviousTab = "";
     }
-    function Tl(e) {
+    function Ml(e) {
         const t = pl();
         "unitConverter" === Vr.view && (Vr.view = "tools", Vr.toolsActiveTool = "unit"),
         t.dataset.view = Vr.view || "home", t.dataset.uploadMode = JA(Vr.uploadMode), t.classList.toggle("is-ledger-fullscreen", "ledger" === Vr.view && Boolean(Vr.ledgerFullscreen));
@@ -10122,10 +10141,10 @@
                 }) ].filter(Boolean).join(""), S = r.pendingLabelMatches.length ? '<div class="pfh-size-image-match-list"><strong>请选择图片对应的尺寸</strong>' + r.pendingLabelMatches.map(e => "<div><span>" + jI(e.file.name || "待匹配图片") + '</span><select class="pfh-size-image-match-select" data-pending-id="' + jI(e.id) + '">' + a.map(e => '<option value="' + jI(e.key) + '">' + jI(("print" === e.kind ? "印刷 " : "标签 ") + dg(e.width) + " × " + dg(e.height) + " cm") + "</option>").join("") + '</select><button type="button" data-action="size-image-confirm-match" data-pending-id="' + jI(e.id) + '">确认生成</button></div>').join("") + "</div>" : "";
                 return '<div class="pfh-detail-scroll pfh-size-image-scroll">' + Il("sizeImage") + '<section class="pfh-size-image-page"><header class="pfh-size-image-hero"><div class="pfh-size-image-hero-media">' + Pf(e) + '</div><div class="pfh-size-image-hero-copy"><small>SIZE IMAGE</small><h3>' + jI(e.sku) + " 尺寸图</h3><p>" + jI([ e.brand, e.name ].filter(Boolean).join(" ") || (e.isCustomSizeImage ? "自定义数据" : "选中产品")) + '</p></div><div class="pfh-size-image-hero-actions"><button type="button" class="pfh-size-image-custom-button" data-action="size-image-custom-open">自定义尺寸图</button></div></header>' + (t || n ? "" : '<div class="pfh-size-image-status is-error">' + jI(ag(e)) + "</div>") + '<div class="pfh-size-image-workspace' + (s ? " is-busy" : "") + '"><div class="pfh-size-image-controls"><div class="pfh-size-image-spec"><span>已读取规格</span><b>' + jI(u) + '</b><small>纸盒按刀模轮廓识别；标签和印刷按宽高比例识别。</small></div><div class="pfh-size-image-remark-editor"><span>标题备注</span><div>' + k + '</div></div><div class="pfh-size-image-options">' + (a.some(e => "label" === e.kind) ? '<label><input type="checkbox" class="pfh-size-image-round-arc-input"' + (!1 === r.includeRoundArc ? "" : " checked") + o + "><span>标签圆弧</span></label>" : "") + '<label><input type="checkbox" class="pfh-size-image-batch-number-input"' + (!1 === r.includeBatchNumber ? "" : " checked") + o + '><span>批次号</span></label></div><button type="button" class="pfh-size-image-drop' + (s ? " is-processing" : "") + '" data-action="size-image-pick"' + b + ">" + (s ? '<i class="pfh-loading-scan" aria-hidden="true"></i>' : jt("upload")) + "<strong>" + (s ? jI(r.processingStep || "正在分析并生成...") : "点击选择或拖入图片") + "</strong><span>" + (s ? "请稍候，大尺寸图片需要几秒处理时间。" : "鼠标停在这里可直接 Ctrl+V 粘贴图片。纸盒用透明 PNG，标签/印刷支持 PNG / JPG。") + "</span></button>" + (r.fileName ? '<p class="pfh-size-image-file">最近读取：' + jI(r.fileName) + "</p>" : "") + '<div class="pfh-size-image-actions"><button type="button" class="is-secondary" data-action="size-image-regenerate"' + (g && !s ? "" : " disabled") + ">" + jt("refresh") + '重新生成</button><button type="button" class="is-primary" data-action="size-image-save-all"' + (p && !s ? "" : " disabled") + ">" + jt("download") + "另存尺寸图 JPG</button></div>" + S + '<input type="file" class="pfh-size-image-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" multiple>' + f + "</div>" + y + "</div></section>" + Zp() + "</div>";
             }();
-        }(t), Ml(t), void Pl(t, i)) : "parameterImage" === Vr.view ? (function(e) {
+        }(t), Tl(t), void Pl(t, i)) : "parameterImage" === Vr.view ? (function(e) {
             const t = e.querySelector(".pfh-detail"), a = Fi(Vr.data || (Vr.selectedSku ? SI(Vr.selectedSku) : null));
             t.classList.remove("is-loading"), t.innerHTML = Hr.viewHtml(a || {});
-        }(t), Ml(t), void Pl(t, i)) : (function(e, t) {
+        }(t), Tl(t), void Pl(t, i)) : (function(e, t) {
             const a = e.querySelector(".pfh-detail"), n = Vr.data || (Vr.selectedSku ? SI(Vr.selectedSku) : null), r = Vr.openingProjectDetail || t === Ur.openingDetail, i = Boolean(Vr.copywritingMode && n && nh(n.copywriting) && nh(n.copywriting).fullText), o = r || Vr.copywritingLoading || !i && (Vr.scanRunning || t === Ur.scanning || t === Ur.checkingMaterial);
             if (a.classList.toggle("is-loading", o), r) {
                 const t = e.querySelector(".pfh-main");
@@ -10142,11 +10161,11 @@
             const s = e.querySelector(".pfh-main");
             s && s.classList.remove("is-home");
             if (Vr.copywritingMode) return void (a.innerHTML = [ '<div class="pfh-detail-scroll pfh-copywriting-scroll">', Il("copywriting"), ud(Vr.data, !0), yd(Vr.data), "</div>" ].join(""));
-            a.innerHTML = [ Uf(t), '<div class="pfh-detail-scroll">', Il("detail"), td(Vr.data), ud(Vr.data, !1), $u(Vr.data), '<section class="pfh-section pfh-sku-info-section">', '<div class="pfh-section-title pfh-sku-info-title"><h3>SKU 数据</h3>' + ed(Vr.data) + "</div>", '<div class="pfh-info-grid">', Hf("packageCode", Ur.packageCode, Vr.data.packageCode), Hf("printCode", Ur.printCode, Vr.data.printCode), Hf("packageSizeText", Vr.data.packageSizeLabel || Ur.packageSize, Vr.data.packageSizeText || Ur.noPackage), Hf("printSizeText", Vr.data.printSizeLabel || Ur.printSize, Nf(Vr.data) || Ur.noPrint), "</div>", "</section>", '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + jI(Ur.graphicSection) + "</h3>" + Id(Vr.data) + Gf() + "</div>" + Md(Vr.data) + '<div class="pfh-excel-options-row">' + Kf() + "</div>", '<div class="pfh-graphic-table pfh-info-grid">', Hf("packageLength", Ur.cartonLength, Vr.data.packageLength || Ur.noDimension), Hf("productLength", Vr.data.isTubePrint ? Ur.tailSealLength : Ur.productLength, (Vr.data.isTubePrint,
+            a.innerHTML = [ Uf(t), '<div class="pfh-detail-scroll">', Il("detail"), td(Vr.data), ud(Vr.data, !1), $u(Vr.data), '<section class="pfh-section pfh-sku-info-section">', '<div class="pfh-section-title pfh-sku-info-title"><h3>SKU 数据</h3>' + ed(Vr.data) + "</div>", '<div class="pfh-info-grid">', Hf("packageCode", Ur.packageCode, Vr.data.packageCode), Hf("printCode", Ur.printCode, Vr.data.printCode), Hf("packageSizeText", Vr.data.packageSizeLabel || Ur.packageSize, Vr.data.packageSizeText || Ur.noPackage), Hf("printSizeText", Vr.data.printSizeLabel || Ur.printSize, Nf(Vr.data) || Ur.noPrint), "</div>", "</section>", '<section class="pfh-section pfh-graphic-section"><div class="pfh-section-title pfh-graphic-title"><h3>' + jI(Ur.graphicSection) + "</h3>" + Id(Vr.data) + Gf() + "</div>" + Td(Vr.data) + '<div class="pfh-excel-options-row">' + Kf() + "</div>", '<div class="pfh-graphic-table pfh-info-grid">', Hf("packageLength", Ur.cartonLength, Vr.data.packageLength || Ur.noDimension), Hf("productLength", Vr.data.isTubePrint ? Ur.tailSealLength : Ur.productLength, (Vr.data.isTubePrint,
             Vr.data.productLength || Ur.noDimension), {
                 editable: Vr.data.isTubePrint
             }), Hf("packageWidth", Ur.cartonWidth, Vr.data.packageWidth || Ur.noDimension), Hf("productWidth", Ur.productWidth, Vr.data.productWidth || Ur.noDimension), Hf("packageHeight", Ur.cartonHeight, Vr.data.packageHeight || Ur.noDimension), Hf("productHeight", Ur.productHeight, Vr.data.productHeight || Ur.noDimension), Hf("netContent", Ur.netContent, Vr.data.netContent || Ur.unknown), Hf("grossWeight", Ur.grossWeight, Vr.data.grossWeight || Ur.unknown), "</div></section>", pd(Vr.data), "</div>", '<div class="pfh-note"><span class="pfh-note-source">' + jI(Vr.data.updatedAt ? Ur.updatedAt + ": " + Vr.data.updatedAt : "") + "</span>" + ad() + '<span class="pfh-note-toast" aria-live="polite"></span><button type="button" data-action="refresh" title="' + jI(Dr.refresh) + '">' + jt("refresh") + "</button></div>" ].join("");
-        }(t, e), Ml(t), void Pl(t, i));
+        }(t, e), Tl(t), void Pl(t, i));
     }
     function Cl(t) {
         if (t) {
@@ -10505,9 +10524,9 @@
         if (Vr.feedbackLoading) return;
         const t = vx();
         if (!t) return Vr.feedbackItems = [], Vr.feedbackLoadedName = "", Vr.feedbackError = "未识别当前 PLM 用户，请先登录后再提交反馈。",
-        void (e && "feedback" === Vr.view && Tl());
+        void (e && "feedback" === Vr.view && Ml());
         Vr.feedbackLoading = !0, Vr.feedbackError = "", Vr.feedbackLoadedName !== t && (Vr.feedbackItems = []),
-        e && "feedback" === Vr.view && Tl();
+        e && "feedback" === Vr.view && Ml();
         try {
             const e = await Yx("/feedback/mine?name=" + encodeURIComponent(t), {
                 method: "GET"
@@ -10518,7 +10537,7 @@
         } catch (e) {
             Vr.feedbackError = "反馈历史加载失败：" + nc(e);
         } finally {
-            Vr.feedbackLoading = !1, "feedback" === Vr.view && Tl();
+            Vr.feedbackLoading = !1, "feedback" === Vr.view && Ml();
         }
     }
     function ic(e) {
@@ -10552,7 +10571,7 @@
             if (!t || "package" !== String(t.dataset.activeMode || "")) return;
             const a = e.querySelector(".pfh-magic-overview");
             if (!a) return;
-            const n = Array.isArray(Vr.magicUploadQueue) ? Vr.magicUploadQueue : [], r = n.reduce((e, t) => e + kc(t), 0), i = n.reduce((e, t) => e + Sc(t), 0), o = n.filter(e => e && "success" === e.status).length, s = Tc(), l = xc(n, r);
+            const n = Array.isArray(Vr.magicUploadQueue) ? Vr.magicUploadQueue : [], r = n.reduce((e, t) => e + kc(t), 0), i = n.reduce((e, t) => e + Sc(t), 0), o = n.filter(e => e && "success" === e.status).length, s = Mc(), l = xc(n, r);
             let c = 0, u = 0;
             n.forEach(e => {
                 const t = wc(e);
@@ -10669,7 +10688,7 @@
         })).filter(Boolean);
         Vr.magicToyLabelQueue = t;
         try {
-            "function" == typeof GM_setValue ? GM_setValue(Me, a) : localStorage.setItem(Me, JSON.stringify(a));
+            "function" == typeof GM_setValue ? GM_setValue(Te, a) : localStorage.setItem(Te, JSON.stringify(a));
         } catch (e) {
             console.warn("PLM magic toy label queue save failed:", e);
         }
@@ -10678,7 +10697,7 @@
         const t = Array.isArray(e) ? e.slice(0, 300) : [];
         Vr.magicToyLabelHistory = t;
         try {
-            "function" == typeof GM_setValue ? GM_setValue(Te, t) : localStorage.setItem(Te, JSON.stringify(t));
+            "function" == typeof GM_setValue ? GM_setValue(Me, t) : localStorage.setItem(Me, JSON.stringify(t));
         } catch (e) {
             console.warn("PLM magic toy label history save failed:", e);
         }
@@ -10687,7 +10706,7 @@
         return e ? "success" === e.status ? e.replacedExistingImage ? "已替换 BOM 标签图" : "已写入 BOM 标签" : "error" === e.status ? e.error || "生成或上传失败" : "waiting" === e.status ? "已暂停" : e.step || "等待生成" : "等待生成";
     }
     function mc() {
-        "magicUpload" === Vr.view && "toy-label" === Vr.magicUploadMode && (jl(pl()) || Tl());
+        "magicUpload" === Vr.view && "toy-label" === Vr.magicUploadMode && (jl(pl()) || Ml());
     }
     function hc(e, t, a) {
         if (!e) return;
@@ -10766,7 +10785,7 @@
         const a = Math.max(0, (Date.now() - e._etaCalibratedAt) / 1e3);
         return Math.max(0, Math.round(e._etaCalibratedSeconds - a));
     }
-    function Mc(e) {
+    function Tc(e) {
         return e ? function(e) {
             if (!e) return 0;
             const t = vc(), a = Ac(e), n = t > 0 ? Math.ceil(a * t / 1e3) : 0;
@@ -10774,7 +10793,7 @@
             n;
         }(e) : 0;
     }
-    function Tc() {
+    function Mc() {
         let e = 0, t = !1;
         return (Vr.magicUploadQueue || []).forEach(a => {
             if (!a || "success" === a.status || "waiting" === a.status) return;
@@ -10823,7 +10842,7 @@
         if ("magicUpload" !== Vr.view) return;
         const t = document.getElementById(e), a = t && t.querySelector("[data-magic-overall-eta]"), n = t && t.querySelector("[data-magic-queue-progress-bar]"), r = t && t.querySelector("[data-magic-queue-progress-text]"), i = t && t.querySelector("[data-magic-queue-count]"), o = t && t.querySelector("[data-magic-done-tasks]"), s = t && t.querySelector("[data-magic-task-baseline]");
         if (!a) return;
-        const l = Array.isArray(Vr.magicUploadQueue) ? Vr.magicUploadQueue : [], c = l.some(e => e && ("pending" === e.status || "processing" === e.status || "error" === e.status)), u = Tc();
+        const l = Array.isArray(Vr.magicUploadQueue) ? Vr.magicUploadQueue : [], c = l.some(e => e && ("pending" === e.status || "processing" === e.status || "error" === e.status)), u = Mc();
         let d = 0, p = 0, g = 0, f = 0;
         l.forEach(e => {
             p += kc(e), d += Sc(e);
@@ -10913,7 +10932,7 @@
             } catch (e) {
                 console.warn("PLM magic upload history save failed:", e);
             }
-        }([ s ].concat(l).slice(0, 300)), Ta();
+        }([ s ].concat(l).slice(0, 300)), Ma();
     }
     function _c(e, t) {
         if (!e || !e.id) return null;
@@ -11313,7 +11332,7 @@
                 const e = (Vr.magicUploadQueue || []).find(e => e.id === n);
                 e && (Vr.magicUploadQueue = Vr.magicUploadQueue.filter(e => e.id !== n), gu(e, Vr.magicUploadQueue));
             }
-            Tl();
+            Ml();
             for (const e of t) try {
                 if (/\.xlsx$/i.test(e.name || "")) {
                     if (nu("xlsx", e.name, e.size)) {
@@ -11348,7 +11367,7 @@
                         updatedAt: Date.now()
                     }));
                     ru(n), r += n.length, jc("info", "XLSX 已加入队列", e.name + " | SKU=" + (t.join(",") || "待确认")),
-                    oA(e.name + " 已加入推品资料"), Tl();
+                    oA(e.name + " 已加入推品资料"), Ml();
                     continue;
                 }
                 if (nu("zip", e.name, e.size)) {
@@ -11409,14 +11428,14 @@
                     updatedAt: Date.now()
                 }));
                 ru(g), r += g.length, jc("info", "ZIP 识别完成", e.name + " | 文件=" + n.length + " | SKU=" + (c.join(",") || "待确认") + " | 任务=" + g.length),
-                oA(e.name + " 已识别 " + g.length + " 个任务"), Tl();
+                oA(e.name + " 已识别 " + g.length + " 个任务"), Ml();
             } catch (t) {
                 const a = eA(t);
                 i.push(e.name + "：" + a), jc("warn", "图包处理失败", e.name + " | " + a), oA("图包处理失败：" + a);
             }
         } finally {
             Vr.magicUploadFileInputOpen = !1, Vr.magicUploadProcessing = !1, Vr.magicUploadProcessingText = "",
-            jc("info", "文件处理结束", "当前队列=" + (Vr.magicUploadQueue || []).length), Tl();
+            jc("info", "文件处理结束", "当前队列=" + (Vr.magicUploadQueue || []).length), Ml();
         }
         return {
             added: r,
@@ -11523,9 +11542,9 @@
             if (a.productReviewStatus && "待审核" !== a.productReviewStatus) {
                 const t = "当前产品为" + a.productReviewStatus + "，不是待审核状态";
                 return s.status = "waiting", s.step = "已跳过：" + t, s.error = t, lu(s, i, "blocked", t),
-                cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Tl(), void jc("info", "现有图片检查同步发现产品状态", e.sku + " | " + a.productReviewStatus);
+                cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Ml(), void jc("info", "现有图片检查同步发现产品状态", e.sku + " | " + a.productReviewStatus);
             }
-            lu(s, i, "ready", ""), cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Tl(),
+            lu(s, i, "ready", ""), cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Ml(),
             jc("info", "现有图片检查完成", e.sku + " | " + (i.categories.length ? "替换=" + i.categories.join("、") : "没有同分类旧文件"));
         }
     }
@@ -11539,7 +11558,7 @@
             e.updatedAt = Date.now(), a = !0, Promise.resolve().then(() => cu(e, t)).catch(a => {
                 const n = (Vr.magicUploadQueue || []).find(t => t && t.id === e.id);
                 n && n.replacementCheckToken === t && (n.replacementCheckStatus = "error", n.replacementCheckError = eA(a),
-                n.updatedAt = Date.now(), cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Tl(),
+                n.updatedAt = Date.now(), cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Ml(),
                 jc("warn", "现有图片检查失败", e.sku + " | " + n.replacementCheckError));
             });
         }), a && cc(Vr.magicUploadQueue);
@@ -11578,7 +11597,7 @@
             return '<div class="pfh-detail-scroll"><section class="pfh-magic-page"><div class="pfh-magic-canvas"><div class="pfh-magic-lab-head"><div class="pfh-magic-head-left"><button type="button" class="pfh-upload-back pfh-magic-back" data-action="home-back" aria-label="返回主页">' + jt("back") + '</button><h1 class="pfh-magic-lab-title">魔法上传 <em>BETA</em></h1></div><span class="pfh-magic-pipeline">PRODUCT / BOM EFFECT API</span></div>' + t + '<section class="pfh-magic-overview"><h3>运行概览</h3><div class="pfh-magic-stats"><div class="pfh-magic-stat"><span>当前任务</span><strong>' + String(e.length).padStart(2, "0") + '</strong></div><div class="pfh-magic-stat"><span>效果图</span><strong>' + l + '</strong></div><div class="pfh-magic-stat"><span>待确认/失败</span><strong>' + u + "/" + d + '</strong></div><div class="pfh-magic-stat"><span>运行状态</span><strong>' + (s ? "ON" : "--") + '</strong></div><div class="pfh-magic-stat"><span>已完成</span><strong>' + c + '</strong></div></div><div class="pfh-magic-activity"><h3>实时动态</h3><p><i></i><span>' + jI(Vr.toyEffectMatchStatus || "等待效果图进入队列") + '</span></p></div></section><div class="pfh-upload-drop pfh-magic-upload-drop" data-action="upload-pick" data-upload-drop="magic-effect" tabindex="0" role="button" aria-label="拖入 JPG 或 PNG 效果图"><div><span class="pfh-magic-drop-icon">' + jt("image") + '</span><strong>拖入效果图</strong><span>JPG / PNG / BMP · 手动商品保存到商品图片，设计任务保存到 BOM 效果图</span></div></div><input class="pfh-upload-file pfh-magic-effect-file" data-upload-kind="magic-effect" type="file" multiple accept=".jpg,.jpeg,.png,.bmp,image/jpeg,image/png,image/bmp" hidden><div class="pfh-magic-actions"><button type="button" class="is-primary" data-action="magic-effect-start"' + (s || !e.some(Zh) ? " disabled" : "") + ">" + jt("upload") + '开始上传</button><button type="button" data-action="magic-effect-pause"' + (s ? "" : " disabled") + ">" + jt(s ? "pause" : "play") + (s ? "暂停" : "继续") + '</button><button type="button" data-action="magic-effect-clear"' + (e.length ? "" : " disabled") + '>清空队列</button><button type="button" data-action="magic-effect-packing-open">手动设置装箱数/总重</button><span style="align-self:center;color:#8990a6;font-size:10px;white-space:nowrap" title="仅手动产品使用">' + jI(i) + '</span><button type="button" class="pfh-magic-history-toggle" data-action="magic-effect-history-toggle">' + jt("history") + '上传历史</button></div><div class="pfh-magic-queue-head"><b>效果图队列</b><span>' + e.length + " 个商品 · " + l + ' 张图</span></div><div class="pfh-magic-queue">' + p + "</div>" + g + o + "</div></section></div>";
         }
         const a = Vr.magicUploadQueue || [], n = Boolean(Vr.magicUploadRunning), r = a.filter(e => "pending" === e.status || "error" === e.status).length, i = Array.isArray(Vr.magicUploadHistory) ? Vr.magicUploadHistory : [], o = Boolean(Vr.magicUploadHistoryOpen), s = a.reduce((e, t) => e + kc(t), 0), l = a.reduce((e, t) => e + Sc(t), 0), c = a.filter(e => "processing" === e.status).length, u = a.filter(e => "waiting" === e.status).length, d = a.filter(e => "error" === e.status).length, p = a.filter(e => "success" === e.status).length, g = (a.filter(e => e && ("pending" === e.status || "processing" === e.status || "error" === e.status)),
-        Tc()), f = a.filter(e => "processing" === e.status || "success" === e.status || "error" === e.status || "waiting" === e.status).slice(0, 3), m = a.length ? a.map(e => {
+        Mc()), f = a.filter(e => "processing" === e.status || "success" === e.status || "error" === e.status || "waiting" === e.status).slice(0, 3), m = a.length ? a.map(e => {
             const t = Math.round(100 * ("success" === e.status ? 1 : Math.min(1, Math.max(0, Number(e.progress) || 0)))), a = "success" === e.status ? "is-success" : "error" === e.status ? "is-error" : "", r = e.currentFileName ? e.step || "上传中" : iu(e), i = String(e.replacementCheckStatus || "idle"), o = Array.isArray(e.replaceCategories) ? e.replaceCategories : [], s = "checking" === i ? '<span class="pfh-magic-file-badge is-checking">检查现有图</span>' : o.length ? '<span class="pfh-magic-file-badge is-replace">替换任务</span>' : "", l = function(e) {
                 const t = String(e && e.replacementCheckStatus || "");
                 if ("checking" === t) return "正在查询当前图片…";
@@ -11620,7 +11639,7 @@
         t.error = "", t.step = "waiting" === t.status ? "请确认文件分类" : "等待上传", t.submitted = !1,
         t.draftSaved = !1, t.files.forEach(e => {
             "success" !== e.status && (e.status = "pending", e.error = "");
-        }), cc(Vr.magicUploadQueue), Tl(), Vr.magicUploadAccessEnabled && "pending" === t.status)) {
+        }), cc(Vr.magicUploadQueue), Ml(), Vr.magicUploadAccessEnabled && "pending" === t.status)) {
             const e = () => {
                 Vr.magicUploadAccessEnabled && yu();
             };
@@ -11648,7 +11667,7 @@
         let t;
         return t = (async () => {
             try {
-                cc(Vr.magicUploadQueue), Tl();
+                cc(Vr.magicUploadQueue), Ml();
                 const t = Array.from({
                     length: 3
                 }, () => (async () => {
@@ -11675,13 +11694,13 @@
                             t.error = a, t.step = "上传失败", t.updatedAt = Date.now(), sA("warn", "魔法上传任务失败", t.sku + " | " + t.error));
                             t.finishedAt = Date.now(), Uc(t);
                         }
-                        cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Tl();
+                        cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Ml();
                     }
                 })());
                 await Promise.all(t);
             } finally {
                 Vr.magicUploadRunning = !1, Vr.magicUploadEtaDisplaySeconds = 0, De && (window.clearInterval(De),
-                De = 0), cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Tl(), oA(Re ? "魔法上传队列已暂停，请刷新 PLM 页面后重试" : "魔法上传队列已停止");
+                De = 0), cc(Vr.magicUploadQueue), "magicUpload" === Vr.view && Ml(), oA(Re ? "魔法上传队列已暂停，请刷新 PLM 页面后重试" : "魔法上传队列已停止");
             }
         })().finally(() => {
             Ue === t && (Ue = null);
@@ -11699,7 +11718,7 @@
     async function Su(e) {
         if (ku(), !e || !e.sku) throw new Error("缺少 SKU 编码");
         const t = await async function(e) {
-            const t = await Mu(e), {sku: a, projectId: n, data: r} = t, [i, o] = await Promise.all([ Ko("/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=" + encodeURIComponent(n)), Ko("/api/ChemicalNew/GetProjectEffectPicture?id=" + encodeURIComponent(n)) ]), s = Gi(i), l = Iu(s, a), c = vu(o), u = Tw(r, {});
+            const t = await Tu(e), {sku: a, projectId: n, data: r} = t, [i, o] = await Promise.all([ Ko("/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=" + encodeURIComponent(n)), Ko("/api/ChemicalNew/GetProjectEffectPicture?id=" + encodeURIComponent(n)) ]), s = Gi(i), l = Iu(s, a), c = vu(o), u = Mw(r, {});
             let d = c.map(xu).find(Boolean) || u.imageUrl || u.imageFallbackUrl || "", p = u.imageFallbackUrl || d;
             if (!d) {
                 const e = await vo(r).catch(() => null);
@@ -11874,7 +11893,7 @@
         if (!i) throw new Error("项目 BOM 未找到标签物料：" + t);
         return i;
     }
-    async function Mu(e, t) {
+    async function Tu(e, t) {
         const a = String(e && e.sku || "").trim().toUpperCase();
         if (!a) throw new Error("缺少 SKU 编码");
         t && t.allowPaused || ku();
@@ -11898,10 +11917,10 @@
             data: n
         };
     }
-    async function Tu(e, t) {
+    async function Mu(e, t) {
         if (!e || !e.sku) return;
         const a = await async function(e) {
-            const t = await Mu(e, {
+            const t = await Tu(e, {
                 allowPaused: !0
             }), a = Gi(await Ko("/api/ChemicalNewDesignTask/GetProjectPMJoinList?id=" + encodeURIComponent(t.projectId)));
             return {
@@ -11926,7 +11945,7 @@
             e.replacementCheckToken = t, e.existingImagePaths = [], e.replacementCheckStatus = "checking",
             e.replacementCheckError = "", e.replacedExistingImage = !1, e.replacementCompleted = !1,
             "processing" !== e.status && "success" !== e.status && (e.step = du(e)), e.updatedAt = Date.now(),
-            a = !0, Promise.resolve().then(() => Tu(e, t)).catch(a => {
+            a = !0, Promise.resolve().then(() => Mu(e, t)).catch(a => {
                 const n = (Vr.magicToyLabelQueue || []).find(t => t && t.id === e.id);
                 n && n.replacementCheckToken === t && (n.replacementCheckStatus = "error", n.replacementCheckError = eA(a),
                 n.step = "现有图检查失败，开始时会重新查询", n.updatedAt = Date.now(), pc(Vr.magicToyLabelQueue),
@@ -12229,7 +12248,7 @@
                 }
                 t += Number(e.sourceSize) || 0, e.sourceUploaded && (a += Number(e.sourceSize) || 0);
             }
-            e.totalBytes = t, e.uploadedBytes = a, Mc(e);
+            e.totalBytes = t, e.uploadedBytes = a, Tc(e);
         }(e), Nc(e);
         const r = (e.files || []).filter(e => "success" !== e.status);
         if (r.some(e => "待确认" === e.category || !e.archiveTypeId)) throw new Error("存在待确认文件分类");
@@ -12385,7 +12404,7 @@
         }), f = (Array.isArray(g && g.data) ? g.data : g && g.data ? [ g.data ] : [])[0] || {}, m = f.file_version_id || f.archive_file_version_id || f.id;
         if (!m) throw new Error("PLM 未返回 file_version_id，已停止保存商品草稿");
         return t.generatedName = u, t.fileVersionId = String(m), t.fileId = String(f.file_id || f.archive_file_id || ""),
-        e.currentFileProgress = 1, Pc(e, t, Date.now() - r), Mc(e), jc("info", "文件归档完成，待保存商品草稿", e.sku + " | " + o + " | file_version_id=" + t.fileVersionId + " | " + u),
+        e.currentFileProgress = 1, Pc(e, t, Date.now() - r), Tc(e), jc("info", "文件归档完成，待保存商品草稿", e.sku + " | " + o + " | file_version_id=" + t.fileVersionId + " | " + u),
         t.fileVersionId;
     }
     function Zu(e) {
@@ -12733,11 +12752,11 @@
         const t = wd(e), a = kd(e), n = !t && !a, r = a ? "智能补充食品文案" : t ? "智能补充玩具文案" : "补全成分", i = Boolean(e && e.sku && Vr.toyCopywritingErrorSku === e.sku && Vr.toyCopywritingError);
         return '<button type="button" class="pfh-toy-copywriting-button' + (Vr.toyCopywritingBusy ? " is-busy" : "") + (i ? " is-error" : "") + '" data-action="toy-copywriting-fill"' + (Vr.toyCopywritingBusy ? " disabled" : "") + ">" + (Vr.toyCopywritingBusy ? '<span class="pfh-toy-copywriting-spinner pfh-loading-ring" aria-hidden="true"></span>' + (n ? "成分补充中" : "智能补充中") : i && !t ? "⚠ " + (a ? "食品文案补充失败" : "成分补充失败") : '<svg class="pfh-sparkle-entrance-icon" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false"><path d="M571.993043 77.913043a89.043478 89.043478 0 0 1 87.485218 69.676522l43.52 194.003478A18.921739 18.921739 0 0 0 716.8 356.173913l192.333913 50.309565a89.043478 89.043478 0 0 1 22.928696 163.06087l-171.074783 101.398261a18.810435 18.810435 0 0 0-9.238261 17.474782l11.130435 198.455652a89.043478 89.043478 0 0 1-89.043478 94.608696 87.485217 87.485217 0 0 1-58.434783-22.260869L466.031304 827.770435a18.810435 18.810435 0 0 0-12.577391-4.786087 18.587826 18.587826 0 0 0-6.90087 1.335652l-185.09913 72.347826a91.492174 91.492174 0 0 1-33.391304 6.344348 89.043478 89.043478 0 0 1-81.363479-124.883478l78.692174-182.427826a19.144348 19.144348 0 0 0-2.782608-19.70087L96.946087 422.288696a89.043478 89.043478 0 0 1 68.452174-145.808696 80.806957 80.806957 0 0 1 8.904348 0l197.89913 18.476522h1.78087a18.810435 18.810435 0 0 0 15.582608-8.236522l107.297392-166.956522A87.485217 87.485217 0 0 1 571.993043 77.913043" fill="#FFD652"/><path d="M505.433043 546.393043l-418.83826-222.608695a87.04 87.04 0 0 1 86.483478-46.747826l193.669565 18.031304a27.714783 27.714783 0 0 0 15.026087-2.671304z" fill="#FFCD69"/><path d="M588.02087 78.692174l-82.476522 467.478261-123.881739-253.996522a28.382609 28.382609 0 0 0 11.130434-10.128696l104.96-163.84a87.707826 87.707826 0 0 1 90.267827-39.513043z" fill="#FFC952"/><path d="M709.008696 349.829565L505.544348 546.281739l82.476522-467.478261a87.373913 87.373913 0 0 1 71.123478 67.895652l42.629565 189.885218a27.603478 27.603478 0 0 0 7.234783 13.245217z" fill="#FFC248"/><path d="M975.693913 480.389565l-470.149565 66.003478L709.008696 349.829565a29.384348 29.384348 0 0 0 13.022608 7.791305l188.438261 49.196521a87.04 87.04 0 0 1 65.224348 73.572174zM933.286957 568.876522L765.885217 667.826087a26.824348 26.824348 0 0 0-11.130434 11.130435L505.655652 546.726957l470.149565-66.003479a86.928696 86.928696 0 0 1-42.51826 88.153044z" fill="#FFC536"/><path d="M713.572174 973.245217a87.81913 87.81913 0 0 1-97.28-13.245217L470.26087 831.443478a27.714783 27.714783 0 0 0-13.913044-6.678261l49.085217-278.260869z" fill="#F7A116"/><path d="M505.544348 546.504348L456.347826 824.765217a28.271304 28.271304 0 0 0-15.137391 1.558261L260.118261 897.113043a87.485217 87.485217 0 0 1-96.166957-21.036521L505.321739 546.504348z" fill="#F99C15"/><path d="M505.321739 546.504348L163.951304 876.076522A87.373913 87.373913 0 0 1 146.476522 779.130435l77.133913-178.086957a28.382609 28.382609 0 0 0 2.003478-15.137391z" fill="#FFB727"/><path d="M505.321739 546.504348l-279.707826 39.17913a27.937391 27.937391 0 0 0-6.121739-14.024348L96.166957 421.286957a87.151304 87.151304 0 0 1-9.683479-97.725218zM505.433043 546.54887l0.011131-0.111305 0.111304 0.022261-0.022261 0.111304z" fill="#FFC536"/><path d="M713.572174 973.245217L505.655652 546.726957 755.2 678.956522a27.492174 27.492174 0 0 0-3.116522 14.580869l11.130435 194.226087a87.262609 87.262609 0 0 1-49.641739 85.481739z" fill="#FFB727"/><path d="M463.544082 272.373941a21.481739 44.410435 36.19 1 0 52.445598-71.684071 21.481739 44.410435 36.19 1 0-52.445598 71.684071Z" fill="#fff"/><path d="M798.052174 168.292174l3.784348 8.013913a6.344348 6.344348 0 0 0 4.674782 3.450435l8.681739 1.446956a6.233043 6.233043 0 0 1 3.339131 11.130435l-6.455652 6.121739a6.455652 6.455652 0 0 0-1.892174 5.565218l1.335652 8.681739a6.233043 6.233043 0 0 1-9.126957 6.455652l-7.791304-4.229565a6.233043 6.233043 0 0 0-5.787826 0l-7.902609 4.006956a6.344348 6.344348 0 0 1-9.015652-6.789565l1.669565-8.570435a6.678261 6.678261 0 0 0-1.780869-5.676522l-6.233044-6.121739a6.344348 6.344348 0 0 1 3.673044-11.130434l8.681739-1.224348a5.89913 5.89913 0 0 0 4.786087-3.339131l4.006956-7.791304a6.344348 6.344348 0 0 1 11.353044 0z" fill="#FFC840"/><path d="M326.455652 202.24l-2.671304 26.37913a19.033043 19.033043 0 0 0 6.678261 16.473044l20.257391 17.140869a19.033043 19.033043 0 0 1-8.236522 33.391305l-25.933913 5.676522a19.144348 19.144348 0 0 0-13.57913 11.130434l-10.017392 24.598261a19.033043 19.033043 0 0 1-34.05913 2.448696l-13.356522-22.928696a18.921739 18.921739 0 0 0-15.026087-9.349565l-26.490434-2.003478a19.033043 19.033043 0 0 1-12.911305-31.610435l17.697392-19.812174a18.69913 18.69913 0 0 0 4.229565-17.252174l-6.344348-25.822609a19.033043 19.033043 0 0 1 26.156522-22.260869l24.375652 11.130435a19.255652 19.255652 0 0 0 17.586087-1.224348l22.260869-14.024348a19.033043 19.033043 0 0 1 29.384348 17.92zM889.655652 793.266087l-5.676522 10.462609a8.681739 8.681739 0 0 0 0 8.125217l5.342609 11.130435a8.236522 8.236522 0 0 1-9.126956 11.798261l-11.130435-2.893913a8.125217 8.125217 0 0 0-7.568696 1.892174l-8.45913 8.125217a8.793043 8.793043 0 0 1-14.469565-5.89913L836.452174 823.652174a9.572174 9.572174 0 0 0-4.563478-7.012174l-11.130435-6.121739a8.793043 8.793043 0 0 1 0-15.693913l11.130435-4.563478a8.125217 8.125217 0 0 0 4.786087-6.233044l1.780869-12.020869a8.236522 8.236522 0 0 1 14.692174-3.673044l8.236522 9.349565a8.45913 8.45913 0 0 0 7.457391 3.005218l11.798261-1.113044a9.126957 9.126957 0 0 1 9.015652 13.690435z" fill="#F99C15"/></svg><span>' + r + "</span>") + "</button>";
     }
-    function Md(e) {
+    function Td(e) {
         if (!e || !e.sku || Vr.toyCopywritingErrorSku !== e.sku || !Vr.toyCopywritingError) return "";
         return '<div class="pfh-toy-copywriting-feedback is-error" role="alert"><span><strong>' + (kd(e) ? "食品文案补充失败" : "成分补充失败") + "</strong><b>" + jI(Vr.toyCopywritingError) + '</b></span><button type="button" data-action="open-detail">打开当前详情</button></div>';
     }
-    function Td(e, t, a) {
+    function Md(e, t, a) {
         Vr.toyCopywritingErrorSku = String(e || ""), Vr.toyCopywritingError = String(t || "").trim(),
         Vr.toyCopywritingErrorKind = String(a || "general");
     }
@@ -12854,14 +12873,14 @@
         const t = e || {};
         if (Vr.toyCopywritingBusy) return 0;
         const a = () => {
-            t.fromPage || Tl();
+            t.fromPage || Ml();
         }, n = Fi(t.data || Vr.data || {}), r = wd(n), i = kd(n), o = !r && !i;
         if (!n.sku) return oA("未找到当前 SKU"), 0;
         if (i) {
             const e = Fi(SI(n.sku) || n);
             if (!e.ingredientChinese || !e.ingredientEnglish) {
                 const e = "未找到完整的成分表缓存。请先打开当前 SKU 的「产品信息」，等待成分表读取完成后再试。";
-                return Td(n.sku, e, "ingredient-cache"), sA("warn", "食品文案智能补充缺少成分表缓存", n.sku), a(),
+                return Md(n.sku, e, "ingredient-cache"), sA("warn", "食品文案智能补充缺少成分表缓存", n.sku), a(),
                 oA("食品文案补充失败：" + e), 0;
             }
         }
@@ -12869,7 +12888,7 @@
         const s = Pd(n.sku);
         if (!s) {
             const e = "请先打开当前 SKU 的 PLM 详情";
-            return r || (Td(n.sku, e, i ? "detail" : "ingredient-detail"), a()), oA(e), 0;
+            return r || (Md(n.sku, e, i ? "detail" : "ingredient-detail"), a()), oA(e), 0;
         }
         Vr.toyCopywritingBusy = !0, a();
         const l = Ld(s) || "中文-简体";
@@ -12992,7 +13011,7 @@
             }), oA("已补充 " + c + " 个玩具文案字段并保存草稿"), c;
         } catch (e) {
             const a = eA(e) || "智能补充失败", s = i ? "食品文案" : o ? "成分" : "玩具文案";
-            if (r || Td(n.sku, a, o ? "ingredient" : "general"), sA("error", s + "智能补充失败", n.sku + " | " + a),
+            if (r || Md(n.sku, a, o ? "ingredient" : "general"), sA("error", s + "智能补充失败", n.sku + " | " + a),
             oA(s + "补充失败：" + a), t.throwOnError) throw e;
             return 0;
         } finally {
@@ -13076,7 +13095,7 @@
         return l.splice(Math.max(0, Math.min(c, l.length)), 0, r), function(e) {
             const t = z(e);
             Vr.settings.homeFeatureGroups = t, CA(Vr.settings);
-        }(o), Vr.homeFeatureDragId = "", Tl(), !0;
+        }(o), Vr.homeFeatureDragId = "", Ml(), !0;
     }
     function Gd(e, t, a, n) {
         const r = String(e || "").trim(), i = "more" === t ? "more" : "common";
@@ -13094,7 +13113,7 @@
         return l.splice(Math.max(0, Math.min(c, l.length)), 0, r), function(e) {
             const t = Wd(e);
             Vr.settings.productDevelopmentFeatureGroups = t, CA(Vr.settings);
-        }(o), Vr.homeFeatureDragId = "", Tl(), !0;
+        }(o), Vr.homeFeatureDragId = "", Ml(), !0;
     }
     function Kd(e, t, a) {
         const n = a || {}, r = Boolean(n.editing), i = Boolean(e.disabled), o = String(n.group || ""), s = r ? "div" : "button", l = r ? '<span class="pfh-home-entry-drag-handle" aria-hidden="true">⋮⋮</span>' : "";
@@ -13199,7 +13218,7 @@
         return !(a < 0 || n < 0) && (a === n || (a < n ? t >= a && t < n : t >= a || t < n));
     }
     function ep(e) {
-        if ("product-development" === Vr.workMode && "home" !== Vr.productDevelopmentView) return Tr(e);
+        if ("product-development" === Vr.workMode && "home" !== Vr.productDevelopmentView) return Mr(e);
         const t = 30 === Number(Vr.homeChartPeriod) ? 30 : 7, a = jd(t), n = function(e) {
             const t = 112, a = e.length ? e : [ 0 ], n = Math.max(1, ...a), r = a.length > 1 ? 620 / (a.length - 1) : 620, i = a.map((e, a) => ({
                 x: Number((a * r).toFixed(2)),
@@ -13370,7 +13389,7 @@
                 updatedAt: n
             });
         }), Vr.toyCopywritingBatchInput = "", Vr.toyCopywritingBatchStatus = "已加入 " + t.length + " 个 SKU，等待补全文案",
-        zA(Array.from(a.values())), Tl(), oA(Vr.toyCopywritingBatchStatus);
+        zA(Array.from(a.values())), Ml(), oA(Vr.toyCopywritingBatchStatus);
     }
     function Ip(e, t) {
         const a = String(e || "").trim().toUpperCase(), n = (Array.isArray(Vr.toyCopywritingBatchQueue) ? Vr.toyCopywritingBatchQueue : RA()).map(e => e.sku === a ? {
@@ -13380,16 +13399,16 @@
         } : e);
         return zA(n), n.find(e => e.sku === a) || null;
     }
-    async function Mp() {
+    async function Tp() {
         if (Vr.toyCopywritingBatchRunning || Vr.toyCopywritingApplyRunning) return;
         Vr.toyCopywritingBatchQueue = RA();
         if (!Vr.toyCopywritingBatchQueue.filter(e => "pending" === e.status || "error" === e.status).length) return Vr.toyCopywritingBatchStatus = Vr.toyCopywritingBatchQueue.length ? "当前队列没有待处理项目" : "队列暂为空",
-        void Tl();
+        void Ml();
         Vr.toyCopywritingBatchRunning = !0, Vr.toyCopywritingBatchStatus = "开始批量补全文案", zA(Vr.toyCopywritingBatchQueue),
-        Tl();
+        Ml();
         try {
             await async function() {
-                const e = Vr.toyCopywritingBatchQueue || [], t = await Tp(e.filter(e => "pending" === e.status || "error" === e.status));
+                const e = Vr.toyCopywritingBatchQueue || [], t = await Mp(e.filter(e => "pending" === e.status || "error" === e.status));
                 for (const a of e) {
                     if (!Vr.toyCopywritingBatchRunning) break;
                     if ("pending" !== a.status && "error" !== a.status) continue;
@@ -13433,18 +13452,18 @@
                     } finally {
                         (n || Pd(e) || zb(e)) && await fk(e).catch(() => {}), Vr.toyCopywritingBatchCurrentSku = "",
                         zA(Vr.toyCopywritingBatchQueue), Vr.toyCopywritingBatchRunning && (Vr.toyCopywritingBatchStatus = "已处理 " + e + "，继续下一个编码",
-                        Tl());
+                        Ml());
                     }
                 }
                 Vr.toyCopywritingBatchRunning && (Vr.toyCopywritingBatchRunning = !1, Vr.toyCopywritingBatchStatus = "批量文案补全完成",
-                Vr.toyCopywritingBatchCurrentSku = "", zA(Vr.toyCopywritingBatchQueue), Tl(), oA("批量玩具文案补全完成"));
+                Vr.toyCopywritingBatchCurrentSku = "", zA(Vr.toyCopywritingBatchQueue), Ml(), oA("批量玩具文案补全完成"));
             }();
         } catch (e) {
             Vr.toyCopywritingBatchRunning = !1, Vr.toyCopywritingBatchCurrentSku = "", Vr.toyCopywritingBatchStatus = "批量处理异常：" + eA(e),
-            Tl();
+            Ml();
         }
     }
-    async function Tp(e) {
+    async function Mp(e) {
         const t = Array.from(new Set((e || []).map(e => String(e && e.sku || "").trim().toUpperCase()).filter(Boolean))), a = new Map;
         if (!t.length) return a;
         const n = [];
@@ -13652,7 +13671,7 @@
             }
             Ip(a, {
                 step: "后台查询生图结果中（第 " + (e + 1) + " 次）"
-            }), Vr.toyCopywritingBatchStatus = a + "：后台查询生图结果中（第 " + (e + 1) + " 次）", Tl(),
+            }), Vr.toyCopywritingBatchStatus = a + "：后台查询生图结果中（第 " + (e + 1) + " 次）", Ml(),
             e + 1 < 60 && await Ok(5e3);
         }
         throw new Error("生图后台查询超时，暂未返回主图和详情图");
@@ -13661,7 +13680,7 @@
         const a = String(e || "").trim().toUpperCase(), n = Yk();
         Ip(a, {
             step: "正在通过后台服务查询已生成图片"
-        }), Vr.toyCopywritingBatchStatus = a + "：正在通过后台服务查询已生成图片", Tl();
+        }), Vr.toyCopywritingBatchStatus = a + "：正在通过后台服务查询已生成图片", Ml();
         const r = await Rp(a, t), i = [ {
             kind: "main",
             label: "主图",
@@ -13675,7 +13694,7 @@
         for (const e of i) if (Ip(a, {
             step: "正在下载全部" + e.label + "（" + e.count + " 张）"
         }), Vr.toyCopywritingBatchStatus = a + "：正在下载全部" + e.label + "（" + e.count + " 张）",
-        Tl(), !await qv(a, n, e.kind)) throw new Error("下载全部" + e.label + "失败");
+        Ml(), !await qv(a, n, e.kind)) throw new Error("下载全部" + e.label + "失败");
         return i;
     }
     async function jp(e) {
@@ -13683,15 +13702,15 @@
         if (Vr.toyCopywritingBatchRunning || Vr.toyCopywritingApplyRunning) return;
         Vr.toyCopywritingBatchQueue = RA();
         const r = Vr.toyCopywritingBatchQueue.filter(e => ("success" === e.status || "noop" === e.status) && "submitted" !== e.applyStatus);
-        if (!r.length) return Vr.toyCopywritingBatchStatus = "没有等待" + a + "的已完成产品", void Tl();
+        if (!r.length) return Vr.toyCopywritingBatchStatus = "没有等待" + a + "的已完成产品", void Ml();
         Vr.toyCopywritingApplyRunning = !0, Vr.toyCopywritingApplyMode = n, Vr.toyCopywritingBatchStatus = "开始" + a,
-        Tl();
+        Ml();
         let i = new Map;
         if (!t) try {
-            i = await Tp(r);
+            i = await Mp(r);
         } catch (e) {
             return Vr.toyCopywritingApplyRunning = !1, Vr.toyCopywritingApplyMode = "", Vr.toyCopywritingBatchStatus = a + "前读取项目状态失败：" + eA(e),
-            sA("error", "玩具生成图片：读取项目状态失败", eA(e)), void Tl();
+            sA("error", "玩具生成图片：读取项目状态失败", eA(e)), void Ml();
         }
         for (const e of r) {
             const r = e.sku;
@@ -13701,7 +13720,7 @@
                 applyMode: n,
                 applyError: "",
                 step: "正在打开设计资料"
-            }), Vr.toyCopywritingBatchStatus = r + "：正在打开设计资料", Tl();
+            }), Vr.toyCopywritingBatchStatus = r + "：正在打开设计资料", Ml();
             try {
                 const e = Fi(SI(r) || (Vr.index || []).find(e => e.sku === r) || {
                     sku: r
@@ -13715,14 +13734,14 @@
                     o = await Op(r, e, i.get(r));
                     for (const e of [ "主图", "详情图" ]) Ip(r, {
                         step: "正在处理" + e + "生成图片"
-                    }), Vr.toyCopywritingBatchStatus = r + "：正在下载" + e + "并全部应用", Tl(), await Fp(o, r, e, {
+                    }), Vr.toyCopywritingBatchStatus = r + "：正在下载" + e + "并全部应用", Ml(), await Fp(o, r, e, {
                         skipApply: !1
                     });
                     Ip(r, {
                         applyStatus: "applied",
                         applyMode: n,
                         step: "主图和详情图已全部应用，正在提审"
-                    }), Vr.toyCopywritingBatchStatus = r + "：正在提审", Tl(), await Zy(), await lb({
+                    }), Vr.toyCopywritingBatchStatus = r + "：正在提审", Ml(), await Zy(), await lb({
                         skipDraftSave: !0,
                         allowReviewResultModal: !0
                     }), Ip(r, {
@@ -13743,11 +13762,11 @@
                 await fk(r).catch(() => {});
             } finally {
                 Vr.toyCopywritingApplyCurrentSku = "", Vr.toyCopywritingBatchStatus = "已处理 " + r + "，继续下一个编码",
-                Tl();
+                Ml();
             }
         }
         Vr.toyCopywritingApplyRunning = !1, Vr.toyCopywritingApplyCurrentSku = "", Vr.toyCopywritingApplyMode = "",
-        Vr.toyCopywritingBatchStatus = a + "完成", Tl(), oA(a + "完成");
+        Vr.toyCopywritingBatchStatus = a + "完成", Ml(), oA(a + "完成");
     }
     async function Op(e, t, a) {
         const n = Pd(e);
@@ -13767,17 +13786,17 @@
                 Oy(e);
                 if (await ew(() => Iy(), 8e3, 150)) return !0;
             }
-            let t = My();
+            let t = Ty();
             if (!t) {
                 const e = Array.from(document.querySelectorAll(".ant-menu-submenu-title")).filter(BI).find(e => DI(e.innerText || e.textContent) === DI("商品管理")) || null;
-                e && (Oy(e), t = await ew(() => My(), 2e3, 100));
+                e && (Oy(e), t = await ew(() => Ty(), 2e3, 100));
             }
             if (t) {
                 Oy(t);
                 if (await ew(() => Iy(), 1e4, 150)) return !0;
             }
             throw sA("error", "批量玩具文案：未能无刷新切换到商品管理"), new Error("未能无刷新切换到商品管理");
-        }(), await Ty(e), await Ly(e), qp(e));
+        }(), await My(e), await Ly(e), qp(e));
         if (a && a.completed) return o("项目已完成，正在商品管理中搜索编码");
         if (!await Eb()) return sA("info", "批量玩具文案：未能打开新品开发，改用商品管理", e), o("新品开发不可用，正在商品管理中搜索编码");
         if (!await _b()) return sA("info", "批量玩具文案：未能进入设计任务，改用商品管理", e), o("设计任务不可用，正在商品管理中搜索编码");
@@ -14018,11 +14037,11 @@
         if (!e || !/\.(?:png|jpe?g)$/i.test(e.name || "") || e.type && !/^image\/(?:png|jpeg)$/.test(e.type)) {
             const t = $p(n.sku);
             return t.fileName = e && e.name || "", t.error = "请选择 PNG 或 JPG 图片；纸盒必须使用透明 PNG。",
-            void Tl();
+            void Ml();
         }
         const o = n.sku, s = $p(o);
         eg(s, i[0]), Vr.sizeImageBusySku = o, s.fileName = e.name, s.error = "", s.processingStep = "正在读取 " + e.name,
-        a || Tl(), a || await pg();
+        a || Ml(), a || await pg();
         const l = URL.createObjectURL(e);
         try {
             await mg(s, "正在识别纸盒或标签...");
@@ -14179,7 +14198,7 @@
             if (await mg(s, "识别完成，正在绘制 3000 × 3000 JPG..."), "label" === g && ug(n, f) && (s.includeRoundArc = !1,
             s.includeBatchNumber = !1), "carton" === g) s.cartonResultDataUrl = vg(p, m, r, n, s.includeRemark, s.includeRoundArc, s.cartonRemarkText),
             s.cartonFile = e; else {
-                const t = s.labelRemarkTexts[f.key], a = Tg(p, m, f, n, s.includeRemark, s.includeRoundArc, s.includeBatchNumber, t, u && u.image ? {
+                const t = s.labelRemarkTexts[f.key], a = Mg(p, m, f, n, s.includeRemark, s.includeRoundArc, s.includeBatchNumber, t, u && u.image ? {
                     productImage: u.image
                 } : void 0);
                 s.flatResults[f.key] = {
@@ -14204,7 +14223,7 @@
             }(e), jx(!1), !1;
         } finally {
             URL.revokeObjectURL(l), a || (Vr.sizeImageBusySku === o && (Vr.sizeImageBusySku = ""),
-            s.processingStep = "", "sizeImage" === Vr.view && Tl());
+            s.processingStep = "", "sizeImage" === Vr.view && Ml());
         }
     }
     function yg(e) {
@@ -14218,7 +14237,7 @@
         if (!a.length) return;
         const r = Wp(), i = r && $p(r);
         i && (Vr.sizeImageBusySku = r, i.error = "", i.fileName = a.map(e => e.name).join(" / "),
-        i.processingStep = "正在读取 " + a.length + " 张图片...", "sizeImage" === Vr.view && Tl(),
+        i.processingStep = "正在读取 " + a.length + " 张图片...", "sizeImage" === Vr.view && Ml(),
         await pg());
         let o = !1;
         for (const e of a) o = !0 === await hg(e, "", !0) || o;
@@ -14227,7 +14246,7 @@
             const e = Object.values(i.flatResults).filter(e => e && e.dataUrl).length, t = [ i.cartonResultDataUrl ? "纸盒" : "", e ? e + "个标签/印刷" : "" ].filter(Boolean).join("和");
             t ? oA("已生成" + t + "尺寸图") : i.pendingLabelMatches.length && oA("请手动选择图片对应的标签尺寸");
         }
-        "sizeImage" === Vr.view && Tl(), o && t && t.focusSave && n("size-image-save-all", "sizeImage");
+        "sizeImage" === Vr.view && Ml(), o && t && t.focusSave && n("size-image-save-all", "sizeImage");
     }
     function wg(e, t) {
         const a = fg(e), n = Math.min(1, 1800 / Math.max(a.width, a.height)), r = Math.max(1, Math.round(a.width * n)), i = Math.max(1, Math.round(a.height * n)), o = gg(r, i).getContext("2d", {
@@ -14351,19 +14370,19 @@
         c.drawImage(e, x, A, I.width / t.pixelsPerCmX * h, I.height / t.pixelsPerCmY * h),
         c.restore(), Ag(c, w, k, h, a), c.strokeStyle = "#000000", c.lineWidth = 1, c.stroke(),
         c.strokeStyle = "#ee1410", c.fillStyle = "#ee1410", c.lineWidth = 4;
-        const M = 28, T = w - 48;
-        _g(c, T, S, T, v), _g(c, T - M, S, T + M, S), _g(c, T - M, v, T + M, v), c.save(),
-        c.translate(T - 112, (S + v) / 2), c.rotate(-Math.PI / 2), c.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
+        const T = 28, M = w - 48;
+        _g(c, M, S, M, v), _g(c, M - T, S, M + T, S), _g(c, M - T, v, M + T, v), c.save(),
+        c.translate(M - 112, (S + v) / 2), c.rotate(-Math.PI / 2), c.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
         c.textAlign = "center", c.fillText(dg(a.height) + "cm", 0, 0), c.restore();
         const C = v + 48, E = w + a.width * h, L = E + a.length * h;
-        if (_g(c, w, C, L, C), [ w, E, L ].forEach(e => _g(c, e, C - M, e, C + M)), c.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
+        if (_g(c, w, C, L, C), [ w, E, L ].forEach(e => _g(c, e, C - T, e, C + T)), c.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
         c.textAlign = "center", c.fillText(dg(a.width) + "cm", (w + E) / 2, C + 34), c.fillText(dg(a.length) + "cm", (E + L) / 2, C + 34),
         p.length > 4) {
             const e = w + p.slice(0, 4).reduce((e, t) => e + t, 0) * h, t = S - 48;
             let a = e;
-            _g(c, e, t, w + y, t), _g(c, e, t - M, e, t + M), p.slice(4).forEach(e => {
+            _g(c, e, t, w + y, t), _g(c, e, t - T, e, t + T), p.slice(4).forEach(e => {
                 const n = a + e * h;
-                _g(c, n, t - M, n, t + M), c.fillText(dg(e) + "cm", (a + n) / 2, t - 102), a = n;
+                _g(c, n, t - T, n, t + T), c.fillText(dg(e) + "cm", (a + n) / 2, t - 102), a = n;
             });
         }
         return s && s.returnCanvas ? l : l.toDataURL("image/jpeg", .96);
@@ -14385,14 +14404,14 @@
         const o = fg(t), s = Math.min(r / o.width, i / o.height), l = o.width * s, c = o.height * s;
         e.drawImage(t, a + (r - l) / 2, n + (i - c) / 2, l, c);
     }
-    function Mg(e, t, a, n) {
+    function Tg(e, t, a, n) {
         const r = Math.max(24, .5 * n), i = a - 58;
         e.save(), e.strokeStyle = "#ee1410", e.fillStyle = "#ee1410", e.lineWidth = 4, e.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
         e.textAlign = "left", e.textBaseline = "top", e.fillText("封边0.5cm", Math.max(100, t - 190), i - 106),
         _g(e, t, i, t + r, i), _g(e, t, i - 28, t, i + 28), _g(e, t + r, i - 28, t + r, i + 28),
         e.restore();
     }
-    function Tg(e, t, a, n, r, i, o, s, l) {
+    function Mg(e, t, a, n, r, i, o, s, l) {
         const c = gg(3e3, 3e3), u = c.getContext("2d");
         u.fillStyle = "#ffffff", u.fillRect(0, 0, c.width, c.height), u.textBaseline = "top",
         u.fillStyle = "#000000", u.font = '700 88px "Microsoft YaHei", "PingFang SC", sans-serif';
@@ -14414,7 +14433,7 @@
             t >= 260 && Ig(u, l.productImage, e, 42, t, 620);
         }
         const w = Math.min(2050 / f, 1550 / a.height), k = f * w, S = a.height * w, v = Math.round((3e3 - k) / 2), x = PI(Math.round((3e3 - S) / 2), 760, 1200);
-        m && Mg(u, v, x, w);
+        m && Tg(u, v, x, w);
         const A = "label" === a.kind && i ? Math.min(18, Math.max(6, .08 * w)) : 0;
         u.save(), u.beginPath(), A ? Ug(u, v, x, k, S, A) : u.rect(v, x, k, S), u.clip(),
         u.imageSmoothingEnabled = !0, u.imageSmoothingQuality = "high", t.rotated ? (u.translate(v + k / 2, x + S / 2),
@@ -14422,27 +14441,27 @@
         u.restore(), u.strokeStyle = "#000000", u.lineWidth = 1, A ? (u.beginPath(), Ug(u, v + .5, x + .5, k - 1, S - 1, Math.max(0, A - .5)),
         u.stroke()) : u.strokeRect(v + .5, x + .5, k - 1, S - 1), u.strokeStyle = "#ee1410",
         u.fillStyle = "#ee1410", u.lineWidth = 4;
-        const I = 28, M = v - 48;
-        _g(u, M, x, M, x + S), _g(u, M - I, x, M + I, x), _g(u, M - I, x + S, M + I, x + S),
-        u.save(), u.translate(M - 112, x + S / 2), u.rotate(-Math.PI / 2), u.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
+        const I = 28, T = v - 48;
+        _g(u, T, x, T, x + S), _g(u, T - I, x, T + I, x), _g(u, T - I, x + S, T + I, x + S),
+        u.save(), u.translate(T - 112, x + S / 2), u.rotate(-Math.PI / 2), u.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif',
         u.textAlign = "center", u.fillText(dg(a.height) + "cm", 0, 0), u.restore();
-        const T = x + S + 48;
-        if (_g(u, v, T, v + k, T), _g(u, v, T - I, v, T + I), _g(u, v + k, T - I, v + k, T + I),
+        const M = x + S + 48;
+        if (_g(u, v, M, v + k, M), _g(u, v, M - I, v, M + I), _g(u, v + k, M - I, v + k, M + I),
         u.font = '66px "Microsoft YaHei", "PingFang SC", sans-serif', u.textAlign = "center",
         g > 1) {
             for (let e = 1; e < g; e += 1) {
                 const t = v + k * e / g;
                 u.save(), u.strokeStyle = "rgba(238, 20, 16, 0.65)", u.setLineDash([ 18, 14 ]),
-                _g(u, t, x, t, x + S), u.restore(), _g(u, t, T - I, t, T + I);
+                _g(u, t, x, t, x + S), u.restore(), _g(u, t, M - I, t, M + I);
             }
-            for (let e = 0; e < g; e += 1) u.fillText(dg(a.width) + "cm", v + k * (e + .5) / g, T + 34);
-        } else u.fillText(dg(a.width) + "cm", v + k / 2, T + 34);
+            for (let e = 0; e < g; e += 1) u.fillText(dg(a.width) + "cm", v + k * (e + .5) / g, M + 34);
+        } else u.fillText(dg(a.width) + "cm", v + k / 2, M + 34);
         return l && l.returnCanvas ? c : c.toDataURL("image/jpeg", .96);
     }
     let Cg = "";
     function Eg() {
         if (Cg) return Cg;
-        const e = [ "const clamp = " + PI.toString() + ";", "const trimNumber = " + FI.toString() + ";", "const formatSizeImageNumber = " + dg.toString() + ";", gg, fg, xg, _g, sg, Ig, Mg, Ug, Ag, kg, wg, Sg, vg, Tg ].map(e => "string" == typeof e ? e : e.toString()).join("\n");
+        const e = [ "const clamp = " + PI.toString() + ";", "const trimNumber = " + FI.toString() + ";", "const formatSizeImageNumber = " + dg.toString() + ";", gg, fg, xg, _g, sg, Ig, Tg, Ug, Ag, kg, wg, Sg, vg, Mg ].map(e => "string" == typeof e ? e : e.toString()).join("\n");
         return Cg = `'use strict';\n${e}\n\nasync function canvasToBlob(canvas) {\n  if (!canvas || typeof canvas.convertToBlob !== 'function') throw new Error('当前浏览器不支持 Worker 图片导出');\n  return canvas.convertToBlob({ type: 'image/jpeg', quality: .96 });\n}\n\nself.onmessage = async function(event) {\n  const payload = event.data || {};\n  let image = null;\n  let productImage = null;\n  try {\n    if (typeof OffscreenCanvas !== 'function' || typeof createImageBitmap !== 'function') throw new Error('当前浏览器不支持 Worker 尺寸图生成');\n    image = await createImageBitmap(payload.file);\n    const cartonSpec = payload.cartonSpec || null;\n    const labelSpecs = Array.isArray(payload.labelSpecs) ? payload.labelSpecs : [];\n    if (payload.productImageDataUrl && labelSpecs.some((spec) => spec && spec.printedBag)) {\n      const productImageResponse = await fetch(payload.productImageDataUrl);\n      if (!productImageResponse.ok) throw new Error('产品效果图读取失败');\n      productImage = await createImageBitmap(await productImageResponse.blob());\n    }\n    const preferredType = String(payload.preferredType || '');\n    const preferredLabelKey = preferredType.startsWith('label:') ? preferredType.slice(6) : '';\n    const isPng = String(payload.fileName || '').toLowerCase().endsWith('.png') || payload.fileType === 'image/png';\n    let detectedType = preferredType === 'carton' ? 'carton' : (preferredType === 'label' || preferredLabelKey ? 'label' : '');\n    let geometry = null;\n    let matchedLabelSpec = null;\n    let cartonError = null;\n    if ((!detectedType || detectedType === 'carton') && cartonSpec && isPng) {\n      try {\n        geometry = analyzeSizeImageGeometry(image, cartonSpec);\n        detectedType = 'carton';\n      } catch (error) {\n        cartonError = error;\n        if (preferredType === 'carton') throw error;\n      }\n    }\n    if (!detectedType || detectedType === 'label') {\n      if (!labelSpecs.length) throw cartonError || new Error('当前 SKU 没有可用的标签尺寸');\n      if (preferredLabelKey) {\n        matchedLabelSpec = labelSpecs.find((spec) => spec.key === preferredLabelKey) || null;\n        if (!matchedLabelSpec) throw new Error('选择的标签尺寸已失效，请重新选择');\n        geometry = analyzeLabelSizeImageGeometry(image, matchedLabelSpec, true);\n      } else {\n        const matches = labelSpecs.map((spec) => {\n          try { return { spec, geometry: analyzeLabelSizeImageGeometry(image, spec) }; } catch (_) { return null; }\n        }).filter(Boolean).sort((a, b) => a.geometry.matchDelta - b.geometry.matchDelta);\n        if (!matches.length && labelSpecs.length === 1) throw new Error('图片比例与 PLM 中的标签或印刷尺寸不匹配');\n        const first = matches[0];\n        const second = matches[1];\n        const confident = first && (!second || second.geometry.matchDelta - first.geometry.matchDelta >= .012);\n        if (!confident) {\n          self.postMessage({ ok: true, status: 'pending', matches: matches.map((item) => ({ key: item.spec.key, matchDelta: item.geometry.matchDelta })) });\n          return;\n        }\n        matchedLabelSpec = first.spec;\n        geometry = first.geometry;\n      }\n      detectedType = 'label';\n    }\n    const key = detectedType === 'carton' ? 'carton' : matchedLabelSpec.key;\n    const transparent = detectedType === 'label' && Array.isArray(payload.transparentLabelKeys) && payload.transparentLabelKeys.includes(key);\n    const renderOptions = detectedType === 'carton'\n      ? ((payload.renderMeta && payload.renderMeta.carton) || {})\n      : ((payload.renderMeta && payload.renderMeta.labels && payload.renderMeta.labels[key]) || {});\n    if (detectedType === 'label' && isDoubleSidedPrintedBagSizeImage(matchedLabelSpec, geometry) && productImage) {\n      renderOptions.productImage = productImage;\n    }\n    const includeRoundArc = transparent ? false : Boolean(payload.includeRoundArc);\n    const includeBatchNumber = transparent ? false : Boolean(payload.includeBatchNumber);\n    const canvas = detectedType === 'carton'\n      ? generateSizeImageJpeg(image, geometry, cartonSpec, {}, Boolean(payload.includeRemark), includeRoundArc, payload.cartonRemarkText || '', { ...renderOptions, returnCanvas: true })\n      : generateLabelSizeImageJpeg(image, geometry, matchedLabelSpec, {}, Boolean(payload.includeRemark), includeRoundArc, includeBatchNumber, payload.labelRemarkText || '', { ...renderOptions, returnCanvas: true });\n    const blob = await canvasToBlob(canvas);\n    self.postMessage({ ok: true, status: 'ready', detectedType, matchedLabelKey: matchedLabelSpec ? matchedLabelSpec.key : '', geometry, transparent, blob });\n  } catch (error) {\n    self.postMessage({ ok: false, error: String(error && error.message || error || '尺寸图生成失败') });\n  } finally {\n    if (image && typeof image.close === 'function') image.close();\n    if (productImage && typeof productImage.close === 'function') productImage.close();\n  }\n};`,
         Cg;
     }
@@ -14492,7 +14511,7 @@
             dataUrl: t.cartonResultDataUrl
         } : null, ...r ].filter(Boolean) : [];
         if (o.length) {
-            if (!Tk() || "function" != typeof window.confirm || window.confirm("即将选择尺寸图保存文件夹。\n如果随后出现“允许此网站修改文件？”提示，请点击“允许”，否则尺寸图无法批量写入。\n\n点击“确定”继续，点击“取消”停止。")) try {
+            if (!Mk() || "function" != typeof window.confirm || window.confirm("即将选择尺寸图保存文件夹。\n如果随后出现“允许此网站修改文件？”提示，请点击“允许”，否则尺寸图无法批量写入。\n\n点击“确定”继续，点击“取消”停止。")) try {
                 const e = await Ek(o);
                 if (e && e.cancelled) return;
                 if (e && "unsupported" === e.mode) return void oA("当前浏览器不支持另存为，请使用最新版 Chrome 或 Edge");
@@ -14517,7 +14536,7 @@
             type: "label:" + e.key
         } : null) ].filter(Boolean);
         if (n.length) {
-            Vr.sizeImageBusySku = e, t.error = "", t.processingStep = "正在按最新选项重新生成...", "sizeImage" === Vr.view && Tl(),
+            Vr.sizeImageBusySku = e, t.error = "", t.processingStep = "正在按最新选项重新生成...", "sizeImage" === Vr.view && Ml(),
             await pg();
             try {
                 const e = [];
@@ -14525,7 +14544,7 @@
                 t.error = e.join("\n"), e.length || oA("已按最新选项重新生成尺寸图");
             } finally {
                 Vr.sizeImageBusySku === e && (Vr.sizeImageBusySku = ""), t.processingStep = "",
-                "sizeImage" === Vr.view && Tl();
+                "sizeImage" === Vr.view && Ml();
             }
         } else oA("请先导入纸盒、标签或印刷图片");
     }
@@ -15010,25 +15029,25 @@
             } catch (e) {
                 return t;
             }
-        }(o), l = o ? '<span class="pfh-ledger-thumb-frame"><img src="' + jI(s || o) + '" alt="" loading="lazy" decoding="async"></span>' : '<span class="pfh-ledger-thumb-empty">' + jt("image") + "</span>", c = Boolean(e.imageGeneratedAt), u = "finalized" === t ? cS(e) : lS(e), d = e.designType || "未分类", p = e.artPriority || "", g = /^P0.*(?:紧急|urgent)/i.test(p) ? " is-p0-urgent" : /^P0.*(?:当日|当天|today)/i.test(p) ? " is-p0-today" : /^P0/i.test(p) ? " is-p0-urgent" : /^P1/i.test(p) ? " is-p1" : "", f = e.packageCode || "", m = e.printCode || "", h = String(e.purchasePrice || "").trim(), y = jI(e.date || u), b = (Vr.ledgerSelectedKeys || []).includes(JS(e)), w = n && n.get(JS(e)) || e.performanceGroupId || "", k = "finalized" === t ? ("作废" === e.status ? "作废 " : "定稿 ") + (e.finalizedAt ? aS(e.finalizedAt, u) : tS(u)) : "分配 " + aS(e.designAssignedAt || u, u), S = '<div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + jI(r) + '" title="点击复制产品编码">' + jI(r) + '</button><span class="is-design-type" title="设计类型">' + jI(d) + "</span>" + (p ? '<span class="is-priority' + g + '" title="美工处理优先级">' + jI(p) + "</span>" : "") + ("extension" === e.performanceType ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : "") + (Qg(e) ? '<span class="is-series-excluded" title="已手动剔除自动系列">已剔除系列</span>' : "") + (a && a.get(w) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + jI(a.get(w)) + "</span>" : "") + "</div>", v = '<div class="pfh-ledger-assignment">' + jI(k) + ("finalized" === t ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + jI(r) + '" data-date="' + y + '">改时间</button>' : "") + "</div>", x = e.finalizedAt || "finalized" === t ? " is-stage-finalized" : c ? " is-stage-generated" : " is-stage-pending", A = Cf(e, r, y, c), I = Vr.ledgerMenuSku === r && Vr.ledgerMenuDate === $k(e.date || u), M = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + jI(r) + '" data-date="' + y + '" aria-label="更多操作" aria-expanded="' + (I ? "true" : "false") + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + A + "</div>", T = "finalized" === t ? '<div class="pfh-ledger-file-actions">' + function(e, t, a) {
+        }(o), l = o ? '<span class="pfh-ledger-thumb-frame"><img src="' + jI(s || o) + '" alt="" loading="lazy" decoding="async"></span>' : '<span class="pfh-ledger-thumb-empty">' + jt("image") + "</span>", c = Boolean(e.imageGeneratedAt), u = "finalized" === t ? cS(e) : lS(e), d = e.designType || "未分类", p = e.artPriority || "", g = /^P0.*(?:紧急|urgent)/i.test(p) ? " is-p0-urgent" : /^P0.*(?:当日|当天|today)/i.test(p) ? " is-p0-today" : /^P0/i.test(p) ? " is-p0-urgent" : /^P1/i.test(p) ? " is-p1" : "", f = e.packageCode || "", m = e.printCode || "", h = String(e.purchasePrice || "").trim(), y = jI(e.date || u), b = (Vr.ledgerSelectedKeys || []).includes(JS(e)), w = n && n.get(JS(e)) || e.performanceGroupId || "", k = "finalized" === t ? ("作废" === e.status ? "作废 " : "定稿 ") + (e.finalizedAt ? aS(e.finalizedAt, u) : tS(u)) : "分配 " + aS(e.designAssignedAt || u, u), S = '<div class="pfh-ledger-tags"><button type="button" class="is-sku" data-action="ledger-copy-sku" data-sku="' + jI(r) + '" title="点击复制产品编码">' + jI(r) + '</button><span class="is-design-type" title="设计类型">' + jI(d) + "</span>" + (p ? '<span class="is-priority' + g + '" title="美工处理优先级">' + jI(p) + "</span>" : "") + ("extension" === e.performanceType ? '<span class="is-extension" title="绩效按 0.3 分计算">延伸 · 0.3</span>' : "") + (Qg(e) ? '<span class="is-series-excluded" title="已手动剔除自动系列">已剔除系列</span>' : "") + (a && a.get(w) ? '<span class="is-performance-group" title="此编码已纳入绩效分组">' + jI(a.get(w)) + "</span>" : "") + "</div>", v = '<div class="pfh-ledger-assignment">' + jI(k) + ("finalized" === t ? '<button type="button" class="pfh-ledger-edit-time" data-action="ledger-edit-finalized-time" data-sku="' + jI(r) + '" data-date="' + y + '">改时间</button>' : "") + "</div>", x = e.finalizedAt || "finalized" === t ? " is-stage-finalized" : c ? " is-stage-generated" : " is-stage-pending", A = Cf(e, r, y, c), I = Vr.ledgerMenuSku === r && Vr.ledgerMenuDate === $k(e.date || u), T = '<div class="pfh-ledger-more"><button type="button" data-action="ledger-more" data-sku="' + jI(r) + '" data-date="' + y + '" aria-label="更多操作" aria-expanded="' + (I ? "true" : "false") + '"><span class="pfh-more-dots"><i></i><i></i><i></i></span></button>' + A + "</div>", M = "finalized" === t ? '<div class="pfh-ledger-file-actions">' + function(e, t, a) {
             const n = tv(e);
             return '<button type="button" class="pfh-ledger-artwork is-ai-' + jI(n.status) + '" data-action="ledger-ai-image" data-sku="' + jI(t) + '" data-date="' + a + '" title="' + jI(n.title) + '" aria-label="' + jI("生图状态：" + n.label) + '">' + jI(n.label) + "</button>";
-        }(e, r, y) + Ef("ledger-toggle-box-file", r, y, "纸盒", f, e.boxFileState, e.boxFileDone) + Ef("ledger-toggle-label-file", r, y, "标签", m, e.labelFileState, e.labelFileDone) + Ef("ledger-toggle-image-pack", r, y, "图包", "", e.imagePackState, e.imagePackDone) + M + "</div>" : '<div class="pfh-ledger-actions">' + (c ? e.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (Vr.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '"><span>¥</span><input type="text" inputmode="decimal" value="' + jI(h) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (Vr.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '" data-action="ledger-finalize" data-sku="' + jI(r) + '" data-date="' + y + '"><svg class="pfh-ledger-finalize-check" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M511.93 64.07C264.54 64.07 64 264.62 64 512s200.54 447.93 447.93 447.93c58.83 0.07 117.09-11.5 171.43-34.04 167.5-69.32 276.7-232.76 276.64-414.03-0.08-247.39-200.69-447.87-448.07-447.79z m0.41 831.87c-212.04 0.11-384.03-171.69-384.14-383.73-0.11-212.04 171.69-384.03 383.73-384.14 50.5 0 100.51 9.93 147.18 29.24C802.49 216.72 895.99 356.6 896.08 511.8c0.11 212.04-171.7 384.02-383.74 384.14z"></path><path d="M431.85 660.55l-121.19-121.2c-12.49-12.49-12.49-32.75 0-45.24 12.49-12.49 32.75-12.49 45.24 0l92.11 92.11L668.1 366.13c12.49-12.49 32.75-12.49 45.24 0 12.49 12.49 12.49 32.75 0 45.24L464.17 660.55c-8.92 8.92-23.39 8.92-32.32 0z"></path></svg><span>定稿</span><em>已出图</em></button>' : '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + jI(r) + '" data-date="' + y + '"><span>出图</span></button>') + M + "</div>";
-        return '<article class="pfh-ledger-item is-clickable is-' + jI(t) + x + (b ? " is-selected" : "") + (I ? " is-menu-open" : "") + '" data-ledger-stage="' + jI(e.finalizedAt || "finalized" === t ? "finalized" : c ? "generated" : "pending") + '" data-ledger-sku="' + jI(r) + '" data-ledger-date="' + y + '" data-performance-group-id="' + jI(w) + '" role="button" aria-pressed="' + (b ? "true" : "false") + '" tabindex="0" title="点击卡片选择产品"><button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + jI(r) + '">' + l + '</button><div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + jI(r) + '"><b>' + jI(i) + "</b></button></div>" + S + v + '</div><div class="pfh-ledger-bottom">' + T + "</div></article>";
+        }(e, r, y) + Ef("ledger-toggle-box-file", r, y, "纸盒", f, e.boxFileState, e.boxFileDone) + Ef("ledger-toggle-label-file", r, y, "标签", m, e.labelFileState, e.labelFileDone) + Ef("ledger-toggle-image-pack", r, y, "图包", "", e.imagePackState, e.imagePackDone) + T + "</div>" : '<div class="pfh-ledger-actions">' + (c ? e.finalizedAt ? '<span class="pfh-ledger-complete">已定稿</span>' : '<label class="pfh-ledger-price' + (Vr.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '"><span>¥</span><input type="text" inputmode="decimal" value="' + jI(h) + '" placeholder="价格" aria-label="产品价格"></label><button type="button" class="is-primary is-finalize' + (Vr.ledgerFlowTransitionSku === r ? " is-flow-transition" : "") + '" data-action="ledger-finalize" data-sku="' + jI(r) + '" data-date="' + y + '"><svg class="pfh-ledger-finalize-check" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M511.93 64.07C264.54 64.07 64 264.62 64 512s200.54 447.93 447.93 447.93c58.83 0.07 117.09-11.5 171.43-34.04 167.5-69.32 276.7-232.76 276.64-414.03-0.08-247.39-200.69-447.87-448.07-447.79z m0.41 831.87c-212.04 0.11-384.03-171.69-384.14-383.73-0.11-212.04 171.69-384.03 383.73-384.14 50.5 0 100.51 9.93 147.18 29.24C802.49 216.72 895.99 356.6 896.08 511.8c0.11 212.04-171.7 384.02-383.74 384.14z"></path><path d="M431.85 660.55l-121.19-121.2c-12.49-12.49-12.49-32.75 0-45.24 12.49-12.49 32.75-12.49 45.24 0l92.11 92.11L668.1 366.13c12.49-12.49 32.75-12.49 45.24 0 12.49 12.49 12.49 32.75 0 45.24L464.17 660.55c-8.92 8.92-23.39 8.92-32.32 0z"></path></svg><span>定稿</span><em>已出图</em></button>' : '<button type="button" class="is-primary is-generate" data-action="ledger-image-generated" data-sku="' + jI(r) + '" data-date="' + y + '"><span>出图</span></button>') + T + "</div>";
+        return '<article class="pfh-ledger-item is-clickable is-' + jI(t) + x + (b ? " is-selected" : "") + (I ? " is-menu-open" : "") + '" data-ledger-stage="' + jI(e.finalizedAt || "finalized" === t ? "finalized" : c ? "generated" : "pending") + '" data-ledger-sku="' + jI(r) + '" data-ledger-date="' + y + '" data-performance-group-id="' + jI(w) + '" role="button" aria-pressed="' + (b ? "true" : "false") + '" tabindex="0" title="点击卡片选择产品"><button type="button" class="pfh-ledger-thumb" data-action="ledger-open-sku" data-sku="' + jI(r) + '">' + l + '</button><div class="pfh-ledger-main"><div class="pfh-ledger-title-row"><button type="button" class="pfh-ledger-title" data-action="ledger-open-sku" data-sku="' + jI(r) + '"><b>' + jI(i) + "</b></button></div>" + S + v + '</div><div class="pfh-ledger-bottom">' + M + "</div></article>";
     }
     function Af(e) {
-        if (!e || "ledger" !== Vr.view) return void Tl();
+        if (!e || "ledger" !== Vr.view) return void Ml();
         const t = "finalized" === Vr.ledgerView ? "finalized" : "design", a = pl(), n = Array.from(a.querySelectorAll(".pfh-ledger-item")).find(t => t.getAttribute("data-ledger-sku") === e.sku && $k(t.getAttribute("data-ledger-date")) === $k(e.date)), r = uS(e);
-        if ("finalized" === t && !r || "design" === t && r) return void (n ? n.remove() : Tl());
-        if (!nf([ e ], t).length) return void (Yu(a) || Tl());
-        if (!n) return void Tl();
+        if ("finalized" === t && !r || "design" === t && r) return void (n ? n.remove() : Ml());
+        if (!nf([ e ], t).length) return void (Yu(a) || Ml());
+        if (!n) return void Ml();
         const i = "finalized" === t ? Wg(Og(GS("finalized", sS()))) : {
             labels: null,
             recordGroupIds: null
         };
         if (n.outerHTML = xf(e, t, i.labels, i.recordGroupIds), Vr.ledgerMenuSku === e.sku && Vr.ledgerMenuDate === $k(e.date)) {
             const t = Array.from(a.querySelectorAll('[data-action="ledger-more"]')).find(t => t.getAttribute("data-sku") === e.sku && $k(t.getAttribute("data-date")) === $k(e.date));
-            t && Mf(a, t);
+            t && Tf(a, t);
         }
     }
     function If(e, t) {
@@ -15039,7 +15058,7 @@
             a && a.setAttribute("aria-expanded", "false");
         }), e.querySelectorAll(".pfh-ledger-overflow-menu").forEach(e => e.remove()));
     }
-    function Mf(e, t) {
+    function Tf(e, t) {
         if (!e || !t || !t.isConnected) return;
         const a = t.closest(".pfh-ledger-item"), n = a && a.querySelector(".pfh-ledger-overflow-menu"), r = e.querySelector(".pfh-full") || e;
         n && r && (n.setAttribute("data-ledger-menu-sku", t.getAttribute("data-sku") || ""),
@@ -15056,7 +15075,7 @@
             n.style.setProperty("--pfh-menu-origin", g ? "right top" : "right bottom"), n.style.visibility = "visible";
         }));
     }
-    function Tf(e) {
+    function Mf(e) {
         if (!Vr.ledgerMenuSku || "ledger" !== Vr.view) return;
         if (e.target && e.target.closest && e.target.closest(".pfh-ledger-overflow-menu")) return;
         const t = e.currentTarget;
@@ -15065,7 +15084,7 @@
             const e = Array.from(t.querySelectorAll('[data-action="ledger-more"][aria-expanded="true"]')).find(e => e.getAttribute("data-sku") === Vr.ledgerMenuSku && $k(e.getAttribute("data-date")) === Vr.ledgerMenuDate), a = t.querySelector(".pfh-ledger-overflow-menu");
             if (!e || !a) return;
             const n = e.closest(".pfh-ledger-item");
-            n && n.appendChild(a), Mf(t, e);
+            n && n.appendChild(a), Tf(t, e);
         });
     }
     function Cf(e, t, a, n) {
@@ -15180,10 +15199,10 @@
         }[e] || e;
     }
     function jf(e) {
-        return Array.isArray(e && e.recentFieldChanges) ? e.recentFieldChanges.filter(e => e && e.key && !Ti(e.key, e.before, e.after)).slice(0, 20) : [];
+        return Array.isArray(e && e.recentFieldChanges) ? e.recentFieldChanges.filter(e => e && e.key && !Mi(e.key, e.before, e.after)).slice(0, 20) : [];
     }
     function Of(e) {
-        const t = (Array.isArray(e) ? e : []).filter(e => e && e.key && !Ti(e.key, e.before, e.after)).map(e => [ String(e.key), Ii(e.key, e.before), Ii(e.key, e.after) ]).sort((e, t) => {
+        const t = (Array.isArray(e) ? e : []).filter(e => e && e.key && !Mi(e.key, e.before, e.after)).map(e => [ String(e.key), Ii(e.key, e.before), Ii(e.key, e.after) ]).sort((e, t) => {
             const a = JSON.stringify(e), n = JSON.stringify(t);
             return a < n ? -1 : a > n ? 1 : 0;
         });
@@ -15246,7 +15265,7 @@
             changeSource: "手动校准",
             trackEmptyChanges: !0
         }), Vr.skuEditMode = !1, c && (Vr.insightRecommendationSku = "", Vr.insightRecommendation = null,
-        Vr.toyCopywritingErrorSku = "", Vr.toyCopywritingError = ""), tw(), Tl(), sA("success", "SKU 数据手动校准已保存", e.sku),
+        Vr.toyCopywritingErrorSku = "", Vr.toyCopywritingError = ""), tw(), Ml(), sA("success", "SKU 数据手动校准已保存", e.sku),
         oA("校准数据已保存");
     }
     function Hf(e, t, a, n) {
@@ -15564,11 +15583,11 @@
                 ...e.manualFieldOverrides && "object" == typeof e.manualFieldOverrides ? e.manualFieldOverrides : {}
             };
             zr.forEach(a => {
-                Ti(a, t[a], e[a]) || (n[a] = null == e[a] ? "" : String(e[a]).trim());
+                Mi(a, t[a], e[a]) || (n[a] = null == e[a] ? "" : String(e[a]).trim());
             }), e.manualFieldOverrides = n, xI(r, e, {
                 changeSource: "完整信息编辑",
                 trackEmptyChanges: !0
-            }), om(), Tl(), oA(r + " 完整缓存已保存");
+            }), om(), Ml(), oA(r + " 完整缓存已保存");
         } catch (e) {
             n && (n.textContent = "无法保存：" + (eA(e) || "字段格式错误"));
         }
@@ -15656,35 +15675,35 @@
             ...Vr.data,
             copywriting: o
         })), c) return Vr.copywritingLoading = !1, Vr.copywritingChecking = !1, Vr.copywritingStatus = "",
-        Vr.copywritingError = "", sA("info", "产品文案：30分钟内已检查，跳过重复检查", a), void Tl();
+        Vr.copywritingError = "", sA("info", "产品文案：30分钟内已检查，跳过重复检查", a), void Ml();
         o && o.fullText && !r && (Vr.copywritingLoading = !1, Vr.copywritingStatus = "正在检查新文案...",
-        Vr.copywritingChecking = !0, Tl()), sA("info", "产品文案：开始读取", a + (e ? " 重新获取" : ""));
+        Vr.copywritingChecking = !0, Ml()), sA("info", "产品文案：开始读取", a + (e ? " 重新获取" : ""));
         try {
             const n = await hm(a, {
                 force: Boolean(e),
                 data: Fi(SI(a) || Vr.data || t),
                 onStatus: e => {
-                    Vr.copywritingStatus = e, Tl();
+                    Vr.copywritingStatus = e, Ml();
                 }
             });
             if (n && n.handled) return Vr.data = Fi(n.data || SI(a) || t), Vr.copywritingStatus = "",
             Vr.copywritingError = "", n.skipped || oA(n.updated ? "文案已更新，差异已高亮" : "文案读取成功"),
-            void Tl();
+            void Ml();
             if (n && n.noFile) return Vr.data = Fi(SI(a) || Vr.data || t), Vr.copywritingLoading = !1,
             Vr.copywritingChecking = !1, Vr.copywritingStatus = "", Vr.copywritingError = "",
-            sA("info", "产品文案：未找到 Word，不再读取页面附件", a), void Tl();
+            sA("info", "产品文案：未找到 Word，不再读取页面附件", a), void Ml();
             let r = zb(a);
             if (r || (await Ib({
                 preserveCopywriting: l
             }), r = await ew(() => zb(a), 6e3, 150)), !r) throw new Error("未打开当前编码的项目详情");
-            li(), Vr.copywritingStatus = "正在定位产品信息里的产品文案...", Tl(), await Ow(r, Ur.productTab);
+            li(), Vr.copywritingStatus = "正在定位产品信息里的产品文案...", Ml(), await Ow(r, Ur.productTab);
             if (!await ew(() => {
                 const e = el(r, Ur.productTab);
                 return e && al(e);
             }, 5e3, 120)) throw new Error("无法切换到产品信息");
-            const i = await ew(() => Mm(r), 5e3, 160);
+            const i = await ew(() => Tm(r), 5e3, 160);
             if (!i) throw new Error("产品信息中未找到“产品文案”字段");
-            const o = Tm(i, a);
+            const o = Mm(i, a);
             if (!o) throw new Error("产品文案字段中未找到当前编码的 Word 文件");
             let c = Fi(SI(a) || Vr.data || t), u = nh(c.copywriting);
             u && u.fullText && (c = ih(c, u, Date.now()), u = nh(c.copywriting));
@@ -15694,25 +15713,25 @@
             if (!e && u && u.fileTimestamp && d && d < u.fileTimestamp) return Vr.copywritingError = "页面中的 Word 版本早于缓存，已保留较新的文案",
             void sA("warn", "产品文案：检测到旧附件", o.fileName + " < " + u.fileName);
             l || (Vr.copywritingLoading = !0), Vr.copywritingStatus = "正在触发 Word 下载 " + o.fileName,
-            Tl();
+            Ml();
             let p, g = await Nm(Pm(o.card, o.fileName), 12e3, "Word 下载监听");
             if (!g || !g.url && !g.arrayBuffer) throw new Error("未读取到 Word 文件内容");
             sA("info", "产品文案：已取得文件内容", g.arrayBuffer ? "内存 Word 数据" : String(g.url || "").replace(/\?.*$/, "?..."));
             try {
                 if (Vr.copywritingStatus = g.arrayBuffer ? "正在校验 Word 文件..." : "正在读取 Word 文件...",
-                Tl(), p = g.arrayBuffer || await Nm(Rm(g.url), 18e3, "Word 文件读取"), !zm(p)) throw new Error("读取到的内容不是有效 Word 文件");
+                Ml(), p = g.arrayBuffer || await Nm(Rm(g.url), 18e3, "Word 文件读取"), !zm(p)) throw new Error("读取到的内容不是有效 Word 文件");
             } catch (e) {
                 if ("captured" === g.kind) throw e;
                 if (sA("warn", "产品文案：组件地址不可直接读取，改用下载监听", eA(e)), Vr.copywritingStatus = "正在重新监听 Word 下载...",
-                Tl(), g = {
+                Ml(), g = {
                     ...await Nm(Bm(o.card, o.fileName), 12e3, "备用下载监听"),
                     kind: "captured"
                 }, !g.url && !g.arrayBuffer) throw e;
                 if (Vr.copywritingStatus = g.arrayBuffer ? "正在校验 Word 文件..." : "正在读取 Word 文件...",
-                Tl(), p = g.arrayBuffer || await Nm(Rm(g.url), 18e3, "备用 Word 文件读取"), !zm(p)) throw new Error("下载监听取得的内容不是有效 Word 文件");
+                Ml(), p = g.arrayBuffer || await Nm(Rm(g.url), 18e3, "备用 Word 文件读取"), !zm(p)) throw new Error("下载监听取得的内容不是有效 Word 文件");
             }
             const f = await eh(p);
-            Vr.copywritingStatus = "正在解析 Word 表格...", Tl(), sA("info", "产品文案：开始解析 Word", o.fileName + " | " + p.byteLength + "B");
+            Vr.copywritingStatus = "正在解析 Word 表格...", Ml(), sA("info", "产品文案：开始解析 Word", o.fileName + " | " + p.byteLength + "B");
             const m = Wm(await Nm(jm(p), 2e4, "Word 表格解析"), c);
             if (!m.sections.length) throw new Error("Word 中未识别到主流版文案字段");
             const h = ah(o.fileName, d, f, m, u);
@@ -15724,7 +15743,7 @@
             Vr.copywritingError = eA(e) || "产品文案读取失败", sA("error", "产品文案读取失败", a + " " + Vr.copywritingError),
             oA("产品文案读取失败");
         } finally {
-            Vr.copywritingLoading = !1, Vr.copywritingChecking = !1, Tl();
+            Vr.copywritingLoading = !1, Vr.copywritingChecking = !1, Ml();
         }
     }
     async function bm(e, t) {
@@ -15742,17 +15761,17 @@
                 force: Boolean(a.force),
                 data: i,
                 onStatus: a.silent ? null : e => {
-                    Vr.copywritingStatus = e, Tl();
+                    Vr.copywritingStatus = e, Ml();
                 }
             });
             if (t && t.handled) return delete Vr.copywritingHydrateFailedAt[e], Fi(t.data || SI(e) || i);
             if (t && t.noFile) return i;
             if (l = a.drawer || zb(e), !l || l !== zb(e)) return Fi(SI(e) || {});
             if (c = tl(l), a.silent && !a.file && tl(l) !== Ur.productTab && (!t || !t.error)) return Fi(SI(e) || {});
-            a.file || await Ow(l, Ur.productTab), a.file || await ew(() => Mm(l), 5e3, 160);
-            const r = a.file ? null : Mm(l);
+            a.file || await Ow(l, Ur.productTab), a.file || await ew(() => Tm(l), 5e3, 160);
+            const r = a.file ? null : Tm(l);
             if (!a.file && !r) return Fi(SI(e) || {});
-            const o = a.file || Tm(r, e);
+            const o = a.file || Mm(r, e);
             if (!o) return Fi(SI(e) || {});
             const u = Fi(SI(e) || (Vr.data && Vr.data.sku === e ? Vr.data : {
                 sku: e
@@ -15907,7 +15926,7 @@
                 suppressDataQuality: !0
             });
             return Vr.toyCopywritingErrorSku === e && "ingredient-cache" === Vr.toyCopywritingErrorKind && Boolean(Vr.toyCopywritingError) && (Cd(e),
-            Vr.selectedSku === e && Tl(), oA("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Vr.ingredientHydrateFailedAt[e],
+            Vr.selectedSku === e && Ml(), oA("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Vr.ingredientHydrateFailedAt[e],
             sA("success", "成分表缓存完成", e + " | " + d.ingredientEnglish), {
                 handled: !0,
                 data: d,
@@ -16012,7 +16031,7 @@
             if (i !== zb(e) || Number(Vr.skuResultGeneration[e] || 0) !== n) return Fi(SI(e) || {});
             xI(e, m);
             return Vr.toyCopywritingErrorSku === e && "ingredient-cache" === Vr.toyCopywritingErrorKind && Boolean(Vr.toyCopywritingError) && (Cd(e),
-            Vr.selectedSku === e && Tl(), oA("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Vr.ingredientHydrateFailedAt[e],
+            Vr.selectedSku === e && Ml(), oA("成分表缓存已获取，现在可以重试智能补充食品文案")), delete Vr.ingredientHydrateFailedAt[e],
             sA("success", "成分表静默缓存完成", e + " | " + m.ingredientEnglish), m;
         } catch (t) {
             return Number(Vr.skuResultGeneration[e] || 0) === n && (Vr.ingredientHydrateFailedAt[e] = Date.now(),
@@ -16098,13 +16117,13 @@
         if (!r.length) throw new Error("PDF 页面未生成图片");
         return r;
     }
-    function Mm(e) {
+    function Tm(e) {
         return e && Array.from(e.querySelectorAll(".ant-form-item")).filter(BI).find(e => {
             const t = e.querySelector(".ant-form-item-label");
             return "产品文案" === DI(t && (t.innerText || t.textContent)).replace(/[：:*]/g, "");
         }) || null;
     }
-    function Tm(e, t) {
+    function Mm(e, t) {
         const a = Array.from(e.querySelectorAll(".filePreviewMainBox, .filePreviewCard, .removeOtherContent")).filter(BI).map(e => ({
             card: e,
             fileName: Cm(e)
@@ -16501,10 +16520,10 @@
             };
         }(t && t.netContent);
         !A && I.warning && I.text && s.push(I.warning), l("netContent", "净含量", A || I.text);
-        const M = i(/^原产国$/);
-        l("origin", "原产国", M.join("\n"));
-        const T = i(/^保质期$/);
-        return l("shelfLife", "保质期", T.join("\n")), Xm(t).forEach(e => l(e.key, e.label, e.text)),
+        const T = i(/^原产国$/);
+        l("origin", "原产国", T.join("\n"));
+        const M = i(/^保质期$/);
+        return l("shelfLife", "保质期", M.join("\n")), Xm(t).forEach(e => l(e.key, e.label, e.text)),
         {
             sections: o,
             fullText: (n || o.map(e => e.text).join("\n")).slice(0, 5e4),
@@ -16728,8 +16747,8 @@
                 return a.find(e => WA(e) === n && (e.kind || "standard") === r) || a.find(t => t.sku === e.sku && (t.kind || "standard") === r) || null;
             }(e, n), b = y ? "上次上传：" + (y.completedAt || y.updatedAt || "") : "", w = t ? e.completedAt || e.updatedAt || "" : [ b, e.step || h ].filter(Boolean).join(" · "), k = t ? e.step || e.skipReason || "" : [ b, h ].filter(Boolean).join("\n"), S = Wh(e), v = t ? "upload-history-select" : "upload-queue-select", x = '<button type="button" class="pfh-upload-check' + (g.has(e.id) ? " is-checked" : "") + '" data-action="' + v + '" data-upload-id="' + jI(e.id) + '" title="选中"></button>';
             return '<div class="pfh-upload-item' + a + (t ? " is-history" : "") + '" data-upload-id="' + jI(e.id) + '"><div><b>' + jI(e.sku) + "</b><small>" + jI(S) + '</small></div><span class="' + p + '">' + jI(d) + '</span><em title="' + jI(k) + '">' + jI(w) + "</em>" + x + "</div>";
-        }).join("") : '<div class="pfh-empty">' + jI(t ? Ur.uploadHistoryEmpty : Ur.uploadQueueEmpty) + "</div>", m = '<div class="pfh-upload-table-head' + (t ? " is-history" : "") + '"><span class="pfh-upload-head-project"><b>项目</b></span><span>状态</span><span>' + jI(t ? "时间" : "文件/进度") + "</span><span>选择</span></div>", h = t ? "upload-history-page" : "upload-page", y = '<div class="pfh-upload-pager"><span>共 ' + i.length + ' 条</span><div><button type="button" data-action="' + h + '-prev"' + (Vr[o] <= 1 ? " disabled" : "") + ">‹</button>" + lh(h, Vr[o], s) + '<button type="button" data-action="' + h + '-next"' + (Vr[o] >= s ? " disabled" : "") + ">›</button></div></div>", b = '<button type="button" data-action="upload-clear-list">' + jI(Ur.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (g.size ? "" : " disabled") + ">" + jI(Ur.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (g.size ? "" : " disabled") + ">" + jI(Ur.uploadRetry) + "</button>", w = t ? "upload-history-toggle" : "home-back", k = t ? "返回提审上传" : "返回主页", S = t ? "" : '<div class="pfh-upload-mode-tabs is-four' + ("toy-label" === e ? " is-toy-label" : "") + ("toy-effect" === e ? " is-toy-effect" : "") + ("copyright" === e ? " is-copyright" : "") + '" data-active-mode="' + jI(e) + '" style="--pfh-upload-mode-count:4;grid-template-columns:repeat(4,minmax(68px,1fr));width:min(100%,360px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + ("standard" === e ? "is-active" : "") + '">图包表格</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + ("toy-label" === e ? "is-active" : "") + '">玩具标签</button><button type="button" data-action="upload-mode" data-upload-mode="toy-effect" class="' + ("toy-effect" === e ? "is-active" : "") + '">玩具效果图</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + ("copyright" === e ? "is-active" : "") + '">版权图</button></div>', v = Array.isArray(Vr.copyrightPendingFiles) ? Vr.copyrightPendingFiles : [], x = Vr.uploadRunning ? '<button type="button" data-action="upload-pause">' + jI(Ur.uploadPauseQueue) + "</button>" : '<button type="button" data-action="upload-start">' + jI(Ur.uploadStartQueue) + "</button>", A = Hl(e) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">拖动上方 SKU 卡片到这里添加任务</div>' : "", I = !t && Hl(e) ? '<div class="pfh-upload-sku-picker" data-upload-sku-picker="true"></div>' : "", M = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="粘贴一个或多个 SKU 编码">' + jI(Vr.copyrightSkuInput || "") + '</textarea><div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="粘贴或拖入版权图">粘贴或拖入版权图（JPG / PNG）' + (v.length ? "<small>已选 " + v.length + " 张：" + jI(v.slice(0, 6).map(e => e.name).join(" / ") + (v.length > 6 ? " ..." : "")) + "</small>" : "") + '</div><input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + ((Vr.copyrightSkuInput || "").trim() && v.length ? "" : " disabled") + ">加入版权图任务</button>" + (v.length ? '<button type="button" data-action="copyright-pending-clear">清空已选</button>' : "") + x + "</div>", T = '<div class="pfh-upload-drop pfh-toy-effect-drop" data-action="upload-pick" data-upload-drop="toy-effect" tabindex="0" role="button" aria-label="拖入玩具效果图">拖入玩具效果图（JPG / PNG）<small>按文件名中的产品名匹配 SKU，上传到对应 BOM 的效果图</small></div>' + (Vr.toyEffectMatchStatus ? '<div class="pfh-upload-match-status is-error">' + jI(Vr.toyEffectMatchStatus) + "</div>" : "") + '<input class="pfh-upload-file" data-upload-kind="toy-effect" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="toy-effect">选择效果图</button>' + x + "</div>", C = '<button type="button" data-action="upload-history-toggle">' + jI(t ? "返回提审上传" : "历史记录") + "</button>";
-        return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (t ? " is-history-view" : "") + '"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + w + '" aria-label="' + k + '">' + jt("backArrow") + "</button><h3>" + jI(Ur.uploadSection) + "</h3>" + S + '<span class="pfh-upload-status">' + jI(d) + '</span><button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="使用说明" aria-label="使用说明"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512 85.3c235.3 0 426.7 191.4 426.7 426.7 0 235.3-191.4 426.7-426.7 426.7S85.3 747.3 85.3 512C85.3 276.7 276.7 85.3 512 85.3m0-64C241 21.3 21.3 241 21.3 512S241 1002.7 512 1002.7 1002.7 783 1002.7 512 783 21.3 512 21.3z"></path><path d="M512 277.3m-64 0a64 64 0 1 0 128 0 64 64 0 1 0-128 0Z"></path><path d="M512 810.7c-35.3 0-64-28.7-64-64v-256c0-35.3 28.7-64 64-64s64 28.7 64 64v256c0 35.3-28.7 64-64 64z"></path></svg></button></div>' + I + '<div class="pfh-upload-body">' + (t ? "" : "toy-label" === e ? A + '<textarea class="pfh-toy-label-sku-input" placeholder="粘贴多个 SKU 编码，每行一个或用空格/逗号分隔">' + jI(Vr.toyLabelSkuInput || "") + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">加入玩具标签任务</button>' + x + "</div>" : "toy-effect" === e ? T : "copyright" === e ? A + M : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + jI(Ur.uploadDropHint) + '">' + jI(Ur.uploadDropHint) + '</div><input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">选择文件</button>' + x + "</div>") + m + '<div class="pfh-upload-list">' + f + '</div></div></section></div><div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + y + '<div class="pfh-upload-bottom-actions">' + C + b + "</div></div></div>" + (Vr.uploadGuideOpen ? '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="使用说明"><header><h3>使用说明</h3><button type="button" data-action="upload-guide-close" aria-label="关闭">×</button></header><article><b>图包表格</b><p>把 XLSX 和 ZIP 一起拖入，脚本按文件名中的 SKU 自动匹配并加入任务栏。</p><b>玩具标签</b><p>粘贴多个 SKU 后加入任务；队列会逐个生成标签、上传 BOM，并在结束后下载一个 ZIP 压缩包。</p><b>版权图</b><p>输入 SKU 后粘贴或拖入 JPG/PNG；队列会上传到「设计文件 - 版权图」，保存草稿后提审。多 SKU 可按文件名中的 SKU 匹配，或按图片顺序一对一分配。</p><p class="pfh-upload-guide-tip">请先保证 SKU 已有本地缓存，以避免任务无法获取制作数据。</p></article></section></div>' : "") + function() {
+        }).join("") : '<div class="pfh-empty">' + jI(t ? Ur.uploadHistoryEmpty : Ur.uploadQueueEmpty) + "</div>", m = '<div class="pfh-upload-table-head' + (t ? " is-history" : "") + '"><span class="pfh-upload-head-project"><b>项目</b></span><span>状态</span><span>' + jI(t ? "时间" : "文件/进度") + "</span><span>选择</span></div>", h = t ? "upload-history-page" : "upload-page", y = '<div class="pfh-upload-pager"><span>共 ' + i.length + ' 条</span><div><button type="button" data-action="' + h + '-prev"' + (Vr[o] <= 1 ? " disabled" : "") + ">‹</button>" + lh(h, Vr[o], s) + '<button type="button" data-action="' + h + '-next"' + (Vr[o] >= s ? " disabled" : "") + ">›</button></div></div>", b = '<button type="button" data-action="upload-clear-list">' + jI(Ur.uploadClearList) + '</button><button type="button" data-action="upload-selected-delete"' + (g.size ? "" : " disabled") + ">" + jI(Ur.uploadDelete) + '</button><button type="button" data-action="upload-selected-retry"' + (g.size ? "" : " disabled") + ">" + jI(Ur.uploadRetry) + "</button>", w = t ? "upload-history-toggle" : "home-back", k = t ? "返回提审上传" : "返回主页", S = t ? "" : '<div class="pfh-upload-mode-tabs is-four' + ("toy-label" === e ? " is-toy-label" : "") + ("toy-effect" === e ? " is-toy-effect" : "") + ("copyright" === e ? " is-copyright" : "") + '" data-active-mode="' + jI(e) + '" style="--pfh-upload-mode-count:4;grid-template-columns:repeat(4,minmax(68px,1fr));width:min(100%,360px)"><i class="pfh-upload-mode-indicator" aria-hidden="true"></i><button type="button" data-action="upload-mode" data-upload-mode="standard" class="' + ("standard" === e ? "is-active" : "") + '">图包表格</button><button type="button" data-action="upload-mode" data-upload-mode="toy-label" class="' + ("toy-label" === e ? "is-active" : "") + '">玩具标签</button><button type="button" data-action="upload-mode" data-upload-mode="toy-effect" class="' + ("toy-effect" === e ? "is-active" : "") + '">玩具效果图</button><button type="button" data-action="upload-mode" data-upload-mode="copyright" class="' + ("copyright" === e ? "is-active" : "") + '">版权图</button></div>', v = Array.isArray(Vr.copyrightPendingFiles) ? Vr.copyrightPendingFiles : [], x = Vr.uploadRunning ? '<button type="button" data-action="upload-pause">' + jI(Ur.uploadPauseQueue) + "</button>" : '<button type="button" data-action="upload-start">' + jI(Ur.uploadStartQueue) + "</button>", A = Hl(e) ? '<div class="pfh-upload-sku-drop-target" data-upload-sku-drop="true" tabindex="0" role="button">拖动上方 SKU 卡片到这里添加任务</div>' : "", I = !t && Hl(e) ? '<div class="pfh-upload-sku-picker" data-upload-sku-picker="true"></div>' : "", T = '<textarea class="pfh-toy-label-sku-input pfh-copyright-sku-input" placeholder="粘贴一个或多个 SKU 编码">' + jI(Vr.copyrightSkuInput || "") + '</textarea><div class="pfh-upload-drop pfh-copyright-drop" data-action="upload-pick" data-upload-drop="copyright" tabindex="0" role="button" aria-label="粘贴或拖入版权图">粘贴或拖入版权图（JPG / PNG）' + (v.length ? "<small>已选 " + v.length + " 张：" + jI(v.slice(0, 6).map(e => e.name).join(" / ") + (v.length > 6 ? " ..." : "")) + "</small>" : "") + '</div><input class="pfh-upload-file" data-upload-kind="copyright" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="copyright-queue-add"' + ((Vr.copyrightSkuInput || "").trim() && v.length ? "" : " disabled") + ">加入版权图任务</button>" + (v.length ? '<button type="button" data-action="copyright-pending-clear">清空已选</button>' : "") + x + "</div>", M = '<div class="pfh-upload-drop pfh-toy-effect-drop" data-action="upload-pick" data-upload-drop="toy-effect" tabindex="0" role="button" aria-label="拖入玩具效果图">拖入玩具效果图（JPG / PNG）<small>按文件名中的产品名匹配 SKU，上传到对应 BOM 的效果图</small></div>' + (Vr.toyEffectMatchStatus ? '<div class="pfh-upload-match-status is-error">' + jI(Vr.toyEffectMatchStatus) + "</div>" : "") + '<input class="pfh-upload-file" data-upload-kind="toy-effect" type="file" multiple accept=".jpg,.jpeg,.png,image/jpeg,image/png"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="toy-effect">选择效果图</button>' + x + "</div>", C = '<button type="button" data-action="upload-history-toggle">' + jI(t ? "返回提审上传" : "历史记录") + "</button>";
+        return '<div class="pfh-detail-scroll pfh-upload-scroll"><section class="pfh-section pfh-upload-section is-open' + (t ? " is-history-view" : "") + '"><div class="pfh-section-title pfh-upload-title"><button type="button" class="pfh-upload-back" data-action="' + w + '" aria-label="' + k + '">' + jt("backArrow") + "</button><h3>" + jI(Ur.uploadSection) + "</h3>" + S + '<span class="pfh-upload-status">' + jI(d) + '</span><button type="button" class="pfh-upload-guide-button" data-action="upload-guide" title="使用说明" aria-label="使用说明"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M512 85.3c235.3 0 426.7 191.4 426.7 426.7 0 235.3-191.4 426.7-426.7 426.7S85.3 747.3 85.3 512C85.3 276.7 276.7 85.3 512 85.3m0-64C241 21.3 21.3 241 21.3 512S241 1002.7 512 1002.7 1002.7 783 1002.7 512 783 21.3 512 21.3z"></path><path d="M512 277.3m-64 0a64 64 0 1 0 128 0 64 64 0 1 0-128 0Z"></path><path d="M512 810.7c-35.3 0-64-28.7-64-64v-256c0-35.3 28.7-64 64-64s64 28.7 64 64v256c0 35.3-28.7 64-64 64z"></path></svg></button></div>' + I + '<div class="pfh-upload-body">' + (t ? "" : "toy-label" === e ? A + '<textarea class="pfh-toy-label-sku-input" placeholder="粘贴多个 SKU 编码，每行一个或用空格/逗号分隔">' + jI(Vr.toyLabelSkuInput || "") + '</textarea><div class="pfh-upload-actions"><button type="button" data-action="toy-label-queue-add">加入玩具标签任务</button>' + x + "</div>" : "toy-effect" === e ? M : "copyright" === e ? A + T : '<div class="pfh-upload-drop" data-action="upload-pick" data-upload-drop="any" tabindex="0" role="button" aria-label="' + jI(Ur.uploadDropHint) + '">' + jI(Ur.uploadDropHint) + '</div><input class="pfh-upload-file" data-upload-kind="any" type="file" multiple accept=".xls,.xlsx,.zip,.rar"><div class="pfh-upload-actions"><button type="button" data-action="upload-pick" data-upload-kind="any">选择文件</button>' + x + "</div>") + m + '<div class="pfh-upload-list">' + f + '</div></div></section></div><div class="pfh-upload-bottom"><div class="pfh-upload-bottom-line">' + y + '<div class="pfh-upload-bottom-actions">' + C + b + "</div></div></div>" + (Vr.uploadGuideOpen ? '<div class="pfh-upload-guide-modal" data-action="upload-guide-close"><section role="dialog" aria-modal="true" aria-label="使用说明"><header><h3>使用说明</h3><button type="button" data-action="upload-guide-close" aria-label="关闭">×</button></header><article><b>图包表格</b><p>把 XLSX 和 ZIP 一起拖入，脚本按文件名中的 SKU 自动匹配并加入任务栏。</p><b>玩具标签</b><p>粘贴多个 SKU 后加入任务；队列会逐个生成标签、上传 BOM，并在结束后下载一个 ZIP 压缩包。</p><b>版权图</b><p>输入 SKU 后粘贴或拖入 JPG/PNG；队列会上传到「设计文件 - 版权图」，保存草稿后提审。多 SKU 可按文件名中的 SKU 匹配，或按图片顺序一对一分配。</p><p class="pfh-upload-guide-tip">请先保证 SKU 已有本地缓存，以避免任务无法获取制作数据。</p></article></section></div>' : "") + function() {
             if (!Vr.uploadClearConfirmOpen) return "";
             const e = "history" === Vr.uploadView;
             return '<div class="pfh-upload-guide-modal pfh-upload-clear-modal"><section role="dialog" aria-modal="true" aria-label="确认清空"><header><h3>确认清空</h3><button type="button" data-action="upload-clear-cancel" aria-label="关闭">×</button></header><article><b>' + (e ? "清空全部历史记录？" : "清空当前提审队列？") + "</b><p>" + (e ? "清空后将无法在历史记录中查看已上传或报错的产品。" : "队列中的待上传文件会被移除，这项操作无法撤销。") + '</p><footer><button type="button" data-action="upload-clear-cancel">取消</button><button type="button" class="is-danger" data-action="upload-clear-confirm">确认清空</button></footer></article></section></div>';
@@ -16767,7 +16786,7 @@
         !o) return;
         r.insertAdjacentHTML("beforeend", Cf(i, t, jI(a), Boolean(i.imageGeneratedAt)));
         const s = r.querySelector('[data-action="ledger-more"]');
-        s && Mf(n, s);
+        s && Tf(n, s);
     }
     function uh(e) {
         if (!e || "ledger" !== Vr.view) return;
@@ -16782,7 +16801,7 @@
         if ("magic-upload-mode" === a) {
             const e = t.getAttribute("data-magic-mode");
             return Vr.magicUploadMode = "effect" === e || "toy-label" === e ? e : "package",
-            jl(pl()) || Tl(), !0;
+            jl(pl()) || Ml(), !0;
         }
         if ("magic-toy-label-add" === a) return yc(Vr.magicToyLabelInput), !0;
         if ("magic-toy-label-start" === a) return function() {
@@ -16914,7 +16933,7 @@
         }
         return "magic-upload-toggle-task" === a ? (function(e) {
             const t = (Vr.magicUploadQueue || []).find(t => t.id === e);
-            t && (t.expanded = !t.expanded, Tl());
+            t && (t.expanded = !t.expanded, Ml());
         }(t.getAttribute("data-magic-id") || ""), !0) : "magic-upload-file-up" === a || "magic-upload-file-down" === a ? (function(e, t, a) {
             const n = (Vr.magicUploadQueue || []).find(t => t.id === e), r = Number(t);
             if (!n || !Array.isArray(n.files) || !Number.isInteger(r)) return;
@@ -16923,13 +16942,13 @@
             const o = n.files.slice(), s = o[r];
             o[r] = o[i], o[i] = s, n.files = o, n.status = n.files.some(e => "待确认" === e.category) ? "waiting" : "pending",
             n.step = "waiting" === n.status ? "请确认文件分类" : "等待上传", n.submitted = !1, n.draftSaved = !1,
-            n.updatedAt = Date.now(), cc(Vr.magicUploadQueue), Tl();
+            n.updatedAt = Date.now(), cc(Vr.magicUploadQueue), Ml();
         }(t.getAttribute("data-magic-id") || "", t.getAttribute("data-magic-file-index") || "", "magic-upload-file-up" === a ? -1 : 1),
         !0) : "magic-upload-history-toggle" === a ? (Vr.magicUploadHistoryOpen = !Vr.magicUploadHistoryOpen,
-        Tl(), !0) : "magic-upload-history-close" === a ? (t.classList && t.classList.contains("pfh-magic-history-modal") && e.target !== t || (Vr.magicUploadHistoryOpen = !1,
-        Tl()), !0) : "magic-effect-history-toggle" === a ? (Vr.magicEffectHistoryOpen = !Vr.magicEffectHistoryOpen,
-        Tl(), !0) : "magic-effect-history-close" === a ? (t.classList && t.classList.contains("pfh-magic-history-modal") && e.target !== t || (Vr.magicEffectHistoryOpen = !1,
-        Tl()), !0) : "magic-upload-history-retry" === a ? (async function(e) {
+        Ml(), !0) : "magic-upload-history-close" === a ? (t.classList && t.classList.contains("pfh-magic-history-modal") && e.target !== t || (Vr.magicUploadHistoryOpen = !1,
+        Ml()), !0) : "magic-effect-history-toggle" === a ? (Vr.magicEffectHistoryOpen = !Vr.magicEffectHistoryOpen,
+        Ml(), !0) : "magic-effect-history-close" === a ? (t.classList && t.classList.contains("pfh-magic-history-modal") && e.target !== t || (Vr.magicEffectHistoryOpen = !1,
+        Ml()), !0) : "magic-upload-history-retry" === a ? (async function(e) {
             const t = (Vr.magicUploadHistory || []).find(t => t && t.id === e), a = t && t.task;
             if (!a) return;
             const n = _c(a, {
@@ -16940,20 +16959,20 @@
             for (const e of r) await uI(e) || i.push(e);
             if (i.length) return oA("历史源文件已失效，请重新选择 ZIP/XLSX"), void jc("warn", "历史任务无法恢复", n.sku + " | 本地文件已丢失=" + i.length);
             (Vr.magicUploadQueue || []).find(e => e.id === n.id) || (Vr.magicUploadQueue = (Vr.magicUploadQueue || []).concat(n)),
-            Vr.magicUploadHistoryOpen = !1, cc(Vr.magicUploadQueue), Tl(), fu(n.id);
+            Vr.magicUploadHistoryOpen = !1, cc(Vr.magicUploadQueue), Ml(), fu(n.id);
         }(t.getAttribute("data-magic-history-id") || ""), !0) : "magic-upload-start" === a ? (yu(),
         !0) : "magic-upload-pause" === a ? (Vr.magicUploadRunning = !1, cc(Vr.magicUploadQueue),
-        Tl(), !0) : "magic-upload-remove" === a ? (function(e) {
+        Ml(), !0) : "magic-upload-remove" === a ? (function(e) {
             const t = (Vr.magicUploadQueue || []).find(t => t.id === e);
             t && (Vr.magicUploadQueue = Vr.magicUploadQueue.filter(t => t.id !== e), gu(t, Vr.magicUploadQueue),
-            cc(Vr.magicUploadQueue), Tl());
+            cc(Vr.magicUploadQueue), Ml());
         }(t.getAttribute("data-magic-id") || ""), !0) : "magic-upload-clear" === a ? ((Vr.magicUploadQueue || []).forEach(e => gu(e, [])),
         Vr.magicUploadQueue = [], Vr.magicUploadRunning = !1, De && (window.clearInterval(De),
-        De = 0), cc(Vr.magicUploadQueue), Tl(), oA("魔法上传队列已清空"), !0) : "magic-effect-clear" === a ? (function() {
+        De = 0), cc(Vr.magicUploadQueue), Ml(), oA("魔法上传队列已清空"), !0) : "magic-effect-clear" === a ? (function() {
             const e = LA();
             e.filter(e => "toy-effect" === ZA(e)).forEach(dI), Vr.uploadQueue = e.filter(e => "toy-effect" !== ZA(e)),
             Vr.uploadMode = "toy-effect", Vr.uploadRunning = !1, nI("toy-effect", !1), jA(),
-            Tl(), oA("效果图队列已清空");
+            Ml(), oA("效果图队列已清空");
         }(), !0) : "magic-upload-retry" === a ? (fu(t.getAttribute("data-magic-id") || ""),
         !0) : "magic-upload-save-task" === a ? (function(e) {
             const t = (Vr.magicUploadQueue || []).find(t => t.id === e), a = pl().querySelector('.pfh-magic-task[data-magic-id="' + CSS.escape(e) + '"]');
@@ -16970,10 +16989,10 @@
             t.step = "waiting" === t.status ? "请确认文件分类" : "等待上传", t.submitted = !1, t.draftSaved = !1,
             t.projectId = Hi(SI(t.sku) || {}), t.replaceCategories = [], t.existingFileVersionIds = {},
             t.existingFiles = {}, t.replacementCheckStatus = t.sku ? "checking" : "idle", t.updatedAt = Date.now(),
-            cc(Vr.magicUploadQueue), uu([ t ]), Tl(), oA("任务修改已保存");
+            cc(Vr.magicUploadQueue), uu([ t ]), Ml(), oA("任务修改已保存");
         }(t.getAttribute("data-magic-id") || ""), !0) : "home-magic-upload" === a && (Vr.magicUploadAccessEnabled ? (Vr.view = "magicUpload",
         Vr.uploadReturnView = "", Vr.magicUploadMode = "effect" === Vr.magicUploadMode || "toy-label" === Vr.magicUploadMode ? Vr.magicUploadMode : "package",
-        fl(), Tl(), !0) : (oA(Vr.magicUploadAccessLoading ? "正在准备功能" : "魔法上传暂未开放，敬请期待"),
+        fl(), Ml(), !0) : (oA(Vr.magicUploadAccessLoading ? "正在准备功能" : "魔法上传暂未开放，敬请期待"),
         fA(0), !0));
     }
     function ph(n) {
@@ -16995,7 +17014,7 @@
         if ("sku-cache-editor-collapse" === c) return void fm(!1);
         if ("sku-cache-editor-save" === c) return void mm();
         if ("home-feature-edit-toggle" === c) return Vr.homeFeatureEditMode = !Vr.homeFeatureEditMode,
-        Vr.homeFeatureDragId = "", Tl(), void (Vr.homeFeatureEditMode || oA("主页功能入口已更新"));
+        Vr.homeFeatureDragId = "", Ml(), void (Vr.homeFeatureEditMode || oA("主页功能入口已更新"));
         if ("home-feature-edit-card" === c) return;
         const u = l && l.closest && l.closest(".pfh-home-entry");
         if (u && !u.disabled) if ("1" === u.getAttribute("data-pfh-click-replay")) u.removeAttribute("data-pfh-click-replay"),
@@ -17016,7 +17035,7 @@
             if (e && !t) return Date.now() < Number(Vr.ledgerSkuDragSuppressClickUntil || 0) ? void n.preventDefault() : void YS(e.getAttribute("data-ledger-sku"), e.getAttribute("data-ledger-date"));
         }
         if ("notifications" === c) return Vr.notificationModalOpen = !0, Vr.notificationTab = Zt() ? "new" : "history",
-        fl(), Tl(), void na(!1);
+        fl(), Ml(), void na(!1);
         if ("notification-close" === c) {
             if (l.classList.contains("pfh-notification-layer") && n.target !== l) return;
             return void function() {
@@ -17035,7 +17054,7 @@
                 isRead: !0,
                 readAt: (new Date).toISOString()
             } : e), Vr.notificationPendingReadIds = Array.from(new Set([ ...Vr.notificationPendingReadIds || [], a ])),
-            Jt(), Tl(), await ta(vx(), Bx()), t && oA("已标为已读"));
+            Jt(), Ml(), await ta(vx(), Bx()), t && oA("已标为已读"));
         }(l.getAttribute("data-notification-id"), !0);
         if ("notification-read-all" === c) return void async function() {
             const e = (Vr.notifications || []).filter(e => !e.isRead).map(e => e.notificationId);
@@ -17044,7 +17063,7 @@
                 isRead: !0,
                 readAt: e.readAt || (new Date).toISOString()
             })), Vr.notificationPendingReadIds = Array.from(new Set([ ...Vr.notificationPendingReadIds || [], ...e ])),
-            Vr.notificationTab = "history", Jt(), Tl(), await ta(vx(), Bx()), oA("已全部标为已读"));
+            Vr.notificationTab = "history", Jt(), Ml(), await ta(vx(), Bx()), oA("已全部标为已读"));
         }();
         if ("infringement-image-viewer-close" === c) {
             if (l.classList.contains("pfh-infringement-image-viewer-layer") && n.target !== l) return;
@@ -17091,7 +17110,7 @@
             if (!s || !o) return;
             const l = Cv(i), c = LS(s[l.hiddenField], be);
             c.includes(o) || c.push(o);
-            const u = Tv(r, t, {
+            const u = Mv(r, t, {
                 [l.hiddenField]: c
             }, !0);
             if (!u) return;
@@ -17102,7 +17121,7 @@
             if (!i) return;
             const o = Cv(r);
             if (!LS(i[o.hiddenField], be).length) return;
-            const s = Tv(n, t, {
+            const s = Mv(n, t, {
                 [o.hiddenField]: []
             }, !0);
             if (!s) return;
@@ -17131,7 +17150,7 @@
                 if (!c || !u || !l) return null;
                 const d = Ev(i, s, o, u.url, l), p = Vr.ledgerAiImageRetouchRequests[d];
                 if (p) return oA("这张图的相同修改正在处理中，关闭弹窗也会继续"), p;
-                const g = Cv(o), f = ES(c[g.originalField], g.imageLimit).findIndex(e => e.url === u.url), m = TS(u, o, f >= 0 ? f : 0), h = String(u.baseUrl || u.url || "").trim(), y = String(u.baseFilename || AS(u) || m + ".png").trim(), b = MS(u) || (f >= 0 ? f + 1 : 0), w = Date.now(), k = {
+                const g = Cv(o), f = ES(c[g.originalField], g.imageLimit).findIndex(e => e.url === u.url), m = MS(u, o, f >= 0 ? f : 0), h = String(u.baseUrl || u.url || "").trim(), y = String(u.baseFilename || AS(u) || m + ".png").trim(), b = TS(u) || (f >= 0 ? f + 1 : 0), w = Date.now(), k = {
                     id: Lv(),
                     sourceUrl: u.url,
                     displayName: m,
@@ -17144,7 +17163,7 @@
                     createdAtMs: w,
                     updatedAtMs: w
                 }, S = Nv(c, o).filter(e => !(e.sourceUrl === k.sourceUrl && e.prompt === k.prompt));
-                if (!Tv(i, s, {
+                if (!Mv(i, s, {
                     [g.taskField]: [ k ].concat(S)
                 }, !0)) return null;
                 oA(m + " 修改任务已提交，完成后可关闭并重新打开查看");
@@ -17175,7 +17194,7 @@
                             createdAtMs: Date.now()
                         } ], 1)[0];
                         if (!a) throw new Error("修改图片地址无法保存");
-                        const n = rv(i, s) || c, r = ES(n[g.retouchedField], he), d = Nv(n, o).filter(e => e.id !== k.id && !(e.sourceUrl === k.sourceUrl && e.prompt === k.prompt)), p = Tv(i, s, {
+                        const n = rv(i, s) || c, r = ES(n[g.retouchedField], he), d = Nv(n, o).filter(e => e.id !== k.id && !(e.sourceUrl === k.sourceUrl && e.prompt === k.prompt)), p = Mv(i, s, {
                             [g.retouchedField]: [ a ].concat(r.filter(e => e.url !== a.url)),
                             [g.taskField]: d,
                             aiImageMessage: "AI 生图与修改图已保存到工作台"
@@ -17187,7 +17206,7 @@
                             status: "error",
                             error: eA(e) || "修改图片失败",
                             updatedAtMs: Date.now()
-                        } : t), n = Tv(i, s, {
+                        } : t), n = Mv(i, s, {
                             [g.taskField]: a
                         }, !0) || t;
                         return Af(n), Dv(i, s), oA(m + " 修改失败：" + (eA(e) || "网络请求失败")), n;
@@ -17221,7 +17240,7 @@
         f = l.getAttribute("data-kind"), m = l.getAttribute("data-image-url"), void function(t, a, n, r) {
             const i = rv(t, a), o = Pv(i, n, r);
             if (!i || !o) return;
-            const s = Cv(n), l = ES(i[s.originalField], s.imageLimit).findIndex(e => e.url === o.url), c = TS(o, n, l >= 0 ? l : 0);
+            const s = Cv(n), l = ES(i[s.originalField], s.imageLimit).findIndex(e => e.url === o.url), c = MS(o, n, l >= 0 ? l : 0);
             Fv(), Vr.ledgerAiImageRetouchComposer = {
                 sku: String(t || "").trim(),
                 dateKey: $k(a) || Yk(),
@@ -17280,7 +17299,7 @@
             if (Vr.ledgerAiImageRequests[i]) return void oA("这个 SKU 的 AI 生图正在处理中，请等待结果");
             const o = xS(n.aiImageStatus, n.aiImageMessage);
             if ("loading" === o || "running" === o) return void oA("这个 SKU 的 AI 生图正在处理中，请等待结果");
-            const s = Tv(e, t, {
+            const s = Mv(e, t, {
                 aiImageStatus: "loading",
                 aiImageMessage: "正在准备并提交 PLM AI 生图（" + ("detail" === r ? "详情图" : "主图") + "）；请勿重复点击…",
                 aiImageCheckedAtMs: Date.now()
@@ -17294,14 +17313,14 @@
                 l && !l.loading || (l = await kv(e, !1));
                 const r = wv(l);
                 if (r.length) {
-                    return jv(Tv(e, t, {
+                    return jv(Mv(e, t, {
                         aiImageStatus: r.includes("SKU 效果图") ? r.length > 1 ? "needs-prerequisites" : "needs-sku-image" : "needs-copywriting",
                         aiImageMessage: "生图前置校验未通过：" + r.join("、"),
                         aiImageCheckedAtMs: Date.now()
                     }, !0) || n), void oA("已拦截 AI 生图：请先补齐 " + r.join("、"));
                 }
             } catch (a) {
-                const r = eA(a) || "接口异常", i = Tv(e, t, {
+                const r = eA(a) || "接口异常", i = Mv(e, t, {
                     aiImageStatus: "error",
                     aiImageMessage: "生图资料检查失败：" + r,
                     aiImageCheckedAtMs: Date.now()
@@ -17416,7 +17435,7 @@
             if (Vr.ledgerAiImageDownloadKey) return;
             const i = "detail" === a ? "detail" : "main", o = rv(e, t), s = Pv(o, i, n);
             if (!o || !s) return;
-            const l = String(r || TS(s, i, 0)).trim() || ("detail" === i ? "详情图" : "主图"), c = function(e, t, a, n) {
+            const l = String(r || MS(s, i, 0)).trim() || ("detail" === i ? "详情图" : "主图"), c = function(e, t, a, n) {
                 return nv(e, t, a) + "|item|" + String(n || "");
             }(o.sku, o.date, i, s.url);
             Vr.ledgerAiImageDownloadKey = c, Vr.ledgerAiImageDownloadProgress = "正在下载 " + l + "…",
@@ -17447,7 +17466,7 @@
             });
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-display-mode" === c) return Vr.ledgerDisplayMode = "table" === l.getAttribute("data-mode") ? "table" : "cards",
-        void (Yu(pl()) || Tl());
+        void (Yu(pl()) || Ml());
         if ("ledger-copy-filtered-skus" === c) return void of(!1);
         if ("ledger-copy-filtered-table" === c) return void of(!0);
         if ("detail-view-tab" === c) return void function(e) {
@@ -17501,13 +17520,13 @@
             }(e);
         }
         if (Vr.exportMenuOpen && !(n.target && n.target.closest && n.target.closest(".pfh-export-menu"))) return Vr.exportMenuOpen = !1,
-        void Tl();
+        void Ml();
         if (Vr.skuSortMenuOpen && !(n.target && n.target.closest && n.target.closest(".pfh-sku-sort-menu"))) return Vr.skuSortMenuOpen = !1,
-        void Tl();
+        void Ml();
         if ("expand" === c) return void fl();
         if ("panel-close" === c) return bl(l), void yl(!0);
         if ("theme-resource-enable" === c) return Vr.luluThemeAccessEnabled ? (Vr.settings.theme = "lulu",
-        CA(Vr.settings), K(), Tl(), void async function() {
+        CA(Vr.settings), K(), Ml(), void async function() {
             const e = ("undefined" != typeof unsafeWindow && unsafeWindow ? unsafeWindow : window).__PFH_LULU_THEME_RESOURCE__;
             if (e && "1.8.0" === e.version && "function" == typeof e.refresh) return e.refresh(),
             sA("success", "噜噜乐园皮肤已启用", O), void oA("噜噜乐园已启用");
@@ -17528,26 +17547,26 @@
             }
         }()) : (oA(Vr.luluThemeAccessLoading ? "正在准备功能" : "噜噜乐园主题暂未开放，敬请期待"), void Kx(0));
         if ("theme-select" === c) return Vr.settings.theme = H(l.getAttribute("data-theme-id")),
-        CA(Vr.settings), K(), Tl(), void oA("主题已切换为 " + G().name);
+        CA(Vr.settings), K(), Ml(), void oA("主题已切换为 " + G().name);
         if ("developer-settings-tap" === c) {
             const e = Date.now();
             return e - Vr.developerSettingsTapAt > 1800 && (Vr.developerSettingsTapCount = 0),
             Vr.developerSettingsTapAt = e, Vr.developerSettingsTapCount += 1, void (Vr.developerSettingsTapCount >= 5 && (Vr.developerSettingsTapCount = 0,
-            Vr.developerInsightsUnlocked = !0, Vr.developerToolsOpen = !1, Tl(), oA("数据洞察已显示")));
+            Vr.developerInsightsUnlocked = !0, Vr.developerToolsOpen = !1, Ml(), oA("数据洞察已显示")));
         }
-        if ("plm-api-monitor-toggle" === c) return ot.enabled = !ot.enabled, pt(), Tl(),
+        if ("plm-api-monitor-toggle" === c) return ot.enabled = !ot.enabled, pt(), Ml(),
         void oA(ot.enabled ? "数据监听已开启，请刷新页面后操作 PLM" : "数据监听已关闭");
         if ("plm-api-monitor-export" === c) return Bk(new Blob([ JSON.stringify(ot.entries || [], null, 2) ], {
             type: "application/json"
         }), "plm-data-" + (new Date).toISOString().replace(/[:.]/g, "-") + ".json"), void oA("PLM 数据监听结果已导出");
-        if ("plm-api-monitor-clear" === c) return ot.entries = [], pt(), Tl(), void oA("PLM 数据监听结果已清空");
+        if ("plm-api-monitor-clear" === c) return ot.entries = [], pt(), Ml(), void oA("PLM 数据监听结果已清空");
         if ("developer-tools-close" === c) {
             if (l.classList.contains("pfh-developer-backdrop") && n.target !== l) return;
-            return Vr.developerToolsOpen = !1, void Tl();
+            return Vr.developerToolsOpen = !1, void Ml();
         }
         if ("developer-layout-copy" === c) {
             const e = function() {
-                const e = pl(), a = e.getBoundingClientRect(), n = getComputedStyle(e), r = document.getElementById(t), i = r && r.getBoundingClientRect(), o = Number.parseFloat(n.right), s = Number.parseFloat(n.bottom), l = Number.isFinite(o) ? o : Math.max(0, window.innerWidth - a.right), c = Number.isFinite(s) ? s : Math.max(0, window.innerHeight - a.bottom), u = i ? Math.round(i.left) : TI()?.left ?? 0, d = i ? Math.round(i.top) : TI()?.top ?? 0;
+                const e = pl(), a = e.getBoundingClientRect(), n = getComputedStyle(e), r = document.getElementById(t), i = r && r.getBoundingClientRect(), o = Number.parseFloat(n.right), s = Number.parseFloat(n.bottom), l = Number.isFinite(o) ? o : Math.max(0, window.innerWidth - a.right), c = Number.isFinite(s) ? s : Math.max(0, window.innerHeight - a.bottom), u = i ? Math.round(i.left) : MI()?.left ?? 0, d = i ? Math.round(i.top) : MI()?.top ?? 0;
                 return [ "PLM 悬浮助手默认布局", "窗口位置：right " + Math.round(l) + "px / bottom " + Math.round(c) + "px", "窗口尺寸：" + Math.round(a.width) + " x " + Math.round(a.height), "唤起按钮：left " + u + "px / top " + d + "px", "左右分隔栏：" + Math.round(Vr.splitWidth) + "px" ].join("\n");
             }();
             return iA(e), sA("info", "已复制当前布局", e.replace(/\n/g, " | ")), void oA("当前布局已复制");
@@ -17555,7 +17574,7 @@
         if ("toggle-collection" === c) return Vr.settings.collectionEnabled = !Vr.settings.collectionEnabled,
         CA(Vr.settings), Vr.settings.collectionEnabled ? (Vr.observedDrawer = ki(), Vr.observedSku = Vr.observedDrawer ? Zs(NI(Vr.observedDrawer)) : "",
         Vr.observedTab = Vr.observedDrawer ? tl(Vr.observedDrawer) : "") : (li(), pi(),
-        ui()), oA(Vr.settings.collectionEnabled ? "数据采集已开启" : "数据采集已关闭"), void Tl();
+        ui()), oA(Vr.settings.collectionEnabled ? "数据采集已开启" : "数据采集已关闭"), void Ml();
         if ("refresh" === c) return void si();
         if ("sku-manual-add-open" === c) return void function() {
             Vr.manualSkuAddOpen = !0, Vr.manualSkuAddQueue = UA(), fl();
@@ -17624,12 +17643,12 @@
         if ("clear-search" === c) return Vr.skuPage = 1, void function() {
             const e = pl().querySelector(".pfh-search-input");
             e && (e.value = "");
-            Vr.searchQuery = "", Vr.skuPage = 1, Ab(), fl(), Tl();
+            Vr.searchQuery = "", Vr.skuPage = 1, Ab(), fl(), Ml();
         }();
         if ("sku-list-mode" === c) {
             const e = "waterfall" === l.getAttribute("data-mode") ? "waterfall" : "list";
             return Vr.settings.skuListMode = e, Vr.skuPage = 1, "productDevelopmentTasks" === Vr.view && (Vr.productDevelopmentTaskPage = 1),
-            Vr.skuSortMenuOpen = !1, CA(Vr.settings), "productDevelopmentTasks" === Vr.view ? void Tl() : void (function(e) {
+            Vr.skuSortMenuOpen = !1, CA(Vr.settings), "productDevelopmentTasks" === Vr.view ? void Ml() : void (function(e) {
                 const t = e && e.querySelector(".pfh-list"), a = t && t.querySelector(".pfh-sku-view-switch"), n = t && t.querySelector(".pfh-sku-list-content");
                 if (!t || !a || !n) return !1;
                 const r = document.createElement("template");
@@ -17649,17 +17668,17 @@
                     a && n && (a.textContent = n.textContent);
                 }
                 return n.replaceWith(o), !0;
-            }(pl()) || Tl());
+            }(pl()) || Ml());
         }
         if ("sku-sort-toggle" === c) return Vr.skuSortMenuOpen = !Vr.skuSortMenuOpen, Vr.exportMenuOpen = !1,
-        void Tl();
+        void Ml();
         if ("sku-list-sort" === c) return Vr.settings.skuListSort = "acquired" === l.getAttribute("data-sort") ? "acquired" : "assigned",
-        Vr.skuPage = 1, Vr.skuSortMenuOpen = !1, CA(Vr.settings), void Tl();
+        Vr.skuPage = 1, Vr.skuSortMenuOpen = !1, CA(Vr.settings), void Ml();
         if ("sku-page-prev" === c) return Vr.skuPage = Math.max(1, (Vr.skuPage || 1) - 1),
-        void Tl();
-        if ("sku-page-next" === c) return Vr.skuPage = (Vr.skuPage || 1) + 1, void Tl();
+        void Ml();
+        if ("sku-page-next" === c) return Vr.skuPage = (Vr.skuPage || 1) + 1, void Ml();
         if ("sku-page-goto" === c) return Vr.skuPage = Number(l.getAttribute("data-page")) || Vr.skuPage || 1,
-        void Tl();
+        void Ml();
         if ("copy-title-meta" === c) return iA(rA(Vr.data)), void oA(Ur.copied);
         if ("copy-sku" === c) return iA(Vr.data && Vr.data.sku ? Vr.data.sku : ""), void oA(Ur.copied);
         if ("sku-detail-more" === c) {
@@ -17682,26 +17701,26 @@
             e.forEach((e, t) => {
                 const a = Vr.index.find(t => t.sku === e.sku);
                 a && (a.pinned = !0, a.pinOrder = t + 1);
-            }), TA(), Vr.skuPage = 1, oA("已置顶 " + e.length + " 个编码"), Tl();
+            }), MA(), Vr.skuPage = 1, oA("已置顶 " + e.length + " 个编码"), Ml();
         }();
         if ("about" === c) return Vr.settings.backgroundNoticeSeen || (Vr.settings.backgroundNoticeSeen = !0,
         CA(Vr.settings)), "about" === Vr.view ? (Vr.view = Vr.settingsReturnView || (Vr.data ? "detail" : "home"),
         Vr.settingsReturnView = "") : (Vr.settingsReturnView = Vr.view || (Vr.data ? "detail" : "home"),
-        Vr.view = "about"), fl(), void Tl();
+        Vr.view = "about"), fl(), void Ml();
         if ("first-run-tutorial-done" === c) {
             const e = pl().querySelector(".pfh-tutorial-cloud-key");
             if (e && (Vr.settings.cloudBackupKey = e.value.trim(), CA(Vr.settings)), kx()) Vr.tutorialEmptyKeyClickCount = 0; else if (Vr.tutorialEmptyKeyClickCount = (Vr.tutorialEmptyKeyClickCount || 0) + 1,
             Vr.tutorialEmptyKeyClickCount >= 5) return EA(!0), Vr.tutorialModalOpen = !1, Vr.tutorialEmptyKeyClickCount = 0,
-            void Tl();
+            void Ml();
             return kx() ? kx().length < 4 ? (oA(Ur.cloudBackupKeyTooShort), void (e && e.focus())) : (EA(!0),
-            Vr.tutorialModalOpen = !1, void Tl()) : (oA(Ur.cloudBackupMissingKey), void (e && e.focus()));
+            Vr.tutorialModalOpen = !1, void Ml()) : (oA(Ur.cloudBackupMissingKey), void (e && e.focus()));
         }
         if ("home-main" === c) return Vr.sizeImageCustomData = null, Vr.sizeImageCustomDraft = null,
         Vr.sizeImageCustomOpen = !1, Vr.view = "home", Vr.copywritingMode = !1, Vr.uploadExpanded = !1,
-        Vr.uploadReturnView = "", fl(), void Tl();
+        Vr.uploadReturnView = "", fl(), void Ml();
         if ("home-feedback" === c) {
             Vr.view = "feedback", Vr.copywritingMode = !1, Vr.detailReturnView = "", Vr.detailReturnScroll = null,
-            fl(), Tl();
+            fl(), Ml();
             const e = vx();
             return void (e && Vr.feedbackLoadedName === e || rc());
         }
@@ -17709,16 +17728,16 @@
             if (Vr.feedbackSubmitting) return;
             const e = tc();
             if (!e.name) return Vr.feedbackError = "未识别当前 PLM 用户，请先登录后再提交反馈。", oA(Vr.feedbackError),
-            void Tl();
+            void Ml();
             const t = String(Vr.feedbackContent || "").trim();
             if (!t) {
                 Vr.feedbackError = "请填写反馈内容。", oA(Vr.feedbackError);
                 const e = pl().querySelector(".pfh-feedback-content");
-                return e && e.focus(), void Tl();
+                return e && e.focus(), void Ml();
             }
             if (Array.from(t).length > 2e3) return Vr.feedbackError = "反馈内容不能超过 2000 字。", oA(Vr.feedbackError),
-            void Tl();
-            Vr.feedbackSubmitting = !0, Vr.feedbackError = "", Tl();
+            void Ml();
+            Vr.feedbackSubmitting = !0, Vr.feedbackError = "", Ml();
             try {
                 const a = await Yx("/feedback/submit", {
                     method: "POST",
@@ -17738,17 +17757,17 @@
             } catch (e) {
                 Vr.feedbackError = "反馈提交失败：" + nc(e), oA(Vr.feedbackError);
             } finally {
-                Vr.feedbackSubmitting = !1, "feedback" === Vr.view && Tl();
+                Vr.feedbackSubmitting = !1, "feedback" === Vr.view && Ml();
             }
         }();
         if ("feedback-refresh" === c) return void rc();
         if ("open-detail" === c) return void Ib();
         if ("sku-edit-open" === c) {
-            Vr.skuEditMode = !0, Tl();
+            Vr.skuEditMode = !0, Ml();
             const e = l.getAttribute("data-focus-key") || "", t = Array.from(pl().querySelectorAll("[data-sku-edit-key]")), a = t.find(t => t.getAttribute("data-sku-edit-key") === e) || t.find(e => "manualCategory" === e.getAttribute("data-sku-edit-key")) || t[0];
             return void (a && a.focus());
         }
-        if ("sku-edit-cancel" === c) return Vr.skuEditMode = !1, void Tl();
+        if ("sku-edit-cancel" === c) return Vr.skuEditMode = !1, void Ml();
         if ("sku-edit-save" === c) return void Vf();
         if ("sku-changes-ack" === c) return void function() {
             const e = Fi(Vr.data || (Vr.selectedSku ? SI(Vr.selectedSku) : null));
@@ -17760,12 +17779,12 @@
             };
             xI(e.sku, t, {
                 suppressChangeTracking: !0
-            }), Tl(), oA("已确认本次数据更新");
+            }), Ml(), oA("已确认本次数据更新");
         }();
         if ("copywriting-open" === c) return void ym(!1);
         if ("toy-copywriting-fill" === c) return void zd();
         if ("copywriting-toggle-collapse" === c) return Vr.settings.copywritingCollapsed = !Boolean(Vr.settings.copywritingCollapsed),
-        CA(Vr.settings), void Tl();
+        CA(Vr.settings), void Ml();
         if ("copywriting-copy" === c) {
             const e = Jm(Vr.data);
             return void (e && e.fullText ? (iA(e.fullText), oA("文案已复制")) : oA("没有可复制的文案"));
@@ -17788,14 +17807,14 @@
             xI(e.sku, {
                 ...e,
                 copywriting: a
-            }), oA("已标记为查看"), Tl();
+            }), oA("已标记为查看"), Ml();
         }();
         if ("open-first-detail" === c) return void function() {
             const e = Vr.index[0] && Vr.index[0].sku ? Vr.index[0].sku : "";
             if (!e && !Vr.settings.collectionEnabled) return void oA(Ur.emptyList);
             e ? (Vr.selectedSku = e, Vr.data = Fi(SI(e) || Vr.index[0])) : (Vr.selectedSku = "",
             Vr.data = null);
-            if (Vr.view = "detail", Vr.copywritingMode = !1, fl(), Tl(e ? "正在后台检查新的设计分配..." : Ur.openingDetail),
+            if (Vr.view = "detail", Vr.copywritingMode = !1, fl(), Ml(e ? "正在后台检查新的设计分配..." : Ur.openingDetail),
             !Vr.settings.collectionEnabled) return;
             window.setTimeout(() => {
                 Vr.assignedDesignTaskSyncPromise || function(e) {
@@ -17837,7 +17856,7 @@
                         const e = Vr.index[0].sku;
                         Vr.selectedSku = e, Vr.data = Fi(SI(e) || Vr.index[0]);
                     }
-                    "detail" === Vr.view && Tl();
+                    "detail" === Vr.view && Ml();
                     const t = Math.max(Number(e && e.addedCount || 0), Number(e && e.ledgerAddedCount || 0));
                     oA(t ? "已自动加入 " + t + " 个新分配任务" : "已检查，暂无新分配任务");
                 }).catch(e => {
@@ -17848,21 +17867,21 @@
             }, 0);
         }();
         if ("home-chart-period" === c) return Vr.homeChartPeriod = 30 === Number(l.getAttribute("data-period")) ? 30 : 7,
-        void Tl();
+        void Ml();
         if ("home-size-image" === c) return Vr.sizeImageAccessEnabled ? (Vr.view = "sizeImage",
         Vr.copywritingMode = !1, Vr.skuPage = 1, !Vr.selectedSku && Vr.index[0] && (Vr.selectedSku = Vr.index[0].sku),
         Vr.data = Vr.selectedSku ? Fi(SI(Vr.selectedSku) || {
             sku: Vr.selectedSku
-        }) : null, fl(), void Tl()) : (oA(Vr.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待"),
+        }) : null, fl(), void Ml()) : (oA(Vr.sizeImageAccessLoading ? "正在准备功能" : "该功能暂未开放，敬请期待"),
         void Ox(0));
         if ("size-image-custom-open" === c) return Vr.sizeImageCustomDraft = Xp(Kp()), Vr.sizeImageCustomOpen = !0,
-        fl(), Tl(), void window.setTimeout(() => {
+        fl(), Ml(), void window.setTimeout(() => {
             const e = pl().querySelector('[data-size-image-custom-key="sku"]');
             e && e.focus();
         }, 0);
         if ("size-image-custom-close" === c) {
             if (l.classList.contains("pfh-size-image-custom-layer") && n.target !== l) return;
-            return Vr.sizeImageCustomOpen = !1, Vr.sizeImageCustomDraft = null, void Tl();
+            return Vr.sizeImageCustomOpen = !1, Vr.sizeImageCustomDraft = null, void Ml();
         }
         if ("size-image-custom-save" === c) return void function() {
             const e = pl(), t = Yp(e, "sku"), a = Yp(e, "packageSizeText"), n = Yp(e, "flatSizeText"), r = "label" === Yp(e, "flatKind") ? "label" : "print", i = Yp(e, "packageTitle") || "纸盒", o = Yp(e, "flatTitle") || ("label" === r ? "标签" : "印刷");
@@ -17903,13 +17922,13 @@
             u.includeRoundArc = Boolean(e.querySelector('[data-size-image-custom-key="includeRoundArc"]')?.checked),
             u.includeBatchNumber = Boolean(e.querySelector('[data-size-image-custom-key="includeBatchNumber"]')?.checked),
             u.cartonRemarkText = s.sizeImageCustomCartonRemark || "", c[0] && (u.labelRemarkTexts[c[0].key] = s.sizeImageCustomFlatRemark || ""),
-            Vr.view = "sizeImage", Vr.copywritingMode = !1, fl(), Tl(), oA("自定义尺寸已保存，请上传纸盒或标签底图");
+            Vr.view = "sizeImage", Vr.copywritingMode = !1, fl(), Ml(), oA("自定义尺寸已保存，请上传纸盒或标签底图");
         }();
         if ("home-parameter-image" === c) return Vr.parameterImageAccessEnabled ? (Vr.view = "parameterImage",
         Vr.copywritingMode = !1, Vr.skuPage = 1, !Vr.selectedSku && Vr.index[0] && (Vr.selectedSku = Vr.index[0].sku),
         Vr.data = Vr.selectedSku ? Fi(SI(Vr.selectedSku) || {
             sku: Vr.selectedSku
-        }) : null, Hr.loadRules(), fl(), void Tl()) : (oA(Vr.parameterImageAccessLoading ? "正在准备功能" : "生成参数图暂未开放，敬请期待"),
+        }) : null, Hr.loadRules(), fl(), void Ml()) : (oA(Vr.parameterImageAccessLoading ? "正在准备功能" : "生成参数图暂未开放，敬请期待"),
         void Vx(0));
         if ("size-image-pick" === c) {
             const e = pl().querySelector(".pfh-size-image-file-input");
@@ -17933,9 +17952,9 @@
             const t = "" === Vr.excelPurchasePrice ? "6" : Vr.excelPurchasePrice;
             if ((!Vr.excelExtra || !Vr.excelExtra.excelData || Vr.excelExtra.excelData.sku !== e.sku || Vr.excelMissing.length) && (sA("info", "生成 Excel 前自动准备数据", e.sku + " | " + (Vr.excelMissing.length ? "上次仍缺：" + Vr.excelMissing.join("、") : "当前没有匹配的表格数据快照")),
             await ow(), !Vr.excelExtra || !Vr.excelExtra.excelData || Vr.excelExtra.excelData.sku !== e.sku)) return Vr.excelStatus = "🔴 表格数据准备失败",
-            Tl(), void oA(Vr.excelStatus);
+            Ml(), void oA(Vr.excelStatus);
             Vr.excelMissing.length && (Vr.excelStatus = rw(Vr.excelMissing), sA("warn", "Excel 将使用不完整数据生成", e.sku + " | 缺少：" + Vr.excelMissing.join("、")),
-            Tl());
+            Ml());
             Vr.excelMissing.length && Aw();
             try {
                 const a = Vr.excelExtra.extra, n = Vr.excelExtra.excelData, r = pk(Px(n));
@@ -17944,12 +17963,12 @@
                     throw new Error(e ? n.sku + " 的包装尺寸为 " + e + "，本地公式无法计算有效装箱数" : n.sku + " 缺少完整包装尺寸，无法计算装箱数");
                 }
                 const i = xk(Sk(n, a)), o = await Ik(i);
-                if (!o) return Vr.excelStatus = Ur.excelSaveCanceled, Tl(), void oA(Ur.excelSaveCanceled);
+                if (!o) return Vr.excelStatus = Ur.excelSaveCanceled, Ml(), void oA(Ur.excelSaveCanceled);
                 oA(Ur.excelGenerating);
                 const s = new window.ExcelJS.Workbook;
                 await s.xlsx.load(Pk(vt));
                 const l = s.getWorksheet("Sheet1") || s.worksheets[0];
-                Vr.excelStatus = Ur.excelImageLoading, Tl();
+                Vr.excelStatus = Ur.excelImageLoading, Ml();
                 const c = Bw(n, a), u = c.imageUrl ? await Nk(c.imageUrl, c.imageFallbackUrl).catch(e => (console.warn("PLM floating helper image fetch failed:", e),
                 null)) : null;
                 if (sw(e, a), Fw(l, "A4", kk(n, a)), Fw(l, "B4", n.name || a.chineseName || ""),
@@ -17970,7 +17989,7 @@
                 }, l.getCell("L3").value = {
                     formula: 'IF(RIGHT(L4,1)="G","净重",IF(RIGHT(L4,2)="ML","容量","规格"))'
                 }), u) {
-                    Vr.excelStatus = Ur.excelPacking, Tl();
+                    Vr.excelStatus = Ur.excelPacking, Ml();
                     const e = s.addImage({
                         base64: u.dataUrl,
                         extension: u.extension
@@ -17978,7 +17997,7 @@
                     l.addImage(e, Fk(u));
                 }
                 const d = await s.xlsx.writeBuffer();
-                Vr.excelStatus = Ur.excelDownloading + " " + i, Tl(), console.info("PLM floating helper Excel filename:", i),
+                Vr.excelStatus = Ur.excelDownloading + " " + i, Ml(), console.info("PLM floating helper Excel filename:", i),
                 await Lk(new Blob([ d ], {
                     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 }), i, o), _x("excel_generated", {
@@ -17994,29 +18013,29 @@
                     status: "制作中",
                     stage: "表格/上传处理中",
                     note: "已生成 Excel"
-                }), Vr.excelStatus = Ur.excelDone, Tl(), oA(Ur.excelDone);
+                }), Vr.excelStatus = Ur.excelDone, Ml(), oA(Ur.excelDone);
             } catch (e) {
                 console.warn("PLM floating helper excel failed:", e), Vr.excelStatus = Ur.excelFailed,
-                Tl(), oA(Ur.excelFailed);
+                Ml(), oA(Ur.excelFailed);
             }
         }());
-        if ("export-menu-toggle" === c) return Vr.exportMenuOpen = !Vr.exportMenuOpen, void Tl();
+        if ("export-menu-toggle" === c) return Vr.exportMenuOpen = !Vr.exportMenuOpen, void Ml();
         if ("export-type" === c) return Vr.exportType = "toy-label" === l.getAttribute("data-export-type") ? "toy-label" : "excel",
-        Vr.exportMenuOpen = !1, void Tl();
+        Vr.exportMenuOpen = !1, void Ml();
         if ("upload-toggle" === c) return "upload" === Vr.view ? (Vr.view = Vr.uploadReturnView || "home",
         Vr.uploadReturnView = "", Vr.uploadExpanded = !1) : (Vr.uploadReturnView = "detail" === Vr.view ? "detail" : "home",
-        Vr.view = "upload", Vr.uploadExpanded = !0), fl(), void Tl();
+        Vr.view = "upload", Vr.uploadExpanded = !0), fl(), void Ml();
         if ("home-unit-converter" === c) return Vr.view = "tools", Vr.toolsActiveTool = "unit",
-        fl(), void Tl();
-        if ("home-tools" === c) return Vr.view = "tools", fl(), void Tl();
+        fl(), void Ml();
+        if ("home-tools" === c) return Vr.view = "tools", fl(), void Ml();
         if ("tools-select" === c) return Vr.toolsActiveTool = tp(l.getAttribute("data-tool")),
-        Vr.view = "tools", Vr.copywritingMode = !1, fl(), void Tl();
-        if ("unit-converter-clear" === c) return Vr.cmConverterInput = "", void Tl();
+        Vr.view = "tools", Vr.copywritingMode = !1, fl(), void Ml();
+        if ("unit-converter-clear" === c) return Vr.cmConverterInput = "", void Ml();
         if ("unit-converter-copy" === c) {
             const e = Vp(Vr.cmConverterInput);
             return void (e && (iA(e), oA("换算结果已复制")));
         }
-        if ("code-formatter-clear" === c) return Vr.codeFormatterInput = "", void Tl();
+        if ("code-formatter-clear" === c) return Vr.codeFormatterInput = "", void Ml();
         if ("code-formatter-copy" === c) {
             const e = Gp(Vr.codeFormatterInput);
             return void (e && (iA(e), oA("编码格式已复制")));
@@ -18028,7 +18047,7 @@
                 name: "",
                 amount: "",
                 dailyValue: "**"
-            }), Vr.supplementFactsDraft = F(e), Tl();
+            }), Vr.supplementFactsDraft = F(e), Ml();
             const t = pl().querySelectorAll('[data-supplement-facts-row-field="name"]'), a = t[t.length - 1];
             return void (a && a.focus());
         }
@@ -18039,16 +18058,16 @@
                 name: "",
                 amount: "",
                 dailyValue: "**"
-            }), Vr.supplementFactsDraft = F(e), void Tl();
+            }), Vr.supplementFactsDraft = F(e), void Ml();
         }
         if ("supplement-facts-load-sample" === c) return Vr.supplementFactsDraft = F(_()),
-        Tl(), void oA("已载入成分表示例");
+        Ml(), void oA("已载入成分表示例");
         if ("supplement-facts-print" === c) return void xp();
         if (dh(n, l, c)) return;
         if ("toy-copywriting-batch-clear-input" === c) return Vr.toyCopywritingBatchInput = "",
-        void Tl();
+        void Ml();
         if ("toy-copywriting-batch-add" === c) return void Ap(Vr.toyCopywritingBatchInput);
-        if ("toy-copywriting-batch-start" === c) return void Mp();
+        if ("toy-copywriting-batch-start" === c) return void Tp();
         if ("toy-copywriting-batch-apply" === c) return void jp();
         if ("toy-copywriting-batch-download-review" === c) return void jp({
             skipApply: !0
@@ -18062,12 +18081,12 @@
                 step: "已暂停，等待继续",
                 error: ""
             }), Vr.toyCopywritingBatchCurrentSku = "", Vr.toyCopywritingBatchStatus = "已暂停，已完成项目保留在队列中",
-            zA(Vr.toyCopywritingBatchQueue), Tl();
+            zA(Vr.toyCopywritingBatchQueue), Ml();
         }();
         if ("toy-copywriting-batch-remove" === c) return void function(e) {
             if (Vr.toyCopywritingBatchRunning) return void oA("当前队列正在处理，请先暂停后再移除");
             const t = String(e || "").trim().toUpperCase();
-            zA(RA().filter(e => e.sku !== t)), Tl();
+            zA(RA().filter(e => e.sku !== t)), Ml();
         }(l.getAttribute("data-sku") || "");
         if ("toy-copywriting-batch-retry" === c) return void function(e) {
             if (Vr.toyCopywritingBatchRunning) return;
@@ -18077,12 +18096,12 @@
                 step: "等待重新补全",
                 error: "",
                 filledCount: 0
-            }), Tl());
+            }), Ml());
         }(l.getAttribute("data-sku") || "");
         if ("toy-copywriting-batch-clear-completed" === c) return void (Vr.toyCopywritingBatchRunning || (zA(RA().filter(e => "success" !== e.status && "noop" !== e.status)),
-        Vr.toyCopywritingBatchStatus = "已清除已完成项目", Tl()));
+        Vr.toyCopywritingBatchStatus = "已清除已完成项目", Ml()));
         if ("ledger-open" === c) return Vr.view = "ledger", Vr.ledgerDate = Vr.ledgerDate || Yk(),
-        fl(), void Tl();
+        fl(), void Ml();
         if ("ledger-toggle-tools" === c) {
             Vr.ledgerToolsCollapsed = !Vr.ledgerToolsCollapsed;
             const e = pl(), t = e && e.querySelector(".pfh-ledger-tools-panel"), a = t && t.querySelector(".pfh-ledger-tools-toggle");
@@ -18100,18 +18119,18 @@
             const t = (Number(Vr.ledgerTabRenderToken) || 0) + 1;
             Vr.ledgerTabRenderToken = t;
             const a = () => {
-                Vr.ledgerTabRenderToken === t && "ledger" === Vr.view && (Yu(pl()) || Tl());
+                Vr.ledgerTabRenderToken === t && "ledger" === Vr.view && (Yu(pl()) || Ml());
             };
             return void ("function" == typeof window.requestAnimationFrame ? window.requestAnimationFrame(() => window.requestAnimationFrame(a)) : window.setTimeout(a, 32));
         }
-        if ("ledger-prev-day" === c) return Vr.ledgerDate = eS(Vr.ledgerDate, -1), void Tl();
+        if ("ledger-prev-day" === c) return Vr.ledgerDate = eS(Vr.ledgerDate, -1), void Ml();
         if ("ledger-prev-month" === c || "ledger-next-month" === c) return Vr.ledgerDate = function(e, t) {
             const a = oS(e || Yk()).match(/^(\d{4})-(\d{2})$/), n = new Date(a ? Number(a[1]) : (new Date).getFullYear(), a ? Number(a[2]) - 1 : (new Date).getMonth(), 1);
             return n.setMonth(n.getMonth() + Number(t || 0)), [ n.getFullYear(), String(n.getMonth() + 1).padStart(2, "0"), "01" ].join("-");
-        }(Vr.ledgerDate, "ledger-next-month" === c ? 1 : -1), void Tl();
-        if ("ledger-today" === c) return Vr.ledgerDate = Yk(), void Tl();
+        }(Vr.ledgerDate, "ledger-next-month" === c ? 1 : -1), void Ml();
+        if ("ledger-today" === c) return Vr.ledgerDate = Yk(), void Ml();
         if ("ledger-fullscreen-toggle" === c) return Vr.ledgerFullscreen = !Vr.ledgerFullscreen,
-        void Tl();
+        void Ml();
         if ("ledger-copy" === c) return void function(e) {
             const t = GS("finalized", oS(e || Vr.ledgerDate)).filter(e => e.finalizedAt && "作废" !== e.status);
             if (!t.length) return void oA("本月没有可复制的已定稿记录");
@@ -18142,7 +18161,7 @@
         if ("ledger-select-date" === c) return void function(e) {
             const t = GS("finalized", sS()).filter(t => cS(t) === $k(e)), a = new Set(Vr.ledgerSelectedKeys || []), n = t.map(JS), r = n.length && n.every(e => a.has(e));
             n.forEach(e => r ? a.delete(e) : a.add(e)), Vr.ledgerSelectedKeys = Array.from(a),
-            Tl();
+            Ml();
         }(l.getAttribute("data-date"));
         if ("ledger-performance-merge" === c || "ledger-performance-unmerge" === c) return void function(e) {
             const t = new Set(Vr.ledgerSelectedKeys || []), a = GS("finalized", sS()).filter(e => t.has(JS(e)));
@@ -18155,12 +18174,12 @@
                 performanceGroupMode: "",
                 updatedAt: i,
                 updatedAtMs: o
-            } : e), Vr.ledgerSelectedKeys = [], pS(), Tl(), oA(e ? "已合并为 1 个绩效单位" : "已取消绩效合并");
+            } : e), Vr.ledgerSelectedKeys = [], pS(), Ml(), oA(e ? "已合并为 1 个绩效单位" : "已取消绩效合并");
         }("ledger-performance-merge" === c);
         if ("ledger-performance-group-open" === c) return void function() {
             const t = GS("finalized", sS()), a = new Set(Vr.ledgerSelectedKeys || []), n = t.filter(e => a.has(JS(e))).map(e => BS(e.sku)).filter(Boolean);
             Vr.ledgerPerformanceGroupOpen = !0, Vr.ledgerPerformanceGroupInput = n.join("\n"),
-            Vr.ledgerPerformanceGroupStatus = "", Tl(), window.setTimeout(() => {
+            Vr.ledgerPerformanceGroupStatus = "", Ml(), window.setTimeout(() => {
                 const t = document.getElementById(e), a = t && t.querySelector(".pfh-ledger-performance-group-input");
                 a && (a.focus(), a.setSelectionRange(a.value.length, a.value.length));
             }, 0);
@@ -18186,7 +18205,7 @@
                 performanceGroupMode: "series",
                 updatedAt: r,
                 updatedAtMs: i
-            }) : e), Vr.ledgerSelectedKeys = [], pS(), $S(), Tl();
+            }) : e), Vr.ledgerSelectedKeys = [], pS(), $S(), Ml();
             const s = t.missing.length ? "；未找到 " + t.missing.length + " 个，未处理" : "", l = t.truncated ? "（最多处理 300 个）" : "";
             oA("已按编码编组 " + o + " 个产品" + s + l);
         }();
@@ -18221,7 +18240,7 @@
         if ("ledger-clear" === c) return void function(e) {
             const t = $k(e) || Yk();
             if (!window.confirm("确定清空 " + tS(t) + " 的今日工作台记录吗？")) return;
-            Vr.ledgerRecords = (Vr.ledgerRecords || []).filter(e => e.date !== t), pS(), Tl();
+            Vr.ledgerRecords = (Vr.ledgerRecords || []).filter(e => e.date !== t), pS(), Ml();
         }(Vr.ledgerDate);
         if ("ledger-trash-restore" === c || "ledger-trash-delete" === c) return void function(e, t, a) {
             const n = $k(a) || Yk(), r = iS(n), i = (Vr.ledgerTrashRecords || []).find(e => e.sku === t && iS(e.date) === r);
@@ -18240,7 +18259,7 @@
                 ...e,
                 purged: !0
             } : e);
-            mS(), Tl(), oA("ledger-trash-restore" === e ? "已恢复到今日工作台" : "已从垃圾篓清除，仍会阻止自动加入");
+            mS(), Ml(), oA("ledger-trash-restore" === e ? "已恢复到今日工作台" : "已从垃圾篓清除，仍会阻止自动加入");
         }(c, l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-trash-empty" === c) return void function(e) {
             const t = oS(e || Yk()), a = (Vr.ledgerTrashRecords || []).filter(e => !e.purged && iS(e.date) === t).length;
@@ -18248,7 +18267,7 @@
             Vr.ledgerTrashRecords = (Vr.ledgerTrashRecords || []).map(e => iS(e.date) === t ? {
                 ...e,
                 purged: !0
-            } : e), mS(), Tl(), oA("本月垃圾篓已清空，移除编码仍不会自动加入");
+            } : e), mS(), Ml(), oA("本月垃圾篓已清空，移除编码仍不会自动加入");
         }(Vr.ledgerDate);
         if ("ledger-image-generated" === c || "ledger-unmark-image-generated" === c || "ledger-finalize" === c || "ledger-unfinalize" === c || "ledger-extension" === c || "ledger-series-exclude" === c || "ledger-void" === c || "ledger-done" === c || "ledger-remove" === c) {
             const e = {};
@@ -18277,7 +18296,7 @@
                     } ].concat((Vr.ledgerTrashRecords || []).filter(e => !(e.sku === t && iS(e.date) === o))).slice(0, 1200),
                     Vr.ledgerRecords = (Vr.ledgerRecords || []).filter(e => !(e.sku === t && iS(e.date) === o)),
                     Vr.ledgerSelectedKeys = (Vr.ledgerSelectedKeys || []).filter(e => e !== JS(n)),
-                    pS(), mS(), Tl(), void oA("已移入垃圾篓，不会再次自动加入");
+                    pS(), mS(), Ml(), void oA("已移入垃圾篓，不会再次自动加入");
                 }
                 const r = aS(Date.now()), i = Yk(), o = $k(a) || $k(Vr.ledgerDate) || Yk(), s = (Vr.ledgerRecords || []).find(e => e.date === o && e.sku === t), l = "ledger-series-exclude" === e && !Qg(s || {
                     sku: t
@@ -18359,7 +18378,7 @@
                 }
                 Af(p), Gg(), "ledger-extension" === e && oA(p && "extension" === p.performanceType ? "已设为延伸，绩效按 0.3 分计算" : "已取消延伸绩效");
                 "ledger-series-exclude" === e && oA(l ? "已剔除自动系列，按单独产品计算" : "已恢复自动系列匹配");
-                "ledger-finalize" === e && Ta();
+                "ledger-finalize" === e && Ma();
             }(c, l.getAttribute("data-sku"), l.getAttribute("data-date"), e);
         }
         if ("ledger-edit-finalized-time" === c) return void function(e, t) {
@@ -18370,9 +18389,9 @@
                 sku: e,
                 dateKey: a,
                 timeMs: n.finalizedAtMs || nS(n.finalizedAt) || Date.now()
-            }, Tl();
+            }, Ml();
         }(l.getAttribute("data-sku"), l.getAttribute("data-date"));
-        if ("ledger-time-close" === c) return Vr.ledgerTimeEditor = null, void Tl();
+        if ("ledger-time-close" === c) return Vr.ledgerTimeEditor = null, void Ml();
         if ("ledger-time-today" === c || "ledger-time-yesterday" === c || "ledger-time-day-before" === c) return void function(e) {
             const t = Vr.ledgerTimeEditor;
             if (!t) return;
@@ -18412,7 +18431,7 @@
                 let t = 0;
                 return c.forEach(a => {
                     XS(a.sku, e, a.date) !== a && (t += 1);
-                }), t && pS(), "ledger" !== Vr.view || Yu(pl()) || Tl(), Gg(), Ta(), void oA("已同步 " + c.length + " 个选中产品的" + s + "：" + DS(l));
+                }), t && pS(), "ledger" !== Vr.view || Yu(pl()) || Ml(), Gg(), Ma(), void oA("已同步 " + c.length + " 个选中产品的" + s + "：" + DS(l));
             }
             const u = XS(t, {
                 [i]: l,
@@ -18420,7 +18439,7 @@
                 note: s + DS(l),
                 skipStorageSync: !0
             }, n);
-            Af(u), Ta();
+            Af(u), Ma();
         }(c, l.getAttribute("data-sku"), l.getAttribute("data-date"));
         if ("ledger-cycle-artwork-state" === c) return void function(e, t) {
             gS();
@@ -18459,15 +18478,15 @@
                     cardOffset: o && s ? s.top - o.top : null
                 };
             }(a) : null, Vr.selectedSku = t, Vr.data = n, Vr.detailReturnView = Vr.view || "ledger",
-            Vr.view = "detail", Vr.copywritingMode = !1, fl(), Tl(), window.setTimeout(() => Jo(t, n).catch(e => {
+            Vr.view = "detail", Vr.copywritingMode = !1, fl(), Ml(), window.setTimeout(() => Jo(t, n).catch(e => {
                 sA("warn", "今日工作台后台刷新物料失败", t + " | " + eA(e));
             }), 0);
         }(l.getAttribute("data-sku"), l.closest(".pfh-ledger-item"));
         if ("home-batch-excel" === c || "home-excel-coming-soon" === c) return Vr.view = "batchExcel",
-        Vr.batchExcelStatus = "", fl(), void Tl();
+        Vr.batchExcelStatus = "", fl(), void Ml();
         if ("batch-excel-mode" === c) return Vr.batchExcelMode = "merge" === l.getAttribute("data-mode") ? "merge" : "separate",
-        void Tl();
-        if ("batch-excel-clear-input" === c) return Vr.batchExcelInput = "", void Tl();
+        void Ml();
+        if ("batch-excel-clear-input" === c) return Vr.batchExcelInput = "", void Ml();
         if ("batch-excel-add" === c) return void function(e) {
             const t = function(e) {
                 const t = String(e || "").match(/\bSKU\d{8}\b/gi) || [], a = new Set;
@@ -18488,14 +18507,14 @@
                 };
                 n >= 0 ? a[n] = r : a.push(r);
             }), Vr.batchExcelInput = "", NA(a), Vr.batchExcelStatus = "已加入 " + t.length + " 个 SKU，等待补全缓存",
-            Tl(), oA(Vr.batchExcelStatus), pw();
+            Ml(), oA(Vr.batchExcelStatus), pw();
         }(Vr.batchExcelInput);
         if ("batch-excel-prepare" === c) return void pw();
         if ("batch-excel-pause" === c) return void function() {
             if (!Vr.batchExcelWorkerRunning) return void (Vr.batchExcelWorkerPaused && (Vr.batchExcelWorkerPaused = !1,
             pw()));
             Vr.batchExcelWorkerPaused = !Vr.batchExcelWorkerPaused, Vr.batchExcelStatus = Vr.batchExcelWorkerPaused ? "已请求暂停，当前 SKU 完成后暂停队列" : "已继续补全队列",
-            Tl();
+            Ml();
         }();
         if ("batch-excel-download" === c) return void async function() {
             if (Vr.batchExcelWorkerRunning || Vr.batchExcelDownloadRunning) return;
@@ -18513,7 +18532,7 @@
                 };
             }).filter(e => "preparing" !== e.entry.status);
             if (!e.length) return void oA("队列中没有可生成的 SKU");
-            Vr.batchExcelDownloadRunning = !0, Vr.view = "batchExcel", fl(), Tl();
+            Vr.batchExcelDownloadRunning = !0, Vr.view = "batchExcel", fl(), Ml();
             try {
                 if ("merge" === Vr.batchExcelMode) {
                     const t = function(e) {
@@ -18521,7 +18540,7 @@
                         return xk(([ a.brand, a.name || t.extra && t.extra.chineseName, n ].filter(Boolean).join(" ").replace(/\s+/g, " ").trim() || "PLM批量产品信息") + ".xlsx");
                     }(e), a = await Ik(t);
                     if (!a) return void (Vr.batchExcelStatus = Ur.excelSaveCanceled);
-                    Vr.batchExcelStatus = "正在合并 " + e.length + " 个 SKU 并插入产品图", Tl();
+                    Vr.batchExcelStatus = "正在合并 " + e.length + " 个 SKU 并插入产品图", Ml();
                     const n = await async function(e) {
                         const t = new window.ExcelJS.Workbook;
                         await t.xlsx.load(Pk(vt));
@@ -18580,7 +18599,7 @@
                         Vr.batchExcelStatus = Ur.excelSaveCanceled;
                         break;
                     }
-                    Vr.batchExcelStatus = "正在下载 " + (t + 1) + "/" + e.length + "：" + a.data.sku, Tl();
+                    Vr.batchExcelStatus = "正在下载 " + (t + 1) + "/" + e.length + "：" + a.data.sku, Ml();
                     try {
                         const e = await Sw(a);
                         await Lk(new Blob([ e ], {
@@ -18593,19 +18612,19 @@
                             error: t
                         }), Vr.batchExcelStatus = a.data.sku + " 下载失败：" + t, sA("error", "Excel 单独下载失败", a.data.sku + " | " + t);
                     }
-                    "batchExcel" === Vr.view && Tl(), await Ok(120);
+                    "batchExcel" === Vr.view && Ml(), await Ok(120);
                 }
             } catch (e) {
                 const t = eA(e) || "未知错误";
                 Vr.batchExcelStatus = "批量 Excel 生成失败：" + t, sA("error", "批量 Excel 生成失败", t), oA(Vr.batchExcelStatus);
             } finally {
-                Vr.batchExcelDownloadRunning = !1, "batchExcel" === Vr.view && Tl();
+                Vr.batchExcelDownloadRunning = !1, "batchExcel" === Vr.view && Ml();
             }
         }();
         if ("batch-excel-remove" === c) return void function(e) {
             if (Vr.batchExcelWorkerRunning || Vr.batchExcelDownloadRunning) return void oA("当前队列正在处理，请等待完成");
             const t = String(e || "").trim().toUpperCase();
-            NA(PA().filter(e => e.sku !== t)), Tl();
+            NA(PA().filter(e => e.sku !== t)), Ml();
         }(l.getAttribute("data-sku"));
         if ("batch-excel-retry" === c) return void function(e) {
             if (Vr.batchExcelWorkerRunning || Vr.batchExcelDownloadRunning) return;
@@ -18614,12 +18633,12 @@
             dw(t, {
                 status: "pending",
                 error: ""
-            }), Tl(), pw();
+            }), Ml(), pw();
         }(l.getAttribute("data-sku"));
         if ("batch-excel-clear-completed" === c) return void function() {
             if (Vr.batchExcelWorkerRunning || Vr.batchExcelDownloadRunning) return;
             NA(PA().filter(e => "downloaded" !== e.status)), Vr.batchExcelStatus = "已清除已下载项",
-            Tl();
+            Ml();
         }();
         if ("home-back" === c) {
             if (Vr.searchQuery.trim()) {
@@ -18630,7 +18649,7 @@
             const t = Vr.detailReturnView || "", a = Vr.detailReturnScroll;
             return "ledger" === Vr.view && "ledger" !== t && (Vr.ledgerFullscreen = !1), Vr.view = t || "home",
             Vr.detailReturnView = "", Vr.detailReturnScroll = null, Vr.uploadExpanded = !1,
-            Vr.uploadReturnView = "", Tl(), void ("ledger" === t && function(t) {
+            Vr.uploadReturnView = "", Ml(), void ("ledger" === t && function(t) {
                 if (!t) return;
                 window.requestAnimationFrame(() => {
                     const a = document.getElementById(e), n = a && a.querySelector(".pfh-detail-scroll"), r = a && a.querySelector(".pfh-ledger-list");
@@ -18647,27 +18666,27 @@
             }(a));
         }
         if ("upload-history-toggle" === c) return Vr.uploadView = "history" === Vr.uploadView ? "queue" : "history",
-        "history" === Vr.uploadView && (Vr.uploadHistoryPage = 1), void Tl();
-        if ("upload-clear-list" === c) return Vr.uploadClearConfirmOpen = !0, void Tl();
-        if ("upload-clear-cancel" === c) return Vr.uploadClearConfirmOpen = !1, void Tl();
+        "history" === Vr.uploadView && (Vr.uploadHistoryPage = 1), void Ml();
+        if ("upload-clear-list" === c) return Vr.uploadClearConfirmOpen = !0, void Ml();
+        if ("upload-clear-cancel" === c) return Vr.uploadClearConfirmOpen = !1, void Ml();
         if ("upload-clear-confirm" === c) return void function() {
             const e = JA(Vr.uploadMode);
             if (Vr.uploadClearConfirmOpen = !1, "history" === Vr.uploadView) return Vr.uploadHistory = OA().filter(t => ZA(t) !== e),
-            Vr.uploadHistoryPage = 1, Vr.uploadSelectedIds = [], qA(), Tl(), void oA("历史记录已清空");
+            Vr.uploadHistoryPage = 1, Vr.uploadSelectedIds = [], qA(), Ml(), void oA("历史记录已清空");
             const t = LA();
             t.filter(t => ZA(t) === e).forEach(dI), Vr.uploadQueue = t.filter(t => ZA(t) !== e),
             Vr.uploadPage = 1, Vr.uploadSelectedIds = [], Vr.uploadRunning = !1, nI(e, !1),
-            jA(), Tl(), oA("队列已清空");
+            jA(), Ml(), oA("队列已清空");
         }();
-        if ("upload-guide" === c) return Vr.uploadGuideOpen = !0, void Tl();
+        if ("upload-guide" === c) return Vr.uploadGuideOpen = !0, void Ml();
         if ("upload-guide-close" === c) {
             if (l.classList.contains("pfh-upload-guide-modal") && n.target !== l) return;
-            return Vr.uploadGuideOpen = !1, void Tl();
+            return Vr.uploadGuideOpen = !1, void Ml();
         }
         if ("upload-mode" === c) {
             const e = l.getAttribute("data-upload-mode");
             return Vr.uploadMode = /^(?:standard|toy-label|toy-effect|copyright)$/.test(e || "") ? e : "standard",
-            void (Ol(pl()) || Tl());
+            void (Ol(pl()) || Ml());
         }
         if ("toy-label-queue-add" === c) return void function(e) {
             const t = Array.from(new Set((String(e || "").match(/\bSKU\d+\b/gi) || []).map(e => e.toUpperCase())));
@@ -18689,10 +18708,10 @@
             });
             if (!r.length) return void oA("这些 SKU 已在玩具标签任务栏中");
             Vr.uploadQueue = r.concat(Vr.uploadQueue || []), Vr.toyLabelSkuInput = "", Vr.uploadPage = 1,
-            jA(), Tl(), oA(r.length + " 个玩具标签任务已加入");
+            jA(), Ml(), oA(r.length + " 个玩具标签任务已加入");
         }(Vr.toyLabelSkuInput);
         if ("copyright-queue-add" === c) return void async function(e, t) {
-            const a = Array.from(new Set((String(e || "").match(/\bSKU\d+\b/gi) || []).map(e => e.toUpperCase()))), n = Array.from(t || []).filter(Th);
+            const a = Array.from(new Set((String(e || "").match(/\bSKU\d+\b/gi) || []).map(e => e.toUpperCase()))), n = Array.from(t || []).filter(Mh);
             if (!a.length || !n.length) return void oA("请先输入 SKU 并粘贴或选择版权图");
             const r = function(e, t) {
                 const a = new Map(e.map(e => [ e, [] ])), n = t.map(t => ({
@@ -18741,23 +18760,23 @@
                     a.skipReason = "", a.forceReplace = !1, a.updatedAt = t;
                 }
                 Vr.uploadQueue = e, Vr.copyrightSkuInput = "", Vr.copyrightPendingFiles = [], Vr.uploadPage = 1,
-                jA(), Tl(), oA(a.length + " 个版权图任务已加入");
+                jA(), Ml(), oA(a.length + " 个版权图任务已加入");
             } catch (e) {
                 console.warn("PLM floating helper copyright queue failed:", e), oA("版权图任务保存失败");
             }
         }(Vr.copyrightSkuInput, Vr.copyrightPendingFiles);
-        if ("copyright-pending-clear" === c) return Vr.copyrightPendingFiles = [], void Tl();
+        if ("copyright-pending-clear" === c) return Vr.copyrightPendingFiles = [], void Ml();
         if ("upload-page-prev" === c) return Vr.uploadPage = Math.max(1, (Vr.uploadPage || 1) - 1),
-        void Tl();
-        if ("upload-page-next" === c) return Vr.uploadPage = (Vr.uploadPage || 1) + 1, void Tl();
+        void Ml();
+        if ("upload-page-next" === c) return Vr.uploadPage = (Vr.uploadPage || 1) + 1, void Ml();
         if ("upload-page-goto" === c) return Vr.uploadPage = Math.max(1, parseInt(l.getAttribute("data-page") || "1", 10) || 1),
-        void Tl();
+        void Ml();
         if ("upload-history-page-prev" === c) return Vr.uploadHistoryPage = Math.max(1, (Vr.uploadHistoryPage || 1) - 1),
-        void Tl();
+        void Ml();
         if ("upload-history-page-next" === c) return Vr.uploadHistoryPage = (Vr.uploadHistoryPage || 1) + 1,
-        void Tl();
+        void Ml();
         if ("upload-history-page-goto" === c) return Vr.uploadHistoryPage = Math.max(1, parseInt(l.getAttribute("data-page") || "1", 10) || 1),
-        void Tl();
+        void Ml();
         if ("upload-pick" === c) {
             const e = pl().querySelector(".pfh-upload-file");
             return void (e && e.click());
@@ -18765,7 +18784,7 @@
         if ("upload-start" === c) return void ty();
         if ("upload-pause" === c) return void ny();
         if ("upload-remove" === c) return y = l.getAttribute("data-upload-id"), dI(Vr.uploadQueue.find(e => e.id === y)),
-        Vr.uploadQueue = Vr.uploadQueue.filter(e => e.id !== y), jA(), void Tl();
+        Vr.uploadQueue = Vr.uploadQueue.filter(e => e.id !== y), jA(), void Ml();
         if ("upload-retry" === c) return void function(e) {
             const t = LA();
             let a = !1;
@@ -18808,7 +18827,7 @@
                     updatedAt: a
                 };
             }), n && (Vr.uploadSelectedIds = (Vr.uploadSelectedIds || []).filter(e => !t.has(e)),
-            jA(), Tl(), oA("已重新加入队列"), ty());
+            jA(), Ml(), oA("已重新加入队列"), ty());
         }(Vr.uploadSelectedIds || []));
         if ("upload-selected-delete" === c) return void ("history" === Vr.uploadView ? ey(Vr.uploadSelectedIds || []) : function(e) {
             const t = new Set((e || []).filter(Boolean));
@@ -18816,7 +18835,7 @@
             const a = [];
             Vr.uploadQueue = LA().filter(e => !t.has(e.id) || (a.push(e), !1)), a.forEach(dI),
             Vr.uploadSelectedIds = (Vr.uploadSelectedIds || []).filter(e => !t.has(e)), jA(),
-            Tl(), oA("已删除队列记录");
+            Ml(), oA("已删除队列记录");
         }(Vr.uploadSelectedIds || []));
         if ("export-cache" === c) return void function() {
             const e = $v(), t = new Blob([ JSON.stringify(e, null, 2) ], {
@@ -18845,7 +18864,7 @@
         }();
         if ("cloud-rule-versions-refresh" === c) return void async function() {
             if (Vr.cloudRuleVersionsBusy) return;
-            Vr.cloudRuleVersionsBusy = !0, Vr.cloudRuleVersionStatus = "正在分项检查云端规则...", Tl();
+            Vr.cloudRuleVersionsBusy = !0, Vr.cloudRuleVersionStatus = "正在分项检查云端规则...", Ml();
             const e = await Promise.allSettled([ Nt(!0), Pt(), Dx().then(e => {
                 Vr.classificationRules = Array.isArray(e && e.rules) ? e.rules : [];
             }), _t("/assets/v1/parameter-layout-rules.manifest.json", "json").then(e => {
@@ -18866,7 +18885,7 @@
             const a = e.filter(e => "fulfilled" === e.status).length;
             Vr.cloudRuleVersionsBusy = !1, Vr.cloudRuleVersionStatus = "已更新 " + a + "/" + e.length + " 类规则" + (a < e.length ? "，未配置的云端项已跳过" : ""),
             sA(a === e.length ? "success" : "warn", "云端规则版本已刷新", Vr.cloudRuleVersionStatus),
-            Tl();
+            Ml();
         }();
         if ("cloud-backup-restore" === c) return void async function() {
             const e = pl().querySelector(".pfh-cloud-backup-key");
@@ -18938,7 +18957,7 @@
                     return JSON.parse(new TextDecoder("utf-8").decode(i));
                 }(e.payload, t)), CA(Vr.settings), Ix(Ur.cloudBackupRestored + "：" + Vr.index.length + "个编码"),
                 sA("success", "云备份恢复成功", Vr.index.length + "个编码"), oA(Ur.cloudBackupRestored), Vr.view = "about",
-                Tl();
+                Ml();
             } catch (e) {
                 console.warn("PLM floating helper cloud backup restore failed:", e), Ix(Ur.cloudBackupFailed + "：" + (e && e.message ? e.message : "未知错误")),
                 sA("error", "云备份恢复失败", e && e.message ? e.message : "未知错误"), oA(Ur.cloudBackupFailed + "：" + (e && e.message ? e.message : "未知错误"));
@@ -18948,10 +18967,10 @@
             const e = pl().querySelector(".pfh-desktop-bridge-token");
             return void ya(e && e.value);
         }
-        if ("desktop-bridge-disconnect" === c) return ba(!0), void Tl();
+        if ("desktop-bridge-disconnect" === c) return ba(!0), void Ml();
         if ("copy-logs" === c) return iA((Vr.logs || []).map(e => "[" + (e.time || "") + "] " + (e.level || "info").toUpperCase() + " " + (e.message || "")).join("\n") || Ur.logEmpty),
         void oA(Ur.copied);
-        if ("clear-logs" === c) return Vr.logs = [], lA(), oA("日志已清空"), void Tl();
+        if ("clear-logs" === c) return Vr.logs = [], lA(), oA("日志已清空"), void Ml();
         if ("export-insights" === c) return void function() {
             const e = {
                 plugin: Ur.title,
@@ -18972,7 +18991,7 @@
             }, 0), sA("success", "已导出数据洞察", e.exportedAt);
         }();
         if ("insights-cloud-summary" === c) return void async function() {
-            Vr.insightCloudStatus = "正在拉取云端摘要...", Tl();
+            Vr.insightCloudStatus = "正在拉取云端摘要...", Ml();
             try {
                 const t = await async function() {
                     return Yx("/insights/summary", {
@@ -18984,10 +19003,10 @@
                 Vr.insightCloudStatus = "云端摘要失败：" + eA(e), sA("warn", "云端洞察摘要失败", eA(e));
             }
             var e;
-            Tl();
+            Ml();
         }();
         if ("insights-readiness" === c) return void async function() {
-            Vr.insightCloudStatus = "正在体检云端洞察链路...", Tl();
+            Vr.insightCloudStatus = "正在体检云端洞察链路...", Ml();
             try {
                 const e = await async function() {
                     return Yx("/insights/readiness?model=" + encodeURIComponent(Ax()), {
@@ -19007,7 +19026,7 @@
             } catch (e) {
                 Vr.insightCloudStatus = "云端洞察体检失败：" + eA(e), sA("warn", "云端洞察体检失败", eA(e));
             }
-            Tl();
+            Ml();
         }();
         if ("tips-manage" === c) return void function() {
             const e = Je + "/admin";
@@ -19033,8 +19052,8 @@
                     }), !1);
                 }), t;
             }(300);
-            if (!e.length) return Vr.insightCloudStatus = "暂无未分类产品", Tl(), void oA(Vr.insightCloudStatus);
-            Vr.insightCloudStatus = "正在让 AI 总结前 " + e.length + " 条未分类产品...", Tl();
+            if (!e.length) return Vr.insightCloudStatus = "暂无未分类产品", Ml(), void oA(Vr.insightCloudStatus);
+            Vr.insightCloudStatus = "正在让 AI 总结前 " + e.length + " 条未分类产品...", Ml();
             try {
                 const t = await async function(e) {
                     return Yx("/insights/classification-summarize", {
@@ -19055,10 +19074,10 @@
                 Vr.insightCloudStatus = "AI 总结分类规则失败：" + eA(e), sA("warn", "AI 总结分类规则失败", eA(e)),
                 oA(Vr.insightCloudStatus);
             }
-            Tl();
+            Ml();
         }();
         if ("insights-apply-classify" === c) return void async function() {
-            Vr.insightCloudStatus = "正在重新应用分类规则...", Tl();
+            Vr.insightCloudStatus = "正在重新应用分类规则...", Ml();
             try {
                 let e = Array.isArray(Vr.classificationRules) && Vr.classificationRules.length ? Vr.classificationRules : [];
                 if (!e.length) {
@@ -19094,7 +19113,7 @@
                         p.length && JSON.stringify(u.aiPackageTypes || []) !== JSON.stringify(p) && (u.aiPackageTypes = p,
                         u.aiPackageRuleIds = c.map(e => e.ruleId || "").filter(Boolean), d = !0), d && (u.aiClassifiedAt = r,
                         AI(i, Fi(u)), kI(u), n += 1);
-                    }), TA(), Vr.selectedSku) {
+                    }), MA(), Vr.selectedSku) {
                         const e = SI(Vr.selectedSku);
                         e && (Vr.data = Fi(e));
                     }
@@ -19109,10 +19128,10 @@
                 Vr.insightCloudStatus = "重新应用分类规则失败：" + eA(e), sA("warn", "重新应用分类规则失败", eA(e)),
                 oA(Vr.insightCloudStatus);
             }
-            Tl();
+            Ml();
         }();
         if ("insights-view-classify" === c) return void async function() {
-            Vr.insightCloudStatus = "正在拉取分类规则...", Tl();
+            Vr.insightCloudStatus = "正在拉取分类规则...", Ml();
             try {
                 const e = await Dx(), t = Array.isArray(e && e.rules) ? e.rules : [];
                 Vr.classificationRules = t;
@@ -19127,10 +19146,10 @@
             } catch (e) {
                 Vr.insightCloudStatus = "查看分类规则失败：" + eA(e), sA("warn", "查看分类规则失败", eA(e)), oA(Vr.insightCloudStatus);
             }
-            Tl();
+            Ml();
         }();
         if ("insights-check-ai" === c) return void async function() {
-            Vr.insightCloudStatus = "正在检查 AI 配置...", Tl();
+            Vr.insightCloudStatus = "正在检查 AI 配置...", Ml();
             try {
                 const e = await async function() {
                     return Yx("/insights/ai-status?model=" + encodeURIComponent(Ax()), {
@@ -19142,10 +19161,10 @@
             } catch (e) {
                 Vr.insightCloudStatus = "AI 配置检查失败：" + eA(e), sA("warn", "AI 配置检查失败", eA(e));
             }
-            Tl();
+            Ml();
         }();
         if ("insights-copy-report" === c) return void async function() {
-            Vr.insightCloudStatus = "正在生成云端总结...", Tl();
+            Vr.insightCloudStatus = "正在生成云端总结...", Ml();
             try {
                 const e = await async function() {
                     return Yx("/insights/report", {
@@ -19158,10 +19177,10 @@
             } catch (e) {
                 Vr.insightCloudStatus = "云端总结失败：" + eA(e), sA("warn", "云端洞察总结失败", eA(e));
             }
-            Tl();
+            Ml();
         }();
         if ("insights-copy-ai" === c) return void async function() {
-            Vr.insightCloudStatus = "正在请求 AI 整理数据...", Tl();
+            Vr.insightCloudStatus = "正在请求 AI 整理数据...", Ml();
             try {
                 const e = await async function(e) {
                     const t = e || {}, a = new URLSearchParams;
@@ -19178,19 +19197,19 @@
             } catch (e) {
                 Vr.insightCloudStatus = "AI 整理失败：" + eA(e), sA("warn", "AI 洞察整理失败", eA(e));
             }
-            Tl();
+            Ml();
         }();
         if ("clear-insights" === c) return Vr.insights = {
             priceHistory: [],
             dataIssues: [],
             typeStats: {}
-        }, dA(), oA("洞察数据已清空"), void Tl();
+        }, dA(), oA("洞察数据已清空"), void Ml();
         if (n.target && "pfh-keyword-mode" === n.target.name) return Vr.settings.excelKeywordMode = "brandName" === n.target.value ? "brandName" : "english",
-        CA(Vr.settings), void Tl();
+        CA(Vr.settings), void Ml();
         if (n.target && "pfh-download-mode" === n.target.name) return Vr.settings.excelDownloadMode = "direct" === n.target.value ? "direct" : "picker",
-        CA(Vr.settings), void Tl();
+        CA(Vr.settings), void Ml();
         if (n.target && "pfh-ai-model" === n.target.name) return Vr.settings.insightAiModel = n.target.value === b ? b : "glm-4.7-flash",
-        CA(Vr.settings), void Tl();
+        CA(Vr.settings), void Ml();
         if ("confirm-tail-seal" === c) return void Lh(n.target);
         if ("copy-all" === c) return iA((w = Vr.data) ? [ "[" + Ur.fileSection + "]", Ur.brand + " / " + Ur.name + " / " + Ur.sku + ": " + [ w.brand, w.name, w.sku ].filter(Boolean).join(" | "), Ur.packageCode + ": " + (w.packageCode || Ur.unknown), Ur.printCode + ": " + (w.printCode || Ur.unknown), (w.packageSizeLabel || Ur.packageSize) + ": " + (w.packageSizeText || Ur.noPackage), (w.printSizeLabel || Ur.printSize) + ": " + (w.printSizeText || Ur.noPrint), "", "[" + Ur.graphicSection + "]", Ur.cartonLength + ": " + (w.packageLength || Ur.noDimension), Ur.cartonWidth + ": " + (w.packageWidth || Ur.noDimension), Ur.cartonHeight + ": " + (w.packageHeight || Ur.noDimension), Ur.productLength + ": " + (w.isTubePrint ? w.productLength || Ur.tailSealLength : w.productLength || Ur.noDimension), Ur.productWidth + ": " + (w.productWidth || Ur.noDimension), Ur.productHeight + ": " + (w.productHeight || Ur.noDimension), Ur.netContent + ": " + (w.netContent || Ur.unknown), Ur.grossWeight + ": " + (w.grossWeight || Ur.unknown) ].join("\n") : ""),
         void oA(Ur.copied);
@@ -19199,8 +19218,8 @@
             const t = Vr.index.find(t => t.sku === e);
             if (!t) return;
             t.pinned ? (delete t.pinned, delete t.pinOrder) : (t.pinned = !0, t.pinOrder = Date.now());
-            TA();
-        }(S), void Tl();
+            MA();
+        }(S), void Ml();
         const v = n.target && n.target.closest && n.target.closest("[data-sku]");
         if (v) {
             const e = Al(), t = v.getAttribute("data-sku"), a = SI(t) || Vr.index.find(e => e && e.sku === t) || null;
@@ -19242,10 +19261,10 @@
         if (Vr.infringementImageViewer && "Escape" === e.key) return e.preventDefault(),
         void gd();
         if ("ledger" === Vr.view && Vr.ledgerFullscreen && "Escape" === e.key) return e.preventDefault(),
-        Vr.ledgerFullscreen = !1, void Tl();
+        Vr.ledgerFullscreen = !1, void Ml();
         if (Vr.skuEditMode && e.target && e.target.matches && e.target.matches("[data-sku-edit-key]")) {
             if ("Enter" === e.key && !e.isComposing) return e.preventDefault(), void Vf();
-            if ("Escape" === e.key) return e.preventDefault(), Vr.skuEditMode = !1, void Tl();
+            if ("Escape" === e.key) return e.preventDefault(), Vr.skuEditMode = !1, void Ml();
         }
         return "ledger" === Vr.view && Vr.ledgerTimeEditor && "Enter" === e.key && !e.isComposing && e.target && e.target.matches && e.target.matches(".pfh-ledger-time-date,.pfh-ledger-time-hour,.pfh-ledger-time-minute") ? (e.preventDefault(),
         void ev()) : "ledger" === Vr.view && e.target && e.target.classList && e.target.classList.contains("pfh-ledger-item") && ("Enter" === e.key || " " === e.key) ? (e.preventDefault(),
@@ -19289,7 +19308,12 @@
                 const e = r.slice(5);
                 if ([ "x", "y", "w", "h" ].includes(e)) {
                     const a = Number(t.value);
-                    Number.isFinite(a) && (i.bbox[e] = Math.max(0, Math.min(1, a)));
+                    Number.isFinite(a) && (i.bbox || (i.bbox = {
+                        x: 0,
+                        y: 0,
+                        w: .2,
+                        h: .08
+                    }), i.bbox[e] = Math.max(0, Math.min(1, a)));
                 }
                 return !0;
             }
@@ -19333,7 +19357,7 @@
                 }
                 if (t.target && t.target.classList && t.target.classList.contains("pfh-ledger-filter-query")) return Vr.ledgerFilterQuery = t.target.value,
                 window.clearTimeout(Vr.ledgerFilterTimer), void (Vr.ledgerFilterTimer = window.setTimeout(() => {
-                    Vr.ledgerFilterTimer = 0, Yu(pl()) || Tl();
+                    Vr.ledgerFilterTimer = 0, Yu(pl()) || Ml();
                     const e = pl().querySelector(".pfh-ledger-filter-query");
                     e && (e.focus(), e.setSelectionRange(e.value.length, e.value.length));
                 }, 260));
@@ -19397,7 +19421,7 @@
         if ("upload" === Vr.view) {
             const a = document.getElementById(e), n = t.target && t.target.closest && t.target.closest(".pfh-upload-drop") || a && a.querySelector(".pfh-upload-drop:hover"), r = "copyright" === Vr.uploadMode ? wh(t) : "toy-effect" === Vr.uploadMode ? kh(t) : hh(t);
             if (n && r.length) return t.preventDefault(), t.stopPropagation(), n.classList.add("is-paste-received"),
-            window.setTimeout(() => n.classList.remove("is-paste-received"), 360), void ("copyright" === Vr.uploadMode ? Eh(r) : "toy-effect" === Vr.uploadMode ? Gh(r) : Mh(r));
+            window.setTimeout(() => n.classList.remove("is-paste-received"), 360), void ("copyright" === Vr.uploadMode ? Eh(r) : "toy-effect" === Vr.uploadMode ? Gh(r) : Th(r));
         }
         if (!(t.target && t.target.classList && t.target.classList.contains("pfh-search-input"))) return;
         const a = t.clipboardData && t.clipboardData.getData("text");
@@ -19476,7 +19500,7 @@
     function wh(e) {
         const t = e && e.clipboardData, a = Array.from(t && t.items || []).filter(e => "file" === e.kind).map(e => e.getAsFile()).filter(Boolean), n = Array.from(t && t.files || []), r = new Set;
         return a.concat(n).filter(e => {
-            if (!e || !Th(e)) return !1;
+            if (!e || !Mh(e)) return !1;
             const t = [ e.name, e.size, e.lastModified ].join("|");
             return !r.has(t) && (r.add(t), !0);
         }).map((e, t) => Ch(e, t));
@@ -19516,13 +19540,13 @@
             a.disabled = "null" === n, a.placeholder = "number" === n ? "请输入数字" : "请输入内容";
         }(e.target); else if ("parameterImage" !== Vr.view || !Hr.handleChange(e, Vr.data || {})) if (e.target && e.target.classList && e.target.classList.contains("pfh-feedback-type")) Vr.feedbackType = ec(e.target.value); else {
             if (e.target && e.target.classList && e.target.classList.contains("pfh-ledger-filter-status")) return Vr.ledgerFilterStatus = e.target.value || "all",
-            void (Yu(pl()) || Tl());
+            void (Yu(pl()) || Ml());
             if (e.target && e.target.classList && e.target.classList.contains("pfh-ledger-filter-image")) return Vr.ledgerFilterImage = e.target.value || "all",
-            void (Yu(pl()) || Tl());
+            void (Yu(pl()) || Ml());
             if (e.target && e.target.classList && e.target.classList.contains("pfh-ledger-filter-workflow")) return Vr.ledgerFilterWorkflow = e.target.value || "all",
-            void (Yu(pl()) || Tl());
+            void (Yu(pl()) || Ml());
             if (e.target && e.target.classList && e.target.classList.contains("pfh-copywriting-view-select")) return Vr.copywritingView = "full" === e.target.value ? "full" : "file",
-            void Tl();
+            void Ml();
             if (e.target && e.target.classList && e.target.classList.contains("pfh-size-image-remark-text")) Fg(); else {
                 if (e.target && e.target.classList && e.target.classList.contains("pfh-size-image-remark-input")) {
                     const t = Wp();
@@ -19549,11 +19573,11 @@
                     au(t)) : "magic-effect" === a ? (jc("info", "效果图文件选择", t.map(e => e.name + "|" + e.type + "|" + e.size).join("；") || "没有文件"),
                     Gh(t, {
                         stayInMagic: !0
-                    })) : "copyright" === a ? Eh(t) : "toy-effect" === a ? Gh(t) : Mh(t);
+                    })) : "copyright" === a ? Eh(t) : "toy-effect" === a ? Gh(t) : Th(t);
                 }
                 if (e.target && e.target.classList && e.target.classList.contains("pfh-ledger-date")) {
                     const t = oS(e.target.value);
-                    Vr.ledgerDate = t + "-01", Tl();
+                    Vr.ledgerDate = t + "-01", Ml();
                 }
             }
         }
@@ -19627,7 +19651,7 @@
             if (!a || !Hl(n)) return;
             const r = LA();
             if (r.find(e => ZA(e) === n && e.sku === a && !/\u6210\u529f/.test(e.status || ""))) return Vr.uploadMode = n,
-            Vr.uploadView = "queue", Tl(), void oA(a + " 已在当前任务栏中");
+            Vr.uploadView = "queue", Ml(), void oA(a + " 已在当前任务栏中");
             const i = SI(a), o = (new Date).toLocaleString(), s = "toy-label" === n ? {
                 id: "toy-label-" + a + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
                 kind: "toy-label",
@@ -19651,7 +19675,7 @@
                 updatedAt: o
             };
             r.unshift(s), Vr.uploadQueue = r, Vr.uploadMode = n, Vr.uploadView = "queue", Vr.uploadPage = 1,
-            jA(), Tl(), oA(a + " 已加入" + ("copyright" === n ? "版权图" : "玩具标签") + "任务");
+            jA(), Ml(), oA(a + " 已加入" + ("copyright" === n ? "版权图" : "玩具标签") + "任务");
         }(n, Vr.uploadMode);
         if (e.target && e.target.closest && e.target.closest(".pfh-parameter-page")) return e.preventDefault(),
         void Hr.handleDrop(Array.from(e.dataTransfer && e.dataTransfer.files || []), Vr.data || {}, {
@@ -19667,13 +19691,13 @@
         if (!(e.target && e.target.closest && e.target.closest(".pfh-upload-section"))) return;
         e.preventDefault();
         const r = Array.from(e.dataTransfer && e.dataTransfer.files || []);
-        "copyright" === Vr.uploadMode ? Eh(r) : "toy-effect" === Vr.uploadMode ? Gh(r) : Mh(r);
+        "copyright" === Vr.uploadMode ? Eh(r) : "toy-effect" === Vr.uploadMode ? Gh(r) : Th(r);
     }
-    async function Mh(e) {
+    async function Th(e) {
         const t = Array.from(e || []).filter(e => e && Dh(e.name));
         if (t.length) for (const e of t) await Ph(e); else oA("请拖入或粘贴 xls、xlsx、zip 或 rar 文件");
     }
-    function Th(e) {
+    function Mh(e) {
         return Boolean(e && (/^image\/(?:jpeg|png)$/i.test(e.type || "") || /\.(?:png|jpe?g)$/i.test(e.name || "")));
     }
     function Ch(e, t) {
@@ -19685,13 +19709,13 @@
         });
     }
     function Eh(e) {
-        const t = Array.from(e || []).filter(Th).map(Ch), a = t.filter(e => e.size <= 52428800);
+        const t = Array.from(e || []).filter(Mh).map(Ch), a = t.filter(e => e.size <= 52428800);
         if (!a.length) return void oA(t.length ? "版权图单个文件不能超过 50MB" : "请粘贴或拖入 JPG / PNG 图片");
         const n = Array.isArray(Vr.copyrightPendingFiles) ? Vr.copyrightPendingFiles : [], r = new Set(n.map(e => [ e.name, e.size, e.lastModified ].join("|"))), i = a.filter(e => {
             const t = [ e.name, e.size, e.lastModified ].join("|");
             return !r.has(t) && (r.add(t), !0);
         });
-        Vr.copyrightPendingFiles = n.concat(i).slice(0, 60), Tl(), oA("已选择 " + Vr.copyrightPendingFiles.length + " 张版权图");
+        Vr.copyrightPendingFiles = n.concat(i).slice(0, 60), Ml(), oA("已选择 " + Vr.copyrightPendingFiles.length + " 张版权图");
     }
     function Lh(e) {
         const t = e && e.closest && e.closest('[data-key="productLength"]'), a = t && t.querySelector(".pfh-tail-input"), n = Js(a && a.value);
@@ -19701,7 +19725,7 @@
             ...Vr.data || {},
             tailSealLengthValue: r,
             productLength: r
-        }), Vr.data.sku && xI(Vr.data.sku, Vr.data), Tl();
+        }), Vr.data.sku && xI(Vr.data.sku, Vr.data), Ml();
     }
     async function Ph(e) {
         if (!e) return;
@@ -19718,7 +19742,7 @@
                     a.skipReason = Ur.uploadFileTooLarge, a.updatedAt = (new Date).toLocaleString(),
                     t.push(a);
                 }
-                return jA(), Vr.uploadExpanded = !0, Vr.view = "upload", Tl(), void oA(a.join(" / ") + " " + Ur.uploadFileTooLarge);
+                return jA(), Vr.uploadExpanded = !0, Vr.view = "upload", Ml(), void oA(a.join(" / ") + " " + Ur.uploadFileTooLarge);
             }
             try {
                 for (const n of a) {
@@ -19729,7 +19753,7 @@
                     r.status = r.xlsxKey && r.zipKey ? "待上传" : "缺文件", r.step = r.xlsxKey && r.zipKey ? "文件已齐" : Qh(r),
                     r.forceReplace = !1, r.skipReason = "", r.updatedAt = (new Date).toLocaleString();
                 }
-                jA(), Vr.uploadExpanded = !0, Vr.view = "upload", Tl(), oA(a.join(" / ") + " " + t.toUpperCase() + " 已加入");
+                jA(), Vr.uploadExpanded = !0, Vr.view = "upload", Ml(), oA(a.join(" / ") + " " + t.toUpperCase() + " 已加入");
             } catch (e) {
                 console.warn("PLM floating helper store upload file failed:", e), oA("文件记录失败");
             }
@@ -19951,7 +19975,7 @@
             }
             Vr.uploadMode = "toy-effect", Vr.uploadView = "queue", a && (Vr.view = "magicUpload",
             Vr.magicUploadMode = "effect"), Vr.uploadPage = 1, Vr.uploadQueue = t, Vr.toyEffectMatchStatus = n.length ? "未匹配：" + n.slice(0, 4).join("、") + (n.length > 4 ? "…" : "") : "",
-            jA(), Tl(), i && oA("已识别并加入 " + i + " 张玩具效果图"), n.length && oA("有 " + n.length + " 张效果图未能唯一匹配，请检查文件名");
+            jA(), Ml(), i && oA("已识别并加入 " + i + " 张玩具效果图"), n.length && oA("有 " + n.length + " 张效果图未能唯一匹配，请检查文件名");
         } catch (e) {
             console.warn("PLM floating helper toy effect image match failed:", e), oA("效果图匹配失败：" + (e && e.message ? e.message : "请检查当前页面"));
         } else oA(n.length ? "玩具效果图单个文件不能超过 50MB" : "请拖入 JPG / PNG 玩具效果图");
@@ -19997,7 +20021,7 @@
     function Yh(e) {
         if (!e) return;
         const t = new Set(Vr.uploadSelectedIds || []);
-        t.has(e) ? t.delete(e) : t.add(e), Vr.uploadSelectedIds = Array.from(t), Tl();
+        t.has(e) ? t.delete(e) : t.add(e), Vr.uploadSelectedIds = Array.from(t), Ml();
     }
     function $h(e) {
         const t = new Set((e || []).filter(Boolean));
@@ -20019,25 +20043,25 @@
                 createdAt: i
             });
         }), Vr.uploadQueue = r, Vr.uploadHistory = a, Vr.uploadSelectedIds = (Vr.uploadSelectedIds || []).filter(e => !t.has(e)),
-        VA(Vr.uploadQueue, Vr.uploadHistory), Vr.uploadView = "queue", Tl(), oA("已恢复到队列" + (n.some(e => !Zh(e)) ? "，请补充文件" : ""));
+        VA(Vr.uploadQueue, Vr.uploadHistory), Vr.uploadView = "queue", Ml(), oA("已恢复到队列" + (n.some(e => !Zh(e)) ? "，请补充文件" : ""));
     }
     function ey(e) {
         const t = new Set((e || []).filter(Boolean));
         t.size && (Vr.uploadHistory = OA().filter(e => !t.has(e.id)), Vr.uploadSelectedIds = (Vr.uploadSelectedIds || []).filter(e => !t.has(e)),
-        qA(), Tl(), oA("已删除历史记录"));
+        qA(), Ml(), oA("已删除历史记录"));
     }
     function ty() {
         const e = JA(Vr.uploadMode);
         if ("toy-effect" === e && !bu()) return void wu();
         Vr.uploadWorkerMode = e, Vr.uploadRunning = !0, nI(e, !0), jA(), Vr.uploadExpanded = !0,
-        Tl(), oA(Ur.uploadQueueStarted);
+        Ml(), oA(Ur.uploadQueueStarted);
         const t = location.origin + "/productManagementProduct?plmUploadWorker=1&plmUploadMode=" + encodeURIComponent(e);
         YA() ? window.setTimeout(() => fy(e), 800) : window.open(t, "plm-upload-worker-" + e);
     }
     function ay() {
         const e = "toy-effect";
         bu() ? (Vr.uploadMode = e, Vr.uploadWorkerMode = e, Vr.uploadRunning = !0, nI(e, !0),
-        jA(), Vr.view = "magicUpload", Vr.magicUploadMode = "effect", Tl(), oA("效果图后台队列已开始"),
+        jA(), Vr.view = "magicUpload", Vr.magicUploadMode = "effect", Ml(), oA("效果图后台队列已开始"),
         window.setTimeout(() => fy(e), 80)) : wu();
     }
     function ny() {
@@ -20055,7 +20079,7 @@
                     updatedAt: (new Date).toLocaleString()
                 };
             });
-        }(e), jA(), Tl(), oA(Ur.uploadQueuePaused);
+        }(e), jA(), Ml(), oA(Ur.uploadQueuePaused);
     }
     async function ry(e) {
         const t = JA(e || eI());
@@ -20064,7 +20088,7 @@
             const e = rI();
             e.downloaded ? await oI(e) : await jk();
         }
-        Tl(), oA(Ur.uploadQueuePaused);
+        Ml(), oA(Ur.uploadQueuePaused);
     }
     function iy(e, t, a, n) {
         const r = LA(), i = r.find(t => t.id === e.id) || e;
@@ -20072,7 +20096,7 @@
         i.updatedAt = (new Date).toLocaleString(), Object.assign(e, i);
         const o = /\u8fdb\u884c\u4e2d/.test(i.status || "") ? ly(r, i) : r;
         Vr.uploadQueue = o.some(t => t.id === e.id) ? o.map(t => t.id === e.id ? i : t) : [ i ].concat(o),
-        jA(), Tl();
+        jA(), Ml();
     }
     function oy(e, t) {
         const a = t ? JA(t) : "";
@@ -20162,7 +20186,7 @@
                 step: a ? "已读取缓存效果图，等待生成标签集合包" : "已获取商品图片，等待上传 BOM",
                 updatedAt: (new Date).toLocaleString()
             };
-        }), jA(), Mx();
+        }), jA(), Tx();
         const u = a.filter(e => !c[e]), d = s.filter(e => !e.productImageUrl).map(e => e.sku), p = new Map;
         if (u.forEach(e => p.set(e, l ? "设计任务不可用，无法读取商品行" : "设计任务批量搜索未找到商品行")), d.forEach(e => p.set(e, "设计任务中未找到 SKU 商品图")),
         p.size) {
@@ -20203,7 +20227,7 @@
         u.length && g.push("未找到 " + u.join(" ")), d.length && g.push("缺少 SKU 图 " + d.join(" "));
         const f = Array.from(i.keys()), m = f.length ? [ "手动 SKU 使用缓存效果图 " + f.join(" ") ] : [], h = g.concat(m);
         return sA(g.length ? "warn" : "success", "玩具标签：批量数据已读取", s.length + f.length + "/" + a.length + (h.length ? "，" + h.join("，") : "")),
-        Tl(), s.some(e => Boolean(e.productImageUrl)) || i.size > 0;
+        Ml(), s.some(e => Boolean(e.productImageUrl)) || i.size > 0;
     }
     function uy(e) {
         const t = new Set((e || []).map(e => String(e || "").toUpperCase())), a = (Array.from(document.querySelectorAll("table.vxe-table--header")).map(e => Array.from(e.querySelectorAll("thead th"))).find(e => e.some(e => "商品图片" === DI(e.innerText || e.textContent).replace(/^\*/, ""))) || []).map(e => DI(e.innerText || e.textContent).replace(/^\*/, "")), n = a.indexOf("商品编码"), r = a.indexOf("品牌"), i = a.indexOf("商品名称"), o = a.indexOf("商品图片");
@@ -20260,12 +20284,12 @@
             if ("toy-effect" === t) {
                 if (!await ew(() => !Vr.magicUploadAccessLoading, 8e3, 100) || !bu()) return Vr.uploadRunning = !1,
                 nI(t, !1), sA("warn", "后台效果图队列已拦截", "当前账号没有后台上传权限；普通图包表格仍可使用旧脚本流程"), oA("当前账号没有后台上传权限，已停止效果图后台队列"),
-                void Tl();
+                void Ml();
             }
             if ("toy-label" === t) {
                 if (!await cy(Vr.uploadQueue.filter(e => ZA(e) === t))) return Vr.uploadRunning = !1,
                 Vr.uploadWorkerMode = t, nI(t, !1), Vr.uploadQueue = LA(), sA("error", "玩具标签：批量数据未读取，已暂停上传", "未执行 BOM 上传"),
-                oA("批量设计任务数据未读取，已暂停，未执行上传"), void Tl();
+                oA("批量设计任务数据未读取，已暂停，未执行上传"), void Ml();
             }
             for (;Vr.uploadRunning; ) {
                 if (await xy(t)) {
@@ -20341,7 +20365,7 @@
         }), i && await jk({
             keepStagedFiles: !0
         })); else if (r) try {
-            await Mw(t, r.blob, r.filename, {
+            await Tw(t, r.blob, r.filename, {
                 batchRowOnly: !0
             }), i = !0;
         } catch (e) {
@@ -20598,14 +20622,14 @@
             if (a.length) try {
                 iy(e, "进行中", "打开商品", {
                     resumeUploadAfterRefresh: !1
-                }), await Ay(), await Ty(e.sku), await Ly(e.sku), await Ny(e.sku), Tb();
+                }), await Ay(), await My(e.sku), await Ly(e.sku), await Ny(e.sku), Mb();
                 for (let t = 0; t < a.length; t += 1) {
                     const n = a[t];
                     iy(e, "进行中", "上传版权图 " + (t + 1) + "/" + a.length), await _y("版权图", n.file, n.entry.name || n.file.name),
-                    Tb();
+                    Mb();
                 }
                 if (iy(e, "进行中", "保存草稿"), !await nb()) throw new Error("草稿未保存成功");
-                Tb(), iy(e, "进行中", "提审"), await Zy(), Tb(), iy(e, "进行中", "关闭商品页"), await lb({
+                Mb(), iy(e, "进行中", "提审"), await Zy(), Mb(), iy(e, "进行中", "关闭商品页"), await lb({
                     skipDraftSave: !0,
                     allowReviewResultModal: !0
                 }), GA(e), sA("success", "版权图提审上传成功", e.sku), oA(e.sku + " 版权图上传成功");
@@ -20619,7 +20643,7 @@
         try {
             iy(e, "进行中", "打开商品", {
                 resumeUploadAfterRefresh: !1
-            }), await Ay(), await Ty(e.sku), await Ly(e.sku), await Ny(e.sku), Tb(), iy(e, "进行中", "检查旧内容");
+            }), await Ay(), await My(e.sku), await Ly(e.sku), await Ny(e.sku), Mb(), iy(e, "进行中", "检查旧内容");
             const n = function(e) {
                 const t = Py(e) || Array.from(document.querySelectorAll(".pdmDetailDrawer.ant-drawer-open, .pdmDetailDrawer")).filter(BI).pop(), a = [];
                 let n = 0;
@@ -20666,8 +20690,8 @@
                 a && await Ok(500);
             }(e.sku)), e.forceReplace && iy(e, "进行中", "准备上传", {
                 forceReplace: !1
-            }), iy(e, "进行中", "上传推品资料"), await _y("推品资料", t, e.xlsxName || t.name), Tb(), iy(e, "进行中", "上传图包素材"),
-            await _y("图包素材", a, e.zipName || a.name), Tb(), iy(e, "进行中", "批量上传"), await async function() {
+            }), iy(e, "进行中", "上传推品资料"), await _y("推品资料", t, e.xlsxName || t.name), Mb(), iy(e, "进行中", "上传图包素材"),
+            await _y("图包素材", a, e.zipName || a.name), Mb(), iy(e, "进行中", "批量上传"), await async function() {
                 await db();
                 let e = Qy();
                 for (let t = 0; !e && t < 4; t += 1) await Ok(300), await db(), e = Qy();
@@ -20700,7 +20724,7 @@
                     return t.total > 0 ? t : null;
                 }, 3e4, 500).catch(() => null);
                 if (Dy(e).total <= 0) throw new Error("批量上传后未检测到主图/详情图/SKU图");
-            }(e.sku), Tb(), iy(e, "进行中", "读取并填写装箱数和箱重");
+            }(e.sku), Mb(), iy(e, "进行中", "读取并填写装箱数和箱重");
             const r = await async function(e, t) {
                 const a = Ge.map(e => ({
                     field: e,
@@ -20738,14 +20762,14 @@
                 excelPacking: r.source
             });
             if (!await nb()) throw new Error("草稿未保存成功");
-            Tb(), iy(e, "进行中", "提审"), await Zy(), Tb(), iy(e, "进行中", "关闭商品页"), await lb({
+            Mb(), iy(e, "进行中", "提审"), await Zy(), Mb(), iy(e, "进行中", "关闭商品页"), await lb({
                 skipDraftSave: !0,
                 allowReviewResultModal: !0
             }), GA(e), sA("success", "提审上传成功", e.sku), oA(e.sku + " " + Ur.uploadSuccess);
         } catch (t) {
             if (console.warn("PLM floating helper upload queue failed:", t), function(e) {
                 return Boolean(e && ("PFH_UPLOAD_REFRESH_RETRY" === e.code || /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(e.message || "")));
-            }(t) || Mb()) return void await async function(e) {
+            }(t) || Tb()) return void await async function(e) {
                 const t = ZA(e), a = LA().find(t => t.id === e.id) || e, n = Math.max(0, Number(a.uploadPageRefreshRetryCount) || 0) + 1;
                 if (n > 3) {
                     const t = "连续刷新 3 次仍提示存在需要重试文件";
@@ -20832,11 +20856,11 @@
     function Iy() {
         return /\/productManagementProduct/.test(location.pathname) && Boolean(Cy() && wb("查询"));
     }
-    function My() {
+    function Ty() {
         const e = DI("商品管理"), t = Array.from(document.querySelectorAll('[data-menu-id], .ant-menu-item, [role="menuitem"]')).filter(BI);
         return t.find(e => "/productManagementProduct" === (e.getAttribute("data-menu-id") || "")) || t.find(t => !t.matches(".ant-menu-submenu-title") && DI(t.innerText || t.textContent) === e) || null;
     }
-    async function Ty(e) {
+    async function My(e) {
         const t = Cy();
         if (!t) throw new Error("未找到商品搜索框");
         $b(t, e);
@@ -21041,7 +21065,7 @@
         let r = 0;
         await kb(() => {
             const t = e.innerHTML || "", a = NI(e);
-            if (Tb(), /\u4e0a\u4f20\u5931\u8d25|ant-upload-list-item-error/.test(t + a)) {
+            if (Mb(), /\u4e0a\u4f20\u5931\u8d25|ant-upload-list-item-error/.test(t + a)) {
                 if (r || (r = Date.now()), Date.now() - r < 1800) return !1;
                 throw new Error("上传失败");
             }
@@ -21316,7 +21340,7 @@
             tw(), "parameterImage" === t && Hr.loadRules(), "copywriting" === t && Vr.data) return Vr.copywritingMode = !1,
             void ym(!1);
         }
-        fl(), Tl();
+        fl(), Ml();
     }
     function Ab() {
         const e = pl(), t = e.querySelector(".pfh-search-input"), a = e.querySelector(".pfh-search-clear");
@@ -21339,17 +21363,17 @@
         } catch (e) {
             console.warn("PLM floating helper open detail failed:", e), oA(Ur.openDetailFailed);
         } finally {
-            Vr.openingProjectDetail = !1, Vr.selectedSku === a && Tl(n ? "" : Vr.scanRunning ? Ur.scanning : ""),
+            Vr.openingProjectDetail = !1, Vr.selectedSku === a && Ml(n ? "" : Vr.scanRunning ? Ur.scanning : ""),
             window.setTimeout(() => {
                 Vr.openingProjectDetailSku === a && (Vr.openingProjectDetailSku = "");
             }, 1e3);
         }
     }
-    function Mb() {
+    function Tb() {
         return Array.from(document.querySelectorAll(".ant-notification-notice, .ant-notification")).filter(BI).find(e => /\u5b58\u5728\s*\u9700\u8981\u91cd\u8bd5\u6587\u4ef6/.test(DI(e.innerText || e.textContent || ""))) || null;
     }
-    function Tb() {
-        if (!Mb()) return;
+    function Mb() {
+        if (!Tb()) return;
         const e = new Error("存在需要重试文件");
         throw e.code = "PFH_UPLOAD_REFRESH_RETRY", e;
     }
@@ -21362,7 +21386,7 @@
         i ? Vr.data = Fi(i) : Vr.data && Vr.data.sku === e || (Vr.data = Fi({
             sku: e
         })), Vr.view = a.keepToolsView ? "tools" : "detail", r && (Vr.copywritingMode = !1),
-        tw(), fl(), Tl(Ur.scanning), gi(Vr.data, {
+        tw(), fl(), Ml(Ur.scanning), gi(Vr.data, {
             reason: "cached-open",
             includeScanTabs: !0
         });
@@ -21595,8 +21619,8 @@
             extra: t,
             excelData: e
         }, Vr.excelMissing = a, Vr.excelStatus = a.length ? Ur.excelPreparing + "（缓存缺少：" + a.join("、") + "）" : Ur.excelReady + "（使用缓存）",
-        sA(a.length ? "info" : "success", "Excel 缓存预检", e.sku + " | " + iw(e, t, a)), Tl(),
-        !a.length) return await gk(e), await mk(e, t), Tl(), !0;
+        sA(a.length ? "info" : "success", "Excel 缓存预检", e.sku + " | " + iw(e, t, a)), Ml(),
+        !a.length) return await gk(e), await mk(e, t), Ml(), !0;
         try {
             sA("info", "Excel 开始补全实时数据", e.sku + " | 需要补全：" + a.join("、"));
             let t = await zw(e.sku), n = Fi(vi(e, t.liveData || {})), r = lw(n, t);
@@ -21616,7 +21640,7 @@
             }, Vr.excelMissing = a, Vr.excelStatus = rw(a), sA("error", "获取表格信息失败", e.sku + " | " + iw(e, t, a) + " | 错误：" + eA(n)),
             SA(e, "excelPrepareFailed"), Aw(), !0;
         } finally {
-            Tl();
+            Ml();
         }
     }
     function sw(e, t) {
@@ -21678,9 +21702,9 @@
         if (Vr.batchExcelWorkerRunning || Vr.batchExcelDownloadRunning) return;
         const e = PA().filter(e => "pending" === e.status || "error" === e.status);
         if (!e.length) return Vr.batchExcelStatus = PA().length ? "当前队列没有需要补全的项目" : "队列暂空",
-        void Tl();
+        void Ml();
         Vr.batchExcelWorkerRunning = !0, Vr.batchExcelWorkerPaused = !1, Vr.view = "batchExcel",
-        fl(), Vr.batchExcelStatus = "开始按顺序补全 " + e.length + " 个 SKU", Tl();
+        fl(), Vr.batchExcelStatus = "开始按顺序补全 " + e.length + " 个 SKU", Ml();
         try {
             for (let t = 0; t < e.length && !Vr.batchExcelWorkerPaused; t += 1) {
                 const a = PA().find(a => a.sku === e[t].sku);
@@ -21690,7 +21714,7 @@
                 dw(n, {
                     status: "preparing",
                     error: ""
-                }), Tl();
+                }), Ml();
                 try {
                     let e = null, t = null;
                     for (let a = 1; a <= 3; a += 1) try {
@@ -21699,7 +21723,7 @@
                     } catch (e) {
                         if (t = e, a >= 3) break;
                         Vr.batchExcelStatus = n + " 页面仍在加载，等待重试 " + a + "/3", sA("warn", "Excel 批量补全等待页面加载", n + " | 第 " + a + " 次失败：" + eA(e)),
-                        "batchExcel" === Vr.view && Tl(), await Ok(1200 * a);
+                        "batchExcel" === Vr.view && Ml(), await Ok(1200 * a);
                     }
                     if (!e) throw t || new Error("未取得完整页面数据");
                     dw(n, {
@@ -21717,12 +21741,12 @@
                         missing: uw(n).missing
                     }), Vr.batchExcelStatus = n + " 补全失败：" + t, sA("error", "Excel 批量补全失败", n + " | " + t);
                 }
-                "batchExcel" === Vr.view && Tl(), await Ok(650);
+                "batchExcel" === Vr.view && Ml(), await Ok(650);
             }
         } finally {
             const e = Boolean(Vr.batchExcelWorkerPaused);
             Vr.batchExcelWorkerRunning = !1, Vr.batchExcelCurrentSku = "", e ? Vr.batchExcelStatus = "补全已暂停，可点击“继续补全”继续处理剩余项目" : Vr.batchExcelStatus && !/\u6b63\u5728\u8865\u5168/.test(Vr.batchExcelStatus) || (Vr.batchExcelStatus = "补全队列已完成"),
-            "batchExcel" === Vr.view && Tl();
+            "batchExcel" === Vr.view && Ml();
         }
     }
     async function gw(e) {
@@ -21894,9 +21918,9 @@
                 a = Fi(Vr.data || (Vr.selectedSku ? SI(Vr.selectedSku) : null)));
                 const e = Vr.excelExtra && Vr.excelExtra.excelData && Vr.excelExtra.excelData.sku === a.sku ? Vr.excelExtra : null;
                 let n = e && e.extra ? e.extra : {}, r = Fi(e && e.excelData || a);
-                Vr.excelStatus = Ur.labelGenerating, Tl(), oA(Ur.labelGenerating);
+                Vr.excelStatus = Ur.labelGenerating, Ml(), oA(Ur.labelGenerating);
                 const i = await async function(e, t) {
-                    const a = Tw(e, t);
+                    const a = Mw(e, t);
                     if (a.imageUrl || a.imageFallbackUrl) return {
                         data: e,
                         extra: t,
@@ -21935,7 +21959,7 @@
                     return {
                         data: s,
                         extra: o,
-                        imageSource: Tw(s, o)
+                        imageSource: Mw(s, o)
                     };
                 }(r, n);
                 r = i.data, n = i.extra;
@@ -22001,21 +22025,21 @@
                         a.downloaded = !1, iI(a);
                     }(e, t.batchSignature || Vr.toyLabelBatchPreparedSignature);
                 } else Bk(f, y), await Ok(250), Bk(m, b), await Ok(250), Bk(h, k);
-                return t.skipBomUpload || await Mw(r, f, y, t), Vr.excelStatus = Ur.labelDone, WS(r, {
+                return t.skipBomUpload || await Tw(r, f, y, t), Vr.excelStatus = Ur.labelDone, WS(r, {
                     status: "制作中",
                     stage: "图包/标签/纸盒处理中",
                     note: "已生成玩具标签",
                     labelFileState: "done",
                     labelFileDone: !0
-                }), Tl(), sA("success", "玩具标签生成成功", r.sku), oA(Ur.labelDone), !0;
+                }), Ml(), sA("success", "玩具标签生成成功", r.sku), oA(Ur.labelDone), !0;
             } catch (e) {
                 return console.warn("PLM floating helper label failed:", e), Vr.excelStatus = Ur.labelFailed,
-                Tl(), sA("error", "玩具标签生成失败", e && e.message ? e.message : ""), oA(Ur.labelFailed),
+                Ml(), sA("error", "玩具标签生成失败", e && e.message ? e.message : ""), oA(Ur.labelFailed),
                 !1;
             }
         } else oA(Ur.excelNeedData);
     }
-    async function Mw(e, t, a, n) {
+    async function Tw(e, t, a, n) {
         const r = e && e.sku;
         if (!r) throw new Error("未找到 SKU，无法上传到绑BOM");
         sA("info", "玩具标签：准备上传说明图到绑BOM", r);
@@ -22058,7 +22082,7 @@
         }), await Ok(180), await Ky(o, t, a), await Wy(o, a, 18e4), await Ok(1600), sA("success", "玩具标签：说明图已上传到绑BOM标签", a),
         await Gb(i), await Wb(i), sA("success", "玩具标签：绑BOM已批量保存并关闭", r);
     }
-    function Tw(e, t) {
+    function Mw(e, t) {
         const a = e && (e.toyLabelProductImageUrl || e.toyLabelProductImageFallbackUrl || e.productListImageUrl || e.productListImageFallbackUrl);
         if (a) return {
             imageUrl: e.toyLabelProductImageUrl || e.productListImageUrl || a,
@@ -22578,15 +22602,15 @@
                 const a = Fi(e || {}), n = String(a.sku || "").trim().toUpperCase();
                 let r = Hi(a), i = null;
                 !r && n && (i = await xo(a, t).catch(() => null), r = String(i && i.projectId || "").trim());
-                const o = To([ i, i && i.raw ]);
+                const o = Mo([ i, i && i.raw ]);
                 if (o) return o;
                 if (!r || !/^\d+$/.test(r)) return "";
                 if (u[r]) {
-                    const e = await u[r].catch(() => null), t = To([ e, e && e.apiProject ]);
+                    const e = await u[r].catch(() => null), t = Mo([ e, e && e.apiProject ]);
                     if (t) return t;
                 }
                 if (t && t.force && delete f[r], !f[r]) {
-                    const e = Ko("/api/ChemicalNew/GetProjectDetail?id=" + encodeURIComponent(r)).then(e => To([ e ])).catch(e => {
+                    const e = Ko("/api/ChemicalNew/GetProjectDetail?id=" + encodeURIComponent(r)).then(e => Mo([ e ])).catch(e => {
                         throw delete f[r], e;
                     });
                     f[r] = e;
@@ -22678,7 +22702,7 @@
             type: "download",
             direct: !0
         };
-        const t = Mk();
+        const t = Tk();
         if (!t) return {
             type: "download"
         };
@@ -22702,10 +22726,10 @@
             });
         }
     }
-    function Mk() {
+    function Tk() {
         return "undefined" != typeof unsafeWindow && "function" == typeof unsafeWindow.showSaveFilePicker ? e => unsafeWindow.showSaveFilePicker(e) : "function" == typeof window.showSaveFilePicker ? e => window.showSaveFilePicker(e) : null;
     }
-    function Tk() {
+    function Mk() {
         return "undefined" != typeof unsafeWindow && "function" == typeof unsafeWindow.showDirectoryPicker ? e => unsafeWindow.showDirectoryPicker(e) : "function" == typeof window.showDirectoryPicker ? e => window.showDirectoryPicker(e) : null;
     }
     async function Ck(e, t) {
@@ -22729,7 +22753,7 @@
             count: 0
         };
         let a = null;
-        const n = Tk();
+        const n = Mk();
         if (n) try {
             a = await n({
                 mode: "readwrite"
@@ -22761,7 +22785,7 @@
                 count: r.length
             };
         }
-        const i = Mk();
+        const i = Tk();
         if (!i) return {
             mode: "unsupported",
             count: 0
@@ -23011,7 +23035,7 @@
             const r = Fi({
                 ...t || {},
                 sku: e
-            }), i = a && a.contentPayload ? Mo(a.contentPayload) : {}, o = a && a.optional || {}, s = Date.now(), l = new Date(s).toLocaleString(), c = String(a && a.productListImageUrl || "").trim(), u = a && Array.isArray(a.infringementImageUrls) && a.infringementImageUrls.length ? a.infringementImageUrls : r.infringementImageUrls;
+            }), i = a && a.contentPayload ? To(a.contentPayload) : {}, o = a && a.optional || {}, s = Date.now(), l = new Date(s).toLocaleString(), c = String(a && a.productListImageUrl || "").trim(), u = a && Array.isArray(a.infringementImageUrls) && a.infringementImageUrls.length ? a.infringementImageUrls : r.infringementImageUrls;
             return Fi({
                 ...r,
                 sku: e,
@@ -23100,7 +23124,7 @@
             status: "待定稿",
             stage: "待定稿",
             note: l ? "手动添加自动加入今日工作台" : void 0
-        }), "ledger" !== Vr.view || n.background || Yu(pl()) || Tl(), sA(l ? "success" : "info", l ? "已手动添加 SKU" : "已补充 SKU 信息", r + (c && c.found ? " | 已读取产品信息" : " | " + u)),
+        }), "ledger" !== Vr.view || n.background || Yu(pl()) || Ml(), sA(l ? "success" : "info", l ? "已手动添加 SKU" : "已补充 SKU 信息", r + (c && c.found ? " | 已读取产品信息" : " | " + u)),
         {
             sku: r,
             data: d,
@@ -23302,7 +23326,7 @@
     function pS() {
         try {
             Vr.ledgerRecords = wS(Vr.ledgerRecords), "function" == typeof GM_setValue ? GM_setValue(ce, Vr.ledgerRecords) : localStorage.setItem(ce, JSON.stringify(Vr.ledgerRecords)),
-            Mx();
+            Tx();
         } catch (e) {
             console.warn("PLM floating helper daily ledger save failed:", e);
         }
@@ -23320,7 +23344,7 @@
     function mS() {
         try {
             Vr.ledgerTrashRecords = hS(Vr.ledgerTrashRecords), "function" == typeof GM_setValue ? GM_setValue(ue, Vr.ledgerTrashRecords) : localStorage.setItem(ue, JSON.stringify(Vr.ledgerTrashRecords)),
-            Mx();
+            Tx();
         } catch (e) {
             console.warn("PLM floating helper daily ledger trash save failed:", e);
         }
@@ -23465,7 +23489,7 @@
     function IS(e) {
         return AS(e).replace(/\.[^.]+$/, "").trim();
     }
-    function MS(e) {
+    function TS(e) {
         const t = e && "object" == typeof e ? e : {
             url: e
         }, a = IS(t), n = [ t.displayName, t.logicalName, t.slotName, t.baseFilename, t.originalFilename, t.filename, a ].map(e => String(e || "").trim()).filter(Boolean), r = /(?:主图|详情图)\s*[-_# ]*(\d+)/;
@@ -23485,12 +23509,12 @@
         const c = [ t.order, t.index ].map(e => Number(e)).find(e => Number.isFinite(e) && e > 0);
         return c ? Math.floor(c) : 0;
     }
-    function TS(e, t, a) {
+    function MS(e, t, a) {
         const n = e && "object" == typeof e ? e : {
             url: e
         }, r = String(n.displayName || n.logicalName || n.slotName || "").trim();
         if (r) return r.replace(/\.[^.]+$/, "");
-        const i = ("detail" === t ? "详情图" : "主图") + (MS(n) || Number(a) + 1), o = IS(e), s = o && ke.find(e => e.pattern.test(o));
+        const i = ("detail" === t ? "详情图" : "主图") + (TS(n) || Number(a) + 1), o = IS(e), s = o && ke.find(e => e.pattern.test(o));
         return s ? s.name : i;
     }
     function CS(e, t) {
@@ -23526,14 +23550,14 @@
             const o = i.split("/").pop().split("?")[0], s = {
                 url: i,
                 filename: String(a.filename || a.fileName || o || "").slice(0, 180)
-            }, l = String(a.displayName || a.logicalName || a.slotName || "").trim(), c = String(a.baseUrl || a.originalUrl || "").trim(), u = String(a.parentUrl || a.sourceUrl || "").trim(), d = String(a.baseFilename || a.originalFilename || "").trim(), p = String(a.prompt || "").trim(), g = String(a.createdAt || "").trim(), f = Number(a.createdAtMs || 0) || 0, m = MS(a);
+            }, l = String(a.displayName || a.logicalName || a.slotName || "").trim(), c = String(a.baseUrl || a.originalUrl || "").trim(), u = String(a.parentUrl || a.sourceUrl || "").trim(), d = String(a.baseFilename || a.originalFilename || "").trim(), p = String(a.prompt || "").trim(), g = String(a.createdAt || "").trim(), f = Number(a.createdAtMs || 0) || 0, m = TS(a);
             return l && (s.displayName = l.slice(0, 80)), c && (s.baseUrl = c.slice(0, 1600)),
             u && (s.parentUrl = u.slice(0, 1600)), d && (s.baseFilename = d.slice(0, 180)),
             p && (s.prompt = p.slice(0, 1e3)), g && (s.createdAt = g.slice(0, 80)), f && (s.createdAtMs = f),
             m && (s.sequence = m), s._sourceIndex = t, s;
         }).filter(Boolean).sort((e, t) => {
             const a = function(e, t) {
-                const a = MS(e), n = MS(t);
+                const a = TS(e), n = TS(t);
                 if (a && n && a !== n) return a - n;
                 if (a !== n) return a ? -1 : 1;
                 const r = Number(e && e.createdAtMs || 0), i = Number(t && t.createdAtMs || 0);
@@ -23578,7 +23602,7 @@
                 sourceUrl: r.slice(0, 1600),
                 displayName: String(a.displayName || a.logicalName || a.slotName || "").slice(0, 80),
                 baseFilename: String(a.baseFilename || a.originalFilename || "").slice(0, 180),
-                sequence: MS(a) || 0,
+                sequence: TS(a) || 0,
                 prompt: i.slice(0, 1e3),
                 status: s,
                 error: String(a.error || "").slice(0, 240),
@@ -23837,7 +23861,7 @@
         if ("trash" === Vr.ledgerView) return;
         const t = rf();
         !e || t.length ? (Vr.ledgerSelectedKeys = e ? Array.from(new Set(t.map(JS))) : [],
-        Yu(pl()) || Tl(), oA(e ? "已全选当前筛选的 " + t.length + " 条记录" : "已取消全选")) : oA("当前筛选没有可选择的记录");
+        Yu(pl()) || Ml(), oA(e ? "已全选当前筛选的 " + t.length + " 条记录" : "已取消全选")) : oA("当前筛选没有可选择的记录");
     }
     function YS(e, t) {
         const a = $k(t), n = (Vr.ledgerRecords || []).find(t => t.sku === e && $k(t.date) === a);
@@ -23864,7 +23888,7 @@
             finalizedDate: s,
             finalizedAtMs: i,
             note: "已修改定稿时间"
-        }, e.dateKey), Vr.ledgerTimeEditor = null, oA("定稿时间已更新"), Tl();
+        }, e.dateKey), Vr.ledgerTimeEditor = null, oA("定稿时间已更新"), Ml();
     }
     function tv(e) {
         const t = xS(e && e.aiImageStatus, e && e.aiImageMessage), a = SS(e && e.artworkState), n = ES(e && e.aiMainImages, 12).length, r = ES(e && e.aiDetailImages, 20).length, i = n + r;
@@ -24336,7 +24360,7 @@
             };
         }
     }
-    async function Mv(e, t) {
+    async function Tv(e, t) {
         const a = String(e || "").trim();
         if (!a) throw new Error("缺少 SKU，无法开始 AI 生图");
         return function(e) {
@@ -24358,7 +24382,7 @@
             };
         }(t && !t.loading ? t : await kv(a, !0));
     }
-    function Tv(e, t, a, n) {
+    function Mv(e, t, a, n) {
         const r = XS(e, {
             ...a || {},
             deferSave: !0,
@@ -24409,7 +24433,7 @@
         a && a.remove(), Vr.ledgerAiImageRetouchComposer = null;
     }
     function Bv(e) {
-        return ES(e && e.aiDetailImages, 20).find((e, t) => 3 === MS(e) || "详情图3" === TS(e, "detail", t)) || null;
+        return ES(e && e.aiDetailImages, 20).find((e, t) => 3 === TS(e) || "详情图3" === MS(e, "detail", t)) || null;
     }
     async function Rv(e, t, a) {
         const n = BS(e), r = [ n, $k(t) || "" ].join("|");
@@ -24429,7 +24453,7 @@
             imageUrl: o.url,
             expectedIngredients: s,
             checkedAtMs: Date.now()
-        }), u = Tv(n, t, {
+        }), u = Mv(n, t, {
             aiDetail3Audit: c
         }, !0) || i;
         _v(n, t) && Wv(pl());
@@ -24452,7 +24476,7 @@
                     expectedIngredients: s,
                     checkedAtMs: Date.now()
                 });
-                return Af(Tv(n, t, {
+                return Af(Mv(n, t, {
                     aiDetail3Audit: a
                 }, !0) || u), _v(n, t) && Wv(pl()), "warning" !== a.status && "error" !== a.status || oA(n + " 详情图3发现异常：" + (a.summary || "请检查成分展示")),
                 a;
@@ -24465,7 +24489,7 @@
                     expectedIngredients: s,
                     checkedAtMs: Date.now()
                 });
-                return Af(Tv(n, t, {
+                return Af(Mv(n, t, {
                     aiDetail3Audit: a
                 }, !0) || u), _v(n, t) && Wv(pl()), a;
             }
@@ -24518,7 +24542,7 @@
                 for (;;) {
                     const t = a;
                     if (a += 1, t >= i.length) return;
-                    const r = i[t], c = TS(r, n, t);
+                    const r = i[t], c = MS(r, n, t);
                     try {
                         const a = await Uk(r.url);
                         e[t] = {
@@ -24558,16 +24582,16 @@
         const a = Cv(t), n = ES(e && e[a.originalField], a.imageLimit), r = ES(e && e[a.retouchedField], he), i = Nv(e, t), o = [];
         n.forEach((e, a) => o.push({
             item: e,
-            displayName: TS(e, t, a),
-            sequence: MS(e) || a + 1,
+            displayName: MS(e, t, a),
+            sequence: TS(e) || a + 1,
             isRetouched: !1,
             isTask: !1,
             rank: 0,
             order: a
         })), r.forEach((e, a) => o.push({
             item: e,
-            displayName: TS(e, t, a),
-            sequence: MS(e) || Number(e.sequence) || 9999,
+            displayName: MS(e, t, a),
+            sequence: TS(e) || Number(e.sequence) || 9999,
             isRetouched: !0,
             isTask: !1,
             rank: 1,
@@ -24577,8 +24601,8 @@
             o.push({
                 item: r,
                 task: a,
-                displayName: a.displayName || (r ? TS(r, t, 0) : ("detail" === t ? "详情图" : "主图") + (a.sequence || n + 1)),
-                sequence: Number(a.sequence) || (r ? MS(r) : 9999),
+                displayName: a.displayName || (r ? MS(r, t, 0) : ("detail" === t ? "详情图" : "主图") + (a.sequence || n + 1)),
+                sequence: Number(a.sequence) || (r ? TS(r) : 9999),
                 isRetouched: !1,
                 isTask: !0,
                 rank: 2,
@@ -24635,7 +24659,7 @@
         });
         let w = String(a.selected[l] || ""), k = c.find(e => Hv(e) === w) || c[0] || null;
         k && (w = Hv(k), a.selected[l] = w);
-        const S = k ? b(k) : null, v = "detail" === l ? "详情图" : "主图", x = "loading" === u.status ? y ? "正在提交 AI 生图请求；提交完成后会显示“生图中”，本次不会自动轮询。" : "正在检查这个 SKU 是否已有生图历史，不会自动提交生图。" : "running" === u.status ? "图片还在生成，当前只跟踪这个 SKU。" : "task-error" === u.status ? "PLM 有生图任务记录，但暂时没有返回图片结果；请先刷新，必要时联系管理员清理任务。" : "result-missing" === u.status ? "PLM 返回了完成状态，但没有图片列表；点击下方按钮可手动重新生成。" : "needs-prerequisites" === u.status ? "生图前置校验未通过，请先补齐产品文案和 SKU 效果图。" : "needs-sku-image" === u.status ? "PLM 缺少 SKU 效果图，请先上传 SKU 图后再生成。" : "needs-copywriting" === u.status ? "PLM 缺少有效产品文案，请先补齐产品文案后再生成。" : "error" === u.status ? "状态查询失败；可以先刷新状态，再手动提交生成。" : "当前没有可查看的" + v + "；点击下方按钮后才会开始生成。", A = Vr.ledgerAiImagePreparations[mv(n.sku)], I = Boolean(A && (A.loading || ![ "loading", "running" ].includes(u.status))), M = I ? function(e, t) {
+        const S = k ? b(k) : null, v = "detail" === l ? "详情图" : "主图", x = "loading" === u.status ? y ? "正在提交 AI 生图请求；提交完成后会显示“生图中”，本次不会自动轮询。" : "正在检查这个 SKU 是否已有生图历史，不会自动提交生图。" : "running" === u.status ? "图片还在生成，当前只跟踪这个 SKU。" : "task-error" === u.status ? "PLM 有生图任务记录，但暂时没有返回图片结果；请先刷新，必要时联系管理员清理任务。" : "result-missing" === u.status ? "PLM 返回了完成状态，但没有图片列表；点击下方按钮可手动重新生成。" : "needs-prerequisites" === u.status ? "生图前置校验未通过，请先补齐产品文案和 SKU 效果图。" : "needs-sku-image" === u.status ? "PLM 缺少 SKU 效果图，请先上传 SKU 图后再生成。" : "needs-copywriting" === u.status ? "PLM 缺少有效产品文案，请先补齐产品文案后再生成。" : "error" === u.status ? "状态查询失败；可以先刷新状态，再手动提交生成。" : "当前没有可查看的" + v + "；点击下方按钮后才会开始生成。", A = Vr.ledgerAiImagePreparations[mv(n.sku)], I = Boolean(A && (A.loading || ![ "loading", "running" ].includes(u.status))), T = I ? function(e, t) {
             const a = Vr.ledgerAiImagePreparations[mv(e && e.sku)], n = /(?:准备提交|提交 PLM AI 生图|已开始提交|生图请求)/i.test(String(e && e.aiImageMessage || ""));
             if (!a) return Sv("正在准备生图资料", "页面会依次读取产品文案、商品详情和 SKU 效果图，请稍候…", {
                 submitting: n
@@ -24653,10 +24677,10 @@
         }) : '<div class="pfh-ledger-ai-image-empty-state"><span>' + jI(x) + "</span>" + function(e, t, a) {
             const n = "detail" === t ? "detail" : "main", r = "detail" === n ? "详情图" : "主图", i = av(e && e.sku), o = [ "loading", "running" ].includes(a) || Boolean(Vr.ledgerAiImageRequests[i]), s = [ "error", "needs-copywriting", "needs-sku-image", "needs-prerequisites", "task-error", "result-missing" ].includes(a), l = o ? "生成中…" : s ? "重新生成" + r + " AI" : "生成" + r + " AI";
             return '<button type="button" class="pfh-ledger-ai-image-generate" data-action="ledger-ai-image-generate" data-kind="' + n + '" data-sku="' + jI(e && e.sku || "") + '" data-date="' + jI(e && e.date || "") + '" title="点击后读取实时产品文案并提交 PLM AI 生图；PLM 接口会同时返回主图和详情图"' + (o ? " disabled" : "") + ">" + jI(l) + "</button>";
-        }(n, l, u.status) + "</div>", T = c.length ? c.map(e => {
+        }(n, l, u.status) + "</div>", M = c.length ? c.map(e => {
             const t = b(e), a = t.key === w, r = t.item ? '<img src="' + jI(t.item.url) + '" alt="' + jI(t.displayName) + '" loading="lazy" decoding="async">' : '<span class="pfh-ledger-ai-image-thumb-missing">无图</span>', i = "detail" === l && "详情图3" === t.displayName, o = i && /^(?:warning|error)$/.test(m.status) ? " is-audit-error" : i && "pass" === m.status ? " is-audit-pass" : "", s = i && "idle" !== m.status ? '<em class="pfh-ledger-detail3-badge is-' + jI(m.status) + '">' + jI("pass" === m.status ? "核对通过" : "loading" === m.status ? "识别中" : "有异常") + "</em>" : "", c = e.isTask ? "隐藏此修改任务" : "从悬浮助手隐藏此图片";
             return '<div class="pfh-ledger-ai-image-thumb-row"><button type="button" class="pfh-ledger-ai-image-thumb' + (a ? " is-selected" : "") + (e.isRetouched ? " is-retouched" : "") + (e.isTask ? " is-retouch-task is-" + jI(t.task && t.task.status || "running") : "") + o + '" data-action="ledger-ai-image-select" data-kind="' + l + '" data-entry-key="' + jI(t.key) + '" title="' + jI(t.title) + '"><span class="pfh-ledger-ai-image-thumb-media">' + r + '</span><span class="pfh-ledger-ai-image-thumb-copy"><strong>' + jI(t.displayName) + "</strong><small>" + jI(t.variantLabel) + "</small>" + s + '</span></button><button type="button" class="pfh-ledger-ai-image-delete" data-action="ledger-ai-image-hide" data-kind="' + l + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '" data-entry-key="' + jI(t.key) + '" title="' + jI(c) + '" aria-label="' + jI(c) + '">×</button></div>';
-        }).join("") : I ? A.loading ? '<div class="pfh-ledger-ai-image-thumb-loading"><span class="pfh-ledger-ai-loading-spinner" aria-hidden="true"></span><small>正在读取生图资料</small></div>' : '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : M, C = S && S.item ? '<a class="pfh-ledger-ai-image-preview-link" href="' + jI(S.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + jI(S.title + "（点击打开图片）") + '"><img src="' + jI(S.item.url) + '" alt="' + jI(S.displayName) + '" loading="eager" decoding="async"></a>' : '<div class="pfh-ledger-ai-image-preview-missing">' + (S ? "原图地址已失效" : jI(x)) + "</div>", E = Boolean(S && "detail" === l && "详情图3" === S.displayName), L = E && "idle" !== m.status ? '<div class="pfh-ledger-detail3-audit is-' + jI(m.status) + '"><strong>' + jI("pass" === m.status ? "详情图3成分核对通过" : "loading" === m.status ? "正在识别详情图3" : "详情图3需要检查") + "</strong><p>" + jI(m.summary || "") + "</p>" + (m.retryable ? "<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>" : "") + (m.missing.length ? "<span>缺漏：" + jI(m.missing.join("、")) + "</span>" : "") + (m.extra.length ? "<span>多余/错误：" + jI(m.extra.join("、")) + "</span>" : "") + (m.duplicates.length ? "<span>重复：" + jI(m.duplicates.join("、")) + "</span>" : "") + (m.anomalies.length ? "<span>生图异常：" + jI(m.anomalies.join("、")) + "</span>" : "") + "</div>" : "", P = S && S.item ? '<div class="pfh-ledger-ai-image-preview-actions">' + (E ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '">重新核对成分</button>' : "") + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + l + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '" data-image-url="' + jI(S.item.url) + '" data-image-name="' + jI(S.displayName) + '"' + (Vr.ledgerAiImageDownloadKey ? " disabled" : "") + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + l + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '" data-image-url="' + jI(S.item.url) + '"' + (S.isGenerating ? " disabled" : "") + ">" + (S.isGenerating ? "生成中…" : S.activeTask ? "重新修改" : "修改图") + "</button></div>" : "", N = S ? '<div class="pfh-ledger-ai-image-preview-stage">' + C + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + jI(S.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + jI(S.variantLabel) + '</em></div><small title="' + jI(S.title) + '">' + jI(S.sourceFilename || "保留原图文件名") + "</small></div>" + (S.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + jI(S.prompt) + '">提示词：' + jI(S.prompt) + "</p>" : "") + L + P + "</div>" : '<div class="pfh-ledger-ai-image-preview-empty">' + M + "</div>", U = (e, t, a, r) => {
+        }).join("") : I ? A.loading ? '<div class="pfh-ledger-ai-image-thumb-loading"><span class="pfh-ledger-ai-loading-spinner" aria-hidden="true"></span><small>正在读取生图资料</small></div>' : '<div class="pfh-ledger-ai-image-thumb-missing">暂无生图<br>请先补全右侧资料</div>' : T, C = S && S.item ? '<a class="pfh-ledger-ai-image-preview-link" href="' + jI(S.item.url) + '" target="_blank" rel="noopener noreferrer" title="' + jI(S.title + "（点击打开图片）") + '"><img src="' + jI(S.item.url) + '" alt="' + jI(S.displayName) + '" loading="eager" decoding="async"></a>' : '<div class="pfh-ledger-ai-image-preview-missing">' + (S ? "原图地址已失效" : jI(x)) + "</div>", E = Boolean(S && "detail" === l && "详情图3" === S.displayName), L = E && "idle" !== m.status ? '<div class="pfh-ledger-detail3-audit is-' + jI(m.status) + '"><strong>' + jI("pass" === m.status ? "详情图3成分核对通过" : "loading" === m.status ? "正在识别详情图3" : "详情图3需要检查") + "</strong><p>" + jI(m.summary || "") + "</p>" + (m.retryable ? "<span>AI 服务暂时不可用，可点击“重新核对成分”重试。</span>" : "") + (m.missing.length ? "<span>缺漏：" + jI(m.missing.join("、")) + "</span>" : "") + (m.extra.length ? "<span>多余/错误：" + jI(m.extra.join("、")) + "</span>" : "") + (m.duplicates.length ? "<span>重复：" + jI(m.duplicates.join("、")) + "</span>" : "") + (m.anomalies.length ? "<span>生图异常：" + jI(m.anomalies.join("、")) + "</span>" : "") + "</div>" : "", P = S && S.item ? '<div class="pfh-ledger-ai-image-preview-actions">' + (E ? '<button type="button" data-action="ledger-detail3-audit" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '">重新核对成分</button>' : "") + '<button type="button" data-action="ledger-ai-image-download-item" data-kind="' + l + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '" data-image-url="' + jI(S.item.url) + '" data-image-name="' + jI(S.displayName) + '"' + (Vr.ledgerAiImageDownloadKey ? " disabled" : "") + '>下载</button><button type="button" data-action="ledger-ai-image-retouch" data-kind="' + l + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '" data-image-url="' + jI(S.item.url) + '"' + (S.isGenerating ? " disabled" : "") + ">" + (S.isGenerating ? "生成中…" : S.activeTask ? "重新修改" : "修改图") + "</button></div>" : "", N = S ? '<div class="pfh-ledger-ai-image-preview-stage">' + C + '</div><div class="pfh-ledger-ai-image-preview-info"><div class="pfh-ledger-ai-image-preview-heading"><div><strong>' + jI(S.displayName) + '</strong><em class="pfh-ledger-ai-image-variant">' + jI(S.variantLabel) + '</em></div><small title="' + jI(S.title) + '">' + jI(S.sourceFilename || "保留原图文件名") + "</small></div>" + (S.prompt ? '<p class="pfh-ledger-ai-image-prompt" title="' + jI(S.prompt) + '">提示词：' + jI(S.prompt) + "</p>" : "") + L + P + "</div>" : '<div class="pfh-ledger-ai-image-preview-empty">' + T + "</div>", U = (e, t, a, r) => {
             const i = Vr.ledgerAiImageDownloadKey === r, o = !t || Boolean(Vr.ledgerAiImageDownloadKey);
             return '<button type="button" data-action="ledger-ai-image-download" data-kind="' + e + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '"' + (o ? " disabled" : "") + ">" + jI(i ? "打包中…" : a) + "</button>";
         }, _ = g && Vr.ledgerAiImageDownloadProgress ? Vr.ledgerAiImageDownloadProgress : "原图和修改图都会保存在今日工作台；本功能不会自动替换或保存 PLM 商品草稿。";
@@ -24667,7 +24691,7 @@
         }
         t.style.setProperty("z-index", "320", "important");
         const D = Uv(n, l), F = D.size ? '<button type="button" class="pfh-ledger-ai-image-restore" data-action="ledger-ai-image-restore-hidden" data-kind="' + l + '" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '">恢复隐藏 ' + D.size + " 张</button>" : "";
-        t.innerHTML = '<section class="pfh-ledger-ai-image-dialog" role="dialog" aria-modal="true" aria-label="AI 生图" data-ledger-ai-image-dialog="1"><header><div><h3>AI 生图 · ' + jI(n.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + jI(u.status) + '">' + jI(u.label) + (h ? " · " + jI(h) : "") + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header><nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + ("main" === l ? "is-active" : "") + '">主图 <em>' + Kv(n, "main") + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + ("detail" === l ? "is-active" : "") + '">详情图 <em>' + Kv(n, "detail") + '</em></button></nav><div class="pfh-ledger-ai-image-workspace"><aside class="pfh-ledger-ai-image-sidebar"><div class="pfh-ledger-ai-image-sidebar-head"><div><strong>图片列表</strong><span>' + c.length + " 张</span></div>" + F + '</div><div class="pfh-ledger-ai-image-thumbs">' + T + '</div></aside><main class="pfh-ledger-ai-image-preview">' + N + "</main></div><footer><span>" + jI(_ || "原图和修改图会保存在今日工作台记录中；关闭弹窗不会清除。") + '</span><div class="pfh-ledger-ai-image-download-actions">' + U("main", o.length, "下载全部主图", d) + U("detail", s.length, "下载全部详情图", p) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '"' + (Vr.ledgerAiImageDownloadKey ? " disabled" : "") + ">刷新状态</button></div></footer></section>";
+        t.innerHTML = '<section class="pfh-ledger-ai-image-dialog" role="dialog" aria-modal="true" aria-label="AI 生图" data-ledger-ai-image-dialog="1"><header><div><h3>AI 生图 · ' + jI(n.sku) + '</h3><p class="pfh-ledger-ai-image-status is-' + jI(u.status) + '">' + jI(u.label) + (h ? " · " + jI(h) : "") + '</p></div><button type="button" class="pfh-ledger-ai-image-close" data-action="ledger-ai-image-close" aria-label="关闭">×</button></header><nav><button type="button" data-action="ledger-ai-image-tab" data-tab="main" class="' + ("main" === l ? "is-active" : "") + '">主图 <em>' + Kv(n, "main") + '</em></button><button type="button" data-action="ledger-ai-image-tab" data-tab="detail" class="' + ("detail" === l ? "is-active" : "") + '">详情图 <em>' + Kv(n, "detail") + '</em></button></nav><div class="pfh-ledger-ai-image-workspace"><aside class="pfh-ledger-ai-image-sidebar"><div class="pfh-ledger-ai-image-sidebar-head"><div><strong>图片列表</strong><span>' + c.length + " 张</span></div>" + F + '</div><div class="pfh-ledger-ai-image-thumbs">' + M + '</div></aside><main class="pfh-ledger-ai-image-preview">' + N + "</main></div><footer><span>" + jI(_ || "原图和修改图会保存在今日工作台记录中；关闭弹窗不会清除。") + '</span><div class="pfh-ledger-ai-image-download-actions">' + U("main", o.length, "下载全部主图", d) + U("detail", s.length, "下载全部详情图", p) + '<button type="button" data-action="ledger-ai-image-refresh" data-sku="' + jI(n.sku) + '" data-date="' + jI(n.date) + '"' + (Vr.ledgerAiImageDownloadKey ? " disabled" : "") + ">刷新状态</button></div></footer></section>";
     }
     function Qv(e) {
         const t = {}, a = {
@@ -24809,7 +24833,7 @@
         const l = Boolean(i.submit), c = !1 !== i.poll;
         l && !c && zv(n);
         let u = null, d = s;
-        "loading" !== xS(s.aiImageStatus) && (d = Tv(n, t, {
+        "loading" !== xS(s.aiImageStatus) && (d = Mv(n, t, {
             aiImageStatus: "loading",
             aiImageMessage: l ? "正在提交 PLM AI 生图（" + ("detail" === i.generationKind ? "详情图" : "主图") + "入口）；不会自动查询结果…" : "正在检查这个 SKU 是否已有生图历史；不会提交生成请求…"
         }, !1) || s, Af(d)), i.openViewer ? jv(d) : _v(n, t) && Wv(pl());
@@ -24826,7 +24850,7 @@
                     }
                 }(n), !0 !== u)) {
                     if (null === u) {
-                        const e = Tv(n, t, {
+                        const e = Mv(n, t, {
                             aiImageStatus: "error",
                             aiImageMessage: "无法确认是否存在生图历史；已停止查询，不会提交生成",
                             aiImageCheckedAtMs: Date.now()
@@ -24834,7 +24858,7 @@
                         return Af(e), i.openViewer ? jv(e) : _v(n, t) && Wv(pl()), oA(n + " 生图历史查询失败，未提交任何生图请求"),
                         e;
                     }
-                    const e = wv(await kv(n, !0)), a = e.includes("SKU 效果图") ? e.length > 1 ? "needs-prerequisites" : "needs-sku-image" : e.length ? "needs-copywriting" : "empty", r = Tv(n, t, {
+                    const e = wv(await kv(n, !0)), a = e.includes("SKU 效果图") ? e.length > 1 ? "needs-prerequisites" : "needs-sku-image" : e.length ? "needs-copywriting" : "empty", r = Mv(n, t, {
                         aiImageStatus: a,
                         aiImageMessage: e.length ? "没有生图历史；请先补齐：" + e.join("、") : "没有生图历史；资料已完整，可手动提交 AI 生图",
                         aiImageJobId: "",
@@ -24842,11 +24866,11 @@
                     }, !0) || d;
                     return Af(r), i.openViewer ? jv(r) : _v(n, t) && Wv(pl()), r;
                 }
-                const e = l ? await Mv(n, i.preparation) : {
+                const e = l ? await Tv(n, i.preparation) : {
                     code: n
                 };
                 if (l) {
-                    const e = rv(n, t) || d, a = Tv(n, t, {
+                    const e = rv(n, t) || d, a = Mv(n, t, {
                         aiImageStatus: "loading",
                         aiImageMessage: "生图资料已准备，正在提交 PLM AI 生图（" + ("detail" === i.generationKind ? "详情图" : "主图") + "入口）；不会自动查询结果…"
                     }, !0) || e;
@@ -24872,7 +24896,7 @@
                     artworkState: "success" === a.status ? "done" : "running" === a.status ? "doing" : r.artworkState
                 };
                 o && (s.aiImageCheckedAtMs = Date.now());
-                const p = o && Tv(n, t, s, !0) || r;
+                const p = o && Mv(n, t, s, !0) || r;
                 o && Af(p), "running" === a.status && c ? function(e, t) {
                     const a = av(e);
                     window.clearTimeout(Vr.ledgerAiImagePollTimers[a]);
@@ -24894,7 +24918,7 @@
                 const a = rv(n, t) || d, r = eA(e), o = !l && vS(r), s = e && e.ledgerAiImagePreflight, c = (s ? s.missingCopywriting && "available" !== s.skuImageStatus ? "needs-prerequisites" : "available" !== s.skuImageStatus ? "needs-sku-image" : "needs-copywriting" : "") || (o ? !0 === u ? "task-error" : !1 === u ? "empty" : "error" : xS("error", r));
                 let p = r || (l ? "AI 生图提交失败" : "AI 生图状态查询失败");
                 "needs-prerequisites" === c ? p = "生图前置校验未通过：请先补齐产品文案和 SKU 效果图，再开始生成" : "needs-sku-image" === c ? p = "生图前置校验未通过：请先上传 SKU 效果图，再开始生成" : "needs-copywriting" === c ? p = "生图前置校验未通过：请先补齐有效产品文案，再开始生成" : "task-error" === c ? p = "PLM 有生图任务记录，但查询不到图片结果，请刷新或联系管理员清理任务" : "empty" === c && o && (p = "当前未发现 PLM AI 生图结果，请在弹窗中手动选择主图或详情图生成");
-                const g = Tv(n, t, {
+                const g = Mv(n, t, {
                     aiImageStatus: c,
                     aiImageMessage: p,
                     aiImageJobId: "",
@@ -25297,7 +25321,7 @@
         a.onload = () => {
             try {
                 wx(JSON.parse(String(a.result || "{}"))), oA(Ur.importDone), Vr.view = "about",
-                Tl();
+                Ml();
             } catch (e) {
                 console.warn("PLM floating helper import failed:", e), oA(Ur.importFailed);
             } finally {
@@ -25319,7 +25343,7 @@
         }), Array.isArray(e.index) && (e.index.forEach(e => {
             const t = Vr.index.find(t => t.sku === e.sku);
             t && (e.brand && !t.brand && (t.brand = e.brand), e.pinned && (t.pinned = !0), e.pinOrder && (t.pinOrder = e.pinOrder));
-        }), TA()), e.uploadRecords && "object" == typeof e.uploadRecords && (Array.isArray(e.uploadRecords.queue) && (Vr.uploadQueue = yx(e.uploadRecords.queue).map(e => ({
+        }), MA()), e.uploadRecords && "object" == typeof e.uploadRecords && (Array.isArray(e.uploadRecords.queue) && (Vr.uploadQueue = yx(e.uploadRecords.queue).map(e => ({
             ...e,
             status: e.status && /\u6210\u529f|\u5931\u8d25|\u5df2\u8df3\u8fc7|\u5df2\u4fdd\u5b58/.test(e.status) ? e.status : "请补充文件",
             step: e.step || "云备份恢复，需重新选择文件"
@@ -25372,13 +25396,13 @@
         const t = pl().querySelector(".pfh-cloud-status");
         t && (t.textContent = xx());
     }
-    function Mx() {
-        kx() && (Vr.cloudBackupQueued = !0, window.clearTimeout(Vr.cloudBackupTimer), Vr.cloudBackupTimer = window.setTimeout(() => Tx(), 8e3));
+    function Tx() {
+        kx() && (Vr.cloudBackupQueued = !0, window.clearTimeout(Vr.cloudBackupTimer), Vr.cloudBackupTimer = window.setTimeout(() => Mx(), 8e3));
     }
-    async function Tx() {
+    async function Mx() {
         Vr.cloudBackupQueued && !Vr.cloudBackupRunning && (Vr.cloudBackupQueued = !1, await Cx({
             silent: !0
-        }), Vr.cloudBackupQueued && (window.clearTimeout(Vr.cloudBackupTimer), Vr.cloudBackupTimer = window.setTimeout(() => Tx(), 8e3)));
+        }), Vr.cloudBackupQueued && (window.clearTimeout(Vr.cloudBackupTimer), Vr.cloudBackupTimer = window.setTimeout(() => Mx(), 8e3)));
     }
     async function Cx(e) {
         const t = kx();
@@ -25626,7 +25650,7 @@
                     Vr.sizeImageAccessLoading = !1, Vr.magicUploadAccessName = e, Vr.magicUploadAccessEnabled = Boolean(t.magicUploadEnabled),
                     Vr.magicUploadAccessLoading = !1, "boolean" == typeof t.parameterImageEnabled && (Vr.parameterImageAccessName = e,
                     qx(t.parameterImageEnabled), Vr.parameterImageAccessLoading = !1), "boolean" == typeof t.luluThemeEnabled && (Vr.luluThemeAccessName = e,
-                    Gx(t.luluThemeEnabled), Vr.luluThemeAccessLoading = !1), "home" !== Vr.view && "about" !== Vr.view && "parameterImage" !== Vr.view || Tl()),
+                    Gx(t.luluThemeEnabled), Vr.luluThemeAccessLoading = !1), "home" !== Vr.view && "about" !== Vr.view && "parameterImage" !== Vr.view || Ml()),
                     t && "boolean" == typeof t.magicUploadEnabled || mA(), t && "boolean" == typeof t.parameterImageEnabled || Hx(),
                     t && "boolean" == typeof t.luluThemeEnabled || Wx(), Fx(!1);
                 } catch (e) {
@@ -25652,7 +25676,7 @@
             Vr.sizeImageAccessTimer = 0, async function() {
                 const e = vx();
                 if (!e) return Vr.sizeImageAccessEnabled = !1, Vr.sizeImageAccessLoading = !0, void Ox(1500);
-                Vr.sizeImageAccessName = e, Vr.sizeImageAccessLoading = !0, "home" === Vr.view && Tl();
+                Vr.sizeImageAccessName = e, Vr.sizeImageAccessLoading = !0, "home" === Vr.view && Ml();
                 try {
                     const t = await Yx("/features/size-image?name=" + encodeURIComponent(e), {
                         method: "GET"
@@ -25662,7 +25686,7 @@
                 } catch (e) {
                     Vr.sizeImageAccessEnabled = !1, sA("warn", "生成尺寸图权限检查失败", eA(e));
                 } finally {
-                    Vr.sizeImageAccessLoading = !1, "home" === Vr.view && Tl();
+                    Vr.sizeImageAccessLoading = !1, "home" === Vr.view && Ml();
                 }
             }();
         }, Math.max(0, Number(e) || 0));
@@ -25681,7 +25705,7 @@
         const e = vx();
         if (!e) return Vr.parameterImageAccessEnabled = !1, Vr.parameterImageAccessLoading = !0,
         void Vx(1500);
-        Vr.parameterImageAccessName = e, Vr.parameterImageAccessLoading = !0, "home" !== Vr.view && "detail" !== Vr.view && "parameterImage" !== Vr.view || Tl();
+        Vr.parameterImageAccessName = e, Vr.parameterImageAccessLoading = !0, "home" !== Vr.view && "detail" !== Vr.view && "parameterImage" !== Vr.view || Ml();
         try {
             const t = await Yx("/features/parameter-image?name=" + encodeURIComponent(e), {
                 method: "GET"
@@ -25691,7 +25715,7 @@
         } catch (e) {
             qx(!1), sA("warn", "生成参数图权限检查失败", eA(e));
         } finally {
-            Vr.parameterImageAccessLoading = !1, "home" !== Vr.view && "detail" !== Vr.view && "parameterImage" !== Vr.view || Tl();
+            Vr.parameterImageAccessLoading = !1, "home" !== Vr.view && "detail" !== Vr.view && "parameterImage" !== Vr.view || Ml();
         }
     }
     function Gx(e) {
@@ -25706,7 +25730,7 @@
     async function Wx() {
         const e = vx();
         if (!e) return Vr.luluThemeAccessEnabled = !1, Vr.luluThemeAccessLoading = !0, void Kx(1500);
-        Vr.luluThemeAccessName = e, Vr.luluThemeAccessLoading = !0, "home" !== Vr.view && "about" !== Vr.view || Tl();
+        Vr.luluThemeAccessName = e, Vr.luluThemeAccessLoading = !0, "home" !== Vr.view && "about" !== Vr.view || Ml();
         try {
             const t = await Yx("/features/lulu-theme?name=" + encodeURIComponent(e), {
                 method: "GET"
@@ -25716,7 +25740,7 @@
         } catch (e) {
             Vr.luluThemeAccessEnabled = "lulu" === H(Vr.settings.theme), sA("warn", "噜噜乐园主题权限检查失败", eA(e));
         } finally {
-            Vr.luluThemeAccessLoading = !1, "home" !== Vr.view && "about" !== Vr.view || Tl();
+            Vr.luluThemeAccessLoading = !1, "home" !== Vr.view && "about" !== Vr.view || Ml();
         }
     }
     function Qx() {
@@ -26054,7 +26078,7 @@
         const e = vx();
         if (!e) return Vr.magicUploadAccessEnabled = !1, Vr.magicUploadAccessLoading = !0,
         void fA(1500);
-        Vr.magicUploadAccessName = e, Vr.magicUploadAccessLoading = !0, "home" !== Vr.view && "magicUpload" !== Vr.view || Tl();
+        Vr.magicUploadAccessName = e, Vr.magicUploadAccessLoading = !0, "home" !== Vr.view && "magicUpload" !== Vr.view || Ml();
         try {
             const t = await Yx("/features/magic-upload?name=" + encodeURIComponent(e), {
                 method: "GET"
@@ -26064,7 +26088,7 @@
         } catch (e) {
             Vr.magicUploadAccessEnabled = !1, sA("warn", "魔法上传权限检查失败", eA(e));
         } finally {
-            Vr.magicUploadAccessLoading = !1, "home" !== Vr.view && "magicUpload" !== Vr.view || Tl();
+            Vr.magicUploadAccessLoading = !1, "home" !== Vr.view && "magicUpload" !== Vr.view || Ml();
         }
     }
     function hA(e) {
@@ -26139,7 +26163,7 @@
             latestAt: i.recordedAt
         }, Vr.insights = n, dA(), sA("success", "已记录价格/类型历史", e.sku + " " + r + " " + i.price);
         const {packQty: s, ...l} = i;
-        _x("price", l), Mx();
+        _x("price", l), Tx();
     }
     function SA(e, t) {
         if (!e || !e.sku) return;
@@ -26228,12 +26252,12 @@
         e.elapsedMs && t.push(FI(e.elapsedMs / 1e3) + "s"), e.reason && t.push(e.reason),
         " / " + t.join(" / ");
     }
-    function MA(e) {
+    function TA(e) {
         return function(e) {
             return DI(e).replace(/\*+$/g, "").trim();
         }(e).replace(/[:\uff1a]\s*$/g, "").trim();
     }
-    function TA() {
+    function MA() {
         try {
             "function" == typeof GM_setValue ? GM_setValue(v, Vr.index) : localStorage.setItem(v, JSON.stringify(Vr.index));
         } catch (e) {
@@ -26487,7 +26511,7 @@
         }, Yk()) : "toy-label" === o.kind && /\u6210\u529f/.test(o.status || "") && XS(o.sku, {
             labelFileState: "done",
             labelFileDone: !0
-        }, Yk())), Tl();
+        }, Yk())), Ml();
     }
     function KA(e, t, a, n) {
         const r = LA(), i = r.find(t => t.id === e.id) || e, o = (new Date).toLocaleString(), s = {
@@ -26500,7 +26524,7 @@
             updatedAt: o
         };
         Object.assign(e, s), Vr.uploadQueue = r.some(t => t.id === e.id) ? r.map(t => t.id === e.id ? s : t) : [ s ].concat(r),
-        jA(), Tl();
+        jA(), Ml();
     }
     function WA(e) {
         const t = Xh(e).map(e => e.name).join(","), a = Jh(e).map(e => e.name).join(",");
@@ -26739,7 +26763,7 @@
             updatedAtMs: e.updatedAtMs || Date.now()
         }, a = Vr.index.find(t => t.sku === e.sku);
         a && a.pinned && (t.pinned = !0, t.pinOrder = a.pinOrder || Date.now()), Vr.index = Vr.index.filter(t => t.sku !== e.sku),
-        Vr.index.unshift(t), TA();
+        Vr.index.unshift(t), MA();
     }
     function SI(e) {
         if (!e) return null;
@@ -26756,7 +26780,7 @@
         const n = a || {}, r = n.changeSource || "自动获取", i = (new Date).toLocaleString();
         return [ "brand", "name", "manualCategory", "packageCode", "printCode", "packageSizeText", "printSizeText", "packageLength", "packageWidth", "packageHeight", "productLength", "productWidth", "productHeight", "netContent", "grossWeight", "englishName", "ingredientChinese", "ingredientEnglish", "referenceUrl", "infringementImageUrls", "infringementCopywriting" ].reduce((a, o) => {
             const s = Ii(o, e[o]), l = Ii(o, t[o]);
-            return Ti(o, s, l) || !s && !n.trackEmptyChanges || a.push({
+            return Mi(o, s, l) || !s && !n.trackEmptyChanges || a.push({
                 key: o,
                 label: zf(o),
                 before: s,
@@ -26818,7 +26842,7 @@
             AI(e, l);
             const t = Vr.selectedSku || Vr.data && Vr.data.sku || "";
             t && t !== e || (Vr.data = l, Vr.selectedSku = e), kI(l), n.suppressDataQuality || SA(l, "saveData"),
-            Mx(), Ta(), p.length && sA("warn", "SKU 数据发生变化", e + " | " + p.map(e => e.label + "：" + (e.before || "未识别") + " → " + (e.after || "已清空")).join("；"));
+            Tx(), Ma(), p.length && sA("warn", "SKU 数据发生变化", e + " | " + p.map(e => e.label + "：" + (e.before || "未识别") + " → " + (e.after || "已清空")).join("；"));
         } catch (t) {
             console.warn("PLM floating helper save failed:", t), sA("error", "缓存商品失败", (e || "") + " " + eA(t));
         }
@@ -26833,15 +26857,15 @@
             console.warn("PLM floating helper position save failed:", e);
         }
     }
-    function MI(e) {
+    function TI(e) {
         if (!e) return;
         e.classList.add("is-floating"), e.parentElement !== document.documentElement && document.documentElement.appendChild(e);
-        const t = TI();
+        const t = MI();
         if (t) return e.style.left = t.left + "px", void (e.style.top = t.top + "px");
         e.style.left = PI(Math.round(window.innerWidth * E.launcherLeftRatio), 8, Math.max(8, window.innerWidth - 86 - 8)) + "px",
         e.style.top = PI(Math.round(window.innerHeight * E.launcherTopRatio), 8, Math.max(8, window.innerHeight - 34 - 8)) + "px";
     }
-    function TI() {
+    function MI() {
         try {
             const e = "function" == typeof GM_getValue ? GM_getValue(A, null) : JSON.parse(localStorage.getItem(A) || "null");
             return e && Number.isFinite(e.left) && Number.isFinite(e.top) ? {
