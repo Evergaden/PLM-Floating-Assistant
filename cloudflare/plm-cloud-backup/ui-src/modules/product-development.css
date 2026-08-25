@@ -2152,6 +2152,63 @@
   line-height: 1.5;
 }
 
+#plm-floating-helper .pfh-product-development-material-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#plm-floating-helper .pfh-product-development-material-header-actions button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--pfh-theme-border-strong);
+  border-radius: 8px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-primary);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+#plm-floating-helper .pfh-product-development-material-header-actions button.is-primary {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-primary);
+  color: #fff;
+}
+
+#plm-floating-helper .pfh-product-development-material-header-actions button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+#plm-floating-helper .pfh-product-development-material-save-status {
+  color: var(--pfh-theme-muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+#plm-floating-helper .pfh-product-development-material-save-status.is-saved {
+  color: var(--pfh-theme-primary);
+}
+
+#plm-floating-helper .pfh-product-development-material-save-status.is-dirty,
+#plm-floating-helper .pfh-product-development-material-save-status.is-error,
+#plm-floating-helper .pfh-product-development-material-plm-status.is-error {
+  color: #b42318;
+}
+
+#plm-floating-helper .pfh-product-development-material-plm-status {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--pfh-theme-control-surface);
+  color: var(--pfh-theme-primary);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 @media (max-width: 620px) {
   #plm-floating-helper .pfh-product-development-material-planner,
   #plm-floating-helper .pfh-product-development-material-card {
