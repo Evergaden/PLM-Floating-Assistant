@@ -7264,7 +7264,7 @@
     return '';
   }
 
-  function productDevelopmentHasHerbalEvidence(snapshot) {
+  function productDevelopmentHasHerbalEvidence(snapshot, extraText) {
     const source = snapshot && typeof snapshot === 'object' ? snapshot : {};
     const evidence = [
       source.name,
@@ -7272,6 +7272,7 @@
       source.ingredientSummary && source.ingredientSummary.en,
       source.ingredientSummary && source.ingredientSummary.cn,
       Array.isArray(source.ingredients) ? source.ingredients.map((item) => item && (item.en || item.cn)).join(' ') : '',
+      extraText,
     ].filter(Boolean).join(' ');
     return /\b(?:herbal|botanical|cinnamon|sage|leaf|root|extract)\b|草本|植物|肉桂|鼠尾草|叶|根|提取物/i.test(evidence);
   }
@@ -7286,19 +7287,31 @@
 
   function productDevelopmentApprovedCountPair(sourceText, replacementEn, replacementZh) {
     const source = String(sourceText || '');
-    const combined = source + '\n' + String(replacementEn || '');
-    const match = combined.match(/\b(\d+(?:\.\d+)?)\s*(CAPSULES?|SOFTGELS?|GUMM(?:Y|IES))\b/i);
-    if (!match || Number(match[1]) === 60) return null;
-    const unit = PRODUCT_DEVELOPMENT_REVIEW_COUNT_UNITS.find((item) => item.pattern.test(match[2]));
+    const nextSource = String(replacementEn || '');
+    const countPattern = /\b(\d+(?:\.\d+)?)\s*(CAPSULES?|SOFTGELS?|GUMM(?:Y|IES))\b/i;
+    const sourceMatch = source.match(countPattern);
+    const replacementMatch = nextSource.match(countPattern);
+    const sourceNeedsNormalization = sourceMatch && Number(sourceMatch[1]) !== 60;
+    const replacementNeedsNormalization = replacementMatch && Number(replacementMatch[1]) !== 60;
+    if (!sourceNeedsNormalization && !replacementNeedsNormalization) return null;
+    const unitMatch = replacementMatch || sourceMatch;
+    const unit = PRODUCT_DEVELOPMENT_REVIEW_COUNT_UNITS.find((item) => item.pattern.test(unitMatch[2]));
     if (!unit) return null;
     const hasSupplement = /\bDIETARY\s+SUPPLEMENT\b/i.test(source + '\n' + String(replacementEn || ''));
-    let nextEn = String(replacementEn || '').replace(/\b\d+(?:\.\d+)?\s*(CAPSULES?|SOFTGELS?|GUMM(?:Y|IES))\b/i, '60 ' + unit.en);
-    if (!nextEn || nextEn === String(replacementEn || '')) nextEn = '60 ' + unit.en;
-    nextEn = nextEn.replace(/\s*(?:\bA\s+)?\bDIETARY\s+SUPPLEMENT\b/i, '\nDIETARY SUPPLEMENT');
+    let nextEn = replacementMatch
+      ? nextSource.replace(countPattern, '60 ' + unit.en)
+      : '60 ' + unit.en + (nextSource ? '\n' + nextSource : '');
+    nextEn = nextEn.replace(/^\n+/, '').replace(/\s*(?:\bA\s+)?\bDIETARY\s+SUPPLEMENT\b/i, '\nDIETARY SUPPLEMENT');
+    nextEn = nextEn.replace(/^\n+/, '');
     if (hasSupplement && !/\bDIETARY\s+SUPPLEMENT\b/i.test(nextEn)) nextEn += '\nDIETARY SUPPLEMENT';
-    let nextZh = String(replacementZh || '').replace(/\d+(?:\.\d+)?\s*(粒胶囊|粒软胶囊|粒软糖)/, '60$1');
-    if (!nextZh || nextZh === String(replacementZh || '')) nextZh = '60' + unit.zh;
-    nextZh = nextZh.replace(/\s*膳食补充剂/, '\n膳食补充剂');
+    const nextChinese = String(replacementZh || '');
+    const chineseCountPattern = /\d+(?:\.\d+)?\s*(粒胶囊|粒软胶囊|粒软糖)/;
+    const chineseMatch = nextChinese.match(chineseCountPattern);
+    let nextZh = chineseMatch
+      ? nextChinese.replace(chineseCountPattern, '60$1')
+      : '60' + unit.zh + (nextChinese ? '\n' + nextChinese : '');
+    nextZh = nextZh.replace(/^\n+/, '').replace(/\s*膳食补充剂/, '\n膳食补充剂');
+    nextZh = nextZh.replace(/^\n+/, '');
     if (hasSupplement && !/膳食补充剂/.test(nextZh)) nextZh += '\n膳食补充剂';
     return { replacementEn: nextEn, replacementZh: nextZh, action: PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeCount };
   }
@@ -7336,7 +7349,7 @@
     const replacementBanned = productDevelopmentFindBannedTerm(nextEn + ' ' + nextZh, opts.brand);
     if (replacementBanned) {
       const naturalClaim = /\b(?:100\s*%\s*)?NATURAL\b/i.test(sourceText);
-      if (naturalClaim && productDevelopmentHasHerbalEvidence(opts.snapshot)) {
+      if (naturalClaim && productDevelopmentHasHerbalEvidence(opts.snapshot, sourceText)) {
         nextEn = 'HERBAL';
         nextZh = '草本';
         action = PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replacePhrase;
