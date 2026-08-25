@@ -1913,9 +1913,9 @@
     const code = productDevelopmentCleanText(row && row.code || sku, 100);
     const name = productDevelopmentCleanText(row && row.name || detail && detail.productNameCn || task && task.name || '当前 SKU 成品', 180);
     const specification = productDevelopmentCleanText(row && row.specification || productDevelopmentMaterialPackSpec(detail), 160);
-    const status = row && row.joinId ? '已绑定' : (productMainId ? '待保存' : '未读取主产品');
-    const statusClass = status === '已绑定' ? ' is-ready' : (status === '未读取主产品' ? ' is-missing' : '');
-    return '<article class="pfh-product-development-product-binding"><header><div><strong>成品绑定</strong><span>type=1 · 与启用物料一起提交</span></div><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>成品主产品 ID</small><b>' + escapeHtml(productMainId || '保存时按 SKU 查找') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '按 PLM 成品记录') + '</b></div></div><p>只读绑定参考；保存到 PLM 时会校验成品绑定行。</p></article>';
+    const status = row && row.joinId ? '已绑定' : (productMainId ? '待保存' : '待绑定');
+    const statusClass = status === '已绑定' ? ' is-ready' : (status === '待绑定' ? ' is-missing' : '');
+    return '<article class="pfh-product-development-product-binding"><header><div><strong>成品绑定</strong><span>保存 BOM 时自动绑定当前产品</span></div><em class="' + statusClass + '">' + escapeHtml(status) + '</em></header><div class="pfh-product-development-binding-grid"><div><small>产品编码</small><b>' + escapeHtml(code || '待补充') + '</b></div><div><small>产品名称</small><b>' + escapeHtml(name || '待补充') + '</b></div><div><small>规格型号</small><b>' + escapeHtml(specification || '按 PLM 成品记录') + '</b></div></div><p>保存 BOM 时会自动保留当前产品绑定。</p></article>';
   }
 
   function productDevelopmentMaterialCardHtml(kind, draft, sku, baseName) {
@@ -1923,9 +1923,8 @@
     const isLabel = kind === 'label';
     const isInstruction = kind === 'instruction';
     const title = isBox ? '纸盒' : isLabel ? '标签' : '说明书';
-    const materialType = isBox ? '0' : isLabel ? '1' : (draft && draft.materialType || '6');
     if (!draft || draft.enabled === false) {
-      return '<article class="pfh-product-development-material-card is-disabled"><header><div><strong>' + escapeHtml(title) + '（本地不需要）</strong><span>已从本地 BOM 填写和新建流程中移除</span></div><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true">恢复' + escapeHtml(title) + '</button></header><p>已有 PLM 绑定不会自动删除；如需重新填写，可点击恢复。</p></article>';
+      return '<article class="pfh-product-development-material-card is-disabled"><header><div class="pfh-product-development-material-card-title"><strong>' + escapeHtml(title) + '（本地不需要）</strong><span>已从本地物料填写中移除</span></div><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="true">恢复' + escapeHtml(title) + '</button></header><p>已有 PLM 绑定不会自动删除；如需重新填写，可点击恢复。</p></article>';
     }
     const priceText = draft.price || (isInstruction ? '填写采购价' : '填写尺寸后自动计算');
     const dimensionFields = isInstruction
@@ -1954,14 +1953,15 @@
       ? productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（手动）', draft.price, { required: true, placeholder: '填写采购价' })
       : productDevelopmentMaterialInputHtml(sku, kind, 'price', '采购价（自动）', priceText, { readonly: true });
     const cardClass = 'pfh-product-development-material-card' + (isInstruction ? ' is-instruction' : '');
-    return '<article class="' + cardClass + '" data-material-card="' + escapeHtml(kind) + '"><header><div><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(isInstruction ? (draft.materialName || baseName || sku) : (baseName || sku)) + ' · material_type=' + escapeHtml(materialType) + '</span></div><div class="pfh-product-development-material-card-actions"><em data-material-price-label="' + escapeHtml(kind) + '">采购价：' + escapeHtml(priceText) + (draft.price ? ' 元' : '') + '</em><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="false">移除</button></div></header><div class="pfh-product-development-material-grid">' +
+    const cardSubtitle = productDevelopmentCleanText(draft.materialName || baseName || sku, 180);
+    return '<article class="' + cardClass + '" data-material-card="' + escapeHtml(kind) + '"><header><div class="pfh-product-development-material-card-title"><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(cardSubtitle) + '</span></div><div class="pfh-product-development-material-card-actions"><em data-material-price-label="' + escapeHtml(kind) + '">采购价：' + escapeHtml(priceText) + (draft.price ? ' 元' : '') + '</em><button type="button" data-action="product-development-bom-toggle-material" data-bom-sku="' + escapeHtml(sku) + '" data-material-kind="' + escapeHtml(kind) + '" data-material-enabled="false">移除</button></div></header><div class="pfh-product-development-material-grid">' +
       productDevelopmentMaterialInputHtml(sku, kind, 'materialName', '物料名称', draft.materialName, { wide: true, required: true }) +
       productDevelopmentMaterialInputHtml(sku, kind, 'categoryPath', '物料分类（默认）', draft.categoryPath, { readonly: true }) +
       productDevelopmentMaterialInputHtml(sku, kind, 'specification', '规格型号', draft.specification, { wide: isInstruction, required: true }) +
       dimensionFields +
       productDevelopmentMaterialInputHtml(sku, kind, 'supplier', '默认供应商', draft.supplier, { readonly: true }) +
       priceInput +
-      '</div>' + calculatorOptions + '<div class="pfh-product-development-material-binding-defaults">PLM 绑定默认：project_id=' + escapeHtml(draft.projectId || '当前项目') + ' · product_code=' + escapeHtml(draft.productCode || sku) + ' · category_id=' + escapeHtml(draft.categoryId) + ' · usage_value=' + escapeHtml(draft.usage || '1') + ' · type=2 · pics=[]</div></article>';
+      '</div>' + calculatorOptions + '</article>';
   }
 
   function productDevelopmentMaterialPlannerHtml(detail, task) {
@@ -1979,7 +1979,7 @@
     const saveStatusClass = detail.bomDraftDirty ? ' is-dirty' : (detail.bomDraftSaveState === 'error' ? ' is-error' : (detail.bomDraftSavedAt ? ' is-saved' : ''));
     const plmBusy = state.productDevelopmentBomSaveSku === formSku;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM FORM · LOCAL / PLM</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存 BOM（本地）</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">纸盒、标签可按产品需要移除；已绑定说明书会单独展示；成品绑定会随启用的物料一起提交。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div></section>';
+    return '<section class="pfh-product-development-material-planner"><header><div><small>物料信息</small><h3>填写包装与说明书</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书单独填写；保存到 PLM 时会同时绑定当前产品和已启用物料。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div></section>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
@@ -2421,6 +2421,7 @@
   async function loadProductDevelopmentSnapshot(sku, force, options) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     const requireIngredients = !(options && options.requireIngredients === false);
+    const includeImage = !(options && options.includeImage === false);
     const imageKind = options && options.imageKind === 'benchmark' ? 'benchmark' : 'product';
     if (!normalizedSku) throw new Error('请先在设计任务中选择一个 SKU');
     if (!force && state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === normalizedSku
@@ -2468,14 +2469,17 @@
       cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
     });
     if (requireIngredients && !ingredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
-    let imageSource = imageKind === 'benchmark'
-      ? productDevelopmentGetBenchmarkImageSource(data)
-      : (typeof getExcelImageSource === 'function' ? getExcelImageSource(data) : { imageUrl: '', imageFallbackUrl: '' });
     let skuImage = null;
-    if (imageKind !== 'benchmark' && typeof fetchLedgerAiImageSkuPreflight === 'function') {
-      skuImage = await fetchLedgerAiImageSkuPreflight(normalizedSku, data).catch(() => null);
-      if (skuImage && skuImage.status === 'available' && skuImage.url) {
-        imageSource = { imageUrl: skuImage.url, imageFallbackUrl: skuImage.url };
+    let imageSource = { imageUrl: '', imageFallbackUrl: '', source: '文案生成不读取效果图' };
+    if (includeImage) {
+      imageSource = imageKind === 'benchmark'
+        ? productDevelopmentGetBenchmarkImageSource(data)
+        : (typeof getExcelImageSource === 'function' ? getExcelImageSource(data) : { imageUrl: '', imageFallbackUrl: '' });
+      if (imageKind !== 'benchmark' && typeof fetchLedgerAiImageSkuPreflight === 'function') {
+        skuImage = await fetchLedgerAiImageSkuPreflight(normalizedSku, data).catch(() => null);
+        if (skuImage && skuImage.status === 'available' && skuImage.url) {
+          imageSource = { imageUrl: skuImage.url, imageFallbackUrl: skuImage.url };
+        }
       }
     }
     const result = {
@@ -2503,13 +2507,15 @@
       },
       imageUrl: String(imageSource && imageSource.imageUrl || ''),
       imageFallbackUrl: String(imageSource && imageSource.imageFallbackUrl || imageSource && imageSource.imageUrl || ''),
-      imageKind,
-      imageSource: imageKind === 'benchmark'
-        ? imageSource.source || 'PLM 只读对标图片'
-        : skuImage && skuImage.source || data.skuImageSource || 'PLM read-only product image',
+      imageKind: includeImage ? imageKind : 'none',
+      imageSource: includeImage
+        ? imageKind === 'benchmark'
+          ? imageSource.source || 'PLM 只读对标图片'
+          : skuImage && skuImage.source || data.skuImageSource || 'PLM read-only product image'
+        : '文案生成不读取效果图',
       updatedAt: new Date().toLocaleString(),
     };
-    if (!result.imageUrl) {
+    if (includeImage && !result.imageUrl) {
       throw new Error(imageKind === 'benchmark'
         ? '当前 SKU 没有可读取的对标图片'
         : '当前 SKU 没有可读取的主产品效果图');
@@ -3187,7 +3193,7 @@
     state.productDevelopmentStatus = '正在读取当前 SKU 的成分和卖点…';
     renderShell();
     try {
-      const snapshot = await loadProductDevelopmentSnapshot(sku, true);
+      const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: true, includeImage: false });
       const response = await cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
         timeoutMs: 150000,
@@ -3463,17 +3469,18 @@
   function productDevelopmentCopywritingHtml() {
     const sku = getProductDevelopmentCurrentSku();
     const content = state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.sku === sku ? state.productDevelopmentCopywriting.content : null;
-    const templateVersion = state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION + '（内置）';
+    const templateLabel = state.productDevelopmentTemplateBase64 ? '已使用本地模板' : '内置模板';
     const ingredientCount = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot.ingredients.length : '--';
+    const displayError = state.productDevelopmentError && !/效果图|对标图片/.test(String(state.productDevelopmentError)) ? state.productDevelopmentError : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
-      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>DOCX COPYWRITING</small><h2>A-D 双语文案 DOCX</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>只生成 A-D 字段</h3><p>英文放第二列，中文放第三列，第四列留白；成分功能覆盖当前 PLM 读取到的全部有效成分。</p></div><button type="button" data-action="product-development-copywriting-run"' + (state.productDevelopmentCopywritingBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentCopywritingBusy ? '正在生成…' : '生成 DOCX') + '</button></section>' +
-      '<section class="pfh-product-development-template-card"><div><small>模板版本</small><strong>' + escapeHtml(templateVersion) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">恢复内置模板</button><span>当前有效成分：' + escapeHtml(String(ingredientCount)) + ' 个</span></section>' +
+      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>产品文案</small><h2>生成双语文案</h2></div></header>' +
+      '<section class="pfh-product-development-work-card"><div><h3>生成产品文案 DOCX</h3><p>根据当前产品名称、成分和卖点生成中英文内容，并自动填入 Word 模板。</p></div><button type="button" data-action="product-development-copywriting-run"' + (state.productDevelopmentCopywritingBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentCopywritingBusy ? '正在生成…' : '生成文案 DOCX') + '</button></section>' +
+      '<section class="pfh-product-development-template-card"><div><small>当前模板</small><strong>' + escapeHtml(templateLabel) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">使用内置模板</button><span>已读取成分：' + escapeHtml(String(ingredientCount)) + ' 个</span></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
-      (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
+      (displayError ? '<p class="pfh-product-development-error">' + escapeHtml(displayError) + '</p>' : '') +
       (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + escapeHtml(state.productDevelopmentCopywriting.fileName) + '</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>' : '') +
       productDevelopmentCopywritingPreviewHtml(content) +
-      '<p class="pfh-product-development-note">内置模板为版本化四列表格；可以替换为你们的 DOCX 样式模板。生成结果只下载到本地，暂不自动上传或回写 PLM。</p></div>';
+      '<p class="pfh-product-development-note">生成结果只下载到本地，不会自动上传或修改 PLM。</p></div>';
   }
 
   function productDevelopmentViewHtml(statusText) {

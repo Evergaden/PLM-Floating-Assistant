@@ -2008,12 +2008,16 @@
   display: flex;
   align-items: var(--pfh-product-development-material-header-align, center);
   flex-direction: var(--pfh-product-development-material-header-direction, row);
+  min-height: 38px;
   justify-content: space-between;
   gap: 10px;
 }
 
-#plm-floating-helper .pfh-product-development-material-card > header > div {
+#plm-floating-helper .pfh-product-development-material-card-title {
   display: grid;
+  flex: 1 1 auto;
+  align-content: center;
+  min-height: 34px;
   min-width: 0;
   gap: 3px;
 }
@@ -2033,18 +2037,22 @@
 
 #plm-floating-helper .pfh-product-development-material-card > header em {
   flex: 0 0 auto;
+  min-width: 76px;
   color: var(--pfh-theme-primary);
   font-size: 11px;
   font-style: normal;
   font-weight: 700;
+  text-align: right;
 }
 
 #plm-floating-helper .pfh-product-development-material-card-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
+  min-width: 142px;
   gap: 7px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 #plm-floating-helper .pfh-product-development-material-card-actions button,
@@ -2189,15 +2197,6 @@
   font-size: 10px;
 }
 
-#plm-floating-helper .pfh-product-development-material-binding-defaults {
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: var(--pfh-theme-control-surface);
-  color: var(--pfh-theme-muted);
-  font-size: 9px;
-  line-height: 1.5;
-}
-
 #plm-floating-helper .pfh-product-development-product-binding {
   display: grid;
   gap: 6px;
@@ -2247,7 +2246,7 @@
 
 #plm-floating-helper .pfh-product-development-binding-grid {
   display: grid;
-  grid-template-columns: var(--pfh-product-development-binding-columns, repeat(4, minmax(0, 1fr)));
+  grid-template-columns: var(--pfh-product-development-binding-columns, repeat(3, minmax(0, 1fr)));
   gap: 6px;
 }
 

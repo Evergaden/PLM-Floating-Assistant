@@ -2189,6 +2189,7 @@ async function handleProductDevelopmentCopywriting(request, env) {
   const system = [
     '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
     '只生成 A-D 四个部分：A 产品功效 4 条，B 产品优势 4 条，C 产品卖点 15 条，D 当前输入的全部有效成分功能。',
+    '本任务只使用提交的产品资料、成分和已有卖点生成文字，不读取、不分析也不要求产品效果图。',
     '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
     '不要写品牌名称。不得使用 Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、实验认证以及同类禁词。',
     'A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字且英文不超过 8 个词；C 共 15 条，前 1-4 条可带 3-4 个英文词的小标题，正文简洁；D 成分名称必须逐个按输入顺序原样返回并给出保守功能说明。',
