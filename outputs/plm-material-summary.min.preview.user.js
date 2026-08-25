@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.195
+// @version      2.8.196
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -34,7 +34,7 @@
 
 !function() {
     "use strict";
-    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.195";
+    const e = "plm-floating-helper", t = "plm-floating-helper-launcher", a = "2.8.196";
     function n(t, a) {
         window.setTimeout(() => {
             const n = document.getElementById(e);
@@ -1854,7 +1854,7 @@
     }), Object.freeze({
         id: "review",
         title: "产品图风险筛查",
-        subtitle: "提取图片文字，生成红框编号的中英文修改对照图",
+        subtitle: "提取全部图片文字，生成中英文修改对照图",
         action: "product-development-review-open",
         icon: "image"
     }), Object.freeze({
@@ -2954,21 +2954,12 @@
         const h = Math.min(c / r, u / i), y = r * h, b = i * h, w = o + (s - y) / 2, k = 124 + (u - b) / 2;
         return m.drawImage(n, w, k, y, b), m.strokeStyle = "#d7dee9", m.lineWidth = 2, m.strokeRect(o, o, s, f.height - 64),
         m.strokeRect(64 + s, o, l, f.height - 64), d.forEach((e, t) => {
-            const a = e.bbox, n = a && Number.isFinite(Number(a.x)) && Number.isFinite(Number(a.y)) && Number.isFinite(Number(a.w)) && Number.isFinite(Number(a.h)), r = Array.isArray(e.riskTypes) && e.riskTypes.length, i = r ? "#ef4444" : "#98a2b3";
-            if (n) {
-                const e = w + a.x * y, n = k + a.y * b, o = a.w * y, s = a.h * b;
-                m.strokeStyle = i, m.lineWidth = Math.max(3, Math.round(Math.min(y, b) / 260)),
-                r || m.setLineDash([ 8, 6 ]), m.strokeRect(e, n, o, s), m.setLineDash([]), m.fillStyle = i,
-                m.beginPath(), m.arc(Math.max(w + 18, e), Math.max(k + 18, n), 17, 0, 2 * Math.PI),
-                m.fill(), m.fillStyle = "#ffffff", m.font = "700 18px Arial, sans-serif", m.textAlign = "center",
-                m.fillText(String(t + 1), Math.max(w + 18, e), Math.max(k + 24, n + 6)), m.textAlign = "left";
-            }
-            const o = 154 + 166 * t;
-            m.fillStyle = i, m.font = "700 17px Arial, Microsoft YaHei, sans-serif", m.fillText(String(t + 1) + ". " + (r ? "风险：" + e.riskTypes.join("、") : "未检测到风险，保留原文"), 64 + s + 22, o),
-            m.fillStyle = "#667085", m.font = "15px Arial, Microsoft YaHei, sans-serif", ar(m, "原文：" + e.sourceText, 64 + s + 22, o + 26, 704, 19, 2),
+            const a = Array.isArray(e.riskTypes) && e.riskTypes.length, n = a ? "#ef4444" : "#98a2b3", r = 154 + 166 * t;
+            m.fillStyle = n, m.font = "700 17px Arial, Microsoft YaHei, sans-serif", m.fillText(String(t + 1) + ". " + (a ? "风险：" + e.riskTypes.join("、") : "未检测到风险，保留原文"), 64 + s + 22, r),
+            m.fillStyle = "#667085", m.font = "15px Arial, Microsoft YaHei, sans-serif", ar(m, "原文：" + e.sourceText, 64 + s + 22, r + 26, 704, 19, 2),
             m.fillStyle = "#344054", m.font = "600 18px Arial, Microsoft YaHei, sans-serif",
-            ar(m, "英文：" + e.replacementEn, 64 + s + 22, o + 66, 704, 23, 2), m.fillStyle = "#667085",
-            m.font = "16px Arial, Microsoft YaHei, sans-serif", ar(m, "中文：" + e.replacementZh, 64 + s + 22, o + 112, 704, 21, 2);
+            ar(m, "英文：" + e.replacementEn, 64 + s + 22, r + 66, 704, 23, 2), m.fillStyle = "#667085",
+            m.font = "16px Arial, Microsoft YaHei, sans-serif", ar(m, "中文：" + e.replacementZh, 64 + s + 22, r + 112, 704, 21, 2);
         }), d.length || (m.fillStyle = "#667085", m.font = "20px Arial, Microsoft YaHei, sans-serif",
         m.fillText("未提取到可确认的图片文字", 64 + s + 24, 182)), m.fillStyle = "#98a2b3", m.font = "16px Arial, Microsoft YaHei, sans-serif",
         m.fillText("SKU " + String(a && a.sku || "") + " · 原图保留 · 仅生成审核对照稿", 64, f.height - 18),
@@ -3062,10 +3053,8 @@
         } else oA("请先在设计任务中打开或选择当前 SKU");
     }
     function or(e) {
-        const t = e && "object" == typeof e ? e : {}, a = t.bbox;
-        if (null == a) return !String(t.sourceText || "").trim() || !String(t.replacementEn || "").trim() || !String(t.replacementZh || "").trim();
-        const n = Number(a.x), r = Number(a.y), i = Number(a.w), o = Number(a.h);
-        return !String(t.sourceText || "").trim() || !String(t.replacementEn || "").trim() || !String(t.replacementZh || "").trim() || ![ n, r, i, o ].every(Number.isFinite) || n < 0 || r < 0 || i <= .001 || o <= .001 || n + i > 1 || r + o > 1;
+        const t = e && "object" == typeof e ? e : {};
+        return !String(t.sourceText || "").trim() || !String(t.replacementEn || "").trim() || !String(t.replacementZh || "").trim();
     }
     function sr(e) {
         const t = Wn(e && e.productNaming);
@@ -3323,10 +3312,10 @@
         return a.length ? a.map(e => '<button type="button" class="pfh-product-development-history-row" data-action="product-development-history-open" data-history-id="' + jI(e.id) + '" title="打开本地历史"><span class="pfh-product-development-history-kind">' + jI("review" === e.kind ? "图" : "文") + "</span><div><strong>" + jI(e.sku) + "</strong><small>" + jI(e.createdAt) + " · " + jI(e.fileName || "") + "</small></div><em>" + ("review" === e.kind ? e.itemCount + " 个风险项" + (e.extractedTextCount ? " · " + e.extractedTextCount + " 项文字" : "") : "A-D") + "</em></button>").join("") : '<div class="pfh-product-development-history-empty">本地历史记录会显示在这里</div>';
     }
     function Ir() {
-        const e = Vr.productDevelopmentReview, t = cn(), a = Boolean(e && e.sku === t), n = Boolean(e && (a || e.fromHistory)), r = n && e.items || [], i = n && Array.isArray(e.extractedTexts) ? e.extractedTexts : [], o = r.filter(e => Array.isArray(e && e.riskTypes) && e.riskTypes.length).length, s = i.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + i.length + " 项，识别风险 " + o + " 项。</strong><span>全部原文：" + i.map((e, t) => t + 1 + ". " + jI(e.sourceText)).join(" · ") + "</span></div>" : "", l = e && e.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + jI(e.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : "", c = n ? e.fromHistory ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字或红框，请重新分析当前对标图片。</p></section>' : function(e, t) {
+        const e = Vr.productDevelopmentReview, t = cn(), a = Boolean(e && e.sku === t), n = Boolean(e && (a || e.fromHistory)), r = n && e.items || [], i = n && Array.isArray(e.extractedTexts) ? e.extractedTexts : [], o = r.filter(e => Array.isArray(e && e.riskTypes) && e.riskTypes.length).length, s = i.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + i.length + " 项，识别风险 " + o + " 项。</strong><span>全部原文：" + i.map((e, t) => t + 1 + ". " + jI(e.sourceText)).join(" · ") + "</span></div>" : "", l = e && e.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + jI(e.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : "", c = n ? e.fromHistory ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>' : function(e, t) {
             const a = (Array.isArray(t) ? t : []).map((e, t) => {
-                const a = e && e.bbox, n = Array.isArray(e && e.riskTypes) && e.riskTypes.length, r = n ? e.riskTypes.join("、") + (Array.isArray(e.riskTerms) && e.riskTerms.length ? " · " + e.riskTerms.join("、") : "") : "未检测到风险，保留原文";
-                return '<article class="pfh-product-development-review-editor-row' + (n ? " is-risk" : " is-clear") + '"><div class="pfh-product-development-review-editor-head"><b>' + (t + 1) + "</b><span>" + jI(r) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + t + '">删除</button></div><label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="sourceText" value="' + jI(e.sourceText) + '"></label><label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementEn" rows="2">' + jI(e.replacementEn) + '</textarea></label><label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementZh" rows="2">' + jI(e.replacementZh) + '</textarea></label><div class="pfh-product-development-review-bbox"><small>红框位置（归一化 0-1）</small>' + [ "x", "y", "w", "h" ].map(e => "<label>" + e + '<input type="number" min="0" max="1" step="0.01" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="bbox.' + e + '" value="' + jI(a && Number.isFinite(Number(a[e])) ? String(Number(a[e])) : "") + '"></label>').join("") + "</div></article>";
+                const a = Array.isArray(e && e.riskTypes) && e.riskTypes.length;
+                return '<article class="pfh-product-development-review-editor-row' + (a ? " is-risk" : " is-clear") + '"><div class="pfh-product-development-review-editor-head"><b>' + (t + 1) + "</b><span>" + jI(a ? e.riskTypes.join("、") + (Array.isArray(e.riskTerms) && e.riskTerms.length ? " · " + e.riskTerms.join("、") : "") : "未检测到风险，保留原文") + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + t + '">删除</button></div><label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="sourceText" value="' + jI(e.sourceText) + '"></label><label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementEn" rows="2">' + jI(e.replacementEn) + '</textarea></label><label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + t + '" data-review-field="replacementZh" rows="2">' + jI(e.replacementZh) + "</textarea></label></article>";
             }).join("");
             return '<section class="pfh-product-development-review-editor"><header><div><small>MANUAL REVIEW</small><h3>人工修改对照内容</h3></div><span>修改后点击重新生成</span></header>' + (a ? "" : '<div class="pfh-product-development-result-empty">未检测到可靠风险文字，可手动添加需要核对的图片文字。</div>') + '<div class="pfh-product-development-review-editor-list">' + a + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!e || Vr.productDevelopmentReviewBusy ? " disabled" : "") + ">按修改重新生成对照图</button></div></section>";
         }(e, r) : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
@@ -3415,17 +3404,11 @@
             !0) : (e.items.push({
                 id: "manual-" + Date.now().toString(36),
                 sourceText: "",
-                bbox: {
-                    x: .08,
-                    y: .08,
-                    w: .24,
-                    h: .08
-                },
                 riskTypes: [ "other" ],
                 replacementEn: "",
                 replacementZh: "",
                 confidence: 0
-            }), Vr.productDevelopmentStatus = "已添加手动文字项，请填写内容和红框位置", Ml(), !0)) : (oA("请先完成一次图片文字分析"),
+            }), Vr.productDevelopmentStatus = "已添加手动文字项，请填写原文和修改内容", Ml(), !0)) : (oA("请先完成一次图片文字分析"),
             !0);
         }
         if ("product-development-review-remove" === e) {
@@ -3437,7 +3420,7 @@
             const e = Vr.productDevelopmentReview;
             if (!e || !e.sourceImageDataUrl) return void oA("请先完成一次图片文字分析");
             const t = Array.isArray(e.items) ? e.items : [];
-            if (t.some(or)) return void oA("请补全原图文字、英文修改、中文修改和红框位置");
+            if (t.some(or)) return void oA("请补全原图文字、英文修改和中文修改");
             const a = Vr.productDevelopmentSnapshot && Vr.productDevelopmentSnapshot.sku === e.sku ? Vr.productDevelopmentSnapshot : {
                 sku: e.sku,
                 brand: ""
@@ -19301,23 +19284,8 @@
             }
             if (!t.classList.contains("pfh-product-development-review-input")) return !1;
             const a = Vr.productDevelopmentReview, n = Number(t.getAttribute("data-review-index")), r = String(t.getAttribute("data-review-field") || ""), i = a && Array.isArray(a.items) && Number.isInteger(n) ? a.items[n] : null;
-            if (!i) return !0;
-            if ("sourceText" === r || "replacementEn" === r || "replacementZh" === r) return i[r] = String(t.value || "").slice(0, 500),
-            !0;
-            if (0 === r.indexOf("bbox.")) {
-                const e = r.slice(5);
-                if ([ "x", "y", "w", "h" ].includes(e)) {
-                    const a = Number(t.value);
-                    Number.isFinite(a) && (i.bbox || (i.bbox = {
-                        x: 0,
-                        y: 0,
-                        w: .2,
-                        h: .08
-                    }), i.bbox[e] = Math.max(0, Math.min(1, a)));
-                }
-                return !0;
-            }
-            return !0;
+            return !i || "sourceText" !== r && "replacementEn" !== r && "replacementZh" !== r || (i[r] = String(t.value || "").slice(0, 500),
+            !0);
         }(t)) if (t.target && t.target.classList && t.target.classList.contains("pfh-cache-editor-search")) !function(t) {
             const a = document.querySelector("#" + e + " .pfh-cache-editor-layer");
             if (!a) return;

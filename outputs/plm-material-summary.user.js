@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.195
+// @version      2.8.196
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.195';
+  const SCRIPT_VERSION = '2.8.196';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4692,7 +4692,7 @@
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
     Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
-    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字，生成红框编号的中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
+    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
     Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
     Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
@@ -6186,30 +6186,8 @@
     ctx.strokeRect(padding, padding, leftWidth, canvas.height - padding * 2);
     ctx.strokeRect(padding * 2 + leftWidth, padding, rightWidth, canvas.height - padding * 2);
     displayItems.forEach((item, index) => {
-      const box = item.bbox;
-      const hasBbox = box && Number.isFinite(Number(box.x)) && Number.isFinite(Number(box.y)) && Number.isFinite(Number(box.w)) && Number.isFinite(Number(box.h));
       const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length;
       const markerColor = isRisk ? '#ef4444' : '#98a2b3';
-      if (hasBbox) {
-        const x = drawX + box.x * drawWidth;
-        const y = drawY + box.y * drawHeight;
-        const w = box.w * drawWidth;
-        const h = box.h * drawHeight;
-        ctx.strokeStyle = markerColor;
-        ctx.lineWidth = Math.max(3, Math.round(Math.min(drawWidth, drawHeight) / 260));
-        if (!isRisk) ctx.setLineDash([8, 6]);
-        ctx.strokeRect(x, y, w, h);
-        ctx.setLineDash([]);
-        ctx.fillStyle = markerColor;
-        ctx.beginPath();
-        ctx.arc(Math.max(drawX + 18, x), Math.max(drawY + 18, y), 17, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '700 18px Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(String(index + 1), Math.max(drawX + 18, x), Math.max(drawY + 24, y + 6));
-        ctx.textAlign = 'left';
-      }
       const rowY = padding + headerHeight + 30 + index * rowHeight;
       ctx.fillStyle = markerColor;
       ctx.font = '700 17px Arial, Microsoft YaHei, sans-serif';
@@ -6331,36 +6309,20 @@
 
   function productDevelopmentReviewItemIncomplete(item) {
     const source = item && typeof item === 'object' ? item : {};
-    const bbox = source.bbox;
-    if (bbox === null || bbox === undefined) {
-      return !String(source.sourceText || '').trim()
-        || !String(source.replacementEn || '').trim()
-        || !String(source.replacementZh || '').trim();
-    }
-    const x = Number(bbox.x);
-    const y = Number(bbox.y);
-    const w = Number(bbox.w);
-    const h = Number(bbox.h);
     return !String(source.sourceText || '').trim()
       || !String(source.replacementEn || '').trim()
-      || !String(source.replacementZh || '').trim()
-      || ![x, y, w, h].every(Number.isFinite)
-      || x < 0 || y < 0 || w <= 0.001 || h <= 0.001 || x + w > 1 || y + h > 1;
+      || !String(source.replacementZh || '').trim();
   }
 
   function productDevelopmentReviewEditorHtml(result, items) {
     const rows = (Array.isArray(items) ? items : []).map((item, index) => {
-      const bbox = item && item.bbox;
       const isRisk = Array.isArray(item && item.riskTypes) && item.riskTypes.length;
       const riskText = isRisk ? item.riskTypes.join('、') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '') : '未检测到风险，保留原文';
       const rowClass = isRisk ? ' is-risk' : ' is-clear';
       return '<article class="pfh-product-development-review-editor-row' + rowClass + '"><div class="pfh-product-development-review-editor-head"><b>' + (index + 1) + '</b><span>' + escapeHtml(riskText) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + index + '">删除</button></div>' +
         '<label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="sourceText" value="' + escapeHtml(item.sourceText) + '"></label>' +
         '<label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementEn" rows="2">' + escapeHtml(item.replacementEn) + '</textarea></label>' +
-        '<label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementZh" rows="2">' + escapeHtml(item.replacementZh) + '</textarea></label>' +
-        '<div class="pfh-product-development-review-bbox"><small>红框位置（归一化 0-1）</small>' +
-        ['x', 'y', 'w', 'h'].map((key) => '<label>' + key + '<input type="number" min="0" max="1" step="0.01" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="bbox.' + key + '" value="' + escapeHtml(bbox && Number.isFinite(Number(bbox[key])) ? String(Number(bbox[key])) : '') + '"></label>').join('') +
-        '</div></article>';
+        '<label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementZh" rows="2">' + escapeHtml(item.replacementZh) + '</textarea></label></article>';
     }).join('');
     const empty = rows ? '' : '<div class="pfh-product-development-result-empty">未检测到可靠风险文字，可手动添加需要核对的图片文字。</div>';
     return '<section class="pfh-product-development-review-editor"><header><div><small>MANUAL REVIEW</small><h3>人工修改对照内容</h3></div><span>修改后点击重新生成</span></header>' + empty + '<div class="pfh-product-development-review-editor-list">' + rows + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!result || state.productDevelopmentReviewBusy ? ' disabled' : '') + '>按修改重新生成对照图</button></div></section>';
@@ -6387,7 +6349,7 @@
     }
     const items = Array.isArray(result.items) ? result.items : [];
     if (items.some(productDevelopmentReviewItemIncomplete)) {
-      showToast('请补全原图文字、英文修改、中文修改和红框位置');
+      showToast('请补全原图文字、英文修改和中文修改');
       return;
     }
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === result.sku
@@ -6890,7 +6852,7 @@
     const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
-        ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字或红框，请重新分析当前对标图片。</p></section>'
+        ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>'
         : productDevelopmentReviewEditorHtml(result, items))
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
@@ -7044,13 +7006,12 @@
       result.items.push({
         id: 'manual-' + Date.now().toString(36),
         sourceText: '',
-        bbox: { x: 0.08, y: 0.08, w: 0.24, h: 0.08 },
         riskTypes: ['other'],
         replacementEn: '',
         replacementZh: '',
         confidence: 0,
       });
-      state.productDevelopmentStatus = '已添加手动文字项，请填写内容和红框位置';
+      state.productDevelopmentStatus = '已添加手动文字项，请填写原文和修改内容';
       renderShell();
       return true;
     }
@@ -7196,17 +7157,6 @@
     if (!item) return true;
     if (field === 'sourceText' || field === 'replacementEn' || field === 'replacementZh') {
       item[field] = String(target.value || '').slice(0, 500);
-      return true;
-    }
-    if (field.indexOf('bbox.') === 0) {
-      const key = field.slice(5);
-      if (['x', 'y', 'w', 'h'].includes(key)) {
-        const value = Number(target.value);
-        if (Number.isFinite(value)) {
-          if (!item.bbox) item.bbox = { x: 0, y: 0, w: 0.2, h: 0.08 };
-          item.bbox[key] = Math.max(0, Math.min(1, value));
-        }
-      }
       return true;
     }
     return true;
