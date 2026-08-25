@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.197
+// @version      2.8.198
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.197';
+  const SCRIPT_VERSION = '2.8.198';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4674,9 +4674,14 @@
   const PRODUCT_DEVELOPMENT_VERSION = '1.7.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
+  const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
+  const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
+  const PRODUCT_DEVELOPMENT_TASK_META_KEY = 'plm-floating-helper:product-development-task-meta:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY = 'plm-floating-helper:product-development-template-version:v1';
   const PRODUCT_DEVELOPMENT_MAX_HISTORY = 8;
+  const productDevelopmentReviewDraftWriteTimers = Object.create(null);
+  const productDevelopmentTaskMetaWriteTimers = Object.create(null);
   const PRODUCT_DEVELOPMENT_W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const PRODUCT_DEVELOPMENT_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
   const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
@@ -4799,6 +4804,193 @@
     state.productDevelopmentHistory = next;
     writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_HISTORY_KEY, next);
     return next;
+  }
+
+  function productDevelopmentReviewDraftItem(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      id: productDevelopmentCleanText(source.id || '', 60),
+      sourceText: productDevelopmentCleanText(source.sourceText || source.originalText || source.text, 240),
+      bbox: source.bbox && typeof source.bbox === 'object' ? {
+        x: Number(source.bbox.x) || 0,
+        y: Number(source.bbox.y) || 0,
+        w: Number(source.bbox.w !== undefined ? source.bbox.w : source.bbox.width) || 0,
+        h: Number(source.bbox.h !== undefined ? source.bbox.h : source.bbox.height) || 0,
+      } : null,
+      riskTypes: Array.isArray(source.riskTypes) ? source.riskTypes.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 4) : [],
+      riskTerms: Array.isArray(source.riskTerms) ? source.riskTerms.map((item) => productDevelopmentCleanText(item, 100)).filter(Boolean).slice(0, 8) : [],
+      riskReason: productDevelopmentCleanText(source.riskReason || source.reason || source.warning, 400),
+      replacementEn: productDevelopmentCleanText(source.replacementEn || source.modifiedEnglish || source.english, 300),
+      replacementZh: productDevelopmentCleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation || source.translationZh, 300),
+      translationZh: productDevelopmentCleanText(source.translationZh || source.translation || source.chinese, 300),
+      replacementOptions: Array.isArray(source.replacementOptions) ? source.replacementOptions.map((item) => ({
+        en: productDevelopmentCleanText(item && (item.en || item.english || item.replacementEn), 300),
+        zh: productDevelopmentCleanText(item && (item.zh || item.chinese || item.translation), 300),
+      })).filter((item) => item.en || item.zh).slice(0, 3) : [],
+      confidence: Math.max(0, Math.min(1, Number(source.confidence) || 0)),
+    };
+  }
+
+  function productDevelopmentReviewDraftValue(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const sku = String(source.sku || '').trim().toUpperCase();
+    if (!sku) return null;
+    const dataUrl = (candidate, maxLength) => {
+      const text = typeof candidate === 'string' ? candidate : '';
+      return /^data:image\//i.test(text) && text.length <= maxLength ? text : '';
+    };
+    const naming = productDevelopmentNormalizeProductNaming(source.productNaming || source);
+    return {
+      id: productDevelopmentCleanText(source.id || 'pd-review-' + Date.now().toString(36), 80),
+      sku,
+      sourceImageDataUrl: dataUrl(source.sourceImageDataUrl, 2600000),
+      sourceImageName: productDevelopmentCleanText(source.sourceImageName || source.benchmarkImageName, 180),
+      comparisonDataUrl: dataUrl(source.comparisonDataUrl, 2600000),
+      items: (Array.isArray(source.items) ? source.items : []).map(productDevelopmentReviewDraftItem).slice(0, 80),
+      extractedTexts: (Array.isArray(source.extractedTexts) ? source.extractedTexts : []).map(productDevelopmentReviewDraftItem).slice(0, 80),
+      warnings: Array.isArray(source.warnings) ? source.warnings.map((item) => productDevelopmentCleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
+      provider: productDevelopmentCleanText(source.provider, 80),
+      model: productDevelopmentCleanText(source.model, 120),
+      productNaming: naming,
+      fileName: productDevelopmentCleanText(source.fileName || productDevelopmentFileName(sku, 'infringement-comparison', 'png'), 180),
+      createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
+      updatedAt: Number(source.updatedAt) || Date.now(),
+      fromHistory: false,
+    };
+  }
+
+  function loadProductDevelopmentReviewDrafts() {
+    const value = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY, null);
+    const source = value && typeof value === 'object' && value.entries && typeof value.entries === 'object' ? value.entries : {};
+    const entries = Object.create(null);
+    Object.keys(source).forEach((key) => {
+      const draft = productDevelopmentReviewDraftValue(source[key]);
+      if (draft && draft.sku) entries[draft.sku] = draft;
+    });
+    return entries;
+  }
+
+  function getProductDevelopmentReviewDraft(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return null;
+    const draft = loadProductDevelopmentReviewDrafts()[normalizedSku];
+    return draft ? productDevelopmentReviewDraftValue(draft) : null;
+  }
+
+  function saveProductDevelopmentReviewDraft(result) {
+    const draft = productDevelopmentReviewDraftValue(result);
+    if (!draft) return;
+    const entries = loadProductDevelopmentReviewDrafts();
+    entries[draft.sku] = draft;
+    const storedEntries = {};
+    Object.entries(entries)
+      .sort((a, b) => Number(b[1] && b[1].updatedAt) - Number(a[1] && a[1].updatedAt))
+      .slice(0, PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT)
+      .forEach(([key, value]) => { storedEntries[key] = value; });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY, { version: 1, entries: storedEntries });
+  }
+
+  function scheduleProductDevelopmentReviewDraftSave(result) {
+    const sku = String(result && result.sku || '').trim().toUpperCase();
+    if (!sku || !result) return;
+    if (productDevelopmentReviewDraftWriteTimers[sku]) window.clearTimeout(productDevelopmentReviewDraftWriteTimers[sku]);
+    productDevelopmentReviewDraftWriteTimers[sku] = window.setTimeout(() => {
+      delete productDevelopmentReviewDraftWriteTimers[sku];
+      saveProductDevelopmentReviewDraft(result);
+    }, 250);
+  }
+
+  function deleteProductDevelopmentReviewDraft(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return;
+    if (productDevelopmentReviewDraftWriteTimers[normalizedSku]) {
+      window.clearTimeout(productDevelopmentReviewDraftWriteTimers[normalizedSku]);
+      delete productDevelopmentReviewDraftWriteTimers[normalizedSku];
+    }
+    const entries = loadProductDevelopmentReviewDrafts();
+    delete entries[normalizedSku];
+    const storedEntries = {};
+    Object.entries(entries).forEach(([key, value]) => { storedEntries[key] = value; });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY, { version: 1, entries: storedEntries });
+  }
+
+  function restoreProductDevelopmentReviewDraft(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return null;
+    if (state.productDevelopmentReview && state.productDevelopmentReview.sku === normalizedSku && !state.productDevelopmentReview.fromHistory) return state.productDevelopmentReview;
+    const draft = getProductDevelopmentReviewDraft(normalizedSku);
+    if (!draft) return null;
+    state.productDevelopmentReview = draft;
+    if (draft.sourceImageDataUrl) state.productDevelopmentBenchmarkImageDataUrl = draft.sourceImageDataUrl;
+    if (draft.sourceImageName) state.productDevelopmentBenchmarkImageName = draft.sourceImageName;
+    return draft;
+  }
+
+  function normalizeProductDevelopmentTaskMeta(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      brand: productDevelopmentCleanText(source.brand, 160),
+      productNameCn: productDevelopmentCleanText(source.productNameCn || source.chineseProductName, 180),
+      productNameEn: productDevelopmentCleanText(source.productNameEn || source.englishProductName, 180),
+      reworkProductCode: productDevelopmentCleanText(source.reworkProductCode || source.reworkCode, 120),
+    };
+  }
+
+  function loadProductDevelopmentTaskMeta() {
+    const value = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_META_KEY, null);
+    const source = value && typeof value === 'object' && value.entries && typeof value.entries === 'object' ? value.entries : {};
+    const entries = Object.create(null);
+    Object.keys(source).forEach((key) => {
+      const sku = String(key || '').trim().toUpperCase();
+      if (!sku) return;
+      entries[sku] = { ...normalizeProductDevelopmentTaskMeta(source[key]), updatedAt: Number(source[key] && source[key].updatedAt) || 0 };
+    });
+    return entries;
+  }
+
+  function productDevelopmentTaskMetaFallback(task, detail) {
+    const baseFields = detail && Array.isArray(detail.baseFields) ? detail.baseFields : [];
+    const baseValue = (keys) => {
+      const field = baseFields.find((item) => item && keys.includes(String(item.key || '')));
+      return field ? String(field.displayValue || field.value || '') : '';
+    };
+    return {
+      brand: String(task && task.brand || detail && detail.brand || baseValue(['brand']) || ''),
+      productNameCn: String(detail && detail.productNameCn || task && task.name || baseValue(['productNameCn', 'product_name_cn']) || ''),
+      productNameEn: String(detail && detail.productNameEn || task && task.productNameEn || baseValue(['productNameEn', 'product_name_en']) || ''),
+      reworkProductCode: String(task && task.reworkProductCode || detail && detail.reworkProductCode || ''),
+    };
+  }
+
+  function getProductDevelopmentTaskMeta(task, detail) {
+    const sku = String(task && task.sku || detail && detail.sku || '').trim().toUpperCase();
+    if (!sku) return normalizeProductDevelopmentTaskMeta({});
+    const stored = loadProductDevelopmentTaskMeta()[sku] || {};
+    const memory = state.productDevelopmentTaskMeta && state.productDevelopmentTaskMeta[sku] || {};
+    return { ...productDevelopmentTaskMetaFallback(task, detail), ...stored, ...memory };
+  }
+
+  function saveProductDevelopmentTaskMeta(sku, value) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return;
+    const entries = loadProductDevelopmentTaskMeta();
+    entries[normalizedSku] = { ...normalizeProductDevelopmentTaskMeta(value), updatedAt: Date.now() };
+    const storedEntries = {};
+    Object.entries(entries)
+      .sort((a, b) => Number(b[1] && b[1].updatedAt) - Number(a[1] && a[1].updatedAt))
+      .slice(0, PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT)
+      .forEach(([key, entry]) => { storedEntries[key] = entry; });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TASK_META_KEY, { version: 1, entries: storedEntries });
+  }
+
+  function scheduleProductDevelopmentTaskMetaSave(sku, value) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return;
+    if (productDevelopmentTaskMetaWriteTimers[normalizedSku]) window.clearTimeout(productDevelopmentTaskMetaWriteTimers[normalizedSku]);
+    productDevelopmentTaskMetaWriteTimers[normalizedSku] = window.setTimeout(() => {
+      delete productDevelopmentTaskMetaWriteTimers[normalizedSku];
+      saveProductDevelopmentTaskMeta(normalizedSku, value);
+    }, 250);
   }
 
   function loadProductDevelopmentTemplate() {
@@ -5074,6 +5266,7 @@
       categoryId: String(item.category_id || '').trim(),
       productType: cleanCell(item.product_type_format || item.product_type),
       productTypeValue: item.product_type,
+      reworkProductCode: productDevelopmentCleanText(item.rework_product_code || item.reworkProductCode || item.return_product_code || item.returnProductCode || '', 120),
     };
   }
 
@@ -5226,6 +5419,7 @@
   function selectProductDevelopmentTask(sku, options) {
     const task = getProductDevelopmentTaskBySku(sku);
     if (!task) return null;
+    if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
     const normalizedSku = task.sku;
     state.productDevelopmentSelectedTask = task;
     state.productDevelopmentTaskSelectedSku = normalizedSku;
@@ -5244,6 +5438,7 @@
       if (!state.productDevelopmentTaskFormData || typeof state.productDevelopmentTaskFormData !== 'object') state.productDevelopmentTaskFormData = Object.create(null);
       state.productDevelopmentTaskFormData[normalizedSku] = cachedDetail;
     }
+    restoreProductDevelopmentReviewDraft(normalizedSku);
     if (!(options && options.render === false)) renderShell();
     if (!(options && options.hydrate === false)) {
       hydrateProductDevelopmentTaskDetail(task).then(() => {
@@ -5562,6 +5757,7 @@
       productVersionId: String(info.product_version_id || source.productVersionId || productSnapshot && productSnapshot.productVersionId || '').trim(),
       productNameCn,
       productNameEn,
+      reworkProductCode: productDevelopmentCleanText(info.rework_product_code || info.reworkProductCode || info.return_product_code || info.returnProductCode || source.reworkProductCode, 120),
       baseFields,
       brand: source.brand || productSnapshot && productSnapshot.brand || '',
       productType: source.productType || productSnapshot && productSnapshot.productType || '',
@@ -5734,13 +5930,25 @@
       '<section class="pfh-product-development-form-section"><h4>建品资料字段（可编辑文件值 / 路径）</h4><div class="pfh-product-development-file-list">' + (attachments || '<span>暂无资料字段</span>') + '</div></section></section>';
   }
 
+  function productDevelopmentTaskLocalMetaHtml(task, detail) {
+    const source = task || {};
+    const meta = getProductDevelopmentTaskMeta(source, detail);
+    const sku = String(source.sku || detail && detail.sku || '').trim().toUpperCase();
+    const input = (field, label, value, placeholder) => '<label>' + escapeHtml(label) + '<input type="text" class="pfh-product-development-task-meta-input pfh-product-development-name-input" data-meta-sku="' + escapeHtml(sku) + '" data-meta-field="' + escapeHtml(field) + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></label>';
+    return '<section class="pfh-product-development-product-naming pfh-product-development-task-local-meta"><header><div><small>LOCAL PRODUCT DATA</small><h3>产品本地填写</h3></div><span>仅本地记录 · 不写入 PLM</span></header>' +
+      '<div class="pfh-product-development-product-naming-grid">' +
+      input('brand', '产品品牌', meta.brand, '填写产品品牌') +
+      input('productNameCn', '产品中文名', meta.productNameCn, '填写产品中文名') +
+      input('productNameEn', '产品英文名', meta.productNameEn, '填写产品英文名') +
+      input('reworkProductCode', '返工产品编码', meta.reworkProductCode, '没有则留空') +
+      '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-task-meta-save">保存本地</button><small>切换 SKU 或刷新页面后仍保留</small></div></section>';
+  }
+
   function productDevelopmentTaskActionsHtml(task) {
     const source = task || {};
     const detail = state.productDevelopmentTaskDetailData && state.productDevelopmentTaskDetailData[source.sku];
     const formDetail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[source.sku];
-    const referenceUrl = String(source.referenceUrl || detail && detail.referenceUrl || '').trim();
-    const reference = referenceUrl ? '<a href="' + escapeHtml(referenceUrl) + '" target="_blank" rel="noopener noreferrer">打开对标链接</a>' : '<span>暂无对标链接</span>';
-    return '<section class="pfh-section pfh-product-development-task-section"><div class="pfh-section-title"><h3>产品开发流程</h3><span>第一步：侵权图和文案 · 第二步：详情预填</span></div><div class="pfh-info-grid"><div class="pfh-row"><span class="pfh-label">项目编码</span><span class="pfh-value">' + escapeHtml(source.projectCode || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发任务状态</span><span class="pfh-value">' + escapeHtml(source.projectStatus || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">开发分配时间</span><span class="pfh-value">' + escapeHtml(source.developmentAssignedAt || '未提供') + '</span></div><div class="pfh-row"><span class="pfh-label">对标链接</span><span class="pfh-value">' + reference + '</span></div></div><div class="pfh-about-actions"><button type="button" data-action="product-development-review-open">① 制作侵权对照图</button><button type="button" data-action="product-development-copywriting-open">② 生成 A-D 文案 DOCX</button></div><p class="pfh-note">侵权图先读取对标图片全部文字并识别作用、中文产品名和英文主标题；文案和详情均只生成本地参考结果，不向 PLM 回写。</p></section>' + productDevelopmentReadonlyDetailHtml(formDetail);
+    return productDevelopmentTaskLocalMetaHtml(source, formDetail) + productDevelopmentReadonlyDetailHtml(formDetail);
   }
 
   function productDevelopmentTaskHeroHtml(task) {
@@ -6026,6 +6234,7 @@
     state.productDevelopmentBenchmarkImageName = String(file.name || '本地对标图片').slice(0, 180);
     state.productDevelopmentSnapshot = null;
     state.productDevelopmentReview = null;
+    deleteProductDevelopmentReviewDraft(getProductDevelopmentCurrentSku());
     state.productDevelopmentError = '';
     state.productDevelopmentStatus = '已选择本地对标图片：' + state.productDevelopmentBenchmarkImageName;
     renderShell();
@@ -6256,87 +6465,115 @@
   }
 
   function productDevelopmentWrapCanvasText(ctx, value, x, y, maxWidth, lineHeight, maxLines) {
-    const text = String(value || '');
-    const chars = Array.from(text);
-    let line = '';
-    let lines = [];
-    chars.forEach((char) => {
-      const candidate = line + char;
-      if (line && ctx.measureText(candidate).width > maxWidth) {
-        lines.push(line);
-        line = char;
-      } else line = candidate;
+    const paragraphs = String(value || '').split(/\r?\n/);
+    const lines = [];
+    paragraphs.forEach((paragraph) => {
+      const chars = Array.from(paragraph);
+      let line = '';
+      chars.forEach((char) => {
+        const candidate = line + char;
+        if (line && ctx.measureText(candidate).width > maxWidth) {
+          lines.push(line);
+          line = char;
+        } else line = candidate;
+      });
+      if (line || !chars.length) lines.push(line);
     });
-    if (line) lines.push(line);
-    lines = lines.slice(0, maxLines || 3);
-    lines.forEach((item, index) => ctx.fillText(item, x, y + index * lineHeight));
-    return lines.length;
+    const visibleLines = lines.slice(0, maxLines || 3);
+    visibleLines.forEach((item, index) => ctx.fillText(item, x, y + index * lineHeight));
+    return visibleLines.length;
   }
 
   async function composeProductDevelopmentComparison(sourceDataUrl, items, snapshot) {
     const image = await loadImage(sourceDataUrl);
     const iw = image.naturalWidth || image.width || 1;
     const ih = image.naturalHeight || image.height || 1;
-    const padding = 32;
-    const headerHeight = 92;
-    const leftWidth = Math.max(760, Math.min(1180, iw));
-    const rightWidth = 760;
-    const imageAreaWidth = leftWidth - padding * 2;
-    const imageAreaHeight = Math.max(640, Math.min(1500, ih * imageAreaWidth / iw));
+    const padding = 34;
+    const columnGap = 22;
+    const headerHeight = 102;
+    const imageColumnWidth = Math.max(820, Math.min(1100, Math.max(820, iw)));
+    const englishColumnWidth = 620;
+    const translationColumnWidth = 760;
+    const imageAreaWidth = imageColumnWidth - padding * 2;
+    const imageAreaHeight = Math.max(820, Math.min(1700, ih * imageAreaWidth / iw));
     const displayItems = (Array.isArray(items) ? items : []).slice(0, 80);
-    const rowHeight = 166;
+    const rowHeight = 380;
     const rows = Math.max(1, displayItems.length);
-    const height = Math.max(headerHeight + imageAreaHeight + padding * 2, headerHeight + rows * rowHeight + padding * 2);
+    const contentHeight = Math.max(imageAreaHeight, rows * rowHeight + 28);
+    const footerHeight = 42;
+    const height = padding * 2 + headerHeight + contentHeight + footerHeight;
     const canvas = document.createElement('canvas');
-    canvas.width = leftWidth + rightWidth + padding * 3;
+    canvas.width = padding * 2 + imageColumnWidth + englishColumnWidth + translationColumnWidth + columnGap * 2;
     canvas.height = Math.ceil(height);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('无法创建对照图画布');
+    const imageX = padding;
+    const englishX = imageX + imageColumnWidth + columnGap;
+    const translationX = englishX + englishColumnWidth + columnGap;
+    const panelY = padding;
+    const panelHeight = height - padding * 2 - footerHeight;
+    const contentY = panelY + headerHeight;
     ctx.fillStyle = '#f6f8fb';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(padding, padding, leftWidth, canvas.height - padding * 2);
-    ctx.fillRect(padding * 2 + leftWidth, padding, rightWidth, canvas.height - padding * 2);
-    const titleFont = '700 30px Arial, Microsoft YaHei, sans-serif';
+    ctx.fillRect(imageX, panelY, imageColumnWidth, panelHeight);
+    ctx.fillRect(englishX, panelY, englishColumnWidth, panelHeight);
+    ctx.fillRect(translationX, panelY, translationColumnWidth, panelHeight);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const titleFont = '700 34px Arial, Microsoft YaHei, sans-serif';
     ctx.font = titleFont;
     ctx.fillStyle = '#172033';
-    ctx.fillText('Original Product Image', padding * 2, padding + 48);
-    ctx.fillText('Original Text & Revised Copy', padding * 2 + leftWidth, padding + 48);
+    ctx.fillText('Benchmark Image / 对标图', imageX + 26, panelY + 27);
+    ctx.fillText('English Original / 英文原文', englishX + 26, panelY + 27);
+    ctx.fillText('Revised Translation / 对照翻译', translationX + 26, panelY + 27);
     const scale = Math.min(imageAreaWidth / iw, imageAreaHeight / ih);
     const drawWidth = iw * scale;
     const drawHeight = ih * scale;
-    const drawX = padding + (leftWidth - drawWidth) / 2;
-    const drawY = padding + headerHeight + (imageAreaHeight - drawHeight) / 2;
+    const drawX = imageX + (imageColumnWidth - drawWidth) / 2;
+    const drawY = contentY + (imageAreaHeight - drawHeight) / 2;
     ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
     ctx.strokeStyle = '#d7dee9';
     ctx.lineWidth = 2;
-    ctx.strokeRect(padding, padding, leftWidth, canvas.height - padding * 2);
-    ctx.strokeRect(padding * 2 + leftWidth, padding, rightWidth, canvas.height - padding * 2);
+    ctx.strokeRect(imageX, panelY, imageColumnWidth, panelHeight);
+    ctx.strokeRect(englishX, panelY, englishColumnWidth, panelHeight);
+    ctx.strokeRect(translationX, panelY, translationColumnWidth, panelHeight);
     displayItems.forEach((item, index) => {
       const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length;
-      const markerColor = isRisk ? '#ef4444' : '#98a2b3';
-      const rowY = padding + headerHeight + 30 + index * rowHeight;
+      const markerColor = isRisk ? '#dc2626' : '#64748b';
+      const rowY = contentY + 24 + index * rowHeight;
+      const innerWidth = englishColumnWidth - 52;
       ctx.fillStyle = markerColor;
-      ctx.font = '700 17px Arial, Microsoft YaHei, sans-serif';
-      ctx.fillText(String(index + 1) + '. ' + (isRisk ? '风险：' + item.riskTypes.join('、') : '未检测到风险，保留原文'), padding * 2 + leftWidth + 22, rowY);
-      ctx.fillStyle = '#667085';
-      ctx.font = '15px Arial, Microsoft YaHei, sans-serif';
-      productDevelopmentWrapCanvasText(ctx, '原文：' + item.sourceText, padding * 2 + leftWidth + 22, rowY + 26, rightWidth - 56, 19, 2);
+      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
+      productDevelopmentWrapCanvasText(ctx, String(index + 1) + '. ' + (isRisk ? '风险：' + item.riskTypes.join('、') : '未检测到风险，保留原文'), englishX + 26, rowY, innerWidth, 29, 3);
       ctx.fillStyle = '#344054';
-      ctx.font = '600 18px Arial, Microsoft YaHei, sans-serif';
-      productDevelopmentWrapCanvasText(ctx, '英文：' + item.replacementEn, padding * 2 + leftWidth + 22, rowY + 66, rightWidth - 56, 23, 2);
+      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
+      ctx.fillText('原文', englishX + 26, rowY + 62);
+      ctx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
+      productDevelopmentWrapCanvasText(ctx, item.sourceText || '（未读取到可靠原文）', englishX + 26, rowY + 98, innerWidth, 31, 6);
+      ctx.fillStyle = isRisk ? '#dc2626' : '#344054';
+      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
+      productDevelopmentWrapCanvasText(ctx, isRisk ? '风险修改' : '对照翻译', translationX + 26, rowY, translationColumnWidth - 52, 29, 2);
+      ctx.fillStyle = '#344054';
+      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
+      ctx.fillText('英文：', translationX + 26, rowY + 62);
+      ctx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
+      productDevelopmentWrapCanvasText(ctx, item.replacementEn || item.sourceText, translationX + 26, rowY + 98, translationColumnWidth - 52, 31, 4);
       ctx.fillStyle = '#667085';
-      ctx.font = '16px Arial, Microsoft YaHei, sans-serif';
-      productDevelopmentWrapCanvasText(ctx, '中文：' + item.replacementZh, padding * 2 + leftWidth + 22, rowY + 112, rightWidth - 56, 21, 2);
+      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
+      ctx.fillText('中文：', translationX + 26, rowY + 202);
+      ctx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
+      productDevelopmentWrapCanvasText(ctx, item.replacementZh || item.translationZh || item.sourceText, translationX + 26, rowY + 238, translationColumnWidth - 52, 31, 4);
     });
     if (!displayItems.length) {
       ctx.fillStyle = '#667085';
-      ctx.font = '20px Arial, Microsoft YaHei, sans-serif';
-      ctx.fillText('未提取到可确认的图片文字', padding * 2 + leftWidth + 24, padding + headerHeight + 58);
+      ctx.font = '24px Arial, Microsoft YaHei, sans-serif';
+      ctx.fillText('未提取到可确认的图片文字', englishX + 26, contentY + 52);
+      ctx.fillText('请手动添加或重新分析', translationX + 26, contentY + 52);
     }
     ctx.fillStyle = '#98a2b3';
     ctx.font = '16px Arial, Microsoft YaHei, sans-serif';
-    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 原图保留 · 仅生成审核对照稿', padding * 2, canvas.height - 18);
+    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 对标图保留 · 英文原文与修改中文对照 · 仅生成审核稿', padding, height - 27);
     return {
       dataUrl: canvas.toDataURL('image/png'),
       width: canvas.width,
@@ -6397,6 +6634,7 @@
         id,
         sku: snapshot.sku,
         sourceImageDataUrl: image.dataUrl,
+        sourceImageName: state.productDevelopmentBenchmarkImageName,
         comparisonDataUrl: comparison.dataUrl,
         items: validated.items,
         extractedTexts: validated.extractedTexts,
@@ -6407,6 +6645,7 @@
         fileName,
         createdAt: new Date().toLocaleString(),
       };
+      saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       saveProductDevelopmentHistory({
         id,
         sku: snapshot.sku,
@@ -6490,11 +6729,12 @@
       const validated = productDevelopmentValidateReview({ items, warnings: result.warnings, productNaming: result.productNaming }, snapshot);
       const comparison = await composeProductDevelopmentComparison(result.sourceImageDataUrl, validated.items, snapshot);
       result.items = validated.items;
-      result.extractedTexts = Array.isArray(result.extractedTexts) && result.extractedTexts.length ? result.extractedTexts : validated.extractedTexts;
+      result.extractedTexts = validated.extractedTexts;
       result.comparisonDataUrl = comparison.dataUrl;
       result.warnings = validated.warnings;
       result.productNaming = validated.productNaming;
       result.manualEditedAt = new Date().toLocaleString();
+      saveProductDevelopmentReviewDraft(result);
       saveProductDevelopmentHistory({
         id: result.id,
         sku: result.sku,
@@ -6976,7 +7216,7 @@
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
     const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + extractedTexts.length + ' 项，识别风险 ' + riskCount + ' 项。</strong><span>全部原文：' + extractedTexts.map((item, index) => (index + 1) + '. ' + escapeHtml(item.sourceText)).join(' · ') + '</span></div>' : '';
-    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>对照图预览</strong><small>滚动查看完整图片，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
+    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>可横向、纵向滚动查看大字版，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="width:auto;min-width:100%;max-width:none;height:auto"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
         ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>'
@@ -6984,7 +7224,7 @@
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，读取图片文字后筛查品牌、禁词和夸大风险；不要求成分。原图保留，修改后可人工调整。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + escapeHtml(state.productDevelopmentBenchmarkImageName ? '已手动选择：' + state.productDevelopmentBenchmarkImageName : '自动读取当前 SKU 对标图片；读取不到时可手动选择') + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>以当前 SKU 的对标图片为唯一图片来源，先逐字读取全部可见英文，再筛查品牌、禁词和夸大风险；不要求成分。PNG 按“对标图｜英文原文｜对照翻译”三列生成，原图保留，文字可人工修改。</p><div class="pfh-product-development-review-source"><div><strong>分析图片：对标图片</strong><small>' + escapeHtml(state.productDevelopmentBenchmarkImageName ? '已手动选择：' + state.productDevelopmentBenchmarkImageName : '自动读取当前 SKU 对标图片；读取不到时可手动选择') + '</small></div><label class="pfh-product-development-benchmark-picker">选择/替换对标图片<input type="file" accept="image/*" class="pfh-product-development-benchmark-input"></label></div></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
@@ -7030,10 +7270,12 @@
 
   function productDevelopmentHandleAction(action, actionTarget) {
     if (action === 'work-mode') {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       setProductDevelopmentWorkMode(actionTarget && actionTarget.getAttribute('data-work-mode'));
       return true;
     }
     if (action === 'product-development-home') {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       state.view = 'home';
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
@@ -7045,6 +7287,7 @@
       return true;
     }
     if (action === 'product-development-tasks-home') {
+      if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
       state.view = 'home';
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
@@ -7058,6 +7301,16 @@
     if (action === 'product-development-task-select') {
       const task = selectProductDevelopmentTask(actionTarget && actionTarget.getAttribute('data-sku'));
       if (!task) showToast('开发任务不存在或已刷新');
+      return true;
+    }
+    if (action === 'product-development-task-meta-save') {
+      const sku = getProductDevelopmentCurrentSku();
+      const meta = getProductDevelopmentTaskMeta(state.productDevelopmentSelectedTask, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
+      saveProductDevelopmentTaskMeta(sku, meta);
+      if (!state.productDevelopmentTaskMeta || typeof state.productDevelopmentTaskMeta !== 'object') state.productDevelopmentTaskMeta = Object.create(null);
+      state.productDevelopmentTaskMeta[sku] = meta;
+      state.productDevelopmentStatus = '产品品牌、名称和返工编码已保存到本地';
+      renderShell();
       return true;
     }
     if (action === 'product-development-task-tab') {
@@ -7100,6 +7353,7 @@
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
+      restoreProductDevelopmentReviewDraft(getProductDevelopmentCurrentSku());
       if (state.view === 'productDevelopmentTasks') {
         state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
         state.productDevelopmentTaskView = 'review';
@@ -7138,6 +7392,7 @@
         replacementZh: '',
         confidence: 0,
       });
+      saveProductDevelopmentReviewDraft(result);
       state.productDevelopmentStatus = '已添加手动文字项，请填写原文和修改内容';
       renderShell();
       return true;
@@ -7147,6 +7402,7 @@
       const index = Number(actionTarget && actionTarget.getAttribute('data-review-index'));
       if (result && Array.isArray(result.items) && Number.isInteger(index) && result.items[index]) {
         result.items.splice(index, 1);
+        saveProductDevelopmentReviewDraft(result);
         state.productDevelopmentStatus = '已移除当前风险文字项，请重新生成对照图';
         renderShell();
       }
@@ -7281,12 +7537,25 @@
       }
       return true;
     }
+    if (target.classList.contains('pfh-product-development-task-meta-input')) {
+      const sku = String(target.getAttribute('data-meta-sku') || '').trim().toUpperCase();
+      const field = String(target.getAttribute('data-meta-field') || '').trim();
+      if (sku && ['brand', 'productNameCn', 'productNameEn', 'reworkProductCode'].includes(field)) {
+        if (!state.productDevelopmentTaskMeta || typeof state.productDevelopmentTaskMeta !== 'object') state.productDevelopmentTaskMeta = Object.create(null);
+        const meta = getProductDevelopmentTaskMeta(state.productDevelopmentSelectedTask, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
+        meta[field] = productDevelopmentCleanText(target.value, field === 'reworkProductCode' ? 120 : 180);
+        state.productDevelopmentTaskMeta[sku] = meta;
+        scheduleProductDevelopmentTaskMetaSave(sku, meta);
+      }
+      return true;
+    }
     if (target.classList.contains('pfh-product-development-name-input')) {
       const result = state.productDevelopmentReview;
       const field = String(target.getAttribute('data-name-field') || '');
       if (result && ['chineseProductName', 'englishProductName'].includes(field)) {
         result.productNaming = productDevelopmentNormalizeProductNaming(result.productNaming);
         result.productNaming[field] = productDevelopmentCleanText(target.value, 180);
+        saveProductDevelopmentReviewDraft(result);
       }
       return true;
     }
@@ -7298,6 +7567,7 @@
     if (!item) return true;
     if (field === 'sourceText' || field === 'replacementEn' || field === 'replacementZh') {
       item[field] = String(target.value || '').slice(0, 500);
+      scheduleProductDevelopmentReviewDraftSave(result);
       return true;
     }
     return true;

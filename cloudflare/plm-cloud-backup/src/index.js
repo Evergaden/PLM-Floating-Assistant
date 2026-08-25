@@ -1875,6 +1875,37 @@ function normalizeProductDevelopmentIngredientInput(value) {
   }).filter((item) => item.en || item.cn).slice(0, 100);
 }
 
+function normalizeProductDevelopmentNameExamples(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((item) => cleanText(item, 120))
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function sanitizeProductDevelopmentNamingCandidate(value, brand) {
+  const source = value && typeof value === 'object' ? value : {};
+  const naming = source.productNaming && typeof source.productNaming === 'object'
+    ? source.productNaming
+    : source.naming && typeof source.naming === 'object' ? source.naming : {};
+  const chineseProductName = cleanText(naming.chineseProductName || naming.productNameCn || naming.chineseName || naming.cn, 180);
+  const englishProductName = cleanText(naming.englishProductName || naming.productNameEn || naming.englishName || naming.en, 180);
+  const functionSummary = cleanText(naming.functionSummary || naming.productFunction || naming.function, 300);
+  const evidenceText = cleanText(naming.evidenceText || naming.mainTitle || naming.titleEvidence, 300);
+  const restricted = [chineseProductName, englishProductName, functionSummary]
+    .map((text) => productDevelopmentFindBannedTerm(text, brand))
+    .find(Boolean);
+  if (restricted || [chineseProductName, englishProductName, functionSummary].some((text) => text.includes('*'))) {
+    throw new Error('product naming contains a restricted term: ' + (restricted || 'format'));
+  }
+  return {
+    chineseProductName,
+    englishProductName,
+    functionSummary,
+    evidenceText,
+    confidence: Math.max(0, Math.min(1, Number(naming.confidence) || 0)),
+  };
+}
+
 function normalizeProductDevelopmentBbox(value) {
   const source = value && typeof value === 'object' ? value : {};
   const x = Number(source.x);
@@ -1912,6 +1943,8 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
     const riskTypes = Array.from(new Set((Array.isArray(source.riskTypes) ? source.riskTypes : [source.riskType])
       .map((risk) => String(risk || '').trim().toLowerCase())
       .filter((risk) => allowedRiskTypes.has(risk)))).slice(0, 4);
+    if (productDevelopmentFindBannedTerm(sourceText, brand) && !riskTypes.length) riskTypes.push('banned');
+    if (!riskTypes.length) replacementEn = sourceText;
     if (banned || replacementEn.includes('*') || replacementZh.includes('*') || /\n\s*\n/.test(replacementEn + '\n' + replacementZh)) {
       throw new Error('product image review replacement contains a restricted term: ' + (banned || 'format'));
     }
@@ -1944,9 +1977,11 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
       confidence: Math.max(0, Math.min(1, Number(source.confidence) || 0)),
     };
   }).filter(Boolean).slice(0, 80);
+  const productNaming = sanitizeProductDevelopmentNamingCandidate(value, brand);
   return {
     texts: items,
     items: items.filter((item) => item.riskTypes.length),
+    productNaming,
     warnings: Array.isArray(value.warnings) ? value.warnings.map((item) => cleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
   };
 }
@@ -1964,6 +1999,8 @@ async function handleProductDevelopmentReview(request, env) {
   const petAudience = cleanText(body.petAudience, 80).toUpperCase();
   const image = cleanModelScopeImages([body.imageDataUrl])[0] || '';
   const ingredients = normalizeProductDevelopmentIngredientInput(body.ingredients);
+  const namingExamples = normalizeProductDevelopmentNameExamples(body.namingExamples);
+  const namingRule = cleanText(body.namingRule, 600);
   const sellingPoints = body.sellingPoints && typeof body.sellingPoints === 'object' ? body.sellingPoints : {};
   const efficacy = body.efficacy && typeof body.efficacy === 'object' ? body.efficacy : {};
   if (!sku) return json({ ok: false, error: 'sku required', items: [] }, 400);
@@ -1972,7 +2009,7 @@ async function handleProductDevelopmentReview(request, env) {
     const options = {
       model: getModelScopeModel(env),
       temperature: 0,
-      maxTokens: 3500,
+      maxTokens: 5000,
       primaryTimeoutMs: 50000,
       fallbackTimeoutMs: 90000,
       geminiFallbackModels: [
@@ -1983,14 +2020,18 @@ async function handleProductDevelopmentReview(request, env) {
       images: [image],
       system: [
         '你是产品包装文字风险初筛助手，不是法律意见提供者。',
-        '请先逐字读取对标图片中清晰可见的全部包装文字，包括品牌、品名、卖点、规格、净含量、适用对象和包装底部文字；再筛查可能涉及品牌、绝对化、夸大、医疗、疾病、认证、环境属性或未经证据支持的高风险表达。图片文字是主要证据。',
-        '所有清晰可见文字都必须进入 texts，全部带可编辑的英文版本和简体中文翻译；看不清、无法确认的文字不要猜测。',
+        '请按图片从上到下、从左到右逐字转录对标图片中所有清晰可见的包装文字，包括品牌/Logo 可读文字、品名、每一行卖点、数字、单位、规格、净含量、适用对象、底部小字、星号和标点；每个视觉上的独立文字块都必须进入 texts。',
+        'sourceText 是图片原文，必须保持图片里的英文拼写、大小写、数字、连字符、单位、标点和词序，不得按常识纠正、翻译、合并、缩写、补全或把产品资料带入原文；多行文字可以用换行保留。不要把一个看不清的词猜成常见品牌或产品名。',
+        '所有清晰可见文字都必须进入 texts，哪怕没有风险也要保留；每项同时提供 replacementEn 和简体中文 replacementZh。无风险项的 replacementEn 必须与 sourceText 完全一致，replacementZh 只做直译；有风险项才提供合规的英文替换和中文对照。',
+        '如果一段文字只有部分清晰，保留能确认的原文并在 warnings 说明，不要用推测内容替代；OCR 不确定时宁可返回较短的真实片段，不要虚构完整句子。',
         '坐标只有在可靠时才填写相对图片左上角的归一化 x、y、w、h，范围 0 到 1；不可靠时 bbox 必须为 null，前端不会画红框。',
         '不要修改原图，不要输出清除文字后的包装图。风险文字需要 riskTypes、riskReason、至少两个更保守的英文/简体中文替换备选（若确实无法提供则为空数组）。',
         '替换建议不能出现品牌名称、Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、治疗等词语或同类表达。',
         '净含量属于 netContent 文本时，textRole 必须为 netContent，英文 replacementEn 必须严格使用提供的净含量规范值，不得自行换算或添加单位；当前规范值为空时保留图片原文并标记需要人工确认。',
         '当品牌为 Kriath 且类目/产品类型属于宠物入口时，适用对象文本 textRole 必须为 petAudience，英文 replacementEn 只能使用全大写 FOR DOGS & CATS、FOR DOGS 或 FOR CATS。',
         '成分证据可以为空；不要因为没有成分而停止图片文字风险筛查，也不要从图片或常识虚构成分。只使用提供的产品类型、成分（如有）和卖点作为补充事实依据，不要补写未提供的数值、认证、疾病或疗效。',
+        '除 texts 外，同时根据图片中清晰可见的产品主标题和文字整体作用返回 productNaming。englishProductName 必须优先逐字采用包装上的英文大标题，不要翻译中文名，不要拼接品牌、规格、口味、适用对象或卖点；标题分成多行时可以合并。chineseProductName 只参考图片可见作用、适用对象和剂型，使用朦胧的日常状态/支持表达，不能出现医疗、预防、治疗、绝对化或夸大词。',
+        '命名示例只用于学习中文产品名的节奏和结构，不是当前产品事实，不能照抄成分或作用：' + namingExamples.join('、'),
         '不要访问 WIPO 或其他外部查询网站；本接口只做图片文字读取和风险初筛。',
         '没有可靠风险时仍返回清晰可见文字，但 riskTypes 为空；看不清的文字不要猜测。所有内容必须是一个 JSON 对象，不要 Markdown。',
       ].join(' '),
@@ -2005,17 +2046,19 @@ async function handleProductDevelopmentReview(request, env) {
         'Ingredients evidence: ' + JSON.stringify(ingredients),
         'Selling points evidence: ' + JSON.stringify(sellingPoints),
         'Efficacy evidence: ' + JSON.stringify(efficacy),
-        'Return exactly: {"texts":[{"id":"1","sourceText":"...","bbox":null,"textRole":"","riskTypes":[],"riskReason":"","replacementEn":"...","replacementZh":"...","translationZh":"...","replacementOptions":[{"en":"...","zh":"..."},{"en":"...","zh":"..."}],"confidence":0.9}],"warnings":["..."]}.',
+        'Naming rule: ' + namingRule,
+        'Naming style examples: ' + JSON.stringify(namingExamples),
+        'Return exactly: {"productNaming":{"chineseProductName":"","englishProductName":"","functionSummary":"","evidenceText":"","confidence":0.9},"texts":[{"id":"1","sourceText":"...","bbox":null,"textRole":"","riskTypes":[],"riskReason":"","replacementEn":"...","replacementZh":"...","translationZh":"...","replacementOptions":[{"en":"...","zh":"..."},{"en":"...","zh":"..."}],"confidence":0.9}],"warnings":["..."]}.',
         '风险类型只能使用 banned、exaggeration、medical、brand、unsupported、other。',
       ].join('\n'),
     };
-    const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeProductDevelopmentReviewCandidate(parseProductDevelopmentJson(candidate.text), brand, { netContentStandard, petAudience }));
+    const preferred = await callPreferredAiText(env, options, (candidate) => sanitizeProductDevelopmentReviewCandidate(parseProductDevelopmentJson(candidate.text), brand, { netContentStandard, petAudience, namingExamples, namingRule }));
     return json({
       ok: true,
       ...preferred.value,
       provider: preferred.result.provider || preferred.result.source || '',
       model: preferred.result.model || '',
-      source: 'product-development-review-v2',
+      source: 'product-development-review-v3',
     });
   } catch (error) {
     const message = cleanText(error && error.message, 500) || 'product image review failed';
