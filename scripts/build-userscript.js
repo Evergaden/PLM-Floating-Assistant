@@ -11,7 +11,17 @@ const modules = [
   { name: 'notifications', file: path.join(root, 'src', 'notifications.module.js') },
   { name: 'desktop-bridge', file: path.join(root, 'src', 'desktop-bridge.module.js') },
   { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
-  { name: 'product-development', file: path.join(root, 'src', 'product-development.module.js') },
+  {
+    name: 'product-development',
+    file: path.join(root, 'src', 'product-development.module.js'),
+    requiredSourceMarkers: [
+      'function setupProductDevelopmentTaskTabs',
+      'function productDevelopmentTaskTabsHtml',
+      'function renderProductDevelopmentTaskDetail',
+      'function loadProductDevelopmentTaskCache',
+      'function saveProductDevelopmentTaskCache',
+    ],
+  },
   { name: 'magic-upload-actions', file: path.join(root, 'src', 'magic-upload-actions.module.js') },
 ];
 const requestedModules = new Set(process.argv.slice(2));
@@ -24,6 +34,12 @@ for (const module of selectedModules) {
   const start = `  // <${module.name}-module>`;
   const end = `  // </${module.name}-module>`;
   const source = fs.readFileSync(module.file, 'utf8').trimEnd();
+  if (Array.isArray(module.requiredSourceMarkers)) {
+    const missing = module.requiredSourceMarkers.filter((marker) => !source.includes(marker));
+    if (missing.length) {
+      throw new Error(`${module.name} source contract failed; missing: ${missing.join(', ')}`);
+    }
+  }
   const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`${escape(start)}[\\s\\S]*?${escape(end)}`);
   if (!pattern.test(output)) throw new Error(`${module.name} module markers are missing`);
