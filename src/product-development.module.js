@@ -3109,19 +3109,23 @@
     const allText = [];
     result.efficacy.forEach((item, index) => {
       allText.push(item.en, item.cn);
+      if (!item.en || !item.cn) errors.push('A 第 ' + (index + 1) + ' 条中英文不完整');
       if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 20) errors.push('A 第 ' + (index + 1) + ' 条超出长度');
     });
     result.advantages.forEach((item, index) => {
       allText.push(item.en, item.cn);
+      if (!item.en || !item.cn) errors.push('B 第 ' + (index + 1) + ' 条中英文不完整');
       if (productDevelopmentChineseCount(item.cn) > 15 || productDevelopmentEnglishWordCount(item.en) > 8) errors.push('B 第 ' + (index + 1) + ' 条超出长度');
     });
     result.sellingPoints.forEach((item, index) => {
       allText.push(item.titleEn, item.titleCn, item.en, item.cn);
+      if (!item.en || !item.cn) errors.push('C 第 ' + (index + 1) + ' 条中英文不完整');
       if (productDevelopmentChineseCount(item.cn) > 22 || productDevelopmentEnglishWordCount(item.en) > 14) errors.push('C 第 ' + (index + 1) + ' 条超出长度');
       if (item.titleEn && (productDevelopmentEnglishWordCount(item.titleEn) < 3 || productDevelopmentEnglishWordCount(item.titleEn) > 4)) errors.push('C 第 ' + (index + 1) + ' 条小标题词数异常');
     });
     result.ingredientFunctions.forEach((item, index) => {
       allText.push(item.ingredientEn, item.ingredientCn, item.en, item.cn);
+      if (!item.en || !item.cn) errors.push('D 第 ' + (index + 1) + ' 条中英文不完整');
       const target = expected[index] || {};
       const targetKey = productDevelopmentNormalizedClaimText(target.en || target.cn);
       const actualKey = productDevelopmentNormalizedClaimText(item.ingredientEn || item.ingredientCn);
@@ -3133,6 +3137,14 @@
     if (invalid) errors.push('输出包含禁词、品牌词、星号或空行');
     if (errors.length) throw new Error(errors.slice(0, 5).join('；'));
     return result;
+  }
+
+  function productDevelopmentFriendlyCopywritingError(error) {
+    const message = formatErrorMessage(error);
+    if (/ModelScope|Gemini|timeout|timed out|aborted|bilingual|中英文不完整|copywriting completion|must contain/i.test(message)) {
+      return '文案生成未完成：AI 响应超时或中英文内容不完整，请再次点击生成。系统会自动切换备用模型。';
+    }
+    return message;
   }
 
   async function buildProductDevelopmentDocx(content, templateBase64) {
@@ -3196,7 +3208,7 @@
       const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: true, includeImage: false });
       const response = await cloudRequest('/ai-image/product-development-copywriting', {
         method: 'POST',
-        timeoutMs: 150000,
+        timeoutMs: 240000,
         body: {
           sku: snapshot.sku,
           name: snapshot.name,
@@ -3239,7 +3251,7 @@
       state.productDevelopmentStatus = 'A-D 文案 DOCX 已生成，未向 PLM 回写';
       showToast('A-D 文案 DOCX 已生成');
     } catch (error) {
-      state.productDevelopmentError = formatErrorMessage(error);
+      state.productDevelopmentError = productDevelopmentFriendlyCopywritingError(error);
       state.productDevelopmentStatus = '';
       showToast(state.productDevelopmentError);
     } finally {

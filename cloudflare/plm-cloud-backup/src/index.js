@@ -272,11 +272,12 @@ async function callModelScopeText(config, options) {
 
 async function callPreferredAiText(env, options, validate) {
   const requestOptions = options || {};
+  const skipPrimary = requestOptions.skipPrimary === true;
   const primaryModel = String(requestOptions.primaryModel || requestOptions.model || getModelScopeModel(env)).trim()
     || getModelScopeModel(env);
   const primaryConfig = getAiModelConfig(env, primaryModel);
   const failures = [];
-  if (primaryConfig.configured) {
+  if (!skipPrimary && primaryConfig.configured) {
     try {
       const primaryOptions = {
         ...requestOptions,
@@ -288,7 +289,7 @@ async function callPreferredAiText(env, options, validate) {
     } catch (error) {
       failures.push('ModelScope (' + primaryConfig.model + '): ' + cleanText(error && error.message, 240));
     }
-  } else {
+  } else if (!skipPrimary) {
     failures.push('ModelScope (' + primaryConfig.model + '): MODELSCOPE_ACCESS_TOKEN not configured');
   }
 
@@ -2190,27 +2191,33 @@ async function handleProductDevelopmentCopywriting(request, env) {
     '你是美国电商宠物/营养产品的双语包装文案草稿助手。',
     '只生成 A-D 四个部分：A 产品功效 4 条，B 产品优势 4 条，C 产品卖点 15 条，D 当前输入的全部有效成分功能。',
     '本任务只使用提交的产品资料、成分和已有卖点生成文字，不读取、不分析也不要求产品效果图。',
+    '每一个 A、B、C、D 条目都必须同时返回非空的 en 和 cn；en 只能写英文，cn 只能写中文。若输入只有一种语言，先忠实翻译后再返回，绝不能返回 null、空字符串或只写一种语言的条目。',
     '只能围绕输入的成分、产品类型和 PLM 卖点写，不能虚构其他成分、配比、认证、实验、疾病、治疗或数字。',
     '不要写品牌名称。不得使用 Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、实验认证以及同类禁词。',
     'A 每条中文不超过 20 个汉字；B 每条中文不超过 15 个汉字且英文不超过 8 个词；C 共 15 条，前 1-4 条可带 3-4 个英文词的小标题，正文简洁；D 成分名称必须逐个按输入顺序原样返回并给出保守功能说明。',
     '英文使用自然、简短的欧美电商表达，不要添加标题、解释或星号。只返回 JSON。',
   ].join(' ');
   let lastError = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const options = {
         primaryModel: getProductDevelopmentPrimaryQwenModel(env),
         model: getProductDevelopmentPrimaryQwenModel(env),
         temperature: 0,
-        maxTokens: 5000,
-        timeoutMs: 60000,
-        fallbackTimeoutMs: 100000,
+        maxTokens: 4200,
+        primaryTimeoutMs: 90000,
+        fallbackTimeoutMs: 60000,
+        skipPrimary: attempt > 0,
+        geminiFallbackModels: [
+          String(env && env.GEMINI_FALLBACK_MODEL || 'gemini-3.1-flash-lite'),
+          'gemini-2.5-flash-lite',
+        ],
         responseMimeType: 'application/json',
         system,
         prompt: [
           JSON.stringify(basePayload),
           '严格返回：{"sections":{"efficacy":[{"en":"","cn":""}],"advantages":[{"en":"","cn":""}],"sellingPoints":[{"titleEn":"","titleCn":"","en":"","cn":""}],"ingredientFunctions":[{"ingredientEn":"","ingredientCn":"","en":"","cn":""}]}}。',
-          attempt ? '上一次输出未通过校验。请修正所有条数、顺序、字数、禁词、品牌词和成分名称，并只返回 JSON。' : '',
+          attempt ? '上一次输出未通过校验，失败原因：' + cleanText(lastError && lastError.message, 500) + '。请修正所有条数、顺序、双语字段、字数、禁词、品牌词和成分名称；每个条目的 en 和 cn 都必须是非空字符串，并且只返回 JSON。' : '',
         ].join('\n'),
       };
       const preferred = await callPreferredAiText(env, options, (candidate) => normalizeProductDevelopmentCopywritingCandidate(parseProductDevelopmentJson(candidate.text), ingredients, brand));
