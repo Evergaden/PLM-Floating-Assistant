@@ -1262,7 +1262,7 @@
     const source = task || {};
     const meta = getProductDevelopmentTaskMeta(source, detail);
     const sku = String(source.sku || detail && detail.sku || '').trim().toUpperCase();
-    const input = (field, label, value, placeholder) => '<label>' + escapeHtml(label) + '<input type="text" class="pfh-product-development-task-meta-input pfh-product-development-name-input" data-meta-sku="' + escapeHtml(sku) + '" data-meta-field="' + escapeHtml(field) + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></label>';
+    const input = (field, label, value, placeholder) => '<label>' + escapeHtml(label) + '<input type="text" class="pfh-product-development-task-meta-input" data-meta-sku="' + escapeHtml(sku) + '" data-meta-field="' + escapeHtml(field) + '" value="' + escapeHtml(value || '') + '" placeholder="' + escapeHtml(placeholder || '') + '"></label>';
     return '<section class="pfh-product-development-product-naming pfh-product-development-task-local-meta"><header><div><small>LOCAL PRODUCT DATA</small><h3>产品本地填写</h3></div><span>仅本地记录 · 不写入 PLM</span></header>' +
       '<div class="pfh-product-development-product-naming-grid">' +
       input('brand', '产品品牌', meta.brand, '填写产品品牌') +
@@ -1389,7 +1389,19 @@
     return request;
   }
 
+  function suspendDesignCollectionForProductDevelopment() {
+    if (typeof stopScan === 'function') stopScan();
+    if (typeof stopMaterialWatch === 'function') stopMaterialWatch();
+    if (typeof stopManualTabRead === 'function') stopManualTabRead();
+    if (typeof cancelDrawerTabFlow === 'function') cancelDrawerTabFlow();
+    state.scanTargetSku = '';
+    state.scanData = null;
+    state.openingProjectDetail = false;
+    state.openingProjectDetailSku = '';
+  }
+
   function openProductDevelopmentTaskWorkspace() {
+    suspendDesignCollectionForProductDevelopment();
     state.workMode = 'product-development';
     state.settings.workMode = 'product-development';
     saveSettings(state.settings);
@@ -2399,6 +2411,7 @@
     saveSettings(state.settings);
     state.homeFeatureEditMode = false;
     if (next === 'product-development') {
+      suspendDesignCollectionForProductDevelopment();
       state.view = 'home';
       state.copywritingMode = false;
       state.productDevelopmentError = '';
@@ -2544,7 +2557,7 @@
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
     const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已提取图片文字 ' + extractedTexts.length + ' 项，识别风险 ' + riskCount + ' 项。</strong><span>全部原文：' + extractedTexts.map((item, index) => (index + 1) + '. ' + escapeHtml(item.sourceText)).join(' · ') + '</span></div>' : '';
-    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>可横向、纵向滚动查看大字版，底部可下载 PNG</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="width:auto;min-width:100%;max-width:none;height:auto"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
+    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>预览按容器自适应，下载 PNG 保留大字版</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
         ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>'
@@ -2804,12 +2817,13 @@
     const target = event && event.target;
     if (!target || !target.classList) return false;
     const files = Array.from(target.files || []);
-    target.value = '';
     if (target.classList.contains('pfh-product-development-benchmark-input')) {
+      target.value = '';
       if (files[0]) importProductDevelopmentBenchmarkImage(files[0]).catch((error) => showToast(formatErrorMessage(error)));
       return true;
     }
     if (!target.classList.contains('pfh-product-development-template-input')) return false;
+    target.value = '';
     if (files[0]) importProductDevelopmentTemplate(files[0]).catch((error) => showToast(formatErrorMessage(error)));
     return true;
   }
@@ -2871,8 +2885,9 @@
       if (sku && ['brand', 'productNameCn', 'productNameEn', 'reworkProductCode'].includes(field)) {
         if (!state.productDevelopmentTaskMeta || typeof state.productDevelopmentTaskMeta !== 'object') state.productDevelopmentTaskMeta = Object.create(null);
         const meta = getProductDevelopmentTaskMeta(state.productDevelopmentSelectedTask, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
-        meta[field] = productDevelopmentCleanText(target.value, field === 'reworkProductCode' ? 120 : 180);
+        meta[field] = String(target.value || '').slice(0, field === 'reworkProductCode' ? 120 : 180);
         state.productDevelopmentTaskMeta[sku] = meta;
+        saveProductDevelopmentTaskMeta(sku, meta);
         scheduleProductDevelopmentTaskMetaSave(sku, meta);
       }
       return true;

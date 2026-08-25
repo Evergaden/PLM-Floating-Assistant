@@ -359,15 +359,27 @@ async function callGeminiText(config, options) {
   };
   if (options.responseMimeType) generationConfig.responseMimeType = options.responseMimeType;
   if (options.maxTokens) generationConfig.maxOutputTokens = Number(options.maxTokens);
-  const userParts = [{ text: options.prompt || '' }];
+  const userParts = [];
   if (options.inlineData && options.inlineData.data) {
-    userParts.unshift({
+    userParts.push({
       inlineData: {
         mimeType: options.inlineData.mimeType || 'application/pdf',
         data: options.inlineData.data,
       },
     });
   }
+  const images = Array.isArray(options.images) ? options.images.filter(Boolean).slice(0, 6) : [];
+  images.forEach((value) => {
+    const match = String(value).match(/^data:(image\/(?:png|jpe?g|webp));base64,([a-z0-9+/=]+)$/i);
+    if (!match) return;
+    userParts.push({
+      inlineData: {
+        mimeType: match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase(),
+        data: match[2],
+      },
+    });
+  });
+  userParts.push({ text: options.prompt || '' });
   const response = await fetch(url, {
     method: 'POST',
     signal: AbortSignal.timeout(Number(options.timeoutMs || 12000)),
@@ -2024,6 +2036,8 @@ async function handleProductDevelopmentReview(request, env) {
         'sourceText 是图片原文，必须保持图片里的英文拼写、大小写、数字、连字符、单位、标点和词序，不得按常识纠正、翻译、合并、缩写、补全或把产品资料带入原文；多行文字可以用换行保留。不要把一个看不清的词猜成常见品牌或产品名。',
         '所有清晰可见文字都必须进入 texts，哪怕没有风险也要保留；每项同时提供 replacementEn 和简体中文 replacementZh。无风险项的 replacementEn 必须与 sourceText 完全一致，replacementZh 只做直译；有风险项才提供合规的英文替换和中文对照。',
         '如果一段文字只有部分清晰，保留能确认的原文并在 warnings 说明，不要用推测内容替代；OCR 不确定时宁可返回较短的真实片段，不要虚构完整句子。',
+        '在输出 JSON 前必须再做一次完整性复核：重新查看整张图片的顶部、主体、底部和边缘，逐项核对文字块数量；不能只返回品名和一两条功效，也不能用产品资料中的句子替代图片原文。',
+        '如果图片中有多行文字，请每一行或每个独立文字块都单独列入 texts；可读的品牌、数字、单位、净含量、规格和免责声明同样必须列入。',
         '坐标只有在可靠时才填写相对图片左上角的归一化 x、y、w、h，范围 0 到 1；不可靠时 bbox 必须为 null，前端不会画红框。',
         '不要修改原图，不要输出清除文字后的包装图。风险文字需要 riskTypes、riskReason、至少两个更保守的英文/简体中文替换备选（若确实无法提供则为空数组）。',
         '替换建议不能出现品牌名称、Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、治疗等词语或同类表达。',
