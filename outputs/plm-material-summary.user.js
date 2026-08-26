@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.234
+// @version      2.8.235
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.234';
+  const SCRIPT_VERSION = '2.8.235';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4781,6 +4781,51 @@
   ]);
   const PRODUCT_DEVELOPMENT_PURCHASE_PRICE_FIELD = Object.freeze({ attrId: 152, key: 'procurement_rice', label: '采购价（含税运）' });
 
+  // This is the intentionally small contract between the local assistant form
+  // and the two-step PLM create-product drawer. Keep this list limited to the
+  // fields confirmed during the current manual product creation flow; PLM
+  // defaults and untouched fields should remain managed by PLM itself.
+  const PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS = Object.freeze([
+    Object.freeze({ key: 'categoryPath', label: '类目', domId: 'form_item_category_id', control: 'cascader', placeholder: '如：成品 / 食品酒水 / 酒水饮品' }),
+    Object.freeze({ key: 'productNameCn', label: '中文商品名称', domId: 'product_name0', placeholder: '填写页面 1 中文商品名称' }),
+    Object.freeze({ key: 'productNameEn', label: '英文商品名称', domId: 'product_name1', placeholder: '填写页面 1 英文商品名称' }),
+    Object.freeze({ key: 'brand', label: '品牌', domId: 'brand_id', control: 'select', placeholder: '按 PLM 下拉选项填写品牌' }),
+    Object.freeze({ key: 'productGroupPath', label: '产品分组', domId: 'product_group_id', control: 'cascader', placeholder: '按层级用 / 分隔' }),
+  ]);
+
+  const PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS = Object.freeze([
+    Object.freeze({ key: 'specification', attrId: 119, label: '规格型号', domId: 'form_item_0_attr_group_0_0_attr_language_config_json_0_value' }),
+    Object.freeze({ key: 'roughWeight', attrId: 122, label: '毛重', domId: 'form_item_0_attr_group_0_2_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'outerLength', attrId: 133, label: '长（外包装）', domId: 'form_item_0_attr_group_36_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'outerWidth', attrId: 134, label: '宽（外包装）', domId: 'form_item_0_attr_group_36_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'outerHeight', attrId: 135, label: '高（外包装）', domId: 'form_item_0_attr_group_36_2_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'outerVolume', attrId: 136, label: '体积（外包装）', domId: 'form_item_0_attr_group_36_3_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'ingredientFunction', attrId: 457, label: '成分功能', domId: 'form_item_2_attr_group_457_0_attr_language_config_json_0_value', type: 'textarea' }),
+    Object.freeze({ key: 'sellingPoint', attrId: 522, label: '产品卖点', domId: 'form_item_2_attr_group_522_0_attr_language_config_json_0_value', type: 'textarea' }),
+    Object.freeze({ key: 'productAdvantage', attrId: 587, label: '产品优势', domId: 'form_item_2_attr_group_587_0_attr_language_config_json_0_value', type: 'textarea' }),
+    Object.freeze({ key: 'productEfficacy', attrId: 652, label: '产品功效', domId: 'form_item_2_attr_group_652_0_attr_language_config_json_0_value', type: 'textarea' }),
+    Object.freeze({ key: 'usageMethod', attrId: 717, label: '使用方法', domId: 'form_item_2_attr_group_717_0_attr_language_config_json_0_value', type: 'textarea' }),
+    Object.freeze({ key: 'productCopyRevision', attrId: 1183, label: '产品文案修改', domId: 'form_item_2_attr_group_1183_0_attr_language_config_json_0_value', type: 'textarea' }),
+    Object.freeze({ key: 'productProductionLine', attrId: 131, label: '产品产线', domId: 'form_item_3_attr_group_35_0_attr_language_config_json_0_value', control: 'select' }),
+    Object.freeze({ key: 'minimumOrderQuantity', attrId: 2764, label: '最小起订量', domId: 'form_item_3_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'procurementPrice', attrId: 152, label: '采购价', domId: 'form_item_procurement_price', type: 'number' }),
+    Object.freeze({ key: 'costPrice', attrId: 153, label: '成本价', domId: 'form_item_6_attr_group_0_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'firstPrice', attrId: 154, label: '国内一档价格', domId: 'form_item_6_attr_group_35_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'secondPrice', attrId: 155, label: '国内二档价格', domId: 'form_item_6_attr_group_35_1_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'thirdPrice', attrId: 156, label: '国内三档价格', domId: 'form_item_6_attr_group_35_2_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'standardPackingQuantity', attrId: 123, label: '标准装箱数', domId: 'form_item_7_attr_group_0_0_attr_language_config_json_0_value', type: 'number' }),
+    Object.freeze({ key: 'boxWeight', attrId: 301, label: '箱重', domId: 'form_item_7_attr_group_0_2_attr_language_config_json_0_value', type: 'number' }),
+  ]);
+
+  const PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS = Object.freeze([
+    Object.freeze({ key: 'supplier', label: '供应商子公司名称', domId: 'form_item_0_company_supplier_id', control: 'select', placeholder: '如：JSJ' }),
+    Object.freeze({ key: 'processType', label: '加工方式', domId: 'form_item_0_process_type', control: 'select', placeholder: '如：直采' }),
+    Object.freeze({ key: 'processFee', label: '加工费', domId: 'form_item_0_process_fee', type: 'number' }),
+    Object.freeze({ key: 'taxRate', label: '税率', domId: 'form_item_0_tax_rate_id', control: 'select', placeholder: '如：0.00%' }),
+    Object.freeze({ key: 'quantity', label: '采购数量', domId: 'form_item_0_quantity', type: 'number' }),
+    Object.freeze({ key: 'materialPrice', label: '单价', domId: 'form_item_0_material_price', type: 'number' }),
+  ]);
+
   function normalizeProductDevelopmentWorkMode(value) {
     return String(value || '').trim() === 'product-development' ? 'product-development' : 'daily';
   }
@@ -5487,6 +5532,12 @@
     if (previous.productDetailLocalNames && typeof previous.productDetailLocalNames === 'object') {
       target.productDetailLocalNames = productDevelopmentCloneValue(previous.productDetailLocalNames);
     }
+    if (previous.productDetailLocalPage1 && typeof previous.productDetailLocalPage1 === 'object') {
+      target.productDetailLocalPage1 = productDevelopmentCloneValue(previous.productDetailLocalPage1);
+    }
+    if (previous.productDetailLocalProcurement && typeof previous.productDetailLocalProcurement === 'object') {
+      target.productDetailLocalProcurement = productDevelopmentCloneValue(previous.productDetailLocalProcurement);
+    }
     [
       'productDetailDraftDirty',
       'productDetailSavedAt',
@@ -5794,6 +5845,99 @@
     return [detail.productFields, detail.priceFields, detail.requiredFields]
       .filter((fields) => Array.isArray(fields))
       .flat();
+  }
+
+  function productDevelopmentPrefillHasValue(source, key) {
+    return Boolean(source && typeof source === 'object' && Object.prototype.hasOwnProperty.call(source, key));
+  }
+
+  function productDevelopmentPrefillText(value, maxLength) {
+    if (Array.isArray(value)) value = value.map((item) => productDevelopmentPrefillText(item, maxLength)).filter(Boolean).join(' / ');
+    else if (value && typeof value === 'object') {
+      if (productDevelopmentPrefillHasValue(value, 'displayValue')) value = value.displayValue;
+      else if (productDevelopmentPrefillHasValue(value, 'label')) value = value.label;
+      else if (productDevelopmentPrefillHasValue(value, 'value')) value = value.value;
+    }
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/\r\n?/g, '\n')
+      .replace(/\u00a0/g, ' ')
+      .trim()
+      .slice(0, maxLength || 12000);
+  }
+
+  function productDevelopmentPrefillLocalAttrValue(detail, definition) {
+    const attrId = Number(definition && definition.attrId);
+    const localValues = detail && detail.productDetailLocalValues && typeof detail.productDetailLocalValues === 'object'
+      ? detail.productDetailLocalValues
+      : {};
+    const entry = Number.isFinite(attrId) && attrId > 0 ? localValues[attrId + '@1'] : null;
+    if (entry && typeof entry === 'object') return productDevelopmentPrefillHasValue(entry, 'displayValue') && productDevelopmentPrefillText(entry.displayValue) ? entry.displayValue : entry.value;
+    return undefined;
+  }
+
+  function productDevelopmentPrefillProductFieldValue(detail, definition) {
+    const localValue = productDevelopmentPrefillLocalAttrValue(detail, definition);
+    if (localValue !== undefined) return localValue;
+    const fields = productDevelopmentProductFieldCollections(detail);
+    const attrId = Number(definition && definition.attrId);
+    const field = fields.find((item) => item && (
+      Number.isFinite(attrId) && attrId > 0 && Number(item.attrId) === attrId
+      || String(item.key || '') === String(definition && definition.key || '')
+    ));
+    if (!field) return '';
+    if (productDevelopmentPrefillText(field.displayValue)) return field.displayValue;
+    return field.value === undefined ? '' : field.value;
+  }
+
+  function productDevelopmentPage1FieldValue(detail, key) {
+    const localPage1 = detail && detail.productDetailLocalPage1 && typeof detail.productDetailLocalPage1 === 'object'
+      ? detail.productDetailLocalPage1
+      : {};
+    if (productDevelopmentPrefillHasValue(localPage1, key)) return localPage1[key];
+    const task = getProductDevelopmentTaskBySku(detail && detail.sku) || state.productDevelopmentSelectedTask || {};
+    const meta = getProductDevelopmentTaskMeta(task, detail);
+    const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
+    const group = info.product_group && typeof info.product_group === 'object' ? info.product_group : {};
+    if (key === 'categoryPath') return detail && (detail.categoryName || info.category_name || task.plmCategory) || '';
+    if (key === 'productNameCn') return detail && detail.productDetailLocalNames && productDevelopmentPrefillHasValue(detail.productDetailLocalNames, key)
+      ? detail.productDetailLocalNames[key]
+      : meta.productNameCn || detail && detail.productNameCn || '';
+    if (key === 'productNameEn') return detail && detail.productDetailLocalNames && productDevelopmentPrefillHasValue(detail.productDetailLocalNames, key)
+      ? detail.productDetailLocalNames[key]
+      : meta.productNameEn || detail && detail.productNameEn || '';
+    if (key === 'brand') return meta.brand || detail && detail.brand || info.brand_name || info.brandName || '';
+    if (key === 'productGroupPath') return info.product_group_path || info.product_group_full_name || info.product_group_name || group.path || group.full_name || group.name || detail && detail.productGroupName || '';
+    return '';
+  }
+
+  function productDevelopmentProcurementRow(detail) {
+    const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
+    const candidates = [
+      info.product_procure_infos,
+      info.productProcureInfos,
+      detail && detail.productProcureInfos,
+      detail && detail.productProcureInfo,
+    ];
+    const row = candidates.find((value) => Array.isArray(value) && value.length) || candidates.find((value) => value && typeof value === 'object' && !Array.isArray(value));
+    return Array.isArray(row) ? row[0] || {} : row && typeof row === 'object' ? row : {};
+  }
+
+  function productDevelopmentProcurementFieldValue(detail, key) {
+    const local = detail && detail.productDetailLocalProcurement && typeof detail.productDetailLocalProcurement === 'object'
+      ? detail.productDetailLocalProcurement
+      : {};
+    if (productDevelopmentPrefillHasValue(local, key)) return local[key];
+    const row = productDevelopmentProcurementRow(detail);
+    const candidates = {
+      supplier: ['company_supplier_name', 'companySupplierName', 'supplier_name', 'supplierName', 'supplier', 'company_supplier_id'],
+      processType: ['process_type_name', 'processTypeName', 'process_type', 'processType'],
+      processFee: ['process_fee', 'processFee'],
+      taxRate: ['tax_rate_name', 'taxRateName', 'tax_rate', 'taxRate', 'tax_rate_id'],
+      quantity: ['quantity', 'purchase_quantity', 'purchaseQuantity'],
+      materialPrice: ['material_price', 'materialPrice', 'unit_price', 'unitPrice'],
+    }[key] || [];
+    const sourceKey = candidates.find((candidate) => row[candidate] !== undefined && row[candidate] !== null && row[candidate] !== '');
+    return sourceKey ? row[sourceKey] : '';
   }
 
   function productDevelopmentApplyProductDetailLocalValues(detail) {
@@ -6446,12 +6590,22 @@
   }
 
   function productDevelopmentProductDetailMissingFields(detail) {
-    const fields = Array.isArray(detail && detail.requiredFields) ? detail.requiredFields : [];
     const missing = [];
-    fields.forEach((field) => {
-      if (productDevelopmentIsDefaultOrganizationField(field)) return;
-      const value = productDevelopmentReadonlyValueText(field && (field.displayValue || field.value), field && field.attr);
-      if (!value && field && field.label) missing.push(field.label);
+    const checks = [];
+    PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.forEach((definition) => checks.push({
+      label: definition.label,
+      value: productDevelopmentPage1FieldValue(detail, definition.key),
+    }));
+    PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.forEach((definition) => checks.push({
+      label: definition.label,
+      value: productDevelopmentPrefillProductFieldValue(detail, definition),
+    }));
+    PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.forEach((definition) => checks.push({
+      label: definition.label,
+      value: productDevelopmentProcurementFieldValue(detail, definition.key),
+    }));
+    checks.forEach((item) => {
+      if (!productDevelopmentPrefillText(item.value)) missing.push(item.label);
     });
     return Array.from(new Set(missing));
   }
@@ -6459,7 +6613,9 @@
   function productDevelopmentProductDetailFieldValue(detail, key) {
     const fields = productDevelopmentProductFieldCollections(detail);
     const field = fields.find((item) => item && item.key === key);
-    return field && field.value !== undefined ? field.value : field && field.displayValue !== undefined ? field.displayValue : '';
+    if (field) return field.value !== undefined ? field.value : field.displayValue !== undefined ? field.displayValue : '';
+    const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key || key === 'procurement_rice' && Number(item.attrId) === 152);
+    return definition ? productDevelopmentPrefillProductFieldValue(detail, definition) : '';
   }
 
   function productDevelopmentProductDetailLanguageConfig(detail) {
@@ -6614,6 +6770,212 @@
       showToast(state.productDevelopmentError);
     }).finally(() => {
       state.productDevelopmentProductSaveSku = '';
+      renderShell();
+    });
+  }
+
+  function productDevelopmentDomWait(milliseconds) {
+    return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+  }
+
+  function productDevelopmentDomText(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/\s+/g, ' ')
+      .replace(/\s*([\/／>＞|])\s*/g, '$1')
+      .trim();
+  }
+
+  function productDevelopmentDomVisible(element) {
+    if (!element || !element.isConnected) return false;
+    const style = window.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    const rect = element.getBoundingClientRect();
+    return Boolean(rect.width || rect.height);
+  }
+
+  function productDevelopmentDomNativeSetter(element, value, events) {
+    if (!element || element.type === 'file') return false;
+    const stringValue = String(value === null || value === undefined ? '' : value);
+    const prototype = element instanceof window.HTMLTextAreaElement
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+    if (descriptor && descriptor.set) descriptor.set.call(element, stringValue);
+    else element.value = stringValue;
+    (Array.isArray(events) ? events : ['input', 'change', 'blur']).forEach((type) => element.dispatchEvent(new Event(type, { bubbles: true })));
+    return true;
+  }
+
+  function productDevelopmentDomSelectedText(input) {
+    const container = input && input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
+    if (!container) return productDevelopmentDomText(input && input.value);
+    const items = Array.from(container.querySelectorAll('.ant-select-selection-item, .ant-cascader-picker-label')).filter(productDevelopmentDomVisible);
+    const values = items.map((item) => {
+      const content = item.querySelector('.ant-select-selection-item-content');
+      return productDevelopmentDomText(item.getAttribute('title') || content && content.textContent || item.textContent);
+    }).filter(Boolean);
+    return values.join(' / ') || productDevelopmentDomText(input && input.value);
+  }
+
+  function productDevelopmentDomClickTarget(input) {
+    if (!input) return null;
+    const container = input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
+    return container && (container.querySelector('.ant-select-selector, .ant-cascader-picker') || container) || input;
+  }
+
+  function productDevelopmentDomOptionText(option) {
+    if (!option) return '';
+    const content = option.querySelector('.ant-select-item-option-content, .ant-cascader-menu-item-content');
+    return productDevelopmentDomText(option.getAttribute('title') || option.getAttribute('aria-label') || content && content.textContent || option.textContent);
+  }
+
+  function productDevelopmentDomVisibleOptions() {
+    const selectors = [
+      '.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option',
+      '.ant-select-dropdown:not(.ant-select-dropdown-hidden) [role="option"]',
+      '.ant-cascader-dropdown .ant-cascader-menu-item',
+      '.ant-cascader-menus .ant-cascader-menu-item',
+      '[role="option"]',
+    ];
+    const seen = new Set();
+    return selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector))).filter((option) => {
+      if (seen.has(option) || !productDevelopmentDomVisible(option)) return false;
+      seen.add(option);
+      return option.getAttribute('aria-disabled') !== 'true' && !option.classList.contains('ant-select-item-option-disabled');
+    });
+  }
+
+  function productDevelopmentDomFindOption(target) {
+    const wanted = productDevelopmentDomText(target);
+    const options = productDevelopmentDomVisibleOptions();
+    return options.find((option) => productDevelopmentDomOptionText(option) === wanted)
+      || options.find((option) => productDevelopmentDomOptionText(option).endsWith(wanted))
+      || options.find((option) => productDevelopmentDomOptionText(option).includes(wanted));
+  }
+
+  function productDevelopmentDomSelectionMatches(input, target) {
+    const current = productDevelopmentDomText(productDevelopmentDomSelectedText(input));
+    const wanted = productDevelopmentDomText(target);
+    return Boolean(current && wanted && (current === wanted || current.includes(wanted)));
+  }
+
+  async function productDevelopmentDomSelectOption(input, target, control) {
+    if (!input) throw new Error('未找到 PLM 下拉控件');
+    const wanted = productDevelopmentPrefillText(target, 800);
+    if (!wanted) throw new Error('下拉字段缺少填写值');
+    if (productDevelopmentDomSelectionMatches(input, wanted)) return;
+    const container = input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
+    const clear = container && container.querySelector('.ant-select-clear, .ant-cascader-picker-clear');
+    if (clear && productDevelopmentDomVisible(clear)) clear.click();
+    const clickTarget = productDevelopmentDomClickTarget(input);
+    if (!clickTarget) throw new Error('未找到 PLM 下拉点击区域');
+    clickTarget.click();
+    await productDevelopmentDomWait(120);
+    if (control === 'cascader') {
+      const segments = wanted.split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
+      for (const segment of segments) {
+        await productDevelopmentDomWait(80);
+        const option = productDevelopmentDomFindOption(segment);
+        if (!option) throw new Error('PLM 下拉中找不到“' + segment + '”');
+        option.click();
+        await productDevelopmentDomWait(140);
+      }
+    } else {
+      if (!input.readOnly && input.type !== 'file') {
+        productDevelopmentDomNativeSetter(input, wanted, ['input']);
+        await productDevelopmentDomWait(120);
+      }
+      const option = productDevelopmentDomFindOption(wanted);
+      if (!option) throw new Error('PLM 下拉中找不到“' + wanted + '”');
+      option.click();
+      await productDevelopmentDomWait(180);
+    }
+    if (!productDevelopmentDomSelectionMatches(input, wanted)) throw new Error('PLM 未确认选中“' + wanted + '”');
+  }
+
+  function productDevelopmentDomFindButton(label) {
+    const wanted = productDevelopmentDomText(label);
+    return Array.from(document.querySelectorAll('button')).find((button) => productDevelopmentDomVisible(button) && productDevelopmentDomText(button.textContent) === wanted)
+      || Array.from(document.querySelectorAll('button')).find((button) => productDevelopmentDomVisible(button) && productDevelopmentDomText(button.textContent).includes(wanted));
+  }
+
+  function productDevelopmentDomRequiredValues(definitions, valueReader) {
+    return definitions.map((definition) => ({ definition, value: valueReader(definition) })).filter((item) => !productDevelopmentPrefillText(item.value));
+  }
+
+  async function productDevelopmentFillPlmPage1(detail) {
+    const missingValues = productDevelopmentDomRequiredValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS, (definition) => productDevelopmentPage1FieldValue(detail, definition.key));
+    if (missingValues.length) throw new Error('请先在悬浮助手填写页面1：' + missingValues.map((item) => item.definition.label).join('、'));
+    const missingDom = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.filter((definition) => !document.getElementById(definition.domId));
+    if (missingDom.length) throw new Error('请先打开 PLM 建品页面1；缺少控件：' + missingDom.map((item) => item.label).join('、'));
+    for (const definition of PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS) {
+      const element = document.getElementById(definition.domId);
+      const value = productDevelopmentPrefillText(productDevelopmentPage1FieldValue(detail, definition.key), 800);
+      if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+      else productDevelopmentDomNativeSetter(element, value);
+    }
+    return { warnings: [] };
+  }
+
+  async function productDevelopmentFillPlmPage2(detail) {
+    const missingValues = productDevelopmentDomRequiredValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS, (definition) => productDevelopmentPrefillProductFieldValue(detail, definition));
+    const missingProcurement = productDevelopmentDomRequiredValues(PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS, (definition) => productDevelopmentProcurementFieldValue(detail, definition.key));
+    if (missingValues.length || missingProcurement.length) {
+      throw new Error('请先在悬浮助手补齐页面2：' + missingValues.concat(missingProcurement).map((item) => item.definition.label).join('、'));
+    }
+    const missingDom = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.filter((definition) => !document.getElementById(definition.domId));
+    if (missingDom.length) throw new Error('请先打开 PLM 建品页面2；缺少控件：' + missingDom.map((item) => item.label).join('、'));
+    for (const definition of PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS) {
+      const element = document.getElementById(definition.domId);
+      const value = productDevelopmentPrefillText(productDevelopmentPrefillProductFieldValue(detail, definition), definition.type === 'textarea' ? 12000 : 800);
+      if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+      else productDevelopmentDomNativeSetter(element, value);
+    }
+    let supplierInput = document.getElementById(PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS[0].domId);
+    if (!supplierInput) {
+      const addRow = productDevelopmentDomFindButton('新增一行');
+      if (!addRow) throw new Error('采购明细暂无数据，也找不到“新增一行”按钮');
+      addRow.click();
+      await productDevelopmentDomWait(180);
+      supplierInput = document.getElementById(PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS[0].domId);
+    }
+    if (!supplierInput) throw new Error('未找到采购明细第一行');
+    for (const definition of PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS) {
+      const element = document.getElementById(definition.domId);
+      const value = productDevelopmentPrefillText(productDevelopmentProcurementFieldValue(detail, definition.key), 800);
+      if (definition.control) await productDevelopmentDomSelectOption(element, value, definition.control);
+      else productDevelopmentDomNativeSetter(element, value);
+    }
+    return { warnings: ['产品正面图、产品文案 DOCX 属于文件上传控件，请在 PLM 页面2手动检查并上传'] };
+  }
+
+  function productDevelopmentRunPlmDomFill(page, sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku || state.productDevelopmentDomFillSku) return;
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+    if (!detail) {
+      showToast('当前 SKU 详情还未读取完成');
+      return;
+    }
+    const normalizedPage = page === 'page2' ? 'page2' : 'page1';
+    state.productDevelopmentDomFillSku = normalizedSku;
+    state.productDevelopmentStatus = '正在填写 PLM ' + (normalizedPage === 'page1' ? '页面1' : '页面2') + '…';
+    state.productDevelopmentError = '';
+    renderShell();
+    const runner = normalizedPage === 'page1' ? productDevelopmentFillPlmPage1 : productDevelopmentFillPlmPage2;
+    Promise.resolve().then(() => runner(detail)).then((result) => {
+      const baseMessage = normalizedPage === 'page1'
+        ? '页面1已填写，请确认后在 PLM 点击下一步'
+        : '页面2已填写，请检查文件并在 PLM 手动上传后保存';
+      const warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
+      state.productDevelopmentStatus = warnings.length ? baseMessage + '；' + warnings.join('；') : baseMessage;
+      showToast(state.productDevelopmentStatus);
+    }).catch((error) => {
+      state.productDevelopmentError = formatErrorMessage(error);
+      state.productDevelopmentStatus = '';
+      showToast(state.productDevelopmentError);
+    }).finally(() => {
+      state.productDevelopmentDomFillSku = '';
       renderShell();
     });
   }
@@ -6904,6 +7266,8 @@
       productAttrValues,
       productDetailLocalValues: {},
       productDetailLocalNames: {},
+      productDetailLocalPage1: {},
+      productDetailLocalProcurement: {},
       productDetailDraftDirty: false,
       productDetailSaveState: '',
       productDetailSaveMessage: '',
@@ -6994,6 +7358,23 @@
     const missing = !String(field.displayValue || '').trim();
     const value = field.displayValue === '待人工补充' || field.displayValue === '待人工填写' ? '' : field.displayValue || '';
     return '<label class="pfh-product-development-form-field' + (missing ? ' is-missing' : '') + '"><span>' + escapeHtml(field.label) + (field.required ? ' <i>必填</i>' : '') + '</span><input type="text" class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field.formGroup || 'required') + '" data-form-key="' + escapeHtml(field.key || '') + '" value="' + escapeHtml(value) + '" placeholder="' + escapeHtml(missing ? (field.displayValue || '待人工补充') : '') + '"></label>';
+  }
+
+  function productDevelopmentPrefillFieldHtml(field, formSku, value) {
+    const inputValue = productDevelopmentPrefillText(value, field && field.type === 'textarea' ? 12000 : 800);
+    const missing = !inputValue;
+    const isTextarea = field && field.type === 'textarea';
+    const inputType = field && field.type === 'number' ? 'number' : 'text';
+    const inputAttributes = ' class="pfh-product-development-form-input" data-form-sku="' + escapeHtml(formSku || '') + '" data-form-group="' + escapeHtml(field && field.formGroup || 'prefill') + '" data-form-key="' + escapeHtml(field && field.key || '') + '" data-form-control="' + escapeHtml(field && field.control || '') + '"' + (inputType === 'number' ? ' inputmode="decimal" step="any"' : '') + ' placeholder="' + escapeHtml(field && field.placeholder || (missing ? '填写' + String(field && field.label || '字段') : '')) + '"';
+    const control = isTextarea
+      ? '<textarea' + inputAttributes + ' rows="4" style="width:100%;min-height:82px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--pfh-theme-border);border-radius:9px;outline:0;background:var(--pfh-theme-control-surface);color:var(--pfh-theme-text);font:inherit;font-size:11px;line-height:1.45;resize:vertical">' + escapeHtml(inputValue) + '</textarea>'
+      : '<input type="' + inputType + '"' + inputAttributes + ' value="' + escapeHtml(inputValue) + '">';
+    const hint = field && field.control === 'cascader'
+      ? '<small>按 PLM 层级文字填写，层级之间用 / 分隔</small>'
+      : field && field.control === 'select'
+        ? '<small>填写 PLM 下拉选项显示文字</small>'
+        : '';
+    return '<label class="pfh-product-development-form-field' + (missing ? ' is-missing' : '') + '"><span>' + escapeHtml(field && field.label || '建品字段') + ' <i>需填写</i></span>' + control + hint + '</label>';
   }
 
   function productDevelopmentReadonlyBomFieldHtml(row, index, key, label, formSku) {
@@ -7157,37 +7538,27 @@
     const localNamingMeta = localNaming && (localNaming.chineseProductName || localNaming.englishProductName)
       ? '<span>本地建议中文名：<b>' + escapeHtml(localNaming.chineseProductName || '待补充') + '</b></span><span>本地建议英文名：<b>' + escapeHtml(localNaming.englishProductName || '待补充') + '</b></span>'
       : '';
-    const baseFields = detail.baseFields || [];
-    const productFields = Array.isArray(detail.productFields) && detail.productFields.length ? detail.productFields : (detail.requiredFields || []);
-    const visibleProductFields = productFields.filter((field) => !productDevelopmentIsDefaultOrganizationField(field));
-    const productFieldGroups = new Map();
-    visibleProductFields.forEach((field) => {
-      const title = String(field && field.groupName || '建品字段').trim() || '建品字段';
-      if (!productFieldGroups.has(title)) productFieldGroups.set(title, []);
-      productFieldGroups.get(title).push(field);
-    });
-    const productFieldSections = Array.from(productFieldGroups.entries()).map(([title, fields]) => '<section class="pfh-product-development-form-section"><h4>建品字段 · ' + escapeHtml(title) + '（' + fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + fields.map((field) => productDevelopmentReadonlyFieldHtml({ ...field, formGroup: 'product' }, formSku)).join('') + '</div></section>').join('');
-    const organizationDefaults = Array.isArray(detail.organizationDefaults) && detail.organizationDefaults.length
-      ? detail.organizationDefaults
-      : productDevelopmentOrganizationDefaults([]);
-    const organizationDefaultNote = organizationDefaults.length
-      ? '<span>组织字段已采用默认值：' + escapeHtml(organizationDefaults.map((item) => item.label + '·' + item.displayValue).join('；')) + '</span>'
-      : '';
-    const fieldGroups = [
-      { title: '建品基础信息', key: 'base', fields: baseFields },
-      { title: '价格信息（采购价和三档价格人工确认）', key: 'price', fields: detail.priceFields || [] },
-    ];
-    const attachments = (detail.attachments || []).map((item, index) => productDevelopmentReadonlyAttachmentHtml(item, index, formSku)).join('');
     const sourceHint = detail.cacheSource === 'local-cache'
       ? '本地缓存 · 5分钟内免重复读取'
       : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
-    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(productSaveStatus) + '</span><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
-      '<div class="pfh-product-development-detail-banner"><strong>建品资料与 BOM 分开保存。</strong><span>本区只保存建品字段；下方 BOM 区域单独保存物料和成品绑定。</span>' + organizationDefaultNote + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
+    const domFillBusy = state.productDevelopmentDomFillSku === formSku;
+    const domFillDisabled = domFillBusy || productPlmBusy ? ' disabled' : '';
+    const page1Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.map((definition) => ({ ...definition, formGroup: 'page1' }));
+    const page2Fields = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.map((definition) => ({ ...definition, formGroup: 'prefill' }));
+    const procurementFields = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.map((definition) => ({ ...definition, formGroup: 'procurement' }));
+    const renderFields = (fields, valueReader) => fields.map((field) => productDevelopmentPrefillFieldHtml(field, formSku, valueReader(field))).join('');
+    const attachments = (detail.attachments || []).filter((item) => item && ['产品正面图', '产品文案 DOCX'].includes(String(item.label || '')));
+    const attachmentSummary = attachments.length
+      ? attachments.map((item) => '<span>' + escapeHtml(item.label) + '：' + escapeHtml(item.displayValue || item.status || '待手动上传') + '</span>').join('')
+      : '<span>产品正面图、产品文案 DOCX：请在 PLM 页面 2 手动上传</span>';
+    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(domFillBusy ? '正在填写 PLM…' : productSaveStatus) + '</span><button type="button" class="is-primary" data-action="product-development-product-fill-page1" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + '>一键填写页面1</button><button type="button" class="is-primary" data-action="product-development-product-fill-page2" data-product-sku="' + escapeHtml(formSku) + '"' + domFillDisabled + '>一键填写页面2</button><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
+      '<div class="pfh-product-development-detail-banner"><strong>只保留本次确认的预填项目。</strong><span>先在 PLM 页面 1 点击“页面1”，进入页面 2 后点击“页面2”；按钮只填写当前表单，不会自动点下一步或保存。</span><span>' + escapeHtml(sourceHint) + '</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
       productPlmStatus +
       (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
-      fieldGroups.map((group) => '<section class="pfh-product-development-form-section"><h4>' + escapeHtml(group.title) + '</h4><div class="pfh-product-development-form-grid">' + group.fields.map((field) => productDevelopmentReadonlyFieldHtml({ ...field, formGroup: group.key }, formSku)).join('') + '</div></section>').join('') +
-      productFieldSections +
-      '<section class="pfh-product-development-form-section"><h4>建品资料字段（可编辑文件值 / 路径）</h4><div class="pfh-product-development-file-list">' + (attachments || '<span>暂无资料字段</span>') + '</div></section></section>';
+      '<section class="pfh-product-development-form-section"><h4>页面 1 · 建品基础信息（' + page1Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page1Fields, (field) => productDevelopmentPage1FieldValue(detail, field.key)) + '</div></section>' +
+      '<section class="pfh-product-development-form-section"><h4>页面 2 · 产品详情（' + page2Fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(page2Fields, (field) => productDevelopmentPrefillProductFieldValue(detail, field)) + '</div></section>' +
+      '<section class="pfh-product-development-form-section"><h4>页面 2 · 采购明细（' + procurementFields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + renderFields(procurementFields, (field) => productDevelopmentProcurementFieldValue(detail, field.key)) + '</div></section>' +
+      '<section class="pfh-product-development-form-section"><h4>页面 2 · 文件上传</h4><div class="pfh-product-development-detail-meta">' + attachmentSummary + '</div><small class="pfh-product-development-form-note">产品正面图和产品文案 DOCX 属于浏览器文件控件，页面 2 按钮不会伪造文件路径；请在 PLM 中手动选择文件。</small></section></section>';
   }
 
   function productDevelopmentTaskLocalMetaHtml(task, detail) {
@@ -9114,6 +9485,14 @@
       renderShell();
       return true;
     }
+    if (action === 'product-development-product-fill-page1') {
+      productDevelopmentRunPlmDomFill('page1', actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
+      return true;
+    }
+    if (action === 'product-development-product-fill-page2') {
+      productDevelopmentRunPlmDomFill('page2', actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
+      return true;
+    }
     if (action === 'product-development-product-save-local') {
       productDevelopmentSaveProductDetailLocally(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
       return true;
@@ -9368,6 +9747,57 @@
           persistDetail();
           return true;
         }
+      }
+      if (detail && group === 'page1') {
+        const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS.find((item) => item.key === key);
+        if (definition) {
+          const value = String(target.value || '').slice(0, 800);
+          if (!detail.productDetailLocalPage1 || typeof detail.productDetailLocalPage1 !== 'object') detail.productDetailLocalPage1 = Object.create(null);
+          detail.productDetailLocalPage1[key] = value;
+          if (['productNameCn', 'productNameEn'].includes(key)) {
+            detail[key] = value;
+            productDevelopmentRememberLocalProductName(detail, key, value);
+          }
+          if (['brand', 'productNameCn', 'productNameEn'].includes(key)) {
+            const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask || {};
+            const meta = getProductDevelopmentTaskMeta(task, detail);
+            meta[key] = value;
+            if (!state.productDevelopmentTaskMeta || typeof state.productDevelopmentTaskMeta !== 'object') state.productDevelopmentTaskMeta = Object.create(null);
+            state.productDevelopmentTaskMeta[sku] = meta;
+            saveProductDevelopmentTaskMeta(sku, meta);
+          }
+          productDevelopmentMarkProductDetailDirty(detail);
+          persistDetail();
+        }
+        return true;
+      }
+      if (detail && group === 'prefill') {
+        const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+        if (definition) {
+          const value = String(target.value || '').slice(0, definition.type === 'textarea' ? 12000 : 800);
+          const displayValue = productDevelopmentPrefillText(value, 12000);
+          productDevelopmentRememberLocalProductField(detail, { attrId: definition.attrId }, value, displayValue);
+          productDevelopmentProductFieldCollections(detail).filter((item) => Number(item && item.attrId) === Number(definition.attrId)).forEach((item) => {
+            item.value = value;
+            item.displayValue = displayValue;
+            item.status = displayValue ? '已填写（本地）' : '待补充';
+            item.source = displayValue ? '本地人工填写（未写入）' : '待人工补充';
+          });
+          productDevelopmentMarkProductDetailDirty(detail);
+          persistDetail();
+        }
+        return true;
+      }
+      if (detail && group === 'procurement') {
+        const definition = PRODUCT_DEVELOPMENT_PREFILL_PROCUREMENT_FIELDS.find((item) => item.key === key);
+        if (definition) {
+          const value = String(target.value || '').slice(0, 800);
+          if (!detail.productDetailLocalProcurement || typeof detail.productDetailLocalProcurement !== 'object') detail.productDetailLocalProcurement = Object.create(null);
+          detail.productDetailLocalProcurement[key] = value;
+          productDevelopmentMarkProductDetailDirty(detail);
+          persistDetail();
+        }
+        return true;
       }
       const fields = detail && (group === 'price'
         ? detail.priceFields
