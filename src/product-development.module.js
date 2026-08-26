@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.9.3';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.10.4';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
@@ -18,10 +18,18 @@
     'crueltyfree', 'cruelty free', '无残忍',
     'biodegradable', '可生物降解', 'environmentally friendly',
     'reduce', 'remove', 'repair', 'treatment', 'therapy', 'instantly',
-    'prevent', 'prevention', 'cure', 'cure-all', 'clinical', 'clinically',
+    'prevent', 'prevention', 'cure', 'cure-all', 'heal', 'diagnose', 'diagnosis',
+    'clinical', 'clinically', 'clinically proven', 'fda approved', 'doctor recommended',
+    'veterinarian recommended', 'fast-acting', 'quick relief', 'instant relief',
+    'guaranteed', 'guarantee', '100%', 'zero risk', 'risk-free', 'no side effects',
+    'miracle', 'miraculous', 'best', 'better', 'ultimate', 'perfect', 'maximum',
+    'number one', 'no. 1', 'top-rated', 'leading', 'long-lasting',
     'medical grade', 'medical-grade', '医疗级', '治疗', '疗效', '治愈',
-    '全效', '特效', '速效', '第一', '最佳', '顶级', '百分百',
-    '实验认证', '认证', '疾病', '药品', '处方', '诊断',
+    '全效', '特效', '速效', '第一', '最佳', '顶级', '极致', '最强', '唯一',
+    '保证', '有效保证', '百分百', '零风险', '无副作用', '立刻见效', '立即见效',
+    '快速见效', '永久', '彻底', '万能', '全能', '无敌', '专家推荐', '权威推荐',
+    '实验认证', '认证', '疾病', '药品', '处方', '诊断', '抗炎', '止痛', '抗癌',
+    '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
   ]);
   const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v1';
   const PRODUCT_DEVELOPMENT_REVIEW_ACTIONS = Object.freeze({
@@ -83,6 +91,14 @@
     Object.freeze({ attrId: 164, key: 'use_organization', label: '使用组织' }),
     Object.freeze({ attrId: 165, key: 'procurement_organization', label: '采购组织' }),
   ]);
+
+  // Confirmed by the category-template HAR: each organization field has one
+  // default option and does not need an editable value in this local form.
+  const PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS = Object.freeze({
+    create_organization: Object.freeze({ attrId: 163, key: 'create_organization', label: '创建组织', value: [1], displayValue: '西月集团' }),
+    use_organization: Object.freeze({ attrId: 164, key: 'use_organization', label: '使用组织', value: [1], displayValue: '西月集团' }),
+    procurement_organization: Object.freeze({ attrId: 165, key: 'procurement_organization', label: '采购组织', value: [1], displayValue: '西月总部' }),
+  });
 
   const PRODUCT_DEVELOPMENT_PRICE_FIELD_FALLBACKS = Object.freeze([
     Object.freeze({ attrId: 153, key: 'cost_rice', label: '成本价' }),
@@ -165,7 +181,7 @@
     const source = value && typeof value === 'object' ? value : {};
     return {
       id: productDevelopmentCleanText(source.id || '', 60),
-      sourceText: productDevelopmentCleanText(source.sourceText || source.originalText || source.text, 240),
+      sourceText: productDevelopmentCompactSemanticText(source.sourceText || source.originalText || source.text, 240),
       bbox: source.bbox && typeof source.bbox === 'object' ? {
         x: Number(source.bbox.x) || 0,
         y: Number(source.bbox.y) || 0,
@@ -175,14 +191,14 @@
       textRole: productDevelopmentCleanText(source.textRole || source.role, 40).toLowerCase(),
       riskTypes: Array.isArray(source.riskTypes) ? source.riskTypes.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 4) : [],
       riskTerms: Array.isArray(source.riskTerms) ? source.riskTerms.map((item) => productDevelopmentCleanText(item, 100)).filter(Boolean).slice(0, 8) : [],
-      riskReason: productDevelopmentCleanText(source.riskReason || source.reason || source.warning, 400),
-      replacementEn: productDevelopmentCleanText(source.replacementEn || source.modifiedEnglish || source.english, 300),
-      replacementZh: productDevelopmentCleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation || source.translationZh, 300),
-      translationZh: productDevelopmentCleanText(source.translationZh || source.translation || source.chinese, 300),
+      riskReason: productDevelopmentCompactSemanticText(source.riskReason || source.reason || source.warning, 400),
+      replacementEn: productDevelopmentCompactSemanticText(source.replacementEn || source.modifiedEnglish || source.english, 300),
+      replacementZh: productDevelopmentCompactSemanticText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation || source.translationZh, 300),
+      translationZh: productDevelopmentCompactSemanticText(source.translationZh || source.translation || source.chinese, 300),
       revisionAction: productDevelopmentNormalizeReviewAction(source.revisionAction || source.action || source.editAction),
       replacementOptions: Array.isArray(source.replacementOptions) ? source.replacementOptions.map((item) => ({
-        en: productDevelopmentCleanText(item && (item.en || item.english || item.replacementEn), 300),
-        zh: productDevelopmentCleanText(item && (item.zh || item.chinese || item.translation), 300),
+        en: productDevelopmentCompactSemanticText(item && (item.en || item.english || item.replacementEn), 300),
+        zh: productDevelopmentCompactSemanticText(item && (item.zh || item.chinese || item.translation), 300),
       })).filter((item) => item.en || item.zh).slice(0, 3) : [],
       confidence: Math.max(0, Math.min(1, Number(source.confidence) || 0)),
     };
@@ -208,6 +224,7 @@
       warnings: Array.isArray(source.warnings) ? source.warnings.map((item) => productDevelopmentCleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
       provider: productDevelopmentCleanText(source.provider, 80),
       model: productDevelopmentCleanText(source.model, 120),
+      plainTextCopy: productDevelopmentCleanText(source.plainTextCopy || source.approvedPlainText || source.finalCopy, 12000),
       productNaming: naming,
       fileName: productDevelopmentCleanText(source.fileName || productDevelopmentFileName(sku, 'infringement-comparison', 'png'), 180),
       createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
@@ -392,7 +409,7 @@
   const PRODUCT_DEVELOPMENT_TASK_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_TASK_CACHE_KEY = 'plm-floating-helper:product-development-tasks:v1';
   const PRODUCT_DEVELOPMENT_DETAIL_CACHE_KEY = 'plm-floating-helper:product-development-detail:v1';
-  const PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION = 2;
+  const PRODUCT_DEVELOPMENT_DETAIL_CACHE_VERSION = 3;
   const PRODUCT_DEVELOPMENT_DETAIL_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
   const PRODUCT_DEVELOPMENT_DETAIL_CACHE_LIMIT = 20;
   const PRODUCT_DEVELOPMENT_MATERIAL_DRAFT_VERSION = 2;
@@ -537,7 +554,7 @@
   function productDevelopmentReadonlyDetailForCache(detail) {
     const copy = productDevelopmentReadonlyDetailCopy(detail);
     if (!copy) return null;
-    ['requiredFields', 'baseFields', 'priceFields', 'productFields'].forEach((key) => {
+    ['requiredFields', 'baseFields', 'priceFields', 'productFields', 'attachments'].forEach((key) => {
       if (!Array.isArray(copy[key])) return;
       copy[key] = copy[key].map((field) => {
         if (!field || typeof field !== 'object') return field;
@@ -789,6 +806,40 @@
     return target;
   }
 
+  function productDevelopmentPreserveLocalProductState(target, previous) {
+    if (!target || !previous || typeof previous !== 'object') return target;
+    if (previous.productDetailLocalValues && typeof previous.productDetailLocalValues === 'object') {
+      target.productDetailLocalValues = productDevelopmentCloneValue(previous.productDetailLocalValues);
+    }
+    if (previous.productDetailLocalNames && typeof previous.productDetailLocalNames === 'object') {
+      target.productDetailLocalNames = productDevelopmentCloneValue(previous.productDetailLocalNames);
+    }
+    [
+      'productDetailDraftDirty',
+      'productDetailSavedAt',
+      'productDetailSaveState',
+      'productDetailSaveMessage',
+      'productDetailPlmSaveState',
+      'productDetailPlmSaveMessage',
+    ].forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(previous, key)) target[key] = previous[key];
+    });
+    productDevelopmentApplyProductDetailLocalValues(target);
+    const localNames = target.productDetailLocalNames || {};
+    ['productNameCn', 'productNameEn'].forEach((key) => {
+      if (!Object.prototype.hasOwnProperty.call(localNames, key)) return;
+      target[key] = localNames[key];
+      const field = Array.isArray(target.baseFields) && target.baseFields.find((item) => item && item.key === key);
+      if (field) {
+        field.value = localNames[key];
+        field.displayValue = localNames[key];
+        field.status = localNames[key] ? '已填写（本地）' : '待补充';
+        field.source = localNames[key] ? '本地人工填写（未写入）' : '待人工补充';
+      }
+    });
+    return target;
+  }
+
   function productDevelopmentApplyReadonlyDetailState(task, readOnlyDetail, next) {
     const sku = String(task && task.sku || '').trim().toUpperCase();
     if (!sku || !readOnlyDetail) return next || null;
@@ -857,6 +908,7 @@
     });
     if (readOnlyDetail && !readOnlyDetail.error) {
       productDevelopmentPreserveLocalBomState(readOnlyDetail, previousDetail);
+      productDevelopmentPreserveLocalProductState(readOnlyDetail, previousDetail);
       readOnlyDetail.cacheSource = 'plm';
       saveProductDevelopmentReadonlyDetailCache(sku, readOnlyDetail);
     }
@@ -867,28 +919,34 @@
   function selectProductDevelopmentTask(sku, options) {
     const task = getProductDevelopmentTaskBySku(sku);
     if (!task) return null;
-    if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+    const opts = options || {};
     const normalizedSku = task.sku;
+    const previousSku = String(state.productDevelopmentTaskSelectedSku || '').trim().toUpperCase();
+    const preserveSession = Boolean(opts.preserveSession && previousSku === normalizedSku);
+    if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
     state.productDevelopmentSelectedTask = task;
     state.productDevelopmentTaskSelectedSku = normalizedSku;
     state.selectedSku = normalizedSku;
     state.data = productDevelopmentTaskSeedData(task);
-    state.productDevelopmentSnapshot = null;
-    state.productDevelopmentBenchmarkImageDataUrl = '';
-    state.productDevelopmentBenchmarkImageName = '';
-    state.productDevelopmentReview = null;
-    state.productDevelopmentCopywriting = null;
-    state.productDevelopmentTaskView = 'detail';
-    state.productDevelopmentTaskPreviousTab = '';
-    state.productDevelopmentError = '';
+    if (!preserveSession) {
+      state.productDevelopmentSnapshot = null;
+      state.productDevelopmentBenchmarkImageDataUrl = '';
+      state.productDevelopmentBenchmarkImageName = '';
+      state.productDevelopmentReview = null;
+      state.productDevelopmentReviewEditorOpen = false;
+      state.productDevelopmentCopywriting = null;
+      state.productDevelopmentTaskView = 'detail';
+      state.productDevelopmentTaskPreviousTab = '';
+      state.productDevelopmentError = '';
+    }
     const cachedDetail = productDevelopmentReadonlyDetailForTask(task);
     if (cachedDetail) {
       if (!state.productDevelopmentTaskFormData || typeof state.productDevelopmentTaskFormData !== 'object') state.productDevelopmentTaskFormData = Object.create(null);
       state.productDevelopmentTaskFormData[normalizedSku] = cachedDetail;
     }
     restoreProductDevelopmentReviewDraft(normalizedSku);
-    if (!(options && options.render === false)) renderShell();
-    if (!(options && options.hydrate === false)) {
+    if (!(opts.render === false)) renderShell();
+    if (!(opts.hydrate === false)) {
       hydrateProductDevelopmentTaskDetail(task).then(() => {
         if (state.view === 'productDevelopmentTasks' && state.productDevelopmentTaskSelectedSku === normalizedSku) renderShell();
       }).catch((error) => {
@@ -997,6 +1055,138 @@
     return '';
   }
 
+  function productDevelopmentCloneValue(value) {
+    if (value === undefined) return undefined;
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function productDevelopmentProductAttrValuesFromAttrs(attrs) {
+    const values = [];
+    (Array.isArray(attrs) ? attrs : []).forEach((attr) => {
+      const attrId = Number(attr && attr.attr_id);
+      if (!Number.isFinite(attrId) || attrId <= 0) return;
+      const configs = Array.isArray(attr && attr.attr_language_config_json) ? attr.attr_language_config_json : [];
+      if (configs.length) {
+        configs.forEach((config) => {
+          const languageId = Number(config && config.language_id || 1);
+          values.push({
+            attr_id: attrId,
+            language_id: Number.isFinite(languageId) && languageId > 0 ? languageId : 1,
+            value: productDevelopmentCloneValue(config && config.value !== undefined ? config.value : null),
+          });
+        });
+        return;
+      }
+      values.push({
+        attr_id: attrId,
+        language_id: 1,
+        value: productDevelopmentCloneValue(attr && attr.value !== undefined ? attr.value : attr && attr.attr_value !== undefined ? attr.attr_value : null),
+      });
+    });
+    return values;
+  }
+
+  function productDevelopmentProductAttrValueEntry(detail, attrId, languageId) {
+    const targetId = Number(attrId);
+    const targetLanguageId = Number(languageId || 1);
+    if (!detail || !Array.isArray(detail.productAttrValues) || !Number.isFinite(targetId)) return null;
+    return detail.productAttrValues.find((item) => Number(item && item.attr_id) === targetId
+      && Number(item && item.language_id || 1) === targetLanguageId) || null;
+  }
+
+  function productDevelopmentSetProductAttrValue(detail, attrId, languageId, value) {
+    const targetId = Number(attrId);
+    const targetLanguageId = Number(languageId || 1);
+    if (!detail || !Number.isFinite(targetId) || targetId <= 0) return false;
+    if (!Array.isArray(detail.productAttrValues)) detail.productAttrValues = [];
+    const entry = productDevelopmentProductAttrValueEntry(detail, targetId, targetLanguageId);
+    if (entry) {
+      entry.value = productDevelopmentCloneValue(value);
+      return true;
+    }
+    detail.productAttrValues.push({
+      attr_id: targetId,
+      language_id: Number.isFinite(targetLanguageId) && targetLanguageId > 0 ? targetLanguageId : 1,
+      value: productDevelopmentCloneValue(value),
+    });
+    return true;
+  }
+
+  function productDevelopmentProductFieldCollections(detail) {
+    if (!detail || typeof detail !== 'object') return [];
+    return [detail.productFields, detail.priceFields, detail.requiredFields]
+      .filter((fields) => Array.isArray(fields))
+      .flat();
+  }
+
+  function productDevelopmentApplyProductDetailLocalValues(detail) {
+    if (!detail || typeof detail !== 'object') return detail;
+    const localValues = detail.productDetailLocalValues && typeof detail.productDetailLocalValues === 'object'
+      ? detail.productDetailLocalValues
+      : {};
+    Object.keys(localValues).forEach((key) => {
+      const item = localValues[key];
+      if (!item || typeof item !== 'object') return;
+      const match = key.match(/^(\d+)@(\d+)$/);
+      if (!match) return;
+      const attrId = Number(match[1]);
+      const languageId = Number(match[2]);
+      productDevelopmentSetProductAttrValue(detail, attrId, languageId, item.value);
+      productDevelopmentProductFieldCollections(detail).filter((field) => Number(field && field.attrId) === attrId).forEach((field) => {
+        field.value = productDevelopmentCloneValue(item.value);
+        field.displayValue = productDevelopmentCleanText(item.displayValue !== undefined ? item.displayValue : item.value, 800);
+        field.status = field.displayValue ? '已填写（本地）' : '待补充';
+        field.source = field.displayValue ? '本地人工填写（未写入）' : '待人工补充';
+      });
+    });
+    return detail;
+  }
+
+  function productDevelopmentRememberLocalProductField(detail, field, value, displayValue) {
+    const attrId = Number(field && field.attrId);
+    if (!detail || !Number.isFinite(attrId) || attrId <= 0) return false;
+    const languageId = 1;
+    if (!detail.productDetailLocalValues || typeof detail.productDetailLocalValues !== 'object') detail.productDetailLocalValues = Object.create(null);
+    detail.productDetailLocalValues[attrId + '@' + languageId] = {
+      value: productDevelopmentCloneValue(value),
+      displayValue: productDevelopmentCleanText(displayValue !== undefined ? displayValue : value, 800),
+    };
+    productDevelopmentSetProductAttrValue(detail, attrId, languageId, value);
+    return true;
+  }
+
+  function productDevelopmentRememberLocalProductName(detail, key, value) {
+    if (!detail || !['productNameCn', 'productNameEn'].includes(key)) return false;
+    if (!detail.productDetailLocalNames || typeof detail.productDetailLocalNames !== 'object') detail.productDetailLocalNames = {};
+    detail.productDetailLocalNames[key] = productDevelopmentCleanText(value, 180);
+    const languageId = key === 'productNameEn' ? 2 : 1;
+    const languageConfig = Array.isArray(detail.productInfo && detail.productInfo.language_config)
+      ? detail.productInfo.language_config
+      : [];
+    let language = languageConfig.find((item) => Number(item && item.language_id) === languageId);
+    if (!language) {
+      language = { language_id: languageId, product_name: '', product_remark: null };
+      languageConfig.push(language);
+    }
+    language.product_name = detail.productDetailLocalNames[key];
+    detail.productInfo = detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
+    detail.productInfo.language_config = languageConfig;
+    return true;
+  }
+
+  function productDevelopmentMarkProductDetailDirty(detail) {
+    if (!detail) return;
+    detail.productDetailDraftDirty = true;
+    detail.productDetailSaveState = 'dirty';
+    detail.productDetailPlmSaveState = '';
+    detail.productDetailPlmSaveMessage = '';
+    detail.cacheSource = 'local-cache';
+  }
+
   function productDevelopmentReadonlyOptionLabel(attr, rawValue) {
     const values = Array.isArray(rawValue) ? rawValue : [rawValue];
     const labels = [];
@@ -1011,6 +1201,48 @@
       labels.push(String(optionLabel || multi && multi.mult_attr_value_name || value || '').trim());
     });
     return labels.filter(Boolean).join('、');
+  }
+
+  function productDevelopmentOrganizationDefaultForDefinition(definition, attr) {
+    const key = String(definition && definition.key || '').trim();
+    const fallback = PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS[key]
+      || Object.values(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).find((item) => Number(item.attrId) === Number(definition && definition.attrId)
+        || item.label === String(definition && definition.label || '').trim());
+    if (!fallback) return null;
+    let options = attr && attr.option_list_json;
+    if (typeof options === 'string') {
+      try { options = JSON.parse(options); } catch (error) { options = []; }
+    }
+    const defaultOption = (Array.isArray(options) ? options : []).find((option) => option && (
+      option.is_def === true || option.is_default === true || option.isDefault === true
+    ));
+    const rawValue = defaultOption && defaultOption.value !== undefined ? defaultOption.value : fallback.value;
+    const optionLabel = defaultOption && Array.isArray(defaultOption.option_label_list)
+      ? defaultOption.option_label_list.find((item) => Number(item && item.language_id || 1) === 1) || defaultOption.option_label_list[0]
+      : null;
+    return {
+      ...fallback,
+      value: Array.isArray(rawValue) ? rawValue.slice() : [rawValue],
+      displayValue: productDevelopmentCleanText(optionLabel && optionLabel.label || fallback.displayValue, 100),
+      source: defaultOption ? 'PLM 默认选项' : 'HAR 默认选项',
+    };
+  }
+
+  function productDevelopmentIsDefaultOrganizationField(field) {
+    if (!field) return false;
+    const key = String(field.key || '').trim();
+    return Boolean(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS[key]
+      || Object.values(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).some((item) => Number(item.attrId) === Number(field.attrId)
+        || item.label === String(field.label || '').trim()));
+  }
+
+  function productDevelopmentOrganizationDefaults(attrs) {
+    return Object.keys(PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS).map((key) => {
+      const definition = PRODUCT_DEVELOPMENT_ORGANIZATION_DEFAULTS[key];
+      const attr = (Array.isArray(attrs) ? attrs : []).find((item) => Number(item && item.attr_id) === Number(definition.attrId)
+        || String(item && item.variable_name || '') === key);
+      return productDevelopmentOrganizationDefaultForDefinition(definition, attr);
+    }).filter(Boolean);
   }
 
   function productDevelopmentReadonlyValueText(value, attr) {
@@ -1518,6 +1750,201 @@
     return true;
   }
 
+  function productDevelopmentSaveProductDetailLocally(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+    if (!detail) {
+      showToast('当前 SKU 详情还未读取完成');
+      return false;
+    }
+    productDevelopmentApplyProductDetailLocalValues(detail);
+    detail.productDetailDraftDirty = false;
+    detail.productDetailSavedAt = new Date().toLocaleString();
+    detail.productDetailSaveState = 'saved';
+    detail.productDetailSaveMessage = '建品资料已保存到本地';
+    detail.productDetailPlmSaveState = '';
+    detail.productDetailPlmSaveMessage = '';
+    detail.cacheSource = 'local-cache';
+    saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+    state.productDevelopmentStatus = '建品资料已保存到本地';
+    showToast('建品资料已保存到本地');
+    renderShell();
+    return true;
+  }
+
+  function productDevelopmentProductDetailMissingFields(detail) {
+    const fields = Array.isArray(detail && detail.requiredFields) ? detail.requiredFields : [];
+    const missing = [];
+    fields.forEach((field) => {
+      if (productDevelopmentIsDefaultOrganizationField(field)) return;
+      const value = productDevelopmentReadonlyValueText(field && (field.displayValue || field.value), field && field.attr);
+      if (!value && field && field.label) missing.push(field.label);
+    });
+    return Array.from(new Set(missing));
+  }
+
+  function productDevelopmentProductDetailFieldValue(detail, key) {
+    const fields = productDevelopmentProductFieldCollections(detail);
+    const field = fields.find((item) => item && item.key === key);
+    return field && field.value !== undefined ? field.value : field && field.displayValue !== undefined ? field.displayValue : '';
+  }
+
+  function productDevelopmentProductDetailLanguageConfig(detail) {
+    const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
+    const source = Array.isArray(info.language_config) ? productDevelopmentCloneValue(info.language_config) : [];
+    const languages = Array.isArray(source) ? source : [];
+    const localNames = detail && detail.productDetailLocalNames && typeof detail.productDetailLocalNames === 'object'
+      ? detail.productDetailLocalNames
+      : {};
+    const ensureLanguage = (languageId, fallbackName) => {
+      let language = languages.find((item) => Number(item && item.language_id) === languageId);
+      if (!language) {
+        language = { language_id: languageId, product_name: fallbackName || '', product_remark: null };
+        languages.push(language);
+      }
+      return language;
+    };
+    const cn = Object.prototype.hasOwnProperty.call(localNames, 'productNameCn')
+      ? localNames.productNameCn
+      : detail && detail.productNameCn || '';
+    const en = Object.prototype.hasOwnProperty.call(localNames, 'productNameEn')
+      ? localNames.productNameEn
+      : detail && detail.productNameEn || '';
+    const chinese = ensureLanguage(1, cn);
+    if (cn !== '') chinese.product_name = productDevelopmentCleanText(cn, 180);
+    const existingEnglish = languages.some((item) => Number(item && item.language_id) === 2);
+    if (en || existingEnglish) {
+      const english = ensureLanguage(2, en);
+      if (en !== '') english.product_name = productDevelopmentCleanText(en, 180);
+    }
+    return languages;
+  }
+
+  function productDevelopmentBuildProductDetailPayload(detail, task) {
+    const source = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
+    const sku = productDevelopmentCleanText(detail && detail.sku || task && task.sku, 100).toUpperCase();
+    const productId = productDevelopmentApiNumber(detail && detail.productId || source.product_id, null);
+    if (productId === null) throw new Error('当前项目尚未建品，PLM 暂无可保存的产品 ID，请先在 PLM 建品页完成建品');
+    const attrValues = Array.isArray(detail && detail.productAttrValues)
+      ? detail.productAttrValues
+      : [];
+    if (!attrValues.length) throw new Error('未读取到完整建品字段，请先刷新当前 SKU 详情后再保存');
+    const missing = productDevelopmentProductDetailMissingFields(detail);
+    if (missing.length) throw new Error('请先补充建品必填项：' + missing.join('、'));
+    const infoValue = (key, fallback) => source[key] !== undefined && source[key] !== null && source[key] !== ''
+      ? productDevelopmentCloneValue(source[key])
+      : productDevelopmentCloneValue(fallback);
+    const product = {
+      language_config: productDevelopmentProductDetailLanguageConfig(detail),
+      product_id: productId,
+      code: infoValue('code', sku),
+      product_type: infoValue('product_type', infoValue('type', 1)),
+      same_style_code: infoValue('same_style_code', null),
+      is_AMZ: infoValue('is_AMZ', false),
+      brand_id: infoValue('brand_id', null),
+      category_id: infoValue('category_id', productDevelopmentApiNumber(detail && detail.categoryId || task && task.categoryId, null)),
+      product_group_id: infoValue('product_group_id', productDevelopmentApiNumber(detail && detail.productGroupId || task && task.productGroupId, null)),
+      product_main_group_id: infoValue('product_main_group_id', null),
+      jst_old_code: infoValue('jst_old_code', sku),
+      virtual_classification: infoValue('virtual_classification', 1),
+      financial_settlement_classification: infoValue('financial_settlement_classification', 1),
+      basic_unit_id: infoValue('basic_unit_id', 11),
+      basic_unit_name: infoValue('basic_unit_name', 'pcs'),
+      purchase_unit_id: infoValue('purchase_unit_id', infoValue('basic_unit_id', 11)),
+      purchase_unit_name: infoValue('purchase_unit_name', infoValue('basic_unit_name', 'pcs')),
+      sale_unit_id: infoValue('sale_unit_id', infoValue('basic_unit_id', 11)),
+      sale_unit_name: infoValue('sale_unit_name', infoValue('basic_unit_name', 'pcs')),
+      purchase_conversion: infoValue('purchase_conversion', 1),
+      sale_conversion: infoValue('sale_conversion', 1),
+      style_code: infoValue('style_code', sku),
+      is_SRS: infoValue('is_SRS', false),
+      srs_code: infoValue('srs_code', null),
+      data_source: infoValue('data_source', 0),
+      srs_product_code: infoValue('srs_product_code', sku),
+      srs_store_information: infoValue('srs_store_information', null),
+      srs_store_supplier: infoValue('srs_store_supplier', null),
+      product_version_id: infoValue('product_version_id', productDevelopmentApiNumber(detail && detail.productVersionId, null)),
+      procurement_price: infoValue('procurement_price', productDevelopmentProductDetailFieldValue(detail, 'procurement_rice') || null),
+      invoice_category: infoValue('invoice_category', ''),
+      invoice_item_name: infoValue('invoice_item_name', detail && detail.productNameCn || sku),
+      product_procure_infos: infoValue('product_procure_infos', []),
+      is_need_to_process_product_procure_infos: infoValue('is_need_to_process_product_procure_infos', true),
+      attr_values: attrValues.map((item) => ({
+        attr_id: Number(item && item.attr_id),
+        language_id: Number(item && item.language_id || 1),
+        value: productDevelopmentCloneValue(item && item.value),
+      })).filter((item) => Number.isFinite(item.attr_id) && item.attr_id > 0),
+    };
+    if (!product.category_id) throw new Error('建品资料缺少分类 ID，无法保存到 PLM');
+    return product;
+  }
+
+  async function productDevelopmentSaveProductDetailToPlm(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+    if (!detail) throw new Error('当前 SKU 详情还未读取完成');
+    if (typeof fetchPlmApiJson !== 'function') throw new Error('当前脚本没有可用的 PLM 写入请求能力');
+    const projectId = String(detail.projectId || task.projectId || task.rowId || '').trim();
+    if (!/^\d+$/.test(projectId)) throw new Error('当前开发任务缺少有效项目 ID');
+    productDevelopmentApplyProductDetailLocalValues(detail);
+    const product = productDevelopmentBuildProductDetailPayload(detail, task);
+    const response = await fetchPlmApiJson('/api/ChemicalNewDevTask/SaveProductDetail', {
+      id: productDevelopmentApiNumber(projectId, projectId),
+      product,
+    }, { timeout: 120000 });
+    const saved = response && response.data && typeof response.data === 'object' ? response.data : {};
+    if (saved.id !== undefined && saved.id !== null) detail.productId = String(saved.id);
+    if (saved.product_version_id !== undefined && saved.product_version_id !== null) detail.productVersionId = String(saved.product_version_id);
+    detail.productInfo = {
+      ...(detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {}),
+      product_id: detail.productId || product.product_id,
+      product_version_id: detail.productVersionId || product.product_version_id,
+      category_id: product.category_id,
+      code: product.code,
+      language_config: product.language_config,
+    };
+    detail.productDetailDraftDirty = false;
+    detail.productDetailSavedAt = new Date().toLocaleString();
+    detail.productDetailSaveState = 'saved';
+    detail.productDetailSaveMessage = '建品资料已保存到 PLM · ' + detail.productDetailSavedAt;
+    detail.productDetailPlmSaveState = 'saved';
+    detail.productDetailPlmSaveMessage = '建品资料已保存到 PLM';
+    detail.cacheSource = 'local-cache';
+    saveProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+    return { response, product };
+  }
+
+  function productDevelopmentRunProductDetailPlmSave(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku || state.productDevelopmentProductSaveSku) return;
+    if (typeof window.confirm === 'function' && !window.confirm('确认只将当前建品资料保存到 PLM？本次不会保存或修改 BOM。')) return;
+    state.productDevelopmentProductSaveSku = normalizedSku;
+    state.productDevelopmentStatus = '正在保存建品资料到 PLM…';
+    state.productDevelopmentError = '';
+    renderShell();
+    productDevelopmentSaveProductDetailToPlm(normalizedSku).then(() => {
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+      const message = detail && detail.productDetailPlmSaveMessage || '建品资料已保存到 PLM';
+      state.productDevelopmentStatus = message;
+      showToast(message);
+    }).catch((error) => {
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+      if (detail) {
+        detail.productDetailPlmSaveState = 'error';
+        detail.productDetailPlmSaveMessage = '保存建品资料失败：' + formatErrorMessage(error);
+        detail.cacheSource = 'local-cache';
+        scheduleProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+      }
+      state.productDevelopmentError = formatErrorMessage(error);
+      state.productDevelopmentStatus = '';
+      showToast(state.productDevelopmentError);
+    }).finally(() => {
+      state.productDevelopmentProductSaveSku = '';
+      renderShell();
+    });
+  }
+
   function productDevelopmentRunBomPlmSave(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     if (!normalizedSku || state.productDevelopmentBomSaveSku) return;
@@ -1589,8 +2016,13 @@
   function productDevelopmentReadonlyFieldValue(attrs, definition, info, bomRows) {
     const attr = attrs.find((item) => Number(item && item.attr_id) === Number(definition.attrId)
       || String(item && item.variable_name || '') === String(definition.key || ''));
+    const organizationDefault = productDevelopmentOrganizationDefaultForDefinition(definition, attr);
     let value = attr ? productDevelopmentReadonlyAttrValue(attr, 1) : '';
     let source = value !== '' && value !== null && value !== undefined ? 'PLM 建品详情' : '';
+    if (!productDevelopmentReadonlyValueText(value, attr) && organizationDefault) {
+      value = organizationDefault.displayValue;
+      source = organizationDefault.source;
+    }
     const paperBox = bomRows.find((row) => /纸盒/.test(row.name + row.category));
     const finishedProduct = bomRows.find((row) => row.type === '成品');
     if (!productDevelopmentReadonlyValueText(value, attr) && definition.key === 'specification') {
@@ -1643,9 +2075,11 @@
       }
       return {
         ...definition,
+        value,
         displayValue: productDevelopmentReadonlyValueText(value, attr),
         source: productDevelopmentReadonlyValueText(value, attr) ? 'PLM 建品详情' : '待人工填写',
         status: productDevelopmentReadonlyValueText(value, attr) ? '已预填' : '待补充',
+        attr,
       };
     });
   }
@@ -1661,8 +2095,10 @@
       const value = attr ? productDevelopmentReadonlyAttrValue(attr, 1) : '';
       return {
         ...definition,
+        value: productDevelopmentCloneValue(value),
         displayValue: productDevelopmentReadonlyValueText(value, attr),
         status: productDevelopmentReadonlyValueText(value, attr) ? '已读取' : '未读取',
+        attr,
       };
     });
   }
@@ -1740,6 +2176,8 @@
     const productId = String(info.product_id || source.productId || productSnapshot && productSnapshot.productId || '').trim();
     const productVersionId = String(info.product_version_id || source.productVersionId || productSnapshot && productSnapshot.productVersionId || '').trim();
     const productMainId = String(info.product_main_id || info.productMainId || source.productMainId || source.product_main_id || productSnapshot && (productSnapshot.productMainId || productSnapshot.product_main_id) || (bomRows.find((row) => row.type === '成品') || {}).productMainId || '').trim();
+    const productInfo = productDevelopmentCloneValue(info) || {};
+    const productAttrValues = productDevelopmentProductAttrValuesFromAttrs(attrs);
     const baseFields = productDevelopmentReadonlyBaseFields([
       { key: 'sku', label: 'SKU', value: source.sku, source: '开发任务' },
       { key: 'projectCode', label: '项目编码', value: source.projectCode, source: '开发任务' },
@@ -1773,6 +2211,7 @@
       categoryId,
       categoryName,
       productId: String(info.product_id || source.productId || productSnapshot && productSnapshot.productId || '').trim(),
+      productGroupId: String(info.product_group_id || source.productGroupId || productSnapshot && productSnapshot.productGroupId || '').trim(),
       productMainId,
       productVersionId: String(info.product_version_id || source.productVersionId || productSnapshot && productSnapshot.productVersionId || '').trim(),
       productNameCn,
@@ -1783,10 +2222,20 @@
       productType: source.productType || productSnapshot && productSnapshot.productType || '',
       productFields: productDevelopmentReadonlyProductFields(attrs, info, bomRows),
       requiredFields,
+      organizationDefaults: productDevelopmentOrganizationDefaults(attrs),
       priceFields: productDevelopmentReadonlyPriceFields(attrs, info, []),
       attachments: productDevelopmentReadonlyAttachmentFields(attrs),
       bomRows,
       materialDrafts: productDevelopmentNormalizeMaterialDrafts(null, materialDraftDetail, source),
+      productInfo,
+      productAttrValues,
+      productDetailLocalValues: {},
+      productDetailLocalNames: {},
+      productDetailDraftDirty: false,
+      productDetailSaveState: '',
+      productDetailSaveMessage: '',
+      productDetailPlmSaveState: '',
+      productDetailPlmSaveMessage: '',
       bomReadState: 'loaded',
       bomLoadedAt: Date.now(),
       readonly: true,
@@ -1999,7 +2448,8 @@
     const saveStatusClass = detail.bomDraftDirty ? ' is-dirty' : (detail.bomDraftSaveState === 'error' ? ' is-error' : (detail.bomDraftSavedAt ? ' is-saved' : ''));
     const plmBusy = state.productDevelopmentBomSaveSku === formSku;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>物料信息</small><h3>填写包装与说明书</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书单独填写；保存到 PLM 时会同时绑定当前产品和已启用物料。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div></section>';
+    const existingBom = '<section class="pfh-product-development-form-section pfh-product-development-bom-existing"><h4>PLM 当前绑定 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>';
+    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存 BOM 到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书单独填写。BOM 保存不会修改建品资料。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
@@ -2016,6 +2466,18 @@
   function productDevelopmentReadonlyDetailHtml(detail) {
     if (!detail) return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>正在读取只读字段…</span></header><div class="pfh-product-development-form-empty">正在读取 BOM 和建品字段；默认不写入 PLM。</div></section>';
     const formSku = String(detail.sku || '').trim().toUpperCase();
+    const productPlmBusy = state.productDevelopmentProductSaveSku === formSku;
+    const productSaveStatus = detail.productDetailDraftDirty
+      ? '有未保存修改'
+      : detail.productDetailSaveMessage || (detail.productDetailSavedAt ? '已保存本地 · ' + detail.productDetailSavedAt : '尚未保存');
+    const productSaveStatusClass = detail.productDetailDraftDirty
+      ? ' is-dirty'
+      : (detail.productDetailSaveState === 'error' || detail.productDetailPlmSaveState === 'error'
+        ? ' is-error'
+        : (detail.productDetailSavedAt ? ' is-saved' : ''));
+    const productPlmStatus = detail.productDetailPlmSaveMessage
+      ? '<p class="pfh-product-development-material-plm-status' + (detail.productDetailPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.productDetailPlmSaveMessage) + '</p>'
+      : '';
     const localNaming = state.productDevelopmentReview && state.productDevelopmentReview.sku === formSku
       ? productDevelopmentNormalizeProductNaming(state.productDevelopmentReview.productNaming)
       : null;
@@ -2024,13 +2486,20 @@
       : '';
     const baseFields = detail.baseFields || [];
     const productFields = Array.isArray(detail.productFields) && detail.productFields.length ? detail.productFields : (detail.requiredFields || []);
+    const visibleProductFields = productFields.filter((field) => !productDevelopmentIsDefaultOrganizationField(field));
     const productFieldGroups = new Map();
-    productFields.forEach((field) => {
+    visibleProductFields.forEach((field) => {
       const title = String(field && field.groupName || '建品字段').trim() || '建品字段';
       if (!productFieldGroups.has(title)) productFieldGroups.set(title, []);
       productFieldGroups.get(title).push(field);
     });
     const productFieldSections = Array.from(productFieldGroups.entries()).map(([title, fields]) => '<section class="pfh-product-development-form-section"><h4>建品字段 · ' + escapeHtml(title) + '（' + fields.length + ' 项）</h4><div class="pfh-product-development-form-grid">' + fields.map((field) => productDevelopmentReadonlyFieldHtml({ ...field, formGroup: 'product' }, formSku)).join('') + '</div></section>').join('');
+    const organizationDefaults = Array.isArray(detail.organizationDefaults) && detail.organizationDefaults.length
+      ? detail.organizationDefaults
+      : productDevelopmentOrganizationDefaults([]);
+    const organizationDefaultNote = organizationDefaults.length
+      ? '<span>组织字段已采用默认值：' + escapeHtml(organizationDefaults.map((item) => item.label + '·' + item.displayValue).join('；')) + '</span>'
+      : '';
     const fieldGroups = [
       { title: '建品基础信息', key: 'base', fields: baseFields },
       { title: '价格信息（采购价和三档价格人工确认）', key: 'price', fields: detail.priceFields || [] },
@@ -2039,12 +2508,12 @@
     const sourceHint = detail.cacheSource === 'local-cache'
       ? '本地缓存 · 5分钟内免重复读取'
       : '已读取 PLM · 可本地填写 · 更新时间 ' + String(detail.loadedAt || '');
-    return '<section class="pfh-product-development-detail-form"><header><div><small>PRODUCT DETAIL</small><h3>产品详情预填表单</h3></div><span>' + escapeHtml(sourceHint) + '</span></header>' +
-      '<div class="pfh-product-development-detail-banner"><strong>默认只展示、预填和人工确认；只有点击 BOM 区域“保存到 PLM”才执行写入。</strong><span>产品详情、侵权图、文案和本地 BOM 内容不会自动写回；其它字段仍仅保存在本地。</span>' + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
+    return '<section class="pfh-product-development-detail-form"><header><div><small>建品资料</small><h3>填写建品信息</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + productSaveStatusClass + '">' + escapeHtml(productSaveStatus) + '</span><button type="button" data-action="product-development-product-save-local" data-product-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-product-save-plm" data-product-sku="' + escapeHtml(formSku) + '"' + (productPlmBusy ? ' disabled' : '') + '>' + (productPlmBusy ? '正在保存…' : '保存建品到 PLM') + '</button></div></header>' +
+      '<div class="pfh-product-development-detail-banner"><strong>建品资料与 BOM 分开保存。</strong><span>本区只保存建品字段；下方 BOM 区域单独保存物料和成品绑定。</span>' + organizationDefaultNote + (detail.error ? '<em>' + escapeHtml(detail.error) + '</em>' : '') + '</div>' +
+      productPlmStatus +
       (localNamingMeta ? '<div class="pfh-product-development-detail-meta">' + localNamingMeta + '</div>' : '') +
       fieldGroups.map((group) => '<section class="pfh-product-development-form-section"><h4>' + escapeHtml(group.title) + '</h4><div class="pfh-product-development-form-grid">' + group.fields.map((field) => productDevelopmentReadonlyFieldHtml({ ...field, formGroup: group.key }, formSku)).join('') + '</div></section>').join('') +
       productFieldSections +
-      '<section class="pfh-product-development-form-section"><h4>PLM 已有 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项，只读参考）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>' +
       '<section class="pfh-product-development-form-section"><h4>建品资料字段（可编辑文件值 / 路径）</h4><div class="pfh-product-development-file-list">' + (attachments || '<span>暂无资料字段</span>') + '</div></section></section>';
   }
 
@@ -2068,7 +2537,7 @@
     const materialPlanner = formDetail
       ? productDevelopmentMaterialPlannerHtml(formDetail, source)
       : '<section class="pfh-product-development-material-planner"><header><div><small>BOM FORM · LOCAL / PLM</small><h3>填写 BOM 物料</h3></div></header><div class="pfh-product-development-form-empty">正在读取当前 SKU 的 BOM 和产品中文名…</div></section>';
-    return productDevelopmentTaskLocalMetaHtml(source, formDetail) + materialPlanner + productDevelopmentReadonlyDetailHtml(formDetail);
+    return productDevelopmentTaskLocalMetaHtml(source, formDetail) + productDevelopmentReadonlyDetailHtml(formDetail) + materialPlanner;
   }
 
   function productDevelopmentMaterialInputElements(sku, kind) {
@@ -2210,9 +2679,19 @@
       state.productDevelopmentTasks = rows;
       state.productDevelopmentTasksLoadedAt = Date.now();
       state.productDevelopmentTaskPage = 1;
-      const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || (opts.silent ? null : rows[0]);
+      const shouldAutoSelect = state.view === 'productDevelopmentTasks' || !opts.silent;
+      const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku) || (shouldAutoSelect ? rows[0] : null);
       if (selected) {
-        selectProductDevelopmentTask(selected.sku, { render: false, hydrate: false });
+        const selectedSku = String(state.productDevelopmentTaskSelectedSku || '').trim().toUpperCase();
+        const preserveSession = selectedSku === selected.sku && Boolean(
+          state.productDevelopmentCopywritingBusy
+          || state.productDevelopmentReviewBusy
+          || state.productDevelopmentTaskView !== 'detail'
+          || state.productDevelopmentSnapshot
+          || state.productDevelopmentReview
+          || state.productDevelopmentCopywriting,
+        );
+        selectProductDevelopmentTask(selected.sku, { render: false, hydrate: false, preserveSession });
       } else {
         state.productDevelopmentSelectedTask = null;
         state.productDevelopmentTaskSelectedSku = '';
@@ -2235,7 +2714,11 @@
       const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku);
       if (!selected) {
         const fallback = Array.isArray(state.productDevelopmentTasks) ? state.productDevelopmentTasks[0] : null;
-        if (fallback) selectProductDevelopmentTask(fallback.sku, { render: false, hydrate: false });
+        if (fallback) selectProductDevelopmentTask(fallback.sku, {
+          render: false,
+          hydrate: false,
+          preserveSession: String(state.productDevelopmentTaskSelectedSku || '').trim().toUpperCase() === fallback.sku,
+        });
         else {
           state.productDevelopmentSelectedTask = null;
           state.productDevelopmentTaskSelectedSku = '';
@@ -2277,7 +2760,14 @@
     state.productDevelopmentTaskError = '';
     expandPanel();
     renderShell('正在读取本人开发任务…');
-    loadProductDevelopmentTasks({ force: true }).catch(() => {});
+    loadProductDevelopmentTasks({ force: true }).then((rows) => {
+      if (state.view !== 'productDevelopmentTasks') return;
+      const selected = getProductDevelopmentTaskBySku(state.productDevelopmentTaskSelectedSku);
+      const first = selected || (Array.isArray(rows) ? rows[0] : null);
+      if (!first) return;
+      if (!selected) selectProductDevelopmentTask(first.sku);
+      else renderShell();
+    }).catch(() => {});
   }
 
   function getProductDevelopmentSeedData(sku) {
@@ -2291,6 +2781,14 @@
 
   function productDevelopmentCleanText(value, maxLength) {
     return String(value || '').replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim().slice(0, maxLength || 4000);
+  }
+
+  function productDevelopmentCompactSemanticText(value, maxLength) {
+    return productDevelopmentCleanText(value, maxLength)
+      .replace(/[ \t]*\n[ \t]*(?:\n[ \t]*)+/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n[ \t]+/g, '\n')
+      .trim();
   }
 
   function productDevelopmentNormalizeIngredientPart(value) {
@@ -2338,11 +2836,39 @@
     return [];
   }
 
+  function productDevelopmentCachedIngredientPairs(sku, data) {
+    const source = data || getProductDevelopmentSeedData(sku);
+    return productDevelopmentIngredientPairs(source, {
+      en: source && source.ingredientEnglish,
+      cn: source && source.ingredientChinese,
+    });
+  }
+
+  function productDevelopmentLog(level, message, detail) {
+    if (typeof addLog === 'function') addLog(level || 'info', '产品开发文案：' + String(message || ''), detail || '');
+  }
+
   function productDevelopmentPairValues(value) {
     const source = value && typeof value === 'object' ? value : {};
     return {
       cn: productDevelopmentCleanText(source.cn || source.chinese || source.value_cn || source.valueChinese, 6000),
       en: productDevelopmentCleanText(source.en || source.english || source.value || source.value_en || source.valueEnglish, 6000),
+    };
+  }
+
+  function productDevelopmentCopywritingText(value, maxLength) {
+    return productDevelopmentCleanText(value, maxLength)
+      .replace(/\*/g, '')
+      .replace(/[ \t]*\n[ \t]*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  function productDevelopmentCopywritingPairValues(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      cn: productDevelopmentCopywritingText(source.cn || source.chinese || source.value_cn || source.valueChinese, 6000),
+      en: productDevelopmentCopywritingText(source.en || source.english || source.value || source.value_en || source.valueEnglish, 6000),
     };
   }
 
@@ -2432,6 +2958,7 @@
     state.productDevelopmentBenchmarkImageName = String(file.name || '本地对标图片').slice(0, 180);
     state.productDevelopmentSnapshot = null;
     state.productDevelopmentReview = null;
+    state.productDevelopmentReviewEditorOpen = false;
     deleteProductDevelopmentReviewDraft(getProductDevelopmentCurrentSku());
     state.productDevelopmentError = '';
     state.productDevelopmentStatus = '已选择本地对标图片：' + state.productDevelopmentBenchmarkImageName;
@@ -2440,27 +2967,47 @@
 
   async function loadProductDevelopmentSnapshot(sku, force, options) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
-    const requireIngredients = !(options && options.requireIngredients === false);
-    const includeImage = !(options && options.includeImage === false);
-    const imageKind = options && options.imageKind === 'benchmark' ? 'benchmark' : 'product';
+    const opts = options || {};
+    const requireIngredients = opts.requireIngredients !== false;
+    const includeImage = opts.includeImage !== false;
+    const imageKind = includeImage ? (opts.imageKind === 'benchmark' ? 'benchmark' : 'product') : 'none';
+    const preferCachedIngredients = Boolean(opts.preferCachedIngredients);
     if (!normalizedSku) throw new Error('请先在设计任务中选择一个 SKU');
     if (!force && state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === normalizedSku
       && state.productDevelopmentSnapshot.imageKind === imageKind
-      && (!requireIngredients || Array.isArray(state.productDevelopmentSnapshot.ingredients) && state.productDevelopmentSnapshot.ingredients.length)) return state.productDevelopmentSnapshot;
-    const seed = getProductDevelopmentSeedData(normalizedSku);
-    const snapshot = await fetchApiProductSnapshot(seed, { force: true }).catch(() => null);
-    let liveCopyPayload = null;
-    try {
-      liveCopyPayload = await fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku));
-    } catch (error) {
-      liveCopyPayload = null;
+      && (!requireIngredients || Array.isArray(state.productDevelopmentSnapshot.ingredients) && state.productDevelopmentSnapshot.ingredients.length)) {
+      productDevelopmentLog('info', '命中本次会话资料缓存', normalizedSku + ' | 成分=' + state.productDevelopmentSnapshot.ingredients.length + ' 项');
+      return state.productDevelopmentSnapshot;
     }
+    const seed = getProductDevelopmentSeedData(normalizedSku);
+    const cachedIngredients = productDevelopmentCachedIngredientPairs(normalizedSku, seed);
+    const startedAt = Date.now();
+    productDevelopmentLog('info', '开始读取产品资料', normalizedSku + ' | 成分缓存=' + (cachedIngredients.length ? cachedIngredients.length + ' 项，优先复用' : '未命中') + ' | 强制刷新=' + (force ? '是' : '否'));
+    const snapshotRequest = fetchApiProductSnapshot(seed, { force: Boolean(force && !preferCachedIngredients) })
+      .catch((error) => {
+        productDevelopmentLog('warn', 'PLM 基础资料读取失败，继续使用本地任务资料', normalizedSku + ' | ' + formatErrorMessage(error));
+        return null;
+      });
+    const liveCopyRequest = withCopywritingTimeout(
+      fetchPlmJson(LEDGER_AI_IMAGE_COPYWRITING_ENDPOINT + '?code=' + encodeURIComponent(normalizedSku)),
+      60000,
+      'PLM 卖点读取',
+    ).catch((error) => {
+      productDevelopmentLog('warn', 'PLM 卖点读取失败，继续使用已有资料', normalizedSku + ' | ' + formatErrorMessage(error));
+      return null;
+    });
+    const [snapshot, liveCopyPayload] = await Promise.all([snapshotRequest, liveCopyRequest]);
+    productDevelopmentLog('info', '产品资料读取完成', normalizedSku + ' | 用时=' + (Date.now() - startedAt) + 'ms');
     let contentPayload = snapshot && snapshot.contentPayload;
-    if (snapshot && snapshot.productId && snapshot.productVersionId && snapshot.categoryId) {
+    if (!contentPayload && snapshot && snapshot.productId && snapshot.productVersionId && snapshot.categoryId) {
       try {
-        contentPayload = await fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(snapshot.productId) + '&category_id=' + encodeURIComponent(snapshot.categoryId) + '&product_version_id=' + encodeURIComponent(snapshot.productVersionId));
+        contentPayload = await withCopywritingTimeout(
+          fetchPlmJson('/api/Product/GetDetailContent?is_edit=true&product_id=' + encodeURIComponent(snapshot.productId) + '&category_id=' + encodeURIComponent(snapshot.categoryId) + '&product_version_id=' + encodeURIComponent(snapshot.productVersionId)),
+          60000,
+          'PLM 产品详情读取',
+        );
       } catch (error) {
-        // The read-only product snapshot remains the compatible fallback.
+        productDevelopmentLog('warn', 'PLM 产品详情读取失败，继续使用已读取资料', normalizedSku + ' | ' + formatErrorMessage(error));
       }
     }
     const liveIngredients = getLedgerAiImageLiveIngredientPayload(liveCopyPayload || {});
@@ -2471,11 +3018,12 @@
       sku: normalizedSku,
       name: (snapshot && snapshot.chineseName) || seed.name,
       productType: (snapshot && snapshot.productType) || seed.productType || seed.manualCategory,
+      ingredientEnglish: snapshot && snapshot.ingredientEnglish || seed.ingredientEnglish || '',
+      ingredientChinese: snapshot && snapshot.ingredientChinese || seed.ingredientChinese || '',
+      ingredientItems: snapshot && Array.isArray(snapshot.ingredientItems) && snapshot.ingredientItems.length
+        ? snapshot.ingredientItems
+        : seed.ingredientItems,
     });
-    if (requireIngredients && (!data.ingredientEnglish && !data.ingredientChinese) && typeof hydrateIngredientPdfForSku === 'function') {
-      const hydrated = await hydrateIngredientPdfForSku(normalizedSku, { preferApi: true, silent: true }).catch(() => null);
-      if (hydrated && hydrated.sku) data = normalizeData(hydrated);
-    }
     const liveCopy = productDevelopmentCopywriteValues({
       usage: liveCopyPayload ? getLedgerAiImageCopywriteValues(findLedgerAiImageCopyItem(liveCopyPayload, 'usage')) : null,
       sellingPoints: liveCopyPayload ? getLedgerAiImageCopywriteValues(findLedgerAiImageCopyItem(liveCopyPayload, 'sellingPoints')) : null,
@@ -2488,7 +3036,25 @@
       en: liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish,
       cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
     });
-    if (requireIngredients && !ingredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
+    if (cachedIngredients.length) {
+      productDevelopmentLog('success', '成分缓存命中，跳过重新识别', normalizedSku + ' | ' + cachedIngredients.length + ' 项');
+    } else if (requireIngredients && !ingredients.length && typeof hydrateIngredientPdfForSku === 'function') {
+      productDevelopmentLog('info', '未命中成分缓存，开始读取成分表', normalizedSku);
+      const hydrated = await withCopywritingTimeout(
+        hydrateIngredientPdfForSku(normalizedSku, { preferApi: true, silent: true }),
+        120000,
+        '成分表读取',
+      ).catch((error) => {
+        productDevelopmentLog('warn', '成分表读取失败', normalizedSku + ' | ' + formatErrorMessage(error));
+        return null;
+      });
+      if (hydrated && hydrated.sku) data = normalizeData({ ...data, ...hydrated });
+    }
+    const resolvedIngredients = productDevelopmentIngredientPairs(data, {
+      en: liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish,
+      cn: liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese,
+    });
+    if (requireIngredients && !resolvedIngredients.length) throw new Error('当前 SKU 没有读取到有效成分，已停止生成');
     let skuImage = null;
     let imageSource = { imageUrl: '', imageFallbackUrl: '', source: '文案生成不读取效果图' };
     if (includeImage) {
@@ -2509,8 +3075,9 @@
       englishName: productDevelopmentCleanText(snapshot && snapshot.englishName, 300),
       brand: productDevelopmentCleanText(snapshot && snapshot.brand || data.brand, 160),
       productType: productDevelopmentCleanText(snapshot && snapshot.productType || data.productType || data.manualCategory, 180),
+      netContent: productDevelopmentCleanText(snapshot && snapshot.netContent || data.netContent, 120),
       referenceUrl: productDevelopmentCleanText(snapshot && snapshot.referenceUrl || data.referenceUrl || data.benchmarkLink, 1000),
-      ingredients,
+      ingredients: resolvedIngredients,
       ingredientSummary: {
         en: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish, 8000),
         cn: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_ch || plmCopywriting.ingredientSummary.cn || data.ingredientChinese, 8000),
@@ -2710,9 +3277,9 @@
       const y = hasBbox ? Math.max(0, Math.min(1, rawY)) : 0;
       const w = hasBbox ? Math.max(0, Math.min(1 - x, rawW)) : 0;
       const h = hasBbox ? Math.max(0, Math.min(1 - y, rawH)) : 0;
-      const sourceText = productDevelopmentCleanText(sourceItem.sourceText || sourceItem.originalText || sourceItem.text, 240);
-      const rawReplacementEn = productDevelopmentCleanText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
-      const rawReplacementZh = productDevelopmentCleanText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation || sourceItem.translationZh || sourceText, 300);
+      const sourceText = productDevelopmentCompactSemanticText(sourceItem.sourceText || sourceItem.originalText || sourceItem.text, 240);
+      const rawReplacementEn = productDevelopmentCompactSemanticText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
+      const rawReplacementZh = productDevelopmentCompactSemanticText(sourceItem.replacementZh || sourceItem.chinese || sourceItem.translation || sourceItem.translationZh || sourceText, 300);
       const key = [sourceText.toLowerCase(), hasBbox ? x.toFixed(4) + '|' + y.toFixed(4) : 'no-bbox'].join('|');
       if (!sourceText || !rawReplacementEn || !rawReplacementZh || seen.has(key)) return null;
       seen.add(key);
@@ -2737,12 +3304,15 @@
         textRole: productDevelopmentCleanText(sourceItem.textRole || sourceItem.role, 40).toLowerCase(),
         riskTypes,
         riskTerms,
-        riskReason: productDevelopmentCleanText(sourceItem.riskReason || sourceItem.reason || sourceItem.warning, 400) || (riskTerms.length ? '原文检测到：' + riskTerms.join('、') : ''),
-        replacementEn: approved.replacementEn,
-        replacementZh: approved.replacementZh,
-        translationZh: productDevelopmentCleanText(sourceItem.translationZh || sourceItem.translation || sourceItem.chinese || approved.replacementZh, 300),
+        riskReason: productDevelopmentCompactSemanticText(sourceItem.riskReason || sourceItem.reason || sourceItem.warning, 400) || (riskTerms.length ? '原文检测到：' + riskTerms.join('、') : ''),
+        replacementEn: productDevelopmentCompactSemanticText(approved.replacementEn, 300),
+        replacementZh: productDevelopmentCompactSemanticText(approved.replacementZh, 300),
+        translationZh: productDevelopmentCompactSemanticText(sourceItem.translationZh || sourceItem.translation || sourceItem.chinese || approved.replacementZh, 300),
         revisionAction: approved.action,
-        replacementOptions: Array.isArray(sourceItem.replacementOptions) ? sourceItem.replacementOptions : [],
+        replacementOptions: Array.isArray(sourceItem.replacementOptions) ? sourceItem.replacementOptions.map((option) => ({
+          en: productDevelopmentCompactSemanticText(option && (option.en || option.english || option.replacementEn), 300),
+          zh: productDevelopmentCompactSemanticText(option && (option.zh || option.chinese || option.translation), 300),
+        })).filter((option) => option.en || option.zh).slice(0, 3) : [],
         confidence: Math.max(0, Math.min(1, Number(sourceItem.confidence) || 0)),
       };
     }).filter(Boolean).slice(0, 80);
@@ -2817,33 +3387,39 @@
     const ih = image.naturalHeight || image.height || 1;
     const padding = 34;
     const columnGap = 22;
-    const headerHeight = 102;
+    const headerHeight = 94;
     const imageColumnWidth = Math.max(820, Math.min(1100, Math.max(820, iw)));
     const englishColumnWidth = 620;
     const translationColumnWidth = 760;
     const imageAreaWidth = imageColumnWidth - padding * 2;
     const imageAreaHeight = Math.max(820, Math.min(1700, ih * imageAreaWidth / iw));
     const displayItems = (Array.isArray(items) ? items : []).slice(0, 80);
-    const innerEnglishWidth = englishColumnWidth - 52;
-    const innerTranslationWidth = translationColumnWidth - 52;
+    const englishTextWidth = englishColumnWidth - 92;
+    const translationTextWidth = translationColumnWidth - 68;
+    const bodyFont = '400 24px Arial, Microsoft YaHei, sans-serif';
+    const bodyLineHeight = 30;
+    const riskFont = '700 18px Arial, Microsoft YaHei, sans-serif';
+    const riskLineHeight = 24;
     const measureCanvas = document.createElement('canvas');
     const measureCtx = measureCanvas.getContext('2d');
     if (!measureCtx) throw new Error('无法创建对照图测量画布');
     const rowHeights = displayItems.map((item, index) => {
       const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length;
-      measureCtx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
+      const riskLabel = '风险 · ' + item.riskTypes.join('、') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '');
+      measureCtx.font = riskFont;
       const riskLines = isRisk
-        ? productDevelopmentCanvasTextLines(measureCtx, String(index + 1) + '. 风险：' + item.riskTypes.join('、'), innerEnglishWidth, 3).length
+        ? productDevelopmentCanvasTextLines(measureCtx, riskLabel, englishTextWidth, 2).length
         : 0;
-      measureCtx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
-      const sourceLines = productDevelopmentCanvasTextLines(measureCtx, item.sourceText || '（未读取到可靠原文）', innerEnglishWidth, 6).length;
-      const replacementEnLines = productDevelopmentCanvasTextLines(measureCtx, item.replacementEn || item.sourceText, innerTranslationWidth, 4).length;
-      const replacementZhLines = productDevelopmentCanvasTextLines(measureCtx, item.replacementZh || item.translationZh || item.sourceText, innerTranslationWidth, 4).length;
-      const leftHeight = (isRisk ? riskLines * 29 + 16 : 0) + 29 + 12 + sourceLines * 31;
-      const rightHeight = (isRisk ? riskLines * 29 + 16 : 0) + 29 + 12 + replacementEnLines * 31 + 18 + 29 + 12 + replacementZhLines * 31;
-      return Math.max(isRisk ? 212 : 166, leftHeight, rightHeight) + 22;
+      measureCtx.font = bodyFont;
+      const sourceLines = productDevelopmentCanvasTextLines(measureCtx, item.sourceText || '（未读取到可靠原文）', englishTextWidth, 6).length;
+      const replacementEnLines = productDevelopmentCanvasTextLines(measureCtx, item.replacementEn || item.sourceText, translationTextWidth, 6).length;
+      const replacementZhLines = productDevelopmentCanvasTextLines(measureCtx, item.replacementZh || item.translationZh || item.sourceText, translationTextWidth, 6).length;
+      const riskHeight = isRisk ? riskLines * riskLineHeight + 8 : 0;
+      const leftHeight = sourceLines * bodyLineHeight;
+      const rightHeight = replacementEnLines * bodyLineHeight + 8 + replacementZhLines * bodyLineHeight;
+      return Math.max(68, Math.max(riskHeight + leftHeight, rightHeight)) + 14;
     });
-    const contentHeight = Math.max(imageAreaHeight, rowHeights.reduce((total, value) => total + value, 0) + 28);
+    const contentHeight = Math.max(imageAreaHeight, rowHeights.reduce((total, value) => total + value, 0) + 24);
     const footerHeight = 42;
     const height = padding * 2 + headerHeight + contentHeight + footerHeight;
     const canvas = document.createElement('canvas');
@@ -2865,12 +3441,18 @@
     ctx.fillRect(translationX, panelY, translationColumnWidth, panelHeight);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    const titleFont = '700 34px Arial, Microsoft YaHei, sans-serif';
+    const titleFont = '700 32px Arial, Microsoft YaHei, sans-serif';
     ctx.font = titleFont;
     ctx.fillStyle = '#172033';
     ctx.fillText('Benchmark Image / 对标图', imageX + 26, panelY + 27);
     ctx.fillText('English Original / 英文原文', englishX + 26, panelY + 27);
-    ctx.fillText('Revised Translation / 对照翻译', translationX + 26, panelY + 27);
+    ctx.fillText('Revised Copy / 改写与翻译', translationX + 26, panelY + 27);
+    ctx.fillStyle = '#dbe4f1';
+    ctx.fillRect(imageX + 26, panelY + 76, 78, 4);
+    ctx.fillStyle = '#8b6ac8';
+    ctx.fillRect(englishX + 26, panelY + 76, 78, 4);
+    ctx.fillStyle = '#27a5a0';
+    ctx.fillRect(translationX + 26, panelY + 76, 78, 4);
     const scale = Math.min(imageAreaWidth / iw, imageAreaHeight / ih);
     const drawWidth = iw * scale;
     const drawHeight = ih * scale;
@@ -2882,41 +3464,41 @@
     ctx.strokeRect(imageX, panelY, imageColumnWidth, panelHeight);
     ctx.strokeRect(englishX, panelY, englishColumnWidth, panelHeight);
     ctx.strokeRect(translationX, panelY, translationColumnWidth, panelHeight);
-    let rowY = contentY + 24;
+    let rowY = contentY + 18;
     displayItems.forEach((item, index) => {
       const isRisk = Array.isArray(item.riskTypes) && item.riskTypes.length;
-      const markerColor = isRisk ? '#dc2626' : '#64748b';
-      const innerWidth = englishColumnWidth - 52;
-      ctx.fillStyle = markerColor;
-      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
-      const riskLines = isRisk
-        ? productDevelopmentWrapCanvasText(ctx, String(index + 1) + '. 风险：' + item.riskTypes.join('、'), englishX + 26, rowY, innerWidth, 29, 3)
+      const rowTextX = englishX + 66;
+      const rightTextX = translationX + 42;
+      const riskLabel = '风险 · ' + item.riskTypes.join('、') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '');
+      const riskHeight = isRisk
+        ? (() => {
+          ctx.font = riskFont;
+          return productDevelopmentCanvasTextLines(ctx, riskLabel, englishTextWidth, 2).length * riskLineHeight + 8;
+        })()
         : 0;
-      const textOffset = isRisk ? riskLines * 29 + 16 : 0;
-      ctx.fillStyle = '#344054';
-      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
-      ctx.fillText('原文', englishX + 26, rowY + textOffset);
-      ctx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
-      const sourceY = rowY + textOffset + 36;
-      const sourceLines = productDevelopmentWrapCanvasText(ctx, item.sourceText || '（未读取到可靠原文）', englishX + 26, sourceY, innerWidth, 31, 6);
-      const translationOffset = isRisk ? riskLines * 29 + 16 : 0;
-      ctx.fillStyle = isRisk ? '#dc2626' : '#344054';
-      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
-      const translationTitle = isRisk ? '风险修改' : '对照翻译';
-      productDevelopmentWrapCanvasText(ctx, translationTitle, translationX + 26, rowY + translationOffset, translationColumnWidth - 52, 29, 2);
-      ctx.fillStyle = '#344054';
-      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
-      const translationEnglishLabelY = rowY + translationOffset + 36;
-      ctx.fillText('英文：', translationX + 26, translationEnglishLabelY);
-      ctx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
-      const translationEnglishY = translationEnglishLabelY + 36;
-      const replacementEnLines = productDevelopmentWrapCanvasText(ctx, item.replacementEn || item.sourceText, translationX + 26, translationEnglishY, translationColumnWidth - 52, 31, 4);
-      ctx.fillStyle = '#667085';
-      ctx.font = '700 22px Arial, Microsoft YaHei, sans-serif';
-      const translationChineseLabelY = translationEnglishY + replacementEnLines * 31 + 18;
-      ctx.fillText('中文：', translationX + 26, translationChineseLabelY);
-      ctx.font = '400 24px Arial, Microsoft YaHei, sans-serif';
-      productDevelopmentWrapCanvasText(ctx, item.replacementZh || item.translationZh || item.sourceText, translationX + 26, translationChineseLabelY + 36, translationColumnWidth - 52, 31, 4);
+      ctx.fillStyle = isRisk ? '#b42318' : '#718096';
+      ctx.font = '700 16px Arial, Microsoft YaHei, sans-serif';
+      ctx.fillText(String(index + 1).padStart(2, '0'), englishX + 26, rowY + 2);
+      const riskLines = isRisk
+        ? productDevelopmentWrapCanvasText(ctx, riskLabel, rowTextX, rowY, englishTextWidth, riskLineHeight, 2)
+        : 0;
+      const sourceY = rowY + riskHeight;
+      const revisedY = rowY;
+      ctx.fillStyle = '#2f415b';
+      ctx.font = bodyFont;
+      productDevelopmentWrapCanvasText(ctx, item.sourceText || '（未读取到可靠原文）', rowTextX, sourceY, englishTextWidth, bodyLineHeight, 6);
+      ctx.fillStyle = '#8b6ac8';
+      ctx.fillRect(translationX + 26, revisedY + 4, 4, 22);
+      ctx.font = bodyFont;
+      const replacementEnLines = productDevelopmentWrapCanvasText(ctx, item.replacementEn || item.sourceText, rightTextX, revisedY, translationTextWidth, bodyLineHeight, 6);
+      const replacementZhY = revisedY + replacementEnLines * bodyLineHeight + 8;
+      ctx.fillStyle = '#168b87';
+      ctx.fillRect(translationX + 26, replacementZhY + 4, 4, 22);
+      ctx.font = bodyFont;
+      productDevelopmentWrapCanvasText(ctx, item.replacementZh || item.translationZh || item.sourceText, rightTextX, replacementZhY, translationTextWidth, bodyLineHeight, 6);
+      ctx.fillStyle = '#e8edf4';
+      ctx.fillRect(englishX + 22, rowY + (rowHeights[index] || 82) - 8, englishColumnWidth - 44, 1);
+      ctx.fillRect(translationX + 22, rowY + (rowHeights[index] || 82) - 8, translationColumnWidth - 44, 1);
       rowY += rowHeights[index] || 188;
     });
     if (!displayItems.length) {
@@ -2927,7 +3509,7 @@
     }
     ctx.fillStyle = '#98a2b3';
     ctx.font = '16px Arial, Microsoft YaHei, sans-serif';
-    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 对标图保留 · 英文原文与修改中文对照 · 仅生成审核稿', padding, height - 27);
+    ctx.fillText('SKU ' + String(snapshot && snapshot.sku || '') + ' · 对标图保留 · 原文 / 英文改写 / 中文翻译 · 坐标不可靠时不绘制红框 · 仅生成审核稿', padding, height - 27);
     return {
       dataUrl: canvas.toDataURL('image/png'),
       width: canvas.width,
@@ -2952,6 +3534,7 @@
       showToast('请先在设计任务中打开或选择当前 SKU');
       return;
     }
+    state.productDevelopmentReviewEditorOpen = false;
     state.productDevelopmentReviewBusy = true;
     state.productDevelopmentError = '';
     state.productDevelopmentStatus = '正在读取当前 SKU 的对标图片…';
@@ -2961,6 +3544,19 @@
       state.productDevelopmentStatus = '正在提交一次图片风险分析…';
       renderShell();
       const image = await productDevelopmentFetchImage(snapshot.imageUrl, snapshot.imageFallbackUrl);
+      const reviewBrand = productDevelopmentCleanText(snapshot.brand, 160);
+      const reviewProductType = productDevelopmentCleanText(snapshot.productType, 180);
+      const reviewAudienceText = [snapshot.name, reviewProductType].filter(Boolean).join(' ');
+      const reviewSeed = getProductDevelopmentSeedData(sku);
+      const reviewNetContent = productDevelopmentCleanText(snapshot.netContent || reviewSeed.netContent, 120).toUpperCase();
+      const isKriathPet = /^kriath$/i.test(reviewBrand) && /(?:入口宠物|宠物|pet)/i.test(reviewProductType);
+      const petAudience = isKriathPet
+        ? /(?:猫|\bcat(?:s)?\b)/i.test(reviewAudienceText) && !/(?:狗|\bdog(?:s)?\b)/i.test(reviewAudienceText)
+          ? 'FOR CATS'
+          : /(?:狗|\bdog(?:s)?\b)/i.test(reviewAudienceText) && !/(?:猫|\bcat(?:s)?\b)/i.test(reviewAudienceText)
+            ? 'FOR DOGS'
+            : 'FOR DOGS & CATS'
+        : '';
       const response = await cloudRequest('/ai-image/product-development-review', {
         method: 'POST',
         timeoutMs: 150000,
@@ -2970,6 +3566,8 @@
           productType: snapshot.productType,
           category: snapshot.productType,
           brand: snapshot.brand,
+          netContentStandard: reviewNetContent,
+          petAudience,
           sellingPoints: snapshot.sourceCopywriting.sellingPoints,
           efficacy: snapshot.sourceCopywriting.efficacy,
           namingExamples: PRODUCT_DEVELOPMENT_NAME_EXAMPLES,
@@ -2996,6 +3594,7 @@
         warnings: validated.warnings,
         provider: validated.provider,
         model: validated.model,
+        plainTextCopy: '',
         productNaming: validated.productNaming,
         fileName,
         createdAt: new Date().toLocaleString(),
@@ -3036,7 +3635,15 @@
   }
 
   function productDevelopmentReviewEditorHtml(result, items) {
-    const rows = (Array.isArray(items) ? items : []).map((item, index) => {
+    const list = Array.isArray(items) ? items : [];
+    const riskCount = list.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
+    const warnings = result && Array.isArray(result.warnings)
+      ? result.warnings.map((item) => productDevelopmentCompactSemanticText(item, 240)).filter(Boolean).slice(0, 12)
+      : [];
+    const warningHtml = warnings.length
+      ? '<div class="pfh-product-development-review-editor-warnings"><strong>识别提醒</strong><div>' + warnings.map((item) => '<span>' + escapeHtml(item) + '</span>').join('') + '</div></div>'
+      : '';
+    const rows = list.map((item, index) => {
       const isRisk = Array.isArray(item && item.riskTypes) && item.riskTypes.length;
       const actionLabel = item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.remove
         ? '删除禁词'
@@ -3044,16 +3651,42 @@
           ? '更换 Logo'
           : item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeCount
             ? '数量统一为 60'
+            : item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.standardizeNetContent
+              ? '统一净含量'
+              : item && item.revisionAction === PRODUCT_DEVELOPMENT_REVIEW_ACTIONS.replacePhrase
+                ? '替换表述'
             : '';
-      const riskText = isRisk ? item.riskTypes.join('、') + (actionLabel ? ' · ' + actionLabel : '') + (Array.isArray(item.riskTerms) && item.riskTerms.length ? ' · ' + item.riskTerms.join('、') : '') : '';
+      const riskText = isRisk ? item.riskTypes.join('、') + (actionLabel ? ' · ' + actionLabel : '') : '';
+      const riskReason = productDevelopmentCompactSemanticText(item && (item.riskReason || item.reason || item.warning), 400)
+        || (Array.isArray(item && item.riskTerms) && item.riskTerms.length ? '识别到：' + item.riskTerms.join('、') : '请人工确认该文字是否需要替换。');
+      const options = isRisk && Array.isArray(item && item.replacementOptions)
+        ? item.replacementOptions.map((option) => ({
+          en: productDevelopmentCompactSemanticText(option && (option.en || option.english || option.replacementEn), 300),
+          zh: productDevelopmentCompactSemanticText(option && (option.zh || option.chinese || option.translation), 300),
+        })).filter((option) => option.en || option.zh).slice(0, 3)
+        : [];
+      const optionHtml = isRisk
+        ? '<div class="pfh-product-development-review-options' + (options.length ? '' : ' is-empty') + '"><small>建议替换备选</small>' + (options.length
+          ? options.map((option) => '<div class="pfh-product-development-review-option"><span>' + escapeHtml(option.en || '—') + '</span><em>' + escapeHtml(option.zh || '—') + '</em></div>').join('')
+          : '<span>暂无备选，请直接编辑右侧改写。</span>') + '</div>'
+        : '';
+      const riskHtml = isRisk
+        ? '<div class="pfh-product-development-review-risk-detail"><strong>侵权提醒</strong><span>' + escapeHtml(riskReason) + '</span></div>' + optionHtml
+        : '';
       const rowClass = isRisk ? ' is-risk' : ' is-clear';
-      return '<article class="pfh-product-development-review-editor-row' + rowClass + '"><div class="pfh-product-development-review-editor-head"><b>' + (index + 1) + '</b><span>' + escapeHtml(riskText) + '</span><button type="button" data-action="product-development-review-remove" data-review-index="' + index + '">删除</button></div>' +
-        '<label>原图文字<input type="text" class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="sourceText" value="' + escapeHtml(item.sourceText) + '"></label>' +
-        '<label>英文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementEn" rows="2">' + escapeHtml(item.replacementEn) + '</textarea></label>' +
-        '<label>中文修改<textarea class="pfh-product-development-review-input" data-review-index="' + index + '" data-review-field="replacementZh" rows="2">' + escapeHtml(item.replacementZh) + '</textarea></label></article>';
+      return '<article class="pfh-product-development-review-editor-row' + rowClass + '"><div class="pfh-product-development-review-editor-head"><b>' + String(index + 1).padStart(2, '0') + '</b>' +
+        (isRisk ? '<span class="pfh-product-development-review-risk-badge">风险 · ' + escapeHtml(riskText) + '</span>' : '<span class="pfh-product-development-review-clear-badge">可保留</span>') +
+        '<button type="button" aria-label="删除第 ' + (index + 1) + ' 个文字块" data-action="product-development-review-remove" data-review-index="' + index + '">×</button></div>' +
+        '<div class="pfh-product-development-review-editor-columns"><textarea class="pfh-product-development-review-input is-original" data-review-index="' + index + '" data-review-field="sourceText" rows="2" aria-label="英文原文" placeholder="图片原文（可编辑）">' + escapeHtml(productDevelopmentCompactSemanticText(item && item.sourceText, 240)) + '</textarea>' +
+        '<div class="pfh-product-development-review-editor-revised"><textarea class="pfh-product-development-review-input is-rewrite" data-review-index="' + index + '" data-review-field="replacementEn" rows="2" aria-label="英文改写" placeholder="English rewrite / 英文改写">' + escapeHtml(productDevelopmentCompactSemanticText(item && item.replacementEn, 300)) + '</textarea>' +
+        '<textarea class="pfh-product-development-review-input is-translation" data-review-index="' + index + '" data-review-field="replacementZh" rows="2" aria-label="中文翻译" placeholder="中文翻译">' + escapeHtml(productDevelopmentCompactSemanticText(item && (item.replacementZh || item.translationZh), 300)) + '</textarea>' + riskHtml + '</div></div></article>';
     }).join('');
     const empty = rows ? '' : '<div class="pfh-product-development-result-empty">未检测到可靠风险文字，可手动添加需要核对的图片文字。</div>';
-    return '<section class="pfh-product-development-review-editor"><header><div><small>MANUAL REVIEW</small><h3>人工修改对照内容</h3></div><span>修改后点击重新生成</span></header>' + empty + '<div class="pfh-product-development-review-editor-list">' + rows + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!result || state.productDevelopmentReviewBusy ? ' disabled' : '') + '>按修改重新生成对照图</button></div></section>';
+    const isOpen = Boolean(state.productDevelopmentReviewEditorOpen);
+    return '<div class="pfh-product-development-review-editor-float' + (isOpen ? ' is-open' : '') + '" aria-hidden="' + (isOpen ? 'false' : 'true') + '"><button type="button" class="pfh-product-development-review-editor-backdrop" data-action="product-development-review-editor-close" aria-label="关闭编辑浮窗"></button><section class="pfh-product-development-review-editor" role="dialog" aria-modal="true" aria-label="图片文字编辑浮窗"><header><div><small>EDITABLE COPY</small><h3>图片文字紧凑校对</h3></div><span>' + list.length + ' 个文字块 · ' + riskCount + ' 个风险</span><button type="button" class="pfh-product-development-review-editor-close" data-action="product-development-review-editor-close" aria-label="关闭编辑浮窗">×</button></header>' +
+      '<div class="pfh-product-development-review-editor-legend"><span><i class="is-original">原文</i> 可编辑</span><span><i class="is-rewrite">英文改写</i> 可编辑</span><span><i class="is-translation">中文翻译</i> 可编辑</span><small>语义块保留换行，不插入空行</small></div>' + warningHtml + empty +
+      '<div class="pfh-product-development-review-editor-columns-head"><span>English Original / 英文原文</span><span><i class="is-rewrite">EN</i> Revised Copy · <i class="is-translation">中</i> 中文翻译</span></div>' +
+      '<div class="pfh-product-development-review-editor-list">' + rows + '</div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-review-add">手动添加文字</button><button type="button" data-action="product-development-review-recompose"' + (!result || state.productDevelopmentReviewBusy ? ' disabled' : '') + '>按修改重新生成对照图</button></div></section></div>';
   }
 
   function productDevelopmentProductNamingHtml(result) {
@@ -3068,6 +3701,13 @@
       '</section>';
   }
 
+  function productDevelopmentPlainTextCopyHtml(result) {
+    const value = productDevelopmentCleanText(result && (result.plainTextCopy || result.approvedPlainText || result.finalCopy), 12000);
+    return '<section class="pfh-product-development-plain-copy"><header><div><small>APPROVED PLAIN COPY</small><h3>纯文字文案版本</h3></div><span>仅本地缓存 · 输入即保存</span></header>' +
+      '<textarea class="pfh-product-development-plain-copy-input" data-review-plain-copy rows="6" aria-label="用户确定的纯文字文案版本" placeholder="把用户确定好的纯文字文案粘贴到这里；输入后会自动保存到当前 SKU 缓存，不需要点击确定。">' + escapeHtml(value) + '</textarea>' +
+      '<small>仅作为当前 SKU 的本地缓存备忘，不会调用 API、不会写入 PLM，也不会触发重新生成对照图。</small></section>';
+  }
+
   async function recomposeProductDevelopmentReview() {
     const result = state.productDevelopmentReview;
     if (!result || !result.sourceImageDataUrl) {
@@ -3076,7 +3716,7 @@
     }
     const items = Array.isArray(result.items) ? result.items : [];
     if (items.some(productDevelopmentReviewItemIncomplete)) {
-      showToast('请补全原图文字、英文修改和中文修改');
+      showToast('请补全原文、英文改写和中文翻译');
       return;
     }
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === result.sku
@@ -3217,14 +3857,14 @@
     const source = value && typeof value === 'object' ? value.sections || value : {};
     const list = (key) => Array.isArray(source[key]) ? source[key] : [];
     return {
-      efficacy: list('efficacy').map((item) => productDevelopmentPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
-      advantages: list('advantages').map((item) => productDevelopmentPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
+      efficacy: list('efficacy').map((item) => productDevelopmentCopywritingPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
+      advantages: list('advantages').map((item) => productDevelopmentCopywritingPairValues(typeof item === 'object' ? item : { cn: item })).filter((item) => item.cn || item.en),
       sellingPoints: list('sellingPoints').map((item, index) => {
         const sourceItem = item && typeof item === 'object' ? item : { cn: item };
         const titleEn = productDevelopmentNormalizeCopywritingTitle(sourceItem.titleEn || sourceItem.title_en || sourceItem.titleEnglish);
         const titleCn = productDevelopmentNormalizeCopywritingTitle(sourceItem.titleCn || sourceItem.title_cn || sourceItem.titleChinese);
-        const rawEn = productDevelopmentCleanText(sourceItem.en || sourceItem.english, 400);
-        const rawCn = productDevelopmentCleanText(sourceItem.cn || sourceItem.chinese, 400);
+        const rawEn = productDevelopmentCopywritingText(sourceItem.en || sourceItem.english, 400);
+        const rawCn = productDevelopmentCopywritingText(sourceItem.cn || sourceItem.chinese, 400);
         const en = index < 4 && titleEn && rawEn.toLowerCase().startsWith(titleEn.toLowerCase())
           ? rawEn.slice(titleEn.length).replace(/^[:：]\s*/, '').trim()
           : rawEn;
@@ -3243,8 +3883,8 @@
         return {
           ingredientEn: productDevelopmentCleanText(sourceItem.ingredientEn || sourceItem.englishName, 300),
           ingredientCn: productDevelopmentCleanText(sourceItem.ingredientCn || sourceItem.chineseName, 300),
-          en: productDevelopmentCleanText(sourceItem.en || sourceItem.english, 400),
-          cn: productDevelopmentCleanText(sourceItem.cn || sourceItem.chinese, 400),
+          en: productDevelopmentCopywritingText(sourceItem.en || sourceItem.english, 400),
+          cn: productDevelopmentCopywritingText(sourceItem.cn || sourceItem.chinese, 400),
         };
       }).filter((item) => item.ingredientEn || item.ingredientCn || item.cn || item.en),
     };
@@ -3259,7 +3899,7 @@
   }
 
   function productDevelopmentNormalizeCopywritingTitle(value) {
-    return productDevelopmentCleanText(value, 100)
+    return productDevelopmentCopywritingText(value, 100)
       .replace(/^\s*\d+\s*[.)、:：-]?\s*/, '')
       .replace(/[:：]\s*$/, '')
       .trim();
@@ -3273,19 +3913,28 @@
     if (result.advantages.length !== 4) errors.push('B 产品优势必须为 4 条');
     if (result.sellingPoints.length !== 15) errors.push('C 产品卖点必须为 15 条');
     if (result.ingredientFunctions.length !== expected.length) errors.push('D 成分功能必须覆盖全部有效成分');
-    const allText = [];
+    const complianceTexts = [];
+    const addComplianceText = (label, text) => {
+      const value = String(text || '');
+      if (value) complianceTexts.push({ label, value });
+    };
     result.efficacy.forEach((item, index) => {
-      allText.push(item.en, item.cn);
+      addComplianceText('A 第 ' + (index + 1) + ' 条英文', item.en);
+      addComplianceText('A 第 ' + (index + 1) + ' 条中文', item.cn);
       if (!item.en || !item.cn) errors.push('A 第 ' + (index + 1) + ' 条中英文不完整');
       if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 20) errors.push('A 第 ' + (index + 1) + ' 条超出长度');
     });
     result.advantages.forEach((item, index) => {
-      allText.push(item.en, item.cn);
+      addComplianceText('B 第 ' + (index + 1) + ' 条英文', item.en);
+      addComplianceText('B 第 ' + (index + 1) + ' 条中文', item.cn);
       if (!item.en || !item.cn) errors.push('B 第 ' + (index + 1) + ' 条中英文不完整');
       if (productDevelopmentChineseCount(item.cn) > 15 || productDevelopmentEnglishWordCount(item.en) > 8) errors.push('B 第 ' + (index + 1) + ' 条超出长度');
     });
     result.sellingPoints.forEach((item, index) => {
-      allText.push(item.titleEn, item.titleCn, item.en, item.cn);
+      addComplianceText('C 第 ' + (index + 1) + ' 条英文标题', item.titleEn);
+      addComplianceText('C 第 ' + (index + 1) + ' 条中文标题', item.titleCn);
+      addComplianceText('C 第 ' + (index + 1) + ' 条英文', item.en);
+      addComplianceText('C 第 ' + (index + 1) + ' 条中文', item.cn);
       if (!item.en || !item.cn) errors.push('C 第 ' + (index + 1) + ' 条中英文不完整');
       const ingredientKeys = expected.flatMap((ingredient) => [ingredient && ingredient.en, ingredient && ingredient.cn])
         .map(productDevelopmentNormalizedClaimText)
@@ -3296,24 +3945,17 @@
       });
       if (index < 4) {
         if (!item.titleEn || !item.titleCn) errors.push('C 第 ' + (index + 1) + ' 条必须有中英文小标题');
-        const titleWords = productDevelopmentEnglishWordCount(item.titleEn);
-        if (titleWords < 3 || titleWords > 4) errors.push('C 第 ' + (index + 1) + ' 条英文小标题需为 3-4 个词');
         if (titleHasIngredient) errors.push('C 第 ' + (index + 1) + ' 条小标题不能写成分');
-        if (productDevelopmentChineseCount(item.cn) > 24 || productDevelopmentChineseCount(item.cn) < 8) {
-          errors.push('C 第 ' + (index + 1) + ' 条正文超出中文长度规则');
-        }
       } else {
         if (item.titleEn || item.titleCn) errors.push('C 第 ' + (index + 1) + ' 条不能有小标题');
-        if (productDevelopmentChineseCount(item.cn) < 12 || productDevelopmentChineseCount(item.cn) > 22) {
-          errors.push('C 第 ' + (index + 1) + ' 条正文应接近 20 个汉字');
-        }
-      }
-      if (productDevelopmentEnglishWordCount(item.en) < 6 || productDevelopmentEnglishWordCount(item.en) > 14) {
-        errors.push('C 第 ' + (index + 1) + ' 条英文正文超出长度');
       }
     });
     result.ingredientFunctions.forEach((item, index) => {
-      allText.push(item.ingredientEn, item.ingredientCn, item.en, item.cn);
+      // ingredientEn/ingredientCn are PLM source labels. They must match the
+      // input ingredients, but a source ingredient name must not invalidate the
+      // generated copywriting compliance check by itself.
+      addComplianceText('D 第 ' + (index + 1) + ' 条英文', item.en);
+      addComplianceText('D 第 ' + (index + 1) + ' 条中文', item.cn);
       if (!item.en || !item.cn) errors.push('D 第 ' + (index + 1) + ' 条中英文不完整');
       const target = expected[index] || {};
       const targetKey = productDevelopmentNormalizedClaimText(target.en || target.cn);
@@ -3322,16 +3964,32 @@
       if (productDevelopmentChineseCount(item.cn) > 20 || productDevelopmentEnglishWordCount(item.en) > 18) errors.push('D 第 ' + (index + 1) + ' 条超出长度');
     });
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
-    const invalid = allText.find((text) => productDevelopmentFindBannedTerm(text, brand) || String(text || '').includes('*') || /\n\s*\n/.test(String(text || '')));
-    if (invalid) errors.push('输出包含禁词、品牌词、星号或空行');
+    const invalid = complianceTexts.map((entry) => {
+      const term = productDevelopmentFindBannedTerm(entry.value, brand);
+      if (term) return entry.label + '含限制词“' + term + '”';
+      if (entry.value.includes('*')) return entry.label + '含星号';
+      if (/\n\s*\n/.test(entry.value)) return entry.label + '含空行';
+      return '';
+    }).find(Boolean);
+    if (invalid) errors.push(invalid);
     if (errors.length) throw new Error(errors.slice(0, 5).join('；'));
     return result;
   }
 
   function productDevelopmentFriendlyCopywritingError(error) {
     const message = formatErrorMessage(error);
+    if (/产品资料读取|PLM 卖点读取|PLM 产品详情读取|成分表读取/.test(message) && /超时|失败/.test(message)) {
+      return '产品资料读取超时或失败，已保留本地缓存；请稍后重试，日志中可查看具体阶段。';
+    }
+    if (/restricted term|含限制词|asterisk|blank line|星号|空行/i.test(message)) {
+      const termMatch = message.match(/restricted term\s+["“]([^"”]+)["”]/i) || message.match(/含限制词[“"]([^”"]+)[”"]/i);
+      const term = termMatch ? termMatch[1] : '';
+      return term
+        ? '文案生成未完成：生成内容命中限制词“' + term + '”，请再次生成。'
+        : '文案生成未完成：生成内容包含限制词或格式异常，请再次生成。';
+    }
     if (/C item|C 第|sellingPoints|小标题|title must|must not have a title|about 20 Chinese/i.test(message)) {
-      return '文案生成未完成：C 产品卖点必须为 15 条，前 4 条有 3-4 词小标题，后 11 条不带小标题且正文不能过短，请再次生成。';
+      return '文案生成未完成：C 产品卖点必须为 15 条，前 4 条有双语小标题，后 11 条不带小标题，请再次生成。';
     }
     if (/ModelScope|Gemini|timeout|timed out|aborted|bilingual|中英文不完整|copywriting completion|must contain/i.test(message)) {
       return '文案生成未完成：AI 响应超时或中英文内容不完整，请再次点击生成。系统会自动切换备用模型。';
@@ -3392,32 +4050,53 @@
       showToast('请先在设计任务中打开或选择当前 SKU');
       return;
     }
+    if (state.productDevelopmentCopywritingBusy) {
+      productDevelopmentLog('warn', '忽略重复生成请求', sku + ' | 当前任务仍在执行');
+      return;
+    }
+    const startedAt = Date.now();
+    let stage = '准备';
     state.productDevelopmentCopywritingBusy = true;
     state.productDevelopmentError = '';
-    state.productDevelopmentStatus = '正在读取当前 SKU 的成分和卖点…';
+    state.productDevelopmentStatus = '正在检查本地成分缓存并读取产品资料…';
+    productDevelopmentLog('info', '开始生成 A-D 文案', sku + ' | 本地成分缓存=' + productDevelopmentCachedIngredientPairs(sku).length + ' 项');
     renderShell();
     try {
-      const snapshot = await loadProductDevelopmentSnapshot(sku, true, { requireIngredients: true, includeImage: false });
-      state.productDevelopmentStatus = '正在一次性生成完整 A-D 文案，最长等待约 5 分钟…';
+      stage = '读取产品资料与成分缓存';
+      const snapshot = await withCopywritingTimeout(
+        loadProductDevelopmentSnapshot(sku, false, { requireIngredients: true, includeImage: false, preferCachedIngredients: true }),
+        180000,
+        '产品资料读取',
+      );
+      productDevelopmentLog('success', '产品资料与成分读取完成', sku + ' | 成分=' + snapshot.ingredients.length + ' 项 | 用时=' + (Date.now() - startedAt) + 'ms');
+      state.productDevelopmentStatus = '正在一次性生成完整 A-D 文案，最长等待约 10 分钟…';
       renderShell();
-      const response = await cloudRequest('/ai-image/product-development-copywriting', {
-        method: 'POST',
-        timeoutMs: 420000,
-        body: {
-          sku: snapshot.sku,
-          name: snapshot.name,
-          productType: snapshot.productType,
-          brand: snapshot.brand,
-          ingredients: snapshot.ingredients,
-          ingredientSummary: snapshot.ingredientSummary,
-          ingredientFunctions: snapshot.ingredientFunctions,
-          sourceCopywriting: snapshot.sourceCopywriting,
-          templateVersion: state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION,
-        },
-      });
+      stage = 'AI 生成完整文案';
+      const response = await withCopywritingTimeout(
+        cloudRequest('/ai-image/product-development-copywriting', {
+          method: 'POST',
+          timeoutMs: 600000,
+          body: {
+            sku: snapshot.sku,
+            name: snapshot.name,
+            productType: snapshot.productType,
+            brand: snapshot.brand,
+            ingredients: snapshot.ingredients,
+            ingredientSummary: snapshot.ingredientSummary,
+            ingredientFunctions: snapshot.ingredientFunctions,
+            sourceCopywriting: snapshot.sourceCopywriting,
+            templateVersion: state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION,
+          },
+        }),
+        620000,
+        'AI 文案生成',
+      );
+      productDevelopmentLog('success', 'AI 文案返回', sku + ' | provider=' + productDevelopmentCleanText(response && response.provider, 80) + ' | model=' + productDevelopmentCleanText(response && response.model, 120) + ' | 用时=' + (Date.now() - startedAt) + 'ms');
+      stage = '校验中英文条目';
       const content = productDevelopmentValidateCopywriting(response, snapshot);
       state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
       renderShell();
+      stage = '生成 DOCX';
       const blob = await buildProductDevelopmentDocx(content, state.productDevelopmentTemplateBase64);
       const id = 'pd-copywriting-' + Date.now().toString(36);
       const fileName = productDevelopmentFileName(snapshot.sku, 'copywriting-A-D', 'docx');
@@ -3443,8 +4122,10 @@
         templateVersion: state.productDevelopmentCopywriting.templateVersion,
       });
       state.productDevelopmentStatus = 'A-D 文案 DOCX 已生成，未向 PLM 回写';
+      productDevelopmentLog('success', 'A-D 文案 DOCX 生成完成', sku + ' | 条目=' + (content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length) + ' | 总用时=' + (Date.now() - startedAt) + 'ms');
       showToast('A-D 文案 DOCX 已生成');
     } catch (error) {
+      productDevelopmentLog('error', 'A-D 文案生成失败', sku + ' | 阶段=' + stage + ' | 用时=' + (Date.now() - startedAt) + 'ms | ' + formatErrorMessage(error));
       state.productDevelopmentError = productDevelopmentFriendlyCopywritingError(error);
       state.productDevelopmentStatus = '';
       showToast(state.productDevelopmentError);
@@ -3565,6 +4246,7 @@
     state.workMode = 'product-development';
     state.settings.workMode = 'product-development';
     saveSettings(state.settings);
+    state.productDevelopmentReviewEditorOpen = false;
     state.productDevelopmentError = '';
     if (item.kind === 'review' && item.comparisonDataUrl) {
       state.productDevelopmentView = 'review';
@@ -3644,12 +4326,14 @@
     const extractedTexts = canShowResult && Array.isArray(result.extractedTexts) ? result.extractedTexts : [];
     const riskCount = items.filter((item) => Array.isArray(item && item.riskTypes) && item.riskTypes.length).length;
     const extractedSummary = extractedTexts.length ? '<div class="pfh-product-development-preview-note"><strong>已读取 ' + extractedTexts.length + ' 项文字，识别风险 ' + riskCount + ' 项。</strong></div>' : '';
-    const preview = result && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>预览按容器自适应，下载 PNG 保留大字版</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><button type="button" data-action="product-development-review-download">下载 PNG</button></section>' : '';
+    const canEditResult = canShowResult && !result.fromHistory;
+    const preview = canShowResult && result.comparisonDataUrl ? '<section class="pfh-product-development-preview"><div class="pfh-product-development-preview-head"><strong>三列对照图预览</strong><small>预览按容器自适应，下载 PNG 保留大字版</small></div><div class="pfh-product-development-preview-scroll"><img src="' + escapeHtml(result.comparisonDataUrl) + '" alt="侵权对照图" style="display:block;width:100%;min-width:0;max-width:100%;height:auto;object-fit:contain"></div><div class="pfh-product-development-preview-actions">' + (canEditResult ? '<button type="button" data-action="product-development-review-editor-open">浮窗编辑文字</button>' : '') + '<button type="button" data-action="product-development-review-download">下载 PNG</button></div></section>' : '';
     const list = canShowResult
       ? (result.fromHistory
         ? '<section class="pfh-product-development-history-readonly"><strong>本地历史对照图</strong><p>当前打开的是已保存的 PNG 结果，可查看和下载。若要修改文字，请重新分析当前对标图片。</p></section>'
-        : productDevelopmentReviewEditorHtml(result, items))
+        : '')
       : '<div class="pfh-product-development-result-empty">完成分析后，这里会列出原图文字、风险类型和修改内容，并支持手动修改。</div>';
+    const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
       '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>使用当前 SKU 的对标图片生成三列对照图。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
@@ -3657,7 +4341,8 @@
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
       (canShowResult ? productDevelopmentProductNamingHtml(result) : '') +
-      preview + list +
+      (canEditResult ? productDevelopmentPlainTextCopyHtml(result) : '') +
+      preview + list + editor +
       '<p class="pfh-product-development-note">结果仅在本地生成，不修改原图或写入 PLM。</p></div>';
   }
 
@@ -3676,12 +4361,17 @@
     const sku = getProductDevelopmentCurrentSku();
     const content = state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.sku === sku ? state.productDevelopmentCopywriting.content : null;
     const templateLabel = state.productDevelopmentTemplateBase64 ? '已使用本地模板' : '内置模板';
-    const ingredientCount = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot.ingredients.length : '--';
+    const snapshotIngredientCount = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku && Array.isArray(state.productDevelopmentSnapshot.ingredients)
+      ? state.productDevelopmentSnapshot.ingredients.length
+      : 0;
+    const cachedIngredientCount = productDevelopmentCachedIngredientPairs(sku).length;
+    const ingredientCount = snapshotIngredientCount || cachedIngredientCount;
+    const ingredientSourceLabel = snapshotIngredientCount ? '' : (cachedIngredientCount ? '（本地缓存）' : '');
     const displayError = state.productDevelopmentError && !/效果图|对标图片/.test(String(state.productDevelopmentError)) ? state.productDevelopmentError : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>产品文案</small><h2>生成双语文案</h2></div></header>' +
       '<section class="pfh-product-development-work-card"><div><h3>生成产品文案 DOCX</h3><p>根据当前产品名称、成分和卖点生成中英文内容，并自动填入 Word 模板。</p></div><button type="button" data-action="product-development-copywriting-run"' + (state.productDevelopmentCopywritingBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentCopywritingBusy ? '正在生成…' : '生成文案 DOCX') + '</button></section>' +
-      '<section class="pfh-product-development-template-card"><div><small>当前模板</small><strong>' + escapeHtml(templateLabel) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">使用内置模板</button><span>已读取成分：' + escapeHtml(String(ingredientCount)) + ' 个</span></section>' +
+      '<section class="pfh-product-development-template-card"><div><small>当前模板</small><strong>' + escapeHtml(templateLabel) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">使用内置模板</button><span>已读取成分：' + escapeHtml(ingredientCount ? String(ingredientCount) + ' 个' + ingredientSourceLabel : '待读取') + '</span></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (displayError ? '<p class="pfh-product-development-error">' + escapeHtml(displayError) + '</p>' : '') +
       (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + escapeHtml(state.productDevelopmentCopywriting.fileName) + '</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>' : '') +
@@ -3700,11 +4390,13 @@
   function productDevelopmentHandleAction(action, actionTarget) {
     if (action === 'work-mode') {
       if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
       setProductDevelopmentWorkMode(actionTarget && actionTarget.getAttribute('data-work-mode'));
       return true;
     }
     if (action === 'product-development-home') {
       if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
       state.view = 'home';
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
@@ -3717,6 +4409,7 @@
     }
     if (action === 'product-development-tasks-home') {
       if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      state.productDevelopmentReviewEditorOpen = false;
       state.view = 'home';
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
@@ -3746,6 +4439,14 @@
       state.productDevelopmentTaskMeta[sku] = meta;
       state.productDevelopmentStatus = '产品品牌、名称和返工编码已保存到本地';
       renderShell();
+      return true;
+    }
+    if (action === 'product-development-product-save-local') {
+      productDevelopmentSaveProductDetailLocally(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
+      return true;
+    }
+    if (action === 'product-development-product-save-plm') {
+      productDevelopmentRunProductDetailPlmSave(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
     if (action === 'product-development-bom-save-local') {
@@ -3802,6 +4503,7 @@
       return true;
     }
     if (action === 'product-development-review-open') {
+      state.productDevelopmentReviewEditorOpen = false;
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
@@ -3825,6 +4527,21 @@
       runProductDevelopmentReview();
       return true;
     }
+    if (action === 'product-development-review-editor-open') {
+      const result = state.productDevelopmentReview;
+      if (!result || result.fromHistory) {
+        showToast('当前结果不可编辑，请重新分析当前对标图片');
+        return true;
+      }
+      state.productDevelopmentReviewEditorOpen = true;
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-review-editor-close') {
+      state.productDevelopmentReviewEditorOpen = false;
+      renderShell();
+      return true;
+    }
     if (action === 'product-development-review-add') {
       const result = state.productDevelopmentReview;
       if (!result) {
@@ -3845,7 +4562,7 @@
         confidence: 0,
       });
       saveProductDevelopmentReviewDraft(result);
-      state.productDevelopmentStatus = '已添加手动文字项，请填写原文和修改内容';
+      state.productDevelopmentStatus = '已添加手动文字项，请填写原文、英文改写和中文翻译';
       renderShell();
       return true;
     }
@@ -3969,8 +4686,12 @@
         const match = key.match(/^(\d+)\.displayValue$/);
         const item = match && Array.isArray(detail.attachments) ? detail.attachments[Number(match[1])] : null;
         if (item) {
-          item.displayValue = String(target.value || '').slice(0, 800);
+          const value = String(target.value || '').slice(0, 800);
+          item.value = Array.isArray(item.value) ? (value ? [value] : []) : value;
+          item.displayValue = value;
           item.status = item.displayValue.trim() ? '已填写（本地）' : '未读取';
+          productDevelopmentRememberLocalProductField(detail, item, item.value, item.displayValue);
+          productDevelopmentMarkProductDetailDirty(detail);
           persistDetail();
           return true;
         }
@@ -3988,6 +4709,13 @@
         field.displayValue = field.value;
         field.status = field.value.trim() ? '已填写（本地）' : '待补充';
         field.source = field.value.trim() ? '本地人工填写（未写入）' : '待人工补充';
+        if (group === 'product' || group === 'price') {
+          productDevelopmentRememberLocalProductField(detail, field, field.value, field.displayValue);
+          productDevelopmentMarkProductDetailDirty(detail);
+        } else if (group === 'base' && ['productNameCn', 'productNameEn'].includes(key)) {
+          productDevelopmentRememberLocalProductName(detail, key, field.value);
+          productDevelopmentMarkProductDetailDirty(detail);
+        }
         persistDetail();
       }
       return true;
@@ -4026,6 +4754,14 @@
         result.productNaming = productDevelopmentNormalizeProductNaming(result.productNaming);
         result.productNaming[field] = productDevelopmentCleanText(target.value, 180);
         saveProductDevelopmentReviewDraft(result);
+      }
+      return true;
+    }
+    if (target.classList.contains('pfh-product-development-plain-copy-input')) {
+      const result = state.productDevelopmentReview;
+      if (result && !result.fromHistory) {
+        result.plainTextCopy = productDevelopmentCleanText(target.value, 12000);
+        scheduleProductDevelopmentReviewDraftSave(result);
       }
       return true;
     }
