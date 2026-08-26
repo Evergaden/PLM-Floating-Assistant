@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.222
+// @version      2.8.223
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.222';
+  const SCRIPT_VERSION = '2.8.223';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -12136,7 +12136,7 @@
 
   function getApiPrintMaterialDimensions(item) {
     const source = getApiMaterialSourceText(item);
-    const markers = Array.from(source.matchAll(/印刷尺寸/ig));
+    const markers = Array.from(source.matchAll(/(?:印刷|丝印)(?:尺寸|规格)/ig));
     const explicitSource = markers.length
       ? source.slice(Number(markers[markers.length - 1].index) || 0)
       : '';
@@ -12194,7 +12194,7 @@
   }
 
   function getApiPrintDisplayName(item) {
-    const pattern = /(标签|印刷软管|印刷尺寸|印刷管|印刷瓶|印刷乳液瓶|印刷)/;
+    const pattern = /(标签|丝印尺寸|丝印|印刷软管|印刷尺寸|印刷管|印刷瓶|印刷乳液瓶|印刷)/;
     const name = item && (item.name || item.material_name || item.materialName);
     const category = item && (item.category_name || item.categoryName);
     const raw = getApiMaterialDisplayName(name, pattern)
@@ -12894,13 +12894,13 @@
     const text = String(row || '');
     if (/说明书|使用说明/.test(text)) return false;
     const excludedPackaging = /(\u8bf4\u660e\u4e66|\u5370\u5237\u81ea\u7acb\u888b|\u5370\u5237\u888b|\u5305\u88c5\u888b|\u94dd\u7b94\u888b|\u81ea\u5c01\u888b|\u888b\u5b50)/.test(text);
-    const hasExplicitPrintSize = /\u5370\u5237\s*[:\uff1a]?\s*(?:\u5c3a\u5bf8\s*[:\uff1a]?\s*)?(?:\u957f|\u5bbd|\u9ad8)?\s*\d/i.test(text) && hasPrintDimensionText(text);
+    const hasExplicitPrintSize = /(?:\u5370\u5237|\u4e1d\u5370)\s*[:\uff1a]?\s*(?:\u5c3a\u5bf8\s*[:\uff1a]?\s*)?(?:\u957f|\u5bbd|\u9ad8)?\s*\d/i.test(text) && hasPrintDimensionText(text);
     // PLM categories are sometimes entered as "printed bag" even when the material description clearly identifies a tube.
     // A real printed bag with an explicitly labeled print size is both packaging and a printable material.
     if (excludedPackaging && !isTubePrintRow(text) && !hasExplicitPrintSize) return false;
-    return (/\u5305\u6750/.test(text) && /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6)/.test(text))
-      || (/\u5305\u6750/.test(text) && /\u5370\u5237/.test(text) && hasPrintDimensionText(text))
-      || (/\u5370\u5237(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6)/.test(text) && hasPrintDimensionText(text));
+    return (/\u5305\u6750/.test(text) && /(\u6807\u7b7e|\u4e1d\u5370|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6)/.test(text))
+      || (/\u5305\u6750/.test(text) && /(?:\u5370\u5237|\u4e1d\u5370)/.test(text) && hasPrintDimensionText(text))
+      || (/(?:\u5370\u5237|\u4e1d\u5370)(?:\u74f6|\u7ba1|\u8f6f\u7ba1|\u4e73\u6db2\u74f6|\u5c3a\u5bf8)/.test(text) && hasPrintDimensionText(text));
   }
 
   function getProjectField(text, fieldName) {
@@ -12996,18 +12996,19 @@
   }
 
   function getCombinedPrintLabel(rows) {
-    const labels = rows.map((row) => cleanPrintLabel(getMaterialDisplayName(row, /(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6|\u5370\u5237)/) || extractPrintLabelFallback(row))).filter(Boolean);
+    const labels = rows.map((row) => cleanPrintLabel(getMaterialDisplayName(row, /(\u6807\u7b7e|\u4e1d\u5370|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6|\u5370\u5237)/) || extractPrintLabelFallback(row))).filter(Boolean);
     return labels.filter((label, index) => labels.indexOf(label) === index).join('\uff1b');
   }
 
   function extractPrintLabelFallback(row) {
-    const match = String(row || '').match(/(\u6807\u7b7e|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6|\u5370\u5237)/);
+    const match = String(row || '').match(/(\u6807\u7b7e|\u4e1d\u5370|\u5370\u5237\u8f6f\u7ba1|\u5370\u5237\u5c3a\u5bf8|\u5370\u5237\u7ba1|\u5370\u5237\u74f6|\u5370\u5237\u4e73\u6db2\u74f6|\u5370\u5237)/);
     return match ? match[1] : '';
   }
 
   function cleanPrintLabel(label) {
     const text = compactText(label);
     if (/\u5370\u5237(?:\u4e73\u6db2\u74f6|\u8f6f\u7ba1|\u7ba1|\u74f6)/.test(text) || (/\u8f6f\u7ba1/.test(text) && /\u5370\u5237/.test(text))) return '\u5370\u5237';
+    if (/\u4e1d\u5370(?:\u4e73\u6db2\u74f6|\u8f6f\u7ba1|\u7ba1|\u74f6)/.test(text)) return '\u4e1d\u5370';
     return text
       .replace(/\uff08\u4ef7\u683c\u5305\u542b\u4e8e\u534a\u6210\u54c1\uff09/g, '')
       .replace(/[\uff08(]\s*\u4ef7\u683c\u5305\u542b[\u5728\u4e8e]\s*\u534a\u6210\u54c1\s*[\uff09)]/g, '')
@@ -13066,13 +13067,13 @@
     const source = String(text || '');
     const axisDim = extractAxisDimensionString(source);
     if (axisDim) return axisDim;
-    const match = source.match(/\u5370\u5237(?:\u5c3a\u5bf8)?[^\d]{0,12}(\d+(?:\.\d+)?\s*[xX\u00d7*]\s*\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){0,4}\s*(?:cm|mm))/i);
+    const match = source.match(/(?:\u5370\u5237|\u4e1d\u5370)(?:\u5c3a\u5bf8|\u89c4\u683c)?[^\d]{0,12}(\d+(?:\.\d+)?\s*[xX\u00d7*]\s*\d+(?:\.\d+)?(?:\s*[xX\u00d7*]\s*\d+(?:\.\d+)?){0,4}\s*(?:cm|mm)?)/i);
     return match ? normalizeDimensionText(match[1]) : '';
   }
 
   function extractAxisDimensionString(text) {
     const source = String(text || '');
-    const match = source.match(/\u5370\u5237(?:\u5c3a\u5bf8)?[^\d]{0,12}?(\u957f|\u5bbd|\u9ad8)?\s*(\d+(?:\.\d+)?)\s*(cm|mm)?\s*(?:[xX\u00d7*]\s*)?(\u957f|\u5bbd|\u9ad8)\s*(\d+(?:\.\d+)?)\s*(cm|mm)/i);
+    const match = source.match(/(?:\u5370\u5237|\u4e1d\u5370)(?:\u5c3a\u5bf8|\u89c4\u683c)?[^\d]{0,12}?(\u957f|\u5bbd|\u9ad8)?\s*(\d+(?:\.\d+)?)\s*(cm|mm)?\s*(?:[xX\u00d7*]\s*)?(\u957f|\u5bbd|\u9ad8)\s*(\d+(?:\.\d+)?)\s*(cm|mm)?/i);
     if (!match) return '';
     const values = [
       { axis: match[1] || '', value: Number(match[2]) },
@@ -13080,7 +13081,14 @@
     ];
     const width = values.find((item) => item.axis === '\u5bbd');
     const height = values.find((item) => item.axis === '\u9ad8');
-    const orderedValues = width && height ? [width.value, height.value] : values.map((item) => item.value);
+    const length = values.find((item) => item.axis === '\u957f');
+    const orderedValues = width && height
+      ? [width.value, height.value]
+      : length && height
+      ? [length.value, height.value]
+      : length && width
+      ? [length.value, width.value]
+      : values.map((item) => item.value);
     const unit = (match[6] || match[3] || 'cm').toLowerCase();
     return normalizeDimensionParts(orderedValues, unit);
   }
