@@ -4853,15 +4853,31 @@
       '<w:document xmlns:w="' + PRODUCT_DEVELOPMENT_W_NS + '"><w:body><w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="8800" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="2200"/><w:gridCol w:w="2200"/><w:gridCol w:w="2200"/><w:gridCol w:w="2200"/></w:tblGrid>' + rows + '</w:tbl><w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr></w:body></w:document>';
   }
 
-  async function createProductDevelopmentBuiltinTemplate() {
+  function productDevelopmentBuiltinDocxFiles(documentXml) {
+    return {
+      '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>',
+      '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="' + PRODUCT_DEVELOPMENT_REL_NS + '"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+      'word/document.xml': documentXml,
+      'word/styles.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="' + PRODUCT_DEVELOPMENT_W_NS + '"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft YaHei"/><w:sz w:val="22"/></w:rPr></w:style></w:styles>',
+      'word/_rels/document.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="' + PRODUCT_DEVELOPMENT_REL_NS + '"></Relationships>',
+    };
+  }
+
+  async function createProductDevelopmentBuiltinDocx(documentXml) {
+    const files = productDevelopmentBuiltinDocxFiles(documentXml);
+    const Fflate = (typeof fflate !== 'undefined' && fflate) || (typeof unsafeWindow !== 'undefined' && unsafeWindow.fflate);
+    if (Fflate && typeof Fflate.zipSync === 'function' && typeof Fflate.strToU8 === 'function') {
+      const entries = Object.keys(files).reduce((result, name) => {
+        result[name] = Fflate.strToU8(files[name]);
+        return result;
+      }, {});
+      const bytes = Fflate.zipSync(entries, { level: 0 });
+      return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    }
     if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
     const zip = new JSZip();
-    zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
-    zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="' + PRODUCT_DEVELOPMENT_REL_NS + '"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-    zip.file('word/document.xml', productDevelopmentBuiltinDocumentXml());
-    zip.file('word/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="' + PRODUCT_DEVELOPMENT_W_NS + '"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft YaHei"/><w:sz w:val="22"/></w:rPr></w:style></w:styles>');
-    zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="' + PRODUCT_DEVELOPMENT_REL_NS + '"></Relationships>');
-    return zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+    Object.keys(files).forEach((name) => zip.file(name, files[name]));
+    return zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
   }
 
   function productDevelopmentXmlElements(node, tagName) {
@@ -5064,12 +5080,15 @@
   }
 
   async function buildProductDevelopmentDocx(content, templateBase64) {
-    if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
-    const buffer = templateBase64 ? base64ToArrayBuffer(templateBase64) : await createProductDevelopmentBuiltinTemplate();
-    const zip = await JSZip.loadAsync(buffer);
-    const documentFile = zip.file('word/document.xml');
-    if (!documentFile) throw new Error('模板缺少 word/document.xml');
-    const xml = await documentFile.async('string');
+    let zip = null;
+    let xml = productDevelopmentBuiltinDocumentXml();
+    if (templateBase64) {
+      if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
+      zip = await JSZip.loadAsync(base64ToArrayBuffer(templateBase64));
+      const documentFile = zip.file('word/document.xml');
+      if (!documentFile) throw new Error('模板缺少 word/document.xml');
+      xml = await documentFile.async('string');
+    }
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     if (!doc || doc.getElementsByTagName('parsererror').length) throw new Error('模板文档结构无法读取');
     const rows = productDevelopmentXmlElements(doc, 'tr');
@@ -5106,7 +5125,9 @@
     fill(targets.ingredientFunctions,
       productDevelopmentSectionLines(content.ingredientFunctions, (item, index) => index + '. ' + (item.ingredientEn || item.ingredientCn) + ': ' + item.en),
       productDevelopmentSectionLines(content.ingredientFunctions, (item, index) => index + '、' + (item.ingredientCn || item.ingredientEn) + '：' + item.cn));
-    zip.file('word/document.xml', new XMLSerializer().serializeToString(doc));
+    const documentXml = new XMLSerializer().serializeToString(doc);
+    if (!zip) return createProductDevelopmentBuiltinDocx(documentXml);
+    zip.file('word/document.xml', documentXml);
     // A DOCX may contain large images. Recompressing every entry with DEFLATE
     // can keep the UI in "generating" for a very long time after the AI call
     // has already completed. The package remains valid when entries are stored
