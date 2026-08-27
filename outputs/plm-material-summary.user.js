@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.241
+// @version      2.8.242
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.241';
+  const SCRIPT_VERSION = '2.8.242';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -13071,6 +13071,7 @@
     const safe = data || {};
     safe.apiFieldStates = normalizeApiFieldStates(safe.apiFieldStates);
     safe.name = normalizeProductNameValue(safe.name);
+    safe.brand = normalizeSkuBrandValue(safe.brand, safe);
     const manualFieldOverrides = normalizeManualFieldOverrides(safe);
     migrateLabelValue(safe, 'packageSizeLabel', 'packageSizeText');
     migrateLabelValue(safe, 'printSizeLabel', 'printSizeText');
@@ -13647,6 +13648,7 @@
     const isToyProduct = isToyDimensionProduct({ plmCategory: productCategory, productType: productCategory });
     const brandValue = getApiObjectFieldValue(objects, ['brand_name', 'brandName', 'brand', 'brand_name_cn'])
       || getApiScalarText(product && product.brand, 0);
+    const normalizedBrandValue = normalizeSkuBrandValue(brandValue, { plmCategory: productCategory, productType: productCategory });
     const chineseName = getApiObjectFieldValue(objects, ['product_name', 'productName', 'name', 'name_cn', 'product_name_cn'])
       || getApiProductLanguageName(product, 1)
       || getApiLanguageConfigName(info, 1)
@@ -13656,7 +13658,7 @@
       getApiProductLanguageName(product, 2),
       getApiLanguageConfigName(info, 2),
       getApiAttributeText(attrs, /product[_\s-]*name|product name|英文品名|英文名称/i, 2),
-    ], brandValue);
+    ], normalizedBrandValue);
     const rawProductSizeText = getApiObjectFieldValue(objects, ['product_size', 'productSize', 'product_size_text', 'size_text'])
       || getApiAttributeText(attrs, /product[_\s-]*size|产品尺寸|成品尺寸/i, 1);
     const parsedProductNums = parseDimension(rawProductSizeText, 3);
@@ -13692,7 +13694,7 @@
       attrs,
       chineseName: normalizeProductNameValue(cleanExcelFieldValue(chineseName)),
       englishName,
-      brand: compactText(brandValue),
+      brand: normalizedBrandValue,
       productType: productCategory || getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType']),
       plmCategory: productCategory,
       packageNums: outerPackageNums,
@@ -13827,7 +13829,7 @@
                 productVersionId: String(project.product_main_id || project.product_version_id || project.productVersionId || ''),
                 categoryId: String(project.category_id || project.categoryId || ''),
                 name: compactText(project.product_name || project.productName || project.name),
-                brand: compactText(project.brand_name || project.brandName || project.brand),
+                brand: normalizeSkuBrandValue(compactText(project.brand_name || project.brandName || project.brand), { plmCategory: project.category_name || project.categoryName || project.product_category_name || project.productCategoryName || '' }),
                 referenceUrl,
                 ...detailInfringement,
                 raw: project,
@@ -13873,7 +13875,7 @@
               productVersionId: String(row.product_main_id || row.product_version_id || ''),
               categoryId: String(row.category_id || ''),
               name: compactText(row.product_name || row.productName || row.name),
-              brand: compactText(row.brand_name || row.brandName || row.brand),
+              brand: normalizeSkuBrandValue(compactText(row.brand_name || row.brandName || row.brand), { plmCategory: row.category_name || row.categoryName || row.product_category_name || row.productCategoryName || '' }),
               referenceUrl: String(row.reference_url || row.referenceUrl || row.benchmark_url || row.benchmarkUrl || '').match(/https?:\/\/[^\s]+/i)?.[0] || '',
               ...resolvedInfringement,
               raw: row,
@@ -14336,6 +14338,32 @@
   function isApiBoxCategory(value) {
     const category = compactText(value);
     return /包材/.test(category) && isPaperBoxMaterialText(category);
+  }
+
+  function normalizeSkuBrandValue(value, data) {
+    const text = compactText(value);
+    if (!text || /^(?:--+|—+|－+|未填写|未命名)$/i.test(text)) return '';
+    const labeledCategory = text.match(/^(.*?)\s*(?:品类|类目|商品类目|产品类目)\s*[:：]\s*.+$/);
+    if (labeledCategory && compactText(labeledCategory[1])) return compactText(labeledCategory[1]);
+    const source = data && typeof data === 'object' ? data : {};
+    const categoryValues = [source.plmCategory, source.category, source.productType, source.manualCategory]
+      .map((item) => compactText(item))
+      .filter(Boolean);
+    const suffixes = Array.from(new Set(categoryValues.flatMap((item) => [
+      item,
+      ...item.split(/[\/／>＞|｜\-]+/).map((part) => compactText(part)).filter(Boolean),
+    ]))).filter((item) => item.length >= 2).sort((a, b) => b.length - a.length);
+    const lowerText = text.toLowerCase();
+    for (const suffix of suffixes) {
+      const lowerSuffix = suffix.toLowerCase();
+      const index = lowerText.lastIndexOf(lowerSuffix);
+      if (index <= 0 || index + suffix.length !== text.length) continue;
+      const prefix = text.slice(0, index).replace(/[\s\/／>＞|｜:：,，;；_\-]+$/g, '').trim();
+      if (prefix) return prefix;
+    }
+    // AMZ is returned by some PLM fields as “AMZ + 健康保健食品”.
+    const knownCombined = text.match(/^AMZ(?:\s*[\/／>＞|｜\-－—]\s*|\s+)(健康保健食品)$/i);
+    return knownCombined ? 'AMZ' : text;
   }
 
   function isApiBoxMaterial(item) {
@@ -15036,7 +15064,10 @@
     const stop = /(\u9879\u76ee\u7f16\u7801|\u9700\u6c42\u7f16\u7801|\u5546\u54c1\u540d\u79f0|\u5546\u54c1\u7f16\u7801|\u7f8e\u5de5\u5904\u7406\u4f18\u5148\u7ea7|\u5e73\u53f0|\u4ea7\u54c1\u540d\u79f0|\u5173\u952e\u8bcd|\u8bbe\u8ba1\u7c7b\u578b|\u662f\u5426\u7206\u6b3e|\u662f\u5426\u4ee3\u53d1|\u5f00\u53d1\u5206\u914d|\u54c1\u724c\u7c7b\u522b|\u5f00\u53d1\u4e3b\u7ba1|\u8bbe\u8ba1\u5206\u914d|\u5f00\u53d1\u5206\u914d\u65f6\u95f4|\u8bbe\u8ba1\u5206\u914d\u65f6\u95f4|\u521b\u5efa\u65f6\u95f4|\u6700\u540e\u4fee\u6539\u65f6\u95f4|\u9879\u76ee\u4fe1\u606f|\u7269\u6599\u6e05\u5355|\u4ea7\u54c1\u4fe1\u606f)/;
     const match = String(text || '').match(new RegExp(escaped + '[:\uff1a]\\s*([\\s\\S]{0,80})'));
     if (!match) return '';
-    return compactText(match[1]).split(stop)[0].trim();
+    const value = compactText(match[1]).split(stop)[0].trim();
+    return fieldName === '\u54c1\u724c'
+      ? value.split(/(?:\u54c1\u7c7b|\u7c7b\u76ee|\u5546\u54c1\u7c7b\u76ee|\u4ea7\u54c1\u7c7b\u76ee)\s*[:\uff1a]?/)[0].trim()
+      : value;
   }
 
   function getProjectLooseField(text, fieldName) {
