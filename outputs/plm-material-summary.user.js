@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.243
+// @version      2.8.244
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.243';
+  const SCRIPT_VERSION = '2.8.244';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7401,6 +7401,190 @@
       || Array.from(document.querySelectorAll('button')).find((button) => productDevelopmentDomVisible(button) && productDevelopmentDomText(button.textContent).includes(wanted));
   }
 
+  function productDevelopmentBomDomDrawer(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (typeof getProjectBomDrawerForSku === 'function') {
+      const drawer = getProjectBomDrawerForSku(normalizedSku);
+      if (drawer) return drawer;
+    }
+    return Array.from(document.querySelectorAll('.ant-drawer-open, .ant-drawer'))
+      .filter(productDevelopmentDomVisible)
+      .find((drawer) => {
+        const text = productDevelopmentDomText(drawer.textContent);
+        return /绑定BOM|绑BOM/.test(text) && (!normalizedSku || text.includes(normalizedSku));
+      }) || null;
+  }
+
+  function productDevelopmentBomDomActiveEditor(drawer) {
+    if (!drawer) return null;
+    return Array.from(drawer.querySelectorAll('.cardBox, .materialEditList, .card'))
+      .filter(productDevelopmentDomVisible)
+      .find((card) => {
+        const input = card.querySelector('#form_item_name');
+        return input && productDevelopmentDomVisible(input) && card.querySelector('form');
+      }) || null;
+  }
+
+  function productDevelopmentBomDomButton(scope, label) {
+    const wanted = productDevelopmentDomText(label);
+    return Array.from((scope || document).querySelectorAll('button'))
+      .filter(productDevelopmentDomVisible)
+      .find((button) => productDevelopmentDomText(button.textContent) === wanted) || null;
+  }
+
+  function productDevelopmentBomDomMenuItem(label) {
+    const wanted = productDevelopmentDomText(label);
+    return Array.from(document.querySelectorAll('.ant-dropdown-menu-item, [role="menuitem"]'))
+      .filter(productDevelopmentDomVisible)
+      .find((item) => productDevelopmentDomText(item.textContent) === wanted) || null;
+  }
+
+  async function productDevelopmentBomDomSelectCategory(input, target) {
+    const wanted = productDevelopmentPrefillText(target, 800);
+    if (!input || !wanted) throw new Error('物料分类缺少填写值');
+    if (productDevelopmentDomSelectionMatches(input, wanted)) return;
+    const container = input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
+    const clear = container && container.querySelector('.ant-select-clear, .ant-cascader-picker-clear');
+    if (clear && productDevelopmentDomVisible(clear)) clear.click();
+    const clickTarget = productDevelopmentDomClickTarget(input);
+    if (!clickTarget) throw new Error('未找到物料分类点击区域');
+    clickTarget.click();
+    const segments = wanted.split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
+    for (const segment of segments) {
+      const option = await waitFor(() => {
+        const menus = Array.from(document.querySelectorAll('.ant-cascader-menu'))
+          .filter(productDevelopmentDomVisible);
+        const menu = menus[menus.length - 1];
+        if (!menu) return null;
+        return Array.from(menu.querySelectorAll('.ant-cascader-menu-item'))
+          .filter(productDevelopmentDomVisible)
+          .find((item) => productDevelopmentDomOptionText(item) === productDevelopmentDomText(segment)) || null;
+      }, 5000, 100);
+      if (!option) throw new Error('PLM 物料分类中找不到“' + segment + '”');
+      option.click();
+      await productDevelopmentDomWait(140);
+    }
+    if (!productDevelopmentDomSelectionMatches(input, wanted)) throw new Error('PLM 未确认物料分类“' + wanted + '”');
+  }
+
+  function productDevelopmentBomDomKindLabel(kind) {
+    return kind === 'box' ? '纸盒' : kind === 'label' ? '标签' : '说明书';
+  }
+
+  function productDevelopmentBomDomMenuLabel(kind) {
+    return kind === 'box' ? '纸盒' : kind === 'label' ? '标签' : '印刷';
+  }
+
+  function productDevelopmentBomDomCardMatches(drawer, kind, draft) {
+    if (!drawer || !draft) return false;
+    const materialName = productDevelopmentDomText(draft.materialName);
+    return Array.from(drawer.querySelectorAll('.cardBox'))
+      .filter(productDevelopmentDomVisible)
+      .filter((card) => !card.querySelector('form #form_item_name'))
+      .some((card) => {
+        const text = productDevelopmentDomText(card.textContent);
+        if (materialName && text.includes(materialName)) return true;
+        if (kind === 'box') return /纸盒/.test(text) && /包材[\s/／>-]*纸盒/.test(text);
+        if (kind === 'label') return /标签/.test(text) && /包材[\s/／>-]*标签/.test(text);
+        return /说明书/.test(text);
+      });
+  }
+
+  async function productDevelopmentBomDomOpenEditor(drawer, kind) {
+    if (productDevelopmentBomDomActiveEditor(drawer)) throw new Error('PLM 当前还有未确认的物料行，请先确定或取消后再试');
+    const addButton = productDevelopmentBomDomButton(drawer, '添加物料');
+    if (!addButton) throw new Error('当前绑定 BOM 抽屉未找到“添加物料”按钮');
+    addButton.click();
+    const menuLabel = productDevelopmentBomDomMenuLabel(kind);
+    const menuItem = await waitFor(() => productDevelopmentBomDomMenuItem(menuLabel), 5000, 100);
+    if (!menuItem) throw new Error('添加物料菜单未找到“' + menuLabel + '”');
+    menuItem.click();
+    const editor = await waitFor(() => productDevelopmentBomDomActiveEditor(drawer), 8000, 120);
+    if (!editor) throw new Error('PLM 未打开“' + menuLabel + '”物料表单');
+    return editor;
+  }
+
+  async function productDevelopmentBomDomFillEditor(drawer, kind, draft) {
+    let editor = await productDevelopmentBomDomOpenEditor(drawer, kind);
+    const categoryInput = editor.querySelector('#form_item_category_id');
+    if (!categoryInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到物料分类控件');
+    await productDevelopmentBomDomSelectCategory(categoryInput, draft.categoryPath);
+    editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
+    const supplierInput = editor.querySelector('#form_item_default_supplier_id');
+    if (!supplierInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到默认供应商控件');
+    await productDevelopmentDomSelectOption(supplierInput, draft.supplier, 'select');
+    editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
+    const values = [
+      ['form_item_name', draft.materialName, '物料名称', true],
+      ['form_item_specification', draft.specification, '规格型号', true],
+      ['form_item_long', kind === 'instruction' ? '' : draft.length, '长', kind !== 'instruction'],
+      ['form_item_wide', kind === 'instruction' ? '' : draft.width, '宽', kind !== 'instruction'],
+      ['form_item_high', kind === 'box' ? draft.height : '', '高', kind === 'box'],
+      ['form_item_sale_price', draft.price, '采购价', true],
+    ];
+    values.forEach(([id, value, label, required]) => {
+      const input = editor.querySelector('#' + id);
+      if (!input) {
+        if (required) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到“' + label + '”控件');
+        return;
+      }
+      if (value !== '' && value !== null && value !== undefined) productDevelopmentDomNativeSetter(input, value);
+    });
+    const confirmButton = productDevelopmentBomDomButton(editor, '确定');
+    if (!confirmButton) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到“确定”按钮');
+    confirmButton.click();
+    const confirmed = await waitFor(() => !productDevelopmentDomVisible(editor) || !editor.isConnected || productDevelopmentBomDomActiveEditor(drawer) !== editor, 12000, 120);
+    if (!confirmed) {
+      const validation = Array.from(editor.querySelectorAll('.ant-form-item-explain-error, [role="alert"]'))
+        .map((node) => productDevelopmentDomText(node.textContent)).filter(Boolean).join('、');
+      throw new Error(productDevelopmentBomDomKindLabel(kind) + '未能确认添加' + (validation ? '：' + validation : ''));
+    }
+  }
+
+  async function productDevelopmentFillBomDrawer(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+    if (!detail) throw new Error('当前 SKU 详情还未读取完成');
+    productDevelopmentEnsureMaterialDrafts(detail, task);
+    const drafts = [
+      ['box', detail.materialDrafts.box],
+      ['label', detail.materialDrafts.label],
+      ['instruction', detail.materialDrafts.instruction],
+    ].filter(([, draft]) => draft && draft.enabled !== false);
+    const missing = drafts.flatMap(([kind, draft]) => productDevelopmentMaterialDraftMissingFields(kind, draft));
+    if (missing.length) throw new Error('请先补充 BOM：' + missing.join('、'));
+    let drawer = productDevelopmentBomDomDrawer(normalizedSku);
+    if (!drawer && typeof ensureProjectBomDrawerForData === 'function') {
+      drawer = await ensureProjectBomDrawerForData({
+        sku: normalizedSku,
+        projectId: detail.projectId || task.projectId || task.rowId || '',
+        projectRowId: task.rowId || task.projectId || detail.projectId || '',
+      });
+    }
+    if (!drawer) throw new Error('请先在 PLM 打开当前 SKU 的“绑定 BOM”抽屉');
+    if (productDevelopmentBomDomActiveEditor(drawer)) throw new Error('PLM 当前还有未确认的物料行，请先确定或取消后再试');
+    const added = [];
+    const skipped = [];
+    for (const [kind, draft] of drafts) {
+      const title = productDevelopmentBomDomKindLabel(kind);
+      if (productDevelopmentMaterialExistingRow(detail, kind) || productDevelopmentBomDomCardMatches(drawer, kind, draft)) {
+        skipped.push(title);
+        continue;
+      }
+      state.productDevelopmentStatus = '正在填入 PLM BOM：' + title + '…';
+      await productDevelopmentBomDomFillEditor(drawer, kind, draft);
+      added.push(title);
+    }
+    if (!added.length) throw new Error(skipped.length ? '纸盒、标签或说明书已存在，未重复添加' : '没有启用的 BOM 物料可填写');
+    const message = '已填入 PLM 待保存行：' + added.join('、') + (skipped.length ? '；已跳过：' + skipped.join('、') : '') + '。请核对后点击“批量保存”';
+    detail.bomPlmSaveState = 'filled';
+    detail.bomPlmSaveMessage = message;
+    detail.cacheSource = 'local-cache';
+    scheduleProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+    return { added, skipped, message };
+  }
+
   function productDevelopmentDomAvailableValues(definitions, valueReader) {
     return definitions.map((definition) => ({ definition, value: valueReader(definition) })).filter((item) => productDevelopmentPrefillText(item.value));
   }
@@ -7508,6 +7692,35 @@
       showToast(state.productDevelopmentError);
     }).finally(() => {
       state.productDevelopmentDomFillSku = '';
+      renderShell();
+    });
+  }
+
+  function productDevelopmentRunBomDomFill(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku || state.productDevelopmentBomDomFillSku) return;
+    if (typeof window.confirm === 'function' && !window.confirm('确认把当前启用的纸盒、标签和说明书逐条填入 PLM“绑定 BOM”界面？脚本会点击每行“确定”，但不会点击“批量保存”；请最后人工核对。')) return;
+    state.productDevelopmentBomDomFillSku = normalizedSku;
+    state.productDevelopmentStatus = '正在打开并填写 PLM BOM…';
+    state.productDevelopmentError = '';
+    renderShell();
+    productDevelopmentFillBomDrawer(normalizedSku).then((result) => {
+      const message = result && result.message || 'BOM 物料已填入 PLM 界面，请核对后批量保存';
+      state.productDevelopmentStatus = message;
+      showToast(message);
+    }).catch((error) => {
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+      if (detail) {
+        detail.bomPlmSaveState = 'error';
+        detail.bomPlmSaveMessage = '填入 PLM 界面失败：' + formatErrorMessage(error);
+        detail.cacheSource = 'local-cache';
+        scheduleProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+      }
+      state.productDevelopmentError = formatErrorMessage(error);
+      state.productDevelopmentStatus = '';
+      showToast(state.productDevelopmentError);
+    }).finally(() => {
+      state.productDevelopmentBomDomFillSku = '';
       renderShell();
     });
   }
@@ -8040,9 +8253,11 @@
       : detail.bomDraftSaveMessage || (detail.bomDraftSavedAt ? '已保存本地 · ' + detail.bomDraftSavedAt : '尚未保存');
     const saveStatusClass = detail.bomDraftDirty ? ' is-dirty' : (detail.bomDraftSaveState === 'error' ? ' is-error' : (detail.bomDraftSavedAt ? ' is-saved' : ''));
     const plmBusy = state.productDevelopmentBomSaveSku === formSku;
+    const bomDomFillBusy = state.productDevelopmentBomDomFillSku === formSku;
+    const anyBomBusy = plmBusy || bomDomFillBusy;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
     const existingBom = '<section class="pfh-product-development-form-section pfh-product-development-bom-existing"><h4>PLM 当前绑定 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (plmBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : '保存 BOM 到 PLM') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书单独填写。BOM 保存不会修改建品资料。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
+    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (bomDomFillBusy ? '正在填入…' : '一键填入 PLM BOM') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : 'API 直接保存') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书从“印刷”入口填写。一键填入只生成待保存行，核对后再在 PLM 点击“批量保存”。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
@@ -10426,6 +10641,10 @@
       productDevelopmentSaveBomLocally(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
+    if (action === 'product-development-bom-fill-plm') {
+      productDevelopmentRunBomDomFill(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
+      return true;
+    }
     if (action === 'product-development-bom-save-plm') {
       productDevelopmentRunBomPlmSave(actionTarget && actionTarget.getAttribute('data-bom-sku') || getProductDevelopmentCurrentSku());
       return true;
@@ -11133,6 +11352,7 @@
     productDevelopmentCopywritingBusy: false,
     productDevelopmentProductSaveSku: '',
     productDevelopmentBomSaveSku: '',
+    productDevelopmentBomDomFillSku: '',
     productDevelopmentTemplateBase64: loadProductDevelopmentTemplate(),
     productDevelopmentTemplateVersion: loadProductDevelopmentTemplateVersion(),
     productDevelopmentIngredientKind: 'human',
