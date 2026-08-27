@@ -30,13 +30,28 @@ const assets = {};
 for (const [name, relativePath] of Object.entries(definitions)) {
   assets[name] = describeAsset(relativePath);
 }
-assets.uiStyleVersions = Object.fromEntries(
-  fs.readdirSync(path.join(assetRoot, 'v1'))
-    .map((fileName) => ({ fileName, match: /^ui-(\d+\.\d+\.\d+)\.css$/.exec(fileName) }))
+// Keep every published UI version addressable. The UI bundle moved from v1
+// to later asset directories, so scanning v1 alone drops versions that are
+// still needed by already-installed users after a newer release is deployed.
+const uiStyleVersions = {};
+const versionedAssetDirectories = fs.readdirSync(assetRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && /^v\d+$/.test(entry.name))
+  .sort((left, right) => Number(left.name.slice(1)) - Number(right.name.slice(1)));
+versionedAssetDirectories.forEach((directory) => {
+  fs.readdirSync(path.join(assetRoot, directory.name), { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => ({ fileName: entry.name, match: /^ui-(\d+\.\d+\.\d+)\.css$/.exec(entry.name) }))
     .filter((entry) => entry.match)
     .sort((left, right) => left.match[1].localeCompare(right.match[1], undefined, { numeric: true }))
-    .map((entry) => [entry.match[1], describeAsset('v1/' + entry.fileName)]),
-);
+    .forEach((entry) => {
+      // Keep the first descriptor for duplicate historical copies. v1 was
+      // already the canonical location for the earliest UI releases.
+      if (!uiStyleVersions[entry.match[1]]) {
+        uiStyleVersions[entry.match[1]] = describeAsset(directory.name + '/' + entry.fileName);
+      }
+    });
+});
+assets.uiStyleVersions = uiStyleVersions;
 const currentUiVersionMatch = /ui-(\d+\.\d+\.\d+)\.css$/.exec(definitions.uiStyles);
 if (currentUiVersionMatch) assets.uiStyleVersions[currentUiVersionMatch[1]] = assets.uiStyles;
 
