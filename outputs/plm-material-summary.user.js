@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.242
+// @version      2.8.243
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.242';
+  const SCRIPT_VERSION = '2.8.243';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -11062,6 +11062,7 @@
     more: Object.freeze(['product-development-stocking', 'product-development-packaging', 'product-development-history']),
   });
   const initialProductDevelopmentTaskCache = loadProductDevelopmentTaskCache();
+  const initialProductDevelopmentTaskMeta = loadProductDevelopmentTaskMeta();
 
   const state = {
     drawer: null,
@@ -11115,6 +11116,7 @@
     productDevelopmentTaskError: '',
     productDevelopmentTasksLoadedAt: initialProductDevelopmentTaskCache.fetchedAt,
     productDevelopmentTaskRequestPromise: null,
+    productDevelopmentTaskMeta: initialProductDevelopmentTaskMeta,
     productDevelopmentTaskSelectedSku: '',
     productDevelopmentTaskListOpen: loadProductDevelopmentTaskListOpen(),
     productDevelopmentTaskView: 'detail',
@@ -14342,7 +14344,7 @@
 
   function normalizeSkuBrandValue(value, data) {
     const text = compactText(value);
-    if (!text || /^(?:--+|—+|－+|未填写|未命名)$/i.test(text)) return '';
+    if (!text || /^(?:--+|—+|－+|未填写|未命名|预设品牌)$/i.test(text)) return '';
     const labeledCategory = text.match(/^(.*?)\s*(?:品类|类目|商品类目|产品类目)\s*[:：]\s*.+$/);
     if (labeledCategory && compactText(labeledCategory[1])) return compactText(labeledCategory[1]);
     const source = data && typeof data === 'object' ? data : {};
@@ -14364,6 +14366,43 @@
     // AMZ is returned by some PLM fields as “AMZ + 健康保健食品”.
     const knownCombined = text.match(/^AMZ(?:\s*[\/／>＞|｜\-－—]\s*|\s+)(健康保健食品)$/i);
     return knownCombined ? 'AMZ' : text;
+  }
+
+  function getProductDevelopmentTaskMetaForSku(sku, task, detail) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return null;
+    const memory = state && state.productDevelopmentTaskMeta && state.productDevelopmentTaskMeta[normalizedSku];
+    if (memory && typeof memory === 'object') return normalizeProductDevelopmentTaskMeta(memory);
+    const stored = loadProductDevelopmentTaskMeta()[normalizedSku];
+    if (stored && typeof stored === 'object') return normalizeProductDevelopmentTaskMeta(stored);
+    const fallback = normalizeProductDevelopmentTaskMeta(productDevelopmentTaskMetaFallback(task, detail));
+    return fallback.brand || fallback.productNameCn || fallback.productNameEn ? fallback : null;
+  }
+
+  function resolveProductDevelopmentSkuIdentity(data) {
+    const source = data && typeof data === 'object' ? data : {};
+    const sku = String(source.sku || '').trim().toUpperCase();
+    if (!sku) return source;
+    const task = typeof getProductDevelopmentTaskBySku === 'function' ? getProductDevelopmentTaskBySku(sku) : null;
+    const detail = state && state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    const meta = getProductDevelopmentTaskMetaForSku(sku, task, detail);
+    if (!meta) return source;
+    const identityContext = {
+      ...source,
+      plmCategory: source.plmCategory || task && task.plmCategory || '',
+      category: source.category || task && task.category || '',
+      productType: source.productType || task && task.productType || '',
+      manualCategory: source.manualCategory || task && task.plmCategory || '',
+    };
+    const currentBrand = normalizeSkuBrandValue(source.brand, identityContext);
+    const currentName = normalizeProductNameValue(source.name);
+    const fallbackBrand = normalizeSkuBrandValue(meta.brand, identityContext);
+    const fallbackName = normalizeProductNameValue(meta.productNameCn || meta.productNameEn);
+    if (currentBrand && currentName) return source;
+    const next = { ...source };
+    if (!currentBrand && fallbackBrand) next.brand = fallbackBrand;
+    if (!currentName && fallbackName) next.name = fallbackName;
+    return next;
   }
 
   function isApiBoxMaterial(item) {
@@ -20578,10 +20617,11 @@
   }
 
   function productHeroSectionHtml(data, copywritingMode) {
-    if (copywritingMode) return copywritingHeroSectionHtml(data);
+    const displayData = resolveProductDevelopmentSkuIdentity(data);
+    if (copywritingMode) return copywritingHeroSectionHtml(displayData);
     const sku = String(data && data.sku || L.sku);
     const menuOpen = state.skuContextMenuSku === sku;
-    const title = [data && data.brand, data && data.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
+    const title = [displayData && displayData.brand, displayData && displayData.name].filter(Boolean).join(' ') || formatTitleMeta(data) || L.noDrawer;
     const priorityText = formatSkuDetailPriority(data && data.artPriority);
     const priorityClass = /^P0.*(?:紧急|urgent)/i.test(priorityText) ? ' is-p0-urgent' : (/^P0.*(?:当日|当天|today)/i.test(priorityText) ? ' is-p0-today' : (/^P0/i.test(priorityText) ? ' is-p0-urgent' : (/^P1/i.test(priorityText) ? ' is-p1' : '')));
     const designType = String(data && data.designType || '').trim() || '未分类';
