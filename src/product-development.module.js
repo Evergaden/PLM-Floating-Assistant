@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.10.5';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.11.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
@@ -7,6 +7,10 @@
   const PRODUCT_DEVELOPMENT_TASK_SIDEBAR_KEY = 'plm-floating-helper:product-development-task-sidebar:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY = 'plm-floating-helper:product-development-template-version:v1';
+  const PRODUCT_DEVELOPMENT_INGREDIENT_DRAFT_KEY = 'plm-floating-helper:product-development-ingredient-drafts:v1';
+  const PRODUCT_DEVELOPMENT_INGREDIENT_LOCAL_TEMPLATE_KEY = 'plm-floating-helper:product-development-ingredient-local-templates:v1';
+  const PRODUCT_DEVELOPMENT_INGREDIENT_MAX_TEMPLATE_SIZE = 5 * 1024 * 1024;
+  const PRODUCT_DEVELOPMENT_INGREDIENT_MAX_CELLS = 600;
   const PRODUCT_DEVELOPMENT_MAX_HISTORY = 8;
   const productDevelopmentReviewDraftWriteTimers = Object.create(null);
   const productDevelopmentTaskMetaWriteTimers = Object.create(null);
@@ -55,9 +59,10 @@
     Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
+    Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '分别选择人类或宠物模板，编辑后下载 Excel', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
     Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
     Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
-    Object.freeze({ id: 'packaging', title: '包装与成分表', subtitle: '规格、标签尺寸、成分表模板和审核', action: '', icon: 'box' }),
+    Object.freeze({ id: 'packaging', title: '包装与标签', subtitle: '规格、尺寸和标签资料', action: '', icon: 'box' }),
   ]);
 
   // These are style examples from the supplied product-material workbook. They
@@ -5118,7 +5123,8 @@
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
     const cards = PRODUCT_DEVELOPMENT_FEATURES.map((feature) => {
       const disabled = !feature.action;
-      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (!sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>功能占位</small>') + '</article>';
+      const requiresSku = feature.requiresSku !== false;
+      return '<article class="pfh-product-development-card' + (disabled ? ' is-disabled' : '') + '"><div class="pfh-product-development-card-head"><span>' + iconHtml(feature.icon) + '</span></div><h3>' + escapeHtml(feature.title) + '</h3><p>' + escapeHtml(feature.subtitle) + '</p>' + (feature.action ? '<button type="button" data-action="' + feature.action + '"' + (requiresSku && !sku ? ' disabled' : '') + '>打开功能 →</button>' : '<small>功能占位</small>') + '</article>';
     }).join('');
     return '<div class="pfh-product-development">' + productDevelopmentModeSwitchHtml() +
       '<section class="pfh-product-development-hero"><div><small>PRODUCT DEVELOPMENT</small><h2>产品开发工作台</h2><p>先制作侵权图和文案，再查看产品详情预填表单；默认只读，只有 BOM 区域人工点击“保存到 PLM”才写入。</p></div><span class="pfh-product-development-readonly">默认只读 PLM</span></section>' +
@@ -5191,10 +5197,336 @@
       '<p class="pfh-product-development-note">生成结果只下载到本地，不会自动上传或修改 PLM。</p></div>';
   }
 
+  function normalizeProductDevelopmentIngredientKind(value) {
+    return String(value || '').trim().toLowerCase() === 'pet' ? 'pet' : 'human';
+  }
+
+  function productDevelopmentIngredientLocalTemplateValue(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const kind = normalizeProductDevelopmentIngredientKind(source.kind);
+    const base64 = typeof source.base64 === 'string' ? source.base64.trim() : '';
+    if (!base64 || base64.length > Math.ceil(PRODUCT_DEVELOPMENT_INGREDIENT_MAX_TEMPLATE_SIZE * 4 / 3) + 1024) return null;
+    return {
+      id: productDevelopmentCleanText(source.id || '', 100),
+      kind,
+      label: productDevelopmentCleanText(source.label || source.fileName || '本地模板', 120),
+      fileName: productDevelopmentCleanText(source.fileName || 'ingredient-template.xlsx', 180),
+      base64,
+      local: true,
+    };
+  }
+
+  function loadProductDevelopmentIngredientLocalTemplates() {
+    const stored = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_INGREDIENT_LOCAL_TEMPLATE_KEY, null);
+    const source = Array.isArray(stored) ? stored : (stored && Array.isArray(stored.templates) ? stored.templates : []);
+    return source.map(productDevelopmentIngredientLocalTemplateValue).filter((item) => item && item.id);
+  }
+
+  function saveProductDevelopmentIngredientLocalTemplates(templates) {
+    const normalized = (Array.isArray(templates) ? templates : [])
+      .map(productDevelopmentIngredientLocalTemplateValue)
+      .filter((item) => item && item.id)
+      .slice(0, 6);
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_INGREDIENT_LOCAL_TEMPLATE_KEY, { version: 1, templates: normalized });
+    return normalized;
+  }
+
+  function productDevelopmentIngredientTemplates(kind) {
+    const normalizedKind = normalizeProductDevelopmentIngredientKind(kind);
+    const builtins = (Array.isArray(PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES) ? PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES : [])
+      .filter((item) => item && normalizeProductDevelopmentIngredientKind(item.kind) === normalizedKind);
+    return builtins.concat(loadProductDevelopmentIngredientLocalTemplates().filter((item) => item.kind === normalizedKind));
+  }
+
+  function productDevelopmentIngredientSelectedTemplate(kind, templateId) {
+    const templates = productDevelopmentIngredientTemplates(kind);
+    return templates.find((item) => item.id === templateId) || templates[0] || null;
+  }
+
+  function productDevelopmentIngredientDraftKey(kind, templateId, sheetName) {
+    return [normalizeProductDevelopmentIngredientKind(kind), String(templateId || ''), String(sheetName || '')].join('|');
+  }
+
+  function productDevelopmentIngredientDraft(kind, templateId, sheetName) {
+    const stored = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_INGREDIENT_DRAFT_KEY, null);
+    const source = stored && stored.drafts && typeof stored.drafts === 'object' ? stored.drafts : {};
+    const raw = source[productDevelopmentIngredientDraftKey(kind, templateId, sheetName)];
+    const values = raw && raw.values && typeof raw.values === 'object' ? raw.values : {};
+    const normalizedValues = {};
+    Object.keys(values).slice(0, PRODUCT_DEVELOPMENT_INGREDIENT_MAX_CELLS).forEach((address) => {
+      const value = values[address];
+      if (/^[A-Z]{1,3}[1-9]\d{0,5}$/.test(address) && (typeof value === 'string' || typeof value === 'number')) {
+        normalizedValues[address] = String(value).slice(0, 6000);
+      }
+    });
+    return { values: normalizedValues };
+  }
+
+  function saveProductDevelopmentIngredientEditorDraft(editor) {
+    if (!editor || !editor.templateId || !editor.sheetName || !Array.isArray(editor.cells)) return false;
+    const values = {};
+    editor.cells.slice(0, PRODUCT_DEVELOPMENT_INGREDIENT_MAX_CELLS).forEach((cell) => {
+      if (!cell || !cell.address) return;
+      const current = String(cell.value === undefined || cell.value === null ? '' : cell.value);
+      if (current !== String(cell.original === undefined || cell.original === null ? '' : cell.original)) {
+        values[cell.address] = current.slice(0, 6000);
+      }
+    });
+    const stored = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_INGREDIENT_DRAFT_KEY, null);
+    const drafts = stored && stored.drafts && typeof stored.drafts === 'object' ? { ...stored.drafts } : {};
+    const key = productDevelopmentIngredientDraftKey(editor.kind, editor.templateId, editor.sheetName);
+    drafts[key] = { kind: editor.kind, templateId: editor.templateId, sheetName: editor.sheetName, values, updatedAt: Date.now() };
+    const recent = Object.entries(drafts)
+      .sort((a, b) => Number(b[1] && b[1].updatedAt) - Number(a[1] && a[1].updatedAt))
+      .slice(0, 40);
+    const retained = {};
+    recent.forEach(([entryKey, entry]) => { retained[entryKey] = entry; });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_INGREDIENT_DRAFT_KEY, { version: 1, drafts: retained });
+    return true;
+  }
+
+  function scheduleProductDevelopmentIngredientEditorDraftSave(editor) {
+    if (!editor || !editor.templateId || !editor.sheetName) return;
+    const key = productDevelopmentIngredientDraftKey(editor.kind, editor.templateId, editor.sheetName);
+    if (state.productDevelopmentIngredientDraftTimer) window.clearTimeout(state.productDevelopmentIngredientDraftTimer);
+    state.productDevelopmentIngredientDraftTimer = window.setTimeout(() => {
+      state.productDevelopmentIngredientDraftTimer = 0;
+      saveProductDevelopmentIngredientEditorDraft(editor);
+    }, 300);
+  }
+
+  function productDevelopmentIngredientCellText(value) {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      if (Array.isArray(value.richText)) return value.richText.map((part) => String(part && part.text || '')).join('');
+      if (Object.prototype.hasOwnProperty.call(value, 'text')) return String(value.text || '');
+      if (Object.prototype.hasOwnProperty.call(value, 'result')) return String(value.result === null || value.result === undefined ? '' : value.result);
+      if (Object.prototype.hasOwnProperty.call(value, 'formula')) return String(value.formula || '');
+    }
+    return String(value);
+  }
+
+  function productDevelopmentIngredientExtractCells(worksheet) {
+    const cells = [];
+    if (!worksheet || typeof worksheet.eachRow !== 'function') return [{ address: 'A1', row: 1, column: 1, original: '', value: '' }];
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
+      const rowNumber = Number(row && row.number) || 0;
+      if (!rowNumber || rowNumber > 120 || !row || typeof row.eachCell !== 'function') return;
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        const column = Number(cell && cell.col) || 0;
+        if (!column || column > 40 || cells.length >= PRODUCT_DEVELOPMENT_INGREDIENT_MAX_CELLS) return;
+        const value = productDevelopmentIngredientCellText(cell.value).replace(/\r\n?/g, '\n').slice(0, 6000);
+        if (!value) return;
+        cells.push({ address: String(cell.address || ''), row: rowNumber, column, original: value, value });
+      });
+    });
+    return cells.length ? cells : [{ address: 'A1', row: 1, column: 1, original: '', value: '' }];
+  }
+
+  async function loadProductDevelopmentIngredientEditor() {
+    const token = Number(state.productDevelopmentIngredientLoadToken || 0) + 1;
+    state.productDevelopmentIngredientLoadToken = token;
+    const kind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
+    const template = productDevelopmentIngredientSelectedTemplate(kind, state.productDevelopmentIngredientTemplateId);
+    if (!template) {
+      state.productDevelopmentIngredientEditor = null;
+      state.productDevelopmentIngredientError = '当前类型没有可用成分表模板';
+      state.productDevelopmentIngredientBusy = false;
+      renderShell();
+      return;
+    }
+    state.productDevelopmentIngredientKind = kind;
+    state.productDevelopmentIngredientTemplateId = template.id;
+    state.productDevelopmentIngredientEditor = null;
+    state.productDevelopmentIngredientBusy = true;
+    state.productDevelopmentIngredientError = '';
+    state.productDevelopmentIngredientStatus = '正在读取成分表模板…';
+    renderShell();
+    try {
+      if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法读取成分表模板');
+      const workbook = new window.ExcelJS.Workbook();
+      await workbook.xlsx.load(base64ToArrayBuffer(template.base64));
+      const sheetNames = workbook.worksheets.map((worksheet) => String(worksheet.name || '')).filter(Boolean);
+      if (!sheetNames.length) throw new Error('模板没有可用工作表');
+      const requestedSheet = String(state.productDevelopmentIngredientSheetName || '');
+      const sheetName = sheetNames.includes(requestedSheet) ? requestedSheet : sheetNames[0];
+      const worksheet = workbook.getWorksheet(sheetName) || workbook.worksheets[0];
+      const draft = productDevelopmentIngredientDraft(kind, template.id, worksheet.name);
+      const cells = productDevelopmentIngredientExtractCells(worksheet);
+      cells.forEach((cell) => {
+        if (Object.prototype.hasOwnProperty.call(draft.values, cell.address)) cell.value = draft.values[cell.address];
+      });
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0) || state.productDevelopmentView !== 'ingredient') return;
+      state.productDevelopmentIngredientSheetName = worksheet.name;
+      state.productDevelopmentIngredientEditor = {
+        kind,
+        templateId: template.id,
+        sheetName: worksheet.name,
+        sheetNames,
+        cells,
+      };
+      state.productDevelopmentIngredientBusy = false;
+      state.productDevelopmentIngredientError = '';
+      state.productDevelopmentIngredientStatus = '模板已加载，可修改内容后保存或下载';
+      renderShell();
+    } catch (error) {
+      if (token !== Number(state.productDevelopmentIngredientLoadToken || 0)) return;
+      state.productDevelopmentIngredientBusy = false;
+      state.productDevelopmentIngredientEditor = null;
+      state.productDevelopmentIngredientError = formatErrorMessage(error);
+      state.productDevelopmentIngredientStatus = '';
+      renderShell();
+    }
+  }
+
+  function productDevelopmentIngredientSwitchSelection(kind, templateId, sheetName) {
+    if (state.productDevelopmentIngredientEditor) saveProductDevelopmentIngredientEditorDraft(state.productDevelopmentIngredientEditor);
+    const normalizedKind = normalizeProductDevelopmentIngredientKind(kind);
+    const template = productDevelopmentIngredientSelectedTemplate(normalizedKind, templateId);
+    state.productDevelopmentIngredientKind = normalizedKind;
+    state.productDevelopmentIngredientTemplateId = template ? template.id : '';
+    state.productDevelopmentIngredientSheetName = String(sheetName || '');
+    state.productDevelopmentIngredientEditor = null;
+    state.productDevelopmentIngredientError = '';
+    state.productDevelopmentIngredientStatus = '';
+    renderShell();
+    loadProductDevelopmentIngredientEditor();
+  }
+
+  function productDevelopmentIngredientCellInputHtml(cell) {
+    const address = String(cell && cell.address || 'A1');
+    const rawValue = cell && cell.value !== undefined && cell.value !== null ? cell.value : '';
+    const value = String(rawValue);
+    const multiline = value.includes('\n') || value.length > 140;
+    const control = multiline
+      ? '<textarea class="pfh-product-development-review-input pfh-product-development-ingredient-cell-input" rows="3" data-product-development-ingredient-cell="' + escapeHtml(address) + '" spellcheck="false">' + escapeHtml(value) + '</textarea>'
+      : '<input type="text" class="pfh-product-development-review-input pfh-product-development-ingredient-cell-input" data-product-development-ingredient-cell="' + escapeHtml(address) + '" value="' + escapeHtml(value) + '" spellcheck="false">';
+    return '<div class="pfh-product-development-review-editor-row"><div class="pfh-product-development-review-editor-head"><b>' + escapeHtml(address) + '</b><span>模板单元格</span></div><label>内容' + control + '</label></div>';
+  }
+
+  function productDevelopmentIngredientEditorHtml(editor) {
+    if (!editor) return '<div class="pfh-product-development-result-empty">选择模板后会显示可编辑内容。</div>';
+    const cells = Array.isArray(editor.cells) ? editor.cells : [];
+    return '<section class="pfh-product-development-review-editor"><header><div><small>模板内容</small><h3>编辑当前工作表</h3></div><span>' + cells.length + ' 个可编辑单元格</span></header><p class="pfh-product-development-form-note">修改下面的单元格内容，模板原有版式、颜色和图片会随文件保留。</p><div class="pfh-product-development-review-editor-list">' + cells.map(productDevelopmentIngredientCellInputHtml).join('') + '</div></section>';
+  }
+
+  function productDevelopmentIngredientFactsHtml() {
+    const kind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
+    const templates = productDevelopmentIngredientTemplates(kind);
+    const template = productDevelopmentIngredientSelectedTemplate(kind, state.productDevelopmentIngredientTemplateId);
+    const editor = state.productDevelopmentIngredientEditor && state.productDevelopmentIngredientEditor.templateId === (template && template.id)
+      ? state.productDevelopmentIngredientEditor
+      : null;
+    state.productDevelopmentIngredientKind = kind;
+    state.productDevelopmentIngredientTemplateId = template ? template.id : '';
+    const sheetNames = editor && Array.isArray(editor.sheetNames) ? editor.sheetNames : [];
+    const selectedSheet = editor ? editor.sheetName : state.productDevelopmentIngredientSheetName;
+    const typeOptions = [['human', '人类食品'], ['pet', '宠物食品']].map((item) => '<option value="' + item[0] + '"' + (item[0] === kind ? ' selected' : '') + '>' + item[1] + '</option>').join('');
+    const templateOptions = templates.map((item) => '<option value="' + escapeHtml(item.id) + '"' + (item.id === (template && template.id) ? ' selected' : '') + '>' + escapeHtml(item.label + (item.local ? '（本地）' : '（内置）')) + '</option>').join('');
+    const sheetOptions = sheetNames.length
+      ? sheetNames.map((name) => '<option value="' + escapeHtml(name) + '"' + (name === selectedSheet ? ' selected' : '') + '>' + escapeHtml(name) + '</option>').join('')
+      : '<option value="">' + (state.productDevelopmentIngredientBusy ? '正在读取工作表…' : '请先读取模板') + '</option>';
+    const canExport = Boolean(editor && !state.productDevelopmentIngredientBusy);
+    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
+      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>INGREDIENT TABLE</small><h2>制作成分表</h2></div></header>' +
+      '<section class="pfh-product-development-work-card"><div><h3>编辑成分表模板</h3><p>按食品类型选择模板和工作表，填写后下载新的 Excel 文件。</p></div><div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-ingredient-save-local"' + (canExport ? '' : ' disabled') + '>保存本地</button><button type="button" data-action="product-development-ingredient-export"' + (canExport ? '' : ' disabled') + '>下载 Excel</button></div></section>' +
+      '<section class="pfh-product-development-detail-form"><header><div><small>模板选择</small><h3>人类食品 / 宠物食品</h3></div><span>' + escapeHtml(template ? template.fileName : '暂无模板') + '</span></header><div class="pfh-product-development-form-grid">' +
+        '<label class="pfh-product-development-material-field"><span>食品类型</span><select class="pfh-product-development-ingredient-kind-input">' + typeOptions + '</select></label>' +
+        '<label class="pfh-product-development-material-field"><span>成分表模板</span><select class="pfh-product-development-ingredient-template-input">' + (templateOptions || '<option value="">暂无模板</option>') + '</select></label>' +
+        '<label class="pfh-product-development-material-field"><span>工作表</span><select class="pfh-product-development-ingredient-sheet-input"' + (sheetNames.length ? '' : ' disabled') + '>' + sheetOptions + '</select></label>' +
+        '<label class="pfh-product-development-template-picker">添加本地 Excel 模板<input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="pfh-product-development-ingredient-template-file-input"></label>' +
+      '</div><small class="pfh-product-development-form-note">内置模板来自已提供的人类食品和宠物食品成分表；本地模板只保存在当前浏览器。</small></section>' +
+      (state.productDevelopmentIngredientStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentIngredientStatus) + '</p>' : '') +
+      (state.productDevelopmentIngredientError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentIngredientError) + '</p>' : '') +
+      productDevelopmentIngredientEditorHtml(editor) +
+      '<p class="pfh-product-development-note">成分表只在本地编辑和下载，不会写入 PLM。</p></div>';
+  }
+
+  async function importProductDevelopmentIngredientTemplate(file) {
+    if (!file) return;
+    if (!/\.xlsx$/i.test(String(file.name || '')) && file.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') throw new Error('请选择 XLSX 成分表模板');
+    if (Number(file.size || 0) > PRODUCT_DEVELOPMENT_INGREDIENT_MAX_TEMPLATE_SIZE) throw new Error('本地模板不能超过 5 MB');
+    const kind = normalizeProductDevelopmentIngredientKind(state.productDevelopmentIngredientKind);
+    const buffer = await file.arrayBuffer();
+    const base64 = arrayBufferToBase64(buffer);
+    const id = kind + '-local-' + Date.now().toString(36);
+    const template = { id, kind, label: String(file.name || '本地模板').replace(/\.xlsx$/i, '').slice(0, 100), fileName: String(file.name || 'ingredient-template.xlsx').slice(0, 180), base64, local: true };
+    const templates = loadProductDevelopmentIngredientLocalTemplates().filter((item) => item.id !== id);
+    templates.unshift(template);
+    saveProductDevelopmentIngredientLocalTemplates(templates);
+    state.productDevelopmentIngredientTemplateId = id;
+    state.productDevelopmentIngredientSheetName = '';
+    state.productDevelopmentIngredientEditor = null;
+    state.productDevelopmentIngredientStatus = '已添加本地模板：' + template.fileName;
+    state.productDevelopmentIngredientError = '';
+    renderShell();
+    await loadProductDevelopmentIngredientEditor();
+  }
+
+  function saveProductDevelopmentIngredientLocal() {
+    if (!state.productDevelopmentIngredientEditor) {
+      showToast('请先选择并读取模板');
+      return;
+    }
+    saveProductDevelopmentIngredientEditorDraft(state.productDevelopmentIngredientEditor);
+    state.productDevelopmentIngredientStatus = '已保存本地修改';
+    state.productDevelopmentIngredientError = '';
+    showToast('成分表修改已保存到本地');
+    renderShell();
+  }
+
+  async function exportProductDevelopmentIngredientWorkbook() {
+    const editor = state.productDevelopmentIngredientEditor;
+    if (!editor || state.productDevelopmentIngredientBusy) {
+      showToast('请先选择并读取模板');
+      return;
+    }
+    const template = productDevelopmentIngredientSelectedTemplate(editor.kind, editor.templateId);
+    if (!template) {
+      showToast('当前模板不存在，请重新选择');
+      return;
+    }
+    saveProductDevelopmentIngredientEditorDraft(editor);
+    state.productDevelopmentIngredientBusy = true;
+    state.productDevelopmentIngredientError = '';
+    state.productDevelopmentIngredientStatus = '正在生成 Excel 文件…';
+    renderShell();
+    const startedAt = Date.now();
+    try {
+      if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法生成 Excel');
+      const workbook = new window.ExcelJS.Workbook();
+      await workbook.xlsx.load(base64ToArrayBuffer(template.base64));
+      const worksheet = workbook.getWorksheet(editor.sheetName);
+      if (!worksheet) throw new Error('模板工作表不存在：' + editor.sheetName);
+      editor.cells.forEach((cell) => {
+        if (!cell || !cell.address) return;
+        const current = String(cell.value === undefined || cell.value === null ? '' : cell.value);
+        const original = String(cell.original === undefined || cell.original === null ? '' : cell.original);
+        if (current !== original) worksheet.getCell(cell.address).value = current ? current : null;
+      });
+      const buffer = await workbook.xlsx.writeBuffer();
+      const nameBase = String(template.fileName || 'ingredient-template.xlsx').replace(/\.xlsx$/i, '').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 100) || '成分表模板';
+      const fileName = nameBase + '-已编辑-' + new Date().toISOString().slice(0, 10) + '.xlsx';
+      downloadBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
+      state.productDevelopmentIngredientStatus = 'Excel 已下载：' + fileName;
+      productDevelopmentLog('success', '成分表 Excel 生成完成', editor.kind + ' | 模板=' + template.fileName + ' | 工作表=' + editor.sheetName + ' | 用时=' + (Date.now() - startedAt) + 'ms');
+      showToast('成分表 Excel 已下载');
+    } catch (error) {
+      state.productDevelopmentIngredientError = formatErrorMessage(error);
+      state.productDevelopmentIngredientStatus = '';
+      productDevelopmentLog('error', '成分表 Excel 生成失败', formatErrorMessage(error));
+      showToast(state.productDevelopmentIngredientError);
+    } finally {
+      state.productDevelopmentIngredientBusy = false;
+      renderShell();
+    }
+  }
+
   function productDevelopmentViewHtml(statusText) {
-    const view = state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : 'home');
+    const view = state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : (state.productDevelopmentView === 'ingredient' ? 'ingredient' : 'home'));
     if (view === 'review') return productDevelopmentReviewHtml(statusText);
     if (view === 'copywriting') return productDevelopmentCopywritingHtml(statusText);
+    if (view === 'ingredient') return productDevelopmentIngredientFactsHtml();
     if (state.productDevelopmentView === 'history') return productDevelopmentHistoryViewHtml(statusText);
     return homeViewHtml(statusText);
   }
@@ -5202,17 +5534,50 @@
   function productDevelopmentHandleAction(action, actionTarget) {
     if (action === 'work-mode') {
       if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      if (state.productDevelopmentIngredientEditor) saveProductDevelopmentIngredientEditorDraft(state.productDevelopmentIngredientEditor);
       state.productDevelopmentReviewEditorOpen = false;
       setProductDevelopmentWorkMode(actionTarget && actionTarget.getAttribute('data-work-mode'));
       return true;
     }
     if (action === 'product-development-home') {
       if (state.productDevelopmentReview) saveProductDevelopmentReviewDraft(state.productDevelopmentReview);
+      if (state.productDevelopmentIngredientEditor) saveProductDevelopmentIngredientEditorDraft(state.productDevelopmentIngredientEditor);
+      state.productDevelopmentIngredientLoadToken = Number(state.productDevelopmentIngredientLoadToken || 0) + 1;
       state.productDevelopmentReviewEditorOpen = false;
       state.view = 'home';
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
       renderShell();
+      return true;
+    }
+    if (action === 'product-development-ingredient-open') {
+      state.workMode = 'product-development';
+      state.settings.workMode = 'product-development';
+      saveSettings(state.settings);
+      state.productDevelopmentView = 'ingredient';
+      state.view = 'home';
+      state.productDevelopmentIngredientError = '';
+      state.productDevelopmentIngredientStatus = '';
+      renderShell();
+      loadProductDevelopmentIngredientEditor();
+      return true;
+    }
+    if (action === 'product-development-ingredient-home') {
+      if (state.productDevelopmentIngredientEditor) saveProductDevelopmentIngredientEditorDraft(state.productDevelopmentIngredientEditor);
+      state.productDevelopmentIngredientLoadToken = Number(state.productDevelopmentIngredientLoadToken || 0) + 1;
+      state.productDevelopmentView = 'home';
+      state.productDevelopmentIngredientBusy = false;
+      state.productDevelopmentIngredientError = '';
+      state.productDevelopmentIngredientStatus = '';
+      renderShell();
+      return true;
+    }
+    if (action === 'product-development-ingredient-save-local') {
+      saveProductDevelopmentIngredientLocal();
+      return true;
+    }
+    if (action === 'product-development-ingredient-export') {
+      exportProductDevelopmentIngredientWorkbook();
       return true;
     }
     if (action === 'product-development-tasks-open') {
@@ -5470,6 +5835,23 @@
     const target = event && event.target;
     if (!target || !target.classList) return false;
     const files = Array.from(target.files || []);
+    if (target.classList.contains('pfh-product-development-ingredient-kind-input')) {
+      productDevelopmentIngredientSwitchSelection(target.value, '', '');
+      return true;
+    }
+    if (target.classList.contains('pfh-product-development-ingredient-template-input')) {
+      productDevelopmentIngredientSwitchSelection(state.productDevelopmentIngredientKind, target.value, '');
+      return true;
+    }
+    if (target.classList.contains('pfh-product-development-ingredient-sheet-input')) {
+      productDevelopmentIngredientSwitchSelection(state.productDevelopmentIngredientKind, state.productDevelopmentIngredientTemplateId, target.value);
+      return true;
+    }
+    if (target.classList.contains('pfh-product-development-ingredient-template-file-input')) {
+      target.value = '';
+      if (files[0]) importProductDevelopmentIngredientTemplate(files[0]).catch((error) => showToast(formatErrorMessage(error)));
+      return true;
+    }
     if (target.classList.contains('pfh-product-development-benchmark-input')) {
       target.value = '';
       if (files[0]) importProductDevelopmentBenchmarkImage(files[0]).catch((error) => showToast(formatErrorMessage(error)));
@@ -5485,6 +5867,16 @@
   function productDevelopmentHandleInput(event) {
     const target = event && event.target;
     if (!target || !target.classList) return false;
+    if (target.classList.contains('pfh-product-development-ingredient-cell-input')) {
+      const editor = state.productDevelopmentIngredientEditor;
+      const address = String(target.getAttribute('data-product-development-ingredient-cell') || '').trim();
+      const cell = editor && Array.isArray(editor.cells) ? editor.cells.find((item) => item && item.address === address) : null;
+      if (cell) {
+        cell.value = String(target.value || '').slice(0, 6000);
+        scheduleProductDevelopmentIngredientEditorDraftSave(editor);
+      }
+      return true;
+    }
     if (productDevelopmentHandleMaterialField(target)) return true;
     if (target.classList.contains('pfh-product-development-form-input')) {
       const sku = String(target.getAttribute('data-form-sku') || '').trim().toUpperCase();

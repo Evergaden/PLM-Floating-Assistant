@@ -12,6 +12,11 @@ const modules = [
   { name: 'desktop-bridge', file: path.join(root, 'src', 'desktop-bridge.module.js') },
   { name: 'ui-loader', file: path.join(root, 'src', 'ui-loader.module.js') },
   {
+    name: 'product-development-ingredient-templates',
+    file: path.join(root, 'src', 'product-development-ingredient-templates.module.js'),
+    requiredSourceMarkers: ['PRODUCT_DEVELOPMENT_INGREDIENT_TEMPLATES'],
+  },
+  {
     name: 'product-development',
     file: path.join(root, 'src', 'product-development.module.js'),
     requiredSourceMarkers: [
