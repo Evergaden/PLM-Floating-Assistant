@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predeploy": "npm run ui:check && npm run admin:check && npm run remote:icons:check && npm run assets:check",
+    "predeploy": "npm run ui:check && npm run admin:check && npm run remote:icons:check && npm run copywriting-templates:check && npm run assets:check",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "db:create": "wrangler d1 create plm-cloud-backup-db",
@@ -13,6 +13,8 @@
     "ui:build": "node scripts/build-ui-styles.cjs",
     "ui:check": "node scripts/build-ui-styles.cjs --check",
     "assets:check": "node scripts/check-static-manifest.cjs",
+    "copywriting-templates:build": "node ../../scripts/build-product-development-copywriting-templates.cjs",
+    "copywriting-templates:check": "node ../../scripts/build-product-development-copywriting-templates.cjs --check && node ../../scripts/check-product-development-copywriting-templates.cjs",
     "remote:icons": "node scripts/build-remote-icons.cjs",
     "remote:icons:check": "node scripts/build-remote-icons.cjs --check",
     "admin:build": "node scripts/build-admin-styles.cjs",

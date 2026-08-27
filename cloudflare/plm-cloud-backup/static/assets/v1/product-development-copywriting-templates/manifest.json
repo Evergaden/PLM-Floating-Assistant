@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-08-27.1",
+  "templates": [
+    {
+      "id": "capsule",
+      "label": "胶囊",
+      "fileName": "胶囊产品文案模板.docx",
+      "path": "v1/product-development-copywriting-templates/capsule.docx",
+      "bytes": 120452,
+      "sha256": "870267f33a71a6b0098ed2efa4c8dd909efce922e305e73cad98ed2e6c0df48a"
+    },
+    {
+      "id": "softgel",
+      "label": "软胶囊",
+      "fileName": "软胶囊产品文案模板.docx",
+      "path": "v1/product-development-copywriting-templates/softgel.docx",
+      "bytes": 117740,
+      "sha256": "fd91be52b233e6286699d4e7f82f68372b45179a5ccf2a6b5dc6ac972ab2dd02"
+    },
+    {
+      "id": "tablet",
+      "label": "片剂",
+      "fileName": "片剂产品文案模板.docx",
+      "path": "v1/product-development-copywriting-templates/tablet.docx",
+      "bytes": 135181,
+      "sha256": "86316b25b452f9b2ceb927ccb17ce7843ecdaccbde125c0685b9d01a7269c886"
+    },
+    {
+      "id": "chewable",
+      "label": "咀嚼片",
+      "fileName": "咀嚼片产品文案模板.docx",
+      "path": "v1/product-development-copywriting-templates/chewable.docx",
+      "bytes": 112529,
+      "sha256": "acf43bb8d822c0d02e849ac8a60f3347f003541dfb714bfa0c4000aa5a60b123"
+    },
+    {
+      "id": "drops",
+      "label": "滴剂",
+      "fileName": "滴剂产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/drops.docx",
+      "bytes": 131393,
+      "sha256": "36775495607a79e91d50c82f84e600d8c7c38af394dddc842f375387de5e437a"
+    },
+    {
+      "id": "pet-drops",
+      "label": "宠物滴剂",
+      "fileName": "宠物滴剂产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/pet-drops.docx",
+      "bytes": 224228,
+      "sha256": "58b2a3edc4c5934623fa58c4b340e41e6ebf77ef91aa67703fe4d9d41c59e7cb"
+    },
+    {
+      "id": "powder",
+      "label": "粉剂",
+      "fileName": "粉剂产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/powder.docx",
+      "bytes": 143606,
+      "sha256": "472712afedb6ff95f42b2c9e2faebedd13f2dfcf7f070a85dbdf1de11fcdd341"
+    },
+    {
+      "id": "sachet-powder",
+      "label": "粉剂袋装",
+      "fileName": "粉剂袋装产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/sachet-powder.docx",
+      "bytes": 140416,
+      "sha256": "0b3c74d116d11313f68f61e788c7a93aca1244968c2a77cd69e90c3e839dc23e"
+    },
+    {
+      "id": "gummy",
+      "label": "软糖",
+      "fileName": "软糖产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/gummy.docx",
+      "bytes": 112833,
+      "sha256": "d991768c83126eb8c4ebcdf8ab8053140b94a07afad976dc3dd696fb501efc43"
+    },
+    {
+      "id": "tea",
+      "label": "茶包",
+      "fileName": "茶产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/tea.docx",
+      "bytes": 166673,
+      "sha256": "0b7aeaa3d9e8889983d082d6bac74501792864874655eaf60722117b33c2081e"
+    },
+    {
+      "id": "lozenge",
+      "label": "口腔含片",
+      "fileName": "口腔含片产品文案模版.docx",
+      "path": "v1/product-development-copywriting-templates/lozenge.docx",
+      "bytes": 82132,
+      "sha256": "fb935a2614d5104ed3ec77946be02ed467802dbfb555278111b2085e301a8aa2"
+    }
+  ]
+}

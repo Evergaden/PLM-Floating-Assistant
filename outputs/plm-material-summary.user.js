@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.245
+// @version      2.8.246
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.245';
+  const SCRIPT_VERSION = '2.8.246';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4736,8 +4736,22 @@
   ]);
   // </product-development-ingredient-templates-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.11.0';
-  const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.12.0';
+  const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
+  const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
+  const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
+    Object.freeze({ id: 'capsule', label: '胶囊', fileName: '胶囊产品文案模板.docx', path: 'v1/product-development-copywriting-templates/capsule.docx', bytes: 120452, sha256: '870267f33a71a6b0098ed2efa4c8dd909efce922e305e73cad98ed2e6c0df48a' }),
+    Object.freeze({ id: 'softgel', label: '软胶囊', fileName: '软胶囊产品文案模板.docx', path: 'v1/product-development-copywriting-templates/softgel.docx', bytes: 117740, sha256: 'fd91be52b233e6286699d4e7f82f68372b45179a5ccf2a6b5dc6ac972ab2dd02' }),
+    Object.freeze({ id: 'tablet', label: '片剂', fileName: '片剂产品文案模板.docx', path: 'v1/product-development-copywriting-templates/tablet.docx', bytes: 135181, sha256: '86316b25b452f9b2ceb927ccb17ce7843ecdaccbde125c0685b9d01a7269c886' }),
+    Object.freeze({ id: 'chewable', label: '咀嚼片', fileName: '咀嚼片产品文案模板.docx', path: 'v1/product-development-copywriting-templates/chewable.docx', bytes: 112529, sha256: 'acf43bb8d822c0d02e849ac8a60f3347f003541dfb714bfa0c4000aa5a60b123' }),
+    Object.freeze({ id: 'drops', label: '滴剂', fileName: '滴剂产品文案模版.docx', path: 'v1/product-development-copywriting-templates/drops.docx', bytes: 131393, sha256: '36775495607a79e91d50c82f84e600d8c7c38af394dddc842f375387de5e437a' }),
+    Object.freeze({ id: 'pet-drops', label: '宠物滴剂', fileName: '宠物滴剂产品文案模版.docx', path: 'v1/product-development-copywriting-templates/pet-drops.docx', bytes: 224228, sha256: '58b2a3edc4c5934623fa58c4b340e41e6ebf77ef91aa67703fe4d9d41c59e7cb' }),
+    Object.freeze({ id: 'powder', label: '粉剂', fileName: '粉剂产品文案模版.docx', path: 'v1/product-development-copywriting-templates/powder.docx', bytes: 143606, sha256: '472712afedb6ff95f42b2c9e2faebedd13f2dfcf7f070a85dbdf1de11fcdd341' }),
+    Object.freeze({ id: 'sachet-powder', label: '粉剂袋装', fileName: '粉剂袋装产品文案模版.docx', path: 'v1/product-development-copywriting-templates/sachet-powder.docx', bytes: 140416, sha256: '0b3c74d116d11313f68f61e788c7a93aca1244968c2a77cd69e90c3e839dc23e' }),
+    Object.freeze({ id: 'gummy', label: '软糖', fileName: '软糖产品文案模版.docx', path: 'v1/product-development-copywriting-templates/gummy.docx', bytes: 112833, sha256: 'd991768c83126eb8c4ebcdf8ab8053140b94a07afad976dc3dd696fb501efc43' }),
+    Object.freeze({ id: 'tea', label: '茶包', fileName: '茶产品文案模版.docx', path: 'v1/product-development-copywriting-templates/tea.docx', bytes: 166673, sha256: '0b7aeaa3d9e8889983d082d6bac74501792864874655eaf60722117b33c2081e' }),
+    Object.freeze({ id: 'lozenge', label: '口腔含片', fileName: '口腔含片产品文案模版.docx', path: 'v1/product-development-copywriting-templates/lozenge.docx', bytes: 82132, sha256: 'fb935a2614d5104ed3ec77946be02ed467802dbfb555278111b2085e301a8aa2' }),
+  ]);
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
@@ -4745,6 +4759,7 @@
   const PRODUCT_DEVELOPMENT_TASK_SIDEBAR_KEY = 'plm-floating-helper:product-development-task-sidebar:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY = 'plm-floating-helper:product-development-template-version:v1';
+  const PRODUCT_DEVELOPMENT_TEMPLATE_SELECTION_KEY = 'plm-floating-helper:product-development-template-selection:v1';
   const PRODUCT_DEVELOPMENT_INGREDIENT_DRAFT_KEY = 'plm-floating-helper:product-development-ingredient-drafts:v1';
   const PRODUCT_DEVELOPMENT_INGREDIENT_LOCAL_TEMPLATE_KEY = 'plm-floating-helper:product-development-ingredient-local-templates:v1';
   const PRODUCT_DEVELOPMENT_INGREDIENT_MAX_TEMPLATE_SIZE = 5 * 1024 * 1024;
@@ -4754,6 +4769,7 @@
   const productDevelopmentTaskMetaWriteTimers = Object.create(null);
   const productDevelopmentReworkLookupTimers = Object.create(null);
   const productDevelopmentReworkLookupRequestTokens = Object.create(null);
+  const productDevelopmentCopywritingTemplateBufferCache = Object.create(null);
   const PRODUCT_DEVELOPMENT_W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   const PRODUCT_DEVELOPMENT_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
   const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
@@ -5276,6 +5292,83 @@
     writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY, String(version || 'local-template').slice(0, 80));
     state.productDevelopmentTemplateBase64 = value;
     state.productDevelopmentTemplateVersion = String(version || 'local-template').slice(0, 80);
+  }
+
+  function productDevelopmentCopywritingBuiltinTemplates() {
+    return PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG;
+  }
+
+  function loadProductDevelopmentCopywritingTemplateId() {
+    const templates = productDevelopmentCopywritingBuiltinTemplates();
+    const stored = String(readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TEMPLATE_SELECTION_KEY, '') || '').trim();
+    if (stored === 'local' && loadProductDevelopmentTemplate()) return stored;
+    if (templates.some((item) => item.id === stored)) return stored;
+    if (loadProductDevelopmentTemplate()) return 'local';
+    return templates.some((item) => item.id === PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID)
+      ? PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID
+      : String(templates[0] && templates[0].id || '');
+  }
+
+  function saveProductDevelopmentCopywritingTemplateId(templateId) {
+    const value = String(templateId || '').trim().slice(0, 80);
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TEMPLATE_SELECTION_KEY, value);
+    state.productDevelopmentCopywritingTemplateId = value;
+  }
+
+  function resolveProductDevelopmentCopywritingTemplate() {
+    const templates = productDevelopmentCopywritingBuiltinTemplates();
+    const selectedId = String(state.productDevelopmentCopywritingTemplateId || '').trim();
+    if (selectedId === 'local' && state.productDevelopmentTemplateBase64) {
+      return {
+        id: 'local',
+        label: '本地自定义模板',
+        fileName: '',
+        source: state.productDevelopmentTemplateBase64,
+        version: state.productDevelopmentTemplateVersion || 'local-template',
+        local: true,
+      };
+    }
+    const selected = templates.find((item) => item.id === selectedId)
+      || templates.find((item) => item.id === PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID)
+      || templates[0];
+    if (!selected) {
+      return {
+        id: 'legacy',
+        label: '通用四列表格',
+        fileName: '',
+        base64: '',
+        version: 'builtin-v1',
+        local: false,
+      };
+    }
+    return {
+      ...selected,
+      version: 'copywriting-' + selected.id + '-v1',
+      local: false,
+    };
+  }
+
+  async function loadProductDevelopmentCopywritingTemplateSource(template) {
+    if (!template || !template.id) throw new Error('请先选择文案模板');
+    if (template.local) return template.source;
+    if (productDevelopmentCopywritingTemplateBufferCache[template.id]) return productDevelopmentCopywritingTemplateBufferCache[template.id];
+    const buffer = await fetchCloudAsset(template, 'arraybuffer');
+    productDevelopmentCopywritingTemplateBufferCache[template.id] = buffer;
+    return buffer;
+  }
+
+  function selectProductDevelopmentCopywritingTemplate(templateId) {
+    const targetId = String(templateId || '').trim();
+    if (targetId === 'local' && !state.productDevelopmentTemplateBase64) throw new Error('请先添加本地 DOCX 模板');
+    const template = targetId === 'local'
+      ? { id: 'local', label: '本地自定义模板' }
+      : productDevelopmentCopywritingBuiltinTemplates().find((item) => item.id === targetId);
+    if (!template) throw new Error('文案模板不存在');
+    saveProductDevelopmentCopywritingTemplateId(template.id);
+    state.productDevelopmentCopywriting = null;
+    state.productDevelopmentStatus = '已选择文案模板：' + template.label;
+    state.productDevelopmentError = '';
+    renderShell();
   }
 
   function getProductDevelopmentCurrentSku() {
@@ -9817,12 +9910,21 @@
     return message;
   }
 
-  async function buildProductDevelopmentDocx(content, templateBase64) {
+  function productDevelopmentCopywritingNameWithBrand(brand, name) {
+    const brandText = productDevelopmentCleanText(brand, 160);
+    const nameText = productDevelopmentCleanText(name, 300);
+    if (!brandText) return nameText;
+    if (!nameText) return brandText;
+    return nameText.toLowerCase().includes(brandText.toLowerCase()) ? nameText : brandText + ' ' + nameText;
+  }
+
+  async function buildProductDevelopmentDocx(content, templateSource, snapshot) {
     let zip = null;
     let xml = productDevelopmentBuiltinDocumentXml();
-    if (templateBase64) {
+    if (templateSource) {
       if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
-      zip = await JSZip.loadAsync(base64ToArrayBuffer(templateBase64));
+      const templateBuffer = typeof templateSource === 'string' ? base64ToArrayBuffer(templateSource) : templateSource;
+      zip = await JSZip.loadAsync(templateBuffer);
       const documentFile = zip.file('word/document.xml');
       if (!documentFile) throw new Error('模板缺少 word/document.xml');
       xml = await documentFile.async('string');
@@ -9831,28 +9933,40 @@
     if (!doc || doc.getElementsByTagName('parsererror').length) throw new Error('模板文档结构无法读取');
     const rows = productDevelopmentXmlElements(doc, 'tr');
     if (!rows.length) throw new Error('模板没有可编辑表格');
-    rows.forEach((row) => {
-      const cells = productDevelopmentXmlElements(row, 'tc');
-      const label = productDevelopmentCellText(cells[0] || '');
-      if (!/内容说明|文案英文内容|文案中文内容/.test(label)) cells.slice(1).forEach((cell) => productDevelopmentClearCell(cell));
-    });
     const targets = {
+      productName: productDevelopmentFindRow(rows, [/产品名称/i]),
+      referenceUrl: productDevelopmentFindRow(rows, [/外网参考链接/i, /参考链接/i]),
       efficacy: productDevelopmentFindRow(rows, [/^A[.．、)]?产品功效/i, /产品功效/i]),
       advantages: productDevelopmentFindRow(rows, [/^B[.．、)]?产品优势/i, /产品优势/i]),
       sellingPoints: productDevelopmentFindRow(rows, [/^C[.．、)]?产品卖点/i, /产品卖点/i]),
       ingredientFunctions: productDevelopmentFindRow(rows, [/^D[.．、)]?成分功能/i, /成分功能/i]),
     };
-    const missing = Object.keys(targets).filter((key) => !targets[key]);
+    const missing = ['efficacy', 'advantages', 'sellingPoints', 'ingredientFunctions'].filter((key) => !targets[key]);
     if (missing.length) throw new Error('模板缺少字段：' + missing.join('、'));
     const fill = (row, english, chinese) => {
       const cells = productDevelopmentXmlElements(row, 'tc');
       if (cells.length < 4) throw new Error('模板字段不是四列表格');
       productDevelopmentSetCellLines(cells[1], english, doc);
       productDevelopmentSetCellLines(cells[2], chinese, doc);
-      productDevelopmentClearCell(cells[3]);
     };
+    if (targets.productName && snapshot) {
+      const cells = productDevelopmentXmlElements(targets.productName, 'tc');
+      const englishName = productDevelopmentCopywritingNameWithBrand(snapshot.brand, snapshot.englishName);
+      const chineseName = productDevelopmentCopywritingNameWithBrand(snapshot.brand, snapshot.name);
+      if (cells[1] && englishName) productDevelopmentSetCellLines(cells[1], ['PRODUCT NAME: ' + englishName], doc);
+      if (cells[2] && chineseName) productDevelopmentSetCellLines(cells[2], [chineseName], doc);
+    }
+    if (targets.referenceUrl && snapshot && snapshot.referenceUrl) {
+      const cells = productDevelopmentXmlElements(targets.referenceUrl, 'tc');
+      if (cells[1]) productDevelopmentSetCellLines(cells[1], [snapshot.referenceUrl], doc);
+    }
+    const efficacyEnglish = productDevelopmentSectionLines(content.efficacy, (item, index) => index + '. ' + item.en);
+    const efficacyCells = productDevelopmentXmlElements(targets.efficacy, 'tc');
+    if (efficacyEnglish.length && /\bFUNCTIONS?\b/i.test(productDevelopmentCellText(efficacyCells[1] || ''))) {
+      efficacyEnglish[0] = 'FUNCTIONS：' + efficacyEnglish[0];
+    }
     fill(targets.efficacy,
-      productDevelopmentSectionLines(content.efficacy, (item, index) => index + '. ' + item.en),
+      efficacyEnglish,
       productDevelopmentSectionLines(content.efficacy, (item, index) => index + '、' + item.cn));
     fill(targets.advantages,
       productDevelopmentSectionLines(content.advantages, (item, index) => index + '. ' + item.en),
@@ -9897,7 +10011,19 @@
         180000,
         '产品资料读取',
       );
+      const copywritingTemplate = resolveProductDevelopmentCopywritingTemplate();
       productDevelopmentLog('success', '产品资料与成分读取完成', sku + ' | 成分=' + snapshot.ingredients.length + ' 项 | 用时=' + (Date.now() - startedAt) + 'ms');
+      stage = '加载 DOCX 模板';
+      state.productDevelopmentStatus = copywritingTemplate.local
+        ? '正在读取本地 DOCX 模板…'
+        : '正在从云端加载' + copywritingTemplate.label + '文案模板…';
+      renderShell();
+      const copywritingTemplateSource = await withCopywritingTimeout(
+        loadProductDevelopmentCopywritingTemplateSource(copywritingTemplate),
+        60000,
+        'DOCX 模板下载',
+      );
+      productDevelopmentLog('success', 'DOCX 模板已就绪', sku + ' | 模板=' + copywritingTemplate.label + ' | 来源=' + (copywritingTemplate.local ? '本地' : '云端'));
       state.productDevelopmentStatus = '正在一次性生成完整 A-D 文案，最长等待约 10 分钟…';
       renderShell();
       stage = 'AI 生成完整文案';
@@ -9914,7 +10040,9 @@
             ingredientSummary: snapshot.ingredientSummary,
             ingredientFunctions: snapshot.ingredientFunctions,
             sourceCopywriting: snapshot.sourceCopywriting,
-            templateVersion: state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION,
+            templateVersion: copywritingTemplate.version,
+            templateId: copywritingTemplate.id,
+            templateLabel: copywritingTemplate.label,
           },
         }),
         620000,
@@ -9927,15 +10055,15 @@
       state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
       renderShell();
       stage = '生成 DOCX';
-      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + (state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION));
+      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id);
       const blob = await withCopywritingTimeout(
-        buildProductDevelopmentDocx(content, state.productDevelopmentTemplateBase64),
+        buildProductDevelopmentDocx(content, copywritingTemplateSource, snapshot),
         180000,
         'DOCX 生成',
       );
       productDevelopmentLog('success', 'DOCX 文件生成完成', sku + ' | 大小=' + String(blob && blob.size || 0) + ' bytes | 用时=' + (Date.now() - startedAt) + 'ms');
       const id = 'pd-copywriting-' + Date.now().toString(36);
-      const fileName = productDevelopmentFileName(snapshot.sku, 'copywriting-A-D', 'docx');
+      const fileName = productDevelopmentFileName(snapshot.sku, 'copywriting-' + copywritingTemplate.id, 'docx');
       state.productDevelopmentCopywriting = {
         id,
         sku: snapshot.sku,
@@ -9944,7 +10072,9 @@
         fileName,
         provider: productDevelopmentCleanText(response.provider, 80),
         model: productDevelopmentCleanText(response.model, 120),
-        templateVersion: state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION,
+        templateVersion: copywritingTemplate.version,
+        templateId: copywritingTemplate.id,
+        templateLabel: copywritingTemplate.label,
         createdAt: new Date().toLocaleString(),
       };
       saveProductDevelopmentHistory({
@@ -9981,6 +10111,8 @@
     const base64 = arrayBufferToBase64(buffer);
     const version = 'local-' + String(file.name || 'template').replace(/[^A-Za-z0-9\u3400-\u9fff]+/g, '-').slice(0, 45);
     saveProductDevelopmentTemplate(base64, version);
+    saveProductDevelopmentCopywritingTemplateId('local');
+    state.productDevelopmentCopywriting = null;
     state.productDevelopmentStatus = '已保存本地模板：' + file.name;
     showToast('本地 DOCX 模板已保存');
     renderShell();
@@ -9991,16 +10123,20 @@
       if (typeof GM_deleteValue === 'function') {
         GM_deleteValue(PRODUCT_DEVELOPMENT_TEMPLATE_KEY);
         GM_deleteValue(PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY);
+        GM_deleteValue(PRODUCT_DEVELOPMENT_TEMPLATE_SELECTION_KEY);
       } else {
         localStorage.removeItem(PRODUCT_DEVELOPMENT_TEMPLATE_KEY);
         localStorage.removeItem(PRODUCT_DEVELOPMENT_TEMPLATE_VERSION_KEY);
+        localStorage.removeItem(PRODUCT_DEVELOPMENT_TEMPLATE_SELECTION_KEY);
       }
     } catch (error) {
       // Continue with in-memory reset.
     }
     state.productDevelopmentTemplateBase64 = '';
     state.productDevelopmentTemplateVersion = '';
-    showToast('已恢复内置四列表格模板');
+    state.productDevelopmentCopywritingTemplateId = PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID;
+    state.productDevelopmentCopywriting = null;
+    showToast('已恢复默认胶囊文案模板');
     renderShell();
   }
 
@@ -10197,7 +10333,13 @@
   function productDevelopmentCopywritingHtml() {
     const sku = getProductDevelopmentCurrentSku();
     const content = state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.sku === sku ? state.productDevelopmentCopywriting.content : null;
-    const templateLabel = state.productDevelopmentTemplateBase64 ? '已使用本地模板' : '内置模板';
+    const template = resolveProductDevelopmentCopywritingTemplate();
+    const templateOptions = productDevelopmentCopywritingBuiltinTemplates()
+      .map((item) => '<option value="' + escapeHtml(item.id) + '"' + (item.id === template.id ? ' selected' : '') + '>' + escapeHtml(item.label + '产品文案模板') + '</option>')
+      .concat(state.productDevelopmentTemplateBase64
+        ? ['<option value="local"' + (template.id === 'local' ? ' selected' : '') + '>本地自定义模板</option>']
+        : [])
+      .join('');
     const snapshotIngredientCount = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku && Array.isArray(state.productDevelopmentSnapshot.ingredients)
       ? state.productDevelopmentSnapshot.ingredients.length
       : 0;
@@ -10208,7 +10350,7 @@
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>产品文案</small><h2>生成双语文案</h2></div></header>' +
       '<section class="pfh-product-development-work-card"><div><h3>生成产品文案 DOCX</h3><p>根据当前产品名称、成分和卖点生成中英文内容，并自动填入 Word 模板。</p></div><button type="button" data-action="product-development-copywriting-run"' + (state.productDevelopmentCopywritingBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentCopywritingBusy ? '正在生成…' : '生成文案 DOCX') + '</button></section>' +
-      '<section class="pfh-product-development-template-card"><div><small>当前模板</small><strong>' + escapeHtml(templateLabel) + '</strong></div><label class="pfh-product-development-template-picker">替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label><button type="button" data-action="product-development-template-reset">使用内置模板</button><span>已读取成分：' + escapeHtml(ingredientCount ? String(ingredientCount) + ' 个' + ingredientSourceLabel : '待读取') + '</span></section>' +
+      '<section class="pfh-product-development-template-card"><div><small>文案模板</small><strong>' + escapeHtml(template.label) + '</strong><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></div><label class="pfh-product-development-template-picker">添加或替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label>' + (state.productDevelopmentTemplateBase64 ? '<button type="button" data-action="product-development-template-reset">删除本地模板</button>' : '') + '<span>已读取成分：' + escapeHtml(ingredientCount ? String(ingredientCount) + ' 个' + ingredientSourceLabel : '待读取') + '</span><small class="pfh-product-development-template-note">生成时保留所选模板的完整行、图片、备注、字体和列宽，只替换当前 SKU 字段与 A–D 文案。</small></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (displayError ? '<p class="pfh-product-development-error">' + escapeHtml(displayError) + '</p>' : '') +
       (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + escapeHtml(state.productDevelopmentCopywriting.fileName) + '</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>' : '') +
@@ -10858,6 +11000,14 @@
     const target = event && event.target;
     if (!target || !target.classList) return false;
     const files = Array.from(target.files || []);
+    if (target.classList.contains('pfh-product-development-copywriting-template-input')) {
+      try {
+        selectProductDevelopmentCopywritingTemplate(target.value);
+      } catch (error) {
+        showToast(formatErrorMessage(error));
+      }
+      return true;
+    }
     if (target.classList.contains('pfh-product-development-ingredient-kind-input')) {
       productDevelopmentIngredientSwitchSelection(target.value, '', '');
       return true;
@@ -11376,6 +11526,7 @@
     productDevelopmentBomDomFillSku: '',
     productDevelopmentTemplateBase64: loadProductDevelopmentTemplate(),
     productDevelopmentTemplateVersion: loadProductDevelopmentTemplateVersion(),
+    productDevelopmentCopywritingTemplateId: loadProductDevelopmentCopywritingTemplateId(),
     productDevelopmentIngredientKind: 'human',
     productDevelopmentIngredientTemplateId: 'human-builtin',
     productDevelopmentIngredientSheetName: '',
