@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.236
+// @version      2.8.237
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.236';
+  const SCRIPT_VERSION = '2.8.237';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4671,7 +4671,7 @@
   }
   // </ui-loader-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.10.4';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.10.5';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'builtin-v1';
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
@@ -9452,6 +9452,9 @@
     if (/产品资料读取|PLM 卖点读取|PLM 产品详情读取|成分表读取/.test(message) && /超时|失败/.test(message)) {
       return '产品资料读取超时或失败，已保留本地缓存；请稍后重试，日志中可查看具体阶段。';
     }
+    if (/DOCX|Word|模板/i.test(message) && /超时|失败|缺少|无法|组件/.test(message)) {
+      return 'DOCX 文件生成超时或模板无法处理；AI 文案已返回，请检查模板后重新生成。';
+    }
     if (/restricted term|含限制词|asterisk|blank line|星号|空行/i.test(message)) {
       const termMatch = message.match(/restricted term\s+["“]([^"”]+)["”]/i) || message.match(/含限制词[“"]([^”"]+)[”"]/i);
       const term = termMatch ? termMatch[1] : '';
@@ -9512,7 +9515,11 @@
       productDevelopmentSectionLines(content.ingredientFunctions, (item, index) => index + '. ' + (item.ingredientEn || item.ingredientCn) + ': ' + item.en),
       productDevelopmentSectionLines(content.ingredientFunctions, (item, index) => index + '、' + (item.ingredientCn || item.ingredientEn) + '：' + item.cn));
     zip.file('word/document.xml', new XMLSerializer().serializeToString(doc));
-    return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    // A DOCX may contain large images. Recompressing every entry with DEFLATE
+    // can keep the UI in "generating" for a very long time after the AI call
+    // has already completed. The package remains valid when entries are stored
+    // without recompression, and this keeps the local export responsive.
+    return zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
   }
 
   async function runProductDevelopmentCopywriting() {
@@ -9565,10 +9572,17 @@
       productDevelopmentLog('success', 'AI 文案返回', sku + ' | provider=' + productDevelopmentCleanText(response && response.provider, 80) + ' | model=' + productDevelopmentCleanText(response && response.model, 120) + ' | 用时=' + (Date.now() - startedAt) + 'ms');
       stage = '校验中英文条目';
       const content = productDevelopmentValidateCopywriting(response, snapshot);
+      productDevelopmentLog('success', '文案校验通过', sku + ' | A=' + content.efficacy.length + ' | B=' + content.advantages.length + ' | C=' + content.sellingPoints.length + ' | D=' + content.ingredientFunctions.length);
       state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
       renderShell();
       stage = '生成 DOCX';
-      const blob = await buildProductDevelopmentDocx(content, state.productDevelopmentTemplateBase64);
+      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + (state.productDevelopmentTemplateVersion || PRODUCT_DEVELOPMENT_TEMPLATE_VERSION));
+      const blob = await withCopywritingTimeout(
+        buildProductDevelopmentDocx(content, state.productDevelopmentTemplateBase64),
+        180000,
+        'DOCX 生成',
+      );
+      productDevelopmentLog('success', 'DOCX 文件生成完成', sku + ' | 大小=' + String(blob && blob.size || 0) + ' bytes | 用时=' + (Date.now() - startedAt) + 'ms');
       const id = 'pd-copywriting-' + Date.now().toString(36);
       const fileName = productDevelopmentFileName(snapshot.sku, 'copywriting-A-D', 'docx');
       state.productDevelopmentCopywriting = {
