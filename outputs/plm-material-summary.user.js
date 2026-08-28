@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.251
+// @version      2.8.252
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.251';
+  const SCRIPT_VERSION = '2.8.252';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7683,19 +7683,12 @@
     if (!categoryInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到物料分类控件');
     if (kind === 'instruction') {
       await productDevelopmentBomDomSelectCategory(categoryInput, draft.categoryPath);
-    } else {
-      const categoryText = productDevelopmentDomSelectedText(categoryInput);
-      const expectedCategory = kind === 'box' ? '纸盒' : '标签';
-      if (!categoryText || !categoryText.includes(expectedCategory)) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未带出默认分类，请取消当前行后重试');
     }
     editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
     const supplierInput = editor.querySelector('#form_item_default_supplier_id');
     if (!supplierInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到默认供应商控件');
     if (kind === 'instruction') {
       await productDevelopmentDomSelectOption(supplierInput, draft.supplier, 'select');
-    } else {
-      const supplierText = productDevelopmentDomSelectedText(supplierInput);
-      if (!supplierText || /选择供应商/.test(supplierText)) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未带出默认供应商，请取消当前行后重试');
     }
     editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
     const values = [
