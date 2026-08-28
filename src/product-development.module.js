@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.13.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.13.1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -5158,9 +5158,20 @@
     });
   }
 
+  function productDevelopmentBodyRunProperties(source) {
+    if (!source) return null;
+    const clone = source.cloneNode(true);
+    Array.from(clone.childNodes || []).forEach((child) => {
+      const localName = String(child.localName || child.nodeName || '').replace(/^w:/, '');
+      if (localName === 'b' || localName === 'bCs') clone.removeChild(child);
+    });
+    return clone;
+  }
+
   function productDevelopmentSetCellLines(cell, lines, doc) {
     const sourceParagraph = productDevelopmentXmlElements(cell, 'p')[0];
-    const sourceRun = sourceParagraph && productDevelopmentXmlElements(sourceParagraph, 'r')[0];
+    const sourceRuns = sourceParagraph ? productDevelopmentXmlElements(sourceParagraph, 'r').filter((run) => productDevelopmentCellText(run)) : [];
+    const sourceRun = sourceRuns[1] || sourceRuns[0];
     const sourcePPr = sourceParagraph && productDevelopmentXmlElements(sourceParagraph, 'pPr')[0];
     const sourceRPr = sourceRun && productDevelopmentXmlElements(sourceRun, 'rPr')[0];
     productDevelopmentClearCell(cell);
@@ -5169,7 +5180,8 @@
       const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
       if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
       const run = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:r');
-      if (sourceRPr) run.appendChild(sourceRPr.cloneNode(true));
+      const bodyRPr = productDevelopmentBodyRunProperties(sourceRPr);
+      if (bodyRPr) run.appendChild(bodyRPr);
       const text = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:t');
       text.setAttribute('xml:space', 'preserve');
       text.textContent = String(line);
@@ -5177,6 +5189,39 @@
       paragraph.appendChild(run);
       cell.appendChild(paragraph);
     });
+  }
+
+  function productDevelopmentSetCellPrefixedLines(cell, prefix, lines, doc) {
+    const sourceParagraph = productDevelopmentXmlElements(cell, 'p')[0];
+    const sourceRuns = sourceParagraph ? productDevelopmentXmlElements(sourceParagraph, 'r').filter((run) => productDevelopmentCellText(run)) : [];
+    const headingRun = sourceRuns[0];
+    const bodyRun = sourceRuns[1] || sourceRuns[0];
+    const sourcePPr = sourceParagraph && productDevelopmentXmlElements(sourceParagraph, 'pPr')[0];
+    const headingRPr = headingRun && productDevelopmentXmlElements(headingRun, 'rPr')[0];
+    const bodyRPr = bodyRun && productDevelopmentXmlElements(bodyRun, 'rPr')[0];
+    const values = (Array.isArray(lines) ? lines : [lines]).filter((line) => String(line || '').trim());
+    const appendRun = (paragraph, textValue, runProperties) => {
+      const run = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:r');
+      if (runProperties) run.appendChild(runProperties.cloneNode(true));
+      const text = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:t');
+      text.setAttribute('xml:space', 'preserve');
+      text.textContent = String(textValue || '');
+      run.appendChild(text);
+      paragraph.appendChild(run);
+    };
+    productDevelopmentClearCell(cell);
+    values.forEach((line, index) => {
+      const paragraph = doc.createElementNS(PRODUCT_DEVELOPMENT_W_NS, 'w:p');
+      if (sourcePPr) paragraph.appendChild(sourcePPr.cloneNode(true));
+      if (index === 0 && prefix) appendRun(paragraph, String(prefix).trim() + ' ', headingRPr);
+      appendRun(paragraph, line, productDevelopmentBodyRunProperties(bodyRPr));
+      cell.appendChild(paragraph);
+    });
+  }
+
+  function productDevelopmentCellHeadingPrefix(cell, pattern) {
+    const runs = productDevelopmentXmlElements(cell, 'r');
+    return runs.map((run) => productDevelopmentCellText(run)).find((text) => text && pattern.test(text)) || '';
   }
 
   function productDevelopmentFindRow(rows, patterns) {
@@ -5404,7 +5449,10 @@
       const cells = productDevelopmentXmlElements(targets.productName, 'tc');
       const englishName = productDevelopmentCopywritingNameWithBrand(snapshot.brand, snapshot.englishName);
       const chineseName = productDevelopmentCopywritingNameWithBrand(snapshot.brand, snapshot.name);
-      if (cells[1] && englishName) productDevelopmentSetCellLines(cells[1], ['PRODUCT NAME: ' + englishName], doc);
+      if (cells[1] && englishName) {
+        const productNamePrefix = productDevelopmentCellHeadingPrefix(cells[1], /PRODUCT\s*NAME/i) || 'PRODUCT NAME:';
+        productDevelopmentSetCellPrefixedLines(cells[1], productNamePrefix, [englishName], doc);
+      }
       if (cells[2] && chineseName) productDevelopmentSetCellLines(cells[2], [chineseName], doc);
     }
     if (targets.referenceUrl && snapshot && snapshot.referenceUrl) {
@@ -5413,12 +5461,12 @@
     }
     const efficacyEnglish = productDevelopmentSectionLines(content.efficacy, (item, index) => index + '. ' + item.en);
     const efficacyCells = productDevelopmentXmlElements(targets.efficacy, 'tc');
-    if (efficacyEnglish.length && /\bFUNCTIONS?\b/i.test(productDevelopmentCellText(efficacyCells[1] || ''))) {
-      efficacyEnglish[0] = 'FUNCTIONS：' + efficacyEnglish[0];
-    }
-    fill(targets.efficacy,
-      efficacyEnglish,
-      productDevelopmentSectionLines(content.efficacy, (item, index) => index + '、' + item.cn));
+    const efficacyChinese = productDevelopmentSectionLines(content.efficacy, (item, index) => index + '、' + item.cn);
+    const efficacyPrefix = productDevelopmentCellHeadingPrefix(efficacyCells[1], /\bFUNCTIONS?\b/i);
+    if (efficacyPrefix) {
+      productDevelopmentSetCellPrefixedLines(efficacyCells[1], efficacyPrefix, efficacyEnglish, doc);
+      productDevelopmentSetCellLines(efficacyCells[2], efficacyChinese, doc);
+    } else fill(targets.efficacy, efficacyEnglish, efficacyChinese);
     fill(targets.advantages,
       productDevelopmentSectionLines(content.advantages, (item, index) => index + '. ' + item.en),
       productDevelopmentSectionLines(content.advantages, (item, index) => index + '、' + item.cn));
