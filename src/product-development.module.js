@@ -2914,6 +2914,49 @@
     return kind === 'box' ? '纸盒' : kind === 'label' ? '标签' : '印刷';
   }
 
+  function productDevelopmentBomDomProductSearch(drawer) {
+    if (!drawer) return null;
+    const input = Array.from(drawer.querySelectorAll('input[placeholder="搜索成品编码"]'))
+      .find(productDevelopmentDomVisible);
+    if (!input) return null;
+    return {
+      input,
+      scope: input.closest('.cardBox, .materialEditList, .card') || input.parentElement || drawer,
+    };
+  }
+
+  function productDevelopmentBomDomHasProductCode(drawer, code) {
+    const normalizedCode = productDevelopmentNormalizeReworkProductCode(code);
+    if (!drawer || !normalizedCode) return false;
+    return Array.from(drawer.querySelectorAll('.cardBox'))
+      .filter(productDevelopmentDomVisible)
+      .filter((card) => !card.querySelector('input[placeholder="搜索成品编码"]'))
+      .some((card) => productDevelopmentDomText(card.textContent).includes(normalizedCode));
+  }
+
+  async function productDevelopmentBomDomSearchProduct(drawer, code) {
+    const normalizedCode = productDevelopmentNormalizeReworkProductCode(code);
+    if (!normalizedCode) return false;
+    if (productDevelopmentBomDomActiveEditor(drawer) || productDevelopmentBomDomProductSearch(drawer)) {
+      throw new Error('PLM 当前还有未确认的物料或成品搜索行，请先确定或取消后再试');
+    }
+    const addButton = productDevelopmentBomDomButton(drawer, '添加物料');
+    if (!addButton) throw new Error('当前绑定 BOM 抽屉未找到“添加物料”按钮');
+    addButton.click();
+    const menuItem = await waitFor(() => productDevelopmentBomDomMenuItem('成品'), 5000, 100);
+    if (!menuItem) throw new Error('添加物料菜单未找到“成品”');
+    menuItem.click();
+    const search = await waitFor(() => productDevelopmentBomDomProductSearch(drawer), 8000, 120);
+    if (!search || !search.input) throw new Error('PLM 未打开成品搜索表单');
+    productDevelopmentDomNativeSetter(search.input, normalizedCode);
+    await productDevelopmentDomWait(80);
+    const searchButton = productDevelopmentBomDomButton(search.scope, '搜索') || productDevelopmentBomDomButton(drawer, '搜索');
+    if (!searchButton) throw new Error('成品搜索表单未找到“搜索”按钮');
+    searchButton.click();
+    await productDevelopmentDomWait(300);
+    return true;
+  }
+
   function productDevelopmentBomDomCardMatches(drawer, kind, draft) {
     if (!drawer || !draft) return false;
     const materialName = productDevelopmentDomText(draft.materialName);
@@ -2987,6 +3030,8 @@
     const task = getProductDevelopmentTaskBySku(normalizedSku) || state.productDevelopmentSelectedTask || {};
     const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
     if (!detail) throw new Error('当前 SKU 详情还未读取完成');
+    const taskMeta = getProductDevelopmentTaskMeta(task, detail);
+    const reworkProductCode = productDevelopmentNormalizeReworkProductCode(taskMeta.reworkProductCode);
     productDevelopmentEnsureMaterialDrafts(detail, task);
     const drafts = [
       ['box', detail.materialDrafts.box],
@@ -3004,7 +3049,7 @@
       });
     }
     if (!drawer) throw new Error('请先在 PLM 打开当前 SKU 的“绑定 BOM”抽屉');
-    if (productDevelopmentBomDomActiveEditor(drawer)) throw new Error('PLM 当前还有未确认的物料行，请先确定或取消后再试');
+    if (productDevelopmentBomDomActiveEditor(drawer) || productDevelopmentBomDomProductSearch(drawer)) throw new Error('PLM 当前还有未确认的物料或成品搜索行，请先确定或取消后再试');
     const added = [];
     const skipped = [];
     for (const [kind, draft] of drafts) {
@@ -3017,8 +3062,20 @@
       await productDevelopmentBomDomFillEditor(drawer, kind, draft);
       added.push(title);
     }
-    if (!added.length) throw new Error(skipped.length ? '纸盒、标签或说明书已存在，未重复添加' : '没有启用的 BOM 物料可填写');
-    const message = '已填入 PLM 待保存行：' + added.join('、') + (skipped.length ? '；已跳过：' + skipped.join('、') : '') + '。请核对后点击“批量保存”';
+    let searchedReworkProduct = '';
+    if (reworkProductCode) {
+      if (productDevelopmentBomDomHasProductCode(drawer, reworkProductCode)) {
+        skipped.push('返工成品 ' + reworkProductCode);
+      } else {
+        state.productDevelopmentStatus = '正在搜索返工成品：' + reworkProductCode + '…';
+        await productDevelopmentBomDomSearchProduct(drawer, reworkProductCode);
+        searchedReworkProduct = reworkProductCode;
+      }
+    }
+    if (!added.length && !searchedReworkProduct) throw new Error(skipped.length ? 'BOM 物料或返工成品已存在，未重复添加' : '没有启用的 BOM 物料可填写');
+    const filledMessage = added.length ? '已填入 PLM 待保存行：' + added.join('、') : '';
+    const reworkMessage = searchedReworkProduct ? '已搜索返工成品：' + searchedReworkProduct + '，请检查搜索结果' : '';
+    const message = [filledMessage, reworkMessage, skipped.length ? '已跳过：' + skipped.join('、') : ''].filter(Boolean).join('；') + '。请核对后点击“批量保存”';
     detail.bomPlmSaveState = 'filled';
     detail.bomPlmSaveMessage = message;
     detail.cacheSource = 'local-cache';
@@ -3140,7 +3197,7 @@
   function productDevelopmentRunBomDomFill(sku) {
     const normalizedSku = String(sku || '').trim().toUpperCase();
     if (!normalizedSku || state.productDevelopmentBomDomFillSku) return;
-    if (typeof window.confirm === 'function' && !window.confirm('确认把当前启用的纸盒、标签和说明书逐条填入 PLM“绑定 BOM”界面？脚本会点击每行“确定”，但不会点击“批量保存”；请最后人工核对。')) return;
+    if (typeof window.confirm === 'function' && !window.confirm('确认把当前启用的纸盒、标签和说明书逐条填入 PLM“绑定 BOM”界面？如已填写返工产品编码，还会打开“成品”并执行搜索；脚本不会选择搜索结果或点击“批量保存”，请最后人工核对。')) return;
     state.productDevelopmentBomDomFillSku = normalizedSku;
     state.productDevelopmentStatus = '正在打开并填写 PLM BOM…';
     state.productDevelopmentError = '';
@@ -3698,7 +3755,7 @@
     const anyBomBusy = plmBusy || bomDomFillBusy;
     const plmStatus = detail.bomPlmSaveMessage ? '<p class="pfh-product-development-material-plm-status' + (detail.bomPlmSaveState === 'error' ? ' is-error' : ' is-saved') + '">' + escapeHtml(detail.bomPlmSaveMessage) + '</p>' : '';
     const existingBom = '<section class="pfh-product-development-form-section pfh-product-development-bom-existing"><h4>PLM 当前绑定 BOM（' + escapeHtml(String((detail.bomRows || []).length)) + ' 项）</h4>' + productDevelopmentReadonlyBomHtml(detail.bomRows || [], formSku) + '</section>';
-    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (bomDomFillBusy ? '正在填入…' : '一键填入 PLM BOM') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : 'API 直接保存') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书从“印刷”入口填写。一键填入只生成待保存行，核对后再在 PLM 点击“批量保存”。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
+    return '<section class="pfh-product-development-material-planner"><header><div><small>BOM 绑定</small><h3>填写 BOM 物料</h3></div><div class="pfh-product-development-material-header-actions"><span class="pfh-product-development-material-save-status' + saveStatusClass + '">' + escapeHtml(saveStatus) + '</span><button type="button" data-action="product-development-bom-save-local" data-bom-sku="' + escapeHtml(formSku) + '">保存本地</button><button type="button" class="is-primary" data-action="product-development-bom-fill-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (bomDomFillBusy ? '正在填入…' : '一键填入 PLM BOM') + '</button><button type="button" data-action="product-development-bom-save-plm" data-bom-sku="' + escapeHtml(formSku) + '"' + (anyBomBusy ? ' disabled' : '') + '>' + (plmBusy ? '正在保存…' : 'API 直接保存') + '</button></div></header><p class="pfh-product-development-material-note">纸盒和标签可按产品需要移除；说明书从“印刷”入口填写；返工产品编码有值时会从“成品”入口执行搜索。一键填入不会选择成品搜索结果或点击“批量保存”。</p>' + plmStatus + productDevelopmentFinishedProductBindingHtml(detail, task) + '<div class="pfh-product-development-material-list">' + productDevelopmentMaterialCardHtml('box', ensured.value.box, formSku, baseName) + productDevelopmentMaterialCardHtml('label', ensured.value.label, formSku, baseName) + productDevelopmentMaterialCardHtml('instruction', ensured.value.instruction, formSku, baseName) + '</div>' + existingBom + '</section>';
   }
 
   function productDevelopmentReadonlyAttachmentHtml(item, index, formSku) {
