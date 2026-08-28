@@ -2873,13 +2873,17 @@
       .find((item) => productDevelopmentDomText(item.textContent) === wanted) || null;
   }
 
-  async function productDevelopmentBomDomSelectCategory(input, target) {
+  async function productDevelopmentBomDomSelectCategory(input, target, options) {
     const wanted = productDevelopmentPrefillText(target, 800);
+    const force = Boolean(options && options.force);
     if (!input || !wanted) throw new Error('物料分类缺少填写值');
-    if (productDevelopmentDomSelectionMatches(input, wanted)) return;
+    if (!force && productDevelopmentDomSelectionMatches(input, wanted)) return;
     const container = input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
     const clear = container && container.querySelector('.ant-select-clear, .ant-cascader-picker-clear');
-    if (clear && productDevelopmentDomVisible(clear)) clear.click();
+    if (clear && productDevelopmentDomVisible(clear)) {
+      clear.click();
+      await productDevelopmentDomWait(80);
+    }
     const clickTarget = productDevelopmentDomClickTarget(input);
     if (!clickTarget) throw new Error('未找到物料分类点击区域');
     clickTarget.click();
@@ -2899,7 +2903,7 @@
       option.click();
       await productDevelopmentDomWait(140);
     }
-    if (!productDevelopmentDomSelectionMatches(input, wanted)) throw new Error('PLM 未确认物料分类“' + wanted + '”');
+    if (!force && !productDevelopmentDomSelectionMatches(input, wanted)) throw new Error('PLM 未确认物料分类“' + wanted + '”');
   }
 
   function productDevelopmentBomDomKindLabel(kind) {
@@ -2943,9 +2947,7 @@
     let editor = await productDevelopmentBomDomOpenEditor(drawer, kind);
     const categoryInput = editor.querySelector('#form_item_category_id');
     if (!categoryInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到物料分类控件');
-    if (kind === 'instruction') {
-      await productDevelopmentBomDomSelectCategory(categoryInput, draft.categoryPath);
-    }
+    await productDevelopmentBomDomSelectCategory(categoryInput, draft.categoryPath, { force: true });
     editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
     const supplierInput = editor.querySelector('#form_item_default_supplier_id');
     if (!supplierInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到默认供应商控件');
