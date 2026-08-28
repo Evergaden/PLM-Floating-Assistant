@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.12.3';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.13.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -17,6 +17,8 @@
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
+  const PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_KEY = 'plm-floating-helper:product-development-copywriting-cache:v1';
+  const PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_LIMIT = 20;
   const PRODUCT_DEVELOPMENT_TASK_META_KEY = 'plm-floating-helper:product-development-task-meta:v1';
   const PRODUCT_DEVELOPMENT_TASK_SIDEBAR_KEY = 'plm-floating-helper:product-development-task-sidebar:v1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_KEY = 'plm-floating-helper:product-development-template:v1';
@@ -243,6 +245,68 @@
     state.productDevelopmentHistory = next;
     writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_HISTORY_KEY, next);
     return next;
+  }
+
+  function productDevelopmentCopywritingCacheValue(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const sku = String(source.sku || source.snapshot && source.snapshot.sku || '').trim().toUpperCase();
+    const id = productDevelopmentCleanText(source.id, 80);
+    const content = productDevelopmentNormalizeCopywriting(source.content);
+    if (!sku || !id || !content.efficacy.length || !content.advantages.length || !content.sellingPoints.length || !content.ingredientFunctions.length) return null;
+    const snapshotSource = source.snapshot && typeof source.snapshot === 'object' ? source.snapshot : source;
+    return {
+      id,
+      sku,
+      content,
+      snapshot: {
+        sku,
+        name: productDevelopmentCleanText(snapshotSource.name, 300),
+        englishName: productDevelopmentCleanText(snapshotSource.englishName, 300),
+        brand: productDevelopmentCleanText(snapshotSource.brand, 160),
+        referenceUrl: productDevelopmentCleanText(snapshotSource.referenceUrl, 1000),
+      },
+      fileName: productDevelopmentCleanText(source.fileName || productDevelopmentCopywritingFileName(snapshotSource), 180),
+      provider: productDevelopmentCleanText(source.provider, 80),
+      model: productDevelopmentCleanText(source.model, 120),
+      templateVersion: productDevelopmentCleanText(source.templateVersion, 80),
+      templateId: productDevelopmentCleanText(source.templateId, 80),
+      templateLabel: productDevelopmentCleanText(source.templateLabel, 120),
+      createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
+      updatedAt: Number(source.updatedAt) || Date.now(),
+      blob: null,
+      fromCache: true,
+    };
+  }
+
+  function loadProductDevelopmentCopywritingCache() {
+    const stored = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_KEY, null);
+    const source = stored && Array.isArray(stored.entries) ? stored.entries : (Array.isArray(stored) ? stored : []);
+    return source.map(productDevelopmentCopywritingCacheValue).filter(Boolean).slice(0, PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_LIMIT);
+  }
+
+  function getProductDevelopmentCopywritingCache(sku, id) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const normalizedId = String(id || '').trim();
+    return loadProductDevelopmentCopywritingCache().find((item) => normalizedId ? item.id === normalizedId : item.sku === normalizedSku) || null;
+  }
+
+  function saveProductDevelopmentCopywritingCache(result) {
+    const cached = productDevelopmentCopywritingCacheValue({ ...result, updatedAt: Date.now() });
+    if (!cached) return null;
+    const entries = [cached].concat(loadProductDevelopmentCopywritingCache().filter((item) => item.id !== cached.id))
+      .slice(0, PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_LIMIT);
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_KEY, { version: 1, entries });
+    return cached;
+  }
+
+  function restoreProductDevelopmentCopywritingCache(sku, id) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const current = state.productDevelopmentCopywriting;
+    if (!id && current && current.sku === normalizedSku && current.content) return current;
+    const cached = getProductDevelopmentCopywritingCache(normalizedSku, id);
+    if (!cached) return null;
+    state.productDevelopmentCopywriting = cached;
+    return cached;
   }
 
   function productDevelopmentReviewDraftItem(value) {
@@ -608,6 +672,21 @@
       version: 'copywriting-' + selected.id + '-v1',
       local: false,
     };
+  }
+
+  function resolveProductDevelopmentCachedCopywritingTemplate(result) {
+    const templateId = String(result && result.templateId || '').trim();
+    if (templateId === 'local' && state.productDevelopmentTemplateBase64) {
+      return {
+        id: 'local',
+        label: result.templateLabel || '本地自定义模板',
+        source: state.productDevelopmentTemplateBase64,
+        version: result.templateVersion || state.productDevelopmentTemplateVersion || 'local-template',
+        local: true,
+      };
+    }
+    const template = productDevelopmentCopywritingBuiltinTemplates().find((item) => item.id === templateId);
+    return template ? { ...template, version: result.templateVersion || 'copywriting-' + template.id + '-v1', local: false } : resolveProductDevelopmentCopywritingTemplate();
   }
 
   async function loadProductDevelopmentCopywritingTemplateSource(template) {
@@ -5309,6 +5388,37 @@
     return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   }
 
+  async function rebuildProductDevelopmentCachedDocx(result) {
+    if (!result || !result.content) throw new Error('本地没有可恢复的产品文案');
+    const template = resolveProductDevelopmentCachedCopywritingTemplate(result);
+    const source = await withCopywritingTimeout(loadProductDevelopmentCopywritingTemplateSource(template), 60000, 'DOCX 模板下载');
+    const snapshot = result.snapshot && typeof result.snapshot === 'object' ? result.snapshot : { sku: result.sku };
+    const blob = await withCopywritingTimeout(buildProductDevelopmentDocx(result.content, source, snapshot), 180000, 'DOCX 生成');
+    result.blob = blob;
+    state.productDevelopmentCopywriting = result;
+    productDevelopmentLog('success', '本地文案 DOCX 已恢复', result.sku + ' | 模板=' + template.label + ' | 大小=' + String(blob.size || 0) + ' bytes');
+    return result;
+  }
+
+  async function downloadProductDevelopmentCopywritingResult() {
+    let result = state.productDevelopmentCopywriting || restoreProductDevelopmentCopywritingCache(getProductDevelopmentCurrentSku());
+    if (!result || !result.content) throw new Error('暂无可下载的 DOCX');
+    if (!result.blob) {
+      state.productDevelopmentCopywritingBusy = true;
+      state.productDevelopmentStatus = '正在从本地缓存恢复 DOCX…';
+      state.productDevelopmentError = '';
+      renderShell();
+      try {
+        result = await rebuildProductDevelopmentCachedDocx(result);
+        state.productDevelopmentStatus = '本地缓存 DOCX 已恢复，可继续下载';
+      } finally {
+        state.productDevelopmentCopywritingBusy = false;
+        renderShell();
+      }
+    }
+    downloadBlob(result.blob, result.fileName || productDevelopmentCopywritingFileName(result.snapshot || result));
+  }
+
   async function runProductDevelopmentCopywriting() {
     const sku = getProductDevelopmentCurrentSku();
     if (!sku) {
@@ -5374,23 +5484,20 @@
       stage = '校验中英文条目';
       const content = productDevelopmentValidateCopywriting(response, snapshot);
       productDevelopmentLog('success', '文案校验通过', sku + ' | A=' + content.efficacy.length + ' | B=' + content.advantages.length + ' | C=' + content.sellingPoints.length + ' | D=' + content.ingredientFunctions.length);
-      state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
-      renderShell();
-      stage = '生成 DOCX';
-      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id + ' | 编码器=' + (productDevelopmentDocxCodec() ? 'fflate' : 'JSZip'));
-      const blob = await withCopywritingTimeout(
-        buildProductDevelopmentDocx(content, copywritingTemplateSource, snapshot),
-        180000,
-        'DOCX 生成',
-      );
-      productDevelopmentLog('success', 'DOCX 文件生成完成', sku + ' | 大小=' + String(blob && blob.size || 0) + ' bytes | 用时=' + (Date.now() - startedAt) + 'ms');
       const id = 'pd-copywriting-' + Date.now().toString(36);
       const fileName = productDevelopmentCopywritingFileName(snapshot);
       state.productDevelopmentCopywriting = {
         id,
         sku: snapshot.sku,
         content,
-        blob,
+        snapshot: {
+          sku: snapshot.sku,
+          name: snapshot.name,
+          englishName: snapshot.englishName,
+          brand: snapshot.brand,
+          referenceUrl: snapshot.referenceUrl,
+        },
+        blob: null,
         fileName,
         provider: productDevelopmentCleanText(response.provider, 80),
         model: productDevelopmentCleanText(response.model, 120),
@@ -5398,7 +5505,10 @@
         templateId: copywritingTemplate.id,
         templateLabel: copywritingTemplate.label,
         createdAt: new Date().toLocaleString(),
+        updatedAt: Date.now(),
+        fromCache: false,
       };
+      saveProductDevelopmentCopywritingCache(state.productDevelopmentCopywriting);
       saveProductDevelopmentHistory({
         id,
         sku: snapshot.sku,
@@ -5409,6 +5519,18 @@
         itemCount: content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length,
         templateVersion: state.productDevelopmentCopywriting.templateVersion,
       });
+      productDevelopmentLog('success', 'AI 文案已缓存到本地', sku + ' | id=' + id);
+      state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
+      renderShell();
+      stage = '生成 DOCX';
+      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id + ' | 编码器=' + (productDevelopmentDocxCodec() ? 'fflate' : 'JSZip'));
+      const blob = await withCopywritingTimeout(
+        buildProductDevelopmentDocx(content, copywritingTemplateSource, snapshot),
+        180000,
+        'DOCX 生成',
+      );
+      productDevelopmentLog('success', 'DOCX 文件生成完成', sku + ' | 大小=' + String(blob && blob.size || 0) + ' bytes | 用时=' + (Date.now() - startedAt) + 'ms');
+      state.productDevelopmentCopywriting.blob = blob;
       state.productDevelopmentStatus = 'A-D 文案 DOCX 已生成，未向 PLM 回写';
       productDevelopmentLog('success', 'A-D 文案 DOCX 生成完成', sku + ' | 条目=' + (content.efficacy.length + content.advantages.length + content.sellingPoints.length + content.ingredientFunctions.length) + ' | 总用时=' + (Date.now() - startedAt) + 'ms');
       showToast('A-D 文案 DOCX 已生成');
@@ -5570,8 +5692,11 @@
       state.productDevelopmentStatus = '这条历史只保存了索引，没有可预览的对照图，请重新分析';
     } else {
       state.productDevelopmentView = 'copywriting';
-      state.productDevelopmentCopywriting = null;
-      state.productDevelopmentStatus = '文案历史目前只保存生成记录，请在此页面重新生成 DOCX';
+      const cached = restoreProductDevelopmentCopywritingCache(item.sku, item.id) || restoreProductDevelopmentCopywritingCache(item.sku);
+      if (cached) cached.fromHistory = true;
+      state.productDevelopmentStatus = cached
+        ? '已打开本地缓存文案，可预览或重新构建并下载 DOCX'
+        : '这条旧历史只有生成记录，没有可恢复的文案内容';
     }
     renderShell();
   }
@@ -5580,7 +5705,7 @@
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>LOCAL HISTORY</small><h2>本地历史</h2></div></header>' +
       '<section class="pfh-product-development-section pfh-product-development-history"><header><div><small>LOCAL HISTORY</small><h3>已生成记录</h3></div><span>最多保留 ' + PRODUCT_DEVELOPMENT_MAX_HISTORY + ' 条</span></header><div>' + productDevelopmentHistoryHtml(PRODUCT_DEVELOPMENT_MAX_HISTORY) + '</div></section>' +
-      '<p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史目前只保存生成记录，打开后可重新生成 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>';
+      '<p class="pfh-product-development-note">图片历史可直接查看和下载已保存的 PNG；文案历史保存完整 A-D 内容，刷新后仍可预览并重新构建 DOCX。所有结果只保存在本地，不向 PLM 回写。</p></div>';
   }
 
   function productDevelopmentEvidenceHtml(snapshot) {
@@ -5654,7 +5779,10 @@
 
   function productDevelopmentCopywritingHtml() {
     const sku = getProductDevelopmentCurrentSku();
-    const content = state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.sku === sku ? state.productDevelopmentCopywriting.content : null;
+    const currentResult = state.productDevelopmentCopywriting;
+    if ((!currentResult || currentResult.sku !== sku) && !(currentResult && currentResult.fromHistory) && sku) restoreProductDevelopmentCopywritingCache(sku);
+    const result = state.productDevelopmentCopywriting;
+    const content = result && (result.sku === sku || result.fromHistory) ? result.content : null;
     const template = resolveProductDevelopmentCopywritingTemplate();
     const templateOptions = productDevelopmentCopywritingBuiltinTemplates()
       .map((item) => '<option value="' + escapeHtml(item.id) + '"' + (item.id === template.id ? ' selected' : '') + '>' + escapeHtml(item.label + '产品文案模板') + '</option>')
@@ -5675,9 +5803,9 @@
       '<section class="pfh-product-development-template-card"><div><small>文案模板</small><strong>' + escapeHtml(template.label) + '</strong><select class="pfh-product-development-copywriting-template-input" aria-label="选择文案模板">' + templateOptions + '</select></div><label class="pfh-product-development-template-picker">添加或替换本地模板<input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="pfh-product-development-template-input"></label>' + (state.productDevelopmentTemplateBase64 ? '<button type="button" data-action="product-development-template-reset">删除本地模板</button>' : '') + '<span>已读取成分：' + escapeHtml(ingredientCount ? String(ingredientCount) + ' 个' + ingredientSourceLabel : '待读取') + '</span><small class="pfh-product-development-template-note">生成时保留所选模板的完整行、图片、备注、字体和列宽，只替换当前 SKU 字段与 A–D 文案。</small></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (displayError ? '<p class="pfh-product-development-error">' + escapeHtml(displayError) + '</p>' : '') +
-      (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.blob ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">下载 ' + escapeHtml(state.productDevelopmentCopywriting.fileName) + '</button><small>已完成禁词、品牌、星号、条数和成分覆盖校验</small></div>' : '') +
+      (result && content ? '<div class="pfh-product-development-download-row"><button type="button" data-action="product-development-copywriting-download">' + (result.blob ? '下载 ' : '恢复并下载 ') + escapeHtml(result.fileName) + '</button><small>完整 A-D 文案已缓存到本地，刷新页面不会丢失</small></div>' : '') +
       productDevelopmentCopywritingPreviewHtml(content) +
-      '<p class="pfh-product-development-note">生成结果只下载到本地，不会自动上传或修改 PLM。</p></div>';
+      '<p class="pfh-product-development-note">文案内容和模板信息自动缓存到本地；DOCX 下载文件不会自动上传或修改 PLM。</p></div>';
   }
 
   function normalizeProductDevelopmentIngredientKind(value) {
@@ -6271,6 +6399,9 @@
       state.workMode = 'product-development';
       state.settings.workMode = 'product-development';
       saveSettings(state.settings);
+      const currentSku = getProductDevelopmentCurrentSku();
+      if (state.productDevelopmentCopywriting && state.productDevelopmentCopywriting.fromHistory) state.productDevelopmentCopywriting = null;
+      restoreProductDevelopmentCopywritingCache(currentSku);
       if (state.view === 'productDevelopmentTasks') {
         state.productDevelopmentTaskPreviousTab = normalizeProductDevelopmentTaskTab(state.productDevelopmentTaskView);
         state.productDevelopmentTaskView = 'copywriting';
@@ -6291,12 +6422,12 @@
       return true;
     }
     if (action === 'product-development-copywriting-download') {
-      const result = state.productDevelopmentCopywriting;
-      if (!result || !result.blob) {
-        showToast('暂无可下载的 DOCX');
-        return true;
-      }
-      downloadBlob(result.blob, result.fileName || productDevelopmentFileName(result.sku, 'copywriting-A-D', 'docx'));
+      downloadProductDevelopmentCopywritingResult().catch((error) => {
+        state.productDevelopmentError = productDevelopmentFriendlyCopywritingError(error);
+        state.productDevelopmentStatus = '';
+        showToast(state.productDevelopmentError);
+        renderShell();
+      });
       return true;
     }
     if (action === 'product-development-context-refresh') {
