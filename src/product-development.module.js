@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.12.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.12.1';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -5180,16 +5180,38 @@
     return nameText.toLowerCase().includes(brandText.toLowerCase()) ? nameText : brandText + ' ' + nameText;
   }
 
+  function productDevelopmentDocxCodec() {
+    const codec = (typeof fflate !== 'undefined' && fflate)
+      || (typeof unsafeWindow !== 'undefined' && unsafeWindow.fflate);
+    return codec
+      && typeof codec.unzipSync === 'function'
+      && typeof codec.zipSync === 'function'
+      && typeof codec.strFromU8 === 'function'
+      && typeof codec.strToU8 === 'function'
+      ? codec
+      : null;
+  }
+
   async function buildProductDevelopmentDocx(content, templateSource, snapshot) {
     let zip = null;
+    let zipEntries = null;
+    let codec = null;
     let xml = productDevelopmentBuiltinDocumentXml();
     if (templateSource) {
-      if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
       const templateBuffer = typeof templateSource === 'string' ? base64ToArrayBuffer(templateSource) : templateSource;
-      zip = await JSZip.loadAsync(templateBuffer);
-      const documentFile = zip.file('word/document.xml');
-      if (!documentFile) throw new Error('模板缺少 word/document.xml');
-      xml = await documentFile.async('string');
+      codec = productDevelopmentDocxCodec();
+      if (codec) {
+        zipEntries = codec.unzipSync(new Uint8Array(templateBuffer));
+        const documentBytes = zipEntries['word/document.xml'];
+        if (!documentBytes) throw new Error('模板缺少 word/document.xml');
+        xml = codec.strFromU8(documentBytes);
+      } else {
+        if (typeof JSZip !== 'function') throw new Error('DOCX 组件未加载');
+        zip = await JSZip.loadAsync(templateBuffer);
+        const documentFile = zip.file('word/document.xml');
+        if (!documentFile) throw new Error('模板缺少 word/document.xml');
+        xml = await documentFile.async('string');
+      }
     }
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     if (!doc || doc.getElementsByTagName('parsererror').length) throw new Error('模板文档结构无法读取');
@@ -5240,13 +5262,15 @@
       productDevelopmentSectionLines(content.ingredientFunctions, (item, index) => index + '. ' + (item.ingredientEn || item.ingredientCn) + ': ' + item.en),
       productDevelopmentSectionLines(content.ingredientFunctions, (item, index) => index + '、' + (item.ingredientCn || item.ingredientEn) + '：' + item.cn));
     const documentXml = new XMLSerializer().serializeToString(doc);
+    if (zipEntries && codec) {
+      zipEntries['word/document.xml'] = codec.strToU8(documentXml);
+      const bytes = codec.zipSync(zipEntries, { level: 0 });
+      return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    }
     if (!zip) return createProductDevelopmentBuiltinDocx(documentXml);
     zip.file('word/document.xml', documentXml);
-    // A DOCX may contain large images. Recompressing every entry with DEFLATE
-    // can keep the UI in "generating" for a very long time after the AI call
-    // has already completed. The package remains valid when entries are stored
-    // without recompression, and this keeps the local export responsive.
-    return zip.generateAsync({ type: 'blob', compression: 'STORE', streamFiles: true });
+    const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'STORE' });
+    return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   }
 
   async function runProductDevelopmentCopywriting() {
@@ -5317,7 +5341,7 @@
       state.productDevelopmentStatus = '正在按四列表格模板生成 DOCX…';
       renderShell();
       stage = '生成 DOCX';
-      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id);
+      productDevelopmentLog('info', '开始生成 DOCX 文件', sku + ' | 模板=' + copywritingTemplate.label + ' | id=' + copywritingTemplate.id + ' | 编码器=' + (productDevelopmentDocxCodec() ? 'fflate' : 'JSZip'));
       const blob = await withCopywritingTimeout(
         buildProductDevelopmentDocx(content, copywritingTemplateSource, snapshot),
         180000,
