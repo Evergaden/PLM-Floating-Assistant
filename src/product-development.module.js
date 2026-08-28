@@ -2805,11 +2805,12 @@
     if (!clickTarget) throw new Error('未找到物料分类点击区域');
     clickTarget.click();
     const segments = wanted.split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
-    for (const segment of segments) {
+    for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex += 1) {
+      const segment = segments[segmentIndex];
       const option = await waitFor(() => {
         const menus = Array.from(document.querySelectorAll('.ant-cascader-menu'))
           .filter(productDevelopmentDomVisible);
-        const menu = menus[menus.length - 1];
+        const menu = menus[segmentIndex] || menus[menus.length - 1];
         if (!menu) return null;
         return Array.from(menu.querySelectorAll('.ant-cascader-menu-item'))
           .filter(productDevelopmentDomVisible)
@@ -2863,11 +2864,22 @@
     let editor = await productDevelopmentBomDomOpenEditor(drawer, kind);
     const categoryInput = editor.querySelector('#form_item_category_id');
     if (!categoryInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到物料分类控件');
-    await productDevelopmentBomDomSelectCategory(categoryInput, draft.categoryPath);
+    if (kind === 'instruction') {
+      await productDevelopmentBomDomSelectCategory(categoryInput, draft.categoryPath);
+    } else {
+      const categoryText = productDevelopmentDomSelectedText(categoryInput);
+      const expectedCategory = kind === 'box' ? '纸盒' : '标签';
+      if (!categoryText || !categoryText.includes(expectedCategory)) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未带出默认分类，请取消当前行后重试');
+    }
     editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
     const supplierInput = editor.querySelector('#form_item_default_supplier_id');
     if (!supplierInput) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未找到默认供应商控件');
-    await productDevelopmentDomSelectOption(supplierInput, draft.supplier, 'select');
+    if (kind === 'instruction') {
+      await productDevelopmentDomSelectOption(supplierInput, draft.supplier, 'select');
+    } else {
+      const supplierText = productDevelopmentDomSelectedText(supplierInput);
+      if (!supplierText || /选择供应商/.test(supplierText)) throw new Error(productDevelopmentBomDomKindLabel(kind) + '未带出默认供应商，请取消当前行后重试');
+    }
     editor = productDevelopmentBomDomActiveEditor(drawer) || editor;
     const values = [
       ['form_item_name', draft.materialName, '物料名称', true],
