@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.248
+// @version      2.8.249
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.248';
+  const SCRIPT_VERSION = '2.8.249';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4736,7 +4736,7 @@
   ]);
   // </product-development-ingredient-templates-module>
   // <product-development-module>
-  const PRODUCT_DEVELOPMENT_VERSION = '1.12.2';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.12.3';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -8971,7 +8971,6 @@
       productType: productDevelopmentCleanText(snapshot && snapshot.productType || data.productType || data.manualCategory, 180),
       netContent: productDevelopmentCleanText(snapshot && snapshot.netContent || data.netContent, 120),
       referenceUrl: productDevelopmentCleanText(snapshot && snapshot.referenceUrl || data.referenceUrl || data.benchmarkLink, 1000),
-      projectCreatedAt: productDevelopmentCleanText(snapshot && (snapshot.projectCreatedAt || snapshot.create_at) || data.projectCreatedAt || seed.projectCreatedAt, 80),
       ingredients: resolvedIngredients,
       ingredientSummary: {
         en: productDevelopmentCleanText(liveIngredients.product_ingredients_summary_en || plmCopywriting.ingredientSummary.en || data.ingredientEnglish, 8000),
@@ -9417,22 +9416,8 @@
     return safeSku + '-' + suffix + '.' + extension;
   }
 
-  function productDevelopmentFileDate(value) {
-    const raw = String(value || '').trim();
-    const direct = raw.match(/(?:^|\D)(\d{4})[-/.年]?(\d{1,2})[-/.月]?(\d{1,2})(?:日|\D|$)/);
-    let date = null;
-    if (direct) {
-      const year = Number(direct[1]);
-      const month = Number(direct[2]);
-      const day = Number(direct[3]);
-      const candidate = new Date(year, month - 1, day);
-      if (candidate.getFullYear() === year && candidate.getMonth() === month - 1 && candidate.getDate() === day) date = candidate;
-    }
-    if (!date) {
-      const timestamp = productDevelopmentTaskTime(raw);
-      if (timestamp > 0) date = new Date(timestamp);
-    }
-    if (!date || !Number.isFinite(date.getTime())) date = new Date();
+  function productDevelopmentFileDate() {
+    const date = new Date();
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('');
   }
 
@@ -9447,7 +9432,7 @@
 
   function productDevelopmentCopywritingFileName(snapshot) {
     const source = snapshot && typeof snapshot === 'object' ? snapshot : {};
-    const date = productDevelopmentFileDate(source.projectCreatedAt);
+    const date = productDevelopmentFileDate();
     const brand = productDevelopmentSafeFileLabel(source.brand, 60);
     let name = productDevelopmentSafeFileLabel(source.name, 120);
     if (brand && name.toLowerCase().startsWith(brand.toLowerCase())) name = name.slice(brand.length).trim();
