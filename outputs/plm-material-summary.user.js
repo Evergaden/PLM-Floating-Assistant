@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.278
+// @version      2.8.279
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.278';
+  const SCRIPT_VERSION = '2.8.279';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   let excelJsLoadPromise = null;
 
@@ -25954,7 +25954,7 @@
       return (entry.status === 'success' || entry.status === 'noop') && entry.applyStatus !== 'submitted';
     });
     const progressText = state.toyCopywritingBatchStatus || (running
-      ? '正在先读取新品开发全部项目状态，再按状态进入设计任务或商品管理补全文案并生成图片，请保持 PLM 页面登录状态。'
+      ? '正在通过 PLM API 读取项目状态，再按状态进入设计任务或商品管理补全文案并生成图片，请保持 PLM 页面登录状态。'
       : '输入 SKU 后，系统会自动识别玩具并只补全缺失的中英文文案字段。');
     return '<section class="pfh-mini-tool-card pfh-tools-panel pfh-toy-copywriting-batch-page">' +
       '<div class="pfh-toy-copywriting-batch-head"><small>TOY COPYWRITING</small><h3>批量智能玩具文案补全</h3><p>只需输入 SKU，自动逐个补全并保存 PLM 草稿。</p></div>' +
@@ -26243,21 +26243,74 @@
     }
   }
 
+  function normalizeToyCopywritingBatchApiRoute(sku, item, fallback) {
+    const row = item && typeof item === 'object' ? item : {};
+    const cached = fallback && typeof fallback === 'object' ? fallback : {};
+    const projectStatus = compactText([
+      row.status_format,
+      row.status,
+      row.project_status_format,
+      row.project_status,
+      row.projectStatus,
+    ].map((value) => String(value || '').trim()).find(Boolean) || cached.projectStatus || '');
+    const projectRowId = String(
+      row.id || row.project_id || row.chemical_id || row.project_row_id || row.projectRowId || cached.projectRowId || '',
+    ).trim();
+    return {
+      sku: String(sku || '').trim().toUpperCase(),
+      projectStatus,
+      projectRowId,
+      completed: projectStatus ? /已完成/.test(projectStatus) : Boolean(cached.completed),
+    };
+  }
+
+  function findToyCopywritingBatchApiRow(items, sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    return (Array.isArray(items) ? items : []).find((item) => {
+      const itemSku = String(item && (item.product_code || item.productCode || item.sku || item.sku_code || item.skuCode || '') || '')
+        .trim()
+        .toUpperCase();
+      return itemSku === normalizedSku;
+    }) || null;
+  }
+
+  async function queryToyCopywritingBatchApiRoute(sku, fallback) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const endpoints = [
+      '/api/ChemicalNewAll/GetList?page=1&pageSize=20&product_codes=' + encodeURIComponent(normalizedSku),
+      '/api/ChemicalNewDesignTask/GetList?page=1&pageSize=20&product_codes=' + encodeURIComponent(normalizedSku),
+    ];
+    let lastError = null;
+    for (const endpoint of endpoints) {
+      try {
+        const payload = await fetchPlmJson(endpoint);
+        const row = findToyCopywritingBatchApiRow(getApiListItems(payload), normalizedSku);
+        if (row) return normalizeToyCopywritingBatchApiRoute(normalizedSku, row, fallback);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) throw lastError;
+    return null;
+  }
+
   async function prepareToyCopywritingBatchRoutes(entries) {
     const skus = Array.from(new Set((entries || []).map((entry) => String(entry && entry.sku || '').trim().toUpperCase()).filter(Boolean)));
     const routes = new Map();
     if (!skus.length) return routes;
     const projectSkus = [];
+    const fallbackRoutes = new Map();
     skus.forEach((sku) => {
       const cached = normalizeData(loadData(sku) || (state.index || []).find((item) => item && item.sku === sku) || {});
       const isManual = Boolean(cached.skuListSource === 'manual-code' || cached.manualSkuAddedAt || cached.manualSkuAddedAtMs);
       const projectStatus = compactText(cached.projectStatus || '');
-      const route = {
+      const fallback = {
         projectStatus: isManual ? '' : projectStatus,
         projectRowId: String(cached.projectRowId || cached.projectId || ''),
         completed: isManual || /已完成/.test(projectStatus),
       };
-      routes.set(sku, route);
+      routes.set(sku, fallback);
+      fallbackRoutes.set(sku, fallback);
       if (isManual) {
         updateToyCopywritingBatchEntry(sku, {
           projectStatus: '',
