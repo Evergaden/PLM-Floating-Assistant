@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.270
+// @version      2.8.271
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.270';
+  const SCRIPT_VERSION = '2.8.271';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7497,6 +7497,16 @@
     return container && (container.querySelector('.ant-select-selector, .ant-cascader-picker') || container) || input;
   }
 
+  function productDevelopmentDomActivateTarget(target, focusTarget) {
+    if (!target) return false;
+    if (focusTarget && typeof focusTarget.focus === 'function') focusTarget.focus();
+    const eventOptions = { bubbles: true, cancelable: true, composed: true, button: 0, buttons: 1 };
+    target.dispatchEvent(new MouseEvent('mousedown', eventOptions));
+    target.dispatchEvent(new MouseEvent('mouseup', { ...eventOptions, buttons: 0 }));
+    target.click();
+    return true;
+  }
+
   function productDevelopmentDomOptionText(option) {
     if (!option) return '';
     const content = option.querySelector('.ant-select-item-option-content, .ant-cascader-menu-item-content');
@@ -7512,6 +7522,21 @@
     const container = input && input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
     return Boolean(input && input.getAttribute('aria-expanded') === 'true'
       || container && (container.classList.contains('ant-select-open') || container.classList.contains('ant-cascader-picker-open')));
+  }
+
+  async function productDevelopmentDomOpenDropdown(input) {
+    const container = input && input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
+    const targets = [
+      input,
+      productDevelopmentDomClickTarget(input),
+      container && container.querySelector('.ant-select-arrow, .ant-cascader-picker-arrow'),
+    ].filter((target, index, list) => target && list.indexOf(target) === index);
+    for (const target of targets) {
+      productDevelopmentDomActivateTarget(target, input);
+      const opened = await waitFor(() => productDevelopmentDomDropdownOpen(input) && productDevelopmentDomVisibleDropdowns().length > 0, 1800, 80);
+      if (opened) return true;
+    }
+    return false;
   }
 
   function productDevelopmentDomVisibleOptions() {
@@ -7570,10 +7595,11 @@
     const container = input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
     const clear = container && container.querySelector('.ant-select-clear, .ant-cascader-picker-clear');
     if (clear && productDevelopmentDomVisible(clear)) clear.click();
-    const clickTarget = productDevelopmentDomClickTarget(input);
-    if (!clickTarget) throw new Error('未找到 PLM 下拉点击区域');
-    clickTarget.click();
-    const opened = await waitFor(() => productDevelopmentDomDropdownOpen(input) && productDevelopmentDomVisibleDropdowns().length > 0, 5000, 100);
+    if (control === 'search-select' && !input.readOnly && input.type !== 'file') {
+      input.focus();
+      productDevelopmentDomNativeSetter(input, wanted, ['input']);
+    }
+    const opened = await productDevelopmentDomOpenDropdown(input);
     if (!opened) throw new Error('PLM 下拉未能展开');
     if (control === 'cascader') {
       const segments = productDevelopmentDomCascaderSegments(input, wanted);
