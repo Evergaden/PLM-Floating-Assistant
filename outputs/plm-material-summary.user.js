@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.267
+// @version      2.8.268
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.267';
+  const SCRIPT_VERSION = '2.8.268';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -14514,7 +14514,7 @@
         let contentError = '';
         let infoPayload = null;
         if (productId && productVersionId && categoryId) {
-          const [contentResult, infoResult] = await Promise.all([
+          const detailResults = await Promise.all([
             fetchPlmJson('/api/Product/GetDetailContent?is_edit=false&product_id=' + encodeURIComponent(productId) + '&product_version_id=' + encodeURIComponent(productVersionId) + '&category_id=' + encodeURIComponent(categoryId))
               .then((payload) => ({ payload, error: '' }))
               .catch((error) => {
@@ -14529,6 +14529,8 @@
                 return { payload: null, error: formatErrorMessage(error) };
               }),
           ]);
+          const contentResult = detailResults && detailResults[0] || {};
+          const infoResult = detailResults && detailResults[1] || {};
           contentPayload = contentResult.payload;
           contentError = contentResult.error;
           infoPayload = infoResult.payload;
@@ -15514,7 +15516,14 @@
           })
         : Promise.resolve({ product: {}, failed: true });
       apiProjectMaterialCache[projectId] = Promise.all([projectRequest, productRequest])
-        .then(([{ result, project, infringement }, { product, failed }]) => {
+        .then((stages) => {
+          const projectStage = stages && stages[0] || {};
+          const productStage = stages && stages[1] || {};
+          const result = projectStage.result || emptyPackaging();
+          const project = projectStage.project && typeof projectStage.project === 'object' ? projectStage.project : {};
+          const infringement = projectStage.infringement || { infringementImageUrls: [], infringementImageUrl: '', infringementImageSource: '', infringementCopywriting: '', apiFieldStates: {} };
+          const product = productStage.product && typeof productStage.product === 'object' ? productStage.product : {};
+          const failed = Boolean(productStage.failed);
           const projectProductId = project.product_id;
           const projectProductVersionId = project.product_main_id;
           const resolvedProductSku = productSku || String(project.product_code || '');
@@ -15608,7 +15617,7 @@
     const opts = options || {};
     let product = null;
     let project = null;
-    [product, project] = await Promise.all([
+    const initialApiResults = await Promise.all([
       fetchApiProductSnapshot({ sku }, opts).catch((error) => {
         addLog('warn', 'Excel 产品数据补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
         return null;
@@ -15618,6 +15627,8 @@
         return null;
       }),
     ]);
+    product = initialApiResults && initialApiResults[0] || null;
+    project = initialApiResults && initialApiResults[1] || null;
     const productId = String(product && (product.productId || product.product && (product.product.product_id || product.product.id)) || '');
     const productVersionId = String(product && (product.productVersionId || product.product && (product.product.product_version_id || product.product.product_main_id)) || '');
     const categoryId = String(product && (product.categoryId || product.category_id) || project && project.categoryId || '');
