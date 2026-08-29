@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.274
+// @version      2.8.275
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.274';
+  const SCRIPT_VERSION = '2.8.275';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -5065,6 +5065,98 @@
     return loadProductDevelopmentTranslateWorkspaces()[normalizedSku] || null;
   }
 
+  function productDevelopmentTranslateImageSourceForSku(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return { imageUrl: '', imageFallbackUrl: '', imageDataUrl: '', imageName: '', brand: '', name: '' };
+    const activeState = typeof state !== 'undefined' && state ? state : null;
+    const selectedTask = activeState && activeState.productDevelopmentSelectedTask
+      && String(activeState.productDevelopmentSelectedTask.sku || '').trim().toUpperCase() === normalizedSku
+      ? activeState.productDevelopmentSelectedTask
+      : null;
+    const task = (typeof getProductDevelopmentTaskBySku === 'function'
+      ? getProductDevelopmentTaskBySku(normalizedSku)
+      : null) || selectedTask;
+    let taskData = null;
+    if (task && typeof productDevelopmentTaskSeedData === 'function') {
+      try { taskData = productDevelopmentTaskSeedData(task); } catch (_) {}
+    }
+    let cached = null;
+    if (typeof loadData === 'function') {
+      try { cached = loadData(normalizedSku); } catch (_) {}
+    }
+    const detail = activeState && activeState.productDevelopmentTaskDetailData
+      && activeState.productDevelopmentTaskDetailData[normalizedSku]
+      || (typeof getProductDevelopmentReadonlyDetailCache === 'function'
+        ? getProductDevelopmentReadonlyDetailCache(normalizedSku)
+        : null);
+    const snapshot = activeState && activeState.productDevelopmentSnapshot
+      && activeState.productDevelopmentSnapshot.sku === normalizedSku
+      ? activeState.productDevelopmentSnapshot
+      : null;
+    const review = activeState && activeState.productDevelopmentReview
+      && activeState.productDevelopmentReview.sku === normalizedSku
+      ? activeState.productDevelopmentReview
+      : null;
+    const draft = typeof getProductDevelopmentReviewDraft === 'function'
+      ? getProductDevelopmentReviewDraft(normalizedSku)
+      : null;
+    const imageDataUrl = [
+      review && review.sourceImageDataUrl,
+      draft && draft.sourceImageDataUrl,
+      activeState && activeState.productDevelopmentBenchmarkImageDataUrl,
+    ].map((value) => String(value || '').trim()).find((value) => /^data:image\//i.test(value)) || '';
+    const records = [taskData, task, selectedTask, cached, detail, snapshot].filter((item) => item && typeof item === 'object');
+    const fields = [
+      ['productListImageUrl', 'productListImageFallbackUrl'],
+      ['benchmarkImageUrl', 'benchmarkImageFallbackUrl'],
+      ['referenceImageUrl', 'referenceImageFallbackUrl'],
+      ['skuImageUrl', 'skuImageFallbackUrl'],
+      ['productImageUrl', 'productImageFallbackUrl'],
+      ['productImage', 'productImageFallback'],
+      ['benchmarkImage', 'benchmarkImageFallback'],
+      ['imageUrl', 'imageFallbackUrl'],
+      ['pic', 'imageFallbackUrl'],
+      ['image', 'imageFallbackUrl'],
+    ];
+    for (const record of records) {
+      for (const [primaryKey, fallbackKey] of fields) {
+        const imageUrl = productDevelopmentReadImageValue(record[primaryKey]);
+        if (!imageUrl) continue;
+        const imageFallbackUrl = productDevelopmentReadImageValue(record[fallbackKey]) || imageUrl;
+        return {
+          imageUrl,
+          imageFallbackUrl,
+          imageDataUrl,
+          imageName: productDevelopmentCleanText(record.imageName || record.benchmarkImageName || record.productImageName, 180),
+          brand: productDevelopmentCleanText(record.brand || record.brandName, 180),
+          name: productDevelopmentCleanText(record.name || record.productName || record.product_name, 240),
+        };
+      }
+      for (const key of ['productListImages', 'benchmarkImages', 'referenceImages', 'imageUrls']) {
+        if (!Array.isArray(record[key])) continue;
+        const imageUrl = record[key].map((item) => productDevelopmentReadImageValue(item)).find(Boolean) || '';
+        if (!imageUrl) continue;
+        return {
+          imageUrl,
+          imageFallbackUrl: imageUrl,
+          imageDataUrl,
+          imageName: productDevelopmentCleanText(record.imageName || record.benchmarkImageName || record.productImageName, 180),
+          brand: productDevelopmentCleanText(record.brand || record.brandName, 180),
+          name: productDevelopmentCleanText(record.name || record.productName || record.product_name, 240),
+        };
+      }
+    }
+    const metadataSource = records.find((record) => record.brand || record.name || record.productName) || {};
+    return {
+      imageUrl: '',
+      imageFallbackUrl: '',
+      imageDataUrl,
+      imageName: productDevelopmentCleanText(metadataSource.imageName || metadataSource.benchmarkImageName || metadataSource.productImageName, 180),
+      brand: productDevelopmentCleanText(metadataSource.brand || metadataSource.brandName, 180),
+      name: productDevelopmentCleanText(metadataSource.name || metadataSource.productName || metadataSource.product_name, 240),
+    };
+  }
+
   function saveProductDevelopmentTranslateWorkspace(value) {
     const incoming = productDevelopmentTranslateWorkspaceValue(value);
     if (!incoming) return null;
@@ -9354,7 +9446,7 @@
   function productDevelopmentReadImageValue(value) {
     if (!value) return '';
     if (typeof value === 'object') {
-      return productDevelopmentReadImageValue(value.url || value.src || value.imageUrl || value.image_url || value.fileUrl || value.file_url);
+      return productDevelopmentReadImageValue(value.url || value.src || value.imageUrl || value.image_url || value.fileUrl || value.file_url || value.pic || value.image || value.picture || value.download_url || value.oss_url);
     }
     return String(value || '').trim();
   }
@@ -9366,6 +9458,9 @@
       { imageUrl: data && data.referenceImageUrl, imageFallbackUrl: data && data.referenceImageFallbackUrl, source: 'PLM 只读参考图片' },
       { imageUrl: data && data.referenceImageFallbackUrl, imageFallbackUrl: data && data.referenceImageUrl, source: 'PLM 只读参考图片' },
       { imageUrl: data && data.benchmarkImage, imageFallbackUrl: data && data.benchmarkImageFallback, source: 'PLM 只读对标图片' },
+      { imageUrl: data && data.productListImageUrl, imageFallbackUrl: data && data.productListImageFallbackUrl, source: 'PLM 产品图片兜底' },
+      { imageUrl: data && data.skuImageUrl, imageFallbackUrl: data && data.skuImageFallbackUrl, source: 'PLM 产品图片兜底' },
+      { imageUrl: data && data.productImageUrl, imageFallbackUrl: data && data.productImageFallbackUrl, source: 'PLM 产品图片兜底' },
     ];
     const listCandidates = [data && data.benchmarkImages, data && data.referenceImages]
       .filter(Array.isArray)
@@ -11334,14 +11429,15 @@
     if (!normalizedSku) return null;
     const stored = getProductDevelopmentTranslateWorkspace(normalizedSku);
     const draft = getProductDevelopmentReviewDraft(normalizedSku);
+    const imageSource = productDevelopmentTranslateImageSourceForSku(normalizedSku);
     return productDevelopmentTranslateWorkspaceValue({
       ...(stored || {}),
       sku: normalizedSku,
-      imageDataUrl: stored && stored.imageDataUrl || draft && draft.sourceImageDataUrl || '',
-      imageUrl: stored && stored.imageUrl || '',
-      imageName: stored && stored.imageName || draft && draft.sourceImageName || '',
-      brand: stored && stored.brand || draft && draft.brand || '',
-      name: stored && stored.name || draft && draft.name || '',
+      imageDataUrl: stored && stored.imageDataUrl || draft && draft.sourceImageDataUrl || imageSource.imageDataUrl || '',
+      imageUrl: stored && stored.imageUrl || imageSource.imageUrl || '',
+      imageName: stored && stored.imageName || draft && draft.sourceImageName || imageSource.imageName || '',
+      brand: stored && stored.brand || draft && draft.brand || imageSource.brand || '',
+      name: stored && stored.name || draft && draft.name || imageSource.name || '',
       sourceText: stored && stored.sourceText || '',
       translatedText: stored && stored.translatedText || '',
     });
@@ -12155,14 +12251,15 @@
     const review = state.productDevelopmentReview && state.productDevelopmentReview.sku === sku ? state.productDevelopmentReview : null;
     const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
     const previous = getProductDevelopmentTranslateWorkspace(sku);
+    const imageSource = productDevelopmentTranslateImageSourceForSku(sku);
     const workspace = saveProductDevelopmentTranslateWorkspace({
       ...(previous || {}),
       sku,
-      brand: previous && previous.brand || review && review.brand || snapshot && snapshot.brand || '',
-      name: previous && previous.name || snapshot && snapshot.name || '',
-      imageUrl: previous && previous.imageUrl || snapshot && (snapshot.imageUrl || snapshot.imageFallbackUrl) || '',
-      imageDataUrl: previous && previous.imageDataUrl || review && review.sourceImageDataUrl || state.productDevelopmentBenchmarkImageDataUrl || '',
-      imageName: previous && previous.imageName || review && review.sourceImageName || state.productDevelopmentBenchmarkImageName || '',
+      brand: previous && previous.brand || review && review.brand || snapshot && snapshot.brand || imageSource.brand || '',
+      name: previous && previous.name || snapshot && snapshot.name || imageSource.name || '',
+      imageUrl: previous && previous.imageUrl || snapshot && (snapshot.imageUrl || snapshot.imageFallbackUrl) || imageSource.imageUrl || '',
+      imageDataUrl: previous && previous.imageDataUrl || review && review.sourceImageDataUrl || state.productDevelopmentBenchmarkImageDataUrl || imageSource.imageDataUrl || '',
+      imageName: previous && previous.imageName || review && review.sourceImageName || state.productDevelopmentBenchmarkImageName || imageSource.imageName || '',
       sourceText: previous && previous.sourceText || '',
       translatedText: previous && previous.translatedText || '',
       translateUrl: 'https://translate.google.com/?sl=en&tl=zh-CN&op=translate&plmSku=' + encodeURIComponent(sku),
@@ -12188,7 +12285,8 @@
       }).catch(() => {});
     }
     if (getCloudBackupKey()) queueCloudBackup();
-    state.productDevelopmentStatus = workspace && workspace.imageDataUrl ? '已打开 Google 翻译标注工作台：左侧显示当前对标图' : '已打开 Google 翻译标注工作台，但当前 SKU 尚未找到对标图';
+    const hasTranslateImage = Boolean(workspace && (workspace.imageDataUrl || workspace.imageUrl));
+    state.productDevelopmentStatus = hasTranslateImage ? '已打开 Google 翻译标注工作台：左侧显示当前产品/对标图' : '已打开 Google 翻译标注工作台，但当前 SKU 尚未找到对标图';
     showToast('Google 翻译对标工作台已打开');
   }
 
