@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.273
+// @version      2.8.274
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -38,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.273';
+  const SCRIPT_VERSION = '2.8.274';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4793,7 +4793,7 @@
   });
   const PRODUCT_DEVELOPMENT_DEFAULT_ENGLISH_PRODUCT_NAME = 'Dietary Supplement';
   const PRODUCT_DEVELOPMENT_BRAND_CATEGORY_SUFFIXES = Object.freeze([
-    '健康保健食品', '膳食补充食品', '膳食补充剂', '营养补充食品', '宠物保健品', '宠物营养品', '宠物食品',
+    '健康保健食品', '膳食补充食品', '膳食补充剂', '营养补充食品', '宠物保健品', '宠物营养品', '宠物食品', '宠物',
     '保健食品', '营养食品', '入口食品', '保健品', '营养品', '食品',
     'dietary supplements', 'dietary supplement', 'health supplements', 'health supplement', 'supplements', 'supplement',
   ]);
