@@ -1,13 +1,12 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.275
+// @version      2.8.278
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
 // @match        https://auth.westmonth.com/*
 // @match        https://translate.google.com/*
-// @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js
 // @require      https://cdn.jsdelivr.net/npm/ali-oss@6.23.0/dist/aliyun-oss-sdk.min.js
@@ -38,7 +37,51 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.275';
+  const SCRIPT_VERSION = '2.8.278';
+  const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+  let excelJsLoadPromise = null;
+
+  function getExcelJsRuntime() {
+    const pageWindow = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : null;
+    return (typeof window !== 'undefined' && window.ExcelJS)
+      || (pageWindow && pageWindow.ExcelJS)
+      || (typeof ExcelJS !== 'undefined' && ExcelJS)
+      || null;
+  }
+
+  function ensureExcelJsLoaded() {
+    const existing = getExcelJsRuntime();
+    if (existing && typeof existing.Workbook === 'function') return Promise.resolve(existing);
+    if (isGoogleTranslatePage()) return Promise.reject(new Error('Google 翻译页不加载 ExcelJS'));
+    if (excelJsLoadPromise) return excelJsLoadPromise;
+    excelJsLoadPromise = new Promise((resolve, reject) => {
+      const parent = document.head || document.documentElement;
+      const script = typeof GM_addElement === 'function'
+        ? GM_addElement(parent, 'script', { src: EXCELJS_URL, async: true })
+        : (() => {
+          const element = document.createElement('script');
+          element.src = EXCELJS_URL;
+          element.async = true;
+          parent.appendChild(element);
+          return element;
+        })();
+      if (!script) {
+        reject(new Error('ExcelJS 脚本节点创建失败'));
+        return;
+      }
+      const resolveRuntime = () => {
+        const runtime = getExcelJsRuntime();
+        if (runtime && typeof runtime.Workbook === 'function') resolve(runtime);
+        else reject(new Error('ExcelJS 加载完成但运行时不可用'));
+      };
+      script.addEventListener('load', resolveRuntime, { once: true });
+      script.addEventListener('error', () => reject(new Error('ExcelJS 加载失败，请检查网络或脚本权限')), { once: true });
+    }).catch((error) => {
+      excelJsLoadPromise = null;
+      throw error;
+    });
+    return excelJsLoadPromise;
+  }
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4223,7 +4266,7 @@
     const sku = String(message && message.sku || '').toUpperCase();
     const jobId = String(message && message.jobId || '');
     if (!/^SKU\d{8}$/.test(sku) || !jobId) throw new Error('Excel 任务参数无效');
-    if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载');
+    const Excel = await ensureExcelJsLoaded();
     if (!await ensureExcelTemplateLoaded()) throw new Error('Excel 模板尚未缓存，请联网后重试');
     const cachedData = normalizeData(loadData(sku) || state.index.find((item) => item.sku === sku) || {});
     const ledgerData = normalizeData(
@@ -4283,7 +4326,7 @@
       ingredients: extra.ingredients || getPreferredExcelIngredients(excelData),
     });
 
-    const workbook = new window.ExcelJS.Workbook();
+    const workbook = new Excel.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
@@ -12891,10 +12934,10 @@
 
   async function productDevelopmentOneShotBuildIngredientWorkbook(result) {
     if (!result || !result.ingredientTable) throw new Error('没有可生成的成分表结果');
-    if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法生成成分表 Excel');
+    const Excel = await ensureExcelJsLoaded();
     const template = productDevelopmentIngredientSelectedTemplate('human', 'human-builtin');
     if (!template) throw new Error('人类食品成分表模板不存在');
-    const workbook = new window.ExcelJS.Workbook();
+    const workbook = new Excel.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(template.base64));
     const worksheet = workbook.getWorksheet('滴剂饮料')
       || workbook.worksheets.find((item) => /滴剂.*饮料/.test(String(item && item.name || '')))
@@ -13615,8 +13658,8 @@
     state.productDevelopmentIngredientStatus = '正在读取成分表模板…';
     renderShell();
     try {
-      if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法读取成分表模板');
-      const workbook = new window.ExcelJS.Workbook();
+      const Excel = await ensureExcelJsLoaded();
+      const workbook = new Excel.Workbook();
       await workbook.xlsx.load(base64ToArrayBuffer(template.base64));
       const sheetNames = workbook.worksheets.map((worksheet) => String(worksheet.name || '')).filter(Boolean);
       if (!sheetNames.length) throw new Error('模板没有可用工作表');
@@ -13765,8 +13808,8 @@
     renderShell();
     const startedAt = Date.now();
     try {
-      if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法生成 Excel');
-      const workbook = new window.ExcelJS.Workbook();
+      const Excel = await ensureExcelJsLoaded();
+      const workbook = new Excel.Workbook();
       await workbook.xlsx.load(base64ToArrayBuffer(template.base64));
       const worksheet = workbook.getWorksheet(editor.sheetName);
       if (!worksheet) throw new Error('模板工作表不存在：' + editor.sheetName);
@@ -22086,8 +22129,8 @@
   }
 
   async function parseMagicUploadPackingExcel(file, sku, cachedPackingQuantity) {
-    if (!window.ExcelJS) throw new Error('ExcelJS 尚未加载，无法读取装箱信息');
-    const workbook = new window.ExcelJS.Workbook();
+    const Excel = await ensureExcelJsLoaded();
+    const workbook = new Excel.Workbook();
     await workbook.xlsx.load(await readMagicUploadArrayBuffer(file));
     const worksheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     if (!worksheet) throw new Error('Excel 中没有可读取的工作表');
@@ -38119,7 +38162,8 @@ self.onmessage = async function(event) {
   }
 
   async function buildExcelBatchSingleBuffer(item) {
-    const workbook = new window.ExcelJS.Workbook();
+    const Excel = await ensureExcelJsLoaded();
+    const workbook = new Excel.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
@@ -38134,7 +38178,8 @@ self.onmessage = async function(event) {
   }
 
   async function buildExcelBatchMergedBuffer(items) {
-    const workbook = new window.ExcelJS.Workbook();
+    const Excel = await ensureExcelJsLoaded();
+    const workbook = new Excel.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
     const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
     removeUnusedExcelTemplateRow(sheet);
@@ -38196,7 +38241,9 @@ self.onmessage = async function(event) {
 
   async function downloadExcelBatchQueue() {
     if (state.batchExcelWorkerRunning || state.batchExcelDownloadRunning) return;
-    if (!window.ExcelJS) {
+    try {
+      await ensureExcelJsLoaded();
+    } catch (error) {
       showToast(L.excelNeedLibrary);
       return;
     }
@@ -38276,7 +38323,9 @@ self.onmessage = async function(event) {
       showToast(L.excelNeedData);
       return;
     }
-    if (!window.ExcelJS) {
+    try {
+      await ensureExcelJsLoaded();
+    } catch (error) {
       showToast(L.excelNeedLibrary);
       return;
     }
@@ -38305,6 +38354,7 @@ self.onmessage = async function(event) {
     try {
       const extra = state.excelExtra.extra;
       const excelData = state.excelExtra.excelData;
+      const Excel = await ensureExcelJsLoaded();
       const packQty = normalizePackQty(getLocalPackQty(excelData));
       state.excelPackQty = packQty;
       if (!packQty) {
@@ -38322,7 +38372,7 @@ self.onmessage = async function(event) {
         return;
       }
       showToast(L.excelGenerating);
-      const workbook = new window.ExcelJS.Workbook();
+      const workbook = new Excel.Workbook();
       await workbook.xlsx.load(base64ToArrayBuffer(TEMPLATE_XLSX_BASE64));
       const sheet = workbook.getWorksheet('Sheet1') || workbook.worksheets[0];
       state.excelStatus = L.excelImageLoading;
