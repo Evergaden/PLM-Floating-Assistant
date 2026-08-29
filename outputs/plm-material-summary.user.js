@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.268
+// @version      2.8.269
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.268';
+  const SCRIPT_VERSION = '2.8.269';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -14202,9 +14202,11 @@
   }
 
   function getApiObjectFieldValue(objects, keys) {
-    for (const object of objects || []) {
+    const objectList = Array.isArray(objects) ? objects : (objects && typeof objects === 'object' ? [objects] : []);
+    const keyList = Array.isArray(keys) ? keys : (keys ? [keys] : []);
+    for (const object of objectList) {
       if (!object || typeof object !== 'object') continue;
-      for (const key of keys || []) {
+      for (const key of keyList) {
         if (object[key] === undefined || object[key] === null || object[key] === '') continue;
         const value = getApiScalarText(object[key], 0);
         if (value) return value;
@@ -14276,9 +14278,11 @@
   }
 
   function getApiObjectAssetUrl(objects, keys) {
-    for (const object of objects || []) {
+    const objectList = Array.isArray(objects) ? objects : (objects && typeof objects === 'object' ? [objects] : []);
+    const keyList = Array.isArray(keys) ? keys : (keys ? [keys] : []);
+    for (const object of objectList) {
       if (!object || typeof object !== 'object') continue;
-      for (const key of keys || []) {
+      for (const key of keyList) {
         const url = getApiAssetUrl(object[key], 0);
         if (url) return url;
       }
@@ -14308,7 +14312,8 @@
   }
 
   function getApiEnglishProductName(values, brand) {
-    for (const value of values || []) {
+    const valueList = Array.isArray(values) ? values : (values ? [values] : []);
+    for (const value of valueList) {
       const text = cleanEnglishProductName(value, brand);
       if (text && /[A-Za-z]/.test(text) && !/[\u3400-\u9fff]/.test(text)) return text;
     }
@@ -15583,6 +15588,8 @@
     const indexed = state.index.find((entry) => entry && entry.sku === sku);
     const current = normalizeData(seedData || loadData(sku) || (state.data && state.data.sku === sku ? state.data : null) || indexed || { sku });
     setApiReadStatus(sku, 'loading', '正在读取 PLM 数据');
+    let phase = '读取 PLM 数据';
+    let merged = null;
     try {
       const apiResult = await fetchApiExcelData(current, { force: Boolean(opts.force) });
       if (!apiResult || !apiResult.found || !apiResult.data) {
@@ -15590,23 +15597,33 @@
         if (state.selectedSku === sku) showToast('PLM 未找到可更新数据', { quiet: true });
         return;
       }
-      const merged = normalizeData({
+      phase = '合并 PLM 数据';
+      merged = normalizeData({
         ...current,
         ...apiResult.data,
         updatedAt: new Date().toLocaleString(),
         updatedAtMs: Date.now(),
       });
+      phase = '保存 PLM 数据';
       saveData(sku, merged, { changeSource: 'PLM 数据服务' });
-      setApiReadStatus(sku, 'success', 'PLM 数据读取完成');
-      if (state.selectedSku === sku) {
-        state.data = merged;
-        renderShell('已刷新 PLM 数据');
-        showApiDataChangeNotice(sku, current, merged);
-      }
     } catch (error) {
       setApiReadStatus(sku, 'error', 'PLM 读取失败');
-      addLog('warn', '搜索 SKU 自动刷新失败', sku + ' | ' + formatErrorMessage(error));
+      addLog('warn', '搜索 SKU 自动刷新失败', sku + ' | ' + phase + ' | ' + formatErrorDiagnostic(error));
       if (state.selectedSku === sku) showToast('PLM 刷新失败，请稍后重试', { quiet: true });
+      return;
+    }
+    setApiReadStatus(sku, 'success', 'PLM 数据读取完成');
+    if (state.selectedSku === sku && merged) {
+      state.data = merged;
+      try {
+        phase = '刷新详情界面';
+        renderShell('已刷新 PLM 数据');
+        phase = '显示更新提示';
+        showApiDataChangeNotice(sku, current, merged);
+      } catch (error) {
+        addLog('error', 'PLM 数据已保存但界面刷新失败', sku + ' | ' + phase + ' | ' + formatErrorDiagnostic(error));
+        showToast('PLM 数据已保存，但界面刷新失败，请重试', { quiet: true });
+      }
     }
   }
 
@@ -42582,6 +42599,14 @@ self.onmessage = async function(event) {
 
   function formatErrorMessage(error) {
     return error && error.message ? error.message : String(error || '\u672a\u77e5\u9519\u8bef');
+  }
+
+  function formatErrorDiagnostic(error) {
+    const message = formatErrorMessage(error);
+    const stackLine = error && error.stack
+      ? String(error.stack).split(/\r?\n/).slice(1).find((line) => line && line.trim())
+      : '';
+    return [message, stackLine && stackLine.trim()].filter(Boolean).join(' | ').slice(0, 500);
   }
 
   function neutralizeTechnicalTerms(value) {
