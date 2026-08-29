@@ -4793,7 +4793,7 @@
   });
   const PRODUCT_DEVELOPMENT_DEFAULT_ENGLISH_PRODUCT_NAME = 'Dietary Supplement';
   const PRODUCT_DEVELOPMENT_BRAND_CATEGORY_SUFFIXES = Object.freeze([
-    '健康保健食品', '膳食补充食品', '膳食补充剂', '营养补充食品', '宠物保健品', '宠物营养品', '宠物食品', '宠物',
+    '健康保健食品', '膳食补充食品', '膳食补充剂', '营养补充食品', '宠物保健品', '宠物营养品', '宠物食品', '宠物类', '宠物',
     '保健食品', '营养食品', '入口食品', '保健品', '营养品', '食品',
     'dietary supplements', 'dietary supplement', 'health supplements', 'health supplement', 'supplements', 'supplement',
   ]);
@@ -5483,6 +5483,31 @@
     return draft;
   }
 
+  function productDevelopmentCategoryHintList(value) {
+    const values = Array.isArray(value) ? value : [value];
+    const hints = [];
+    values.forEach((candidate) => {
+      const text = productDevelopmentCleanText(candidate, 180);
+      if (!text) return;
+      hints.push(text);
+      text.split(/[\s\\/／>＞|｜,，;；]+/).forEach((part) => {
+        const item = productDevelopmentCleanText(part, 160);
+        if (item) hints.push(item);
+      });
+    });
+    return Array.from(new Set(hints)).filter(Boolean).sort((a, b) => b.length - a.length);
+  }
+
+  function productDevelopmentObjectCategoryHints(value) {
+    const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    return Object.entries(source).filter(([key, item]) => {
+      const name = String(key || '').toLowerCase();
+      return /category|class|series|product[_-]?type|品类|类目/i.test(name)
+        && !/(?:id|value)$/i.test(name)
+        && (typeof item === 'string' || typeof item === 'number');
+    }).map(([, item]) => item);
+  }
+
   function productDevelopmentBrandAndCategory(value, categoryHint) {
     const text = productDevelopmentCleanText(value, 180);
     if (!text) return { brand: '', category: '' };
@@ -5493,11 +5518,9 @@
         category: productDevelopmentCleanText(labeled[2], 160),
       };
     }
-    const hint = productDevelopmentCleanText(categoryHint, 180);
-    const hintParts = hint.split(/[\\/／>＞|｜]+/).map((item) => productDevelopmentCleanText(item, 160)).filter(Boolean);
-    const candidates = Array.from(new Set(PRODUCT_DEVELOPMENT_BRAND_CATEGORY_SUFFIXES.concat([hint], hintParts)))
+    const candidates = Array.from(new Set(PRODUCT_DEVELOPMENT_BRAND_CATEGORY_SUFFIXES.concat(productDevelopmentCategoryHintList(categoryHint))))
       .map((item) => productDevelopmentCleanText(item, 160))
-      .filter((item) => item.length >= 2)
+      .filter(Boolean)
       .sort((a, b) => b.length - a.length);
     const lowerText = text.toLowerCase();
     for (const candidate of candidates) {
@@ -5506,9 +5529,21 @@
       const brand = text.slice(0, start).replace(/[\s\/／>＞|｜:：,，;；_\-－—()[\]（）【】]+$/g, '').trim();
       if (brand) return { brand, category: text.slice(start).trim() };
     }
-    const match = text.match(/^AMZ(?:\s+|[\/／>＞|]+)(.+)$/i);
-    const suffix = match ? productDevelopmentCleanText(match[1], 160) : '';
-    if (match && /健康保健食品/.test(suffix)) return { brand: 'AMZ', category: suffix };
+    const separatorPattern = /[\s\/／>＞|｜:：,，;；_\-－—]+/g;
+    let separator = null;
+    while ((separator = separatorPattern.exec(text))) {
+      const brand = text.slice(0, separator.index).trim();
+      const category = text.slice(separator.index + separator[0].length).trim();
+      if (brand && category && /[A-Za-z0-9]/.test(brand) && /[\u3400-\u9fff]/.test(category) && !/[A-Za-z]/.test(category)) {
+        return { brand, category };
+      }
+    }
+    const firstCjk = text.search(/[\u3400-\u9fff]/);
+    if (firstCjk > 0) {
+      const brand = text.slice(0, firstCjk).replace(/[\s\/／>＞|｜:：,，;；_\-－—]+$/g, '').trim();
+      const category = text.slice(firstCjk).trim();
+      if (brand && category && /[A-Za-z0-9]/.test(brand) && !/[A-Za-z]/.test(category)) return { brand, category };
+    }
     return { brand: text, category: '' };
   }
 
@@ -5596,9 +5631,36 @@
       return field ? String(field.displayValue || field.value || '') : '';
     };
     const info = detail && detail.productInfo && typeof detail.productInfo === 'object' ? detail.productInfo : {};
-    const categoryHint = task && (task.plmCategory || task.categoryName || task.productType)
-      || detail && (detail.categoryName || detail.productType || info.category_name)
-      || baseValue(['categoryName', 'category', 'productType']);
+    const categoryHint = [
+      task && task.plmCategory,
+      task && task.categoryName,
+      task && task.category,
+      task && task.categoryPath,
+      task && task.productCategory,
+      task && task.productCategoryName,
+      task && task.product_category_name,
+      task && task.product_category,
+      task && task.productCategoryPath,
+      task && task.product_category_path,
+      task && task.productType,
+      task && task.productTypeName,
+      task && task.product_type_name,
+      detail && detail.categoryName,
+      detail && detail.category,
+      detail && detail.categoryPath,
+      detail && detail.productCategory,
+      detail && detail.productCategoryName,
+      detail && detail.productCategoryPath,
+      detail && detail.productType,
+      info.category_name,
+      info.categoryName,
+      info.product_category_name,
+      info.productCategoryName,
+      baseValue(['categoryName', 'category', 'categoryPath', 'productType', 'product_type']),
+      ...productDevelopmentObjectCategoryHints(task),
+      ...productDevelopmentObjectCategoryHints(detail),
+      ...productDevelopmentObjectCategoryHints(info),
+    ];
     const rawBrand = task && task.brand || detail && detail.brand || baseValue(['brand']) || '';
     const brand = productDevelopmentNormalizeBrandValue(rawBrand, categoryHint);
     const productNameCn = productDevelopmentCleanText(detail && detail.productNameCn || task && task.name || baseValue(['productNameCn', 'product_name_cn']), 180);
@@ -5626,9 +5688,35 @@
   function getProductDevelopmentTaskMeta(task, detail) {
     const sku = String(task && task.sku || detail && detail.sku || '').trim().toUpperCase();
     if (!sku) return normalizeProductDevelopmentTaskMeta({});
-    const categoryHint = task && (task.plmCategory || task.categoryName || task.productType)
-      || detail && (detail.categoryName || detail.productType || detail.productInfo && detail.productInfo.category_name)
-      || '';
+    const categoryHint = [
+      task && task.plmCategory,
+      task && task.categoryName,
+      task && task.category,
+      task && task.categoryPath,
+      task && task.productCategory,
+      task && task.productCategoryName,
+      task && task.product_category_name,
+      task && task.product_category,
+      task && task.productCategoryPath,
+      task && task.product_category_path,
+      task && task.productType,
+      task && task.productTypeName,
+      task && task.product_type_name,
+      detail && detail.categoryName,
+      detail && detail.category,
+      detail && detail.categoryPath,
+      detail && detail.productCategory,
+      detail && detail.productCategoryName,
+      detail && detail.productCategoryPath,
+      detail && detail.productType,
+      detail && detail.productInfo && detail.productInfo.category_name,
+      detail && detail.productInfo && detail.productInfo.categoryName,
+      detail && detail.productInfo && detail.productInfo.product_category_name,
+      detail && detail.productInfo && detail.productInfo.productCategoryName,
+      ...productDevelopmentObjectCategoryHints(task),
+      ...productDevelopmentObjectCategoryHints(detail),
+      ...productDevelopmentObjectCategoryHints(detail && detail.productInfo),
+    ];
     const stored = loadProductDevelopmentTaskMeta()[sku] || {};
     const memory = state.productDevelopmentTaskMeta && state.productDevelopmentTaskMeta[sku] || {};
     return normalizeProductDevelopmentTaskMeta({
@@ -5988,8 +6076,15 @@
     if (!item || typeof item !== 'object') return null;
     const sku = String(item.sku || item.product_code || item.productCode || '').trim().toUpperCase();
     if (!sku) return null;
-    const categoryHint = item.categoryName || item.category_name || item.plmCategory || item.productType || item.product_type || '';
-    const brandParts = productDevelopmentBrandAndCategory(item.brand || item.brand_name || item.product_brand_name || '', categoryHint);
+    const categoryHint = [
+      item.categoryName, item.category_name, item.productCategoryName, item.product_category_name,
+      item.category, item.productCategory, item.product_category, item.categoryPath, item.category_path,
+      item.productCategoryPath, item.product_category_path, item.categoryFullName, item.category_full_name,
+      item.plmCategory, item.projectSeriesName, item.project_series_name,
+      item.productType, item.product_type, item.productTypeName, item.product_type_name,
+      ...productDevelopmentObjectCategoryHints(item),
+    ];
+    const brandParts = productDevelopmentBrandAndCategory(item.brand || item.brandName || item.brand_name || item.product_brand_name || '', categoryHint);
     return {
       ...item,
       sku,
@@ -6156,9 +6251,16 @@
     const cleanCell = (value) => typeof cleanProjectListCell === 'function'
       ? cleanProjectListCell(value)
       : productDevelopmentCleanText(value, 240);
-    const categoryHint = cleanCell(item.category_name || item.project_series_name || item.product_type_format || item.product_type);
+    const categoryHint = [
+      item.category_name, item.categoryName, item.product_category_name, item.productCategoryName,
+      item.category, item.product_category, item.productCategory, item.category_path, item.categoryPath,
+      item.product_category_path, item.productCategoryPath, item.category_full_name, item.categoryFullName,
+      item.project_series_name, item.projectSeriesName, item.product_type_format, item.product_type,
+      item.productTypeName, item.product_type_name, item.productType,
+      ...productDevelopmentObjectCategoryHints(item),
+    ];
     const brandParts = productDevelopmentBrandAndCategory(item.brand_name || item.product_brand_name || item.brand || item.brandName || '', categoryHint);
-    const categorySource = cleanCell(item.category_name || item.project_series_name) || brandParts.category;
+    const categorySource = cleanCell(item.category_name || item.categoryName || item.project_series_name || item.projectSeriesName) || brandParts.category;
     return {
       sku,
       rowId: projectId,
@@ -6244,7 +6346,16 @@
       ? state.productDevelopmentTaskDetailData[sku]
       : {};
     const cached = state && state.data && String(state.data.sku || '').trim().toUpperCase() === sku ? state.data : loadData(sku);
-    const categoryHint = row.plmCategory || row.categoryName || row.productType || detail.plmCategory || detail.categoryName || detail.productType || cached && (cached.plmCategory || cached.category || cached.productType) || '';
+    const categoryHint = [
+      row.plmCategory, row.categoryName, row.category, row.categoryPath, row.productCategoryName, row.product_category_name,
+      row.productType, row.productTypeName, row.product_type_name,
+      detail.plmCategory, detail.categoryName, detail.category, detail.categoryPath, detail.productType,
+      detail.productInfo && detail.productInfo.category_name, detail.productInfo && detail.productInfo.categoryName,
+      cached && cached.plmCategory, cached && cached.category, cached && cached.categoryPath, cached && cached.productType,
+      ...productDevelopmentObjectCategoryHints(row),
+      ...productDevelopmentObjectCategoryHints(detail),
+      ...productDevelopmentObjectCategoryHints(cached),
+    ];
     return normalizeData({
       ...(cached || {}),
       ...detail,
@@ -17880,27 +17991,16 @@
   function normalizeSkuBrandValue(value, data) {
     const text = compactText(value);
     if (!text || /^(?:--+|—+|－+|未填写|未命名|预设品牌)$/i.test(text)) return '';
-    const labeledCategory = text.match(/^(.*?)\s*(?:品类|类目|商品类目|产品类目)\s*[:：]\s*.+$/);
-    if (labeledCategory && compactText(labeledCategory[1])) return compactText(labeledCategory[1]);
     const source = data && typeof data === 'object' ? data : {};
-    const categoryValues = [source.plmCategory, source.category, source.productType, source.manualCategory]
-      .map((item) => compactText(item))
-      .filter(Boolean);
-    const suffixes = Array.from(new Set(categoryValues.flatMap((item) => [
-      item,
-      ...item.split(/[\/／>＞|｜\-]+/).map((part) => compactText(part)).filter(Boolean),
-    ]))).filter((item) => item.length >= 2).sort((a, b) => b.length - a.length);
-    const lowerText = text.toLowerCase();
-    for (const suffix of suffixes) {
-      const lowerSuffix = suffix.toLowerCase();
-      const index = lowerText.lastIndexOf(lowerSuffix);
-      if (index <= 0 || index + suffix.length !== text.length) continue;
-      const prefix = text.slice(0, index).replace(/[\s\/／>＞|｜:：,，;；_\-]+$/g, '').trim();
-      if (prefix) return prefix;
-    }
-    // AMZ is returned by some PLM fields as “AMZ + 健康保健食品”.
-    const knownCombined = text.match(/^AMZ(?:\s*[\/／>＞|｜\-－—]\s*|\s+)(健康保健食品)$/i);
-    return knownCombined ? 'AMZ' : text;
+    const categoryValues = [
+      source.plmCategory, source.category, source.categoryName, source.category_name,
+      source.productCategory, source.productCategoryName, source.product_category, source.product_category_name,
+      source.categoryPath, source.category_path, source.productCategoryPath, source.product_category_path,
+      source.productType, source.productTypeName, source.product_type, source.product_type_name,
+      source.projectSeriesName, source.project_series_name, source.manualCategory,
+      ...productDevelopmentObjectCategoryHints(source),
+    ];
+    return productDevelopmentBrandAndCategory(text, categoryValues).brand || text;
   }
 
   function getProductDevelopmentTaskMetaForSku(sku, task, detail) {
@@ -17909,9 +18009,28 @@
     const memory = state && state.productDevelopmentTaskMeta && state.productDevelopmentTaskMeta[normalizedSku];
     const stored = loadProductDevelopmentTaskMeta()[normalizedSku];
     const fallback = productDevelopmentTaskMetaFallback(task, detail);
-    const categoryHint = task && (task.plmCategory || task.categoryName || task.productType)
-      || detail && (detail.categoryName || detail.productType || detail.productInfo && detail.productInfo.category_name)
-      || '';
+    const categoryHint = [
+      task && task.plmCategory,
+      task && task.categoryName,
+      task && task.category,
+      task && task.categoryPath,
+      task && task.productCategoryName,
+      task && task.product_category_name,
+      task && task.productType,
+      task && task.productTypeName,
+      task && task.product_type_name,
+      detail && detail.categoryName,
+      detail && detail.category,
+      detail && detail.categoryPath,
+      detail && detail.productType,
+      detail && detail.productInfo && detail.productInfo.category_name,
+      detail && detail.productInfo && detail.productInfo.categoryName,
+      detail && detail.productInfo && detail.productInfo.product_category_name,
+      detail && detail.productInfo && detail.productInfo.productCategoryName,
+      ...productDevelopmentObjectCategoryHints(task),
+      ...productDevelopmentObjectCategoryHints(detail),
+      ...productDevelopmentObjectCategoryHints(detail && detail.productInfo),
+    ];
     const merged = {
       ...fallback,
       ...(stored && typeof stored === 'object' ? stored : {}),
