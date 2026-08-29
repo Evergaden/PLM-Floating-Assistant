@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.264
+// @version      2.8.265
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.264';
+  const SCRIPT_VERSION = '2.8.265';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4886,7 +4886,7 @@
     Object.freeze({ key: 'categoryPath', label: '类目', domId: 'form_item_category_id', control: 'cascader', placeholder: '如：成品 / 食品酒水 / 酒水饮品' }),
     Object.freeze({ key: 'productNameCn', label: '中文商品名称', domId: 'product_name0', placeholder: '填写页面 1 中文商品名称' }),
     Object.freeze({ key: 'productNameEn', label: '英文商品名称', domId: 'product_name1', placeholder: '填写页面 1 英文商品名称' }),
-    Object.freeze({ key: 'brand', label: '品牌', domId: 'brand_id', control: 'select', placeholder: '按 PLM 下拉选项填写品牌' }),
+    Object.freeze({ key: 'brand', label: '品牌', domId: 'brand_id', control: 'search-select', placeholder: '输入品牌名称并从 PLM 搜索结果中选择' }),
     Object.freeze({ key: 'productGroupPath', label: '产品分组', domId: 'product_group_id', control: 'cascader', placeholder: '按层级用 / 分隔' }),
   ]);
 
@@ -7537,6 +7537,11 @@
       || options.find((option) => productDevelopmentDomOptionText(option).includes(wanted));
   }
 
+  function productDevelopmentDomFindExactOption(target) {
+    const wanted = productDevelopmentDomText(target);
+    return productDevelopmentDomVisibleOptions().find((option) => productDevelopmentDomOptionText(option) === wanted);
+  }
+
   function productDevelopmentDomSelectionMatches(input, target) {
     const current = productDevelopmentDomText(productDevelopmentDomSelectedText(input));
     const wanted = productDevelopmentDomText(target);
@@ -7578,6 +7583,13 @@
         option.click();
         if (index < segments.length - 1) await productDevelopmentDomWaitForOption(segments[index + 1], 8000);
       }
+    } else if (control === 'search-select') {
+      if (input.readOnly || input.type === 'file') throw new Error('PLM 搜索下拉不可输入');
+      input.focus();
+      productDevelopmentDomNativeSetter(input, wanted, ['input']);
+      const option = await waitFor(() => productDevelopmentDomFindExactOption(wanted), 8000, 100);
+      if (!option) throw new Error('PLM 搜索结果中找不到“' + wanted + '”');
+      option.click();
     } else {
       if (!input.readOnly && input.type !== 'file') {
         productDevelopmentDomNativeSetter(input, wanted, ['input']);
@@ -7593,6 +7605,23 @@
     const wanted = productDevelopmentDomText(label);
     return Array.from(document.querySelectorAll('button')).find((button) => productDevelopmentDomVisible(button) && productDevelopmentDomText(button.textContent) === wanted)
       || Array.from(document.querySelectorAll('button')).find((button) => productDevelopmentDomVisible(button) && productDevelopmentDomText(button.textContent).includes(wanted));
+  }
+
+  async function productDevelopmentDomEnsureEnglishLanguage() {
+    const englishInput = () => {
+      const input = document.getElementById('product_name1');
+      return input && productDevelopmentDomVisible(input) ? input : null;
+    };
+    if (englishInput()) return false;
+    const button = Array.from(document.querySelectorAll('button')).find((item) => (
+      productDevelopmentDomVisible(item) && productDevelopmentDomText(item.textContent) === '英语(美国)'
+    ));
+    if (!button) throw new Error('页面1未找到“英语(美国)”语言按钮');
+    const alreadySelected = Boolean(button.querySelector('.showCheckIcon'));
+    if (!alreadySelected) button.click();
+    const mounted = await waitFor(englishInput, 10000, 100);
+    if (!mounted) throw new Error('点击“英语(美国)”后英文表单未出现');
+    return !alreadySelected;
   }
 
   function productDevelopmentBomDomDrawer(sku) {
@@ -7848,6 +7877,7 @@
   }
 
   async function productDevelopmentFillPlmPage1(detail) {
+    await productDevelopmentDomEnsureEnglishLanguage();
     const values = productDevelopmentDomAvailableValues(PRODUCT_DEVELOPMENT_PREFILL_PAGE1_FIELDS, (definition) => productDevelopmentPage1FieldValue(detail, definition.key));
     const warnings = [];
     if (!values.length) return { warnings: ['悬浮助手页面1暂无可填写的数据'] };
