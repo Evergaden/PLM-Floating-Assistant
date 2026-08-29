@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.279
+// @version      2.8.280
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.279';
+  const SCRIPT_VERSION = '2.8.280';
   const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
   let excelJsLoadPromise = null;
 
@@ -4895,7 +4895,7 @@
     Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字、生成对照图，并在 Google 翻译上标注', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
     Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '分别选择人类或宠物模板，编辑后下载 Excel', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
-    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
+    Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '全包价格计算国内三档价格', action: 'product-development-pricing-open', icon: 'calculator', requiresSku: false }),
     Object.freeze({ id: 'stocking', title: '备货标准', subtitle: '出单数量、手工贴标和返工 100 件规则', action: '', icon: 'box' }),
     Object.freeze({ id: 'packaging', title: '包装与标签', subtitle: '规格、尺寸和标签资料', action: '', icon: 'box' }),
   ]);
@@ -4956,6 +4956,7 @@
     taxRate: '0.00%',
     quantity: '100',
   });
+  const PRODUCT_DEVELOPMENT_PRICING_DRAFT_KEY = 'plm-floating-helper:product-development-pricing:v1';
 
   // This is the intentionally small contract between the local assistant form
   // and the two-step PLM create-product drawer. Keep this list limited to the
@@ -7351,6 +7352,99 @@
     if (number === null) return '';
     const precision = Number.isInteger(digits) ? digits : 6;
     return String(Number(number.toFixed(precision)));
+  }
+
+  function productDevelopmentPricingNumber(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim().replace(/,/g, '');
+    if (!text) return null;
+    const number = Number(text);
+    return Number.isFinite(number) && number >= 0 ? number : null;
+  }
+
+  function productDevelopmentPricingTaxRatePercent(value) {
+    const text = String(value === null || value === undefined ? '' : value).trim();
+    if (!text) return null;
+    const hasPercent = /%/.test(text);
+    const number = Number(text.replace(/%/g, '').trim());
+    if (!Number.isFinite(number) || number < 0) return null;
+    const percent = hasPercent || number > 1 ? number : number * 100;
+    return percent >= 0 && percent <= 100 ? percent : null;
+  }
+
+  function productDevelopmentPricingInputValue(value, sku) {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      sku: String(sku === undefined ? source.sku : sku || '').trim().toUpperCase(),
+      fullPackagePrice: String(source.fullPackagePrice === null || source.fullPackagePrice === undefined ? '' : source.fullPackagePrice).trim().replace(/,/g, '').slice(0, 40),
+      taxRatePercent: String(source.taxRatePercent === null || source.taxRatePercent === undefined ? '' : source.taxRatePercent).trim().replace(/%/g, '').slice(0, 20),
+    };
+  }
+
+  function loadProductDevelopmentPricingDrafts() {
+    const value = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_PRICING_DRAFT_KEY, {});
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+
+  function saveProductDevelopmentPricingInput(value) {
+    const input = productDevelopmentPricingInputValue(value);
+    const drafts = loadProductDevelopmentPricingDrafts();
+    const key = input.sku || '_default';
+    drafts[key] = {
+      fullPackagePrice: input.fullPackagePrice,
+      taxRatePercent: input.taxRatePercent,
+    };
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_PRICING_DRAFT_KEY, drafts);
+    state.productDevelopmentPricingInput = input;
+    return input;
+  }
+
+  function productDevelopmentPricingDetailValue(detail, key) {
+    if (!detail || detail.error) return '';
+    const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+    return definition ? productDevelopmentPrefillProductFieldValue(detail, definition) : '';
+  }
+
+  function productDevelopmentPricingInputForSku(sku, detail) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const current = state.productDevelopmentPricingInput && typeof state.productDevelopmentPricingInput === 'object'
+      ? productDevelopmentPricingInputValue(state.productDevelopmentPricingInput)
+      : null;
+    if (current && current.sku === normalizedSku) {
+      const detailPrice = productDevelopmentPricingDetailValue(detail, 'procurementPrice');
+      const detailTaxRate = productDevelopmentPricingTaxRatePercent(productDevelopmentProcurementFieldValue(detail, 'taxRate'));
+      if (!current.fullPackagePrice && detailPrice) current.fullPackagePrice = String(detailPrice).trim();
+      if (!current.taxRatePercent && detailTaxRate !== null) current.taxRatePercent = String(detailTaxRate);
+      state.productDevelopmentPricingInput = current;
+      return current;
+    }
+    const drafts = loadProductDevelopmentPricingDrafts();
+    const saved = drafts[normalizedSku] || (!normalizedSku ? drafts._default : null) || {};
+    const detailPrice = productDevelopmentPricingDetailValue(detail, 'procurementPrice');
+    const detailTaxRate = productDevelopmentPricingTaxRatePercent(productDevelopmentProcurementFieldValue(detail, 'taxRate'));
+    const input = productDevelopmentPricingInputValue({
+      sku: normalizedSku,
+      fullPackagePrice: String(saved.fullPackagePrice || '').trim() || detailPrice,
+      taxRatePercent: String(saved.taxRatePercent || '').trim() || (detailTaxRate === null ? '' : detailTaxRate),
+    });
+    state.productDevelopmentPricingInput = input;
+    return input;
+  }
+
+  function productDevelopmentCalculateTierPrices(fullPackagePrice, taxRatePercent) {
+    const fullPrice = productDevelopmentPricingNumber(fullPackagePrice);
+    const taxRate = productDevelopmentPricingTaxRatePercent(taxRatePercent);
+    if (fullPrice === null || fullPrice <= 0 || taxRate === null || taxRate < 0 || taxRate > 100) return null;
+    const thirdPrice = Number((fullPrice * taxRate / 100 + 3 / 0.7).toFixed(2));
+    return {
+      thirdPrice,
+      secondPrice: Number((thirdPrice + 1).toFixed(2)),
+      firstPrice: Number((thirdPrice + 2).toFixed(2)),
+    };
+  }
+
+  function productDevelopmentPricingPriceText(value) {
+    const number = productDevelopmentPricingNumber(value);
+    return number === null ? '' : number.toFixed(2);
   }
 
   function productDevelopmentMaterialDimensions(value) {
@@ -11459,6 +11553,84 @@
       '<p class="pfh-product-development-note">合规提示：AI 结果只能作为草稿，必须人工核对品牌、禁词、成分和平台规则；侵权图、文案和详情字段不自动写回，BOM 仅在明确点击保存后调用 PLM 接口。</p></div>';
   }
 
+  function productDevelopmentPricingResultHtml(result, sku, detail) {
+    if (!result) return '<div class="pfh-product-development-result-empty">请输入全包价格和税率，系统会按定价标准计算三档价格。</div>';
+    const canApply = Boolean(sku && detail && !detail.error);
+    const applyHint = canApply
+      ? '只填入当前 SKU 的本地建品草稿，不会直接写入 PLM。'
+      : sku
+        ? '当前 SKU 详情尚未读取完成，读取后即可填入建品资料。'
+        : '选择开发 SKU 后可把结果填入对应的本地建品资料。';
+    const tiers = [
+      ['国内一档价格', result.firstPrice, '三档价格 + 2'],
+      ['国内二档价格', result.secondPrice, '三档价格 + 1'],
+      ['国内三档价格', result.thirdPrice, '全包价格 × 税率 + 3 ÷ 0.7'],
+    ];
+    return '<div class="pfh-product-development-grid pfh-product-development-pricing-result-grid">' + tiers.map((tier) => '<article class="pfh-product-development-card pfh-product-development-pricing-tier"><div class="pfh-product-development-card-head"><span>' + iconHtml('calculator') + '</span><i>公式建议</i></div><h3>' + escapeHtml(tier[0]) + '</h3><p><strong>¥' + escapeHtml(productDevelopmentPricingPriceText(tier[1])) + '</strong></p><small>' + escapeHtml(tier[2]) + '</small></article>').join('') + '</div>' +
+      '<div class="pfh-product-development-review-editor-actions"><button type="button" data-action="product-development-pricing-apply" data-product-sku="' + escapeHtml(sku) + '"' + (canApply ? '' : ' disabled') + '>填入当前 SKU 建品资料</button><small>' + escapeHtml(applyHint) + '</small></div>';
+  }
+
+  function productDevelopmentPricingViewHtml() {
+    const sku = getProductDevelopmentCurrentSku();
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+    const input = productDevelopmentPricingInputForSku(sku, detail);
+    const result = productDevelopmentCalculateTierPrices(input.fullPackagePrice, input.taxRatePercent);
+    const sourceHint = detail && !detail.error
+      ? '全包价格默认读取当前 SKU 的采购价（含税运），税率默认读取采购明细。'
+      : sku
+        ? '当前 SKU 详情尚未读取完成，也可以先手动输入计算。'
+        : '未选择开发 SKU，可先手动输入全包价格和税率。';
+    const statusHtml = state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '';
+    const errorHtml = state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '';
+    return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
+      '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>PRICING STANDARD</small><h2>定价标准</h2></div></header>' +
+      '<section class="pfh-product-development-work-card"><div><h3>计算国内三档价格</h3><p>三档价格 = 全包价格 × 税率 + 3 ÷ 0.7；二档价格 = 三档价格 + 1；一档价格 = 三档价格 + 2。</p></div><span>' + escapeHtml(sku ? '当前 SKU：' + sku : '公式计算工具') + '</span></section>' +
+      '<section class="pfh-product-development-detail-form"><header><div><small>PRICING INPUT</small><h3>定价输入</h3></div><span>' + escapeHtml(sourceHint) + '</span></header><div class="pfh-product-development-form-grid"><label class="pfh-product-development-material-field"><span>全包价格（元）</span><input type="number" min="0" step="0.01" inputmode="decimal" class="pfh-product-development-pricing-input" data-product-development-pricing-field="fullPackagePrice" value="' + escapeHtml(input.fullPackagePrice) + '" placeholder="例如：6.50"></label><label class="pfh-product-development-material-field"><span>税率（%）</span><input type="number" min="0" max="100" step="0.01" inputmode="decimal" class="pfh-product-development-pricing-input" data-product-development-pricing-field="taxRatePercent" value="' + escapeHtml(input.taxRatePercent) + '" placeholder="例如：13"></label></div><p class="pfh-product-development-form-note">税率按百分数填写，例如 13% 填写 13；也支持填写 0.13，系统会按 13% 换算。</p></section>' +
+      statusHtml + errorHtml +
+      '<section class="pfh-product-development-form-section"><h4>计算结果</h4><div class="pfh-product-development-pricing-result">' + productDevelopmentPricingResultHtml(result, sku, detail) + '</div></section>' +
+      '<p class="pfh-product-development-note">结果保留两位小数，仅作为建品定价建议。点击“填入当前 SKU 建品资料”后，会把一档、二档、三档写入本地草稿，仍需人工确认后再保存到 PLM。</p></div>';
+  }
+
+  function productDevelopmentApplyPricingToProduct(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[normalizedSku];
+    if (!detail || detail.error) {
+      showToast('当前 SKU 详情还未读取完成');
+      return false;
+    }
+    const input = productDevelopmentPricingInputForSku(normalizedSku, detail);
+    const result = productDevelopmentCalculateTierPrices(input.fullPackagePrice, input.taxRatePercent);
+    if (!result) {
+      showToast('请先填写有效的全包价格和 0–100 的税率');
+      return false;
+    }
+    [
+      ['firstPrice', result.firstPrice],
+      ['secondPrice', result.secondPrice],
+      ['thirdPrice', result.thirdPrice],
+    ].forEach(([key, value]) => {
+      const definition = PRODUCT_DEVELOPMENT_PREFILL_PAGE2_FIELDS.find((item) => item.key === key);
+      if (!definition) return;
+      const text = productDevelopmentPricingPriceText(value);
+      productDevelopmentRememberLocalProductField(detail, definition, text, text, '定价标准公式');
+      productDevelopmentProductFieldCollections(detail)
+        .filter((field) => Number(field && field.attrId) === Number(definition.attrId))
+        .forEach((field) => {
+          field.value = text;
+          field.displayValue = text;
+          field.status = '已填写（本地）';
+          field.source = '定价标准公式（未写入）';
+        });
+    });
+    productDevelopmentMarkProductDetailDirty(detail);
+    scheduleProductDevelopmentReadonlyDetailCache(normalizedSku, detail);
+    state.productDevelopmentStatus = '已按定价标准填入一档、二档、三档价格（本地草稿）';
+    state.productDevelopmentError = '';
+    showToast(state.productDevelopmentStatus);
+    renderShell();
+    return true;
+  }
+
   function productDevelopmentReviewHtml() {
     const result = state.productDevelopmentReview;
     const sku = getProductDevelopmentCurrentSku();
@@ -13838,7 +14010,8 @@
   }
 
   function productDevelopmentViewHtml(statusText) {
-    const view = state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : (state.productDevelopmentView === 'ingredient' ? 'ingredient' : 'home'));
+    const view = state.productDevelopmentView === 'pricing' ? 'pricing' : (state.productDevelopmentView === 'review' ? 'review' : (state.productDevelopmentView === 'copywriting' ? 'copywriting' : (state.productDevelopmentView === 'ingredient' ? 'ingredient' : 'home')));
+    if (view === 'pricing') return productDevelopmentPricingViewHtml();
     if (view === 'review') return productDevelopmentReviewHtml(statusText);
     if (view === 'copywriting') return productDevelopmentCopywritingHtml(statusText);
     if (view === 'ingredient') return productDevelopmentIngredientFactsHtml();
@@ -13863,6 +14036,30 @@
       state.productDevelopmentView = 'home';
       state.productDevelopmentError = '';
       renderShell();
+      return true;
+    }
+    if (action === 'product-development-pricing-open') {
+      state.workMode = 'product-development';
+      state.settings.workMode = 'product-development';
+      saveSettings(state.settings);
+      const sku = getProductDevelopmentCurrentSku();
+      const task = getProductDevelopmentTaskBySku(sku) || state.productDevelopmentSelectedTask;
+      state.productDevelopmentView = 'pricing';
+      state.view = 'home';
+      state.productDevelopmentError = '';
+      state.productDevelopmentStatus = '';
+      productDevelopmentPricingInputForSku(sku, state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku]);
+      renderShell();
+      const taskDetail = task && state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[task.sku];
+      if (task && task.sku && (!taskDetail || taskDetail.error)) {
+        hydrateProductDevelopmentTaskDetail(task).then(() => {
+          if (state.productDevelopmentView === 'pricing' && getProductDevelopmentCurrentSku() === task.sku) renderShell();
+        }).catch(() => {});
+      }
+      return true;
+    }
+    if (action === 'product-development-pricing-apply') {
+      productDevelopmentApplyPricingToProduct(actionTarget && actionTarget.getAttribute('data-product-sku') || getProductDevelopmentCurrentSku());
       return true;
     }
     if (action === 'product-development-ingredient-open') {
@@ -14265,6 +14462,20 @@
   function productDevelopmentHandleInput(event) {
     const target = event && event.target;
     if (!target || !target.classList) return false;
+    if (target.classList.contains('pfh-product-development-pricing-input')) {
+      const field = String(target.getAttribute('data-product-development-pricing-field') || '').trim();
+      if (!['fullPackagePrice', 'taxRatePercent'].includes(field)) return true;
+      const sku = getProductDevelopmentCurrentSku();
+      const detail = state.productDevelopmentTaskFormData && state.productDevelopmentTaskFormData[sku];
+      const input = productDevelopmentPricingInputForSku(sku, detail);
+      input[field] = String(target.value || '').trim().slice(0, field === 'fullPackagePrice' ? 40 : 20);
+      saveProductDevelopmentPricingInput(input);
+      const result = productDevelopmentCalculateTierPrices(input.fullPackagePrice, input.taxRatePercent);
+      const root = target.closest && target.closest('.pfh-product-development');
+      const preview = root && root.querySelector('.pfh-product-development-pricing-result');
+      if (preview) preview.innerHTML = productDevelopmentPricingResultHtml(result, sku, detail);
+      return true;
+    }
     if (productDevelopmentHandleOneShotEditorInput(target)) return true;
     const oneShotField = String(target.getAttribute('data-product-development-one-shot-field') || '').trim();
     if (oneShotField && Object.prototype.hasOwnProperty.call(PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_INPUT, oneShotField)) {
