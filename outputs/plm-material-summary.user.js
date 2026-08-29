@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.265
+// @version      2.8.266
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.265';
+  const SCRIPT_VERSION = '2.8.266';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -14249,6 +14249,32 @@
       : '';
   }
 
+  function isApiSingleBottleProduct(product, data, packaging) {
+    if (!product || !Array.isArray(product.outerPackageNums) || product.outerPackageNums.length < 3) return false;
+    if (data && data.singleBottle) return true;
+    const packagingText = [
+      packaging && packaging.packageSizeLabel,
+      packaging && packaging.packageSizeText,
+      packaging && packaging.apiMaterialSource,
+    ].filter(Boolean).join(' ');
+    const specificationText = compactText(product.specificationText);
+    const text = [
+      specificationText,
+      product.chineseName,
+      product.englishName,
+      product.productType,
+      product.plmCategory,
+      data && data.name,
+      data && data.productType,
+      data && data.plmCategory,
+    ].filter(Boolean).join(' ');
+    if (isToyDimensionProduct({ ...(data || {}), productType: product.productType || data && data.productType, plmCategory: product.plmCategory || data && data.plmCategory })) return false;
+    if (/\/\s*瓶(?:\s|$|[,，;；])/i.test(specificationText)) return true;
+    if (isPaperBoxMaterialText(packagingText) || /纸盒/.test(packagingText)) return false;
+    if (/(?:盒装|套装|\/\s*盒|箱装|纸盒)/i.test(text)) return false;
+    return /(?:单瓶|单罐|瓶装|罐装|\/\s*(?:瓶|罐)|(?:bottle|jar)s?\b)/i.test(text);
+  }
+
   function getApiObjectAssetUrl(objects, keys) {
     for (const object of objects || []) {
       if (!object || typeof object !== 'object') continue;
@@ -14364,7 +14390,7 @@
 
   function extractApiProductSnapshot(product, infoPayload, contentPayload) {
     const info = getApiPayloadDataObject(infoPayload);
-    const attrs = getApiDetailAttributes(contentPayload);
+    const attrs = getApiDetailAttributes(contentPayload).concat(getApiDetailAttributes(infoPayload));
     const infringement = extractApiInfringementData(contentPayload);
     const objects = [product, info];
     const configs = product && (product.language_config || product.languageConfig);
@@ -14396,6 +14422,11 @@
       getApiLanguageConfigName(info, 2),
       getApiAttributeText(attrs, /product[_\s-]*name|product name|英文品名|英文名称/i, 2),
     ], normalizedBrandValue);
+    const specificationText = getApiObjectFieldValue(objects, [
+      'specification_model', 'specificationModelName', 'specificationModel', 'spec_model',
+      'specification', 'specification_text', 'specificationText', 'product_specification', 'productSpecification',
+    ]) || getApiAttributeText(attrs, /specification[_\s-]*(?:model|name)?|规格型号|规格|型号/i, 1);
+    const specificationNetContent = normalizeNetContentValue(specificationText);
     const rawProductSizeText = getApiObjectFieldValue(objects, ['product_size', 'productSize', 'product_size_text', 'size_text'])
       || getApiAttributeText(attrs, /product[_\s-]*size|产品尺寸|成品尺寸/i, 1);
     const parsedProductNums = parseDimension(rawProductSizeText, 3);
@@ -14434,6 +14465,8 @@
       brand: normalizedBrandValue,
       productType: productCategory || getApiObjectFieldValue(objects, ['product_type_name', 'productTypeName', 'product_type', 'productType']),
       plmCategory: productCategory,
+      specificationText,
+      netContent: specificationNetContent,
       packageNums: outerPackageNums,
       outerPackageNums,
       outerPackageSizeText: formatApiDimensionText(outerPackageNums),
@@ -14458,6 +14491,7 @@
         product: productDetailResolved ? 'value' : '',
         englishName: getApiFieldState(englishName, productDetailResolved),
         productSize: getApiFieldState(productNums || productSizeText, productDetailResolved),
+        netContent: getApiFieldState(specificationNetContent, productDetailResolved),
         ...infringement.apiFieldStates,
       },
     };
@@ -15630,6 +15664,7 @@
       englishName: product && product.englishName || current.englishName || '',
       productType: product && product.productType || current.productType || '',
       plmCategory: product && product.plmCategory || current.plmCategory || '',
+      specificationText: product && product.specificationText || current.specificationText || '',
       packageNums: toyApiPackageNums || current.packageNums || null,
       packageSizeText: product && product.outerPackageSizeText && toyApiPackageNums
         ? product.outerPackageSizeText
@@ -15646,7 +15681,7 @@
       infringementCopywriting: productMetrics.infringementCopywriting || product && product.infringementCopywriting || project && project.infringementCopywriting || current.infringementCopywriting || '',
       packQty: product && product.packQty || current.packQty || '',
       purchasePrice: current.purchasePrice || '',
-      netContent: productMetrics.netContent || current.netContent || '',
+      netContent: productMetrics.netContent || product && product.netContent || current.netContent || '',
       grossWeight: productMetrics.grossWeight || current.grossWeight || '',
       plmProductNums: apiProductFound ? (product.productNums || null) : (current.plmProductNums || null),
       productListImageUrl: imageUrl || current.productListImageUrl || '',
@@ -15669,6 +15704,12 @@
         addLog('warn', 'Excel 物料数据补全失败，继续使用页面读取', sku + ' | ' + formatErrorMessage(error));
       }
     }
+    const apiSingleBottle = Boolean(current.singleBottle || isApiSingleBottleProduct(product, seed, material));
+    const apiBottleNums = apiSingleBottle
+      ? (product && product.outerPackageNums || current.bottleNums || current.productNums || null)
+      : null;
+    const apiNetContentValue = productMetrics.netContent || material && material.netContent || product && product.netContent || '';
+    const resolvedNetContent = apiNetContentValue || current.netContent || '';
     const projectDetail = material && material.apiProject || {};
     const projectPayloadData = project && project.projectPayload ? getApiPayloadDataObject(project.projectPayload) : null;
     const projectObjects = [
@@ -15700,6 +15741,10 @@
     const projectPackQty = normalizePackQty(getApiObjectFieldValue(projectObjects, ['pack_qty', 'packQty', 'pack_count', 'packCount', 'carton_qty', 'cartonQty']));
     const merged = normalizeData({
       ...mergeApiPackagingData(seed, material),
+      singleBottle: apiSingleBottle,
+      bottleNums: apiBottleNums,
+      specificationText: product && product.specificationText || seed.specificationText || '',
+      netContent: resolvedNetContent,
       ...(toyApiPackageNums ? {
         packageNums: toyApiPackageNums,
         packageSizeText: product.outerPackageSizeText || formatApiDimensionText(toyApiPackageNums),
@@ -15708,6 +15753,8 @@
         seed.apiFieldStates,
         material.apiFieldStates,
         projectOptionalFieldStates,
+        ...(apiBottleNums ? { productSize: 'value' } : {}),
+        ...(apiNetContentValue ? { netContent: 'value' } : {}),
         toyApiPackageNums ? { packageSize: 'value' } : {},
       ),
       packageSource: toyApiPackageNums
