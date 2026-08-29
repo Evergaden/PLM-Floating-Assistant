@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.260
+// @version      2.8.264
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.260';
+  const SCRIPT_VERSION = '2.8.264';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -7503,16 +7503,26 @@
     return productDevelopmentDomText(option.getAttribute('title') || option.getAttribute('aria-label') || content && content.textContent || option.textContent);
   }
 
+  function productDevelopmentDomVisibleDropdowns() {
+    return Array.from(document.querySelectorAll('.ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-cascader-dropdown'))
+      .filter(productDevelopmentDomVisible);
+  }
+
+  function productDevelopmentDomDropdownOpen(input) {
+    const container = input && input.closest('.ant-select, .ant-cascader-picker, .ant-cascader');
+    return Boolean(input && input.getAttribute('aria-expanded') === 'true'
+      || container && (container.classList.contains('ant-select-open') || container.classList.contains('ant-cascader-picker-open')));
+  }
+
   function productDevelopmentDomVisibleOptions() {
     const selectors = [
-      '.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option',
-      '.ant-select-dropdown:not(.ant-select-dropdown-hidden) [role="option"]',
-      '.ant-cascader-dropdown .ant-cascader-menu-item',
-      '.ant-cascader-menus .ant-cascader-menu-item',
+      '.ant-select-item-option',
       '[role="option"]',
+      '.ant-cascader-menu-item',
     ];
     const seen = new Set();
-    return selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector))).filter((option) => {
+    const dropdowns = productDevelopmentDomVisibleDropdowns();
+    return dropdowns.flatMap((dropdown) => selectors.flatMap((selector) => Array.from(dropdown.querySelectorAll(selector)))).filter((option) => {
       if (seen.has(option) || !productDevelopmentDomVisible(option)) return false;
       seen.add(option);
       return option.getAttribute('aria-disabled') !== 'true' && !option.classList.contains('ant-select-item-option-disabled');
@@ -7533,6 +7543,20 @@
     return Boolean(current && wanted && (current === wanted || current.includes(wanted)));
   }
 
+  function productDevelopmentDomCascaderSegments(input, target) {
+    const segments = productDevelopmentPrefillText(target, 800).split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
+    if (!segments.length) return segments;
+    if (input && input.id === 'form_item_category_id' && segments[0] !== '成品') segments.unshift('成品');
+    if (input && input.id === 'product_group_id' && !['成品（新品）', '成品（定制品）'].includes(segments[0])) segments.unshift('成品（新品）');
+    return segments;
+  }
+
+  async function productDevelopmentDomWaitForOption(target, timeout) {
+    const option = await waitFor(() => productDevelopmentDomFindOption(target), timeout || 6000, 100);
+    if (!option) throw new Error('PLM 下拉中找不到“' + target + '”');
+    return option;
+  }
+
   async function productDevelopmentDomSelectOption(input, target, control) {
     if (!input) throw new Error('未找到 PLM 下拉控件');
     const wanted = productDevelopmentPrefillText(target, 800);
@@ -7544,27 +7568,25 @@
     const clickTarget = productDevelopmentDomClickTarget(input);
     if (!clickTarget) throw new Error('未找到 PLM 下拉点击区域');
     clickTarget.click();
-    await productDevelopmentDomWait(120);
+    const opened = await waitFor(() => productDevelopmentDomDropdownOpen(input) && productDevelopmentDomVisibleDropdowns().length > 0, 5000, 100);
+    if (!opened) throw new Error('PLM 下拉未能展开');
     if (control === 'cascader') {
-      const segments = wanted.split(/[\/／>＞|]+/).map((item) => item.trim()).filter(Boolean);
-      for (const segment of segments) {
-        await productDevelopmentDomWait(80);
-        const option = productDevelopmentDomFindOption(segment);
-        if (!option) throw new Error('PLM 下拉中找不到“' + segment + '”');
+      const segments = productDevelopmentDomCascaderSegments(input, wanted);
+      for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+        const option = await productDevelopmentDomWaitForOption(segment, 8000);
         option.click();
-        await productDevelopmentDomWait(140);
+        if (index < segments.length - 1) await productDevelopmentDomWaitForOption(segments[index + 1], 8000);
       }
     } else {
       if (!input.readOnly && input.type !== 'file') {
         productDevelopmentDomNativeSetter(input, wanted, ['input']);
-        await productDevelopmentDomWait(120);
       }
-      const option = productDevelopmentDomFindOption(wanted);
-      if (!option) throw new Error('PLM 下拉中找不到“' + wanted + '”');
+      const option = await productDevelopmentDomWaitForOption(wanted, 8000);
       option.click();
-      await productDevelopmentDomWait(180);
     }
-    if (!productDevelopmentDomSelectionMatches(input, wanted)) throw new Error('PLM 未确认选中“' + wanted + '”');
+    const confirmed = await waitFor(() => productDevelopmentDomSelectionMatches(input, wanted), 5000, 100);
+    if (!confirmed) throw new Error('PLM 未确认选中“' + wanted + '”');
   }
 
   function productDevelopmentDomFindButton(label) {
