@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.266
+// @version      2.8.267
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
@@ -37,7 +37,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.266';
+  const SCRIPT_VERSION = '2.8.267';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -15350,73 +15350,82 @@
   }
 
   async function fetchPlmJson(url) {
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
-    try {
-      const baseRequestHeaders = {
-        Accept: 'application/json, text/plain, */*',
-        'x-app-code': 'PLM',
-        'x-tenant-code': 'xy',
-        'x-tenant-id': 'xy',
-      };
-      const capturedAuthHeaders = getPlmAuthHeaders();
-      const requestFromPage = async (headers) => {
+    const baseRequestHeaders = {
+      Accept: 'application/json, text/plain, */*',
+      'x-app-code': 'PLM',
+      'x-tenant-code': 'xy',
+      'x-tenant-id': 'xy',
+    };
+    const requestFromPage = async (headers) => {
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller ? window.setTimeout(() => controller.abort(), 15000) : 0;
+      try {
         const response = await fetch(url, {
           credentials: 'include',
           headers,
           signal: controller ? controller.signal : undefined,
         });
-        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if (!response.ok) {
+          const error = new Error('HTTP ' + response.status);
+          error.status = Number(response.status) || 0;
+          throw error;
+        }
         return response.json();
-      };
-
-      // PLM periodically rotates its page authorization header.  Prefer the
-      // browser's live cookie session so a stale captured header cannot turn a
-      // valid session into a 401.  The captured header remains a compatibility
-      // fallback for endpoints that explicitly require it.
-      let cookieRequestError = null;
-      try {
-        return await requestFromPage(baseRequestHeaders);
       } catch (error) {
-        cookieRequestError = error;
+        if (error && error.name === 'AbortError') throw new Error('请求超时');
+        throw error;
+      } finally {
+        if (timer) window.clearTimeout(timer);
       }
-
-      let pageRequestError = cookieRequestError;
-      if (Object.keys(capturedAuthHeaders).length) {
-        try {
-          return await requestFromPage({ ...baseRequestHeaders, ...capturedAuthHeaders });
-        } catch (error) {
-          pageRequestError = error;
-        }
+    };
+    const isRetryable = (error) => {
+      const status = Number(error && error.status) || Number(String(error && error.message || '').match(/HTTP\s+(\d+)/i)?.[1]) || 0;
+      return !status || status === 401 || status === 403 || status === 408 || status === 429 || status >= 500;
+    };
+    const pageErrors = [];
+    // PLM may rotate the page authorization header while a drawer is opening;
+    // retry with freshly captured headers so a transient 401 does not become a
+    // false “PLM 读取失败”.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt > 0) await wait(attempt === 1 ? 100 : 220);
+      const headers = attempt === 0
+        ? baseRequestHeaders
+        : { ...baseRequestHeaders, ...getPlmAuthHeaders() };
+      try {
+        return await requestFromPage(headers);
+      } catch (error) {
+        pageErrors.push(error);
+        if (!isRetryable(error)) break;
       }
-      if (typeof GM_xmlhttpRequest === 'function' && /^\//.test(url)) {
-        const gmResult = await new Promise((resolve, reject) => {
-          let settled = false;
-          const finish = (callback, value) => {
-            if (settled) return;
-            settled = true;
-            callback(value);
-          };
-          GM_xmlhttpRequest({
-            method: 'GET',
-            url: new URL(url, window.location.origin).href,
-            withCredentials: true,
-            headers: { ...baseRequestHeaders, ...capturedAuthHeaders },
-            timeout: 15000,
-            onload: (response) => finish(resolve, response),
-            onerror: () => finish(reject, new Error('网络请求失败')),
-            ontimeout: () => finish(reject, new Error('请求超时')),
-          });
-        });
-        if (!gmResult || gmResult.status < 200 || gmResult.status >= 300) {
-          throw new Error('Cookie 会话 ' + formatErrorMessage(cookieRequestError) + '；页面授权 ' + formatErrorMessage(pageRequestError) + '；扩展请求 HTTP ' + (gmResult && gmResult.status || 0));
-        }
-        return JSON.parse(gmResult.responseText || '{}');
-      }
-      throw pageRequestError || new Error('PLM 页面请求失败');
-    } finally {
-      if (timer) window.clearTimeout(timer);
     }
+    const cookieRequestError = pageErrors[0] || null;
+    const pageRequestError = pageErrors[pageErrors.length - 1] || cookieRequestError;
+    if (typeof GM_xmlhttpRequest === 'function' && /^\//.test(url)) {
+      const capturedAuthHeaders = getPlmAuthHeaders();
+      const gmResult = await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (callback, value) => {
+          if (settled) return;
+          settled = true;
+          callback(value);
+        };
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url: new URL(url, window.location.origin).href,
+          withCredentials: true,
+          headers: { ...baseRequestHeaders, ...capturedAuthHeaders },
+          timeout: 15000,
+          onload: (response) => finish(resolve, response),
+          onerror: () => finish(reject, new Error('网络请求失败')),
+          ontimeout: () => finish(reject, new Error('请求超时')),
+        });
+      });
+      if (!gmResult || gmResult.status < 200 || gmResult.status >= 300) {
+        throw new Error('Cookie 会话 ' + formatErrorMessage(cookieRequestError) + '；页面授权 ' + formatErrorMessage(pageRequestError) + '；扩展请求 HTTP ' + (gmResult && gmResult.status || 0));
+      }
+      return JSON.parse(gmResult.responseText || '{}');
+    }
+    throw pageRequestError || new Error('PLM 页面请求失败');
   }
 
   function formatPlmApiMessage(value) {
@@ -15559,13 +15568,14 @@
     });
   }
 
-  async function refreshMaterialFromApiWithoutDrawer(sku, seedData) {
+  async function refreshMaterialFromApiWithoutDrawer(sku, seedData, options) {
     if (!state.settings.collectionEnabled || !sku) return;
+    const opts = options || {};
     const indexed = state.index.find((entry) => entry && entry.sku === sku);
     const current = normalizeData(seedData || loadData(sku) || (state.data && state.data.sku === sku ? state.data : null) || indexed || { sku });
     setApiReadStatus(sku, 'loading', '正在读取 PLM 数据');
     try {
-      const apiResult = await fetchApiExcelData(current, { force: true });
+      const apiResult = await fetchApiExcelData(current, { force: Boolean(opts.force) });
       if (!apiResult || !apiResult.found || !apiResult.data) {
         setApiReadStatus(sku, 'error', '未找到 PLM 数据');
         if (state.selectedSku === sku) showToast('PLM 未找到可更新数据', { quiet: true });
