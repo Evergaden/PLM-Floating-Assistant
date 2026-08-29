@@ -1,11 +1,12 @@
 ﻿// ==UserScript==
 // @name         PLM悬浮助手
 // @namespace    https://plm.westmonth.com/
-// @version      2.8.272
+// @version      2.8.273
 // @description  Store PLM project packaging specs locally and show them in a floating helper.
 // @author       Violet
 // @match        https://plm.westmonth.com/*
 // @match        https://auth.westmonth.com/*
+// @match        https://translate.google.com/*
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js
@@ -37,7 +38,7 @@
 
   const PANEL_ID = 'plm-floating-helper';
   const LAUNCHER_ID = 'plm-floating-helper-launcher';
-  const SCRIPT_VERSION = '2.8.272';
+  const SCRIPT_VERSION = '2.8.273';
 
   function focusGeneratedAssetSaveButton(action, expectedView) {
     window.setTimeout(() => {
@@ -4755,6 +4756,12 @@
   const PRODUCT_DEVELOPMENT_HISTORY_KEY = 'plm-floating-helper:product-development-history:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_KEY = 'plm-floating-helper:product-development-review-drafts:v1';
   const PRODUCT_DEVELOPMENT_REVIEW_DRAFT_LIMIT = 8;
+  const PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_KEY = 'plm-floating-helper:product-development-translate-workspaces:v1';
+  const PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY = 'plm-floating-helper:product-development-translate-active:v1';
+  const PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY = 'plm-floating-helper:product-development-translate-backup-dirty:v1';
+  const PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_LIMIT = 2000;
+  const PRODUCT_DEVELOPMENT_TRANSLATE_ANNOTATION_LIMIT = 180;
+  const PRODUCT_DEVELOPMENT_TRANSLATE_LOCAL_IMAGE_MAX = 1200000;
   const PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_KEY = 'plm-floating-helper:product-development-copywriting-cache:v1';
   const PRODUCT_DEVELOPMENT_COPYWRITING_CACHE_LIMIT = 20;
   const PRODUCT_DEVELOPMENT_TASK_META_KEY = 'plm-floating-helper:product-development-task-meta:v1';
@@ -4842,7 +4849,7 @@
   ]);
   const PRODUCT_DEVELOPMENT_FEATURES = Object.freeze([
     Object.freeze({ id: 'tasks', title: '我的开发任务', subtitle: '先做侵权图和文案，再查看产品详情预填表单', action: 'product-development-tasks-open', icon: 'folder', requiresSku: false }),
-    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取全部图片文字，生成中英文修改对照图', action: 'product-development-review-open', icon: 'image' }),
+    Object.freeze({ id: 'review', title: '产品图风险筛查', subtitle: '提取图片文字、生成对照图，并在 Google 翻译上标注', action: 'product-development-review-open', icon: 'image' }),
     Object.freeze({ id: 'copywriting', title: 'A-D 文案 DOCX', subtitle: '按当前 SKU 成分和卖点生成双语文案文件', action: 'product-development-copywriting-open', icon: 'batchExcel' }),
     Object.freeze({ id: 'ingredientFacts', title: '制作成分表', subtitle: '分别选择人类或宠物模板，编辑后下载 Excel', action: 'product-development-ingredient-open', icon: 'batchExcel', requiresSku: false }),
     Object.freeze({ id: 'pricing', title: '定价标准', subtitle: '三档价格和公式价', action: '', icon: 'calculator' }),
@@ -4967,6 +4974,147 @@
     } catch (error) {
       // Local history is optional; the current result remains available.
     }
+  }
+
+  function productDevelopmentTranslateClamp(value, min, max, fallback) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.max(min, Math.min(max, number));
+  }
+
+  function productDevelopmentTranslateAnnotationValue(value, index) {
+    const source = value && typeof value === 'object' ? value : {};
+    const allowedTypes = new Set(['arrow', 'line', 'text', 'mosaic']);
+    const type = allowedTypes.has(String(source.type || '').trim()) ? String(source.type).trim() : 'arrow';
+    const x1 = productDevelopmentTranslateClamp(source.x1, 0, 1, 0);
+    const y1 = productDevelopmentTranslateClamp(source.y1, 0, 1, 0);
+    const x2 = productDevelopmentTranslateClamp(source.x2, 0, 1, x1);
+    const y2 = productDevelopmentTranslateClamp(source.y2, 0, 1, y1);
+    const x = productDevelopmentTranslateClamp(source.x, 0, 1, x1);
+    const y = productDevelopmentTranslateClamp(source.y, 0, 1, y1);
+    const width = productDevelopmentTranslateClamp(source.width, 0.002, 0.08, 0.006);
+    const color = /^#[0-9a-f]{3,8}$/i.test(String(source.color || '').trim()) ? String(source.color).trim() : '#ef3340';
+    return {
+      id: productDevelopmentCleanText(source.id || 'gt-annotation-' + Date.now().toString(36) + '-' + index, 80),
+      type,
+      x1,
+      y1,
+      x2,
+      y2,
+      x,
+      y,
+      w: productDevelopmentTranslateClamp(source.w, 0.002, 1, Math.abs(x2 - x1) || 0.08),
+      h: productDevelopmentTranslateClamp(source.h, 0.002, 1, Math.abs(y2 - y1) || 0.08),
+      text: productDevelopmentCleanText(source.text || source.label, 500),
+      color,
+      width,
+    };
+  }
+
+  function productDevelopmentTranslateWorkspaceValue(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const sku = String(source.sku || source.code || '').trim().toUpperCase();
+    if (!sku) return null;
+    const imageDataUrl = typeof source.imageDataUrl === 'string' && /^data:image\//i.test(source.imageDataUrl) && source.imageDataUrl.length <= PRODUCT_DEVELOPMENT_TRANSLATE_LOCAL_IMAGE_MAX
+      ? source.imageDataUrl
+      : '';
+    const annotations = (Array.isArray(source.annotations) ? source.annotations : [])
+      .map((item, index) => productDevelopmentTranslateAnnotationValue(item, index))
+      .filter((item) => item.type !== 'text' || item.text)
+      .slice(0, PRODUCT_DEVELOPMENT_TRANSLATE_ANNOTATION_LIMIT);
+    return {
+      version: 1,
+      sku,
+      brand: productDevelopmentCleanText(source.brand, 180),
+      name: productDevelopmentCleanText(source.name || source.productName, 240),
+      imageUrl: productDevelopmentCleanText(source.imageUrl || source.benchmarkImageUrl, 2400),
+      imageDataUrl,
+      imageName: productDevelopmentCleanText(source.imageName || source.benchmarkImageName, 180),
+      sourceLanguage: productDevelopmentCleanText(source.sourceLanguage || source.sl || 'en', 40),
+      targetLanguage: productDevelopmentCleanText(source.targetLanguage || source.tl || 'zh-CN', 40),
+      sourceText: productDevelopmentCleanText(source.sourceText || source.googleSourceText, 12000),
+      translatedText: productDevelopmentCleanText(source.translatedText || source.googleTranslatedText, 12000),
+      annotations,
+      translateUrl: productDevelopmentCleanText(source.translateUrl, 2400),
+      createdAt: productDevelopmentCleanText(source.createdAt || new Date().toLocaleString(), 80),
+      updatedAt: Number(source.updatedAt) || Date.now(),
+    };
+  }
+
+  function productDevelopmentTranslateWorkspaceEntries(value) {
+    const stored = value && typeof value === 'object' ? value : {};
+    const source = stored.workspaces && typeof stored.workspaces === 'object'
+      ? stored.workspaces
+      : (stored.entries && typeof stored.entries === 'object' ? stored.entries : stored);
+    const entries = Object.create(null);
+    const list = Array.isArray(source) ? source : Object.values(source || {});
+    list.forEach((item) => {
+      const workspace = productDevelopmentTranslateWorkspaceValue(item);
+      if (workspace) entries[workspace.sku] = workspace;
+    });
+    return entries;
+  }
+
+  function loadProductDevelopmentTranslateWorkspaces() {
+    return productDevelopmentTranslateWorkspaceEntries(readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_KEY, {}));
+  }
+
+  function getProductDevelopmentTranslateWorkspace(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return null;
+    return loadProductDevelopmentTranslateWorkspaces()[normalizedSku] || null;
+  }
+
+  function saveProductDevelopmentTranslateWorkspace(value) {
+    const incoming = productDevelopmentTranslateWorkspaceValue(value);
+    if (!incoming) return null;
+    const entries = loadProductDevelopmentTranslateWorkspaces();
+    const previous = entries[incoming.sku];
+    const next = productDevelopmentTranslateWorkspaceValue({
+      ...(previous || {}),
+      ...incoming,
+      imageDataUrl: incoming.imageDataUrl || previous && previous.imageDataUrl || '',
+      imageUrl: incoming.imageUrl || previous && previous.imageUrl || '',
+      imageName: incoming.imageName || previous && previous.imageName || '',
+      createdAt: incoming.createdAt || previous && previous.createdAt || '',
+    });
+    if (!next) return null;
+    entries[next.sku] = next;
+    const storedEntries = {};
+    Object.entries(entries)
+      .sort((a, b) => Number(b[1] && b[1].updatedAt) - Number(a[1] && a[1].updatedAt))
+      .slice(0, PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_LIMIT)
+      .forEach(([key, item]) => { storedEntries[key] = item; });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_KEY, { version: 1, entries: storedEntries });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, { sku: next.sku, updatedAt: next.updatedAt });
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, { sku: next.sku, updatedAt: next.updatedAt });
+    return next;
+  }
+
+  function scheduleProductDevelopmentTranslateCloudBackup() {
+    if (isGoogleTranslatePage()) return;
+    const dirty = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+    if (!dirty || !dirty.sku) return;
+    const appState = typeof state !== 'undefined' ? state : null;
+    window.clearTimeout(appState && appState.productDevelopmentTranslateCloudBackupTimer);
+    if (appState) appState.productDevelopmentTranslateCloudBackupTimer = window.setTimeout(() => {
+      if (typeof getCloudBackupKey === 'function' && getCloudBackupKey() && typeof queueCloudBackup === 'function') queueCloudBackup();
+    }, 1800);
+  }
+
+  function buildProductDevelopmentTranslateWorkspacesBackup(value, options) {
+    const entries = productDevelopmentTranslateWorkspaceEntries(value || loadProductDevelopmentTranslateWorkspaces());
+    const includeLocalImages = Boolean(options && options.includeLocalImages);
+    const output = {};
+    Object.keys(entries)
+      .sort((a, b) => Number(entries[b] && entries[b].updatedAt) - Number(entries[a] && entries[a].updatedAt))
+      .slice(0, PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_LIMIT)
+      .forEach((sku) => {
+        const item = { ...entries[sku] };
+        if (!includeLocalImages) item.imageDataUrl = '';
+        output[sku] = item;
+      });
+    return output;
   }
 
   function productDevelopmentOneShotInputValue(value) {
@@ -11084,7 +11232,7 @@
     const editor = canEditResult ? productDevelopmentReviewEditorHtml(result, items) : '';
     return '<div class="pfh-product-development pfh-product-development-subview">' + productDevelopmentModeSwitchHtml() +
       '<header class="pfh-product-development-subview-head"><button type="button" data-action="product-development-home">← 产品开发主页</button><div><small>IMAGE REVIEW</small><h2>产品图风险筛查</h2></div></header>' +
-      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>使用当前 SKU 的对标图片生成三列对照图。</p></div><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></section>' +
+      '<section class="pfh-product-development-work-card"><div><h3>生成侵权对照图</h3><p>使用当前 SKU 的对标图片生成三列对照图；也可以打开 Google 翻译，在整页上做可编辑箭头、直线、文字和打码。</p></div><div class="pfh-product-development-review-actions" style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px"><button type="button" data-action="product-development-review-translate-open"' + (!sku ? ' disabled' : '') + '>打开 Google 翻译</button><button type="button" data-action="product-development-review-run"' + (state.productDevelopmentReviewBusy || !sku ? ' disabled' : '') + '>' + (state.productDevelopmentReviewBusy ? '正在分析…' : '开始一次分析') + '</button></div></section>' +
       (state.productDevelopmentStatus ? '<p class="pfh-product-development-status">' + escapeHtml(state.productDevelopmentStatus) + '</p>' : '') +
       (state.productDevelopmentError ? '<p class="pfh-product-development-error">' + escapeHtml(state.productDevelopmentError) + '</p>' : '') +
       extractedSummary +
@@ -11092,6 +11240,956 @@
       (canEditResult ? productDevelopmentPlainTextCopyHtml(result) : '') +
       preview + list + editor +
       '<p class="pfh-product-development-note">结果仅在本地生成，不修改原图或写入 PLM。</p></div>';
+  }
+
+  function isGoogleTranslatePage() {
+    try {
+      return /^translate\.google\.com$/i.test(String(window.location && window.location.hostname || ''));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function productDevelopmentTranslateHostStyle() {
+    if (document.getElementById('pfh-google-translate-style')) return;
+    const style = document.createElement('style');
+    style.id = 'pfh-google-translate-style';
+    style.textContent = `
+      html.pfh-google-translate-layout { --pfh-gt-dock-width: clamp(320px, 34vw, 520px); }
+      html.pfh-google-translate-layout body { box-sizing:border-box!important; width:calc(100% - var(--pfh-gt-dock-width))!important; min-width:0!important; margin-left:var(--pfh-gt-dock-width)!important; overflow-x:hidden!important; }
+      #pfh-gt-dock { position:fixed; inset:0 auto 0 0; z-index:2147483005; display:flex; flex-direction:column; width:var(--pfh-gt-dock-width); max-width:100vw; box-sizing:border-box; color:#273449; background:linear-gradient(180deg,#fbfdff 0%,#f2f6fb 100%); border-right:1px solid rgba(150,164,184,.35); box-shadow:14px 0 34px rgba(46,64,91,.12); font:13px/1.45 Arial,"Microsoft YaHei",sans-serif; }
+      #pfh-gt-dock[hidden] { display:none!important; }
+      #pfh-gt-dock button,#pfh-gt-dock input,#pfh-gt-dock textarea,#pfh-gt-dock select { font:inherit; }
+      #pfh-gt-dock button { border:1px solid rgba(119,138,164,.35); border-radius:9px; padding:7px 10px; color:#33435a; background:rgba(255,255,255,.82); cursor:pointer; transition:background .16s,border-color .16s,transform .16s; }
+      #pfh-gt-dock button:hover { border-color:#6d8fc2; background:#fff; }
+      #pfh-gt-dock button:active { transform:translateY(1px); }
+      #pfh-gt-dock button.is-active { color:#fff; border-color:#e33a49; background:#e33a49; box-shadow:0 5px 14px rgba(227,58,73,.22); }
+      #pfh-gt-dock .pfh-gt-head { position:relative; z-index:2147483005; display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:58px; padding:10px 13px; box-sizing:border-box; background:rgba(255,255,255,.92); border-bottom:1px solid rgba(150,164,184,.28); }
+      #pfh-gt-dock .pfh-gt-head-copy { min-width:0; }
+      #pfh-gt-dock .pfh-gt-head-copy small { display:block; color:#7990ad; font-size:10px; letter-spacing:.12em; }
+      #pfh-gt-dock .pfh-gt-head-copy strong { display:block; margin-top:2px; overflow:hidden; color:#223149; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
+      #pfh-gt-dock .pfh-gt-head-close { flex:0 0 auto; width:30px; height:30px; padding:0; border-radius:50%; font-size:19px; line-height:26px; }
+      #pfh-gt-dock .pfh-gt-body { min-height:0; flex:1; overflow-y:auto; padding:11px; box-sizing:border-box; scrollbar-width:thin; }
+      #pfh-gt-dock .pfh-gt-context { display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+      #pfh-gt-dock .pfh-gt-context label { display:flex; align-items:center; gap:6px; min-width:0; flex:1; color:#6c7d94; font-size:11px; }
+      #pfh-gt-dock .pfh-gt-context select { min-width:0; flex:1; padding:7px 8px; color:#26364d; background:#fff; border:1px solid #cbd6e4; border-radius:8px; }
+      #pfh-gt-dock .pfh-gt-context button { flex:0 0 auto; padding:7px 8px; }
+      #pfh-gt-dock .pfh-gt-image-stage { position:relative; min-height:210px; height:clamp(230px,45vh,540px); display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid rgba(142,160,185,.4); border-radius:12px; background:repeating-conic-gradient(#f0f3f7 0 25%,#fafbfd 0 50%) 50%/18px 18px; }
+      #pfh-gt-dock .pfh-gt-image { display:block; max-width:100%; max-height:100%; width:100%; height:100%; object-fit:contain; }
+      #pfh-gt-dock .pfh-gt-stage-overlay { position:absolute; z-index:4; inset:0; width:100%; height:100%; pointer-events:none; touch-action:none; }
+      #pfh-gt-dock .pfh-gt-image-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:25px; color:#8191a8; text-align:center; pointer-events:none; }
+      #pfh-gt-dock .pfh-gt-image-empty[hidden] { display:none; }
+      #pfh-gt-dock .pfh-gt-image-name { margin:6px 2px 10px; overflow:hidden; color:#8090a7; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+      #pfh-gt-dock .pfh-gt-copy-grid { display:grid; grid-template-columns:1fr; gap:8px; }
+      #pfh-gt-dock .pfh-gt-field { display:block; }
+      #pfh-gt-dock .pfh-gt-field span { display:flex; align-items:center; justify-content:space-between; margin:0 2px 4px; color:#667991; font-size:11px; }
+      #pfh-gt-dock .pfh-gt-field textarea { display:block; width:100%; min-height:60px; max-height:150px; box-sizing:border-box; resize:vertical; padding:8px 9px; color:#25354b; background:rgba(255,255,255,.95); border:1px solid #cbd6e4; border-radius:9px; outline:none; }
+      #pfh-gt-dock .pfh-gt-field textarea:focus { border-color:#769ad0; box-shadow:0 0 0 3px rgba(90,132,198,.13); }
+      #pfh-gt-dock .pfh-gt-actions,#pfh-gt-dock .pfh-gt-toolbar { position:relative; z-index:2147483005; display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+      #pfh-gt-dock .pfh-gt-actions button { flex:1 1 112px; }
+      #pfh-gt-dock .pfh-gt-toolbar { align-items:center; padding:8px; border:1px solid rgba(142,160,185,.35); border-radius:10px; background:rgba(255,255,255,.78); }
+      #pfh-gt-dock .pfh-gt-toolbar-title { width:100%; display:flex; align-items:center; justify-content:space-between; color:#52677f; font-size:11px; }
+      #pfh-gt-dock .pfh-gt-toolbar button { padding:6px 8px; font-size:11px; }
+      #pfh-gt-dock .pfh-gt-hint { display:block; margin:7px 2px 0; color:#8190a5; font-size:10px; }
+      #pfh-gt-dock .pfh-gt-annotation-list { margin-top:9px; }
+      #pfh-gt-dock .pfh-gt-annotation-empty { padding:11px; color:#8796aa; border:1px dashed #c4d0df; border-radius:9px; text-align:center; }
+      #pfh-gt-dock .pfh-gt-annotation-row { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:6px; margin-top:6px; padding:6px; border:1px solid rgba(142,160,185,.3); border-radius:9px; background:rgba(255,255,255,.75); }
+      #pfh-gt-dock .pfh-gt-annotation-row.is-selected { border-color:#e33a49; box-shadow:0 0 0 2px rgba(227,58,73,.12); }
+      #pfh-gt-dock .pfh-gt-annotation-row > button:first-child { min-width:52px; padding:5px 6px; color:#d93243; border-color:transparent; background:transparent; }
+      #pfh-gt-dock .pfh-gt-annotation-row input { min-width:0; width:100%; box-sizing:border-box; padding:5px 6px; border:1px solid #d0dae7; border-radius:6px; color:#31425a; background:#fff; }
+      #pfh-gt-dock .pfh-gt-annotation-row input[hidden] { display:none; }
+      #pfh-gt-dock .pfh-gt-annotation-row .pfh-gt-delete { padding:4px 7px; color:#77879d; }
+      #pfh-gt-dock .pfh-gt-status { min-height:18px; margin:8px 2px 0; color:#5f7898; font-size:11px; }
+      #pfh-gt-dock .pfh-gt-footer { position:relative; z-index:2147483005; display:flex; justify-content:space-between; gap:8px; padding-top:10px; color:#8a99ad; font-size:10px; }
+      #pfh-gt-overlay { position:fixed; z-index:2147483004; inset:0; width:100vw; height:100vh; pointer-events:none; touch-action:none; }
+      #pfh-gt-launcher { position:fixed; z-index:2147483006; left:14px; bottom:18px; display:none; padding:9px 13px; color:#fff; background:#e33a49; border:0; border-radius:999px; box-shadow:0 8px 22px rgba(227,58,73,.28); cursor:pointer; font:600 12px Arial,"Microsoft YaHei",sans-serif; }
+      #pfh-gt-launcher:hover { background:#cb2c3b; }
+      @media (max-width:700px) {
+        html.pfh-google-translate-layout { --pfh-gt-dock-width: min(88vw,390px); }
+        html.pfh-google-translate-layout body { width:calc(100% - var(--pfh-gt-dock-width))!important; }
+        #pfh-gt-dock .pfh-gt-image-stage { height:35vh; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function productDevelopmentTranslateHostSetLayout(host) {
+    const root = document.documentElement;
+    const interactive = Boolean(host.open && host.mode !== 'browse');
+    if (host.open) {
+      root.classList.add('pfh-google-translate-layout');
+      if (host.dock) host.dock.hidden = false;
+      if (host.launcher) host.launcher.style.display = 'none';
+    } else {
+      root.classList.remove('pfh-google-translate-layout');
+      if (host.dock) host.dock.hidden = true;
+      if (host.launcher) host.launcher.style.display = 'block';
+    }
+    if (host.overlay) host.overlay.style.pointerEvents = interactive ? 'auto' : 'none';
+    if (host.stageOverlay) host.stageOverlay.style.pointerEvents = interactive ? 'auto' : 'none';
+  }
+
+  function productDevelopmentTranslateHostWorkspaceForSku(sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return null;
+    const stored = getProductDevelopmentTranslateWorkspace(normalizedSku);
+    const draft = getProductDevelopmentReviewDraft(normalizedSku);
+    return productDevelopmentTranslateWorkspaceValue({
+      ...(stored || {}),
+      sku: normalizedSku,
+      imageDataUrl: stored && stored.imageDataUrl || draft && draft.sourceImageDataUrl || '',
+      imageUrl: stored && stored.imageUrl || '',
+      imageName: stored && stored.imageName || draft && draft.sourceImageName || '',
+      brand: stored && stored.brand || draft && draft.brand || '',
+      name: stored && stored.name || draft && draft.name || '',
+      sourceText: stored && stored.sourceText || '',
+      translatedText: stored && stored.translatedText || '',
+    });
+  }
+
+  function productDevelopmentTranslateHostInitialSku() {
+    let requested = '';
+    try {
+      requested = new URLSearchParams(window.location.search || '').get('plmSku') || '';
+    } catch (_) {}
+    requested = String(requested).trim().toUpperCase();
+    if (requested) return requested;
+    const active = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, {});
+    const activeSku = String(active && active.sku || '').trim().toUpperCase();
+    if (activeSku) return activeSku;
+    const entries = loadProductDevelopmentTranslateWorkspaces();
+    const latest = Object.values(entries).sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))[0];
+    return latest && latest.sku || '';
+  }
+
+  function productDevelopmentTranslateHostVisibleValue(element) {
+    if (!element) return '';
+    if (element.matches && element.matches('textarea,input')) return String(element.value || '').replace(/\r\n?/g, '\n').trim();
+    return String(element.innerText || element.textContent || '').replace(/\u00a0/g, ' ').replace(/\r\n?/g, '\n').trim();
+  }
+
+  function productDevelopmentTranslateHostElementHint(element) {
+    if (!element) return '';
+    return [
+      element.getAttribute && element.getAttribute('aria-label'),
+      element.getAttribute && element.getAttribute('placeholder'),
+      element.getAttribute && element.getAttribute('data-placeholder'),
+      element.getAttribute && element.getAttribute('jsname'),
+      element.className,
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function productDevelopmentTranslateHostFindSourceControl(host) {
+    const controls = Array.from(document.querySelectorAll('textarea, [contenteditable="true"]'))
+      .filter((element) => !(host.dock && host.dock.contains(element)) && isVisibleElement(element));
+    return controls.find((element) => /source|原文|输入文本|enter text|text to translate|type text/i.test(productDevelopmentTranslateHostElementHint(element)))
+      || controls.find((element) => element.tagName === 'TEXTAREA')
+      || controls[0]
+      || null;
+  }
+
+  function productDevelopmentTranslateHostFindOutput(host) {
+    const selectors = [
+      '.ryNqvb',
+      '[jsname="WZtRob"]',
+      '[aria-live="polite"]',
+      '[data-language-code="zh-CN"]',
+      '[data-language-code="zh"]',
+    ];
+    for (const selector of selectors) {
+      const candidates = Array.from(document.querySelectorAll(selector)).filter((element) => !(host.dock && host.dock.contains(element)) && isVisibleElement(element));
+      for (const element of candidates) {
+        const value = productDevelopmentTranslateHostVisibleValue(element);
+        if (value && value.length <= 12000) return value;
+      }
+    }
+    return '';
+  }
+
+  function productDevelopmentTranslateHostReadGoogleText(host, force) {
+    if (!host || !host.workspace) return false;
+    const sourceControl = productDevelopmentTranslateHostFindSourceControl(host);
+    const source = productDevelopmentTranslateHostVisibleValue(sourceControl);
+    const translated = productDevelopmentTranslateHostFindOutput(host);
+    let changed = false;
+    if (sourceControl && (force || !host.sourceManualEdited) && (source || force || document.activeElement === sourceControl)) {
+      const nextSource = source.slice(0, 12000);
+      if (host.workspace.sourceText !== nextSource) {
+        host.workspace.sourceText = nextSource;
+        changed = true;
+      }
+    }
+    if (translated && (force || !host.translationManualEdited)) {
+      const nextTranslated = translated.slice(0, 12000);
+      if (host.workspace.translatedText !== nextTranslated) {
+        host.workspace.translatedText = nextTranslated;
+        changed = true;
+      }
+    }
+    if (changed) {
+      productDevelopmentTranslateHostScheduleSave(host);
+      productDevelopmentTranslateHostSetStatus(host, '已读取 Google 翻译框内容，输入和标注会按 SKU 保存');
+      productDevelopmentTranslateHostRender(host, { preserveFields: true });
+    }
+    return changed;
+  }
+
+  function productDevelopmentTranslateHostSetStatus(host, text) {
+    host.status = String(text || '');
+    if (host.statusElement) host.statusElement.textContent = host.status;
+  }
+
+  function productDevelopmentTranslateHostScheduleSave(host) {
+    if (!host || !host.workspace) return;
+    window.clearTimeout(host.saveTimer);
+    host.workspace.updatedAt = Date.now();
+    host.saveTimer = window.setTimeout(() => {
+      host.saveTimer = 0;
+      const saved = saveProductDevelopmentTranslateWorkspace(host.workspace);
+      if (saved) host.workspace = saved;
+    }, 380);
+  }
+
+  function productDevelopmentTranslateHostSave(host, message) {
+    if (!host || !host.workspace) return;
+    window.clearTimeout(host.saveTimer);
+    host.saveTimer = 0;
+    host.workspace.updatedAt = Date.now();
+    const saved = saveProductDevelopmentTranslateWorkspace(host.workspace);
+    if (saved) host.workspace = saved;
+    productDevelopmentTranslateHostSetStatus(host, message || '已保存当前 SKU 的翻译文案和标注');
+    productDevelopmentTranslateHostRender(host, { preserveFields: true });
+  }
+
+  function productDevelopmentTranslateHostCanvasPoint(event, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: productDevelopmentTranslateClamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1, 0),
+      y: productDevelopmentTranslateClamp((event.clientY - rect.top) / Math.max(1, rect.height), 0, 1, 0),
+    };
+  }
+
+  function productDevelopmentTranslateHostDistanceToSegment(point, start, end) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+    const ratio = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+    return Math.hypot(point.x - (start.x + dx * ratio), point.y - (start.y + dy * ratio));
+  }
+
+  function productDevelopmentTranslateHostHitTest(host, point) {
+    const annotations = Array.isArray(host.workspace && host.workspace.annotations) ? host.workspace.annotations : [];
+    const threshold = 20 / Math.max(1, Math.min(window.innerWidth, window.innerHeight));
+    for (let index = annotations.length - 1; index >= 0; index -= 1) {
+      const item = annotations[index];
+      if (!item) continue;
+      if (item.type === 'mosaic') {
+        const x = Number(item.x) || 0, y = Number(item.y) || 0, w = Number(item.w) || 0, h = Number(item.h) || 0;
+        if (point.x >= x - threshold && point.x <= x + w + threshold && point.y >= y - threshold && point.y <= y + h + threshold) return item;
+      } else if (item.type === 'text') {
+        if (Math.hypot(point.x - (Number(item.x) || 0), point.y - (Number(item.y) || 0)) <= threshold * 2) return item;
+      } else {
+        const distance = productDevelopmentTranslateHostDistanceToSegment(point, { x: Number(item.x1) || 0, y: Number(item.y1) || 0 }, { x: Number(item.x2) || 0, y: Number(item.y2) || 0 });
+        if (distance <= threshold) return item;
+      }
+    }
+    return null;
+  }
+
+  function productDevelopmentTranslateHostAnnotationTextLines(ctx, text, maxWidth) {
+    const source = String(text || '');
+    const lines = [];
+    source.split('\n').forEach((paragraph) => {
+      let current = '';
+      Array.from(paragraph || ' ').forEach((character) => {
+        const next = current + character;
+        if (current && ctx.measureText(next).width > maxWidth) {
+          lines.push(current);
+          current = character;
+        } else current = next;
+      });
+      lines.push(current || '');
+    });
+    return lines.slice(0, 8);
+  }
+
+  function productDevelopmentTranslateHostDrawAnnotation(ctx, item, width, height, options) {
+    if (!item) return;
+    const opts = options || {};
+    const color = item.color || '#ef3340';
+    const lineWidth = Math.max(2, Math.min(12, (Number(item.width) || 0.006) * Math.min(width, height)));
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+    if (item.type === 'mosaic') {
+      const x = (Number(item.x) || 0) * width;
+      const y = (Number(item.y) || 0) * height;
+      const w = (Number(item.w) || 0.08) * width;
+      const h = (Number(item.h) || 0.08) * height;
+      ctx.fillStyle = 'rgba(46,52,62,.78)';
+      ctx.fillRect(x, y, w, h);
+      const block = Math.max(7, Math.min(22, Math.round(Math.min(width, height) / 45)));
+      for (let row = 0; row < h; row += block) {
+        for (let column = 0; column < w; column += block) {
+          ctx.fillStyle = ((Math.floor(row / block) + Math.floor(column / block)) % 2) ? 'rgba(245,247,250,.25)' : 'rgba(0,0,0,.18)';
+          ctx.fillRect(x + column, y + row, Math.min(block, w - column), Math.min(block, h - row));
+        }
+      }
+      ctx.strokeStyle = color;
+      ctx.strokeRect(x, y, w, h);
+    } else if (item.type === 'text') {
+      const x = (Number(item.x) || 0) * width;
+      const y = (Number(item.y) || 0) * height;
+      const fontSize = Math.max(15, Math.min(32, Math.round(Math.min(width, height) / 42)));
+      ctx.font = '700 ' + fontSize + 'px Arial,"Microsoft YaHei",sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.shadowColor = 'rgba(255,255,255,.95)';
+      ctx.shadowBlur = 5;
+      productDevelopmentTranslateHostAnnotationTextLines(ctx, item.text, Math.max(80, width * .33)).forEach((line, index) => ctx.fillText(line, x, y + index * (fontSize + 4)));
+    } else {
+      const x1 = (Number(item.x1) || 0) * width;
+      const y1 = (Number(item.y1) || 0) * height;
+      const x2 = (Number(item.x2) || 0) * width;
+      const y2 = (Number(item.y2) || 0) * height;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      if (item.type === 'arrow') {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const head = Math.max(10, lineWidth * 3.2);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 7), y2 - head * Math.sin(angle - Math.PI / 7));
+        ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 7), y2 - head * Math.sin(angle + Math.PI / 7));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    if (opts.selected) {
+      ctx.setLineDash([6, 5]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#3569bd';
+      if (item.type === 'mosaic') ctx.strokeRect((Number(item.x) || 0) * width - 4, (Number(item.y) || 0) * height - 4, (Number(item.w) || 0.08) * width + 8, (Number(item.h) || 0.08) * height + 8);
+      else if (item.type === 'text') ctx.strokeRect((Number(item.x) || 0) * width - 6, (Number(item.y) || 0) * height - 6, Math.max(42, width * .12), Math.max(28, height * .06));
+      else {
+        ctx.beginPath();
+        ctx.moveTo((Number(item.x1) || 0) * width, (Number(item.y1) || 0) * height);
+        ctx.lineTo((Number(item.x2) || 0) * width, (Number(item.y2) || 0) * height);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function productDevelopmentTranslateHostRenderCanvas(host) {
+    const canvas = host.overlay;
+    if (!canvas) return;
+    const width = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 1));
+    const height = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 1));
+    const dpr = Math.max(1, Math.min(2, Number(window.devicePixelRatio) || 1));
+    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    (host.workspace && host.workspace.annotations || []).forEach((item) => productDevelopmentTranslateHostDrawAnnotation(ctx, item, width, height, { selected: item.id === host.selectedId }));
+    if (host.drawing) {
+      const start = host.drawing.start;
+      const end = host.drawing.current;
+      const preview = host.drawing.type === 'mosaic'
+        ? { type: 'mosaic', x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), color: '#ef3340', width: .006 }
+        : { type: host.drawing.type, x1: start.x, y1: start.y, x2: end.x, y2: end.y, color: '#ef3340', width: .006 };
+      ctx.save();
+      ctx.globalAlpha = .75;
+      productDevelopmentTranslateHostDrawAnnotation(ctx, preview, width, height);
+      ctx.restore();
+    }
+  }
+
+  function productDevelopmentTranslateHostRenderStageCanvas(host) {
+    const canvas = host.stageOverlay;
+    const stage = host.dock && host.dock.querySelector('.pfh-gt-image-stage');
+    if (!canvas || !stage) return;
+    const rect = stage.getBoundingClientRect();
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    const dpr = Math.max(1, Math.min(2, Number(window.devicePixelRatio) || 1));
+    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.save();
+    ctx.translate(-rect.left, -rect.top);
+    const viewportWidth = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 1));
+    const viewportHeight = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 1));
+    (host.workspace && host.workspace.annotations || []).forEach((item) => productDevelopmentTranslateHostDrawAnnotation(ctx, item, viewportWidth, viewportHeight, { selected: item.id === host.selectedId }));
+    if (host.drawing) {
+      const start = host.drawing.start;
+      const end = host.drawing.current;
+      const preview = host.drawing.type === 'mosaic'
+        ? { type: 'mosaic', x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), w: Math.abs(end.x - start.x), h: Math.abs(end.y - start.y), color: '#ef3340', width: .006 }
+        : { type: host.drawing.type, x1: start.x, y1: start.y, x2: end.x, y2: end.y, color: '#ef3340', width: .006 };
+      ctx.save();
+      ctx.globalAlpha = .75;
+      productDevelopmentTranslateHostDrawAnnotation(ctx, preview, viewportWidth, viewportHeight);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function productDevelopmentTranslateHostRender(host, options) {
+    if (!host || !host.dock) return;
+    const opts = options || {};
+    const workspace = host.workspace || productDevelopmentTranslateWorkspaceValue({ sku: host.sku }) || { sku: host.sku, annotations: [] };
+    host.workspace = workspace;
+    productDevelopmentTranslateHostSetLayout(host);
+    const skuSelect = host.dock.querySelector('[data-gt-sku-select]');
+    if (skuSelect) {
+      const entries = loadProductDevelopmentTranslateWorkspaces();
+      const skus = Object.keys(entries).sort();
+      if (host.sku && !skus.includes(host.sku)) skus.unshift(host.sku);
+      skuSelect.innerHTML = '<option value="">选择已保存 SKU</option>' + skus.map((sku) => '<option value="' + escapeHtml(sku) + '">' + escapeHtml(sku) + '</option>').join('');
+      skuSelect.value = host.sku || '';
+    }
+    const skuLabel = host.dock.querySelector('[data-gt-current-sku]');
+    if (skuLabel) skuLabel.textContent = host.sku || '未选择';
+    const image = host.dock.querySelector('[data-gt-image]');
+    const imageEmpty = host.dock.querySelector('[data-gt-image-empty]');
+    const imageSource = workspace.imageDataUrl || workspace.imageUrl || '';
+    if (image) {
+      image.alt = workspace.name || workspace.sku || '产品对标图';
+      if (imageSource) {
+        if (image.getAttribute('src') !== imageSource) image.setAttribute('src', imageSource);
+        image.hidden = false;
+      } else {
+        image.removeAttribute('src');
+        image.hidden = true;
+      }
+    }
+    if (imageEmpty) imageEmpty.hidden = Boolean(imageSource);
+    const imageName = host.dock.querySelector('[data-gt-image-name]');
+    if (imageName) imageName.textContent = workspace.imageName || (imageSource ? '当前 SKU 对标图' : '尚未找到对标图，可先回到 PLM 风险筛查重新读取');
+    const sourceField = host.dock.querySelector('[data-gt-field="sourceText"]');
+    const translatedField = host.dock.querySelector('[data-gt-field="translatedText"]');
+    if (sourceField && (opts.preserveFields || document.activeElement !== sourceField)) sourceField.value = workspace.sourceText || '';
+    if (translatedField && (opts.preserveFields || document.activeElement !== translatedField)) translatedField.value = workspace.translatedText || '';
+    host.dock.querySelectorAll('[data-gt-mode]').forEach((button) => button.classList.toggle('is-active', button.getAttribute('data-gt-mode') === host.mode));
+    const interactive = Boolean(host.open && host.mode !== 'browse');
+    if (host.overlay) host.overlay.style.pointerEvents = interactive ? 'auto' : 'none';
+    if (host.stageOverlay) host.stageOverlay.style.pointerEvents = interactive ? 'auto' : 'none';
+    const list = host.dock.querySelector('[data-gt-annotation-list]');
+    const annotations = Array.isArray(workspace.annotations) ? workspace.annotations : [];
+    if (list) list.innerHTML = annotations.length
+      ? annotations.map((item, index) => '<div class="pfh-gt-annotation-row' + (item.id === host.selectedId ? ' is-selected' : '') + '"><button type="button" data-gt-ann-select="' + escapeHtml(item.id) + '">' + escapeHtml(({ arrow: '箭头', line: '直线', text: '文字', mosaic: '打码' }[item.type] || '标注')) + ' ' + String(index + 1).padStart(2, '0') + '</button><input type="text" data-gt-ann-field="text" data-gt-ann-id="' + escapeHtml(item.id) + '" value="' + escapeHtml(item.text || '') + '" placeholder="可选：标注说明"' + (item.type === 'text' ? '' : ' hidden') + '><button type="button" class="pfh-gt-delete" data-gt-ann-delete="' + escapeHtml(item.id) + '">删除</button></div>').join('')
+      : '<div class="pfh-gt-annotation-empty">还没有标注。选择箭头/直线/文字/打码后，在整页上拖动或点击即可。</div>';
+    if (host.statusElement) host.statusElement.textContent = host.status || (host.sku ? '选择工具后可在产品图与翻译界面之间直接标注' : '请先从 PLM 打开一个 SKU 的 Google 翻译工作台');
+    productDevelopmentTranslateHostRenderCanvas(host);
+    productDevelopmentTranslateHostRenderStageCanvas(host);
+  }
+
+  function productDevelopmentTranslateHostSetMode(host, mode) {
+    const allowed = new Set(['browse', 'select', 'arrow', 'line', 'text', 'mosaic']);
+    host.mode = allowed.has(mode) ? mode : 'browse';
+    host.drawing = null;
+    productDevelopmentTranslateHostSetStatus(host, host.mode === 'browse' ? '已暂停标注，可正常操作 Google 翻译' : ({ select: '编辑模式：点击并拖动已有标注，可用 Delete 删除', arrow: '箭头模式：从产品图拖到翻译文字或其他位置', line: '直线模式：拖动绘制直线', text: '文字模式：点击位置后输入标注文字', mosaic: '打码模式：拖动框选需要遮挡的文字或 Logo' }[host.mode] || ''));
+    productDevelopmentTranslateHostRender(host, { preserveFields: true });
+  }
+
+  function productDevelopmentTranslateHostDelete(host, id) {
+    const targetId = String(id || host.selectedId || '');
+    if (!targetId || !host.workspace) return;
+    host.workspace.annotations = (host.workspace.annotations || []).filter((item) => item.id !== targetId);
+    if (host.selectedId === targetId) host.selectedId = '';
+    productDevelopmentTranslateHostScheduleSave(host);
+    productDevelopmentTranslateHostRender(host, { preserveFields: true });
+    productDevelopmentTranslateHostSetStatus(host, '已删除标注，可继续绘制或保存');
+  }
+
+  function productDevelopmentTranslateHostFillGoogleSource(host) {
+    const control = productDevelopmentTranslateHostFindSourceControl(host);
+    if (!control) {
+      productDevelopmentTranslateHostSetStatus(host, '没有找到 Google 翻译原文输入框，请先点击页面文字模式或刷新页面');
+      return;
+    }
+    const value = String(host.workspace && host.workspace.sourceText || '');
+    if (control.matches && control.matches('textarea,input')) {
+      const prototype = control.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, 'value') && Object.getOwnPropertyDescriptor(prototype, 'value').set;
+      if (setter) setter.call(control, value); else control.value = value;
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      control.textContent = value;
+      const inputEvent = typeof InputEvent === 'function'
+        ? new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value })
+        : new Event('input', { bubbles: true });
+      control.dispatchEvent(inputEvent);
+    }
+    host.sourceManualEdited = false;
+    productDevelopmentTranslateHostSetStatus(host, '已把已保存原文写回 Google 翻译输入框');
+  }
+
+  function productDevelopmentTranslateHostDrawStart(host, event) {
+    if (!host || host.mode === 'browse' || !host.overlay) return;
+    const point = productDevelopmentTranslateHostCanvasPoint(event, host.overlay);
+    const surface = host.inputSurface || host.overlay;
+    if (host.mode === 'select') {
+      const hit = productDevelopmentTranslateHostHitTest(host, point);
+      host.selectedId = hit ? hit.id : '';
+      host.dragging = hit ? { id: hit.id, last: point } : null;
+      productDevelopmentTranslateHostRender(host, { preserveFields: true });
+      try { surface.setPointerCapture(event.pointerId); } catch (_) {}
+      return;
+    }
+    host.drawing = { type: host.mode, start: point, current: point };
+    try { surface.setPointerCapture(event.pointerId); } catch (_) {}
+    productDevelopmentTranslateHostRenderCanvas(host);
+    productDevelopmentTranslateHostRenderStageCanvas(host);
+  }
+
+  function productDevelopmentTranslateHostDrawMove(host, event) {
+    if (!host || !host.overlay) return;
+    const point = productDevelopmentTranslateHostCanvasPoint(event, host.overlay);
+    if (host.dragging && host.workspace) {
+      const item = (host.workspace.annotations || []).find((entry) => entry.id === host.dragging.id);
+      if (item) {
+        const dx = point.x - host.dragging.last.x;
+        const dy = point.y - host.dragging.last.y;
+        if (item.type === 'mosaic' || item.type === 'text') {
+          item.x = productDevelopmentTranslateClamp((Number(item.x) || 0) + dx, 0, 1, 0);
+          item.y = productDevelopmentTranslateClamp((Number(item.y) || 0) + dy, 0, 1, 0);
+        } else {
+          item.x1 = productDevelopmentTranslateClamp((Number(item.x1) || 0) + dx, 0, 1, 0);
+          item.y1 = productDevelopmentTranslateClamp((Number(item.y1) || 0) + dy, 0, 1, 0);
+          item.x2 = productDevelopmentTranslateClamp((Number(item.x2) || 0) + dx, 0, 1, 0);
+          item.y2 = productDevelopmentTranslateClamp((Number(item.y2) || 0) + dy, 0, 1, 0);
+        }
+        host.dragging.last = point;
+        productDevelopmentTranslateHostScheduleSave(host);
+        productDevelopmentTranslateHostRenderCanvas(host);
+        productDevelopmentTranslateHostRenderStageCanvas(host);
+      }
+      return;
+    }
+    if (host.drawing) {
+      host.drawing.current = point;
+      productDevelopmentTranslateHostRenderCanvas(host);
+      productDevelopmentTranslateHostRenderStageCanvas(host);
+    }
+  }
+
+  function productDevelopmentTranslateHostDrawEnd(host, event) {
+    if (!host || !host.overlay) return;
+    const point = productDevelopmentTranslateHostCanvasPoint(event, host.overlay);
+    if (host.dragging) {
+      host.dragging = null;
+      try { (host.inputSurface || host.overlay).releasePointerCapture(event.pointerId); } catch (_) {}
+      productDevelopmentTranslateHostRender(host, { preserveFields: true });
+      return;
+    }
+    const drawing = host.drawing;
+    if (!drawing) return;
+    drawing.current = point;
+    host.drawing = null;
+    try { (host.inputSurface || host.overlay).releasePointerCapture(event.pointerId); } catch (_) {}
+    const distance = Math.hypot(drawing.current.x - drawing.start.x, drawing.current.y - drawing.start.y);
+    if (drawing.type === 'text') {
+      const text = window.prompt('输入图片标注文字（可留空取消）', '');
+      if (text && text.trim()) {
+        const id = 'gt-annotation-' + Date.now().toString(36);
+        host.workspace.annotations.push(productDevelopmentTranslateAnnotationValue({ id, type: 'text', x: drawing.current.x, y: drawing.current.y, text: text.trim(), color: '#ef3340', width: .006 }, host.workspace.annotations.length));
+        host.selectedId = id;
+      }
+    } else if (distance >= .008) {
+      const id = 'gt-annotation-' + Date.now().toString(36);
+      const value = drawing.type === 'mosaic'
+        ? { id, type: 'mosaic', x: Math.min(drawing.start.x, drawing.current.x), y: Math.min(drawing.start.y, drawing.current.y), w: Math.max(.002, Math.abs(drawing.current.x - drawing.start.x)), h: Math.max(.002, Math.abs(drawing.current.y - drawing.start.y)), color: '#ef3340', width: .006 }
+        : { id, type: drawing.type, x1: drawing.start.x, y1: drawing.start.y, x2: drawing.current.x, y2: drawing.current.y, color: '#ef3340', width: .006 };
+      const annotation = productDevelopmentTranslateAnnotationValue(value, host.workspace.annotations.length);
+      host.workspace.annotations.push(annotation);
+      host.selectedId = annotation.id;
+    }
+    productDevelopmentTranslateHostScheduleSave(host);
+    productDevelopmentTranslateHostRender(host, { preserveFields: true });
+  }
+
+  function productDevelopmentTranslateHostWrapExportText(ctx, text, maxWidth) {
+    return productDevelopmentTranslateHostAnnotationTextLines(ctx, String(text || '').slice(0, 12000), maxWidth).slice(0, 22);
+  }
+
+  function productDevelopmentTranslateHostDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    window.setTimeout(() => { URL.revokeObjectURL(url); link.remove(); }, 0);
+  }
+
+  async function productDevelopmentTranslateHostExportImage(host) {
+    if (!host.workspace || !host.sku) {
+      productDevelopmentTranslateHostSetStatus(host, '请先选择一个 SKU');
+      return;
+    }
+    productDevelopmentTranslateHostSave(host, '已保存，正在准备可留档的 PNG');
+    const width = Math.max(1000, Math.round(window.innerWidth || 1200));
+    const height = Math.max(700, Math.round(window.innerHeight || 800));
+    const dockWidth = Math.min(Math.max(Math.round(width * .34), 320), 520);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#f3f6fa';
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, dockWidth, height);
+    ctx.fillStyle = '#24354e';
+    ctx.font = '700 22px Arial,"Microsoft YaHei",sans-serif';
+    ctx.fillText('PLM · ' + host.sku, 24, 34);
+    const image = host.dock.querySelector('[data-gt-image]');
+    const imageBox = { x: 18, y: 58, w: dockWidth - 36, h: Math.max(180, height * .5) };
+    ctx.fillStyle = '#f2f4f8';
+    ctx.fillRect(imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+    try {
+      const imageIsSafeForCanvas = image && (/^data:image\//i.test(String(image.getAttribute('src') || '')) || String(image.src || '').indexOf(window.location.origin) === 0);
+      if (imageIsSafeForCanvas && image.complete && image.naturalWidth) {
+        const scale = Math.min(imageBox.w / image.naturalWidth, imageBox.h / image.naturalHeight);
+        const drawWidth = image.naturalWidth * scale;
+        const drawHeight = image.naturalHeight * scale;
+        ctx.drawImage(image, imageBox.x + (imageBox.w - drawWidth) / 2, imageBox.y + (imageBox.h - drawHeight) / 2, drawWidth, drawHeight);
+      }
+    } catch (_) {}
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(dockWidth, 0, width - dockWidth, height);
+    ctx.fillStyle = '#eef3f9';
+    ctx.fillRect(dockWidth, 0, width - dockWidth, 74);
+    ctx.fillStyle = '#687a91';
+    ctx.font = '14px Arial,"Microsoft YaHei",sans-serif';
+    ctx.fillText('检测语言    中文（简体）     英语', dockWidth + 32, 32);
+    ctx.fillStyle = '#24354e';
+    ctx.font = '700 18px Arial,"Microsoft YaHei",sans-serif';
+    ctx.fillText('English → 中文（简体）', dockWidth + 32, 57);
+    const boxX = dockWidth + 22;
+    const boxW = width - dockWidth - 44;
+    const sourceBoxY = 102;
+    const sourceBoxH = Math.min(230, Math.max(130, height * .28));
+    const targetBoxY = sourceBoxY + sourceBoxH + 26;
+    const targetBoxH = Math.min(260, Math.max(150, height * .31));
+    const drawCopyBox = (y, title, value, background) => {
+      ctx.fillStyle = background;
+      ctx.fillRect(boxX, y, boxW, Math.min(targetBoxH, height - y - 22));
+      ctx.fillStyle = '#5f7188';
+      ctx.font = '12px Arial,"Microsoft YaHei",sans-serif';
+      ctx.fillText(title, boxX + 18, y + 22);
+      ctx.fillStyle = '#293a50';
+      ctx.font = '18px Arial,"Microsoft YaHei",sans-serif';
+      productDevelopmentTranslateHostWrapExportText(ctx, value, boxW - 36).forEach((line, index) => ctx.fillText(line, boxX + 18, y + 53 + index * 27));
+    };
+    drawCopyBox(sourceBoxY, 'Google 翻译原文', host.workspace.sourceText, '#ffffff');
+    drawCopyBox(targetBoxY, '中文翻译 / 已保存文案', host.workspace.translatedText, '#f2f6fb');
+    (host.workspace.annotations || []).forEach((item) => productDevelopmentTranslateHostDrawAnnotation(ctx, item, width, height));
+    const finish = (blob) => {
+      if (blob) productDevelopmentTranslateHostDownload(blob, (host.sku || 'product') + '-google-translate-annotations.png');
+      productDevelopmentTranslateHostSetStatus(host, 'PNG 已生成，结构化标注仍保存在当前 SKU，可继续编辑');
+    };
+    if (canvas.toBlob) canvas.toBlob(finish, 'image/png');
+    else finish(await (await fetch(canvas.toDataURL('image/png'))).blob());
+  }
+
+  function productDevelopmentTranslateHostExportJson(host) {
+    if (!host.workspace || !host.sku) return;
+    productDevelopmentTranslateHostSave(host, '已保存当前 SKU，正在导出标注数据');
+    const payload = { plugin: 'PLM悬浮助手', version: SCRIPT_VERSION, exportedAt: new Date().toLocaleString(), workspace: host.workspace };
+    productDevelopmentTranslateHostDownload(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' }), (host.sku || 'product') + '-google-translate-annotations.json');
+  }
+
+  function productDevelopmentTranslateHostSwitchSku(host, sku) {
+    const normalizedSku = String(sku || '').trim().toUpperCase();
+    if (!normalizedSku) return;
+    productDevelopmentTranslateHostSave(host);
+    host.sku = normalizedSku;
+    host.workspace = productDevelopmentTranslateHostWorkspaceForSku(normalizedSku) || productDevelopmentTranslateWorkspaceValue({ sku: normalizedSku, annotations: [] });
+    host.sourceManualEdited = false;
+    host.translationManualEdited = false;
+    host.selectedId = '';
+    writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, { sku: normalizedSku, updatedAt: host.workspace && host.workspace.updatedAt || Date.now() });
+    productDevelopmentTranslateHostSetStatus(host, '已切换到 ' + normalizedSku + '，可继续编辑历史标注');
+    productDevelopmentTranslateHostRender(host);
+  }
+
+  function productDevelopmentTranslateHostHandleClick(host, event) {
+    const target = event.target && event.target.closest ? event.target.closest('[data-gt-action],[data-gt-mode],[data-gt-ann-select],[data-gt-ann-delete]') : null;
+    if (!target || !host.dock.contains(target)) return;
+    const action = target.getAttribute('data-gt-action');
+    if (action === 'collapse') {
+      productDevelopmentTranslateHostSave(host);
+      host.open = false;
+      productDevelopmentTranslateHostSetLayout(host);
+      return;
+    }
+    if (action === 'open-plm') {
+      productDevelopmentTranslateHostSave(host);
+      window.location.href = 'https://plm.westmonth.com/';
+      return;
+    }
+    if (action === 'sync') {
+      host.sourceManualEdited = false;
+      host.translationManualEdited = false;
+      productDevelopmentTranslateHostReadGoogleText(host, true);
+      productDevelopmentTranslateHostSetStatus(host, '已读取当前 Google 翻译页面内容');
+      return;
+    }
+    if (action === 'fill') {
+      productDevelopmentTranslateHostFillGoogleSource(host);
+      return;
+    }
+    if (action === 'save') {
+      productDevelopmentTranslateHostSave(host);
+      return;
+    }
+    if (action === 'export-image') {
+      productDevelopmentTranslateHostExportImage(host).catch((error) => productDevelopmentTranslateHostSetStatus(host, 'PNG 导出失败：' + formatErrorMessage(error)));
+      return;
+    }
+    if (action === 'export-json') {
+      productDevelopmentTranslateHostExportJson(host);
+      return;
+    }
+    if (action === 'delete-selected') {
+      productDevelopmentTranslateHostDelete(host);
+      return;
+    }
+    if (action === 'clear') {
+      if (host.workspace && host.workspace.annotations && host.workspace.annotations.length && window.confirm('确定清空当前 SKU 的全部标注吗？')) {
+        host.workspace.annotations = [];
+        host.selectedId = '';
+        productDevelopmentTranslateHostScheduleSave(host);
+        productDevelopmentTranslateHostRender(host, { preserveFields: true });
+      }
+      return;
+    }
+    const mode = target.getAttribute('data-gt-mode');
+    if (mode) {
+      productDevelopmentTranslateHostSetMode(host, mode);
+      return;
+    }
+    const selectId = target.getAttribute('data-gt-ann-select');
+    if (selectId) {
+      host.selectedId = selectId;
+      host.mode = 'select';
+      productDevelopmentTranslateHostRender(host, { preserveFields: true });
+      return;
+    }
+    const deleteId = target.getAttribute('data-gt-ann-delete');
+    if (deleteId) productDevelopmentTranslateHostDelete(host, deleteId);
+  }
+
+  function productDevelopmentTranslateHostHandleInput(host, event) {
+    const target = event.target;
+    if (!target) return;
+    if (target.matches && target.matches('[data-gt-field]')) {
+      const key = target.getAttribute('data-gt-field');
+      if (host.workspace && (key === 'sourceText' || key === 'translatedText')) {
+        host.workspace[key] = String(target.value || '').replace(/\r\n?/g, '\n').slice(0, 12000);
+        if (key === 'sourceText') host.sourceManualEdited = true;
+        if (key === 'translatedText') host.translationManualEdited = true;
+        productDevelopmentTranslateHostScheduleSave(host);
+        productDevelopmentTranslateHostSetStatus(host, '输入内容已暂存，点击“保存标注”可立即保存');
+      }
+      return;
+    }
+    if (target.matches && target.matches('[data-gt-ann-field="text"]')) {
+      const id = target.getAttribute('data-gt-ann-id');
+      const item = (host.workspace && host.workspace.annotations || []).find((entry) => entry.id === id);
+      if (item) {
+        item.text = String(target.value || '').slice(0, 500);
+        productDevelopmentTranslateHostScheduleSave(host);
+        productDevelopmentTranslateHostRenderCanvas(host);
+      }
+    }
+  }
+
+  function productDevelopmentTranslateHostHandleKeydown(host, event) {
+    if (!host || !host.open) return;
+    if ((event.key === 'Delete' || event.key === 'Backspace') && host.selectedId && !(event.target && /textarea|input|select/i.test(event.target.tagName || ''))) {
+      event.preventDefault();
+      productDevelopmentTranslateHostDelete(host);
+    } else if (event.key === 'Escape' && host.mode !== 'browse') {
+      event.preventDefault();
+      productDevelopmentTranslateHostSetMode(host, 'browse');
+    }
+  }
+
+  function productDevelopmentTranslateHostInstall(host) {
+    host.dock.addEventListener('click', (event) => productDevelopmentTranslateHostHandleClick(host, event));
+    host.dock.addEventListener('input', (event) => productDevelopmentTranslateHostHandleInput(host, event));
+    host.dock.addEventListener('change', (event) => {
+      if (event.target && event.target.matches && event.target.matches('[data-gt-sku-select]')) productDevelopmentTranslateHostSwitchSku(host, event.target.value);
+    });
+    const installDrawingSurface = (surface) => {
+      surface.addEventListener('pointerdown', (event) => { host.inputSurface = surface; productDevelopmentTranslateHostDrawStart(host, event); });
+      surface.addEventListener('pointermove', (event) => { host.inputSurface = surface; productDevelopmentTranslateHostDrawMove(host, event); });
+      surface.addEventListener('pointerup', (event) => { host.inputSurface = surface; productDevelopmentTranslateHostDrawEnd(host, event); });
+      surface.addEventListener('pointercancel', (event) => { host.inputSurface = surface; productDevelopmentTranslateHostDrawEnd(host, event); });
+    };
+    installDrawingSurface(host.overlay);
+    if (host.stageOverlay) installDrawingSurface(host.stageOverlay);
+    host.launcher.addEventListener('click', () => {
+      host.open = true;
+      productDevelopmentTranslateHostSetLayout(host);
+      productDevelopmentTranslateHostRender(host, { preserveFields: true });
+    });
+    host.onDocumentInput = (event) => {
+      if (!host.open || (host.dock && host.dock.contains(event.target))) return;
+      window.clearTimeout(host.domReadTimer);
+      host.domReadTimer = window.setTimeout(() => productDevelopmentTranslateHostReadGoogleText(host, false), 260);
+    };
+    host.onKeydown = (event) => productDevelopmentTranslateHostHandleKeydown(host, event);
+    host.onBeforeUnload = () => {
+      window.clearTimeout(host.saveTimer);
+      host.saveTimer = 0;
+      if (host.workspace) {
+        host.workspace.updatedAt = Date.now();
+        saveProductDevelopmentTranslateWorkspace(host.workspace);
+      }
+    };
+    host.onResize = () => {
+      productDevelopmentTranslateHostRenderCanvas(host);
+      productDevelopmentTranslateHostRenderStageCanvas(host);
+    };
+    document.addEventListener('input', host.onDocumentInput, true);
+    document.addEventListener('keydown', host.onKeydown, true);
+    window.addEventListener('beforeunload', host.onBeforeUnload);
+    window.addEventListener('resize', host.onResize);
+    host.domObserver = typeof MutationObserver === 'function' ? new MutationObserver(() => {
+      window.clearTimeout(host.domReadTimer);
+      host.domReadTimer = window.setTimeout(() => productDevelopmentTranslateHostReadGoogleText(host, false), 350);
+    }) : null;
+    if (host.domObserver) host.domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+    host.domPollTimer = window.setInterval(() => {
+      productDevelopmentTranslateHostReadGoogleText(host, false);
+      const active = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, {});
+      const activeSku = String(active && active.sku || '').trim().toUpperCase();
+      if (!host.sku && activeSku) productDevelopmentTranslateHostSwitchSku(host, activeSku);
+      const stored = host.sku ? getProductDevelopmentTranslateWorkspace(host.sku) : null;
+      if (stored && Number(stored.updatedAt) > Number(host.workspace && host.workspace.updatedAt || 0) + 10) {
+        host.workspace = stored;
+        productDevelopmentTranslateHostRender(host, { preserveFields: true });
+      }
+    }, 1000);
+  }
+
+  function initGoogleTranslateWorkspace() {
+    if (window.__pfhGoogleTranslateWorkspace) return;
+    if (!document.body) {
+      window.addEventListener('DOMContentLoaded', initGoogleTranslateWorkspace, { once: true });
+      return;
+    }
+    productDevelopmentTranslateHostStyle();
+    const sku = productDevelopmentTranslateHostInitialSku();
+    const host = {
+      sku,
+      workspace: productDevelopmentTranslateHostWorkspaceForSku(sku) || productDevelopmentTranslateWorkspaceValue({ sku, annotations: [] }),
+      mode: 'browse',
+      open: true,
+      selectedId: '',
+      status: '',
+      drawing: null,
+      dragging: null,
+      sourceManualEdited: false,
+      translationManualEdited: false,
+      saveTimer: 0,
+      domReadTimer: 0,
+      domPollTimer: 0,
+    };
+    window.__pfhGoogleTranslateWorkspace = host;
+    host.overlay = document.createElement('canvas');
+    host.overlay.id = 'pfh-gt-overlay';
+    host.dock = document.createElement('aside');
+    host.dock.id = 'pfh-gt-dock';
+    host.dock.setAttribute('aria-label', 'PLM Google 翻译对标工作台');
+    host.dock.innerHTML = '<header class="pfh-gt-head"><div class="pfh-gt-head-copy"><small>PLM PRODUCT DEVELOPMENT</small><strong>Google 翻译对标工作台</strong></div><button type="button" class="pfh-gt-head-close" data-gt-action="collapse" aria-label="收起工作台">×</button></header><div class="pfh-gt-body"><div class="pfh-gt-context"><label>当前 SKU <select data-gt-sku-select></select></label><button type="button" data-gt-action="open-plm">回 PLM</button></div><div class="pfh-gt-image-stage"><img class="pfh-gt-image" data-gt-image alt="产品对标图"><div class="pfh-gt-image-empty" data-gt-image-empty>请从 PLM 产品开发 → 产品图风险筛查打开当前 SKU；对标图会显示在左侧。</div></div><div class="pfh-gt-image-name" data-gt-image-name></div><div class="pfh-gt-copy-grid"><label class="pfh-gt-field"><span>Google 翻译原文 <em>自动读取</em></span><textarea data-gt-field="sourceText" rows="3" placeholder="从右侧 Google 翻译原文框读取，或在这里编辑"></textarea></label><label class="pfh-gt-field"><span>中文翻译 / 修改稿 <em>可编辑保存</em></span><textarea data-gt-field="translatedText" rows="3" placeholder="从右侧翻译结果读取，也可以人工修订"></textarea></label></div><div class="pfh-gt-actions"><button type="button" data-gt-action="sync">读取当前翻译</button><button type="button" data-gt-action="fill">写回 Google 原文框</button><button type="button" data-gt-action="save">保存标注</button><button type="button" data-gt-action="export-image">导出 PNG</button><button type="button" data-gt-action="export-json">导出数据</button></div><div class="pfh-gt-toolbar"><div class="pfh-gt-toolbar-title"><strong>直接在整页绘制</strong><span>红色标注 · 可拖动编辑</span></div><button type="button" data-gt-mode="browse">浏览翻译</button><button type="button" data-gt-mode="select">选择/移动</button><button type="button" data-gt-mode="arrow">箭头</button><button type="button" data-gt-mode="line">直线</button><button type="button" data-gt-mode="text">文字</button><button type="button" data-gt-mode="mosaic">打码</button><button type="button" data-gt-action="delete-selected">删选中</button><button type="button" data-gt-action="clear">清空全部</button><small class="pfh-gt-hint">箭头可从产品图拖到右侧翻译文字；编辑时选择“选择/移动”，点击标注后拖动，或在下方编辑文字。</small></div><div class="pfh-gt-annotation-list" data-gt-annotation-list></div><div class="pfh-gt-status" data-gt-status></div><footer class="pfh-gt-footer"><span data-gt-current-sku></span><button type="button" data-gt-action="open-plm">返回 PLM</button></footer></div>';
+    const stage = host.dock.querySelector('.pfh-gt-image-stage');
+    host.stageOverlay = document.createElement('canvas');
+    host.stageOverlay.className = 'pfh-gt-stage-overlay';
+    host.stageOverlay.setAttribute('aria-hidden', 'true');
+    if (stage) stage.appendChild(host.stageOverlay);
+    host.launcher = document.createElement('button');
+    host.launcher.id = 'pfh-gt-launcher';
+    host.launcher.type = 'button';
+    host.launcher.textContent = '打开 PLM 标注助手';
+    document.body.appendChild(host.overlay);
+    document.body.appendChild(host.dock);
+    document.body.appendChild(host.launcher);
+    host.statusElement = host.dock.querySelector('[data-gt-status]');
+    productDevelopmentTranslateHostInstall(host);
+    if (sku) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, { sku, updatedAt: host.workspace && host.workspace.updatedAt || Date.now() });
+    productDevelopmentTranslateHostRender(host);
+    window.setTimeout(() => productDevelopmentTranslateHostReadGoogleText(host, false), 900);
+  }
+
+  function openProductDevelopmentGoogleTranslate() {
+    const sku = getProductDevelopmentCurrentSku();
+    if (!sku) {
+      showToast('请先在产品开发任务中选择一个 SKU');
+      return;
+    }
+    const review = state.productDevelopmentReview && state.productDevelopmentReview.sku === sku ? state.productDevelopmentReview : null;
+    const snapshot = state.productDevelopmentSnapshot && state.productDevelopmentSnapshot.sku === sku ? state.productDevelopmentSnapshot : null;
+    const previous = getProductDevelopmentTranslateWorkspace(sku);
+    const workspace = saveProductDevelopmentTranslateWorkspace({
+      ...(previous || {}),
+      sku,
+      brand: previous && previous.brand || review && review.brand || snapshot && snapshot.brand || '',
+      name: previous && previous.name || snapshot && snapshot.name || '',
+      imageUrl: previous && previous.imageUrl || snapshot && (snapshot.imageUrl || snapshot.imageFallbackUrl) || '',
+      imageDataUrl: previous && previous.imageDataUrl || review && review.sourceImageDataUrl || state.productDevelopmentBenchmarkImageDataUrl || '',
+      imageName: previous && previous.imageName || review && review.sourceImageName || state.productDevelopmentBenchmarkImageName || '',
+      sourceText: previous && previous.sourceText || '',
+      translatedText: previous && previous.translatedText || '',
+      translateUrl: 'https://translate.google.com/?sl=en&tl=zh-CN&op=translate&plmSku=' + encodeURIComponent(sku),
+    });
+    const url = 'https://translate.google.com/?sl=en&tl=zh-CN&op=translate&plmSku=' + encodeURIComponent(sku) + '&plmAssistant=1';
+    const opened = window.open(url, '_blank');
+    if (!opened) {
+      showToast('浏览器阻止了新标签页，请允许打开 Google 翻译');
+      return;
+    }
+    if (workspace && !workspace.imageDataUrl && !workspace.imageUrl) {
+      loadProductDevelopmentSnapshot(sku, false, { requireIngredients: false, imageKind: 'benchmark' }).then((loaded) => {
+        if (!loaded || !loaded.imageUrl) return;
+        const latest = getProductDevelopmentTranslateWorkspace(sku) || workspace;
+        saveProductDevelopmentTranslateWorkspace({
+          ...latest,
+          sku,
+          imageUrl: loaded.imageUrl || loaded.imageFallbackUrl || '',
+          imageName: latest.imageName || state.productDevelopmentBenchmarkImageName || '',
+          brand: latest.brand || loaded.brand || '',
+          name: latest.name || loaded.name || '',
+        });
+      }).catch(() => {});
+    }
+    if (getCloudBackupKey()) queueCloudBackup();
+    state.productDevelopmentStatus = workspace && workspace.imageDataUrl ? '已打开 Google 翻译标注工作台：左侧显示当前对标图' : '已打开 Google 翻译标注工作台，但当前 SKU 尚未找到对标图';
+    showToast('Google 翻译对标工作台已打开');
   }
 
   function productDevelopmentCopywritingPreviewHtml(content) {
@@ -12732,6 +13830,10 @@
       runProductDevelopmentReview();
       return true;
     }
+    if (action === 'product-development-review-translate-open') {
+      openProductDevelopmentGoogleTranslate();
+      return true;
+    }
     if (action === 'product-development-review-editor-open') {
       const result = state.productDevelopmentReview;
       if (!result || result.fromHistory) {
@@ -13644,6 +14746,10 @@
     feedbackLoadedName: '',
   };
   state.workMode = normalizeProductDevelopmentWorkMode(state.settings && state.settings.workMode);
+  if (isGoogleTranslatePage()) {
+    initGoogleTranslateWorkspace();
+    return;
+  }
   installPlmApiMonitor();
   const parameterImageFeature = createParameterImageFeature({
     panelId: PANEL_ID,
@@ -13670,6 +14776,10 @@
 
   injectStyle();
   ensurePanel();
+  scheduleProductDevelopmentTranslateCloudBackup();
+  if (typeof GM_addValueChangeListener === 'function') {
+    GM_addValueChangeListener(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, () => scheduleProductDevelopmentTranslateCloudBackup());
+  }
   document.addEventListener('paste', handleSizeImageHoverPaste, true);
   document.addEventListener('click', handleUserDrawerTabClick, true);
   document.addEventListener('click', handlePageToyCopywritingClick, true);
@@ -39050,7 +40160,7 @@ self.onmessage = async function(event) {
   }
 
   function exportCache() {
-    const payload = buildCachePayload();
+    const payload = buildCachePayload({ includeLocalTranslateImages: true });
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -42771,7 +43881,8 @@ self.onmessage = async function(event) {
     return 'draft';
   }
 
-  function buildCachePayload() {
+  function buildCachePayload(options) {
+    const opts = options || {};
     const items = {};
     state.index.forEach((item) => {
       const data = loadData(item.sku);
@@ -42789,6 +43900,7 @@ self.onmessage = async function(event) {
         queue: sanitizeUploadRecords(loadUploadQueue()),
         history: sanitizeUploadRecords(loadUploadHistory()),
       },
+      productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(undefined, { includeLocalImages: Boolean(opts.includeLocalTranslateImages) }),
       dailyLedger: sanitizeLedgerRecords(state.ledgerRecords || loadDailyLedger()),
       dailyLedgerTrash: sanitizeLedgerTrashRecords(state.ledgerTrashRecords || loadDailyLedgerTrash()),
       insights: state.insights || emptyInsights(),
@@ -42848,6 +43960,7 @@ self.onmessage = async function(event) {
       index: compactIndex,
       items,
       uploadRecords: compactUploadRecords,
+      productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(source.productDevelopmentTranslateWorkspaces),
       dailyLedger: sanitizeLedgerRecords(source.dailyLedger).slice(0, 600),
       dailyLedgerTrash: sanitizeLedgerTrashRecords(source.dailyLedgerTrash).slice(0, 600),
       insights,
@@ -43071,6 +44184,7 @@ self.onmessage = async function(event) {
         queue: buildMinimalUploadRecords(uploadRecords.queue),
         history: buildMinimalUploadRecords(uploadRecords.history),
       },
+      productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(source.productDevelopmentTranslateWorkspaces),
       dailyLedger: buildMinimalLedgerRecords(source.dailyLedger),
       dailyLedgerTrash: buildMinimalLedgerTrashRecords(source.dailyLedgerTrash),
       insights,
@@ -43106,6 +44220,7 @@ self.onmessage = async function(event) {
       index: compactIndex,
       items,
       uploadRecords: { queue: [], history: [] },
+      productDevelopmentTranslateWorkspaces: buildProductDevelopmentTranslateWorkspacesBackup(source.productDevelopmentTranslateWorkspaces),
       dailyLedger: [],
       dailyLedgerTrash: [],
       insights: emptyInsights(),
@@ -43417,6 +44532,22 @@ self.onmessage = async function(event) {
       state.insights = sanitizeInsights(payload.insights);
       saveInsights();
     }
+    if (payload.productDevelopmentTranslateWorkspaces) {
+      const imported = productDevelopmentTranslateWorkspaceEntries(payload.productDevelopmentTranslateWorkspaces);
+      const current = loadProductDevelopmentTranslateWorkspaces();
+      Object.keys(imported).forEach((sku) => {
+        const incoming = imported[sku];
+        const existing = current[sku];
+        if (!existing || Number(incoming.updatedAt) >= Number(existing.updatedAt)) {
+          current[sku] = existing && existing.imageDataUrl && !incoming.imageDataUrl
+            ? { ...incoming, imageDataUrl: existing.imageDataUrl }
+            : incoming;
+        }
+      });
+      writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_WORKSPACE_KEY, { version: 1, entries: buildProductDevelopmentTranslateWorkspacesBackup(current, { includeLocalImages: true }) });
+      const latest = Object.values(current).sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))[0];
+      if (latest) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_ACTIVE_KEY, { sku: latest.sku, updatedAt: latest.updatedAt });
+    }
   }
 
   function getCloudBackupKey() {
@@ -43522,6 +44653,8 @@ self.onmessage = async function(event) {
     state.cloudBackupRunning = true;
     setCloudBackupStatus(L.cloudBackupSaving);
     if (!(options && options.silent)) showToast(L.cloudBackupSaving);
+    const translateDirty = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+    const translateDirtyAt = Number(translateDirty && translateDirty.updatedAt) || 0;
     try {
       const payload = buildCachePayload();
       payload.insights = sanitizeInsightsForCloudBackup(payload.insights);
@@ -43556,6 +44689,8 @@ self.onmessage = async function(event) {
       const backupModeText = downgraded ? '\uff08' + uploadedMode + (chunked ? '\u00b7\u5206\u7247' : '') + '\uff09' : (chunked ? '\uff08\u5206\u7247\uff09' : '');
       setCloudBackupStatus(L.cloudBackupSavedAt + ' ' + new Date().toLocaleTimeString() + '\uff0c' + state.index.length + '\u4e2a\u7f16\u7801' + backupModeText);
       addLog('success', downgraded ? '\u4e91\u5907\u4efd' + uploadedMode + '\u4e0a\u4f20\u6210\u529f' : '\u4e91\u5907\u4efd\u4e0a\u4f20\u6210\u529f', state.index.length + '\u4e2a\u7f16\u7801' + (chunked ? '\u00b7\u5206\u7247' : ''));
+      const translateDirtyAfter = readProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
+      if (!translateDirtyAfter || Number(translateDirtyAfter.updatedAt) <= translateDirtyAt) writeProductDevelopmentStorage(PRODUCT_DEVELOPMENT_TRANSLATE_BACKUP_DIRTY_KEY, null);
       if (!(options && options.silent)) showToast(L.cloudBackupSaved);
       return true;
     } catch (error) {
