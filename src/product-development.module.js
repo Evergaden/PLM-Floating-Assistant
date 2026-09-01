@@ -1,4 +1,4 @@
-  const PRODUCT_DEVELOPMENT_VERSION = '1.25.0';
+  const PRODUCT_DEVELOPMENT_VERSION = '1.26.0';
   const PRODUCT_DEVELOPMENT_TEMPLATE_VERSION = 'copywriting-templates-v1';
   const PRODUCT_DEVELOPMENT_DEFAULT_COPYWRITING_TEMPLATE_ID = 'capsule';
   const PRODUCT_DEVELOPMENT_COPYWRITING_TEMPLATE_CATALOG = Object.freeze([
@@ -90,7 +90,7 @@
     '实验认证', '认证', '疾病', '药品', '处方', '诊断', '抗炎', '止痛', '抗癌',
     '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
   ]);
-  const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v3';
+  const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v4';
   const PRODUCT_DEVELOPMENT_REVIEW_ACTIONS = Object.freeze({
     remove: 'remove',
     replaceLogo: 'replace-logo',
@@ -486,6 +486,7 @@
         w: Number(source.bbox.w !== undefined ? source.bbox.w : source.bbox.width) || 0,
         h: Number(source.bbox.h !== undefined ? source.bbox.h : source.bbox.height) || 0,
       } : null,
+      onPackaging: source.onPackaging !== false && !/^(?:false|no|0)$/i.test(String(source.onPackaging || '').trim()),
       textRole,
       riskTypes: Array.isArray(source.riskTypes) ? source.riskTypes.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 4) : [],
       riskTerms: Array.isArray(source.riskTerms) ? source.riskTerms.map((item) => productDevelopmentCleanText(item, 100)).filter(Boolean).slice(0, 8) : [],
@@ -523,6 +524,7 @@
       comparisonDataUrl: dataUrl(source.comparisonDataUrl, 2600000),
       items: (Array.isArray(source.items) ? source.items : []).map(productDevelopmentReviewDraftItem).slice(0, 80),
       extractedTexts: (Array.isArray(source.extractedTexts) ? source.extractedTexts : []).map(productDevelopmentReviewDraftItem).slice(0, 80),
+      packagingBboxes: productDevelopmentReviewPackagingBboxes(source).slice(0, 8),
       warnings: Array.isArray(source.warnings) ? source.warnings.map((item) => productDevelopmentCleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
       provider: productDevelopmentCleanText(source.provider, 80),
       model: productDevelopmentCleanText(source.model, 120),
@@ -4950,6 +4952,54 @@
     return /net[\s_-]*(?:content|contents|wt|weight)|净含量/i.test(String(textRole || '') + ' ' + String(sourceText || ''));
   }
 
+  function productDevelopmentNormalizeReviewBbox(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const rawX = Number(source.x);
+    const rawY = Number(source.y);
+    const rawW = Number(source.w !== undefined ? source.w : source.width);
+    const rawH = Number(source.h !== undefined ? source.h : source.height);
+    const valid = [rawX, rawY, rawW, rawH].every(Number.isFinite) && rawW > 0.001 && rawH > 0.001;
+    if (!valid) return null;
+    const x = Math.max(0, Math.min(1, rawX));
+    const y = Math.max(0, Math.min(1, rawY));
+    const w = Math.max(0, Math.min(1 - x, rawW));
+    const h = Math.max(0, Math.min(1 - y, rawH));
+    return w > 0.001 && h > 0.001 ? { x, y, w, h } : null;
+  }
+
+  function productDevelopmentReviewPackagingBboxes(source) {
+    const value = source && typeof source === 'object' ? source : {};
+    const candidate = value.packagingBboxes || value.packagingBbox || value.packageBboxes || value.packageBbox || value.productBboxes || value.productBbox;
+    const list = Array.isArray(candidate) ? candidate : candidate && typeof candidate === 'object' ? [candidate] : [];
+    return list.map(productDevelopmentNormalizeReviewBbox).filter(Boolean).slice(0, 8);
+  }
+
+  function productDevelopmentReviewBboxTouchesPackaging(bbox, packagingBboxes) {
+    if (!bbox || !Array.isArray(packagingBboxes) || !packagingBboxes.length) return true;
+    const centerX = bbox.x + bbox.w / 2;
+    const centerY = bbox.y + bbox.h / 2;
+    const area = bbox.w * bbox.h;
+    return packagingBboxes.some((packageBbox) => {
+      const centerInside = centerX >= packageBbox.x && centerX <= packageBbox.x + packageBbox.w
+        && centerY >= packageBbox.y && centerY <= packageBbox.y + packageBbox.h;
+      const overlapWidth = Math.max(0, Math.min(bbox.x + bbox.w, packageBbox.x + packageBbox.w) - Math.max(bbox.x, packageBbox.x));
+      const overlapHeight = Math.max(0, Math.min(bbox.y + bbox.h, packageBbox.y + packageBbox.h) - Math.max(bbox.y, packageBbox.y));
+      return centerInside || area > 0 && overlapWidth * overlapHeight / area >= 0.25;
+    });
+  }
+
+  function productDevelopmentReviewItemIsOutsidePackaging(item) {
+    const source = item && typeof item === 'object' ? item : {};
+    const booleanValues = ['onPackaging', 'isOnPackaging', 'onPackage', 'isOnPackage']
+      .filter((key) => Object.prototype.hasOwnProperty.call(source, key))
+      .map((key) => source[key]);
+    if (booleanValues.some((value) => value === false || /^(?:false|no|0)$/i.test(String(value || '').trim()))) return true;
+    if (booleanValues.some((value) => value === true || /^(?:true|yes|1)$/i.test(String(value || '').trim()))) return false;
+    const scopeText = [source.surface, source.textSurface, source.location, source.scope, source.textLocation, source.textRole, source.role]
+      .filter(Boolean).join(' ');
+    return /\b(?:outside|background|banner|callout|prop|decorative|webpage|not\s+on\s+(?:the\s+)?package)\b|包装外|背景|旁边|外部|干扰|非包装|道具|装饰/i.test(scopeText);
+  }
+
   function productDevelopmentFlattenEvidenceText(value, depth) {
     const level = Number(depth || 0);
     if (level > 4 || value === undefined || value === null) return [];
@@ -5191,19 +5241,22 @@
     const brand = options && options.brand;
     const snapshot = options && options.snapshot;
     const netContentStandard = productDevelopmentCleanText(snapshot && snapshot.netContent, 120).toUpperCase();
+    const packagingBboxes = productDevelopmentReviewPackagingBboxes(source);
     const seen = new Set();
     const items = list.map((item, index) => {
       const sourceItem = item && typeof item === 'object' ? item : {};
+      if (productDevelopmentReviewItemIsOutsidePackaging(sourceItem)) return null;
       const bboxSource = sourceItem.bbox || sourceItem.box || {};
       const rawX = Number(bboxSource.x);
       const rawY = Number(bboxSource.y);
       const rawW = Number(bboxSource.w !== undefined ? bboxSource.w : bboxSource.width);
       const rawH = Number(bboxSource.h !== undefined ? bboxSource.h : bboxSource.height);
       const hasBbox = [rawX, rawY, rawW, rawH].every(Number.isFinite) && rawW > 0.001 && rawH > 0.001;
-      const x = hasBbox ? Math.max(0, Math.min(1, rawX)) : 0;
-      const y = hasBbox ? Math.max(0, Math.min(1, rawY)) : 0;
-      const w = hasBbox ? Math.max(0, Math.min(1 - x, rawW)) : 0;
-      const h = hasBbox ? Math.max(0, Math.min(1 - y, rawH)) : 0;
+      const normalizedBbox = hasBbox ? productDevelopmentNormalizeReviewBbox(bboxSource) : null;
+      const x = normalizedBbox ? normalizedBbox.x : 0;
+      const y = normalizedBbox ? normalizedBbox.y : 0;
+      const w = normalizedBbox ? normalizedBbox.w : 0;
+      const h = normalizedBbox ? normalizedBbox.h : 0;
       const sourceText = productDevelopmentCompactSemanticText(sourceItem.sourceText || sourceItem.originalText || sourceItem.text, 240);
       const textRole = productDevelopmentCleanText(sourceItem.textRole || sourceItem.role, 40).toLowerCase();
       let rawReplacementEn = productDevelopmentCompactSemanticText(sourceItem.replacementEn || sourceItem.modifiedEnglish || sourceItem.english || sourceText, 300);
@@ -5211,6 +5264,7 @@
       if (productDevelopmentIsNetContentText(textRole, sourceText)) rawReplacementEn = netContentStandard || rawReplacementEn.toUpperCase();
       const key = [sourceText.toLowerCase(), hasBbox ? x.toFixed(4) + '|' + y.toFixed(4) : 'no-bbox'].join('|');
       if (!sourceText || !rawReplacementEn || !rawReplacementZh || seen.has(key)) return null;
+      if (normalizedBbox && !productDevelopmentReviewBboxTouchesPackaging(normalizedBbox, packagingBboxes)) return null;
       seen.add(key);
       const detected = productDevelopmentDetectSourceRisks(sourceText, brand);
       const unsupportedClaimType = productDevelopmentUnsupportedClaimType(sourceText, textRole);
@@ -5234,7 +5288,8 @@
       return {
         id: String(sourceItem.id || index + 1),
         sourceText,
-        bbox: hasBbox && w > 0.001 && h > 0.001 ? { x, y, w, h } : null,
+        bbox: normalizedBbox,
+        onPackaging: true,
         textRole,
         riskTypes,
         riskTerms,
@@ -5250,7 +5305,9 @@
         confidence: Math.max(0, Math.min(1, Number(sourceItem.confidence) || 0)),
       };
     }).filter(Boolean).slice(0, 80);
-    return productDevelopmentEnsureHumanSupplementLine(items, snapshot);
+    const normalizedItems = productDevelopmentEnsureHumanSupplementLine(items, snapshot);
+    normalizedItems.packagingBboxes = packagingBboxes;
+    return normalizedItems;
   }
 
   function productDevelopmentNormalizedClaimText(value) {
@@ -5351,7 +5408,7 @@
     const source = result && typeof result === 'object' ? result : {};
     const brand = snapshot && snapshot.brand ? [snapshot.brand] : [];
     const sourceItems = Array.isArray(source.texts) && source.texts.length ? source.texts : source.items;
-    const extractedTexts = productDevelopmentNormalizeRiskItems({ items: sourceItems }, { brand, snapshot });
+    const extractedTexts = productDevelopmentNormalizeRiskItems({ items: sourceItems, packagingBboxes: source.packagingBboxes }, { brand, snapshot });
     const items = extractedTexts;
     for (const item of extractedTexts) {
       const term = productDevelopmentFindBannedTerm(item.replacementEn + ' ' + item.replacementZh, brand);
@@ -5369,6 +5426,7 @@
       provider: String(source.provider || ''),
       model: String(source.model || ''),
       productNaming,
+      packagingBboxes: extractedTexts.packagingBboxes || productDevelopmentReviewPackagingBboxes(source),
     };
   }
 
@@ -5645,6 +5703,7 @@
         comparisonDataUrl: comparison.dataUrl,
         items: validated.items,
         extractedTexts: validated.extractedTexts,
+        packagingBboxes: validated.packagingBboxes,
         warnings: validated.warnings,
         provider: validated.provider,
         model: validated.model,

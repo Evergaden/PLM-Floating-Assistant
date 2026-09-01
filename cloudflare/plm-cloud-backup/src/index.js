@@ -132,7 +132,7 @@ const PRODUCT_DEVELOPMENT_BANNED_TERMS = Object.freeze([
   '实验认证', '认证', '疾病', '药品', '处方', '诊断', '抗炎', '止痛', '抗癌',
   '减肥', '降脂', '降糖', '增强免疫', '改善疾病',
 ]);
-const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v3';
+const PRODUCT_DEVELOPMENT_REVIEW_RULE_VERSION = 'approved-samples-v4';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_RULE_VERSION = 'human-drops-700mg-v1';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS = 'Purified Water, Vegetable Glycerin, Citric Acid, Potassium Sorbate';
 const PRODUCT_DEVELOPMENT_ONE_SHOT_DEFAULT_OTHER_INGREDIENTS_CN = '纯化水、植物甘油、柠檬酸、山梨酸钾';
@@ -2320,6 +2320,39 @@ function normalizeProductDevelopmentBbox(value) {
   return { x: safeX, y: safeY, w: safeW, h: safeH };
 }
 
+function normalizeProductDevelopmentPackagingBboxes(source) {
+  const value = source && typeof source === 'object' ? source : {};
+  const candidate = value.packagingBboxes || value.packagingBbox || value.packageBboxes || value.packageBbox || value.productBboxes || value.productBbox;
+  const list = Array.isArray(candidate) ? candidate : candidate && typeof candidate === 'object' ? [candidate] : [];
+  return list.map(normalizeProductDevelopmentBbox).filter(Boolean).slice(0, 8);
+}
+
+function productDevelopmentBboxTouchesPackaging(bbox, packagingBboxes) {
+  if (!bbox || !Array.isArray(packagingBboxes) || !packagingBboxes.length) return true;
+  const centerX = bbox.x + bbox.w / 2;
+  const centerY = bbox.y + bbox.h / 2;
+  const area = bbox.w * bbox.h;
+  return packagingBboxes.some((packageBbox) => {
+    const centerInside = centerX >= packageBbox.x && centerX <= packageBbox.x + packageBbox.w
+      && centerY >= packageBbox.y && centerY <= packageBbox.y + packageBbox.h;
+    const overlapWidth = Math.max(0, Math.min(bbox.x + bbox.w, packageBbox.x + packageBbox.w) - Math.max(bbox.x, packageBbox.x));
+    const overlapHeight = Math.max(0, Math.min(bbox.y + bbox.h, packageBbox.y + packageBbox.h) - Math.max(bbox.y, packageBbox.y));
+    return centerInside || area > 0 && overlapWidth * overlapHeight / area >= 0.25;
+  });
+}
+
+function productDevelopmentItemOutsidePackaging(item) {
+  const source = item && typeof item === 'object' ? item : {};
+  const booleanValues = ['onPackaging', 'isOnPackaging', 'onPackage', 'isOnPackage']
+    .filter((key) => Object.prototype.hasOwnProperty.call(source, key))
+    .map((key) => source[key]);
+  if (booleanValues.some((value) => value === false || /^(?:false|no|0)$/i.test(String(value || '').trim()))) return true;
+  if (booleanValues.some((value) => value === true || /^(?:true|yes|1)$/i.test(String(value || '').trim()))) return false;
+  const scopeText = [source.surface, source.textSurface, source.location, source.scope, source.textLocation, source.textRole, source.role]
+    .filter(Boolean).join(' ');
+  return /\b(?:outside|background|banner|callout|prop|decorative|webpage|not\s+on\s+(?:the\s+)?package)\b|包装外|背景|旁边|外部|干扰|非包装|道具|装饰/i.test(scopeText);
+}
+
 function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || (!Array.isArray(value.texts) && !Array.isArray(value.items))) {
     throw new Error('product image review response has no texts array');
@@ -2327,8 +2360,10 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
   const allowedRiskTypes = new Set(['banned', 'exaggeration', 'medical', 'brand', 'unsupported', 'other']);
   const seen = new Set();
   const sourceItems = Array.isArray(value.texts) ? value.texts : value.items;
+  const packagingBboxes = normalizeProductDevelopmentPackagingBboxes(value);
   let items = sourceItems.map((item, index) => {
     const source = item && typeof item === 'object' ? item : {};
+    if (productDevelopmentItemOutsidePackaging(source)) return null;
     const sourceText = cleanText(source.sourceText || source.originalText || source.text, 240);
     let replacementEn = cleanText(source.replacementEn || source.modifiedEnglish || source.english || sourceText, 300);
     let replacementZh = cleanText(source.replacementZh || source.modifiedChinese || source.chinese || source.translation || source.translationZh || sourceText, 300);
@@ -2342,6 +2377,7 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
     if (textRole === 'petaudience' && rules.petAudience) replacementEn = cleanText(rules.petAudience, 80).toUpperCase();
     const key = [cleanText(source.id || String(index + 1), 40), sourceText.toLowerCase()].join('|');
     if (!sourceText || !replacementEn || !replacementZh || seen.has(key)) return null;
+    if (bbox && !productDevelopmentBboxTouchesPackaging(bbox, packagingBboxes)) return null;
     const unsupportedClaimType = productDevelopmentUnsupportedClaimType(sourceText, textRole);
     const unsupportedClaim = Boolean(unsupportedClaimType && !productDevelopmentReviewClaimHasEvidence(sourceText, rules, unsupportedClaimType));
     const riskTypes = Array.from(new Set((Array.isArray(source.riskTypes) ? source.riskTypes : [source.riskType])
@@ -2382,6 +2418,7 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
       id: cleanText(source.id || String(index + 1), 40),
       sourceText,
       bbox,
+      onPackaging: true,
       textRole,
       riskTypes,
       riskReason: cleanText(source.riskReason || source.reason || source.warning, 400)
@@ -2399,6 +2436,7 @@ function sanitizeProductDevelopmentReviewCandidate(value, brand, rules = {}) {
   return {
     texts: items,
     items: items.filter((item) => item.riskTypes.length),
+    packagingBboxes,
     productNaming,
     warnings: Array.isArray(value.warnings) ? value.warnings.map((item) => cleanText(item, 240)).filter(Boolean).slice(0, 12) : [],
   };
@@ -2449,13 +2487,14 @@ async function handleProductDevelopmentReview(request, env) {
       images: [image],
       system: [
         '你是产品包装文字风险初筛助手，不是法律意见提供者。',
-        '请按图片从上到下、从左到右逐字转录对标图片中所有清晰可见的包装文字，包括品牌/Logo 可读文字、品名、每一行卖点、数字、单位、规格、净含量、适用对象、底部小字、星号和标点；每个语义完整的视觉文字块都必须进入 texts。相邻且属于同一短语、标题或卖点的多行必须合并为一个文本块，并用单个换行保留原有换行，不要在同一文本块中插入空行；例如 MAGNESIUM\nGLYCINATE、Made with\nChelamax、Fresh Breath &\nOral Support 都各自是一个可编辑语义块。',
+        '审核范围严格限定为实际产品包装表面：瓶身、瓶贴、纸盒、袋子、软管或其他随产品销售的包装上印刷/贴附的文字。请按包装表面从上到下、从左到右逐字转录其中所有清晰可见文字，包括品牌/Logo 可读文字、品名、卖点、数字、单位、规格、净含量、适用对象、底部小字、星号和标点；每个语义完整的包装文字块都必须进入 texts。',
+        '产品外的背景海报、网页/商品页截图、旁边卖点栏、宣传卡片、角标、气泡文字、装饰文字、道具、胶囊/原料图片上的文字以及任何不在瓶身/标签/盒面/袋面上的文字全部是干扰，禁止进入 texts；即使它们清晰可见、紧挨产品或与产品相关也必须忽略。无法确认是否印在包装表面的文字宁可不识别。相邻且属于同一包装短语、标题或卖点的多行必须合并为一个文本块，并用单个换行保留原有换行，不要在同一文本块中插入空行；例如 MAGNESIUM\nGLYCINATE、Made with\nChelamax、Fresh Breath &\nOral Support 都各自是一个可编辑语义块。',
         'sourceText 是图片原文，必须保持图片里的英文拼写、大小写、数字、连字符、单位、标点和词序，不得按常识纠正、翻译、缩写、补全或把产品资料带入原文；允许把同一语义块的相邻行合并为带换行的 sourceText，但不得把不相邻或语义无关的文字强行合并。不要把一个看不清的词猜成常见品牌或产品名。',
-        '所有清晰可见文字都必须进入 texts，哪怕没有风险也要保留；每项同时提供 replacementEn 和简体中文 replacementZh。无风险项的 replacementEn 必须与 sourceText 完全一致，replacementZh 只做直译；有风险项才提供合规的英文替换和中文对照。',
+        '所有清晰可见且确认位于产品包装表面的文字都必须进入 texts，哪怕没有风险也要保留；每项同时提供 replacementEn 和简体中文 replacementZh。无风险项的 replacementEn 必须与 sourceText 完全一致，replacementZh 只做直译；有风险项才提供合规的英文替换和中文对照。每项必须提供 onPackaging=true；包装外文字不要返回，不能用 onPackaging=false 的条目占位。',
         '如果一段文字只有部分清晰，保留能确认的原文并在 warnings 说明，不要用推测内容替代；OCR 不确定时宁可返回较短的真实片段，不要虚构完整句子。',
-        '在输出 JSON 前必须再做一次完整性复核：重新查看整张图片的顶部、主体、底部和边缘，逐项核对文字块数量；不能只返回品名和一两条功效，也不能用产品资料中的句子替代图片原文。',
-        '如果图片中有多行文字，请按语义块列入 texts：同一标题或短语的多行合并并保留换行，不同语义块之间使用不同 item；可读的品牌、数字、单位、净含量、规格和免责声明同样必须列入。texts 不是逐词或逐行 OCR 清单，而是可以直接并排校对的紧凑文本块清单。',
-        '坐标只有在可靠时才填写相对图片左上角的归一化 x、y、w、h，范围 0 到 1；不可靠时 bbox 必须为 null，前端不会画红框。',
+        '在输出 JSON 前必须再做一次完整性复核：只重新查看产品包装表面，不要把整张图的背景和旁边信息栏当成审核区域；逐项核对包装文字块数量，不能只返回品名和一两条功效，也不能用产品资料中的句子替代图片原文。',
+        '如果包装上有多行文字，请按语义块列入 texts：同一标题或短语的多行合并并保留换行，不同语义块之间使用不同 item；包装上可读的品牌、数字、单位、净含量、规格和免责声明同样必须列入。texts 不是逐词或逐行 OCR 清单，而是可以直接并排校对的紧凑包装文字块清单。',
+        '请额外返回 packagingBboxes 数组，列出实际产品包装主体（瓶身/盒面/袋面等）的归一化 x、y、w、h，最多 8 个；文字 bbox 只有在可靠时才填写相对整张图片左上角的归一化 x、y、w、h，范围 0 到 1；不可靠时文字 bbox 必须为 null，前端不会画红框。文字 bbox 若明显不落在 packagingBboxes 内，视为包装外干扰，不要返回。',
         '不要修改原图，不要输出清除文字后的包装图。风险文字需要 riskTypes、riskReason、至少两个更保守的英文/简体中文替换备选（若确实无法提供则为空数组）。',
         '替换建议不能出现品牌名称、Natural、Organic、Vegan、Cruelty Free、Biodegradable、Environmentally Friendly、Reduce、Remove、Repair、Treatment、Therapy、Instantly、Prevent、Prevention、医疗级、全效、治疗等词语或同类表达。',
         '净含量属于 netContent 文本时，textRole 必须为 netContent，英文 replacementEn 必须严格使用提供的净含量规范值，不得自行换算或添加单位；当前规范值为空时保留图片原文并标记需要人工确认。',
@@ -2463,7 +2502,7 @@ async function handleProductDevelopmentReview(request, env) {
         '原图中的属性声明、成分声明或来源声明，只有在当前 SKU 的 PLM 证据中逐项明确出现时才允许保留；图片中可读的成分名称也必须将 textRole 标为 ingredient，哪怕没有证据；没有证据支持的声明必须标记 riskTypes=unsupported，revisionAction=remove，英文 replacementEn=OMIT FROM PACKAGING，中文 replacementZh=从包装中删除，不能原样复制，也不能用另一个未经证实的成分、属性或产地替换。',
         '当品牌为 Kriath 且类目/产品类型属于宠物入口时，适用对象文本 textRole 必须为 petAudience，英文 replacementEn 只能使用全大写 FOR DOGS & CATS、FOR DOGS 或 FOR CATS。',
         '成分证据可以为空；不要因为没有成分而停止图片文字风险筛查，也不要从图片或常识虚构成分。只使用提供的产品类型、成分（如有）和卖点作为补充事实依据，不要补写未提供的数值、认证、疾病或疗效。',
-        '除 texts 外，同时根据图片中清晰可见的产品主标题和文字整体作用返回 productNaming。englishProductName 必须优先逐字采用包装上的英文大标题，不要翻译中文名，不要拼接品牌、规格、口味、适用对象或卖点；标题分成多行时可以合并。chineseProductName 只参考图片可见作用、适用对象和剂型，使用朦胧的日常状态/支持表达，不能出现医疗、预防、治疗、绝对化或夸大词。',
+        '除 texts 外，同时只根据包装表面清晰可见的产品主标题和文字整体作用返回 productNaming。englishProductName 必须优先逐字采用包装上的英文大标题，不要翻译中文名，不要拼接品牌、规格、口味、适用对象或卖点；标题分成多行时可以合并。chineseProductName 只参考包装表面可见作用、适用对象和剂型，使用朦胧的日常状态/支持表达，不能采用背景宣传栏文字，也不能出现医疗、预防、治疗、绝对化或夸大词。',
         '命名示例只用于学习中文产品名的节奏和结构，不是当前产品事实，不能照抄成分或作用：' + namingExamples.join('、'),
         '不要访问 WIPO 或其他外部查询网站；本接口只做图片文字读取和风险初筛。',
         '没有可靠风险时仍返回清晰可见文字，但 riskTypes 为空；看不清的文字不要猜测。所有内容必须是一个 JSON 对象，不要 Markdown。',
@@ -2484,7 +2523,7 @@ async function handleProductDevelopmentReview(request, env) {
         'Efficacy evidence: ' + JSON.stringify(efficacy),
         'Naming rule: ' + namingRule,
         'Naming style examples: ' + JSON.stringify(namingExamples),
-        'Return exactly: {"productNaming":{"chineseProductName":"","englishProductName":"","functionSummary":"","evidenceText":"","confidence":0.9},"texts":[{"id":"1","sourceText":"...","bbox":null,"textRole":"","revisionAction":"","riskTypes":[],"riskReason":"","replacementEn":"...","replacementZh":"...","translationZh":"...","replacementOptions":[{"en":"...","zh":"..."},{"en":"...","zh":"..."}],"confidence":0.9}],"warnings":["..."]}.',
+        'Return exactly: {"productNaming":{"chineseProductName":"","englishProductName":"","functionSummary":"","evidenceText":"","confidence":0.9},"packagingBboxes":[],"texts":[{"id":"1","onPackaging":true,"sourceText":"...","bbox":null,"textRole":"","revisionAction":"","riskTypes":[],"riskReason":"","replacementEn":"...","replacementZh":"...","translationZh":"...","replacementOptions":[{"en":"...","zh":"..."},{"en":"...","zh":"..."}],"confidence":0.9}],"warnings":["..."]}.',
         '风险类型只能使用 banned、exaggeration、medical、brand、unsupported、other。',
       ].join('\n'),
     };
