@@ -7,7 +7,7 @@
   let uiAssetRecoveryBound = false;
   const LOCAL_UI_FALLBACK_CSS = `
     #${PANEL_ID} {
-      position:fixed;right:18px;bottom:78px;z-index:2147483647;width:686px;height:min(906px,96vh);min-width:520px;min-height:520px;
+      position:fixed;right:18px;bottom:78px;z-index:2147483647;width:890px;height:min(943px,96vh);min-width:520px;min-height:520px;
       overflow:visible;border:1px solid var(--pfh-theme-border,#D8DEEA);border-radius:16px;background:var(--pfh-theme-surface,#fff);box-shadow:0 22px 70px rgba(31,25,55,.20);
       color:var(--pfh-theme-text,#1F2937);font:13px/1.5 Arial,"Microsoft YaHei",sans-serif;
     }

@@ -6458,7 +6458,7 @@ html.pfh-parameter-editor-open #plm-floating-helper-launcher{visibility:hidden!i
   min-width:0!important;
   margin:0!important;
   color:var(--pfh-theme-text)!important;
-  font-size:13px!important;
+  font-size:15px!important;
 }
 #plm-floating-helper[data-pfh-theme] .pfh-data-change-actions button{
   display:inline-flex!important;

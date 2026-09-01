@@ -542,3 +542,72 @@
 #plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions button.is-download {
   font-weight: var(--pfh-batch-excel-weight-title);
 }
+
+/* Batch Excel controls follow the active skin, including the input-card actions. */
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top .pfh-mini-tool-actions button {
+  border-color: var(--pfh-theme-border);
+  background: var(--pfh-theme-surface);
+  color: var(--pfh-theme-primary);
+  box-shadow: 0 2px 8px var(--pfh-theme-shadow-soft, rgba(45, 37, 100, .06));
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top .pfh-mini-tool-actions button:hover:not(:disabled) {
+  border-color: var(--pfh-theme-border-strong);
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary-hover);
+  box-shadow: 0 8px 16px var(--pfh-theme-shadow-soft, rgba(45, 37, 100, .11));
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top .pfh-mini-tool-actions button:last-child {
+  border-color: var(--pfh-theme-primary);
+  background: linear-gradient(135deg, var(--pfh-theme-primary), var(--pfh-theme-primary-hover));
+  color: #fff;
+  box-shadow: 0 8px 18px var(--pfh-theme-shadow, rgba(124, 58, 237, .24));
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-top .pfh-mini-tool-actions button:last-child:hover:not(:disabled) {
+  border-color: var(--pfh-theme-primary-hover);
+  background: var(--pfh-theme-primary-hover);
+  color: #fff;
+  box-shadow: 0 12px 24px var(--pfh-theme-shadow, rgba(124, 58, 237, .3));
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-pause {
+  border: 1px solid var(--pfh-theme-border-strong, var(--pfh-theme-border));
+  background: var(--pfh-theme-primary-soft);
+  color: var(--pfh-theme-primary-hover);
+  box-shadow: 0 2px 8px var(--pfh-theme-shadow-soft, rgba(45, 37, 100, .06));
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-pause:hover:not(:disabled) {
+  border-color: var(--pfh-theme-primary);
+  background: var(--pfh-theme-control-hover, var(--pfh-theme-primary-soft));
+  color: var(--pfh-theme-primary-hover);
+  box-shadow: 0 8px 16px var(--pfh-theme-shadow-soft, rgba(45, 37, 100, .11));
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-pause > .pfh-icon {
+  display: grid;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+#plm-floating-helper[data-view="batchExcel"] .pfh-batch-excel-actions .is-pause > .pfh-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

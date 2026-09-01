@@ -15,11 +15,11 @@
     box-shadow var(--pfh-interaction-button-duration) ease;
 }
 
-#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):hover {
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):not(.pfh-search-clear):hover {
   transform: var(--pfh-interaction-button-hover-transform);
 }
 
-#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):active {
+#plm-floating-helper button:not(:disabled):not([aria-disabled="true"]):not(.pfh-search-clear):active {
   transform: var(--pfh-interaction-button-active-transform);
 }
 

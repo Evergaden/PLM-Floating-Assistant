@@ -24,7 +24,10 @@
             <p class="section-kicker">01 / 基础信息</p>
             <h2>表头与文件</h2>
           </div>
-          <button type="button" class="ghost-button" id="load-sample">载入参考示例</button>
+          <div class="heading-actions">
+            <button type="button" class="ghost-button" id="load-target-drops">载入 60 mL 滴剂目标</button>
+            <button type="button" class="ghost-button" id="load-sample">载入参考示例</button>
+          </div>
         </div>
 
         <div class="field-grid">
@@ -44,6 +47,18 @@
             <span>PDF 文件名</span>
             <input data-state="filename" type="text" autocomplete="off" spellcheck="false">
           </label>
+          <label class="field field-wide">
+            <span>Other Ingredients / 其他成分</span>
+            <input data-state="otherIngredients" type="text" autocomplete="off" spellcheck="false" placeholder="Purified Water, Vegetable Glycerin, Citric Acid, Potassium Sorbate">
+          </label>
+          <label class="field">
+            <span>活性目标（mg / serving，0 = 不校验）</span>
+            <input data-state="activeTargetMg" type="number" min="0" step="0.001" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>标准化活性目标（%，0 = 不校验）</span>
+            <input data-state="standardizedActivePercent" type="number" min="0" max="100" step="0.01" autocomplete="off">
+          </label>
         </div>
 
         <div class="card-heading ingredients-heading">
@@ -55,10 +70,11 @@
         </div>
 
         <div class="ingredient-table-head" aria-hidden="true">
-          <span>成分名称 / Ingredient</span>
-          <span>用量 / Amount</span>
-          <span>% Daily Value</span>
-          <span></span>
+            <span>成分名称 / Ingredient</span>
+            <span>用量 / Amount</span>
+            <span>% Daily Value</span>
+            <span>标志物 mg</span>
+            <span></span>
         </div>
         <div id="ingredient-rows" class="ingredient-rows"></div>
         <button type="button" class="add-row-button" id="add-row">＋ 添加成分行</button>

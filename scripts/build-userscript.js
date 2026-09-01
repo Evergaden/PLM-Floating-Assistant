@@ -45,10 +45,20 @@ for (const module of selectedModules) {
       throw new Error(`${module.name} source contract failed; missing: ${missing.join(', ')}`);
     }
   }
-  const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`${escape(start)}[\\s\\S]*?${escape(end)}`);
-  if (!pattern.test(output)) throw new Error(`${module.name} module markers are missing`);
-  output = output.replace(pattern, `${start}\n${source}\n${end}`);
+  const startIndex = output.indexOf(start);
+  const endIndex = output.lastIndexOf(end);
+  if (startIndex < 0 || endIndex < startIndex) throw new Error(`${module.name} module markers are missing`);
+  output = output.slice(0, startIndex) + `${start}\n${source}\n${end}` + output.slice(endIndex + end.length);
+}
+
+const requiredBootstrapMarkers = [
+  'function isGoogleTranslatePage',
+  'function initGoogleTranslateWorkspace',
+  'function productDevelopmentObjectCategoryHints',
+];
+const missingBootstrapMarkers = requiredBootstrapMarkers.filter((marker) => !output.includes(marker));
+if (missingBootstrapMarkers.length) {
+  throw new Error(`userscript bootstrap contract failed; missing: ${missingBootstrapMarkers.join(', ')}`);
 }
 
 const startupIndex = output.indexOf('\n  injectStyle();');

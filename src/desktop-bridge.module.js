@@ -545,7 +545,7 @@
       state.excelExtra = { extra, excelData };
       state.excelMissing = getExcelMissingFields(excelData, extra);
       if (state.excelMissing.length) {
-        throw new Error(sku + ' 缓存资料尚未完整，等待补齐：' + state.excelMissing.join('、'));
+        addLog('warn', '桌面工作台 Excel 使用不完整缓存继续生成', sku + ' | 缺少：' + state.excelMissing.join('、'));
       }
       await fillRecommendedPackQty(excelData);
       await fillRecommendedPurchasePrice(excelData, extra);
@@ -559,11 +559,7 @@
     const purchasePrice = String(state.excelPurchasePrice || excelData.purchasePrice || '6');
     if (!packQty) {
       const packBoxKey = buildPackBoxKey(excelData);
-      if (!packBoxKey) throw new Error(sku + ' 缺少完整包装尺寸，无法计算装箱数');
-      throw new Error(sku + ' 的包装尺寸为 ' + packBoxKey + '，本地公式无法计算有效装箱数');
-    }
-    if (!extra.isSkuDesignImage || !(extra.skuImageUrl || extra.imageUrl || extra.skuImageFallbackUrl || extra.imageFallbackUrl)) {
-      throw new Error(sku + ' 未能读取 SKU 设计图，请确认项目详情中的产品图可预览');
+      addLog('warn', '桌面工作台 Excel 缺少装箱数，继续生成', sku + ' | ' + (packBoxKey ? '尺寸 ' + packBoxKey + ' 无法计算' : '包装尺寸不完整') + '，装箱数单元格留空');
     }
     const imageData = normalizeData({
       ...excelData,
@@ -579,11 +575,16 @@
     const imageInfo = excelImageSource.imageUrl
       ? await fetchImageForExcel(excelImageSource.imageUrl, excelImageSource.imageFallbackUrl).catch(() => null)
       : null;
-    if (!imageInfo || !imageInfo.dataUrl) throw new Error(sku + ' 未能读取真实 SKU 产品图');
-    if (await isPlaceholderSkuImage(imageInfo.dataUrl)) {
-      throw new Error(sku + ' 当前仍是 JPG/透明占位图，等待真实 SKU 产品图后自动生成');
+    let skuImageDataUrl = '';
+    if (imageInfo && imageInfo.dataUrl) {
+      if (await isPlaceholderSkuImage(imageInfo.dataUrl)) {
+        addLog('warn', '桌面工作台跳过占位 SKU 图，继续生成 Excel', sku);
+      } else {
+        skuImageDataUrl = await convertSkuImageToJpeg(imageInfo.dataUrl);
+      }
+    } else {
+      addLog('warn', '桌面工作台未读取到 SKU 图，继续生成 Excel', sku);
     }
-    const skuImageDataUrl = await convertSkuImageToJpeg(imageInfo.dataUrl);
 
     setCell(sheet, 'A4', buildExcelKeyword(excelData, extra));
     setCell(sheet, 'B4', excelData.name || extra.chineseName || '');

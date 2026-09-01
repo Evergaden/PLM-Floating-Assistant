@@ -41,6 +41,7 @@ h2 { margin-bottom: 0; font-size: 17px; letter-spacing: -.02em; }
 .editor-card { padding: 24px; }
 .preview-card { padding: 20px; }
 .card-heading, .preview-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .card-heading + .field-grid { margin-top: 18px; }
 .ingredients-heading { margin-top: 28px; padding-top: 21px; border-top: 1px solid #edf0f5; }
 .row-limit, .a4-chip { color: #929caf; font-size: 10px; }
@@ -52,9 +53,9 @@ h2 { margin-bottom: 0; font-size: 17px; letter-spacing: -.02em; }
 .field input { width: 100%; height: 38px; padding: 0 11px; color: #2d3749; border: 1px solid var(--line); border-radius: 9px; outline: none; background: #fbfcfe; font-size: 13px; transition: border-color .15s ease, box-shadow .15s ease; }
 .field input:focus, .ingredient-row input:focus { border-color: #8d83ed; box-shadow: 0 0 0 3px rgba(101, 88, 217, .12); background: white; }
 
-.ingredient-table-head { display: grid; grid-template-columns: minmax(0, 1fr) 116px 106px 32px; gap: 8px; margin: 17px 0 7px; padding: 0 9px; color: #9aa4b5; font-size: 10px; font-weight: 800; }
+.ingredient-table-head { display: grid; grid-template-columns: minmax(0, 1fr) 116px 106px 86px 32px; gap: 8px; margin: 17px 0 7px; padding: 0 9px; color: #9aa4b5; font-size: 10px; font-weight: 800; }
 .ingredient-rows { display: grid; gap: 7px; }
-.ingredient-row { display: grid; grid-template-columns: minmax(0, 1fr) 116px 106px 32px; gap: 8px; align-items: center; }
+.ingredient-row { display: grid; grid-template-columns: minmax(0, 1fr) 116px 106px 86px 32px; gap: 8px; align-items: center; }
 .ingredient-row input { min-width: 0; width: 100%; height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; outline: none; color: #3a4558; background: #fbfcfe; font-size: 12px; }
 .ingredient-row input::placeholder { color: #b0b8c5; }
 .remove-row { width: 32px; height: 32px; padding: 0; color: #a5adba; border: 1px solid transparent; border-radius: 8px; background: transparent; font-size: 19px; line-height: 1; }
@@ -80,7 +81,7 @@ h2 { margin-bottom: 0; font-size: 17px; letter-spacing: -.02em; }
 .paper-wrap { position: relative; width: 595.25px; height: 841.85px; flex: 0 0 auto; }
 .paper { position: absolute; top: 0; left: 0; width: 595.25px; height: 841.85px; transform-origin: top left; background: #fff; box-shadow: 0 14px 32px rgba(38, 51, 77, .16); }
 .label-preview { position: absolute; overflow: hidden; color: #000; border: .6px solid #000; background: #fff; font-family: Arial, Helvetica, sans-serif; }
-.label-title, .label-serving, .label-header, .label-footer, .label-row { position: absolute; white-space: nowrap; }
+.label-title, .label-serving, .label-header, .label-footer, .label-row, .label-other { position: absolute; white-space: nowrap; }
 .label-title { left: 16.57px; top: 8.54px; font-size: 24.45px; font-weight: 700; line-height: 1; }
 .label-serving { left: 16.57px; font-size: 10.812px; line-height: 1; }
 .label-serving.one { top: 32.2px; }
@@ -93,6 +94,7 @@ h2 { margin-bottom: 0; font-size: 17px; letter-spacing: -.02em; }
 .label-row .name { min-width: 0; overflow: hidden; white-space: nowrap; }
 .label-row .amount, .label-row .daily-value { text-align: right; }
 .label-footer { left: 14.63px; top: 341.34px; font-size: 10.812px; line-height: 1; }
+.label-other { left: 14.63px; right: 14.63px; overflow: hidden; font-size: 8.6px; line-height: 1; }
 .preview-note { margin: 12px 4px 0; color: #929caf; font-size: 10px; line-height: 1.55; }
 
 @media (max-width: 1080px) {
@@ -105,8 +107,9 @@ h2 { margin-bottom: 0; font-size: 17px; letter-spacing: -.02em; }
   .editor-card, .preview-card { padding: 16px; border-radius: 15px; }
   .field-grid { grid-template-columns: 1fr; }
   .field-wide { grid-column: auto; }
-  .ingredient-table-head { grid-template-columns: minmax(0, 1fr) 95px 82px 28px; padding: 0 6px; font-size: 9px; }
-  .ingredient-row { grid-template-columns: minmax(0, 1fr) 95px 82px 28px; gap: 5px; }
+  .heading-actions { justify-content: flex-start; }
+  .ingredient-table-head { grid-template-columns: minmax(0, 1fr) 78px 70px 62px 28px; padding: 0 6px; font-size: 9px; }
+  .ingredient-row { grid-template-columns: minmax(0, 1fr) 78px 70px 62px 28px; gap: 5px; }
   .ingredient-row input { padding: 0 6px; font-size: 11px; }
   .form-footer { align-items: stretch; flex-direction: column; }
   .primary-button { width: 100%; }
